@@ -2,6 +2,7 @@ package tss
 
 import (
 	"fmt"
+	"sync"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/yossigi/tss-lib/v2/ecdsa/signing"
@@ -13,6 +14,80 @@ type logableError struct {
 	cause      error
 	trackingId []byte
 	round      signingRound
+}
+
+type set[T comparable] map[T]struct{}
+
+type strDigest string
+type strPartyId string
+
+// activeSigCounter is a helper struct to keep track of active signatures.
+// Each signature has a digest, and each guardian is allowed to be active
+// for a certain number of signatures.
+// a guardian is allowed to send how many messages it want per signature, but not allowed to
+// participate in more than maxActiveSignaturesPerGuardian signatures at a time.
+type activeSigCounter struct {
+	mtx sync.RWMutex
+
+	digestToGuardians map[strDigest]set[strPartyId]
+	guardianToDigests map[strPartyId]set[strDigest]
+}
+
+func newSigCounter() activeSigCounter {
+	return activeSigCounter{
+		mtx: sync.RWMutex{},
+
+		digestToGuardians: make(map[strDigest]set[strPartyId]),
+		guardianToDigests: make(map[strPartyId]set[strDigest]),
+	}
+}
+
+func idToString(id *tss.PartyID) strPartyId {
+	return strPartyId(fmt.Sprintf("%s%x", id.Id, id.Key))
+}
+
+// Add adds a guardian to the counter for a given digest.
+// returns false if this guardian is active for too many signatures ( > maxActiveSignaturesPerGuardian).
+func (c *activeSigCounter) add(d []byte, guardian *tss.PartyID, maxActiveSignaturesPerGuardian int) bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	if _, ok := c.digestToGuardians[strDigest(d)]; !ok {
+		c.digestToGuardians[strDigest(d)] = make(set[strPartyId])
+	}
+
+	strPartyId := idToString(guardian)
+
+	if _, ok := c.guardianToDigests[strPartyId]; !ok {
+		c.guardianToDigests[strPartyId] = make(set[strDigest])
+	}
+
+	// if already an active signature for this guardian, then it doesn't count as an additional signature
+	if _, ok := c.guardianToDigests[strPartyId][strDigest(d)]; ok {
+		return true
+	}
+
+	// the guardian hasn't yet participated in this signing for the digest, we must ensure an additional signature is allowed
+	if len(c.guardianToDigests[strPartyId])+1 > maxActiveSignaturesPerGuardian {
+		return false
+	}
+
+	c.digestToGuardians[strDigest(d)][strPartyId] = struct{}{}
+	c.guardianToDigests[strPartyId][strDigest(d)] = struct{}{}
+
+	return true
+}
+
+func (c *activeSigCounter) remove(d []byte) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	guardians := c.digestToGuardians[strDigest(d)]
+	delete(c.digestToGuardians, strDigest(d))
+
+	for g := range guardians {
+		delete(c.guardianToDigests[g], strDigest(d))
+	}
 }
 
 func (l logableError) Error() string {

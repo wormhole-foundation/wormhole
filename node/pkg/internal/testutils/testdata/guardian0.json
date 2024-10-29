@@ -1,4 +1,5 @@
 {
+  "MaxSimultaneousSignatures": 1000,
   "Self": {
     "id": "0",
     "moniker": "0",

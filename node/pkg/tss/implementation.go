@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type uuid digest // distinguishing between types to avoid confusion.
+
 // Engine is the implementation of reliableTSS, it is a wrapper for the
 // tss-lib fullParty and adds reliable broadcast logic
 // to the message sending and receiving.
@@ -38,8 +40,8 @@ type Engine struct {
 	fp       party.FullParty
 
 	fpOutChan      chan tss.Message
-	fpSigOutChan   chan *common.SignatureData
-	sigOutChan     chan *common.SignatureData
+	fpSigOutChan   chan *common.SignatureData // output inspected in fpListener.
+	sigOutChan     chan *common.SignatureData // actual sig output.
 	messageOutChan chan Sendable
 	fpErrChannel   chan *tss.Error // used to log issues from the FullParty.
 
@@ -48,7 +50,9 @@ type Engine struct {
 
 	// used to perform reliable broadcast:
 	mtx      *sync.Mutex
-	received map[digest]*broadcaststate
+	received map[uuid]*broadcaststate
+
+	sigCounter activeSigCounter
 }
 
 type PEM []byte
@@ -88,6 +92,8 @@ type GuardianStorage struct {
 	guardiansProtoIDs []*tsscommv1.PartyId
 	guardianToCert    map[string]*x509.Certificate
 	pemkeyToGuardian  map[string]*tss.PartyID
+
+	MaxSimultaneousSignatures int
 }
 
 func (g *GuardianStorage) contains(pid *tss.PartyID) bool {
@@ -216,7 +222,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 		return nil
 	}
 
-	if err == party.ErrNotInSigningCommittee {
+	if err == party.ErrNotInSigningCommittee { // no need to return error in this case.
 		return nil
 	}
 
@@ -226,6 +232,10 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
+	}
+
+	if storage.MaxSimultaneousSignatures < 0 {
+		storage.MaxSimultaneousSignatures = defaultMaxLiveSignatures
 	}
 
 	if storage.MaxSignerTTL == 0 {
@@ -253,18 +263,22 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		logger:          &zap.Logger{},
 		GuardianStorage: *storage,
 
-		fpParams:        fpParams,
-		fp:              fp,
-		fpOutChan:       make(chan tss.Message),
-		fpSigOutChan:    make(chan *common.SignatureData),
-		sigOutChan:      make(chan *common.SignatureData),
+		fpParams:  fpParams,
+		fp:        fp,
+		fpOutChan: make(chan tss.Message),
+		fpSigOutChan: make(chan *common.SignatureData, storage.MaxSimultaneousSignatures*
+			(numBroadcastsPerSignature+numUnicastsRounds*storage.Threshold)),
+		sigOutChan: make(chan *common.SignatureData, storage.MaxSimultaneousSignatures),
+
 		fpErrChannel:    make(chan *tss.Error),
 		messageOutChan:  make(chan Sendable),
 		msgSerialNumber: 0,
 		mtx:             &sync.Mutex{},
-		received:        map[digest]*broadcaststate{},
+		received:        map[uuid]*broadcaststate{},
 
 		started: atomic.Uint32{}, // default value is 0
+
+		sigCounter: newSigCounter(),
 	}
 
 	return t, nil
@@ -336,55 +350,14 @@ func (t *Engine) fpListener() {
 			cleanUpTicker.Stop()
 
 			return
-
 		case m := <-t.fpOutChan:
-			tssMsg, err := t.intoSendable(m)
-			if err == nil {
-				sentMsgCntr.Inc()
-
-				select {
-				case t.messageOutChan <- tssMsg:
-				case <-t.ctx.Done():
-				}
-
-				continue
-			}
-			// else log error:
-			lgErr := logableError{
-				fmt.Errorf("failed to convert tss message and send it to network: %w", err),
-				m.WireMsg().GetTrackingID(),
-				"",
-			}
-
-			// The following should always pass, since FullParty outputs a
-			// tss.ParsedMessage and a valid message with a specific round.
-			if parsed, ok := m.(tss.ParsedMessage); ok {
-				if rnd, e := getRound(parsed); e == nil {
-					lgErr.round = rnd
-				}
-			}
-
-			logErr(t.logger, lgErr)
+			t.handleFpOutput(m)
 
 		case err := <-t.fpErrChannel:
-			if err == nil {
-				continue // shouldn't happen. safety.
-			}
-
-			logErr(t.logger, &logableError{
-				fmt.Errorf("error in signing protocol: %w", err.Cause()),
-				err.TrackingId(),
-				intToRound(err.Round()),
-			})
+			t.handleFpError(err)
 
 		case sig := <-t.fpSigOutChan:
-			sigProducedCntr.Inc()
-			inProgressSigs.Dec()
-
-			select {
-			case t.sigOutChan <- sig:
-			case <-t.ctx.Done():
-			}
+			t.handleFpSignature(sig)
 
 		case <-cleanUpTicker.C:
 			t.cleanup(maxTTL)
@@ -392,7 +365,74 @@ func (t *Engine) fpListener() {
 	}
 }
 
+func (t *Engine) handleFpSignature(sig *common.SignatureData) {
+	if sig == nil {
+		return
+	}
+
+	sigProducedCntr.Inc()
+	inProgressSigs.Dec()
+
+	t.sigCounter.remove(sig.TrackingId)
+
+	select {
+	case <-t.ctx.Done():
+	case t.sigOutChan <- sig:
+	}
+}
+
+func (t *Engine) handleFpError(err *tss.Error) {
+	if err == nil {
+		return
+	}
+
+	trackid := err.TrackingId()
+
+	// if someone sent a message that caused an error -> we don't
+	// accept an override to that message, therefore, we can remove it, since it won't change.
+	t.sigCounter.remove(trackid)
+	inProgressSigs.Dec()
+
+	logErr(t.logger, &logableError{
+		fmt.Errorf("error in signing protocol: %w", err.Cause()),
+		trackid,
+		intToRound(err.Round()),
+	})
+}
+
+func (t *Engine) handleFpOutput(m tss.Message) {
+	tssMsg, err := t.intoSendable(m)
+	if err == nil {
+		sentMsgCntr.Inc()
+
+		select {
+		case t.messageOutChan <- tssMsg:
+		case <-t.ctx.Done():
+		}
+
+		return
+	}
+
+	// else log error:
+	lgErr := logableError{
+		fmt.Errorf("failed to convert tss message and send it to network: %w", err),
+		m.WireMsg().GetTrackingID(),
+		"",
+	}
+
+	// The following should always pass, since FullParty outputs a
+	// tss.ParsedMessage and a valid message with a specific round.
+	if parsed, ok := m.(tss.ParsedMessage); ok {
+		if rnd, e := getRound(parsed); e == nil {
+			lgErr.round = rnd
+		}
+	}
+
+	logErr(t.logger, lgErr)
+}
+
 func (t *Engine) cleanup(maxTTL time.Duration) {
+
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
@@ -401,6 +441,9 @@ func (t *Engine) cleanup(maxTTL time.Duration) {
 			// althoug delete doesn't reduce the size of the underlying map
 			// it is good enough since this map contains many entries, and it'll be wastefull to let a new map grow again.
 			delete(t.received, k)
+
+			// since the fullParty deleted its state, we can remove the sigCounter entry.
+			t.sigCounter.remove(v.trackingId)
 		}
 	}
 }
@@ -556,9 +599,9 @@ func (t *Engine) handleEcho(m Incoming) (bool, error) {
 		return shouldEcho, nil
 	}
 
-	deliveredMsgCntr.Inc()
+	deliveredMsgCntr.Inc() // only in Echo case.
 
-	if err := t.fp.Update(parsed); err != nil {
+	if err := t.feedIncomingToFp(parsed); err != nil {
 		return shouldEcho, logableError{
 			fmt.Errorf("failed to update the full party: %w", err),
 			parsed.WireMsg().GetTrackingID(),
@@ -567,6 +610,20 @@ func (t *Engine) handleEcho(m Incoming) (bool, error) {
 	}
 
 	return shouldEcho, nil
+}
+
+func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
+	trackId := parsed.WireMsg().TrackingID
+	from := parsed.GetFrom()
+	maxLiveSignatures := t.GuardianStorage.MaxSimultaneousSignatures
+
+	if ok := t.sigCounter.add(trackId, from, maxLiveSignatures); ok {
+		return t.fp.Update(parsed)
+	}
+
+	tooManySignersErrCntr.Inc()
+
+	return fmt.Errorf("guardian %v has reached the maximum number of simultaneous signatures", from.Id)
 }
 
 var errUnicastBadRound = fmt.Errorf("bad round for unicast (can accept round1Message1 and round2Message)")
@@ -617,7 +674,7 @@ func (t *Engine) handleUnicast(m Incoming) error {
 		}
 	}
 
-	if err := t.fp.Update(parsed); err != nil {
+	if err := t.feedIncomingToFp(parsed); err != nil {
 		return logableError{
 			fmt.Errorf("unicast failed to update the full party: %w", err),
 			parsed.WireMsg().GetTrackingID(),
@@ -689,7 +746,7 @@ func (t *Engine) parseEcho(m Incoming) (tss.ParsedMessage, error) {
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
 // this is used by the reliable broadcast to check no two messages from the same sender will be used to update the full party
 // in the same round for the specific session of the protocol.
-func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (digest, error) {
+func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (uuid, error) {
 	// The TackingID of a parsed message is tied to the run of the protocol for a single
 	//  signature, thus we use it as a sessionID.
 	messageTrackingID := [trackingIDSize]byte{}
@@ -705,7 +762,7 @@ func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (digest, error) {
 	// but, sender j is not allowed to send two different messages to the same round.
 	rnd, err := getRound(msg)
 	if err != nil {
-		return digest{}, err
+		return uuid{}, err
 	}
 
 	round := [signingRoundSize]byte{}
@@ -717,7 +774,7 @@ func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (digest, error) {
 	d = append(d, fromKey[:]...)
 	d = append(d, round[:]...)
 
-	return hash(d), nil
+	return uuid(hash(d)), nil
 }
 
 func (t *Engine) parseUnicast(m Incoming) (tss.ParsedMessage, error) {

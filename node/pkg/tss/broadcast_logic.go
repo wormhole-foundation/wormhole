@@ -18,6 +18,7 @@ type broadcaststate struct {
 	// The following three fields should not be changed after creation of broadcaststate:
 	timeReceived  time.Time
 	messageDigest digest
+	trackingId    []byte
 
 	votes map[voterId]bool
 	// if set to true: don't echo again, even if received from original sender.
@@ -103,15 +104,11 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 
 func (t *Engine) relbroadcastInspection(parsed tss.ParsedMessage, msg Incoming) (shouldEcho bool, shouldDeliver bool, err error) {
 	// No need to check input: it was already checked before reaching this point
-	uuid, err := t.getMessageUUID(parsed)
-	if err != nil {
-		return false, false, err
-	}
 
 	signed := msg.toEcho().Message
 	echoer := msg.GetSource()
 
-	state, err := t.fetchState(uuid, signed)
+	state, err := t.fetchState(parsed, signed)
 	if err != nil {
 		return false, false, err
 	}
@@ -131,10 +128,19 @@ func (t *Engine) relbroadcastInspection(parsed tss.ParsedMessage, msg Incoming) 
 	return allowedToBroadcast, false, nil
 }
 
-func (t *Engine) fetchState(d digest, signed *tsscommv1.SignedMessage) (*broadcaststate, error) {
+func (t *Engine) fetchState(parsed tss.ParsedMessage, signed *tsscommv1.SignedMessage) (*broadcaststate, error) {
+	uuid, err := t.getMessageUUID(parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	if parsed.WireMsg() == nil || parsed.WireMsg().TrackingID == nil {
+		return nil, fmt.Errorf("tracking id is nil")
+	}
+
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
-	state, ok := t.received[d]
+	state, ok := t.received[uuid]
 
 	if ok {
 		return state, nil
@@ -145,15 +151,18 @@ func (t *Engine) fetchState(d digest, signed *tsscommv1.SignedMessage) (*broadca
 	}
 
 	state = &broadcaststate{
-		timeReceived:     time.Now(),
-		messageDigest:    hashSignedMessage(signed),
+		timeReceived:  time.Now(),
+		messageDigest: hashSignedMessage(signed),
+
+		trackingId: parsed.WireMsg().TrackingID,
+
 		votes:            make(map[voterId]bool),
 		echoedAlready:    false,
 		alreadyDelivered: false,
 		mtx:              &sync.Mutex{},
 	}
 
-	t.received[d] = state
+	t.received[uuid] = state
 
 	return state, nil
 }
