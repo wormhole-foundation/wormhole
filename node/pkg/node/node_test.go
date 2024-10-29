@@ -887,14 +887,16 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int, inf
 }
 
 func pollApiAndInspectVaa(t *testing.T, ctx context.Context, msg *common.MessagePublication, testCase testCase, c publicrpcv1.PublicRPCServiceClient, gsAddrList []eth_common.Address, gs []*mockGuardian) {
+	ver := uint32(vaa.VaaVersion1)
+	if testCase.tssVaaVersionChecks {
+		ver = uint32(vaa.TSSVaaVersion)
+	}
+
 	msgId := &publicrpcv1.MessageID{
 		EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
 		EmitterAddress: msg.EmitterAddress.String(),
 		Sequence:       msg.Sequence,
-		Version:        uint32(vaa.VaaVersion1),
-	}
-	if testCase.tssVaaVersionChecks {
-		msgId.Version = uint32(vaa.TSSVaaVersion)
+		Version:        &ver,
 	}
 
 	r, err := waitForVaa(t, ctx, c, msgId, testCase.mustNotReachQuorum)

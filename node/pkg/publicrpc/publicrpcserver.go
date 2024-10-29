@@ -84,7 +84,12 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		return nil, status.Error(codes.InvalidArgument, "address must be 32 bytes")
 	}
 
-	if !vaa.SupportedVAAVersions[uint8(req.MessageId.Version)] {
+	ver := uint8(vaa.VaaVersion1)
+	if req.MessageId.Version != nil {
+		ver = uint8(*req.MessageId.Version)
+	}
+
+	if !vaa.SupportedVAAVersions[ver] {
 		return nil, status.Error(codes.InvalidArgument, "unsupported VAA version")
 	}
 
@@ -95,7 +100,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		EmitterChain:   chainID,
 		EmitterAddress: addr,
 		Sequence:       req.MessageId.Sequence,
-		Version:        req.MessageId.Version,
+		Version:        &ver,
 	})
 
 	if err != nil {
