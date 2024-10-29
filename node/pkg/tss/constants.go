@@ -14,5 +14,10 @@ const (
 	trackingIDSize   = 32
 	signingRoundSize = 8
 
+	defaultMaxLiveSignatures = 1000
+
 	defaultMaxSignerTTL = time.Minute * 5
+
+	numBroadcastsPerSignature = 8 // GG18
+	numUnicastsRounds         = 2 // GG18
 )

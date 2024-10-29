@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	tsscommon "github.com/yossigi/tss-lib/v2/common"
 	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/ecdsa/signing"
 	"github.com/yossigi/tss-lib/v2/tss"
@@ -249,7 +250,7 @@ func TestEquivocation(t *testing.T) {
 			equvicatingEchoerMessage := parsedIntoEcho(a, e2, parsed1)
 			equvicatingEchoerMessage.Content.GetEcho().Message.Content.Payload[0] += 1
 			// now echoer is equivicating (change content, but of some seen message):
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, equvicatingEchoerMessage)
+			_, _, err = e1.relbroadcastInspection(parsed1, equvicatingEchoerMessage)
 			a.ErrorContains(err, e2.Self.Id)
 		}
 	})
@@ -300,7 +301,7 @@ func TestBadInputs(t *testing.T) {
 	engines := load5GuardiansSetupForBroadcastChecks(a)
 	e1, e2 := engines[0], engines[1]
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
 	defer cancel()
 	ctx = testutils.MakeSupervisorContext(ctx)
 	e1.Start(ctx) // so it has a logger.
@@ -490,19 +491,19 @@ func TestCleanup(t *testing.T) {
 	engines := load5GuardiansSetupForBroadcastChecks(a)
 	e1 := engines[0]
 
-	e1.received[digest{1}] = &broadcaststate{
-		timeReceived: time.Now().Add(time.Minute * 10 * (-1)), // -10 minutes from now.
+	e1.received[uuid{1}] = &broadcaststate{
+		timeReceived: time.Now().Add(time.Minute * 10 * (-1)),
 	}
-	e1.received[digest{2}] = &broadcaststate{
+	e1.received[uuid{2}] = &broadcaststate{
 		timeReceived: time.Now(),
 	}
 
 	e1.cleanup(time.Minute * 5) // if more than 5 minutes passed -> delete
 	a.Len(e1.received, 1)
-	_, ok := e1.received[digest{1}]
+	_, ok := e1.received[uuid{1}]
 	a.False(ok)
 
-	_, ok = e1.received[digest{2}]
+	_, ok = e1.received[uuid{2}]
 	a.True(ok)
 }
 
@@ -549,12 +550,14 @@ func TestE2E(t *testing.T) {
 	// all will attempt to sign a single message, while outputing messages to each other,
 	// and reliably broadcasting them.
 
+	inProgressSigs.Set(0) // reseting the gauge.
+
 	a := assert.New(t)
 	engines := loadGuardians(a)
 
 	dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
 	defer cancel()
 	ctx = testutils.MakeSupervisorContext(ctx)
 
@@ -857,4 +860,166 @@ func broadcast(chns map[string]chan msgg, engine *Engine, m Sendable) {
 			Sendable: m.cloneSelf(),
 		}
 	}
+}
+
+func TestSigCounter(t *testing.T) {
+	a := assert.New(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+	defer cancel()
+
+	ctx = testutils.MakeSupervisorContext(ctx)
+
+	t.Run("MaxCountBlockAdditionalUpdates", func(t *testing.T) {
+		// Tests might fail due to change of the GuardianStorage files
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+		e1 := engines[0]
+
+		e1.MaxSimultaneousSignatures = 1
+
+		e1.Start(ctx)
+
+		d := digest{}
+		copy(d[:], "1"+t.Name())
+
+		msg := beginSigningAndGrabMessage(e1, d)
+
+		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
+			Source:  partyIdToProto(e1.Self),
+			Content: msg.GetNetworkMessage(),
+		}))
+
+		// trying to handle a new message for a different signature.
+		copy(d[:], "2"+t.Name())
+		msg = beginSigningAndGrabMessage(e1, d)
+
+		a.ErrorContains(e1.handleIncomingTssMessage(&IncomingMessage{
+			Source:  partyIdToProto(e1.Self),
+			Content: msg.GetNetworkMessage(),
+		}), "reached the maximum number of simultaneous signatures")
+	})
+
+	t.Run("ErrorReduceCount", func(t *testing.T) {
+		// Tests might fail due to change of the GuardianStorage files
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+		e1 := engines[0]
+
+		e1.MaxSimultaneousSignatures = 1
+
+		e1.Start(ctx)
+
+		d := digest{}
+		copy(d[:], "1"+t.Name())
+		msg := beginSigningAndGrabMessage(e1, d)
+
+		incoming := &IncomingMessage{
+			Source:  partyIdToProto(e1.Self),
+			Content: msg.GetNetworkMessage(),
+		}
+
+		a.NoError(e1.handleIncomingTssMessage(incoming))
+
+		parsed, err := e1.parseUnicast(incoming)
+		a.NoError(err)
+
+		// test:
+		a.Len(e1.sigCounter.digestToGuardians, 1)
+		select {
+		case e1.fpErrChannel <- tss.NewTrackableError(fmt.Errorf("dummyerr"), "de", -1, e1.Self, parsed.WireMsg().TrackingID):
+		case <-time.After(time.Second * 1):
+			t.FailNow()
+			return
+		}
+
+		time.Sleep(time.Millisecond * 500)
+
+		a.Len(e1.sigCounter.digestToGuardians, 0)
+	})
+
+	t.Run("sigDoneReduceCount", func(t *testing.T) {
+		// Tests might fail due to change of the GuardianStorage files
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+		e1 := engines[0]
+
+		e1.MaxSimultaneousSignatures = 1
+
+		e1.Start(ctx)
+
+		d := digest{}
+		copy(d[:], "1"+t.Name())
+		msg := beginSigningAndGrabMessage(e1, d)
+
+		incoming := &IncomingMessage{
+			Source:  partyIdToProto(e1.Self),
+			Content: msg.GetNetworkMessage(),
+		}
+
+		a.NoError(e1.handleIncomingTssMessage(incoming))
+
+		parsed, err := e1.parseUnicast(incoming)
+		a.NoError(err)
+
+		// test:
+		a.Len(e1.sigCounter.digestToGuardians, 1)
+		e1.fpSigOutChan <- &tsscommon.SignatureData{
+			Signature:         []byte{},
+			SignatureRecovery: []byte{},
+			R:                 []byte{},
+			S:                 []byte{},
+			M:                 []byte{},
+			TrackingId:        parsed.WireMsg().TrackingID,
+		}
+		time.Sleep(time.Millisecond * 500)
+		a.Len(e1.sigCounter.digestToGuardians, 0)
+	})
+
+	t.Run("CanHaveSimulSigners", func(t *testing.T) {
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+		e1 := engines[0]
+		e1.MaxSimultaneousSignatures = 2
+
+		e1.Start(ctx)
+
+		d := digest{}
+		copy(d[:], "1"+t.Name())
+		msg := beginSigningAndGrabMessage(e1, d)
+
+		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
+			Source:  partyIdToProto(e1.Self),
+			Content: msg.GetNetworkMessage(),
+		}))
+
+		copy(d[:], "2"+t.Name())
+		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
+			Source:  partyIdToProto(e1.Self),
+			Content: beginSigningAndGrabMessage(e1, d).GetNetworkMessage(),
+		}))
+
+	})
+}
+
+func beginSigningAndGrabMessage(e1 *Engine, d digest) Sendable {
+	go e1.BeginAsyncThresholdSigningProtocol(d[:])
+
+	var msg Sendable
+	for i := 0; i < round1NumberOfMessages(e1); i++ { // cleaning the channel, and taking one of the messages.
+		select {
+		case tmp := <-e1.ProducedOutputMessages():
+			if !tmp.IsBroadcast() {
+				msg = tmp
+			}
+
+		case <-time.After(time.Second * 2):
+			// This means the signer wasn't one of the signing committees. (did the Guardian storage change?)
+			// if it did, just make sure this engine is expected to sign, else use the right engine in the test.
+			panic("timeout!")
+		}
+	}
+	return msg
+}
+
+func round1NumberOfMessages(e1 *Engine) int {
+	// although threshold is non-inclusive, we only send e1.Threshold since one doesn't includes itself in the unicasts.
+	// the +1 is for the additional broadcast message.
+	return e1.Threshold + 1
 }
