@@ -59,9 +59,7 @@ func TestMarshalSignedObservationBatch(t *testing.T) {
 
 	obsBuf, err := proto.Marshal(observations[0])
 	require.NoError(t, err)
-	// TODO: the correct length is 205, but since I added the sigVersion to every MessageId it's now 207. there is an ongoin branch attempting to fix this.
-	// once fixed, this test should fail. and expexct 205.
-	assert.Equal(t, 207, len(obsBuf))
+	assert.Equal(t, 205, len(obsBuf))
 
 	batch := gossipv1.SignedObservationBatch{
 		Addr:         crypto.PubkeyToAddress(gk.PublicKey).Bytes(),

@@ -26,14 +26,29 @@ type VAAID struct {
 	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	Sequence       uint64
-	Version        uint32
+	Version        *uint8
 }
 
-// VaaIDFromString parses a <chain>/<address>/<sequence> string into a VAAID.
+// VaaIDFromString parses a <chain>/<address>/<sequence>[/<version number>] string into a VAAID.
+// [/version number] is optional and defaults to vaa.VaaVersion1 (1).
 func VaaIDFromString(s string) (*VAAID, error) {
 	parts := strings.Split(s, "/")
-	if len(parts) != 3 {
+	if len(parts) != 3 && len(parts) != 4 {
 		return nil, errors.New("invalid message id")
+	}
+
+	vaaVersion := uint8(vaa.VaaVersion1)
+	if len(parts) == 4 {
+		v, err := strconv.ParseUint(parts[3], 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("invalid vaa version: %w", err)
+		}
+
+		vaaVersion = uint8(v)
+
+		if !vaa.SupportedVAAVersions[vaaVersion] {
+			return nil, fmt.Errorf("unsupported vaa version: %d", vaaVersion)
+		}
 	}
 
 	emitterChain, err := strconv.ParseUint(parts[0], 10, 16)
@@ -55,17 +70,19 @@ func VaaIDFromString(s string) (*VAAID, error) {
 		EmitterChain:   vaa.ChainID(emitterChain),
 		EmitterAddress: emitterAddress,
 		Sequence:       sequence,
+		Version:        &vaaVersion,
 	}
 
 	return msgId, nil
 }
 
 func VaaIDFromVAA(v *vaa.VAA) *VAAID {
+	ver := v.Version
 	return &VAAID{
 		EmitterChain:   v.EmitterChain,
 		EmitterAddress: v.EmitterAddress,
 		Sequence:       v.Sequence,
-		Version:        uint32(v.Version),
+		Version:        &ver,
 	}
 }
 
@@ -75,14 +92,23 @@ var (
 )
 
 func (i *VAAID) Bytes() []byte {
-	tmp := []byte(fmt.Sprintf("signed/%d/%s/%d/%d", i.EmitterChain, i.EmitterAddress, i.Sequence, i.Version))
+	tmp := []byte(fmt.Sprintf("signed/%d/%s/%d", i.EmitterChain, i.EmitterAddress, i.Sequence))
+	if i.stringRepHasVaaVersion() {
+		tmp = append(tmp, fmt.Sprintf("/%d", *i.Version)...)
+	}
+
 	return tmp
+}
+
+func (i *VAAID) stringRepHasVaaVersion() bool {
+	return vaa.VersionHasStringRepresentation(i.Version)
 }
 
 func (i *VAAID) EmitterPrefixBytes() []byte {
 	if i.EmitterAddress == nullAddr {
 		return []byte(fmt.Sprintf("signed/%d", i.EmitterChain))
 	}
+
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
 }
 

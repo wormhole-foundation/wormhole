@@ -570,7 +570,7 @@ const (
 	minHeadlessVAALength = 51 // HEADER
 	minVAALength         = 57 // HEADER + BODY
 
-	// VaaVersion1 depicts a VAA generated with multi-signatures, where each
+	// MultiSigVaaVersion depicts a VAA generated with multi-signatures, where each
 	// guardian adds its signature. A valid VAA should have quorumSize
 	// signatures from its guardians.
 	VaaVersion1 = 0x01
@@ -884,9 +884,23 @@ func (v *VAA) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func VersionHasStringRepresentation(ver *uint8) bool {
+	// MultiSigVAA didn't add version to the ID (backward compatibility).
+	return ver != nil && *ver == TSSVaaVersion
+}
+
+func (v *VAA) VersionHasStringRepresentation() bool {
+	return VersionHasStringRepresentation(&v.Version)
+}
+
 // MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
 func (v *VAA) MessageID() string {
-	return fmt.Sprintf("%d/%s/%d/%d", v.EmitterChain, v.EmitterAddress, v.Sequence, v.Version)
+	tmp := fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
+	if v.VersionHasStringRepresentation() {
+		tmp = fmt.Sprintf("v%s/%d", tmp, v.Version)
+	}
+
+	return tmp
 }
 
 // UniqueID normalizes the ID of the VAA (any type) for the Attestation interface
