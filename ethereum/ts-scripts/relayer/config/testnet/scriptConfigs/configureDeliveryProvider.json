@@ -96,43 +96,43 @@
   "maximumBudgets": [
     {
       "chainId": 4,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 6,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 10,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 14,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 16,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 10002,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 10003,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 10004,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 10005,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     },
     {
       "chainId": 10008,
-      "updateMaximumBudget": "10000000000000000"
+      "updateMaximumBudget": "2000000000000000000"
     }
   ],
   "conversionBuffers": [
