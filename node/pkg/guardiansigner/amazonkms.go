@@ -113,19 +113,8 @@ func (a *AmazonKms) PublicKey() ecdsa.PublicKey {
 		KeyId: aws.String(a.KeyId),
 	})
 
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error getting public key: %w", err)
-	// }
-
 	var asn1Pubkey asn1EcPublicKey
 	_, _ = asn1.Unmarshal(pubKeyOutput.PublicKey, &asn1Pubkey)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error during unmarshalling: %w", err)
-	// }
-
-	// if len(asn1Pubkey.PublicKey.Bytes) != 65 {
-	// 	return nil, fmt.Errorf("wut %w", err)
-	// }
 
 	ecdsaPubkey := ecdsa.PublicKey{
 		X: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1 : 1+32]),
@@ -149,14 +138,6 @@ func (a *AmazonKms) Verify(sig []byte, hash []byte) (bool, error) {
 //  7. one byte to encode the length of the following s value
 //  8. the s value as a big-endian integer
 func derSignatureToRS(signature []byte) (rBytes []byte, sBytes []byte) {
-	// // read r-length, followed by r
-	// rLen := uint(signature[3])
-	// rBytes = signature[4 : 4+rLen]
-
-	// // read s-length, followed by s
-	// sLen := uint(signature[4+rLen+1])
-	// sBytes = signature[4+rLen+2 : 4+rLen+2+sLen]
-
 	var sigAsn1 asn1EcSig
 	_, err := asn1.Unmarshal(signature, &sigAsn1)
 
