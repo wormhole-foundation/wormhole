@@ -22,6 +22,8 @@ func TestParseSignerUri(t *testing.T) {
 		{label: "FileUriNoSchemeSeparator", path: "filewhatever", expectedType: InvalidSignerType},
 		{label: "FileUriMultipleSchemeSeparators", path: "file://testing://this://", expectedType: FileSignerType},
 		{label: "FileUriTraversal", path: "file://../../../file", expectedType: FileSignerType},
+		// Amazon KMS
+		{label: "AmazonKmsURI", path: "amazonkms://some-arn", expectedType: AmazonKmsSignerType},
 	}
 
 	for _, testcase := range tests {
