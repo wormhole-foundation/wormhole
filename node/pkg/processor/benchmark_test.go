@@ -44,7 +44,7 @@ func BenchmarkHandleObservation(b *testing.B) {
 	ctx := context.Background()
 	db := db.OpenDb(nil, nil)
 	defer db.Close()
-	p, pd := createProcessorForTest(b, NumObservations, ctx, db, false)
+	p, pd := createProcessorForTest(b, NumObservations, ctx, db)
 	require.NotNil(b, p)
 	require.NotNil(b, pd)
 
@@ -102,7 +102,7 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 	ctx := context.Background()
 	db := db.OpenDb(nil, nil)
 	defer db.Close()
-	p, pd := createProcessorForTest(b, NumObservations, ctx, db, false)
+	p, pd := createProcessorForTest(b, NumObservations, ctx, db)
 	require.NotNil(b, p)
 	require.NotNil(b, pd)
 
@@ -131,7 +131,7 @@ func (pd *ProcessorData) messageID(seqNum uint64) string {
 }
 
 // createProcessorForTest creates a processor for benchmarking. It assumes we are index zero in the guardian set.
-func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *db.Database, useBatching bool) (*Processor, *ProcessorData) {
+func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *db.Database) (*Processor, *ProcessorData) {
 	b.Helper()
 	logger := zap.NewNop()
 
@@ -184,8 +184,6 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 		updatedVAAs:            make(map[string]*updateVaaEntry),
 		gatewayRelayer:         gwRelayer,
 	}
-
-	batchCutoverCompleteFlag.Store(useBatching)
 
 	go func() { _ = p.vaaWriter(ctx) }()
 	go func() { _ = p.batchProcessor(ctx) }()
