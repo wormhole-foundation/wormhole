@@ -1,11 +1,15 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v4/ibc"
+	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -44,4 +48,15 @@ func FindEventAttribute(t *testing.T, chain *cosmos.CosmosChain, txHash string, 
 	}
 	fmt.Println("Not found: ", eventType, " ", attributeKey, " ", attributeValue, "!")
 	return false
+}
+
+// FindChannelByVersion queries all the channels of a given chain and returns the first with the given version. If no channel is found, it will fail the test.
+func FindChannelByVersion(t *testing.T, ctx context.Context, eRep *testreporter.RelayerExecReporter, r ibc.Relayer, chainId string, version string) ibc.ChannelOutput {
+	channels, err := r.GetChannels(ctx, eRep, chainId)
+	require.NoError(t, err)
+
+	channelIdx := slices.IndexFunc(channels, func(channel ibc.ChannelOutput) bool { return channel.Version == version })
+	require.NotEqual(t, -1, channelIdx, "channel with version %s not found", version)
+
+	return channels[channelIdx]
 }

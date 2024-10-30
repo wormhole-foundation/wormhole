@@ -141,9 +141,9 @@ fn post_message_ibc(
     info: MessageInfo,
     msg: WormholeExecuteMsg,
 ) -> anyhow::Result<Response> {
-    let channel_id = WORMCHAIN_CHANNEL_ID
-        .load(deps.storage)
-        .context("failed to load whitelisted wormchain channel id")?;
+    // let channel_id = WORMCHAIN_CHANNEL_ID
+    //     .load(deps.storage)
+    //     .context("failed to load whitelisted wormchain channel id")?;
 
     // compute the packet timeout
     let packet_timeout = env.block.time.plus_seconds(PACKET_LIFETIME).into();
