@@ -266,13 +266,6 @@ func NewProcessor(
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	// Evaluate the batch cutover time. If it has passed, then the flag will be set to make us publish observation batches.
-	// If not, a routine will be started to wait for that time before starting to publish batches.
-	cutoverErr := evaluateBatchCutover(p.logger, p.networkID)
-	if cutoverErr != nil {
-		panic(cutoverErr)
-	}
-
 	if err := supervisor.Run(ctx, "vaaWriter", common.WrapWithScissors(p.vaaWriter, "vaaWriter")); err != nil {
 		return fmt.Errorf("failed to start vaa writer: %w", err)
 	}
@@ -474,8 +467,5 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 
 // GetFeatures returns the processor feature string that can be published in heartbeat messages.
 func GetFeatures() string {
-	if batchCutoverComplete() {
-		return "processor:batching"
-	}
 	return ""
 }

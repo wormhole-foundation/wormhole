@@ -47,36 +47,14 @@ func (p *Processor) broadcastSignature(
 		MessageId: messageID,
 	}
 
-	if batchCutoverComplete() {
-		if shouldPublishImmediately {
-			msg = p.publishImmediately(ourObs)
-			observationsBroadcast.Inc()
-		} else {
-			p.postObservationToBatch(ourObs)
-			batchObservationsBroadcast.Inc()
-		}
-	} else {
-		// Post the observation in its own gossip message.
-		obsv := gossipv1.SignedObservation{
-			Addr:      p.ourAddr.Bytes(),
-			Hash:      digest.Bytes(),
-			Signature: signature,
-			TxHash:    txhash,
-			MessageId: messageID,
-		}
-
-		w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
-
-		var err error
-		msg, err = proto.Marshal(&w)
-		if err != nil {
-			panic(err)
-		}
-
-		// Broadcast the observation.
-		p.gossipAttestationSendC <- msg
+	if shouldPublishImmediately {
+		msg = p.publishImmediately(ourObs)
 		observationsBroadcast.Inc()
+	} else {
+		p.postObservationToBatch(ourObs)
+		batchObservationsBroadcast.Inc()
 	}
+
 	return ourObs, msg
 }
 
