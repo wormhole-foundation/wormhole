@@ -36,7 +36,6 @@ func GetQueryCmd() *cobra.Command {
 		RunE:                       indexRunCmd,
 	}
 
-	cmd.Short = fmt.Sprintf("Querying commands for the %s module", types.ModuleName)
 	cmd.AddCommand(
 		GetCmdWasmSender(),
 	)

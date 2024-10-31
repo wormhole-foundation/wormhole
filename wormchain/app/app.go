@@ -603,11 +603,7 @@ func New(
 		app.BankKeeper,
 		app.StakingKeeper,
 		distrkeeper.NewQuerier(app.DistrKeeper),
-
-		// app.PacketForwardKeeper, // TODO: MAY BE WRONG
-		// app.HooksICS4Wrapper,
 		app.IBCKeeper.ChannelKeeper,
-
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		app.scopedWasmKeeper,
@@ -615,7 +611,7 @@ func New(
 		app.MsgServiceRouter(),
 		app.GRPCQueryRouter(),
 		wasmDir,
-		wasmConfig, // possible to cause errors
+		wasmConfig,
 		supportedFeatures,
 		govModAddress,
 		GetWasmOpts(app, appOpts)...,
