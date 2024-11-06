@@ -2,7 +2,6 @@ package evm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -136,10 +135,6 @@ type (
 		ccqBatchSize       int64
 		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
-
-		// These parameters are currently only used for Linea and should be set via SetLineaParams()
-		lineaRollUpUrl      string
-		lineaRollUpContract string
 	}
 
 	pendingKey struct {
@@ -245,19 +240,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDLinea {
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewLineaConnector(ctx, logger, baseConnector, w.lineaRollUpUrl, w.lineaRollUpContract)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to create Linea poller: %w", err)
 		}
 	} else {
 		// Everything else is instant finality.
@@ -556,6 +538,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.Stringer("txHash", pLock.message.TxHash),
 								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
@@ -573,6 +556,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.Stringer("txHash", pLock.message.TxHash),
 								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
@@ -602,6 +586,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 									zap.String("msgId", pLock.message.MessageIDString()),
 									zap.Stringer("txHash", pLock.message.TxHash),
 									zap.Stringer("blockHash", key.BlockHash),
+									zap.Uint64("target_blockNum", pLock.height),
 									zap.Stringer("current_blockNum", ev.Number),
 									zap.Stringer("finality", ev.Finality),
 									zap.Stringer("current_blockHash", currentHash),
@@ -618,6 +603,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.Stringer("txHash", pLock.message.TxHash),
 								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
@@ -631,6 +617,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("msgId", pLock.message.MessageIDString()),
 							zap.Stringer("txHash", pLock.message.TxHash),
 							zap.Stringer("blockHash", key.BlockHash),
+							zap.Uint64("target_blockNum", pLock.height),
 							zap.Stringer("current_blockNum", ev.Number),
 							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockHash", currentHash),
@@ -735,18 +722,20 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDHolesky ||
 		w.chainID == vaa.ChainIDKarura ||
 		w.chainID == vaa.ChainIDMantle ||
+		w.chainID == vaa.ChainIDMonadDevnet ||
 		w.chainID == vaa.ChainIDMoonbeam ||
 		w.chainID == vaa.ChainIDOptimism ||
 		w.chainID == vaa.ChainIDOptimismSepolia ||
 		w.chainID == vaa.ChainIDSepolia ||
 		w.chainID == vaa.ChainIDSnaxchain ||
+		w.chainID == vaa.ChainIDUnichain ||
+		w.chainID == vaa.ChainIDWorldchain ||
 		w.chainID == vaa.ChainIDXLayer {
 		finalized = true
 		safe = true
 
 		// The following chains have their own specialized finalizers.
-	} else if w.chainID == vaa.ChainIDCelo ||
-		w.chainID == vaa.ChainIDLinea {
+	} else if w.chainID == vaa.ChainIDCelo {
 		return false, false, nil
 
 		// Polygon now supports polling for finalized but not safe.
@@ -757,6 +746,10 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 
 		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
 	} else if w.chainID == vaa.ChainIDScroll {
+		finalized = true
+
+		// As of 9/06/2024 Linea supports polling for finalized but not safe.
+	} else if w.chainID == vaa.ChainIDLinea {
 		finalized = true
 
 		// The following chains support instant finality.
@@ -982,23 +975,4 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
 func msgIdFromLogEvent(chainID vaa.ChainID, ev *ethabi.AbiLogMessagePublished) string {
 	return fmt.Sprintf("%v/%v/%v", uint16(chainID), PadAddress(ev.Sender), ev.Sequence)
-}
-
-// SetLineaParams is used to enable polling on Linea using the roll up contract on Ethereum.
-func (w *Watcher) SetLineaParams(lineaRollUpUrl string, lineaRollUpContract string) error {
-	if w.chainID != vaa.ChainIDLinea {
-		return errors.New("function only allowed for Linea")
-	}
-	if w.unsafeDevMode && lineaRollUpUrl == "" && lineaRollUpContract == "" {
-		return nil
-	}
-	if lineaRollUpUrl == "" {
-		return fmt.Errorf("lineaRollUpUrl must be set")
-	}
-	if lineaRollUpContract == "" {
-		return fmt.Errorf("lineaRollUpContract must be set")
-	}
-	w.lineaRollUpUrl = lineaRollUpUrl
-	w.lineaRollUpContract = lineaRollUpContract
-	return nil
 }

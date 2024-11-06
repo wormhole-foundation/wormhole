@@ -611,6 +611,7 @@ dependencies = [
 name = "cw20-wrapped-2"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2 0.13.4",
@@ -1244,6 +1245,7 @@ dependencies = [
 name = "mock-bridge-integration-2"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cosmwasm-vm",
@@ -1976,6 +1978,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 name = "token-bridge-cosmwasm"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
@@ -2597,8 +2600,11 @@ dependencies = [
  "anyhow",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-multi-test",
  "cw-storage-plus 0.13.4",
  "semver",
+ "serde",
+ "serde-json-wasm 0.4.1",
  "serde_wormhole",
  "thiserror",
  "wormhole-bindings",
@@ -2624,6 +2630,7 @@ dependencies = [
 name = "wormhole-cosmwasm"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "generic-array",

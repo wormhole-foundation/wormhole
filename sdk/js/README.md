@@ -1,6 +1,9 @@
-# Wormhole SDK
+# Wormhole Legacy SDK (Deprecated)
 
-> Note: This is a pre-alpha release and in active development. Function names and signatures are subject to change.
+> [!CAUTION]
+> **This SDK is Deprecated and Unsupported**
+>
+> Please use the new Wormhole TypeScript SDK instead: [`@wormhole-foundation/sdk`](https://github.com/wormhole-foundation/wormhole-sdk-ts)
 
 ## What is Wormhole?
 

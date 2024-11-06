@@ -109,6 +109,8 @@ Metaplex
 mindshare
 mlock
 moby
+monad
+Monad
 moonscan
 moretags
 Neodyme
@@ -185,6 +187,8 @@ unbond
 Uncompromised
 undercollateralization
 unforgeable
+unichain
+Unichain
 unnormalize
 untampered
 utest
@@ -197,6 +201,8 @@ vphash
 wasmhooks
 wasms
 WORKDIR
+worldchain
+WorldChain
 wormchain
 Wormchain
 wormchaind

@@ -66,6 +66,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "linea", output: ChainIDLinea},
 		{input: "berachain", output: ChainIDBerachain},
 		{input: "snaxchain", output: ChainIDSnaxchain},
+		{input: "unichain", output: ChainIDUnichain},
+		{input: "worldchain", output: ChainIDWorldchain},
 		{input: "seievm", output: ChainIDSeiEVM},
 		{input: "wormchain", output: ChainIDWormchain},
 		{input: "cosmoshub", output: ChainIDCosmoshub},
@@ -83,6 +85,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "optimism_sepolia", output: ChainIDOptimismSepolia},
 		{input: "holesky", output: ChainIDHolesky},
 		{input: "polygon_sepolia", output: ChainIDPolygonSepolia},
+		{input: "monad_devnet", output: ChainIDMonadDevnet},
 
 		{input: "Solana", output: ChainIDSolana},
 		{input: "Ethereum", output: ChainIDEthereum},
@@ -121,6 +124,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Linea", output: ChainIDLinea},
 		{input: "Berachain", output: ChainIDBerachain},
 		{input: "Snaxchain", output: ChainIDSnaxchain},
+		{input: "Unichain", output: ChainIDUnichain},
+		{input: "Worldchain", output: ChainIDWorldchain},
 		{input: "SeiEVM", output: ChainIDSeiEVM},
 		{input: "Wormchain", output: ChainIDWormchain},
 		{input: "Cosmoshub", output: ChainIDCosmoshub},
@@ -138,6 +143,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Optimism_Sepolia", output: ChainIDOptimismSepolia},
 		{input: "Holesky", output: ChainIDHolesky},
 		{input: "Polygon_Sepolia", output: ChainIDPolygonSepolia},
+		{input: "Monad_Devnet", output: ChainIDMonadDevnet},
 	}
 
 	// Negative Test Cases
@@ -317,6 +323,8 @@ func TestChainId_String(t *testing.T) {
 		{input: 39, output: "berachain"},
 		{input: 40, output: "seievm"},
 		{input: 43, output: "snaxchain"},
+		{input: 44, output: "unichain"},
+		{input: 45, output: "worldchain"},
 		{input: 3104, output: "wormchain"},
 		{input: 4000, output: "cosmoshub"},
 		{input: 4001, output: "evmos"},
@@ -331,6 +339,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 10005, output: "optimism_sepolia"},
 		{input: 10006, output: "holesky"},
 		{input: 10007, output: "polygon_sepolia"},
+		{input: 10008, output: "monad_devnet"},
 		{input: 10000, output: "unknown chain ID: 10000"},
 	}
 

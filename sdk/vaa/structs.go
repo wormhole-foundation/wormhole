@@ -211,6 +211,10 @@ func (c ChainID) String() string {
 		return "seievm"
 	case ChainIDSnaxchain:
 		return "snaxchain"
+	case ChainIDUnichain:
+		return "unichain"
+	case ChainIDWorldchain:
+		return "worldchain"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
@@ -241,6 +245,8 @@ func (c ChainID) String() string {
 		return "holesky"
 	case ChainIDPolygonSepolia:
 		return "polygon_sepolia"
+	case ChainIDMonadDevnet:
+		return "monad_devnet"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -326,6 +332,10 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBerachain, nil
 	case "snaxchain":
 		return ChainIDSnaxchain, nil
+	case "unichain":
+		return ChainIDUnichain, nil
+	case "worldchain":
+		return ChainIDWorldchain, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
 	case "seievm":
@@ -358,6 +368,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDHolesky, nil
 	case "polygon_sepolia":
 		return ChainIDPolygonSepolia, nil
+	case "monad_devnet":
+		return ChainIDMonadDevnet, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -402,6 +414,8 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDLinea,
 		ChainIDBerachain,
 		ChainIDSnaxchain,
+		ChainIDUnichain,
+		ChainIDWorldchain,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -418,6 +432,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimismSepolia,
 		ChainIDHolesky,
 		ChainIDPolygonSepolia,
+		ChainIDMonadDevnet,
 	}
 }
 
@@ -500,6 +515,10 @@ const (
 	ChainIDSeiEVM ChainID = 40
 	// ChainIDSnaxchain is the ChainID of Snaxchain
 	ChainIDSnaxchain ChainID = 43
+	// ChainIDUnichain is the ChainID of Unichain
+	ChainIDUnichain ChainID = 44
+	// ChainIDWorldchain is the ChainID of Worldchain
+	ChainIDWorldchain ChainID = 45
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
@@ -532,6 +551,8 @@ const (
 	ChainIDHolesky ChainID = 10006
 	// ChainIDPolygonSepolia is the ChainID of Polygon on Sepolia
 	ChainIDPolygonSepolia ChainID = 10007
+	// ChainIDMonadDevnet is the ChainID of Monad Devnet
+	ChainIDMonadDevnet ChainID = 10008
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

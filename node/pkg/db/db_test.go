@@ -14,6 +14,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 
 	"testing"
 	"time"
@@ -88,10 +89,7 @@ func TestEmitterPrefixBytesWithOnlyChainID(t *testing.T) {
 
 func TestStoreSignedVAAUnsigned(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -103,10 +101,7 @@ func TestStoreSignedVAAUnsigned(t *testing.T) {
 
 func TestStoreSignedVAASigned(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -121,10 +116,7 @@ func TestStoreSignedVAASigned(t *testing.T) {
 
 func TestStoreSignedVAABatch(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -183,10 +175,7 @@ func TestStoreSignedVAABatch(t *testing.T) {
 
 func TestGetSignedVAABytes(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 
@@ -213,10 +202,7 @@ func TestGetSignedVAABytes(t *testing.T) {
 
 func TestFindEmitterSequenceGap(t *testing.T) {
 	dbPath := t.TempDir()
-	db, err := Open(dbPath)
-	if err != nil {
-		t.Error("failed to open database")
-	}
+	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
 	defer os.Remove(dbPath)
 

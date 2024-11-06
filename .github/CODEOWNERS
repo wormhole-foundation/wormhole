@@ -15,7 +15,7 @@
 /solana/ @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi
 /terra/ @kcsongor @a5-pickle
-/wormchain/ @nik-suri
+/wormchain/ @nik-suri @johnsaigle @mdulin2 @jtieri
 
 # Utilities
 
@@ -23,14 +23,14 @@
 /lp_ui/ @evan-gray @kev1n-peters
 /relayer/generic_relayer @nonergodic @gator-boi
 /scripts/ @evan-gray @kcsongor
-/sdk/ @bruce-riley @evan-gray @kev1n-peters @SEJeff
+/sdk/ @bruce-riley @evan-gray @kev1n-peters @panoel @SEJeff
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-query/ @evan-gray @kev1n-peters @bruce-riley
 /sdk/js-wasm/ @evan-gray @kev1n-peters
 /sdk/js/ @evan-gray @kev1n-peters @panoel
 /sdk/rust/ @a5-pickle
-/sdk/vaa/ @bruce-riley @SEJeff
+/sdk/vaa/ @bruce-riley @evan-gray @panoel @SEJeff
 /spydk/ @evan-gray
 /testing/ @a5-pickle @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
@@ -95,3 +95,7 @@
 ## Documentation
 
 /docs @evan-gray @SEJeff @bruce-riley
+
+## Audit Reports
+
+/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t
