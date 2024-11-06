@@ -279,7 +279,7 @@ async function getSigner(chain: EVMChainName, key: string, rpc: string) {
     await provider.ready;
     signer = new celo.CeloWallet(key, provider);
   } else {
-    provider = new ethers.providers.JsonRpcProvider(rpc);
+    provider = new ethers.providers.StaticJsonRpcProvider(rpc);
     signer = new ethers.Wallet(key, provider);
   }
   // Here we apply a set of chain-specific overrides.
