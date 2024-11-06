@@ -17,7 +17,7 @@ const (
 	FileSignerType
 	// amazonkms://<arn>
 	AmazonKmsSignerType
-	// benchmark://<uri>://<config>
+	// benchmark://<signer-uri>
 	BenchmarkSignerType
 )
 
