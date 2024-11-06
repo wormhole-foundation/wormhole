@@ -101,31 +101,6 @@ spec:
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: query-ci-tests
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: query-ci-tests
-          image: guardiand-image
-          command:
-            - /bin/sh
-            - -c
-            - "cd /app/node/hack/query/test && bash test_query.sh && touch success"
-          readinessProbe:
-            exec:
-              command:
-                - test
-                - -e
-                - "/app/node/hack/query/test/success"
-            initialDelaySeconds: 5
-            periodSeconds: 5
----
-kind: Job
-apiVersion: batch/v1
-metadata:
   name: query-sdk-ci-tests
 spec:
   backoffLimit: 0

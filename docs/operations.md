@@ -107,7 +107,37 @@ Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs
 
 All guardians **must run validators for wormchain**, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
 
-The ``--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
+#### Pre-requisites
+- Ensure you have [Go](https://golang.org/dl/) >= 1.21.9 installed.
+
+#### Building wormchaind binary
+There is not a pre-built binary available. You need to check out the repo and build the
+wormchaind binary from source: 
+
+First, check out the version of the Wormhole repo that you want to deploy:
+
+```bash
+git clone https://github.com/wormhole-foundation/wormhole && cd wormchain
+```
+
+Then, compile the release binary as an unprivileged build user:
+
+```bash
+make build/wormchaind
+```
+You'll find `wormchaind` binary in `wormchain/build/wormchaind`.
+
+#### Initialize environment
+Initialize the Wormchain environment with the necessary configuration.
+
+```bash
+/path/to/wormchain/bin/wormchaind init <your-node-name> --chain-id wormchain --home /path/to/wormchain/directory
+```
+This command will generate the private validator key. That key should be backed up.
+This key is set in `config.toml` file under the `priv_validator_key_file` field.
+
+#### Generate configuration files
+The `--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
 in the app.toml.
 
 Example port setup:
@@ -142,6 +172,31 @@ address = "0.0.0.0:9091"
 For signing, consider setting up a remote threshold signer such as
 [horcrux](https://github.com/strangelove-ventures/horcrux) and adopting the sentry node architecture with sentry nodes
 in front of your wormchain validator.
+
+#### Retrieve the Genesis File
+Download the genesis file from the wormhole repository.
+
+```bash
+wget -O /path/to/wormchain/config/genesis.json https://raw.githubusercontent.com/wormhole-foundation/wormhole/main/wormchain/<network>/genesis.json
+```
+
+#### Generate wormchain keys
+To generate wormchain keys, run the following command:
+
+```bash
+/path/to/wormchain/bin/wormchaind keys add <key-name> --keyring-backend file --home /path/to/wormchain/directory
+```
+
+This command will create a `<key-name>.info` file. To extract the key, run the following command:
+```bash
+wormchaind keys export <key_name> --home /path/to/wormchain/directory --keyring-dir . --keyring-backend file
+```
+This command will ask for a passphrase to be created for it. Both `wormchain.key` and `passphrase` will be used by the following `guardiand` flags:
+- `--accountantKeyPath`
+- `--accountantKeyPassPhrase`
+
+**Note**
+These steps could be executed directly on the `guardiand` node, having previously built the `wormchaind` binary.
 
 #### Wormchain Useful Commands
 

@@ -1,9 +1,4 @@
 import {
-  CHAINS,
-  CONTRACTS,
-  ChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import {
   getNetworkInfo,
   Network as InjectiveNetwork,
 } from "@injectivelabs/networks";
@@ -19,10 +14,16 @@ import {
 import { DEFAULT_STD_FEE, getStdFee } from "@injectivelabs/utils";
 import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
-import { Network } from "./utils";
 import { impossible, Payload } from "./vaa";
 import { transferFromInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
-import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
+import {
+  Chain,
+  chainToChainId,
+  contracts,
+  Network,
+} from "@wormhole-foundation/sdk-base";
+import { chains } from "@wormhole-foundation/sdk";
+import { tryNativeToUint8Array } from "./sdk/array";
 import { inspect } from "util";
 
 export async function execute_injective(
@@ -30,16 +31,19 @@ export async function execute_injective(
   vaa: Buffer,
   network: Network
 ) {
-  if (network === "DEVNET") {
+  if (network === "Devnet") {
     throw new Error("Injective is not supported in DEVNET");
   }
-  const chain = "injective";
+  const chain = "Injective";
   let { key } = NETWORKS[network][chain];
   if (!key) {
     throw Error(`No ${network} key defined for Injective`);
   }
 
-  let contracts = CONTRACTS[network][chain];
+  // const endPoint =
+  //   network === "Mainnet"
+  //     ? InjectiveNetwork.MainnetK8s
+  //     : InjectiveNetwork.TestnetK8s;
 
   const walletPK = PrivateKey.fromMnemonic(key);
   const walletInjAddr = walletPK.toBech32();
@@ -50,7 +54,7 @@ export async function execute_injective(
 
   switch (payload.module) {
     case "Core": {
-      target_contract = contracts.core;
+      target_contract = contracts.coreBridge(network, "Injective");
       action = "submit_v_a_a";
       execute_msg = {
         vaa: fromUint8Array(vaa),
@@ -71,14 +75,15 @@ export async function execute_injective(
       break;
     }
     case "NFTBridge": {
-      if (!contracts.nft_bridge) {
+      const nftContract = contracts.nftBridge.get(network, "Injective");
+      if (!nftContract) {
         // NOTE: this code can safely be removed once the injective NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
         throw new Error("NFT bridge not supported yet for injective");
       }
 
-      target_contract = contracts.nft_bridge;
+      target_contract = nftContract;
       action = "submit_vaa";
       execute_msg = {
         data: fromUint8Array(vaa),
@@ -102,12 +107,12 @@ export async function execute_injective(
       break;
     }
     case "TokenBridge": {
-      console.log("contracts:", contracts);
-      if (!contracts.token_bridge) {
+      const tbContract = contracts.tokenBridge.get(network, "Injective");
+      if (!tbContract) {
         throw new Error("contracts.token_bridge is undefined");
       }
 
-      target_contract = contracts.token_bridge;
+      target_contract = tbContract;
       action = "submit_vaa";
       execute_msg = {
         data: fromUint8Array(vaa),
@@ -160,22 +165,22 @@ export async function execute_injective(
 }
 
 export async function transferInjective(
-  dstChain: ChainName,
+  dstChain: Chain,
   dstAddress: string,
   tokenAddress: string,
   amount: string,
   network: Network,
   rpc: string
 ) {
-  if (network === "DEVNET") {
+  if (network === "Devnet") {
     throw new Error("Injective is not supported in DEVNET");
   }
-  const chain = "injective";
+  const chain = "Injective";
   const { key } = NETWORKS[network][chain];
   if (!key) {
     throw Error(`No ${network} key defined for Injective`);
   }
-  const { token_bridge } = CONTRACTS[network][chain];
+  const token_bridge = contracts.tokenBridge.get(network, "Injective");
   if (token_bridge == undefined) {
     throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
   }
@@ -188,8 +193,8 @@ export async function transferInjective(
     token_bridge,
     tokenAddress,
     amount,
-    dstChain,
-    tryNativeToUint8Array(dstAddress, dstChain)
+    chainToChainId(dstChain) as any,
+    tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
   );
 
   await signAndSendTx(walletPK, network, msgs);
@@ -268,18 +273,17 @@ export async function queryRegistrationsInjective(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ) {
-  const chain = "injective";
+  const chain = "Injective";
   const n = NETWORKS[network][chain];
-  const contracts = CONTRACTS[network][chain];
 
   let targetContract: string | undefined;
 
   switch (module) {
     case "TokenBridge":
-      targetContract = contracts.token_bridge;
+      targetContract = contracts.tokenBridge.get(network, "Injective");
       break;
     case "NFTBridge":
-      targetContract = contracts.nft_bridge;
+      targetContract = contracts.nftBridge.get(network, "Injective");
       break;
     default:
       throw new Error(`Invalid module: ${module}`);
@@ -297,14 +301,14 @@ export async function queryRegistrationsInjective(
 
   // Query the bridge registration for all the chains in parallel.
   const registrations: (any | null)[][] = await Promise.all(
-    Object.entries(CHAINS)
-      .filter(([cname, _]) => cname !== chain && cname !== "unset")
-      .map(async ([cname, cid]) => [
+    chains
+      .filter((cname) => cname !== chain)
+      .map(async (cname) => [
         cname,
         await (async () => {
           let query_msg = {
             chain_registration: {
-              chain: cid,
+              chain: chainToChainId(cname),
             },
           };
 

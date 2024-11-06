@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
@@ -22,6 +23,10 @@ import (
 )
 
 func getVAA() vaa.VAA {
+	return getVAAWithSeqNum(1)
+}
+
+func getVAAWithSeqNum(seqNum uint64) vaa.VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -31,7 +36,7 @@ func getVAA() vaa.VAA {
 		Signatures:       nil,
 		Timestamp:        time.Unix(0, 0),
 		Nonce:            uint32(1),
-		Sequence:         uint64(1),
+		Sequence:         seqNum,
 		ConsistencyLevel: uint8(32),
 		EmitterChain:     vaa.ChainIDSolana,
 		EmitterAddress:   governanceEmitter,
@@ -112,6 +117,68 @@ func TestStoreSignedVAASigned(t *testing.T) {
 
 	err2 := db.StoreSignedVAA(&testVaa)
 	assert.NoError(t, err2)
+}
+
+func TestStoreSignedVAABatch(t *testing.T) {
+	dbPath := t.TempDir()
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Error("failed to open database")
+	}
+	defer db.Close()
+	defer os.Remove(dbPath)
+
+	privKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	require.NoError(t, err)
+
+	require.Less(t, int64(0), db.db.MaxBatchCount()) // In testing this was 104857.
+	require.Less(t, int64(0), db.db.MaxBatchSize())  // In testing this was 10066329.
+
+	// Make sure we exceed the max batch size.
+	numVAAs := uint64(db.db.MaxBatchCount() + 1)
+
+	// Build the VAA batch.
+	vaaBatch := make([]*vaa.VAA, 0, numVAAs)
+	for seqNum := uint64(0); seqNum < numVAAs; seqNum++ {
+		v := getVAAWithSeqNum(seqNum)
+		v.AddSignature(privKey, 0)
+		vaaBatch = append(vaaBatch, &v)
+	}
+
+	// Store the batch in the database.
+	err = db.StoreSignedVAABatch(vaaBatch)
+	require.NoError(t, err)
+
+	// Verify all the VAAs are in the database.
+	for _, v := range vaaBatch {
+		storedBytes, err := db.GetSignedVAABytes(*VaaIDFromVAA(v))
+		require.NoError(t, err)
+
+		origBytes, err := v.Marshal()
+		require.NoError(t, err)
+
+		assert.True(t, bytes.Equal(origBytes, storedBytes))
+	}
+
+	// Verify that updates work as well by tweaking the VAAs and rewriting them.
+	for _, v := range vaaBatch {
+		v.Nonce += 1
+	}
+
+	// Store the updated batch in the database.
+	err = db.StoreSignedVAABatch(vaaBatch)
+	require.NoError(t, err)
+
+	// Verify all the updated VAAs are in the database.
+	for _, v := range vaaBatch {
+		storedBytes, err := db.GetSignedVAABytes(*VaaIDFromVAA(v))
+		require.NoError(t, err)
+
+		origBytes, err := v.Marshal()
+		require.NoError(t, err)
+
+		assert.True(t, bytes.Equal(origBytes, storedBytes))
+	}
 }
 
 func TestGetSignedVAABytes(t *testing.T) {

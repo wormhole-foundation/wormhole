@@ -28,9 +28,12 @@ package governor
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -179,12 +182,15 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db                    db.GovernorDB // protected by `mutex`
-	logger                *zap.Logger
-	mutex                 sync.Mutex
-	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
-	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
-	chains                map[vaa.ChainID]*chainEntry  // protected by `mutex`
+	db                  db.GovernorDB // protected by `mutex`
+	logger              *zap.Logger
+	mutex               sync.Mutex
+	tokens              map[tokenKey]*tokenEntry    // protected by `mutex`
+	tokensByCoinGeckoId map[string][]*tokenEntry    // protected by `mutex`
+	chains              map[vaa.ChainID]*chainEntry // protected by `mutex`
+	// We maintain a sorted slice of governed chainIds so we can iterate over maps in a deterministic way
+	// This slice should be sorted in ascending order by (Wormhole) Chain ID.
+	chainIds              []vaa.ChainID
 	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
 	msgsToPublish         []*common.MessagePublication // protected by `mutex`
 	dayLengthInMinutes    int
@@ -194,12 +200,14 @@ type ChainGovernor struct {
 	nextConfigPublishTime time.Time
 	statusPublishCounter  int64
 	configPublishCounter  int64
+	flowCancelEnabled     bool
 }
 
 func NewChainGovernor(
 	logger *zap.Logger,
 	db db.GovernorDB,
 	env common.Environment,
+	flowCancelEnabled bool,
 ) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
@@ -209,6 +217,7 @@ func NewChainGovernor(
 		chains:              make(map[vaa.ChainID]*chainEntry),
 		msgsSeen:            make(map[string]bool),
 		env:                 env,
+		flowCancelEnabled:   flowCancelEnabled,
 	}
 }
 
@@ -232,19 +241,28 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 	return nil
 }
 
+func (gov *ChainGovernor) IsFlowCancelEnabled() bool {
+	return gov.flowCancelEnabled
+}
+
 func (gov *ChainGovernor) initConfig() error {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	gov.dayLengthInMinutes = 24 * 60
-	configTokens := tokenList()
-	flowCancelTokens := FlowCancelTokenList()
 	configChains := chainList()
+	configTokens := tokenList()
+	flowCancelTokens := []tokenConfigEntry{}
 
 	if gov.env == common.UnsafeDevNet {
 		configTokens, flowCancelTokens, configChains = gov.initDevnetConfig()
 	} else if gov.env == common.TestNet {
 		configTokens, flowCancelTokens, configChains = gov.initTestnetConfig()
+	} else {
+		// mainnet, unit tests, or accountant-mock
+		if gov.flowCancelEnabled {
+			flowCancelTokens = FlowCancelTokenList()
+		}
 	}
 
 	for _, ct := range configTokens {
@@ -306,23 +324,27 @@ func (gov *ChainGovernor) initConfig() error {
 		}
 	}
 
-	for _, flowCancelConfigEntry := range flowCancelTokens {
-		addr, err := vaa.StringToAddress(flowCancelConfigEntry.addr)
-		if err != nil {
-			return err
-		}
-		key := tokenKey{chain: vaa.ChainID(flowCancelConfigEntry.chain), addr: addr}
+	// If flow cancelling is enabled, enable the `flowCancels` field for the Governed assets that
+	// correspond to the entries in the Flow Cancel Tokens List
+	if gov.flowCancelEnabled {
+		for _, flowCancelConfigEntry := range flowCancelTokens {
+			addr, err := vaa.StringToAddress(flowCancelConfigEntry.addr)
+			if err != nil {
+				return err
+			}
+			key := tokenKey{chain: vaa.ChainID(flowCancelConfigEntry.chain), addr: addr}
 
-		// Only add flow cancelling for tokens that are already configured for rate-limiting.
-		if _, ok := gov.tokens[key]; ok {
-			gov.tokens[key].flowCancels = true
-		} else {
-			gov.logger.Debug("token present in flow cancel list but absent from main token list:",
-				zap.Stringer("chain", key.chain),
-				zap.Stringer("addr", key.addr),
-				zap.String("symbol", flowCancelConfigEntry.symbol),
-				zap.String("coinGeckoId", flowCancelConfigEntry.coinGeckoId),
-			)
+			// Only add flow cancelling for tokens that are already configured for rate-limiting.
+			if _, ok := gov.tokens[key]; ok {
+				gov.tokens[key].flowCancels = true
+			} else {
+				gov.logger.Debug("token present in flow cancel list but absent from main token list:",
+					zap.Stringer("chain", key.chain),
+					zap.Stringer("addr", key.addr),
+					zap.String("symbol", flowCancelConfigEntry.symbol),
+					zap.String("coinGeckoId", flowCancelConfigEntry.coinGeckoId),
+				)
+			}
 		}
 	}
 
@@ -375,6 +397,22 @@ func (gov *ChainGovernor) initConfig() error {
 		return fmt.Errorf("no chains are configured")
 	}
 
+	// Populate a sorted list of chain IDs so that we can iterate over maps in a determinstic way.
+	// https://go.dev/blog/maps, "Iteration order" section
+	governedChainIds := make([]vaa.ChainID, len(gov.chains))
+	i := 0
+	for id := range gov.chains {
+		// updating the slice in place here to satisfy prealloc lint. In theory this should be more performant
+		governedChainIds[i] = id
+		i++
+	}
+	// Custom sorting for the vaa.ChainID type
+	sort.Slice(governedChainIds, func(i, j int) bool {
+		return governedChainIds[i] < governedChainIds[j]
+	})
+
+	gov.chainIds = governedChainIds
+
 	return nil
 }
 
@@ -390,6 +428,10 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 }
 
 // ProcessMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// Returns true if:
+// - the message is not governed
+// - the transfer is complete and has already been observed
+// - the transfer does not trigger any error conditions (happy path)
 // Validation:
 // - ensure MessagePublication is not nil
 // - check that the MessagePublication is governed
@@ -567,7 +609,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
 	// Add inverse transfer to destination chain entry if this asset can cancel flows.
-	key := tokenKey{chain: msg.EmitterChain, addr: msg.EmitterAddress}
+	key := tokenKey{chain: token.token.chain, addr: token.token.addr}
+
 	tokenEntry := gov.tokens[key]
 	if tokenEntry != nil {
 		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
@@ -646,10 +689,23 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	return true, ce, token, payload, nil
 }
 
+// CheckPending is a wrapper method for CheckPendingForTime. It is called by the processor with the purpose of releasing
+// queued transfers.
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
 
+// CheckPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
+// moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
+// A transfer is ready to be released when one of the following conditions holds:
+//   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
+//     the Governor's current capacity)
+//   - Within the release time duration, other transfers have been processed and have freed up outbound Governor capacity.
+//     This happens either because other transfers get released after 24 hours or because incoming transfers of
+//     flow-cancelling assets have freed up outbound capacity.
+//
+// WARNING: When this function returns an error, it propagates to the `processor` which in turn interprets this as a
+// signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
 func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
@@ -664,15 +720,26 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 		gov.msgsToPublish = nil
 	}
 
-	for _, ce := range gov.chains {
+	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
+	for _, chainId := range gov.chainIds {
+		ce, ok := gov.chains[chainId]
+		if !ok {
+			gov.logger.Error("chainId not found in gov.chains", zap.Stringer("chainId", chainId))
+
+		}
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
 			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
 			if err != nil {
 				gov.logger.Error("error when attempting to trim and sum transfers", zap.Error(err))
+				gov.logger.Error("refusing to release transfers for this chain until the sum can be correctly calculated",
+					zap.Stringer("chainId", chainId),
+					zap.Uint64("prevTotalValue", prevTotalValue),
+					zap.Error(err))
 				gov.msgsToPublish = msgsToPublish
-				return nil, err
+				// Skip further processing for this chain entry
+				break
 			}
 
 			// Keep going until we find something that fits or hit the end.
@@ -729,7 +796,8 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						zap.Uint64("value", value),
 						zap.Uint64("prevTotalValue", prevTotalValue),
 						zap.Uint64("newTotalValue", newTotalValue),
-						zap.String("msgID", pe.dbData.Msg.MessageIDString()))
+						zap.String("msgID", pe.dbData.Msg.MessageIDString()),
+						zap.String("flowCancels", strconv.FormatBool(pe.token.flowCancels)))
 				}
 
 				payload, err := vaa.DecodeTransferPayloadHdr(pe.dbData.Msg.Payload)
@@ -741,7 +809,9 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					)
 					delete(gov.msgsSeen, pe.hash) // Rest of the clean up happens below.
 				} else {
-					// If we get here, publish it and remove it from the pending list.
+					// If we get here, publish it and move it from the pending list to the
+					// transfers list. Also add a flow-cancel transfer to the destination chain
+					// if the transfer is sending a flow-canceling asset.
 					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 					if countsTowardsTransfers {
@@ -757,26 +827,47 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 							Hash:           pe.hash,
 						}
 
-						if err := gov.db.StoreTransfer(&dbTransfer); err != nil {
-							gov.msgsToPublish = msgsToPublish
-							return nil, err
-						}
-
 						transfer, err := newTransferFromDbTransfer(&dbTransfer)
 						if err != nil {
+							// Should never occur unless dbTransfer.Value overflows MaxInt64
+							gov.logger.Error("could not convert dbTransfer to transfer",
+								zap.String("msgID", dbTransfer.MsgID),
+								zap.String("hash", pe.hash),
+								zap.Error(err),
+							)
+							// This causes the processor to die. We don't want to process transfers that
+							// have USD value in excess of MaxInt64 under any circumstances.
+							// This check should occur before the call to the database so
+							// that we don't store a problematic transfer.
 							return nil, err
 						}
+
+						if err := gov.db.StoreTransfer(&dbTransfer); err != nil {
+							// This causes the processor to die. We can't tolerate DB connection
+							// errors.
+							return nil, err
+						}
+
 						ce.transfers = append(ce.transfers, transfer)
 
+						gov.msgsSeen[pe.hash] = transferComplete
+
 						// Add inverse transfer to destination chain entry if this asset can cancel flows.
-						key := tokenKey{chain: dbTransfer.EmitterChain, addr: dbTransfer.EmitterAddress}
+						key := tokenKey{chain: pe.token.token.chain, addr: pe.token.token.addr}
 						tokenEntry := gov.tokens[key]
 						if tokenEntry != nil {
 							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
 							if tokenEntry.flowCancels {
 								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
+
 									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
-										return nil, err
+										gov.logger.Warn("could not add flow canceling transfer to destination chain",
+											zap.String("msgID", dbTransfer.MsgID),
+											zap.String("hash", pe.hash),
+											zap.Error(err),
+										)
+										// Process the next pending transfer
+										continue
 									}
 								} else {
 									gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
@@ -787,7 +878,6 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 								}
 							}
 						}
-						gov.msgsSeen[pe.hash] = transferComplete
 					} else {
 						delete(gov.msgsSeen, pe.hash)
 					}
@@ -831,46 +921,46 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `emitter`. In effect, it represents a
+// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
 // The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
 // into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
-// As a side-effect, this function modifies the parameter `emitter`, updating its `transfers` field so that it only includes
+// As a side-effect, this function modifies the parameter `chainEntry`, updating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
+// Returns an error if the sum cannot be calculated. The transfers field will still be updated in this case. When
+// an error condition occurs, this function returns the chain's `dailyLimit` as the sum. This should result in the
+// chain appearing at maximum capacity from the perspective of the Governor, and therefore cause new transfers to be
+// queued until space opens up.
 // SECURITY Invariant: The `sum` return value should never be less than 0
-// SECURITY Invariant: The `sum` return value should never exceed the "Governor limit" for the chain
-func (gov *ChainGovernor) TrimAndSumValueForChain(emitter *chainEntry, startTime time.Time) (sum uint64, err error) {
-	// Sum the value of all outgoing transfers
-	var sumOutgoing int64
-	sumOutgoing, emitter.transfers, err = gov.TrimAndSumValue(emitter.transfers, startTime)
+func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
+	if chainEntry == nil {
+		// We don't expect this to happen but this prevents a nil pointer deference
+		return 0, errors.New("TrimAndSumValeForChain parameter chainEntry must not be nil")
+	}
+	// Sum the value of all transfers for this chain. This sum can be negative if flow-cancelling is enabled
+	// and the incoming value of flow-cancelling assets exceeds the summed value of all outgoing assets.
+	var sumValue int64
+	sumValue, chainEntry.transfers, err = gov.TrimAndSumValue(chainEntry.transfers, startTime)
 	if err != nil {
-		return 0, err
+		// Return the daily limit as the sum so that any further transfers will be queued.
+		return chainEntry.dailyLimit, err
 	}
 
-	// Return early if the sum is not positive as it cannot exceed the daily limit.
-	// In this case, return 0 even if the sum is negative.
-	if sumOutgoing <= 0 {
+	// Return 0 even if the sum is negative.
+	if sumValue <= 0 {
 		return 0, nil
 	}
 
-	sum = uint64(sumOutgoing)
-	if sum > emitter.dailyLimit {
-		return 0, fmt.Errorf(
-			"invariant violation: calculated sum %d exceeds Governor limit %d",
-			sum,
-			emitter.dailyLimit,
-		)
-	}
-
-	return sum, nil
+	return uint64(sumValue), nil
 
 }
 
 // TrimAndSumValue iterates over a slice of transfer structs. It filters out transfers that have Timestamp values that
 // are earlier than the parameter `startTime`. The function then iterates over the remaining transfers, sums their Value,
 // and returns the sum and the filtered transfers.
+// As a side-effect, this function deletes transfers from the database if their Timestamp is before `startTime`.
 // The `transfers` slice must be sorted by Timestamp. We expect this to be the case as transfers are added to the
 // Governor in chronological order as they arrive. Note that `Timestamp` is created by the Governor; it is not read
 // from the actual on-chain transaction.
@@ -943,7 +1033,8 @@ func CheckedAddUint64(x uint64, y uint64) (uint64, error) {
 	return sum, nil
 }
 
-// CheckedAddInt64 adds two uint64 values with overflow checks
+// CheckedAddInt64 adds two uint64 values with overflow checks. Returns an error if the calculation would
+// overflow or underflow. In this case, the returned value is 0.
 func CheckedAddInt64(x int64, y int64) (int64, error) {
 	if x == 0 {
 		return y, nil

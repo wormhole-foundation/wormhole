@@ -5,13 +5,13 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/cosmwasm/address";
 import { WormholeWrappedInfo } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getOriginalAsset";
 import { hexToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils/array";
-import {
-  CHAIN_ID_SEI,
-  ChainId,
-  ChainName,
-  coalesceChainId,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import {
+  Chain,
+  ChainId,
+  chainToChainId,
+  toChainId,
+} from "@wormhole-foundation/sdk";
 import { fromUint8Array } from "js-base64";
 
 /**
@@ -25,7 +25,7 @@ import { fromUint8Array } from "js-base64";
 export async function getForeignAssetSei(
   tokenBridgeAddress: string,
   cosmwasmClient: CosmWasmClient,
-  originChain: ChainId | ChainName,
+  originChain: ChainId | Chain,
   originAsset: Uint8Array
 ): Promise<string | null> {
   try {
@@ -33,7 +33,7 @@ export async function getForeignAssetSei(
       tokenBridgeAddress,
       {
         wrapped_registry: {
-          chain: coalesceChainId(originChain),
+          chain: toChainId(originChain),
           address: fromUint8Array(originAsset),
         },
       }
@@ -74,7 +74,7 @@ export async function getOriginalAssetSei(
   wrappedAddress: string,
   client: CosmWasmClient
 ): Promise<WormholeWrappedInfo> {
-  const chainId = CHAIN_ID_SEI;
+  const chainId = chainToChainId("Sei");
   if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
     return {
       isWrapped: false,

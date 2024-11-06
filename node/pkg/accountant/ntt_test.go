@@ -275,7 +275,7 @@ func TestNttParseArMsgUnknownArEmitter(t *testing.T) {
 func TestNttVerifyMainnetEmitters(t *testing.T) {
 	directEmitters, arEmitters, err := nttGetEmitters(common.MainNet)
 	require.NoError(t, err)
-	assert.Equal(t, 5, len(directEmitters)) // TODO: Change this when we add a mainnet emitter!
+	assert.Equal(t, 7, len(directEmitters)) // TODO: Change this when we add a mainnet emitter!
 	assert.NotEqual(t, 0, len(arEmitters))
 }
 

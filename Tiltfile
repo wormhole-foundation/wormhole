@@ -156,6 +156,41 @@ def command_with_dlv(argv):
         "--",
     ] + argv[1:]
 
+def generate_bootstrap_peers(num_guardians, port_num):
+    # Improve the chances of the guardians discovering each other in tilt by making them all bootstrap peers. 
+    # The devnet guardian uses deterministic P2P peer IDs based on the guardian index. The peer IDs here
+    # were generated using `DeterministicP2PPrivKeyByIndex` in `node/pkg/devnet/deterministic_p2p_key.go`.
+    peer_ids = [
+        "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw",
+        "12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu",
+        "12D3KooWKRyzVWW6ChFjQjK4miCty85Niy49tpPV95XdKu1BcvMA",
+        "12D3KooWB1b3qZxWJanuhtseF3DmPggHCtG36KZ9ixkqHtdKH9fh",
+        "12D3KooWE4qDcRrueTuRYWUdQZgcy7APZqBngVeXRt4Y6ytHizKV",
+        "12D3KooWPgam4TzSVCRa4AbhxQnM9abCYR4E9hV57SN7eAjEYn1j",
+        "12D3KooWM4yJB31d4hF2F9Vdwuj9WFo1qonoySyw4bVAQ9a9d21o",
+        "12D3KooWCv935r3ropYhUe5yMCp9QiUoc9A6cZpYQ5x84DqEPbwb",
+        "12D3KooWQfG74brcJhzpNwjPCZmcbBv8f6wxKgLSYmEDXXdPXQpH",
+        "12D3KooWNEWRB7PnuZs164xaA9QWM3iZHekHyEQo5qGP5KCHHuSN",
+        "12D3KooWB224kvi7vN34xJfsfW7bnv6eodxTkgo9VFA6UiaGMgRD",
+        "12D3KooWCR2EoapJjoQVR4E3NLjWn818gG3XizQ92Yx6C424HL2g",
+        "12D3KooWNc5rNmCJ9yvXviXaENnp7vqDQjomZwia4aA7Q3hSYkiW",
+        "12D3KooWBremnqYWBDK6ctvCuhCqJAps5ZAPADu53gXhQHexrvtP",
+        "12D3KooWFqdBYPrtwErMosomvD4uRtVhXQdqqZZHC3NCBZYVxr4t",
+        "12D3KooW9yvKfP5HgVaLnNaxWywo3pLAEypk7wjUcpgKwLznk5gQ",
+        "12D3KooWRuYVGEsecrJJhZsSoKf1UNdBVYKFCmFLNj9ucZiSQCYj",
+        "12D3KooWGEcD5sW5osB6LajkHGqiGc3W8eKfYwnJVVqfujkpLWX2",
+        "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY" 
+    ]
+    bootstrap = ""
+    for idx in range(num_guardians):
+        if bootstrap != "":
+            bootstrap += ","
+        bootstrap += "/dns4/guardian-{idx}.guardian/udp/{port}/quic/p2p/{peer}".format(idx = idx, port = port_num, peer = peer_ids[idx])
+    return bootstrap
+
+bootstrapPeers = generate_bootstrap_peers(num_guardians, 8999)
+ccqBootstrapPeers = generate_bootstrap_peers(num_guardians, 8996)
+
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
 
@@ -173,6 +208,14 @@ def build_node_yaml():
                 container["command"] = command_with_dlv(container["command"])
                 print(container["command"])
 
+            if num_guardians > 1:
+                container["command"] += [
+                    "--bootstrap",
+                    bootstrapPeers,
+                    "--ccqP2pBootstrap",
+                    ccqBootstrapPeers,
+                ]            
+
             if aptos:
                 container["command"] += [
                     "--aptosRPC",
@@ -189,8 +232,6 @@ def build_node_yaml():
                     "http://sui:9000",
                     "--suiMoveEventType",
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
-                    "--suiWS",
-                    "ws://sui:9000",
                 ]
 
             if evm2:
@@ -587,7 +628,12 @@ if ci_tests:
         ],
     )
 
-    k8s_yaml_with_ns(encode_yaml_stream(set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians))))
+    k8s_yaml_with_ns(
+        encode_yaml_stream(
+            set_env_in_jobs(
+                set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
+                "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)))
+    )
 
     # separate resources to parallelize docker builds
     k8s_resource(
@@ -613,12 +659,6 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier
-    )
-    k8s_resource(
-        "query-ci-tests",
-        labels = ["ci"],
-        trigger_mode = trigger_mode,
-        resource_deps = [], # node/hack/query/test/test_query.sh handles waiting for guardian, not having deps gets the build earlier
     )
     k8s_resource(
         "query-sdk-ci-tests",
@@ -907,8 +947,18 @@ if aptos:
         trigger_mode = trigger_mode,
     )
 
+def build_query_server_yaml():
+    qs_yaml = read_yaml_stream("devnet/query-server.yaml")
+
+    for obj in qs_yaml:
+        if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "query-server":
+            container = obj["spec"]["template"]["spec"]["containers"][0]
+            container["command"] += ["--bootstrap="+ccqBootstrapPeers]
+
+    return encode_yaml_stream(qs_yaml)
+
 if query_server:
-    k8s_yaml_with_ns("devnet/query-server.yaml")
+    k8s_yaml_with_ns(build_query_server_yaml())
 
     k8s_resource(
         "query-server",

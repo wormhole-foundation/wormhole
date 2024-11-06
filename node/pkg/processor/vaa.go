@@ -11,6 +11,7 @@ type VAA struct {
 	Reobservation bool
 }
 
+// HandleQuorum is called when a VAA reaches quorum. It publishes the VAA to the gossip network and stores it in the database.
 func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	// Deep copy the observation and add signatures
 	signed := &vaa.VAA{
@@ -26,22 +27,14 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 		ConsistencyLevel: v.ConsistencyLevel,
 	}
 
-	// Store signed VAA in database.
 	p.logger.Info("signed VAA with quorum",
 		zap.String("message_id", signed.MessageID()),
 		zap.String("digest", hash),
 	)
 
-	if err := p.storeSignedVAA(signed); err != nil {
-		p.logger.Error("failed to store signed VAA",
-			zap.String("message_id", signed.MessageID()),
-			zap.String("digest", hash),
-			zap.Error(err),
-		)
-	}
-
+	// Broadcast the VAA and store it in the database.
 	p.broadcastSignedVAA(signed)
-	p.state.signatures[hash].submitted = true
+	p.storeSignedVAA(signed)
 }
 
 func (v *VAA) IsReliable() bool {
