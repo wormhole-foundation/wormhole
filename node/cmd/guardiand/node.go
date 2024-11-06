@@ -689,14 +689,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Node's main lifecycle context.
+	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
 	// Create the Guardian Signer
-	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(*guardianSignerUri, env == common.UnsafeDevNet)
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(rootCtx, *guardianSignerUri, env == common.UnsafeDevNet)
 	if err != nil {
 		logger.Fatal("failed to create a new guardian signer", zap.Error(err))
 	}
 
-	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String()))
+	logger.Info("Created the guardian signer", zap.String(
+		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String()))
 
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
@@ -752,7 +756,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		labels := map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.String(),
-			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 		}
@@ -957,10 +961,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap[ibcChain.String()] = "IBC"
 	}
 
-	// Node's main lifecycle context.
-	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
-	defer rootCtxCancel()
-
 	// Handle SIGTERM
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
@@ -1097,7 +1097,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		info.PromRemoteURL = *promRemoteURL
 		info.Labels = map[string]string{
 			"node_name":     *nodeName,
-			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 			"product":       "wormhole",

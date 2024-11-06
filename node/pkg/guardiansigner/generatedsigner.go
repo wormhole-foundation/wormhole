@@ -1,6 +1,7 @@
 package guardiansigner
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
@@ -25,7 +26,7 @@ func NewGeneratedSigner(key *ecdsa.PrivateKey) (*GeneratedSigner, error) {
 
 }
 
-func (gs *GeneratedSigner) Sign(hash []byte) (sig []byte, err error) {
+func (gs *GeneratedSigner) Sign(ctx context.Context, hash []byte) (sig []byte, err error) {
 	// Sign the hash
 	sig, err = ethcrypto.Sign(hash, gs.privateKey)
 
@@ -36,11 +37,11 @@ func (gs *GeneratedSigner) Sign(hash []byte) (sig []byte, err error) {
 	return sig, nil
 }
 
-func (gs *GeneratedSigner) PublicKey() (pubKey ecdsa.PublicKey) {
+func (gs *GeneratedSigner) PublicKey(ctx context.Context) (pubKey ecdsa.PublicKey) {
 	return gs.privateKey.PublicKey
 }
 
-func (gs *GeneratedSigner) Verify(sig []byte, hash []byte) (valid bool, err error) {
+func (gs *GeneratedSigner) Verify(ctx context.Context, sig []byte, hash []byte) (valid bool, err error) {
 	recoveredPubKey, err := ethcrypto.SigToPub(hash, sig)
 
 	if err != nil {

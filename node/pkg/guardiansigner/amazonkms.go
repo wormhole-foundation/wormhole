@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
@@ -19,6 +21,7 @@ import (
 var (
 	secp256k1N     = ethcrypto.S256().Params().N
 	secp256k1HalfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
+	KMS_TIMEOUT    = time.Second * 15
 )
 
 type asn1EcSig struct {
@@ -36,32 +39,84 @@ type asn1EcPublicKeyInfo struct {
 	Parameters asn1.ObjectIdentifier
 }
 
-type AmazonKms struct {
-	KeyId  string
-	Region string
-	svc    *kms.Client
-}
+// Read the region from an ARN string.
+func getRegionFromArn(arn string) string {
+	// Information in ARNs are colon-separated
+	arn_parts := strings.Split(arn, ":")
 
-func NewAmazonKmsSigner(unsafeDevMode bool, keyPath string) (*AmazonKms, error) {
-	amazonKmsSigner := AmazonKms{
-		KeyId: keyPath,
+	// https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html#arns-syntax
+	// The format of an ARN is arn:partition:service:region:account-id:resource-info, so
+	// the region is at index 3
+	if len(arn) < 4 {
+		return ""
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-north-1"))
+	return arn_parts[3]
+}
+
+type AmazonKms struct {
+	keyId     string
+	region    string
+	publicKey ecdsa.PublicKey
+	svc       *kms.Client
+}
+
+func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string) (*AmazonKms, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, KMS_TIMEOUT)
+	defer cancel()
+
+	amazonKmsSigner := AmazonKms{
+		keyId:  keyPath,
+		region: getRegionFromArn(keyPath),
+	}
+
+	// Create a configuration object to create a new KMS client from. The region passed to
+	// `config.WithDefaultRegion()` must match the region in the actual ARN, otherwise the SDK throws
+	// an error. This is why the region is first extracted from the keyPath.
+	cfg, err := config.LoadDefaultConfig(timeoutCtx, config.WithDefaultRegion(amazonKmsSigner.region))
 	if err != nil {
-		return nil, errors.New("failed to load default config")
+		return nil, errors.New("Failed to load default config")
 	}
 
 	amazonKmsSigner.svc = kms.NewFromConfig(cfg)
 
+	// Get the public key here, and store it as a property. The reason for this is that the
+	// `GetPublicKey` call could return an error that must be handled, and it's better to handle
+	// it during signer creation where an error can still be returned and bubbled up. The public
+	// key should also not be changing during runtime, so reading it once from KMS and storing
+	// it in memory seems sensible.
+	pubKeyOutput, err := amazonKmsSigner.svc.GetPublicKey(timeoutCtx, &kms.GetPublicKeyInput{
+		KeyId: aws.String(amazonKmsSigner.keyId),
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("KMS signer creation failed: %w", err)
+	}
+
+	var asn1Pubkey asn1EcPublicKey
+	_, err = asn1.Unmarshal(pubKeyOutput.PublicKey, &asn1Pubkey)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal KMS public key: %w", err)
+	}
+
+	ecdsaPubkey := ecdsa.PublicKey{
+		X: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1 : 1+32]),
+		Y: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1+32:]),
+	}
+
+	amazonKmsSigner.publicKey = ecdsaPubkey
+
 	return &amazonKmsSigner, nil
 }
 
-func (a *AmazonKms) Sign(hash []byte) (signature []byte, err error) {
+func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, err error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, KMS_TIMEOUT)
+	defer cancel()
 
-	// request signing
-	res, err := a.svc.Sign(context.TODO(), &kms.SignInput{
-		KeyId:            aws.String(a.KeyId),
+	// Call the AWS KMS service to sign the input hash.
+	res, err := a.svc.Sign(timeoutCtx, &kms.SignInput{
+		KeyId:            aws.String(a.keyId),
 		Message:          hash,
 		SigningAlgorithm: kms_types.SigningAlgorithmSpecEcdsaSha256,
 		MessageType:      kms_types.MessageTypeDigest,
@@ -71,7 +126,7 @@ func (a *AmazonKms) Sign(hash []byte) (signature []byte, err error) {
 		return nil, fmt.Errorf("Signing failed: %w", err)
 	}
 
-	// decode r and s values
+	// Decode r and s values
 	r, s := derSignatureToRS(res.Signature)
 
 	// if s is greater than secp256k1HalfN, we need to substract secp256k1N from it
@@ -86,46 +141,49 @@ func (a *AmazonKms) Sign(hash []byte) (signature []byte, err error) {
 
 	// AWS KMS does not provide the recovery id. But that doesn't matter too much, since we can
 	// attempt recovery id's 0 and 1, and in the process ensure that the signature is valid.
-	expectedPublicKey := a.PublicKey()
+	expectedPublicKey := a.PublicKey(ctx)
 	signature = append(r, s...)
 
 	// try recovery id 0
 	ecSigWithRecid := append(signature, []byte{0}...)
-	pubkey, err := ethcrypto.SigToPub(hash[:], ecSigWithRecid)
+	pubkey, _ := ethcrypto.SigToPub(hash[:], ecSigWithRecid)
 
 	if bytes.Equal(ethcrypto.CompressPubkey(pubkey), ethcrypto.CompressPubkey(&expectedPublicKey)) {
 		return ecSigWithRecid, nil
 	}
 
 	ecSigWithRecid = append(signature, []byte{1}...)
-	pubkey, err = ethcrypto.SigToPub(hash[:], ecSigWithRecid)
+	pubkey, _ = ethcrypto.SigToPub(hash[:], ecSigWithRecid)
 
 	// try recovery id 1
 	if bytes.Equal(ethcrypto.CompressPubkey(pubkey), ethcrypto.CompressPubkey(&expectedPublicKey)) {
 		return ecSigWithRecid, nil
 	}
 
-	return nil, fmt.Errorf("Failed to generate signature")
+	// Reaching this return implies that it wasn't possible to generate a valid signature. This shouldn't
+	// happen, unless there is something seriously wrong with the KMS service.
+	return nil, fmt.Errorf("Failed to generate valid signature")
 }
 
-func (a *AmazonKms) PublicKey() ecdsa.PublicKey {
-	pubKeyOutput, _ := a.svc.GetPublicKey(context.TODO(), &kms.GetPublicKeyInput{
-		KeyId: aws.String(a.KeyId),
-	})
+func (a *AmazonKms) PublicKey(ctx context.Context) ecdsa.PublicKey {
+	return a.publicKey
+}
 
-	var asn1Pubkey asn1EcPublicKey
-	_, _ = asn1.Unmarshal(pubKeyOutput.PublicKey, &asn1Pubkey)
+func (a *AmazonKms) Verify(ctx context.Context, sig []byte, hash []byte) (bool, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
 
-	ecdsaPubkey := ecdsa.PublicKey{
-		X: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1 : 1+32]),
-		Y: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1+32:]),
+	// Use ethcrypto to recover the public key
+	recoveredPubKey, err := ethcrypto.SigToPub(hash, sig)
+
+	if err != nil {
+		return false, err
 	}
 
-	return ecdsaPubkey
-}
+	// Load the KMS signer's public key
+	kmsPublicKey := a.PublicKey(timeoutCtx)
 
-func (a *AmazonKms) Verify(sig []byte, hash []byte) (bool, error) {
-	return true, nil
+	return recoveredPubKey.Equal(kmsPublicKey), nil
 }
 
 // https://bitcoin.stackexchange.com/questions/92680/what-are-the-der-signature-and-sec-format
@@ -139,16 +197,15 @@ func (a *AmazonKms) Verify(sig []byte, hash []byte) (bool, error) {
 //  8. the s value as a big-endian integer
 func derSignatureToRS(signature []byte) (rBytes []byte, sBytes []byte) {
 	var sigAsn1 asn1EcSig
-	_, err := asn1.Unmarshal(signature, &sigAsn1)
-
-	if err != nil {
-		panic(err)
-	}
+	asn1.Unmarshal(signature, &sigAsn1)
 
 	return sigAsn1.R.Bytes, sigAsn1.S.Bytes
-	// return rBytes, sBytes
 }
 
+// adjustBufferSize takes an input buffer and
+// a) trims it down to 32 bytes, if the input length is greater than 32, or
+// b) returns the input as-is, if the input length is equal to 32, or
+// c) left-pads it to 32 bytes, if the input length is less than 32.
 func adjustBufferSize(b []byte) []byte {
 	length := len(b)
 

@@ -75,6 +75,7 @@
 package governor
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -600,7 +601,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []b
 
 	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefixConfig, b...))
 
-	sig, err := guardianSigner.Sign(digest.Bytes())
+	sig, err := guardianSigner.Sign(context.Background(), digest.Bytes())
 	if err != nil {
 		panic(err)
 	}
@@ -685,7 +686,7 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 
 	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefixStatus, b...))
 
-	sig, err := guardianSigner.Sign(digest.Bytes())
+	sig, err := guardianSigner.Sign(context.Background(), digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

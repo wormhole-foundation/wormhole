@@ -1,6 +1,7 @@
 package guardiansigner
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -23,16 +24,16 @@ const (
 // GuardianSigner interface
 type GuardianSigner interface {
 	// Sign expects a keccak256 hash that needs to be signed.
-	Sign(hash []byte) (sig []byte, err error)
+	Sign(ctx context.Context, hash []byte) (sig []byte, err error)
 	// PublicKey returns the ECDSA public key of the signer. Note that this should not
 	// be confused with the EVM address.
-	PublicKey() (pubKey ecdsa.PublicKey)
+	PublicKey(ctx context.Context) (pubKey ecdsa.PublicKey)
 	// Verify is a convenience function that recovers a public key from the sig/hash pair,
 	// and checks if the public key matches that of the guardian signer.
-	Verify(sig []byte, hash []byte) (valid bool, err error)
+	Verify(ctx context.Context, sig []byte, hash []byte) (valid bool, err error)
 }
 
-func NewGuardianSignerFromUri(signerUri string, unsafeDevMode bool) (GuardianSigner, error) {
+func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMode bool) (GuardianSigner, error) {
 
 	// Get the signer type
 	signerType, signerKeyConfig, err := ParseSignerUri(signerUri)
@@ -43,11 +44,11 @@ func NewGuardianSignerFromUri(signerUri string, unsafeDevMode bool) (GuardianSig
 
 	switch signerType {
 	case FileSignerType:
-		return NewFileSigner(unsafeDevMode, signerKeyConfig)
+		return NewFileSigner(ctx, unsafeDevMode, signerKeyConfig)
 	case AmazonKmsSignerType:
-		return NewAmazonKmsSigner(unsafeDevMode, signerKeyConfig)
+		return NewAmazonKmsSigner(ctx, unsafeDevMode, signerKeyConfig)
 	case BenchmarkSignerType:
-		return NewBenchmarkSigner(unsafeDevMode, signerKeyConfig)
+		return NewBenchmarkSigner(ctx, unsafeDevMode, signerKeyConfig)
 	default:
 		return nil, errors.New("unsupported guardian signer type")
 	}

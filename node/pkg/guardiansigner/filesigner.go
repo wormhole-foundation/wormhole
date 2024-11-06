@@ -1,6 +1,7 @@
 package guardiansigner
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -24,7 +25,7 @@ const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
 )
 
-func NewFileSigner(unsafeDevMode bool, signerKeyPath string) (*FileSigner, error) {
+func NewFileSigner(ctx context.Context, unsafeDevMode bool, signerKeyPath string) (*FileSigner, error) {
 	fileSigner := &FileSigner{
 		keyPath: signerKeyPath,
 	}
@@ -67,7 +68,7 @@ func NewFileSigner(unsafeDevMode bool, signerKeyPath string) (*FileSigner, error
 	return fileSigner, nil
 }
 
-func (fs *FileSigner) Sign(hash []byte) ([]byte, error) {
+func (fs *FileSigner) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 
 	// Sign the hash
 	sig, err := crypto.Sign(hash, fs.privateKey)
@@ -79,11 +80,11 @@ func (fs *FileSigner) Sign(hash []byte) ([]byte, error) {
 	return sig, nil
 }
 
-func (fs *FileSigner) PublicKey() ecdsa.PublicKey {
+func (fs *FileSigner) PublicKey(ctx context.Context) ecdsa.PublicKey {
 	return fs.privateKey.PublicKey
 }
 
-func (fs *FileSigner) Verify(sig []byte, hash []byte) (bool, error) {
+func (fs *FileSigner) Verify(ctx context.Context, sig []byte, hash []byte) (bool, error) {
 
 	recoveredPubKey, err := ethcrypto.SigToPub(hash, sig)
 

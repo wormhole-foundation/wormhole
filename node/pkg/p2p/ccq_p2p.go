@@ -246,7 +246,7 @@ func (ccq *ccqP2p) publisher(ctx context.Context, guardianSigner guardiansigner.
 				continue
 			}
 			digest := query.GetQueryResponseDigestFromBytes(msgBytes)
-			sig, err := guardianSigner.Sign(digest.Bytes())
+			sig, err := guardianSigner.Sign(ctx, digest.Bytes())
 			if err != nil {
 				panic(err)
 			}
