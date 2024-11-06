@@ -1,0 +1,10 @@
+export ETH_KEY=<hex private key>
+export ALGORAND_KEY=<mnemonic seed phrase>
+export SOLANA_KEY=<base58 private key>
+export TERRA_MNEMONIC=<mnemonic seed phrase>
+export NEAR_KEY=<near custom key format; looks like this: "ed25519:<base58 key>">
+export INJECTIVE_KEY=<mnemonice seed phrase>
+export APTOS_KEY=<64 byte hex key without "0x" prefix>
+export SUI_KEY=<base64 key>
+export XPLA_KEY=<mnemonic seed phrase>
+export SEI_KEY=<mnemonic seed phrase>
