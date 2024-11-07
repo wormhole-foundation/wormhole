@@ -13,7 +13,7 @@ export CHAIN="$INIT_EVM_CHAIN_ID"
 export ETHERSCAN_API_KEY=$(jq --raw-output ".[] | select(.chainId == $INIT_CHAIN_ID) | .etherscan" "$SCAN_API_TOKENS")
 
 # TODO: allow other json files to be read too
-returnInfo=$(cat ./broadcast/DeployCore.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
+returnInfo=$(cat "./broadcast/DeployCore.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json")
 # Extract the address values from 'returnInfo'
 setup_address=$(jq -r '.returns.setupAddress.value' <<< "$returnInfo")
 implementation_address=$(jq -r '.returns.implAddress.value' <<< "$returnInfo")
