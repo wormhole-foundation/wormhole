@@ -39,6 +39,7 @@ export const CHAINS = {
   berachain: 39,
   seievm: 40,
   snaxchain: 43,
+  worldchain: 45,
   wormchain: 3104,
   cosmoshub: 4000,
   evmos: 4001,
@@ -91,6 +92,7 @@ export const EVMChainNames = [
   "berachain",
   "seievm",
   "snaxchain",
+  "worldchain",
   "sepolia",
   "arbitrum_sepolia",
   "base_sepolia",
@@ -348,6 +350,11 @@ const MAINNET = {
   snaxchain: {
     core: "0xc1BA3CC4bFE724A08FbbFbF64F8db196738665f4",
     token_bridge: "0x8B94bfE456B48a6025b92E11Be393BAa86e68410",
+    nft_bridge: undefined,
+  },
+  worldchain: {
+    core: "0xcbcEe4e081464A15d8Ad5f58BB493954421eB506",
+    token_bridge: "0xc309275443519adca74c9136b02A38eF96E3a1f6",
     nft_bridge: undefined,
   },
   wormchain: {
@@ -646,6 +653,11 @@ const TESTNET = {
     token_bridge: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a",
     nft_bridge: undefined,
   },
+  worldchain: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },    
   wormchain: {
     core: "wormhole16jzpxp0e8550c9aht6q9svcux30vtyyyyxv5w2l2djjra46580wsazcjwp",
     token_bridge:
@@ -935,6 +947,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  worldchain: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqtm7t3h",
     token_bridge:
@@ -1096,6 +1113,7 @@ export const CHAIN_ID_LINEA = CHAINS["linea"];
 export const CHAIN_ID_BERACHAIN = CHAINS["berachain"];
 export const CHAIN_ID_SEIEVM = CHAINS["seievm"];
 export const CHAIN_ID_SNAXCHAIN = CHAINS["snaxchain"];
+export const CHAIN_ID_WORLDCHAIN = CHAINS["worldchain"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;
 export const CHAIN_ID_COSMOSHUB = CHAINS["cosmoshub"];
