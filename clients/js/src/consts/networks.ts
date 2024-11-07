@@ -119,6 +119,11 @@ const Mainnet = {
     rpc: undefined,
     key: undefined,
   },
+  Worldchain: {
+    rpc: "https://worldchain-mainnet.g.alchemy.com/public",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 480,
+  },
   Wormchain: {
     rpc: undefined,
     key: undefined,
@@ -447,6 +452,11 @@ const Testnet = {
     rpc: undefined,
     key: undefined,
   },
+  Worldchain: {
+    rpc: "https://worldchain-sepolia.g.alchemy.com/public",
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 4801,
+  },
   Moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
     key: getEnvVar("ETH_KEY_TESTNET"),
@@ -694,6 +704,11 @@ const Devnet = {
     rpc: "http://localhost:1319",
     chain_id: "wormchain",
     key: undefined,
+  },
+  Worldchain: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: 4801,
   },
   Aptos: {
     rpc: "http://0.0.0.0:8080",
