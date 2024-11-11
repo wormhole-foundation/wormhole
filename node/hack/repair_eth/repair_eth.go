@@ -73,7 +73,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDMantle:     strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
 	vaa.ChainIDBlast:      strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
 	vaa.ChainIDXLayer:     strings.ToLower("0x194B123c5E96B9b2E49763619985790Dc241CAC0"),
-	vaa.ChainIDWorldchain: strings.ToLower("0xc309275443519adca74c9136b02A38eF96E3a1f6"),
+	vaa.ChainIDWorldchain: strings.ToLower("0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"),
 }
 
 var (
