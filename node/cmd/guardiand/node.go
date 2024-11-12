@@ -198,6 +198,9 @@ var (
 	monadDevnetRPC      *string
 	monadDevnetContract *string
 
+	inkRPC      *string
+	inkContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -414,6 +417,9 @@ func init() {
 
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
+
+	inkRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "inkRPC", "Ink RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	inkContract = NodeCmd.Flags().String("inkContract", "", "Ink contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -799,6 +805,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
 	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
+	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -916,6 +923,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["ibcWS"] = *ibcWS
 	rpcMap["injectiveLCD"] = *injectiveLCD
 	rpcMap["injectiveWS"] = *injectiveWS
+	rpcMap["inkRPC"] = *inkRPC
 	rpcMap["karuraRPC"] = *karuraRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["lineaRPC"] = *lineaRPC
@@ -1397,6 +1405,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDWorldchain,
 			Rpc:              *worldchainRPC,
 			Contract:         *worldchainContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(inkRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "ink",
+			ChainID:          vaa.ChainIDInk,
+			Rpc:              *inkRPC,
+			Contract:         *inkContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 
