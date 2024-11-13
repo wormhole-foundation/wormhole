@@ -71,14 +71,16 @@ export function init(): string {
     path: `./ts-scripts/relayer/.env${env != DEFAULT_ENV ? "." + env : ""}`,
   });
 
-  // The new Wormhole SDK only accepts capitalized env names.
-  env = env.charAt(0).toUpperCase() + env.slice(1).toLowerCase();
+  // Return the capitalized env name accepted for Wormhole.
+  // The internal env var should be forced to lowercase to use it in file paths.
+  const capEnv = env.charAt(0).toUpperCase() + env.slice(1).toLowerCase();
+  env = env.toLowerCase();
   
-  if (!isNetwork(env)) {
+  if (!isNetwork(capEnv)) {
     throw new Error(`Invalid network name: ${env}, must be one of ${networks.join(", ")}`);
   }
 
-  return env
+  return capEnv
 }
 
 function get_env_var(env: string): string {
@@ -91,13 +93,13 @@ function get_env_var(env: string): string {
  */
 
 export function readChains() {
-  const filepath = `./ts-scripts/relayer/config/${env}/chains.json`;
+  const filepath = `./ts-scripts/relayer/config/${env.toLowerCase()}/chains.json`;
   const chainFile = fs.readFileSync(filepath, "utf8");
   return JSON.parse(chainFile);
 }
 
 export function readContracts(): ContractsJson {
-  const filepath = `./ts-scripts/relayer/config/${env}/contracts.json`;
+  const filepath = `./ts-scripts/relayer/config/${env.toLowerCase()}/contracts.json`;
   const contractsFile = fs.readFileSync(filepath, "utf8");
   if (!contractsFile) {
     throw Error(`Failed to find contracts file at ${filepath}!`);
