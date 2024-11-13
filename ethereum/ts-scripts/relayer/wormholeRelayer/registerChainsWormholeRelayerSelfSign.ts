@@ -1,4 +1,3 @@
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { inspect } from "util";
 
 import {
@@ -9,7 +8,7 @@ import {
   getWormholeRelayerAddress,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
-import { wait } from "../helpers/utils";
+import { nativeEvmAddressToHex, wait } from "../helpers/utils";
 import { createRegisterChainVAA } from "../helpers/vaa";
 import type { WormholeRelayer } from "../../../ethers-contracts";
 
@@ -62,8 +61,7 @@ async function registerWormholeRelayer(
   const registration = await wormholeRelayer.getRegisteredWormholeRelayerContract(targetChain.chainId);
   if (registration !== zeroBytes32) {
     const registrationAddress = await getWormholeRelayerAddress(targetChain);
-    const expectedRegistration =
-      "0x" + tryNativeToHexString(registrationAddress, "ethereum");
+    const expectedRegistration = nativeEvmAddressToHex(registrationAddress);
     if (registration.toLowerCase() !== expectedRegistration.toLowerCase()) {
       throw new Error(`Found an unexpected registration for chain ${targetChain.chainId} on chain ${operatingChain.chainId}
 Expected: ${expectedRegistration}

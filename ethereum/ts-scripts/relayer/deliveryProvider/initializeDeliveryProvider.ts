@@ -1,4 +1,3 @@
-import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
 import type { BigNumberish } from "ethers";
 import {
   init,
@@ -10,9 +9,10 @@ import {
   getOperatingChains,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
-import { wait } from "../helpers/utils";
+import { nativeEvmAddressToHex, wait } from "../helpers/utils";
 
 import type { DeliveryProviderStructs } from "../../../ethers-contracts/DeliveryProvider";
+import { ChainId } from "@wormhole-foundation/sdk-base"
 
 /**
  * Meant for `config.pricingInfo`
@@ -83,8 +83,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
       );
     }
     const targetChainProviderAddress = getDeliveryProviderAddress(targetChain);
-    const remoteDeliveryProvider =
-      "0x" + tryNativeToHexString(targetChainProviderAddress, "ethereum");
+    const remoteDeliveryProvider = nativeEvmAddressToHex(targetChainProviderAddress);
     const chainConfigUpdate: DeliveryProviderStructs.UpdateStruct = {
       chainId: targetChain.chainId,
       updateAssetConversionBuffer: true,

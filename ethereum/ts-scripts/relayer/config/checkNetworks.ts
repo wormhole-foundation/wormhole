@@ -1,4 +1,3 @@
-import { coalesceChainName } from "@certusone/wormhole-sdk";
 import {
   env,
   getSigner,
@@ -6,6 +5,7 @@ import {
   loadChains,
 } from "../helpers/env";
 import { readFileSync, writeFileSync } from "fs";
+import { toChain } from "@wormhole-foundation/sdk-base";
 
 const processName = "checkNetworks";
 
@@ -29,7 +29,7 @@ async function main() {
       process.exit(1);
     }
     console.log(`Balance ${balance.toString()}`);
-    console.log(`Network ${coalesceChainName(chain.chainId)} (${chain.chainId}) checked`);
+    console.log(`Network ${toChain(chain.chainId)} (${chain.chainId}) checked`);
   }
   console.log("");
   console.log("Networks checked");

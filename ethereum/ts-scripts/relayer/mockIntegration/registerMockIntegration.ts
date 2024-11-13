@@ -4,9 +4,9 @@ import {
   getMockIntegrationAddress,
   getOperatingChains,
 } from "../helpers/env";
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { XAddressStruct } from "../../../ethers-contracts/MockRelayerIntegration";
 import { printRegistration, registerMockIntegration } from "./mockIntegrationDeploy";
+import { nativeEvmAddressToHex } from "../helpers/utils";
 
 const processName = "registerMockIntegration";
 init();
@@ -18,8 +18,7 @@ async function run() {
 
   const emitters = allChains.map((chain) => ({
     chainId: chain.chainId,
-    addr:
-      "0x" + tryNativeToHexString(getMockIntegrationAddress(chain), "ethereum"),
+    addr: nativeEvmAddressToHex(getMockIntegrationAddress(chain)),
   })) satisfies XAddressStruct[];
 
   const results = await Promise.allSettled(

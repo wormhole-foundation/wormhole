@@ -1,4 +1,3 @@
-import { ChainId } from "@certusone/wormhole-sdk";
 import {
   init,
   getOperatingChains,
@@ -6,7 +5,7 @@ import {
   ChainInfo,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
-
+import { ChainId } from "@wormhole-foundation/sdk-base";
 import { inspect } from "util";
 
 const processName = "submitWormholeRelayerImplementationUpgrade";

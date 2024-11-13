@@ -1,6 +1,5 @@
-import * as wh from "@certusone/wormhole-sdk";
-//TODO address sdk version mismatch
-//import { Implementation__factory, LogMessagePublishedEvent } from "@certusone/wormhole-sdk"
+import { ChainId } from "@wormhole-foundation/sdk-base";
+import { VAA } from "@wormhole-foundation/sdk-definitions";
 import {
   ChainInfo,
   getWormholeRelayer,
@@ -108,13 +107,13 @@ async function queryMessageOnTarget(
 }
 
 export async function encodeEmitterAddress(
-  myChainId: wh.ChainId,
+  myChainId: ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  if (myChainId === wh.CHAIN_ID_SOLANA || myChainId === wh.CHAIN_ID_PYTHNET) {
+  if (myChainId === Chain || myChainId === wh.CHAIN_ID_PYTHNET) {
     return wh.getEmitterAddressSolana(emitterAddressStr);
   }
-  if (wh.isTerraChain(myChainId)) {
+  if (isTerraChain(myChainId)) {
     return wh.getEmitterAddressTerra(emitterAddressStr);
   }
   if (wh.isEVMChain(myChainId)) {
@@ -123,10 +122,11 @@ export async function encodeEmitterAddress(
   throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
 }
 
+
 function fetchVaaFromLog(
   bridgeLog: any,
-  chainId: wh.ChainId
-): Promise<wh.SignedVaa> {
+  chainId: ChainId
+): Promise<VAA> {
   throw Error("fetchVAA unimplemented");
   // const iface = Implementation__factory.createInterface();
   // const log = (iface.parseLog(

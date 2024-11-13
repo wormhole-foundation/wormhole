@@ -1,4 +1,3 @@
-import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import fs from "fs";
 
@@ -13,6 +12,7 @@ import {
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";
+import { ChainId } from "@wormhole-foundation/sdk-base";
 
 export interface ContractsJson {
   /**
