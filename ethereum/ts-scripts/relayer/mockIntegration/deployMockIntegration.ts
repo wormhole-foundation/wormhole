@@ -10,7 +10,7 @@ import {
 import { deployMockIntegration } from "../helpers/deployments";
 import { XAddressStruct } from "../../../ethers-contracts/MockRelayerIntegration";
 import { printRegistration, registerMockIntegration } from "./mockIntegrationDeploy";
-import { nativeEvmAddressToHex } from "../helpers/utils";
+import { nativeEthereumAddressToHex } from "../helpers/utils";
 
 const processName = "deployMockIntegration";
 init();
@@ -54,7 +54,7 @@ async function run() {
   const mockIntegrations = loadMockIntegrations();
   const emitters = loadMockIntegrations().map(({ address, chainId }) => ({
     chainId,
-    addr: nativeEvmAddressToHex(address)
+    addr: nativeEthereumAddressToHex(address)
   })) satisfies XAddressStruct[];
 
   const registerTasks = await Promise.allSettled(

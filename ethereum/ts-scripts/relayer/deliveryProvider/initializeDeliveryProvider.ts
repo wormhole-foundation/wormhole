@@ -9,7 +9,7 @@ import {
   getOperatingChains,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
-import { nativeEvmAddressToHex, wait } from "../helpers/utils";
+import { nativeEthereumAddressToHex, wait } from "../helpers/utils";
 
 import type { DeliveryProviderStructs } from "../../../ethers-contracts/DeliveryProvider";
 import { ChainId } from "@wormhole-foundation/sdk-base"
@@ -83,7 +83,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
       );
     }
     const targetChainProviderAddress = getDeliveryProviderAddress(targetChain);
-    const remoteDeliveryProvider = nativeEvmAddressToHex(targetChainProviderAddress);
+    const remoteDeliveryProvider = nativeEthereumAddressToHex(targetChainProviderAddress);
     const chainConfigUpdate: DeliveryProviderStructs.UpdateStruct = {
       chainId: targetChain.chainId,
       updateAssetConversionBuffer: true,

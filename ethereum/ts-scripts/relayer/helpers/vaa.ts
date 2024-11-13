@@ -7,7 +7,7 @@ import {
   loadGuardianKeys,
   loadGuardianSetIndex,
 } from "./env";
-import { nativeEvmAddressToHex } from "./utils";
+import { nativeEthereumAddressToHex } from "./utils";
 const elliptic = require("elliptic");
 
 const governanceChainId = 1;
@@ -35,7 +35,7 @@ export function createWormholeRelayerUpgradeVAA(
       wormholeRelayerModule,
       2,
       chain.chainId,
-      nativeEvmAddressToHex(newAddress)
+      nativeEthereumAddressToHex(newAddress)
     ],
   );
 
@@ -56,7 +56,7 @@ export function createDefaultDeliveryProviderVAA(chain: ChainInfo) {
       wormholeRelayerModule,
       3,
       chain.chainId,
-      nativeEvmAddressToHex(getDeliveryProviderAddress(chain))
+      nativeEthereumAddressToHex(getDeliveryProviderAddress(chain))
     ],
   );
 
@@ -84,7 +84,7 @@ export async function createRegisterChainVAA(
       1,
       0,
       chain.chainId,
-      nativeEvmAddressToHex(coreRelayerAddress)
+      nativeEthereumAddressToHex(coreRelayerAddress)
     ],
   );
 

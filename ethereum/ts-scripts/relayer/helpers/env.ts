@@ -12,7 +12,7 @@ import {
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";
-import { ChainId } from "@wormhole-foundation/sdk-base";
+import { ChainId, isNetwork, networks } from "@wormhole-foundation/sdk";
 
 export interface ContractsJson {
   /**
@@ -70,7 +70,15 @@ export function init(): string {
   require("dotenv").config({
     path: `./ts-scripts/relayer/.env${env != DEFAULT_ENV ? "." + env : ""}`,
   });
-  return env;
+
+  // The new Wormhole SDK only accepts capitalized env names.
+  env = env.charAt(0).toUpperCase() + env.slice(1).toLowerCase();
+  
+  if (!isNetwork(env)) {
+    throw new Error(`Invalid network name: ${env}, must be one of ${networks.join(", ")}`);
+  }
+
+  return env
 }
 
 function get_env_var(env: string): string {

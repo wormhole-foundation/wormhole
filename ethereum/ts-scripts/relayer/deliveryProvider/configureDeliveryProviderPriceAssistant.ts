@@ -8,7 +8,7 @@ import {
 import { buildOverrides } from "../helpers/deployments";
 
 import type { DeliveryProvider } from "../../../ethers-contracts/DeliveryProvider";
-import { ChainId } from "@wormhole-foundation/sdk-base"
+import { ChainId } from "@wormhole-foundation/sdk"
 
 type PricingWalletAction = {
   shouldUpdate: boolean;

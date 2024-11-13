@@ -8,7 +8,7 @@ import {
   getWormholeRelayerAddress,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
-import { nativeEvmAddressToHex, wait } from "../helpers/utils";
+import { nativeEthereumAddressToHex, wait } from "../helpers/utils";
 import { createRegisterChainVAA } from "../helpers/vaa";
 import type { WormholeRelayer } from "../../../ethers-contracts";
 
@@ -61,7 +61,7 @@ async function registerWormholeRelayer(
   const registration = await wormholeRelayer.getRegisteredWormholeRelayerContract(targetChain.chainId);
   if (registration !== zeroBytes32) {
     const registrationAddress = await getWormholeRelayerAddress(targetChain);
-    const expectedRegistration = nativeEvmAddressToHex(registrationAddress);
+    const expectedRegistration = nativeEthereumAddressToHex(registrationAddress);
     if (registration.toLowerCase() !== expectedRegistration.toLowerCase()) {
       throw new Error(`Found an unexpected registration for chain ${targetChain.chainId} on chain ${operatingChain.chainId}
 Expected: ${expectedRegistration}

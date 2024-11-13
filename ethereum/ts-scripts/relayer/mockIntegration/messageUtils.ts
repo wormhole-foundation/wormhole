@@ -1,12 +1,16 @@
-import { ChainId } from "@wormhole-foundation/sdk-base";
-import { VAA } from "@wormhole-foundation/sdk-definitions";
+import { ChainId, chainToPlatform, Network, network, platform, PlatformContext, toChain, VAA, wormhole } from "@wormhole-foundation/sdk";
+import evm from "@wormhole-foundation/sdk/evm";
+
 import {
   ChainInfo,
   getWormholeRelayer,
   getMockIntegration,
   getMockIntegrationAddress,
+  getChain,
+  env
 } from "../helpers/env";
 import { ethers } from "ethers";
+import { nativeAddressToHex } from "../helpers/utils";
 
 export async function sendMessage(
   sourceChain: ChainInfo,
@@ -44,10 +48,12 @@ export async function sendMessage(
     }
   );
   const rx = await tx.wait();
-  const sequences = wh.parseSequencesFromLogEth(
-    rx,
-    sourceChain.wormholeAddress
-  );
+
+  
+  const wh = await wormhole(env as Network, [evm]);
+  const chainRef = wh.getChain(toChain(sourceChain.chainId));
+  const sequences = await chainRef.parseTransaction(rx.transactionHash);
+  
   console.log("Tx hash: ", rx.transactionHash);
   console.log(`Sequences: ${sequences}`);
   if (fetchSignedVaa) {
@@ -110,16 +116,7 @@ export async function encodeEmitterAddress(
   myChainId: ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  if (myChainId === Chain || myChainId === wh.CHAIN_ID_PYTHNET) {
-    return wh.getEmitterAddressSolana(emitterAddressStr);
-  }
-  if (isTerraChain(myChainId)) {
-    return wh.getEmitterAddressTerra(emitterAddressStr);
-  }
-  if (wh.isEVMChain(myChainId)) {
-    return wh.getEmitterAddressEth(emitterAddressStr);
-  }
-  throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
+  return nativeAddressToHex(emitterAddressStr, myChainId);
 }
 
 

@@ -20,8 +20,7 @@ import {
 } from "./env";
 import { ethers } from "ethers";
 import { wait } from "./utils";
-import { ChainId, toChain } from "@wormhole-foundation/sdk-base";
-import * as wh from "@wormhole-foundation/sdk";
+import { ChainId, getContracts, toChain } from "@wormhole-foundation/sdk";
 
 export const setupContractSalt = Buffer.from("0xSetup");
 export const proxyContractSalt = Buffer.from("0xGenericRelayer");
@@ -181,7 +180,7 @@ function checkCoreAddress(wormhole: string, env: string, chainId: ChainId) {
   const contractSet = env === "mainnet" ? "Mainnet" : env === "testnet" ? "Testnet" : undefined;
   if (contractSet === undefined) return;
 
-  const sdkWormhole = wh.getContracts(contractSet, chainName).coreBridge;
+  const sdkWormhole = getContracts(contractSet, chainName).coreBridge;
   if (sdkWormhole === undefined) {
     console.error(`Warning: SDK Wormhole address for chain ${chainId} is undefined.`);
     return;
