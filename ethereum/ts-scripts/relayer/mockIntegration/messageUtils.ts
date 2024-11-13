@@ -1,13 +1,16 @@
-import * as wh from "@certusone/wormhole-sdk";
-//TODO address sdk version mismatch
-//import { Implementation__factory, LogMessagePublishedEvent } from "@certusone/wormhole-sdk"
+import { ChainId, chainToPlatform, Network, network, platform, PlatformContext, toChain, VAA, wormhole } from "@wormhole-foundation/sdk";
+import evm from "@wormhole-foundation/sdk/evm";
+
 import {
   ChainInfo,
   getWormholeRelayer,
   getMockIntegration,
   getMockIntegrationAddress,
+  getChain,
+  env
 } from "../helpers/env";
 import { ethers } from "ethers";
+import { nativeAddressToHex } from "../helpers/utils";
 
 export async function sendMessage(
   sourceChain: ChainInfo,
@@ -45,10 +48,12 @@ export async function sendMessage(
     }
   );
   const rx = await tx.wait();
-  const sequences = wh.parseSequencesFromLogEth(
-    rx,
-    sourceChain.wormholeAddress
-  );
+
+  
+  const wh = await wormhole(env as Network, [evm]);
+  const chainRef = wh.getChain(toChain(sourceChain.chainId));
+  const sequences = await chainRef.parseTransaction(rx.transactionHash);
+  
   console.log("Tx hash: ", rx.transactionHash);
   console.log(`Sequences: ${sequences}`);
   if (fetchSignedVaa) {
@@ -108,25 +113,17 @@ async function queryMessageOnTarget(
 }
 
 export async function encodeEmitterAddress(
-  myChainId: wh.ChainId,
+  myChainId: ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  if (myChainId === wh.CHAIN_ID_SOLANA || myChainId === wh.CHAIN_ID_PYTHNET) {
-    return wh.getEmitterAddressSolana(emitterAddressStr);
-  }
-  if (wh.isTerraChain(myChainId)) {
-    return wh.getEmitterAddressTerra(emitterAddressStr);
-  }
-  if (wh.isEVMChain(myChainId)) {
-    return wh.getEmitterAddressEth(emitterAddressStr);
-  }
-  throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
+  return nativeAddressToHex(emitterAddressStr, myChainId);
 }
+
 
 function fetchVaaFromLog(
   bridgeLog: any,
-  chainId: wh.ChainId
-): Promise<wh.SignedVaa> {
+  chainId: ChainId
+): Promise<VAA> {
   throw Error("fetchVAA unimplemented");
   // const iface = Implementation__factory.createInterface();
   // const log = (iface.parseLog(

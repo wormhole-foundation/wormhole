@@ -7,10 +7,10 @@ import {
   loadMockIntegrations,
   getChain,
 } from "../helpers/env";
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { deployMockIntegration } from "../helpers/deployments";
 import { XAddressStruct } from "../../../ethers-contracts/MockRelayerIntegration";
 import { printRegistration, registerMockIntegration } from "./mockIntegrationDeploy";
+import { nativeEthereumAddressToHex } from "../helpers/utils";
 
 const processName = "deployMockIntegration";
 init();
@@ -54,7 +54,7 @@ async function run() {
   const mockIntegrations = loadMockIntegrations();
   const emitters = loadMockIntegrations().map(({ address, chainId }) => ({
     chainId,
-    addr: "0x" + tryNativeToHexString(address, "ethereum"),
+    addr: nativeEthereumAddressToHex(address)
   })) satisfies XAddressStruct[];
 
   const registerTasks = await Promise.allSettled(

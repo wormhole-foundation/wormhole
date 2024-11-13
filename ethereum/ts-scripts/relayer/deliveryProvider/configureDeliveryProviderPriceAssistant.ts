@@ -1,4 +1,3 @@
-import { ChainId } from "@certusone/wormhole-sdk";
 import {
   init,
   ChainInfo,
@@ -9,6 +8,7 @@ import {
 import { buildOverrides } from "../helpers/deployments";
 
 import type { DeliveryProvider } from "../../../ethers-contracts/DeliveryProvider";
+import { ChainId } from "@wormhole-foundation/sdk"
 
 type PricingWalletAction = {
   shouldUpdate: boolean;

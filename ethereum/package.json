@@ -45,8 +45,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.10.15",
     "@typechain/ethers-v5": "^10.2.0",
+    "@wormhole-foundation/sdk": "^1.0.3",
     "cbor": "^9.0.2",
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",

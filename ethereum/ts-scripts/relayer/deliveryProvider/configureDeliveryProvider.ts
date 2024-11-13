@@ -1,4 +1,3 @@
-import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { BigNumber, BigNumberish, utils, ContractReceipt } from 'ethers';
 import {
   init,
@@ -10,11 +9,13 @@ import {
   getDeliveryProviderAddress,
 } from "../helpers/env";
 import { buildOverrides } from "../helpers/deployments";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 import type {
   DeliveryProvider,
   DeliveryProviderStructs,
 } from "../../../ethers-contracts/DeliveryProvider";
+import { nativeEthereumAddressToHex } from '../helpers/utils';
 
 type AwaitedProperties<T> = {
   [K in keyof T]: Awaited<T[K]>;
@@ -327,8 +328,7 @@ async function processTargetChainAddressUpdate(
   chain: ChainInfo,
 ) {
   const currentTargetChainAddress = await deliveryProvider.getTargetChainAddress(chain.chainId);
-  const targetChainAddress =
-  "0x" + tryNativeToHexString(getDeliveryProviderAddress(chain), "ethereum");
+  const targetChainAddress = nativeEthereumAddressToHex(getDeliveryProviderAddress(chain));
 
   if (currentTargetChainAddress !== targetChainAddress) {
     const update = getUpdateConfig(updates, chain.chainId);
