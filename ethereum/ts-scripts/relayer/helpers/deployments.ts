@@ -125,7 +125,8 @@ export async function deployCreate2Factory(
 
   let factory = new Create2Factory__factory();
 
-  const ethChain = getChain(chain.chainId);
+  // This needs to be the Ethereum chain. We want to check whether we are on mainnet or not.
+  const ethChain = getChain(2);
   const ethChainProvider = getProvider(ethChain);
   const ethNetwork = await ethChainProvider.getNetwork();
   if (ethNetwork.chainId === 1) {
