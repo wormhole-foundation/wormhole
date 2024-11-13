@@ -126,40 +126,48 @@ export async function deployCreate2Factory(
   let factory = new Create2Factory__factory();
 
   // This needs to be the Ethereum chain. We want to check whether we are on mainnet or not.
-  const ethChain = getChain(2);
-  const ethChainProvider = getProvider(ethChain);
-  const ethNetwork = await ethChainProvider.getNetwork();
-  if (ethNetwork.chainId === 1) {
-    // Here we fetch the creation bytecode from Ethereum.
-    // We also perform a few sanity checks to ensure that the retrieved creation bytecode looks good:
-    // 1. The transaction receipt should contain the expected address for the `Create2Factory`.
-    // 2. The bytecode hash should be a specific one.
-    //
-    // Why do this? The creation bytecode of `SimpleProxy` is part of the hash function that derives the address.
-    // This means that to reproduce the same address on a different chain, you need to create the exact same `SimpleProxy` contract.
-    // Since the compiler inserts metadata hashes, and potentially other properties, that don't impact the functionality,
-    // we reuse the same creation bytecode that we originally used instead of attempting to tune newer compiler versions to produce the same bytecode.
-    if (ethC2Promise === undefined) {
-      // We assign the promise immediately to avoid race conditions
-      ethC2Promise = (async () => {
-        const factoryCreationTxid = "0xfd6551a91a2e9f423285a2e86f7f480341a658dda1ff1d8bc9167b2b7ec77caa";
-        const ethFactoryAddress = getCreate2FactoryAddress(ethChain);
-        const factoryReceipt = await ethChainProvider.getTransactionReceipt(factoryCreationTxid);
-        if (factoryReceipt.contractAddress !== ethFactoryAddress) {
-          throw new Error("Wrong txid for the transaction that created the Create2Factory in Ethereum mainnet.");
-        }
-        const ethFactoryTx = await ethChainProvider.getTransaction(factoryCreationTxid);
+  let ethChain;
+  try {
+    ethChain = getChain(2);
+  } catch {
+    if (env.toLowerCase() === "mainnet") throw new Error(`This is a mainnet deployment but the Ethereum chain is not defined in chains.json`);
+    console.log(`Couldn't retrieve the Ethereum chain. Make sure this is not a mainnet deployment.`);
+  }
+  if (ethChain !== undefined) {
+    const ethChainProvider = getProvider(ethChain);
+    const ethNetwork = await ethChainProvider.getNetwork();
+    if (ethNetwork.chainId === 1) {
+      // Here we fetch the creation bytecode from Ethereum.
+      // We also perform a few sanity checks to ensure that the retrieved creation bytecode looks good:
+      // 1. The transaction receipt should contain the expected address for the `Create2Factory`.
+      // 2. The bytecode hash should be a specific one.
+      //
+      // Why do this? The creation bytecode of `SimpleProxy` is part of the hash function that derives the address.
+      // This means that to reproduce the same address on a different chain, you need to create the exact same `SimpleProxy` contract.
+      // Since the compiler inserts metadata hashes, and potentially other properties, that don't impact the functionality,
+      // we reuse the same creation bytecode that we originally used instead of attempting to tune newer compiler versions to produce the same bytecode.
+      if (ethC2Promise === undefined) {
+        // We assign the promise immediately to avoid race conditions
+        ethC2Promise = (async () => {
+          const factoryCreationTxid = "0xfd6551a91a2e9f423285a2e86f7f480341a658dda1ff1d8bc9167b2b7ec77caa";
+          const ethFactoryAddress = getCreate2FactoryAddress(ethChain);
+          const factoryReceipt = await ethChainProvider.getTransactionReceipt(factoryCreationTxid);
+          if (factoryReceipt.contractAddress !== ethFactoryAddress) {
+            throw new Error("Wrong txid for the transaction that created the Create2Factory in Ethereum mainnet.");
+          }
+          const ethFactoryTx = await ethChainProvider.getTransaction(factoryCreationTxid);
 
-        const expectedCreationCodeHash = "0x4b72c18c9a1a24d8406bde2edc283025bd33513d13c51601bb02dd4f298ada7d";
-        const fetchedCreationCodeHash = ethers.utils.sha256(ethFactoryTx.data);
-        if (expectedCreationCodeHash !== fetchedCreationCodeHash) {
-          throw new Error(`Creation code mismatch for Create2Factory. Found: ${fetchedCreationCodeHash} Expected: ${expectedCreationCodeHash}`);
-        }
-        return new Create2Factory__factory(Create2Factory__factory.createInterface(), ethFactoryTx.data);
-      })();
+          const expectedCreationCodeHash = "0x4b72c18c9a1a24d8406bde2edc283025bd33513d13c51601bb02dd4f298ada7d";
+          const fetchedCreationCodeHash = ethers.utils.sha256(ethFactoryTx.data);
+          if (expectedCreationCodeHash !== fetchedCreationCodeHash) {
+            throw new Error(`Creation code mismatch for Create2Factory. Found: ${fetchedCreationCodeHash} Expected: ${expectedCreationCodeHash}`);
+          }
+          return new Create2Factory__factory(Create2Factory__factory.createInterface(), ethFactoryTx.data);
+        })();
+      }
+
+      factory = await ethC2Promise;
     }
-
-    factory = await ethC2Promise;
   }
 
   // We need to connect the signer here because we're overwriting the factory when deploying to mainnet.
