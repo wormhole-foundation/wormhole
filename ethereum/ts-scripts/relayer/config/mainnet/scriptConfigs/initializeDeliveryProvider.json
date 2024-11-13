@@ -3,6 +3,10 @@
     {
       "chainId": 43,
       "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
+    },
+    {
+      "chainId": 45,
+      "rewardAddress": "0x53207E216540125e322CdA8A693b0b89576DEb46"
     }
   ],
   "pricingInfo": [
@@ -113,6 +117,13 @@
     },
     {
       "chainId": 43,
+      "deliverGasOverhead": "350000",
+      "updatePriceGas": "30000000000",
+      "updatePriceNative": "200000",
+      "maximumBudget": "1000000000000000000"
+    },
+    {
+      "chainId": 45,
       "deliverGasOverhead": "350000",
       "updatePriceGas": "30000000000",
       "updatePriceNative": "200000",
