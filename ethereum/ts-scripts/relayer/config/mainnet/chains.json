@@ -113,6 +113,13 @@
       "chainId": 43,
       "rpc": "https://mainnet.snaxchain.io",
       "wormholeAddress": "0xc1BA3CC4bFE724A08FbbFbF64F8db196738665f4"
+    },
+    {
+      "description": "Worldchain",
+      "evmNetworkId": 480,
+      "chainId": 45,
+      "rpc": "https://worldchain-mainnet.g.alchemy.com/public",
+      "wormholeAddress": "0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"
     }
   ]
 }
