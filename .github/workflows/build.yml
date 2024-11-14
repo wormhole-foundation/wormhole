@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       - run: make node
 
   algorand:
@@ -186,8 +186,7 @@ jobs:
           done
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
-        shell:
-          bash
+        shell: bash
 
   aptos:
     name: Aptos
@@ -271,7 +270,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
@@ -288,7 +287,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       - name: Install formatter
         run: go install golang.org/x/tools/cmd/goimports@v0.8.0
       - name: Formatting checks
@@ -330,7 +329,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
         run: cd node && go test -v -timeout 5m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
