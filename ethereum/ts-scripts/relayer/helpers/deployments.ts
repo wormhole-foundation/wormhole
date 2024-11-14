@@ -137,6 +137,7 @@ export async function deployCreate2Factory(
     const ethChainProvider = getProvider(ethChain);
     const ethNetwork = await ethChainProvider.getNetwork();
     if (ethNetwork.chainId === 1) {
+      console.log(`Retrieving Create2Factory from Ethereum`);
       // Here we fetch the creation bytecode from Ethereum.
       // We also perform a few sanity checks to ensure that the retrieved creation bytecode looks good:
       // 1. The transaction receipt should contain the expected address for the `Create2Factory`.
