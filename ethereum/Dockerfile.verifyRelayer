@@ -13,11 +13,16 @@ COPY --from=ghcr.io/foundry-rs/foundry:nightly-d9e51e4807b62f101221a2fd36076c502
   /usr/local/bin/chisel \
   /bin/
 
-COPY . .
+COPY ./contracts ./contracts
+COPY ./forge-test ./forge-test
+COPY ./Makefile ./foundry.toml ./truffle-config.js ./package.json ./package-lock.json ./tsconfig.json .
+COPY ./ts-scripts/relayer/eraseTypes.ts ./ts-scripts/relayer/eraseTypes.ts
 ENV ENV=mainnet
 ENV DEV=False
 RUN make build
 
+# We copy the scripts with the configuration here to avoid rebuilding the contracts in case of an RPC URL failure
+COPY ./ts-scripts ./ts-scripts
 RUN npm run build:typescript
 
 CMD ["node", "build-ts/ts-scripts/relayer/wormholeRelayer/verifyWormholeRelayerDeployedByteCode.js"]
