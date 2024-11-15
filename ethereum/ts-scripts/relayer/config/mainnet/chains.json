@@ -41,7 +41,7 @@
       "description": "Klaytn",
       "evmNetworkId": 8217,
       "chainId": 13,
-      "rpc": "https://public-en-cypress.klaytn.net",
+      "rpc": "https://klaytn.blockpi.network/v1/rpc/public",
       "wormholeAddress": "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"
     },
     {
