@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -59,6 +60,11 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		if err != nil {
 			return nil, err
 		}
+	case vaa.ActionSlashingParamsUpdate:
+
+		// TODO: JOEL
+		k.slashingKeeper.SetParams(ctx, slashingtypes.Params{})
+
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 
