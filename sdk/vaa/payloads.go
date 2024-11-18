@@ -69,11 +69,12 @@ type GovernanceAction uint8
 var (
 	// Wormhole core governance actions
 	// See e.g. GovernanceStructs.sol for semantic meaning of these
-	ActionContractUpgrade    GovernanceAction = 1
-	ActionGuardianSetUpdate  GovernanceAction = 2
-	ActionCoreSetMessageFee  GovernanceAction = 3
-	ActionCoreTransferFees   GovernanceAction = 4
-	ActionCoreRecoverChainId GovernanceAction = 5
+	ActionContractUpgrade      GovernanceAction = 1
+	ActionGuardianSetUpdate    GovernanceAction = 2
+	ActionCoreSetMessageFee    GovernanceAction = 3
+	ActionCoreTransferFees     GovernanceAction = 4
+	ActionCoreRecoverChainId   GovernanceAction = 5
+	ActionSlashingParamsUpdate GovernanceAction = 6
 
 	// Wormchain cosmwasm/middleware governance actions
 	ActionStoreCode                      GovernanceAction = 1
