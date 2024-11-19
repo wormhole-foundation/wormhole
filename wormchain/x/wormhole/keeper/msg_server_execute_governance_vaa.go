@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"encoding/binary"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -61,10 +62,32 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 			return nil, err
 		}
 	case vaa.ActionSlashingParamsUpdate:
+		// Ensure payload is 45 bytes to store 5 int64 values
+		if len(payload) != 40 {
+			return nil, types.ErrInvalidGovernancePayloadLength
+		}
 
-		// TODO: JOEL
-		k.slashingKeeper.SetParams(ctx, slashingtypes.Params{})
+		// Extract params from payload
+		signedBlocksWindow := int64(binary.BigEndian.Uint64(payload[:8]))
+		minSignedPerWindow := int64(binary.BigEndian.Uint64(payload[8:16]))
+		downtimeJailDuration := int64(binary.BigEndian.Uint64(payload[16:24]))
+		slashFractionDoubleSign := int64(binary.BigEndian.Uint64(payload[24:32]))
+		slashFractionDowntime := int64(binary.BigEndian.Uint64(payload[32:40]))
 
+		// Update slashing params
+		params := slashingtypes.NewParams(
+			signedBlocksWindow,
+			sdk.NewDecWithPrec(minSignedPerWindow, 18),
+			time.Duration(downtimeJailDuration),
+			sdk.NewDecWithPrec(slashFractionDoubleSign, 18),
+			sdk.NewDecWithPrec(slashFractionDowntime, 18),
+		)
+
+		// Set the new params
+		err := k.slashingKeeper.SetParams(ctx, params)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 

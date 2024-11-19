@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"testing"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -106,4 +107,58 @@ func TestExecuteGovernanceVAA(t *testing.T) {
 	assert.NoError(t, err)
 	new_index2 := k.GetLatestGuardianSetIndex(ctx)
 	assert.Equal(t, new_set.Index+1, new_index2)
+}
+
+func createSlashingParamsUpdatePayload() []byte {
+	// 5 int64 values
+	slashingParams := make([]byte, 40)
+
+	signedBlocksWindow := uint64(100)
+	minSignedPerWindow := sdk.NewDecWithPrec(5, 1).BigInt().Uint64()
+	downtimeJailDuration := uint64(600 * time.Second)
+	slashFractionDoubleSign := sdk.NewDecWithPrec(5, 2).BigInt().Uint64()
+	slashFractionDowntime := sdk.NewDecWithPrec(1, 2).BigInt().Uint64()
+
+	binary.BigEndian.PutUint64(slashingParams, signedBlocksWindow)
+	binary.BigEndian.PutUint64(slashingParams[8:], minSignedPerWindow)
+	binary.BigEndian.PutUint64(slashingParams[16:], downtimeJailDuration)
+	binary.BigEndian.PutUint64(slashingParams[24:], slashFractionDoubleSign)
+	binary.BigEndian.PutUint64(slashingParams[32:], slashFractionDowntime)
+
+	// governance message with sha3 of wasmBytes as the payload
+	module := [32]byte{}
+	copy(module[:], vaa.CoreModule)
+	gov_msg := types.NewGovernanceMessage(module, byte(vaa.ActionSlashingParamsUpdate), uint16(vaa.ChainIDWormchain), slashingParams)
+
+	return gov_msg.MarshalBinary()
+}
+
+func TestExecuteSlashingParamsUpdate(t *testing.T) {
+	k, ctx := keepertest.WormholeKeeper(t)
+	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
+	_ = privateKeys
+	k.SetConfig(ctx, types.Config{
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
+		GuardianSetExpiration: 86400,
+	})
+	signer_bz := [20]byte{}
+	signer := sdk.AccAddress(signer_bz[:])
+
+	set := createNewGuardianSet(k, ctx, guardians)
+	k.SetConsensusGuardianSetIndex(ctx, types.ConsensusGuardianSetIndex{Index: set.Index})
+
+	context := sdk.WrapSDKContext(ctx)
+	msgServer := keeper.NewMsgServerImpl(*k)
+
+	// create governance to update guardian set with extra guardian
+	payload := createSlashingParamsUpdatePayload()
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	vBz, _ := v.Marshal()
+	_, err := msgServer.ExecuteGovernanceVAA(context, &types.MsgExecuteGovernanceVAA{
+		Signer: signer.String(),
+		Vaa:    vBz,
+	})
+	assert.NoError(t, err)
 }

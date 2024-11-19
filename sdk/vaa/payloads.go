@@ -128,6 +128,14 @@ type (
 		NewIndex uint32
 	}
 
+	BodySlashingParamsUpdate struct {
+		SignedBlocksWindow      uint64
+		MinSignedPerWindow      uint64
+		DowntimeJailDuration    uint64
+		SlashFractionDoubleSign uint64
+		SlashFractionDowntime   uint64
+	}
+
 	// BodyTokenBridgeRegisterChain is a governance message to register a chain on the token bridge
 	BodyTokenBridgeRegisterChain struct {
 		Module         string
@@ -280,6 +288,25 @@ func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	for _, k := range b.Keys {
 		buf.Write(k[:])
 	}
+
+	return buf.Bytes(), nil
+}
+
+func (b BodySlashingParamsUpdate) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Module
+	buf.Write(CoreModule)
+	// // Action
+	MustWrite(buf, binary.BigEndian, ActionSlashingParamsUpdate)
+	// // ChainID - 0 for universal
+	MustWrite(buf, binary.BigEndian, uint16(0))
+
+	MustWrite(buf, binary.BigEndian, b.SignedBlocksWindow)
+	MustWrite(buf, binary.BigEndian, b.MinSignedPerWindow)
+	MustWrite(buf, binary.BigEndian, b.DowntimeJailDuration)
+	MustWrite(buf, binary.BigEndian, b.SlashFractionDoubleSign)
+	MustWrite(buf, binary.BigEndian, b.SlashFractionDowntime)
 
 	return buf.Bytes(), nil
 }
