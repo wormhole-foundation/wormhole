@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -71,6 +72,27 @@ func TestBodyGuardianSetUpdateSerialize(t *testing.T) {
 	serializedBodyGuardianSetUpdate, err := bodyGuardianSetUpdate.Serialize()
 	require.NoError(t, err)
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyGuardianSetUpdate))
+}
+
+func TestBodySlashingParamsUpdateSerialize(t *testing.T) {
+	signedBlocksWindow := uint64(100)
+	minSignedPerWindow := uint64(500000000000000000)
+	downtimeJailDuration := uint64(600 * time.Second)
+	slashFractionDoubleSign := uint64(50000000000000000)
+	slashFractionDowntime := uint64(10000000000000000)
+
+	bodySlashingParamsUpdate := BodySlashingParamsUpdate{
+		SignedBlocksWindow:      signedBlocksWindow,
+		MinSignedPerWindow:      minSignedPerWindow,
+		DowntimeJailDuration:    downtimeJailDuration,
+		SlashFractionDoubleSign: slashFractionDoubleSign,
+		SlashFractionDowntime:   slashFractionDowntime,
+	}
+	serializedBody, err := bodySlashingParamsUpdate.Serialize()
+	require.NoError(t, err)
+
+	expected := "00000000000000000000000000000000000000000000000000000000436f7265060000000000000000006406f05b59d3b200000000008bb2c9700000b1a2bc2ec50000002386f26fc10000"
+	assert.Equal(t, expected, hex.EncodeToString(serializedBody))
 }
 
 func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
