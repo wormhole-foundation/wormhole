@@ -262,7 +262,7 @@ const getSigsFromWormscanData = (
       const normalizedGuardianFromSet = new UniversalAddress(guardianSet[idx], platformToAddressFormat("Evm"));
       const normalizedGuardianAddr = new UniversalAddress(guardianAddr, platformToAddressFormat("Evm"));
 
-      if (normalizedGuardianAddr.toString() === normalizedGuardianFromSet.toString()) {
+      if (normalizedGuardianAddr.equals(normalizedGuardianFromSet)) {
         gsi = idx;
         break;
       }
