@@ -62,7 +62,6 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 			return nil, err
 		}
 	case vaa.ActionSlashingParamsUpdate:
-		// Ensure payload is 45 bytes to store 5 int64 values
 		if len(payload) != 40 {
 			return nil, types.ErrInvalidGovernancePayloadLength
 		}
