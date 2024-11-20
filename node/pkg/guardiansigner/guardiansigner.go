@@ -17,8 +17,6 @@ const (
 	FileSignerType
 	// amazonkms://<arn>
 	AmazonKmsSignerType
-	// benchmark://<signer-uri>
-	BenchmarkSignerType
 )
 
 // GuardianSigner interface
@@ -42,16 +40,22 @@ func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMo
 		return nil, err
 	}
 
+	var guardianSigner GuardianSigner
+
 	switch signerType {
 	case FileSignerType:
-		return NewFileSigner(ctx, unsafeDevMode, signerKeyConfig)
+		guardianSigner, err = NewFileSigner(ctx, unsafeDevMode, signerKeyConfig)
 	case AmazonKmsSignerType:
-		return NewAmazonKmsSigner(ctx, unsafeDevMode, signerKeyConfig)
-	case BenchmarkSignerType:
-		return NewBenchmarkSigner(ctx, unsafeDevMode, signerKeyConfig)
+		guardianSigner, err = NewAmazonKmsSigner(ctx, unsafeDevMode, signerKeyConfig)
 	default:
 		return nil, errors.New("unsupported guardian signer type")
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return BenchmarkWrappedSigner(guardianSigner), nil
 }
 
 func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig string, err error) {
@@ -73,8 +77,6 @@ func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig st
 		return FileSignerType, keyConfig, nil
 	case "amazonkms":
 		return AmazonKmsSignerType, keyConfig, nil
-	case "benchmark":
-		return BenchmarkSignerType, keyConfig, nil
 	default:
 		return InvalidSignerType, "", fmt.Errorf("unsupported guardian signer type: %s", typeStr)
 	}

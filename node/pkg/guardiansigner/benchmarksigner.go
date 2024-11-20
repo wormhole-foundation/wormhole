@@ -1,9 +1,16 @@
 package guardiansigner
 
+/*
+	The Benchmark signer is a type of signer that wraps other signers,
+	recording the latency of signing and signature verification into
+	histograms. As additional signers are implemented, relying on 3rd
+	party services, benchmarking signers is useful to ensure observation
+	signing happens at an acceptable rate.
+*/
+
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,21 +37,14 @@ var (
 		})
 )
 
-// The Benchmark signer simply wraps any other available signer, but records the latency of signing and signature
-// verification operations into histograms. To use the Benchmark signer, use the `benchmark://` URI scheme, followed
-// by the signer URI that needs to be benchmarked. For example:
-//
-//	benchmark://amazonkms://<arn>
-func NewBenchmarkSigner(ctx context.Context, unsafeDevMode bool, signerKeyPath string) (*BenchmarkSigner, error) {
-	innerSigner, err := NewGuardianSignerFromUri(ctx, signerKeyPath, unsafeDevMode)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create benchmark signer: %w", err)
+func BenchmarkWrappedSigner(innerSigner GuardianSigner) *BenchmarkSigner {
+	if innerSigner == nil {
+		return nil
 	}
 
 	return &BenchmarkSigner{
 		innerSigner: innerSigner,
-	}, nil
+	}
 }
 
 func (b *BenchmarkSigner) Sign(ctx context.Context, hash []byte) ([]byte, error) {
