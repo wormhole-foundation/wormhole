@@ -817,12 +817,12 @@ if wormchain:
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
     )
 
-    docker_build(
-        ref = "vue-export",
-        context = ".",
-        dockerfile = "./wormchain/Dockerfile.proto",
-        target = "vue-export",
-    )
+    # docker_build(
+    #     ref = "vue-export",
+    #     context = ".",
+    #     dockerfile = "./wormchain/Dockerfile.proto",
+    #     target = "vue-export",
+    # )
 
     docker_build(
         ref = "wormchain-deploy",

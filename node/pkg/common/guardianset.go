@@ -214,3 +214,8 @@ func (st *GuardianSetState) Cleanup() {
 		}
 	}
 }
+
+// IsSubscribedToHeartbeats returns true if the heartbeat update channel is set.
+func (st *GuardianSetState) IsSubscribedToHeartbeats() bool {
+	return st.updateC != nil
+}

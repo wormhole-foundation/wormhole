@@ -26,13 +26,13 @@ build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
 	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
 	cp "$@" "$@"-"$(VERSION)"
 
-proto: $(PROTO_FILES)
-	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
+# proto: $(PROTO_FILES)
+# 	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
 
-vue: $(GO_FILES) proto
-	mkdir -p $@
-	touch -m $@
-	DOCKER_BUILDKIT=1 docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
+# vue: $(GO_FILES) proto
+# 	mkdir -p $@
+# 	touch -m $@
+# 	DOCKER_BUILDKIT=1 docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies

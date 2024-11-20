@@ -64,7 +64,7 @@ function update_our_dockerfiles() {
     local image=docker.io/golang
 
     # shellcheck disable=SC2207
-    local wormhole_dockerfiles=($(git grep -lEi 'FROM.*go(lang)' | grep -Ev '^(wormchain/D|third_party|algorand|terra)'))
+    local wormhole_dockerfiles=($(git grep -lEi 'FROM.*go(lang)' | grep -Ev '^(wormchain/D|third_party|algorand|terra|docs)'))
 
     # shellcheck disable=SC2155
     local digest=$(get_docker_image_digest "$version" "docker.io/golang")

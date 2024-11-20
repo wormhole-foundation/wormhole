@@ -17,7 +17,7 @@ so you can test changes for your mainnet full nodes and gain operational experie
 ### Solana node requirements
 
 Refer to the [Solana documentation](https://docs.solanalabs.com/operations/setup-an-rpc-node) on how to run an RPC
-(full) node.  [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding
+(full) node. [Solana's Discord server](https://solana.com/community) is a great resource for questions regarding
 operations.
 
 The `#rpc-server-operators` channel is especially useful for setting up Solana RPC nodes.
@@ -91,7 +91,6 @@ since only very few nodes support the light client protocol.
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
 frequency). Light clients have much lower hardware requirements.
 
-
 ### Terra
 
 Terra is also sometimes referred to as Terra 2, but the correct name is just simply "Terra". The previous version was renamed to "Terra Classic".
@@ -102,17 +101,18 @@ Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full
 
 Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs/full-node/run-a-full-terra-node/README.html) on how to run a full node.
 
-
 ### Wormchain
 
 All guardians **must run validators for wormchain**, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
 
 #### Pre-requisites
-- Ensure you have [Go](https://golang.org/dl/) >= 1.21.9 installed.
+
+- Ensure you have [Go](https://golang.org/dl/) >= 1.23.3 installed.
 
 #### Building wormchaind binary
+
 There is not a pre-built binary available. You need to check out the repo and build the
-wormchaind binary from source: 
+wormchaind binary from source:
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
@@ -125,18 +125,22 @@ Then, compile the release binary as an unprivileged build user:
 ```bash
 make build/wormchaind
 ```
+
 You'll find `wormchaind` binary in `wormchain/build/wormchaind`.
 
 #### Initialize environment
+
 Initialize the Wormchain environment with the necessary configuration.
 
 ```bash
 /path/to/wormchain/bin/wormchaind init <your-node-name> --chain-id wormchain --home /path/to/wormchain/directory
 ```
+
 This command will generate the private validator key. That key should be backed up.
 This key is set in `config.toml` file under the `priv_validator_key_file` field.
 
 #### Generate configuration files
+
 The `--wormchainURL` argument to the guardian node should point to `<validator address>:9090` which is the `grpc` port
 in the app.toml.
 
@@ -174,6 +178,7 @@ For signing, consider setting up a remote threshold signer such as
 in front of your wormchain validator.
 
 #### Retrieve the Genesis File
+
 Download the genesis file from the wormhole repository.
 
 ```bash
@@ -181,6 +186,7 @@ wget -O /path/to/wormchain/config/genesis.json https://raw.githubusercontent.com
 ```
 
 #### Generate wormchain keys
+
 To generate wormchain keys, run the following command:
 
 ```bash
@@ -188,10 +194,13 @@ To generate wormchain keys, run the following command:
 ```
 
 This command will create a `<key-name>.info` file. To extract the key, run the following command:
+
 ```bash
 wormchaind keys export <key_name> --home /path/to/wormchain/directory --keyring-dir . --keyring-backend file
 ```
+
 This command will ask for a passphrase to be created for it. Both `wormchain.key` and `passphrase` will be used by the following `guardiand` flags:
+
 - `--accountantKeyPath`
 - `--accountantKeyPassPhrase`
 
@@ -262,9 +271,9 @@ to function correctly. By default in geth, [historical state is only kept in mem
 After 128 blocks, older states are garbage collected. Many of these chains are forks of geth that maintain this
 historical limitation.
 
-* Arbitrum
-* Base
-* Optimism
+- Arbitrum
+- Base
+- Optimism
 
 Newer execution clients such as [reth](https://github.com/paradigmxyz/reth) lack this limitation and are worth
 investigating once they are stable.
@@ -279,10 +288,10 @@ All modern Cosmos integrations happen by Wormhole observing IBC transactions on 
 
 The following Cosmos based nodes were added prior to Gateway and guardians need to run full nodes:
 
-* Injective
-* Terra
-* Terra Classic
-* XPLA
+- Injective
+- Terra
+- Terra Classic
+- XPLA
 
 **NOTE**: All guardians must run validators for wormchain.
 
@@ -291,7 +300,7 @@ The following Cosmos based nodes were added prior to Gateway and guardians need 
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
 guardiand binary from source. A Git repo is much harder to tamper with than release binaries.
 
-To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.21.9
+To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.23.3
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
