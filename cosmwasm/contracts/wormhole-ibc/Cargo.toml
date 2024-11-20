@@ -12,10 +12,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-wormhole-cosmwasm = { version = "0.1.0", default-features = false, features = [
-    "library",
-    "full",
-] }
+wormhole-cosmwasm = { version = "0.1.0", default-features = false, features = ["library", "full"] }
 cosmwasm-std = { version = "1.0.0", features = ["ibc3"] }
 cw-storage-plus = "0.13.2"
 cosmwasm-schema = "1"
