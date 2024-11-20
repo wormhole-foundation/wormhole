@@ -10,8 +10,8 @@ import (
 )
 
 // QueryContractInfo queries the information about a contract like the admin and code_id.
-func QueryContractInfo(t *testing.T, tn *cosmos.CosmosChain, ctx context.Context, contractAddress string) ContractInfoResponse {
-	stdout, _, err := tn.GetFullNode().ExecQuery(ctx,
+func QueryContractInfo(t *testing.T, chain *cosmos.CosmosChain, ctx context.Context, contractAddress string) ContractInfoResponse {
+	stdout, _, err := chain.GetFullNode().ExecQuery(ctx,
 		"wasm", "contract", contractAddress,
 	)
 	require.NoError(t, err)
