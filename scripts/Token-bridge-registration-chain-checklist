@@ -27,6 +27,7 @@
 [ ] mantle
 [ ] blast
 [ ] x layer
+[ ] worldchain
 
 # Need to use a special key
 [ ] wormchain TB
@@ -91,3 +92,6 @@ worm submit --network mainnet --chain blast "$MANTLE_TB_VAA"
 🕰️ https://blastscan.io/tx/<txid>
 worm submit --network mainnet --chain xlayer "$MANTLE_TB_VAA"
 🕰️ https://www.oklink.com/xlayer/tx/<txid>
+worm submit --network mainnet --chain worldchain "$MANTLE_TB_VAA"
+🕰️ https://worldscan.org/tx/<txid>
+
