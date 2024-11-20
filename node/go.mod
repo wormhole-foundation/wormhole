@@ -1,6 +1,6 @@
 module github.com/certusone/wormhole/node
 
-go 1.22.5
+go 1.23.3
 
 require (
 	github.com/celo-org/celo-blockchain v1.5.5
