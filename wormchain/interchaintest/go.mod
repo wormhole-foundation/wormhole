@@ -3,7 +3,7 @@ module github.com/wormhole-foundation/wormchain/interchaintest
 go 1.22.5
 
 require (
-	cosmossdk.io/math v1.3.0
+	cosmossdk.io/math v1.4.0
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/cosmos/cosmos-sdk v0.47.12
 	github.com/cosmos/gogoproto v1.7.0
