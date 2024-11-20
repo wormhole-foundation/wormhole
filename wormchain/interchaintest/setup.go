@@ -148,7 +148,6 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 	err = r.StartRelayer(ctx, eRep, wormGaiaPath, wormOsmoPath)
 	require.NoError(t, err)
 
-	//interchaintest.TempDir(sui)
 	t.Cleanup(
 		func() {
 			err := r.StopRelayer(ctx, eRep)
