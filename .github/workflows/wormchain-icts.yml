@@ -59,6 +59,7 @@ jobs:
         # names of `make` commands to run tests
         test:
           - "ictest-cancel-upgrade"
+          - "ictest-slashing-params-update-vaa"
           - "ictest-upgrade"
           - "ictest-wormchain"
           - "ictest-ibc-receiver"

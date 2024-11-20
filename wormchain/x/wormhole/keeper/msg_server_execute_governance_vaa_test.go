@@ -152,7 +152,7 @@ func TestExecuteSlashingParamsUpdate(t *testing.T) {
 	context := sdk.WrapSDKContext(ctx)
 	msgServer := keeper.NewMsgServerImpl(*k)
 
-	// create governance to update guardian set with extra guardian
+	// create governance to update slashing params
 	payload := createSlashingParamsUpdatePayload()
 	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ := v.Marshal()
