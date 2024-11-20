@@ -23,8 +23,9 @@ import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORK_OPTIONS, NETWORKS } from "../consts";
 import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
-import { contracts, Network } from "@wormhole-foundation/sdk-base";
+import { contracts, Network, platformToAddressFormat } from "@wormhole-foundation/sdk-base";
 import { getNetwork } from "../utils";
+import { UniversalAddress } from "@wormhole-foundation/sdk";
 
 export const command = "edit-vaa";
 export const desc = "Edits or generates a VAA";
@@ -256,8 +257,12 @@ const getSigsFromWormscanData = (
   for (let data in wormscanData) {
     let guardianAddr = wormscanData[data].guardianAddr;
     let gsi = -1;
+    
     for (let idx = 0; idx < guardianSet.length; idx++) {
-      if (guardianSet[idx] === guardianAddr) {
+      const normalizedGuardianFromSet = new UniversalAddress(guardianSet[idx], platformToAddressFormat("Evm"));
+      const normalizedGuardianAddr = new UniversalAddress(guardianAddr, platformToAddressFormat("Evm"));
+
+      if (normalizedGuardianAddr.toString() === normalizedGuardianFromSet.toString()) {
         gsi = idx;
         break;
       }
