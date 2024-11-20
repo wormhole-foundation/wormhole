@@ -1,12 +1,12 @@
 use anyhow::{bail, ensure};
 use cosmwasm_std::{
-    entry_point, from_slice, to_binary, Attribute, Binary, ContractResult, DepsMut, Env,
+    entry_point, from_slice, to_binary, Attribute, Binary, ContractResult, Deps, DepsMut, Env,
     Ibc3ChannelOpenResponse, IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg,
     IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg, IbcPacketReceiveMsg,
     IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
 
-use crate::msg::WormholeIbcPacketMsg;
+use crate::{msg::WormholeIbcPacketMsg, state::CHANNEL_CHAIN};
 
 // Implementation of IBC protocol
 // Implements 6 entry points that are required for the x/wasm runtime to bind a port for this contract
@@ -72,11 +72,11 @@ pub fn ibc_channel_close(
 /// 4. Receiving a packet.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_receive(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     msg: IbcPacketReceiveMsg,
 ) -> StdResult<IbcReceiveResponse> {
-    handle_packet_receive(msg).or_else(|e| {
+    handle_packet_receive(deps.as_ref(), msg).or_else(|e| {
         // we try to capture all app-level errors and convert them into
         // acknowledgement packets that contain an error code.
         let acknowledgement = encode_ibc_error(format!("invalid packet: {e}"));
@@ -87,10 +87,20 @@ pub fn ibc_packet_receive(
 }
 
 /// Decode the IBC packet as WormholeIbcPacketMsg::Publish and take appropriate action
-fn handle_packet_receive(msg: IbcPacketReceiveMsg) -> Result<IbcReceiveResponse, anyhow::Error> {
+fn handle_packet_receive(
+    deps: Deps,
+    msg: IbcPacketReceiveMsg,
+) -> Result<IbcReceiveResponse, anyhow::Error> {
     let packet = msg.packet;
     // which local channel did this packet come on
     let channel_id = packet.dest.channel_id;
+
+    // Fail here if the channel we're receiving a packet on hasn't been put into state
+    ensure!(
+        CHANNEL_CHAIN.has(deps.storage, channel_id.clone()),
+        "channel not registered"
+    );
+
     let wormhole_msg: WormholeIbcPacketMsg = from_slice(&packet.data)?;
     match wormhole_msg {
         WormholeIbcPacketMsg::Publish { msg: publish_attrs } => {

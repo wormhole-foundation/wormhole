@@ -1,2 +1,0 @@
-d622d99859c4f7711ee1cf5fcda95f5134920c3c250c47e699dcac60e1a22d82  wormchain_ibc_receiver.wasm
-5a9d3714251a1c3a7ea13351a81d42e148e6ec6061a7a35c3bd66ad25c8ea2ca  wormhole_ibc.wasm
