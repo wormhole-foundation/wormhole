@@ -118,7 +118,7 @@ func buildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 	return ctx, r, eRep, client
 }
 
-func TestWormchainIbcHappyPath(t *testing.T) {
+func TestIbcReceiverHappyPath(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
@@ -198,7 +198,7 @@ func TestWormchainIbcHappyPath(t *testing.T) {
 	require.True(t, parsedAck.IsOk(), "receiver acknowledgement should be ok to signify that it was processed successfully")
 }
 
-func TestWormchainIbcWithoutReceiverWhitelist(t *testing.T) {
+func TestIbcReceiverWithoutReceiverWhitelist(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
@@ -270,7 +270,7 @@ func TestWormchainIbcWithoutReceiverWhitelist(t *testing.T) {
 	require.True(t, parsedAck.IsOk(), "receiver acknowledgement should be ok to signify that it was processed successfully")
 }
 
-func TestWormchainIbcWormholeIbcState(t *testing.T) {
+func TestIbcReceiverWormholeIbcState(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
