@@ -289,3 +289,34 @@ func CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t *testing.T, chainI
 
 	return string(msgBz)
 }
+
+func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T, allowlistChainID uint16, allowlistChannel string, guardians *guardians.ValSet) string {
+	payload := new(bytes.Buffer)
+	module, err := vaa.LeftPadBytes("WormchainCore", 32)
+	require.NoError(t, err)
+	payload.Write(module.Bytes())
+	vaa.MustWrite(payload, binary.BigEndian, uint8(1))
+	vaa.MustWrite(payload, binary.BigEndian, uint16(0))
+	channelPadded, err := vaa.LeftPadBytes(string(allowlistChannel), 64)
+	require.NoError(t, err)
+	payload.Write(channelPadded.Bytes())
+	vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
+
+	var channelIdBytes [64]byte
+	copy(channelIdBytes[:], channelPadded.Bytes())
+
+	// v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
+	// vBz, err := v.Marshal()
+	// require.NoError(t, err)
+
+	msg := vaa.BodyIbcUpdateChannelChain{
+		TargetChainId: 3104,
+		ChannelId:     channelIdBytes,
+		ChainId:       vaa.ChainID(allowlistChainID),
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}
