@@ -16,6 +16,8 @@ type GeneratedSigner struct {
 	privateKey *ecdsa.PrivateKey
 }
 
+// NewGeneratedSigner creates a new GeneratedSigner. If key is nil, a random private key
+// is generated. Otherwise, the private key is used as-is.
 func NewGeneratedSigner(key *ecdsa.PrivateKey) (*GeneratedSigner, error) {
 	if key == nil {
 		privateKey, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)

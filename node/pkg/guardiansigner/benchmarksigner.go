@@ -17,6 +17,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+// The BenchmarkSigner is a signer that wraps other signers, recording the latency of
+// signing and signature verification through prometheus histograms.
 type BenchmarkSigner struct {
 	innerSigner GuardianSigner
 }
@@ -48,7 +50,6 @@ func BenchmarkWrappedSigner(innerSigner GuardianSigner) *BenchmarkSigner {
 }
 
 func (b *BenchmarkSigner) Sign(ctx context.Context, hash []byte) ([]byte, error) {
-
 	start := time.Now()
 	sig, err := b.innerSigner.Sign(ctx, hash)
 	duration := time.Since(start)

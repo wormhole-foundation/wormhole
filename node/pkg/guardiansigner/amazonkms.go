@@ -21,32 +21,38 @@ import (
 var (
 	secp256k1N     = ethcrypto.S256().Params().N
 	secp256k1HalfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
-	KMS_TIMEOUT    = time.Second * 15
+
+	// The timeout for KMS operations. This is necessary to avoid situations where
+	// the signing or verification is blocked indefinitely.
+	KMS_TIMEOUT = time.Second * 15
 )
 
+// The ASN.1 structure for an ECDSA signature produced by AWS KMS.
 type asn1EcSig struct {
 	R asn1.RawValue
 	S asn1.RawValue
 }
 
+// The ASN.1 structure for an ECDSA public key produced by AWS KMS.
 type asn1EcPublicKey struct {
 	EcPublicKeyInfo asn1EcPublicKeyInfo
 	PublicKey       asn1.BitString
 }
 
+// The ASN.1 structure for the public key info in an ECDSA public key produced by AWS KMS.
 type asn1EcPublicKeyInfo struct {
 	Algorithm  asn1.ObjectIdentifier
 	Parameters asn1.ObjectIdentifier
 }
 
-// Read the region from an ARN string.
+// getRegionFromArn extracts the region from an ARN. The region is at index 3 in the ARN.
 func getRegionFromArn(arn string) string {
 	// Information in ARNs are colon-separated
 	arn_parts := strings.Split(arn, ":")
 
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html#arns-syntax
 	// The format of an ARN is arn:partition:service:region:account-id:resource-info, so
-	// the region is at index 3
+	// the region is at index 3.
 	if len(arn) < 4 {
 		return ""
 	}
@@ -54,16 +60,31 @@ func getRegionFromArn(arn string) string {
 	return arn_parts[3]
 }
 
+// AmazonKms is a signer that uses AWS KMS to sign messages. The URI is expected to be
+// in the format amazonkms://<key-arn>.
 type AmazonKms struct {
 	keyId     string
 	region    string
 	publicKey ecdsa.PublicKey
-	svc       *kms.Client
+	client    *kms.Client
 }
 
+// NewAmazonKmsSigner creates a new AmazonKms signer. The keyPath is expected to be an ARN,
+// identifying the key in AWS KMS. The region is extracted from the ARN, and the AWS KMS
+// client is created with the region.
+// NOTE: The public key is retrieved during signer creation, and stored as a property of the
+// signer. This is because the public key is not expected to change during runtime.
 func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string) (*AmazonKms, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, KMS_TIMEOUT)
 	defer cancel()
+
+	// Extract the region from the key path. The region is required to create a new KMS client.
+	// If the region is not present in the key path, the ARN is considered invalid.
+	region := getRegionFromArn(keyPath)
+
+	if region == "" {
+		return nil, errors.New("Invalid KMS ARN")
+	}
 
 	amazonKmsSigner := AmazonKms{
 		keyId:  keyPath,
@@ -78,14 +99,14 @@ func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string)
 		return nil, errors.New("Failed to load default config")
 	}
 
-	amazonKmsSigner.svc = kms.NewFromConfig(cfg)
+	amazonKmsSigner.client = kms.NewFromConfig(cfg)
 
 	// Get the public key here, and store it as a property. The reason for this is that the
 	// `GetPublicKey` call could return an error that must be handled, and it's better to handle
 	// it during signer creation where an error can still be returned and bubbled up. The public
 	// key should also not be changing during runtime, so reading it once from KMS and storing
 	// it in memory seems sensible.
-	pubKeyOutput, err := amazonKmsSigner.svc.GetPublicKey(timeoutCtx, &kms.GetPublicKeyInput{
+	pubKeyOutput, err := amazonKmsSigner.client.GetPublicKey(timeoutCtx, &kms.GetPublicKeyInput{
 		KeyId: aws.String(amazonKmsSigner.keyId),
 	})
 
@@ -115,7 +136,7 @@ func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, er
 	defer cancel()
 
 	// Call the AWS KMS service to sign the input hash.
-	res, err := a.svc.Sign(timeoutCtx, &kms.SignInput{
+	res, err := a.client.Sign(timeoutCtx, &kms.SignInput{
 		KeyId:            aws.String(a.keyId),
 		Message:          hash,
 		SigningAlgorithm: kms_types.SigningAlgorithmSpecEcdsaSha256,
@@ -123,7 +144,7 @@ func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, er
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Signing failed: %w", err)
+		return nil, fmt.Errorf("KMS Signing failed: %w", err)
 	}
 
 	// Decode r and s values

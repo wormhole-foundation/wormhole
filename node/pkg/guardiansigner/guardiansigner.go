@@ -19,7 +19,11 @@ const (
 	AmazonKmsSignerType
 )
 
-// GuardianSigner interface
+// GuardianSigner interface. Each function in the GuardianSigner interface
+// expects a context to be supplied. This is because signers might interact
+// with external services that have the potential of introducing unwanted
+// behaviour, like timing out or hanging indefinitely. It's up to each signer
+// implementation to decide how to handle the context.
 type GuardianSigner interface {
 	// Sign expects a keccak256 hash that needs to be signed.
 	Sign(ctx context.Context, hash []byte) (sig []byte, err error)
@@ -31,9 +35,15 @@ type GuardianSigner interface {
 	Verify(ctx context.Context, sig []byte, hash []byte) (valid bool, err error)
 }
 
+// Create a new GuardianSigner from the given URI. The caller can also specify the
+// unsafeDevMode flag, which signals that the signer is running in an unsafe development
+// environment. This is used, for example, to signal the file signer that it should check
+// whether or not the key is deterministic.
 func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMode bool) (GuardianSigner, error) {
-
-	// Get the signer type
+	// Get the signer type and key configuration. The key configuration
+	// isn't interpreted as anything in particular here, as each signer
+	// implementation requires different configurations; i.e., the file
+	// signer requires a path and the amazon kms signer requires an ARN.
 	signerType, signerKeyConfig, err := ParseSignerUri(signerUri)
 
 	if err != nil {
@@ -42,6 +52,9 @@ func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMo
 
 	var guardianSigner GuardianSigner
 
+	// Create the new guardian signer, based on the signerType. If an invalid
+	// signer type is supplied, an error is returned; or if the signer creation
+	// returns an error, the error is bubbled up.
 	switch signerType {
 	case FileSignerType:
 		guardianSigner, err = NewFileSigner(ctx, unsafeDevMode, signerKeyConfig)
@@ -55,23 +68,32 @@ func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMo
 		return nil, err
 	}
 
+	// Wrap the guardian signer in a benchmark signer, which will record the
+	// time taken to sign and verify messages.
 	return BenchmarkWrappedSigner(guardianSigner), nil
 }
 
+// Parse the signer URI and return the signer type and key configuration. The signer
+// URI is expected to be in the format <signer-type>://<key-configuration>.
 func ParseSignerUri(signerUri string) (signerType SignerType, signerKeyConfig string, err error) {
 	// Split the URI using the standard "://" scheme separator
 	signerUriSplit := strings.Split(signerUri, "://")
 
-	// This check is purely for ensuring that there is actually a path separator.
+	// This check ensures that the URI is in the correct format by checking that the split
+	// has at least two elements.
 	if len(signerUriSplit) < 2 {
 		return InvalidSignerType, "", errors.New("no path separator in guardian signer URI")
 	}
 
 	typeStr := signerUriSplit[0]
+
 	// Rejoin the remainder of the split URI as the configuration for the guardian signer
-	// implementation. The remainder of the split is joined using the URI scheme separator.
+	// implementation. The remainder of the split is joined using the URI scheme separator, as
+	// the key configuration might require the same separator.
 	keyConfig := strings.Join(signerUriSplit[1:], "://")
 
+	// Return the signer type and key configuration. If the signer type is not supported, an
+	// error is returned.
 	switch typeStr {
 	case "file":
 		return FileSignerType, keyConfig, nil
