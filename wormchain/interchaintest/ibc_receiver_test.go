@@ -22,6 +22,7 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
+	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormchain_ibc_receiver"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormhole_ibc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -156,14 +157,14 @@ func TestWormchainIbcHappyPath(t *testing.T) {
 	osmosisChannelId := helpers.FindOpenChannelByVersion(t, ctx, eRep, r, osmosis, CUSTOM_IBC_VERSION).ChannelID
 
 	// Add the new channel to the wormchain-ibc-receiver contract
-	upgradeChainChannelVaa := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t,
+	upgradeChainChannelVaa := wormchain_ibc_receiver.SubmitIbcReceiverUpdateChannelChainMsg(t,
 		vaa.ChainID(OsmoChainID), wormholeChannelId,
 		guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", wormchainReceiverContractInfo.Address, upgradeChainChannelVaa)
 	require.NoError(t, err)
 
 	// Add the new channel to the osmosis wormhole-ibc contract
-	upgradeChainChannelVaa = helpers.SubmitWormholeIbcUpdateChannelChainMsg(t,
+	upgradeChainChannelVaa = wormhole_ibc.SubmitWormholeIbcUpdateChannelChainMsg(t,
 		vaa.ChainID(vaa.ChainIDWormchain), osmosisChannelId,
 		guardians)
 	_, err = osmosis.ExecuteContract(ctx, "faucet", osmosisSenderContractInfo.Address, upgradeChainChannelVaa)
@@ -235,7 +236,7 @@ func TestWormchainIbcWithoutReceiverWhitelist(t *testing.T) {
 	// SKIP UPGRADING THE WORMCHAIN IBC RECEIVER CONTRACT TO TEST THAT THE POST MESSAGE STILL COMPLETES
 
 	// Add the new channel to the osmosis wormhole-ibc contract
-	upgradeChainChannelVaa := helpers.SubmitWormholeIbcUpdateChannelChainMsg(t,
+	upgradeChainChannelVaa := wormhole_ibc.SubmitWormholeIbcUpdateChannelChainMsg(t,
 		vaa.ChainID(vaa.ChainIDWormchain), osmosisChannelId,
 		guardians)
 	_, err = osmosis.ExecuteContract(ctx, "faucet", osmosisSenderContractInfo.Address, upgradeChainChannelVaa)
@@ -308,7 +309,7 @@ func TestWormchainIbcWormholeIbcState(t *testing.T) {
 	_ = helpers.FindOpenChannelByVersion(t, ctx, eRep, r, osmosis, CUSTOM_IBC_VERSION).ChannelID
 
 	// Add the new channel to the wormchain-ibc-receiver contract
-	upgradeChainChannelVaa := helpers.SubmitIbcReceiverUpdateChannelChainMsg(t,
+	upgradeChainChannelVaa := wormchain_ibc_receiver.SubmitIbcReceiverUpdateChannelChainMsg(t,
 		vaa.ChainID(OsmoChainID), wormholeChannelId,
 		guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", wormchainReceiverContractInfo.Address, upgradeChainChannelVaa)
