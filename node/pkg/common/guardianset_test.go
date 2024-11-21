@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -121,4 +122,13 @@ func TestGet(t *testing.T) {
 	assert.Nil(t, gss.Get())
 	gss.Set(&gs)
 	assert.Equal(t, gss.Get(), &gs)
+}
+
+func TestIsSubscribedToHeartbeats(t *testing.T) {
+	heartbeatC := make(chan *gossipv1.Heartbeat, 20000)
+	gst1 := NewGuardianSetState(heartbeatC)
+	assert.True(t, gst1.IsSubscribedToHeartbeats())
+
+	gst2 := NewGuardianSetState(nil)
+	assert.False(t, gst2.IsSubscribedToHeartbeats())
 }

@@ -58,5 +58,10 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 35, addr: "000000000000000000000000cDA86A272531e8640cD7F1a92c01839911B90bb0", symbol: "METH", coinGeckoId: "mantle-staked-ether", decimals: 18, price: 3934.06},
 		{chain: 35, addr: "000000000000000000000000deaddeaddeaddeaddeaddeaddeaddeaddead1111", symbol: "WETH", coinGeckoId: "wrapped-ether-mantle-bridge", decimals: 18, price: 3825.65},
 		{chain: 35, addr: "000000000000000000000000371c7ec6d8039ff7933a2aa28eb827ffe1f52f07", symbol: "JOE", coinGeckoId: "joe", decimals: 18, price: 0.4911},
+		// WORLDCHAIN (tokens over $50,000 24h volume)
+		{chain: 45, addr: "0000000000000000000000002cFc85d8E48F8EAB294be644d9E25C3030863003", symbol: "WLD", coinGeckoId: "worldcoin-wld", decimals: 18, price: 2.47},
+		{chain: 45, addr: "00000000000000000000000003C7054BCB39f7b2e5B2c7AcB37583e32D70Cfa3", symbol: "WBTC", coinGeckoId: "bridged-wrapped-bitcoin-worldchain", decimals: 8, price: 86683.84},
+		{chain: 45, addr: "0000000000000000000000004200000000000000000000000000000000000006", symbol: "WETH", coinGeckoId: "wrapped-eth-world-chain", decimals: 18, price: 3311.13},
+		{chain: 45, addr: "00000000000000000000000079A02482A880bCE3F13e09Da970dC34db4CD24d1", symbol: "USDC.e", coinGeckoId: "bridged-usdc-world-chain", decimals: 6, price: 1.00},
 	}
 }

@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -68,7 +69,7 @@ func (b *FinalizerPollConnector) SubscribeForBlocks(ctx context.Context, errC ch
 				sub.unsubDone <- struct{}{}
 				return nil
 			case v := <-innerErrSink:
-				sub.err <- fmt.Errorf(v)
+				sub.err <- errors.New(v)
 			}
 		}
 	})

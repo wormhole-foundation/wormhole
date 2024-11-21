@@ -11,7 +11,8 @@ BIN = $(OUT)/bin
 
 -include Makefile.help
 
-VERSION = $(shell git describe --tags --dirty)
+# VERSION is the git tag of the current commit if there's a tag, otherwise it's "dev-" plus the git commit sha.
+VERSION = $(shell git describe --tags --dirty 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)")
 
 .PHONY: dirs
 dirs: Makefile

@@ -10,8 +10,8 @@ import (
 
 func chainList() []chainConfigEntry {
 	return []chainConfigEntry{
-		{emitterChainID: vaa.ChainIDSolana, dailyLimit: 25_000_000, bigTransactionSize: 2_500_000},
-		{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 50_000_000, bigTransactionSize: 5_000_000},
+		{emitterChainID: vaa.ChainIDSolana, dailyLimit: 50_000_000, bigTransactionSize: 2_500_000},
+		{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 100_000_000, bigTransactionSize: 5_000_000},
 		{emitterChainID: vaa.ChainIDTerra, dailyLimit: 150_000, bigTransactionSize: 15_000},
 		{emitterChainID: vaa.ChainIDBSC, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDPolygon, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
@@ -28,12 +28,12 @@ func chainList() []chainConfigEntry {
 		{emitterChainID: vaa.ChainIDMoonbeam, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDTerra2, dailyLimit: 100_000, bigTransactionSize: 10_000},
 		{emitterChainID: vaa.ChainIDInjective, dailyLimit: 500_000, bigTransactionSize: 50_000},
-		{emitterChainID: vaa.ChainIDSui, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
+		{emitterChainID: vaa.ChainIDSui, dailyLimit: 10_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDAptos, dailyLimit: 1_000_000, bigTransactionSize: 100_000},
 		{emitterChainID: vaa.ChainIDArbitrum, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDOptimism, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDXpla, dailyLimit: 50_000, bigTransactionSize: 5_000},
-		{emitterChainID: vaa.ChainIDBase, dailyLimit: 2_000_000, bigTransactionSize: 200_000},
+		{emitterChainID: vaa.ChainIDBase, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDSei, dailyLimit: 5_000_000, bigTransactionSize: 500_000},
 		{emitterChainID: vaa.ChainIDScroll, dailyLimit: 500_000, bigTransactionSize: 50_000},
 		{emitterChainID: vaa.ChainIDMantle, dailyLimit: 100_000, bigTransactionSize: 10_000},
@@ -41,5 +41,6 @@ func chainList() []chainConfigEntry {
 		{emitterChainID: vaa.ChainIDXLayer, dailyLimit: 100_000, bigTransactionSize: 10_000},
 		{emitterChainID: vaa.ChainIDWormchain, dailyLimit: 500_000, bigTransactionSize: 50_000},
 		{emitterChainID: vaa.ChainIDSnaxchain, dailyLimit: 500_000, bigTransactionSize: 50_000},
+		{emitterChainID: vaa.ChainIDWorldchain, dailyLimit: 500_000, bigTransactionSize: 50_000},
 	}
 }

@@ -502,7 +502,7 @@ func LeftPadBytes(payload string, length int) (*bytes.Buffer, error) {
 	}
 
 	if len(payload) > length {
-		return nil, fmt.Errorf(fmt.Sprintf("payload longer than %d bytes", length))
+		return nil, fmt.Errorf("payload longer than %d bytes", length)
 	}
 
 	buf := &bytes.Buffer{}
