@@ -46,3 +46,16 @@ func SubmitIbcReceiverUpdateChannelChainMsg(t *testing.T,
 
 	return string(submitVAAMsgBz)
 }
+
+type ReceiverAck struct {
+	Ok    *struct{} `json:"ok,omitempty"`
+	Error string    `json:"error,omitempty"`
+}
+
+func (r ReceiverAck) IsOk() bool {
+	return len(r.Error) == 0
+}
+
+func (r ReceiverAck) IsError() bool {
+	return len(r.Error) > 0
+}

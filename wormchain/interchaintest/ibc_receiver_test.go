@@ -25,8 +25,6 @@ import (
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormchain_ibc_receiver"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/wormhole_ibc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	abcitypes "github.com/tendermint/tendermint/abci/types"
 )
 
 const CUSTOM_IBC_VERSION string = "ibc-wormhole-v1"
@@ -186,14 +184,14 @@ func TestWormchainIbcHappyPath(t *testing.T) {
 		string(postMessageJson))
 	require.NoError(t, err, "failed to execute wormhole-ibc post message")
 
-	ibcTx, err := getIBCTx(osmosis, postMessageTxHash)
+	ibcTx, err := helpers.GetIBCTx(osmosis, postMessageTxHash)
 	require.NoError(t, err, "failed to get ibc tx")
 
 	// Poll for the receiver acknowledgement so that we can see if the packet was processed successfully
 	osmosisAck, err := testutil.PollForAck(ctx, osmosis, ibcTx.Height, ibcTx.Height+10, ibcTx.Packet)
 	require.NoError(t, err, "failed to poll for acknowledgement")
 
-	var parsedAck ReceiverAck
+	var parsedAck wormchain_ibc_receiver.ReceiverAck
 	err = json.Unmarshal(osmosisAck.Acknowledgement, &parsedAck)
 	require.NoError(t, err, "failed to unmarshal acknowledgement")
 
@@ -258,14 +256,14 @@ func TestWormchainIbcWithoutReceiverWhitelist(t *testing.T) {
 		string(postMessageJson))
 	require.NoError(t, err)
 
-	ibcTx, err := getIBCTx(osmosis, postMessageTxHash)
+	ibcTx, err := helpers.GetIBCTx(osmosis, postMessageTxHash)
 	require.NoError(t, err)
 
 	// Poll for the receiver acknowledgement so that we can see if the packet was processed successfully
 	osmosisAck, err := testutil.PollForAck(ctx, osmosis, ibcTx.Height, ibcTx.Height+10, ibcTx.Packet)
 	require.NoError(t, err)
 
-	var parsedAck ReceiverAck
+	var parsedAck wormchain_ibc_receiver.ReceiverAck
 	err = json.Unmarshal(osmosisAck.Acknowledgement, &parsedAck)
 	require.NoError(t, err)
 
@@ -365,79 +363,4 @@ func instantiateWormholeIbcContracts(t *testing.T, ctx context.Context,
 	require.NotEmpty(t, senderContractInfo.ContractInfo.IbcPortID, "sender (wormhole-ibc) contract port id is nil")
 
 	return wormchainReceiverContractInfo, senderContractInfo
-}
-
-func getIBCTx(
-	c *cosmos.CosmosChain,
-	txHash string,
-) (tx ibc.Tx, _ error) {
-	txResp, err := c.GetTransaction(txHash)
-	if err != nil {
-		return tx, fmt.Errorf("failed to get transaction %s: %w", txHash, err)
-	}
-	tx.Height = uint64(txResp.Height)
-	tx.TxHash = txHash
-	// In cosmos, user is charged for entire gas requested, not the actual gas used.
-	tx.GasSpent = txResp.GasWanted
-
-	const evType = "send_packet"
-	events := txResp.Events
-
-	var (
-		seq, _           = AttributeValue(events, evType, "packet_sequence")
-		srcPort, _       = AttributeValue(events, evType, "packet_src_port")
-		srcChan, _       = AttributeValue(events, evType, "packet_src_channel")
-		dstPort, _       = AttributeValue(events, evType, "packet_dst_port")
-		dstChan, _       = AttributeValue(events, evType, "packet_dst_channel")
-		timeoutHeight, _ = AttributeValue(events, evType, "packet_timeout_height")
-		timeoutTs, _     = AttributeValue(events, evType, "packet_timeout_timestamp")
-		data, _          = AttributeValue(events, evType, "packet_data")
-	)
-	tx.Packet.SourcePort = srcPort
-	tx.Packet.SourceChannel = srcChan
-	tx.Packet.DestPort = dstPort
-	tx.Packet.DestChannel = dstChan
-	tx.Packet.TimeoutHeight = timeoutHeight
-	tx.Packet.Data = []byte(data)
-
-	seqNum, err := strconv.Atoi(seq)
-	if err != nil {
-		return tx, fmt.Errorf("invalid packet sequence from events %s: %w", seq, err)
-	}
-	tx.Packet.Sequence = uint64(seqNum)
-
-	timeoutNano, err := strconv.ParseUint(timeoutTs, 10, 64)
-	if err != nil {
-		return tx, fmt.Errorf("invalid packet timestamp timeout %s: %w", timeoutTs, err)
-	}
-	tx.Packet.TimeoutTimestamp = ibc.Nanoseconds(timeoutNano)
-
-	return tx, nil
-}
-
-func AttributeValue(events []abcitypes.Event, eventType, attrKey string) (string, bool) {
-	for _, event := range events {
-		if event.Type != eventType {
-			continue
-		}
-		for _, attr := range event.Attributes {
-			if string(attr.Key) == attrKey {
-				return string(attr.Value), true
-			}
-		}
-	}
-	return "", false
-}
-
-type ReceiverAck struct {
-	Ok    *struct{} `json:"ok,omitempty"`
-	Error string    `json:"error,omitempty"`
-}
-
-func (r ReceiverAck) IsOk() bool {
-	return len(r.Error) == 0
-}
-
-func (r ReceiverAck) IsError() bool {
-	return len(r.Error) > 0
 }
