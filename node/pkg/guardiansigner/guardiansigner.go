@@ -39,6 +39,9 @@ type GuardianSigner interface {
 // unsafeDevMode flag, which signals that the signer is running in an unsafe development
 // environment. This is used, for example, to signal the file signer that it should check
 // whether or not the key is deterministic.
+// Additionally, a context is expected to be supplied, as the signer might interact with
+// external services during construction. For example, the Amazon KMS signer validates that
+// the ARN is valid and that the key exists.
 func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMode bool) (GuardianSigner, error) {
 	// Get the signer type and key configuration. The key configuration
 	// isn't interpreted as anything in particular here, as each signer

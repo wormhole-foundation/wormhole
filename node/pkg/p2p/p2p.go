@@ -568,7 +568,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 							if params.gov != nil {
-								params.gov.CollectMetrics(heartbeat, params.gossipControlSendC, params.guardianSigner, ourAddr)
+								params.gov.CollectMetrics(ctx, heartbeat, params.gossipControlSendC, params.guardianSigner, ourAddr)
 							}
 
 							msg := gossipv1.GossipMessage{

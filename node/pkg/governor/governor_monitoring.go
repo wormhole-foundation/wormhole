@@ -488,7 +488,7 @@ var (
 		})
 )
 
-func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []byte, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) CollectMetrics(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -548,7 +548,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))
 
 	if startTime.After(gov.nextConfigPublishTime) {
-		gov.publishConfig(hb, sendC, guardianSigner, ourAddr)
+		gov.publishConfig(ctx, hb, sendC, guardianSigner, ourAddr)
 		gov.nextConfigPublishTime = startTime.Add(time.Minute * time.Duration(5))
 	}
 
@@ -561,7 +561,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 var governorMessagePrefixConfig = []byte("governor_config_000000000000000000|")
 var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
-func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []byte, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
 	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
 	for _, cid := range gov.chainIds {
@@ -601,7 +601,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []b
 
 	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefixConfig, b...))
 
-	sig, err := guardianSigner.Sign(context.Background(), digest.Bytes())
+	sig, err := guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

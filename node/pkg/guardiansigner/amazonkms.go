@@ -148,7 +148,11 @@ func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, er
 	}
 
 	// Decode r and s values
-	r, s := derSignatureToRS(res.Signature)
+	r, s, err := derSignatureToRS(res.Signature)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode signature: %w", err)
+	}
 
 	// if s is greater than secp256k1HalfN, we need to substract secp256k1N from it
 	sBigInt := new(big.Int).SetBytes(s)
@@ -216,11 +220,15 @@ func (a *AmazonKms) Verify(ctx context.Context, sig []byte, hash []byte) (bool, 
 //  6. 0x02: header byte indicating an integer
 //  7. one byte to encode the length of the following s value
 //  8. the s value as a big-endian integer
-func derSignatureToRS(signature []byte) (rBytes []byte, sBytes []byte) {
+func derSignatureToRS(signature []byte) ([]byte, []byte, error) {
 	var sigAsn1 asn1EcSig
-	asn1.Unmarshal(signature, &sigAsn1)
+	_, err := asn1.Unmarshal(signature, &sigAsn1)
 
-	return sigAsn1.R.Bytes, sigAsn1.S.Bytes
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return sigAsn1.R.Bytes, sigAsn1.S.Bytes, nil
 }
 
 // adjustBufferSize takes an input buffer and
