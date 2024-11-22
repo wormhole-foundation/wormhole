@@ -1163,7 +1163,7 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 	}
 
 	// Add local signature
-	sig, err := s.guardianSigner.Sign(v.SigningDigest().Bytes())
+	sig, err := s.guardianSigner.Sign(ctx, v.SigningDigest().Bytes())
 	if err != nil {
 		panic(err)
 	}

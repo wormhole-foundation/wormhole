@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	assert.NoError(t, err)
-	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey())
+	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
 	fromP2pId, err := peer.Decode("12D3KooWSgMXkhzTbKTeupHYmyG7sFJ5LpVreQcwVnX8RD7LBpy9")
 	assert.NoError(t, err)
 	p2pNodeId, err := fromP2pId.Marshal()
@@ -37,7 +38,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	assert.NoError(t, err)
-	gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey())
+	gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
 	fromP2pId2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")
 	assert.NoError(t, err)
 	p2pNodeId2, err := fromP2pId2.Marshal()
@@ -94,7 +95,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	testFunc := func(t *testing.T, tc testCase) {
 
-		addr := crypto.PubkeyToAddress(guardianSigner.PublicKey())
+		addr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
 
 		heartbeat := &gossipv1.Heartbeat{
 			NodeName:      "someNode",
