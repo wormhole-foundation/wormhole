@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/hex"
 	"time"
 
@@ -69,7 +70,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	hash := hex.EncodeToString(digest.Bytes())
 
 	// Sign the digest using the node's GuardianSigner
-	signature, err := p.guardianSigner.Sign(digest.Bytes())
+	signature, err := p.guardianSigner.Sign(context.Background(), digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

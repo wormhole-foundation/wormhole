@@ -122,7 +122,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			MockObservationC: make(chan *common.MessagePublication),
 			MockSetC:         make(chan *common.GuardianSet),
 			guardianSigner:   guardianSigner,
-			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey()),
+			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
 			config:           createGuardianConfig(t, testId, uint(i)),
 		}
 	}

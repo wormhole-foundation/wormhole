@@ -1,6 +1,7 @@
 package guardiansigner
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 	"golang.org/x/crypto/openpgp/armor" // nolint
 )
 
+// FileSigner is a signer that loads a guardian key from a file. The URI is expected to be
+// in the format file://<path-to-file>.
 type FileSigner struct {
 	keyPath    string
 	privateKey *ecdsa.PrivateKey
@@ -24,7 +27,10 @@ const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
 )
 
-func NewFileSigner(unsafeDevMode bool, signerKeyPath string) (*FileSigner, error) {
+// The FileSigner is a signer that reads a guardian key from a file (signerKeyPath). The key is
+// expected to be armored with an OpenPGP armor block, and the key itself is expected to be a
+// protobuf-encoded GuardianKey message.
+func NewFileSigner(ctx context.Context, unsafeDevMode bool, signerKeyPath string) (*FileSigner, error) {
 	fileSigner := &FileSigner{
 		keyPath: signerKeyPath,
 	}
@@ -67,8 +73,8 @@ func NewFileSigner(unsafeDevMode bool, signerKeyPath string) (*FileSigner, error
 	return fileSigner, nil
 }
 
-func (fs *FileSigner) Sign(hash []byte) ([]byte, error) {
-
+// Sign signs a hash using the go-ethereum/crypto package's `Sign` function.
+func (fs *FileSigner) Sign(ctx context.Context, hash []byte) ([]byte, error) {
 	// Sign the hash
 	sig, err := crypto.Sign(hash, fs.privateKey)
 
@@ -79,12 +85,15 @@ func (fs *FileSigner) Sign(hash []byte) ([]byte, error) {
 	return sig, nil
 }
 
-func (fs *FileSigner) PublicKey() ecdsa.PublicKey {
+// PublicKey returns the public key of the signer.
+func (fs *FileSigner) PublicKey(ctx context.Context) ecdsa.PublicKey {
 	return fs.privateKey.PublicKey
 }
 
-func (fs *FileSigner) Verify(sig []byte, hash []byte) (bool, error) {
-
+// Verify verifies a signature against a hash using the go-ethereum/crypto
+// package's `SigToPub` function.
+func (fs *FileSigner) Verify(ctx context.Context, sig []byte, hash []byte) (bool, error) {
+	// Recover the public key from the signature.
 	recoveredPubKey, err := ethcrypto.SigToPub(hash, sig)
 
 	if err != nil {

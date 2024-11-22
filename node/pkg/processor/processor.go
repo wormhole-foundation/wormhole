@@ -253,7 +253,7 @@ func NewProcessor(
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey()),
+		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		governor:       g,
 		acct:           acct,
 		acctReadC:      acctReadC,
