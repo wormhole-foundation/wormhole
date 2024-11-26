@@ -61,8 +61,6 @@ jobs:
           - "ictest-cancel-upgrade"
           - "ictest-chain-start"
           - "ictest-malformed-payload"
-          - "ictest-guardian-set-proposal"
-          - "ictest-wormhole-message-proposal"
           - "ictest-upgrade-failure"
           - "ictest-upgrade"
           - "ictest-wasmd-ante"

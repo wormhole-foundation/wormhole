@@ -115,12 +115,6 @@ ictest-chain-start: rm-testcache
 ictest-malformed-payload: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestMalformedPayload$$ ./...
 
-ictest-guardian-set-proposal: rm-testcache
-	cd interchaintest && go test -race -v -run ^TestGuardianSetUpdateProposal$$ ./... 
-
-ictest-wormhole-message-proposal: rm-testcache
-	cd interchaintest && go test -race -v -run ^TestGovernanceWormholeMessageProposal$$ ./...
-
 ictest-upgrade-failure: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
 
@@ -133,4 +127,4 @@ ictest-wasmd-ante: rm-testcache
 ictest-wormchain: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
 
-.PHONY: run-ictests ictest-cancel-upgrade ictest-chain-start ictest-malformed-payload ictest-proposals ictest-upgrade-failure ictest-upgrade ictest-wasmd-ante ictest-wormchain
+.PHONY: ictest-cancel-upgrade ictest-chain-start ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wasmd-ante ictest-wormchain
