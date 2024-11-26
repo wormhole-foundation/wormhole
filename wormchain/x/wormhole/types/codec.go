@@ -18,8 +18,6 @@ func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgAddWasmInstantiateAllowlist{}, "wormhole/AddWasmInstantiateAllowlist", nil)
 	cdc.RegisterConcrete(&MsgDeleteWasmInstantiateAllowlist{}, "wormhole/DeleteWasmInstantiateAllowlist", nil)
 	cdc.RegisterConcrete(&MsgExecuteGatewayGovernanceVaa{}, "wormhole/ExecuteGatewayGovernanceVaa", nil)
-	cdc.RegisterConcrete(&MsgGuardianSetUpdateProposal{}, "wormhole/GuardianSetUpdateProposal", nil)
-	cdc.RegisterConcrete(&MsgGovernanceWormholeMessageProposal{}, "wormhole/GovernanceWormholeMessageProposal", nil)
 	// this line is used by starport scaffolding # 2
 }
 
@@ -32,8 +30,6 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&MsgCreateAllowlistEntryRequest{},
 		&MsgDeleteAllowlistEntryRequest{},
 		&MsgExecuteGatewayGovernanceVaa{},
-		&MsgGovernanceWormholeMessageProposal{},
-		&MsgGuardianSetUpdateProposal{},
 		&MsgRegisterAccountAsGuardian{},
 	)
 	// this line is used by starport scaffolding # 3
