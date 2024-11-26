@@ -556,7 +556,7 @@ const Testnet = {
 
 const Devnet = {
   Solana: {
-    rpc: "http://localhost:8899",
+    rpc: "http://127.0.0.1:8899",
     key: "J2D4pwDred8P9ioyPEZVLPht885AeYpifsFGUyuzVmiKQosAvmZP4EegaKFrSprBC5vVP1xTvu61vYDWsxBNsYx",
   },
   Terra: {
