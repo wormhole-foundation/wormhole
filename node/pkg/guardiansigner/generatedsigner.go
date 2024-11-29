@@ -57,6 +57,11 @@ func (gs *GeneratedSigner) Verify(ctx context.Context, sig []byte, hash []byte) 
 	return recoveredPubKey.Equal(fsPubkey), nil
 }
 
+// Return the signer type as "generated".
+func (gs *GeneratedSigner) TypeAsString() string {
+	return "generated"
+}
+
 // This function is meant to be a helper function that returns a guardian signer for tests
 // that simply require a private key. The caller can specify a private key to be used, or
 // pass nil to have `NewGeneratedSigner` generate a random private key.

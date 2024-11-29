@@ -88,7 +88,7 @@ func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string)
 
 	amazonKmsSigner := AmazonKms{
 		keyId:  keyPath,
-		region: getRegionFromArn(keyPath),
+		region: region,
 	}
 
 	// Create a configuration object to create a new KMS client from. The region passed to
@@ -206,6 +206,11 @@ func (a *AmazonKms) Verify(ctx context.Context, sig []byte, hash []byte) (bool, 
 	kmsPublicKey := a.PublicKey(timeoutCtx)
 
 	return recoveredPubKey.Equal(kmsPublicKey), nil
+}
+
+// Return the signer type as "amazonkms".
+func (a *AmazonKms) TypeAsString() string {
+	return "amazonkms"
 }
 
 // https://bitcoin.stackexchange.com/questions/92680/what-are-the-der-signature-and-sec-format

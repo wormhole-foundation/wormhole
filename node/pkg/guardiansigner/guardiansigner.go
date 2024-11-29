@@ -32,6 +32,8 @@ type GuardianSigner interface {
 	// Verify is a convenience function that recovers a public key from the sig/hash pair,
 	// and checks if the public key matches that of the guardian signer.
 	Verify(ctx context.Context, sig []byte, hash []byte) (valid bool, err error)
+	// Return the type of signer as string.
+	TypeAsString() string
 }
 
 // Create a new GuardianSigner from the given URI. The caller can also specify the

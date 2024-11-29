@@ -24,25 +24,48 @@ type BenchmarkSigner struct {
 }
 
 var (
-	guardianSignerSigningLatency = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_guardian_signer_signing_latency_us",
-			Help:    "Latency histogram for Guardian signing requests",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-		})
-
-	guardianSignerVerifyLatency = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_guardian_signer_sig_verify_latency_us",
-			Help:    "Latency histogram for Guardian signature verification requests",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-		})
+	guardianSignerSigningLatency    prometheus.Histogram
+	guardianSignerSigningErrorCount prometheus.Counter
+	guardianSignerVerifyLatency     prometheus.Histogram
+	guardianSignerVerifyErrorCount  prometheus.Counter
 )
 
 func BenchmarkWrappedSigner(innerSigner GuardianSigner) *BenchmarkSigner {
 	if innerSigner == nil {
 		return nil
 	}
+
+	signerType := innerSigner.TypeAsString()
+
+	guardianSignerSigningLatency = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:        "wormhole_guardian_signer_signing_latency_us",
+			Help:        "Latency histogram for Guardian signing requests",
+			Buckets:     []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
+			ConstLabels: prometheus.Labels{"signer_type": signerType},
+		})
+
+	guardianSignerSigningErrorCount = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name:        "wormhole_guardian_signer_signing_error_count",
+			Help:        "Total number of errors that ocurred during Guardian signing requests",
+			ConstLabels: prometheus.Labels{"signer_type": signerType},
+		})
+
+	guardianSignerVerifyLatency = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:        "wormhole_guardian_signer_sig_verify_latency_us",
+			Help:        "Latency histogram for Guardian signature verification requests",
+			Buckets:     []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
+			ConstLabels: prometheus.Labels{"signer_type": signerType},
+		})
+
+	guardianSignerVerifyErrorCount = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name:        "wormhole_guardian_signer_verify_error_count",
+			Help:        "Total number of errors that ocurred during Guardian signature verification requests",
+			ConstLabels: prometheus.Labels{"signer_type": signerType},
+		})
 
 	return &BenchmarkSigner{
 		innerSigner: innerSigner,
@@ -56,6 +79,11 @@ func (b *BenchmarkSigner) Sign(ctx context.Context, hash []byte) ([]byte, error)
 
 	// Add Observation to histogram
 	guardianSignerSigningLatency.Observe(float64(duration.Microseconds()))
+
+	// If an error occured, increment the error counter
+	if err != nil {
+		guardianSignerSigningErrorCount.Inc()
+	}
 
 	return sig, err
 }
@@ -74,5 +102,15 @@ func (b *BenchmarkSigner) Verify(ctx context.Context, sig []byte, hash []byte) (
 	// Add observation to histogram
 	guardianSignerVerifyLatency.Observe(float64(duration.Microseconds()))
 
+	// If an error occured, increment the error counter
+	if err != nil {
+		guardianSignerVerifyErrorCount.Inc()
+	}
+
 	return valid, err
+}
+
+// Return the type of signer as "benchmark".
+func (b *BenchmarkSigner) TypeAsString() string {
+	return "benchmark"
 }
