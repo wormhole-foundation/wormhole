@@ -7,7 +7,6 @@ WORKDIR /tmp
 RUN git clone https://github.com/aptos-labs/aptos-core.git
 WORKDIR /tmp/aptos-core
 
-# Build aptos 2.0.3
 RUN git reset --hard 47f0bf397eb5ca43257bfa775a6b28e7b7faf8b3
 RUN cargo build -p aptos --profile cli
 
