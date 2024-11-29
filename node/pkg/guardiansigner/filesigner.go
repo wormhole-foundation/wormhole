@@ -106,3 +106,8 @@ func (fs *FileSigner) Verify(ctx context.Context, sig []byte, hash []byte) (bool
 
 	return recoveredPubKey.Equal(fsPubkey), nil
 }
+
+// Return the signer type as "file".
+func (fs *FileSigner) TypeAsString() string {
+	return "file"
+}
