@@ -1,10 +1,16 @@
 package tss
 
 import (
+	"context"
+	"encoding/binary"
 	"fmt"
 	"sync"
+	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/yossigi/tss-lib/v2/common"
+	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/ecdsa/signing"
 	"github.com/yossigi/tss-lib/v2/tss"
 	"go.uber.org/zap"
@@ -12,7 +18,7 @@ import (
 
 type logableError struct {
 	cause      error
-	trackingId []byte
+	trackingId *common.TrackingID
 	round      signingRound
 }
 
@@ -48,12 +54,12 @@ func idToString(id *tss.PartyID) strPartyId {
 
 // Add adds a guardian to the counter for a given digest.
 // returns false if this guardian is active for too many signatures ( > maxActiveSignaturesPerGuardian).
-func (c *activeSigCounter) add(d []byte, guardian *tss.PartyID, maxActiveSignaturesPerGuardian int) bool {
+func (c *activeSigCounter) add(trackId *common.TrackingID, guardian *tss.PartyID, maxActiveSignaturesPerGuardian int) bool {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	if _, ok := c.digestToGuardians[strDigest(d)]; !ok {
-		c.digestToGuardians[strDigest(d)] = make(set[strPartyId])
+	if _, ok := c.digestToGuardians[strDigest(trackId.Digest)]; !ok {
+		c.digestToGuardians[strDigest(trackId.Digest)] = make(set[strPartyId])
 	}
 
 	strPartyId := idToString(guardian)
@@ -63,7 +69,7 @@ func (c *activeSigCounter) add(d []byte, guardian *tss.PartyID, maxActiveSignatu
 	}
 
 	// if already an active signature for this guardian, then it doesn't count as an additional signature
-	if _, ok := c.guardianToDigests[strPartyId][strDigest(d)]; ok {
+	if _, ok := c.guardianToDigests[strPartyId][strDigest(trackId.Digest)]; ok {
 		return true
 	}
 
@@ -72,21 +78,21 @@ func (c *activeSigCounter) add(d []byte, guardian *tss.PartyID, maxActiveSignatu
 		return false
 	}
 
-	c.digestToGuardians[strDigest(d)][strPartyId] = struct{}{}
-	c.guardianToDigests[strPartyId][strDigest(d)] = struct{}{}
+	c.digestToGuardians[strDigest(trackId.Digest)][strPartyId] = struct{}{}
+	c.guardianToDigests[strPartyId][strDigest(trackId.Digest)] = struct{}{}
 
 	return true
 }
 
-func (c *activeSigCounter) remove(d []byte) {
+func (c *activeSigCounter) remove(trackid *common.TrackingID) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	guardians := c.digestToGuardians[strDigest(d)]
-	delete(c.digestToGuardians, strDigest(d))
+	guardians := c.digestToGuardians[strDigest(trackid.Digest)]
+	delete(c.digestToGuardians, strDigest(trackid.Digest))
 
 	for g := range guardians {
-		delete(c.guardianToDigests[g], strDigest(d))
+		delete(c.guardianToDigests[g], strDigest(trackid.Digest))
 	}
 }
 
@@ -121,7 +127,7 @@ func logErr(l *zap.Logger, err error) {
 
 	var zapFields []zap.Field
 	if informativeErr.trackingId != nil {
-		zapFields = append(zapFields, zap.String("trackingId", fmt.Sprintf("%x", informativeErr.trackingId)))
+		zapFields = append(zapFields, zap.String("trackingId", informativeErr.trackingId.ToString()))
 	}
 
 	if informativeErr.round != "" {
@@ -168,6 +174,7 @@ var (
 	ErrSignedMessageIsNil    = fmt.Errorf("SignedMessage is nil")
 	ErrNoContent             = fmt.Errorf("SignedMessage doesn't contain a content")
 	ErrNilPayload            = fmt.Errorf("SignedMessage doesn't contain a payload")
+	ErrMissingTimestamp      = fmt.Errorf("problem struct missing timestamp field")
 )
 
 func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
@@ -184,8 +191,23 @@ func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
 		return fmt.Errorf("signedMessage sender pID error:%w", err)
 	}
 
-	if err := validateContentCorrectForm(m.Content); err != nil {
-		return fmt.Errorf("signedMessage content error:%w", err)
+	switch v := m.Content.(type) {
+	case *tsscommv1.SignedMessage_TssContent:
+		if err := validateContentCorrectForm(v.TssContent); err != nil {
+			return fmt.Errorf("signedMessage content error:%w", err)
+		}
+	case *tsscommv1.SignedMessage_Problem:
+		if err := validateProblemCorrectForm(v.Problem); err != nil {
+			return err
+		}
+
+		if time.Since(v.Problem.IssuingTime.AsTime()).Abs() > maxHeartbeatInterval {
+			return fmt.Errorf("problem's timestamp is too old")
+		}
+	case nil:
+		return ErrNoContent
+	default:
+		return fmt.Errorf("unknown content type: %T", v)
 	}
 
 	if len(m.Signature) == 0 {
@@ -218,6 +240,18 @@ func validateContentCorrectForm(m *tsscommv1.TssContent) error {
 
 	if m.Payload == nil {
 		return ErrNilPayload
+	}
+
+	return nil
+}
+
+func validateProblemCorrectForm(p *tsscommv1.Problem) error {
+	if p == nil {
+		return ErrNoContent
+	}
+
+	if p.IssuingTime == nil {
+		return ErrMissingTimestamp
 	}
 
 	return nil
@@ -283,4 +317,59 @@ func getRound(m tss.ParsedMessage) (signingRound, error) {
 	default:
 		return "", fmt.Errorf("unknown message type")
 	}
+}
+
+func intoChannelOrDone[T any](ctx context.Context, c chan T, v T) error {
+	select {
+	case c <- v:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("error sending to channel: %w", ctx.Err())
+	}
+}
+
+func outOfChannelOrDone[T any](ctx context.Context, c chan T) (T, error) {
+	var v T
+	select {
+	case v = <-c:
+		return v, nil
+	case <-ctx.Done():
+		return v, ctx.Err()
+	}
+}
+
+func (st *GuardianStorage) validateTrackingIDForm(tid *common.TrackingID) error {
+	if len(tid.Digest) != party.DigestSize {
+		return fmt.Errorf("trackingID digest is not in correct size")
+	}
+
+	// checking that the byte array is the correct size
+	if len(tid.PartiesState) < (len(st.Guardians)+7)/8 {
+		return fmt.Errorf("trackingID partiesState is too short")
+	}
+
+	// TODO: expecting auxilaryData to be set.
+
+	return nil
+}
+
+func getCommitteeIDs(pids []*tss.PartyID) []string {
+	ids := make([]string, 0, len(pids))
+	for _, v := range pids {
+		ids = append(ids, v.Id)
+	}
+
+	return ids
+}
+
+func extractChainIDFromTrackingID(tid *common.TrackingID) vaa.ChainID {
+	bts := [2]byte{}
+	copy(bts[:], tid.AuxilaryData)
+	return vaa.ChainID(binary.BigEndian.Uint16(bts[:]))
+}
+
+func chainIDToBytes(chainID vaa.ChainID) []byte {
+	bts := [2]byte{}
+	binary.BigEndian.PutUint16(bts[:], uint16(chainID))
+	return bts[:]
 }

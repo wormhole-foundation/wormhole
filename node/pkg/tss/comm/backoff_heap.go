@@ -1,8 +1,9 @@
 package comm
 
 import (
-	"container/heap"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/tss/internal"
 )
 
 const (
@@ -16,8 +17,8 @@ const (
 // Mainly similar to multiple cases of `time.After(func(){})“, but without using goroutines under the hood for each
 // invocation of Enqueue.
 type backoffHeap struct {
-	heap            []dialWithBackoff
-	timer           *time.Timer
+	internal.Ttlheap[*dialWithBackoff]
+
 	alreadyInHeap   map[string]bool
 	attemptsPerPeer map[string]uint64 // on successful dial, reset to 0.
 }
@@ -40,6 +41,10 @@ type dialWithBackoff struct {
 	nextRedialTime time.Time
 }
 
+func (d *dialWithBackoff) GetEndTime() time.Time {
+	return d.nextRedialTime
+}
+
 // Enqueue adds a hostname to the heap, with a new backoff time.
 func (d *backoffHeap) Enqueue(hostname string) {
 	if d.alreadyInHeap[hostname] {
@@ -56,32 +61,24 @@ func (d *backoffHeap) Enqueue(hostname string) {
 		d.attemptsPerPeer[hostname] = 0
 	}
 
-	elem := dialWithBackoff{
+	elem := &dialWithBackoff{
 		hostname: hostname,
 		attempt:  d.attemptsPerPeer[hostname],
 	}
 
 	elem.setBackoff()
-	heap.Push(d, elem)
 	d.alreadyInHeap[hostname] = true
 
-	d.setTopAsTimer()
+	d.Ttlheap.Enqueue(elem)
 }
 
 func (d *backoffHeap) Dequeue() string {
-	if len(d.heap) == 0 {
+	elem := d.Ttlheap.Dequeue()
+	if elem == nil {
 		return ""
 	}
 
-	elem, ok := heap.Pop(d).(dialWithBackoff)
-	if !ok {
-		return "" // shouldn't happen.
-	}
-
 	d.alreadyInHeap[elem.hostname] = false
-
-	d.setTopAsTimer()
-
 	return elem.hostname
 }
 
@@ -89,40 +86,13 @@ func (d *backoffHeap) ResetAttempts(hostname string) {
 	delete(d.attemptsPerPeer, hostname)
 }
 
-func (d *backoffHeap) setTopAsTimer() {
-	if len(d.heap) == 0 {
-		d.stopAndDrainTimer() // no elements: stop the timer.
-
-		return
-	}
-
-	endTime := d.peek().nextRedialTime // we have at least one element.
-
-	d.stopAndDrainTimer()
-	// endtime.Sub(time.Now()) uses monotonic clock.
-	d.timer.Reset(time.Until(endTime))
-}
-
-func (d *backoffHeap) stopAndDrainTimer() {
-	// stopping the timer, if its channel is not drained: drain it.
-	if !d.timer.Stop() && len(d.timer.C) > 0 {
-		select {
-		case <-d.timer.C:
-		default:
-		}
-	}
-}
-
 func newBackoffHeap() backoffHeap {
 	b := backoffHeap{
-		heap:            []dialWithBackoff{},
-		timer:           time.NewTimer(time.Second),
+		Ttlheap: internal.NewTtlHeap[*dialWithBackoff](),
+
 		alreadyInHeap:   map[string]bool{},
 		attemptsPerPeer: map[string]uint64{},
 	}
-	heap.Init(&b)
-
-	b.stopAndDrainTimer() // ensuring it doesn't fire when empty.
 
 	return b
 }
@@ -142,41 +112,4 @@ func (d *dialWithBackoff) setBackoff() {
 	}
 
 	d.nextRedialTime = time.Now().Add(duration)
-}
-
-// =====================================================
-// implemntation for heap interface, don't use directly.
-// =====================================================
-
-func (d *backoffHeap) Len() int {
-	return len(d.heap)
-}
-
-func (d *backoffHeap) Swap(i int, j int) {
-	d.heap[i], d.heap[j] = d.heap[j], d.heap[i]
-}
-
-func (d *backoffHeap) Push(x any) {
-	if v, ok := x.(dialWithBackoff); ok {
-		d.heap = append(d.heap, v)
-	}
-}
-
-func (d *backoffHeap) peek() *dialWithBackoff {
-	if len(d.heap) == 0 {
-		return nil
-	}
-
-	return &d.heap[0]
-}
-
-func (d *backoffHeap) Less(i int, j int) bool {
-	return d.heap[i].nextRedialTime.Before(d.heap[j].nextRedialTime)
-}
-
-func (d *backoffHeap) Pop() any {
-	elem := d.heap[len(d.heap)-1]
-	d.heap = d.heap[:len(d.heap)-1]
-
-	return elem
 }

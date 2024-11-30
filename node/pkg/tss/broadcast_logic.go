@@ -1,11 +1,16 @@
 package tss
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
+	"unsafe"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/yossigi/tss-lib/v2/common"
 	"github.com/yossigi/tss-lib/v2/tss"
 )
 
@@ -14,11 +19,127 @@ import (
 // voterId is comprised from the id and key of the signer, should match the guardians (in GuardianStorage) id and key.
 type voterId string
 
+// messages that were processed and parsed.
+type relbroadcastables interface {
+	// We use the UUID to distinguish between messages the reliable
+	// broadcast algorithm handles.
+	// When supporting a new uuid, take careful considertaions.
+	// for instance, TSS messages create their uuid from values that
+	// make each message unique, but also ensure the reliable-broadcast can
+	// detect equivication attacks.
+	getUUID(loadDistKey []byte) (uuid, error)
+
+	// can be used for tracking and managing messages and
+	// cross referencing them across the Engine (not just reliable broadcast),
+	// and is mainly used for cleanup.
+	// Non-TSS messages can return nil.
+	getTrackingID() *common.TrackingID
+}
+
+type processedMessage interface {
+	relbroadcastables
+	wrapError(error) error
+}
+
+type parsedProblem struct {
+	*tsscommv1.Problem
+	issuer *tsscommv1.PartyId
+}
+
+func (p *parsedProblem) getTrackingID() *common.TrackingID {
+	// parsedProblem is not a tss.ParsedMessage, so it doesn't have a trackingID.
+	// and as stated in the comment above, it can be nil.
+	return nil
+}
+
+func (p *parsedProblem) wrapError(err error) error {
+	return logableError{
+		cause:      fmt.Errorf("error parsing problem, issuer %v: %w", p.issuer, err),
+		trackingId: nil, // parsedProblem doesn't have a trackingID.
+		round:      "",  // parsedProblem doesn't have a round.
+	}
+}
+
+func (p *parsedProblem) serialize() ([]byte, error) {
+	if p == nil {
+		return nil, fmt.Errorf("nil relbroadcastables")
+	}
+	unixtime := p.IssuingTime.AsTime().Unix()
+
+	fromId := [hostnameSize]byte{}
+	copy(fromId[:], []byte(p.issuer.Id))
+
+	fromKey := [pemKeySize]byte{}
+	copy(fromKey[:], p.issuer.Key)
+
+	capacity := len(parsedProblemDomain) +
+		hostnameSize +
+		pemKeySize +
+		auxiliaryDataSize +
+		int(unsafe.Sizeof(unixtime))
+
+	b := bytes.NewBuffer(make([]byte, 0, capacity))
+
+	b.WriteString(parsedProblemDomain) // domain separation.
+	b.Write(fromId[:])
+	b.Write(fromKey[:])
+	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
+	vaa.MustWrite(b, binary.BigEndian, unixtime)
+
+	return b.Bytes(), nil
+}
+
+func (p *parsedProblem) getUUID(distLoadKey []byte) (uuid, error) {
+	bts, err := p.serialize()
+	if err != nil {
+		return uuid{}, err
+	}
+
+	return uuid(hash(append(bts, distLoadKey...))), nil
+}
+
+type parsedTssContent struct {
+	tss.ParsedMessage
+	signingRound
+}
+
+func (msg *parsedTssContent) getUUID(loadDistKey []byte) (uuid, error) {
+	return getMessageUUID(msg.ParsedMessage, loadDistKey)
+}
+
+func (p *parsedTssContent) wrapError(err error) error {
+	if p == nil {
+		return err
+	}
+
+	return logableError{
+		cause:      err,
+		trackingId: p.getTrackingID(),
+		round:      p.signingRound,
+	}
+}
+
+func (p *parsedTssContent) getTrackingID() *common.TrackingID {
+	if p == nil {
+		return nil
+	}
+
+	if p.ParsedMessage == nil {
+		return nil
+	}
+
+	if p.WireMsg() == nil {
+		return nil
+	}
+
+	return p.WireMsg().GetTrackingID()
+}
+
 type broadcaststate struct {
 	// The following three fields should not be changed after creation of broadcaststate:
 	timeReceived  time.Time
 	messageDigest digest
-	trackingId    []byte
+	trackingId    *common.TrackingID
 
 	votes map[voterId]bool
 	// if set to true: don't echo again, even if received from original sender.
@@ -102,13 +223,12 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 	return (st.Threshold) / 2 // this is the floor of the result.
 }
 
-func (t *Engine) relbroadcastInspection(parsed tss.ParsedMessage, msg Incoming) (shouldEcho bool, shouldDeliver bool, err error) {
+func (t *Engine) relbroadcastInspection(parsed relbroadcastables, msg Incoming) (shouldEcho bool, shouldDeliver bool, err error) {
 	// No need to check input: it was already checked before reaching this point
-
 	signed := msg.toEcho().Message
 	echoer := msg.GetSource()
 
-	state, err := t.fetchState(parsed, signed)
+	state, err := t.fetchOrCreateState(parsed, signed)
 	if err != nil {
 		return false, false, err
 	}
@@ -128,14 +248,10 @@ func (t *Engine) relbroadcastInspection(parsed tss.ParsedMessage, msg Incoming) 
 	return allowedToBroadcast, false, nil
 }
 
-func (t *Engine) fetchState(parsed tss.ParsedMessage, signed *tsscommv1.SignedMessage) (*broadcaststate, error) {
-	uuid, err := t.getMessageUUID(parsed)
+func (t *Engine) fetchOrCreateState(parsed relbroadcastables, signed *tsscommv1.SignedMessage) (*broadcaststate, error) {
+	uuid, err := parsed.getUUID(t.LoadDistributionKey)
 	if err != nil {
 		return nil, err
-	}
-
-	if parsed.WireMsg() == nil || parsed.WireMsg().TrackingID == nil {
-		return nil, fmt.Errorf("tracking id is nil")
 	}
 
 	t.mtx.Lock()
@@ -154,7 +270,7 @@ func (t *Engine) fetchState(parsed tss.ParsedMessage, signed *tsscommv1.SignedMe
 		timeReceived:  time.Now(),
 		messageDigest: hashSignedMessage(signed),
 
-		trackingId: parsed.WireMsg().TrackingID,
+		trackingId: parsed.getTrackingID(),
 
 		votes:            make(map[voterId]bool),
 		echoedAlready:    false,

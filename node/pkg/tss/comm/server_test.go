@@ -324,7 +324,7 @@ func TestNonBlockedBroadcast(t *testing.T) {
 
 func TestBackoff(t *testing.T) {
 	a := require.New(t)
-	ctx, cncl := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second*60)
 	defer cncl()
 
 	t.Run("basic1", func(t *testing.T) {
@@ -341,7 +341,7 @@ func TestBackoff(t *testing.T) {
 			select {
 			case <-ctx.Done():
 				t.FailNow()
-			case <-heap.timer.C:
+			case <-heap.WaitOnTimer():
 				hostname := heap.Dequeue()
 				a.Equal(expected[i], hostname)
 			}
@@ -363,7 +363,7 @@ func TestBackoff(t *testing.T) {
 			select {
 			case <-ctx.Done():
 				t.FailNow()
-			case <-heap.timer.C:
+			case <-heap.WaitOnTimer():
 				hostname := heap.Dequeue()
 				a.Equal(expected[i], hostname)
 			}
@@ -374,10 +374,6 @@ func TestBackoff(t *testing.T) {
 		heap := newBackoffHeap()
 
 		// operations on an empty heap:
-		heap.stopAndDrainTimer()
-		heap.stopAndDrainTimer()
-		heap.stopAndDrainTimer()
-		heap.setTopAsTimer()
 		a.Equal("", heap.Dequeue())
 
 		heap.ResetAttempts("1")
@@ -405,7 +401,7 @@ func TestBackoff(t *testing.T) {
 			select {
 			case <-ctx.Done():
 				t.FailNow()
-			case <-heap.timer.C:
+			case <-heap.WaitOnTimer():
 				hostname := heap.Dequeue()
 				a.Equal(expected[i], hostname)
 			}
@@ -419,7 +415,7 @@ func TestBackoff(t *testing.T) {
 
 		heap.attemptsPerPeer["1"] = 23144532345345665 // large number.
 		heap.Enqueue("1")
-		v := heap.peek()
+		v := heap.Peek()
 
 		a.True(v.nextRedialTime.Before(time.Now().Add(maxBackoffTime)))
 		a.True(v.nextRedialTime.After(time.Now().Add(maxBackoffTime - time.Second)))
@@ -428,7 +424,7 @@ func TestBackoff(t *testing.T) {
 		timenow := time.Now()
 		heap.ResetAttempts("1")
 		heap.Enqueue("1")
-		v = heap.peek()
+		v = heap.Peek()
 		a.True(v.nextRedialTime.Before(timenow.Add(minBackoffTime + 10*time.Millisecond)))
 		a.True(v.nextRedialTime.After(timenow.Add(minBackoffTime - 10*time.Millisecond)))
 

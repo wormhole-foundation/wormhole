@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	tsscommon "github.com/yossigi/tss-lib/v2/common"
 	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/ecdsa/signing"
@@ -44,7 +45,9 @@ func parsedIntoEcho(a *assert.Assertions, t *Engine, parsed tss.ParsedMessage) *
 
 	msg := &tsscommv1.Echo{
 		Message: &tsscommv1.SignedMessage{
-			Content:   &tsscommv1.TssContent{Payload: payload},
+			Content: &tsscommv1.SignedMessage_TssContent{
+				TssContent: &tsscommv1.TssContent{Payload: payload},
+			},
 			Sender:    partyIdToProto(t.Self),
 			Signature: nil,
 		},
@@ -81,7 +84,7 @@ func TestBroadcast(t *testing.T) {
 
 			echo := parsedIntoEcho(a, e1, parsed1)
 
-			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.False(shouldDeliver)
@@ -101,14 +104,14 @@ func TestBroadcast(t *testing.T) {
 			echo := parsedIntoEcho(a, e1, parsed1)
 			echo.setSource(e2.Self)
 
-			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.False(shouldDeliver)
 
 			echo.setSource(e3.Self)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.False(shouldDeliver)
@@ -117,7 +120,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func load5GuardiansSetupForBroadcastChecks(a *assert.Assertions) []*Engine {
-	engines, err := _loadGuardians(5) // f=1, n=5.
+	engines, err := loadGuardians(5, "tss5") // f=1, n=5.
 	a.NoError(err)
 
 	for _, v := range engines {
@@ -141,21 +144,21 @@ func TestDeliver(t *testing.T) {
 			echo := parsedIntoEcho(a, e1, parsed1)
 			echo.setSource(e2.Self)
 
-			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.False(shouldDeliver)
 
 			echo.setSource(e3.Self)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.False(shouldDeliver)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.True(shouldDeliver)
@@ -174,28 +177,28 @@ func TestDeliver(t *testing.T) {
 			echo := parsedIntoEcho(a, e1, parsed1)
 			echo.setSource(e2.Self)
 
-			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.False(shouldDeliver)
 
 			echo.setSource(e3.Self)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.False(shouldDeliver)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.True(shouldDeliver)
 
 			echo.setSource(e4.Self)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed1, echo)
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.False(shouldDeliver)
@@ -211,13 +214,13 @@ func TestUuidNotAffectedByMessageContentChange(t *testing.T) {
 		trackingId := party.Digest{byte(i)}
 
 		// each message is generated with some random content inside.
-		parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, trackingId)
-		parsed2 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, trackingId)
+		parsed1 := generateFakeParsedMessageWithRandomContent(e1.Self, e1.Self, rnd, trackingId)
+		parsed2 := generateFakeParsedMessageWithRandomContent(e1.Self, e1.Self, rnd, trackingId)
 
-		uid1, err := e1.getMessageUUID(parsed1)
+		uid1, err := parsed1.getUUID(e1.LoadDistributionKey)
 		a.NoError(err)
 
-		uid2, err := e1.getMessageUUID(parsed2)
+		uid2, err := parsed2.getUUID(e1.LoadDistributionKey)
 		a.NoError(err)
 		a.Equal(uid1, uid2)
 	}
@@ -235,22 +238,28 @@ func TestEquivocation(t *testing.T) {
 
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
 
-			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(parsed1, parsedIntoEcho(a, e2, parsed1))
+			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, parsedIntoEcho(a, e2, parsed1))
 			a.NoError(err)
 			a.True(shouldBroadcast) //should broadcast since e2 is the source of this message.
 			a.False(shouldDeliver)
 
 			parsed2 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
 
-			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(parsed2, parsedIntoEcho(a, e2, parsed2))
+			shouldBroadcast, shouldDeliver, err = e1.relbroadcastInspection(&parsedTssContent{parsed2, ""}, parsedIntoEcho(a, e2, parsed2))
 			a.ErrorAs(err, &ErrEquivicatingGuardian)
 			a.False(shouldBroadcast)
 			a.False(shouldDeliver)
 
 			equvicatingEchoerMessage := parsedIntoEcho(a, e2, parsed1)
-			equvicatingEchoerMessage.Content.GetEcho().Message.Content.Payload[0] += 1
+			equvicatingEchoerMessage.
+				Content.
+				GetEcho().
+				Message.
+				Content.(*tsscommv1.SignedMessage_TssContent).
+				TssContent.
+				Payload[0] += 1
 			// now echoer is equivicating (change content, but of some seen message):
-			_, _, err = e1.relbroadcastInspection(parsed1, equvicatingEchoerMessage)
+			_, _, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, equvicatingEchoerMessage)
 			a.ErrorContains(err, e2.Self.Id)
 		}
 	})
@@ -259,6 +268,13 @@ func TestEquivocation(t *testing.T) {
 		a := assert.New(t)
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2 := engines[0], engines[1]
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cncl := context.WithCancel(supctx)
+		defer cncl()
+
+		e1.Start(ctx)
+		e2.Start(ctx)
 
 		for i, rndType := range unicastRounds {
 
@@ -301,9 +317,10 @@ func TestBadInputs(t *testing.T) {
 	engines := load5GuardiansSetupForBroadcastChecks(a)
 	e1, e2 := engines[0], engines[1]
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+	supctx := testutils.MakeSupervisorContext(context.Background())
+	ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
 	defer cancel()
-	ctx = testutils.MakeSupervisorContext(ctx)
+
 	e1.Start(ctx) // so it has a logger.
 
 	t.Run("signature", func(t *testing.T) {
@@ -314,7 +331,7 @@ func TestBadInputs(t *testing.T) {
 			echo.setSource(e2.Self)
 
 			echo.toEcho().Message.Signature[0] += 1
-			_, _, err := e1.relbroadcastInspection(parsed1, echo)
+			_, _, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.ErrorIs(err, ErrInvalidSignature)
 
 			if rnd == round1Message1 || rnd == round2Message {
@@ -412,8 +429,10 @@ func TestBadInputs(t *testing.T) {
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
-					Content: &tsscommv1.TssContent{},
-					Sender:  partyIdToProto(e2.Self),
+					Content: &tsscommv1.SignedMessage_TssContent{
+						TssContent: &tsscommv1.TssContent{},
+					},
+					Sender: partyIdToProto(e2.Self),
 				},
 			}}},
 		})
@@ -422,8 +441,10 @@ func TestBadInputs(t *testing.T) {
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
-					Content: &tsscommv1.TssContent{
-						Payload: []byte{1, 2, 3},
+					Content: &tsscommv1.SignedMessage_TssContent{
+						TssContent: &tsscommv1.TssContent{
+							Payload: []byte{1, 2, 3},
+						},
 					},
 					Sender: partyIdToProto(e2.Self),
 				},
@@ -434,8 +455,10 @@ func TestBadInputs(t *testing.T) {
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
-					Content: &tsscommv1.TssContent{
-						Payload: []byte{1, 2, 3},
+					Content: &tsscommv1.SignedMessage_TssContent{
+						TssContent: &tsscommv1.TssContent{
+							Payload: []byte{1, 2, 3},
+						},
 					},
 					Sender:    partyIdToProto(e2.Self),
 					Signature: []byte{1, 2, 3},
@@ -449,15 +472,16 @@ func TestBadInputs(t *testing.T) {
 		var tmp *Engine = nil
 		engines2 := load5GuardiansSetupForBroadcastChecks(a)
 
-		a.ErrorIs(tmp.BeginAsyncThresholdSigningProtocol(nil), errNilTssEngine)
-		a.ErrorIs(e2.BeginAsyncThresholdSigningProtocol(nil), errTssEngineNotStarted)
+		a.ErrorIs(tmp.BeginAsyncThresholdSigningProtocol(nil, 0), errNilTssEngine)
+		a.ErrorIs(e2.BeginAsyncThresholdSigningProtocol(nil, 0), errTssEngineNotStarted)
 
 		tmp = engines2[1]
 		tmp.started.Store(started)
-		tmp.fp = nil
-		a.ErrorContains(tmp.BeginAsyncThresholdSigningProtocol(nil), "not set up correctly")
 
-		a.ErrorContains(e1.BeginAsyncThresholdSigningProtocol(make([]byte, 12)), "length is not 32 bytes")
+		a.ErrorContains(e1.BeginAsyncThresholdSigningProtocol(make([]byte, 12), 0), "length is not 32 bytes")
+
+		tmp.fp = nil
+		a.ErrorContains(tmp.BeginAsyncThresholdSigningProtocol(nil, 0), "not set up correctly")
 	})
 
 	t.Run("fetch certificate", func(t *testing.T) {
@@ -491,11 +515,20 @@ func TestCleanup(t *testing.T) {
 	engines := load5GuardiansSetupForBroadcastChecks(a)
 	e1 := engines[0]
 
-	e1.received[uuid{1}] = &broadcaststate{
+	uuid1 := uuid{1}
+	e1.received[uuid1] = &broadcaststate{
 		timeReceived: time.Now().Add(time.Minute * 10 * (-1)),
+		trackingId: &tsscommon.TrackingID{
+			Digest: uuid1[:],
+		},
 	}
-	e1.received[uuid{2}] = &broadcaststate{
+
+	uuid2 := uuid{2}
+	e1.received[uuid2] = &broadcaststate{
 		timeReceived: time.Now(),
+		trackingId: &tsscommon.TrackingID{
+			Digest: uuid2[:],
+		},
 	}
 
 	e1.cleanup(time.Minute * 5) // if more than 5 minutes passed -> delete
@@ -533,16 +566,16 @@ func TestRouteCheck(t *testing.T) {
 	engines := load5GuardiansSetupForBroadcastChecks(a)
 	e1 := engines[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	supctx := testutils.MakeSupervisorContext(context.Background())
+	ctx, cancel := context.WithTimeout(supctx, time.Second*5)
 	defer cancel()
 
-	e1.Start(testutils.MakeSupervisorContext(ctx))
+	e1.Start(ctx)
 	e1.fpOutChan <- &badtssMessage{}
-	e1.fpErrChannel <- tss.NewTrackableError(errors.New("test"), "test", -1, nil, make([]byte, 32))
+	e1.fpErrChannel <- tss.NewTrackableError(errors.New("test"), "test", -1, nil, &tsscommon.TrackingID{})
 	e1.fpErrChannel <- nil
 
 	time.Sleep(time.Millisecond * 200)
-
 }
 
 func TestE2E(t *testing.T) {
@@ -550,69 +583,546 @@ func TestE2E(t *testing.T) {
 	// all will attempt to sign a single message, while outputing messages to each other,
 	// and reliably broadcasting them.
 
-	inProgressSigs.Set(0) // reseting the gauge.
+	t.Run("with correct metrics", func(t *testing.T) {
+		inProgressSigs.Set(0) // reseting the gauge.
 
-	a := assert.New(t)
-	engines := loadGuardians(a)
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
 
-	dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
-	defer cancel()
-	ctx = testutils.MakeSupervisorContext(ctx)
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
 
-	fmt.Println("starting engines.")
-	for _, engine := range engines {
-		a.NoError(engine.Start(ctx))
-	}
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
 
-	fmt.Println("msgHandler settup:")
-	dnchn := msgHandler(ctx, engines)
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
 
-	fmt.Println("engines started, requesting sigs")
+		fmt.Println("engines started, requesting sigs")
 
-	m := dto.Metric{}
-	inProgressSigs.Write(&m)
-	a.Equal(0, int(m.Gauge.GetValue()))
+		m := dto.Metric{}
+		inProgressSigs.Write(&m)
+		a.Equal(0, int(m.Gauge.GetValue()))
 
-	// all engines are started, now we can begin the protocol.
-	for _, engine := range engines {
-		tmp := make([]byte, 32)
-		copy(tmp, dgst[:])
-		engine.BeginAsyncThresholdSigningProtocol(tmp)
-	}
+		// all engines are started, now we can begin the protocol.
+		for _, engine := range engines {
+			tmp := make([]byte, 32)
+			copy(tmp, dgst[:])
+			engine.BeginAsyncThresholdSigningProtocol(tmp, 0)
+		}
 
-	inProgressSigs.Write(&m)
-	a.Equal(engines[0].Threshold+1, int(m.Gauge.GetValue()))
+		inProgressSigs.Write(&m)
+		a.Equal(engines[0].Threshold+1, int(m.Gauge.GetValue()))
 
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+
+		time.Sleep(time.Millisecond * 500) // ensuring all other engines have finished and not just one of them.
+		inProgressSigs.Write(&m)
+		a.Equal(0, int(m.Gauge.GetValue())) // ensuring nothing is in progress.
+
+		sigProducedCntr.Write(&m)
+		a.Equal(engines[0].Threshold+1, int(m.Counter.GetValue()))
+
+		sentMsgCntr.Write(&m)
+		committeeSize := engines[0].Threshold + 1
+		numBroadcastRounds := 8
+		numUnicastRounds := 2
+		numUnicastSendRequestsPerGuardian := engines[0].Threshold * numUnicastRounds
+		a.Equal(committeeSize*(numBroadcastRounds+numUnicastSendRequestsPerGuardian), int(m.Counter.GetValue()))
+
+		receivedMsgCntr.Write(&m)
+		// n^2 * (numBroadcastRounds + numUnicastRounds)
+		a.Greater(int(m.Counter.GetValue()), committeeSize*committeeSize*(numBroadcastRounds+numUnicastRounds))
+
+		deliveredMsgCntr.Write(&m)
+		// messages from committeeSize are delivered numBroadcastRounds times by each guardian.
+		a.Equal(committeeSize*numBroadcastRounds*len(engines), int(m.Counter.GetValue()))
+	})
+
+	t.Run("with 5 sigs", func(t *testing.T) {
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		digests := make([]party.Digest, 5)
+		for i := 0; i < 5; i++ {
+			digests[i] = party.Digest{byte(i)}
+		}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, len(digests))
+
+		fmt.Println("engines started, requesting sigs")
+
+		// all engines are started, now we can begin the protocol.
+		for _, d := range digests {
+
+			for _, engine := range engines {
+				tmp := make([]byte, 32)
+				copy(tmp, d[:])
+
+				engine.BeginAsyncThresholdSigningProtocol(tmp, 1)
+			}
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+}
+
+func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
 	select {
-	case <-dnchn:
 	case <-ctx.Done():
-		t.FailNow()
-		return
+		return true
+	case <-ch:
+		return false
 	}
+}
 
-	time.Sleep(time.Millisecond * 500) // ensuring all other engines have finished and not just one of them.
-	inProgressSigs.Write(&m)
-	a.Equal(0, int(m.Gauge.GetValue())) // ensuring nothing is in progress.
+// func TestFTLoop(t *testing.T) {
+// 	for i := 0; i < 5; i++ {
+// 		t.Run("looping", TestFT)
+// 	}
 
-	sigProducedCntr.Write(&m)
-	a.Equal(engines[0].Threshold+1, int(m.Counter.GetValue()))
+// }
 
-	sentMsgCntr.Write(&m)
-	committeeSize := engines[0].Threshold + 1
-	numBroadcastRounds := 8
-	numUnicastRounds := 2
-	numUnicastSendRequestsPerGuardian := engines[0].Threshold * numUnicastRounds
-	a.Equal(committeeSize*(numBroadcastRounds+numUnicastSendRequestsPerGuardian), int(m.Counter.GetValue()))
+func TestFT(t *testing.T) {
 
-	receivedMsgCntr.Write(&m)
-	// n^2 * (numBroadcastRounds + numUnicastRounds)
-	a.Greater(int(m.Counter.GetValue()), committeeSize*committeeSize*(numBroadcastRounds+numUnicastRounds))
+	t.Run("single server crashes", func(t *testing.T) {
+		a := assert.New(t)
 
-	deliveredMsgCntr.Write(&m)
-	// messages from committeeSize are delivered numBroadcastRounds times by each guardian.
-	a.Equal(committeeSize*numBroadcastRounds*len(engines), int(m.Counter.GetValue()))
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		cID := vaa.ChainID(1)
+		singingTask := party.SigningTask{
+			Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			Faulties:     []*tss.PartyID{},
+			AuxilaryData: chainIDToBytes(cID),
+		}
+		e := getSigningGuardian(a, engines, singingTask)
+
+		enginesWithoutE := make([]*Engine, 0, len(engines)-1)
+		eSelf := partyIdToString(e.Self)
+		for i := range engines {
+			if partyIdToString(engines[i].Self) == eSelf {
+				continue
+			}
+
+			enginesWithoutE = append(enginesWithoutE, engines[i])
+		}
+
+		// all engines are started, now we can begin the protocol.
+		for _, engine := range enginesWithoutE {
+			tmp := make([]byte, len(singingTask.Digest))
+			copy(tmp, singingTask.Digest[:])
+
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
+	t.Run("down server returns during overlap time and signs with original committee", func(t *testing.T) {
+		a := assert.New(t)
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		cID := vaa.ChainID(1)
+		tsk := party.SigningTask{
+			Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			Faulties:     []*tss.PartyID{},
+			AuxilaryData: chainIDToBytes(cID),
+		}
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		signers := getSigningGuardians(a, engines, tsk)
+
+		fmt.Println("starting engines.")
+		for _, engine := range signers { // start only original committee!
+			// should wake a little before the synchronsingInterval.
+			engine.GuardianStorage.Configurations.guardianDownTime = synchronsingInterval
+			engine.GuardianStorage.maxJitter = time.Microsecond
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		signers[0].reportProblem(cID) // using chainid==0.
+
+		time.Sleep(synchronsingInterval / 2)
+
+		// Only engines from original comittee are allowed to sign.
+		for _, engine := range signers {
+			tmp := make([]byte, len(tsk.Digest))
+			copy(tmp, tsk.Digest[:])
+
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
+	t.Run("down server returns and signs on original committee different return times", func(t *testing.T) {
+		// changing the guardianDownTime parameter with different value for each guardian
+		// let us simulate a situation where each guardian received the "problem" message at a different time.
+		//
+		// one of the guardian revival time will be so long that it'll have to restart the guardian using
+		// a timer it set up, and not due to the overlapping interval.
+		a := assert.New(t)
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		cID := vaa.ChainID(1)
+		signingTask := party.SigningTask{
+			Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			AuxilaryData: chainIDToBytes(cID),
+		}
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		signers := getSigningGuardians(a, engines, signingTask)
+		a.Len(signers, 3)
+
+		fmt.Println("starting engines.")
+		// start only original committee!
+		for i, engine := range signers {
+			// set each guardian with a different downtime.
+			// ensure the protocol generates a signature.
+			engine.GuardianStorage.Configurations.guardianDownTime = time.Second * 4 * time.Duration(i+1)
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		signers[0].reportProblem(0) // using chainid==0.
+
+		time.Sleep(synchronsingInterval + time.Second)
+
+		// Only engines from original comittee are allowed to sign.
+		for _, engine := range signers {
+			tmp := make([]byte, len(signingTask.Digest))
+			copy(tmp, signingTask.Digest[:])
+
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
+	t.Run("server crashes during signing multiple digests", func(t *testing.T) {
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		n := 3
+		chainId := vaa.ChainID(1)
+		digests := make([]party.SigningTask, n)
+		for i := 0; i < n; i++ {
+			digests[i] = party.SigningTask{
+				Digest:       [32]byte{byte(i)},
+				Faulties:     nil,
+				AuxilaryData: chainIDToBytes(chainId),
+			}
+		}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute/4)
+		defer cancel()
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		e := getSigningGuardian(a, engines, digests...)
+		a.NotNil(e)
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, len(digests))
+
+		fmt.Println("engines started, requesting sigs")
+
+		go func() {
+			time.Sleep(time.Second / 4) // enough time for the engines to start the signing protocol.
+			e.reportProblem(chainId)    // telling the server to report to everyone it has an issue.
+			fmt.Printf("========\n %v Issued problem now!\n=======\n=", e.Self.Id)
+		}()
+
+		for _, d := range digests {
+			d := d
+
+			for _, engine := range engines {
+				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId)
+			}
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
+	t.Run("cant recover after f faults", func(t *testing.T) {
+		a := assert.New(t)
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Second*20)
+		defer cancel()
+
+		cid := vaa.ChainID(0)
+		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+		engines, err := loadGuardians(7, "tss7")
+		a.NoError(err)
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+		f := engines[0].getMaxExpectedFaults()
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		for i := 0; i < f+1; i++ {
+			engines[i].reportProblem(cid) // TODO: need to happen on a specific chain.
+		}
+
+		time.Sleep(time.Second * 2) // waiting for the f issues to be reported.
+
+		// letting the other engines run
+		for i := f + 1; i < len(engines); i++ {
+			engine := engines[i]
+
+			tmp := make([]byte, 32)
+			copy(tmp, dgst[:])
+
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cid)
+		}
+
+		// expecting the time to run out.
+		if !ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("received sig", "received sig")
+		}
+	})
+
+	t.Run("3 sig f faults", func(t *testing.T) {
+		a := assert.New(t)
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		engines, err := loadGuardians(7, "tss7")
+		a.NoError(err)
+
+		a.Len(engines, 7)
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		cID := vaa.ChainID(1)
+		tsks := make([]party.SigningTask, 3)
+		for i := range tsks {
+			tsks[i] = party.SigningTask{
+				Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+				Faulties:     []*tss.PartyID{},
+				AuxilaryData: chainIDToBytes(cID),
+			}
+		}
+		signers := getSigningGuardians(a, engines, tsks...)
+		a.GreaterOrEqual(len(signers), 3)
+
+		removed := signers[:engines[0].getMaxExpectedFaults()]
+		for _, r := range removed {
+			r.DelayGraceTime /= 2 // reducing test time.
+		}
+
+		for _, engine := range engines {
+
+			// skipping the engines that are removed.
+			if contains(removed, engine) {
+				continue
+			}
+
+			for _, tsk := range tsks {
+				tmp := make([]byte, len(tsk.Digest))
+				copy(tmp, tsk.Digest[:])
+
+				engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			}
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
+	t.Run("recover given a missing heartbeat", func(t *testing.T) {
+		t.Skip()
+	})
+
+	t.Run("server crashes on a single chain, shouldn't affect signatures on other chain", func(t *testing.T) {
+		a := assert.New(t)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+		defer cancel()
+
+		ctx = testutils.MakeSupervisorContext(ctx)
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+
+		fmt.Println("engines started, requesting sigs")
+
+		tsks := make([]party.SigningTask, 2)
+		for i := range tsks {
+			tsks = append(tsks, party.SigningTask{
+				Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+				Faulties:     []*tss.PartyID{},
+				AuxilaryData: chainIDToBytes(vaa.ChainID(i)),
+			})
+		}
+
+		e := getSigningGuardian(a, engines, tsks...)
+		a.NotNil(e) // duo to quorum size of 3 out of 5 there must be one guardian that is needed for both tasks.
+
+		dnchn := msgHandler(ctx, engines, len(tsks)) // expecting 2 messages.
+		e.reportProblem(0)                           // on the chain of the first task only.
+
+		// all engines are started, now we can begin the protocol.
+		for i := 0; i < len(tsks); i++ {
+			for _, engine := range engines {
+				dgst := party.Digest{}
+				copy(dgst[:], tsks[i].Digest[:])
+
+				engine.BeginAsyncThresholdSigningProtocol(dgst[:], vaa.ChainID(i))
+			}
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
+	t.Run("2 server delayed on one chain rejoin signing after their downtime ends", func(t *testing.T) {
+		a := assert.New(t)
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		cID := vaa.ChainID(1)
+		tsk := party.SigningTask{
+			Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			Faulties:     []*tss.PartyID{},
+			AuxilaryData: chainIDToBytes(cID),
+		}
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		signers := getSigningGuardians(a, engines, tsk)
+
+		fmt.Println("starting engines.")
+		for _, engine := range signers {
+			engine.GuardianStorage.Configurations.guardianDownTime = synchronsingInterval
+			engine.GuardianStorage.maxJitter = time.Microsecond
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		signers[0].reportProblem(cID)
+		signers[1].reportProblem(cID)
+
+		time.Sleep(synchronsingInterval / 2)
+
+		// Only engines from original comittee are allowed to sign.
+
+		// the signing guardian should use a committee with the other guardians (which we haven't started on purpose),
+		// since it received by now the problem message. (This is mainly to ensure: the guardian WILL allow signing this message)
+		signers[2].BeginAsyncThresholdSigningProtocol(tsk.Digest[:], cID)
+
+		time.Sleep(signers[0].guardianDownTime + time.Second) // waiting for the downtime to end.
+
+		fmt.Println("###rejoining###")
+		for i := 0; i < 2; i++ { // letting them sign again.
+			signers[i].BeginAsyncThresholdSigningProtocol(tsk.Digest[:], cID)
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
+
 }
 
 func TestMessagesWithBadRounds(t *testing.T) {
@@ -654,7 +1164,9 @@ func TestMessagesWithBadRounds(t *testing.T) {
 				Content: &tsscommv1.PropagatedMessage{Message: &tsscommv1.PropagatedMessage_Echo{
 					Echo: &tsscommv1.Echo{
 						Message: &tsscommv1.SignedMessage{
-							Content:   &tsscommv1.TssContent{Payload: bts},
+							Content: &tsscommv1.SignedMessage_TssContent{
+								TssContent: &tsscommv1.TssContent{Payload: bts},
+							},
 							Sender:    partyIdToProto(from),
 							Signature: nil,
 						},
@@ -669,10 +1181,23 @@ func TestMessagesWithBadRounds(t *testing.T) {
 	})
 }
 
+func generateFakeParsedMessageWithRandomContent(from, to *tss.PartyID, rnd signingRound, digest party.Digest) processedMessage {
+	fake := generateFakeMessageWithRandomContent(from, to, rnd, digest)
+	return &parsedTssContent{fake, ""}
+}
+
 // if to == nil it's a broadcast message.
 func generateFakeMessageWithRandomContent(from, to *tss.PartyID, rnd signingRound, digest party.Digest) tss.ParsedMessage {
-	trackingId := &big.Int{}
-	trackingId.SetBytes(digest[:])
+	partiesState := make([]byte, maxParties)
+	for i := 0; i < maxParties; i++ {
+		partiesState[i] = 255
+	}
+
+	trackingId := &tsscommon.TrackingID{
+		Digest:       digest[:],
+		PartiesState: partiesState,
+		AuxilaryData: []byte{},
+	}
 
 	rndmBigNumber := &big.Int{}
 	buf := make([]byte, 16)
@@ -717,11 +1242,11 @@ func generateFakeMessageWithRandomContent(from, to *tss.PartyID, rnd signingRoun
 		panic("unknown round")
 	}
 
-	return tss.NewMessage(meta, content, tss.NewMessageWrapper(meta, content, trackingId.Bytes()...))
+	return tss.NewMessage(meta, content, tss.NewMessageWrapper(meta, content, trackingId))
 }
 
-func loadMockGuardianStorage(gstorageIndex int) *GuardianStorage {
-	path, err := testutils.GetMockGuardianTssStorage(gstorageIndex)
+func loadMockGuardianStorage(gstorageIndex int, from string) *GuardianStorage {
+	path, err := testutils.GetMockGuardianTssStorage(gstorageIndex, from)
 	if err != nil {
 		panic(err)
 	}
@@ -733,11 +1258,11 @@ func loadMockGuardianStorage(gstorageIndex int) *GuardianStorage {
 	return st
 }
 
-func _loadGuardians(numParticipants int) ([]*Engine, error) {
+func loadGuardians(numParticipants int, from string) ([]*Engine, error) {
 	engines := make([]*Engine, numParticipants)
 
 	for i := 0; i < numParticipants; i++ {
-		e, err := NewReliableTSS(loadMockGuardianStorage(i))
+		e, err := NewReliableTSS(loadMockGuardianStorage(i, from))
 		if err != nil {
 			return nil, err
 		}
@@ -751,21 +1276,17 @@ func _loadGuardians(numParticipants int) ([]*Engine, error) {
 	return engines, nil
 }
 
-func loadGuardians(a *assert.Assertions) []*Engine {
-	engines, err := _loadGuardians(Participants)
-	a.NoError(err)
-
-	return engines
-}
-
 type msgg struct {
 	Sender *tsscommv1.PartyId
 	Sendable
 }
 
-func msgHandler(ctx context.Context, engines []*Engine) chan struct{} {
+func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int) chan struct{} {
 	signalSuccess := make(chan struct{})
 	once := sync.Once{}
+
+	nmsigs := map[string]struct{}{}
+	lck := sync.Mutex{}
 
 	go func() {
 		wg := sync.WaitGroup{}
@@ -828,6 +1349,16 @@ func msgHandler(ctx context.Context, engines []*Engine) chan struct{} {
 							panic("recovered address does not match provided address")
 						}
 
+						lck.Lock()
+						nmsigs[sig.TrackingId.ToString()] = struct{}{}
+						ln := len(nmsigs)
+						lck.Unlock()
+
+						if ln < numDiffSigsExpected {
+							continue
+						}
+
+						fmt.Printf("/////////\nreceived all signatures (%v)\n/////////\n", numDiffSigsExpected)
 						once.Do(func() {
 							close(signalSuccess)
 						})
@@ -862,27 +1393,35 @@ func broadcast(chns map[string]chan msgg, engine *Engine, m Sendable) {
 	}
 }
 
+// strictly for the tests.
+func (c *activeSigCounter) digestToGuardiansLen() int {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+
+	return len(c.digestToGuardians)
+}
+
 func TestSigCounter(t *testing.T) {
 	a := assert.New(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
+	supctx := testutils.MakeSupervisorContext(context.Background())
+	ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
 	defer cancel()
-
-	ctx = testutils.MakeSupervisorContext(ctx)
 
 	t.Run("MaxCountBlockAdditionalUpdates", func(t *testing.T) {
 		// Tests might fail due to change of the GuardianStorage files
+		cID := vaa.ChainID(0)
+		tsks := []party.SigningTask{
+			party.SigningTask{party.Digest{1}, []*tss.PartyID{}, chainIDToBytes(cID)},
+			party.SigningTask{party.Digest{2}, []*tss.PartyID{}, chainIDToBytes(cID)},
+		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
-		e1 := engines[0]
+		e1 := getSigningGuardian(a, engines, tsks...)
 
-		e1.MaxSimultaneousSignatures = 1
-
+		e1.maxSimultaneousSignatures = 1
 		e1.Start(ctx)
 
-		d := digest{}
-		copy(d[:], "1"+t.Name())
-
-		msg := beginSigningAndGrabMessage(e1, d)
+		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
 			Source:  partyIdToProto(e1.Self),
@@ -890,8 +1429,7 @@ func TestSigCounter(t *testing.T) {
 		}))
 
 		// trying to handle a new message for a different signature.
-		copy(d[:], "2"+t.Name())
-		msg = beginSigningAndGrabMessage(e1, d)
+		msg = beginSigningAndGrabMessage(e1, tsks[1].Digest[:], cID)
 
 		a.ErrorContains(e1.handleIncomingTssMessage(&IncomingMessage{
 			Source:  partyIdToProto(e1.Self),
@@ -901,16 +1439,17 @@ func TestSigCounter(t *testing.T) {
 
 	t.Run("ErrorReduceCount", func(t *testing.T) {
 		// Tests might fail due to change of the GuardianStorage files
+		cID := vaa.ChainID(0)
+		tsks := []party.SigningTask{
+			party.SigningTask{party.Digest{1}, []*tss.PartyID{}, chainIDToBytes(cID)},
+		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
-		e1 := engines[0]
-
-		e1.MaxSimultaneousSignatures = 1
+		e1 := getSigningGuardian(a, engines, tsks...)
+		e1.maxSimultaneousSignatures = 1
 
 		e1.Start(ctx)
 
-		d := digest{}
-		copy(d[:], "1"+t.Name())
-		msg := beginSigningAndGrabMessage(e1, d)
+		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		incoming := &IncomingMessage{
 			Source:  partyIdToProto(e1.Self),
@@ -923,9 +1462,9 @@ func TestSigCounter(t *testing.T) {
 		a.NoError(err)
 
 		// test:
-		a.Len(e1.sigCounter.digestToGuardians, 1)
+		a.Equal(e1.sigCounter.digestToGuardiansLen(), 1)
 		select {
-		case e1.fpErrChannel <- tss.NewTrackableError(fmt.Errorf("dummyerr"), "de", -1, e1.Self, parsed.WireMsg().TrackingID):
+		case e1.fpErrChannel <- tss.NewTrackableError(fmt.Errorf("dummyerr"), "de", -1, e1.Self, parsed.getTrackingID()):
 		case <-time.After(time.Second * 1):
 			t.FailNow()
 			return
@@ -933,21 +1472,22 @@ func TestSigCounter(t *testing.T) {
 
 		time.Sleep(time.Millisecond * 500)
 
-		a.Len(e1.sigCounter.digestToGuardians, 0)
+		a.Equal(e1.sigCounter.digestToGuardiansLen(), 0)
 	})
 
 	t.Run("sigDoneReduceCount", func(t *testing.T) {
 		// Tests might fail due to change of the GuardianStorage files
+		cID := vaa.ChainID(0)
+		tsks := []party.SigningTask{
+			party.SigningTask{party.Digest{1}, []*tss.PartyID{}, chainIDToBytes(cID)},
+		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
-		e1 := engines[0]
-
-		e1.MaxSimultaneousSignatures = 1
+		e1 := getSigningGuardian(a, engines, tsks...)
+		e1.maxSimultaneousSignatures = 1
 
 		e1.Start(ctx)
 
-		d := digest{}
-		copy(d[:], "1"+t.Name())
-		msg := beginSigningAndGrabMessage(e1, d)
+		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		incoming := &IncomingMessage{
 			Source:  partyIdToProto(e1.Self),
@@ -960,46 +1500,74 @@ func TestSigCounter(t *testing.T) {
 		a.NoError(err)
 
 		// test:
-		a.Len(e1.sigCounter.digestToGuardians, 1)
+		a.Equal(e1.sigCounter.digestToGuardiansLen(), 1)
 		e1.fpSigOutChan <- &tsscommon.SignatureData{
 			Signature:         []byte{},
 			SignatureRecovery: []byte{},
 			R:                 []byte{},
 			S:                 []byte{},
 			M:                 []byte{},
-			TrackingId:        parsed.WireMsg().TrackingID,
+			TrackingId:        parsed.getTrackingID(),
 		}
 		time.Sleep(time.Millisecond * 500)
-		a.Len(e1.sigCounter.digestToGuardians, 0)
+		a.Equal(e1.sigCounter.digestToGuardiansLen(), 0)
 	})
 
 	t.Run("CanHaveSimulSigners", func(t *testing.T) {
+		cID := vaa.ChainID(0)
+		tsks := []party.SigningTask{
+			party.SigningTask{party.Digest{1}, []*tss.PartyID{}, chainIDToBytes(cID)},
+			party.SigningTask{party.Digest{2}, []*tss.PartyID{}, chainIDToBytes(cID)},
+		}
+
 		engines := load5GuardiansSetupForBroadcastChecks(a)
-		e1 := engines[0]
-		e1.MaxSimultaneousSignatures = 2
+		e1 := getSigningGuardian(a, engines, tsks...)
+		e1.maxSimultaneousSignatures = 2
 
 		e1.Start(ctx)
 
-		d := digest{}
-		copy(d[:], "1"+t.Name())
-		msg := beginSigningAndGrabMessage(e1, d)
+		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
 			Source:  partyIdToProto(e1.Self),
 			Content: msg.GetNetworkMessage(),
 		}))
 
-		copy(d[:], "2"+t.Name())
 		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
 			Source:  partyIdToProto(e1.Self),
-			Content: beginSigningAndGrabMessage(e1, d).GetNetworkMessage(),
+			Content: beginSigningAndGrabMessage(e1, tsks[1].Digest[:], cID).GetNetworkMessage(),
 		}))
 
 	})
 }
+func getSigningGuardian(a *assert.Assertions, engines []*Engine, tsks ...party.SigningTask) *Engine {
+	return getSigningGuardians(a, engines, tsks...)[0]
+}
 
-func beginSigningAndGrabMessage(e1 *Engine, d digest) Sendable {
-	go e1.BeginAsyncThresholdSigningProtocol(d[:])
+func getSigningGuardians(a *assert.Assertions, engines []*Engine, tsks ...party.SigningTask) []*Engine {
+	a.GreaterOrEqual(len(tsks), 1) // at least one
+
+	guardians := make([]*Engine, 0, len(engines))
+mainloop:
+	for _, e := range engines {
+
+		for _, tsk := range tsks {
+			info1, err := e.fp.GetSigningInfo(tsk)
+			a.NoError(err)
+
+			if !info1.IsSigner {
+				continue mainloop
+			}
+		}
+
+		guardians = append(guardians, e)
+	}
+
+	return guardians
+}
+
+func beginSigningAndGrabMessage(e1 *Engine, dgst []byte, cid vaa.ChainID) Sendable {
+	go e1.BeginAsyncThresholdSigningProtocol(dgst, cid)
 
 	var msg Sendable
 	for i := 0; i < round1NumberOfMessages(e1); i++ { // cleaning the channel, and taking one of the messages.
@@ -1009,7 +1577,7 @@ func beginSigningAndGrabMessage(e1 *Engine, d digest) Sendable {
 				msg = tmp
 			}
 
-		case <-time.After(time.Second * 2):
+		case <-time.After(time.Second * 5):
 			// This means the signer wasn't one of the signing committees. (did the Guardian storage change?)
 			// if it did, just make sure this engine is expected to sign, else use the right engine in the test.
 			panic("timeout!")
@@ -1022,4 +1590,26 @@ func round1NumberOfMessages(e1 *Engine) int {
 	// although threshold is non-inclusive, we only send e1.Threshold since one doesn't includes itself in the unicasts.
 	// the +1 is for the additional broadcast message.
 	return e1.Threshold + 1
+}
+
+func contains(lst []*Engine, e *Engine) bool {
+	for _, l := range lst {
+		if l.Self.Id == e.Self.Id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func TestTrackingIDSizeIsOkay(t *testing.T) {
+	dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	tid := tsscommon.TrackingID{
+		Digest:       dgst[:],
+		PartiesState: make([]byte, (maxParties+7)/8),
+		AuxilaryData: chainIDToBytes(vaa.ChainID(5)),
+	}
+
+	tidstr := tid.ToString()
+	assert.Equal(t, len(tidstr), trackingIDHexStrSize)
 }

@@ -369,7 +369,7 @@ replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sd
 
 require (
 	github.com/test-go/testify v1.1.4
-	github.com/yossigi/tss-lib/v2 v2.0.0-20241020070350-6e28fd9ec19a
+	github.com/yossigi/tss-lib/v2 v2.0.0-20241119115342-71e90ec67c83
 )
 
 replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43 // done in the TSS-LIB.

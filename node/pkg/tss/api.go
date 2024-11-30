@@ -8,6 +8,7 @@ import (
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/yossigi/tss-lib/v2/common"
 )
 
@@ -52,7 +53,7 @@ type ReliableMessenger interface {
 
 // Signer is the interface to give any component with the ability to authorise a new threshold signature over a message.
 type Signer interface {
-	BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error
+	BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID) error
 	ProducedSignature() <-chan *common.SignatureData
 
 	GetPublicKey() *ecdsa.PublicKey

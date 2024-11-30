@@ -178,7 +178,7 @@ func (s *server) dialer() {
 		select {
 		case <-s.ctx.Done():
 			return
-		case <-waiters.timer.C:
+		case <-waiters.WaitOnTimer():
 			dialTo = waiters.Dequeue()
 		case rqst := <-s.requestRedial:
 			if rqst.immediatly {

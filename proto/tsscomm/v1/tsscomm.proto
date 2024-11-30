@@ -4,6 +4,8 @@ package tsscomm.v1;
 
 option go_package = "github.com/certusone/wormhole/node/pkg/proto/tss/v1;tsscommv1";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
 
 
 // DirectLink is used for TSS communications between guardians.
@@ -26,20 +28,36 @@ message TssContent{
   uint64 msg_serial_number = 2;
 }
 
+message Problem {
+  uint32 ChainID = 1;
+  uint32 Emitter = 2;
+
+  // made to ensure this message is not reused.
+  google.protobuf.Timestamp IssuingTime = 3;
+}
+
 // SignedMessage is the content of a broadcast message. It may be echoed and as a result requires a signature.
 message SignedMessage {
-  TssContent content = 1;
+  oneof content {
+    TssContent tss_content = 1;
+    Problem problem = 2;
+  };
 
-  PartyId sender = 2;
-  bytes signature = 6;
+  PartyId sender = 3;
+  bytes signature = 4;
 }
 
 // Echo is a message explicitly used by the Reliable Broadcast protocol.
 message Echo {
   SignedMessage message = 1;
 }
+
 message Unicast{
   TssContent content = 1;
+}
+
+message fault{
+
 }
 // PropagatedMessage is a message that is sent across the network,
 // either to a specific recipient or all nodes (using reliable broadcast).

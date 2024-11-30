@@ -25,12 +25,28 @@ func hashSignedMessage(msg *tsscommv1.SignedMessage) digest {
 		return digest{}
 	}
 
-	b := bytes.NewBuffer(nil)
-	b.Write(msg.Content.Payload)
-	vaa.MustWrite(b, binary.BigEndian, msg.Content.MsgSerialNumber)
-	pid := msg.Sender
-	b.Write([]byte(pid.Id))
-	b.Write(pid.Key)
+	var b *bytes.Buffer
+
+	// Since the msg is a protobug, we need to switch on the type of
+	// the content (instead of adding an interface to the protogen file).
+	switch m := msg.Content.(type) {
+	case *tsscommv1.SignedMessage_TssContent:
+		b = bytes.NewBuffer(nil)
+
+		b.Write(m.TssContent.Payload)
+		vaa.MustWrite(b, binary.BigEndian, m.TssContent.MsgSerialNumber)
+
+		b.Write([]byte(msg.Sender.Id))
+		b.Write(msg.Sender.Key)
+
+	case *tsscommv1.SignedMessage_Problem:
+		bts, _ := (&parsedProblem{
+			Problem: m.Problem,
+			issuer:  msg.Sender,
+		}).serialize()
+
+		b = bytes.NewBuffer(bts)
+	}
 
 	return hash(b.Bytes())
 }

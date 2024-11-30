@@ -41,10 +41,10 @@ var (
 		},
 	)
 
-	tooManySignersErrCntr = promauto.NewCounter(
+	tooManySimulSigsErrCntr = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_tss_too_many_signers",
-			Help: "total number of tss signing requests that were rejected due to too many signers",
+			Help: "total number of tss signing requests that were rejected due to too many simultaneous signature requests",
 		},
 	)
 )

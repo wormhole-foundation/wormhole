@@ -16,6 +16,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/yossigi/tss-lib/v2/common"
 	tssutil "github.com/yossigi/tss-lib/v2/ecdsa/ethereum"
 	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
@@ -53,14 +54,37 @@ type Engine struct {
 	received map[uuid]*broadcaststate
 
 	sigCounter activeSigCounter
+
+	// used for fault-tolerance:
+	// informs a central tracker of the guardian's actions.
+	// used to ensure the guardian is in the loop, and which guardians are active and on which chain.
+	//
+	// If the guardian attempted to sign previously, but wasn't part of the comittee, on some cases might change this case and add this
+	// guardian to the committee.
+	ftCommandChan chan ftCommand
 }
 
 type PEM []byte
+
+// Contains the TSS related configurations.
+type Configurations struct {
+	maxSimultaneousSignatures int
+	// MaxSignerTTL is the maximum time a signature is allowed to be active.
+	// used to release resources.
+	MaxSignerTTL   time.Duration
+	DelayGraceTime time.Duration // the duration a guardian is allowed not to start the protocol for some digest (after f+1 of its peers did).
+
+	// not exported so it can't be changed.
+	guardianDownTime time.Duration // once a guardian is marked as faulty, this is the time it isn't allowed into the protocol.
+	maxJitter        time.Duration // jitter is used to reduce the chance guardians get back at the same time from DownTime.
+}
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
 // including its signing key, and the shared symmetric keys with other guardians.
 // should be loaded from a file.
 type GuardianStorage struct {
+	Configurations
+
 	Self *tss.PartyID
 
 	// should be a certificate generated with SecretKey
@@ -84,16 +108,10 @@ type GuardianStorage struct {
 
 	LoadDistributionKey []byte
 
-	// MaxSignerTTL is the maximum time a signer is allowed to be active.
-	// used to release resources.
-	MaxSignerTTL time.Duration
-
 	// data structures to ensure quick lookups:
 	guardiansProtoIDs []*tsscommv1.PartyId
 	guardianToCert    map[string]*x509.Certificate
 	pemkeyToGuardian  map[string]*tss.PartyID
-
-	MaxSimultaneousSignatures int
 }
 
 func (g *GuardianStorage) contains(pid *tss.PartyID) bool {
@@ -190,7 +208,7 @@ var (
 )
 
 // BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
-func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
+func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID) error {
 	if t == nil {
 		return errNilTssEngine
 	}
@@ -207,26 +225,68 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte) error {
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
-	t.logger.Info(
-		"guardian started signing protocol",
-		zap.String("guardian", t.GuardianStorage.Self.Id),
-		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
-	)
-
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
-	err := t.fp.AsyncRequestNewSignature(d)
-	if err == nil {
-		inProgressSigs.Inc()
-		return nil
+	cmd := getInactiveGuardiansCommand{
+		ChainID: chainID,
+		reply:   make(chan inactives, 1),
 	}
 
-	if err == party.ErrNotInSigningCommittee { // no need to return error in this case.
-		return nil
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &cmd); err != nil {
+		return fmt.Errorf("failed to request for inactive guardians: %w", err)
 	}
 
-	return err
+	// waiting for the reply.
+	inactiveParties, err := outOfChannelOrDone(t.ctx, cmd.reply)
+	if err != nil {
+		return fmt.Errorf("failed to get inactive guardians: %w", err)
+	}
+
+	for _, faulties := range inactiveParties.getFaultiesLists() {
+		if len(faulties) > t.getMaxExpectedFaults() {
+			t.logger.Error("too many faulty guardians to start the signing protocol")
+
+			continue // not a failure of the method, so it should continue, instead of returning an error.
+		}
+
+		info, err := t.fp.AsyncRequestNewSignature(makeSigningRequest(d, faulties, chainID))
+
+		if err != nil {
+			// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
+			return err
+		}
+
+		flds := []zap.Field{
+			zap.String("trackingID", info.TrackingID.ToString()),
+			zap.Any("committee", getCommitteeIDs(info.SigningCommittee))}
+
+		if len(faulties) > 0 {
+			flds = append(flds, zap.Any("faulties", getCommitteeIDs(faulties)))
+		}
+
+		t.logger.Info(
+			"guardian started signing protocol",
+			flds...,
+		)
+
+		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info})
+
+		if info.IsSigner {
+			inProgressSigs.Inc()
+		}
+	}
+
+	return nil
+}
+
+func makeSigningRequest(d party.Digest, faulties []*tss.PartyID, chainID vaa.ChainID) party.SigningTask {
+	return party.SigningTask{
+		Digest: d,
+		// indicating the reviving guardian will be given a chance to join the protocol.
+		Faulties:     faulties,
+		AuxilaryData: chainIDToBytes(chainID),
+	}
 }
 
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
@@ -234,12 +294,28 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
 	}
 
-	if storage.MaxSimultaneousSignatures < 0 {
-		storage.MaxSimultaneousSignatures = defaultMaxLiveSignatures
+	if storage.maxSimultaneousSignatures < 0 {
+		storage.maxSimultaneousSignatures = defaultMaxLiveSignatures
 	}
 
 	if storage.MaxSignerTTL == 0 {
 		storage.MaxSignerTTL = defaultMaxSignerTTL
+	}
+
+	if storage.DelayGraceTime == 0 {
+		storage.DelayGraceTime = defaultDelayGraceTime
+	}
+
+	if storage.guardianDownTime == 0 {
+		storage.guardianDownTime = defaultGuardianDownTime
+	}
+
+	if storage.maxJitter == 0 {
+		storage.maxJitter = defaultMaxDownTimeJitter
+	}
+
+	if storage.maxSimultaneousSignatures == 0 {
+		storage.maxSimultaneousSignatures = defaultMaxLiveSignatures
 	}
 
 	fpParams := &party.Parameters{
@@ -257,18 +333,19 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		return nil, err
 	}
 
+	expectedMsgs := storage.maxSimultaneousSignatures *
+		(numBroadcastsPerSignature + numUnicastsRounds*storage.Threshold)
 	t := &Engine{
 		ctx: nil,
 
 		logger:          &zap.Logger{},
 		GuardianStorage: *storage,
 
-		fpParams:  fpParams,
-		fp:        fp,
-		fpOutChan: make(chan tss.Message),
-		fpSigOutChan: make(chan *common.SignatureData, storage.MaxSimultaneousSignatures*
-			(numBroadcastsPerSignature+numUnicastsRounds*storage.Threshold)),
-		sigOutChan: make(chan *common.SignatureData, storage.MaxSimultaneousSignatures),
+		fpParams:     fpParams,
+		fp:           fp,
+		fpOutChan:    make(chan tss.Message, expectedMsgs),
+		fpSigOutChan: make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
+		sigOutChan:   make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
 
 		fpErrChannel:    make(chan *tss.Error),
 		messageOutChan:  make(chan Sendable),
@@ -279,6 +356,8 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		started: atomic.Uint32{}, // default value is 0
 
 		sigCounter: newSigCounter(),
+
+		ftCommandChan: make(chan ftCommand, expectedMsgs),
 	}
 
 	return t, nil
@@ -295,7 +374,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	}
 
 	t.ctx = ctx
-	t.logger = supervisor.Logger(ctx)
+	t.logger = supervisor.Logger(ctx).With(zap.String("ID", t.GuardianStorage.Self.Id))
 
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
 		t.started.Store(notStarted)
@@ -306,9 +385,10 @@ func (t *Engine) Start(ctx context.Context) error {
 	// closing the t.fp.start inside th listener
 	go t.fpListener()
 
+	go t.ftTracker()
+
 	t.logger.Info(
 		"tss engine started",
-		zap.String("guardian", t.GuardianStorage.Self.Id),
 	)
 
 	return nil
@@ -326,15 +406,19 @@ func (t *Engine) GetEthAddress() ethcommon.Address {
 	return ethcommon.BytesToAddress(ethAddBytes)
 }
 
-// fpListener serves as a listining loop for the full party outputs.
-// ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
-func (t *Engine) fpListener() {
+func (st *GuardianStorage) maxSignerTTL() time.Duration {
 	// SECURITY NOTE: when we clean the guardian map from received Echo's
 	// we must use TTL > FullParty.TTL to ensure guardians can't use
 	// the deletion time to perform equivication attacks (since a message
 	// has no record after it was deleted).
 	// *2 is to account for possible offset in the time of the guardian.
-	maxTTL := t.GuardianStorage.MaxSignerTTL * 2
+	return st.MaxSignerTTL * 2
+}
+
+// fpListener serves as a listining loop for the full party outputs.
+// ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
+func (t *Engine) fpListener() {
+	maxTTL := t.GuardianStorage.maxSignerTTL()
 
 	cleanUpTicker := time.NewTicker(maxTTL)
 
@@ -343,7 +427,6 @@ func (t *Engine) fpListener() {
 		case <-t.ctx.Done():
 			t.logger.Info(
 				"shutting down TSS Engine",
-				zap.String("guardian", t.GuardianStorage.Self.Id),
 			)
 
 			t.fp.Stop()
@@ -370,14 +453,18 @@ func (t *Engine) handleFpSignature(sig *common.SignatureData) {
 		return
 	}
 
+	t.logger.Debug("signature complete. updating inner state and forwarding it", zap.String("trackingId", sig.TrackingId.ToString()))
+
 	sigProducedCntr.Inc()
 	inProgressSigs.Dec()
 
 	t.sigCounter.remove(sig.TrackingId)
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{sig.TrackingId}); err != nil {
+		t.logger.Error("couldn't inform the fault-tolerance tracker of the signature end", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
+	}
 
-	select {
-	case <-t.ctx.Done():
-	case t.sigOutChan <- sig:
+	if err := intoChannelOrDone(t.ctx, t.sigOutChan, sig); err != nil {
+		t.logger.Error("couldn't deliver outside of engine the signature", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
 	}
 }
 
@@ -387,6 +474,17 @@ func (t *Engine) handleFpError(err *tss.Error) {
 	}
 
 	trackid := err.TrackingId()
+	if trackid == nil {
+		t.logger.Error("error (without trackingID) in signing protocol ", zap.Error(err.Cause()))
+		return
+	}
+
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{trackid}); err != nil {
+		t.logger.Error("couldn't inform the fault-tolerance tracker of signature end due to error",
+			zap.Error(err),
+			zap.String("trackingId", trackid.ToString()),
+		)
+	}
 
 	// if someone sent a message that caused an error -> we don't
 	// accept an override to that message, therefore, we can remove it, since it won't change.
@@ -405,9 +503,11 @@ func (t *Engine) handleFpOutput(m tss.Message) {
 	if err == nil {
 		sentMsgCntr.Inc()
 
-		select {
-		case t.messageOutChan <- tssMsg:
-		case <-t.ctx.Done():
+		if err := intoChannelOrDone(t.ctx, t.messageOutChan, tssMsg); err != nil {
+			t.logger.Error("couldn't output message to be sent via network",
+				zap.Error(err),
+				zap.String("trackingId", m.WireMsg().GetTrackingID().ToString()),
+			)
 		}
 
 		return
@@ -432,14 +532,13 @@ func (t *Engine) handleFpOutput(m tss.Message) {
 }
 
 func (t *Engine) cleanup(maxTTL time.Duration) {
+	now := time.Now()
 
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
 	for k, v := range t.received {
-		if time.Since(v.timeReceived) > maxTTL {
-			// althoug delete doesn't reduce the size of the underlying map
-			// it is good enough since this map contains many entries, and it'll be wastefull to let a new map grow again.
+		if now.Sub(v.timeReceived) > maxTTL {
 			delete(t.received, k)
 
 			// since the fullParty deleted its state, we can remove the sigCounter entry.
@@ -454,9 +553,11 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 		return nil, err
 	}
 
-	content := &tsscommv1.TssContent{
-		Payload:         bts,
-		MsgSerialNumber: atomic.AddUint64(&t.msgSerialNumber, 1),
+	content := &tsscommv1.SignedMessage_TssContent{
+		TssContent: &tsscommv1.TssContent{
+			Payload:         bts,
+			MsgSerialNumber: atomic.AddUint64(&t.msgSerialNumber, 1),
+		},
 	}
 
 	var sendable Sendable
@@ -480,7 +581,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 		}
 
 		sendable = &Unicast{
-			Unicast:     content,
+			Unicast:     content.TssContent,
 			Receipients: indices,
 		}
 	}
@@ -543,10 +644,10 @@ func (t *Engine) sendEchoOut(m Incoming) error {
 		return fmt.Errorf("failed to clone echo message")
 	}
 
-	select {
-	case <-t.ctx.Done():
-		return t.ctx.Err()
-	case t.messageOutChan <- newEcho(content.Message, t.guardiansProtoIDs):
+	ech := newEcho(content.Message, t.guardiansProtoIDs)
+
+	if err := intoChannelOrDone[Sendable](t.ctx, t.messageOutChan, ech); err != nil {
+		return fmt.Errorf("couldn't output echo to be sent via network: %w", err)
 	}
 
 	return nil
@@ -557,55 +658,30 @@ var errBadRoundsInEcho = fmt.Errorf("cannot receive echos for rounds: %v,%v", ro
 func (t *Engine) handleEcho(m Incoming) (bool, error) {
 	parsed, err := t.parseEcho(m)
 	if err != nil {
-		return false,
-			logableError{
-				fmt.Errorf("couldn't parse echo payload: %w", err),
-				nil,
-				"",
-			}
-	}
+		if parsed != nil {
+			err = parsed.wrapError(err)
+		}
 
-	rnd, err := getRound(parsed)
-	if err != nil {
-		return false,
-			logableError{
-				fmt.Errorf("couldn't extract round from echo: %w", err),
-				parsed.WireMsg().GetTrackingID(),
-				"",
-			}
-	}
-
-	// according to gg18 (tss ecdsa paper), unicasts are sent in these rounds.
-	if rnd == round1Message1 || rnd == round2Message {
-		return false,
-			logableError{
-				errBadRoundsInEcho,
-				parsed.WireMsg().GetTrackingID(),
-				rnd,
-			}
+		return false, err
 	}
 
 	shouldEcho, shouldDeliver, err := t.relbroadcastInspection(parsed, m)
 	if err != nil {
-		return false,
-			logableError{
-				fmt.Errorf("reliable broadcast inspection issue: %w", err),
-				parsed.WireMsg().GetTrackingID(),
-				rnd,
-			}
+		return false, parsed.wrapError(err)
 	}
 
 	if !shouldDeliver {
 		return shouldEcho, nil
 	}
 
-	deliveredMsgCntr.Inc() // only in Echo case.
+	switch v := parsed.(type) {
+	case *parsedProblem:
+		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
+	case *parsedTssContent:
 
-	if err := t.feedIncomingToFp(parsed); err != nil {
-		return shouldEcho, logableError{
-			fmt.Errorf("failed to update the full party: %w", err),
-			parsed.WireMsg().GetTrackingID(),
-			rnd,
+		deliveredMsgCntr.Inc()
+		if err := t.feedIncomingToFp(v.ParsedMessage); err != nil {
+			return shouldEcho, parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))
 		}
 	}
 
@@ -615,13 +691,20 @@ func (t *Engine) handleEcho(m Incoming) (bool, error) {
 func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
 	trackId := parsed.WireMsg().TrackingID
 	from := parsed.GetFrom()
-	maxLiveSignatures := t.GuardianStorage.MaxSimultaneousSignatures
+	maxLiveSignatures := t.GuardianStorage.maxSimultaneousSignatures
 
 	if ok := t.sigCounter.add(trackId, from, maxLiveSignatures); ok {
+		// TODO: Should I update that a delivery was made even if sigCounter blocked it?
+
+		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &deliveryCommand{
+			parsedMsg: parsed,
+			from:      from,
+		})
+
 		return t.fp.Update(parsed)
 	}
 
-	tooManySignersErrCntr.Inc()
+	tooManySimulSigsErrCntr.Inc()
 
 	return fmt.Errorf("guardian %v has reached the maximum number of simultaneous signatures", from.Id)
 }
@@ -631,55 +714,30 @@ var errUnicastBadRound = fmt.Errorf("bad round for unicast (can accept round1Mes
 func (t *Engine) handleUnicast(m Incoming) error {
 	parsed, err := t.parseUnicast(m)
 	if err != nil {
-		return logableError{fmt.Errorf("couldn't parse unicast payload: %w", err), nil, ""}
-	}
-
-	// ensuring the reported source of the message matches the claimed source. (parsed.GetFrom() used by the tss-lib)
-	if !equalPartyIds(parsed.GetFrom(), protoToPartyId(m.GetSource())) {
-		return logableError{
-			fmt.Errorf("parsed message sender doesn't match the source of the message"),
-			parsed.WireMsg().GetTrackingID(),
-			"",
+		err = fmt.Errorf("couldn't parse unicast payload: %w", err)
+		if parsed != nil {
+			err = parsed.wrapError(err)
 		}
+
+		return err
 	}
 
-	rnd, err := getRound(parsed)
-	if err != nil {
-		return logableError{
-			fmt.Errorf("unicast parsing error: %w", err),
-			parsed.WireMsg().GetTrackingID(),
-			"",
-		}
+	fpmsg, ok := parsed.(*parsedTssContent)
+	if !ok {
+		return parsed.wrapError(fmt.Errorf("unicast casting issue"))
 	}
 
-	// only round 1 and round 2 are unicasts.
-	if rnd != round1Message1 && rnd != round2Message {
-		return logableError{
-			errUnicastBadRound,
-			parsed.WireMsg().GetTrackingID(),
-			rnd,
-		}
-	}
-
-	err = t.validateUnicastDoesntExist(parsed)
+	err = t.validateUnicastDoesntExist(fpmsg)
 	if err == errUnicastAlreadyReceived {
 		return nil
 	}
 
 	if err != nil {
-		return logableError{
-			fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, m.GetSource().Id),
-			parsed.WireMsg().GetTrackingID(),
-			rnd,
-		}
+		return parsed.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, m.GetSource().Id))
 	}
 
-	if err := t.feedIncomingToFp(parsed); err != nil {
-		return logableError{
-			fmt.Errorf("unicast failed to update the full party: %w", err),
-			parsed.WireMsg().GetTrackingID(),
-			rnd,
-		}
+	if err := t.feedIncomingToFp(fpmsg); err != nil {
+		return parsed.wrapError(fmt.Errorf("unicast failed to update the full party: %w", err))
 	}
 
 	return nil
@@ -688,7 +746,7 @@ func (t *Engine) handleUnicast(m Incoming) error {
 var errUnicastAlreadyReceived = fmt.Errorf("unicast already received")
 
 func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
-	id, err := t.getMessageUUID(parsed)
+	id, err := getMessageUUID(parsed, t.LoadDistributionKey)
 	if err != nil {
 		return err
 	}
@@ -727,7 +785,7 @@ var (
 	ErrUnkownSender = fmt.Errorf("sender is not a known guardian")
 )
 
-func (t *Engine) parseEcho(m Incoming) (tss.ParsedMessage, error) {
+func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 	echoMsg := m.toEcho()
 	if err := vaidateEchoCorrectForm(echoMsg); err != nil {
 		return nil, err
@@ -738,7 +796,41 @@ func (t *Engine) parseEcho(m Incoming) (tss.ParsedMessage, error) {
 		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderPid)
 	}
 
-	return tss.ParseWireMessage(echoMsg.Message.Content.Payload, senderPid, true)
+	switch cntnt := echoMsg.Message.Content.(type) {
+	case *tsscommv1.SignedMessage_Problem:
+		return &parsedProblem{
+			Problem: cntnt.Problem,
+			issuer:  echoMsg.Message.Sender,
+		}, nil
+
+	case *tsscommv1.SignedMessage_TssContent:
+		p, err := tss.ParseWireMessage(cntnt.TssContent.Payload, senderPid, true)
+		if err != nil {
+			return nil, err
+		}
+
+		parsed := &parsedTssContent{p, ""}
+
+		rnd, err := getRound(parsed)
+		if err != nil {
+			return parsed, fmt.Errorf("couldn't extract round from echo: %w", err)
+		}
+
+		parsed.signingRound = rnd
+
+		// according to gg18 (tss ecdsa paper), unicasts are sent in these rounds.
+		if rnd == round1Message1 || rnd == round2Message {
+			return parsed, errBadRoundsInEcho
+		}
+
+		if err := t.validateTrackingIDForm(parsed.getTrackingID()); err != nil {
+			return parsed, err
+		}
+
+		return parsed, nil
+	default:
+		return nil, fmt.Errorf("unknown content type: %T", cntnt)
+	}
 }
 
 // SECURITY NOTE: this function sets a sessionID to a message. Used to ensure no equivocation.
@@ -746,11 +838,11 @@ func (t *Engine) parseEcho(m Incoming) (tss.ParsedMessage, error) {
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
 // this is used by the reliable broadcast to check no two messages from the same sender will be used to update the full party
 // in the same round for the specific session of the protocol.
-func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (uuid, error) {
+func getMessageUUID(msg tss.ParsedMessage, loadDistKey []byte) (uuid, error) {
 	// The TackingID of a parsed message is tied to the run of the protocol for a single
 	//  signature, thus we use it as a sessionID.
-	messageTrackingID := [trackingIDSize]byte{}
-	copy(messageTrackingID[:], msg.WireMsg().GetTrackingID())
+	messageTrackingID := [trackingIDHexStrSize]byte{}
+	copy(messageTrackingID[:], []byte(msg.WireMsg().GetTrackingID().ToString()))
 
 	fromId := [hostnameSize]byte{}
 	copy(fromId[:], msg.GetFrom().Id)
@@ -768,7 +860,10 @@ func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (uuid, error) {
 	round := [signingRoundSize]byte{}
 	copy(round[:], rnd)
 
-	d := append([]byte("tssMsgUUID:"), t.GuardianStorage.LoadDistributionKey...)
+	d := make([]byte, 0, len(tssContentDomain)+len(loadDistKey)+int(trackingIDHexStrSize)+hostnameSize+pemKeySize)
+
+	d = append(d, tssContentDomain...)
+	d = append(d, loadDistKey...)
 	d = append(d, messageTrackingID[:]...)
 	d = append(d, fromId[:]...)
 	d = append(d, fromKey[:]...)
@@ -777,12 +872,40 @@ func (t *Engine) getMessageUUID(msg tss.ParsedMessage) (uuid, error) {
 	return uuid(hash(d)), nil
 }
 
-func (t *Engine) parseUnicast(m Incoming) (tss.ParsedMessage, error) {
+func (t *Engine) parseUnicast(m Incoming) (processedMessage, error) {
 	if err := validateContentCorrectForm(m.toUnicast()); err != nil {
 		return nil, err
 	}
 
-	return tss.ParseWireMessage(m.toUnicast().Payload, protoToPartyId(m.GetSource()), false)
+	p, err := tss.ParseWireMessage(m.toUnicast().Payload, protoToPartyId(m.GetSource()), false)
+	if err != nil {
+		return nil, err
+	}
+
+	parsed := &parsedTssContent{p, ""}
+
+	// ensuring the reported source of the message matches the claimed source. (parsed.GetFrom() used by the tss-lib)
+	if !equalPartyIds(parsed.GetFrom(), protoToPartyId(m.GetSource())) {
+		return parsed, fmt.Errorf("parsed message sender doesn't match the source of the message")
+	}
+
+	rnd, err := getRound(parsed)
+	if err != nil {
+		return parsed, fmt.Errorf("unicast parsing error: %w", err)
+	}
+
+	parsed.signingRound = rnd
+
+	// only round 1 and round 2 are unicasts.
+	if rnd != round1Message1 && rnd != round2Message {
+		return parsed, errUnicastBadRound
+	}
+
+	if err := t.validateTrackingIDForm(parsed.getTrackingID()); err != nil {
+		return parsed, err
+	}
+
+	return parsed, nil
 }
 
 func (st *GuardianStorage) sign(msg *tsscommv1.SignedMessage) error {
