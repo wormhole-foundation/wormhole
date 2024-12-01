@@ -55,6 +55,10 @@ func idToString(id *tss.PartyID) strPartyId {
 // Add adds a guardian to the counter for a given digest.
 // returns false if this guardian is active for too many signatures ( > maxActiveSignaturesPerGuardian).
 func (c *activeSigCounter) add(trackId *common.TrackingID, guardian *tss.PartyID, maxActiveSignaturesPerGuardian int) bool {
+	if trackId == nil || guardian == nil {
+		return false
+	}
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -85,6 +89,10 @@ func (c *activeSigCounter) add(trackId *common.TrackingID, guardian *tss.PartyID
 }
 
 func (c *activeSigCounter) remove(trackid *common.TrackingID) {
+	if trackid == nil {
+		return
+	}
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
