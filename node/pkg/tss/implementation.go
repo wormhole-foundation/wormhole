@@ -243,9 +243,21 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 		return fmt.Errorf("failed to get inactive guardians: %w", err)
 	}
 
+	dgstStr := fmt.Sprintf("%x", vaaDigest)
+	t.logger.Info(
+		"requested to sign protocol",
+		zap.String("chainID", chainID.String()),
+		zap.String("digest", dgstStr),
+	)
+
 	for _, faulties := range inactiveParties.getFaultiesLists() {
 		if len(faulties) > t.getMaxExpectedFaults() {
-			t.logger.Error("too many faulty guardians to start the signing protocol")
+			t.logger.Error(
+				"too many faulty guardians to start the signing protocol",
+				zap.String("digest", dgstStr),
+				zap.String("chainID", chainID.String()),
+				zap.Strings("faulties", getCommitteeIDs(faulties)),
+			)
 
 			continue // not a failure of the method, so it should continue, instead of returning an error.
 		}
@@ -275,6 +287,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 		if info.IsSigner {
 			inProgressSigs.Inc()
 		}
+
 	}
 
 	return nil
