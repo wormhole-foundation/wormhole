@@ -9,7 +9,7 @@
   "scripts": {
     "test": "jest --config jestconfig.json --verbose",
     "build": "npm run genTypes && tsc",
-    "genTypes": "node src/buildHelper.cjs"
+    "genTypes": "echo \"disabled: node src/buildHelper.cjs\""
   },
   "repository": {
     "type": "git",

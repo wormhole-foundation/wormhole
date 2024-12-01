@@ -62,7 +62,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @bruce-riley @claudijd @SEJeff @djb15 @johnsaigle
+/node/pkg/governor/ @claudijd @SEJeff @djb15 @johnsaigle
 
 ## Gateway Relayer
 
@@ -95,3 +95,7 @@
 ## Documentation
 
 /docs @evan-gray @SEJeff @bruce-riley
+
+## Audit Reports
+
+/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t

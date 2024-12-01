@@ -49,6 +49,8 @@ enum ChainID {
   CHAIN_ID_SEIEVM = 40;
   CHAIN_ID_SNAXCHAIN = 43;
   CHAIN_ID_UNICHAIN = 44;
+  CHAIN_ID_WORLDCHAIN = 45;
+  CHAIN_ID_INK = 46;
   CHAIN_ID_WORMCHAIN = 3104;
   CHAIN_ID_COSMOSHUB = 4000;
   CHAIN_ID_EVMOS = 4001;
@@ -65,6 +67,7 @@ enum ChainID {
   CHAIN_ID_OPTIMISM_SEPOLIA = 10005;
   CHAIN_ID_HOLESKY = 10006;
   CHAIN_ID_POLYGON_SEPOLIA = 10007;
+  CHAIN_ID_MONAD_DEVNET = 10008;
 }
 
 // MessageID is a VAA's globally unique identifier (see data availability design document).

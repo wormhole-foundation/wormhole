@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -239,7 +239,8 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 		)
 	}
 
-	h, err := libp2p.New(
+	// The default libp2p options.
+	opts := []libp2p.Option{
 		// Use the keypair we generated
 		libp2p.Identity(priv),
 
@@ -285,9 +286,14 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 			)
 			return idht, err
 		}),
-	)
+	}
 
-	return h, err
+	// If the external IP to advertise is known ahead of time, disable address discovery.
+	if gossipAdvertiseAddress != nil {
+		opts = append(opts, libp2p.DisableIdentifyAddressDiscovery())
+	}
+
+	return libp2p.New(opts...)
 }
 
 func Run(params *RunParams) func(ctx context.Context) error {
@@ -310,16 +316,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
 
 		logger := supervisor.Logger(ctx)
-
-		// Evaluate the gossip cutover time. If it has passed, then the flag will be set to make us publish on the new topics.
-		// If not, a routine will be started to wait for that time before starting to publish on the new topics.
-		cutoverErr := evaluateGossipCutOver(logger, params.networkID)
-		if cutoverErr != nil {
-			panic(cutoverErr)
-		}
-
-		// If the cutover has not happened yet, we need to join and subscribe to the VAA topic because it is also the old topic.
-		needOldTopic := !GossipCutoverComplete()
 
 		defer func() {
 			// TODO: Right now we're canceling the root context because it used to be the case that libp2p cannot be cleanly restarted.
@@ -372,7 +368,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		var controlSubscription, attestationSubscription, vaaSubscription *pubsub.Subscription
 
 		// Set up the control channel. ////////////////////////////////////////////////////////////////////
-		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil {
+		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
 			controlTopic := fmt.Sprintf("%s/%s", params.networkID, "control")
 			logger.Info("joining the control topic", zap.String("topic", controlTopic))
 			controlPubsubTopic, err = ps.Join(controlTopic)
@@ -386,7 +382,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil {
+			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
 				logger.Info("subscribing to the control topic", zap.String("topic", controlTopic))
 				controlSubscription, err = controlPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -422,7 +418,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the VAA channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipVaaSendC != nil || params.signedIncomingVaaRecvC != nil || needOldTopic {
+		if params.gossipVaaSendC != nil || params.signedIncomingVaaRecvC != nil {
 			vaaTopic := fmt.Sprintf("%s/%s", params.networkID, "broadcast")
 			logger.Info("joining the vaa topic", zap.String("topic", vaaTopic))
 			vaaPubsubTopic, err = ps.Join(vaaTopic)
@@ -436,7 +432,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.signedIncomingVaaRecvC != nil || needOldTopic {
+			if params.signedIncomingVaaRecvC != nil {
 				logger.Info("subscribing to the vaa topic", zap.String("topic", vaaTopic))
 				vaaSubscription, err = vaaPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -466,7 +462,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.gk, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
@@ -501,7 +497,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
 			go func() {
-				ourAddr := ethcrypto.PubkeyToAddress(params.gk.PublicKey)
+				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey())
 
 				ctr := int64(0)
 				// Guardians should send out their first heartbeat immediately to speed up test runs.
@@ -528,9 +524,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 
 							features := make([]string, 0)
-							if GossipCutoverComplete() {
-								features = append(features, "p2p:new_gossip")
-							}
 							if params.processorFeaturesFunc != nil {
 								flag := params.processorFeaturesFunc()
 								if flag != "" {
@@ -581,12 +574,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 							if params.gov != nil {
-								params.gov.CollectMetrics(heartbeat, params.gossipControlSendC, params.gk, ourAddr)
+								params.gov.CollectMetrics(heartbeat, params.gossipControlSendC, params.guardianSigner, ourAddr)
 							}
 
 							msg := gossipv1.GossipMessage{
 								Message: &gossipv1.GossipMessage_SignedHeartbeat{
-									SignedHeartbeat: createSignedHeartbeat(params.gk, heartbeat),
+									SignedHeartbeat: createSignedHeartbeat(params.guardianSigner, heartbeat),
 								},
 							}
 
@@ -597,21 +590,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							return b
 						}()
 
-						if GossipCutoverComplete() {
-							if controlPubsubTopic == nil {
-								panic("controlPubsubTopic should not be nil when nodeName is set")
-							}
-							err = controlPubsubTopic.Publish(ctx, b)
-							p2pMessagesSent.WithLabelValues("control").Inc()
-							if err != nil {
-								logger.Warn("failed to publish heartbeat message", zap.Error(err))
-							}
-						} else if vaaPubsubTopic != nil {
-							err = vaaPubsubTopic.Publish(ctx, b)
-							p2pMessagesSent.WithLabelValues("old_control").Inc()
-							if err != nil {
-								logger.Warn("failed to publish heartbeat message to old topic", zap.Error(err))
-							}
+						if controlPubsubTopic == nil {
+							panic("controlPubsubTopic should not be nil when nodeName is set")
+						}
+						err = controlPubsubTopic.Publish(ctx, b)
+						p2pMessagesSent.WithLabelValues("control").Inc()
+						if err != nil {
+							logger.Warn("failed to publish heartbeat message", zap.Error(err))
 						}
 
 						p2pHeartbeatsSent.Inc()
@@ -629,38 +614,22 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				case <-ctx.Done():
 					return
 				case msg := <-params.gossipControlSendC:
-					if GossipCutoverComplete() {
-						if controlPubsubTopic == nil {
-							panic("controlPubsubTopic should not be nil when gossipControlSendC is set")
-						}
-						err := controlPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.WithLabelValues("control").Inc()
-						if err != nil {
-							logger.Error("failed to publish message from control queue", zap.Error(err))
-						}
-					} else if vaaPubsubTopic != nil {
-						err := vaaPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.WithLabelValues("old_control").Inc()
-						if err != nil {
-							logger.Error("failed to publish message from control queue to old topic", zap.Error(err))
-						}
+					if controlPubsubTopic == nil {
+						panic("controlPubsubTopic should not be nil when gossipControlSendC is set")
+					}
+					err := controlPubsubTopic.Publish(ctx, msg)
+					p2pMessagesSent.WithLabelValues("control").Inc()
+					if err != nil {
+						logger.Error("failed to publish message from control queue", zap.Error(err))
 					}
 				case msg := <-params.gossipAttestationSendC:
-					if GossipCutoverComplete() {
-						if attestationPubsubTopic == nil {
-							panic("attestationPubsubTopic should not be nil when gossipAttestationSendC is set")
-						}
-						err := attestationPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.WithLabelValues("attestation").Inc()
-						if err != nil {
-							logger.Error("failed to publish message from attestation queue", zap.Error(err))
-						}
-					} else if vaaPubsubTopic != nil {
-						err := vaaPubsubTopic.Publish(ctx, msg)
-						p2pMessagesSent.WithLabelValues("old_attestation").Inc()
-						if err != nil {
-							logger.Error("failed to publish message from attestation queue to old topic", zap.Error(err))
-						}
+					if attestationPubsubTopic == nil {
+						panic("attestationPubsubTopic should not be nil when gossipAttestationSendC is set")
+					}
+					err := attestationPubsubTopic.Publish(ctx, msg)
+					p2pMessagesSent.WithLabelValues("attestation").Inc()
+					if err != nil {
+						logger.Error("failed to publish message from attestation queue", zap.Error(err))
 					}
 				case msg := <-params.gossipVaaSendC:
 					if vaaPubsubTopic == nil {
@@ -679,7 +648,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 					// Sign the observation request using our node's guardian key.
 					digest := signedObservationRequestDigest(b)
-					sig, err := ethcrypto.Sign(digest.Bytes(), params.gk)
+					sig, err := params.guardianSigner.Sign(digest.Bytes())
 					if err != nil {
 						panic(err)
 					}
@@ -687,7 +656,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					sReq := &gossipv1.SignedObservationRequest{
 						ObservationRequest: b,
 						Signature:          sig,
-						GuardianAddr:       ethcrypto.PubkeyToAddress(params.gk.PublicKey).Bytes(),
+						GuardianAddr:       ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()).Bytes(),
 					}
 
 					envelope := &gossipv1.GossipMessage{
@@ -704,23 +673,15 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						params.obsvReqRecvC <- msg
 					}
 
-					if GossipCutoverComplete() {
-						if controlPubsubTopic == nil {
-							panic("controlPubsubTopic should not be nil when obsvReqSendC is set")
-						}
-						err = controlPubsubTopic.Publish(ctx, b)
-						p2pMessagesSent.WithLabelValues("control").Inc()
-						if err != nil {
-							logger.Error("failed to publish observation request", zap.Error(err))
-						} else {
-							logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
-						}
-					} else if vaaPubsubTopic != nil {
-						err = vaaPubsubTopic.Publish(ctx, b)
-						p2pMessagesSent.WithLabelValues("old_control").Inc()
-						if err != nil {
-							logger.Error("failed to publish observation request to old topic", zap.Error(err))
-						}
+					if controlPubsubTopic == nil {
+						panic("controlPubsubTopic should not be nil when obsvReqSendC is set")
+					}
+					err = controlPubsubTopic.Publish(ctx, b)
+					p2pMessagesSent.WithLabelValues("control").Inc()
+					if err != nil {
+						logger.Error("failed to publish observation request", zap.Error(err))
+					} else {
+						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
 				}
 			}
@@ -807,7 +768,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 											zap.String("from", envelope.GetFrom().String()))
 									} else {
 										guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-										if params.gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.gk.PublicKey) {
+										if params.guardianSigner == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()) {
 											prevPeerId, ok := params.components.ProtectedHostByGuardianKey[guardianAddr]
 											if ok {
 												if prevPeerId != peerId {
@@ -991,97 +952,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					switch m := msg.Message.(type) {
-					case *gossipv1.GossipMessage_SignedHeartbeat: // TODO: Get rid of this after the cutover.
-						s := m.SignedHeartbeat
-						gs := params.gst.Get()
-						if gs == nil {
-							// No valid guardian set yet - dropping heartbeat
-							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
-								logger.Log(params.components.SignedHeartbeatLogLevel, "skipping heartbeat - no guardian set",
-									zap.Any("value", s),
-									zap.String("from", envelope.GetFrom().String()))
-							}
-							break
-						}
-						if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, params.gst, params.disableHeartbeatVerify); err != nil {
-							p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
-								logger.Log(params.components.SignedHeartbeatLogLevel, "invalid signed heartbeat received",
-									zap.Error(err),
-									zap.Any("payload", msg.Message),
-									zap.Any("value", s),
-									zap.Binary("raw", envelope.Data),
-									zap.String("from", envelope.GetFrom().String()))
-							}
-						} else {
-							p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-							if logger.Level().Enabled(params.components.SignedHeartbeatLogLevel) {
-								logger.Log(params.components.SignedHeartbeatLogLevel, "valid signed heartbeat received",
-									zap.Any("value", heartbeat),
-									zap.String("from", envelope.GetFrom().String()))
-							}
-
-							func() {
-								if len(heartbeat.P2PNodeId) != 0 {
-									params.components.ProtectedHostByGuardianKeyLock.Lock()
-									defer params.components.ProtectedHostByGuardianKeyLock.Unlock()
-									var peerId peer.ID
-									if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
-										logger.Error("p2p_node_id_in_heartbeat_invalid",
-											zap.Any("payload", msg.Message),
-											zap.Any("value", s),
-											zap.Binary("raw", envelope.Data),
-											zap.String("from", envelope.GetFrom().String()))
-									} else {
-										guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-										if params.gk == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.gk.PublicKey) {
-											prevPeerId, ok := params.components.ProtectedHostByGuardianKey[guardianAddr]
-											if ok {
-												if prevPeerId != peerId {
-													logger.Info("p2p_guardian_peer_changed",
-														zap.String("guardian_addr", guardianAddr.String()),
-														zap.String("prevPeerId", prevPeerId.String()),
-														zap.String("newPeerId", peerId.String()),
-													)
-													params.components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
-													params.components.ConnMgr.Protect(peerId, "heartbeat")
-													params.components.ProtectedHostByGuardianKey[guardianAddr] = peerId
-												}
-											} else {
-												params.components.ConnMgr.Protect(peerId, "heartbeat")
-												params.components.ProtectedHostByGuardianKey[guardianAddr] = peerId
-											}
-										}
-									}
-								} else {
-									if logger.Level().Enabled(zapcore.DebugLevel) {
-										logger.Debug("p2p_node_id_not_in_heartbeat", zap.Error(err), zap.Any("payload", heartbeat.NodeName))
-									}
-								}
-							}()
-						}
-					case *gossipv1.GossipMessage_SignedObservation: // TODO: Get rid of this after the cutover.
-						if params.obsvRecvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvRecvC); err == nil {
-								p2pMessagesReceived.WithLabelValues("observation").Inc()
-							} else {
-								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
-								}
-								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
-							}
-						}
-					case *gossipv1.GossipMessage_SignedObservationBatch: // TODO: Get rid of this after the cutover.
-						if params.batchObsvRecvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservationBatch, params.batchObsvRecvC); err == nil {
-								p2pMessagesReceived.WithLabelValues("batch_observation").Inc()
-							} else {
-								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservationBatch because obsvRecvC is full")
-								}
-								p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Inc()
-							}
-						}
 					case *gossipv1.GossipMessage_SignedVaaWithQuorum:
 						if params.signedIncomingVaaRecvC != nil {
 							select {
@@ -1097,48 +967,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								}
 								p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
 							}
-						}
-					case *gossipv1.GossipMessage_SignedObservationRequest: // TODO: Get rid of this after the cutover.
-						if params.obsvReqRecvC != nil {
-							s := m.SignedObservationRequest
-							gs := params.gst.Get()
-							if gs == nil {
-								if logger.Level().Enabled(zapcore.DebugLevel) {
-									logger.Debug("dropping SignedObservationRequest - no guardian set", zap.Any("value", s), zap.String("from", envelope.GetFrom().String()))
-								}
-								break
-							}
-							r, err := processSignedObservationRequest(s, gs)
-							if err != nil {
-								p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
-								if logger.Level().Enabled(zapcore.DebugLevel) {
-									logger.Debug("invalid signed observation request received",
-										zap.Error(err),
-										zap.Any("payload", msg.Message),
-										zap.Any("value", s),
-										zap.Binary("raw", envelope.Data),
-										zap.String("from", envelope.GetFrom().String()))
-								}
-							} else {
-								if logger.Level().Enabled(zapcore.DebugLevel) {
-									logger.Debug("valid signed observation request received", zap.Any("value", r), zap.String("from", envelope.GetFrom().String()))
-								}
-
-								select {
-								case params.obsvReqRecvC <- r:
-									p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
-								default:
-									p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
-								}
-							}
-						}
-					case *gossipv1.GossipMessage_SignedChainGovernorConfig: // TODO: Get rid of this after the cutover.
-						if params.signedGovCfgRecvC != nil {
-							params.signedGovCfgRecvC <- m.SignedChainGovernorConfig
-						}
-					case *gossipv1.GossipMessage_SignedChainGovernorStatus: // TODO: Get rid of this after the cutover.
-						if params.signedGovStatusRecvC != nil {
-							params.signedGovStatusRecvC <- m.SignedChainGovernorStatus
 						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
@@ -1161,35 +989,17 @@ func Run(params *RunParams) func(ctx context.Context) error {
 	}
 }
 
-func publishGossipMsg(ctx context.Context, controlPubsubTopic *pubsub.Topic, msg *gossipv1.GossipMessage) error {
-	// TODO: undertsand what is the cutover, and why it is needed.
-	if controlPubsubTopic == nil {
-		return fmt.Errorf("no topic to publish message with")
-	}
-
-	bts, err := proto.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	if err := controlPubsubTopic.Publish(ctx, bts); err != nil {
-		return fmt.Errorf("failed to publish message: %w", err)
-	}
-
-	return nil
-}
-
-func createSignedHeartbeat(gk *ecdsa.PrivateKey, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
-	ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+func createSignedHeartbeat(guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
+	ourAddr := ethcrypto.PubkeyToAddress(guardianSigner.PublicKey())
 
 	b, err := proto.Marshal(heartbeat)
 	if err != nil {
 		panic(err)
 	}
 
-	// Sign the heartbeat using our node's guardian key.
+	// Sign the heartbeat using our node's guardian signer.
 	digest := heartbeatDigest(b)
-	sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+	sig, err := guardianSigner.Sign(digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

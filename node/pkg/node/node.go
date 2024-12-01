@@ -2,13 +2,13 @@ package node
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
@@ -64,8 +64,8 @@ type G struct {
 	rootCtxCancel context.CancelFunc
 	env           common.Environment
 
-	// keys
-	gk *ecdsa.PrivateKey
+	// guardianSigner is the abstracted GuardianSigner that signs VAAs, or any other guardian-related information
+	guardianSigner guardiansigner.GuardianSigner
 
 	// components
 	db              *db.Database
@@ -112,14 +112,14 @@ type G struct {
 
 func NewGuardianNode(
 	env common.Environment,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	tssEngine tss.ReliableTSS,
 ) *G {
 
 	g := G{
-		env:       env,
-		gk:        gk,
-		tssEngine: tssEngine,
+		env:            env,
+		tssEngine:      tssEngine,
+		guardianSigner: guardianSigner,
 	}
 	return &g
 }

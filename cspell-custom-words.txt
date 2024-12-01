@@ -109,6 +109,8 @@ Metaplex
 mindshare
 mlock
 moby
+monad
+Monad
 moonscan
 moretags
 Neodyme
@@ -199,6 +201,8 @@ vphash
 wasmhooks
 wasms
 WORKDIR
+worldchain
+WorldChain
 wormchain
 Wormchain
 wormchaind

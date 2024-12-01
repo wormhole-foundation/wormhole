@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -26,6 +25,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -81,7 +81,7 @@ type mockGuardian struct {
 	p2pKey           libp2p_crypto.PrivKey
 	MockObservationC chan *common.MessagePublication
 	MockSetC         chan *common.GuardianSet
-	gk               *ecdsa.PrivateKey
+	guardianSigner   guardiansigner.GuardianSigner
 	guardianAddr     eth_common.Address
 	ready            bool
 	config           *guardianConfig
@@ -117,8 +117,8 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 	gs := make([]*mockGuardian, n)
 
 	for i := 0; i < n; i++ {
-		// generate guardian key
-		gk, err := ecdsa.GenerateKey(eth_crypto.S256(), rand.Reader)
+		// generate guardian signer
+		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		if err != nil {
 			panic(err)
 		}
@@ -142,8 +142,8 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			p2pKey:           devnet.DeterministicP2PPrivKeyByIndex(int64(i)),
 			MockObservationC: make(chan *common.MessagePublication),
 			MockSetC:         make(chan *common.GuardianSet),
-			gk:               gk,
-			guardianAddr:     eth_crypto.PubkeyToAddress(gk.PublicKey),
+			guardianSigner:   guardianSigner,
+			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey()),
 			config:           createGuardianConfig(t, testId, uint(i)),
 			tssEngine:        reliableTss,
 		}
@@ -251,7 +251,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 
 		guardianNode := NewGuardianNode(
 			env,
-			gs[mockGuardianIndex].gk,
+			gs[mockGuardianIndex].guardianSigner,
 			gs[mockGuardianIndex].tssEngine,
 		)
 

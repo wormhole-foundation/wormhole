@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -72,8 +71,8 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
 
-	// Sign the digest using our node's guardian key.
-	signature, err := crypto.Sign(digest.Bytes(), p.gk)
+	// Sign the digest using the node's GuardianSigner
+	signature, err := p.guardianSigner.Sign(digest.Bytes())
 	if err != nil {
 		panic(err)
 	}
