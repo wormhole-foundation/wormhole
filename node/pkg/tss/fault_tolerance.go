@@ -2,6 +2,7 @@ package tss
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
@@ -589,8 +590,14 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 			// create signingTask and ask: am i one of the signers?
 			info, err := t.fp.GetSigningInfo(makeSigningRequest(sigState.digest, faulties, sigState.chain))
 			if err != nil {
-				t.logger.Error("while inspecting downtime alert, failed to gain sig info", zap.Error(err))
-				// TODO: not sure what to do or check here yet.
+				t.logger.Error(
+					"couldn't retry signing digest",
+					zap.Error(err),
+					zap.String("digest", fmt.Sprintf("%x", sigState.digest)),
+					zap.String("chainID", sigState.chain.String()),
+					zap.Strings("faulties", getCommitteeIDs(faulties)),
+				)
+
 				continue
 			}
 

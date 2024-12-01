@@ -274,7 +274,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 			zap.Any("committee", getCommitteeIDs(info.SigningCommittee))}
 
 		if len(faulties) > 0 {
-			flds = append(flds, zap.Any("faulties", getCommitteeIDs(faulties)))
+			flds = append(flds, zap.Any("removed-from-committee", getCommitteeIDs(faulties)))
 		}
 
 		t.logger.Info(
@@ -387,7 +387,9 @@ func (t *Engine) Start(ctx context.Context) error {
 	}
 
 	t.ctx = ctx
-	t.logger = supervisor.Logger(ctx).With(zap.String("ID", t.GuardianStorage.Self.Id))
+	t.logger = supervisor.Logger(ctx).
+		With(zap.String("ID", t.GuardianStorage.Self.Id)).
+		Named("tss")
 
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
 		t.started.Store(notStarted)
