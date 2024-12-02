@@ -921,6 +921,7 @@ func TestFT(t *testing.T) {
 		cid := vaa.ChainID(0)
 		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
+		// 7 guardians, 3 faults, need 5 signers.
 		engines, err := loadGuardians(7, "tss7")
 		a.NoError(err)
 

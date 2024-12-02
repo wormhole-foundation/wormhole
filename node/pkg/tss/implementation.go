@@ -251,7 +251,8 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	)
 
 	for _, faulties := range inactiveParties.getFaultiesLists() {
-		if len(faulties) > t.getMaxExpectedFaults() {
+
+		if len(t.Guardians)-len(faulties) <= t.Threshold {
 			t.logger.Error(
 				"too many faulty guardians to start the signing protocol",
 				zap.String("digest", dgstStr),
