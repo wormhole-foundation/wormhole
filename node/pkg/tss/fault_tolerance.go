@@ -531,7 +531,6 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 		Content: &tsscommv1.SignedMessage_Problem{
 			Problem: &tsscommv1.Problem{
 				ChainID:     uint32(chain),
-				Emitter:     0, // TODO
 				IssuingTime: timestamppb.Now(),
 			},
 		},
