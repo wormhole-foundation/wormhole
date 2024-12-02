@@ -18,7 +18,7 @@ impl<W: Write> Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
+impl<W: Write> ser::Serializer for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -270,7 +270,7 @@ impl<'a, W: Write> ser::Serializer for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeSeq for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeSeq for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -288,7 +288,7 @@ impl<'a, W: Write> ser::SerializeSeq for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeTuple for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeTuple for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -306,7 +306,7 @@ impl<'a, W: Write> ser::SerializeTuple for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeTupleStruct for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeTupleStruct for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -324,7 +324,7 @@ impl<'a, W: Write> ser::SerializeTupleStruct for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeTupleVariant for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeTupleVariant for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -342,7 +342,7 @@ impl<'a, W: Write> ser::SerializeTupleVariant for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeStruct for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeStruct for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -360,7 +360,7 @@ impl<'a, W: Write> ser::SerializeStruct for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeStructVariant for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeStructVariant for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -378,7 +378,7 @@ impl<'a, W: Write> ser::SerializeStructVariant for &'a mut Serializer<W> {
     }
 }
 
-impl<'a, W: Write> ser::SerializeMap for &'a mut Serializer<W> {
+impl<W: Write> ser::SerializeMap for &mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
