@@ -56,5 +56,5 @@ Currently there is no implementation of a token contract migration function that
 
 ## Historical note:
 
-In Aug 2022, an attempt to upgrade the the token contracts was made, but failed due to the gas error:
+In Aug 2022, an attempt to upgrade the token contracts was made, but failed due to the gas error:
 https://finder.terra.money/classic/tx/FE39E9549770F59E2AAA1C6B0B86DDF36A4C56CED0CFB0CA4C9D4CC9FBE1E5BA. A subsequent upgrade changed the code id of *new* wrapped contracts to 767, but did not perform the migration for old contracts. This means that currently (as of Dec 2023), some wrapped tokens are still on the old code id, and some (the ones deployed after Aug 2022) are on the new code. This discrepancy is fine in the current case, because it only affects the rendering of the token name (https://github.com/wormhole-foundation/wormhole/commit/c832b123fcfb017d55086cb4d71241370ed270c6).
