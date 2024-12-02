@@ -718,6 +718,7 @@ func TestFT(t *testing.T) {
 
 		fmt.Println("starting engines.")
 		for _, engine := range engines {
+			engine.GuardianStorage.DelayGraceTime = time.Second * 3
 			a.NoError(engine.Start(ctx))
 		}
 

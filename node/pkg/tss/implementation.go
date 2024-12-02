@@ -392,8 +392,6 @@ func (t *Engine) Start(ctx context.Context) error {
 		With(zap.String("ID", t.GuardianStorage.Self.Id)).
 		Named("tss")
 
-	t.logger.Info("Starting TSS Engine", zap.Any("InnerConfigs", t.GuardianStorage.Configurations))
-
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
 		t.started.Store(notStarted)
 
@@ -407,6 +405,7 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	t.logger.Info(
 		"tss engine started",
+		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 
 	return nil

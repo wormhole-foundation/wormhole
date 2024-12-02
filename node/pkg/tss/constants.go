@@ -32,7 +32,7 @@ const (
 	defaultMaxLiveSignatures = 1000
 
 	defaultMaxSignerTTL     = time.Minute * 5
-	defaultDelayGraceTime   = time.Second * 10
+	defaultDelayGraceTime   = time.Minute
 	defaultGuardianDownTime = time.Minute * 10
 
 	numBroadcastsPerSignature = 8 // GG18

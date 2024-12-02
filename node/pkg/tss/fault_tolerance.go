@@ -293,8 +293,6 @@ func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) tim
 func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	// the incoming command is assumed to be from a reliable-broadcast protocol and to be valid:
 	// not too old (less than maxHeartbeatInterval), signed by the correct party, etc.
-	t.logger.Info("received a problem message from another guardian", zap.String("problem issuer", cmd.issuer.Id))
-
 	pid := protoToPartyId(cmd.issuer)
 
 	m := f.membersData[strPartyId(partyIdToString(pid))]
@@ -322,6 +320,12 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 			alertTime: reviveTime,
 		})
 	}
+
+	t.logger.Info("received a problem message from guardian",
+		zap.String("problem issuer", cmd.issuer.Id),
+		zap.String("chainID", vaa.ChainID(cmd.ChainID).String()),
+		zap.Int("number of inactives on chain", len(f.getIncatives(vaa.ChainID(cmd.ChainID)).partyIDs)),
+	)
 
 	// if the problem is about this guardian, then there is no reason to retry the sigs since it won't
 	// be part of the protocol.
@@ -511,6 +515,12 @@ func (f *ftTracker) inspectAlertHeapsTop(t *Engine) {
 
 	// At least one honest guardian saw the message, but I didn't (I'm probablt behined the network).
 	if sigState.maxGuardianVotes() >= t.GuardianStorage.getMaxExpectedFaults()+1 {
+		t.logger.Info("Hadn't seen digest to sign yet, but f+1 attempted to sign it, reporting issue",
+			zap.String("chainID", sigState.chain.String()),
+			zap.Duration("Time since signature started", time.Since(sigState.beginTime)),
+			zap.Int("Number of guardians that saw the message", sigState.maxGuardianVotes()),
+		)
+
 		t.reportProblem(sigState.chain)
 
 		return
@@ -523,10 +533,6 @@ func (f *ftTracker) inspectAlertHeapsTop(t *Engine) {
 }
 
 func (t *Engine) reportProblem(chain vaa.ChainID) {
-	t.logger.Info("noticed i'm behind others and attemmpting to inform them",
-		zap.String("chainID", chain.String()),
-	)
-
 	sm := &tsscommv1.SignedMessage{
 		Content: &tsscommv1.SignedMessage_Problem{
 			Problem: &tsscommv1.Problem{
