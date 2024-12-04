@@ -244,11 +244,6 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	}
 
 	dgstStr := fmt.Sprintf("%x", vaaDigest)
-	t.logger.Info(
-		"requested to sign protocol",
-		zap.String("chainID", chainID.String()),
-		zap.String("digest", dgstStr),
-	)
 
 	for _, faulties := range inactiveParties.getFaultiesLists() {
 
@@ -272,9 +267,12 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 
 		flds := []zap.Field{
 			zap.String("trackingID", info.TrackingID.ToString()),
-			zap.Any("committee", getCommitteeIDs(info.SigningCommittee))}
+			zap.String("ChainID", chainID.String()),
+			zap.Any("committee", getCommitteeIDs(info.SigningCommittee)),
+		}
 
 		if len(faulties) > 0 {
+			flds = append(flds, zap.Int("num-removed", len(faulties)))
 			flds = append(flds, zap.Any("removed-from-committee", getCommitteeIDs(faulties)))
 		}
 
