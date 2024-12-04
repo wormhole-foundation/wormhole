@@ -3,7 +3,6 @@ package tss
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
@@ -231,11 +230,9 @@ func (t *Engine) ftTracker() {
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)
 		case <-f.sigAlerts.WaitOnTimer():
-			continue
 			f.inspectAlertHeapsTop(t)
 
 		case <-f.downtimeAlerts.WaitOnTimer():
-			continue
 			f.inspectDowntimeAlertHeapsTop(t)
 
 		case <-ticker.C:
@@ -360,37 +357,7 @@ func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
 		return
 	}
 
-	seed := intoSigStateKey(cmd.digest, cmd.ChainID)
-	rndbytes := hash(seed[:])
-	tmp := binary.BigEndian.Uint64(rndbytes[:8])
-	rndNum := int(tmp)
-	if rndNum < 0 {
-		rndNum = -rndNum
-	}
-
-	numFaults := rndNum % len(t.Guardians)
-
-	reply := inactives{
-		partyIDs:       []*tss.PartyID{},
-		downtimeEnding: []*tss.PartyID{},
-	}
-
-	for i := range t.GuardianStorage.Guardians {
-		if numFaults == 0 {
-			break
-		}
-
-		reply.partyIDs = append(reply.partyIDs, t.GuardianStorage.Guardians[i])
-		numFaults--
-	}
-
-	soonToBeRevivedChance := float64(numFaults) / math.MaxUint64
-	if soonToBeRevivedChance < 0.05 {
-		downtimeEndsPos := rndNum % len(t.GuardianStorage.Guardians)
-		// add one to be revived soon.
-		reply.downtimeEnding = append(reply.downtimeEnding, t.GuardianStorage.Guardians[downtimeEndsPos])
-	}
-	// reply := f.getIncatives(cmd.ChainID)
+	reply := f.getIncatives(cmd.ChainID)
 
 	if err := intoChannelOrDone(t.ctx, cmd.reply, reply); err != nil {
 		t.logger.Error("error on telling on inactive guardians on specific chain", zap.Error(err))
