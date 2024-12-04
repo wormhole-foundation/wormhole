@@ -226,14 +226,6 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	if len(vaaDigest) != digestSize {
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
-	serial := t.attempt.Add(1)
-
-	lg := t.logger.With(zap.String("intest", "beginSign"), zap.Uint64("serial", serial))
-
-	lg.Info("===starting===")
-	defer lg.Info("===end===")
-
-	lg.Info("requesting getInactiveGuardiansCommand")
 
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
@@ -247,14 +239,12 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 		return fmt.Errorf("failed to request for inactive guardians: %w", err)
 	}
 
-	lg.Info("waiting for response")
 	// waiting for the reply.
 	inactiveParties, err := outOfChannelOrDone(t.ctx, cmd.reply)
 	if err != nil {
 		return fmt.Errorf("failed to get inactive guardians: %w", err)
 	}
 
-	lg.Info("received response")
 	dgstStr := fmt.Sprintf("%x", vaaDigest)
 
 	for _, faulties := range inactiveParties.getFaultiesLists() {
@@ -293,14 +283,12 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 			flds...,
 		)
 
-		lg.Info("informing on new signature")
 		if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info}); err != nil {
 			t.logger.Error("couldn't inform the fault-tolerance tracker of the signature start",
 				zap.Error(err),
 				zap.String("trackingID", info.TrackingID.ToString()),
 			)
 		}
-		lg.Info("informed on new signature")
 
 		if info.IsSigner {
 			inProgressSigs.Inc()
@@ -421,7 +409,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started deadlock-check.v.3.2",
+		"tss engine started deadlock-check.v.3.3",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 
