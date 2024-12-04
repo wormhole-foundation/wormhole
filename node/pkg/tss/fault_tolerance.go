@@ -476,7 +476,6 @@ func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
-	return
 	wmsg := cmd.parsedMsg.WireMsg()
 	if wmsg == nil {
 		t.logger.Error("deliveryCommand: wire message is nil")
