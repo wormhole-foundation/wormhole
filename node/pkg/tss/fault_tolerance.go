@@ -230,7 +230,6 @@ func (t *Engine) ftTracker() {
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)
 		case <-f.sigAlerts.WaitOnTimer():
-			continue
 			f.inspectAlertHeapsTop(t)
 
 		case <-f.downtimeAlerts.WaitOnTimer():
