@@ -227,15 +227,18 @@ func (t *Engine) ftTracker() {
 			return
 
 		case cmd := <-t.ftCommandChan:
+			continue
 			cmd.apply(t, f)
-
 		case <-f.sigAlerts.WaitOnTimer():
+			continue
 			f.inspectAlertHeapsTop(t)
 
 		case <-f.downtimeAlerts.WaitOnTimer():
+			continue
 			f.inspectDowntimeAlertHeapsTop(t)
 
 		case <-ticker.C:
+			continue
 			f.cleanup(maxttl)
 		}
 	}
