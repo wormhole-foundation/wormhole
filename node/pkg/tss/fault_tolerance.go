@@ -227,7 +227,6 @@ func (t *Engine) ftTracker() {
 			return
 
 		case cmd := <-t.ftCommandChan:
-			continue
 			cmd.apply(t, f)
 		case <-f.sigAlerts.WaitOnTimer():
 			continue
@@ -238,7 +237,6 @@ func (t *Engine) ftTracker() {
 			f.inspectDowntimeAlertHeapsTop(t)
 
 		case <-ticker.C:
-			continue
 			f.cleanup(maxttl)
 		}
 	}
@@ -294,6 +292,7 @@ func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) tim
 }
 
 func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
+	return
 	// the incoming command is assumed to be from a reliable-broadcast protocol and to be valid:
 	// not too old (less than maxHeartbeatInterval), signed by the correct party, etc.
 	pid := protoToPartyId(cmd.issuer)
@@ -352,6 +351,7 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
+	return
 	if cmd.reply == nil {
 		t.logger.Error("reply channel is nil")
 		return
@@ -433,6 +433,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
+	return
 	dgst := party.Digest{}
 	copy(dgst[:], cmd.Digest[:])
 
@@ -443,6 +444,7 @@ func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
+	return
 	wmsg := cmd.parsedMsg.WireMsg()
 	if wmsg == nil {
 		t.logger.Error("deliveryCommand: wire message is nil")
