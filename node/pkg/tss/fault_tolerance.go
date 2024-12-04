@@ -470,7 +470,9 @@ func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
 	chain := extractChainIDFromTrackingID(cmd.TrackingID)
 	key := intoSigStateKey(dgst, chain)
 
-	f.remove(f.sigsState[key])
+	if sigstate, ok := f.sigsState[key]; ok {
+		f.remove(sigstate)
+	}
 }
 
 func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
