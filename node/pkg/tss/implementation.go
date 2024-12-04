@@ -402,7 +402,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started deadlock-check.v.3.0",
+		"tss engine started deadlock-check.v.3.1",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 

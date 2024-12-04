@@ -338,17 +338,17 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 		return
 	}
 
-	// retryNow := chainData.liveSigsWaitingForThisParty
-	// chainData.liveSigsWaitingForThisParty = map[sigStateKey]*signatureState{} // clear the live sigs.
+	retryNow := chainData.liveSigsWaitingForThisParty
+	chainData.liveSigsWaitingForThisParty = map[sigStateKey]*signatureState{} // clear the live sigs.
 
-	// go func() {
-	// 	for _, sig := range retryNow {
-	// 		// TODO: maybe find something smarter to do here.
-	// 		if err := t.BeginAsyncThresholdSigningProtocol(sig.digest[:], chainID); err != nil {
-	// 			t.logger.Error("failed to retry a signature", zap.Error(err))
-	// 		}
-	// 	}
-	// }()
+	go func() {
+		for _, sig := range retryNow {
+			// TODO: maybe find something smarter to do here.
+			if err := t.BeginAsyncThresholdSigningProtocol(sig.digest[:], chainID); err != nil {
+				t.logger.Error("failed to retry a signature", zap.Error(err))
+			}
+		}
+	}()
 }
 
 func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
