@@ -222,10 +222,13 @@ func (t *Engine) ftTracker() {
 	ticker := time.NewTicker(maxttl)
 	defer ticker.Stop()
 
+	debugTicker := time.NewTicker(time.Second * 5)
 	for {
 		select {
 		case <-t.ctx.Done():
 			return
+		case <-debugTicker.C:
+			t.logger.Info("ftTracker tick")
 
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)

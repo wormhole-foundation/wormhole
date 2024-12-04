@@ -705,7 +705,67 @@ func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
 // }
 
 func TestFT(t *testing.T) {
-	t.Skip()
+	// t.Skip()
+
+	t.Run("multiple-callls-in-parallel", func(t *testing.T) {
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		n := 100
+		digests := make([]party.Digest, n)
+		for i := range n {
+			digests[i] = party.Digest{byte(i)}
+		}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*8)
+		defer cancel()
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, len(digests))
+
+		fmt.Println("engines started, requesting sigs")
+
+		wg := sync.WaitGroup{}
+		barrier := make(chan struct{})
+		// all engines are started, now we can begin the protocol.
+		for _, d := range digests {
+			for _, engine := range engines {
+				engine := engine
+				d := d
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-barrier
+					tmp := make([]byte, 32)
+					copy(tmp, d[:])
+
+					engine.BeginAsyncThresholdSigningProtocol(tmp, 1)
+				}()
+			}
+		}
+
+		time.Sleep(time.Millisecond * 500)
+		close(barrier)
+
+		time.Sleep(time.Millisecond * 500)
+		engines[0].reportProblem(1)
+		time.Sleep(time.Millisecond * 500)
+		engines[1].reportProblem(1)
+		wg.Wait()
+		fmt.Println("=========Done with all goroutines=========")
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNowf("context expired", "context expired")
+		}
+	})
 	t.Run("single server crashes", func(t *testing.T) {
 		a := assert.New(t)
 
@@ -1356,6 +1416,7 @@ func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int)
 						ln := len(nmsigs)
 						lck.Unlock()
 
+						fmt.Println("received signature", ln)
 						if ln < numDiffSigsExpected {
 							continue
 						}
