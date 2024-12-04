@@ -258,7 +258,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 			continue // not a failure of the method, so it should continue, instead of returning an error.
 		}
 
-		info, err := t.fp.AsyncRequestNewSignature(makeSigningRequest(d, nil, chainID))
+		info, err := t.fp.AsyncRequestNewSignature(makeSigningRequest(d, faulties, chainID))
 
 		if err != nil {
 			// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
@@ -402,7 +402,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started deadlock-check.v.1.8",
+		"tss engine started deadlock-check.v.1.9",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 
