@@ -233,6 +233,7 @@ func (t *Engine) ftTracker() {
 			f.inspectAlertHeapsTop(t)
 
 		case <-f.downtimeAlerts.WaitOnTimer():
+			continue
 			f.inspectDowntimeAlertHeapsTop(t)
 
 		case <-ticker.C:
@@ -293,7 +294,6 @@ func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) tim
 }
 
 func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
-	return
 	// the incoming command is assumed to be from a reliable-broadcast protocol and to be valid:
 	// not too old (less than maxHeartbeatInterval), signed by the correct party, etc.
 	pid := protoToPartyId(cmd.issuer)
