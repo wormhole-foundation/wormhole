@@ -263,7 +263,9 @@ func (f *ftTracker) remove(sigState *signatureState) {
 
 	key := intoSigStateKey(sigState.digest, sigState.chain)
 	for _, m := range f.membersData {
-		delete(m.ftChainContext[sigState.chain].liveSigsWaitingForThisParty, key)
+		if chainData, ok := m.ftChainContext[sigState.chain]; ok {
+			delete(chainData.liveSigsWaitingForThisParty, key)
+		}
 	}
 
 	chn, ok := f.chainIdsToSigs[sigState.chain]
@@ -366,7 +368,7 @@ func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
 		rndNum = -rndNum
 	}
 
-	numFaults := rndNum % 3 // 0 ,1,2
+	numFaults := rndNum%t.getMaxExpectedFaults() + 2 // f+2 < 2f+1
 
 	reply := inactives{
 		partyIDs:       []*tss.PartyID{},
