@@ -368,7 +368,7 @@ func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
 		rndNum = -rndNum
 	}
 
-	numFaults := rndNum%t.getMaxExpectedFaults() + 2 // f+2 < 2f+1
+	numFaults := rndNum % len(t.Guardians)
 
 	reply := inactives{
 		partyIDs:       []*tss.PartyID{},
