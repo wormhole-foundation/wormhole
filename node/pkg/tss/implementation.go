@@ -238,56 +238,56 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	}
 
 	// waiting for the reply.
-	// inactiveParties, err := outOfChannelOrDone(t.ctx, cmd.reply)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get inactive guardians: %w", err)
-	// }
-
-	// dgstStr := fmt.Sprintf("%x", vaaDigest)
-
-	// for _, faulties := range inactiveParties.getFaultiesLists() {
-
-	// if len(t.Guardians)-len(faulties) <= t.Threshold {
-	// 	t.logger.Error(
-	// 		"too many faulty guardians to start the signing protocol",
-	// 		zap.String("digest", dgstStr),
-	// 		zap.String("chainID", chainID.String()),
-	// 		zap.Strings("faulties", getCommitteeIDs(faulties)),
-	// 	)
-
-	// 	continue // not a failure of the method, so it should continue, instead of returning an error.
-	// }
-
-	info, err := t.fp.AsyncRequestNewSignature(makeSigningRequest(d, nil, chainID))
-
+	inactiveParties, err := outOfChannelOrDone(t.ctx, cmd.reply)
 	if err != nil {
-		// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
-		return err
+		return fmt.Errorf("failed to get inactive guardians: %w", err)
 	}
 
-	flds := []zap.Field{
-		zap.String("trackingID", info.TrackingID.ToString()),
-		zap.String("ChainID", chainID.String()),
-		zap.Any("committee", getCommitteeIDs(info.SigningCommittee)),
+	dgstStr := fmt.Sprintf("%x", vaaDigest)
+
+	for _, faulties := range inactiveParties.getFaultiesLists() {
+
+		if len(t.Guardians)-len(faulties) <= t.Threshold {
+			t.logger.Error(
+				"too many faulty guardians to start the signing protocol",
+				zap.String("digest", dgstStr),
+				zap.String("chainID", chainID.String()),
+				zap.Strings("faulties", getCommitteeIDs(faulties)),
+			)
+
+			continue // not a failure of the method, so it should continue, instead of returning an error.
+		}
+
+		info, err := t.fp.AsyncRequestNewSignature(makeSigningRequest(d, nil, chainID))
+
+		if err != nil {
+			// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
+			return err
+		}
+
+		flds := []zap.Field{
+			zap.String("trackingID", info.TrackingID.ToString()),
+			zap.String("ChainID", chainID.String()),
+			zap.Any("committee", getCommitteeIDs(info.SigningCommittee)),
+		}
+
+		if len(faulties) > 0 {
+			flds = append(flds, zap.Int("num-removed", len(faulties)))
+			flds = append(flds, zap.Any("removed-from-committee", getCommitteeIDs(faulties)))
+		}
+
+		t.logger.Info(
+			"guardian started signing protocol",
+			flds...,
+		)
+
+		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info})
+
+		if info.IsSigner {
+			inProgressSigs.Inc()
+		}
+
 	}
-
-	// if len(faulties) > 0 {
-	// 	flds = append(flds, zap.Int("num-removed", len(faulties)))
-	// 	flds = append(flds, zap.Any("removed-from-committee", getCommitteeIDs(faulties)))
-	// }
-
-	t.logger.Info(
-		"guardian started signing protocol",
-		flds...,
-	)
-
-	intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info})
-
-	if info.IsSigner {
-		inProgressSigs.Inc()
-	}
-
-	// }
 
 	return nil
 }
@@ -402,7 +402,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started",
+		"tss engine started deadlock-check.v.1",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 

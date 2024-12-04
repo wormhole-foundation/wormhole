@@ -351,7 +351,6 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
-	return
 	if cmd.reply == nil {
 		t.logger.Error("reply channel is nil")
 		return
