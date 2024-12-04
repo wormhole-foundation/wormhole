@@ -433,7 +433,6 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
-	return
 	dgst := party.Digest{}
 	copy(dgst[:], cmd.Digest[:])
 
