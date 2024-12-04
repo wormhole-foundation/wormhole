@@ -367,7 +367,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		sigOutChan:   make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
 
 		fpErrChannel:    make(chan *tss.Error),
-		messageOutChan:  make(chan Sendable),
+		messageOutChan:  make(chan Sendable, expectedMsgs*100),
 		msgSerialNumber: 0,
 		mtx:             &sync.Mutex{},
 		received:        map[uuid]*broadcaststate{},
@@ -409,12 +409,15 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started deadlock-check.v.3.3",
+		"tss engine started deadlock-check.v.3.4",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 
 	return nil
 }
+
+// Possible issue: writing to someone else demands it to listen, can't send to someone if it doesn't listen.
+// if someone is waiting to send, and at the same time is waiting to listen -> deadlock. I think this is the main issue.
 
 func (t *Engine) GetPublicKey() *ecdsa.PublicKey {
 	return t.fp.GetPublic()
@@ -486,13 +489,24 @@ func (t *Engine) handleFpSignature(sig *common.SignatureData) {
 	inProgressSigs.Dec()
 
 	t.sigCounter.remove(sig.TrackingId)
-	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{sig.TrackingId}); err != nil {
-		t.logger.Error("couldn't inform the fault-tolerance tracker of the signature end", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
+	// if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{sig.TrackingId}); err != nil {
+	// 	t.logger.Error("couldn't inform the fault-tolerance tracker of the signature end", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
+	// }
+
+	select {
+	case t.ftCommandChan <- &SigEndCommand{sig.TrackingId}:
+	default:
+		t.logger.Warn("couldn't inform the fault-tolerance tracker of the signature end", zap.String("trackingId", sig.TrackingId.ToString()))
 	}
 
-	if err := intoChannelOrDone(t.ctx, t.sigOutChan, sig); err != nil {
-		t.logger.Error("couldn't deliver outside of engine the signature", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
+	select {
+	case t.sigOutChan <- sig:
+	default:
+		t.logger.Error("couldn't deliver outside of engine the signature", zap.String("trackingId", sig.TrackingId.ToString()))
 	}
+	// if err := intoChannelOrDone(t.ctx, t.sigOutChan, sig); err != nil {
+	// 	t.logger.Error("couldn't deliver outside of engine the signature", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
+	// }
 }
 
 func (t *Engine) handleFpError(err *tss.Error) {
@@ -506,12 +520,20 @@ func (t *Engine) handleFpError(err *tss.Error) {
 		return
 	}
 
-	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{trackid}); err != nil {
+	select {
+	case t.ftCommandChan <- &SigEndCommand{trackid}:
+	default:
 		t.logger.Error("couldn't inform the fault-tolerance tracker of signature end due to error",
 			zap.Error(err),
 			zap.String("trackingId", trackid.ToString()),
 		)
 	}
+	// if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{trackid}); err != nil {
+	// 	t.logger.Error("couldn't inform the fault-tolerance tracker of signature end due to error",
+	// 		zap.Error(err),
+	// 		zap.String("trackingId", trackid.ToString()),
+	// 	)
+	// }
 
 	// if someone sent a message that caused an error -> we don't
 	// accept an override to that message, therefore, we can remove it, since it won't change.

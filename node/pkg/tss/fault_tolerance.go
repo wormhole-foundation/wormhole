@@ -559,7 +559,13 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 		return
 	}
 
-	intoChannelOrDone[Sendable](t.ctx, t.messageOutChan, newEcho(sm, t.guardiansProtoIDs))
+	select {
+	default:
+		t.logger.Error("couldn't send a problem report to the other guardians")
+	case t.messageOutChan <- newEcho(sm, t.guardiansProtoIDs):
+		return
+	}
+	// intoChannelOrDone[Sendable](t.ctx, t.messageOutChan, newEcho(sm, t.guardiansProtoIDs))
 }
 
 // get the maximal amount of guardians that saw the digest and started signing.
