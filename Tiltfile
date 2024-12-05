@@ -685,12 +685,14 @@ if terra_classic:
         ref = "terra-image",
         context = "./terra/devnet",
         dockerfile = "terra/devnet/Dockerfile",
+        platform = "linux/amd64",
     )
 
     docker_build(
         ref = "terra-contracts",
         context = "./terra",
         dockerfile = "./terra/Dockerfile",
+        platform = "linux/amd64",
     )
 
     k8s_yaml_with_ns("devnet/terra-devnet.yaml")
@@ -711,6 +713,7 @@ if terra2 or wormchain:
         context = ".",
         dockerfile = "./cosmwasm/Dockerfile",
         target = "artifacts",
+        platform = "linux/amd64",
     )
 
 if terra2:
@@ -718,6 +721,7 @@ if terra2:
         ref = "terra2-image",
         context = "./cosmwasm/deployment/terra2/devnet",
         dockerfile = "./cosmwasm/deployment/terra2/devnet/Dockerfile",
+        platform = "linux/amd64",
     )
 
     docker_build(
@@ -825,6 +829,7 @@ if wormchain:
         ref = "wormchaind-image",
         context = ".",
         dockerfile = "./wormchain/Dockerfile",
+        platform = "linux/amd64",
         build_args = {"num_guardians": str(num_guardians)},
         only = [],
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
