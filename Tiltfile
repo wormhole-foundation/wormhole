@@ -36,9 +36,9 @@ update_settings(max_parallel_updates = 10)
 # Runtime configuration
 config.define_bool("ci", False, "We are running in CI")
 config.define_bool("manual", False, "Set TRIGGER_MODE_MANUAL by default")
-config.define_bool("m1", False, "Use this flag for M-series Macs (e.g. use an arm64 solana-test-validator due to AVX requirement)")
 
 config.define_string("num", False, "Number of guardian nodes to run")
+config.define_string("maxWorkers", False, "Maximum number of workers for sdk-ci-tests. See https://jestjs.io/docs/cli#--maxworkersnumstring")
 
 # You do not usually need to set this argument - this argument is for debugging only. If you do use a different
 # namespace, note that the "wormhole" namespace is hardcoded in tests and don't forget specifying the argument
@@ -78,6 +78,7 @@ config.define_bool("query_server", False, "Enable cross-chain query server")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
+max_workers = cfg.get("maxWorkers", "50%")
 namespace = cfg.get("namespace", "wormhole")
 webHost = cfg.get("webHost", "localhost")
 ci = cfg.get("ci", False)
@@ -101,7 +102,6 @@ btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
 query_server = cfg.get("query_server", ci)
-m1 = cfg.get("m1", False)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -487,15 +487,10 @@ if solana or pythnet:
 
     # solana local devnet
 
-    build_args = {}
-    if m1:
-        build_args = {"BASE_IMAGE": "ghcr.io/wormholelabs-xyz/solana-test-validator-m1:1.17.29@sha256:c5a43c0762f2dab4873a9e632a389029b6d5f706be7dfb89a42a66cc65a3dd24"}
-
     docker_build(
         ref = "solana-test-validator",
         context = "solana",
         dockerfile = "solana/Dockerfile.test-validator",
-        build_args = build_args
     )
 
     k8s_yaml_with_ns("devnet/solana-devnet.yaml")
@@ -644,8 +639,10 @@ if ci_tests:
     k8s_yaml_with_ns(
         encode_yaml_stream(
             set_env_in_jobs(
-                set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
-                "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)))
+                set_env_in_jobs(
+                    set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
+                    "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
+                    "MAX_WORKERS", max_workers))
     )
 
     # separate resources to parallelize docker builds

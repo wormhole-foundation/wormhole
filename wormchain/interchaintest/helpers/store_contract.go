@@ -61,11 +61,6 @@ func createIbcReceiverUpdateChannelPayload(payload vaa.BodyIbcUpdateChannelChain
 	return gov_msg.MarshalBinary(), nil
 }
 
-// func UpgradeCoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, payload vaa.BodyContractUpgrade, guardians *guardians.ValSet) {
-// 	node := chain.GetFullNode()
-
-// }
-
 // wormchaind tx wormhole store [wasm file] [vaa-hex] [flags]
 func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, fileLoc string, guardians *guardians.ValSet) (codeId string) {
 	node := chain.GetFullNode()

@@ -136,7 +136,7 @@ func NewAccountant(
 		enforceFlag:      enforceFlag,
 		guardianSigner:   guardianSigner,
 		gst:              gst,
-		guardianAddr:     ethCrypto.PubkeyToAddress(guardianSigner.PublicKey()),
+		guardianAddr:     ethCrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		msgChan:          msgChan,
 		tokenBridges:     make(validEmitters),
 		pendingTransfers: make(map[string]*pendingEntry),

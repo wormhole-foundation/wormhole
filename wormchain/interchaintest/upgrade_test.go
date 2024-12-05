@@ -40,7 +40,7 @@ import (
 //   - Verify asset 1 balance of gaia user 1, osmo user 1, osmo user 2, and cw20 contract total supply
 func TestUpgrade(t *testing.T) {
 	// Base setup
-	numVals := 5
+	numVals := 3
 	guardians := guardians.CreateValSet(t, numVals)
 	chains := CreateChains(t, "v2.18.1", *guardians)
 	ctx, r, eRep, client := BuildInterchain(t, chains)

@@ -132,11 +132,11 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 	})
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
-		TestName:          t.Name(),
-		Client:            client,
-		NetworkID:         network,
-		SkipPathCreation:  false,
-		BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
+		TestName:         t.Name(),
+		Client:           client,
+		NetworkID:        network,
+		SkipPathCreation: false,
+		// BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
 	})
 	require.NoError(t, err)
 
