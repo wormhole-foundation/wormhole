@@ -77,12 +77,12 @@ func (b *BenchmarkSigner) Sign(ctx context.Context, hash []byte) ([]byte, error)
 	sig, err := b.innerSigner.Sign(ctx, hash)
 	duration := time.Since(start)
 
-	// Add Observation to histogram
-	guardianSignerSigningLatency.Observe(float64(duration.Microseconds()))
-
 	// If an error occured, increment the error counter
 	if err != nil {
 		guardianSignerSigningErrorCount.Inc()
+	} else {
+		// Add Observation to histogram only if no errors occured
+		guardianSignerSigningLatency.Observe(float64(duration.Microseconds()))
 	}
 
 	return sig, err
@@ -99,12 +99,12 @@ func (b *BenchmarkSigner) Verify(ctx context.Context, sig []byte, hash []byte) (
 	valid, err := b.innerSigner.Verify(ctx, sig, hash)
 	duration := time.Since(start)
 
-	// Add observation to histogram
-	guardianSignerVerifyLatency.Observe(float64(duration.Microseconds()))
-
 	// If an error occured, increment the error counter
 	if err != nil {
 		guardianSignerVerifyErrorCount.Inc()
+	} else {
+		// Add observation to histogram only if no errors occured
+		guardianSignerVerifyLatency.Observe(float64(duration.Microseconds()))
 	}
 
 	return valid, err

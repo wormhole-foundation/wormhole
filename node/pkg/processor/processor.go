@@ -308,7 +308,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					continue
 				}
 			}
-			p.handleMessage(k)
+			p.handleMessage(ctx, k)
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
@@ -318,7 +318,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if !p.acct.IsMessageCoveredByAccountant(k) {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
-			p.handleMessage(k)
+			p.handleMessage(ctx, k)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(m)
@@ -352,7 +352,7 @@ func (p *Processor) Run(ctx context.Context) error {
 								continue
 							}
 						}
-						p.handleMessage(k)
+						p.handleMessage(ctx, k)
 					}
 				}
 			}

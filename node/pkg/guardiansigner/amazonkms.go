@@ -96,7 +96,7 @@ func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string)
 	// an error. This is why the region is first extracted from the keyPath.
 	cfg, err := config.LoadDefaultConfig(timeoutCtx, config.WithDefaultRegion(amazonKmsSigner.region))
 	if err != nil {
-		return nil, errors.New("Failed to load default config")
+		return nil, errors.New("Failed to load KMS default config")
 	}
 
 	amazonKmsSigner.client = kms.NewFromConfig(cfg)
@@ -118,6 +118,12 @@ func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string)
 		return nil, fmt.Errorf("Failed to unmarshal KMS public key: %w", err)
 	}
 
+	// It is possible to use `ethcrypto.UnmarshalPubkey(asn1Pubkey.PublicKey.Bytes)`` to get the public key,
+	// but `UnmarshalPubkey()` uses elliptic.Unmarshal() internally, which has been marked as deprecated.
+	// The following code implements similar logic, with the indexes meaning the following:
+	// 0: The first byte is the prefix byte, which is 0x04 for uncompressed keys.
+	// 1-32: The next 32 bytes are the X coordinate.
+	// 33-64: The next 32 bytes are the Y coordinate.
 	ecdsaPubkey := ecdsa.PublicKey{
 		X: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1 : 1+32]),
 		Y: new(big.Int).SetBytes(asn1Pubkey.PublicKey.Bytes[1+32:]),
@@ -192,7 +198,7 @@ func (a *AmazonKms) PublicKey(ctx context.Context) ecdsa.PublicKey {
 }
 
 func (a *AmazonKms) Verify(ctx context.Context, sig []byte, hash []byte) (bool, error) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*15)
+	timeoutCtx, cancel := context.WithTimeout(ctx, KMS_TIMEOUT)
 	defer cancel()
 
 	// Use ethcrypto to recover the public key
@@ -234,7 +240,7 @@ func derSignatureToRS(signature []byte) ([]byte, []byte, error) {
 }
 
 // adjustBufferSize takes an input buffer and
-// a) trims it down to 32 bytes, if the input length is greater than 32, or
+// a) trims it down to 32 bytes, starting at the most significant byte, if the input length is greater than 32, or
 // b) returns the input as-is, if the input length is equal to 32, or
 // c) left-pads it to 32 bytes, if the input length is less than 32.
 func adjustBufferSize(b []byte) []byte {
