@@ -148,7 +148,7 @@ The role of the incident commander for Wormhole includes the following minimum o
 
 ## Emergency Shutdown
 
-The Wormhole project has evaluated the concept of having an safety feature, which could allow Wormhole smart contracts to be paused during a state of existential crisis without contract upgrades.  However, after careful consideration the project has chosen to not introduce such a feature at this time.
+The Wormhole project has evaluated the concept of having a safety feature, which could allow Wormhole smart contracts to be paused during a state of existential crisis without contract upgrades.  However, after careful consideration the project has chosen to not introduce such a feature at this time.
 
 The rationale for this decision included the following considerations:
 
