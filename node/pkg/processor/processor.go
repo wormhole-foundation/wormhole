@@ -294,15 +294,8 @@ func (p *Processor) Run(ctx context.Context) error {
 	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
 	govTimer := time.NewTimer(GovInterval)
 
-	tck := time.NewTicker(time.Second * 5)
-	defer tck.Stop()
-
-	defer fmt.Println("Processor stopped!!!@$#%^&^$%^&^$%$%^@#$@#$@#%")
-
 	for {
 		select {
-		case <-tck.C:
-			p.logger.Info("Processor Ticker")
 		case <-ctx.Done():
 			if p.acct != nil {
 				p.acct.Close()

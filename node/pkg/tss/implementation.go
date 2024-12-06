@@ -409,7 +409,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started deadlock-check.v.3.5",
+		"tss engine started",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 
@@ -439,18 +439,15 @@ func (st *GuardianStorage) maxSignerTTL() time.Duration {
 
 // fpListener serves as a listining loop for the full party outputs.
 // ensures the FP isn't being blocked on writing to fpOutChan, and wraps the result into a gossip message.
+// IMPORTANT: the fpListener should not wait on writing to other channels!
+// if the channel is full, the message should be dropped.
 func (t *Engine) fpListener() {
 	maxTTL := t.GuardianStorage.maxSignerTTL()
 
 	cleanUpTicker := time.NewTicker(maxTTL)
 
-	tckr := time.NewTicker(time.Second * 5)
-	defer tckr.Stop()
-
 	for {
 		select {
-		case <-tckr.C:
-			t.logger.Info("fpListener Tick")
 		case <-t.ctx.Done():
 			t.logger.Info(
 				"shutting down TSS Engine",
@@ -527,12 +524,6 @@ func (t *Engine) handleFpError(err *tss.Error) {
 			zap.String("trackingId", trackid.ToString()),
 		)
 	}
-	// if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{trackid}); err != nil {
-	// 	t.logger.Error("couldn't inform the fault-tolerance tracker of signature end due to error",
-	// 		zap.Error(err),
-	// 		zap.String("trackingId", trackid.ToString()),
-	// 	)
-	// }
 
 	// if someone sent a message that caused an error -> we don't
 	// accept an override to that message, therefore, we can remove it, since it won't change.

@@ -117,7 +117,6 @@ func (i *inactives) getFaultiesWithout(pid *tss.PartyID) []*tss.PartyID {
 
 // Used to know which guardians aren't to be used in the protocol for specific chainID.
 type getInactiveGuardiansCommand struct {
-	digest  party.Digest
 	ChainID vaa.ChainID
 	reply   chan inactives
 }
@@ -222,14 +221,10 @@ func (t *Engine) ftTracker() {
 	ticker := time.NewTicker(maxttl)
 	defer ticker.Stop()
 
-	debugTicker := time.NewTicker(time.Second * 5)
 	for {
 		select {
 		case <-t.ctx.Done():
 			return
-		case <-debugTicker.C:
-			t.logger.Info("ftTracker tick")
-
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)
 		case <-f.sigAlerts.WaitOnTimer():
@@ -565,7 +560,6 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 			zap.String("chainID", chain.String()),
 		)
 	}
-	// intoChannelOrDone[Sendable](t.ctx, t.messageOutChan, newEcho(sm, t.guardiansProtoIDs))
 }
 
 // get the maximal amount of guardians that saw the digest and started signing.
