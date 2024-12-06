@@ -706,6 +706,56 @@ func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
 
 func TestFT(t *testing.T) {
 
+	t.Run("avoid report problem if in config", func(t *testing.T) {
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		n := 1
+		chainId := vaa.ChainID(1)
+		digests := make([]party.SigningTask, n)
+		for i := 0; i < n; i++ {
+			digests[i] = party.SigningTask{
+				Digest:       [32]byte{byte(i)},
+				Faulties:     nil,
+				AuxilaryData: chainIDToBytes(chainId),
+			}
+		}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute/6)
+		defer cancel()
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			engine.Configurations.maxJitter = time.Nanosecond
+			engine.Configurations.DelayGraceTime = time.Second
+			engine.Configurations.ChainsWithNoSelfReport = append(engine.Configurations.ChainsWithNoSelfReport, uint16(chainId))
+			a.NoError(engine.Start(ctx))
+		}
+
+		e := getSigningGuardian(a, engines, digests...)
+		a.NotNil(e)
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, len(digests)) // ensure we wait
+
+		for _, d := range digests {
+			d := d
+
+			for _, engine := range engines {
+				// someone who is needed to sign will not join here, and will not let anyone replace it either.
+				if equalPartyIds(e.Self, engine.Self) {
+					continue
+				}
+				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId)
+			}
+		}
+
+		if !ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("Should've expired first")
+		}
+	})
 	t.Run("multiple-callls-in-parallel", func(t *testing.T) {
 		a := assert.New(t)
 		engines, err := loadGuardians(5, "tss5")

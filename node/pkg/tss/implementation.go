@@ -77,6 +77,8 @@ type Configurations struct {
 	// not exported so it can't be changed.
 	guardianDownTime time.Duration // once a guardian is marked as faulty, this is the time it isn't allowed into the protocol.
 	maxJitter        time.Duration // jitter is used to reduce the chance guardians get back at the same time from DownTime.
+
+	ChainsWithNoSelfReport []uint16
 }
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol

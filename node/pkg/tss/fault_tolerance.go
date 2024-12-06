@@ -185,8 +185,9 @@ type ftTracker struct {
 	chainIdsToSigs map[vaa.ChainID]map[sigStateKey]*signatureState
 
 	// for starters, we assume any fault is on all chains.
-	membersData    map[strPartyId]*ftParty
-	downtimeAlerts internal.Ttlheap[*endDownTimeAlert]
+	membersData            map[strPartyId]*ftParty
+	downtimeAlerts         internal.Ttlheap[*endDownTimeAlert]
+	chainsWithNoSelfReport map[vaa.ChainID]bool
 }
 
 func newChainContext() *ftChainContext {
@@ -206,6 +207,8 @@ func (t *Engine) ftTracker() {
 		membersData:    make(map[strPartyId]*ftParty),
 		downtimeAlerts: internal.NewTtlHeap[*endDownTimeAlert](),
 		chainIdsToSigs: map[vaa.ChainID]map[sigStateKey]*signatureState{},
+
+		chainsWithNoSelfReport: make(map[vaa.ChainID]bool),
 	}
 
 	for _, pid := range t.GuardianStorage.Guardians {
@@ -214,6 +217,10 @@ func (t *Engine) ftTracker() {
 			partyID:        pid,
 			ftChainContext: map[vaa.ChainID]*ftChainContext{},
 		}
+	}
+
+	for _, cid := range t.GuardianStorage.Configurations.ChainsWithNoSelfReport {
+		f.chainsWithNoSelfReport[vaa.ChainID(cid)] = true
 	}
 
 	maxttl := t.GuardianStorage.maxSignerTTL()
@@ -517,12 +524,19 @@ func (f *ftTracker) inspectAlertHeapsTop(t *Engine) {
 
 	// At least one honest guardian saw the message, but I didn't (I'm probablt behined the network).
 	if sigState.maxGuardianVotes() >= t.GuardianStorage.getMaxExpectedFaults()+1 {
-		t.logger.Info("Hadn't seen digest to sign yet, but f+1 attempted to sign it, reporting issue",
+		zapflds := []zap.Field{
 			zap.String("chainID", sigState.chain.String()),
 			zap.Duration("Time since signature started", time.Since(sigState.beginTime)),
 			zap.Int("Number of guardians that saw the message", sigState.maxGuardianVotes()),
-		)
+		}
 
+		if f.chainsWithNoSelfReport[sigState.chain] {
+			t.logger.Info("missed a digest, but avoiding self reporting", zapflds...)
+
+			return
+		}
+
+		t.logger.Warn("missed a digest. f+1 attempted to sign it already, reporting issue", zapflds...)
 		t.reportProblem(sigState.chain)
 
 		return
