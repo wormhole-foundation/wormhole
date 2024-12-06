@@ -62,6 +62,8 @@ type Engine struct {
 	// If the guardian attempted to sign previously, but wasn't part of the comittee, on some cases might change this case and add this
 	// guardian to the committee.
 	ftCommandChan chan ftCommand
+
+	SignatureMetrics sync.Map
 }
 
 type PEM []byte
@@ -247,6 +249,8 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 
 	dgstStr := fmt.Sprintf("%x", vaaDigest)
 
+	t.createSignatureMetrics(vaaDigest, chainID)
+
 	for _, faulties := range inactiveParties.getFaultiesLists() {
 
 		if len(t.Guardians)-len(faulties) <= t.Threshold {
@@ -291,11 +295,6 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 
 			return err
 		}
-
-		if info.IsSigner {
-			inProgressSigs.Inc()
-		}
-
 	}
 
 	return nil
@@ -481,9 +480,6 @@ func (t *Engine) handleFpSignature(sig *common.SignatureData) {
 
 	t.logger.Debug("signature complete. updating inner state and forwarding it", zap.String("trackingId", sig.TrackingId.ToString()))
 
-	sigProducedCntr.Inc()
-	inProgressSigs.Dec()
-
 	t.sigCounter.remove(sig.TrackingId)
 
 	select {
@@ -505,6 +501,8 @@ func (t *Engine) handleFpSignature(sig *common.SignatureData) {
 			zap.String("trackingId", sig.TrackingId.ToString()),
 		)
 	}
+
+	t.sigMetricDone(sig.TrackingId, false) // false since there were no issues.
 }
 
 func (t *Engine) handleFpError(err *tss.Error) {
@@ -530,19 +528,19 @@ func (t *Engine) handleFpError(err *tss.Error) {
 	// if someone sent a message that caused an error -> we don't
 	// accept an override to that message, therefore, we can remove it, since it won't change.
 	t.sigCounter.remove(trackid)
-	inProgressSigs.Dec()
 
 	logErr(t.logger, &logableError{
 		fmt.Errorf("error in signing protocol: %w", err.Cause()),
 		trackid,
 		intToRound(err.Round()),
 	})
+
+	t.sigMetricDone(trackid, true)
 }
 
 func (t *Engine) handleFpOutput(m tss.Message) {
 	tssMsg, err := t.intoSendable(m)
 	if err == nil {
-		sentMsgCntr.Inc()
 
 		select {
 		case t.messageOutChan <- tssMsg:
@@ -576,12 +574,37 @@ func (t *Engine) handleFpOutput(m tss.Message) {
 func (t *Engine) cleanup(maxTTL time.Duration) {
 	now := time.Now()
 
+	keysToBeRemoved := make([]any, 0)
+
+	t.SignatureMetrics.Range(func(k, v any) bool {
+		mt, ok := v.(*signatureMetadata)
+		if !ok {
+			keysToBeRemoved = append(keysToBeRemoved, k)
+			return true
+		}
+
+		tmp := now.Sub(mt.timeOfCreation)
+		if tmp > maxTTL {
+			keysToBeRemoved = append(keysToBeRemoved, k)
+		}
+
+		return true
+	})
+
+	for _, k := range keysToBeRemoved {
+		t.SignatureMetrics.Delete(k)
+	}
+
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
 	for k, v := range t.received {
 		if now.Sub(v.timeReceived) > maxTTL {
 			delete(t.received, k)
+
+			if v.trackingId == nil {
+				continue
+			}
 
 			// since the fullParty deleted its state, we can remove the sigCounter entry.
 			t.sigCounter.remove(v.trackingId)
@@ -639,8 +662,6 @@ func (t *Engine) HandleIncomingTssMessage(msg Incoming) {
 	if t.started.Load() != started {
 		return // TODO: Consider what to do.
 	}
-
-	receivedMsgCntr.Inc()
 
 	if err := t.handleIncomingTssMessage(msg); err != nil {
 		logErr(t.logger, err)
@@ -722,8 +743,6 @@ func (t *Engine) handleEcho(m Incoming) (bool, error) {
 	case *parsedProblem:
 		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
 	case *parsedTssContent:
-
-		deliveredMsgCntr.Inc()
 		if err := t.feedIncomingToFp(v.ParsedMessage); err != nil {
 			return shouldEcho, parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))
 		}

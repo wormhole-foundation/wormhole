@@ -164,13 +164,9 @@ func (e *endDownTimeAlert) GetEndTime() time.Time {
 	return e.alertTime
 }
 
-// sigStateKey contains two main parts of common.TrackID: the digest and the chainID.
-// it doesan't contain the faulty bitmap since we want to point to the same signature even if the faulty bitmap changes.
-type sigStateKey [party.DigestSize + auxiliaryDataSize]byte
-
 type ftChainContext struct {
-	timeToRevive                time.Time                       // the time this party is expected to come back and be part of the protocol again.
-	liveSigsWaitingForThisParty map[sigStateKey]*signatureState // sigs that once the revive time expire should be retried.
+	timeToRevive                time.Time                  // the time this party is expected to come back and be part of the protocol again.
+	liveSigsWaitingForThisParty map[sigKey]*signatureState // sigs that once the revive time expire should be retried.
 }
 
 // Describes a specfic party's data in terms of fault tolerance.
@@ -181,8 +177,8 @@ type ftParty struct {
 
 type ftTracker struct {
 	sigAlerts      internal.Ttlheap[*signatureState]
-	sigsState      map[sigStateKey]*signatureState // TODO: sigState should include the chainID too, otherwise we might have two digest with  two differet chainIDs
-	chainIdsToSigs map[vaa.ChainID]map[sigStateKey]*signatureState
+	sigsState      map[sigKey]*signatureState // TODO: sigState should include the chainID too, otherwise we might have two digest with  two differet chainIDs
+	chainIdsToSigs map[vaa.ChainID]map[sigKey]*signatureState
 
 	// for starters, we assume any fault is on all chains.
 	membersData            map[strPartyId]*ftParty
@@ -195,7 +191,7 @@ func newChainContext() *ftChainContext {
 		// ensuring the first time we see this party, we don't assume it's down.
 		timeToRevive: time.Time{},
 
-		liveSigsWaitingForThisParty: map[sigStateKey]*signatureState{},
+		liveSigsWaitingForThisParty: map[sigKey]*signatureState{},
 	}
 }
 
@@ -203,10 +199,11 @@ func newChainContext() *ftChainContext {
 func (t *Engine) ftTracker() {
 	f := &ftTracker{
 		sigAlerts:      internal.NewTtlHeap[*signatureState](),
-		sigsState:      make(map[sigStateKey]*signatureState),
+		sigsState:      make(map[sigKey]*signatureState),
 		membersData:    make(map[strPartyId]*ftParty),
 		downtimeAlerts: internal.NewTtlHeap[*endDownTimeAlert](),
-		chainIdsToSigs: map[vaa.ChainID]map[sigStateKey]*signatureState{},
+
+		chainIdsToSigs: map[vaa.ChainID]map[sigKey]*signatureState{},
 
 		chainsWithNoSelfReport: make(map[vaa.ChainID]bool),
 	}
@@ -263,7 +260,7 @@ func (f *ftTracker) remove(sigState *signatureState) {
 		return
 	}
 
-	key := intoSigStateKey(sigState.digest, sigState.chain)
+	key := intoSigKey(sigState.digest, sigState.chain)
 	for _, m := range f.membersData {
 		if chainData, ok := m.ftChainContext[sigState.chain]; ok {
 			delete(chainData.liveSigsWaitingForThisParty, key)
@@ -278,14 +275,6 @@ func (f *ftTracker) remove(sigState *signatureState) {
 	delete(f.sigsState, key)
 }
 
-func intoSigStateKey(dgst party.Digest, chain vaa.ChainID) sigStateKey {
-	var key sigStateKey
-	copy(key[:party.DigestSize], dgst[:])
-	copy(key[party.DigestSize:], chainIDToBytes(chain))
-
-	return key
-}
-
 func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) time.Duration {
 	bts, err := cmd.serialize()
 	if err != nil {
@@ -294,6 +283,7 @@ func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) tim
 
 	jitterBytes := hash(bts)
 	nanoJitter := binary.BigEndian.Uint64(jitterBytes[:8])
+
 	return (time.Duration(nanoJitter).Abs() % maxjitter).Abs()
 }
 
@@ -328,11 +318,15 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 		})
 	}
 
+	numberInactive := len(f.getIncatives(chainID).partyIDs)
+
 	t.logger.Info("received a problem message from guardian",
 		zap.String("problem issuer", cmd.issuer.Id),
 		zap.String("chainID", vaa.ChainID(cmd.ChainID).String()),
-		zap.Int("number of inactives on chain", len(f.getIncatives(vaa.ChainID(cmd.ChainID)).partyIDs)),
+		zap.Int("number of inactives on chain", numberInactive),
 	)
+
+	activeGuardiansByChain.WithLabelValues(chainID.String()).Set(float64(len(t.Guardians) - numberInactive))
 
 	// if the problem is about this guardian, then there is no reason to retry the sigs since it won't
 	// be part of the protocol.
@@ -343,7 +337,7 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	}
 
 	retryNow := chainData.liveSigsWaitingForThisParty
-	chainData.liveSigsWaitingForThisParty = map[sigStateKey]*signatureState{} // clear the live sigs.
+	chainData.liveSigsWaitingForThisParty = map[sigKey]*signatureState{} // clear the live sigs.
 
 	go func() {
 		for _, sig := range retryNow {
@@ -358,6 +352,7 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
 	if cmd.reply == nil {
 		t.logger.Error("reply channel is nil")
+
 		return
 	}
 
@@ -412,7 +407,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 
 	chain := extractChainIDFromTrackingID(tid)
 	// TODO: Ensure the digest contains the auxilaryData. otherwise, there can be two signatures witth the same digest? I doubt it.
-	state, ok := f.sigsState[intoSigStateKey(dgst, chain)]
+	state, ok := f.sigsState[intoSigKey(dgst, chain)]
 	if !ok {
 		state = f.setNewSigState(dgst, chain, time.Now())
 	}
@@ -432,7 +427,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 			m.ftChainContext[state.chain] = chainData
 		}
 
-		chainData.liveSigsWaitingForThisParty[intoSigStateKey(dgst, state.chain)] = state
+		chainData.liveSigsWaitingForThisParty[intoSigKey(dgst, state.chain)] = state
 	}
 }
 
@@ -441,7 +436,7 @@ func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
 	copy(dgst[:], cmd.Digest[:])
 
 	chain := extractChainIDFromTrackingID(cmd.TrackingID)
-	key := intoSigStateKey(dgst, chain)
+	key := intoSigKey(dgst, chain)
 
 	if sigstate, ok := f.sigsState[key]; ok {
 		f.remove(sigstate)
@@ -452,12 +447,14 @@ func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
 	wmsg := cmd.parsedMsg.WireMsg()
 	if wmsg == nil {
 		t.logger.Error("deliveryCommand: wire message is nil")
+
 		return
 	}
 
 	tid := wmsg.GetTrackingID()
 	if tid == nil {
 		t.logger.Error("deliveryCommand: tracking id is nil")
+
 		return
 	}
 
@@ -466,7 +463,7 @@ func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
 
 	chain := extractChainIDFromTrackingID(tid)
 
-	state, ok := f.sigsState[intoSigStateKey(dgst, chain)]
+	state, ok := f.sigsState[intoSigKey(dgst, chain)]
 	if !ok {
 		alertTime := time.Now().Add(t.GuardianStorage.DelayGraceTime)
 		state = f.setNewSigState(dgst, chain, alertTime)
@@ -498,12 +495,12 @@ func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alert
 		beginTime:      time.Now(),
 	}
 
-	sigkey := intoSigStateKey(digest, chain)
+	sigkey := intoSigKey(digest, chain)
 	f.sigsState[sigkey] = state
 
 	chn, ok := f.chainIdsToSigs[chain]
 	if !ok {
-		chn = map[sigStateKey]*signatureState{}
+		chn = map[sigKey]*signatureState{}
 		f.chainIdsToSigs[chain] = chn
 	}
 	chn[sigkey] = state
@@ -517,7 +514,7 @@ func (f *ftTracker) inspectAlertHeapsTop(t *Engine) {
 		return
 	}
 
-	if _, exists := f.sigsState[intoSigStateKey(sigState.digest, sigState.chain)]; !exists {
+	if _, exists := f.sigsState[intoSigKey(sigState.digest, sigState.chain)]; !exists {
 		// sig is removed (either old, or finished signing), and we don't need to do anything.
 		return
 	}
@@ -634,6 +631,8 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 			}
 		}
 	}
+
+	activeGuardiansByChain.WithLabelValues(alert.chain.String()).Set(float64(len(t.Guardians) - len(inactives.partyIDs)))
 
 	// retry signatures...
 	go func() {

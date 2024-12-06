@@ -584,8 +584,6 @@ func TestE2E(t *testing.T) {
 	// and reliably broadcasting them.
 
 	t.Run("with correct metrics", func(t *testing.T) {
-		inProgressSigs.Set(0) // reseting the gauge.
-
 		a := assert.New(t)
 		engines, err := loadGuardians(5, "tss5")
 		a.NoError(err)
@@ -607,44 +605,23 @@ func TestE2E(t *testing.T) {
 		fmt.Println("engines started, requesting sigs")
 
 		m := dto.Metric{}
-		inProgressSigs.Write(&m)
-		a.Equal(0, int(m.Gauge.GetValue()))
 
+		cID := vaa.ChainID(1)
 		// all engines are started, now we can begin the protocol.
 		for _, engine := range engines {
 			tmp := make([]byte, 32)
 			copy(tmp, dgst[:])
-			engine.BeginAsyncThresholdSigningProtocol(tmp, 0)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
 		}
 
-		inProgressSigs.Write(&m)
-		a.Equal(engines[0].Threshold+1, int(m.Gauge.GetValue()))
-
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 
 		time.Sleep(time.Millisecond * 500) // ensuring all other engines have finished and not just one of them.
-		inProgressSigs.Write(&m)
-		a.Equal(0, int(m.Gauge.GetValue())) // ensuring nothing is in progress.
 
-		sigProducedCntr.Write(&m)
+		sigProducedCntr.WithLabelValues(cID.String()).Write(&m)
 		a.Equal(engines[0].Threshold+1, int(m.Counter.GetValue()))
-
-		sentMsgCntr.Write(&m)
-		committeeSize := engines[0].Threshold + 1
-		numBroadcastRounds := 8
-		numUnicastRounds := 2
-		numUnicastSendRequestsPerGuardian := engines[0].Threshold * numUnicastRounds
-		a.Equal(committeeSize*(numBroadcastRounds+numUnicastSendRequestsPerGuardian), int(m.Counter.GetValue()))
-
-		receivedMsgCntr.Write(&m)
-		// n^2 * (numBroadcastRounds + numUnicastRounds)
-		a.Greater(int(m.Counter.GetValue()), committeeSize*committeeSize*(numBroadcastRounds+numUnicastRounds))
-
-		deliveredMsgCntr.Write(&m)
-		// messages from committeeSize are delivered numBroadcastRounds times by each guardian.
-		a.Equal(committeeSize*numBroadcastRounds*len(engines), int(m.Counter.GetValue()))
 	})
 
 	t.Run("with 5 sigs", func(t *testing.T) {
@@ -683,7 +660,7 @@ func TestE2E(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 }
@@ -863,7 +840,7 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
@@ -911,7 +888,7 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
@@ -965,7 +942,7 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
@@ -1017,7 +994,7 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
@@ -1123,7 +1100,7 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
@@ -1177,7 +1154,7 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
@@ -1230,10 +1207,73 @@ func TestFT(t *testing.T) {
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNowf("context expired", "context expired")
+			a.FailNow("context expired")
 		}
 	})
 
+	t.Run("metric cleanup", func(t *testing.T) {
+		// run for a few signatures, and ensure the metrics are cleaned up.
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		n := 3
+		chainId := vaa.ChainID(1)
+		digests := make([]party.SigningTask, n)
+		for i := 0; i < n; i++ {
+			digests[i] = party.SigningTask{
+				Digest:       [32]byte{byte(i + 1)},
+				Faulties:     nil,
+				AuxilaryData: chainIDToBytes(chainId),
+			}
+		}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*4)
+		defer cancel()
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			engine.Configurations.MaxSignerTTL = time.Second * 4
+			engine.Configurations.maxJitter = time.Nanosecond
+			engine.Configurations.DelayGraceTime = time.Second * 2
+			a.NoError(engine.Start(ctx))
+		}
+
+		e := getSigningGuardian(a, engines, digests...)
+		a.NotNil(e)
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, len(digests))
+
+		fmt.Println("engines started, requesting sigs")
+
+		e.reportProblem(chainId) // telling the server to report to everyone it has an issue.
+
+		for _, d := range digests {
+			d := d
+
+			for _, engine := range engines {
+				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId)
+			}
+		}
+
+		timer := time.After(engines[0].maxSignerTTL() * 4)
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("context expired")
+		}
+
+		<-timer
+
+		for _, e := range engines {
+			e.SignatureMetrics.Range(func(k, v interface{}) bool {
+				fmt.Println(k, v)
+				a.Fail("metrics not cleaned up")
+				return false
+			})
+		}
+	})
 }
 
 func TestMessagesWithBadRounds(t *testing.T) {

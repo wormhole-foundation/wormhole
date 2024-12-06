@@ -381,3 +381,34 @@ func chainIDToBytes(chainID vaa.ChainID) []byte {
 	binary.BigEndian.PutUint16(bts[:], uint16(chainID))
 	return bts[:]
 }
+
+// sigKey contains two main parts of common.TrackID: the digest and the chainID.
+// it doesan't contain the faulty bitmap since we want to point to the same signature even if the faulty bitmap changes.
+type sigKey [party.DigestSize + auxiliaryDataSize]byte
+
+func intoSigKey(dgst party.Digest, chain vaa.ChainID) sigKey {
+	var key sigKey
+	copy(key[:party.DigestSize], dgst[:])
+	copy(key[party.DigestSize:], chainIDToBytes(chain))
+
+	return key
+}
+
+func trackingIdIntoSigKey(tid *common.TrackingID) sigKey {
+	dgst := party.Digest{}
+	copy(dgst[:], tid.Digest)
+
+	return intoSigKey(dgst, extractChainIDFromTrackingID(tid))
+}
+
+func numFaultiesInTrackingID(tid *common.TrackingID, numGuardians int) int {
+	boolarr := common.ConvertByteArrayToBoolArray(tid.PartiesState, numGuardians)
+	faulties := 0
+	for _, v := range boolarr {
+		if !v {
+			faulties++
+		}
+	}
+
+	return faulties
+}
