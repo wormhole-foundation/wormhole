@@ -236,13 +236,15 @@ func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientCo
 }
 
 func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
 	guardianSignerUri := args[0]
 	wormchainAddress := args[1]
 	if !strings.HasPrefix(wormchainAddress, "wormhole") || strings.HasPrefix(wormchainAddress, "wormholeval") {
 		return errors.New("must provide a bech32 address that has 'wormhole' prefix")
 	}
 
-	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(guardianSignerUri, *unsafeDevnetMode)
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(ctx, guardianSignerUri, *unsafeDevnetMode)
 	if err != nil {
 		return fmt.Errorf("failed to create new guardian signer from uri: %w", err)
 	}
@@ -254,7 +256,7 @@ func runSignWormchainValidatorAddress(cmd *cobra.Command, args []string) error {
 
 	// Hash and sign address
 	addrHash := crypto.Keccak256Hash(sdk.SignedWormchainAddressPrefix, addr)
-	sig, err := guardianSigner.Sign(addrHash.Bytes())
+	sig, err := guardianSigner.Sign(ctx, addrHash.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to sign wormchain address: %w", err)
 	}

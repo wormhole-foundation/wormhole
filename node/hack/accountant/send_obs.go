@@ -45,7 +45,7 @@ func main() {
 	)
 
 	logger.Info("Initializing guardian signer", zap.String("guardianSignerUri", guardianSignerUri))
-	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(guardianSignerUri, true)
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(ctx, guardianSignerUri, true)
 
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
