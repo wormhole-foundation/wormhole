@@ -570,7 +570,7 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 	select {
 	case t.messageOutChan <- newEcho(sm, t.guardiansProtoIDs):
 	default:
-		t.logger.Error("failed to report a problem, network channel buffer is full",
+		t.logger.Warn("failed to report a problem, network channel buffer is full",
 			zap.String("chainID", chain.String()),
 		)
 	}
