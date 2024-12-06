@@ -5,7 +5,7 @@ These smart contracts allow to use Ethereum as foreign chain in the Wormhole pro
 The `Wormhole` contract is the bridge contract and allows tokens to be transferred out of ETH and VAAs to be submitted
 to transfer tokens in or change configuration settings.
 
-The `WrappedAsset` is a ERC-20 token contract that holds metadata about a wormhole asset on ETH. Wormhole assets are all
+The `WrappedAsset` is an ERC-20 token contract that holds metadata about a wormhole asset on ETH. Wormhole assets are all
 wrapped non-ETH assets that are currently held on ETH.
 
 ### Building
