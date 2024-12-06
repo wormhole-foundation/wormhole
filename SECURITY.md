@@ -75,7 +75,7 @@ Consensus on Wormhole is achieved by two subset groups of Guardians (aka: valida
 - **Super Minority** (any 1/3+ quorum of Guardians - 7 of 19)
   * Can censor messages or governance
     - Refusing to sign observed message(s)
-    - Refusing to observe the block chain
+    - Refusing to observe the blockchain
     - Refusing to run guardian software
 
 There are 19 Guardians in the current Guardian Set, made up of some of the largest and most reputable staking providers in crypto.  This level of operational security diversity is a useful property in preventing wholesale compromise of the Guardian Set due to operational failures of a single or small number of organizations.
