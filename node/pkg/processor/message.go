@@ -32,7 +32,7 @@ var (
 
 // handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
 // event may be received multiple times and must be handled in an idempotent fashion.
-func (p *Processor) handleMessage(k *common.MessagePublication) {
+func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublication) {
 	if p.gs == nil {
 		p.logger.Warn("dropping observation since we haven't initialized our guardian set yet",
 			zap.String("message_id", k.MessageIDString()),
@@ -70,7 +70,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	hash := hex.EncodeToString(digest.Bytes())
 
 	// Sign the digest using the node's GuardianSigner
-	signature, err := p.guardianSigner.Sign(context.Background(), digest.Bytes())
+	signature, err := p.guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

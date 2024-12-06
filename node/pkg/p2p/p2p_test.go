@@ -109,7 +109,7 @@ func TestSignedHeartbeat(t *testing.T) {
 			P2PNodeId:     tc.p2pNodeId,
 		}
 
-		s := createSignedHeartbeat(guardianSigner, heartbeat)
+		s := createSignedHeartbeat(context.Background(), guardianSigner, heartbeat)
 		gs := &node_common.GuardianSet{
 			Keys:  []common.Address{addr},
 			Index: 1,

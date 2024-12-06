@@ -53,7 +53,7 @@ func BenchmarkHandleObservation(b *testing.B) {
 	for count := 0; count < NumObservations; count++ {
 		k := pd.createMessagePublication(b, uint64(count))
 		start := time.Now()
-		p.handleMessage(k)
+		p.handleMessage(ctx, k)
 		handleMsgTime += time.Since(start)
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
@@ -108,7 +108,7 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 
 	for count := 0; count < NumObservations; count++ {
 		k := pd.createMessagePublication(b, uint64(count))
-		p.handleMessage(k)
+		p.handleMessage(ctx, k)
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
 			p.handleSingleObservation(pd.guardianAddrs[guardianIdx], pd.createObservation(b, guardianIdx, k))

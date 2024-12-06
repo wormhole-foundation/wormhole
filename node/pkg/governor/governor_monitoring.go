@@ -553,7 +553,7 @@ func (gov *ChainGovernor) CollectMetrics(ctx context.Context, hb *gossipv1.Heart
 	}
 
 	if startTime.After(gov.nextStatusPublishTime) {
-		gov.publishStatus(hb, sendC, startTime, guardianSigner, ourAddr)
+		gov.publishStatus(ctx, hb, sendC, startTime, guardianSigner, ourAddr)
 		gov.nextStatusPublishTime = startTime.Add(time.Minute)
 	}
 }
@@ -621,7 +621,7 @@ func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartb
 	sendC <- b
 }
 
-func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
 	for chainId, ce := range gov.chains {
@@ -686,7 +686,7 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 
 	digest := ethCrypto.Keccak256Hash(append(governorMessagePrefixStatus, b...))
 
-	sig, err := guardianSigner.Sign(context.Background(), digest.Bytes())
+	sig, err := guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

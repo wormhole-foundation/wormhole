@@ -579,7 +579,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 							msg := gossipv1.GossipMessage{
 								Message: &gossipv1.GossipMessage_SignedHeartbeat{
-									SignedHeartbeat: createSignedHeartbeat(params.guardianSigner, heartbeat),
+									SignedHeartbeat: createSignedHeartbeat(ctx, params.guardianSigner, heartbeat),
 								},
 							}
 
@@ -989,8 +989,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 	}
 }
 
-func createSignedHeartbeat(guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
-	ctx := context.Background()
+func createSignedHeartbeat(ctx context.Context, guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
 	ourAddr := ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx))
 
 	b, err := proto.Marshal(heartbeat)
