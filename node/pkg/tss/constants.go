@@ -33,7 +33,7 @@ const (
 
 	defaultMaxSignerTTL     = time.Minute * 5
 	defaultDelayGraceTime   = time.Minute
-	defaultGuardianDownTime = time.Minute * 3
+	defaultGuardianDownTime = time.Minute * 10
 
 	numBroadcastsPerSignature = 8 // GG18
 	numUnicastsRounds         = 2 // GG18

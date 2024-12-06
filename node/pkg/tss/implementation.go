@@ -49,8 +49,6 @@ type Engine struct {
 	started         atomic.Uint32
 	msgSerialNumber uint64
 
-	attempt atomic.Uint64
-
 	// used to perform reliable broadcast:
 	mtx      *sync.Mutex
 	received map[uuid]*broadcaststate
@@ -288,6 +286,8 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 				zap.Error(err),
 				zap.String("trackingID", info.TrackingID.ToString()),
 			)
+
+			return err
 		}
 
 		if info.IsSigner {
@@ -353,7 +353,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	}
 
 	expectedMsgs := storage.maxSimultaneousSignatures *
-		(numBroadcastsPerSignature + numUnicastsRounds*storage.Threshold)
+		(numBroadcastsPerSignature + numUnicastsRounds*len(storage.Guardians)) * 2 // times 2 to stay on the safe side.
 	t := &Engine{
 		ctx: nil,
 
@@ -366,8 +366,8 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		fpSigOutChan: make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
 		sigOutChan:   make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
 
-		fpErrChannel:    make(chan *tss.Error),
-		messageOutChan:  make(chan Sendable, expectedMsgs*100),
+		fpErrChannel:    make(chan *tss.Error, storage.maxSimultaneousSignatures),
+		messageOutChan:  make(chan Sendable, expectedMsgs),
 		msgSerialNumber: 0,
 		mtx:             &sync.Mutex{},
 		received:        map[uuid]*broadcaststate{},
@@ -409,15 +409,12 @@ func (t *Engine) Start(ctx context.Context) error {
 	go t.ftTracker()
 
 	t.logger.Info(
-		"tss engine started deadlock-check.v.3.4",
+		"tss engine started deadlock-check.v.3.5",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 	)
 
 	return nil
 }
-
-// Possible issue: writing to someone else demands it to listen, can't send to someone if it doesn't listen.
-// if someone is waiting to send, and at the same time is waiting to listen -> deadlock. I think this is the main issue.
 
 func (t *Engine) GetPublicKey() *ecdsa.PublicKey {
 	return t.fp.GetPublic()
@@ -489,24 +486,26 @@ func (t *Engine) handleFpSignature(sig *common.SignatureData) {
 	inProgressSigs.Dec()
 
 	t.sigCounter.remove(sig.TrackingId)
-	// if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &SigEndCommand{sig.TrackingId}); err != nil {
-	// 	t.logger.Error("couldn't inform the fault-tolerance tracker of the signature end", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
-	// }
 
 	select {
 	case t.ftCommandChan <- &SigEndCommand{sig.TrackingId}:
 	default:
-		t.logger.Warn("couldn't inform the fault-tolerance tracker of the signature end", zap.String("trackingId", sig.TrackingId.ToString()))
+		// This is a warning, since the ftTracker will eventually clean the sigState matching the trackingID.
+		t.logger.Warn(
+			"couldn't inform the fault-tolerance tracker of the signature end",
+			zap.String("trackingId", sig.TrackingId.ToString()),
+		)
 	}
 
 	select {
 	case t.sigOutChan <- sig:
 	default:
-		t.logger.Error("couldn't deliver outside of engine the signature", zap.String("trackingId", sig.TrackingId.ToString()))
+		// if the signature can't be delivered, we can't do much about it.
+		t.logger.Error(
+			"Couldn't deliver the signature, signature output channel buffer is full",
+			zap.String("trackingId", sig.TrackingId.ToString()),
+		)
 	}
-	// if err := intoChannelOrDone(t.ctx, t.sigOutChan, sig); err != nil {
-	// 	t.logger.Error("couldn't deliver outside of engine the signature", zap.Error(err), zap.String("trackingId", sig.TrackingId.ToString()))
-	// }
 }
 
 func (t *Engine) handleFpError(err *tss.Error) {
@@ -552,9 +551,10 @@ func (t *Engine) handleFpOutput(m tss.Message) {
 	if err == nil {
 		sentMsgCntr.Inc()
 
-		if err := intoChannelOrDone(t.ctx, t.messageOutChan, tssMsg); err != nil {
-			t.logger.Error("couldn't output message to be sent via network",
-				zap.Error(err),
+		select {
+		case t.messageOutChan <- tssMsg:
+		default:
+			t.logger.Error("couldn't output tss message, network output channel buffer is full",
 				zap.String("trackingId", m.WireMsg().GetTrackingID().ToString()),
 			)
 		}
@@ -695,8 +695,10 @@ func (t *Engine) sendEchoOut(m Incoming) error {
 
 	ech := newEcho(content.Message, t.guardiansProtoIDs)
 
-	if err := intoChannelOrDone[Sendable](t.ctx, t.messageOutChan, ech); err != nil {
-		return fmt.Errorf("couldn't output echo to be sent via network: %w", err)
+	select {
+	case t.messageOutChan <- ech:
+	default:
+		return fmt.Errorf("couldn't echo the message, network output channel buffer is full")
 	}
 
 	return nil

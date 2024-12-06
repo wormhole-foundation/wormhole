@@ -236,7 +236,6 @@ func (t *Engine) ftTracker() {
 			f.inspectAlertHeapsTop(t)
 
 		case <-f.downtimeAlerts.WaitOnTimer():
-			continue
 			f.inspectDowntimeAlertHeapsTop(t)
 
 		case <-ticker.C:
@@ -560,10 +559,11 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 	}
 
 	select {
-	default:
-		t.logger.Error("couldn't send a problem report to the other guardians")
 	case t.messageOutChan <- newEcho(sm, t.guardiansProtoIDs):
-		return
+	default:
+		t.logger.Error("failed to report a problem, network channel buffer is full",
+			zap.String("chainID", chain.String()),
+		)
 	}
 	// intoChannelOrDone[Sendable](t.ctx, t.messageOutChan, newEcho(sm, t.guardiansProtoIDs))
 }
