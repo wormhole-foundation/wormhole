@@ -62,7 +62,7 @@ anyone sending a transaction is already required to hold such assets in order to
 message, and that the fee will therefore not negatively affect usability of the bridge.
 
 The fee is defined by governance using the `SetMessageFee` VAA. The fees set are denominated in the respective chains
-native currency. Each chain's Wormhole program is supposed to use an on-chain price oracle (e.g. a uniswap pool TWAP or
+native currency. Each chain's Wormhole program is supposed to use an on-chain price oracle (e.g. an uniswap pool TWAP or
 Pyth price feed)
 Fees are set per chain to allow the protocol to take into consideration the effort required to keep the chain's nodes
 online and account for spam attacks.
