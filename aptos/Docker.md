@@ -5,8 +5,8 @@
 
 # tag the image with the appropriate version
 
-docker tag aptos:latest ghcr.io/wormhole-foundation/aptos:3.1.0
+docker tag aptos:latest ghcr.io/wormhole-foundation/aptos:4.5.0
 
 # push to ghcr
 
-docker push ghcr.io/wormhole-foundation/aptos:3.1.0
+docker push ghcr.io/wormhole-foundation/aptos:4.5.0
