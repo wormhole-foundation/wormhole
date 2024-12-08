@@ -37,7 +37,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "@truffle/hdwallet-provider": "^2.0.15",
+    "@truffle/hdwallet-provider": "^2.1.15",
     "@types/bn.js": "^5.1.0",
     "@types/bs58": "^4.0.1",
     "@types/yargs": "^17.0.2",
