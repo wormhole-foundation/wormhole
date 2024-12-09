@@ -1,9 +1,11 @@
 package helpers
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
@@ -51,4 +53,24 @@ func CoreContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, guardians *gu
 	require.NoError(t, err)
 
 	return string(msgBz)
+}
+
+// QueryConsensusGuardianSetIndex queries the index of the consensus guardian set
+func QueryConsensusGuardianSetIndex(t *testing.T, wormchain *cosmos.CosmosChain, ctx context.Context) uint64 {
+	stdout, _, err := wormchain.GetFullNode().ExecQuery(ctx,
+		"wormhole", "show-consensus-guardian-set-index",
+	)
+	require.NoError(t, err)
+
+	res := new(ConsensusGuardianSetIndexResponse)
+	err = json.Unmarshal(stdout, res)
+	require.NoError(t, err)
+
+	return res.ConsensusGuardianSetIndex.Index
+}
+
+type ConsensusGuardianSetIndexResponse struct {
+	ConsensusGuardianSetIndex struct {
+		Index uint64 `json:"index"`
+	} `json:"ConsensusGuardianSetIndex"`
 }
