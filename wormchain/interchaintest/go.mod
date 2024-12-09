@@ -17,6 +17,7 @@ require (
 	github.com/ethereum/go-ethereum v1.11.6
 	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230815125617-67bc301715ea
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
+	github.com/tendermint/tendermint v0.34.26
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20230614161948-7f6213019abf
 )
 
@@ -163,7 +164,6 @@ require (
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
-	github.com/tendermint/tendermint v0.34.26 // indirect
 	github.com/tendermint/tm-db v0.6.7 // indirect
 	github.com/tidwall/btree v1.5.0 // indirect
 	github.com/vedhavyas/go-subkey v1.0.3 // indirect
