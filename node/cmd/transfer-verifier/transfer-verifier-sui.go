@@ -14,6 +14,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	INITIAL_EVENT_FETCH_LIMIT = 25
+)
+
 // CLI args
 var (
 	suiRPC                *string
@@ -33,7 +37,7 @@ var TransferVerifierCmdSui = &cobra.Command{
 // CLI parameters
 func init() {
 	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui RPC url")
-	suiCoreContract = TransferVerifierCmdSui.Flags().String("suiCoreContract", "", "Event to listen to in Sui")
+	suiCoreContract = TransferVerifierCmdSui.Flags().String("suiCoreContract", "", "Sui core contract address")
 	suiTokenBridgeEmitter = TransferVerifierCmdSui.Flags().String("suiTokenBridgeEmitter", "", "Token bridge emitter on Sui")
 	suiTokenBridgeContract = TransferVerifierCmdSui.Flags().String("suiTokenBridgeContract", "", "Token bridge contract on Sui")
 	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
@@ -58,6 +62,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	logger.Debug("Sui core contract", zap.String("address", *suiCoreContract))
 	logger.Debug("Sui token bridge contract", zap.String("address", *suiTokenBridgeContract))
 	logger.Debug("token bridge event emitter", zap.String("object id", *suiTokenBridgeEmitter))
+	logger.Debug("process initial events", zap.Bool("processInitialEvents", *suiProcessInitialEvents))
 
 	// Verify CLI parameters
 	if *suiRPC == "" || *suiCoreContract == "" || *suiTokenBridgeEmitter == "" || *suiTokenBridgeContract == "" {
@@ -77,7 +82,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
 
 	// Initial event fetching
-	resp, err := suiApiConnection.QueryEvents(eventFilter, "null", 25, true)
+	resp, err := suiApiConnection.QueryEvents(eventFilter, "null", INITIAL_EVENT_FETCH_LIMIT, true)
 	if err != nil {
 		logger.Fatal("Error in querying initial events", zap.Error(err))
 	}
