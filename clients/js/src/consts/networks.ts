@@ -21,7 +21,7 @@ const Mainnet = {
     key: getEnvVar("SOLANA_KEY"),
   },
   Terra: {
-    rpc: "https://lcd.terra.dev",
+    rpc: "https://terra-classic-lcd.publicnode.com",
     chain_id: "columbus-5",
     key: getEnvVar("TERRA_MNEMONIC"),
   },
@@ -90,7 +90,7 @@ const Mainnet = {
     networkId: "mainnet",
   },
   Injective: {
-    rpc: "http://sentry0.injective.network:26657",
+    rpc: "https://injective-rpc.publicnode.com:443",
     chain_id: "injective-1",
     key: getEnvVar("INJECTIVE_KEY"),
   },
@@ -139,7 +139,7 @@ const Mainnet = {
     chain_id: undefined,
   },
   Terra2: {
-    rpc: "https://phoenix-lcd.terra.dev",
+    rpc: "https://terra-lcd.publicnode.com",
     chain_id: "phoenix-1",
     key: getEnvVar("TERRA_MNEMONIC"),
   },
