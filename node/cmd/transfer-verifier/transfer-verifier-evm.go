@@ -79,16 +79,16 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	defer ctxCancel()
 
-	var ethConnector connectors.Connector
-	ethConnector, connectErr := connectors.NewEthereumBaseConnector(ctx, "eth", *evmRpc, common.HexToAddress(*evmCoreContract), logger)
+	var evmConnector connectors.Connector
+	evmConnector, connectErr := connectors.NewEthereumBaseConnector(ctx, "eth", *evmRpc, common.HexToAddress(*evmCoreContract), logger)
 	if connectErr != nil {
-		logger.Fatal("could not create new ethereum base connector",
+		logger.Fatal("could not create new evm base connector",
 			zap.Error(connectErr))
 	}
 
 	// Create main configuration for Transfer Verification
 	transferVerifier, err := txverifier.NewTransferVerifier(
-		ethConnector,
+		evmConnector,
 		&txverifier.TVAddresses{
 			CoreBridgeAddr:  common.HexToAddress(*evmCoreContract),
 			TokenBridgeAddr: common.HexToAddress(*evmTokenBridgeContract),
@@ -106,7 +106,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	// Set-up for main processing loop
 
 	// Subscription for LogMessagePublished events
-	sub := txverifier.NewSubscription(ethConnector.Client(), ethConnector)
+	sub := txverifier.NewSubscription(evmConnector.Client(), evmConnector)
 	sub.Subscribe(ctx)
 	defer sub.Close()
 
