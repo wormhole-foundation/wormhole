@@ -22,7 +22,7 @@ LOG_LEVEL="debug"
 
 # Do `make node` first to compile transfer-verifier into guardiand
 ./build/bin/guardiand transfer-verifier evm \
-   --ethRPC "${RPC}" \
-   --ethContract "${CORE_CONTRACT}" \
+   --rpcUrl "${RPC}" \
+   --coreContract "${CORE_CONTRACT}" \
    --tokenContract "${TOKEN_BRIDGE_CONTRACT}" \
    --logLevel "${LOG_LEVEL}"
