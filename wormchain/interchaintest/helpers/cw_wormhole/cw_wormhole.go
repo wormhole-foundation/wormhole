@@ -3,35 +3,35 @@ package cw_wormhole
 
 // The instantiation parameters of the core bridge contract. See [`crate::state::ConfigInfo`] for more details on what these fields mean.
 type InstantiateMsg struct {
-	FeeDenom string `json:"fee_denom"`
-	GovAddress Binary `json:"gov_address"`
-	GovChain int `json:"gov_chain"`
-	GuardianSetExpirity int `json:"guardian_set_expirity"`
+	FeeDenom            string `json:"fee_denom"`
+	GovAddress          Binary `json:"gov_address"`
+	GovChain            int    `json:"gov_chain"`
+	GuardianSetExpirity int    `json:"guardian_set_expirity"`
 	// Guardian set to initialise the contract with.
 	InitialGuardianSet GuardianSetInfo `json:"initial_guardian_set"`
-	ChainId int `json:"chain_id"`
+	ChainId            int             `json:"chain_id"`
 }
 
 type ExecuteMsg struct {
-	SubmitVaa *ExecuteMsg_SubmitVAA `json:"submit_v_a_a,omitempty"`
+	SubmitVaa   *ExecuteMsg_SubmitVAA   `json:"submit_v_a_a,omitempty"`
 	PostMessage *ExecuteMsg_PostMessage `json:"post_message,omitempty"`
 }
 
 type QueryMsg struct {
 	GuardianSetInfo *QueryMsg_GuardianSetInfo `json:"guardian_set_info,omitempty"`
-	VerifyVaa *QueryMsg_VerifyVAA `json:"verify_v_a_a,omitempty"`
-	GetState *QueryMsg_GetState `json:"get_state,omitempty"`
+	VerifyVaa       *QueryMsg_VerifyVAA       `json:"verify_v_a_a,omitempty"`
+	GetState        *QueryMsg_GetState        `json:"get_state,omitempty"`
 	QueryAddressHex *QueryMsg_QueryAddressHex `json:"query_address_hex,omitempty"`
 }
 
 type ExecuteMsg_PostMessage struct {
 	Message Binary `json:"message"`
-	Nonce int `json:"nonce"`
+	Nonce   int    `json:"nonce"`
 }
 
 type GuardianSetInfoResponse struct {
-	Addresses []GuardianAddress `json:"addresses"`
-	GuardianSetIndex int `json:"guardian_set_index"`
+	Addresses        []GuardianAddress `json:"addresses"`
+	GuardianSetIndex int               `json:"guardian_set_index"`
 }
 
 /*
@@ -75,32 +75,32 @@ type ExecuteMsg_SubmitVAA struct {
 }
 
 type QueryMsg_VerifyVAA struct {
-	BlockTime int `json:"block_time"`
-	Vaa Binary `json:"vaa"`
+	BlockTime int    `json:"block_time"`
+	Vaa       Binary `json:"vaa"`
 }
 
 type ParsedVAA struct {
-	ConsistencyLevel int `json:"consistency_level"`
-	EmitterAddress []int `json:"emitter_address"`
-	Hash []int `json:"hash"`
-	LenSigners int `json:"len_signers"`
-	Timestamp int `json:"timestamp"`
-	Version int `json:"version"`
-	EmitterChain int `json:"emitter_chain"`
-	GuardianSetIndex int `json:"guardian_set_index"`
-	Nonce int `json:"nonce"`
-	Payload []int `json:"payload"`
-	Sequence int `json:"sequence"`
+	ConsistencyLevel int    `json:"consistency_level"`
+	EmitterAddress   []int  `json:"emitter_address"`
+	Hash             []int  `json:"hash"`
+	LenSigners       int    `json:"len_signers"`
+	Timestamp        int    `json:"timestamp"`
+	Version          int    `json:"version"`
+	EmitterChain     int    `json:"emitter_chain"`
+	GuardianSetIndex int    `json:"guardian_set_index"`
+	Nonce            int    `json:"nonce"`
+	Payload          []byte `json:"payload"`
+	Sequence         int    `json:"sequence"`
 }
 
 type Coin struct {
 	Amount Uint128 `json:"amount"`
-	Denom string `json:"denom"`
+	Denom  string  `json:"denom"`
 }
 
 type GuardianSetInfo struct {
-	Addresses []GuardianAddress `json:"addresses"`
-	ExpirationTime int `json:"expiration_time"`
+	Addresses      []GuardianAddress `json:"addresses"`
+	ExpirationTime int               `json:"expiration_time"`
 }
 
 type GetAddressHexResponse struct {
