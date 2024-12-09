@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/certusone/wormhole/node/pkg/telemetry"
 	txverifier "github.com/certusone/wormhole/node/pkg/transfer-verifier"
+	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/ethereum/go-ethereum/common"
 	ipfslog "github.com/ipfs/go-log/v2"
@@ -36,11 +38,12 @@ func init() {
 	evmRpc = TransferVerifierCmdEvm.Flags().String("rpcUrl", "ws://localhost:8546", "RPC url")
 	evmCoreContract = TransferVerifierCmdEvm.Flags().String("coreContract", "", "core bridge address")
 	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "token bridge")
+	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
 	TransferVerifierCmd.MarkFlagRequired("coreContract")
 	TransferVerifierCmd.MarkFlagRequired("tokenContract")
-	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
+
 }
 
 // Note: logger.Error should be reserved only for conditions that break the
@@ -55,8 +58,37 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	}
 
 	logger := ipfslog.Logger("wormhole-transfer-verifier").Desugar()
-
 	ipfslog.SetAllLoggers(lvl)
+
+	// Setup logging to Loki if configured
+	if *telemetryLokiUrl != "" && *telemetryNodeName != "" {
+		labels := map[string]string{
+			// Is this required?
+			// "network":   *p2pNetworkID,
+			"node_name": *telemetryNodeName,
+			"version":   version.Version(),
+		}
+
+		tm, err := telemetry.NewLokiCloudLogger(
+			context.Background(),
+			logger,
+			*telemetryLokiUrl,
+			// Note: the product name parameter here is representing a per-chain configuration, so 'eth' is used
+			// rather than 'evm'. This allows us to distinguish this instance from other EVM chains that may be added in
+			// the future.
+			"transfer-verifier-eth",
+			// Private logs are not used in this code
+			false,
+			labels,
+		)
+		if err != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		}
+
+		defer tm.Close()
+		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
+	}
+
 	logger.Info("Starting EVM transfer verifier")
 
 	// Verify CLI parameters

@@ -20,7 +20,7 @@ RPC="${ETH_RPC_DEVNET}"
 
 LOG_LEVEL="debug"
 
-# Do `make node` first to compile transfer-verifier into guardiand
+# Do `make node` first to compile transfer-verifier into guardiand. Note that the telemetry parameters are omitted here.
 ./build/bin/guardiand transfer-verifier evm \
    --rpcUrl "${RPC}" \
    --coreContract "${CORE_CONTRACT}" \

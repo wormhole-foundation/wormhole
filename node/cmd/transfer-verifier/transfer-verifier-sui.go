@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/telemetry"
 	txverifier "github.com/certusone/wormhole/node/pkg/transfer-verifier"
+	"github.com/certusone/wormhole/node/pkg/version"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -57,6 +59,33 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	logger := ipfslog.Logger("wormhole-transfer-verifier-sui").Desugar()
 
 	ipfslog.SetAllLoggers(lvl)
+
+	// Setup logging to Loki if configured
+	if *telemetryLokiUrl != "" && *telemetryNodeName != "" {
+		labels := map[string]string{
+			// Is this required?
+			// "network":   *p2pNetworkID,
+			"node_name": *telemetryNodeName,
+			"version":   version.Version(),
+		}
+
+		tm, err := telemetry.NewLokiCloudLogger(
+			context.Background(),
+			logger,
+			*telemetryLokiUrl,
+			"transfer-verifier-sui",
+			// Private logs are not used in this code
+			false,
+			labels,
+		)
+		if err != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		}
+
+		defer tm.Close()
+		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
+	}
+
 	logger.Info("Starting Sui transfer verifier")
 	logger.Debug("Sui rpc connection", zap.String("url", *suiRPC))
 	logger.Debug("Sui core contract", zap.String("address", *suiCoreContract))
