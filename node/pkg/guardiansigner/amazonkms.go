@@ -24,7 +24,8 @@ var (
 
 	// The timeout for KMS operations. This is necessary to avoid situations where
 	// the signing or verification is blocked indefinitely.
-	KMS_TIMEOUT = time.Second * 15
+	KMS_TIMEOUT               = time.Second * 15
+	MINIMUM_KMS_PUBKEY_LENGTH = 65
 )
 
 // The ASN.1 structure for an ECDSA signature produced by AWS KMS.
@@ -116,6 +117,11 @@ func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string)
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to unmarshal KMS public key: %w", err)
+	}
+
+	// The public key is expected to be at least `MINIMUM_KMS_PUBKEY_LENGTH` bytes long.
+	if len(asn1Pubkey.PublicKey.Bytes) < MINIMUM_KMS_PUBKEY_LENGTH {
+		return nil, errors.New("Invalid KMS public key length")
 	}
 
 	// It is possible to use `ethcrypto.UnmarshalPubkey(asn1Pubkey.PublicKey.Bytes)`` to get the public key,
