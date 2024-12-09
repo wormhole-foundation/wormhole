@@ -79,7 +79,7 @@ func setup() *mockConnections {
 			TokenBridgeAddr:   tokenBridgeAddr,
 			WrappedNativeAddr: nativeAddr,
 		},
-		ethConnector: &mockConnector{},
+		evmConnector: &mockConnector{},
 		client:       &mockClient{},
 		logger:       *logger,
 	}

@@ -86,7 +86,7 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// Wormhole connector for wrapping contract-specific interactions
 	logger zap.Logger
 	// Corresponds to the connector interface for EVM chains
-	ethConnector C
+	evmConnector C
 	// Corresponds to an ethClient from go-ethereum
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
@@ -124,7 +124,7 @@ func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, p
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
 		Addresses:             tvAddrs,
 		logger:                *logger,
-		ethConnector:          connector,
+		evmConnector:          connector,
 		client:                connector.Client(),
 		processedTransactions: make(map[common.Hash]*types.Receipt),
 		lastBlockNumber:       0,
@@ -736,14 +736,14 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 	copy(calldata, TOKEN_BRIDGE_IS_WRAPPED_ASSET_SIGNATURE)
 	copy(calldata[4:], common.LeftPadBytes(addr.Bytes(), EVM_WORD_LENGTH))
 
-	ethCallMsg := ethereum.CallMsg{
+	evmCallMsg := ethereum.CallMsg{
 		To:   &tv.Addresses.TokenBridgeAddr,
 		Data: calldata,
 	}
 
 	tv.logger.Debug("calling isWrappedAsset()", zap.String("tokenAddress", addr.String()))
 
-	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
+	result, err := tv.client.CallContract(ctx, evmCallMsg, nil)
 
 	if err != nil {
 		// TODO add more info here
@@ -936,12 +936,12 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 
 	// If the decimals aren't cached, perform an eth_call lookup for the decimals
 	// This RPC call should only be made once per token, until the guardian is restarted
-	ethCallMsg := ethereum.CallMsg{
+	evmCallMsg := ethereum.CallMsg{
 		To:   &tokenAddress,
 		Data: ERC20_DECIMALS_SIGNATURE,
 	}
 
-	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
+	result, err := tv.client.CallContract(ctx, evmCallMsg, nil)
 	if err != nil {
 		tv.logger.Warn("error from getDecimals() for token",
 			zap.String("tokenAddress", tokenAddress.String()),
