@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.10.0",
+    "@certusone/wormhole-sdk": "^0.10.18",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
-    "axios": "^1.6.4",
+    "axios": "^1.7.8",
     "ethers": "^6.13.1"
   },
   "scripts": {}
