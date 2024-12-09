@@ -23,9 +23,9 @@ var TransferVerifierCmdEvm = &cobra.Command{
 var (
 	// RPC endpoint URL for interacting with an EVM node.
 	evmRpc *string
-	// Contract address of the EVM core bridge.
+	// Contract address of the core bridge.
 	evmCoreContract *string
-	// Contract address of the EVM token bridge.
+	// Contract address of the token bridge.
 	evmTokenBridgeContract *string
 	// Height difference between pruning windows (in blocks).
 	pruneHeightDelta *uint64
@@ -33,11 +33,13 @@ var (
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
 func init() {
-	// default URL connection for anvil
-	evmRpc = TransferVerifierCmdEvm.Flags().String("evmRPC", "ws://localhost:8545", "EVM RPC url")
-	evmCoreContract = TransferVerifierCmdEvm.Flags().String("evmContract", "", "EVM core bridge address for verifying VAAs")
-	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "EVM token bridge address")
+	evmRpc = TransferVerifierCmdEvm.Flags().String("rpcUrl", "ws://localhost:8546", "RPC url")
+	evmCoreContract = TransferVerifierCmdEvm.Flags().String("coreContract", "", "core bridge address")
+	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "token bridge")
 
+	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
+	TransferVerifierCmd.MarkFlagRequired("coreContract")
+	TransferVerifierCmd.MarkFlagRequired("tokenContract")
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 }
 
