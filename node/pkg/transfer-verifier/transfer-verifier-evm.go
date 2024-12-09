@@ -65,7 +65,7 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(ctx context.Conte
 	}
 
 	// Get the full transaction receipt for this log.
-	receipt, txReceiptErr := tv.ethConnector.TransactionReceipt(ctx, vLog.Raw.TxHash)
+	receipt, txReceiptErr := tv.evmConnector.TransactionReceipt(ctx, vLog.Raw.TxHash)
 	if txReceiptErr != nil {
 		tv.logger.Warn("could not find core bridge receipt", zap.Error(txReceiptErr))
 		return true
@@ -311,7 +311,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 				continue
 			}
 
-			logMessagePublished, parseLogErr := tv.ethConnector.ParseLogMessagePublished(*log)
+			logMessagePublished, parseLogErr := tv.evmConnector.ParseLogMessagePublished(*log)
 			if parseLogErr != nil {
 				tv.logger.Error("failed to parse LogMessagePublished event")
 				receiptErr = errors.Join(receiptErr, parseLogErr)
