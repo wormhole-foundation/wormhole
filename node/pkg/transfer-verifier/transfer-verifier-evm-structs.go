@@ -51,15 +51,14 @@ var (
 // Fixed addresses
 var (
 	// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-	WETH_ADDRESS     = common.HexToAddress("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
-	ZERO_ADDRESS     = common.BytesToAddress([]byte{0x00})
-	ZERO_ADDRESS_VAA = VAAAddrFrom(ZERO_ADDRESS)
+	WETH_ADDRESS                 = common.HexToAddress("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+	ZERO_ADDRESS                 = common.BytesToAddress([]byte{0x00})
+	ZERO_ADDRESS_VAA             = VAAAddrFrom(ZERO_ADDRESS)
+	NATIVE_CHAIN_ID  vaa.ChainID = 2
 )
 
 // EVM chain constants
 const (
-	// The Wormhole Chain ID for the chain being monitored
-	NATIVE_CHAIN_ID = 2
 	// EVM uses 32 bytes for words. Note that vaa.Address is an alias for a slice of 32 bytes
 	EVM_WORD_LENGTH = 32
 	// The expected total number of indexed topics for an ERC20 Transfer event
@@ -113,7 +112,15 @@ type TransferVerifier[E evmClient, C connector] struct {
 	nativeChainCache map[string]vaa.ChainID
 }
 
-func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) *TransferVerifier[*ethClient.Client, connectors.Connector] {
+func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
+	// Retrieve the NATIVE_CHAIN_ID from the connector.
+	chainId, err := connector.Client().ChainID(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain ID: %w", err)
+	}
+
+	NATIVE_CHAIN_ID = vaa.ChainID(chainId.Uint64())
+
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
 		Addresses:             tvAddrs,
 		logger:                *logger,
@@ -126,7 +133,7 @@ func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, p
 		isWrappedCache:        make(map[string]bool),
 		wrappedCache:          make(map[string]common.Address),
 		nativeChainCache:      make(map[string]vaa.ChainID),
-	}
+	}, nil
 }
 
 type connector interface {

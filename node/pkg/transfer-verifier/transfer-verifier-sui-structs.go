@@ -89,7 +89,7 @@ type ObjectChange struct {
 }
 
 // Validate the type information of the object change. The following checks are performed:
-//   - pass the object through a regex that extractts the package ID, coin type, and asset type
+//   - pass the object through a regex that extracts the package ID, coin type, and asset type
 //   - ensure that the asset type is wrapped or native
 //   - ensure that the package IDs match the expected package ID
 //   - ensure that the coin types match
