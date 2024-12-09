@@ -90,7 +90,7 @@ func adminServiceRunnable(
 		gov,
 		evmConnector,
 		guardianSigner,
-		ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()),
+		ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		rpcMap,
 	)
 

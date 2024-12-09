@@ -342,7 +342,7 @@ func SubmitObservationsToContract(
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
 
-	sigBytes, err := guardianSigner.Sign(digest.Bytes())
+	sigBytes, err := guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
