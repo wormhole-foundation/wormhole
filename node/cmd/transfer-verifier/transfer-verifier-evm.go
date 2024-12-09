@@ -23,9 +23,9 @@ var TransferVerifierCmdEvm = &cobra.Command{
 var (
 	// RPC endpoint URL for interacting with an EVM node.
 	evmRpc *string
-	// Contract address of the EVM core bridge contract.
+	// Contract address of the EVM core bridge.
 	evmCoreContract *string
-	// Contract address of the token bridge contract.
+	// Contract address of the EVM token bridge.
 	evmTokenBridgeContract *string
 	// Height difference between pruning windows (in blocks).
 	pruneHeightDelta *uint64
@@ -34,9 +34,9 @@ var (
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
 func init() {
 	// default URL connection for anvil
-	evmRpc = TransferVerifierCmdEvm.Flags().String("ethRPC", "ws://localhost:8545", "Ethereum RPC url")
-	evmCoreContract = TransferVerifierCmdEvm.Flags().String("ethContract", "", "Ethereum core bridge address for verifying VAAs (required if ethRPC is specified)")
-	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "token bridge contract deployed on Ethereum")
+	evmRpc = TransferVerifierCmdEvm.Flags().String("evmRPC", "ws://localhost:8545", "EVM RPC url")
+	evmCoreContract = TransferVerifierCmdEvm.Flags().String("evmContract", "", "EVM core bridge address for verifying VAAs")
+	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "EVM token bridge address")
 
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 }
@@ -85,7 +85,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	}
 
 	// Create main configuration for Transfer Verification
-	transferVerifier := txverifier.NewTransferVerifier(
+	transferVerifier, err := txverifier.NewTransferVerifier(
 		ethConnector,
 		&txverifier.TVAddresses{
 			CoreBridgeAddr:  common.HexToAddress(*evmCoreContract),
@@ -96,6 +96,10 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 		*pruneHeightDelta,
 		logger,
 	)
+
+	if err != nil {
+		logger.Fatal("could not create new transfer verifier", zap.Error(err))
+	}
 
 	// Set-up for main processing loop
 
@@ -109,6 +113,9 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	// - process the events through the transfer verifier.
 	for {
 		select {
+		case <-ctx.Done():
+			logger.Info("context cancelled, exiting")
+			return
 		case subErr := <-sub.Errors():
 			logger.Warn("error on subscription", zap.Error(subErr))
 
