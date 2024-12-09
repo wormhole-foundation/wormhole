@@ -135,7 +135,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			// Return without posting a response because a go routine was created to handle it.
 			return
 		}
-		w.ccqLogger.Error(fmt.Sprintf("read failed for %s query request", tag),
+		w.ccqLogger.Info(fmt.Sprintf("read failed for %s query request", tag),
 			zap.String("requestId", requestId),
 			zap.Any("accounts", accounts),
 			zap.Any("params", params),
@@ -574,13 +574,17 @@ func ccqIsBlockNotAvailable(err error) bool {
 	/*
 		  A "Block not available for slot" error looks like this:
 			"(*jsonrpc.RPCError)(0xc0208a0270)({\n Code: (int) -32004,\n Message: (string) (len=38) \"Block not available for slot 282135928\",\n Data: (interface {}) <nil>\n})\n"
+
+			A "Minimum context slot has not been reached" error looks like this:
+			(*jsonrpc.RPCError)(0xc21e4f8ea0)({\n Code: (int) -32016,\n Message: (string) (len=41) \"Minimum context slot has not been reached\",\n Data: (map[string]interface {}) (len=1) {\n  (string) (len=11) \"contextSlot\": (json.Number) (len=9) \"303955907\"\n }\n})\n"
 	*/
 	var rpcErr *jsonrpc.RPCError
 	if !errors.As(err, &rpcErr) {
 		return false // Some other kind of error.
 	}
 
-	if rpcErr.Code != -32004 { // Block not available for slot
+	if rpcErr.Code != -32004 && // Block not available for slot
+		rpcErr.Code != -32016 { // Minimum context slot has not been reached
 		return false // Some other kind of RPC error.
 	}
 

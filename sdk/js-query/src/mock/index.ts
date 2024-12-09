@@ -23,7 +23,7 @@ import {
 } from "../query";
 import { BinaryWriter } from "../query/BinaryWriter";
 
-import { PublicKey } from "@solana/web3.js";
+import { getAddressDecoder, getProgramDerivedAddress } from "@solana/addresses";
 
 // (2**64)-1
 const SOLANA_MAX_RENT_EPOCH = BigInt("18446744073709551615");
@@ -515,18 +515,18 @@ export class QueryProxyMock {
 
         let accounts: string[] = [];
         let bumps: number[] = [];
-        query.pdas.forEach((pda) => {
+        for (const pda of query.pdas) {
           if (pda.programAddress.length != 32) {
             throw new Error(`invalid program address length`);
           }
 
-          const [acct, bump] = PublicKey.findProgramAddressSync(
-            pda.seeds,
-            new PublicKey(pda.programAddress)
-          );
-          accounts.push(acct.toString());
+          const [acct, bump] = await getProgramDerivedAddress({
+            programAddress: getAddressDecoder().decode(pda.programAddress),
+            seeds: pda.seeds,
+          });
+          accounts.push(acct);
           bumps.push(bump);
-        });
+        }
 
         let opts: SolanaGetMultipleAccountsOpts = {
           commitment: query.commitment,

@@ -110,7 +110,7 @@ impl KeyDeserialize for TokenAddress {
     }
 }
 
-impl<'a> PrimaryKey<'a> for TokenAddress {
+impl PrimaryKey<'_> for TokenAddress {
     type Prefix = ();
     type SubPrefix = ();
     type Suffix = Self;
@@ -121,7 +121,7 @@ impl<'a> PrimaryKey<'a> for TokenAddress {
     }
 }
 
-impl<'a> Prefixer<'a> for TokenAddress {
+impl Prefixer<'_> for TokenAddress {
     fn prefix(&self) -> Vec<Key> {
         vec![Key::Ref(&**self)]
     }

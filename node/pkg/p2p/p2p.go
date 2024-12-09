@@ -239,7 +239,8 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 		)
 	}
 
-	h, err := libp2p.New(
+	// The default libp2p options.
+	opts := []libp2p.Option{
 		// Use the keypair we generated
 		libp2p.Identity(priv),
 
@@ -285,9 +286,14 @@ func NewHost(logger *zap.Logger, ctx context.Context, networkID string, bootstra
 			)
 			return idht, err
 		}),
-	)
+	}
 
-	return h, err
+	// If the external IP to advertise is known ahead of time, disable address discovery.
+	if gossipAdvertiseAddress != nil {
+		opts = append(opts, libp2p.DisableIdentifyAddressDiscovery())
+	}
+
+	return libp2p.New(opts...)
 }
 
 func Run(params *RunParams) func(ctx context.Context) error {

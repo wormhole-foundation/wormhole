@@ -1,0 +1,6 @@
+target
+bin
+**/target
+**/node_modules
+
+build/config/gentx/
