@@ -3,6 +3,7 @@ package wormconn
 import (
 	"context"
 	"fmt"
+	"time"
 
 	txclient "github.com/cosmos/cosmos-sdk/client/tx"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -84,7 +85,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	txResp, err := client.BroadcastTx(
 		ctx,
 		&sdktx.BroadcastTxRequest{
-			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_BLOCK,
+			Mode:    sdktx.BroadcastMode_BROADCAST_MODE_SYNC,
 			TxBytes: txBytes,
 		},
 	)
@@ -92,5 +93,35 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 		return nil, fmt.Errorf("failed to broadcast tx: %w", err)
 	}
 
+	// Wait for the tx to be included in a block (13 seconds for 2 blocks minimum)
+	res, err := waitForBlockInclusion(ctx, client, txResp.TxResponse.TxHash, 13*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for tx inclusion: %w", err)
+	} else {
+		// update the response with the final result
+		txResp.TxResponse = res.TxResponse
+	}
+
 	return txResp, nil
+}
+
+// waitForBlockInclusion waits for the tx to be included in a block, or times out after a given duration.
+func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHash string, waitTimeout time.Duration) (*sdktx.GetTxResponse, error) {
+	exitAfter := time.After(waitTimeout)
+	for {
+		select {
+		// check if wait timeout is exceeded
+		case <-exitAfter:
+			return nil, fmt.Errorf("timed out after: %d; wait for tx %s to be included in a block", waitTimeout, txHash)
+		// check if in block every second
+		case <-time.After(100 * time.Millisecond):
+			res, err := client.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
+			if err == nil {
+				return res, nil
+			}
+		// check if context is done
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 }

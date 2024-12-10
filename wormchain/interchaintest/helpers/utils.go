@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
