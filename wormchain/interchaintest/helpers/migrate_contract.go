@@ -35,6 +35,7 @@ func MigrateContract(
 	codeId string,
 	message string,
 	guardians *guardians.ValSet,
+	expectErr bool,
 ) {
 
 	node := chain.GetFullNode()
@@ -48,5 +49,9 @@ func MigrateContract(
 	vHex := hex.EncodeToString(vBz)
 
 	_, err = node.ExecTx(ctx, keyName, "wormhole", "migrate", contractAddr, codeId, message, vHex, "--gas", "auto")
-	require.NoError(t, err)
+	if expectErr {
+		require.Error(t, err)
+	} else {
+		require.NoError(t, err)
+	}
 }
