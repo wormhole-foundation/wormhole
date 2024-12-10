@@ -204,7 +204,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).toEqual(
       BigInt(1461600).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[0].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -216,7 +218,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).toEqual(
       BigInt(1461600).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[1].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -268,7 +272,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).toEqual(
       BigInt(1461600).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[0].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -280,7 +286,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).toEqual(
       BigInt(1461600).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[1].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -398,7 +406,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).not.toEqual(
       BigInt(0).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[0].executable).toEqual(false);
     expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
       "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
@@ -455,7 +465,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).not.toEqual(
       BigInt(0).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[0].executable).toEqual(false);
     expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
       "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
@@ -519,7 +531,9 @@ describe("solana", () => {
       expect(sar.results[0].lamports.toString()).toEqual(
         BigInt(1461600).toString()
       );
-      expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+      expect(sar.results[0].rentEpoch.toString()).toEqual(
+        BigInt("18446744073709551615").toString()
+      );
       expect(sar.results[0].executable).toEqual(false);
       expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
         "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -531,7 +545,9 @@ describe("solana", () => {
       expect(sar.results[0].lamports.toString()).toEqual(
         BigInt(1461600).toString()
       );
-      expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+      expect(sar.results[0].rentEpoch.toString()).toEqual(
+        BigInt("18446744073709551615").toString()
+      );
       expect(sar.results[1].executable).toEqual(false);
       expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
         "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -584,7 +600,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).toEqual(
       BigInt(1461600).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[0].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[0].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -596,7 +614,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).toEqual(
       BigInt(1461600).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[1].executable).toEqual(false);
     expect(base58.encode(Buffer.from(sar.results[1].owner))).toEqual(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -654,7 +674,9 @@ describe("solana", () => {
     expect(sar.results[0].lamports.toString()).not.toEqual(
       BigInt(0).toString()
     );
-    expect(sar.results[0].rentEpoch.toString()).toEqual(BigInt(0).toString());
+    expect(sar.results[0].rentEpoch.toString()).toEqual(
+      BigInt("18446744073709551615").toString()
+    );
     expect(sar.results[0].executable).toEqual(false);
     expect(Buffer.from(sar.results[0].owner).toString("hex")).toEqual(
       "02c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa"
