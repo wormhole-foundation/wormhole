@@ -1,0 +1,63 @@
+name: Wormchain's end-to-end Interchain Tests
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "**"
+    branches:
+      - "main"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  GO_VERSION: 1.19.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-tests:
+    needs: build-docker
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # names of `make` commands to run tests
+        test:
+          - "ictest-cancel-upgrade"
+          - "ictest-malformed-payload"
+          - "ictest-upgrade-failure"
+          - "ictest-upgrade"
+          - "ictest-wormchain"
+      fail-fast: false
+
+    steps:
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: interchaintest/go.sum
+
+      - name: checkout chain
+        uses: actions/checkout@v4
+
+      - name: Run Test
+        id: run_test
+        continue-on-error: true
+        run: make ${{ matrix.test }}
+
+      - name: Retry Failed Test
+        if: steps.run_test.outcome == 'failure'
+        run: |
+          for i in 1 2; do
+            echo "Retry attempt $i"
+            if make ${{ matrix.test }}; then
+              echo "Test passed on retry"
+              exit 0
+            fi
+          done
+          echo "Test failed after retries"
+          exit 1

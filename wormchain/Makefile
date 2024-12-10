@@ -78,3 +78,28 @@ bootstrap:
 clean:
 	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json
+
+#####################
+## INTERCHAINTESTS ##
+#####################
+
+# Individual Tests ($$ is interpreted as $)
+rm-testcache:
+	go clean -testcache
+
+ictest-cancel-upgrade: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestCancelUpgrade$$ ./...
+
+ictest-malformed-payload: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestMalformedPayload$$ ./...
+
+ictest-upgrade-failure: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
+
+ictest-upgrade: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestUpgrade$$ ./...
+
+ictest-wormchain: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
+
+.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain
