@@ -17,9 +17,11 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::to_length_prefixed;
 use cw_multi_test::Executor;
+use k256::ecdsa::SigningKey;
 use serde::{de::IntoDeserializer, Deserialize};
 use serde_wormhole::RawMessage;
 use std::convert::TryInto;
+use wormhole_bindings::fake::WormholeKeeper;
 use wormhole_sdk::core::{Action, GovernancePacket};
 use wormhole_sdk::token::Message;
 use wormhole_sdk::{Amount, Chain, GOVERNANCE_EMITTER};
@@ -199,7 +201,7 @@ fn verify_vaas_query() -> StdResult<()> {
         create_gov_vaa_body(
             2,
             GovernancePacket {
-                chain: Chain::Wormchain,
+                chain: Chain::Osmosis,
                 action: Action::SetFee {
                     amount: Amount(*b"00000000000000000000000000000012"),
                 },
@@ -223,6 +225,93 @@ fn verify_vaas_query() -> StdResult<()> {
         vaa_response.guardian_set_index, 0,
         "governance vaa guardian set index does not match"
     );
+    let governance_payload =
+        serde_wormhole::from_slice::<GovernancePacket>(&vaa_response.payload.as_slice());
+
+    assert!(
+        governance_payload.is_ok(),
+        "failed to parse governance payload"
+    );
+    assert!(
+        matches!(
+            governance_payload.unwrap(),
+            GovernancePacket {
+                action: Action::SetFee { .. },
+                chain: Chain::Osmosis,
+            }
+        ),
+        "unexpected payload"
+    );
 
     Ok(())
+}
+
+#[test]
+fn verify_vaas_failure_modes() {
+    // Single guardian setup- not matching the WormholeKeeper
+    let WormholeApp {
+        app,
+        admin,
+        user,
+        wormhole_contract,
+        wormhole_keeper,
+        // Default WormholeApp gives us one guardian
+    } = WormholeApp::default();
+
+    // VAA signed with a non-matching guardianset
+    let (_, signed_vaa) = sign_vaa_body(
+        // signing with 7 guardians
+        WormholeKeeper::new(),
+        create_gov_vaa_body(
+            2,
+            GovernancePacket {
+                chain: Chain::Osmosis,
+                action: Action::SetFee {
+                    amount: Amount(*b"00000000000000000000000000000012"),
+                },
+            },
+        ),
+    );
+
+    let vaa_response: StdResult<ParsedVAA> = app.wrap().query_wasm_smart(
+        wormhole_contract.clone(),
+        &QueryMsg::VerifyVAA {
+            vaa: signed_vaa,
+            block_time: 0,
+        },
+    );
+    assert!(
+        vaa_response.is_err(),
+        "VAA with more guardians than the established guardian set should fail \"GuardianSignatureError\""
+    );
+
+    // VAA signed with a non-matching guardianset
+    let guardian_keys: Vec<SigningKey> = vec![];
+    let (_, signed_vaa) = sign_vaa_body(
+        // signing with 0 guardians
+        guardian_keys.into(),
+        create_gov_vaa_body(
+            2,
+            GovernancePacket {
+                chain: Chain::Osmosis,
+                action: Action::SetFee {
+                    amount: Amount(*b"00000000000000000000000000000012"),
+                },
+            },
+        ),
+    );
+
+    let vaa_response: StdResult<ParsedVAA> = app.wrap().query_wasm_smart(
+        wormhole_contract.clone(),
+        &QueryMsg::VerifyVAA {
+            vaa: signed_vaa,
+            block_time: 0,
+        },
+    );
+    println!("{:?}", vaa_response);
+
+    assert!(
+        vaa_response.is_err(),
+        "VAA with fewer guardians than the established guardian set should fail \"GuardianSignatureError\""
+    );
 }
