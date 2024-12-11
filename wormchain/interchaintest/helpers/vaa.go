@@ -33,3 +33,14 @@ func generateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.Chain
 	latestSequence = latestSequence + 1
 	return signVaa(v, signers)
 }
+
+func GenerateGovernanceVaa(index uint32,
+	signers *guardians.ValSet,
+	payload []byte) vaa.VAA {
+
+	v := vaa.CreateGovernanceVAA(time.Unix(0, 0),
+		uint32(1), uint64(latestSequence), index, payload)
+
+	latestSequence = latestSequence + 1
+	return signVaa(*v, signers)
+}
