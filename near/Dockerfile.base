@@ -1,20 +1,26 @@
-FROM rust:1.60@sha256:48d3b5baf199dc7c378e775c47b0c40aaf7d8b23eaf67e15b095bbdaaecd1f10 AS near-node
+FROM rust:1.82@sha256:d9c3c6f1264a547d84560e06ffd79ed7a799ce0bff0980b26cf10d29af888377 AS near-build
+
+WORKDIR /tmp/nearcore
+
+# https://near-nodes.io/rpc/run-rpc-node-without-nearup#prerequisites
+RUN apt-get update && apt-get install -y git binutils-dev libcurl4-openssl-dev zlib1g-dev libdw-dev libiberty-dev cmake gcc g++ python3 protobuf-compiler libssl-dev pkg-config clang llvm cargo
+
+RUN git init
+RUN git remote add origin https://github.com/near/nearcore
+# https://github.com/near/nearcore/releases/tag/2.4.0
+RUN git fetch --depth 1 origin dc7b83c03529c6e9b432c649414aa9c79580df30
+RUN git checkout FETCH_HEAD
+RUN make sandbox-release
+
+FROM rust:1.82@sha256:d9c3c6f1264a547d84560e06ffd79ed7a799ce0bff0980b26cf10d29af888377 AS near-node
+
+RUN apt-get update && apt-get install -y jq python3 
 
 WORKDIR /tmp
-
-RUN rustup update
-RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl make --no-install-recommends
-RUN apt-get install -y build-essential git
-
-RUN npm i -g n
-RUN n stable
-
-COPY node_builder.sh /tmp
-
-RUN ./node_builder.sh
-
 COPY start_node.sh /tmp
 
 RUN rm -rf /tmp/_sandbox
 RUN mkdir -p /tmp/sandbox
+
+COPY --from=near-build /tmp/nearcore/target/release/near-sandbox /tmp/nearcore/target/release/near-sandbox
 RUN nearcore/target/release/near-sandbox --home /tmp/_sandbox init

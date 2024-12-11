@@ -1,5 +1,5 @@
 FROM const-gen AS const-export
-FROM ghcr.io/wormhole-foundation/near:0.2@sha256:c2089c5e93df2396d74f9c07e7cd3d76983fad97bddb202030ca442c2c00c3c2 AS build
+FROM rust:1.60@sha256:48d3b5baf199dc7c378e775c47b0c40aaf7d8b23eaf67e15b095bbdaaecd1f10 AS build
 
 WORKDIR /app
 
@@ -13,11 +13,8 @@ WORKDIR /app
 COPY package.json .
 COPY package-lock.json .
 COPY --from=const-export .env .
-COPY devnet_deploy.sh .
 COPY devnet_deploy.ts .
 COPY --from=build /app/contracts/*/target/wasm32-unknown-unknown/release/*.wasm .
 
 # mount the buildkit cache on npm's cache dir, install dependencies
 RUN --mount=type=cache,target=/root/.npm npm ci --production
-
-
