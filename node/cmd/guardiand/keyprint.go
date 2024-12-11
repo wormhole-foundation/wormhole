@@ -9,7 +9,7 @@ import (
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
 )
 
