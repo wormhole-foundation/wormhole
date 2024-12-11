@@ -1,6 +1,6 @@
 FROM cli-gen AS cli-export
 FROM const-gen AS const-export
-FROM ghcr.io/wormhole-foundation/sui:1.19.1-mainnet@sha256:ad490b9c8c237b6b44d84feacfa45df3d0adeef55fcbec9586c0d9951e3dce95 AS sui
+FROM ghcr.io/wormhole-foundation/sui:1.19.1-mainnet@sha256:97e2e62d43262883b7a5bed5c9a9dd83d766a00a9476473eb275948fb53d376e AS sui
 
 # initial run
 # COPY sui/devnet/genesis_config genesis_config
