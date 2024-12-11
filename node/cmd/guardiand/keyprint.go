@@ -27,23 +27,23 @@ func runKeyprint(cmd *cobra.Command, args []string) {
 
 	f, err := os.Open(keyFile)
 	if err != nil {
-		log.Fatalf("failed to open keyfile: %w", err)
+		log.Fatalf("failed to open keyfile: %v", err)
 	}
 
 	p, err := armor.Decode(f)
 	if err != nil {
-		log.Fatalf("failed to read armored file: %w", err)
+		log.Fatalf("failed to read armored file: %v", err)
 	}
 
 	b, err := io.ReadAll(p.Body)
 	if err != nil {
-		log.Fatalf("failed to read file: %w", err)
+		log.Fatalf("failed to read file: %v", err)
 	}
 
 	var m nodev1.GuardianKey
 	err = proto.Unmarshal(b, &m)
 	if err != nil {
-		log.Fatalf("failed to deserialize protobuf: %w", err)
+		log.Fatalf("failed to deserialize protobuf: %v", err)
 	}
 
 	fmt.Printf("Guardian key:\n")
