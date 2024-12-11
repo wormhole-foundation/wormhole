@@ -11,7 +11,7 @@ import (
 
 func TestIsVAAEnqueuedNilMessageID(t *testing.T) {
 	logger, _ := zap.NewProduction()
-	gov := NewChainGovernor(logger, nil, common.GoTest, true)
+	gov := NewChainGovernor(logger, nil, common.GoTest, true, "")
 	enqueued, err := gov.IsVAAEnqueued(nil)
 	require.EqualError(t, err, "no message ID specified")
 	assert.Equal(t, false, enqueued)
