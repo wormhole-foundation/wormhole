@@ -12,4 +12,4 @@ test:
 test-docker:
 	DOCKER_BUILDKIT=1 docker build --progress plain  -f ../clients/js/Dockerfile -t cli-gen ../clients/js
 	DOCKER_BUILDKIT=1 docker build --build-arg num_guardians=1 --progress plain -f ../Dockerfile.const -t const-gen ..
-	DOCKER_BUILDKIT=1 docker build -f Dockerfile ..
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile .

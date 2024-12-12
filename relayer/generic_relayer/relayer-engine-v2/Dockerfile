@@ -19,14 +19,14 @@ WORKDIR /home/node/app
 # Fix git ssh error
 RUN git config --global url."https://".insteadOf ssh://
 
-COPY --chown=node:node ./relayer/ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
+COPY --chown=node:node ./ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
 
 #Path matters so as to not break imports
 WORKDIR /home/node/app/relayer/generic_relayer/relayer-engine-v2/
 
 # Only invalidate the npm install step if package.json changed
-COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package.json .
-COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package-lock.json .
+COPY --chown=node:node /generic_relayer/relayer-engine-v2/package.json .
+COPY --chown=node:node /generic_relayer/relayer-engine-v2/package-lock.json .
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
@@ -42,7 +42,7 @@ RUN rm -rf node_modules && mv node_modules_cache node_modules
 ARG dev
 ENV DEV=$dev
 
-COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/ .
+COPY --chown=node:node /generic_relayer/relayer-engine-v2/ .
 
 
 

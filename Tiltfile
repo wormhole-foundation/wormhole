@@ -144,7 +144,8 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js", "./relayer"]
+    ignore = ["sdk/js", "sdk/js-*", "sdk/rust"],
+    only = ["node", "wormchain", "sdk"]
 )
 
 def command_with_dlv(argv):
@@ -514,26 +515,14 @@ docker_build(
     context = ".",
     only = ["./ethereum", "./relayer/ethereum"],
     dockerfile = "./ethereum/Dockerfile",
-
-    # ignore local node_modules (in case they're present)
     ignore = ["./ethereum/node_modules","./relayer/ethereum/node_modules"],
     build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
-
-    # sync external scripts for incremental development
-    # (everything else needs to be restarted from scratch for determinism)
-    #
-    # This relies on --update-mode=exec to work properly with a non-root user.
-    # https://github.com/tilt-dev/tilt/issues/3708
-    live_update = [
-        sync("./ethereum/src", "/home/node/app/src"),
-    ],
 )
 
 if redis or generic_relayer:
     docker_build(
         ref = "redis",
-        context = ".",
-        only = ["./third_party"],
+        context = "third_party/redis",
         dockerfile = "third_party/redis/Dockerfile",
     )
 
@@ -575,8 +564,9 @@ if generic_relayer:
     )
     docker_build(
         ref = "relayer-engine",
-        context = ".",
-        only = ["./relayer/generic_relayer", "./relayer/ethereum/ts-scripts/relayer/config"],
+        context = "relayer",
+        only = ["generic_relayer", "ethereum/ts-scripts/relayer/config"],
+        ignore = ["generic_relayer/node_modules"],
         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
         build_args = {"dev": str(not ci)}
     )
@@ -611,31 +601,22 @@ if ci_tests:
         ref = "sdk-test-image",
         context = ".",
         dockerfile = "testing/Dockerfile.sdk.test",
-        only = [],
-        live_update = [
-            sync("./sdk/js/src", "/app/sdk/js/src"),
-            sync("./testing", "/app/testing"),
-        ],
+        only = ["ethereum", "relayer/ethereum", "solana/idl", "sdk/js", "testing"],
+        ignore = ["ethereum/node_modules", "relayer/ethereum/node_modules", "sdk/js/node_modules", "sdk/js/lib"],
     )
     docker_build(
         ref = "spydk-test-image",
         context = ".",
         dockerfile = "testing/Dockerfile.spydk.test",
-        only = [],
-        live_update = [
-            sync("./spydk/js/src", "/app/spydk/js/src"),
-            sync("./testing", "/app/testing"),
-        ],
+        only = ["spydk/js", "testing"],
+        ignore = ["spydk/js/node_modules", "spydk/js/lib"],
     )
     docker_build(
         ref = "query-sdk-test-image",
         context = ".",
         dockerfile = "testing/Dockerfile.querysdk.test",
-        only = [],
-        live_update = [
-            sync("./sdk/js/src", "/app/sdk/js-query/src"),
-            sync("./testing", "/app/testing"),
-        ],
+        only = ["sdk/js-query", "testing"],
+        ignore = ["sdk/js-query/node_modules", "sdk/js-query/lib"],
     )
 
     k8s_yaml_with_ns(
@@ -710,9 +691,10 @@ if terra2 or wormchain:
     docker_build(
         ref = "cosmwasm_artifacts",
         context = ".",
-        dockerfile = "./cosmwasm/Dockerfile",
+        dockerfile = "cosmwasm/Dockerfile",
         target = "artifacts",
         platform = "linux/amd64",
+        only = ["cosmwasm", "sdk/rust"]
     )
 
 if terra2:
@@ -780,10 +762,9 @@ if sui:
     docker_build(
         ref = "sui-node",
         target = "sui",
-        context = ".",
+        context = "sui",
         dockerfile = "sui/Dockerfile",
-        ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
-        only = ["./sui"],
+        ignore = ["sui.log*"],
     )
 
     k8s_resource(
@@ -824,8 +805,8 @@ if wormchain:
         dockerfile = "./wormchain/Dockerfile",
         platform = "linux/amd64",
         build_args = {"num_guardians": str(num_guardians)},
-        only = [],
-        ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind"],
+        only = ["wormchain", "sdk"],
+        ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/vue", "./wormchain/build/wormchaind", "sdk/js", "sdk/js-*", "sdk/rust"],
     )
 
     # docker_build(
@@ -901,9 +882,8 @@ if wormchain:
 if ibc_relayer:
     docker_build(
         ref = "ibc-relayer-image",
-        context = ".",
-        dockerfile = "./wormchain/ibc-relayer/Dockerfile",
-        only = []
+        context = "wormchain/ibc-relayer",
+        dockerfile = "wormchain/ibc-relayer/Dockerfile",
     )
 
     k8s_yaml_with_ns("devnet/ibc-relayer.yaml")
