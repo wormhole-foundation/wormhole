@@ -34,7 +34,7 @@ func createChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 	wormchainConfig.Images[0].Version = wormchainVersion
 
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, false)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
