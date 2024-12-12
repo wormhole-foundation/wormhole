@@ -69,3 +69,19 @@ func InstantiateContract(
 type QueryContractResponse struct {
 	Contracts []string `json:"contracts"`
 }
+
+func StoreAndInstantiateWormholeContract(
+	t *testing.T,
+	ctx context.Context,
+	chain *cosmos.CosmosChain,
+	keyName string,
+	fileLoc string,
+	label string,
+	message string,
+	guardians *guardians.ValSet,
+) (contract ContractInfoResponse) {
+	codeId := StoreContract(t, ctx, chain, keyName, fileLoc, guardians)
+	contractAddr := InstantiateContract(t, ctx, chain, keyName, codeId, label, message, guardians)
+
+	return QueryContractInfo(t, chain, ctx, contractAddr)
+}
