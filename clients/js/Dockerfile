@@ -2,14 +2,14 @@
 FROM node:18-alpine@sha256:44aaf1ccc80eaed6572a0f2ef7d6b5a2982d54481e4255480041ac92221e2f11 as cli-build
 
 # Copy package.json & package-lock.json by themselves to create a cache layer
-COPY clients/js/package.json clients/js/package-lock.json /clients/js/
+COPY package.json package-lock.json /clients/js/
 
 WORKDIR /clients/js
 
 RUN npm ci
 
 # Copy the rest of the source files, as a layer on top of the deps
-COPY clients/js /clients/js
+COPY . /clients/js
 
 # Build CLI
 RUN npm run build

@@ -10,6 +10,6 @@ test:
 	$(foreach dir,$(TEST_CONTRACT_DIRS), make -C $(dir) $@ &&) true
 
 test-docker:
-	DOCKER_BUILDKIT=1 docker build --progress plain  -f ../Dockerfile.cli -t cli-gen ..
+	DOCKER_BUILDKIT=1 docker build --progress plain  -f ../clients/js/Dockerfile -t cli-gen ../clients/js
 	DOCKER_BUILDKIT=1 docker build --build-arg num_guardians=1 --progress plain -f ../Dockerfile.const -t const-gen ..
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile ..
