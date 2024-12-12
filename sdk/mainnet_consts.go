@@ -190,4 +190,5 @@ var KnownAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDMantle, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDXLayer, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDSnaxchain, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
+	{ChainId: vaa.ChainIDWorldchain, Addr: "0000000000000000000000001520cc9e779c56dab5866bebfb885c86840c33d3"},
 }
