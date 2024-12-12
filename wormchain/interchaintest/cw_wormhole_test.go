@@ -362,7 +362,7 @@ func TestUpdateGuardianSet(t *testing.T) {
 
 		err := submitGuardianSetUpdate(newGuardians, uint32(initialIndex+1), wrongSigners)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "GuardianSignatureError")
+		require.Contains(t, err.Error(), "governance VAAs must be signed by the current guardian set")
 	})
 
 	t.Run("insufficient signatures", func(t *testing.T) {
@@ -372,11 +372,14 @@ func TestUpdateGuardianSet(t *testing.T) {
 
 		err := submitGuardianSetUpdate(newGuardians, uint32(initialIndex+1), insufficientSigners)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "NoQuorum")
-	})
+		require.Contains(t, err.Error(), "governance VAAs must be signed by the current guardian set")
 
-	// Verify latest guardian set is unchanged
-	verifyGuardianSet(signingGuardians, initialIndex+1)
+		// too many signatures
+		insufficientSigners = guardians.CreateValSet(t, numVals+2)
+		err = submitGuardianSetUpdate(newGuardians, uint32(initialIndex+1), insufficientSigners)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "GuardianSignatureError")
+	})
 }
 
 func TestContractUpgrade(t *testing.T) {
@@ -393,8 +396,10 @@ func TestContractUpgrade(t *testing.T) {
 	contractAddr := contractInfo.Address
 
 	// Helper function to submit contract upgrade VAA
-	submitContractUpgrade := func(codeId string, expectErr bool) error {
-		helpers.MigrateContract(t, ctx, wormchain, "faucet", contractAddr, codeId, "{}", guardians, expectErr)
+	submitContractUpgrade := func(codeId string) error {
+		if err := helpers.MigrateContract(t, ctx, wormchain, "faucet", contractAddr, codeId, "{}", guardians); err != nil {
+			return err
+		}
 
 		// Wait for transaction
 		return testutil.WaitForBlocks(ctx, 2, wormchain)
@@ -404,7 +409,7 @@ func TestContractUpgrade(t *testing.T) {
 	newCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", guardians)
 
 	t.Run("successful upgrade", func(t *testing.T) {
-		err := submitContractUpgrade(newCodeId, false)
+		err := submitContractUpgrade(newCodeId)
 		require.NoError(t, err)
 
 		contractInfo = helpers.QueryContractInfo(t, wormchain, ctx, contractAddr)
@@ -414,8 +419,8 @@ func TestContractUpgrade(t *testing.T) {
 
 	t.Run("invalid code id", func(t *testing.T) {
 		// Try to upgrade to a non-existent code ID
-		err := submitContractUpgrade("999999", true)
-		require.NoError(t, err)
+		err := submitContractUpgrade("999999")
+		require.Error(t, err)
 	})
 
 	t.Run("invalid: use x/wormhole", func(t *testing.T) {
@@ -457,7 +462,7 @@ func TestContractUpgrade(t *testing.T) {
 }
 
 // Helper function to submit fee update VAA
-func submitFeeUpdate(t *testing.T, ctx context.Context, guardians *guardians.ValSet, wormchain *cosmos.CosmosChain, contractAddr string, amount string) (*cw_wormhole.TxResponse, error) {
+func submitFeeUpdate(t *testing.T, ctx context.Context, guardians *guardians.ValSet, wormchain *cosmos.CosmosChain, contractAddr string, amount string, replay bool) (*cw_wormhole.TxResponse, error) {
 	// Get current guardian set index
 	guardianSetIndex := helpers.QueryConsensusGuardianSetIndex(t, wormchain, ctx)
 
@@ -502,6 +507,13 @@ func submitFeeUpdate(t *testing.T, ctx context.Context, guardians *guardians.Val
 	err = testutil.WaitForBlocks(ctx, 2, wormchain)
 	require.NoError(t, err)
 
+	// Replay the transaction
+	if replay {
+		_, err = wormchain.ExecuteContract(ctx, "faucet", contractAddr, string(executeVAAPayload))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "VaaAlreadyExecuted")
+	}
+
 	// Query transaction result
 	txResult, _, err := wormchain.Validators[0].ExecQuery(ctx, "tx", txHash)
 	require.NoError(t, err)
@@ -527,8 +539,8 @@ func TestSetFee(t *testing.T) {
 	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 	contractAddr := contractInfo.Address
 
-	submitFeeUpdate := func(amount string) (*cw_wormhole.TxResponse, error) {
-		return submitFeeUpdate(t, ctx, guardians, wormchain, contractAddr, amount)
+	submitFeeUpdate := func(amount string, replay bool) (*cw_wormhole.TxResponse, error) {
+		return submitFeeUpdate(t, ctx, guardians, wormchain, contractAddr, amount, replay)
 	}
 
 	// Helper to verify fee state
@@ -575,21 +587,21 @@ func TestSetFee(t *testing.T) {
 	}
 
 	t.Run("successful fee update", func(t *testing.T) {
-		txResponse, err := submitFeeUpdate("1000000") // Set fee to 1 WORM (1000000 uworm)
+		txResponse, err := submitFeeUpdate("1000000", true) // Set fee to 1 WORM (1000000 uworm)
 		require.NoError(t, err)
 		verifyAttributes(txResponse, "1000000")
 		verifyFee("1000000")
 	})
 
 	t.Run("zero fee", func(t *testing.T) {
-		txResponse, err := submitFeeUpdate("0")
+		txResponse, err := submitFeeUpdate("0", false)
 		require.NoError(t, err)
 		verifyFee("0")
 		verifyAttributes(txResponse, "0")
 	})
 
 	t.Run("very large fee", func(t *testing.T) {
-		txResponse, err := submitFeeUpdate("1000000000000") // 1M WORM
+		txResponse, err := submitFeeUpdate("1000000000000", false) // 1M WORM
 		require.NoError(t, err)
 		verifyFee("1000000000000")
 		verifyAttributes(txResponse, "1000000000000")
@@ -631,7 +643,7 @@ func TestTransferFees(t *testing.T) {
 	}
 
 	// Helper to submit fee transfer VAA
-	submitTransferFee := func(addrBytes []byte, amount string) (*cw_wormhole.TxResponse, error) {
+	submitTransferFee := func(addrBytes []byte, amount string, replay bool) (*cw_wormhole.TxResponse, error) {
 		// Created a fixed 32-byte array for the recipient address
 		var recipientBytes [32]byte
 		copy(recipientBytes[32-len(addrBytes):], addrBytes)
@@ -670,6 +682,12 @@ func TestTransferFees(t *testing.T) {
 		err = testutil.WaitForBlocks(ctx, 2, wormchain)
 		require.NoError(t, err)
 
+		if replay {
+			_, err = wormchain.ExecuteContract(ctx, "faucet", contractAddr, string(executeVAAPayload))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "VaaAlreadyExecuted")
+		}
+
 		txResult, _, err := wormchain.Validators[0].ExecQuery(ctx, "tx", txHash)
 		require.NoError(t, err)
 
@@ -692,7 +710,7 @@ func TestTransferFees(t *testing.T) {
 
 	t.Run("successful fee transfer", func(t *testing.T) {
 		// Set fee to 1000000 uworm
-		_, err := submitFeeUpdate(t, ctx, guardians, wormchain, contractAddr, "1000000")
+		_, err := submitFeeUpdate(t, ctx, guardians, wormchain, contractAddr, "1000000", false)
 		require.NoError(t, err)
 
 		// Post some messages with fees to build up balance
@@ -706,7 +724,7 @@ func TestTransferFees(t *testing.T) {
 		require.NoError(t, err)
 
 		// Transfer 1500000 uworm
-		_, err = submitTransferFee([]byte(user.Address), "1500000")
+		_, err = submitTransferFee([]byte(user.Address), "1500000", true)
 		require.NoError(t, err)
 
 		// Verify successful transfer
@@ -716,18 +734,18 @@ func TestTransferFees(t *testing.T) {
 	})
 
 	t.Run("transfer more than balance", func(t *testing.T) {
-		_, err := submitTransferFee([]byte(user.Address), "10000000000")
+		_, err := submitTransferFee([]byte(user.Address), "10000000000", false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "insufficient funds")
 	})
 
 	t.Run("invalid recipient", func(t *testing.T) {
-		_, err := submitTransferFee([]byte("invalid"), "1000000")
+		_, err := submitTransferFee([]byte("invalid"), "1000000", false)
 		require.Error(t, err)
 	})
 
 	t.Run("zero amount - invalid coins", func(t *testing.T) {
-		_, err := submitTransferFee([]byte(user.Address), "0")
+		_, err := submitTransferFee([]byte(user.Address), "0", false)
 		require.Error(t, err)
 	})
 }
