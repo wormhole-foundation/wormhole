@@ -798,17 +798,11 @@ if near:
     k8s_yaml_with_ns("devnet/near-devnet.yaml")
 
     docker_build(
-        ref = "near-node",
-        context = "near",
-        dockerfile = "near/Dockerfile",
-        only = ["Dockerfile", "node_builder.sh", "start_node.sh", "README.md"],
-    )
-
-    docker_build(
         ref = "near-deploy",
         context = "near",
         dockerfile = "near/Dockerfile.deploy",
-        ignore = ["./test"]
+        ignore = ["./test"],
+        platform="linux/amd64"
     )
 
     k8s_resource(

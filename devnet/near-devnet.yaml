@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: near-node
-          image: near-node
+          image: ghcr.io/wormhole-foundation/near:2.4.0@sha256:cea062c0f778485f105b43bfaa36b354d077b8bff855a7c7a0e71aa88219143c
           env:
             # this still results in DEBUG logs from "stats", but `warn,stats=warn` didn't work
             - name: RUST_LOG
@@ -56,11 +56,14 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "sh /app/devnet_deploy.sh && touch success && sleep infinity"
+            - "npx ts-node devnet_deploy.ts && touch success && sleep infinity"
           readinessProbe:
-            tcpSocket:
-              port: 3030
-            periodSeconds: 1
-            initialDelaySeconds: 15
+            exec:
+              command:
+                - test
+                - -e
+                - "success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
 
       restartPolicy: Always
