@@ -53,7 +53,7 @@ func BenchmarkHandleObservation(b *testing.B) {
 	for count := 0; count < NumObservations; count++ {
 		k := pd.createMessagePublication(b, uint64(count))
 		start := time.Now()
-		p.handleMessage(k)
+		p.handleMessage(ctx, k)
 		handleMsgTime += time.Since(start)
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
@@ -108,7 +108,7 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 
 	for count := 0; count < NumObservations; count++ {
 		k := pd.createMessagePublication(b, uint64(count))
-		p.handleMessage(k)
+		p.handleMessage(ctx, k)
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
 			p.handleSingleObservation(pd.guardianAddrs[guardianIdx], pd.createObservation(b, guardianIdx, k))
@@ -143,9 +143,9 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 	for count := 0; count < 19; count++ {
 		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		require.NoError(b, err)
-		keys = append(keys, crypto.PubkeyToAddress(guardianSigner.PublicKey()))
+		keys = append(keys, crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)))
 		guardianSigners = append(guardianSigners, guardianSigner)
-		guardianAddrs = append(guardianAddrs, crypto.PubkeyToAddress(guardianSigner.PublicKey()).Bytes())
+		guardianAddrs = append(guardianAddrs, crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)).Bytes())
 		if count == 0 {
 			ourSigner = guardianSigner
 		}
@@ -179,7 +179,7 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 		db:                     db,
 		logger:                 logger,
 		state:                  &aggregationState{observationMap{}},
-		ourAddr:                crypto.PubkeyToAddress(ourSigner.PublicKey()),
+		ourAddr:                crypto.PubkeyToAddress(ourSigner.PublicKey(context.Background())),
 		pythnetVaas:            make(map[string]PythNetVaaEntry),
 		updatedVAAs:            make(map[string]*updateVaaEntry),
 		gatewayRelayer:         gwRelayer,
@@ -229,7 +229,7 @@ func (pd *ProcessorData) createObservation(b *testing.B, guardianIdx int, k *com
 
 	// Sign the digest using our node's guardian signer
 	guardianSigner := pd.guardianSigners[guardianIdx]
-	signature, err := guardianSigner.Sign(digest.Bytes())
+	signature, err := guardianSigner.Sign(context.Background(), digest.Bytes())
 	require.NoError(b, err)
 
 	return &gossipv1.Observation{
