@@ -124,15 +124,17 @@ def k8s_yaml_with_ns(objects):
 
 docker_build(
     ref = "cli-gen",
-    context = ".",
-    dockerfile = "Dockerfile.cli",
+    context = "clients/js",
+    dockerfile = "clients/js/Dockerfile",
+    ignore = ["build","node_modules"],
 )
 
 docker_build(
     ref = "const-gen",
     context = ".",
     dockerfile = "Dockerfile.const",
-    build_args={"num_guardians": '%s' % (num_guardians)},
+    build_args = {"num_guardians": '%s' % (num_guardians)},
+    only = ["scripts", "ethereum/.env.test"]
 )
 
 # node
