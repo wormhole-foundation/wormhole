@@ -17,7 +17,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/cw_wormhole"
@@ -73,7 +72,8 @@ func buildMultipleChainsInterchain(t *testing.T, chains []ibc.Chain) (context.Co
 	return ctx, client
 }
 
-func TestCwWormholeHappyPath(t *testing.T) {
+// TestCWWormholeQueries tests the query functions of the cw_wormhole contract
+func TestCWWormholeQueries(t *testing.T) {
 	// Base setup
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
@@ -122,7 +122,6 @@ func TestCwWormholeHappyPath(t *testing.T) {
 	// Check that hex addresse are able to be queried
 	var hexAddressResp cw_wormhole.QueryAddressHexQueryResponse
 	err = wormchain.QueryContract(ctx, contractAddr, cw_wormhole.QueryMsg{
-
 		QueryAddressHex: &cw_wormhole.QueryMsg_QueryAddressHex{
 			Address: "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
 		},
@@ -153,9 +152,8 @@ func TestCwWormholeHappyPath(t *testing.T) {
 	require.Equal(t, "test", string(parsedVaaResponse.Data.Payload), "VAA payload should be what we passed in")
 }
 
-// TestPostMessage tests the PostMessage function of the cw_wormhole contract
-func TestPostMessage(t *testing.T) {
-	// Setup chain and contract like in TestCwWormholeHappyPath
+// TestCWWormholePostMessage tests the PostMessage function of the cw_wormhole contract
+func TestCWWormholePostMessage(t *testing.T) {
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
 	chains := createWormchainChains(t, "v2.24.2", *guardians)
@@ -196,43 +194,17 @@ func TestPostMessage(t *testing.T) {
 	err = json.Unmarshal(txResult, &txResponse)
 	require.NoError(t, err)
 
-	require.Equal(t, uint32(0), txResponse.Code, "tx should succeed")
-
-	// Find the wasm event
-	var wasmEvent *sdk.StringEvent
-	for _, log := range txResponse.Logs {
-		for _, event := range log.Events {
-			if event.Type == "wasm" {
-				wasmEvent = &event
-				break
-			}
-		}
-	}
-	require.NotNil(t, wasmEvent, "wasm event not found")
-
-	// Helper to find attribute value
-	findAttribute := func(key string) string {
-		for _, attr := range wasmEvent.Attributes {
-			if attr.Key == key {
-				return attr.Value
-			}
-		}
-		return ""
-	}
-
-	// Verify key attributes
-	require.Equal(t, contractAddr, findAttribute("_contract_address"), "incorrect contract address")
-	require.Equal(t, hex.EncodeToString(message), findAttribute("message.message"), "incorrect message")
-	require.Equal(t, "1", findAttribute("message.nonce"), "incorrect nonce")
-	require.Equal(t, "0", findAttribute("message.sequence"), "incorrect sequence")
-
-	// Verify additional attributes exist (values may vary)
-	require.NotEmpty(t, findAttribute("message.chain_id"), "chain_id should be present")
-	require.NotEmpty(t, findAttribute("message.sender"), "sender should be present")
-	require.NotEmpty(t, findAttribute("message.block_time"), "block_time should be present")
+	// Verify event attributes
+	cw_wormhole.VerifyEventAttributes(t, &txResponse, map[string]string{
+		"_contract_address": contractAddr,
+		"message.message":   hex.EncodeToString(message),
+		"message.nonce":     "1",
+		"message.sequence":  "0",
+	})
 }
 
-func TestUpdateGuardianSet(t *testing.T) {
+// TestCWWormholeUpdateGuardianSet tests the UpdateGuardianSet function of the cw_wormhole contract
+func TestCWWormholeUpdateGuardianSet(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	oldGuardians := guardians.CreateValSet(t, numVals)
@@ -315,7 +287,8 @@ func TestUpdateGuardianSet(t *testing.T) {
 	cw_wormhole.VerifyGuardianSet(t, ctx, wormchain, contractAddr, signingGuardians, initialIndex+1)
 }
 
-func TestContractUpgrade(t *testing.T) {
+// TestCWWormholeContractUpgrade tests the SubmitContractUpgrade function of the cw_wormhole contract
+func TestCWWormholeContractUpgrade(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
@@ -385,7 +358,8 @@ func TestContractUpgrade(t *testing.T) {
 	})
 }
 
-func TestSetFee(t *testing.T) {
+// TestCWWormholeSetFee tests the SetFee function of the cw_wormhole contract
+func TestCWWormholeSetFee(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
@@ -437,8 +411,8 @@ func TestSetFee(t *testing.T) {
 	})
 }
 
-// TestTransferFees tests transferring the accumulated fees to the core contract
-func TestTransferFees(t *testing.T) {
+// TestCWWormholeTransferFees tests transferring the accumulated fees to the core contract
+func TestCWWormholeTransferFees(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)

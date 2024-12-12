@@ -30,6 +30,7 @@ jobs:
           - "ictest-upgrade"
           - "ictest-wormchain"
           - "ictest-ibc-receiver"
+          - "ictest-cw-wormhole"
       fail-fast: false
 
     steps:
