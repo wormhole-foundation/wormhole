@@ -7,7 +7,7 @@ COPY . .
 
 RUN ./build-contracts.sh
 
-FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a9dd1e051a20 AS deploy
+FROM node:16-alpine@sha256:a1f9d027912b58a7c75be7716c97cfbc6d3099f3a97ed84aa490be9dee20e787 AS deploy
 
 WORKDIR /app
 COPY package.json .

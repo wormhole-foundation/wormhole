@@ -7,9 +7,9 @@ FROM const-gen AS const-export
 FROM cosmwasm_artifacts AS artifacts
 
 # Contract deployment stage
-FROM node:20.13.1-buster-slim@sha256:8916ca78cc94933fdaef715531141c8a658bea61b89d7d88a1b2dcc0a1ae92f6
+FROM node:20.13.1-buster-slim@sha256:7ab273816c6bc500ddba1400d825708a5a5ed963cdc17c32d3fce70ac9a0f477
 
-RUN apt update && apt install netcat curl jq -y
+RUN apt update && apt install -y python3 make g++ netcat curl jq
 
 WORKDIR /app/tools
 
