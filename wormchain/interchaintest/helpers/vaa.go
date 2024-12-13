@@ -17,7 +17,7 @@ func signVaa(vaaToSign vaa.VAA, signers *guardians.ValSet) vaa.VAA {
 	return vaaToSign
 }
 
-func generateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.ChainID, emitterAddr vaa.Address, payload []byte) vaa.VAA {
+func GenerateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.ChainID, emitterAddr vaa.Address, payload []byte) vaa.VAA {
 	v := vaa.VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: index,
