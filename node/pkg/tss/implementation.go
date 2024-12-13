@@ -232,6 +232,9 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
+	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others:
+	t.anounceNewDigest(d[:], chainID)
+
 	cmd := getInactiveGuardiansCommand{
 		ChainID: chainID,
 		reply:   make(chan inactives, 1),
@@ -298,6 +301,39 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	}
 
 	return nil
+}
+
+func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID) {
+	sm := tsscommv1.SignedMessage{
+		Sender:    partyIdToProto(t.Self),
+		Signature: []byte{},
+		Content: &tsscommv1.SignedMessage_Announcement{
+			Announcement: &tsscommv1.SawDigest{
+				Digest:  digest,
+				ChainID: uint32(chainID),
+			},
+		},
+	}
+
+	if err := t.sign(&sm); err != nil {
+		t.logger.Error("couldn't sign new tss digest",
+			zap.String("chainID", chainID.String()),
+			zap.String("digest", fmt.Sprintf("%x", digest)),
+			zap.Error(err),
+		)
+
+		return
+	}
+
+	select {
+	case t.messageOutChan <- newEcho(&sm, t.guardiansProtoIDs):
+	default:
+		t.logger.Error("couldn't echo about new tss digest, network output channel buffer is full",
+			zap.String("chainID", chainID.String()),
+			zap.String("digest", fmt.Sprintf("%x", digest)),
+		)
+	}
+
 }
 
 func makeSigningRequest(d party.Digest, faulties []*tss.PartyID, chainID vaa.ChainID) party.SigningTask {
