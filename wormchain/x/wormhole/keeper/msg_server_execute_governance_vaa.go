@@ -83,10 +83,11 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		)
 
 		// Set the new params
-		err := k.slashingKeeper.SetParams(ctx, params)
-		if err != nil {
-			return nil, err
-		}
+		//
+		// TODO: Once upgraded to CosmosSDK v0.47, this method will return an error
+		// if the params do not pass validation checks. Because of that, we need to
+		// return the error from this function.
+		k.slashingKeeper.SetParams(ctx, params)
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 

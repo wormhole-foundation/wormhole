@@ -42,7 +42,7 @@ func MigrateContract(
 	code_id, err := strconv.ParseUint(codeId, 10, 64)
 	require.NoError(t, err)
 	payload := createWasmMigrationPayload(code_id, contractAddr, message)
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	v := GenerateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
