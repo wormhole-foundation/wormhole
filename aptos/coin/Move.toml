@@ -4,7 +4,7 @@ version = "0.0.1"
 upgrade_policy = "compatible"
 
 [dependencies]
-MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "6f83bc6d02207298b2dee91133d75538789bf582" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "47f0bf397eb5ca43257bfa775a6b28e7b7faf8b3" }
 
 [dev-addresses]
 wrapped_coin = "0xBEEF"
