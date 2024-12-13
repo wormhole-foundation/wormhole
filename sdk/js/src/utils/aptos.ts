@@ -353,7 +353,7 @@ export const getTokenIdFromTokenHash = async (
 };
 
 /**
- * Simulates given raw transaction and either returns the resulting transaction that was submitted
+ * Signs and submits the given raw transaction and either returns the resulting transaction that was submitted
  * to the mempool, or throws if it fails.
  * @param client Client used to transfer data to/from Aptos node
  * @param sender Account that will submit transaction
@@ -365,20 +365,13 @@ const signAndSubmitTransaction = async (
   sender: AptosAccount,
   rawTx: TxnBuilderTypes.RawTransaction
 ): Promise<Types.Transaction> => {
-  // simulate transaction
-  await client.simulateTransaction(sender, rawTx).then((sims) =>
-    sims.forEach((tx) => {
-      if (!tx.success) {
-        throw new Error(
-          `Transaction failed: ${tx.vm_status}\n${JSON.stringify(tx, null, 2)}`
-        );
-      }
-    })
-  );
-
   // sign & submit transaction
   return client
     .signTransaction(sender, rawTx)
     .then((signedTx) => client.submitTransaction(signedTx))
-    .then((pendingTx) => client.waitForTransactionWithResult(pendingTx.hash));
+    .then((pendingTx) =>
+      client.waitForTransactionWithResult(pendingTx.hash, {
+        checkSuccess: true,
+      })
+    );
 };
