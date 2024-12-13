@@ -918,7 +918,7 @@ func (v *VAA) VersionHasStringRepresentation() bool {
 func (v *VAA) MessageID() string {
 	tmp := fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
 	if v.VersionHasStringRepresentation() {
-		tmp = fmt.Sprintf("v%s/%d", tmp, v.Version)
+		tmp = fmt.Sprintf("%s/%d", tmp, v.Version)
 	}
 
 	return tmp
