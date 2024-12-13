@@ -69,6 +69,10 @@ func CreateChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 	numWormchainVals := len(guardians.Vals)
 	wormchainConfig.Images[0].Version = wormchainVersion
 
+	if wormchainVersion == "local" {
+		wormchainConfig.Images[0].Repository = "wormchain"
+	}
+
 	// Create chain factory with wormchain
 	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
 

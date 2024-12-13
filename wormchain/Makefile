@@ -83,6 +83,10 @@ clean:
 ## INTERCHAINTESTS ##
 #####################
 
+# Generate Wormchain Image
+local-image: build/wormchaind
+	docker build -t wormchain:local -f Dockerfile.ict ..
+
 # Individual Tests ($$ is interpreted as $)
 rm-testcache:
 	go clean -testcache
