@@ -131,14 +131,58 @@ func SubmitContractUpgrade(
 	guardians *guardians.ValSet,
 	wormchain *cosmos.CosmosChain,
 	contractAddr string,
-	codeId string,
+	newCodeId string,
 ) error {
-	if err := helpers.MigrateContract(t, ctx, wormchain, "faucet", contractAddr, codeId, "{}", guardians); err != nil {
+	if err := helpers.MigrateContract(t, ctx, wormchain, "faucet", contractAddr, newCodeId, "{}", guardians); err != nil {
 		return err
 	}
 
 	// Wait for transaction
 	return testutil.WaitForBlocks(ctx, 2, wormchain)
+}
+
+func SubmitContractUpgradeWithVaa(
+	t *testing.T,
+	ctx context.Context,
+	guardians *guardians.ValSet,
+	guardianSetIndex uint64,
+	vaaChainId vaa.ChainID,
+	chain *cosmos.CosmosChain,
+	contractAddr string,
+	newCodeId string,
+	keyName string,
+) error {
+	// convert newCodeId to Uint256
+	var newCodeIdBz [32]byte
+	newCodeIdInt := new(big.Int)
+	newCodeIdInt.SetString(newCodeId, 10)
+	newCodeIdInt.FillBytes(newCodeIdBz[:])
+
+	// Create contract upgrade payload
+	updateMsg := vaa.BodyContractUpgrade{
+		ChainID:     vaaChainId,
+		NewContract: vaa.Address(newCodeIdBz),
+	}
+
+	payload, err := updateMsg.Serialize()
+	require.NoError(t, err)
+
+	// Generate and sign the governance VAA
+	govVaa := helpers.GenerateGovernanceVaa(uint32(guardianSetIndex), guardians, payload)
+	vaaBz, err := govVaa.Marshal()
+	require.NoError(t, err)
+
+	encodedVaa := base64.StdEncoding.EncodeToString(vaaBz)
+	executeVAAPayload, err := json.Marshal(ExecuteMsg{
+		SubmitVaa: &ExecuteMsg_SubmitVAA{
+			Vaa: Binary(encodedVaa),
+		},
+	})
+	require.NoError(t, err)
+
+	// Submit VAA
+	_, err = chain.ExecuteContract(ctx, keyName, contractAddr, string(executeVAAPayload))
+	return err
 }
 
 // SubmitFeeUpdate submits a VAA to update the fee amount

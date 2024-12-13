@@ -20,11 +20,10 @@ import (
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers/cw_wormhole"
-
-	vaa "github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func createWormchainChains(t *testing.T, wormchainVersion string, guardians guardians.ValSet) []ibc.Chain {
+func createSingleNodeCluster(t *testing.T, wormchainVersion string, guardians guardians.ValSet) []ibc.Chain {
 	numWormchainVals := len(guardians.Vals)
 	numFullNodes := 0
 
@@ -47,7 +46,7 @@ func createWormchainChains(t *testing.T, wormchainVersion string, guardians guar
 	return chains
 }
 
-func buildMultipleChainsInterchain(t *testing.T, chains []ibc.Chain) (context.Context, *client.Client) {
+func buildSingleNodeInterchain(t *testing.T, chains []ibc.Chain) (context.Context, *client.Client) {
 	ic := interchaintest.NewInterchain()
 
 	for _, chain := range chains {
@@ -78,13 +77,13 @@ func TestCWWormholeQueries(t *testing.T) {
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
 
-	chains := createWormchainChains(t, "v2.24.2", *guardians)
-	ctx, _ := buildMultipleChainsInterchain(t, chains)
+	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chains)
 
 	wormchain := chains[0].(*cosmos.CosmosChain)
 
 	// Instantiate the cw_wormhole contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	wormchainCoreContractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 	contractAddr := wormchainCoreContractInfo.Address
 
@@ -156,12 +155,12 @@ func TestCWWormholeQueries(t *testing.T) {
 func TestCWWormholePostMessage(t *testing.T) {
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createWormchainChains(t, "v2.24.2", *guardians)
-	ctx, _ := buildMultipleChainsInterchain(t, chains)
+	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chains)
 	wormchain := chains[0].(*cosmos.CosmosChain)
 
 	// Instantiate contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 	contractAddr := contractInfo.Address
 
@@ -208,12 +207,12 @@ func TestCWWormholeUpdateGuardianSet(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	oldGuardians := guardians.CreateValSet(t, numVals)
-	chains := createWormchainChains(t, "v2.24.2", *oldGuardians)
-	ctx, _ := buildMultipleChainsInterchain(t, chains)
+	chains := createSingleNodeCluster(t, "v2.24.2", *oldGuardians)
+	ctx, _ := buildSingleNodeInterchain(t, chains)
 	wormchain := chains[0].(*cosmos.CosmosChain)
 
 	// Deploy contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, oldGuardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, oldGuardians)
 	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, oldGuardians)
 	contractAddr := contractInfo.Address
 
@@ -292,70 +291,81 @@ func TestCWWormholeContractUpgrade(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createWormchainChains(t, "v2.24.2", *guardians)
-	ctx, _ := buildMultipleChainsInterchain(t, chains)
+	chains := CreateChains(t, "v2.24.2", *guardians)
+	ctx, _, _, _ := BuildInterchain(t, chains)
+
+	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
 
-	// Deploy contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	// Deploy contract to wormhole
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
-	contractAddr := contractInfo.Address
+	wormContractAddr := contractInfo.Address
 
 	// Store a new version of the contract to upgrade to
-	newCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", guardians)
+	wormNewCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", guardians)
 
 	t.Run("successful upgrade", func(t *testing.T) {
-		err := cw_wormhole.SubmitContractUpgrade(t, ctx, guardians, wormchain, contractAddr, newCodeId)
+		err := cw_wormhole.SubmitContractUpgrade(t, ctx, guardians, wormchain, wormContractAddr, wormNewCodeId)
 		require.NoError(t, err)
 
-		contractInfo = helpers.QueryContractInfo(t, wormchain, ctx, contractAddr)
+		contractInfo = helpers.QueryContractInfo(t, wormchain, ctx, wormContractAddr)
 		require.NoError(t, err)
-		require.Equal(t, newCodeId, contractInfo.ContractInfo.CodeID)
+		require.Equal(t, wormNewCodeId, contractInfo.ContractInfo.CodeID)
 	})
 
 	t.Run("invalid code id", func(t *testing.T) {
-		// Try to upgrade to a non-existent code ID
-		err := cw_wormhole.SubmitContractUpgrade(t, ctx, guardians, wormchain, contractAddr, "999999")
+		err := cw_wormhole.SubmitContractUpgrade(t, ctx, guardians, wormchain, wormContractAddr, "999999")
 		require.Error(t, err)
 	})
 
 	// VAA payload to upgrade contract is not allowed on Wormchain, must use the wormhole module
-	t.Run("invalid: use x/wormhole", func(t *testing.T) {
-		// Left pad code ID to 32 bytes
-		paddedBuf, err := vaa.LeftPadBytes(newCodeId, 32)
-		require.NoError(t, err)
-
-		var newContract vaa.Address
-		copy(newContract[:], paddedBuf.Bytes())
-
-		// Create contract upgrade payload
-		updateMsg := vaa.BodyContractUpgrade{
-			ChainID:     vaa.ChainIDWormchain,
-			NewContract: newContract,
-		}
-
-		payload, err := updateMsg.Serialize()
-		require.NoError(t, err)
-
-		// Generate and sign the governance VAA
-		guardianSetIndex := helpers.QueryConsensusGuardianSetIndex(t, wormchain, ctx)
-		govVaa := helpers.GenerateGovernanceVaa(uint32(guardianSetIndex), guardians, payload)
-		vaaBz, err := govVaa.Marshal()
-		require.NoError(t, err)
-
-		encodedVaa := base64.StdEncoding.EncodeToString(vaaBz)
-		executeVAAPayload, err := json.Marshal(cw_wormhole.ExecuteMsg{
-			SubmitVaa: &cw_wormhole.ExecuteMsg_SubmitVAA{
-				Vaa: cw_wormhole.Binary(encodedVaa),
-			},
-		})
-		require.NoError(t, err)
-
+	t.Run("upgrade wormhole contract with vaa: fails - use x/wormhole", func(t *testing.T) {
 		// Submit VAA
-		_, err = wormchain.ExecuteContract(ctx, "faucet", contractAddr, string(executeVAAPayload))
+		err := cw_wormhole.SubmitContractUpgradeWithVaa(t, ctx, guardians, 0, vaa.ChainIDWormchain, wormchain, wormContractAddr, wormNewCodeId, "faucet")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "must use x/wormhole")
 	})
+
+	// Test osmo chain
+	osmo := chains[2].(*cosmos.CosmosChain)
+	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), 10_000_000_000, osmo)
+	osmoUser := users[0]
+
+	// Deploy contract to osmo
+	osmoCodeId, err := osmo.StoreContract(ctx, osmoUser.KeyName, "./contracts/cw_wormhole.wasm")
+	require.NoError(t, err)
+
+	instantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDOsmosis, guardians)
+
+	osmoContractAddr, err := osmo.InstantiateContract(ctx, osmoUser.KeyName, osmoCodeId, instantiateMsg, false, "--admin", osmoUser.Bech32Address("osmo"))
+	require.NoError(t, err)
+
+	// Update admin to contract addr
+	_, err = osmo.GetFullNode().ExecTx(ctx, osmoUser.KeyName, "wasm", "set-contract-admin", osmoContractAddr, osmoContractAddr)
+	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, osmo)
+	require.NoError(t, err)
+
+	// Verify new admin is contract
+	contractInfo = helpers.QueryContractInfo(t, osmo, ctx, osmoContractAddr)
+	require.NoError(t, err)
+	require.Equal(t, osmoContractAddr, contractInfo.ContractInfo.Admin)
+
+	// Store a new version of the contract to upgrade to
+	osmoNewCodeId, err := osmo.StoreContract(ctx, osmoUser.KeyName, "./contracts/cw_wormhole.wasm")
+	require.NoError(t, err)
+
+	t.Run("migrate osmosis via payload", func(t *testing.T) {
+		// Submit VAA
+		err := cw_wormhole.SubmitContractUpgradeWithVaa(t, ctx, guardians, 0, vaa.ChainIDOsmosis, osmo, osmoContractAddr, osmoNewCodeId, osmoUser.KeyName)
+		require.NoError(t, err)
+
+		contractInfo := helpers.QueryContractInfo(t, osmo, ctx, osmoContractAddr)
+		require.NoError(t, err)
+		require.Equal(t, osmoNewCodeId, contractInfo.ContractInfo.CodeID)
+	})
+
 }
 
 // TestCWWormholeSetFee tests the SetFee function of the cw_wormhole contract
@@ -363,12 +373,12 @@ func TestCWWormholeSetFee(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createWormchainChains(t, "v2.24.2", *guardians)
-	ctx, _ := buildMultipleChainsInterchain(t, chains)
+	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chains)
 	wormchain := chains[0].(*cosmos.CosmosChain)
 
 	// Deploy contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 	contractAddr := contractInfo.Address
 
@@ -416,12 +426,12 @@ func TestCWWormholeTransferFees(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createWormchainChains(t, "v2.24.2", *guardians)
-	ctx, _ := buildMultipleChainsInterchain(t, chains)
+	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chains)
 	wormchain := chains[0].(*cosmos.CosmosChain)
 
 	// Deploy contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 	contractAddr := contractInfo.Address
 

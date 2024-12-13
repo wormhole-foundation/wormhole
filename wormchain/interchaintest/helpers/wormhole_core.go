@@ -30,7 +30,7 @@ type GuardianAddress struct {
 	Bytes []byte `json:"bytes"`
 }
 
-func CoreContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, guardians *guardians.ValSet) string {
+func CoreContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, vaaChainId vaa.ChainID, guardians *guardians.ValSet) string {
 	guardianAddresses := []GuardianAddress{}
 	for i := 0; i < guardians.Total; i++ {
 		guardianAddresses = append(guardianAddresses, GuardianAddress{
@@ -46,7 +46,7 @@ func CoreContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, guardians *gu
 			ExpirationTime: 0,
 		},
 		GuardianSetExpirity: 86400,
-		ChainId:             uint16(vaa.ChainIDWormchain),
+		ChainId:             uint16(vaaChainId),
 		FeeDenom:            cfg.Denom,
 	}
 	msgBz, err := json.Marshal(msg)
