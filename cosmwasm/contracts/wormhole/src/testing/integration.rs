@@ -420,7 +420,7 @@ pub fn update_contract_gov_vaa() -> StdResult<()> {
             admin: wormhole_contract.to_string(),
         }),
     );
-    println!("update admin response: {:?}", update_admin_response);
+
     assert!(
         update_admin_response.is_ok(),
         "Update Contract Admin should succeed"
@@ -480,7 +480,7 @@ pub fn update_contract_gov_vaa() -> StdResult<()> {
         },
         &[],
     );
-    println!("vaa response: {:?}", vaa_response);
+
     assert!(
         vaa_response.is_ok(),
         "Update Contract VAA submission should succeed"
@@ -695,7 +695,7 @@ pub fn only_gov_vaas_allowed() {
         },
         &[],
     );
-    println!("vaa response: {:?}", vaa_response);
+
     assert!(
         vaa_response.is_err(),
         "VAA submission should fail \"InvalidVAA\" when not a governance VAA"

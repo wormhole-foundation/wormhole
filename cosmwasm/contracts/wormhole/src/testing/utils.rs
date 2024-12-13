@@ -186,21 +186,10 @@ pub trait IntoGuardianAddress {
 
 impl IntoGuardianAddress for SigningKey {
     fn into_guardian_address(self) -> wormhole_sdk::GuardianAddress {
-        // Get the public key bytes
-        let public_key = self.verifying_key().to_encoded_point(false);
-        let public_key_bytes = public_key.as_bytes();
-
-        // Skip the first byte (0x04 prefix for uncompressed public keys)
-        let key_without_prefix = &public_key_bytes[1..];
-
-        // Hash with Keccak-256
-        let mut hasher = Keccak::v256();
-        let mut hash = [0u8; 32];
-        hasher.update(key_without_prefix);
-        hasher.finalize(&mut hash);
+        let guardian: GuardianAddress = self.into();
 
         // Take last 20 bytes
-        let address: [u8; 20] = hash[12..32].try_into().unwrap();
+        let address: [u8; 20] = guardian.bytes.0.try_into().unwrap();
 
         wormhole_sdk::GuardianAddress(address)
     }
