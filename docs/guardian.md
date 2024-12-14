@@ -48,7 +48,7 @@ processes requests from a select set of peers.
 
 ### Processor
 
-The processor takes messages observed from the watchers and observations gossipped by other guardians. It aggregates these
+The processor takes messages observed from the watchers and observations gossiped by other guardians. It aggregates these
 until an observation is seen by a quorum of guardians, including itself. It then publishes the signed VAA. The processor
 stores signed VAAs in an on-disk badgerDB instance. The processor also interfaces with the governor and accountant packages
 before publishing an observation.

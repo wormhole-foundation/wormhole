@@ -66,7 +66,7 @@ message digests for replay prevention.
 Since the method for posting a VAA to the NFT bridge is authorized by the message signature itself, anyone can post any
 message.
 
-Since every NFT has unique metadata the Transfer messages contain all metadata, a transfer (even the first on per NFT)
+Since every NFT has unique metadata the Transfer messages contain all metadata, a transfer (even the first one per NFT)
 only requires a single Wormhole message to be passed compared to the Token Bridge. On the first transfer action of an
 NFT (address / symbol / name) a wrapped asset (i.e. master edition or new contract) is created. When the wrapped asset (
 contract) is already initialized or was just initialized, the (new) token_id and metadata URI are registered.
@@ -130,10 +130,10 @@ NewContract [32]uint8
 ## Caveats
 
 ### Transfer completion
-A user who initiated a transfer should call `completeTransfer` within 24 hours. Guardian Sets are guaranteed to be valid for at least 24 hours. If the user waits longer, it could be that the Guardian Set has changed between the time where the transfer was initiated and the the time the user attempts to redeem the VAA. Let's call the Guardian Set at the time of signing `setA` and the Guardian Set at the time of redeeming on the target chain `setB`.
+A user who initiated a transfer should call `completeTransfer` within 24 hours. Guardian Sets are guaranteed to be valid for at least 24 hours. If the user waits longer, it could be that the Guardian Set has changed between the time where the transfer was initiated and the time the user attempts to redeem the VAA. Let's call the Guardian Set at the time of signing `setA` and the Guardian Set at the time of redeeming on the target chain `setB`.
 
 If `setA != setB` and more than 24 hours have passed, there are multiple options for still redeeming the VAA on the target chain:
-1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.
+1. The quorum of Guardians that signed the VAA may still be part of `setB`. In this case, the VAA merely needs to be modified to have the new Guardian Set Index along with any `setA` only guardian signatures removed to make a valid VAA. The updated VAA can then be redeemed. The typescript sdk includes a [`repairVaa()`](../sdk/js/src/utils/repairVaa.ts) function to perform this automatically.
 2. The intersection between `setA` and `setB` is greater than 2/3 of `setB`, but not all signatures of the VAA are from Guardians in `setB`. Then it may be possible to gather signatures from the other Guardians from other sources. E.g. Wormholescan provides an API under (/api/v1/observations/:chain/:emitter/:sequence)[https://docs.wormholescan.io/#/Wormscan/find-observations-by-sequence].
 3. A Guardian may send a signed re-observation request to the network using the `send-observation-request` admin command. A new valid VAA with an updated Guardian Set Index is generated once enough Guardians have re-observed the old message. Note that this is only possible if a quorum of Guardians is running archive nodes that still include this transaction.
 
