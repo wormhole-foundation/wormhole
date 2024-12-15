@@ -3,6 +3,7 @@ package publicrpc
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -93,7 +94,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	})
 
 	if err != nil {
-		if err == db.ErrVAANotFound {
+		if errors.Is(err, db.ErrVAANotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		s.logger.Error("failed to fetch VAA", zap.Error(err), zap.Any("request", req))
