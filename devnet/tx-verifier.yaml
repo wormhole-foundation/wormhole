@@ -23,6 +23,7 @@ spec:
              mountPath: /logs
           command:
             ["/bin/sh", "-c"]
+          # See `ethereum/.env.test` and related shell scripts for how these values are configured in localnet testing.
           args:
             - |
               exec /guardiand \
@@ -31,6 +32,7 @@ spec:
                            --rpcUrl ws://eth-devnet:8545 \
                            --coreContract 0xC89Ce4735882C9F0f0FE26686c53074E09B0D550 \
                            --tokenContract 0x0290FB167208Af455bB137780163b7B7a9a10C16 \
+                           --wrappedNativeContract 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E \
                            --logLevel=info \
                            2> /logs/error.log \
         - name: tx-verifier-monitor

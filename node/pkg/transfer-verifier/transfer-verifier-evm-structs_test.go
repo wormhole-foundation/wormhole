@@ -12,6 +12,12 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+var (
+	// Mainnet values
+	WETH_ADDRESS                = common.HexToAddress("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+	NATIVE_CHAIN_ID vaa.ChainID = 2
+)
+
 func TestRelevantDeposit(t *testing.T) {
 	t.Parallel()
 
@@ -749,7 +755,7 @@ func TestDepositFrom(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel() // marks each test case as capable of running in parallel with each other
 
-			deposit, err := DepositFrom(&test.log)
+			deposit, err := DepositFromLog(&test.log, NATIVE_CHAIN_ID)
 			assert.Equal(t, test.expected, deposit)
 			require.NoError(t, err)
 		})
@@ -816,7 +822,7 @@ func TestParseERC20TransferFrom(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel() // marks each test case as capable of running in parallel with each other
 
-			transfer, err := ERC20TransferFrom(&test.log)
+			transfer, err := ERC20TransferFromLog(&test.log, NATIVE_CHAIN_ID)
 			assert.Equal(t, test.expected, transfer)
 			require.NoError(t, err)
 		})
@@ -846,7 +852,7 @@ func TestParseERC20TransferFrom(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel() // marks each test case as capable of running in parallel with each other
 
-			transfer, err := ERC20TransferFrom(&test.log)
+			transfer, err := ERC20TransferFromLog(&test.log, NATIVE_CHAIN_ID)
 			require.Error(t, err)
 			assert.Nil(t, transfer)
 		})

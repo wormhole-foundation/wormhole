@@ -29,6 +29,8 @@ var (
 	evmCoreContract *string
 	// Contract address of the token bridge.
 	evmTokenBridgeContract *string
+	// Contract address of the wrapped native asset, e.g. WETH for Ethereum
+	wrappedNativeContract *string
 	// Height difference between pruning windows (in blocks).
 	pruneHeightDelta *uint64
 )
@@ -41,11 +43,13 @@ func init() {
 	evmRpc = TransferVerifierCmdEvm.Flags().String("rpcUrl", "ws://localhost:8546", "RPC url")
 	evmCoreContract = TransferVerifierCmdEvm.Flags().String("coreContract", "", "core bridge address")
 	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "token bridge")
+	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("wrappedNativeContract", "", "wrapped native address (e.g. WETH on Ethereum)")
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
 	TransferVerifierCmd.MarkFlagRequired("coreContract")
 	TransferVerifierCmd.MarkFlagRequired("tokenContract")
+	TransferVerifierCmd.MarkFlagRequired("wrappedNativeContract")
 }
 
 // Note: logger.Error should be reserved only for conditions that break the
@@ -93,19 +97,10 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 	logger.Info("Starting EVM transfer verifier")
 
-	// Verify CLI parameters
-	if *evmRpc == "" || *evmCoreContract == "" || *evmTokenBridgeContract == "" {
-		logger.Fatal(
-			"One or more CLI parameters are empty",
-			zap.String("rpc", *evmRpc),
-			zap.String("coreContract", *evmCoreContract),
-			zap.String("tokenContract", *evmTokenBridgeContract),
-		)
-	}
-
 	logger.Debug("EVM rpc connection", zap.String("url", *evmRpc))
 	logger.Debug("EVM core contract", zap.String("address", *evmCoreContract))
 	logger.Debug("EVM token bridge contract", zap.String("address", *evmTokenBridgeContract))
+	logger.Debug("EVM wrapped native asset contract", zap.String("address", *wrappedNativeContract))
 	logger.Debug("EVM prune config",
 		zap.Uint64("height delta", *pruneHeightDelta))
 
@@ -124,10 +119,9 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	transferVerifier, err := txverifier.NewTransferVerifier(
 		evmConnector,
 		&txverifier.TVAddresses{
-			CoreBridgeAddr:  common.HexToAddress(*evmCoreContract),
-			TokenBridgeAddr: common.HexToAddress(*evmTokenBridgeContract),
-			// TODO: should be a CLI parameter so that we could support other EVM chains
-			WrappedNativeAddr: txverifier.WETH_ADDRESS,
+			CoreBridgeAddr:    common.HexToAddress(*evmCoreContract),
+			TokenBridgeAddr:   common.HexToAddress(*evmTokenBridgeContract),
+			WrappedNativeAddr: common.HexToAddress(*wrappedNativeContract),
 		},
 		*pruneHeightDelta,
 		logger,
