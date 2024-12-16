@@ -1274,6 +1274,63 @@ func TestFT(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("Two quorums only one guardian in conjunction", func(t *testing.T) {
+		// This test simulates an error we've seen while testing with real data:
+		// 3 servers manage to generate VAA but not VAAv2 (TSS signatuer).
+		// That is, 3 servers saw the same digest, but only one of them was part of the tss-committee.
+		// As a result, the VAA was generated, but the VAAv2 was not (since the others in the committee didn't f+1 messages that started signing).
+		a := assert.New(t)
+
+		timeout := time.Minute / 2
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute)
+		defer cancel()
+
+		cID := vaa.ChainID(1)
+		tsk := party.SigningTask{
+			Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			Faulties:     []*tss.PartyID{},
+			AuxilaryData: chainIDToBytes(cID),
+		}
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		signers := getSigningGuardians(a, engines, tsk)
+		a.Len(signers, 3)
+
+		fmt.Println("starting engines.")
+		for _, engine := range signers {
+			// Ensuring the guardianDownTime is longer than the test's timeout.
+			engine.GuardianStorage.Configurations.guardianDownTime = timeout * 2
+			engine.GuardianStorage.maxJitter = time.Microsecond
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		nonSigners := make([]*Engine, 0, 2)
+		for _, engine := range engines {
+			if !contains(signers, engine) {
+				nonSigners = append(nonSigners, engine)
+			}
+		}
+
+		// starting 3 signers where two aren't in the committee and one is.
+		for _, engine := range append(nonSigners, signers[0]) {
+			tmp := make([]byte, 32)
+			copy(tmp, tsk.Digest[:])
+
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("context expired")
+		}
+	})
 }
 
 func TestMessagesWithBadRounds(t *testing.T) {
