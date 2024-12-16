@@ -476,13 +476,15 @@ func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
 		f.sigAlerts.Enqueue(state)
 	}
 
-	tidData, ok := state.trackidContext[trackidStr(tid.ToString())]
+	tidstr := trackidStr(tid.ToString())
+
+	tidData, ok := state.trackidContext[tidstr]
 	if !ok {
 		tidData = &tackingIDContext{
 			sawProtocolMessagesFrom: map[strPartyId]bool{},
 		}
 
-		state.trackidContext[trackidStr(tid.ToString())] = tidData
+		state.trackidContext[tidstr] = tidData
 	}
 
 	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(cmd.from))] = true
@@ -649,4 +651,36 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 }
 
 func (cmd *newSeenDigestCommand) apply(t *Engine, f *ftTracker) {
+	// newAnouncementDomain
+	dgst := party.Digest{}
+	copy(dgst[:], cmd.Digest[:])
+
+	chain := vaa.ChainID(cmd.ChainID)
+
+	state, ok := f.sigsState[intoSigKey(dgst, chain)]
+	if !ok {
+		alertTime := time.Now().Add(t.GuardianStorage.DelayGraceTime)
+		state = f.setNewSigState(dgst, chain, alertTime)
+
+		// Since this is a delivery and not a sign command, we add this to the alert heap.
+		f.sigAlerts.Enqueue(state)
+	}
+
+	// Generating the special trackingID, as an indicator for seeing the digest and chain.
+	tid := common.TrackingID{
+		Digest:       dgst[:],
+		PartiesState: nil,
+		AuxilaryData: chainIDToBytes(chain),
+	}
+
+	tidStr := trackidStr(tid.ToString())
+
+	tidData, ok := state.trackidContext[tidStr]
+	if !ok {
+		tidData = &tackingIDContext{sawProtocolMessagesFrom: map[strPartyId]bool{}}
+
+		state.trackidContext[tidStr] = tidData
+	}
+
+	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(protoToPartyId(cmd.issuer)))] = true
 }
