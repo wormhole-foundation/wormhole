@@ -260,7 +260,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # Write this away till the next time
                         App.globalPut(Bytes("currentGuardianSetIndex"), idx.load()),
 
-                        # Write everything out to the auxilliary storage
+                        # Write everything out to the auxiliary storage
                         off.store(off.load() + Int(4)),
                         len.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
 
