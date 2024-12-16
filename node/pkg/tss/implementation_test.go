@@ -1298,16 +1298,18 @@ func TestFT(t *testing.T) {
 		engines, err := loadGuardians(5, "tss5")
 		a.NoError(err)
 
-		signers := getSigningGuardians(a, engines, tsk)
-		a.Len(signers, 3)
-
 		fmt.Println("starting engines.")
-		for _, engine := range signers {
+		for _, engine := range engines {
 			// Ensuring the guardianDownTime is longer than the test's timeout.
 			engine.GuardianStorage.Configurations.guardianDownTime = timeout * 2
 			engine.GuardianStorage.maxJitter = time.Microsecond
+			// little grace time to ensure someone confess their issue.
+			engine.Configurations.DelayGraceTime = time.Second * 3
 			a.NoError(engine.Start(ctx))
 		}
+
+		signers := getSigningGuardians(a, engines, tsk)
+		a.Len(signers, 3)
 
 		fmt.Println("msgHandler settup:")
 		dnchn := msgHandler(ctx, engines, 1)
