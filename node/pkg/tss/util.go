@@ -212,6 +212,13 @@ func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
 		if time.Since(v.Problem.IssuingTime.AsTime()).Abs() > maxHeartbeatInterval {
 			return fmt.Errorf("problem's timestamp is too old")
 		}
+	case *tsscommv1.SignedMessage_Announcement:
+		if v.Announcement == nil {
+			return fmt.Errorf("announcement is nil")
+		}
+		if v.Announcement.Digest == nil {
+			return fmt.Errorf("announcement digest is nil")
+		}
 	case nil:
 		return ErrNoContent
 	default:

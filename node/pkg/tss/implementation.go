@@ -333,7 +333,6 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID) {
 			zap.String("digest", fmt.Sprintf("%x", digest)),
 		)
 	}
-
 }
 
 func makeSigningRequest(d party.Digest, faulties []*tss.PartyID, chainID vaa.ChainID) party.SigningTask {
@@ -778,6 +777,8 @@ func (t *Engine) handleEcho(m Incoming) (bool, error) {
 	switch v := parsed.(type) {
 	case *parsedProblem:
 		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
+	case *parsedAnnouncement:
+		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*v})
 	case *parsedTssContent:
 		if err := t.feedIncomingToFp(v.ParsedMessage); err != nil {
 			return shouldEcho, parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))
@@ -902,6 +903,11 @@ func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 			issuer:  echoMsg.Message.Sender,
 		}, nil
 
+	case *tsscommv1.SignedMessage_Announcement:
+		return &parsedAnnouncement{
+			SawDigest: cntnt.Announcement,
+			issuer:    echoMsg.Message.Sender,
+		}, nil
 	case *tsscommv1.SignedMessage_TssContent:
 		p, err := tss.ParseWireMessage(cntnt.TssContent.Payload, senderPid, true)
 		if err != nil {

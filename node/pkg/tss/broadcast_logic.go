@@ -11,6 +11,7 @@ import (
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/yossigi/tss-lib/v2/common"
+	"github.com/yossigi/tss-lib/v2/ecdsa/party"
 	"github.com/yossigi/tss-lib/v2/tss"
 )
 
@@ -41,9 +42,33 @@ type processedMessage interface {
 	wrapError(error) error
 }
 
+type serialzeable interface {
+	serialize() ([]byte, error)
+}
+
 type parsedProblem struct {
 	*tsscommv1.Problem
 	issuer *tsscommv1.PartyId
+}
+
+type parsedTssContent struct {
+	tss.ParsedMessage
+	signingRound
+}
+
+type parsedAnnouncement struct {
+	*tsscommv1.SawDigest
+	issuer *tsscommv1.PartyId
+}
+
+func serializeableToUUID(s serialzeable, loadDistKey []byte) (uuid, error) {
+	bts, err := s.serialize()
+	if err != nil {
+		return uuid{}, err
+	}
+
+	return uuid(hash(append(bts, loadDistKey...))), nil
+
 }
 
 func (p *parsedProblem) getTrackingID() *common.TrackingID {
@@ -62,7 +87,7 @@ func (p *parsedProblem) wrapError(err error) error {
 
 func (p *parsedProblem) serialize() ([]byte, error) {
 	if p == nil {
-		return nil, fmt.Errorf("nil relbroadcastables")
+		return []byte(parsedProblemDomain), fmt.Errorf("nil relbroadcastables")
 	}
 	unixtime := p.IssuingTime.AsTime().Unix()
 
@@ -89,18 +114,8 @@ func (p *parsedProblem) serialize() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (p *parsedProblem) getUUID(distLoadKey []byte) (uuid, error) {
-	bts, err := p.serialize()
-	if err != nil {
-		return uuid{}, err
-	}
-
-	return uuid(hash(append(bts, distLoadKey...))), nil
-}
-
-type parsedTssContent struct {
-	tss.ParsedMessage
-	signingRound
+func (p *parsedProblem) getUUID(loadDistKey []byte) (uuid, error) {
+	return serializeableToUUID(p, loadDistKey)
 }
 
 func (msg *parsedTssContent) getUUID(loadDistKey []byte) (uuid, error) {
@@ -133,6 +148,47 @@ func (p *parsedTssContent) getTrackingID() *common.TrackingID {
 	}
 
 	return p.WireMsg().GetTrackingID()
+}
+
+func (p *parsedAnnouncement) serialize() ([]byte, error) {
+	if p == nil {
+		return []byte(newAnouncementDomain), fmt.Errorf("nil relbroadcastables")
+	}
+
+	fromId := [hostnameSize]byte{}
+	copy(fromId[:], []byte(p.issuer.Id))
+
+	fromKey := [pemKeySize]byte{}
+	copy(fromKey[:], p.issuer.Key)
+
+	capacity := len(newAnouncementDomain) +
+		(hostnameSize + pemKeySize) +
+		auxiliaryDataSize +
+		party.DigestSize
+
+	b := bytes.NewBuffer(make([]byte, 0, capacity))
+
+	b.WriteString(newAnouncementDomain) // domain separation.
+	b.Write(fromId[:])
+	b.Write(fromKey[:])
+	b.Write(p.Digest[:])
+	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
+
+	return b.Bytes(), nil
+}
+
+func (p *parsedAnnouncement) getUUID(loadDistKey []byte) (uuid, error) {
+	return serializeableToUUID(p, loadDistKey)
+}
+
+func (p *parsedAnnouncement) getTrackingID() *common.TrackingID { return nil }
+
+func (p *parsedAnnouncement) wrapError(err error) error {
+	return logableError{
+		cause:      fmt.Errorf("error with digest announcement from %v: %w", p.issuer, err),
+		trackingId: nil, // parsedAnnouncement doesn't have a trackingID.
+		round:      "",  // parsedAnnouncement doesn't have a round.
+	}
 }
 
 type broadcaststate struct {

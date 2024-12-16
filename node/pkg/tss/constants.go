@@ -44,8 +44,9 @@ const (
 
 	// Domain separation strings for hashing.
 	// Ensures that similar digest are different for different domains.
-	parsedProblemDomain = "problem"
-	tssContentDomain    = "content"
+	parsedProblemDomain  = "problem"
+	tssContentDomain     = "content"
+	newAnouncementDomain = "anncmnt"
 
 	defaultMaxDownTimeJitter = time.Minute
 	maxHeartbeatInterval     = defaultGuardianDownTime

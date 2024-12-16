@@ -77,6 +77,10 @@ type reportProblemCommand struct {
 	parsedProblem
 }
 
+type newSeenDigestCommand struct {
+	parsedAnnouncement
+}
+
 type inactives struct {
 	partyIDs []*tss.PartyID
 
@@ -642,4 +646,7 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 			}
 		}
 	}()
+}
+
+func (cmd *newSeenDigestCommand) apply(t *Engine, f *ftTracker) {
 }

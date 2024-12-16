@@ -46,6 +46,13 @@ func hashSignedMessage(msg *tsscommv1.SignedMessage) digest {
 		}).serialize()
 
 		b = bytes.NewBuffer(bts)
+	case *tsscommv1.SignedMessage_Announcement:
+		bts, _ := (&parsedAnnouncement{
+			SawDigest: m.Announcement,
+			issuer:    msg.Sender,
+		}).serialize()
+
+		b = bytes.NewBuffer(bts)
 	}
 
 	return hash(b.Bytes())
