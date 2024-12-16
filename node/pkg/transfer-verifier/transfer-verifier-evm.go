@@ -39,7 +39,12 @@ const (
 // the outbound transfers.
 // If the return value is true, it implies that the event was processed successfully.
 // If the return value is false, it implies that something serious has gone wrong.
-func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(ctx context.Context, vLog *ethabi.AbiLogMessagePublished) bool {
+func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
+	ctx context.Context,
+	vLog *ethabi.AbiLogMessagePublished,
+	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
+	receipt *types.Receipt,
+) bool {
 
 	// Use this opportunity to prune old transaction information from the cache.
 	tv.pruneCache()
@@ -64,11 +69,15 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(ctx context.Conte
 		return true
 	}
 
-	// Get the full transaction receipt for this log.
-	receipt, txReceiptErr := tv.evmConnector.TransactionReceipt(ctx, vLog.Raw.TxHash)
-	if txReceiptErr != nil {
-		tv.logger.Warn("could not find core bridge receipt", zap.Error(txReceiptErr))
-		return true
+	if receipt == nil {
+		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
+		// Get the full transaction receipt for this log if it was not provided as an argument.
+		var txReceiptErr error
+		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, vLog.Raw.TxHash)
+		if txReceiptErr != nil {
+			tv.logger.Warn("could not find core bridge receipt", zap.Error(txReceiptErr))
+			return true
+		}
 	}
 
 	// Caching: record a new lastBlockNumber.

@@ -157,7 +157,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 		// Process observed LogMessagePublished events
 		case vLog := <-sub.Events():
-			transferVerifier.ProcessEvent(ctx, vLog)
+			transferVerifier.ProcessEvent(ctx, vLog, nil)
 		}
 	}
 }
