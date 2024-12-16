@@ -1,12 +1,15 @@
-# first build the image
+# build the image and tag it appropriately
 
-<!-- cspell:disable-next-line -->
-(cd ..; DOCKER_BUILDKIT=1 docker buildx build --platform linux/amd64 -f aptos/Dockerfile.base -t aptos .)
+<!-- cspell:disable -->
 
-# tag the image with the appropriate version
+```bash
+cd .. && docker buildx build --platform linux/amd64,linux/arm64 -f aptos/Dockerfile.base -t ghcr.io/wormhole-foundation/aptos:3.1.0 .
+```
 
-docker tag aptos:latest ghcr.io/wormhole-foundation/aptos:3.1.0
+<!-- cspell:enable -->
 
 # push to ghcr
 
+```bash
 docker push ghcr.io/wormhole-foundation/aptos:3.1.0
+```

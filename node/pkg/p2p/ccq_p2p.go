@@ -109,6 +109,7 @@ func (ccq *ccqP2p) run(
 	ps, err := pubsub.NewGossipSub(ctx, ccq.h,
 		// We only want to accept subscribes from peers in the allow list.
 		pubsub.WithPeerFilter(func(peerID peer.ID, topic string) bool {
+			ccq.logger.Info("peer request received", zap.String("peerID", peerID.String()), zap.String("topic", topic))
 			if len(ccq.allowedPeers) == 0 {
 				return true
 			}
@@ -246,7 +247,7 @@ func (ccq *ccqP2p) publisher(ctx context.Context, guardianSigner guardiansigner.
 				continue
 			}
 			digest := query.GetQueryResponseDigestFromBytes(msgBytes)
-			sig, err := guardianSigner.Sign(digest.Bytes())
+			sig, err := guardianSigner.Sign(ctx, digest.Bytes())
 			if err != nil {
 				panic(err)
 			}

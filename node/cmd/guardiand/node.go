@@ -198,6 +198,9 @@ var (
 	monadDevnetRPC      *string
 	monadDevnetContract *string
 
+	inkRPC      *string
+	inkContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -242,6 +245,7 @@ var (
 
 	chainGovernorEnabled      *bool
 	governorFlowCancelEnabled *bool
+	coinGeckoApiKey           *string
 
 	ccqEnabled           *bool
 	ccqAllowedRequesters *string
@@ -415,6 +419,9 @@ func init() {
 	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
+	inkRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "inkRPC", "Ink RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	inkContract = NodeCmd.Flags().String("inkContract", "", "Ink contract address")
+
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
@@ -456,6 +463,7 @@ func init() {
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 	governorFlowCancelEnabled = NodeCmd.Flags().Bool("governorFlowCancelEnabled", false, "Enable flow cancel on the governor")
+	coinGeckoApiKey = NodeCmd.Flags().String("coinGeckoApiKey", "", "CoinGecko Pro API key. If no API key is provided, CoinGecko requests may be throttled or blocked.")
 
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
@@ -689,14 +697,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Node's main lifecycle context.
+	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
 	// Create the Guardian Signer
-	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(*guardianSignerUri, env == common.UnsafeDevNet)
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(rootCtx, *guardianSignerUri, env == common.UnsafeDevNet)
 	if err != nil {
 		logger.Fatal("failed to create a new guardian signer", zap.Error(err))
 	}
 
-	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String()))
+	logger.Info("Created the guardian signer", zap.String(
+		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String()))
 
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
@@ -752,7 +764,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		labels := map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.String(),
-			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 		}
@@ -798,7 +810,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
 	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
 	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
-	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", false)
+	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
+	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -861,6 +874,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
 	}
 
+	if !*chainGovernorEnabled && *coinGeckoApiKey != "" {
+		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
+	}
+
 	var publicRpcLogDetail common.GrpcLogDetail
 	switch *publicRpcLogDetailStr {
 	case "none":
@@ -916,6 +933,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["ibcWS"] = *ibcWS
 	rpcMap["injectiveLCD"] = *injectiveLCD
 	rpcMap["injectiveWS"] = *injectiveWS
+	rpcMap["inkRPC"] = *inkRPC
 	rpcMap["karuraRPC"] = *karuraRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["lineaRPC"] = *lineaRPC
@@ -956,10 +974,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	for _, ibcChain := range ibc.Chains {
 		rpcMap[ibcChain.String()] = "IBC"
 	}
-
-	// Node's main lifecycle context.
-	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
-	defer rootCtxCancel()
 
 	// Handle SIGTERM
 	sigterm := make(chan os.Signal, 1)
@@ -1097,7 +1111,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		info.PromRemoteURL = *promRemoteURL
 		info.Labels = map[string]string{
 			"node_name":     *nodeName,
-			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 			"product":       "wormhole",
@@ -1403,6 +1417,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(inkRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "ink",
+			ChainID:          vaa.ChainIDInk,
+			Rpc:              *inkRPC,
+			Contract:         *inkContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1653,7 +1679,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
-		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled),
+		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
