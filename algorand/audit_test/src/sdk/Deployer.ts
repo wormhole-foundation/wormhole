@@ -131,7 +131,7 @@ export class Deployer {
     }
 
     async waitForTransactionResponse(txId: string): Promise<Record<string, any>> {
-        // Validate transaction was sucessful
+        // Validate transaction was successful
         const result = await algosdk.waitForConfirmation(this.algodClient, txId, 10000)
         if (this.transactionFailed(result)) {
             throw new Error(JSON.stringify(result))
