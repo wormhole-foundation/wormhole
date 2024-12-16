@@ -8,9 +8,11 @@ set -xeuo pipefail
 # mainnet 
 # CORE_CONTRACT="0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
 # TOKEN_BRIDGE_CONTRACT="0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+# WRAPPED_NATIVE_CONTRACT="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 # devnet 
 CORE_CONTRACT="0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 TOKEN_BRIDGE_CONTRACT="0x0290FB167208Af455bB137780163b7B7a9a10C16"
+WRAPPED_NATIVE_CONTRACT="0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
 
 # Needs to be websockets so that the eth connector can get notifications
 ETH_RPC_DEVNET="ws://localhost:8545" # from Tilt, via Anvil
@@ -25,4 +27,5 @@ LOG_LEVEL="debug"
    --rpcUrl "${RPC}" \
    --coreContract "${CORE_CONTRACT}" \
    --tokenContract "${TOKEN_BRIDGE_CONTRACT}" \
+   --wrappedNativeContract "${WRAPPED_NATIVE_CONTRACT}" \
    --logLevel "${LOG_LEVEL}"

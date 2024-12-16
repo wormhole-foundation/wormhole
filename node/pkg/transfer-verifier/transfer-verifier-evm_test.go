@@ -79,6 +79,7 @@ func setup() *mockConnections {
 			TokenBridgeAddr:   tokenBridgeAddr,
 			WrappedNativeAddr: nativeAddr,
 		},
+		chain:        NATIVE_CHAIN_ID,
 		evmConnector: &mockConnector{},
 		client:       &mockClient{},
 		logger:       *logger,
@@ -187,7 +188,6 @@ func TestParseReceiptHappyPath(t *testing.T) {
 		},
 	}
 	for name, test := range tests {
-		test := test // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
 		t.Run(name, func(t *testing.T) {
 
 			transferReceipt, err := mocks.transferVerifier.ParseReceipt(test.receipt)
@@ -316,7 +316,6 @@ func TestParseReceiptErrors(t *testing.T) {
 		// },
 	}
 	for name, test := range tests {
-		test := test // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
 		t.Run(name, func(t *testing.T) {
 
 			receipt, err := mocks.transferVerifier.ParseReceipt(test.receipt)
@@ -373,7 +372,6 @@ func TestParseERC20TransferEvent(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
 		t.Run(name, func(t *testing.T) {
 			t.Parallel() // marks each test case as capable of running in parallel with each other
 
@@ -430,7 +428,6 @@ func TestParseWNativeDepositEvent(t *testing.T) {
 		}
 
 		for name, test := range tests {
-			test := test // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
 			t.Run(name, func(t *testing.T) {
 				t.Parallel() // marks each test case as capable of running in parallel with each other
 
@@ -673,7 +670,6 @@ func TestProcessReceipt(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
 		t.Run(name, func(t *testing.T) {
 
 			summary, err := mocks.transferVerifier.ProcessReceipt(test.transferReceipt)

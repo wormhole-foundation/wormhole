@@ -51,10 +51,8 @@ var (
 // Fixed addresses
 var (
 	// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-	WETH_ADDRESS                 = common.HexToAddress("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
-	ZERO_ADDRESS                 = common.BytesToAddress([]byte{0x00})
-	ZERO_ADDRESS_VAA             = VAAAddrFrom(ZERO_ADDRESS)
-	NATIVE_CHAIN_ID  vaa.ChainID = 2
+	ZERO_ADDRESS     = common.BytesToAddress([]byte{0x00})
+	ZERO_ADDRESS_VAA = VAAAddrFrom(ZERO_ADDRESS)
 )
 
 // EVM chain constants
@@ -83,6 +81,8 @@ type TVAddresses struct {
 // TransferVerifier contains configuration values for verifying transfers.
 type TransferVerifier[E evmClient, C connector] struct {
 	Addresses *TVAddresses
+	// The chainId being monitored
+	chain vaa.ChainID
 	// Wormhole connector for wrapping contract-specific interactions
 	logger zap.Logger
 	// Corresponds to the connector interface for EVM chains
@@ -114,15 +114,19 @@ type TransferVerifier[E evmClient, C connector] struct {
 
 func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
 	// Retrieve the NATIVE_CHAIN_ID from the connector.
-	chainId, err := connector.Client().ChainID(context.Background())
+	chainIdFromClient, err := connector.Client().ChainID(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	NATIVE_CHAIN_ID = vaa.ChainID(chainId.Uint64())
+	chainId, chainIdConvertErr := vaa.ChainIDFromString(chainIdFromClient.String())
+	if chainIdConvertErr != nil {
+		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: %w", chainIdConvertErr)
+	}
 
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
 		Addresses:             tvAddrs,
+		chain:                 chainId,
 		logger:                *logger,
 		evmConnector:          connector,
 		client:                connector.Client(),
@@ -291,7 +295,8 @@ func (d *NativeDeposit) String() string {
 	)
 }
 
-func DepositFrom(log *types.Log) (deposit *NativeDeposit, err error) {
+// DepositFromLog() creates a NativeDeposit struct given a log and chain ID.
+func DepositFromLog(log *types.Log, chainId vaa.ChainID) (deposit *NativeDeposit, err error) {
 	dest, amount := parseWNativeDepositEvent(log.Topics, log.Data)
 
 	if amount == nil {
@@ -300,7 +305,7 @@ func DepositFrom(log *types.Log) (deposit *NativeDeposit, err error) {
 
 	deposit = &NativeDeposit{
 		TokenAddress: log.Address,
-		TokenChain:   NATIVE_CHAIN_ID, // always equal to Ethereum for native deposits
+		TokenChain:   chainId,
 		Receiver:     dest,
 		Amount:       amount,
 	}
@@ -373,7 +378,8 @@ func (t *ERC20Transfer) String() string {
 	)
 }
 
-func ERC20TransferFrom(log *types.Log) (transfer *ERC20Transfer, err error) {
+// ERC20TransferFromLog() creates an ERC20Transfer struct given a log and chain ID.
+func ERC20TransferFromLog(log *types.Log, chainId vaa.ChainID) (transfer *ERC20Transfer, err error) {
 	from, to, amount := parseERC20TransferEvent(log.Topics, log.Data)
 
 	// Ensure From address is not empty. The To address is allowed to be empty when funds are being burned.
@@ -387,8 +393,8 @@ func ERC20TransferFrom(log *types.Log) (transfer *ERC20Transfer, err error) {
 
 	transfer = &ERC20Transfer{
 		TokenAddress: log.Address,
-		// Initially, set Token's chain to this chain. This will be updated by making an RPC call later.
-		TokenChain: NATIVE_CHAIN_ID,
+		// Initially, set Token's chain to the chain being monitored. This will be updated by making an RPC call later.
+		TokenChain: chainId,
 		From:       from,
 		To:         to,
 		Amount:     amount,
@@ -663,6 +669,8 @@ func (tv *TransferVerifier[ethClient, connector]) unwrapIfWrapped(
 	return tokenAddressNative, nil
 }
 
+// chainId() calls the chainId() function on the contract at the supplied address. To get the chain ID being monitored
+// by the Transfer Verifier, use the field TransferVerifier.chain.
 func (tv *TransferVerifier[ethClient, Connector]) chainId(
 	addr common.Address,
 ) (vaa.ChainID, error) {
