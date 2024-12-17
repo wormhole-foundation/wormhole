@@ -331,8 +331,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   linea: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x0C56aebD76E6D9e4a1Ec5e94F4162B4CBbf77b32",
+    token_bridge: "0x167E0752de62cb76EFc0Fbb165Bd342c6e2Bb251",
     nft_bridge: undefined,
   },
   berachain: {
