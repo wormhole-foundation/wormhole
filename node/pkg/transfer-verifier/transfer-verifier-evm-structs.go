@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"math/big"
 	"time"
@@ -113,20 +114,35 @@ type TransferVerifier[E evmClient, C connector] struct {
 }
 
 func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
-	// Retrieve the NATIVE_CHAIN_ID from the connector.
+	// Retrieve the chainId from the connector.
 	chainIdFromClient, err := connector.Client().ChainID(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	chainId, chainIdConvertErr := vaa.ChainIDFromString(chainIdFromClient.String())
-	if chainIdConvertErr != nil {
-		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: %w", chainIdConvertErr)
+	// Parse string into uint64, but ensure it is non-negative and fits in uint16.
+	chainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
+	if parseErr != nil {
+		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: %w", parseErr)
+	}
+
+	valid := false
+	for _, validId := range vaa.GetAllNetworkIDs() {
+		// Parsed is a uint64 right now but the bit size argument of 16 in ParseUint will already check for
+		// overflows.
+		if vaa.ChainID(chainId) == validId {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: ID is invalid")
 	}
 
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
 		Addresses:             tvAddrs,
-		chain:                 chainId,
+		chain:                 vaa.ChainID(chainId),
 		logger:                *logger,
 		evmConnector:          connector,
 		client:                connector.Client(),
