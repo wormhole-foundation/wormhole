@@ -75,6 +75,17 @@ jobs:
       - name: checkout chain
         uses: actions/checkout@v4
 
+      - name: Download Tarball Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+
+      - name: Load Docker Image
+        run: |
+          docker image load -i ${{ env.TAR_PATH }}
+          docker image ls -a
+
       - name: Run Test
         id: run_test
         continue-on-error: true
