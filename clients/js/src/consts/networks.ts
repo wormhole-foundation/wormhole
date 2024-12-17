@@ -193,9 +193,9 @@ const Mainnet = {
     chain_id: 196,
   },
   Linea: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://rpc.linea.build",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 59144,
   },
   Berachain: {
     rpc: undefined,
