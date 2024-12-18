@@ -1,0 +1,17 @@
+[profile.default]
+solc_version = "0.8.24"
+evm_version = "paris" # prevent use of PUSH0 opcode until it is widely supported
+optimizer = true
+via_ir = true
+extra_output = ["asm"]
+
+libs = [
+    "lib",
+]
+
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "wormhole-sdk/=lib/wormhole-solidity-sdk/src/",
+    "core-bridge/=src/",
+]
