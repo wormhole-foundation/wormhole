@@ -79,11 +79,17 @@ type TVAddresses struct {
 	WrappedNativeAddr common.Address
 }
 
+// Stores the EVM chain ID and corresponding Wormhole chain ID for the current chain being monitored by the connector.
+type chainIds struct {
+	evmChainId      uint64
+	wormholeChainId vaa.ChainID
+}
+
 // TransferVerifier contains configuration values for verifying transfers.
 type TransferVerifier[E evmClient, C connector] struct {
 	Addresses *TVAddresses
-	// The chainId being monitored
-	chain vaa.ChainID
+	// The chainId being monitored as reported by the client connector.
+	chainIds *chainIds
 	// Wormhole connector for wrapping contract-specific interactions
 	logger zap.Logger
 	// Corresponds to the connector interface for EVM chains
@@ -120,29 +126,23 @@ func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, p
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	// Parse string into uint64, but ensure it is non-negative and fits in uint16.
-	chainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
+	// Fetch EVM chain ID from the connector and attempt to convert it to a Wormhole chain ID.
+	evmChainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
 	if parseErr != nil {
 		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: %w", parseErr)
 	}
 
-	valid := false
-	for _, validId := range vaa.GetAllNetworkIDs() {
-		// Parsed is a uint64 right now but the bit size argument of 16 in ParseUint will already check for
-		// overflows.
-		if vaa.ChainID(chainId) == validId {
-			valid = true
-			break
-		}
-	}
-
-	if !valid {
-		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: ID is invalid")
+	wormholeChainId, unregisteredErr := TryWormholeChainIdFromNative(evmChainId)
+	if unregisteredErr != nil {
+		return nil, fmt.Errorf("Could not get Wormhole chain ID from EVM chain ID: %w", unregisteredErr)
 	}
 
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
-		Addresses:             tvAddrs,
-		chain:                 vaa.ChainID(chainId),
+		Addresses: tvAddrs,
+		chainIds: &chainIds{
+			evmChainId:      evmChainId,
+			wormholeChainId: wormholeChainId,
+		},
 		logger:                *logger,
 		evmConnector:          connector,
 		client:                connector.Client(),
@@ -311,8 +311,13 @@ func (d *NativeDeposit) String() string {
 	)
 }
 
-// DepositFromLog() creates a NativeDeposit struct given a log and chain ID.
-func DepositFromLog(log *types.Log, chainId vaa.ChainID) (deposit *NativeDeposit, err error) {
+// DepositFromLog() creates a NativeDeposit struct given a log and Wormhole chain ID.
+func DepositFromLog(
+	log *types.Log,
+	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID. In this context it's
+	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
+	chainId vaa.ChainID,
+) (deposit *NativeDeposit, err error) {
 	dest, amount := parseWNativeDepositEvent(log.Topics, log.Data)
 
 	if amount == nil {
@@ -394,8 +399,13 @@ func (t *ERC20Transfer) String() string {
 	)
 }
 
-// ERC20TransferFromLog() creates an ERC20Transfer struct given a log and chain ID.
-func ERC20TransferFromLog(log *types.Log, chainId vaa.ChainID) (transfer *ERC20Transfer, err error) {
+// ERC20TransferFromLog() creates an ERC20Transfer struct given a log and Wormhole chain ID.
+func ERC20TransferFromLog(
+	log *types.Log,
+	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID. In this context it's
+	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
+	chainId vaa.ChainID,
+) (transfer *ERC20Transfer, err error) {
 	from, to, amount := parseERC20TransferEvent(log.Topics, log.Data)
 
 	// Ensure From address is not empty. The To address is allowed to be empty when funds are being burned.
@@ -602,7 +612,7 @@ type TransferDetails struct {
 	Amount *big.Int
 	// Amount as sent in the raw payload
 	AmountRaw *big.Int
-	// Original chain where the token was minted.
+	// Original wormhole chain ID where the token was minted.
 	TokenChain vaa.ChainID
 	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge.
 	OriginAddress common.Address
@@ -994,6 +1004,29 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 		zap.Uint8("tokenDecimals", decimals))
 
 	return decimals, nil
+}
+
+// Yields the registered Wormhole chain ID corresponding to an EVM chain ID.
+func TryWormholeChainIdFromNative(evmChainId uint64) (wormholeChainID vaa.ChainID, err error) {
+	wormholeChainID = vaa.ChainIDUnset
+	// Add additional cases below to support more EVM chains.
+	// Note: it might be better for this function to be moved into the SDK in case other codebases need similar functionality.
+	switch evmChainId {
+	case 1:
+		wormholeChainID = vaa.ChainIDEthereum
+	case 1337:
+		// CI testing
+		wormholeChainID = vaa.ChainIDEthereumLocalnet
+
+	case 11155111:
+		wormholeChainID = vaa.ChainIDSepolia
+	default:
+		err = fmt.Errorf(
+			"Transfer Verifier does not have a registered mapping from EVM chain ID %d to a Wormhole chain ID",
+			evmChainId,
+		)
+	}
+	return
 }
 
 // Gives the representation of a geth address in vaa.Address

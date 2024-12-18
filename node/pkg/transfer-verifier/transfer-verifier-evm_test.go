@@ -79,7 +79,7 @@ func setup() *mockConnections {
 			TokenBridgeAddr:   tokenBridgeAddr,
 			WrappedNativeAddr: nativeAddr,
 		},
-		chain:        NATIVE_CHAIN_ID,
+		chainIds:     &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
 		evmConnector: &mockConnector{},
 		client:       &mockClient{},
 		logger:       *logger,

@@ -751,7 +751,6 @@ func TestDepositFrom(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test // NOTE: uncomment for Go < 1.22, see /doc/faq#closures_and_goroutines
 		t.Run(name, func(t *testing.T) {
 			t.Parallel() // marks each test case as capable of running in parallel with each other
 
