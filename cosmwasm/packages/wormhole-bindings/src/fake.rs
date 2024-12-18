@@ -1,7 +1,9 @@
 use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 
 use anyhow::{anyhow, bail, ensure, Context};
-use cosmwasm_std::{to_binary, Addr, Api, Binary, BlockInfo, CustomQuery, Empty, Querier, Storage};
+use cosmwasm_std::{
+    to_json_binary, Addr, Api, Binary, BlockInfo, CustomQuery, Empty, Querier, Storage,
+};
 use cw_multi_test::{AppResponse, CosmosRouter, Module};
 use k256::ecdsa::{recoverable, signature::Signer, SigningKey};
 use schemars::JsonSchema;
@@ -178,7 +180,7 @@ impl WormholeKeeper {
         match request {
             WormholeQuery::VerifyVaa { vaa } => self
                 .verify_vaa(&vaa, block.height)
-                .and_then(|e| to_binary(&e).map_err(From::from)),
+                .and_then(|e| to_json_binary(&e).map_err(From::from)),
             WormholeQuery::VerifyMessageSignature {
                 prefix,
                 data,
@@ -186,10 +188,10 @@ impl WormholeKeeper {
                 signature,
             } => self
                 .verify_signature(&prefix, &data, guardian_set_index, &signature, block.height)
-                .and_then(|e| to_binary(&e).map_err(From::from)),
+                .and_then(|e| to_json_binary(&e).map_err(From::from)),
             WormholeQuery::CalculateQuorum { guardian_set_index } => self
                 .calculate_quorum(guardian_set_index, block.height)
-                .and_then(|q| to_binary(&q).map_err(From::from)),
+                .and_then(|q| to_json_binary(&q).map_err(From::from)),
         }
     }
 
