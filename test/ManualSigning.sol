@@ -61,7 +61,6 @@ contract ManualSigning is GasTestBase {
       (vaa.signatures[i].v, vaa.signatures[i].r, vaa.signatures[i].s) =
         vm.sign(_guardianPrivateKeys[uint(gi)], vaa.hash);
       vaa.signatures[i].guardianIndex = gi;
-      vaa.signatures[i].v -= 27;
     }
   }}
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 
 import { GasTestBase } from "./GasTestBase.sol";
 
-import { IWormhole                   } from "wormhole-sdk/interfaces/IWormhole.sol";
+import { IWormhole } from "wormhole-sdk/interfaces/IWormhole.sol";
 import {
   PublishedMessage,
   VaaEncoding,
