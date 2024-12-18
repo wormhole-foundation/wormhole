@@ -23,7 +23,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func createSingleNodeCluster(t *testing.T, wormchainVersion string, guardians guardians.ValSet) []ibc.Chain {
+func createSingleNodeCluster(t *testing.T, wormchainVersion string, guardians guardians.ValSet) ibc.Chain {
 	numWormchainVals := len(guardians.Vals)
 	numFullNodes := 0
 
@@ -43,15 +43,12 @@ func createSingleNodeCluster(t *testing.T, wormchainVersion string, guardians gu
 	chains, err := cf.Chains(t.Name())
 	require.NoError(t, err)
 
-	return chains
+	return chains[0]
 }
 
-func buildSingleNodeInterchain(t *testing.T, chains []ibc.Chain) (context.Context, *client.Client) {
+func buildSingleNodeInterchain(t *testing.T, chain ibc.Chain) (context.Context, *client.Client) {
 	ic := interchaintest.NewInterchain()
-
-	for _, chain := range chains {
-		ic.AddChain(chain)
-	}
+	ic.AddChain(chain)
 
 	ctx := context.Background()
 	client, network := interchaintest.DockerSetup(t)
@@ -77,10 +74,10 @@ func TestCWWormholeQueries(t *testing.T) {
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
 
-	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
-	ctx, _ := buildSingleNodeInterchain(t, chains)
+	chain := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
 
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// Instantiate the cw_wormhole contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
@@ -155,9 +152,9 @@ func TestCWWormholeQueries(t *testing.T) {
 func TestCWWormholePostMessage(t *testing.T) {
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
-	ctx, _ := buildSingleNodeInterchain(t, chains)
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	chain := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// Instantiate contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
@@ -207,9 +204,9 @@ func TestCWWormholeUpdateGuardianSet(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	oldGuardians := guardians.CreateValSet(t, numVals)
-	chains := createSingleNodeCluster(t, "v2.24.2", *oldGuardians)
-	ctx, _ := buildSingleNodeInterchain(t, chains)
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	chain := createSingleNodeCluster(t, "v2.24.2", *oldGuardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// Deploy contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, oldGuardians)
@@ -373,9 +370,9 @@ func TestCWWormholeSetFee(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
-	ctx, _ := buildSingleNodeInterchain(t, chains)
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	chain := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// Deploy contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
@@ -396,6 +393,19 @@ func TestCWWormholeSetFee(t *testing.T) {
 			"new_fee.denom":  "uworm",
 		})
 		cw_wormhole.VerifyFee(t, ctx, wormchain, contractAddr, "1000000")
+
+		// post a message with fee under the new fee
+		err = cw_wormhole.PostMessageWithFee(t, ctx, wormchain, contractAddr, "message1", 999999)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FeeTooLow")
+
+		// post a message with fee equal to the new fee
+		err = cw_wormhole.PostMessageWithFee(t, ctx, wormchain, contractAddr, "message2", 1000000)
+		require.NoError(t, err)
+
+		// post a message with fee above the new fee
+		err = cw_wormhole.PostMessageWithFee(t, ctx, wormchain, contractAddr, "message3", 1000001)
+		require.NoError(t, err)
 	})
 
 	t.Run("zero fee", func(t *testing.T) {
@@ -426,9 +436,9 @@ func TestCWWormholeTransferFees(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createSingleNodeCluster(t, "v2.24.2", *guardians)
-	ctx, _ := buildSingleNodeInterchain(t, chains)
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	chain := createSingleNodeCluster(t, "v2.24.2", *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// Deploy contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
