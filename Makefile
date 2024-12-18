@@ -29,4 +29,3 @@ $(foreach dep,$(LIB_DEPS), $(eval $(call install_lib,$(dep))))
 clean:
 	forge clean
 	rm -rf lib
-	@$(MAKE) -C env clean

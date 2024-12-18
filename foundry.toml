@@ -1,5 +1,5 @@
 [profile.default]
-solc_version = "0.8.24"
+solc_version = "0.8.28"
 evm_version = "paris" # prevent use of PUSH0 opcode until it is widely supported
 optimizer = true
 via_ir = true
