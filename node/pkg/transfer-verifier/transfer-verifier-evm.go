@@ -286,7 +286,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	for _, log := range receipt.Logs {
 		switch log.Topics[0] {
 		case common.HexToHash(EVENTHASH_WETH_DEPOSIT):
-			deposit, depositErr := DepositFromLog(log, tv.chain)
+			deposit, depositErr := DepositFromLog(log, tv.chainIds.wormholeChainId)
 
 			if depositErr != nil {
 				tv.logger.Error("error when parsing Deposit from log",
@@ -300,7 +300,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 			tv.logger.Debug("adding deposit", zap.String("deposit", deposit.String()))
 			deposits = append(deposits, deposit)
 		case common.HexToHash(EVENTHASH_ERC20_TRANSFER):
-			transfer, transferErr := ERC20TransferFromLog(log, tv.chain)
+			transfer, transferErr := ERC20TransferFromLog(log, tv.chainIds.wormholeChainId)
 
 			if transferErr != nil {
 				tv.logger.Error("error when parsing ERC20 Transfer from log",
@@ -582,11 +582,11 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 	// This function adds information to a TransferDetails struct, filling out its uninitialized fields.
 	// It populates the following fields:
 	// - Amount: populate the Amount field by denormalizing details.AmountRaw.
-	// - OriginAddress: use ChainID and OriginAddressRaw to determine whether the token is wrapped.
+	// - OriginAddress: use the wormhole ChainID and OriginAddressRaw to determine whether the token is wrapped.
 
 	// If the token was minted on the chain monitored by this program, set its OriginAddress equal to OriginAddressRaw.
 	var originAddress common.Address
-	if details.TokenChain == tv.chain {
+	if details.TokenChain == tv.chainIds.wormholeChainId {
 		// The token was minted on this chain.
 		originAddress = common.BytesToAddress(details.OriginAddressRaw)
 		tv.logger.Debug("token is native. no need to unwrap",
