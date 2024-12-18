@@ -1012,12 +1012,10 @@ func TryWormholeChainIdFromNative(evmChainId uint64) (wormholeChainID vaa.ChainI
 	// Add additional cases below to support more EVM chains.
 	// Note: it might be better for this function to be moved into the SDK in case other codebases need similar functionality.
 	switch evmChainId {
-	case 1:
+	// Special carve out for anvil-based testing. This chain ID  1337 anvil's default.
+	// In this case, report the native chain ID as the mainnet chain ID for the purposes of testing.
+	case 1, 1337:
 		wormholeChainID = vaa.ChainIDEthereum
-	case 1337:
-		// CI testing
-		wormholeChainID = vaa.ChainIDEthereumLocalnet
-
 	case 11155111:
 		wormholeChainID = vaa.ChainIDSepolia
 	default:
