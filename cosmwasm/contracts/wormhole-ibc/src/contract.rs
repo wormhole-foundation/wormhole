@@ -19,7 +19,7 @@ use crate::{
 };
 use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, Event, IbcMsg, MessageInfo, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Env, Event, IbcMsg, MessageInfo, Response, StdResult,
 };
 use cw_wormhole::msg::{ExecuteMsg as WormholeExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
@@ -157,7 +157,7 @@ fn post_message_ibc(
     };
     let ibc_msg = IbcMsg::SendPacket {
         channel_id,
-        data: to_binary(&packet)?,
+        data: to_json_binary(&packet)?,
         timeout: packet_timeout,
     };
 

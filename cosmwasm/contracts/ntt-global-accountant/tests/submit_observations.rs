@@ -1,7 +1,7 @@
 mod helpers;
 
 use accountant::state::transfer;
-use cosmwasm_std::{to_binary, Binary, Uint256};
+use cosmwasm_std::{to_json_binary, Binary, Uint256};
 use cw_multi_test::AppResponse;
 use helpers::*;
 use ntt_global_accountant::msg::Observation;
@@ -61,7 +61,7 @@ fn transfer_tokens(
         payload,
     };
 
-    let obs = to_binary(&vec![o.clone()]).unwrap();
+    let obs = to_json_binary(&vec![o.clone()]).unwrap();
     let signatures = sign_observations(wh, &obs);
 
     let responses = signatures

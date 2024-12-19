@@ -1,6 +1,6 @@
 use anyhow::{bail, ensure};
 use cosmwasm_std::{
-    entry_point, from_slice, to_binary, Attribute, Binary, ContractResult, DepsMut, Env,
+    entry_point, from_json, to_json_binary, Attribute, Binary, ContractResult, DepsMut, Env,
     Ibc3ChannelOpenResponse, IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg,
     IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg, IbcPacketReceiveMsg,
     IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
@@ -91,7 +91,7 @@ fn handle_packet_receive(msg: IbcPacketReceiveMsg) -> Result<IbcReceiveResponse,
     let packet = msg.packet;
     // which local channel did this packet come on
     let channel_id = packet.dest.channel_id;
-    let wormhole_msg: WormholeIbcPacketMsg = from_slice(&packet.data)?;
+    let wormhole_msg: WormholeIbcPacketMsg = from_json(&packet.data)?;
     match wormhole_msg {
         WormholeIbcPacketMsg::Publish { msg: publish_attrs } => {
             receive_publish(channel_id, publish_attrs)
@@ -135,7 +135,7 @@ fn receive_publish(
     }
 
     // send the ack and emit the message with the attributes from the wormhole message
-    let acknowledgement = to_binary(&ContractResult::<()>::Ok(()))?;
+    let acknowledgement = to_json_binary(&ContractResult::<()>::Ok(()))?;
     Ok(IbcReceiveResponse::new()
         .set_ack(acknowledgement)
         .add_attribute("action", "receive_publish")
@@ -146,7 +146,7 @@ fn receive_publish(
 // this encode an error or error message into a proper acknowledgement to the recevier
 fn encode_ibc_error(msg: impl Into<String>) -> Binary {
     // this cannot error, unwrap to keep the interface simple
-    to_binary(&ContractResult::<()>::Err(msg.into())).unwrap()
+    to_json_binary(&ContractResult::<()>::Err(msg.into())).unwrap()
 }
 
 /// 5. Acknowledging a packet. Called when the other chain successfully receives a packet from us.

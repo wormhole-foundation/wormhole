@@ -1,6 +1,6 @@
 mod helpers;
 
-use cosmwasm_std::{to_binary, Binary, Uint256};
+use cosmwasm_std::{to_json_binary, Binary, Uint256};
 use helpers::*;
 
 use wormhole_bindings::fake::WormholeKeeper;
@@ -120,7 +120,7 @@ fn bad_serialization() {
     let (v, _) = sign_vaa_body(&wh, create_vaa_body(3));
 
     // Rather than using the wormhole wire format use cosmwasm json.
-    let data = to_binary(&v).unwrap();
+    let data = to_json_binary(&v).unwrap();
 
     let err = contract
         .submit_vaas(vec![data])

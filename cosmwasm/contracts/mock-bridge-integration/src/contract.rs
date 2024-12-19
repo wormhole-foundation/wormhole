@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest,
+    entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest,
     Reply, Response, StdError, StdResult, SubMsg, WasmMsg, WasmQuery,
 };
 
@@ -63,7 +63,7 @@ fn complete_transfer_with_payload(
     let messages = vec![SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.token_bridge_contract,
-            msg: to_binary(&TokenBridgeExecuteMsg::CompleteTransferWithPayload {
+            msg: to_json_binary(&TokenBridgeExecuteMsg::CompleteTransferWithPayload {
                 data: data.clone(),
                 relayer: info.sender.to_string(),
             })?,
@@ -88,7 +88,7 @@ fn parse_transfer_vaa(deps: Deps, data: &Binary) -> StdResult<TransferInfoRespon
     let transfer_info: TransferInfoResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: cfg.token_bridge_contract,
-            msg: to_binary(&TokenBridgeQueryMessage::TransferInfo { vaa: data.clone() })?,
+            msg: to_json_binary(&TokenBridgeQueryMessage::TransferInfo { vaa: data.clone() })?,
         }))?;
     Ok(transfer_info)
 }

@@ -3,7 +3,7 @@ mod helpers;
 use std::collections::BTreeMap;
 
 use accountant::state::{account, transfer, Kind, Modification, TokenAddress};
-use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
+use cosmwasm_std::{from_json, to_json_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
 use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
@@ -53,7 +53,7 @@ fn batch() {
 
     let index = wh.guardian_set_index();
 
-    let obs = to_binary(&observations).unwrap();
+    let obs = to_json_binary(&observations).unwrap();
     let signatures = sign_observations(&wh, &obs);
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -62,7 +62,7 @@ fn batch() {
     for (i, s) in signatures.into_iter().enumerate() {
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
 
-        let status = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
+        let status = from_json::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
             .unwrap()
             .into_iter()
             .map(|resp| (resp.key, resp.status))
@@ -161,7 +161,7 @@ fn duplicates() {
     register_emitters(&wh, &mut contract, COUNT);
     let index = wh.guardian_set_index();
 
-    let obs = to_binary(&observations).unwrap();
+    let obs = to_json_binary(&observations).unwrap();
     let signatures = sign_observations(&wh, &obs);
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -172,7 +172,7 @@ fn duplicates() {
         // Submitting a duplicate signature is not an error for pending transfers. Submitting any
         // signature for a committed transfer is not an error as long as the digests match.
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
-        let status = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
+        let status = from_json::<Vec<SubmitObservationResponse>>(&resp.data.unwrap())
             .unwrap()
             .into_iter()
             .map(|details| (details.key, details.status))
@@ -257,7 +257,7 @@ fn transfer_tokens(
         payload,
     };
 
-    let obs = to_binary(&vec![o.clone()]).unwrap();
+    let obs = to_json_binary(&vec![o.clone()]).unwrap();
     let signatures = sign_observations(wh, &obs);
 
     let responses = signatures
@@ -491,7 +491,7 @@ fn missing_wrapped_account() {
     let (_, responses) =
         transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
     for mut resp in responses.into_iter().skip(quorum - 1) {
-        let r = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
+        let r = from_json::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
         assert_eq!(key, r[0].key);
         if let ObservationStatus::Error(ref err) = r[0].status {
             assert!(
@@ -555,7 +555,7 @@ fn missing_native_account() {
     let (_, responses) =
         transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
     for mut resp in responses.into_iter().skip(quorum - 1) {
-        let r = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
+        let r = from_json::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
         assert_eq!(key, r[0].key);
         if let ObservationStatus::Error(ref err) = r[0].status {
             assert!(
@@ -733,7 +733,7 @@ fn unknown_emitter() {
     let (_, responses) =
         transfer_tokens(&wh, &mut contract, key.clone(), msg, index, num_guardians).unwrap();
     for mut resp in responses.into_iter().skip(quorum - 1) {
-        let r = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
+        let r = from_json::<Vec<SubmitObservationResponse>>(&resp.data.take().unwrap()).unwrap();
         assert_eq!(key, r[0].key);
         if let ObservationStatus::Error(ref err) = r[0].status {
             assert!(err.contains("no registered emitter"));

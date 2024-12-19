@@ -9,7 +9,7 @@ use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_binary, to_binary, Binary, ConversionOverflowError, Deps, DepsMut, Empty, Env, Event,
+    from_json, to_json_binary, Binary, ConversionOverflowError, Deps, DepsMut, Empty, Env, Event,
     MessageInfo, Order, Response, StdError, StdResult, Uint256,
 };
 use cw2::set_contract_version;
@@ -110,7 +110,7 @@ fn submit_observations(
         .context("failed to calculate quorum")?;
 
     let observations: Vec<Observation> =
-        from_binary(&observations).context("failed to parse `Observations`")?;
+        from_json(&observations).context("failed to parse `Observations`")?;
 
     let mut responses = Vec::with_capacity(observations.len());
     let mut events = Vec::with_capacity(observations.len());
@@ -139,7 +139,7 @@ fn submit_observations(
         }
     }
 
-    let data = to_binary(&responses).context("failed to serialize transfer details")?;
+    let data = to_json_binary(&responses).context("failed to serialize transfer details")?;
 
     Ok(Response::new()
         .add_attribute("action", "submit_observations")
@@ -497,21 +497,22 @@ fn handle_tokenbridge_vaa(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Balance(key) => query_balance(deps, key).and_then(|resp| to_binary(&resp)),
+        QueryMsg::Balance(key) => query_balance(deps, key).and_then(|resp| to_json_binary(&resp)),
         QueryMsg::AllAccounts { start_after, limit } => {
-            query_all_accounts(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+            query_all_accounts(deps, start_after, limit).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::AllTransfers { start_after, limit } => {
-            query_all_transfers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+            query_all_transfers(deps, start_after, limit).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::AllPendingTransfers { start_after, limit } => {
-            query_all_pending_transfers(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+            query_all_pending_transfers(deps, start_after, limit)
+                .and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::Modification { sequence } => {
-            query_modification(deps, sequence).and_then(|resp| to_binary(&resp))
+            query_modification(deps, sequence).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::AllModifications { start_after, limit } => {
-            query_all_modifications(deps, start_after, limit).and_then(|resp| to_binary(&resp))
+            query_all_modifications(deps, start_after, limit).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::ValidateTransfer { transfer } => validate_transfer(deps, &transfer)
             .map_err(|e| {
@@ -519,21 +520,20 @@ pub fn query(deps: Deps<WormholeQuery>, _env: Env, msg: QueryMsg) -> StdResult<B
                     msg: format!("{e:#}"),
                 })
             })
-            .and_then(|()| to_binary(&Empty {})),
+            .and_then(|()| to_json_binary(&Empty {})),
         QueryMsg::ChainRegistration { chain } => {
-            query_chain_registration(deps, chain).and_then(|resp| to_binary(&resp))
+            query_chain_registration(deps, chain).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::MissingObservations {
             guardian_set,
             index,
-        } => {
-            query_missing_observations(deps, guardian_set, index).and_then(|resp| to_binary(&resp))
-        }
+        } => query_missing_observations(deps, guardian_set, index)
+            .and_then(|resp| to_json_binary(&resp)),
         QueryMsg::TransferStatus(key) => {
-            query_transfer_status(deps, &key).and_then(|resp| to_binary(&resp))
+            query_transfer_status(deps, &key).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::BatchTransferStatus(keys) => {
-            query_batch_transfer_status(deps, keys).and_then(|resp| to_binary(&resp))
+            query_batch_transfer_status(deps, keys).and_then(|resp| to_json_binary(&resp))
         }
     }
 }

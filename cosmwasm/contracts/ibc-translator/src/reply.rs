@@ -5,8 +5,8 @@ use crate::{
 use anybuf::Anybuf;
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    from_binary, to_binary, Binary, CosmosMsg::Stargate, Deps, DepsMut, Env, QueryRequest, Reply,
-    Response, SubMsg, WasmQuery,
+    from_json, to_json_binary, Binary, CosmosMsg::Stargate, Deps, DepsMut, Env, QueryRequest,
+    Reply, Response, SubMsg, WasmQuery,
 };
 use cw20::TokenInfoResponse;
 use cw20_base::msg::QueryMsg as TokenQuery;
@@ -29,7 +29,7 @@ pub fn handle_complete_transfer_reply(
         .data
         .context("no data in the response, we should never get here")?;
     let res_data: CompleteTransferResponse =
-        from_binary(&res_data_raw).context("failed to deserialize response data")?;
+        from_json(&res_data_raw).context("failed to deserialize response data")?;
     let contract_addr = res_data
         .contract
         .context("no contract in response, we should never get here")?;
@@ -114,7 +114,7 @@ pub fn convert_cw20_to_bank_and_send(
         // call into the cw20 contract to get the token's metadata
         let request = QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: cw20_contract_addr.clone(),
-            msg: to_binary(&TokenQuery::TokenInfo {})?,
+            msg: to_json_binary(&TokenQuery::TokenInfo {})?,
         });
         let token_info: TokenInfoResponse = deps.querier.query(&request)?;
 

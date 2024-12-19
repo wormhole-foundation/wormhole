@@ -1,7 +1,7 @@
 mod helpers;
 
 use accountant::state::transfer;
-use cosmwasm_std::{to_binary, Uint256};
+use cosmwasm_std::{to_json_binary, Uint256};
 use global_accountant::msg::Observation;
 use helpers::*;
 use wormhole_sdk::{token::Message, Address, Amount, Chain};
@@ -44,7 +44,7 @@ fn missing_observations() {
 
     let o = create_observation();
     let digest = o.digest().unwrap();
-    let data = to_binary(&[o.clone()]).unwrap();
+    let data = to_json_binary(&[o.clone()]).unwrap();
     let signatures = sign_observations(&wh, &data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
@@ -95,7 +95,7 @@ fn different_observations() {
         .unwrap() as usize;
 
     let first = create_observation();
-    let first_data = to_binary(&[first.clone()]).unwrap();
+    let first_data = to_json_binary(&[first.clone()]).unwrap();
     let first_signatures = sign_observations(&wh, &first_data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
@@ -122,7 +122,7 @@ fn different_observations() {
     ]
     .into();
     second.payload = serde_wormhole::to_vec(&msg).map(From::from).unwrap();
-    let second_data = to_binary(&[second.clone()]).unwrap();
+    let second_data = to_json_binary(&[second.clone()]).unwrap();
     let second_signatures = sign_observations(&wh, &second_data);
 
     // Submit a different set of signatures for the second observation.
@@ -167,7 +167,7 @@ fn guardian_set_change() {
         .unwrap() as usize;
 
     let o = create_observation();
-    let data = to_binary(&[o.clone()]).unwrap();
+    let data = to_json_binary(&[o.clone()]).unwrap();
     let signatures = sign_observations(&wh, &data);
 
     // Don't submit enough signatures for the transfer to reach quorum.

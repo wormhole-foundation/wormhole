@@ -5,9 +5,9 @@ use crate::{
 };
 use anyhow::Error;
 use cosmwasm_std::{
-    from_binary,
+    from_json,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    to_binary, Binary, ContractResult, Deps, DepsMut, Empty, QuerierWrapper, SystemResult,
+    to_json_binary, Binary, ContractResult, Deps, DepsMut, Empty, QuerierWrapper, SystemResult,
 };
 use wormhole_bindings::{fake::WormholeKeeper, WormholeQuery};
 use wormhole_sdk::{
@@ -24,7 +24,7 @@ pub fn add_channel_chain_happy_path() -> anyhow::Result<(), Error> {
         MockQuerier::new(&[]).with_custom_handler(|q| match q {
             WormholeQuery::VerifyVaa { vaa } => {
                 match WormholeKeeper::new().verify_vaa(&vaa.0, 0u64) {
-                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_binary(&Empty {}) {
+                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_json_binary(&Empty {}) {
                         ContractResult::Ok(data)
                     } else {
                         ContractResult::Err("Unable to convert to binary".to_string())
@@ -33,7 +33,7 @@ pub fn add_channel_chain_happy_path() -> anyhow::Result<(), Error> {
                 }
             }
             _ => cosmwasm_std::SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
-                to_binary(&Empty {}).unwrap(),
+                to_json_binary(&Empty {}).unwrap(),
             )),
         });
 
@@ -71,7 +71,7 @@ pub fn add_channel_chain_happy_path() -> anyhow::Result<(), Error> {
     };
 
     let channel_binary = query(readonly_deps, env, QueryMsg::AllChannelChains {})?;
-    let channel: AllChannelChainsResponse = from_binary(&channel_binary)?;
+    let channel: AllChannelChainsResponse = from_json(&channel_binary)?;
 
     assert_eq!(channel.channels_chains.len(), 1);
     let channel_entry = channel.channels_chains.first().unwrap();
@@ -97,7 +97,7 @@ pub fn add_channel_chain_happy_path_multiple() -> anyhow::Result<(), Error> {
         MockQuerier::new(&[]).with_custom_handler(|q| match q {
             WormholeQuery::VerifyVaa { vaa } => {
                 match WormholeKeeper::new().verify_vaa(&vaa.0, 0u64) {
-                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_binary(&Empty {}) {
+                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_json_binary(&Empty {}) {
                         ContractResult::Ok(data)
                     } else {
                         ContractResult::Err("Unable to convert to binary".to_string())
@@ -106,7 +106,7 @@ pub fn add_channel_chain_happy_path_multiple() -> anyhow::Result<(), Error> {
                 }
             }
             _ => cosmwasm_std::SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
-                to_binary(&Empty {}).unwrap(),
+                to_json_binary(&Empty {}).unwrap(),
             )),
         });
 
@@ -149,7 +149,7 @@ pub fn add_channel_chain_happy_path_multiple() -> anyhow::Result<(), Error> {
     let channel_binary = query(readonly_deps, mock_env(), QueryMsg::AllChannelChains {})?;
     let AllChannelChainsResponse {
         channels_chains: mut channels,
-    }: AllChannelChainsResponse = from_binary(&channel_binary)?;
+    }: AllChannelChainsResponse = from_json(&channel_binary)?;
 
     channels.sort_by(|(_, a_chain_id), (_, b_chain_id)| a_chain_id.cmp(b_chain_id));
 
@@ -190,7 +190,7 @@ pub fn reject_invalid_add_channel_chain_vaas() {
         MockQuerier::new(&[]).with_custom_handler(|q| match q {
             WormholeQuery::VerifyVaa { vaa } => {
                 match WormholeKeeper::new().verify_vaa(&vaa.0, 0u64) {
-                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_binary(&Empty {}) {
+                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_json_binary(&Empty {}) {
                         ContractResult::Ok(data)
                     } else {
                         ContractResult::Err("Unable to convert to binary".to_string())
@@ -199,7 +199,7 @@ pub fn reject_invalid_add_channel_chain_vaas() {
                 }
             }
             _ => cosmwasm_std::SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
-                to_binary(&Empty {}).unwrap(),
+                to_json_binary(&Empty {}).unwrap(),
             )),
         });
 
@@ -312,7 +312,7 @@ pub fn reject_replayed_add_channel_chain_vaas() {
         MockQuerier::new(&[]).with_custom_handler(|q| match q {
             WormholeQuery::VerifyVaa { vaa } => {
                 match WormholeKeeper::new().verify_vaa(&vaa.0, 0u64) {
-                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_binary(&Empty {}) {
+                    Ok(_) => SystemResult::Ok(if let Ok(data) = to_json_binary(&Empty {}) {
                         ContractResult::Ok(data)
                     } else {
                         ContractResult::Err("Unable to convert to binary".to_string())
@@ -321,7 +321,7 @@ pub fn reject_replayed_add_channel_chain_vaas() {
                 }
             }
             _ => cosmwasm_std::SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
-                to_binary(&Empty {}).unwrap(),
+                to_json_binary(&Empty {}).unwrap(),
             )),
         });
 

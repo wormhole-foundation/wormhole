@@ -1,9 +1,7 @@
-use std::convert::TryInto;
-
 use cosmwasm_std::{
-    from_slice,
+    from_json,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    to_binary, Addr, Api, Binary, OwnedDeps, Response, StdError, StdResult, Storage, Uint128,
+    to_json_binary, Addr, Api, OwnedDeps, Response, Storage, Uint128,
 };
 use cosmwasm_storage::to_length_prefixed;
 use counter::msg as counter_msgs;
@@ -23,7 +21,7 @@ static SENDER: &str = "addr3333";
 fn get_wrapped_asset_info<S: Storage>(storage: &S) -> WrappedAssetInfo {
     let key = to_length_prefixed(KEY_WRAPPED_ASSET);
     let data = storage.get(&key).expect("data should exist");
-    from_slice(&data).expect("invalid data")
+    from_json(&data).expect("invalid data")
 }
 
 fn do_init() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
@@ -108,7 +106,7 @@ fn check_balance(
 fn check_token_details(deps: &OwnedDeps<MockStorage, MockApi, MockQuerier>, supply: Uint128) {
     let query_response = query(deps.as_ref(), mock_env(), QueryMsg::TokenInfo {}).unwrap();
     assert_eq!(
-        from_slice::<TokenInfoResponse>(query_response.as_slice()).unwrap(),
+        from_json::<TokenInfoResponse>(query_response.as_slice()).unwrap(),
         TokenInfoResponse {
             name: "Integers (Wormhole)".into(),
             symbol: "INT".into(),
@@ -130,7 +128,7 @@ fn query_works() {
 
     let query_response = query(deps.as_ref(), mock_env(), QueryMsg::WrappedAssetInfo {}).unwrap();
     assert_eq!(
-        from_slice::<WrappedAssetInfoResponse>(query_response.as_slice()).unwrap(),
+        from_json::<WrappedAssetInfoResponse>(query_response.as_slice()).unwrap(),
         WrappedAssetInfoResponse {
             asset_chain: 1,
             asset_address: vec![1; 32].into(),
@@ -180,7 +178,7 @@ fn transfer_works() {
     check_balance(&deps, &recipient, &Uint128::new(123_123_000));
 }
 
-struct Cw20App {
+pub(crate) struct Cw20App {
     app: App,
     admin: Addr,
     user: Addr,
@@ -188,7 +186,7 @@ struct Cw20App {
     cw20_code_id: u64,
 }
 
-pub fn create_cw20_wrapped_app(instantiate_msg: Option<InstantiateMsg>) -> Cw20App {
+pub(crate) fn create_cw20_wrapped_app(instantiate_msg: Option<InstantiateMsg>) -> Cw20App {
     let instantiate_msg = instantiate_msg.unwrap_or(InstantiateMsg {
         name: "Integers".into(),
         symbol: "INT".into(),
@@ -228,7 +226,7 @@ pub fn create_cw20_wrapped_app(instantiate_msg: Option<InstantiateMsg>) -> Cw20A
     }
 }
 
-struct Cw20AndCounterApp {
+pub(crate) struct Cw20AndCounterApp {
     app: App,
     admin: Addr,
     user: Addr,
@@ -237,7 +235,7 @@ struct Cw20AndCounterApp {
     counter_address: Addr,
 }
 
-pub fn create_cw20_and_counter() -> Cw20AndCounterApp {
+pub(crate) fn create_cw20_and_counter() -> Cw20AndCounterApp {
     let Cw20App {
         mut app,
         admin,
@@ -412,7 +410,7 @@ fn instantiate_with_inithook() -> Result<(), anyhow::Error> {
         decimals: 6,
         mint: None,
         init_hook: Some(InitHook {
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
             contract_addr: counter_address.to_string(),
         }),
     };
@@ -563,7 +561,7 @@ fn send_tokens_functionality() -> Result<(), anyhow::Error> {
     let send_to_counter_app = ExecuteMsg::Send {
         contract: counter_address.to_string(),
         amount: Uint128::from(1_000_000u128),
-        msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+        msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
     };
 
     let failing_send = app.execute_contract(
@@ -719,7 +717,6 @@ fn burn_functionality() -> Result<(), anyhow::Error> {
         cw20_wrapped_contract,
         mut app,
         admin,
-        user,
         ..
     } = create_cw20_wrapped_app(None);
 
@@ -858,7 +855,6 @@ fn burn_from_functionality() -> Result<(), anyhow::Error> {
         cw20_wrapped_contract,
         mut app,
         admin,
-        user,
         ..
     } = create_cw20_wrapped_app(None);
 
@@ -996,7 +992,6 @@ fn allowance_management() -> Result<(), anyhow::Error> {
         cw20_wrapped_contract,
         mut app,
         admin,
-        user,
         ..
     } = create_cw20_wrapped_app(None);
 
@@ -1113,7 +1108,7 @@ fn allowance_management() -> Result<(), anyhow::Error> {
     assert_eq!(decreased_allowance.allowance, Uint128::from(400_000u128));
 
     // Decreasing allowance bellow zero results in a zero allowance
-    let excessive_decrease = app.execute_contract(
+    let _ = app.execute_contract(
         token_owner.clone(),
         cw20_wrapped_contract.clone(),
         &ExecuteMsg::DecreaseAllowance {
@@ -1174,14 +1169,13 @@ fn send_from_functionality() -> Result<(), anyhow::Error> {
     let Cw20AndCounterApp {
         mut app,
         admin,
-        user,
+        user: spender,
         counter_address,
         cw20_wrapped_contract: cw20_address,
         ..
     } = create_cw20_and_counter();
 
     let token_owner = Addr::unchecked("token_owner");
-    let spender = Addr::unchecked("spender");
 
     // Mint tokens to the token owner
     app.execute_contract(
@@ -1202,7 +1196,7 @@ fn send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 500_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     );
@@ -1231,7 +1225,7 @@ fn send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 600_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     );
@@ -1248,7 +1242,7 @@ fn send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 300_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     )?;
@@ -1305,7 +1299,7 @@ fn send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 50_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     );
@@ -1332,14 +1326,13 @@ fn multiple_send_from_functionality() -> Result<(), anyhow::Error> {
     let Cw20AndCounterApp {
         mut app,
         admin,
-        user,
+        user: spender,
         counter_address,
         cw20_wrapped_contract: cw20_address,
         ..
     } = create_cw20_and_counter();
 
     let token_owner = Addr::unchecked("token_owner");
-    let spender = Addr::unchecked("spender");
 
     // Mint tokens to the token owner
     app.execute_contract(
@@ -1372,7 +1365,7 @@ fn multiple_send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 250_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     )?;
@@ -1408,7 +1401,7 @@ fn multiple_send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 200_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     )?;
@@ -1444,7 +1437,7 @@ fn multiple_send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 300_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     )?;
@@ -1492,7 +1485,7 @@ fn multiple_send_from_functionality() -> Result<(), anyhow::Error> {
             owner: token_owner.to_string(),
             contract: counter_address.to_string(),
             amount: 100_000u128.into(),
-            msg: to_binary(&counter_msgs::ExecuteMsg::Increment {})?,
+            msg: to_json_binary(&counter_msgs::ExecuteMsg::Increment {})?,
         },
         &[],
     );

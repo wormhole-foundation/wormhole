@@ -1,6 +1,6 @@
 use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, Event, MessageInfo,
+    to_json_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, Event, MessageInfo,
     QueryRequest, Response, SubMsg, Uint128, WasmMsg, WasmQuery,
 };
 use cw_token_bridge::msg::{
@@ -48,11 +48,12 @@ pub fn complete_transfer_and_convert(
 
     // craft the token bridge execute message
     // this will be added as a submessage to the response
-    let token_bridge_execute_msg = to_binary(&TokenBridgeExecuteMsg::CompleteTransferWithPayload {
-        data: vaa.clone(),
-        relayer: info.sender.to_string(),
-    })
-    .context("could not serialize token bridge execute msg")?;
+    let token_bridge_execute_msg =
+        to_json_binary(&TokenBridgeExecuteMsg::CompleteTransferWithPayload {
+            data: vaa.clone(),
+            relayer: info.sender.to_string(),
+        })
+        .context("could not serialize token bridge execute msg")?;
 
     let sub_msg = SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Execute {
@@ -64,7 +65,7 @@ pub fn complete_transfer_and_convert(
     );
 
     // craft the token bridge query message to parse the payload3 vaa
-    let token_bridge_query_msg = to_binary(&TokenBridgeQueryMsg::TransferInfo { vaa })
+    let token_bridge_query_msg = to_json_binary(&TokenBridgeQueryMsg::TransferInfo { vaa })
         .context("could not serialize token bridge transfer_info query msg")?;
 
     let transfer_info: TransferInfoResponse = deps
@@ -132,7 +133,7 @@ pub fn convert_and_transfer(
     });
 
     // 2. cw20::increaseAllowance to the contract address for the token bridge to spend the amount of tokens
-    let increase_allowance_msg = to_binary(&Cw20WrappedExecuteMsg::IncreaseAllowance {
+    let increase_allowance_msg = to_json_binary(&Cw20WrappedExecuteMsg::IncreaseAllowance {
         spender: token_bridge_contract.clone(),
         amount: bridging_coin.amount,
         expires: None,
@@ -174,7 +175,7 @@ pub fn convert_and_transfer(
             }
         }
     };
-    let initiate_transfer_msg = to_binary(&token_bridge_transfer)
+    let initiate_transfer_msg = to_json_binary(&token_bridge_transfer)
         .context("could not serialize token bridge initiate_transfer msg")?;
     response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_bridge_contract,

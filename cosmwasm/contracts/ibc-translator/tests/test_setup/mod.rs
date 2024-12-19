@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
 use cosmwasm_std::{
-    from_slice,
+    from_json,
     testing::{mock_env, BankQuerier, MockQuerierCustomHandlerResult, MockStorage},
     Addr, Api, Binary, CanonicalAddr, Coin, ContractResult, CustomQuery, Empty, Env, OwnedDeps,
     Querier, QuerierResult, QueryRequest, RecoverPubkeyError, StdError, StdResult, SystemError,
@@ -263,7 +263,7 @@ impl Default for MockQuerier {
 
 impl<C: CustomQuery + DeserializeOwned> Querier for MockQuerier<C> {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
-        let request: QueryRequest<C> = match from_slice(bin_request) {
+        let request: QueryRequest<C> = match from_json(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {

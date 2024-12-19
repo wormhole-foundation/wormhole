@@ -31,7 +31,7 @@ pub enum WormholeIbcPacketMsg {
 
 #[cfg(test)]
 mod test {
-    use cosmwasm_std::to_binary;
+    use cosmwasm_std::to_json_binary;
     use cw_wormhole::msg::ExecuteMsg as WormholeExecuteMsg;
 
     use super::ExecuteMsg;
@@ -48,12 +48,12 @@ mod test {
         let wormhole_submit_vaa = WormholeExecuteMsg::SubmitVAA {
             vaa: signed_vaa.clone().into(),
         };
-        let wormhole_msg = to_binary(&wormhole_submit_vaa).unwrap();
+        let wormhole_msg = to_json_binary(&wormhole_submit_vaa).unwrap();
 
         let submit_vaa = ExecuteMsg::SubmitVAA {
             vaa: signed_vaa.into(),
         };
-        let msg = to_binary(&submit_vaa).unwrap();
+        let msg = to_json_binary(&submit_vaa).unwrap();
 
         assert_eq!(wormhole_msg, msg);
     }

@@ -1,7 +1,7 @@
 use crate::{msg::ReceiveMsg, CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{
-    entry_point, from_binary, from_json, to_binary, Binary, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult,
+    entry_point, from_json, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult,
 };
 use cw_storage_plus::Item;
 
@@ -58,7 +58,7 @@ pub fn reset(deps: DepsMut) -> StdResult<Response> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
+        QueryMsg::GetCount {} => to_json_binary(&query_count(deps)?),
     }
 }
 
