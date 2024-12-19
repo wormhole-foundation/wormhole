@@ -24,13 +24,18 @@ export const handler = async (
   const network = getNetwork(argv.network);
 
   const buf = Buffer.from(String(argv.vaa), "hex");
-  const contract_address = contracts.coreBridge(network, "Ethereum");
+  const contract_address =
+    network === "Testnet"
+      ? contracts.coreBridge(network, "Sepolia")
+      : contracts.coreBridge(network, "Ethereum");
   if (!contract_address) {
     throw Error(`Unknown core contract on ${network} for ethereum`);
   }
 
   const provider = new ethers.providers.JsonRpcProvider(
-    NETWORKS[network].Ethereum.rpc
+    network === "Testnet"
+      ? NETWORKS[network].Sepolia.rpc
+      : NETWORKS[network].Ethereum.rpc
   );
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.parseAndVerifyVM(buf);
