@@ -110,7 +110,7 @@ Any chains implementation must make sure that of any token only ever MaxUint64 u
 Token "dust" that can not be transferred due to truncation during a deposit needs to be refunded back to the user.
 
 **Examples:**
-- The amount "1" of a 18 decimal Ethereum token is originally represented as: `1000000000000000000`, over the wormhole it is passed as: `100000000`.
+- The amount "1" of an 18 decimal Ethereum token is originally represented as: `1000000000000000000`, over the wormhole it is passed as: `100000000`.
 - The amount "2" of a 4 decimal token is represented as `20000` and is passed over the wormhole without a decimal shift.
 
 **Handling on the target Chains:**

@@ -30,7 +30,7 @@ Determining finality of blocks:
 *Do we really have to parse every single NEAR transaction?*
 
 Unfortunately NEAR does not (yet?) provide a mechanism to subscribe to a particular contract.
-There is a RPC API EXPERIMENTAL_changes_in_block which would tell you if the block contained any receipts that touch your account, but there is no way of knowing in which block the transaction started. Even if there was, you'd still need to process all transactions in the block and we are expecting there to be a Wormhole transaction in most blocks.
+There is an RPC API EXPERIMENTAL_changes_in_block which would tell you if the block contained any receipts that touch your account, but there is no way of knowing in which block the transaction started. Even if there was, you'd still need to process all transactions in the block and we are expecting there to be a Wormhole transaction in most blocks.
 
 ## Logging
 * log_msg_type (enum)
