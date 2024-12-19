@@ -1,9 +1,9 @@
-.PHONY test
+.PHONY: test
 test: 
 # Use this command on amd64 systems
 	go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
-.PHONY test-arm64
+.PHONY: test-arm64
 test-arm64:
 # Use this command on arm64, otherwise you will encounter linker errors.
 # It's not perfect: it will fail due to 'undefined symbols' errors
