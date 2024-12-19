@@ -25,6 +25,7 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	if err != nil {
 		return nil, err
 	}
+
 	// recover guardian key from signature
 	signerHash := crypto.Keccak256Hash(wormholesdk.SignedWormchainAddressPrefix, signer)
 	guardianKey, err := crypto.Ecrecover(signerHash.Bytes(), msg.Signature)
@@ -48,16 +49,6 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	latestGuardianSet, guardianSetFound := k.Keeper.GetGuardianSet(ctx, latestGuardianSetIndex)
 	if !guardianSetFound {
 		return nil, types.ErrGuardianSetNotFound
-	}
-
-	consensusGuardianSetIndex, consensusIndexFound := k.GetConsensusGuardianSetIndex(ctx)
-	if !consensusIndexFound {
-		return nil, types.ErrConsensusSetUndefined
-	}
-
-	// If the size of the guardian set is 1, allow hot-swapping the validator address.
-	if consensusIndexFound && latestGuardianSetIndex == consensusGuardianSetIndex.Index && len(latestGuardianSet.Keys) > 1 {
-		return nil, types.ErrConsensusSetNotUpdatable
 	}
 
 	if !latestGuardianSet.ContainsKey(guardianKeyAddr) {
