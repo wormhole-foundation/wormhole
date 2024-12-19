@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use anyhow::{bail, Context};
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdResult,
 };
 use wormhole_bindings::{tokenfactory::TokenFactoryMsg, WormholeQuery};
 
@@ -102,6 +102,6 @@ pub fn reply(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::IbcChannel { chain_id } => to_binary(&query_ibc_channel(deps, chain_id)?),
+        QueryMsg::IbcChannel { chain_id } => to_json_binary(&query_ibc_channel(deps, chain_id)?),
     }
 }

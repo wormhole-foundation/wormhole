@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     coin,
     testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR},
-    to_binary, Binary, Coin, ContractResult, CosmosMsg, Event, ReplyOn, Response, SystemError,
+    to_json_binary, Binary, Coin, ContractResult, CosmosMsg, Event, ReplyOn, Response, SystemError,
     SystemResult, Uint128, WasmMsg, WasmQuery,
 };
 use cw_token_bridge::msg::TransferInfoResponse;
@@ -78,7 +78,7 @@ fn complete_transfer_and_convert_happy_path() {
             contract_addr: _,
             msg: _,
         } => SystemResult::Ok(ContractResult::Ok(
-            to_binary(&transfer_info_response_copy).unwrap(),
+            to_json_binary(&transfer_info_response_copy).unwrap(),
         )),
         _ => SystemResult::Err(SystemError::UnsupportedRequest {
             kind: "wasm".to_string(),
@@ -176,7 +176,7 @@ fn complete_transfer_and_convert_failure_humanize_recipient() {
     let mut deps = execute_custom_mock_deps();
     let env = mock_env();
 
-    let transfer_info_response = to_binary(&cw_token_bridge::msg::TransferInfoResponse {
+    let transfer_info_response = to_json_binary(&cw_token_bridge::msg::TransferInfoResponse {
         amount: 1000000u32.into(),
         token_address: hex::decode("0000000000000000000000009c3c9283d3e44854697cd22d3faa240cfb032889").unwrap().try_into().unwrap(),
         token_chain: 5,
@@ -214,7 +214,7 @@ fn complete_transfer_and_convert_nomatch_recipient_contract() {
     let mut deps = execute_custom_mock_deps();
     let env = mock_env();
 
-    let transfer_info_response = to_binary(&cw_token_bridge::msg::TransferInfoResponse {
+    let transfer_info_response = to_json_binary(&cw_token_bridge::msg::TransferInfoResponse {
         amount: 1000000u32.into(),
         token_address: hex::decode("0000000000000000000000009c3c9283d3e44854697cd22d3faa240cfb032889").unwrap().try_into().unwrap(),
         token_chain: 5,

@@ -2,7 +2,7 @@ use crate::error::ContractError;
 use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
 use crate::state::{CHANNEL_CHAIN, VAA_ARCHIVE};
 use anyhow::{bail, ensure, Context};
-use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdResult};
+use cosmwasm_std::{entry_point, to_json_binary, Binary, Deps, Empty, Event, StdResult};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
 use serde_wormhole::RawMessage;
 use std::str;
@@ -132,10 +132,10 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ChannelChain { channel_id } => {
-            query_channel_chain(deps, channel_id).and_then(|resp| to_binary(&resp))
+            query_channel_chain(deps, channel_id).and_then(|resp| to_json_binary(&resp))
         }
         QueryMsg::AllChannelChains {} => {
-            query_all_channel_chains(deps).and_then(|resp| to_binary(&resp))
+            query_all_channel_chains(deps).and_then(|resp| to_json_binary(&resp))
         }
     }
 }
