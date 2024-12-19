@@ -217,8 +217,8 @@ func (c ChainID) String() string {
 		return "worldchain"
 	case ChainIDInk:
 		return "ink"
-	case ChainIDHyperliquid:
-		return "hyperliquid"
+	case ChainIDHyperEVM:
+		return "hyperevm"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
@@ -344,8 +344,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDWorldchain, nil
 	case "ink":
 		return ChainIDInk, nil
-	case "hyperliquid":
-		return ChainIDHyperliquid, nil
+	case "hyperevm":
+		return ChainIDHyperEVM, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
 	case "seievm":
@@ -429,7 +429,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDUnichain,
 		ChainIDWorldchain,
 		ChainIDInk,
-		ChainIDHyperliquid,
+		ChainIDHyperEVM,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -536,8 +536,8 @@ const (
 	ChainIDWorldchain ChainID = 45
 	// ChainIDInk is the ChainID of Ink
 	ChainIDInk ChainID = 46
-	// ChainIDHyperliquid is the ChainID of Hyperliquid
-	ChainIDHyperliquid ChainID = 47
+	// ChainIDHyperEVM is the ChainID of HyperEVM
+	ChainIDHyperEVM ChainID = 47
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
