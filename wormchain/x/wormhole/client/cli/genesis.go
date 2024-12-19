@@ -38,6 +38,11 @@ const FLAG_ACTION = "action"
 const FLAG_CHAIN = "chain"
 const FLAG_PUBLIC_KEY = "public-key"
 const FLAG_NEXT_INDEX = "next-index"
+const FLAG_SIGNED_BLOCKS_WINDOW = "signed-blocks-window"
+const FLAG_MIN_SIGNED_PER_WINDOW = "min-signed-per-window"
+const FLAG_DOWNTIME_JAIL_DURATION = "downtime-jail-duration"
+const FLAG_SLASH_FRACTION_DOUBLE_SIGN = "slash-fraction-double-sign"
+const FLAG_SLASH_FRACTION_DOWNTIME = "slash-fraction-downtime"
 
 // GetGenesisCmd returns the genesis related commands for this module
 func GetGenesisCmd() *cobra.Command {
@@ -54,6 +59,7 @@ func GetGenesisCmd() *cobra.Command {
 	cmd.AddCommand(CmdGenerateVaa())
 	cmd.AddCommand(CmdGenerateGovernanceVaa())
 	cmd.AddCommand(CmdGenerateGuardianSetUpdatea())
+	cmd.AddCommand(CmdGenerateSlashingParamsUpdateVaa())
 	cmd.AddCommand(CmdTestSignAddress())
 
 	return cmd
@@ -216,6 +222,7 @@ func addVaaFlags(cmd *cobra.Command) {
 	cmd.Flags().Uint64(FLAG_SEQUENCE, 0, "sequence number")
 	cmd.Flags().Uint32(FLAG_NONCE, 0, "nonce")
 	cmd.Flags().String(FLAG_PAYLOAD, "", "payload (hex format)")
+
 }
 func addGovVaaFlags(cmd *cobra.Command) {
 	cmd.Flags().String(FLAG_MODULE, "", "module (ascii string)")
@@ -401,6 +408,106 @@ func CmdGenerateGuardianSetUpdatea() *cobra.Command {
 	addVaaFlags(cmd)
 	cmd.Flags().StringArray(FLAG_PUBLIC_KEY, []string{}, "guardian public key file(s) to include in new set (hex/evm format) in order.")
 	cmd.Flags().Uint32(FLAG_NEXT_INDEX, 0, "next guardian set index")
+
+	return cmd
+}
+
+func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "generate-slashing-params-update-vaa",
+		Short: "generate and sign a governance vaa to update the slashing params",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+
+			privateKeys := []*ecdsa.PrivateKey{}
+			privateKeysFiles, err := cmd.Flags().GetStringArray(FLAG_KEY)
+			if err != nil {
+				return err
+			}
+			for _, privFile := range privateKeysFiles {
+				priv, err := ImportKeyFromFile(privFile)
+				if err != nil {
+					return err
+				}
+				privateKeys = append(privateKeys, priv)
+			}
+			v, err := parseVaaFromFlags(cmd)
+			if err != nil {
+				return err
+			}
+
+			signedBlocksWindow, err := cmd.Flags().GetUint64(FLAG_SIGNED_BLOCKS_WINDOW)
+			if err != nil {
+				return err
+			}
+
+			minSignedPerWindow, err := cmd.Flags().GetString(FLAG_MIN_SIGNED_PER_WINDOW)
+			if err != nil {
+				return err
+			}
+			minSignedPerWindowDec, err := sdk.NewDecFromStr(minSignedPerWindow)
+			if err != nil {
+				return err
+			}
+
+			downtimeJailDuration, err := cmd.Flags().GetUint64(FLAG_DOWNTIME_JAIL_DURATION)
+			if err != nil {
+				return err
+			}
+
+			slashFractionDoubleSign, err := cmd.Flags().GetString(FLAG_SLASH_FRACTION_DOUBLE_SIGN)
+			if err != nil {
+				return err
+			}
+			slashFractionDoubleSignDec, err := sdk.NewDecFromStr(slashFractionDoubleSign)
+			if err != nil {
+				return err
+			}
+
+			slashFractionDowntime, err := cmd.Flags().GetString(FLAG_SLASH_FRACTION_DOWNTIME)
+			if err != nil {
+				return err
+			}
+			slashFractionDowntimeDec, err := sdk.NewDecFromStr(slashFractionDowntime)
+			if err != nil {
+				return err
+			}
+
+			slashingUpdate := make([]byte, 40)
+			binary.BigEndian.PutUint64(slashingUpdate[:8], signedBlocksWindow)
+			binary.BigEndian.PutUint64(slashingUpdate[8:16], minSignedPerWindowDec.BigInt().Uint64())
+			binary.BigEndian.PutUint64(slashingUpdate[16:24], downtimeJailDuration*uint64(time.Second))
+			binary.BigEndian.PutUint64(slashingUpdate[24:32], slashFractionDoubleSignDec.BigInt().Uint64())
+			binary.BigEndian.PutUint64(slashingUpdate[32:40], slashFractionDowntimeDec.BigInt().Uint64())
+
+			action := vaa.ActionSlashingParamsUpdate
+			chain := 3104
+			module := [32]byte{}
+			copy(module[:], vaa.CoreModule)
+			msg := types.NewGovernanceMessage(module, byte(action), uint16(chain), slashingUpdate)
+			v.Payload = msg.MarshalBinary()
+			v.EmitterChain = 1
+
+			for i, key := range privateKeys {
+				v.AddSignature(key, uint8(i))
+			}
+
+			v_bz, err := v.Marshal()
+			if err != nil {
+				return err
+			}
+			fmt.Println(hex.EncodeToString(v_bz))
+
+			return nil
+		},
+	}
+
+	addVaaFlags(cmd)
+	cmd.Flags().Uint64(FLAG_SIGNED_BLOCKS_WINDOW, 100, "signed blocks window")
+	cmd.Flags().String(FLAG_MIN_SIGNED_PER_WINDOW, "0.500000000000000000", "min signed per window")
+	cmd.Flags().Uint64(FLAG_DOWNTIME_JAIL_DURATION, uint64(600*time.Second), "downtime jail duration (seconds)")
+	cmd.Flags().String(FLAG_SLASH_FRACTION_DOUBLE_SIGN, "0.050000000000000000", "slash fraction double sign")
+	cmd.Flags().String(FLAG_SLASH_FRACTION_DOWNTIME, "0.010000000000000000", "slash fraction downtime")
 
 	return cmd
 }
