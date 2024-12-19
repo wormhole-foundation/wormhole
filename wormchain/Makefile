@@ -109,4 +109,7 @@ ictest-wormchain: rm-testcache
 ictest-ibc-receiver: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestIbcReceiver ./...
 
-.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver 
+ictest-validator-hotswap: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...
+
+.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver ictest-validator-hotswap

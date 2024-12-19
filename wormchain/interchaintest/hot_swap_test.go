@@ -65,7 +65,7 @@ type QueryGetGuardianValidatorResponse struct {
 	GuardianValidator GuardianValidator `json:"guardianValidator"`
 }
 
-func TestMultiValidatorHotSwap(t *testing.T) {
+func TestValidatorHotswap(t *testing.T) {
 	// Base setup
 	numGuardians := 2
 	numVals := 3
