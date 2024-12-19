@@ -22,10 +22,9 @@ const (
 
 // CLI args
 var (
-	suiRPC                *string
-	suiCoreContract       *string
-	suiTokenBridgeEmitter *string
-	// TODO: rename to package ID
+	suiRPC                  *string
+	suiCoreContract         *string
+	suiTokenBridgeEmitter   *string
 	suiTokenBridgeContract  *string
 	suiProcessInitialEvents *bool
 )
