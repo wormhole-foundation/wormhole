@@ -720,6 +720,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDBSC ||
 		w.chainID == vaa.ChainIDEthereum ||
 		w.chainID == vaa.ChainIDHolesky ||
+		w.chainID == vaa.ChainIDHyperliquid ||
 		w.chainID == vaa.ChainIDInk ||
 		w.chainID == vaa.ChainIDKarura ||
 		w.chainID == vaa.ChainIDMantle ||
