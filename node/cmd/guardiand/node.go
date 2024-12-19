@@ -201,6 +201,9 @@ var (
 	inkRPC      *string
 	inkContract *string
 
+	hyperliquidRPC      *string
+	hyperliquidContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -421,6 +424,9 @@ func init() {
 
 	inkRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "inkRPC", "Ink RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	inkContract = NodeCmd.Flags().String("inkContract", "", "Ink contract address")
+
+	hyperliquidRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hyperliquidRPC", "Hyperliquid RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	hyperliquidContract = NodeCmd.Flags().String("hyperliquidContract", "", "Hyperliquid contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -812,6 +818,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
 	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
+	*hyperliquidContract = checkEvmArgs(logger, *hyperliquidRPC, *hyperliquidContract, "hyperliquid", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -928,6 +935,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["ethRPC"] = *ethRPC
 	rpcMap["fantomRPC"] = *fantomRPC
+	rpcMap["hyperliquidRPC"] = *hyperliquidRPC
 	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
 	rpcMap["ibcLCD"] = *ibcLCD
 	rpcMap["ibcWS"] = *ibcWS
@@ -1423,6 +1431,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDInk,
 			Rpc:              *inkRPC,
 			Contract:         *inkContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(hyperliquidRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "hyperliquid",
+			ChainID:          vaa.ChainIDHyperliquid,
+			Rpc:              *hyperliquidRPC,
+			Contract:         *hyperliquidContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 
