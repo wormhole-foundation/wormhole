@@ -1,4 +1,5 @@
 use crate::msg::{ExecuteMsg, GetStateResponse, GuardianSetInfoResponse};
+use crate::state::CONFIG;
 use crate::testing::utils::{
     create_transfer_vaa_body, instantiate_with_guardians, sign_vaa_body_version_2,
     IntoGuardianAddress, WormholeApp,
@@ -6,15 +7,13 @@ use crate::testing::utils::{
 use crate::{
     contract::instantiate,
     msg::QueryMsg,
-    state::{ConfigInfo, GuardianAddress, ParsedVAA, CONFIG_KEY},
+    state::{ConfigInfo, GuardianAddress, ParsedVAA},
 };
 use cosmwasm_std::{
-    from_slice,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    Coin, OwnedDeps, Response, StdResult, Storage,
+    Coin, OwnedDeps, Response, StdResult,
 };
 use cosmwasm_std::{Deps, DepsMut, Empty, QuerierWrapper, StdError, Uint128, Uint256};
-use cosmwasm_storage::to_length_prefixed;
 use cw_multi_test::{ContractWrapper, Executor};
 use k256::ecdsa::SigningKey;
 use serde_wormhole::RawMessage;
@@ -26,12 +25,6 @@ use wormhole_sdk::{relayer, Address, Amount, Chain, GuardianSetInfo, GOVERNANCE_
 
 static INITIALIZER: &str = "initializer";
 
-fn get_config_info<S: Storage>(storage: &S) -> ConfigInfo {
-    let key = to_length_prefixed(CONFIG_KEY);
-    let data = storage.get(&key).expect("data should exist");
-    from_slice(&data).expect("invalid data")
-}
-
 fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
     let mut deps = mock_dependencies();
     let init_msg = instantiate_with_guardians(guardians);
@@ -42,7 +35,7 @@ fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, Moc
 
     // query the store directly
     assert_eq!(
-        get_config_info(&deps.storage),
+        CONFIG.load(&deps.storage).expect("data should exist"),
         ConfigInfo {
             guardian_set_index: 0,
             guardian_set_expirity: 50,

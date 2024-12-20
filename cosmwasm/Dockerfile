@@ -12,6 +12,8 @@ COPY cosmwasm/artifacts /code/artifacts
 COPY sdk/rust /sdk/rust
 
 RUN --mount=type=cache,target=/target,id=cosmwasm_target --mount=type=cache,target=/usr/local/cargo/registry optimize.sh .
+# Build only shutdown contracts with no default features
+RUN --mount=type=cache,target=/target,id=cosmwasm_target --mount=type=cache,target=/usr/local/cargo/registry optimize.sh ./contracts/shutdown-wormhole ./contracts/shutdown-token-bridge
 
 FROM scratch as artifacts
 COPY --from=builder /code/artifacts /

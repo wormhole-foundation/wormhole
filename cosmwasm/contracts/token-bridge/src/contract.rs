@@ -16,7 +16,7 @@ use cw_wormhole::{
     },
     error::ContractError,
     msg::{ExecuteMsg as WormholeExecuteMsg, QueryMsg as WormholeQueryMsg},
-    state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
+    state::{vaa_archive_check, GovernancePacket, ParsedVAA, VAA_ARCHIVE},
 };
 
 #[cfg(not(feature = "library"))]
@@ -44,6 +44,7 @@ use crate::{
     token_address::{ContractId, ExternalTokenId, TokenId, WrappedCW20},
 };
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 type HumanAddr = String;
 
 pub enum TransferType<A> {
@@ -312,6 +313,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn deposit_tokens(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
     for coin in info.funds {
         let deposit_key = format!("{}:{}", info.sender, coin.denom);
@@ -326,6 +328,7 @@ fn deposit_tokens(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Resp
     Ok(Response::new().add_attribute("action", "deposit_tokens"))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn withdraw_tokens(
     deps: DepsMut,
     _env: Env,
@@ -358,6 +361,7 @@ fn withdraw_tokens(
 }
 
 /// Handle wrapped asset registration messages
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_register_asset(
     deps: DepsMut,
     _env: Env,
@@ -400,6 +404,7 @@ fn handle_register_asset(
         .add_attribute("contract_addr", info.sender))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_attest_meta(
     deps: DepsMut,
     env: Env,
@@ -487,6 +492,7 @@ fn handle_attest_meta(
     Ok(Response::new().add_message(message))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_create_asset_meta(
     deps: DepsMut,
     env: Env,
@@ -504,6 +510,7 @@ fn handle_create_asset_meta(
     }
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_create_asset_meta_token(
     deps: DepsMut,
     env: Env,
@@ -554,6 +561,7 @@ fn handle_create_asset_meta_token(
         .add_attribute("meta.block_time", env.block.time.seconds().to_string()))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_create_asset_meta_native_token(
     deps: DepsMut,
     env: Env,
@@ -598,6 +606,7 @@ fn handle_create_asset_meta_native_token(
         .add_attribute("meta.block_time", env.block.time.seconds().to_string()))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_complete_transfer_with_payload(
     mut deps: DepsMut,
     env: Env,
@@ -643,7 +652,7 @@ fn parse_and_archive_vaa(
     if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
         return ContractError::VaaAlreadyExecuted.std_err();
     }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+    VAA_ARCHIVE.save(deps.storage, vaa.hash.as_slice(), &true)?;
 
     // check if vaa is from governance
     if is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
@@ -658,9 +667,10 @@ fn parse_and_archive_vaa(
 fn submit_vaa(
     mut deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    #[cfg_attr(not(feature = "full"), allow(unused_variables))] info: MessageInfo,
     data: &Binary,
 ) -> StdResult<Response> {
+    #[cfg_attr(not(feature = "full"), allow(unused_variables))]
     let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
     match payload {
         Either::Left(governance_packet) => handle_governance_payload(deps, env, &governance_packet),
@@ -756,6 +766,7 @@ fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_complete_transfer(
     deps: DepsMut,
     env: Env,
@@ -798,6 +809,7 @@ fn handle_complete_transfer(
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::bind_instead_of_map)]
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_complete_transfer_token(
     deps: DepsMut,
     _env: Env,
@@ -968,6 +980,7 @@ fn handle_complete_transfer_token(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_complete_transfer_token_native(
     deps: DepsMut,
     _env: Env,
@@ -1067,6 +1080,7 @@ fn handle_complete_transfer_token_native(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_initiate_transfer(
     deps: DepsMut,
     env: Env,
@@ -1107,6 +1121,7 @@ fn handle_initiate_transfer(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_initiate_transfer_token(
     deps: DepsMut,
     env: Env,
@@ -1347,6 +1362,7 @@ fn handle_initiate_transfer_token(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_initiate_transfer_native_token(
     deps: DepsMut,
     env: Env,

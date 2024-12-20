@@ -147,18 +147,12 @@ func (c ChainID) String() string {
 		return "avalanche"
 	case ChainIDOasis:
 		return "oasis"
+	case ChainIDAlgorand:
+		return "algorand"
 	case ChainIDAurora:
 		return "aurora"
 	case ChainIDFantom:
 		return "fantom"
-	case ChainIDAlgorand:
-		return "algorand"
-	case ChainIDNear:
-		return "near"
-	case ChainIDAptos:
-		return "aptos"
-	case ChainIDSui:
-		return "sui"
 	case ChainIDKarura:
 		return "karura"
 	case ChainIDAcala:
@@ -167,6 +161,8 @@ func (c ChainID) String() string {
 		return "klaytn"
 	case ChainIDCelo:
 		return "celo"
+	case ChainIDNear:
+		return "near"
 	case ChainIDMoonbeam:
 		return "moonbeam"
 	case ChainIDTerra2:
@@ -175,6 +171,10 @@ func (c ChainID) String() string {
 		return "injective"
 	case ChainIDOsmosis:
 		return "osmosis"
+	case ChainIDSui:
+		return "sui"
+	case ChainIDAptos:
+		return "aptos"
 	case ChainIDArbitrum:
 		return "arbitrum"
 	case ChainIDOptimism:
@@ -183,14 +183,14 @@ func (c ChainID) String() string {
 		return "gnosis"
 	case ChainIDPythNet:
 		return "pythnet"
-	case ChainIDWormchain:
-		return "wormchain"
 	case ChainIDXpla:
 		return "xpla"
 	case ChainIDBtc:
 		return "btc"
 	case ChainIDBase:
 		return "base"
+	case ChainIDFileCoin:
+		return "filecoin"
 	case ChainIDSei:
 		return "sei"
 	case ChainIDRootstock:
@@ -209,6 +209,10 @@ func (c ChainID) String() string {
 		return "berachain"
 	case ChainIDSeiEVM:
 		return "seievm"
+	case ChainIDEclipse:
+		return "eclipse"
+	case ChainIDBOB:
+		return "bob"
 	case ChainIDSnaxchain:
 		return "snaxchain"
 	case ChainIDUnichain:
@@ -219,6 +223,12 @@ func (c ChainID) String() string {
 		return "ink"
 	case ChainIDHyperEVM:
 		return "hyperevm"
+	case ChainIDMonad:
+		return "monad"
+	case ChainIDMovement:
+		return "movement"
+	case ChainIDWormchain:
+		return "wormchain"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
@@ -251,8 +261,6 @@ func (c ChainID) String() string {
 		return "holesky"
 	case ChainIDPolygonSepolia:
 		return "polygon_sepolia"
-	case ChainIDMonadDevnet:
-		return "monad_devnet"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -276,18 +284,12 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDAvalanche, nil
 	case "oasis":
 		return ChainIDOasis, nil
+	case "algorand":
+		return ChainIDAlgorand, nil
 	case "aurora":
 		return ChainIDAurora, nil
 	case "fantom":
 		return ChainIDFantom, nil
-	case "algorand":
-		return ChainIDAlgorand, nil
-	case "near":
-		return ChainIDNear, nil
-	case "sui":
-		return ChainIDSui, nil
-	case "aptos":
-		return ChainIDAptos, nil
 	case "karura":
 		return ChainIDKarura, nil
 	case "acala":
@@ -296,6 +298,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDKlaytn, nil
 	case "celo":
 		return ChainIDCelo, nil
+	case "near":
+		return ChainIDNear, nil
 	case "moonbeam":
 		return ChainIDMoonbeam, nil
 	case "terra2":
@@ -304,6 +308,10 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDInjective, nil
 	case "osmosis":
 		return ChainIDOsmosis, nil
+	case "sui":
+		return ChainIDSui, nil
+	case "aptos":
+		return ChainIDAptos, nil
 	case "arbitrum":
 		return ChainIDArbitrum, nil
 	case "optimism":
@@ -312,14 +320,14 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDGnosis, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
-	case "wormchain":
-		return ChainIDWormchain, nil
 	case "xpla":
 		return ChainIDXpla, nil
 	case "btc":
 		return ChainIDBtc, nil
 	case "base":
 		return ChainIDBase, nil
+	case "filecoin":
+		return ChainIDFileCoin, nil
 	case "sei":
 		return ChainIDSei, nil
 	case "rootstock":
@@ -336,6 +344,12 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDLinea, nil
 	case "berachain":
 		return ChainIDBerachain, nil
+	case "seievm":
+		return ChainIDSeiEVM, nil
+	case "eclipse":
+		return ChainIDEclipse, nil
+	case "bob":
+		return ChainIDBOB, nil
 	case "snaxchain":
 		return ChainIDSnaxchain, nil
 	case "unichain":
@@ -346,10 +360,14 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDInk, nil
 	case "hyperevm":
 		return ChainIDHyperEVM, nil
+	case "monad":
+		return ChainIDMonad, nil
+	case "movement":
+		return ChainIDMovement, nil
+	case "wormchain":
+		return ChainIDWormchain, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
-	case "seievm":
-		return ChainIDSeiEVM, nil
 	case "evmos":
 		return ChainIDEvmos, nil
 	case "kujira":
@@ -380,8 +398,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDHolesky, nil
 	case "polygon_sepolia":
 		return ChainIDPolygonSepolia, nil
-	case "monad_devnet":
-		return ChainIDMonadDevnet, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -417,6 +433,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDXpla,
 		ChainIDBtc,
 		ChainIDBase,
+		ChainIDFileCoin,
 		ChainIDSei,
 		ChainIDRootstock,
 		ChainIDScroll,
@@ -425,11 +442,16 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDXLayer,
 		ChainIDLinea,
 		ChainIDBerachain,
+		ChainIDSeiEVM,
+		ChainIDEclipse,
+		ChainIDBOB,
 		ChainIDSnaxchain,
 		ChainIDUnichain,
 		ChainIDWorldchain,
 		ChainIDInk,
 		ChainIDHyperEVM,
+		ChainIDMonad,
+		ChainIDMovement,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -447,10 +469,10 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimismSepolia,
 		ChainIDHolesky,
 		ChainIDPolygonSepolia,
-		ChainIDMonadDevnet,
 	}
 }
 
+// NOTE: Please keep these in numerical order.
 const (
 	ChainIDUnset ChainID = 0
 	// ChainIDSolana is the ChainID of Solana
@@ -504,12 +526,15 @@ const (
 	ChainIDGnosis ChainID = 25
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
+	// NOTE: 27 belongs to a chain that was never deployed.
 	// ChainIDXpla is the ChainID of Xpla
 	ChainIDXpla ChainID = 28
 	//ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
 	// ChainIDBase is the ChainID of Base
 	ChainIDBase ChainID = 30
+	// ChainIDFileCoin is the ChainID of FileCoin
+	ChainIDFileCoin ChainID = 31
 	// ChainIDSei is the ChainID of Sei
 	ChainIDSei ChainID = 32
 	// ChainIDRootstock is the ChainID of Rootstock
@@ -528,6 +553,10 @@ const (
 	ChainIDBerachain ChainID = 39
 	// ChainIDSeiEVM is the ChainID of SeiEVM
 	ChainIDSeiEVM ChainID = 40
+	// ChainIDEclipse is the ChainID of Eclipse
+	ChainIDEclipse ChainID = 41
+	// ChainIDBOB is the ChainID of BOB
+	ChainIDBOB ChainID = 42
 	// ChainIDSnaxchain is the ChainID of Snaxchain
 	ChainIDSnaxchain ChainID = 43
 	// ChainIDUnichain is the ChainID of Unichain
@@ -538,8 +567,16 @@ const (
 	ChainIDInk ChainID = 46
 	// ChainIDHyperEVM is the ChainID of HyperEVM
 	ChainIDHyperEVM ChainID = 47
+	// ChainIDMonad is the ChainID of Monad
+	ChainIDMonad ChainID = 48
+	// ChainIDMovement is the ChainID of Movement
+	ChainIDMovement ChainID = 49
 	//ChainIDWormchain is the ChainID of Wormchain
+
+	// Wormchain is in it's own range.
 	ChainIDWormchain ChainID = 3104
+
+	// The IBC chains start at 4000.
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
 	ChainIDCosmoshub ChainID = 4000
 	// ChainIDEvmos is the ChainID of Evmos
@@ -561,6 +598,8 @@ const (
 	// ChainIDNoble is the ChainID of Noble
 	ChainIDNoble ChainID = 4009
 	// ChainIDSepolia is the ChainID of Sepolia
+
+	// The Testnet only chains start at 10000.
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
 	ChainIDArbitrumSepolia ChainID = 10003
@@ -572,8 +611,7 @@ const (
 	ChainIDHolesky ChainID = 10006
 	// ChainIDPolygonSepolia is the ChainID of Polygon on Sepolia
 	ChainIDPolygonSepolia ChainID = 10007
-	// ChainIDMonadDevnet is the ChainID of Monad Devnet
-	ChainIDMonadDevnet ChainID = 10008
+	// OBSOLETE: ChainIDMonadDevnet ChainID = 10008
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

@@ -1,5 +1,5 @@
 // To compile:
-//   go build --ldflags '-extldflags "-Wl,--allow-multiple-definition"' -o parse_eth_tx
+//   go build -o parse_eth_tx
 // Usage:
 //   ./parse_eth_tx -chainID=14 -ethRPC=wss://alfajores-forno.celo-testnet.org/ws -contractAddr=0x88505117CA88e7dd2eC6EA1E13f0948db2D50D56 -tx=0x20a1e7e491dd82b6b33db0820e88a96b58bac28d65770ea73af80e457745aab1
 
@@ -39,16 +39,9 @@ func main() {
 
 	var ethIntf connectors.Connector
 	var err error
-	if chainID == vaa.ChainIDCelo {
-		ethIntf, err = connectors.NewCeloConnector(ctx, "", *flagEthRPC, contractAddr, zap.L())
-		if err != nil {
-			log.Fatalf("dialing eth client failed: %v", err)
-		}
-	} else {
-		ethIntf, err = connectors.NewEthereumBaseConnector(ctx, "", *flagEthRPC, contractAddr, zap.L())
-		if err != nil {
-			log.Fatalf("dialing eth client failed: %v", err)
-		}
+	ethIntf, err = connectors.NewEthereumBaseConnector(ctx, "", *flagEthRPC, contractAddr, zap.L())
+	if err != nil {
+		log.Fatalf("dialing eth client failed: %v", err)
 	}
 
 	transactionHash := ethCommon.HexToHash(*flagTx)

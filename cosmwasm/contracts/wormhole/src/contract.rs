@@ -14,9 +14,9 @@ use crate::{
         InstantiateMsg, MigrateMsg, QueryMsg,
     },
     state::{
-        config, config_read, guardian_set_get, guardian_set_set, sequence_read, sequence_set,
-        vaa_archive_add, vaa_archive_check, ConfigInfo, ContractUpgrade, GovernancePacket,
-        GuardianAddress, GuardianSetInfo, GuardianSetUpgrade, ParsedVAA, SetFee, TransferFee,
+        vaa_archive_check, ConfigInfo, ContractUpgrade, GovernancePacket, GuardianAddress,
+        GuardianSetInfo, GuardianSetUpgrade, ParsedVAA, SetFee, TransferFee, CONFIG, GUARDIAN_SET,
+        SEQUENCE, VAA_ARCHIVE,
     },
 };
 
@@ -74,10 +74,10 @@ pub fn instantiate(
         chain_id: msg.chain_id,
         fee_denom: msg.fee_denom,
     };
-    config(deps.storage).save(&state)?;
+    CONFIG.save(deps.storage, &state)?;
 
     // Add initial guardian set to storage
-    guardian_set_set(
+    GUARDIAN_SET.save(
         deps.storage,
         state.guardian_set_index,
         &msg.initial_guardian_set,
@@ -109,10 +109,10 @@ fn handle_submit_vaa(
     _info: MessageInfo,
     data: &[u8],
 ) -> StdResult<Response> {
-    let state = config_read(deps.storage).load()?;
+    let state = CONFIG.load(deps.storage)?;
 
     let vaa = parse_and_verify_vaa(deps.storage, data, env.block.time.seconds())?;
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+    VAA_ARCHIVE.save(deps.storage, vaa.hash.as_slice(), &true)?;
 
     if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
         if state.guardian_set_index != vaa.guardian_set_index {
@@ -128,7 +128,7 @@ fn handle_submit_vaa(
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(data)?;
-    let state = config_read(deps.storage).load()?;
+    let state = CONFIG.load(deps.storage)?;
 
     let module = String::from_utf8(gov_packet.module).unwrap();
     let module: String = module.chars().filter(|c| c != &'\0').collect();
@@ -173,9 +173,10 @@ fn parse_and_verify_vaa(
     }
 
     // Load and check guardian set
-    let guardian_set = guardian_set_get(storage, vaa.guardian_set_index);
-    let guardian_set: GuardianSetInfo =
-        guardian_set.or_else(|_| ContractError::InvalidGuardianSetIndex.std_err())?;
+    let guardian_set = GUARDIAN_SET.may_load(storage, vaa.guardian_set_index);
+    let guardian_set: GuardianSetInfo = guardian_set
+        .or_else(|_| ContractError::InvalidGuardianSetIndex.std_err())?
+        .ok_or_else(|| ContractError::InvalidGuardianSetIndex.std())?;
 
     if guardian_set.expiration_time != 0 && guardian_set.expiration_time < block_time {
         return ContractError::GuardianSetExpired.std_err();
@@ -232,7 +233,7 @@ fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Re
     5   [][20]uint8 guardian addresses
     */
 
-    let mut state = config_read(deps.storage).load()?;
+    let mut state = CONFIG.load(deps.storage)?;
 
     let GuardianSetUpgrade {
         new_guardian_set_index,
@@ -247,13 +248,13 @@ fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Re
 
     state.guardian_set_index = new_guardian_set_index;
 
-    guardian_set_set(deps.storage, state.guardian_set_index, &new_guardian_set)?;
+    GUARDIAN_SET.save(deps.storage, state.guardian_set_index, &new_guardian_set)?;
 
-    config(deps.storage).save(&state)?;
+    CONFIG.save(deps.storage, &state)?;
 
-    let mut old_guardian_set = guardian_set_get(deps.storage, old_guardian_set_index)?;
+    let mut old_guardian_set = GUARDIAN_SET.load(deps.storage, old_guardian_set_index)?;
     old_guardian_set.expiration_time = env.block.time.seconds() + state.guardian_set_expirity;
-    guardian_set_set(deps.storage, old_guardian_set_index, &old_guardian_set)?;
+    GUARDIAN_SET.save(deps.storage, old_guardian_set_index, &old_guardian_set)?;
 
     Ok(Response::new()
         .add_attribute("action", "guardian_set_change")
@@ -278,12 +279,12 @@ fn vaa_update_contract(_deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Respo
 }
 
 pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
-    let mut state = config_read(deps.storage).load()?;
+    let mut state = CONFIG.load(deps.storage)?;
     let set_fee_msg = SetFee::deserialize(data, state.fee_denom.clone())?;
 
     // Save new fees
     state.fee = set_fee_msg.fee;
-    config(deps.storage).save(&state)?;
+    CONFIG.save(deps.storage, &state)?;
 
     Ok(Response::new()
         .add_attribute("action", "fee_change")
@@ -292,7 +293,7 @@ pub fn handle_set_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Respon
 }
 
 pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<Response> {
-    let state = config_read(deps.storage).load()?;
+    let state = CONFIG.load(deps.storage)?;
 
     let transfer_msg = TransferFee::deserialize(data, state.fee_denom)?;
 
@@ -302,6 +303,7 @@ pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<R
     })))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_post_message(
     deps: DepsMut,
     env: Env,
@@ -309,7 +311,7 @@ fn handle_post_message(
     message: &[u8],
     nonce: u32,
 ) -> StdResult<Response> {
-    let state = config_read(deps.storage).load()?;
+    let state = CONFIG.load(deps.storage)?;
     let fee = state.fee;
 
     // Check fee
@@ -318,8 +320,10 @@ fn handle_post_message(
     }
 
     let emitter = extend_address_to_32(&deps.api.addr_canonicalize(info.sender.as_str())?);
-    let sequence = sequence_read(deps.storage, emitter.as_slice());
-    sequence_set(deps.storage, emitter.as_slice(), sequence + 1)?;
+    let sequence = SEQUENCE
+        .may_load(deps.storage, emitter.as_slice())?
+        .ok_or(ContractError::SequenceNotFound.std())?;
+    SEQUENCE.save(deps.storage, emitter.as_slice(), &(sequence + 1))?;
 
     Ok(Response::new()
         .add_attribute("message.message", hex::encode(message))
@@ -345,8 +349,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 pub fn query_guardian_set_info(deps: Deps) -> StdResult<GuardianSetInfoResponse> {
-    let state = config_read(deps.storage).load()?;
-    let guardian_set = guardian_set_get(deps.storage, state.guardian_set_index)?;
+    let state = CONFIG.load(deps.storage)?;
+    let guardian_set = GUARDIAN_SET.load(deps.storage, state.guardian_set_index)?;
     let res = GuardianSetInfoResponse {
         guardian_set_index: state.guardian_set_index,
         addresses: guardian_set.addresses,
@@ -370,7 +374,7 @@ pub fn query_address_hex(deps: Deps, address: &HumanAddr) -> StdResult<GetAddres
 }
 
 pub fn query_state(deps: Deps) -> StdResult<GetStateResponse> {
-    let state = config_read(deps.storage).load()?;
+    let state = CONFIG.load(deps.storage)?;
     let res = GetStateResponse { fee: state.fee };
     Ok(res)
 }

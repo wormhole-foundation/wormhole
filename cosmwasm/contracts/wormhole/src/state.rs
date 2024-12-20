@@ -1,23 +1,17 @@
+use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, CanonicalAddr, Coin, StdResult, Storage, Uint128};
-use cosmwasm_storage::{
-    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
-    Singleton,
-};
 
 use crate::{byte_utils::ByteUtils, error::ContractError};
 
 use sha3::{Digest, Keccak256};
 
-type HumanAddr = String;
-
-pub static CONFIG_KEY: &[u8] = b"config";
-pub static GUARDIAN_SET_KEY: &[u8] = b"guardian_set";
-pub static SEQUENCE_KEY: &[u8] = b"sequence";
-pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
-pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
+pub const CONFIG: Item<ConfigInfo> = Item::new("config");
+pub const GUARDIAN_SET: Map<u32, GuardianSetInfo> = Map::new("guardian_set");
+pub const SEQUENCE: Map<&[u8], u64> = Map::new("sequence");
+pub const VAA_ARCHIVE: Map<&[u8], bool> = Map::new("vaa_archive");
 
 /// Legacy version of [`ConfigInfo`]. Required for the migration.  In
 /// particular, the last two fields of [`ConfigInfo`] have been added after the
@@ -227,64 +221,11 @@ pub struct WormholeInfo {
     pub guardian_set_expirity: u64,
 }
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
-    singleton(storage, CONFIG_KEY)
-}
-
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
-    singleton_read(storage, CONFIG_KEY)
-}
-
-pub fn config_read_legacy(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfoLegacy> {
-    singleton_read(storage, CONFIG_KEY)
-}
-
-pub fn guardian_set_set(
-    storage: &mut dyn Storage,
-    index: u32,
-    data: &GuardianSetInfo,
-) -> StdResult<()> {
-    bucket(storage, GUARDIAN_SET_KEY).save(&index.to_be_bytes(), data)
-}
-
-pub fn guardian_set_get(storage: &dyn Storage, index: u32) -> StdResult<GuardianSetInfo> {
-    bucket_read(storage, GUARDIAN_SET_KEY).load(&index.to_be_bytes())
-}
-
-pub fn sequence_set(storage: &mut dyn Storage, emitter: &[u8], sequence: u64) -> StdResult<()> {
-    bucket(storage, SEQUENCE_KEY).save(emitter, &sequence)
-}
-
-pub fn sequence_read(storage: &dyn Storage, emitter: &[u8]) -> u64 {
-    bucket_read(storage, SEQUENCE_KEY)
-        .load(emitter)
-        .unwrap_or(0)
-}
-
-pub fn vaa_archive_add(storage: &mut dyn Storage, hash: &[u8]) -> StdResult<()> {
-    bucket(storage, GUARDIAN_SET_KEY).save(hash, &true)
-}
-
 pub fn vaa_archive_check(storage: &dyn Storage, hash: &[u8]) -> bool {
-    bucket_read(storage, GUARDIAN_SET_KEY)
-        .load(hash)
+    VAA_ARCHIVE
+        .may_load(storage, hash)
+        .unwrap_or(Some(false))
         .unwrap_or(false)
-}
-
-pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
-    bucket(storage, WRAPPED_ASSET_KEY)
-}
-
-pub fn wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
-    bucket_read(storage, WRAPPED_ASSET_KEY)
-}
-
-pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
-    bucket(storage, WRAPPED_ASSET_ADDRESS_KEY)
-}
-
-pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
-    bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
 pub struct GovernancePacket {

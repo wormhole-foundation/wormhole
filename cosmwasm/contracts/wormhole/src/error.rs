@@ -7,6 +7,10 @@ pub enum ContractError {
     #[error("InvalidVersion")]
     InvalidVersion,
 
+    /// Sequence from emitter not found in state
+    #[error("SequenceNotFound")]
+    SequenceNotFound,
+
     /// Guardian set with this index does not exist
     #[error("InvalidGuardianSetIndex")]
     InvalidGuardianSetIndex,
