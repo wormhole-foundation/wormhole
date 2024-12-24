@@ -416,7 +416,7 @@ export const setMaxGasBudgetDevnet = (
   network: Network,
   tx: TransactionBlock
 ) => {
-  if (network === "Devnet") {
+  if (network === "Devnet" || network === "Testnet") {
     // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
     tx.setGasBudget(10000000000);
   }

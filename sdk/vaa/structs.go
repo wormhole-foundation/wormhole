@@ -217,6 +217,8 @@ func (c ChainID) String() string {
 		return "worldchain"
 	case ChainIDInk:
 		return "ink"
+	case ChainIDHyperEVM:
+		return "hyperevm"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
@@ -235,6 +237,8 @@ func (c ChainID) String() string {
 		return "dymension"
 	case ChainIDProvenance:
 		return "provenance"
+	case ChainIDNoble:
+		return "noble"
 	case ChainIDSepolia:
 		return "sepolia"
 	case ChainIDArbitrumSepolia:
@@ -340,6 +344,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDWorldchain, nil
 	case "ink":
 		return ChainIDInk, nil
+	case "hyperevm":
+		return ChainIDHyperEVM, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
 	case "seievm":
@@ -360,6 +366,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDDymension, nil
 	case "provenance":
 		return ChainIDProvenance, nil
+	case "noble":
+		return ChainIDNoble, nil
 	case "sepolia":
 		return ChainIDSepolia, nil
 	case "arbitrum_sepolia":
@@ -421,6 +429,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDUnichain,
 		ChainIDWorldchain,
 		ChainIDInk,
+		ChainIDHyperEVM,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -431,6 +440,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDSeda,
 		ChainIDDymension,
 		ChainIDProvenance,
+		ChainIDNoble,
 		ChainIDSepolia,
 		ChainIDArbitrumSepolia,
 		ChainIDBaseSepolia,
@@ -526,6 +536,8 @@ const (
 	ChainIDWorldchain ChainID = 45
 	// ChainIDInk is the ChainID of Ink
 	ChainIDInk ChainID = 46
+	// ChainIDHyperEVM is the ChainID of HyperEVM
+	ChainIDHyperEVM ChainID = 47
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
@@ -546,6 +558,8 @@ const (
 	ChainIDDymension ChainID = 4007
 	// ChainIDProvenance is the ChainID of Provenance
 	ChainIDProvenance ChainID = 4008
+	// ChainIDNoble is the ChainID of Noble
+	ChainIDNoble ChainID = 4009
 	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia

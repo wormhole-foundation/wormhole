@@ -1,6 +1,5 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
-FROM --platform=linux/amd64 docker.io/golang:1.23.3-bullseye@sha256:bc1b90c2a8eb0ffb62325e02a85d51031ad3afae15b3df4b6a48b7929b00badb AS dev
-# libwasmvm.so is not compatible with arm
+FROM docker.io/golang:1.23.3-bullseye@sha256:9e53abacfc22cd3df3e4ebcc04ac64951b71d2a38c52b690f3807af6a2000ed2 AS dev
 
 FROM dev AS build
 
@@ -22,7 +21,7 @@ RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
   cd node && \
   go build ${GO_BUILD_ARGS} -gcflags="all=-N -l" --ldflags '-extldflags "-Wl,--allow-multiple-definition" -X "github.com/certusone/wormhole/node/cmd/guardiand.Build=dev"' -mod=readonly -o /guardiand github.com/certusone/wormhole/node && \
   go get github.com/CosmWasm/wasmvm@v1.1.1 && \
-  cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/libwasmvm.x86_64.so /usr/lib/
+  cp /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/libwasmvm.*.so /usr/lib/
 
 # Only export the final binary (+ shared objects). This reduces the image size
 # from ~1GB to ~150MB.
@@ -32,7 +31,7 @@ FROM scratch as export
 # have to copy all the dynamic libraries
 COPY --from=build /lib/* /lib/
 COPY --from=build /lib64/* /lib64/
-COPY --from=build /usr/lib/libwasmvm.x86_64.so /usr/lib/
+COPY --from=build /usr/lib/libwasmvm.*.so /usr/lib/
 
 # Copy the shells as entrypoints, but no utilities are necessary
 COPY --from=build /bin/bash /bin/dash /bin/sh /bin/
