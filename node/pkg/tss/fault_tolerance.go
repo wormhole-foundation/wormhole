@@ -168,6 +168,11 @@ func (e *endDownTimeAlert) GetEndTime() time.Time {
 	return e.alertTime
 }
 
+type keyAndTTL struct {
+	key sigKey
+	ttl time.Time
+}
+
 type ftChainContext struct {
 	timeToRevive                time.Time                  // the time this party is expected to come back and be part of the protocol again.
 	liveSigsWaitingForThisParty map[sigKey]*signatureState // sigs that once the revive time expire should be retried.
@@ -180,6 +185,7 @@ type ftParty struct {
 }
 
 type ftTracker struct {
+	ttlKeys        []keyAndTTL
 	sigAlerts      internal.Ttlheap[*signatureState]
 	sigsState      map[sigKey]*signatureState // TODO: sigState should include the chainID too, otherwise we might have two digest with  two differet chainIDs
 	chainIdsToSigs map[vaa.ChainID]map[sigKey]*signatureState
@@ -235,6 +241,9 @@ func (t *Engine) ftTracker() {
 			return
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)
+			if len(f.ttlKeys) > sigStateRateLimit {
+				f.cleanup(maxttl)
+			}
 		case <-f.sigAlerts.WaitOnTimer():
 			f.inspectAlertHeapsTop(t)
 
@@ -250,13 +259,40 @@ func (t *Engine) ftTracker() {
 func (f *ftTracker) cleanup(maxttl time.Duration) {
 	now := time.Now()
 
-	for _, sigState := range f.sigsState {
-		if now.Sub(sigState.beginTime) < maxttl {
+	toRemove := []sigKey{}
+	if len(f.ttlKeys) > sigStateRateLimit {
+		diff := len(f.ttlKeys) - sigStateRateLimit
+
+		toRemove = make([]sigKey, diff)
+
+		for i, keyAndTime := range f.ttlKeys[:diff] {
+			toRemove[i] = keyAndTime.key
+		}
+
+		f.ttlKeys = f.ttlKeys[diff:] // remove the first diff elements.
+	}
+
+	cutoff := 0
+	for i, keyAndTtl := range f.ttlKeys {
+		if now.Sub(keyAndTtl.ttl) >= maxttl {
+			toRemove = append(toRemove, keyAndTtl.key)
+		} else {
+			cutoff = i
+			break
+		}
+	}
+
+	f.ttlKeys = f.ttlKeys[cutoff:] // remove the first cutoff elements.
+
+	for _, key := range toRemove {
+		sigState, ok := f.sigsState[key]
+		if !ok {
 			continue
 		}
 
 		f.remove(sigState)
 	}
+
 }
 
 func (f *ftTracker) remove(sigState *signatureState) {
@@ -491,7 +527,6 @@ func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
 }
 
 func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alertTime time.Time) *signatureState {
-
 	state := &signatureState{
 		chain:          chain,
 		digest:         digest,
@@ -510,6 +545,8 @@ func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alert
 		f.chainIdsToSigs[chain] = chn
 	}
 	chn[sigkey] = state
+
+	f.ttlKeys = append(f.ttlKeys, keyAndTTL{key: sigkey, ttl: alertTime})
 
 	return state
 }

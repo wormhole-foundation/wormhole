@@ -30,6 +30,7 @@ const (
 	trackingIDHexStrSize = 2*(trackindIDSize) + 2
 
 	defaultMaxLiveSignatures = 1000
+	sigStateRateLimit        = 1000 * 1000
 
 	defaultMaxSignerTTL     = time.Minute * 5
 	defaultDelayGraceTime   = time.Minute
