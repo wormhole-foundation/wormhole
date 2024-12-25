@@ -328,7 +328,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID) {
 	select {
 	case t.messageOutChan <- newEcho(&sm, t.guardiansProtoIDs):
 	default:
-		t.logger.Error("couldn't echo about new tss digest, network output channel buffer is full",
+		t.logger.Error("couldn't anounce to others about new tss digest, network output channel buffer is full",
 			zap.String("chainID", chainID.String()),
 			zap.String("digest", fmt.Sprintf("%x", digest)),
 		)
