@@ -87,7 +87,7 @@ func (p *parsedProblem) wrapError(err error) error {
 
 func (p *parsedProblem) serialize() ([]byte, error) {
 	if p == nil {
-		return []byte(parsedProblemDomain), fmt.Errorf("nil relbroadcastables")
+		return []byte(parsedProblemDomain), fmt.Errorf("nil parsedProblem")
 	}
 	unixtime := p.IssuingTime.AsTime().Unix()
 
@@ -152,7 +152,7 @@ func (p *parsedTssContent) getTrackingID() *common.TrackingID {
 
 func (p *parsedAnnouncement) serialize() ([]byte, error) {
 	if p == nil {
-		return []byte(newAnouncementDomain), fmt.Errorf("nil relbroadcastables")
+		return []byte(newAnouncementDomain), fmt.Errorf("nil parsedAnnouncement")
 	}
 
 	fromId := [hostnameSize]byte{}
