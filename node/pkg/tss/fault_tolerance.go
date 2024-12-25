@@ -242,7 +242,7 @@ func (t *Engine) ftTracker() {
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)
 			if len(f.ttlKeys) > sigStateRateLimit {
-				f.cleanup(maxttl)
+				f.cleanup(t, maxttl)
 			}
 		case <-f.sigAlerts.WaitOnTimer():
 			f.inspectAlertHeapsTop(t)
@@ -251,12 +251,12 @@ func (t *Engine) ftTracker() {
 			f.inspectDowntimeAlertHeapsTop(t)
 
 		case <-ticker.C:
-			f.cleanup(maxttl)
+			f.cleanup(t, maxttl)
 		}
 	}
 }
 
-func (f *ftTracker) cleanup(maxttl time.Duration) {
+func (f *ftTracker) cleanup(t *Engine, maxttl time.Duration) {
 	now := time.Now()
 
 	toRemove := []sigKey{}
@@ -270,6 +270,8 @@ func (f *ftTracker) cleanup(maxttl time.Duration) {
 		}
 
 		f.ttlKeys = f.ttlKeys[diff:] // remove the first diff elements.
+
+		t.logger.Warn("ftTracker's limit reached, removing the oldest stored signature states", zap.Int("amount", diff))
 	}
 
 	cutoff := 0
