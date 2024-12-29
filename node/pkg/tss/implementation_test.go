@@ -17,10 +17,10 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	tsscommon "github.com/yossigi/tss-lib/v2/common"
-	"github.com/yossigi/tss-lib/v2/ecdsa/party"
-	"github.com/yossigi/tss-lib/v2/ecdsa/signing"
-	"github.com/yossigi/tss-lib/v2/tss"
+	tsscommon "github.com/xlabs/tss-lib/v2/common"
+	"github.com/xlabs/tss-lib/v2/ecdsa/party"
+	"github.com/xlabs/tss-lib/v2/ecdsa/signing"
+	"github.com/xlabs/tss-lib/v2/tss"
 )
 
 var (

@@ -8,9 +8,9 @@ import (
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/yossigi/tss-lib/v2/common"
-	"github.com/yossigi/tss-lib/v2/ecdsa/party"
-	"github.com/yossigi/tss-lib/v2/tss"
+	"github.com/xlabs/tss-lib/v2/common"
+	"github.com/xlabs/tss-lib/v2/ecdsa/party"
+	"github.com/xlabs/tss-lib/v2/tss"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -241,9 +241,11 @@ func (t *Engine) ftTracker() {
 			return
 		case cmd := <-t.ftCommandChan:
 			cmd.apply(t, f)
+
 			if len(f.ttlKeys) > sigStateRateLimit {
 				f.cleanup(t, maxttl)
 			}
+
 		case <-f.sigAlerts.WaitOnTimer():
 			f.inspectAlertHeapsTop(t)
 
@@ -448,7 +450,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 	copy(dgst[:], tid.Digest[:])
 
 	chain := extractChainIDFromTrackingID(tid)
-	// TODO: Ensure the digest contains the auxilaryData. otherwise, there can be two signatures witth the same digest? I doubt it.
+
 	state, ok := f.sigsState[intoSigKey(dgst, chain)]
 	if !ok {
 		state = f.setNewSigState(dgst, chain, time.Now())
@@ -546,6 +548,7 @@ func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alert
 		chn = map[sigKey]*signatureState{}
 		f.chainIdsToSigs[chain] = chn
 	}
+
 	chn[sigkey] = state
 
 	f.ttlKeys = append(f.ttlKeys, keyAndTTL{key: sigkey, ttl: alertTime})
@@ -567,6 +570,7 @@ func (f *ftTracker) inspectAlertHeapsTop(t *Engine) {
 	// At least one honest guardian saw the message, but I didn't (I'm probablt behined the network).
 	if sigState.maxGuardianVotes() >= t.GuardianStorage.getMaxExpectedFaults()+1 {
 		zapflds := []zap.Field{
+			zap.String("digest", fmt.Sprintf("%x", sigState.digest)),
 			zap.String("chainID", sigState.chain.String()),
 			zap.Duration("Time since signature started", time.Since(sigState.beginTime)),
 			zap.Int("Number of guardians that saw the message", sigState.maxGuardianVotes()),

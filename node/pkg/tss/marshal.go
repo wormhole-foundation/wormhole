@@ -10,7 +10,7 @@ import (
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
-	"github.com/yossigi/tss-lib/v2/tss"
+	"github.com/xlabs/tss-lib/v2/tss"
 )
 
 func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {

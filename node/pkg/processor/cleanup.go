@@ -267,6 +267,16 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			delete(p.pythnetVaas, key)
 		}
 	}
+
+	// Clean up tss signatures that are waited upon.
+	now := time.Now()
+	maxSigWaitTime := p.thresholdSigner.MaxTTL()
+
+	for vaaDigest, waitingSig := range p.tssWaiters {
+		if now.Sub(waitingSig.startTime) > maxSigWaitTime {
+			delete(p.tssWaiters, vaaDigest)
+		}
+	}
 }
 
 // signedVaaAlreadyInDB checks if the VAA is already in the DB. If it is, it makes sure the hash matches.

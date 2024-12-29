@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,11 +18,11 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/yossigi/tss-lib/v2/common"
-	tssutil "github.com/yossigi/tss-lib/v2/ecdsa/ethereum"
-	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
-	"github.com/yossigi/tss-lib/v2/ecdsa/party"
-	"github.com/yossigi/tss-lib/v2/tss"
+	"github.com/xlabs/tss-lib/v2/common"
+	tssutil "github.com/xlabs/tss-lib/v2/ecdsa/ethereum"
+	"github.com/xlabs/tss-lib/v2/ecdsa/keygen"
+	"github.com/xlabs/tss-lib/v2/ecdsa/party"
+	"github.com/xlabs/tss-lib/v2/tss"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -229,6 +230,11 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
+	t.logger.Info("signature for VAA requested",
+		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
+		zap.String("chainID", chainID.String()),
+	)
+
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
@@ -418,6 +424,10 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	return t, nil
 }
 
+func (t *Engine) MaxTTL() time.Duration {
+	return t.GuardianStorage.maxSignerTTL()
+}
+
 // Start starts the TSS engine, and listens for the outputs of the full party.
 func (t *Engine) Start(ctx context.Context) error {
 	if t == nil {
@@ -478,7 +488,7 @@ func (st *GuardianStorage) maxSignerTTL() time.Duration {
 // IMPORTANT: the fpListener should not wait on writing to other channels!
 // if the channel is full, the message should be dropped.
 func (t *Engine) fpListener() {
-	maxTTL := t.GuardianStorage.maxSignerTTL()
+	maxTTL := t.MaxTTL()
 
 	cleanUpTicker := time.NewTicker(maxTTL)
 

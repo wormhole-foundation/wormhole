@@ -10,9 +10,10 @@ import (
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/yossigi/tss-lib/v2/common"
-	"github.com/yossigi/tss-lib/v2/ecdsa/party"
-	"github.com/yossigi/tss-lib/v2/tss"
+
+	"github.com/xlabs/tss-lib/v2/common"
+	"github.com/xlabs/tss-lib/v2/ecdsa/party"
+	"github.com/xlabs/tss-lib/v2/tss"
 )
 
 // The following code follows Bracha's reliable broadcast algorithm.

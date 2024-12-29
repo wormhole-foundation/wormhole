@@ -5,7 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/yossigi/tss-lib/v2/ecdsa/party"
+	"github.com/xlabs/tss-lib/v2/ecdsa/party"
 )
 
 const (
