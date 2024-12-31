@@ -272,6 +272,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 	now := time.Now()
 	maxSigWaitTime := p.thresholdSigner.MaxTTL()
 
+	// TODO: We can increase efficiency by using a heap / queue and removing from the map the top elements.
 	for vaaDigest, waitingSig := range p.tssWaiters {
 		if now.Sub(waitingSig.startTime) > maxSigWaitTime {
 			delete(p.tssWaiters, vaaDigest)
