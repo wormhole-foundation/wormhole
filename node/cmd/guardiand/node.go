@@ -204,6 +204,9 @@ var (
 	hyperEvmRPC      *string
 	hyperEvmContract *string
 
+	seiEvmRPC      *string
+	seiEvmContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -427,6 +430,9 @@ func init() {
 
 	hyperEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hyperEvmRPC", "HyperEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	hyperEvmContract = NodeCmd.Flags().String("hyperEvmContract", "", "HyperEVM contract address")
+
+	seiEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	seiEvmContract = NodeCmd.Flags().String("seiEvmContract", "", "SeiEVM contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -819,6 +825,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
 	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
 	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, "hyperEvm", false)
+	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, "seiEvm", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -963,6 +970,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
+	rpcMap["seiEvmRPC"] = *seiEvmRPC
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["snaxchainRPC"] = *snaxchainRPC
 	rpcMap["suiRPC"] = *suiRPC
@@ -1443,6 +1451,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDHyperEVM,
 			Rpc:              *hyperEvmRPC,
 			Contract:         *hyperEvmContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(seiEvmRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "seievm",
+			ChainID:          vaa.ChainIDSeiEVM,
+			Rpc:              *seiEvmRPC,
+			Contract:         *seiEvmContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 

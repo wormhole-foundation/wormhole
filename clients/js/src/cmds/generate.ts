@@ -18,8 +18,6 @@ import {
 import {
   Chain,
   chainToPlatform,
-  Platform,
-  platforms,
   toChainId,
 } from "@wormhole-foundation/sdk-base";
 
@@ -67,21 +65,8 @@ export const builder = function (y: typeof yargs) {
               describe:
                 "Chain to register. To see a list of supported chains, run `worm chains`",
               type: "string",
-              demandOption: false,
+              demandOption: true,
             } as const)
-            .option("chain-id", {
-              alias: "i",
-              describe:
-                "Chain to register. To see a list of supported chains, run `worm chains`",
-              type: "number",
-              demandOption: false,
-            } as const)
-            .option("platform", {
-              alias: "p",
-              describe: "Platform to encode the address by",
-              choices: platforms,
-              demandOption: false,
-            })
             .option("contract-address", {
               alias: "a",
               describe: "Contract to register",
@@ -95,30 +80,14 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const),
         (argv) => {
-          if (!(argv.chain || (argv["chain-id"] && argv.platform))) {
-            throw new Error("chain or chain-id and platform are required");
-          }
           const module = argv["module"];
-          const emitterChain = argv.chain
-            ? toChainId(chainToChain(argv.chain))
-            : argv["chain-id"];
-          if (emitterChain === undefined) {
-            throw new Error("emitterChain is undefined");
-          }
-          let emitterAddress = argv.platform
-            ? parseAddressByPlatform(argv.platform, argv["contract-address"])
-            : argv.chain
-            ? parseAddress(chainToChain(argv.chain), argv["contract-address"])
-            : undefined;
-          if (emitterAddress === undefined) {
-            throw new Error("emitterAddress is undefined");
-          }
+          const chain = chainToChain(argv.chain);
           const payload: PortalRegisterChain<typeof module> = {
             module,
             type: "RegisterChain",
             chain: 0,
-            emitterChain,
-            emitterAddress,
+            emitterChain: toChainId(chain),
+            emitterAddress: parseAddress(chain, argv["contract-address"]),
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
@@ -326,33 +295,6 @@ export const builder = function (y: typeof yargs) {
   );
 };
 export const handler = () => {};
-
-function parseAddressByPlatform(platform: Platform, address: string): string {
-  if (platform === "Evm") {
-    return "0x" + evm_address(address);
-  } else if (platform === "Cosmwasm") {
-    return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
-  } else if (platform === "Solana") {
-    return "0x" + toHex(base58.decode(address)).padStart(64, "0");
-  } else if (platform === "Algorand") {
-    // TODO: is there a better native format for algorand?
-    return "0x" + evm_address(address);
-  } else if (platform === "Near") {
-    return "0x" + evm_address(address);
-  } else if (platform === "Sui") {
-    return "0x" + evm_address(address);
-  } else if (platform === "Aptos") {
-    if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
-      return "0x" + evm_address(address);
-    }
-
-    return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
-  } else if (platform === "Btc") {
-    throw Error("btc is not supported yet");
-  } else {
-    throw Error(`Unsupported platform: ${platform}`);
-  }
-}
 
 function parseAddress(chain: Chain, address: string): string {
   if (chainToPlatform(chain) === "Evm") {
