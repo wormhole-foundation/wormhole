@@ -1,0 +1,42 @@
+[toolchain]
+anchor_version = "0.30.1"
+solana_version = "1.18.17"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+wormhole_post_message_shim = "EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+## CORE BRIDGE DEVNET
+### Wormhole Core Bridge Program (Devnet)
+[[test.genesis]]
+address = "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+program = "tests/artifacts/devnet_core_bridge.so"
+upgradeable = true
+
+### Wormhole Core Bridge (Devnet) -- Config
+[[test.validator.account]]
+address = "FKoMTctsC7vJbEqyRiiPskPnuQx2tX1kurmvWByq5uZP"
+filename = "tests/accounts/core_bridge_devnet/bridge_config.json"
+
+### Wormhole Core Bridge (Devnet) -- Fee Collector
+[[test.validator.account]]
+address = "GXBsgBD3LDn3vkRZF6TfY5RqgajVZ4W5bMAdiAaaUARs"
+filename = "tests/accounts/core_bridge_devnet/fee_collector.json"
+
+### Wormhole Core Bridge (Devnet) -- Guardian Set 0
+[[test.validator.account]]
+address = "6MxkvoEwgB9EqQRLNhvYaPGhfcLtBtpBqdQugr3AZUgD"
+filename = "tests/accounts/core_bridge_devnet/guardian_set.json"
