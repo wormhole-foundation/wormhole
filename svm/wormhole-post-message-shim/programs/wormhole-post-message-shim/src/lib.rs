@@ -13,35 +13,18 @@ pub mod wormhole_post_message_shim {
     use anchor_lang::solana_program;
 
     pub fn post_message(ctx: Context<PostMessage>, data: PostMessageData) -> Result<()> {
-        let signer_seeds: &[&[&[u8]]] =
-            &[&[&ctx.accounts.emitter.key.to_bytes(), &[ctx.bumps.message]]];
-        let cpi = CpiContext::new_with_signer(
-            ctx.accounts.wormhole_program.to_account_info(),
-            wormhole::PostMessage {
-                config: ctx.accounts.bridge.to_account_info(),
-                message: ctx.accounts.message.to_account_info(),
-                emitter: ctx.accounts.emitter.to_account_info(),
-                sequence: ctx.accounts.sequence.to_account_info(),
-                payer: ctx.accounts.payer.to_account_info(),
-                fee_collector: ctx.accounts.fee_collector.to_account_info(),
-                clock: ctx.accounts.clock.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-            },
-            signer_seeds,
-        );
         let ix = solana_program::instruction::Instruction {
-            program_id: cpi.program.key(),
+            program_id: ctx.accounts.wormhole_program.key(),
             accounts: vec![
-                AccountMeta::new(cpi.accounts.config.key(), false),
-                AccountMeta::new(cpi.accounts.message.key(), true),
-                AccountMeta::new_readonly(cpi.accounts.emitter.key(), true),
-                AccountMeta::new(cpi.accounts.sequence.key(), false),
-                AccountMeta::new(cpi.accounts.payer.key(), true),
-                AccountMeta::new(cpi.accounts.fee_collector.key(), false),
-                AccountMeta::new_readonly(cpi.accounts.clock.key(), false),
-                AccountMeta::new_readonly(cpi.accounts.system_program.key(), false),
-                AccountMeta::new_readonly(cpi.accounts.rent.key(), false),
+                AccountMeta::new(ctx.accounts.bridge.key(), false),
+                AccountMeta::new(ctx.accounts.message.key(), true),
+                AccountMeta::new_readonly(ctx.accounts.emitter.key(), true),
+                AccountMeta::new(ctx.accounts.sequence.key(), false),
+                AccountMeta::new(ctx.accounts.payer.key(), true),
+                AccountMeta::new(ctx.accounts.fee_collector.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.clock.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
             ],
             data: Instruction::PostMessageUnreliable {
                 nonce: data.nonce,
@@ -52,15 +35,28 @@ pub mod wormhole_post_message_shim {
         };
         solana_program::program::invoke_signed(
             &ix,
-            &ToAccountInfos::to_account_infos(&cpi),
-            cpi.signer_seeds,
+            &[
+                // TODO: it may be possible to omit some of these
+                ctx.accounts.bridge.to_account_info(),
+                ctx.accounts.message.to_account_info(),
+                ctx.accounts.emitter.to_account_info(),
+                ctx.accounts.sequence.to_account_info(),
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.fee_collector.to_account_info(),
+                ctx.accounts.clock.to_account_info(),
+                ctx.accounts.rent.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+                ctx.accounts.wormhole_program.to_account_info(),
+            ],
+            &[&[&ctx.accounts.emitter.key.to_bytes(), &[ctx.bumps.message]]],
         )?;
-        // if the post was successful, parse the sequence from the account and emit the event
+        // parse the sequence from the account and emit the event
+        // reading the account after avoids having to handle when the account doesn't exist
         let mut buf = &ctx.accounts.sequence.try_borrow_mut_data()?[..];
         let seq = wormhole::SequenceTracker::try_deserialize(&mut buf)?;
         emit_cpi!(MessageEvent {
             emitter: ctx.accounts.emitter.key(),
-            sequence: seq.sequence - 1,
+            sequence: seq.sequence - 1, // the sequence was incremented after the post
             submission_time: Clock::get()?.unix_timestamp as u32, // this is the same casting that the core bridge performs in post_message_internal
         });
         Ok(())
@@ -80,6 +76,10 @@ pub struct MessageEvent {
 /// TODO: some of these checks were included for IDL generation / convenience but are completely unnecessary
 /// and costly on-chain. Use configuration to generate the nice IDL but omit the checks on-chain except for
 /// the wormhole program. Alternatively, make this program without Anchor at all.
+/// some comparison of compute units consumed:
+/// - core post_message:                      25097
+/// - shim without sysvar and address checks: 45608 (20511 more)
+/// - shim with sysvar and address checks:    45782 (  174 more)
 pub struct PostMessage<'info> {
     #[account(mut, address = CORE_BRIDGE_CONFIG)]
     /// CHECK: Wormhole bridge config. [`wormhole::post_message`] requires this account be mutable.
