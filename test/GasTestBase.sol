@@ -4,8 +4,9 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 
-import { IWormhole        } from "wormhole-sdk/interfaces/IWormhole.sol";
+import { IWormhole } from "wormhole-sdk/interfaces/IWormhole.sol";
 import { PublishedMessage } from "wormhole-sdk/testing/WormholeOverride.sol";
+import { VaaEnvelope } from "wormhole-sdk/libraries/VaaLib.sol";
 
 contract GasTestBase is Test {
   IWormhole public wormhole;
@@ -15,15 +16,17 @@ contract GasTestBase is Test {
   }
 
   function _tbPublishedMsg() internal pure returns (PublishedMessage memory) {
-    return PublishedMessage({
+    return PublishedMessage(
+      VaaEnvelope({
       timestamp: 0x670acde5,
       emitterChainId: 0x17,
       emitterAddress: 0x0000000000000000000000000b2402144bb366a632d14b83f244d2e0e21bd39c,
       sequence: 0x45e61,
       nonce: 0x163d234e,
-      consistencyLevel: 1,
-      payload: _tbPayload()
-    });
+      consistencyLevel: 1
+      }),
+      _tbPayload()
+    );
   }
 
   //source tx hash from ethereum mainnet:

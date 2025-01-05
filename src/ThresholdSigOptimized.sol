@@ -4,9 +4,12 @@ pragma solidity ^0.8.24;
 
 import "wormhole-sdk/interfaces/IWormhole.sol";
 import "wormhole-sdk/libraries/BytesParsing.sol";
+import "wormhole-sdk/libraries/VaaLib.sol";
+import { ProxyBase } from "wormhole-sdk/proxy/ProxyBase.sol";
 
-contract ThresholdSigOptimized {
+contract ThresholdSigOptimized is ProxyBase {
   using BytesParsing for bytes;
+  using VaaLib for bytes;
 
   mapping (uint32 => address) private _expiringThresholdAddrs;
   mapping (uint32 => uint32) private _expirationTimes;
@@ -14,16 +17,18 @@ contract ThresholdSigOptimized {
   address private _currentThresholdAddr; //put in same storage slot as _currentGuardianSetIndex
                                          //to save gas on storage reads for most cases
 
-  constructor(address thresholdAddr) {
-    _currentThresholdAddr = thresholdAddr;
+  function _proxyConstructor(bytes calldata args) internal override {
+    _currentThresholdAddr = abi.decode(args, (address));
   }
 
   function parseAndVerifyVMThreshold(
-    bytes calldata encodedVM
-  ) external view returns (IWormhole.VM memory vm) {
-    vm = _parseVM(encodedVM);
+    bytes calldata encodedVaa
+  ) external view returns (VaaBody memory) {
+    ( uint32 guardianSetIndex,
+      GuardianSignature[] memory sigs,
+      uint envelopeOffset
+    ) = encodedVaa.decodeVaaHeaderCdUnchecked();
 
-    uint32 guardianSetIndex = vm.guardianSetIndex;
     address thresholdAddr;
     if (guardianSetIndex != _currentGuardianSetIndex) {
       thresholdAddr = _expiringThresholdAddrs[guardianSetIndex];
@@ -35,43 +40,11 @@ contract ThresholdSigOptimized {
     }
     else
       thresholdAddr = _currentThresholdAddr;
-    require(vm.signatures.length == 1, "not a threshold signature vm");
-    IWormhole.Signature memory sig = vm.signatures[0];
-    require(ecrecover(vm.hash, sig.v, sig.r, sig.s) == thresholdAddr, "threshold signature invalid");
+    require(sigs.length == 1, "not a threshold signature vm");
+
+    bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(envelopeOffset);
+    GuardianSignature memory sig = sigs[0];
+    require(ecrecover(vaaHash, sig.v, sig.r, sig.s) == thresholdAddr, "threshold signature invalid");
+    return encodedVaa.decodeVaaBodyStructCd(envelopeOffset);
   }
-
-  function _parseVM(
-    bytes calldata encodedVM
-  ) internal pure returns (IWormhole.VM memory vm) { unchecked {
-    uint offset = 0;
-
-    (vm.version, offset) = encodedVM.asUint8CdUnchecked(offset);
-    require(vm.version == 1, "VM version incompatible");
-
-    (vm.guardianSetIndex, offset) = encodedVM.asUint32CdUnchecked(offset);
-
-    uint signersLen;
-    (signersLen, offset) = encodedVM.asUint8CdUnchecked(offset);
-
-    vm.signatures = new IWormhole.Signature[](signersLen);
-    for (uint i = 0; i < signersLen; ++i) {
-      (vm.signatures[i].guardianIndex, offset) = encodedVM.asUint8CdUnchecked(offset);
-      (vm.signatures[i].r, offset) = encodedVM.asBytes32CdUnchecked(offset);
-      (vm.signatures[i].s, offset) = encodedVM.asBytes32CdUnchecked(offset);
-      (vm.signatures[i].v, offset) = encodedVM.asUint8CdUnchecked(offset);
-      vm.signatures[i].v += 27;
-    }
-
-    (bytes memory body, ) = encodedVM.sliceCdUnchecked(offset, encodedVM.length - offset);
-    vm.hash = keccak256(abi.encodePacked(keccak256(body)));
-
-    (vm.timestamp,        offset) = encodedVM.asUint32CdUnchecked(offset);
-    (vm.nonce,            offset) = encodedVM.asUint32CdUnchecked(offset);
-    (vm.emitterChainId,   offset) = encodedVM.asUint16CdUnchecked(offset);
-    (vm.emitterAddress,   offset) = encodedVM.asBytes32CdUnchecked(offset);
-    (vm.sequence,         offset) = encodedVM.asUint64CdUnchecked(offset);
-    (vm.consistencyLevel, offset) = encodedVM.asUint8CdUnchecked(offset);
-
-    (vm.payload, ) = encodedVM.sliceCdUnchecked(offset, encodedVM.length - offset);
-  }}
 }

@@ -4,27 +4,32 @@ pragma solidity ^0.8.24;
 
 import "wormhole-sdk/interfaces/IWormhole.sol";
 import "wormhole-sdk/libraries/BytesParsing.sol";
+import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
+import { ProxyBase } from "wormhole-sdk/proxy/ProxyBase.sol";
 import "./ExtStore.sol";
 
-contract BackwardsOptimized is ExtStore {
+contract BackwardsOptimized is ProxyBase, ExtStore {
   using BytesParsing for bytes;
+  using VaaLib for bytes;
 
   mapping(uint32 => uint32) private _guardianSetExpirationTimes;
   uint32 private _currentGuardianSetIndex;
 
-  constructor(address[] memory guardians) ExtStore() {
+  constructor() ExtStore() {}
+
+  function _proxyConstructor(bytes calldata args) internal override {
     // bytes memory data = new bytes(0);
     // for (uint i = 0; i < guardians.length; ++i)
     //   data = abi.encodePacked(data, guardians[i]);
 
     //despite the "packed" it will actually pad each entry to 32 bytes
-    _currentGuardianSetIndex = uint32(_extWrite(abi.encodePacked(guardians)));
+    _currentGuardianSetIndex = uint32(_extWrite(abi.encodePacked(args)));
   }
 
   function parseAndVerifyVM(
-    bytes calldata encodedVM
+    bytes calldata encodedVm
   ) external view returns (IWormhole.VM memory vm, bool valid, string memory reason) { unchecked {
-    vm = _parseVM(encodedVM);
+    vm = encodedVm.decodeVmStructCd();
 
     uint32 guardianSetIndex = vm.guardianSetIndex;
     address[] memory guardianAddrs = _getGuardianAddresses(guardianSetIndex);
@@ -59,41 +64,6 @@ contract BackwardsOptimized is ExtStore {
       lastIndex = int(idx);
     }
     require(lastIndex < int(guardianCount), "guardian index out of bounds");
-  }}
-
-  function _parseVM(
-    bytes calldata encodedVM
-  ) internal pure returns (IWormhole.VM memory vm) { unchecked {
-    uint offset = 0;
-
-    (vm.version, offset) = encodedVM.asUint8CdUnchecked(offset);
-    require(vm.version == 1, "VM version incompatible");
-
-    (vm.guardianSetIndex, offset) = encodedVM.asUint32CdUnchecked(offset);
-
-    uint signersLen;
-    (signersLen, offset) = encodedVM.asUint8CdUnchecked(offset);
-
-    vm.signatures = new IWormhole.Signature[](signersLen);
-    for (uint i = 0; i < signersLen; ++i) {
-      (vm.signatures[i].guardianIndex, offset) = encodedVM.asUint8CdUnchecked(offset);
-      (vm.signatures[i].r, offset) = encodedVM.asBytes32CdUnchecked(offset);
-      (vm.signatures[i].s, offset) = encodedVM.asBytes32CdUnchecked(offset);
-      (vm.signatures[i].v, offset) = encodedVM.asUint8CdUnchecked(offset);
-      vm.signatures[i].v += 27;
-    }
-
-    (bytes memory body, ) = encodedVM.sliceCdUnchecked(offset, encodedVM.length - offset);
-    vm.hash = keccak256(abi.encodePacked(keccak256(body)));
-
-    (vm.timestamp,        offset) = encodedVM.asUint32CdUnchecked(offset);
-    (vm.nonce,            offset) = encodedVM.asUint32CdUnchecked(offset);
-    (vm.emitterChainId,   offset) = encodedVM.asUint16CdUnchecked(offset);
-    (vm.emitterAddress,   offset) = encodedVM.asBytes32CdUnchecked(offset);
-    (vm.sequence,         offset) = encodedVM.asUint64CdUnchecked(offset);
-    (vm.consistencyLevel, offset) = encodedVM.asUint8CdUnchecked(offset);
-
-    (vm.payload, ) = encodedVM.sliceCdUnchecked(offset, encodedVM.length - offset);
   }}
 
   function getGuardianSet(uint32 index) external view returns (IWormhole.GuardianSet memory ret) {

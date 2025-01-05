@@ -6,9 +6,11 @@ pragma experimental ABIEncoderV2;
 
 import "./Getters.sol";
 import "wormhole-sdk/libraries/BytesParsing.sol";
+import "wormhole-sdk/Utils.sol";
 
 contract Messages is Getters {
     using BytesParsing for bytes;
+    using {BytesParsing.checkBound, BytesParsing.checkLength} for uint256;
 
     uint8 private constant ADDRESS_SIZE = 20; // in bytes
     uint8 private constant EXPIRATION_TIME_SIZE = 4; // in bytes
@@ -44,13 +46,13 @@ contract Messages is Getters {
 
         uint256 offset = 0;
         for(uint256 i = 0; i < guardianCount;) {
-            (guardianSet.keys[i], offset) = guardianSetData.asAddressUnchecked(offset);
+            (guardianSet.keys[i], offset) = guardianSetData.asAddressCdUnchecked(offset);
             unchecked {
                 ++i;
             }
         }
 
-        (guardianSet.expirationTime, offset) = guardianSetData.asUint32Unchecked(offset);
+        (guardianSet.expirationTime, offset) = guardianSetData.asUint32CdUnchecked(offset);
 
         require(guardianSetDataLength == offset, "invalid guardian set data length");
     }
@@ -189,7 +191,7 @@ contract Messages is Getters {
      * @dev parseVM serves to parse an encodedVM into a vm struct
      *  - it intentionally performs no validation functions, it simply parses raw into a struct
      */
-    function parseVM(bytes memory encodedVM) public view virtual returns (IWormhole.VM memory vm) {
+    function parseVM(bytes calldata encodedVM) public view virtual returns (IWormhole.VM memory vm) { unchecked {
         uint256 offset = 0;
 
         // SECURITY: Note that currently the VM.version is not part of the hash
@@ -197,27 +199,23 @@ contract Messages is Getters {
         // This means that this field's integrity is not protected and cannot be trusted.
         // This is not a problem today since there is only one accepted version, but it
         // could be a problem if we wanted to allow other versions in the future.
-        (vm.version, offset) = encodedVM.asUint8Unchecked(offset);
+        (vm.version, offset) = encodedVM.asUint8CdUnchecked(offset);
         require(vm.version == 1, "VM version incompatible");
 
         // Guardian set index.
-        (vm.guardianSetIndex, offset) = encodedVM.asUint32Unchecked(offset);
+        (vm.guardianSetIndex, offset) = encodedVM.asUint32CdUnchecked(offset);
 
         // Parse sigs.
         uint256 signersLen;
-        (signersLen, offset) = encodedVM.asUint8Unchecked(offset);
+        (signersLen, offset) = encodedVM.asUint8CdUnchecked(offset);
 
         vm.signatures = new IWormhole.Signature[](signersLen);
-        for (uint i = 0; i < signersLen;) {
-            (vm.signatures[i].guardianIndex, offset) = encodedVM.asUint8Unchecked(offset);
-            (vm.signatures[i].r, offset) = encodedVM.asBytes32Unchecked(offset);
-            (vm.signatures[i].s, offset) = encodedVM.asBytes32Unchecked(offset);
-            (vm.signatures[i].v, offset) = encodedVM.asUint8Unchecked(offset);
-
-            unchecked {
-                vm.signatures[i].v += 27;
-                ++i;
-            }
+        for (uint i = 0; i < signersLen; ++i) {
+            (vm.signatures[i].guardianIndex, offset) = encodedVM.asUint8CdUnchecked(offset);
+            (vm.signatures[i].r, offset) = encodedVM.asBytes32CdUnchecked(offset);
+            (vm.signatures[i].s, offset) = encodedVM.asBytes32CdUnchecked(offset);
+            (vm.signatures[i].v, offset) = encodedVM.asUint8CdUnchecked(offset);
+            vm.signatures[i].v += 27;
         }
 
         /*
@@ -227,21 +225,21 @@ contract Messages is Getters {
         Changing it could result into two different hashes for the same observation.
         But xDapps rely on the hash of an observation for replay protection.
         */
-        bytes memory body;
-        (body, ) = encodedVM.sliceUnchecked(offset, encodedVM.length - offset);
-        vm.hash = keccak256(abi.encodePacked(keccak256(body)));
+        offset.checkBound(encodedVM.length);
+        bytes calldata body;
+        (body, ) = encodedVM.sliceCdUnchecked(offset, encodedVM.length - offset);
+        vm.hash = keccak256Word(keccak256Cd(body));
 
         // Parse the body
-        (vm.timestamp, offset) = encodedVM.asUint32Unchecked(offset);
-        (vm.nonce, offset) = encodedVM.asUint32Unchecked(offset);
-        (vm.emitterChainId, offset) = encodedVM.asUint16Unchecked(offset);
-        (vm.emitterAddress, offset) = encodedVM.asBytes32Unchecked(offset);
-        (vm.sequence, offset) = encodedVM.asUint64Unchecked(offset);
-        (vm.consistencyLevel, offset) = encodedVM.asUint8Unchecked(offset);
-        (vm.payload, offset) = encodedVM.sliceUnchecked(offset, encodedVM.length - offset);
-
-        require(encodedVM.length == offset, "invalid payload length");
-    }
+        (vm.timestamp,        offset) = encodedVM.asUint32CdUnchecked(offset);
+        (vm.nonce,            offset) = encodedVM.asUint32CdUnchecked(offset);
+        (vm.emitterChainId,   offset) = encodedVM.asUint16CdUnchecked(offset);
+        (vm.emitterAddress,   offset) = encodedVM.asBytes32CdUnchecked(offset);
+        (vm.sequence,         offset) = encodedVM.asUint64CdUnchecked(offset);
+        (vm.consistencyLevel, offset) = encodedVM.asUint8CdUnchecked(offset);
+        offset.checkBound(encodedVM.length);
+        (vm.payload,          offset) = encodedVM.sliceCdUnchecked(offset, encodedVM.length - offset);
+    }}
 
     /**
      * @dev quorum serves solely to determine the number of signatures required to acheive quorum

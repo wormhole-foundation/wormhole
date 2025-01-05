@@ -4,10 +4,11 @@ gas costs of `parseAndVerifyVM` (not including transaction overhead):
 ```
 134,689 original
 134,689 thirteen sigs (matches as expected)
+133,601 using CoreBridgeLib from Solidity SDK which parses the vaa itself and calls verifyVM
  27,677 single signature
- 94,662 guardian set from calldata (gscd) optimizations (does not agree with 83k number in the monorepo PR)
- 69,207 optimized, backwards compatible implementation
-  9,716 threshold signature (i.e. single address) optimized version
+ 88,686 guardian set from calldata (gscd) optimizations (does not agree with 83k number in the monorepo PR despite additional optimizations)
+ 73,646 optimized, backwards compatible implementation
+ 14,075 threshold signature (i.e. single address) optimized version
 ```
 
 Original gas costs also match gas used field of Action[3] in [Etherscan Parity trace of the sample transaction](https://etherscan.io/vmtrace?txhash=0xedd3ac96bc37961cce21a33fd50449dba257737c168006b40aa65496aaf92449&type=parity).

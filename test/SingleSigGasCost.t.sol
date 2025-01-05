@@ -6,15 +6,15 @@ import { GasTestBase } from "./GasTestBase.sol";
 
 import { IWormhole                   } from "wormhole-sdk/interfaces/IWormhole.sol";
 import { DEVNET_GUARDIAN_PRIVATE_KEY } from "wormhole-sdk/testing/Constants.sol";
+import { VaaLib } from "wormhole-sdk/libraries/VaaLib.sol";
 import {
   PublishedMessage,
-  VaaEncoding,
   AdvancedWormholeOverride
 } from "wormhole-sdk/testing/WormholeOverride.sol";
 
 contract SingleSigGasCost is GasTestBase {
   using AdvancedWormholeOverride for IWormhole;
-  using VaaEncoding for IWormhole.VM;
+  using VaaLib for IWormhole.VM;
 
   bytes private _vaa;
 

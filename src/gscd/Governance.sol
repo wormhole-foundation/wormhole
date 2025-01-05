@@ -24,7 +24,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     /**
      * @dev Upgrades a contract via Governance VAA/VM
      */
-    function submitContractUpgrade(bytes memory _vm) public {
+    function submitContractUpgrade(bytes calldata _vm) public {
         require(!isFork(), "invalid fork");
 
         IWormhole.VM memory vm = parseVM(_vm);
@@ -51,7 +51,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     /**
      * @dev Sets a `messageFee` via Governance VAA/VM
      */
-    function submitSetMessageFee(bytes memory _vm) public {
+    function submitSetMessageFee(bytes calldata _vm) public {
         IWormhole.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
@@ -76,7 +76,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     /**
      * @dev Deploys a new `guardianSet` via Governance VAA/VM
      */
-    function submitNewGuardianSet(bytes memory _vm) public {
+    function submitNewGuardianSet(bytes calldata _vm) public {
         IWormhole.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
@@ -120,7 +120,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     /**
      * @dev Submits transfer fees to the recipient via Governance VAA/VM
      */
-    function submitTransferFees(bytes memory _vm) public {
+    function submitTransferFees(bytes calldata _vm) public {
         IWormhole.VM memory vm = parseVM(_vm);
 
         // Verify the VAA is valid before processing it
@@ -149,7 +149,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     /**
     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
     */
-    function submitRecoverChainId(bytes memory _vm) public {
+    function submitRecoverChainId(bytes calldata _vm) public {
         require(isFork(), "not a fork");
 
         IWormhole.VM memory vm = parseVM(_vm);

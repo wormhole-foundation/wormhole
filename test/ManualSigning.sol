@@ -4,16 +4,16 @@ pragma solidity ^0.8.24;
 
 import { IWormhole } from "wormhole-sdk/interfaces/IWormhole.sol";
 import { BytesParsing } from "wormhole-sdk/libraries/BytesParsing.sol";
+import { GuardianSignature, Vaa, VaaLib } from "wormhole-sdk/libraries/VaaLib.sol";
 import {
   PublishedMessage,
-  VaaEncoding,
   AdvancedWormholeOverride
 } from "wormhole-sdk/testing/WormholeOverride.sol";
 
 import { GasTestBase } from "./GasTestBase.sol";
 
 contract ManualSigning is GasTestBase {
-  using VaaEncoding for IWormhole.VM;
+  using VaaLib for IWormhole.VM;
   using BytesParsing for bytes;
 
   bytes internal _vaa;
@@ -33,35 +33,18 @@ contract ManualSigning is GasTestBase {
   function _sign(
     PublishedMessage memory pm,
     bytes memory signingGuardianIndices
-  ) private view returns (IWormhole.VM memory vaa) { unchecked {
-    vaa.version = 1;
-    vaa.timestamp = pm.timestamp;
-    vaa.nonce = pm.nonce;
-    vaa.emitterChainId = pm.emitterChainId;
-    vaa.emitterAddress = pm.emitterAddress;
-    vaa.sequence = pm.sequence;
-    vaa.consistencyLevel = pm.consistencyLevel;
-    vaa.payload = pm.payload;
-    vaa.guardianSetIndex = 0;
-
-    bytes memory encodedBody = abi.encodePacked(
-      pm.timestamp,
-      pm.nonce,
-      pm.emitterChainId,
-      pm.emitterAddress,
-      pm.sequence,
-      pm.consistencyLevel,
-      pm.payload
-    );
-    vaa.hash = keccak256(abi.encodePacked(keccak256(encodedBody)));
-
-    vaa.signatures = new IWormhole.Signature[](signingGuardianIndices.length);
+  ) private view returns (Vaa memory vaa) { unchecked {
+    vaa.header.guardianSetIndex = 0;
+    bytes32 hash = VaaLib.calcDoubleHash(pm);
+    vaa.header.signatures = new GuardianSignature[](signingGuardianIndices.length);
     for (uint i = 0; i < signingGuardianIndices.length; ++i) {
-      (uint8 gi, ) = signingGuardianIndices.asUint8(i);
-      (vaa.signatures[i].v, vaa.signatures[i].r, vaa.signatures[i].s) =
-        vm.sign(_guardianPrivateKeys[uint(gi)], vaa.hash);
-      vaa.signatures[i].guardianIndex = gi;
+      (uint8 gi, ) = signingGuardianIndices.asUint8Mem(i);
+      (vaa.header.signatures[i].v, vaa.header.signatures[i].r, vaa.header.signatures[i].s) =
+        vm.sign(_guardianPrivateKeys[uint(gi)], hash);
+      vaa.header.signatures[i].guardianIndex = gi;
     }
+    vaa.envelope = pm.envelope;
+    vaa.payload = pm.payload;
   }}
 
   function _setUpManualSigning(uint guardianCount) internal {
