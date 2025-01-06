@@ -12,6 +12,6 @@ contract WithCoreBridgeLib is GasTestBase {
   }
 
   function withCoreBridgeLibOptimized(bytes calldata encodedVaa) external view {
-    CoreBridgeLib.parseAndVerifyVaa(address(wormhole), encodedVaa);
+    CoreBridgeLib.decodeAndVerifyVaaCd(address(wormhole), encodedVaa);
   }
 }

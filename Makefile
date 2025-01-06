@@ -21,7 +21,7 @@ test: dependencies
 
 LIB_DEPS = foundry-rs/forge-std
 LIB_DEPS += openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 #for gscd's optimizations
-LIB_DEPS += wormhole-foundation/wormhole-solidity-sdk@b0590b6
+LIB_DEPS += wormhole-foundation/wormhole-solidity-sdk@e19013d
 
 # dynamically generate install rule for each lib dependency and add to depdenencies
 $(foreach dep,$(LIB_DEPS), $(eval $(call install_lib,$(dep))))
