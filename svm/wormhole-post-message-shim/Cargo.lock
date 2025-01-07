@@ -2679,6 +2679,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wormhole-vaa-verification-example"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "wormhole-anchor-sdk",
+ "wormhole-solana-consts",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.7.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"

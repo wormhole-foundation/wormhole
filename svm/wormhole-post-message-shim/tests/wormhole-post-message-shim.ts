@@ -4,19 +4,7 @@ import WormholePostMessageShimIdl from "../target/idl/wormhole_post_message_shim
 import { WormholePostMessageShim } from "../target/types/wormhole_post_message_shim";
 import { expect } from "chai";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-
-async function getTransactionDetails(
-  tx: string
-): Promise<anchor.web3.VersionedTransactionResponse> {
-  let txDetails: anchor.web3.VersionedTransactionResponse | null = null;
-  while (!txDetails) {
-    txDetails = await anchor.getProvider().connection.getTransaction(tx, {
-      maxSupportedTransactionVersion: 0,
-      commitment: "confirmed",
-    });
-  }
-  return txDetails;
-}
+import { getTransactionDetails, logCostAndCompute } from "./helpers";
 
 async function getSequenceFromTx(tx: string): Promise<bigint> {
   const txDetails = await getTransactionDetails(tx);
@@ -99,18 +87,6 @@ describe("wormhole-post-message-shim", () => {
     expect(await getSequenceFromTx(tx)).to.equal(BigInt(1));
   });
   it("Compares core post_message to shim post_message!", async () => {
-    async function logCostAndCompute(method: string, tx: string) {
-      const SOL_PRICE = 217.54; // 2025-01-03
-      const txDetails = await getTransactionDetails(tx);
-      const lamports =
-        txDetails.meta.preBalances[0] - txDetails.meta.postBalances[0];
-      const sol = lamports / 1_000_000_000;
-      console.log(
-        `${method}: lamports ${lamports} SOL ${sol}, $${sol * SOL_PRICE}, CU ${
-          txDetails.meta.computeUnitsConsumed
-        }`
-      );
-    }
     {
       const acct = new anchor.web3.Keypair();
       const data = Buffer.from(
