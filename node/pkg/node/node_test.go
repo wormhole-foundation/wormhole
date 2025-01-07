@@ -1146,7 +1146,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 // How to run:
 //
-//	go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
+//	go test -v -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
 func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel

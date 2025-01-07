@@ -120,8 +120,8 @@ type (
 		currentGuardianSet *uint32
 
 		// Interface to the chain specific ethereum library.
-		ethConn       connectors.Connector
-		unsafeDevMode bool
+		ethConn connectors.Connector
+		env     common.Environment
 
 		latestBlockNumber          uint64
 		latestSafeBlockNumber      uint64
@@ -163,7 +163,7 @@ func NewEthWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
-	unsafeDevMode bool,
+	env common.Environment,
 	ccqBackfillCache bool,
 ) *Watcher {
 	return &Watcher{
@@ -178,7 +178,7 @@ func NewEthWatcher(
 		queryReqC:          queryReqC,
 		queryResponseC:     queryResponseC,
 		pending:            map[pendingKey]*pendingMessage{},
-		unsafeDevMode:      unsafeDevMode,
+		env:                env,
 		ccqConfig:          query.GetPerChainConfig(chainID),
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
 		ccqBackfillCache:   ccqBackfillCache,
@@ -197,7 +197,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.String("contract", w.contract.String()),
 		zap.String("networkName", w.networkName),
 		zap.String("chainID", w.chainID.String()),
-		zap.Bool("unsafeDevMode", w.unsafeDevMode),
+		zap.String("env", string(w.env)),
 	)
 
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
@@ -232,15 +232,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		w.ethConn = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
-	} else if w.chainID == vaa.ChainIDCelo {
-		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
-		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
-		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
 	} else {
 		// Everything else is instant finality.
 		logger.Info("assuming instant finality")
@@ -259,7 +250,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 
 	if w.ccqConfig.TimestampCacheSupported {
-		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, w.unsafeDevMode)
+		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, (w.env == common.UnsafeDevNet))
 	}
 
 	errC := make(chan error)
@@ -706,7 +697,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	safe := false
 
 	// Tilt supports polling for both finalized and safe.
-	if w.unsafeDevMode {
+	if w.env == common.UnsafeDevNet {
 		finalized = true
 		safe = true
 
@@ -737,9 +728,11 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		finalized = true
 		safe = true
 
-		// The following chains have their own specialized finalizers.
 	} else if w.chainID == vaa.ChainIDCelo {
-		return false, false, nil
+		// TODO: Celo testnet now supports finalized and safe. As of January 2025, mainnet doesn't yet support safe. Once Celo mainnet cuts over, Celo can
+		// be added to the list above. That change won't be super urgent since we'll just continue to publish safe as finalized, which is not a huge deal.
+		finalized = true
+		safe = w.env != common.MainNet
 
 		// Polygon now supports polling for finalized but not safe.
 		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
