@@ -1,7 +1,7 @@
 .PHONY test
 test: 
 # Use this command on amd64 systems
-	go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
+	go test -v -ldflags ./...
 
 .PHONY test-arm64
 test-arm64:
