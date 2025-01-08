@@ -21,11 +21,11 @@ import (
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 
-	"github.com/yossigi/tss-lib/v2/ecdsa/keygen"
-	"github.com/yossigi/tss-lib/v2/tss"
+	"github.com/xlabs/tss-lib/v2/ecdsa/keygen"
+	"github.com/xlabs/tss-lib/v2/tss"
 )
 
-var cnfgPath = flag.String("cnfg", "tstrun.json", "path to config file in json format used to run the protocol")
+var cnfgPath = flag.String("cnfg", "", "path to config file in json format used to run the protocol")
 
 func main() {
 	flag.Parse()
