@@ -2,10 +2,14 @@ package tss
 
 import (
 	"context"
+	crand "crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -491,6 +495,29 @@ func TestBadInputs(t *testing.T) {
 		_, err = e1.FetchCertificate(&tsscommv1.PartyId{})
 		a.ErrorContains(err, "not found")
 	})
+}
+
+func createX509Cert(dnsName string) *x509.Certificate {
+	// using random serial number
+	var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
+
+	serialNumber, err := crand.Int(crand.Reader, serialNumberLimit)
+	if err != nil {
+		panic(err)
+	}
+
+	tmpl := x509.Certificate{
+		SerialNumber:          serialNumber,
+		Subject:               pkix.Name{Organization: []string{"tsscomm"}},
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 366 * 40), // valid for > 40 years used for tests...
+		BasicConstraintsValid: true,
+
+		DNSNames:    []string{"localhost", dnsName},
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)},
+	}
+	return &tmpl
 }
 
 func TestFetchPartyId(t *testing.T) {
@@ -1109,6 +1136,8 @@ func TestFT(t *testing.T) {
 	})
 
 	t.Run("server crashes on a single chain, shouldn't affect signatures on other chain", func(t *testing.T) {
+		/* expects 2 sigs to be created. one with the server that has an issue in chain 0
+		and one on chain 0 without that server. */
 		a := assert.New(t)
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute*1)
@@ -1128,8 +1157,8 @@ func TestFT(t *testing.T) {
 
 		fmt.Println("engines started, requesting sigs")
 
-		tsks := make([]party.SigningTask, 2)
-		for i := range tsks {
+		var tsks []party.SigningTask
+		for i := range 2 {
 			tsks = append(tsks, party.SigningTask{
 				Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
 				Faulties:     []*tss.PartyID{},
