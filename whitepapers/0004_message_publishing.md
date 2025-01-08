@@ -102,7 +102,7 @@ Fee uint256
 
 TransferFees:
 
-> **NOTE:** The Wormhole Core Contract does not conform to this spec. The `Amount` and `To` fields are in reverse order. (Ref: [Core Contract](https://github.com/wormhole-foundation/wormhole/blob/main/cosmwasm/contracts/wormhole/src/state.rs#L386-L397))
+> **NOTE:** The Wormhole CosmWasm Core Contract does not conform to this spec. The `Amount` and `To` fields are in reverse order. (Ref: [CosmWasm Core Contract](https://github.com/wormhole-foundation/wormhole/blob/main/cosmwasm/contracts/wormhole/src/state.rs#L386-L397))
 
 ```
 // Core Wormhole Module
