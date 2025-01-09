@@ -137,7 +137,7 @@ const (
 	// SolanaAccountLen is the expected length of an account identifier, which is a public key. Using the number here because that's what the admin client will populate.
 	SolanaAccountLen = 32
 
-	// SolanaSignatureLen is the expected length of a signature. As of v1.11.0, solana-go does not have a const for this.
+	// SolanaSignatureLen is the expected length of a signature. As of v1.12.0, solana-go does not have a const for this.
 	SolanaSignatureLen = 64
 )
 
