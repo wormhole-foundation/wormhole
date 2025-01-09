@@ -449,6 +449,9 @@ func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if minSignedPerWindowDec.LT(sdk.ZeroDec()) || minSignedPerWindowDec.GT(sdk.OneDec()) {
+				return fmt.Errorf("min signed per window must be greater than or equal to 0.000000000000000000 and less than or equal to 1.000000000000000000")
+			}
 
 			downtimeJailDuration, err := cmd.Flags().GetUint64(FLAG_DOWNTIME_JAIL_DURATION)
 			if err != nil {
@@ -463,6 +466,9 @@ func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if slashFractionDoubleSignDec.LT(sdk.ZeroDec()) || slashFractionDoubleSignDec.GT(sdk.OneDec()) {
+				return fmt.Errorf("slash fraction double sign must be greater than or equal to 0.000000000000000000 and less than or equal to 1.000000000000000000")
+			}
 
 			slashFractionDowntime, err := cmd.Flags().GetString(FLAG_SLASH_FRACTION_DOWNTIME)
 			if err != nil {
@@ -471,6 +477,9 @@ func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
 			slashFractionDowntimeDec, err := sdk.NewDecFromStr(slashFractionDowntime)
 			if err != nil {
 				return err
+			}
+			if slashFractionDowntimeDec.LT(sdk.ZeroDec()) || slashFractionDowntimeDec.GT(sdk.OneDec()) {
+				return fmt.Errorf("slash fraction downtime must be greater than or equal to 0.000000000000000000 and less than or equal to 1.000000000000000000")
 			}
 
 			slashingUpdate := make([]byte, 40)
