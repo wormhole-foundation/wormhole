@@ -65,6 +65,14 @@
       ],
       "args": [
         {
+          "name": "guardian_set_index",
+          "type": "u32"
+        },
+        {
+          "name": "total_signatures",
+          "type": "u8"
+        },
+        {
           "name": "guardian_signatures",
           "type": {
             "vec": {
@@ -74,10 +82,6 @@
               ]
             }
           }
-        },
-        {
-          "name": "total_signatures",
-          "type": "u8"
         }
       ]
     },
@@ -118,8 +122,9 @@
                 ]
               },
               {
-                "kind": "arg",
-                "path": "guardian_set_index"
+                "kind": "account",
+                "path": "guardian_signatures.guardian_set_index_be",
+                "account": "GuardianSignatures"
               }
             ],
             "program": {
@@ -177,10 +182,6 @@
               32
             ]
           }
-        },
-        {
-          "name": "guardian_set_index",
-          "type": "u32"
         }
       ]
     }
@@ -269,6 +270,20 @@
               "Used for reimbursements upon cleanup."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "guardian_set_index_be",
+            "docs": [
+              "Guardian set index that these signatures correspond to.",
+              "Storing this simplifies the integrator data.",
+              "Using big-endian to match the derivation used by the core bridge."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           },
           {
             "name": "guardian_signatures",

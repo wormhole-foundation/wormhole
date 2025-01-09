@@ -37,17 +37,13 @@ describe("wormhole-post-message-shim", () => {
 
   const postMessage = async (msg: string): Promise<string> =>
     await program.methods
-      .postMessage({
-        nonce: 0,
-        payload: Buffer.from(msg, "ascii"),
-        consistencyLevel: { confirmed: {} },
-      })
+      .postMessage(0, { confirmed: {} }, Buffer.from(msg, "ascii"))
       .accounts({
         emitter: program.provider.publicKey,
         sequence: anchor.web3.PublicKey.findProgramAddressSync(
           [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
           new anchor.web3.PublicKey(
-            "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+            "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
           )
         )[0],
         // these are needed if removing the address checks
@@ -69,7 +65,7 @@ describe("wormhole-post-message-shim", () => {
         anchor.web3.SystemProgram.transfer({
           fromPubkey: program.provider.publicKey,
           toPubkey: new anchor.web3.PublicKey(
-            "GXBsgBD3LDn3vkRZF6TfY5RqgajVZ4W5bMAdiAaaUARs"
+            "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
           ), // fee collector
           lamports: 100, // hardcoded for tilt in devnet_setup.sh
         }),
@@ -98,7 +94,7 @@ describe("wormhole-post-message-shim", () => {
         anchor.web3.SystemProgram.transfer({
           fromPubkey: program.provider.publicKey,
           toPubkey: new anchor.web3.PublicKey(
-            "GXBsgBD3LDn3vkRZF6TfY5RqgajVZ4W5bMAdiAaaUARs"
+            "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
           ), // fee collector
           lamports: 100, // hardcoded for tilt in devnet_setup.sh
         })
@@ -111,7 +107,7 @@ describe("wormhole-post-message-shim", () => {
               isSigner: false,
               isWritable: true,
               pubkey: new anchor.web3.PublicKey(
-                "FKoMTctsC7vJbEqyRiiPskPnuQx2tX1kurmvWByq5uZP"
+                "2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"
               ),
             },
             {
@@ -136,7 +132,7 @@ describe("wormhole-post-message-shim", () => {
                   program.provider.publicKey.toBuffer(),
                 ],
                 new anchor.web3.PublicKey(
-                  "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+                  "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
                 )
               )[0],
             },
@@ -151,7 +147,7 @@ describe("wormhole-post-message-shim", () => {
               isSigner: false,
               isWritable: true,
               pubkey: new anchor.web3.PublicKey(
-                "GXBsgBD3LDn3vkRZF6TfY5RqgajVZ4W5bMAdiAaaUARs"
+                "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
               ),
             },
             {
@@ -180,7 +176,7 @@ describe("wormhole-post-message-shim", () => {
             },
           ],
           programId: new anchor.web3.PublicKey(
-            "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+            "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
           ),
           data,
         })

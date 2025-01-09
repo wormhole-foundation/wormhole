@@ -1,12 +1,12 @@
 [package]
-name = "wormhole-post-message-shim"
+name = "wormhole-integrator-example"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "wormhole_post_message_shim"
+name = "wormhole_integrator_example"
 
 [features]
 default = ["mainnet"]
@@ -17,9 +17,10 @@ cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build", "wormhole-anchor-sdk/idl-build"]
+idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
-anchor-lang = { version = "0.30.1", features = ["event-cpi"] }
-wormhole-anchor-sdk = "=0.30.1-alpha.3"
+anchor-lang = "0.30.1"
+cfg-if = "1.0"
+wormhole-raw-vaas = "0.3.0-alpha.1"
 wormhole-solana-consts = "0.3.0-alpha.1"

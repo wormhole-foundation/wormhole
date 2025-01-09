@@ -12,7 +12,12 @@ pub mod wormhole_post_message_shim {
     use super::*;
     use anchor_lang::solana_program;
 
-    pub fn post_message(ctx: Context<PostMessage>, data: PostMessageData) -> Result<()> {
+    pub fn post_message(
+        ctx: Context<PostMessage>,
+        nonce: u32,
+        consistency_level: Finality,
+        _payload: Vec<u8>,
+    ) -> Result<()> {
         let ix = solana_program::instruction::Instruction {
             program_id: ctx.accounts.wormhole_program.key(),
             accounts: vec![
@@ -27,9 +32,9 @@ pub mod wormhole_post_message_shim {
                 AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
             ],
             data: Instruction::PostMessageUnreliable {
-                nonce: data.nonce,
+                nonce,
                 payload: vec![],
-                consistency_level: data.consistency_level,
+                consistency_level,
             }
             .try_to_vec()?,
         };
@@ -122,18 +127,6 @@ pub struct PostMessage<'info> {
     #[account(address = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole program.
     pub wormhole_program: UncheckedAccount<'info>,
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct PostMessageData {
-    /// Unique nonce for this message
-    pub nonce: u32,
-
-    /// Message payload
-    pub payload: Vec<u8>,
-
-    /// Commitment Level required for an attestation to be produced
-    pub consistency_level: Finality,
 }
 
 // Adapted from wormhole-anchor-sdk instructions.rs

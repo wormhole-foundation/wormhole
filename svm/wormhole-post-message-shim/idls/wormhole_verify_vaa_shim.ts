@@ -71,6 +71,14 @@ export type WormholeVerifyVaaShim = {
       ],
       "args": [
         {
+          "name": "guardianSetIndex",
+          "type": "u32"
+        },
+        {
+          "name": "totalSignatures",
+          "type": "u8"
+        },
+        {
           "name": "guardianSignatures",
           "type": {
             "vec": {
@@ -80,10 +88,6 @@ export type WormholeVerifyVaaShim = {
               ]
             }
           }
-        },
-        {
-          "name": "totalSignatures",
-          "type": "u8"
         }
       ]
     },
@@ -124,8 +128,9 @@ export type WormholeVerifyVaaShim = {
                 ]
               },
               {
-                "kind": "arg",
-                "path": "guardianSetIndex"
+                "kind": "account",
+                "path": "guardian_signatures.guardian_set_index_be",
+                "account": "guardianSignatures"
               }
             ],
             "program": {
@@ -183,10 +188,6 @@ export type WormholeVerifyVaaShim = {
               32
             ]
           }
-        },
-        {
-          "name": "guardianSetIndex",
-          "type": "u32"
         }
       ]
     }
@@ -275,6 +276,20 @@ export type WormholeVerifyVaaShim = {
               "Used for reimbursements upon cleanup."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "guardianSetIndexBe",
+            "docs": [
+              "Guardian set index that these signatures correspond to.",
+              "Storing this simplifies the integrator data.",
+              "Using big-endian to match the derivation used by the core bridge."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           },
           {
             "name": "guardianSignatures",
