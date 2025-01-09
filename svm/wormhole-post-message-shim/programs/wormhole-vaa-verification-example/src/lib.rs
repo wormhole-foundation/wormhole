@@ -36,11 +36,7 @@ pub mod wormhole_vaa_verification_example {
         instructions::consume_vaa(ctx, vaa_body, guardian_set_index)
     }
 
-    pub fn consume_vaa_via_shim(
-        ctx: Context<ConsumeVaaViaShim>,
-        vaa_body: Vec<u8>,
-        guardian_set_index: u32,
-    ) -> Result<()> {
-        instructions::consume_vaa_via_shim(ctx, vaa_body, guardian_set_index)
+    pub fn consume_vaa_via_shim(ctx: Context<ConsumeVaaViaShim>, vaa_body: Vec<u8>) -> Result<()> {
+        instructions::consume_vaa_via_shim(ctx, vaa_body)
     }
 }

@@ -115,8 +115,9 @@ describe("wormhole-vaa-verification-example", () => {
     const vaa = parseVaa(buf);
     const tx = await verifyShimProgram.methods
       .postSignatures(
-        vaa.guardianSignatures.map((s) => [s.index, ...s.signature]),
-        vaa.guardianSignatures.length
+        vaa.guardianSetIndex,
+        vaa.guardianSignatures.length,
+        vaa.guardianSignatures.map((s) => [s.index, ...s.signature])
       )
       .accounts({ guardianSignatures: signatureKeypair.publicKey })
       .signers([signatureKeypair])
@@ -132,7 +133,7 @@ describe("wormhole-vaa-verification-example", () => {
       CORE_BRIDGE_PROGRAM_ID
     );
     const tx2 = await program.methods
-      .consumeVaaViaShim(vaaBody(buf), vaa.guardianSetIndex)
+      .consumeVaaViaShim(vaaBody(buf))
       .accounts({
         guardianSignatures: signatureKeypair.publicKey,
       })

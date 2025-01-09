@@ -19,11 +19,7 @@ pub struct ConsumeVaaViaShim<'info> {
     wormhole_verify_vaa_shim: Program<'info, WormholeVerifyVaaShim>,
 }
 
-pub fn consume_vaa_via_shim(
-    ctx: Context<ConsumeVaaViaShim>,
-    vaa_body: Vec<u8>,
-    guardian_set_index: u32,
-) -> Result<()> {
+pub fn consume_vaa_via_shim(ctx: Context<ConsumeVaaViaShim>, vaa_body: Vec<u8>) -> Result<()> {
     // Compute the message hash.
     let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();
     let digest = keccak::hash(message_hash.as_slice()).to_bytes();
@@ -36,7 +32,6 @@ pub fn consume_vaa_via_shim(
             },
         ),
         digest,
-        guardian_set_index,
     )?;
     Ok(())
 }

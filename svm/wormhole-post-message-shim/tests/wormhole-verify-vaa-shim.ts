@@ -32,28 +32,20 @@ describe("wormhole-verify-vaa-shim", () => {
     const vaa = parseVaa(buf);
     const tx = await program.methods
       .postSignatures(
-        vaa.guardianSignatures.map((s) => [s.index, ...s.signature]),
-        vaa.guardianSignatures.length
+        vaa.guardianSetIndex,
+        vaa.guardianSignatures.length,
+        vaa.guardianSignatures.map((s) => [s.index, ...s.signature])
       )
       .accounts({ guardianSignatures: signatureKeypair.publicKey })
       .signers([signatureKeypair])
       .rpc();
     await logCostAndCompute("shim", tx);
 
-    // Convert guardian_set_index to big-endian bytes
-    const guardianSetIndex = vaa.guardianSetIndex;
-    const indexBuffer = Buffer.alloc(4); // guardian_set_index is a u32
-    indexBuffer.writeUInt32BE(guardianSetIndex);
-    const [guardianSetPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from(SEED_PREFIX), indexBuffer],
-      CORE_BRIDGE_PROGRAM_ID
-    );
     const tx2 = await program.methods
-      .verifyVaa([...keccak256(vaa.hash)], vaa.guardianSetIndex)
+      .verifyVaa([...keccak256(vaa.hash)])
       .accounts({
         guardianSignatures: signatureKeypair.publicKey,
       })
-      .accountsPartial({ guardianSet: guardianSetPDA })
       .preInstructions([
         anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
           units: 420_000,

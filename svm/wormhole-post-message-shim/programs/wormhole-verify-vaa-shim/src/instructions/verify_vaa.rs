@@ -15,13 +15,12 @@ use crate::{
 };
 
 #[derive(Accounts)]
-#[instruction(_digest: [u8; HASH_BYTES], guardian_set_index: u32)]
 pub struct VerifyVaa<'info> {
     /// Guardian set used for signature verification.
     #[account(
         seeds = [
             WormholeGuardianSet::SEED_PREFIX,
-            guardian_set_index.to_be_bytes().as_ref()
+            guardian_signatures.guardian_set_index_be.as_ref()
         ],
         bump,
         seeds::program = CORE_BRIDGE_PROGRAM_ID
@@ -90,11 +89,7 @@ impl<'info> VerifyVaa<'info> {
 }
 
 #[access_control(VerifyVaa::constraints(&ctx, &digest))]
-pub fn verify_vaa(
-    ctx: Context<VerifyVaa>,
-    digest: [u8; HASH_BYTES],
-    _guardian_set_index: u32,
-) -> Result<()> {
+pub fn verify_vaa(ctx: Context<VerifyVaa>, digest: [u8; HASH_BYTES]) -> Result<()> {
     Ok(())
 }
 

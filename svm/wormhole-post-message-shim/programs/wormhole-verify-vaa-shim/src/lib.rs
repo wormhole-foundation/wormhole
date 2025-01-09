@@ -21,17 +21,19 @@ pub mod wormhole_verify_vaa_shim {
 
     pub fn post_signatures(
         ctx: Context<PostSignatures>,
-        guardian_signatures: Vec<[u8; 66]>,
+        guardian_set_index: u32,
         total_signatures: u8,
+        guardian_signatures: Vec<[u8; 66]>,
     ) -> Result<()> {
-        instructions::post_signatures(ctx, guardian_signatures, total_signatures)
+        instructions::post_signatures(
+            ctx,
+            guardian_set_index,
+            total_signatures,
+            guardian_signatures,
+        )
     }
 
-    pub fn verify_vaa(
-        ctx: Context<VerifyVaa>,
-        digest: [u8; HASH_BYTES],
-        guardian_set_index: u32,
-    ) -> Result<()> {
-        instructions::verify_vaa(ctx, digest, guardian_set_index)
+    pub fn verify_vaa(ctx: Context<VerifyVaa>, digest: [u8; HASH_BYTES]) -> Result<()> {
+        instructions::verify_vaa(ctx, digest)
     }
 }

@@ -2,7 +2,7 @@ use crate::{error::WormholeVerifyVaaShim, state::GuardianSignatures};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
-#[instruction(_guardian_signatures: Vec<[u8; 66]>, total_signatures: u8)]
+#[instruction(_guardian_set_index: u32, total_signatures: u8, _guardian_signatures: Vec<[u8; 66]>)]
 pub struct PostSignatures<'info> {
     #[account(mut)]
     payer: Signer<'info>,
@@ -44,8 +44,9 @@ impl<'info> PostSignatures<'info> {
 #[access_control(PostSignatures::constraints(&guardian_signatures))]
 pub fn post_signatures(
     ctx: Context<PostSignatures>,
-    mut guardian_signatures: Vec<[u8; 66]>,
+    guardian_set_index: u32,
     _total_signatures: u8,
+    mut guardian_signatures: Vec<[u8; 66]>,
 ) -> Result<()> {
     if ctx.accounts.guardian_signatures.is_initialized() {
         require_eq!(
@@ -62,6 +63,7 @@ pub fn post_signatures(
             .guardian_signatures
             .set_inner(GuardianSignatures {
                 refund_recipient: ctx.accounts.payer.key(),
+                guardian_set_index_be: guardian_set_index.to_be_bytes(),
                 guardian_signatures,
             });
     }
