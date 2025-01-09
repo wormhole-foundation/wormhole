@@ -8,7 +8,7 @@ use wormhole_raw_vaas::{utils::quorum, GuardianSetSig};
 use wormhole_solana_consts::CORE_BRIDGE_PROGRAM_ID;
 
 use crate::{
-    error::WormholeVaaVerificationExampleError,
+    error::WormholeVaaVerificationComparisonError,
     state::{GuardianSignatures, WormholeGuardianSet},
 };
 
@@ -46,7 +46,7 @@ impl<'info> ConsumeVaa<'info> {
             .expect("timestamp overflow");
         require!(
             guardian_set.is_active(&timestamp),
-            WormholeVaaVerificationExampleError::GuardianSetExpired
+            WormholeVaaVerificationComparisonError::GuardianSetExpired
         );
 
         let guardian_signatures = &ctx.accounts.guardian_signatures.guardian_signatures;
@@ -58,7 +58,7 @@ impl<'info> ConsumeVaa<'info> {
         let quorum = quorum(guardian_keys.len());
         require!(
             guardian_signatures.len() >= quorum,
-            WormholeVaaVerificationExampleError::NoQuorum
+            WormholeVaaVerificationComparisonError::NoQuorum
         );
 
         // Compute the message hash.
@@ -69,19 +69,19 @@ impl<'info> ConsumeVaa<'info> {
         let mut last_guardian_index = None;
         for sig_bytes in guardian_signatures {
             let sig = GuardianSetSig::try_from(sig_bytes.as_slice())
-                .map_err(|_| WormholeVaaVerificationExampleError::InvalidSignature)?;
+                .map_err(|_| WormholeVaaVerificationComparisonError::InvalidSignature)?;
             // We do not allow for non-increasing guardian signature indices.
             let index = usize::from(sig.guardian_index());
             if let Some(last_index) = last_guardian_index {
                 require!(
                     index > last_index,
-                    WormholeVaaVerificationExampleError::InvalidGuardianIndexNonIncreasing
+                    WormholeVaaVerificationComparisonError::InvalidGuardianIndexNonIncreasing
                 );
             }
 
             // Does this guardian index exist in this guardian set?
             let guardian_pubkey = guardian_keys.get(index).ok_or_else(|| {
-                error!(WormholeVaaVerificationExampleError::InvalidGuardianIndexOutOfRange)
+                error!(WormholeVaaVerificationComparisonError::InvalidGuardianIndexOutOfRange)
             })?;
 
             // Now verify that the signature agrees with the expected Guardian's pubkey.
@@ -119,7 +119,7 @@ fn verify_guardian_signature(
     let recovered = {
         // Recover EC public key (64 bytes).
         let pubkey = secp256k1_recover(digest, sig.recovery_id(), &sig.rs())
-            .map_err(|_| WormholeVaaVerificationExampleError::InvalidSignature)?;
+            .map_err(|_| WormholeVaaVerificationComparisonError::InvalidSignature)?;
 
         // The Ethereum public key is the last 20 bytes of keccak hashed public key above.
         let hashed = keccak::hash(&pubkey.to_bytes());
@@ -133,7 +133,7 @@ fn verify_guardian_signature(
     // The recovered public key should agree with the Guardian's public key at this index.
     require!(
         recovered == *guardian_pubkey,
-        WormholeVaaVerificationExampleError::InvalidGuardianKeyRecovery
+        WormholeVaaVerificationComparisonError::InvalidGuardianKeyRecovery
     );
 
     // Done.

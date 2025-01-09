@@ -1,7 +1,7 @@
 use anchor_lang::prelude::error_code;
 
 #[error_code]
-pub enum WormholeVaaVerificationExampleError {
+pub enum WormholeVaaVerificationComparisonError {
     #[msg("EmptyGuardianSignatures")]
     EmptyGuardianSignatures = 0x100,
 

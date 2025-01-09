@@ -1,7 +1,7 @@
 import { postVaa } from "@certusone/wormhole-sdk/lib/cjs/solana/sendAndConfirmPostVaa";
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { WormholeVaaVerificationExample } from "../target/types/wormhole_vaa_verification_example";
+import { WormholeVaaVerificationComparison } from "../target/types/wormhole_vaa_verification_comparison";
 import { WormholeVerifyVaaShim } from "../target/types/wormhole_verify_vaa_shim";
 import { parseVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 import { logCostAndCompute } from "./helpers";
@@ -21,12 +21,12 @@ const CORE_BRIDGE_PROGRAM_ID = new anchor.web3.PublicKey([
 ]);
 const SEED_PREFIX = "GuardianSet";
 
-describe("wormhole-vaa-verification-example", () => {
+describe("wormhole-vaa-verification-comparison", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const program = anchor.workspace
-    .WormholeVaaVerificationExample as Program<WormholeVaaVerificationExample>;
+    .WormholeVaaVerificationComparison as Program<WormholeVaaVerificationComparison>;
   const verifyShimProgram = anchor.workspace
     .WormholeVerifyVaaShim as Program<WormholeVerifyVaaShim>;
 

@@ -1,12 +1,12 @@
 [package]
-name = "wormhole-vaa-verification-example"
+name = "wormhole-vaa-verification-comparison"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "wormhole_vaa_verification_example"
+name = "wormhole_vaa_verification_comparison"
 
 [features]
 default = ["mainnet"]

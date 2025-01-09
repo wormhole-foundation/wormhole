@@ -2695,7 +2695,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-vaa-verification-example"
+name = "wormhole-vaa-verification-comparison"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",

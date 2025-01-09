@@ -10,7 +10,7 @@ pub mod state;
 pub mod error;
 
 #[program]
-pub mod wormhole_vaa_verification_example {
+pub mod wormhole_vaa_verification_comparison {
     use super::*;
 
     pub fn consume_core_posted_vaa(

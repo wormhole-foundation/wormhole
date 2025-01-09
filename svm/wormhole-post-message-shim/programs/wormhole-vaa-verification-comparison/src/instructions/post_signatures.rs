@@ -1,4 +1,4 @@
-use crate::{error::WormholeVaaVerificationExampleError, state::GuardianSignatures};
+use crate::{error::WormholeVaaVerificationComparisonError, state::GuardianSignatures};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -23,7 +23,7 @@ impl<'info> PostSignatures<'info> {
         // Additionally, there is no reason for it to be.
         require!(
             !guardian_signatures.is_empty(),
-            WormholeVaaVerificationExampleError::EmptyGuardianSignatures
+            WormholeVaaVerificationComparisonError::EmptyGuardianSignatures
         );
 
         // Done.
@@ -51,7 +51,7 @@ pub fn post_signatures(
         require_eq!(
             ctx.accounts.guardian_signatures.refund_recipient,
             ctx.accounts.payer.key(),
-            WormholeVaaVerificationExampleError::WriteAuthorityMismatch
+            WormholeVaaVerificationComparisonError::WriteAuthorityMismatch
         );
         ctx.accounts
             .guardian_signatures
