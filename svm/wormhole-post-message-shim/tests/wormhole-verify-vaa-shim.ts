@@ -1,11 +1,9 @@
-import { postVaa } from "@certusone/wormhole-sdk/lib/cjs/solana/sendAndConfirmPostVaa";
+import { keccak256 } from "@certusone/wormhole-sdk/lib/cjs/utils/keccak";
+import { parseVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { WormholeVaaVerificationExample } from "../target/types/wormhole_vaa_verification_example";
 import { WormholeVerifyVaaShim } from "../target/types/wormhole_verify_vaa_shim";
-import { parseVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 import { logCostAndCompute } from "./helpers";
-import { SignedVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 
 // VAA from https://wormholescan.io/#/tx/3abEhA94A2bqqizebHoDGGjAtJ2dXpoPs4BPvMyCtmqx51EsSCZikUquLmncM6KwuFpNqkqpUNNFy3bCeV2poavX
 // Error: Transaction too large: 1250 > 1232
@@ -21,99 +19,18 @@ const CORE_BRIDGE_PROGRAM_ID = new anchor.web3.PublicKey([
 ]);
 const SEED_PREFIX = "GuardianSet";
 
-describe("wormhole-vaa-verification-example", () => {
+describe("wormhole-verify-vaa-shim", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const program = anchor.workspace
-    .WormholeVaaVerificationExample as Program<WormholeVaaVerificationExample>;
-  const verifyShimProgram = anchor.workspace
     .WormholeVerifyVaaShim as Program<WormholeVerifyVaaShim>;
 
-  it("Consumes a Posted VAA from the Core Bridge!", async () => {
-    const payer = anchor.web3.Keypair.generate();
-    {
-      const tx = await program.provider.connection.requestAirdrop(
-        payer.publicKey,
-        10000000000
-      );
-      await program.provider.connection.confirmTransaction({
-        ...(await program.provider.connection.getLatestBlockhash()),
-        signature: tx,
-      });
-    }
-    const buf = Buffer.from(VAA, "base64");
-    const txs = await postVaa(
-      program.provider.connection,
-      async (transaction) => {
-        await new Promise(function (resolve) {
-          setTimeout(function () {
-            resolve(500);
-          });
-        });
-        transaction.partialSign(payer);
-        return transaction;
-      },
-      "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
-      payer.publicKey.toString(),
-      buf,
-      undefined,
-      false
-    );
-    const vaa = parseVaa(buf);
-    txs.push({
-      signature: await program.methods
-        .consumeCorePostedVaa([...vaa.hash])
-        .rpc(),
-      response: null,
-    });
-    for (const tx of txs) {
-      await logCostAndCompute("core", tx.signature);
-    }
-  });
-
-  it("Consumes a VAA directly!", async () => {
+  it("Verifies a VAA!", async () => {
     const signatureKeypair = anchor.web3.Keypair.generate();
     const buf = Buffer.from(VAA, "base64");
     const vaa = parseVaa(buf);
     const tx = await program.methods
-      .postSignatures(
-        vaa.guardianSignatures.map((s) => [s.index, ...s.signature]),
-        vaa.guardianSignatures.length
-      )
-      .accounts({ guardianSignatures: signatureKeypair.publicKey })
-      .signers([signatureKeypair])
-      .rpc();
-    await logCostAndCompute("self", tx);
-
-    // Convert guardian_set_index to big-endian bytes
-    const guardianSetIndex = vaa.guardianSetIndex;
-    const indexBuffer = Buffer.alloc(4); // guardian_set_index is a u32
-    indexBuffer.writeUInt32BE(guardianSetIndex);
-    const [guardianSetPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from(SEED_PREFIX), indexBuffer],
-      CORE_BRIDGE_PROGRAM_ID
-    );
-    const tx2 = await program.methods
-      .consumeVaa(vaaBody(buf), vaa.guardianSetIndex)
-      .accounts({
-        guardianSignatures: signatureKeypair.publicKey,
-      })
-      .accountsPartial({ guardianSet: guardianSetPDA })
-      .preInstructions([
-        anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
-          units: 420_000,
-        }),
-      ])
-      .rpc();
-    await logCostAndCompute("self", tx2);
-  });
-
-  it("Consumes a VAA via the shim!", async () => {
-    const signatureKeypair = anchor.web3.Keypair.generate();
-    const buf = Buffer.from(VAA, "base64");
-    const vaa = parseVaa(buf);
-    const tx = await verifyShimProgram.methods
       .postSignatures(
         vaa.guardianSignatures.map((s) => [s.index, ...s.signature]),
         vaa.guardianSignatures.length
@@ -132,7 +49,7 @@ describe("wormhole-vaa-verification-example", () => {
       CORE_BRIDGE_PROGRAM_ID
     );
     const tx2 = await program.methods
-      .consumeVaaViaShim(vaaBody(buf), vaa.guardianSetIndex)
+      .verifyVaa([...keccak256(vaa.hash)], vaa.guardianSetIndex)
       .accounts({
         guardianSignatures: signatureKeypair.publicKey,
       })
@@ -143,7 +60,7 @@ describe("wormhole-vaa-verification-example", () => {
         }),
       ])
       .postInstructions([
-        await verifyShimProgram.methods
+        await program.methods
           .closeSignatures()
           .accounts({ guardianSignatures: signatureKeypair.publicKey })
           .instruction(),
@@ -152,11 +69,3 @@ describe("wormhole-vaa-verification-example", () => {
     await logCostAndCompute("shim", tx2);
   });
 });
-
-function vaaBody(vaa: SignedVaa): Buffer {
-  const signedVaa = Buffer.isBuffer(vaa) ? vaa : Buffer.from(vaa as Uint8Array);
-  const sigStart = 6;
-  const numSigners = signedVaa[5];
-  const sigLength = 66;
-  return signedVaa.subarray(sigStart + sigLength * numSigners);
-}

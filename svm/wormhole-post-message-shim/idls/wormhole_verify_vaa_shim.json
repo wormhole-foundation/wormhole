@@ -1,0 +1,334 @@
+{
+  "address": "EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at",
+  "metadata": {
+    "name": "wormhole_verify_vaa_shim",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "close_signatures",
+      "discriminator": [
+        192,
+        65,
+        63,
+        117,
+        213,
+        138,
+        179,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "guardian_signatures",
+          "writable": true
+        },
+        {
+          "name": "refund_recipient",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "guardian_signatures"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "post_signatures",
+      "discriminator": [
+        138,
+        2,
+        53,
+        166,
+        45,
+        77,
+        137,
+        51
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "guardian_signatures",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "guardian_signatures",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                66
+              ]
+            }
+          }
+        },
+        {
+          "name": "total_signatures",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "verify_vaa",
+      "discriminator": [
+        147,
+        254,
+        88,
+        41,
+        24,
+        223,
+        219,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "guardian_set",
+          "docs": [
+            "Guardian set used for signature verification."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  71,
+                  117,
+                  97,
+                  114,
+                  100,
+                  105,
+                  97,
+                  110,
+                  83,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "guardian_set_index"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                14,
+                10,
+                88,
+                154,
+                65,
+                165,
+                95,
+                189,
+                102,
+                197,
+                42,
+                71,
+                95,
+                45,
+                146,
+                166,
+                211,
+                220,
+                155,
+                71,
+                71,
+                17,
+                76,
+                185,
+                175,
+                130,
+                90,
+                152,
+                181,
+                69,
+                211,
+                206
+              ]
+            }
+          }
+        },
+        {
+          "name": "guardian_signatures",
+          "docs": [
+            "Stores unverified guardian signatures as they are too large to fit in the instruction data."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "digest",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "guardian_set_index",
+          "type": "u32"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GuardianSignatures",
+      "discriminator": [
+        203,
+        184,
+        130,
+        157,
+        113,
+        14,
+        184,
+        83
+      ]
+    },
+    {
+      "name": "WormholeGuardianSet",
+      "discriminator": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "EmptyGuardianSignatures",
+      "msg": "EmptyGuardianSignatures"
+    },
+    {
+      "code": 6001,
+      "name": "WriteAuthorityMismatch",
+      "msg": "WriteAuthorityMismatch"
+    },
+    {
+      "code": 6002,
+      "name": "GuardianSetExpired",
+      "msg": "GuardianSetExpired"
+    },
+    {
+      "code": 6003,
+      "name": "NoQuorum",
+      "msg": "NoQuorum"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidSignature",
+      "msg": "InvalidSignature"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidGuardianIndexNonIncreasing",
+      "msg": "InvalidGuardianIndexNonIncreasing"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidGuardianIndexOutOfRange",
+      "msg": "InvalidGuardianIndexOutOfRange"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidGuardianKeyRecovery",
+      "msg": "InvalidGuardianKeyRecovery"
+    }
+  ],
+  "types": [
+    {
+      "name": "GuardianSignatures",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "refund_recipient",
+            "docs": [
+              "Payer of this guardian signatures account.",
+              "Only they may amend signatures.",
+              "Used for reimbursements upon cleanup."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "guardian_signatures",
+            "docs": [
+              "Unverified guardian signatures."
+            ],
+            "type": {
+              "vec": {
+                "array": [
+                  "u8",
+                  66
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "WormholeGuardianSet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "index",
+            "docs": [
+              "Index representing an incrementing version number for this guardian set."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "keys",
+            "docs": [
+              "Ethereum-style public keys."
+            ],
+            "type": {
+              "vec": {
+                "array": [
+                  "u8",
+                  20
+                ]
+              }
+            }
+          },
+          {
+            "name": "creation_time",
+            "docs": [
+              "Timestamp representing the time this guardian became active."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "expiration_time",
+            "docs": [
+              "Expiration time when VAAs issued by this set are no longer valid."
+            ],
+            "type": "u32"
+          }
+        ]
+      }
+    }
+  ]
+}

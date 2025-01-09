@@ -7,8 +7,9 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-wormhole_vaa_verification_example = "m7qfXCwkwvpB4RayZoVsNxm4X2iE2a34rCAsjbNvrRs"
 wormhole_post_message_shim = "EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX"
+wormhole_vaa_verification_example = "m7qfXCwkwvpB4RayZoVsNxm4X2iE2a34rCAsjbNvrRs"
+wormhole_verify_vaa_shim = "EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at"
 
 [registry]
 url = "https://api.apr.dev"
