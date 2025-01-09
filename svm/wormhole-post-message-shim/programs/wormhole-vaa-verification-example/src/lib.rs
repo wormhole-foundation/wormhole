@@ -1,8 +1,13 @@
 use anchor_lang::prelude::*;
-use wormhole_anchor_sdk::wormhole;
-use wormhole_solana_consts::CORE_BRIDGE_PROGRAM_ID;
 
 declare_id!("m7qfXCwkwvpB4RayZoVsNxm4X2iE2a34rCAsjbNvrRs");
+
+mod instructions;
+pub(crate) use instructions::*;
+
+pub mod state;
+
+pub mod error;
 
 #[program]
 pub mod wormhole_vaa_verification_example {
@@ -10,25 +15,24 @@ pub mod wormhole_vaa_verification_example {
 
     pub fn consume_core_posted_vaa(
         ctx: Context<ConsumeCorePostedVaa>,
-        _vaa_hash: [u8; 32],
+        vaa_hash: [u8; 32],
     ) -> Result<()> {
-        ctx.accounts.posted.try_borrow_data()?;
-        Ok(())
+        instructions::consume_core_posted_vaa(ctx, vaa_hash)
     }
-}
 
-#[derive(Accounts)]
-#[instruction(vaa_hash: [u8; 32])]
-pub struct ConsumeCorePostedVaa<'info> {
-    #[account(
-        seeds = [
-            wormhole::SEED_PREFIX_POSTED_VAA,
-            &vaa_hash
-        ],
-        bump,
-        seeds::program = CORE_BRIDGE_PROGRAM_ID
-    )]
-    /// CHECK: Verified Wormhole message account. The Wormhole program verified
-    /// signatures and posted the account data here. Read-only.
-    pub posted: UncheckedAccount<'info>,
+    pub fn post_signatures(
+        ctx: Context<PostSignatures>,
+        guardian_signatures: Vec<[u8; 66]>,
+        total_signatures: u8,
+    ) -> Result<()> {
+        instructions::post_signatures(ctx, guardian_signatures, total_signatures)
+    }
+
+    pub fn consume_vaa(
+        ctx: Context<ConsumeVaa>,
+        vaa_body: Vec<u8>,
+        guardian_set_index: u32,
+    ) -> Result<()> {
+        instructions::consume_vaa(ctx, vaa_body, guardian_set_index)
+    }
 }

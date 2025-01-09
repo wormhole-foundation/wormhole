@@ -4,6 +4,8 @@ import { Program } from "@coral-xyz/anchor";
 import { WormholeVaaVerificationExample } from "../target/types/wormhole_vaa_verification_example";
 import { parseVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 import { logCostAndCompute } from "./helpers";
+import { parse } from "@certusone/wormhole-sdk/lib/cjs/vaa/generic";
+import { SignedVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 
 // VAA from https://wormholescan.io/#/tx/3abEhA94A2bqqizebHoDGGjAtJ2dXpoPs4BPvMyCtmqx51EsSCZikUquLmncM6KwuFpNqkqpUNNFy3bCeV2poavX
 // Error: Transaction too large: 1250 > 1232
@@ -13,6 +15,11 @@ import { logCostAndCompute } from "./helpers";
 // VAA from https://wormholescan.io/#/tx/AEa98mf68bcwUmT8Yheidw4C4KUVSG9732SVg5kqnfmH?view=advanced
 const VAA =
   "AQAAAAQNAL1qji7v9KnngyX0VxK+3fCMVscWTLoYX8L48NWquq2WGrcHd4H0wYc0KF4ZOWjLD2okXoBjGQIDJzx4qIrbSzQBAQq69h+neXGb58VfhZgraPVCxJmnTj8JIDq5jqi3Qav1e+IW51mIJlOhSAdCRbEyQLzf6Z3C19WJJqSyt/z1XF0AAvFgDHkseyMZTE5vQjflu4tc5OLPJe2VYCxTJT15LA02YPrWgOM6HhfUhXDhFoG5AI/s2ApjK8jaqi7LGJILAUMBA6cp4vfko8hYyRvogqQWsdk9e20g0O6s60h4ewweapXCQHerQpoJYdDxlCehN4fuYnuudEhW+6FaXLjwNJBdqsoABDg9qXjXB47nBVCZAGns2eosVqpjkyDaCfo/p1x8AEjBA80CyC1/QlbG9L4zlnnDIfZWylsf3keJqx28+fZNC5oABi6XegfozgE8JKqvZLvd7apDhrJ6Qv+fMiynaXASkafeVJOqgFOFbCMXdMKehD38JXvz3JrlnZ92E+I5xOJaDVgABzDSte4mxUMBMJB9UUgJBeAVsokFvK4DOfvh6G3CVqqDJplLwmjUqFB7fAgRfGcA8PWNStRc+YDZiG66YxPnptwACe84S31Kh9voz2xRk1THMpqHQ4fqE7DizXPNWz6Z6ebEXGcd7UP9PBXoNNvjkLWZJZOdbkZyZqztaIiAo4dgWUABCobiuQP92WjTxOZz0KhfWVJ3YBVfsXUwaVQH4/p6khX0HCEVHR9VHmjvrAAGDMdJGWW+zu8mFQc4gPU6m4PZ6swADO7voA5GWZZPiztz22pftwxKINGvOjCPlLpM1Y2+Vq6AQuez/mlUAmaL0NKgs+5VYcM1SGBz0TL3ABRhKQAhUEMADWmiMo0J1Qaj8gElb+9711ZjvAY663GIyG/E6EdPW+nPKJI9iZE180sLct+krHj0J7PlC9BjDiO2y149oCOJ6FgAEcaVkYK43EpN7XqxrdpanX6R6TaqECgZTjvtN3L6AP2ceQr8mJJraYq+qY8pTfFvPKEqmW9CBYvnA5gIMpX59WsAEjIL9Hdnx+zFY0qSPB1hB9AhqWeBP/QfJjqzqafsczaeCN/rWUf6iNBgXI050ywtEp8JQ36rCn8w6dRhUusn+MEAZ32XyAAAAAAAFczO6yk0j3G90i/+9DoqGcH1teF8XMpUEVKRIBgmcq3lAAAAAAAC/1wAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC6Q7dAAAAAAAAAAAAAAAAAAoLhpkcYhizbB0Z1KLp6wzjYG60gAAgAAAAAAAAAAAAAAAInNTEvk5b/1WVF+JawF1smtAdicABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
+const CORE_BRIDGE_PROGRAM_ID = new anchor.web3.PublicKey([
+  14, 10, 88, 154, 65, 165, 95, 189, 102, 197, 42, 71, 95, 45, 146, 166, 211,
+  220, 155, 71, 71, 17, 76, 185, 175, 130, 90, 152, 181, 69, 211, 206,
+]);
+const SEED_PREFIX = "GuardianSet";
 
 describe("wormhole-vaa-verification-example", () => {
   // Configure the client to use the local cluster.
@@ -26,7 +33,7 @@ describe("wormhole-vaa-verification-example", () => {
     {
       const tx = await program.provider.connection.requestAirdrop(
         payer.publicKey,
-        10000000000
+        10000000000,
       );
       await program.provider.connection.confirmTransaction({
         ...(await program.provider.connection.getLatestBlockhash()),
@@ -49,7 +56,7 @@ describe("wormhole-vaa-verification-example", () => {
       payer.publicKey.toString(),
       buf,
       undefined,
-      false
+      false,
     );
     const vaa = parseVaa(buf);
     txs.push({
@@ -59,7 +66,52 @@ describe("wormhole-vaa-verification-example", () => {
       response: null,
     });
     for (const tx of txs) {
-      logCostAndCompute("core", tx.signature);
+      await logCostAndCompute("core", tx.signature);
     }
   });
+
+  it("Consumes a VAA directly!", async () => {
+    const signatureKeypair = anchor.web3.Keypair.generate();
+    const buf = Buffer.from(VAA, "base64");
+    const vaa = parseVaa(buf);
+    const tx = await program.methods
+      .postSignatures(
+        vaa.guardianSignatures.map((s) => [s.index, ...s.signature]),
+        vaa.guardianSignatures.length,
+      )
+      .accounts({ guardianSignatures: signatureKeypair.publicKey })
+      .signers([signatureKeypair])
+      .rpc();
+    await logCostAndCompute("self", tx);
+
+    // Convert guardian_set_index to big-endian bytes
+    const guardianSetIndex = vaa.guardianSetIndex;
+    const indexBuffer = Buffer.alloc(4); // guardian_set_index is a u32
+    indexBuffer.writeUInt32BE(guardianSetIndex);
+    const [guardianSetPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from(SEED_PREFIX), indexBuffer],
+      CORE_BRIDGE_PROGRAM_ID,
+    );
+    const tx2 = await program.methods
+      .consumeVaa(vaaBody(buf), vaa.guardianSetIndex)
+      .accounts({
+        guardianSignatures: signatureKeypair.publicKey,
+      })
+      .accountsPartial({ guardianSet: guardianSetPDA })
+      .preInstructions([
+        anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+          units: 420_000,
+        }),
+      ])
+      .rpc();
+    await logCostAndCompute("cons", tx2);
+  });
 });
+
+function vaaBody(vaa: SignedVaa): Buffer {
+  const signedVaa = Buffer.isBuffer(vaa) ? vaa : Buffer.from(vaa as Uint8Array);
+  const sigStart = 6;
+  const numSigners = signedVaa[5];
+  const sigLength = 66;
+  return signedVaa.subarray(sigStart + sigLength * numSigners);
+}

@@ -2669,6 +2669,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "wormhole-raw-vaas"
+version = "0.3.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "045a3cc929189ffc0df110e4dc04421ed3226543f47a302088e6175b97b7d75f"
+
+[[package]]
 name = "wormhole-solana-consts"
 version = "0.3.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2684,6 +2690,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "wormhole-anchor-sdk",
+ "wormhole-raw-vaas",
  "wormhole-solana-consts",
 ]
 
