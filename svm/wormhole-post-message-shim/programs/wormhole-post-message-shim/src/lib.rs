@@ -22,6 +22,14 @@ pub mod wormhole_post_message_shim {
     /// when compared to using the core bridge directly. If that is an issue, simply emit an empty message on initialization
     /// (or migration) in order to instantiate the account. This will result in a VAA from your emitter, so be careful to
     /// avoid any issues that may result in.
+    ///
+    /// Direct case
+    /// shim `PostMessage` -> core `0x8`
+    ///                    -> shim `MesssageEvent`
+    ///
+    /// Integration case
+    /// Integrator Program -> shim `PostMessage` -> core `0x8`
+    ///                                          -> shim `MesssageEvent`
     pub fn post_message(
         ctx: Context<PostMessage>,
         nonce: u32,

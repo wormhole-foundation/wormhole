@@ -24,6 +24,7 @@ pub mod wormhole_verify_vaa_shim {
     /// This is necessary as the Wormhole VAA body, which has an arbitrary size,
     /// and 13 guardian signatures (a quorum of the current 19 mainnet guardians, 66 bytes each)
     /// alongside the required accounts is likely larger than the transaction size limit on Solana (1232 bytes).
+    /// This will also allow for the verification of other messages which guardians sign, such as QueryResults.
     ///
     /// This instruction allows for the initial payer to append additional signatures to the account by calling the instruction again.
     /// This may be necessary if a quorum of signatures from the current guardian set grows larger than can fit into a single transaction.
@@ -43,7 +44,8 @@ pub mod wormhole_verify_vaa_shim {
         )
     }
 
-    /// This instruction is intended to be invoked via CPI call. It verifies a digest against a GuardianSignatures account.
+    /// This instruction is intended to be invoked via CPI call. It verifies a digest against a GuardianSignatures account
+    /// and a core bridge GuardianSet.
     /// Prior to this call, and likely in a separate transaction, `post_signatures` must be called to create the account.
     /// Immediately after this call, `close_signatures` should be called to reclaim the lamports.
     ///

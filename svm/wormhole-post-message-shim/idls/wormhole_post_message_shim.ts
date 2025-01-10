@@ -25,7 +25,15 @@ export type WormholePostMessageShim = {
         "NOTE: In the initial message publication for a new emitter, this will require one additional CPI call depth",
         "when compared to using the core bridge directly. If that is an issue, simply emit an empty message on initialization",
         "(or migration) in order to instantiate the account. This will result in a VAA from your emitter, so be careful to",
-        "avoid any issues that may result in."
+        "avoid any issues that may result in.",
+        "",
+        "Direct case",
+        "shim `PostMessage` -> core `0x8`",
+        "-> shim `MesssageEvent`",
+        "",
+        "Integration case",
+        "Integrator Program -> shim `PostMessage` -> core `0x8`",
+        "-> shim `MesssageEvent`"
       ],
       "discriminator": [
         214,
