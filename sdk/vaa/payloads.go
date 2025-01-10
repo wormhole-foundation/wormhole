@@ -128,6 +128,24 @@ type (
 		NewIndex uint32
 	}
 
+	// BodySlashingParamsUpdate is a governance message to update the slashing parameters on Wormchain.
+	//
+	// It is important to note that the slashing keeper only accepts `int64` values as input, so we need to convert
+	// the `uint64` values to `int64` before passing them to the keeper. This conversion can introduce overflow
+	// issues if the `uint64` values are too large. To combat this, the Wormchain CLI and the slashing keeper run
+	// validation checks on the new parameter values.
+	//
+	// Below documents the entire process of updating the slashing parameters:
+	// 1. The CLI command receives the new slashing parameters from the user as `uint64` values for `SignedBlocksWindow` and `DowntimeJailDuration` and as `string` values
+	// for `MinSignedPerWindow`, `SlashFractionDoubleSign`, and `SlashFractionDowntime`. The command accepts `string` values for ease of use when providing decimal values.
+	// 2. The CLI command converts the `string` values into `sdk.Dec` values and then into `uint64` values.
+	// 3. The CLI command validates that the `uint64` values are within the acceptable range for the slashing parameters.
+	// 4. The CLI command serializes the new slashing parameters into a governance VAA.
+	// 5. The governance VAA is signed & broadcasted to the Wormchain.
+	// 6. Wormchain deserializes the governance VAA and extracts every new slashing parameter as a uint64 value.
+	// 7. Wormchain converts the uint64 values to int64 values and passes them to the slashing keeper.
+	// 8. The slashing keeper runs validation checks on the new slashing parameters and throws an error if they are invalid.
+	// 9. If the new slashing parameters pass the validation checks, the slashing keeper updates its parameters.
 	BodySlashingParamsUpdate struct {
 		SignedBlocksWindow      uint64
 		MinSignedPerWindow      uint64
