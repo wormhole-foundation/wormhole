@@ -13,7 +13,8 @@ pub struct ConsumeVaa<'info> {
     /// Derivation is checked by the shim.
     guardian_set: UncheckedAccount<'info>,
 
-    /// CHECK: Stores guardian signatures to be verified by shim.
+    /// CHECK: Stored guardian signatures to be verified by shim.
+    /// Ownership ownership and discriminator is checked by the shim.
     guardian_signatures: UncheckedAccount<'info>,
 
     wormhole_verify_vaa_shim: Program<'info, WormholeVerifyVaaShim>,
@@ -23,6 +24,7 @@ pub fn consume_vaa(ctx: Context<ConsumeVaa>, vaa_body: Vec<u8>) -> Result<()> {
     // Compute the message hash.
     let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();
     let digest = keccak::hash(message_hash.as_slice()).to_bytes();
+    // Verify the hash against the signatures.
     wormhole_verify_vaa_shim::cpi::verify_vaa(
         CpiContext::new(
             ctx.accounts.wormhole_verify_vaa_shim.to_account_info(),
@@ -33,5 +35,6 @@ pub fn consume_vaa(ctx: Context<ConsumeVaa>, vaa_body: Vec<u8>) -> Result<()> {
         ),
         digest,
     )?;
+    // Decode vaa_body, perform security checks, and do your thing.
     Ok(())
 }

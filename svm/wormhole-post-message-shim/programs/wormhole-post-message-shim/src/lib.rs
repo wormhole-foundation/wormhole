@@ -12,6 +12,16 @@ pub mod wormhole_post_message_shim {
     use super::*;
     use anchor_lang::solana_program;
 
+    /// This instruction is intended to be a significantly cheaper alternative to `post_message` on the core bridge.
+    /// It achieves this by reusing the message account, per emitter, via `post_message_unreliable` and
+    /// emitting a CPI event for the guardian to observe containing the information previously only found
+    /// in the resulting message account. Since this passes through the emitter and calls `post_message_unreliable`
+    /// on the core bridge, it can be used (or not used) without disruption.
+    ///
+    /// NOTE: In the initial message publication for a new emitter, this will require one additional CPI call depth
+    /// when compared to using the core bridge directly. If that is an issue, simply emit an empty message on initialization
+    /// (or migration) in order to instantiate the account. This will result in a VAA from your emitter, so be careful to
+    /// avoid any issues that may result in.
     pub fn post_message(
         ctx: Context<PostMessage>,
         nonce: u32,

@@ -31,16 +31,6 @@ impl<'info> PostSignatures<'info> {
     }
 }
 
-/// Creates or appends to a GuardianSignatures account for subsequent use by consume_vaa.
-/// This is necessary as the Wormhole query response (220 bytes)
-/// and 13 guardian signatures (a quorum of the current 19 mainnet guardians, 66 bytes each)
-/// alongside the required accounts is larger than the transaction size limit on Solana (1232 bytes).
-///
-/// This instruction allows for the initial payer to append additional signatures to the account by calling the instruction again.
-/// This may be necessary if a quorum of signatures from the current guardian set grows larger than can fit into a single transaction.
-///
-/// The GuardianSignatures account can be closed by anyone with a successful consume_vaa instruction
-/// or by the initial payer via close_signatures, either of which will refund the initial payer.
 #[access_control(PostSignatures::constraints(&guardian_signatures))]
 pub fn post_signatures(
     ctx: Context<PostSignatures>,

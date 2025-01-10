@@ -15,6 +15,18 @@ export type WormholePostMessageShim = {
   "instructions": [
     {
       "name": "postMessage",
+      "docs": [
+        "This instruction is intended to be a significantly cheaper alternative to `post_message` on the core bridge.",
+        "It achieves this by reusing the message account, per emitter, via `post_message_unreliable` and",
+        "emitting a CPI event for the guardian to observe containing the information previously only found",
+        "in the resulting message account. Since this passes through the emitter and calls `post_message_unreliable`",
+        "on the core bridge, it can be used (or not used) without disruption.",
+        "",
+        "NOTE: In the initial message publication for a new emitter, this will require one additional CPI call depth",
+        "when compared to using the core bridge directly. If that is an issue, simply emit an empty message on initialization",
+        "(or migration) in order to instantiate the account. This will result in a VAA from your emitter, so be careful to",
+        "avoid any issues that may result in."
+      ],
       "discriminator": [
         214,
         50,
@@ -29,7 +41,7 @@ export type WormholePostMessageShim = {
         {
           "name": "bridge",
           "writable": true,
-          "address": "FKoMTctsC7vJbEqyRiiPskPnuQx2tX1kurmvWByq5uZP"
+          "address": "2yVjuQwpsvdsrywzsJJVs9Ueh4zayyo5DYJbBNc3DDpn"
         },
         {
           "name": "message",
@@ -72,7 +84,7 @@ export type WormholePostMessageShim = {
         {
           "name": "feeCollector",
           "writable": true,
-          "address": "GXBsgBD3LDn3vkRZF6TfY5RqgajVZ4W5bMAdiAaaUARs"
+          "address": "9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy"
         },
         {
           "name": "clock",
@@ -97,7 +109,7 @@ export type WormholePostMessageShim = {
         },
         {
           "name": "wormholeProgram",
-          "address": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+          "address": "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
         },
         {
           "name": "eventAuthority",
