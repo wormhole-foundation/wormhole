@@ -136,6 +136,7 @@ func logErr(l *zap.Logger, err error) {
 	var zapFields []zap.Field
 	if informativeErr.trackingId != nil {
 		zapFields = append(zapFields, zap.String("trackingId", informativeErr.trackingId.ToString()))
+		zapFields = append(zapFields, zap.String("chainID", extractChainIDFromTrackingID(informativeErr.trackingId).String()))
 	}
 
 	if informativeErr.round != "" {

@@ -45,12 +45,12 @@ import (
 // ftCommand represents commands that reach the ftTracker.
 // to become ftCommand, the struct must implement the apply(*Engine, *ftTracker) method.
 //
-// the commands include signCommand, deliveryCommand, getInactiveGuardiansCommand, and reportProblemCommand.
+// the commands include signCommand, deliveryCommand, prepareToSignCommand, and reportProblemCommand.
 //   - signCommand is used to inform the ftTracker that a guardian saw a digest, and what related information
 //     it has about the digest.
 //   - deliveryCommand is used to inform the ftTracker that a guardian saw a message and forwarded it
 //     to the fullParty.
-//   - getInactiveGuardiansCommand is used to know which guardians aren't to be used in the protocol for
+//   - prepareToSignCommand is used to know which guardians aren't to be used in the protocol for
 //     specific chainID.
 //   - reportProblemCommand is used to deliver a problem message from another
 //     guardian (after it was accepted by the reliable-broadcast protocol).
@@ -62,6 +62,7 @@ type trackidStr string
 
 type signCommand struct {
 	SigningInfo *party.SigningInfo
+	passedToFP  bool
 }
 
 type deliveryCommand struct {
@@ -119,14 +120,22 @@ func (i *inactives) getFaultiesWithout(pid *tss.PartyID) []*tss.PartyID {
 	return faulties
 }
 
+type sigPreparationInfo struct {
+	inactives                        inactives
+	alreadyStartedSigningTrackingIDs map[trackidStr]bool
+}
+
 // Used to know which guardians aren't to be used in the protocol for specific chainID.
-type getInactiveGuardiansCommand struct {
+type prepareToSignCommand struct {
 	ChainID vaa.ChainID
-	reply   chan inactives
+	Digest  party.Digest
+
+	reply chan sigPreparationInfo
 }
 
 type tackingIDContext struct {
 	sawProtocolMessagesFrom map[strPartyId]bool
+	alreadyPassedTIDtoFP    bool
 }
 
 // the signatureState struct is used to keep track of a signature.
@@ -385,22 +394,34 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 
 	go func() {
 		for _, sig := range retryNow {
-			// TODO: maybe find something smarter to do here.
-			if err := t.BeginAsyncThresholdSigningProtocol(sig.digest[:], chainID); err != nil {
+			if err := t.beginTSSSign(sig.digest[:], chainID, true); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}
 	}()
 }
 
-func (cmd *getInactiveGuardiansCommand) apply(t *Engine, f *ftTracker) {
+func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
 	if cmd.reply == nil {
 		t.logger.Error("reply channel is nil")
 
 		return
 	}
 
-	reply := f.getIncatives(cmd.ChainID)
+	reply := sigPreparationInfo{
+		inactives:                        f.getIncatives(cmd.ChainID),
+		alreadyStartedSigningTrackingIDs: map[trackidStr]bool{},
+	}
+
+	sigKey := intoSigKey(cmd.Digest, cmd.ChainID)
+	sigState, ok := f.sigsState[sigKey]
+	if ok {
+		for tidStr, ctx := range sigState.trackidContext {
+			if ctx.alreadyPassedTIDtoFP {
+				reply.alreadyStartedSigningTrackingIDs[tidStr] = true
+			}
+		}
+	}
 
 	if err := intoChannelOrDone(t.ctx, cmd.reply, reply); err != nil {
 		t.logger.Error("error on telling on inactive guardians on specific chain", zap.Error(err))
@@ -472,6 +493,22 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 		}
 
 		chainData.liveSigsWaitingForThisParty[intoSigKey(dgst, state.chain)] = state
+	}
+
+	// if this guardian has request a signature for this TID, then we store it to ensure it doesn't attempt to sign again later.
+	if cmd.passedToFP {
+		tidStr := trackidStr(tid.ToString())
+		tidData, ok := state.trackidContext[tidStr]
+		if !ok {
+			tidData = &tackingIDContext{
+				sawProtocolMessagesFrom: map[strPartyId]bool{},
+				alreadyPassedTIDtoFP:    false,
+			}
+
+			state.trackidContext[tidStr] = tidData
+		}
+
+		tidData.alreadyPassedTIDtoFP = true
 	}
 }
 
@@ -652,11 +689,15 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 
 	allReleveantFaulties := inactives.getFaultiesLists()
 
-	var toSign []*signatureState
+	toSign := make(map[sigKey]*signatureState) // map to avoid duplicates.
 
-	for _, sigState := range liveSigsInChain {
+	for key, sigState := range liveSigsInChain {
 		if !sigState.approvedToSign {
 			continue // no need to retry this signature.
+		}
+
+		if _, ok := toSign[key]; ok {
+			continue
 		}
 
 		for _, faulties := range allReleveantFaulties {
@@ -676,17 +717,27 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 
 			// this guardian is a signer once this server revives? if it is: retry the signature.
 			if info.IsSigner {
-				toSign = append(toSign, sigState)
+				toSign[key] = sigState
 			}
 		}
 	}
 
 	activeGuardiansByChain.WithLabelValues(alert.chain.String()).Set(float64(len(t.Guardians) - len(inactives.partyIDs)))
 
+	if len(toSign) == 0 {
+		return
+	}
+
+	t.logger.Info("guardian reviving, retrying signatures",
+		zap.Int("numsigs", len(toSign)),
+		zap.String("revived", alert.partyID.Id),
+		zap.String("chainID", alert.chain.String()),
+	)
+
 	// retry signatures...
 	go func() {
 		for _, sig := range toSign {
-			if err := t.BeginAsyncThresholdSigningProtocol(sig.digest[:], sig.chain); err != nil {
+			if err := t.beginTSSSign(sig.digest[:], sig.chain, true); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}

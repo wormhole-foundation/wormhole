@@ -228,16 +228,22 @@ func (t *Engine) shouldDeliver(s *broadcaststate) bool {
 
 var ErrEquivicatingGuardian = fmt.Errorf("equivication, guardian sent two different messages for the same round and session")
 
+func wrapEquivErrWithTimestamp(err error, t time.Time) error {
+	return fmt.Errorf("%w (first seen %v ago)", err, time.Since(t))
+}
+
 func (t *Engine) updateState(s *broadcaststate, msg *tsscommv1.SignedMessage, echoer *tsscommv1.PartyId) (shouldEcho bool, err error) {
 	// this is a SECURITY measure to prevent equivication attacks:
 	// It is possible that the same guardian sends two different messages for the same round and session.
 	// We do not accept messages with the same uuid and different content.
 	if s.messageDigest != hashSignedMessage(msg) {
 		if err := t.verifySignedMessage(msg); err == nil { // no error means the sender is the equivicator.
-			return false, fmt.Errorf("%w:%v", ErrEquivicatingGuardian, msg.Sender)
+			err = fmt.Errorf("%w: (signer %v)", ErrEquivicatingGuardian, msg.Sender)
+			return false, wrapEquivErrWithTimestamp(err, s.timeReceived)
 		}
 
-		return false, fmt.Errorf("%w:%v", ErrEquivicatingGuardian, echoer)
+		err = fmt.Errorf("%w: (echoer %v)", ErrEquivicatingGuardian, echoer)
+		return false, wrapEquivErrWithTimestamp(err, s.timeReceived)
 	}
 
 	f := t.GuardianStorage.getMaxExpectedFaults()

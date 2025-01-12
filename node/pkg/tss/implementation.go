@@ -214,6 +214,10 @@ var (
 
 // BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
 func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID) error {
+	return t.beginTSSSign(vaaDigest, chainID, false)
+}
+
+func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, isRetry bool) error {
 	if t == nil {
 		return errNilTssEngine
 	}
@@ -230,20 +234,39 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
+	if chainID == vaa.ChainIDPythNet {
+		return nil // TODO: Remove this.
+	}
+
 	t.logger.Info("signature for VAA requested",
 		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
 		zap.String("chainID", chainID.String()),
+		zap.Bool("isRetry", isRetry),
 	)
 
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
+	signinginfo, err := t.fp.GetSigningInfo(party.SigningTask{
+		Digest:       d,
+		Faulties:     []*tss.PartyID{}, // no faulties
+		AuxilaryData: chainIDToBytes(chainID),
+	})
+	if err != nil {
+		return fmt.Errorf("couldnt generate signing task: %w", err)
+	}
+
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: signinginfo}); err != nil {
+		return fmt.Errorf("couldn't inform the fault-tolerance tracker of the signature start: %w", err)
+	}
+
 	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others:
 	t.anounceNewDigest(d[:], chainID)
 
-	cmd := getInactiveGuardiansCommand{
+	cmd := prepareToSignCommand{
 		ChainID: chainID,
-		reply:   make(chan inactives, 1),
+		Digest:  d,
+		reply:   make(chan sigPreparationInfo, 1),
 	}
 
 	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &cmd); err != nil {
@@ -251,7 +274,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 	}
 
 	// waiting for the reply.
-	inactiveParties, err := outOfChannelOrDone(t.ctx, cmd.reply)
+	sigPrepInfo, err := outOfChannelOrDone(t.ctx, cmd.reply)
 	if err != nil {
 		return fmt.Errorf("failed to get inactive guardians: %w", err)
 	}
@@ -260,7 +283,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 
 	t.createSignatureMetrics(vaaDigest, chainID)
 
-	for _, faulties := range inactiveParties.getFaultiesLists() {
+	for _, faulties := range sigPrepInfo.inactives.getFaultiesLists() {
 
 		if len(t.Guardians)-len(faulties) <= t.Threshold {
 			t.logger.Error(
@@ -273,7 +296,19 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 			continue // not a failure of the method, so it should continue, instead of returning an error.
 		}
 
-		info, err := t.fp.AsyncRequestNewSignature(makeSigningRequest(d, faulties, chainID))
+		sigTask := makeSigningRequest(d, faulties, chainID)
+
+		info, err := t.fp.GetSigningInfo(sigTask)
+		if err != nil {
+			return fmt.Errorf("couldnt generate signing task: %w", err)
+		}
+
+		if sigPrepInfo.alreadyStartedSigningTrackingIDs[trackidStr(info.TrackingID.ToString())] {
+			continue
+		}
+
+		// TODO: cosider not recomputing the info, and just used it from `t.fp.GetSigningInfo(sigTask)`
+		info, err = t.fp.AsyncRequestNewSignature(sigTask)
 
 		if err != nil {
 			// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
@@ -296,7 +331,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 			flds...,
 		)
 
-		if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info}); err != nil {
+		if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info, passedToFP: true}); err != nil {
 			t.logger.Error("couldn't inform the fault-tolerance tracker of the signature start",
 				zap.Error(err),
 				zap.String("trackingID", info.TrackingID.ToString()),
@@ -873,7 +908,7 @@ func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
 
 	if stored, ok := t.received[id]; ok {
 		if stored.messageDigest != msgDigest {
-			return ErrEquivicatingGuardian
+			return fmt.Errorf("%w. (time first unicast received %v)", ErrEquivicatingGuardian, stored.timeReceived)
 		}
 
 		return errUnicastAlreadyReceived

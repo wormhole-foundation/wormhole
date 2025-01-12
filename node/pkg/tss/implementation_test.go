@@ -605,12 +605,47 @@ func TestRouteCheck(t *testing.T) {
 	time.Sleep(time.Millisecond * 200)
 }
 
-func TestE2E(t *testing.T) {
+func TestNoFaultsFlow(t *testing.T) {
 	// Setting up all engines (not just 5), each with a different guardian storage.
 	// all will attempt to sign a single message, while outputing messages to each other,
 	// and reliably broadcasting them.
+	t.Run("Call multiple to sign the same digest", func(t *testing.T) {
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		dnchn := msgHandler(ctx, engines, 1)
+
+		cID := vaa.ChainID(1)
+
+		// demand signing multiple times.
+		for range 10 {
+			for _, engine := range engines {
+				tmp := make([]byte, 32)
+				copy(tmp, dgst[:])
+				engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			}
+			fmt.Println()
+		}
+
+		time.Sleep(time.Millisecond * 500)
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("context expired")
+		}
+	})
 
 	t.Run("with correct metrics", func(t *testing.T) {
+		sigProducedCntr.Reset()
 		a := assert.New(t)
 		engines, err := loadGuardians(5, "tss5")
 		a.NoError(err)
