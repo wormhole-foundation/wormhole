@@ -234,10 +234,6 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, isRetry boo
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
-	if chainID == vaa.ChainIDPythNet {
-		return nil // TODO: Remove this.
-	}
-
 	t.logger.Info("signature for VAA requested",
 		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
 		zap.String("chainID", chainID.String()),
