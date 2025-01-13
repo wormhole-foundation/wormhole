@@ -126,7 +126,7 @@ Additionally, ensure:
 
 The Wormhole project maintains a social media monitoring program to stay abreast of important ecosystem developments.
 
-These developments include monitoring services like Twitter for key phrases and patterns such that the Wormhole project is informed of a compromise or vulnerability in a dependency that could negatively affect Wormhole, its users, or the chains that Wormhole is connected to.
+These developments include monitoring services like X (formerly Twitter) for key phrases and patterns such that the Wormhole project is informed of a compromise or vulnerability in a dependency that could negatively affect Wormhole, its users, or the chains that Wormhole is connected to.
 
 In the case of a large ecosystem development that requires response, the Wormhole project will engage its security incident response program.
 
