@@ -8,7 +8,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/stretchr/testify/assert"
@@ -43,6 +42,7 @@ func TestMarshalSignedObservationBatch(t *testing.T) {
 
 	NumObservations := uint64(p2p.MaxObservationBatchSize)
 	observations := make([]*gossipv1.Observation, 0, NumObservations)
+	txHash := []byte("0123456789012345678901234567890123456789012345678901234567890123") // 64 bytes, the size of a Solana signature.
 	for seqNo := uint64(1); seqNo <= NumObservations; seqNo++ {
 		vaa := getUniqueVAA(seqNo)
 		digest := vaa.SigningDigest()
@@ -52,14 +52,14 @@ func TestMarshalSignedObservationBatch(t *testing.T) {
 		observations = append(observations, &gossipv1.Observation{
 			Hash:      digest.Bytes(),
 			Signature: sig,
-			TxHash:    ethcommon.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
+			TxHash:    txHash,
 			MessageId: vaa.MessageID(),
 		})
 	}
 
 	obsBuf, err := proto.Marshal(observations[0])
 	require.NoError(t, err)
-	assert.Equal(t, 205, len(obsBuf))
+	assert.Equal(t, (173 + len(txHash)), len(obsBuf))
 
 	batch := gossipv1.SignedObservationBatch{
 		Addr:         crypto.PubkeyToAddress(gk.PublicKey).Bytes(),

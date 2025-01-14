@@ -268,7 +268,7 @@ func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error)
 
 	var msg *common.MessagePublication
 	if isOld {
-		msg, err = common.UnmarshalOldMessagePublicationBeforeIsReobservation(buf)
+		msg, err = common.UnmarshalOldMessagePublicationWithTxHash(buf)
 	} else {
 		msg, err = common.UnmarshalMessagePublication(buf)
 	}
@@ -290,10 +290,10 @@ const transferLen = len(transfer)
 // The first time we run this new release, any existing entries with the "GOV:PENDING2" tag will get converted
 // to the new format and given the "GOV:PENDING3" format. In a future release, the "GOV:PENDING2" code can be deleted.
 
-const oldPending = "GOV:PENDING2:"
+const oldPending = "GOV:PENDING3:"
 const oldPendingLen = len(oldPending)
 
-const pending = "GOV:PENDING3:"
+const pending = "GOV:PENDING4:"
 const pendingLen = len(pending)
 
 const minMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")

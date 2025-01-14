@@ -374,8 +374,9 @@ var someMsgEmitterChain vaa.ChainID = vaa.ChainIDSolana
 
 func someMessage() *common.MessagePublication {
 	someMsgSequenceCounter++
+	txID := [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3}
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3},
+		TxID:             txID[:],
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         someMsgSequenceCounter,
@@ -439,8 +440,9 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 	)
 
 	tokenBridgeSequenceCounter++
+	txID := [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76}
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76},
+		TxID:             txID[:],
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         tokenBridgeSequenceCounter,
@@ -458,7 +460,7 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 		if t.unavailableInReobservation {
 			continue
 		}
-		db[t.msg.TxHash] = t.msg
+		db[eth_common.BytesToHash(t.msg.TxID)] = t.msg
 	}
 	return db
 }
@@ -748,7 +750,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 					_, err := adminCs[adminRpcGuardianIndex].SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
 							ChainId: uint32(testCase.msg.EmitterChain),
-							TxHash:  testCase.msg.TxHash[:],
+							TxHash:  testCase.msg.TxID,
 						},
 					})
 					queryCancel()

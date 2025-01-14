@@ -194,7 +194,7 @@ func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *
 func (pd *ProcessorData) createMessagePublication(b *testing.B, sequence uint64) *common.MessagePublication {
 	b.Helper()
 	return &common.MessagePublication{
-		TxHash:           ethCommon.HexToHash(fmt.Sprintf("%064x", sequence)),
+		TxID:             ethCommon.HexToHash(fmt.Sprintf("%064x", sequence)).Bytes(),
 		Timestamp:        time.Now(),
 		Nonce:            42,
 		Sequence:         sequence,
@@ -235,7 +235,7 @@ func (pd *ProcessorData) createObservation(b *testing.B, guardianIdx int, k *com
 	return &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
-		TxHash:    k.TxHash.Bytes(),
+		TxHash:    k.TxID,
 		MessageId: pd.messageID(k.Sequence),
 	}
 }

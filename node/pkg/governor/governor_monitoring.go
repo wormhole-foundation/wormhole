@@ -381,7 +381,7 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 				Sequence:       pe.dbData.Msg.Sequence,
 				ReleaseTime:    uint32(pe.dbData.ReleaseTime.Unix()),
 				NotionalValue:  value,
-				TxHash:         pe.dbData.Msg.TxHash.String(),
+				TxHash:         pe.dbData.Msg.TxIDString(),
 			})
 		}
 	}
@@ -649,7 +649,7 @@ func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartb
 					Sequence:      pe.dbData.Msg.Sequence,
 					ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
 					NotionalValue: value,
-					TxHash:        pe.dbData.Msg.TxHash.String(),
+					TxHash:        pe.dbData.Msg.TxIDString(),
 				})
 			}
 		}
