@@ -50,8 +50,9 @@ import (
 //     it has about the digest.
 //   - deliveryCommand is used to inform the ftTracker that a guardian saw a message and forwarded it
 //     to the fullParty.
-//   - prepareToSignCommand is used to know which guardians aren't to be used in the protocol for
-//     specific chainID.
+//   - prepareToSignCommand is used prior to trying to sign a digest.
+//     it provides the current state of the FTtracker's knowledge (faults for specific ChainID),
+//     and whether a digest has already been requested to be signed.
 //   - reportProblemCommand is used to deliver a problem message from another
 //     guardian (after it was accepted by the reliable-broadcast protocol).
 type ftCommand interface {
