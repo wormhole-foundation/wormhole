@@ -698,12 +698,12 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 }
 
 // Converts a string into a go-ethereum Hash object used as test input.
-func hashFromString(str string) eth_common.Hash {
+func hashToTxID(str string) []byte {
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]
 	}
 
-	return eth_common.HexToHash(str)
+	return eth_common.HexToHash(str).Bytes()
 }
 
 func TestVaaForUninterestingEmitterChain(t *testing.T) {
@@ -717,7 +717,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	payload := []byte{1, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -749,7 +749,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	payload := []byte{1, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -782,7 +782,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	payload := []byte{2, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -886,7 +886,7 @@ func TestVaaForUninterestingToken(t *testing.T) {
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -971,7 +971,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 
 	// Transfer from Ethereum to Sui via the token bridge
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        transferTime,
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -989,7 +989,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 
 	// Transfer from Sui to Ethereum via the token bridge
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0xabc123f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
+		TxID:             hashToTxID("0xabc123f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        transferTime,
 		Nonce:            uint32(2),
 		Sequence:         uint64(2),
@@ -1007,7 +1007,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 
 	// msg and asset that are NOT flow cancelable
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		TxID:             hashToTxID("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
 		Timestamp:        time.Unix(int64(transferTime.Unix()+1), 0),
 		Nonce:            uint32(3),
 		Sequence:         uint64(3),
@@ -1204,7 +1204,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 
 	// Transfer from Ethereum to Sui via the token bridge
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        transferTime,
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1222,7 +1222,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 
 	// Transfer from Sui to Ethereum via the token bridge
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0xabc123f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
+		TxID:             hashToTxID("0xabc123f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        transferTime,
 		Nonce:            uint32(2),
 		Sequence:         uint64(2),
@@ -1240,7 +1240,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 
 	// msg and asset that are NOT flow cancelable
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		TxID:             hashToTxID("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
 		Timestamp:        time.Unix(int64(transferTime.Unix()+1), 0),
 		Nonce:            uint32(3),
 		Sequence:         uint64(3),
@@ -1391,7 +1391,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 
 	// The first two transfers should be accepted.
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1402,7 +1402,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	}
 
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(2),
@@ -1444,7 +1444,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	)
 
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(3),
@@ -1467,7 +1467,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 
 	// But a small one should still go through.
 	msg4 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(4),
@@ -1517,7 +1517,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	)
 
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1549,7 +1549,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	)
 
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1581,7 +1581,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	)
 
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1613,7 +1613,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	)
 
 	msg4 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1744,7 +1744,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 
 	// First message: consume most of the dailyLimit for the emitter chain
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		TxID:             hashToTxID("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
 		Timestamp:        time.Unix(int64(transferTime.Unix()+1), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -1762,7 +1762,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 
 	// Second message: This transfer gets queued because the limit is exhausted
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		TxID:             hashToTxID("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
 		Timestamp:        time.Unix(int64(transferTime.Unix()+2), 0),
 		Nonce:            uint32(2),
 		Sequence:         uint64(2),
@@ -1781,7 +1781,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	// Third message: Incoming flow cancelling transfer to the emitter chain for the previous messages. This
 	// reduces the Governor usage for that chain.
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
+		TxID:             hashToTxID("0x888888f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a8888"),
 		Timestamp:        time.Unix(int64(transferTime.Unix()+3), 0),
 		Nonce:            uint32(3),
 		Sequence:         uint64(3),
@@ -1973,7 +1973,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	// The first VAA should be accepted.
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2003,7 +2003,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	// And so should the second.
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2033,7 +2033,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	// But the third, big one should be queued up.
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2063,7 +2063,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	// A fourth, smaller, but still too big one, should get enqueued.
 	msg4 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2093,7 +2093,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	// A fifth, smaller, but still too big one, should also get enqueued.
 	msg5 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2123,7 +2123,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 	// A sixth, big one should also get enqueued.
 	msg6 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2223,7 +2223,7 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 
 	// message that, when processed, should exceed the big transfer size
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        messageTimestamp,
 		Nonce:            uint32(1),
 		Sequence:         uint64(3),
@@ -2284,7 +2284,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 
 	// The first small transfer should be accepted.
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2314,7 +2314,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 
 	// And so should the second.
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(2),
@@ -2344,7 +2344,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 
 	// But the third big one should get enqueued.
 	msg3 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(3),
@@ -2501,7 +2501,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 
 	// Submit a small transfer that will get enqueued due to the low daily limit.
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2606,7 +2606,7 @@ func TestTransferPayloadTooShort(t *testing.T) {
 	payloadBytes1 = payloadBytes1[0 : len(payloadBytes1)-1]
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -2697,7 +2697,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	pending1 := &db.PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 24),
 		Msg: common.MessagePublication{
-			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        time.Unix(int64(1654543099), 0),
 			Nonce:            uint32(1),
 			Sequence:         uint64(200),
@@ -2712,7 +2712,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	pending2 := &db.PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 24),
 		Msg: common.MessagePublication{
-			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        time.Unix(int64(1654543099), 0),
 			Nonce:            uint32(1),
 			Sequence:         uint64(201),
@@ -2963,7 +2963,7 @@ func TestReobservationOfPublishedMsg(t *testing.T) {
 
 	// The first transfer should be accepted.
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -3026,7 +3026,7 @@ func TestReobservationOfEnqueued(t *testing.T) {
 
 	// A big transfer should get enqueued.
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -3088,7 +3088,7 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 
 	// The first transfer should be accepted.
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -3118,7 +3118,7 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 
 	// A second message with the same msgId but a different payload should also get published and apply to the notional value.
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -3291,7 +3291,7 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 
 	// Create two big transactions.
 	msg1 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -3308,7 +3308,7 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 	}
 
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(2),
 		Sequence:         uint64(2),

@@ -11,8 +11,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	ethCommon "github.com/ethereum/go-ethereum/common"
-
 	tmAbci "github.com/tendermint/tendermint/abci/types"
 	tmHttp "github.com/tendermint/tendermint/rpc/client/http"
 	tmCoreTypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -181,7 +179,7 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 	)
 
 	msg := &common.MessagePublication{
-		TxHash:           ethCommon.BytesToHash(xfer.TxHash),
+		TxID:             xfer.TxHash,
 		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,

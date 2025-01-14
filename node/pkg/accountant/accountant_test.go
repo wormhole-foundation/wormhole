@@ -138,12 +138,12 @@ func newAccountantForTest(
 }
 
 // Converts a string into a go-ethereum Hash object used as test input.
-func hashFromString(str string) ethCommon.Hash { //nolint:unparam
+func hashToTxID(str string) []byte {
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]
 	}
 
-	return ethCommon.HexToHash(str)
+	return ethCommon.HexToHash(str).Bytes()
 }
 
 // Note this method assumes 18 decimals for the amount.
@@ -188,7 +188,7 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 	var payload = []byte{1, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -216,7 +216,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	var payload = []byte{2, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -251,7 +251,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 	)
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -295,7 +295,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 	)
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -347,7 +347,7 @@ func TestForDeadlock(t *testing.T) {
 	)
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1683136244),
@@ -374,7 +374,7 @@ func TestForDeadlock(t *testing.T) {
 	assert.Equal(t, 1, len(acct.msgChan))
 
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1683136244),

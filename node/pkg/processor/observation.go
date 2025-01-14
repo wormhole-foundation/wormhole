@@ -8,7 +8,6 @@ import (
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -113,7 +112,6 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(addr)),
 			zap.String("txhash", hex.EncodeToString(m.TxHash)),
-			zap.String("txhash_b58", base58.Encode(m.TxHash)),
 		)
 	}
 

@@ -67,7 +67,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if !exists {
 		gov.logger.Error("reloaded pending transfer for unsupported chain, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -81,7 +81,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if msg.EmitterAddress != ce.emitterAddr {
 		gov.logger.Error("reloaded pending transfer for unsupported emitter address, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -96,7 +96,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if err != nil {
 		gov.logger.Error("failed to parse payload for reloaded pending transfer, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -113,7 +113,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if !exists {
 		gov.logger.Error("reloaded pending transfer for unsupported token, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -131,7 +131,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if _, alreadyExists := gov.msgsSeen[hash]; alreadyExists {
 		gov.logger.Error("not reloading pending transfer because it is a duplicate",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -146,7 +146,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 
 	gov.logger.Info("reloaded pending transfer",
 		zap.String("MsgID", msg.MessageIDString()),
-		zap.Stringer("TxHash", msg.TxHash),
+		zap.String("txID", msg.TxIDString()),
 		zap.Stringer("Timestamp", msg.Timestamp),
 		zap.Uint32("Nonce", msg.Nonce),
 		zap.Uint64("Sequence", msg.Sequence),

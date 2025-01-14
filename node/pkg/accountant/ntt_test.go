@@ -50,7 +50,7 @@ func TestNttParseMsgSuccess(t *testing.T) {
 	}
 
 	msg := &common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(42),
 		Sequence:         uint64(123456),
@@ -77,7 +77,7 @@ func TestNttParseMsgWrongEmitterChain(t *testing.T) {
 	}
 
 	msg := &common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(42),
 		Sequence:         uint64(123456),
@@ -106,7 +106,7 @@ func TestNttParseMsgWrongEmitterAddress(t *testing.T) {
 	}
 
 	msg := &common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(42),
 		Sequence:         uint64(123456),
@@ -221,7 +221,7 @@ func TestNttParseArMsgSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := &common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1708575745), 0),
 		Nonce:            uint32(0),
 		Sequence:         uint64(259),
@@ -258,7 +258,7 @@ func TestNttParseArMsgUnknownArEmitter(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := &common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1708575745), 0),
 		Nonce:            uint32(0),
 		Sequence:         uint64(259),
