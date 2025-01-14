@@ -192,6 +192,8 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 	go func() {
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-s.quit:
 				return
 			default:
@@ -210,7 +212,7 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				// Handle subscription until error occurs
 				// TODO: This section of code should have a limit on the number of times it will retry
 				// and fail if it can't connect a certain number of times
-				err = s.handleSubscription(subscription)
+				err = s.handleSubscription(ctx, subscription)
 
 				if err != nil {
 					s.errC <- err
@@ -221,9 +223,12 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 	}()
 }
 
-func (s *Subscription) handleSubscription(subscription event.Subscription) error {
+func (s *Subscription) handleSubscription(ctx context.Context, subscription event.Subscription) error {
 	for {
 		select {
+		case <-ctx.Done():
+			subscription.Unsubscribe()
+			return nil
 		case <-s.quit:
 			subscription.Unsubscribe()
 			return nil
