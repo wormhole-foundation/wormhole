@@ -49,6 +49,14 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 		return nil, types.ErrGuardianSetNotFound
 	}
 
+	// With the change to allow hot swapping on validator sets > 1 validator, this check is no
+	// longer useful. However, it is necessary. This check ensures the gas usage of the transaction
+	// matches the previous implementation as this is included in a non-consensus breaking change.
+	_, consensusIndexFound := k.GetConsensusGuardianSetIndex(ctx)
+	if !consensusIndexFound {
+		return nil, types.ErrConsensusSetUndefined
+	}
+
 	if !latestGuardianSet.ContainsKey(guardianKeyAddr) {
 		return nil, types.ErrGuardianNotFound
 	}
