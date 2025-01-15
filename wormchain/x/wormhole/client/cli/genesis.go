@@ -384,7 +384,7 @@ func CmdGenerateGuardianSetUpdatea() *cobra.Command {
 			}
 
 			action := vaa.ActionGuardianSetUpdate
-			chain := 3104
+			chain := vaa.ChainIDWormchain
 			module := [32]byte{}
 			copy(module[:], vaa.CoreModule)
 			msg := types.NewGovernanceMessage(module, byte(action), uint16(chain), set_update)
@@ -490,7 +490,7 @@ func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
 			binary.BigEndian.PutUint64(slashingUpdate[32:40], slashFractionDowntimeDec.BigInt().Uint64())
 
 			action := vaa.ActionSlashingParamsUpdate
-			chain := 3104
+			chain := vaa.ChainIDWormchain
 			module := [32]byte{}
 			copy(module[:], vaa.CoreModule)
 			msg := types.NewGovernanceMessage(module, byte(action), uint16(chain), slashingUpdate)

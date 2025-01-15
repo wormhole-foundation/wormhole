@@ -227,4 +227,18 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// verify the slashing params
 	verifyParams(t, ctx, wormchain)
+
+	// ------------------------------
+
+	// create a governance VAA - negative string values
+	payloadBytes, err = createSlashingParamsUpdate(200, "-0.1", 300, "-0.2", "-2.0")
+	require.NoError(t, err)
+
+	// create and send
+	err = createAndExecuteVaa(ctx, guardians, wormchain, payloadBytes)
+	// TODO: ON COSMOS SDK V0.47 - WILL ERROR
+	require.NoError(t, err)
+
+	// verify the slashing params
+	verifyParams(t, ctx, wormchain)
 }
