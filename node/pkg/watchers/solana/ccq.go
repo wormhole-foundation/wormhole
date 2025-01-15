@@ -225,7 +225,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 		}
 		results = append(results, query.SolanaAccountResult{
 			Lamports:   val.Lamports,
-			RentEpoch:  val.RentEpoch,
+			RentEpoch:  val.RentEpoch.Uint64(),
 			Executable: val.Executable,
 			Owner:      val.Owner,
 			Data:       val.Data.GetBinary(),
