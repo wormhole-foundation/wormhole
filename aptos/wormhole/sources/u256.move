@@ -829,7 +829,17 @@ module wormhole::u256 {
         let a = as_u128(from_u64(100));
         assert!(a == 100, 0);
 
-        // TODO: more tests.
+        // Test max u64 value
+        let max_u64 = from_u64((U64_MAX as u64));
+        assert!(as_u128(max_u64) == (U64_MAX as u128), 1);
+        
+        // Test zero
+        let zero = from_u64(0);
+        assert!(as_u128(zero) == 0, 2);
+        
+        // Test power of 2
+        let pow_2 = from_u64(1 << 32);
+        assert!(as_u128(pow_2) == (1u128 << 32), 3);
     }
 
     #[test]
@@ -857,20 +867,55 @@ module wormhole::u256 {
     fun test_shift_left() {
         let a = from_u128(100);
         let b = shl(a, 2);
-
         assert!(as_u128(b) == 400, 0);
 
-        // TODO: more shift left tests.
+        // Test shifting by 64 bits (word boundary)
+        let large = from_u128(0x1);
+        let shifted = shl(large, 64);
+        assert!(shifted.v0 == 0, 1);
+        assert!(shifted.v1 == 1, 2);
+        assert!(shifted.v2 == 0, 3);
+        assert!(shifted.v3 == 0, 4);
+
+        // Test shifting across multiple words
+        let multi_word = from_u128(0x1);
+        let shifted_multi = shl(multi_word, 65);
+        assert!(shifted_multi.v0 == 0, 5);
+        assert!(shifted_multi.v1 == 2, 6);
+        assert!(shifted_multi.v2 == 0, 7);
+        assert!(shifted_multi.v3 == 0, 8);
+
+        // Test shifting zero
+        let zero = shl(zero(), 5);
+        assert!(zero.v0 == 0 && zero.v1 == 0 && zero.v2 == 0 && zero.v3 == 0, 9);
     }
 
     #[test]
     fun test_shift_right() {
         let a = from_u128(100);
         let b = shr(a, 2);
-
         assert!(as_u128(b) == 25, 0);
 
-        // TODO: more shift right tests.
+        // Test shifting by 64 bits (word boundary)
+        let large = zero();
+        let large = U256 { v0: 0, v1: 0x1, v2: 0, v3: 0 };
+        let shifted = shr(large, 64);
+        assert!(shifted.v0 == 1, 1);
+        assert!(shifted.v1 == 0, 2);
+        assert!(shifted.v2 == 0, 3);
+        assert!(shifted.v3 == 0, 4);
+
+        // Test shifting across multiple words
+        let multi_word = U256 { v0: 0, v1: 0, v2: 0x1, v3: 0 };
+        let shifted_multi = shr(multi_word, 65);
+        assert!(shifted_multi.v0 == 0, 5);
+        assert!(shifted_multi.v1 == 0x8000000000000000, 6);
+        assert!(shifted_multi.v2 == 0, 7);
+        assert!(shifted_multi.v3 == 0, 8);
+
+        // Test shifting zero
+        let zero = shr(zero(), 5);
+        assert!(zero.v0 == 0 && zero.v1 == 0 && zero.v2 == 0 && zero.v3 == 0, 9);
     }
 
     #[test]
