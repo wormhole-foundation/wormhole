@@ -746,8 +746,7 @@ func (tv *TransferVerifier[ethClient, Connector]) chainId(
 		return 0, errors.New("result for chainId has insufficient length")
 	}
 
-	// TODO: should this be big endian?
-	chainID := vaa.ChainID(binary.LittleEndian.Uint16(result))
+	chainID := vaa.ChainID(binary.BigEndian.Uint16(result))
 
 	tv.nativeChainCache[tokenAddressAsKey] = chainID
 
@@ -797,7 +796,6 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 
 	// The boolean result will be returned as a byte string with length
 	// equal to EVM_WORD_LENGTH. Grab the last byte.
-	// TODO is 1 == true? Does this work?
 	wrapped := result[EVM_WORD_LENGTH-1] == 1
 
 	tv.isWrappedCache[tokenAddressAsKey] = wrapped
@@ -999,7 +997,6 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	// An ERC20 token's decimals should fit in a single byte. A call to `decimals()`
 	// returns a uint8 value encoded in string with 32-bytes. To get the decimals,
 	// we grab the last byte, expecting all the preceding bytes to be equal to 0.
-	// TODO: find out if there is some official documentation for why this uint8 is in the last index of the 32byte return.
 	decimals = result[EVM_WORD_LENGTH-1]
 
 	// Add the decimal value to the cache
