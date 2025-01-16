@@ -378,6 +378,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					return err
 				}
 			case m := <-s.obsvReqC:
+				if m.ChainId != uint32(s.chainID) {
+					panic("unexpected chain id")
+				}
 				if len(m.TxHash) == SolanaAccountLen { // Request by account ID
 					acc := solana.PublicKeyFromBytes(m.TxHash)
 					logger.Info("received observation request with account id", zap.String("account", acc.String()))
@@ -385,7 +388,6 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					s.fetchMessageAccount(rCtx, logger, acc, 0, true)
 					cancel()
 				} else if len(m.TxHash) == SolanaSignatureLen { // Request by transaction ID
-					// Move this to a separate PR.
 					signature := solana.SignatureFromBytes(m.TxHash)
 					logger.Info("received observation request with transaction id", zap.Stringer("signature", signature))
 					rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
@@ -973,21 +975,6 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		ConsistencyLevel: proposal.ConsistencyLevel,
 		IsReobservation:  isReobservation,
 		Unreliable:       !reliable,
-	}
-
-	if !reliable && len(observation.Payload) == 0 {
-		logger.Debug("ignoring an observation because it is marked unreliable and has a zero length payload, probably from the shim",
-			zap.Stringer("account", acc),
-			zap.Time("timestamp", observation.Timestamp),
-			zap.Uint32("nonce", observation.Nonce),
-			zap.Uint64("sequence", observation.Sequence),
-			zap.Stringer("emitter_chain", observation.EmitterChain),
-			zap.Stringer("emitter_address", observation.EmitterAddress),
-			zap.Bool("isReobservation", isReobservation),
-			zap.Binary("payload", observation.Payload),
-			zap.Uint8("consistency_level", observation.ConsistencyLevel),
-		)
-		return
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
