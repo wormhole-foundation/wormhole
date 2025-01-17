@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/mr-tron/base58"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -79,6 +81,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		p.logger.Debug("observed and signed confirmed message publication",
 			zap.String("message_id", k.MessageIDString()),
 			zap.String("txID", k.TxIDString()),
+			zap.String("txID_b58", base58.Encode(k.TxID)),
 			zap.String("hash", hash),
 			zap.Uint32("nonce", k.Nonce),
 			zap.Time("timestamp", k.Timestamp),
