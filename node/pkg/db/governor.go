@@ -287,8 +287,8 @@ const transfer = "GOV:XFER3:"
 const transferLen = len(transfer)
 
 // Since we are changing the DB format of pending entries, we will use a new tag in the pending key field.
-// The first time we run this new release, any existing entries with the "GOV:PENDING2" tag will get converted
-// to the new format and given the "GOV:PENDING3" format. In a future release, the "GOV:PENDING2" code can be deleted.
+// The first time we run this new release, any existing entries with the old tag will get converted
+// to the new format and the new tag. In a future release, code for the old format can be deleted.
 
 const oldPending = "GOV:PENDING3:"
 const oldPendingLen = len(oldPending)
