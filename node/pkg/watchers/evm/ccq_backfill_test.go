@@ -66,7 +66,7 @@ func TestCcqBackFillDetermineMaxBatchSize(t *testing.T) {
 		}
 		require.Equal(t, batchSize, int64(len(blocks)))
 
-		blockNum := uint64(latestBlockNum)
+		blockNum := uint64(latestBlockNum) // #nosec G115 -- This value is set above so the conversion is safe
 		for _, block := range blocks {
 			assert.Equal(t, blockNum, block.BlockNum)
 			assert.Equal(t, blockNum*10, block.Timestamp)

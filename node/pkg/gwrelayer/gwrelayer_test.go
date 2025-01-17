@@ -72,7 +72,7 @@ func Test_shouldPublishToIbcTranslator(t *testing.T) {
 				Signatures:       []*vaa.Signature{},
 				Timestamp:        time.Unix(0, 0),
 				Nonce:            uint32(1),
-				Sequence:         uint64(seqNum),
+				Sequence:         uint64(seqNum), // #nosec G115 -- We're iterating over a fixed length array defined above
 				ConsistencyLevel: uint8(32),
 				EmitterChain:     vaa.ChainIDSolana,
 				EmitterAddress:   solanaEmitter,
