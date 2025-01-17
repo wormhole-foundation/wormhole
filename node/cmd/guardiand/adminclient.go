@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -311,6 +312,10 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
+	// Although chains ids are constrained to be 16 bit, we only constrain to 32 bit here given the protobuf usage later
+	if chainID > math.MaxUint32 {
+		log.Fatalf("chain ID is not a valid 32 bit unsigned integer: %v", err)
+	}
 	emitterAddress := args[1]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -352,6 +357,10 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	chainID, err := strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
+	}
+	// We only constrain this to int32 now, not uint16, given the ChainID protobuf definition
+	if chainID > math.MaxInt32 {
+		log.Fatalf("chain id must not exceed the max int32: %v", chainID)
 	}
 	emitterAddress := parts[1]
 	seq, err := strconv.ParseUint(parts[2], 10, 64)

@@ -549,7 +549,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.EmitterChain = vaa.ChainID(unumber)
+	evt.Msg.EmitterChain = vaa.ChainID(unumber) // #nosec G115 -- Already range checked by `GetAsUint`
 
 	str, err = attributes.GetAsString("message.sender")
 	if err != nil {

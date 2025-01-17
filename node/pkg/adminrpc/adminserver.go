@@ -285,7 +285,7 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 		ChainId:      vaa.ChainID(req.ChainId),
 		TokenChain:   vaa.ChainID(req.TokenChain),
 		TokenAddress: tokenAdress,
-		Kind:         uint8(req.Kind),
+		Kind:         uint8(req.Kind), // #nosec G115 -- The `ModificationKind` enum only has 3 values
 		Amount:       amount,
 		Reason:       req.Reason,
 	}.Serialize()
@@ -671,6 +671,9 @@ func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ABI encoded call: %w", err)
 	}
+	if evmCall.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", evmCall.ChainId)
+	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceEvm{
 		ChainID:            vaa.ChainID(evmCall.ChainId),
@@ -702,6 +705,9 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 	instruction, err := hex.DecodeString(solanaCall.EncodedInstruction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode instruction: %w", err)
+	}
+	if solanaCall.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", solanaCall.ChainId)
 	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceSolana{
@@ -920,6 +926,9 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	b, err := hex.DecodeString(req.EmitterAddress)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid emitter address encoding: %v", err)
+	}
+	if req.EmitterChain > math.MaxUint16 {
+		return nil, status.Errorf(codes.InvalidArgument, "chain id exceeds max uint16: %v", req.EmitterChain)
 	}
 	emitterAddress := vaa.Address{}
 	copy(emitterAddress[:], b)

@@ -429,7 +429,7 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 		amount = 1_000_000_000_000
 	}
 
-	tokenAddrStr := "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001" // nolint:gosec // wrapped-SOL
+	tokenAddrStr := "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001" // #nosec G101 -- Address for testing
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"                          // whatever
 	payloadBytes := buildMockTransferPayloadBytes(
 		vaa.ChainIDSolana,

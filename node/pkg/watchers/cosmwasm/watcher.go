@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -243,7 +244,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != e.chainID {
+				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
 					panic("invalid chain ID")
 				}
 

@@ -237,7 +237,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
-		Timestamp:        time.Unix(int64(ts), 0),
+		Timestamp:        time.Unix(int64(ts), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            pubEvent.Nonce,
 		Sequence:         pubEvent.Seq,
 		EmitterChain:     vaa.ChainIDNear,

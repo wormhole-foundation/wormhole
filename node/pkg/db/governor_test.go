@@ -566,7 +566,7 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 
 	b := marshalOldMessagePublication(&p.Msg)
 
@@ -586,7 +586,7 @@ func marshalOldMessagePublication(msg *common.MessagePublication) []byte {
 	buf := new(bytes.Buffer)
 
 	buf.Write(msg.TxID[:])
-	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
 	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
 	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
@@ -799,7 +799,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 func marshalOldTransfer(xfer *Transfer) []byte {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, xfer.Value)
 	vaa.MustWrite(buf, binary.BigEndian, xfer.OriginChain)
 	buf.Write(xfer.OriginAddress[:])

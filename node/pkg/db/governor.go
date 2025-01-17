@@ -65,7 +65,7 @@ type Transfer struct {
 func (t *Transfer) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(t.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(t.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, t.Value)
 	vaa.MustWrite(buf, binary.BigEndian, t.OriginChain)
 	buf.Write(t.OriginAddress[:])
@@ -236,7 +236,7 @@ type PendingTransfer struct {
 func (p *PendingTransfer) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 
 	b, err := p.Msg.Marshal()
 	if err != nil {

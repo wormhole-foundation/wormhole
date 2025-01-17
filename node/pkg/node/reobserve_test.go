@@ -66,7 +66,7 @@ func TestReobservationRequest(t *testing.T) {
 
 	ctx.obsvReqC <- req
 
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 
 	assert.Equal(t, req, actual)
