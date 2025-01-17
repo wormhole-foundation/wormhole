@@ -260,7 +260,7 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, MSG_VERSION)        // version
 	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries))) // #nosec G115 -- `PerChainQueries` length checked in `Validate`
 	for _, perChainQuery := range queryRequest.PerChainQueries {
 		pcqBuf, err := perChainQuery.Marshal()
 		if err != nil {
@@ -375,7 +375,7 @@ func (perChainQuery *PerChainQueryRequest) Marshal() ([]byte, error) {
 	if len(queryBuf) > math.MaxUint32 {
 		return nil, fmt.Errorf("query too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf))) // #nosec G115 -- This conversion is safe as it is checked above
 
 	buf.Write(queryBuf)
 	return buf.Bytes(), nil

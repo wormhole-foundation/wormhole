@@ -77,6 +77,7 @@ package governor
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -396,6 +397,10 @@ func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, err
 
 	if msgId == nil {
 		return false, fmt.Errorf("no message ID specified")
+	}
+
+	if msgId.EmitterChain.Number() > math.MaxUint16 {
+		return false, fmt.Errorf("emitter chain id must be no greater than 16 bits")
 	}
 
 	emitterChain := vaa.ChainID(msgId.EmitterChain)

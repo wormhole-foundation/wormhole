@@ -296,7 +296,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case r := <-w.obsvReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
-				if vaa.ChainID(r.ChainId) != w.chainID {
+				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != w.chainID {
 					panic("invalid chain ID")
 				}
 
