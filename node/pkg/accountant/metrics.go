@@ -10,7 +10,7 @@ var (
 	transfersOutstanding = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "global_accountant_transfer_vaas_outstanding",
-			Help: "Current number of accountant transfers vaas in the pending state",
+			Help: "Current number of accountant transfer vaas in the pending state",
 		})
 	transfersSubmitted = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -57,4 +57,19 @@ var (
 			Name: "global_accountant_audit_errors_total",
 			Help: "Total number of audit errors detected by accountant",
 		})
+	guardianSignatures = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "global_accountant_guardian_signatures_total",
+			Help: "Total number of VAAs signed by each guardian for each chain",
+		},
+		[]string{"guardian", "chain"},
+	)
 )
+
+// RecordGuardianSignature increments the guardianSignatures metric for the given guardian and chain.
+func RecordGuardianSignature(guardianName, chainName string) {
+	guardianSignatures.With(prometheus.Labels{
+		"guardian": guardianName,
+		"chain":    chainName,
+	}).Inc()
+}
