@@ -359,7 +359,7 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	// Use deterministic devnet addresses as examples in the template, such that this doubles as a test fixture.
 	guardians := make([]*nodev1.GuardianSetUpdate_Guardian, *setUpdateNumGuardians)
 	for i := 0; i < *setUpdateNumGuardians; i++ {
-		k := devnet.InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(i))
+		k := devnet.InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(i)) // #nosec G115 -- Number of guardians will never overflow here
 		guardians[i] = &nodev1.GuardianSetUpdate_Guardian{
 			Pubkey: crypto.PubkeyToAddress(k.PublicKey).Hex(),
 			Name:   fmt.Sprintf("Example validator %d", i),
@@ -367,7 +367,7 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
