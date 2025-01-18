@@ -515,6 +515,12 @@ contract TestGovernance is TestUtils {
         vm.assume(storageSlot != hashedLocationOffset(1, GUARDIANSETS_SLOT, 0));
 
         vm.assume(storageSlot != GUARDIANSETINDEX_SLOT);
+
+        // We expect the hash of the existing and the new guardian sets to change
+        uint32 currentGuardianSetIndex = proxied.getCurrentGuardianSetIndex();
+        vm.assume(storageSlot != hashedLocation(currentGuardianSetIndex, GUARDIANSETHASHES_STORAGE_INDEX));
+        vm.assume(storageSlot != hashedLocation(currentGuardianSetIndex + 1, GUARDIANSETHASHES_STORAGE_INDEX));
+
         vm.assume(0 < newGuardianSet.length);
         vm.assume(newGuardianSet.length < 20);
 
@@ -532,12 +538,17 @@ contract TestGovernance is TestUtils {
 
         vm.assume(storageSlot != hashedLocation(hash, CONSUMED_ACTIONS_SLOT));
 
+        assertEq(proxied.getGuardianSetHash(currentGuardianSetIndex), bytes32(0));
+        assertEq(proxied.getGuardianSetHash(currentGuardianSetIndex + 1), bytes32(0));
+
         proxied.submitNewGuardianSet(_vm);
 
         assertEq(true, proxied.governanceActionIsConsumed(hash));
         assertEq(uint32(block.timestamp) + 86400, proxied.getGuardianSet(0).expirationTime);
         assertEq(newGuardianSet, proxied.getGuardianSet(1).keys);
         assertEq(1, proxied.getCurrentGuardianSetIndex());
+        assertNotEq(proxied.getGuardianSetHash(currentGuardianSetIndex), bytes32(0));
+        assertNotEq(proxied.getGuardianSetHash(currentGuardianSetIndex + 1), bytes32(0));
     }
 
     function testSubmitNewGuardianSet_Revert_InvalidModule(
@@ -765,6 +776,10 @@ contract TestGovernance is TestUtils {
 
         // New GuardianSet array length should be initialized from zero to non-zero
         vm.assume(storageSlot != hashedLocationOffset(1, GUARDIANSETS_SLOT, 0));
+
+        // We expect the hash of the changing and the new guardian sets to change
+        vm.assume(storageSlot != hashedLocation(proxied.getCurrentGuardianSetIndex(), GUARDIANSETHASHES_STORAGE_INDEX));
+        vm.assume(storageSlot != hashedLocation(proxied.getCurrentGuardianSetIndex() + 1, GUARDIANSETHASHES_STORAGE_INDEX));
 
         vm.assume(storageSlot != GUARDIANSETINDEX_SLOT);
         vm.assume(0 < newGuardianSet.length);
