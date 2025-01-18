@@ -552,13 +552,13 @@ func (ecd *EthCallQueryRequest) Marshal() ([]byte, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.BlockId))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData))) // #nosec G115 -- This is validated in `Validate`
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(callData.Data)
 	}
 	return buf.Bytes(), nil
@@ -684,16 +684,16 @@ func (ecd *EthCallByTimestampQueryRequest) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	vaa.MustWrite(buf, binary.BigEndian, ecd.TargetTimestamp)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.TargetBlockIdHint)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.TargetBlockIdHint))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.TargetBlockIdHint))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.FollowingBlockIdHint)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.FollowingBlockIdHint))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.FollowingBlockIdHint))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData))) // #nosec G115 -- This is validated in `Validate`
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(callData.Data)
 	}
 	return buf.Bytes(), nil
@@ -850,16 +850,16 @@ func (ecd *EthCallWithFinalityQueryRequest) Marshal() ([]byte, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.BlockId))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.Finality)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.Finality))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.Finality))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData))) // #nosec G115 -- This is validated in `Validate`
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(callData.Data)
 	}
 	return buf.Bytes(), nil
@@ -1010,14 +1010,14 @@ func (saq *SolanaAccountQueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(saq.Commitment)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(saq.Commitment))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(saq.Commitment))
 
 	vaa.MustWrite(buf, binary.BigEndian, saq.MinContextSlot)
 	vaa.MustWrite(buf, binary.BigEndian, saq.DataSliceOffset)
 	vaa.MustWrite(buf, binary.BigEndian, saq.DataSliceLength)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(saq.Accounts)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(saq.Accounts))) // #nosec G115 -- This is validated in `Validate`
 	for _, acct := range saq.Accounts {
 		buf.Write(acct[:])
 	}
@@ -1142,19 +1142,19 @@ func (spda *SolanaPdaQueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(spda.Commitment)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(spda.Commitment))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(spda.Commitment))
 
 	vaa.MustWrite(buf, binary.BigEndian, spda.MinContextSlot)
 	vaa.MustWrite(buf, binary.BigEndian, spda.DataSliceOffset)
 	vaa.MustWrite(buf, binary.BigEndian, spda.DataSliceLength)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(spda.PDAs)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(spda.PDAs))) // #nosec G115 -- This is validated in `Validate`
 	for _, pda := range spda.PDAs {
 		buf.Write(pda.ProgramAddress[:])
-		vaa.MustWrite(buf, binary.BigEndian, uint8(len(pda.Seeds)))
+		vaa.MustWrite(buf, binary.BigEndian, uint8(len(pda.Seeds))) // #nosec G115 -- This is validated in `Validate`
 		for _, seed := range pda.Seeds {
-			vaa.MustWrite(buf, binary.BigEndian, uint32(len(seed)))
+			vaa.MustWrite(buf, binary.BigEndian, uint32(len(seed))) // #nosec G115 -- This is validated in `Validate`
 			buf.Write(seed)
 		}
 	}
