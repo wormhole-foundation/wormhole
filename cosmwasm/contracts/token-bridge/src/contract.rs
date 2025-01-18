@@ -16,7 +16,7 @@ use cw_wormhole::{
     },
     error::ContractError,
     msg::{ExecuteMsg as WormholeExecuteMsg, QueryMsg as WormholeQueryMsg},
-    state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
+    state::{vaa_archive_check, GovernancePacket, ParsedVAA, VAA_ARCHIVE},
 };
 
 #[cfg(not(feature = "library"))]
@@ -643,7 +643,7 @@ fn parse_and_archive_vaa(
     if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
         return ContractError::VaaAlreadyExecuted.std_err();
     }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+    VAA_ARCHIVE.save(deps.storage, vaa.hash.as_slice(), &true)?;
 
     // check if vaa is from governance
     if is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
