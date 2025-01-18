@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"time"
 
@@ -321,6 +322,16 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	consistencyLevel := data.Get("consistency_level")
 	if !consistencyLevel.Exists() {
 		logger.Error("consistencyLevel field missing")
+		return
+	}
+
+	if nonce.Uint() > math.MaxUint32 {
+		logger.Error("nonce is larger than expected MaxUint32")
+		return
+	}
+
+	if consistencyLevel.Uint() > math.MaxUint8 {
+		logger.Error("consistency level is larger than expected MaxUint8")
 		return
 	}
 

@@ -123,7 +123,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			MockSetC:         make(chan *common.GuardianSet),
 			guardianSigner:   guardianSigner,
 			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
-			config:           createGuardianConfig(t, testId, uint(i)),
+			config:           createGuardianConfig(t, testId, uint(i)), // #nosec G115 -- Guardian set will never be that large
 		}
 	}
 
@@ -660,7 +660,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 		// run the guardians
 		for i := 0; i < numGuardians; i++ {
-			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb)
+			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb) // #nosec G115 -- Guardian set will never be that large
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 			if i == 0 && numGuardians > 1 {
 				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -764,7 +764,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 					_, err := adminCs[j].InjectGovernanceVAA(queryCtx, &nodev1.InjectGovernanceVAARequest{
 						CurrentSetIndex: guardianSetIndex,
 						Messages:        []*nodev1.GovernanceMessage{testCase.govMsg},
-						Timestamp:       uint32(testCase.msg.Timestamp.Unix()),
+						Timestamp:       uint32(testCase.msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 					})
 					queryCancel()
 					assert.NoError(t, err)
@@ -1159,7 +1159,7 @@ func BenchmarkConsensus(b *testing.B) {
 	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
 }
 
-func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
+func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages uint64, maxPendingObs int) {
 	const vaaCheckGuardianIndex = 1 // we will query this Guardian for VAAs.
 
 	t.Run(name, func(t *testing.B) {
@@ -1244,7 +1244,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 
 			go func() {
 				// feed observations to nodes
-				for i := 0; i < numMessages; i++ {
+				for i := uint64(0); i < numMessages; i++ {
 					select {
 					case <-ctx.Done():
 						return
@@ -1259,7 +1259,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			}()
 
 			// check that the VAAs were generated
-			for i := 0; i < numMessages; i++ {
+			for i := uint64(0); i < numMessages; i++ {
 				msgId := &publicrpcv1.MessageID{
 					EmitterChain:   publicrpcv1.ChainID(someMsgEmitterChain),
 					EmitterAddress: someMsgEmitter.String(),

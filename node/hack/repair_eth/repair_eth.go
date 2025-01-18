@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
@@ -380,10 +381,16 @@ func main() {
 
 		var from, to string
 		if lastHeight == 0 {
+			if currentHeight-step > math.MaxInt {
+				log.Fatalf("from block overflowed: %v", currentHeight-step)
+			}
 			from = strconv.Itoa(int(currentHeight - step))
 			to = "latest"
 			lastHeight = currentHeight
 		} else {
+			if lastHeight-step > math.MaxInt {
+				log.Fatalf("from block overflowed: %v", lastHeight-step)
+			}
 			from = strconv.Itoa(int(lastHeight - step))
 			to = strconv.Itoa(int(lastHeight))
 		}
