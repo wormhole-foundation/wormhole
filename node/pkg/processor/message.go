@@ -37,7 +37,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		p.logger.Warn("dropping observation since we haven't initialized our guardian set yet",
 			zap.String("message_id", k.MessageIDString()),
 			zap.Uint32("nonce", k.Nonce),
-			zap.Stringer("txhash", k.TxHash),
+			zap.String("txID", k.TxIDString()),
 			zap.Time("timestamp", k.Timestamp),
 		)
 		return
@@ -80,8 +80,8 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("observed and signed confirmed message publication",
 			zap.String("message_id", k.MessageIDString()),
-			zap.Stringer("txhash", k.TxHash),
-			zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
+			zap.String("txID", k.TxIDString()),
+			zap.String("txID_b58", base58.Encode(k.TxID)),
 			zap.String("hash", hash),
 			zap.Uint32("nonce", k.Nonce),
 			zap.Time("timestamp", k.Timestamp),
@@ -93,7 +93,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	}
 
 	// Broadcast the signature.
-	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxHash.Bytes(), digest, signature, shouldPublishImmediately)
+	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxID, digest, signature, shouldPublishImmediately)
 
 	// Indicate that we observed this one.
 	observationsReceivedTotal.Inc()
@@ -114,7 +114,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 
 	// Update our state.
 	s.ourObservation = v
-	s.txHash = k.TxHash.Bytes()
+	s.txHash = k.TxID
 	s.source = v.GetEmitterChain().String()
 	s.gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 	s.signatures[p.ourAddr] = signature

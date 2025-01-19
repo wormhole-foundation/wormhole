@@ -798,7 +798,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 		vaaInjectionsTotal.Inc()
 
 		s.injectC <- &common.MessagePublication{
-			TxHash:           ethcommon.Hash{},
+			TxID:             ethcommon.Hash{}.Bytes(),
 			Timestamp:        v.Timestamp,
 			Nonce:            v.Nonce,
 			Sequence:         v.Sequence,

@@ -75,7 +75,7 @@ func MessageEventsForTransaction(
 		}
 
 		message := &common.MessagePublication{
-			TxHash:           ev.Raw.TxHash,
+			TxID:             ev.Raw.TxHash.Bytes(),
 			Timestamp:        time.Unix(int64(blockTime), 0),
 			Nonce:            ev.Nonce,
 			Sequence:         ev.Sequence,

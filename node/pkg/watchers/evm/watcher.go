@@ -327,7 +327,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 						logger.Info("re-observed message publication transaction, publishing it immediately",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 						)
@@ -339,7 +339,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if safeBlockNumberU == 0 {
 							logger.Error("no safe block number available, ignoring observation request",
 								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
+								zap.String("txHash", msg.TxIDString()),
 							)
 							continue
 						}
@@ -347,7 +347,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if blockNumber <= safeBlockNumberU {
 							logger.Info("re-observed message publication transaction",
 								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
+								zap.String("txHash", msg.TxIDString()),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
 							)
@@ -355,7 +355,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						} else {
 							logger.Info("ignoring re-observed message publication transaction",
 								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
+								zap.String("txHash", msg.TxIDString()),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
 							)
@@ -367,7 +367,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if blockNumberU == 0 {
 						logger.Error("no block number available, ignoring observation request",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 						)
 						continue
 					}
@@ -384,7 +384,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if blockNumber <= blockNumberU {
 						logger.Info("re-observed message publication transaction",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 						)
@@ -392,7 +392,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					} else {
 						logger.Info("ignoring re-observed message publication transaction",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 						)
@@ -512,7 +512,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if pLock.height <= blockNumberU {
 						msm := time.Now()
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
+						tx, err := w.ethConn.TransactionReceipt(timeout, eth_common.BytesToHash(pLock.message.TxID))
 						queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 						cancel()
 
@@ -527,7 +527,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
 								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
@@ -545,7 +545,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if tx.Status != 1 {
 							logger.Error("transaction receipt with non-success status",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
 								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
@@ -563,7 +563,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								// An error from this "transient" case has persisted for more than MaxWaitConfirmations.
 								logger.Info("observation timed out",
 									zap.String("msgId", pLock.message.MessageIDString()),
-									zap.Stringer("txHash", pLock.message.TxHash),
+									zap.String("txHash", pLock.message.TxIDString()),
 									zap.Stringer("blockHash", key.BlockHash),
 									zap.Uint64("target_blockNum", pLock.height),
 									zap.Stringer("current_blockNum", ev.Number),
@@ -575,7 +575,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							} else {
 								logger.Warn("transaction could not be fetched",
 									zap.String("msgId", pLock.message.MessageIDString()),
-									zap.Stringer("txHash", pLock.message.TxHash),
+									zap.String("txHash", pLock.message.TxIDString()),
 									zap.Stringer("blockHash", key.BlockHash),
 									zap.Uint64("target_blockNum", pLock.height),
 									zap.Stringer("current_blockNum", ev.Number),
@@ -592,7 +592,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if tx.BlockHash != key.BlockHash {
 							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
 								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
@@ -606,7 +606,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 						logger.Info("observation confirmed",
 							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.Stringer("txHash", pLock.message.TxHash),
+							zap.String("txHash", pLock.message.TxIDString()),
 							zap.Stringer("blockHash", key.BlockHash),
 							zap.Uint64("target_blockNum", pLock.height),
 							zap.Stringer("current_blockNum", ev.Number),
@@ -832,7 +832,7 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 // postMessage creates a message object from a log event and adds it to the pending list for processing.
 func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
 	message := &common.MessagePublication{
-		TxHash:           ev.Raw.TxHash,
+		TxID:             ev.Raw.TxHash.Bytes(),
 		Timestamp:        time.Unix(int64(blockTime), 0),
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
@@ -847,7 +847,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 		logger.Info("found new message publication transaction, publishing it immediately",
 			zap.String("msgId", message.MessageIDString()),
-			zap.Stringer("txHash", message.TxHash),
+			zap.String("txHash", message.TxIDString()),
 			zap.Uint64("blockNum", ev.Raw.BlockNumber),
 			zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 			zap.Stringer("blockHash", ev.Raw.BlockHash),
@@ -863,7 +863,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 
 	logger.Info("found new message publication transaction",
 		zap.String("msgId", message.MessageIDString()),
-		zap.Stringer("txHash", message.TxHash),
+		zap.String("txHash", message.TxIDString()),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
 		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
@@ -873,7 +873,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	)
 
 	key := pendingKey{
-		TxHash:         message.TxHash,
+		TxHash:         eth_common.BytesToHash(message.TxID),
 		BlockHash:      ev.Raw.BlockHash,
 		EmitterAddress: message.EmitterAddress,
 		Sequence:       message.Sequence,
