@@ -7,7 +7,7 @@ gas costs of `parseAndVerifyVM` (not including transaction overhead):
 108,341 using CoreBridgeLib from Solidity SDK (parses and verifies VAA itself after fetching guardian set from core bridge)
  27,677 single signature
  88,686 guardian set from calldata (gscd) optimizations (does not agree with 83k number in the monorepo PR despite additional optimizations)
- 71,390 optimized, backwards compatible implementation
+ 69,570 optimized, backwards compatible implementation
  13,874 threshold signature (i.e. single address) optimized version
 ```
 

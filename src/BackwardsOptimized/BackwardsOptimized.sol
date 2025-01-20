@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 
 import "wormhole-sdk/interfaces/IWormhole.sol";
 import "wormhole-sdk/libraries/BytesParsing.sol";
+import "wormhole-sdk/libraries/CoreBridge.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import { ProxyBase } from "wormhole-sdk/proxy/ProxyBase.sol";
 import "./ExtStore.sol";
@@ -33,37 +34,18 @@ contract BackwardsOptimized is ProxyBase, ExtStore {
 
     uint32 guardianSetIndex = vm.guardianSetIndex;
     address[] memory guardianAddrs = _getGuardianAddresses(guardianSetIndex);
-    require(guardianAddrs.length != 0, "invalid guardian set");
     require(
-      guardianSetIndex == _currentGuardianSetIndex ||
-      _guardianSetExpirationTimes[guardianSetIndex] >= block.timestamp,
-      "guardian set has expired"
+      CoreBridgeLib.isVerifiedByQuorumMem(
+        vm.hash,
+        VaaLib.asGuardianSignatures(vm.signatures),
+        guardianAddrs
+      ),
+      "VM not verified by quorum"
     );
-    require(vm.signatures.length > guardianAddrs.length * 2 / 3, "no quorum");
-    _verifySignatures(vm.hash, vm.signatures, guardianAddrs);
 
     //backwards compatible nonsense:
     valid = true;
     reason = "";
-  }}
-
-  //does not check quorum!
-  function _verifySignatures(
-    bytes32 hash,
-    IWormhole.Signature[] memory signatures,
-    address[] memory guardianAddrs
-  ) internal pure { unchecked {
-    uint sigLen = signatures.length;
-    uint guardianCount = guardianAddrs.length;
-    int lastIndex = -1;
-    for (uint i = 0; i < sigLen; ++i) {
-      IWormhole.Signature memory sig = signatures[i];
-      uint idx = sig.guardianIndex;
-      require(int(idx) > lastIndex, "signature indices must be ascending");
-      require(ecrecover(hash, sig.v, sig.r, sig.s) == guardianAddrs[idx], "VM signature invalid");
-      lastIndex = int(idx);
-    }
-    require(lastIndex < int(guardianCount), "guardian index out of bounds");
   }}
 
   function getGuardianSet(uint32 index) external view returns (IWormhole.GuardianSet memory ret) {
