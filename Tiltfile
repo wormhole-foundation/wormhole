@@ -463,7 +463,6 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-
 if solana or pythnet:
     # solana client cli (used for devnet setup)
 
@@ -701,7 +700,7 @@ if ci_tests:
     k8s_resource(
         "tx-verifier-with-monitor",
         resource_deps = ["eth-devnet"],
-        labels = ["evm", "tx-verifier"],
+        labels = ["tx-verifier"],
         trigger_mode = trigger_mode,
     )
     # triggers the integration tests that will be detected by the monitor
