@@ -1,0 +1,40 @@
+FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf AS builder
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt update && \
+    apt-get install -y \
+        build-essential \
+        ca-certificates \
+        curl
+
+# Enable faster module downloading.
+ENV GOPROXY https://proxy.golang.org
+
+COPY ./wormchain/go.mod .
+COPY ./wormchain/go.sum .
+COPY ./sdk /sdk
+RUN go mod download
+
+COPY ./wormchain .
+
+RUN make build/wormchaind
+
+FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf
+
+WORKDIR /home/heighliner
+
+COPY --from=builder /app/build/wormchaind /usr/bin
+
+# copy over c bindings (libwasmvm.x86_64.so, etc)
+COPY --from=builder /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/* /usr/lib
+
+EXPOSE 26657
+EXPOSE 26656
+EXPOSE 6060
+EXPOSE 9090
+EXPOSE 1317
+EXPOSE 4500
+
+ENTRYPOINT [ "wormchaind" ]
