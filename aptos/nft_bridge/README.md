@@ -71,7 +71,7 @@ When transferring a native token out for the first time, we
 
 When transferring an NFT from a collection on a foreign chain to Aptos, a
 corresponding "wrapped" collection is created. The module responsible for this
-is [wrapped.move](sources/wrapped.move). The collection name is the the NFT name
+is [wrapped.move](sources/wrapped.move). The collection name is the NFT name
 field from the transfer VAA. To avoid collisions here, each NFT is minted into a
 freshly created creator account, implemented as a resource account.
 
