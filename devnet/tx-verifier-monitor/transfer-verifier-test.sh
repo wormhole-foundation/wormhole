@@ -18,11 +18,14 @@ ERC20_ADDR="0x47bdB2D7d6528C760b6f228b3B8F9F650169a10f" # Test token A
 VALUE="1000" # Wei value sent as msg.value
 TRANSFER_AMOUNT="10"
 
-ANVIL_USER0="0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1" # Account0 reported by anvil when run using $MNEMONIC
-ANVIL_USER1="0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0" 
-ETH_WHALE="${ANVIL_USER0}"
+# Account reported by anvil when run using $MNEMONIC.
+# The account at index 0 is used by other tests in the test suite, so
+# account[1] is used here to help encapsulate the tests
+ANVIL_USER="0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0" 
+ETH_WHALE="${ANVIL_USER}"
 FROM="${ETH_WHALE}"
-RECIPIENT="0x00000000000000000000000090F8bf6A479f320ead074411a4B0e7944Ea8c9C1" # Anvil user0 normalized to Wormhole size. Doesn't matter what the value is
+# Anvil user1 normalized to Wormhole size. (The value itself it unchecked but must have this format.)
+RECIPIENT="0x000000000000000000000000FFcf8FDEE72ac11b5c542428B35EEF5769C409f0" 
 NONCE="234" # arbitrary
 
 # Build the payload for token transfers. Declared on multiple lines to
@@ -60,27 +63,27 @@ echo
 # Fund the token bridge from User0
 echo "Start impersonating User0"
 cast rpc \
-   anvil_impersonateAccount "${ANVIL_USER0}" \
+   anvil_impersonateAccount "${ANVIL_USER}" \
    --rpc-url "${RPC}"
 echo "Funding token bridge using user0's balance"
 cast send --unlocked \
    --rpc-url "${RPC}" \
-   --from $ANVIL_USER0 \
+   --from $ANVIL_USER \
    --value 100000000000000 \
    ${TOKEN_BRIDGE_CONTRACT}
 echo ""
 echo "End impersonating User0"
 cast rpc \
-   anvil_stopImpersonatingAccount "${ANVIL_USER0}" \
+   anvil_stopImpersonatingAccount "${ANVIL_USER}" \
    --rpc-url "${RPC}"
 
 BALANCE_CORE=$(cast balance --rpc-url "${RPC}" $CORE_BRIDGE_CONTRACT)
 BALANCE_TOKEN=$(cast balance --rpc-url "${RPC}" $TOKEN_BRIDGE_CONTRACT)
-BALANCE_USER0=$(cast balance --rpc-url "${RPC}" $ANVIL_USER0)
+BALANCE_USER=$(cast balance --rpc-url "${RPC}" $ANVIL_USER)
 echo "BALANCES:"
 echo "- CORE_BRIDGE_CONTRACT=${BALANCE_CORE}"
 echo "- TOKEN_BRIDGE_CONTRACT=${BALANCE_TOKEN}"
-echo "- ANVIL_USER0=${BALANCE_USER0}"
+echo "- ANVIL_USER=${BALANCE_USER}"
 echo 
 
 # === Malicious call to transferTokensWithPayload()
