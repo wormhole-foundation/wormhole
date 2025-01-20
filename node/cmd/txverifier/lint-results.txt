@@ -1,0 +1,848 @@
+node/transfer-verifier-evm-structs.go:24:20: Comment should end in a period (godot)
+// Event Signatures
+                   ^
+node/transfer-verifier-evm-structs.go:26: the line is 121 characters long, which exceeds the maximum of 100 characters. (lll)
+	// LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);
+node/transfer-verifier-evm-structs.go:26:119: Comment should end in a period (godot)
+	// LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);
+	                                                                                                                     ^
+node/transfer-verifier-evm-structs.go:27: the line is 115 characters long, which exceeds the maximum of 100 characters. (lll)
+	EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED = "0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2"
+node/transfer-verifier-evm-structs.go:27:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED = "0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2"
+	^
+node/transfer-verifier-evm-structs.go:28:38: Comment should end in a period (godot)
+	// Transfer(address,address,uint256)
+	                                    ^
+node/transfer-verifier-evm-structs.go:29:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	EVENTHASH_ERC20_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	^
+node/transfer-verifier-evm-structs.go:30:29: Comment should end in a period (godot)
+	// Deposit(address,uint256)
+	                           ^
+node/transfer-verifier-evm-structs.go:31:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	EVENTHASH_WETH_DEPOSIT = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
+	^
+node/transfer-verifier-evm-structs.go:34:23: Comment should end in a period (godot)
+// Function signatures
+                      ^
+node/transfer-verifier-evm-structs.go:36:5: Sentence should start with a capital letter (godot)
+	// wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) => 0x1ff1e286
+	   ^
+node/transfer-verifier-evm-structs.go:36:74: Comment should end in a period (godot)
+	// wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) => 0x1ff1e286
+	                                                                        ^
+node/transfer-verifier-evm-structs.go:37:2: TOKEN_BRIDGE_WRAPPED_ASSET is a global variable (gochecknoglobals)
+	TOKEN_BRIDGE_WRAPPED_ASSET = []byte("\x1f\xf1\xe2\x86")
+	^
+node/transfer-verifier-evm-structs.go:37:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	TOKEN_BRIDGE_WRAPPED_ASSET = []byte("\x1f\xf1\xe2\x86")
+	^
+node/transfer-verifier-evm-structs.go:38:5: Sentence should start with a capital letter (godot)
+	// decimals() => 0x313ce567
+	   ^
+node/transfer-verifier-evm-structs.go:38:29: Comment should end in a period (godot)
+	// decimals() => 0x313ce567
+	                           ^
+node/transfer-verifier-evm-structs.go:39:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	ERC20_DECIMALS_SIGNATURE = []byte("\x31\x3c\xe5\x67")
+	^
+node/transfer-verifier-evm-structs.go:39:2: ERC20_DECIMALS_SIGNATURE is a global variable (gochecknoglobals)
+	ERC20_DECIMALS_SIGNATURE = []byte("\x31\x3c\xe5\x67")
+	^
+node/transfer-verifier-evm-structs.go:42:19: Comment should end in a period (godot)
+// Fixed addresses
+                  ^
+node/transfer-verifier-evm-structs.go:45:2: WETH_ADDRESS is a global variable (gochecknoglobals)
+	WETH_ADDRESS     = common.HexToAddress("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+	^
+node/transfer-verifier-evm-structs.go:45:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	WETH_ADDRESS     = common.HexToAddress("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+	^
+node/transfer-verifier-evm-structs.go:46:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	ZERO_ADDRESS     = common.BytesToAddress([]byte{0x00})
+	^
+node/transfer-verifier-evm-structs.go:46:2: ZERO_ADDRESS is a global variable (gochecknoglobals)
+	ZERO_ADDRESS     = common.BytesToAddress([]byte{0x00})
+	^
+node/transfer-verifier-evm-structs.go:47:2: ZERO_ADDRESS_VAA is a global variable (gochecknoglobals)
+	ZERO_ADDRESS_VAA = VAAAddrFrom(ZERO_ADDRESS)
+	^
+node/transfer-verifier-evm-structs.go:47:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	ZERO_ADDRESS_VAA = VAAAddrFrom(ZERO_ADDRESS)
+	^
+node/transfer-verifier-evm-structs.go:50:23: Comment should end in a period (godot)
+// EVM chain constants
+                      ^
+node/transfer-verifier-evm-structs.go:52:56: Comment should end in a period (godot)
+	// The Wormhole Chain ID for the chain being monitored
+	                                                      ^
+node/transfer-verifier-evm-structs.go:53:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	NATIVE_CHAIN_ID = 2
+	^
+node/transfer-verifier-evm-structs.go:54:91: Comment should end in a period (godot)
+	// EVM uses 32 bytes for words. Note that vaa.Address is an alias for a slice of 32 bytes
+	                                                                                         ^
+node/transfer-verifier-evm-structs.go:55:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	EVM_WORD_LENGTH = 32
+	^
+node/transfer-verifier-evm-structs.go:56:76: Comment should end in a period (godot)
+	// The expected total number of indexed topics for an ERC20 Transfer event
+	                                                                          ^
+node/transfer-verifier-evm-structs.go:57:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	TOPICS_COUNT_TRANSFER = 3
+	^
+node/transfer-verifier-evm-structs.go:58:73: Comment should end in a period (godot)
+	// The expected total number of indexed topics for a WETH Deposit event
+	                                                                       ^
+node/transfer-verifier-evm-structs.go:59:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	TOPICS_COUNT_DEPOSIT = 2
+	^
+node/transfer-verifier-evm-structs.go:82: the line is 159 characters long, which exceeds the maximum of 100 characters. (lll)
+func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, logger *zap.Logger) *TransferVerifier[*ethClient.Client, connectors.Connector] {
+node/transfer-verifier-evm-structs.go:84: File is not `gofmt`-ed with `-s` (gofmt)
+		Addresses: tvAddrs,
+node/transfer-verifier-evm-structs.go:84: File is not `goimports`-ed (goimports)
+		Addresses: tvAddrs,
+node/transfer-verifier-evm-structs.go:123:1: cognitive complexity 13 of func `(*Subscription).Subscribe` is high (> 10) (gocognit)
+func (s *Subscription) Subscribe(ctx context.Context) {
+^
+node/transfer-verifier-evm-structs.go:128:5: case block should end with newline at this size (wsl)
+				return
+				^
+node/transfer-verifier-evm-structs.go:138:6: only cuddled expressions if assigning variable or using from line above (wsl)
+					time.Sleep(RECONNECT_DELAY) // Wait before retrying
+					^
+node/transfer-verifier-evm-structs.go:139:6: branch statements should not be cuddled if block has more than two lines (wsl)
+					continue
+					^
+node/transfer-verifier-evm-structs.go:143: the line is 102 characters long, which exceeds the maximum of 100 characters. (lll)
+				// TODO: This section of code should have a limit on the number of times it will retry
+node/transfer-verifier-evm-structs.go:149:6: only cuddled expressions if assigning variable or using from line above (wsl)
+					time.Sleep(RECONNECT_DELAY) // Wait before retrying
+					^
+node/transfer-verifier-evm-structs.go:161:4: case block should end with newline at this size (wsl)
+			return nil
+			^
+node/transfer-verifier-evm-structs.go:187: the line is 104 characters long, which exceeds the maximum of 100 characters. (lll)
+	// The Transferror: EOA or contract that initiated the transfer. Not to be confused with msg.sender.
+node/transfer-verifier-evm-structs.go:217:91: Comment should end in a period (godot)
+// Deposit does not actually have a sender but this is required to implement the interface
+                                                                                          ^
+node/transfer-verifier-evm-structs.go:298:28: Comment should end in a period (godot)
+// TODO add String() method
+                           ^
+node/transfer-verifier-evm-structs.go:304: the line is 111 characters long, which exceeds the maximum of 100 characters. (lll)
+	// Abstraction over fields encoded in the event's Data field which in turn contains the transfer's payload.
+node/transfer-verifier-evm-structs.go:306: the line is 108 characters long, which exceeds the maximum of 100 characters. (lll)
+	// Note: these fields are non-exhaustive. Data not needed for Transfer Verification is not encoded here.
+node/transfer-verifier-evm-structs.go:313:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return
+	^
+node/transfer-verifier-evm-structs.go:328:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return
+	^
+node/transfer-verifier-evm-structs.go:335:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return
+	^
+node/transfer-verifier-evm-structs.go:342:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return
+	^
+node/transfer-verifier-evm-structs.go:378:52: block should not start with a whitespace (wsl)
+func (s *ReceiptSummary) String() (outStr string) {
+                                                   ^
+node/transfer-verifier-evm-structs.go:397:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return outStr
+	^
+node/transfer-verifier-evm-structs.go:408: the line is 107 characters long, which exceeds the maximum of 100 characters. (lll)
+// Abstraction of a Token Bridge transfer payload encoded in the Data field of a LogMessagePublished event.
+node/transfer-verifier-evm-structs.go:409: the line is 112 characters long, which exceeds the maximum of 100 characters. (lll)
+// It is meant to correspond to the API for Token Transfer messages as described in the Token Bridge whitepaper:
+node/transfer-verifier-evm-structs.go:410: the line is 114 characters long, which exceeds the maximum of 100 characters. (lll)
+// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#api--database-schema
+node/transfer-verifier-evm-structs.go:419: the line is 118 characters long, which exceeds the maximum of 100 characters. (lll)
+	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge.
+node/transfer-verifier-evm-structs.go:429: the line is 123 characters long, which exceeds the maximum of 100 characters. (lll)
+		"PayloadType: %d OriginAddressRaw: %s TokenChain: %d OriginAddress: %s TargetAddress: %s AmountRaw: %s Amount: %s",
+node/transfer-verifier-evm-structs.go:440:71: Sentence should start with a capital letter (godot)
+// unwrapIfWrapped returns the "unwrapped" address for a token a.k.a. the OriginAddress
+                                                                      ^
+node/transfer-verifier-evm-structs.go:478: the line is 106 characters long, which exceeds the maximum of 100 characters. (lll)
+		return common.Address{}, fmtString.Errorf("failed to get mapping for token %s", tokenAddressAsKey)
+node/transfer-verifier-evm-structs.go:490: the line is 148 characters long, which exceeds the maximum of 100 characters. (lll)
+// Determine whether a log is relevant for the addresses passed into TVAddresses. Returns a string of the form "address-chain" for relevant entries.
+node/transfer-verifier-evm-structs.go:491:1: cognitive complexity 14 of func `relevant` is high (> 10) (gocognit)
+func relevant[L TransferLog](tLog TransferLog, tv *TVAddresses) (key string, relevant bool) {
+^
+node/transfer-verifier-evm-structs.go:491:1: calculated cyclomatic complexity for function relevant is 11, max is 10 (cyclop)
+func relevant[L TransferLog](tLog TransferLog, tv *TVAddresses) (key string, relevant bool) {
+^
+node/transfer-verifier-evm-structs.go:491:94: block should not start with a whitespace (wsl)
+func relevant[L TransferLog](tLog TransferLog, tv *TVAddresses) (key string, relevant bool) {
+                                                                                             ^
+node/transfer-verifier-evm-structs.go:495: the line is 108 characters long, which exceeds the maximum of 100 characters. (lll)
+		// Skip native deposit events emitted by contracts other than the configured wrapped native address.
+node/transfer-verifier-evm-structs.go:523: the line is 126 characters long, which exceeds the maximum of 100 characters. (lll)
+		if log.TransferDetails.PayloadType != TransferTokens && log.TransferDetails.PayloadType != TransferTokensWithPayload {
+node/transfer-verifier-evm-structs.go:527:2: block should not end with a whitespace (or comment) (wsl)
+	}
+	^
+node/transfer-verifier-evm-structs.go:528:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return fmtString.Sprintf(KEY_FORMAT, tLog.OriginAddress(), tLog.OriginChain()), true
+	^
+node/transfer-verifier-evm-structs.go:545:1: cognitive complexity 34 of func `validate` is high (> 10) (gocognit)
+func validate[L TransferLog](tLog TransferLog) error {
+^
+node/transfer-verifier-evm-structs.go:545:1: calculated cyclomatic complexity for function validate is 24, max is 10 (cyclop)
+func validate[L TransferLog](tLog TransferLog) error {
+^
+node/transfer-verifier-evm-structs.go:545:55: block should not start with a whitespace (wsl)
+func validate[L TransferLog](tLog TransferLog) error {
+                                                      ^
+node/transfer-verifier-evm-structs.go:545: Function 'validate' is too long (95 > 70) (funlen)
+func validate[L TransferLog](tLog TransferLog) error {
+node/transfer-verifier-evm-structs.go:566: the line is 101 characters long, which exceeds the maximum of 100 characters. (lll)
+		// Deposit does not actually have a sender, so it should always be equal to the zero address.
+node/transfer-verifier-evm-structs.go:570:3: if statements should only be cuddled with assignments (wsl)
+		if cmp(log.Emitter(), log.TokenAddress) != 0 {
+		^
+node/transfer-verifier-evm-structs.go:573:3: if statements should only be cuddled with assignments (wsl)
+		if cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
+		^
+node/transfer-verifier-evm-structs.go:576:3: case block should end with newline at this size (wsl)
+		if cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		^
+node/transfer-verifier-evm-structs.go:579:22: block should not start with a whitespace (wsl)
+	case *ERC20Transfer:
+	                    ^
+node/transfer-verifier-evm-structs.go:593:3: case block should end with newline at this size (wsl)
+		if cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		^
+node/transfer-verifier-evm-structs.go:601:3: if statements should only be cuddled with assignments (wsl)
+		if cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
+		^
+node/transfer-verifier-evm-structs.go:614:3: if statements should only be cuddled with assignments (wsl)
+		if cmp(log.TransferDetails.TargetAddress, ZERO_ADDRESS_VAA) == 0 {
+		^
+node/transfer-verifier-evm-structs.go:630:3: if statements should only be cuddled with assignments (wsl)
+		if log.TransferDetails.AmountRaw.Sign() == -1 {
+		^
+node/transfer-verifier-evm-structs.go:633: the line is 126 characters long, which exceeds the maximum of 100 characters. (lll)
+		if log.TransferDetails.PayloadType != TransferTokens && log.TransferDetails.PayloadType != TransferTokensWithPayload {
+node/transfer-verifier-evm-structs.go:633:3: case block should end with newline at this size (wsl)
+		if log.TransferDetails.PayloadType != TransferTokens && log.TransferDetails.PayloadType != TransferTokensWithPayload {
+		^
+node/transfer-verifier-evm-structs.go:668:3: return statements should not be cuddled if block has more than two lines (wsl)
+		return 0, err
+		^
+node/transfer-verifier-evm-structs.go:675:3: return statements should not be cuddled if block has more than two lines (wsl)
+		return 0, err
+		^
+node/transfer-verifier-evm-structs.go:681: the line is 123 characters long, which exceeds the maximum of 100 characters. (lll)
+	// TODO: find out if there is some official documentation for why this uint8 is in the last index of the 32byte return.
+node/transfer-verifier-evm-structs.go:686:2: only cuddled expressions if assigning variable or using from line above (wsl)
+	tv.logger.Debug("adding new token's decimals to cache",
+	^
+node/transfer-verifier-evm-structs.go:693:61: Comment should end in a period (godot)
+// Gives the representation of a geth address in vaa.Address
+                                                            ^
+node/transfer-verifier-evm-structs.go:701:65: Comment should end in a period (godot)
+// Interface useful for comparing vaa.Address and common.Address
+                                                                ^
+node/transfer-verifier-evm-structs.go:707:57: block should not start with a whitespace (wsl)
+func cmp[some Bytes, other Bytes](a some, b other) int {
+                                                        ^
+node/transfer-verifier-evm.go:6: the line is 128 characters long, which exceeds the maximum of 100 characters. (lll)
+//	fix issue where cross-chain transfers show an invariant violation because of they cannot be found in the wrapped asset map
+node/transfer-verifier-evm.go:9:12: Comment should end in a period (godot)
+	// "bytes"
+	          ^
+node/transfer-verifier-evm.go:32:2: decimalsCache is a global variable (gochecknoglobals)
+	decimalsCache = make(map[common.Address]uint8)
+	^
+node/transfer-verifier-evm.go:37:2: wrappedCache is a global variable (gochecknoglobals)
+	wrappedCache = make(map[string]common.Address)
+	^
+node/transfer-verifier-evm.go:40:5: TransferVerifierCmdEvm is a global variable (gochecknoglobals)
+var TransferVerifierCmdEvm = &cobra.Command{
+    ^
+node/transfer-verifier-evm.go:46:12: Comment should end in a period (godot)
+// CLI args
+           ^
+node/transfer-verifier-evm.go:48:2: evmRpc is a global variable (gochecknoglobals)
+	evmRpc                 *string
+	^
+node/transfer-verifier-evm.go:48:2: var-naming: var evmRpc should be evmRPC (revive)
+	evmRpc                 *string
+	^
+node/transfer-verifier-evm.go:49:2: evmCoreContract is a global variable (gochecknoglobals)
+	evmCoreContract        *string
+	^
+node/transfer-verifier-evm.go:50:2: evmTokenBridgeContract is a global variable (gochecknoglobals)
+	evmTokenBridgeContract *string
+	^
+node/transfer-verifier-evm.go:51:2: pruneHeightDelta is a global variable (gochecknoglobals)
+	pruneHeightDelta       *uint64
+	^
+node/transfer-verifier-evm.go:52:2: pruneFrequency is a global variable (gochecknoglobals)
+	pruneFrequency         *time.Duration
+	^
+node/transfer-verifier-evm.go:57:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	RECONNECT_DELAY = 5 * time.Second
+	^
+node/transfer-verifier-evm.go:71:18: Comment should end in a period (godot)
+// CLI parameters
+                 ^
+node/transfer-verifier-evm.go:72:1: don't use `init` function (gochecknoinits)
+func init() {
+^
+node/transfer-verifier-evm.go:74: the line is 103 characters long, which exceeds the maximum of 100 characters. (lll)
+	evmRpc = TransferVerifierCmdEvm.Flags().String("ethRPC", "ws://localhost:8545", "Ethereum RPC url")
+node/transfer-verifier-evm.go:75: the line is 163 characters long, which exceeds the maximum of 100 characters. (lll)
+	evmCoreContract = TransferVerifierCmdEvm.Flags().String("ethContract", "", "Ethereum core bridge address for verifying VAAs (required if ethRPC is specified)")
+node/transfer-verifier-evm.go:76: the line is 133 characters long, which exceeds the maximum of 100 characters. (lll)
+	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "token bridge contract deployed on Ethereum")
+node/transfer-verifier-evm.go:78: the line is 173 characters long, which exceeds the maximum of 100 characters. (lll)
+	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
+node/transfer-verifier-evm.go:80: File is not `gofmt`-ed with `-s` (gofmt)
+	TransferVerifierCmdEvm.Flags().Duration(
+		"pruneFrequency",
+		time.Duration(1*time.Minute), 
+		"The frequency at which to prune historic transaction receipts. Defaults to 1 minute.")
+node/transfer-verifier-evm.go:80: File is not `goimports`-ed (goimports)
+	TransferVerifierCmdEvm.Flags().Duration(
+		"pruneFrequency",
+		time.Duration(1*time.Minute), 
+		"The frequency at which to prune historic transaction receipts. Defaults to 1 minute.")
+node/transfer-verifier-evm.go:87:34: Comment should end in a period (godot)
+// invariants of the Token Bridge
+                                 ^
+node/transfer-verifier-evm.go:88:1: cognitive complexity 40 of func `runTransferVerifierEvm` is high (> 10) (gocognit)
+func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
+^
+node/transfer-verifier-evm.go:88:1: calculated cyclomatic complexity for function runTransferVerifierEvm is 21, max is 10 (cyclop)
+func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
+^
+node/transfer-verifier-evm.go:88:65: block should not start with a whitespace (wsl)
+func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
+                                                                ^
+node/transfer-verifier-evm.go:88: Function 'runTransferVerifierEvm' is too long (180 > 70) (funlen)
+func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
+node/transfer-verifier-evm.go:98:3: unhandled-error: Unhandled error in call to function fmt.Println (revive)
+		fmt.Println("Invalid log level")
+		^
+node/transfer-verifier-evm.go:129: the line is 127 characters long, which exceeds the maximum of 100 characters. (lll)
+	ethConnector, err = connectors.NewEthereumBaseConnector(ctx, "eth", *evmRpc, common.HexToAddress(*evmCoreContract), logger)
+node/transfer-verifier-evm.go:129:2: assignments should only be cuddled with other assignments (wsl)
+	ethConnector, err = connectors.NewEthereumBaseConnector(ctx, "eth", *evmRpc, common.HexToAddress(*evmCoreContract), logger)
+	^
+node/transfer-verifier-evm.go:130:2: only one cuddle assignment allowed before if statement (wsl)
+	if err != nil {
+	^
+node/transfer-verifier-evm.go:157: the line is 110 characters long, which exceeds the maximum of 100 characters. (lll)
+	// The latest transaction block number, used to determine the size of historic receipts to keep in memory.
+node/transfer-verifier-evm.go:172:3: case block should end with newline at this size (wsl)
+		// Do cleanup and statistics reporting.
+		^
+node/transfer-verifier-evm.go:173:19: block should not start with a whitespace (wsl)
+		case <-ticker.C:
+		                ^
+node/transfer-verifier-evm.go:180: the line is 106 characters long, which exceeds the maximum of 100 characters. (lll)
+			// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
+node/transfer-verifier-evm.go:184:6: only cuddled expressions if assigning variable or using from line above (wsl)
+					delete(processedTransactions, hash)
+					^
+node/transfer-verifier-evm.go:191:3: case block should end with newline at this size (wsl)
+		// Process observed LogMessagePublished events
+		^
+node/transfer-verifier-evm.go:192:31: block should not start with a whitespace (wsl)
+		case vLog := <-sub.Events():
+		                            ^
+node/transfer-verifier-evm.go:211:5: branch statements should not be cuddled if block has more than two lines (wsl)
+				continue
+				^
+node/transfer-verifier-evm.go:231:5: branch statements should not be cuddled if block has more than two lines (wsl)
+				continue
+				^
+node/transfer-verifier-evm.go:234: the line is 112 characters long, which exceeds the maximum of 100 characters. (lll)
+			// Post-processing: populate wormhole-specific data for transfer details. This is done as a separate
+node/transfer-verifier-evm.go:235: the line is 104 characters long, which exceeds the maximum of 100 characters. (lll)
+			// step so that RPC calls are done independently of parsing code, which facilitates testing.
+node/transfer-verifier-evm.go:238:5: assignments should only be cuddled with other assignments (wsl)
+				newDetails, err := transferVerifier.addWormholeDetails(message.TransferDetails)
+				^
+node/transfer-verifier-evm.go:239:5: only one cuddle assignment allowed before if statement (wsl)
+				if err != nil {
+				^
+node/transfer-verifier-evm.go:246:6: branch statements should not be cuddled if block has more than two lines (wsl)
+					continue
+					^
+node/transfer-verifier-evm.go:248:5: assignments should only be cuddled with other assignments (wsl)
+				message.TransferDetails = newDetails
+				^
+node/transfer-verifier-evm.go:256: the line is 120 characters long, which exceeds the maximum of 100 characters. (lll)
+				logger.Error("detected invalid receipt", zap.Error(err), zap.String("txHash", vLog.Raw.TxHash.String()))
+node/transfer-verifier-evm.go:262: the line is 101 characters long, which exceeds the maximum of 100 characters. (lll)
+				logger.Warn("receipt logs empty for tx", zap.String("txHash", vLog.Raw.TxHash.Hex()))
+node/transfer-verifier-evm.go:281:1: calculated cyclomatic complexity for function ParseReceipt is 12, max is 10 (cyclop)
+func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
+^
+node/transfer-verifier-evm.go:281: Function 'ParseReceipt' is too long (83 > 70) (funlen)
+func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
+node/transfer-verifier-evm.go:281:1: cognitive complexity 20 of func `(*TransferVerifier).ParseReceipt` is high (> 10) (gocognit)
+func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
+^
+node/transfer-verifier-evm.go:288:2: if statements should only be cuddled with assignments (wsl)
+	if len(receipt.Logs) == 0 {
+	^
+node/transfer-verifier-evm.go:293:2: declarations should never be cuddled (wsl)
+	var transfers []*ERC20Transfer
+	^
+node/transfer-verifier-evm.go:294:2: declarations should never be cuddled (wsl)
+	var messagePublications []*LogMessagePublished
+	^
+node/transfer-verifier-evm.go:300:4: case block should end with newline at this size (wsl)
+			transfers = append(transfers, &ERC20Transfer{
+			^
+node/transfer-verifier-evm.go:309:4: case block should end with newline at this size (wsl)
+			deposits = append(deposits, &NativeDeposit{
+			^
+node/transfer-verifier-evm.go:325: the line is 109 characters long, which exceeds the maximum of 100 characters. (lll)
+					"a LogMessagePayload event from the token bridge was received with a zero-sized payload",
+node/transfer-verifier-evm.go:327:5: branch statements should not be cuddled if block has more than two lines (wsl)
+				continue
+				^
+node/transfer-verifier-evm.go:330: the line is 128 characters long, which exceeds the maximum of 100 characters. (lll)
+			// This check is required. Payload parsing will fail if performed on a message emitted from another contract or sent
+node/transfer-verifier-evm.go:339: the line is 102 characters long, which exceeds the maximum of 100 characters. (lll)
+				tv.logger.Debug("skip: LogMessagePublished with sender not equal to the token bridge",
+node/transfer-verifier-evm.go:343:5: branch statements should not be cuddled if block has more than two lines (wsl)
+				continue
+				^
+node/transfer-verifier-evm.go:346: the line is 111 characters long, which exceeds the maximum of 100 characters. (lll)
+			// Validation is complete. Now, parse the raw bytes of the payload into a TransferDetails instance.
+node/transfer-verifier-evm.go:351:4: append only allowed to cuddle with appended value (wsl)
+			messagePublications = append(messagePublications, &LogMessagePublished{
+			^
+node/transfer-verifier-evm.go:357:3: block should not end with a whitespace (or comment) (wsl)
+		}
+		^
+node/transfer-verifier-evm.go:382:1: calculated cyclomatic complexity for function ProcessReceipt is 19, max is 10 (cyclop)
+func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
+^
+node/transfer-verifier-evm.go:382: Function 'ProcessReceipt' has too many statements (52 > 50) (funlen)
+func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
+node/transfer-verifier-evm.go:382:1: cognitive complexity 32 of func `(*TransferVerifier).ProcessReceipt` is high (> 10) (gocognit)
+func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
+^
+node/transfer-verifier-evm.go:391:2: if statements should only be cuddled with assignments (wsl)
+	if len(*transferReceipt.MessagePublicatons) == 0 {
+	^
+node/transfer-verifier-evm.go:392: the line is 120 characters long, which exceeds the maximum of 100 characters. (lll)
+		tv.logger.Warn("transfer receipt contained no LogMessagePublished events. Cannot perform transfer verification")
+node/transfer-verifier-evm.go:397:53: block should not start with a whitespace (wsl)
+	for _, deposit := range *transferReceipt.Deposits {
+	                                                   ^
+node/transfer-verifier-evm.go:410:4: branch statements should not be cuddled if block has more than two lines (wsl)
+			continue
+			^
+node/transfer-verifier-evm.go:412:3: if statements should only be cuddled with assignments (wsl)
+		if key == "" {
+		^
+node/transfer-verifier-evm.go:435:4: branch statements should not be cuddled if block has more than two lines (wsl)
+			continue
+			^
+node/transfer-verifier-evm.go:437:3: if statements should only be cuddled with assignments (wsl)
+		if key == "" {
+		^
+node/transfer-verifier-evm.go:474:2: ranges should only be cuddled with assignments used in the iteration (wsl)
+	for key, amountOut := range summary.out {
+	^
+node/transfer-verifier-evm.go:476:3: `if !exists` has complex nested blocks (complexity: 3) (nestif)
+		if amountIn, exists := summary.in[key]; !exists {
+		^
+node/transfer-verifier-evm.go:476:3: if statements should only be cuddled with assignments used in the if statement itself (wsl)
+		if amountIn, exists := summary.in[key]; !exists {
+		^
+node/transfer-verifier-evm.go:479: the line is 104 characters long, which exceeds the maximum of 100 characters. (lll)
+			localErr = &InvariantError{Msg: "transfer-out request for tokens that were never deposited"}
+node/transfer-verifier-evm.go:479:4: assignments should only be cuddled with other assignments (wsl)
+			localErr = &InvariantError{Msg: "transfer-out request for tokens that were never deposited"}
+			^
+node/transfer-verifier-evm.go:483:5: assignments should only be cuddled with other assignments (wsl)
+				localErr = &InvariantError{Msg: "requested amount out is larger than amount in"}
+				^
+node/transfer-verifier-evm.go:512: the line is 129 characters long, which exceeds the maximum of 100 characters. (lll)
+func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (from common.Address, to common.Address, amount *big.Int) {
+node/transfer-verifier-evm.go:512:130: block should not start with a whitespace (wsl)
+func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (from common.Address, to common.Address, amount *big.Int) {
+                                                                                                                                 ^
+node/transfer-verifier-evm.go:514: the line is 144 characters long, which exceeds the maximum of 100 characters. (lll)
+	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/6e224307b44bc4bd0cb60d408844e028cfa3e485/contracts/token/ERC20/IERC20.sol#L16
+node/transfer-verifier-evm.go:527: the line is 131 characters long, which exceeds the maximum of 100 characters. (lll)
+// parseWNativeDepositEvent parses an event for a deposit of a wrapped version of the chain's native asset, i.e. WETH for Ethereum.
+node/transfer-verifier-evm.go:528:119: block should not start with a whitespace (wsl)
+func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (destination common.Address, amount *big.Int) {
+                                                                                                                      ^
+node/transfer-verifier-evm.go:528: the line is 118 characters long, which exceeds the maximum of 100 characters. (lll)
+func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (destination common.Address, amount *big.Int) {
+node/transfer-verifier-evm.go:545: the line is 111 characters long, which exceeds the maximum of 100 characters. (lll)
+	// Corresponds to LogMessagePublished.Payload as returned by the ABI parsing operation in the ethConnector.
+node/transfer-verifier-evm.go:552:26: error-strings: error strings should not be capitalized or end with punctuation or a newline (revive)
+		return nil, errors.New("payload is not a transfer type. no need to process.")
+		                       ^
+node/transfer-verifier-evm.go:560:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return &TransferDetails{
+	^
+node/transfer-verifier-evm.go:572: the line is 130 characters long, which exceeds the maximum of 100 characters. (lll)
+// addWormholeDetails() makes requests to the token bridge and token contract to get detailed, wormhole-specific information about
+node/transfer-verifier-evm.go:574:138: block should not start with a whitespace (wsl)
+func (tv *TransferVerifier[ethClient, connector]) addWormholeDetails(details *TransferDetails) (newDetails *TransferDetails, err error) {
+                                                                                                                                         ^
+node/transfer-verifier-evm.go:574: the line is 137 characters long, which exceeds the maximum of 100 characters. (lll)
+func (tv *TransferVerifier[ethClient, connector]) addWormholeDetails(details *TransferDetails) (newDetails *TransferDetails, err error) {
+node/transfer-verifier-evm.go:575: the line is 104 characters long, which exceeds the maximum of 100 characters. (lll)
+	// This function adds information to a TransferDetails struct, filling out its uninitialized fields.
+node/transfer-verifier-evm.go:581: the line is 119 characters long, which exceeds the maximum of 100 characters. (lll)
+	// If the token was minted on the chain monitored by this program, set its OriginAddress equal to OriginAddressRaw.
+node/transfer-verifier-evm.go:583:2: `if details.TokenChain == NATIVE_CHAIN_ID` has complex nested blocks (complexity: 4) (nestif)
+	if details.TokenChain == NATIVE_CHAIN_ID {
+	^
+node/transfer-verifier-evm.go:586:3: only cuddled expressions if assigning variable or using from line above (wsl)
+		tv.logger.Debug("token is native. no need to unwrap", 
+		^
+node/transfer-verifier-evm.go:607: the line is 107 characters long, which exceeds the maximum of 100 characters. (lll)
+			// This case can occur if a token is transferred when the wrapped asset hasn't been set-up yet.
+node/transfer-verifier-evm.go:608: the line is 129 characters long, which exceeds the maximum of 100 characters. (lll)
+			// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#setup-of-wrapped-assets
+node/transfer-verifier-evm.go:610: the line is 156 characters long, which exceeds the maximum of 100 characters. (lll)
+			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program",
+node/transfer-verifier-evm.go:610:4: only cuddled expressions if assigning variable or using from line above (wsl)
+			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program",
+			^
+node/transfer-verifier-evm.go:632:2: return statements should not be cuddled if block has more than two lines (wsl)
+	return newDetails, nil
+	^
+node/transfer-verifier-sui-structs.go:12:7: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+const SUI_CHAIN_ID = 21
+      ^
+node/transfer-verifier-sui-structs.go:15:6: var-naming: type SuiApiInterface should be SuiAPIInterface (revive)
+type SuiApiInterface interface {
+     ^
+node/transfer-verifier-sui-structs.go:16: the line is 105 characters long, which exceeds the maximum of 100 characters. (lll)
+	QueryEvents(filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
+node/transfer-verifier-sui-structs.go:18:25: var-naming: interface method parameter objectId should be objectID (revive)
+	TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
+	                       ^
+node/transfer-verifier-sui-structs.go:18: the line is 126 characters long, which exceeds the maximum of 100 characters. (lll)
+	TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
+node/transfer-verifier-sui-structs.go:25:6: var-naming: type SuiApiStandardResponse should be SuiAPIStandardResponse (revive)
+type SuiApiStandardResponse struct {
+     ^
+node/transfer-verifier-sui-structs.go:49:44: Comment should end in a period (godot)
+// The response object for suix_queryEvents
+                                           ^
+node/transfer-verifier-sui-structs.go:73:51: Comment should end in a period (godot)
+// The response object for sui_GetTransactionBlock
+                                                  ^
+node/transfer-verifier-sui-structs.go:86:2: var-naming: struct field ObjectId should be ObjectID (revive)
+	ObjectId        string `json:"objectId"`
+	^
+node/transfer-verifier-sui-structs.go:96:47: var-naming: method parameter expectedPackageId should be expectedPackageID (revive)
+func (o ObjectChange) ValidateTypeInformation(expectedPackageId string) (success bool) {
+                                              ^
+node/transfer-verifier-sui-structs.go:98: the line is 123 characters long, which exceeds the maximum of 100 characters. (lll)
+	re := regexp.MustCompile(`0x2::dynamic_field::Field<([^:]+)::token_registry::Key<([^>]+)>, ([^:]+)::([^<]+)<([^>]+)>>`)
+node/transfer-verifier-sui-structs.go:101:2: `if len(matches) == 6` has complex nested blocks (complexity: 3) (nestif)
+	if len(matches) == 6 {
+	^
+node/transfer-verifier-sui-structs.go:109: the line is 107 characters long, which exceeds the maximum of 100 characters. (lll)
+		if scanAssetType != "wrapped_asset::WrappedAsset" && scanAssetType != "native_asset::NativeAsset" {
+node/transfer-verifier-sui-structs.go:130:55: Comment should end in a period (godot)
+// The response object for suix_tryMultiGetPastObjects
+                                                      ^
+node/transfer-verifier-sui-structs.go:137:75: block should not start with a whitespace (wsl)
+func (r SuiTryMultiGetPastObjectsResponse) GetBalanceDiff() (int, error) {
+                                                                          ^
+node/transfer-verifier-sui-structs.go:161: the line is 107 characters long, which exceeds the maximum of 100 characters. (lll)
+	// If the asset is wrapped, it means that the balance was burned, so the difference should be negative.
+node/transfer-verifier-sui-structs.go:169:21: Comment should end in a period (godot)
+// Gets the decimals
+                    ^
+node/transfer-verifier-sui-structs.go:234:90: block should not start with a whitespace (wsl)
+func (r SuiTryMultiGetPastObjectsResult) GetVersionBalance(isWrapped bool) (int, error) {
+                                                                                         ^
+node/transfer-verifier-sui-structs.go:268: the line is 106 characters long, which exceeds the maximum of 100 characters. (lll)
+	// both store the decimals used for truncation in the NativeAsset or WrappedAsset's `decimals()` field
+node/transfer-verifier-sui-structs.go:322:75: block should not start with a whitespace (wsl)
+func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (uint16, error) {
+                                                                          ^
+node/transfer-verifier-sui-structs.go:345:43: Comment should end in a period (godot)
+// Definition of the WormholeMessage event
+                                          ^
+node/transfer-verifier-sui.go:26:20: Comment should end in a period (godot)
+// Global variables
+                   ^
+node/transfer-verifier-sui.go:28:2: suiModule is a global variable (gochecknoglobals)
+	suiModule    = "publish_message"
+	^
+node/transfer-verifier-sui.go:29:2: suiEventName is a global variable (gochecknoglobals)
+	suiEventName = "WormholeMessage"
+	^
+node/transfer-verifier-sui.go:30:2: suiEventType is a global variable (gochecknoglobals)
+	suiEventType = ""
+	^
+node/transfer-verifier-sui.go:33:12: Comment should end in a period (godot)
+// CLI args
+           ^
+node/transfer-verifier-sui.go:35:2: suiRPC is a global variable (gochecknoglobals)
+	suiRPC                *string
+	^
+node/transfer-verifier-sui.go:36:2: suiCoreContract is a global variable (gochecknoglobals)
+	suiCoreContract       *string
+	^
+node/transfer-verifier-sui.go:37:2: suiTokenBridgeEmitter is a global variable (gochecknoglobals)
+	suiTokenBridgeEmitter *string
+	^
+node/transfer-verifier-sui.go:38:31: Comment should end in a period (godot)
+	// TODO: rename to package ID
+	                             ^
+node/transfer-verifier-sui.go:39:2: suiTokenBridgeContract is a global variable (gochecknoglobals)
+	suiTokenBridgeContract  *string
+	^
+node/transfer-verifier-sui.go:40:2: suiProcessInitialEvents is a global variable (gochecknoglobals)
+	suiProcessInitialEvents *bool
+	^
+node/transfer-verifier-sui.go:43:5: TransferVerifierCmdSui is a global variable (gochecknoglobals)
+var TransferVerifierCmdSui = &cobra.Command{
+    ^
+node/transfer-verifier-sui.go:49:18: Comment should end in a period (godot)
+// CLI parameters
+                 ^
+node/transfer-verifier-sui.go:50:1: don't use `init` function (gochecknoinits)
+func init() {
+^
+node/transfer-verifier-sui.go:52: the line is 111 characters long, which exceeds the maximum of 100 characters. (lll)
+	suiCoreContract = TransferVerifierCmdSui.Flags().String("suiCoreContract", "", "Event to listen to in Sui")
+node/transfer-verifier-sui.go:53: the line is 125 characters long, which exceeds the maximum of 100 characters. (lll)
+	suiTokenBridgeEmitter = TransferVerifierCmdSui.Flags().String("suiTokenBridgeEmitter", "", "Token bridge emitter on Sui")
+node/transfer-verifier-sui.go:54: the line is 128 characters long, which exceeds the maximum of 100 characters. (lll)
+	suiTokenBridgeContract = TransferVerifierCmdSui.Flags().String("suiTokenBridgeContract", "", "Token bridge contract on Sui")
+node/transfer-verifier-sui.go:55: the line is 190 characters long, which exceeds the maximum of 100 characters. (lll)
+	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
+node/transfer-verifier-sui.go:58:107: Comment should end in a period (godot)
+// Note: logger.Error should be reserved only for conditions that break the invariants of the Token Bridge
+                                                                                                          ^
+node/transfer-verifier-sui.go:58: the line is 106 characters long, which exceeds the maximum of 100 characters. (lll)
+// Note: logger.Error should be reserved only for conditions that break the invariants of the Token Bridge
+node/transfer-verifier-sui.go:59:1: calculated cyclomatic complexity for function runTransferVerifierSui is 24, max is 10 (cyclop)
+func runTransferVerifierSui(cmd *cobra.Command, args []string) {
+^
+node/transfer-verifier-sui.go:59: Function 'runTransferVerifierSui' is too long (125 > 70) (funlen)
+func runTransferVerifierSui(cmd *cobra.Command, args []string) {
+node/transfer-verifier-sui.go:59:1: cognitive complexity 51 of func `runTransferVerifierSui` is high (> 10) (gocognit)
+func runTransferVerifierSui(cmd *cobra.Command, args []string) {
+^
+node/transfer-verifier-sui.go:65:3: unhandled-error: Unhandled error in call to function fmt.Println (revive)
+		fmt.Println("Invalid log level")
+		^
+node/transfer-verifier-sui.go:79: the line is 113 characters long, which exceeds the maximum of 100 characters. (lll)
+	if *suiRPC == "" || *suiCoreContract == "" || *suiTokenBridgeEmitter == "" || *suiTokenBridgeContract == "" {
+node/transfer-verifier-sui.go:90: the line is 113 characters long, which exceeds the maximum of 100 characters. (lll)
+	// The `MoveEventType` filter doesn't seem to be available in the documentation. However, there is an example
+node/transfer-verifier-sui.go:102:2: var-naming: var suiApiConnection should be suiAPIConnection (revive)
+	suiApiConnection := NewSuiApiConnection(*suiRPC)
+	^
+node/transfer-verifier-sui.go:114:2: ranges should only be cuddled with assignments used in the iteration (wsl)
+	for _, event := range initialEvents {
+	^
+node/transfer-verifier-sui.go:121:4: if statements should only be cuddled with assignments (wsl)
+			if timestampInt > latestTimestamp {
+			^
+node/transfer-verifier-sui.go:126: the line is 143 characters long, which exceeds the maximum of 100 characters. (lll)
+	logger.Info("Initial events fetched", zap.Int("number of initial events", len(initialEvents)), zap.Int("latestTimestamp", latestTimestamp))
+node/transfer-verifier-sui.go:126:2: expressions should not be cuddled with blocks (wsl)
+	logger.Info("Initial events fetched", zap.Int("number of initial events", len(initialEvents)), zap.Int("latestTimestamp", latestTimestamp))
+	^
+node/transfer-verifier-sui.go:130:3: ranges should only be cuddled with assignments used in the iteration (wsl)
+		for _, event := range initialEvents {
+		^
+node/transfer-verifier-sui.go:132:5: unhandled-error: Unhandled error in call to function processDigest (revive)
+				processDigest(*event.ID.TxDigest, suiApiConnection, logger)
+				^
+node/transfer-verifier-sui.go:132:5: G104: Errors unhandled. (gosec)
+				processDigest(*event.ID.TxDigest, suiApiConnection, logger)
+				^
+node/transfer-verifier-sui.go:132:18: Error return value is not checked (errcheck)
+				processDigest(*event.ID.TxDigest, suiApiConnection, logger)
+				             ^
+node/transfer-verifier-sui.go:144:4: case block should end with newline at this size (wsl)
+			logger.Info("Context cancelled")
+			^
+node/transfer-verifier-sui.go:162:5: `if event.Timestamp != nil` has complex nested blocks (complexity: 4) (nestif)
+				if event.Timestamp != nil {
+				^
+node/transfer-verifier-sui.go:168:6: if statements should only be cuddled with assignments (wsl)
+					if timestampInt > latestTimestamp {
+					^
+node/transfer-verifier-sui.go:170:7: if statements should only be cuddled with assignments used in the if statement itself (wsl)
+						if event.ID.TxDigest != nil {
+						^
+node/transfer-verifier-sui.go:178:5: unhandled-error: Unhandled error in call to function processDigest (revive)
+				processDigest(txDigest, suiApiConnection, logger)
+				^
+node/transfer-verifier-sui.go:178:5: G104: Errors unhandled. (gosec)
+				processDigest(txDigest, suiApiConnection, logger)
+				^
+node/transfer-verifier-sui.go:178:18: Error return value is not checked (errcheck)
+				processDigest(txDigest, suiApiConnection, logger)
+				             ^
+node/transfer-verifier-sui.go:181: the line is 134 characters long, which exceeds the maximum of 100 characters. (lll)
+			logger.Info("New events processed", zap.Int("latestTimestamp", latestTimestamp), zap.Int("txDigestCount", len(txDigests)))
+node/transfer-verifier-sui.go:183:3: block should not end with a whitespace (or comment) (wsl)
+		}
+		^
+node/transfer-verifier-sui.go:187: the line is 132 characters long, which exceeds the maximum of 100 characters. (lll)
+// processEvents takes a list of events and processes them to determine the amount requested out of the bridge. It returns a mapping
+node/transfer-verifier-sui.go:188: the line is 134 characters long, which exceeds the maximum of 100 characters. (lll)
+// that maps the token address and chain ID to the amount requested out of the bridge. It does not return an error, because any faulty
+node/transfer-verifier-sui.go:189: the line is 130 characters long, which exceeds the maximum of 100 characters. (lll)
+// events can be skipped, since they would likely fail being processed by the guardian as well. Debug level logging can be used to
+node/transfer-verifier-sui.go:191:1: cognitive complexity 14 of func `processEvents` is high (> 10) (gocognit)
+func processEvents(events []SuiEvent, logger *zap.Logger) (requestedOutOfBridge map[string]*big.Int, numEventsProcessed int) {
+^
+node/transfer-verifier-sui.go:191: the line is 126 characters long, which exceeds the maximum of 100 characters. (lll)
+func processEvents(events []SuiEvent, logger *zap.Logger) (requestedOutOfBridge map[string]*big.Int, numEventsProcessed int) {
+node/transfer-verifier-sui.go:195: the line is 109 characters long, which exceeds the maximum of 100 characters. (lll)
+	// Filter events that have the sui token bridge emitter as the sender in the message. The events indicate
+node/transfer-verifier-sui.go:197:32: block should not start with a whitespace (wsl)
+	for _, event := range events {
+	                              ^
+node/transfer-verifier-sui.go:205:3: `if *event.Type == suiEventType && *event.Message.Sender == *suiTokenBridgeEmitter` has complex nested blocks (complexity: 3) (nestif)
+		if *event.Type == suiEventType && *event.Message.Sender == *suiTokenBridgeEmitter {
+		^
+node/transfer-verifier-sui.go:205:86: block should not start with a whitespace (wsl)
+		if *event.Type == suiEventType && *event.Message.Sender == *suiTokenBridgeEmitter {
+		                                                                                   ^
+node/transfer-verifier-sui.go:228: the line is 151 characters long, which exceeds the maximum of 100 characters. (lll)
+			logger.Debug("Event does not match the criteria", zap.String("event type", *event.Type), zap.String("event sender", *event.Message.Sender))
+node/transfer-verifier-sui.go:235:1: cognitive complexity 15 of func `processObjectUpdates` is high (> 10) (gocognit)
+func processObjectUpdates(objectChanges []ObjectChange, suiApiConnection SuiApiInterface, logger *zap.Logger) (transferredIntoBridge map[string]*big.Int, numChangesProcessed int, err error) {
+^
+node/transfer-verifier-sui.go:235:57: var-naming: func parameter suiApiConnection should be suiAPIConnection (revive)
+func processObjectUpdates(objectChanges []ObjectChange, suiApiConnection SuiApiInterface, logger *zap.Logger) (transferredIntoBridge map[string]*big.Int, numChangesProcessed int, err error) {
+                                                        ^
+node/transfer-verifier-sui.go:235: the line is 191 characters long, which exceeds the maximum of 100 characters. (lll)
+func processObjectUpdates(objectChanges []ObjectChange, suiApiConnection SuiApiInterface, logger *zap.Logger) (transferredIntoBridge map[string]*big.Int, numChangesProcessed int, err error) {
+node/transfer-verifier-sui.go:245: the line is 135 characters long, which exceeds the maximum of 100 characters. (lll)
+		resp, err := suiApiConnection.TryMultiGetPastObjects(objectChange.ObjectId, objectChange.Version, objectChange.PreviousVersion)
+node/transfer-verifier-sui.go:295:35: var-naming: func parameter suiApiConnection should be suiAPIConnection (revive)
+func processDigest(digest string, suiApiConnection SuiApiInterface, logger *zap.Logger) error {
+                                  ^
+node/transfer-verifier-sui.go:307: the line is 131 characters long, which exceeds the maximum of 100 characters. (lll)
+	transferredIntoBridge, numChangesProcessed, err := processObjectUpdates(txBlock.Result.ObjectChanges, suiApiConnection, logger)
+node/transfer-verifier-sui.go:322:3: block should not end with a whitespace (or comment) (wsl)
+		}
+		^
+node/transfer-verifier-sui.go:339: the line is 171 characters long, which exceeds the maximum of 100 characters. (lll)
+	logger.Info("Digest processed", zap.String("txDigest", digest), zap.Int("numEventsProcessed", numEventsProcessed), zap.Int("numChangesProcessed", numChangesProcessed))
+node/transfer-verifier-sui.go:344:6: var-naming: type SuiApiResponse should be SuiAPIResponse (revive)
+type SuiApiResponse interface {
+     ^
+node/transfer-verifier-sui.go:348:6: var-naming: func suiApiRequest should be suiAPIRequest (revive)
+func suiApiRequest[T SuiApiResponse](rpc string, method string, params string) (T, error) {
+     ^
+node/transfer-verifier-sui.go:352: the line is 106 characters long, which exceeds the maximum of 100 characters. (lll)
+	requestBody := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "%s", "params": %s}`, method, params)
+node/transfer-verifier-sui.go:365:2: only one cuddle assignment allowed before if statement (wsl)
+	if err != nil {
+	^
+node/transfer-verifier-sui.go:368:2: only one cuddle assignment allowed before defer statement (wsl)
+	defer resp.Body.Close()
+	^
+node/transfer-verifier-sui.go:368:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+node/transfer-verifier-sui.go:378:2: assignments should only be cuddled with other assignments (wsl)
+	err = json.Unmarshal(body, &res)
+	^
+node/transfer-verifier-sui.go:379:2: only one cuddle assignment allowed before if statement (wsl)
+	if err != nil {
+	^
+node/transfer-verifier-sui.go:391:6: var-naming: type SuiApiConnection should be SuiAPIConnection (revive)
+type SuiApiConnection struct {
+     ^
+node/transfer-verifier-sui.go:395:6: var-naming: func NewSuiApiConnection should be NewSuiAPIConnection (revive)
+func NewSuiApiConnection(rpc string) SuiApiInterface {
+     ^
+node/transfer-verifier-sui.go:399: the line is 105 characters long, which exceeds the maximum of 100 characters. (lll)
+func (s *SuiApiConnection) GetTransactionBlock(txDigest string) (SuiGetTransactionBlockResponse, error) {
+node/transfer-verifier-sui.go:412: the line is 130 characters long, which exceeds the maximum of 100 characters. (lll)
+func (s *SuiApiConnection) QueryEvents(filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error) {
+node/transfer-verifier-sui.go:419:51: var-naming: method parameter objectId should be objectID (revive)
+func (s *SuiApiConnection) TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error) {
+                                                  ^
+node/transfer-verifier-sui.go:419: the line is 151 characters long, which exceeds the maximum of 100 characters. (lll)
+func (s *SuiApiConnection) TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error) {
+node/transfer-verifier-utils.go:10:13: Comment should end in a period (godot)
+// Constants
+            ^
+node/transfer-verifier-utils.go:12:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	MAX_DECIMALS = 8
+	^
+node/transfer-verifier-utils.go:13:2: var-naming: don't use ALL_CAPS in Go names; use CamelCase (revive)
+	KEY_FORMAT   = "%s-%d"
+	^
+node/transfer-verifier-utils.go:18:6: var-naming: func extractFromJsonPath should be extractFromJSONPath (revive)
+func extractFromJsonPath[T any](data json.RawMessage, path string) (T, error) {
+     ^
+node/transfer-verifier-utils.go:22:2: assignments should only be cuddled with other assignments (wsl)
+	err := json.Unmarshal(data, &obj)
+	^
+node/transfer-verifier-utils.go:23:2: only one cuddle assignment allowed before if statement (wsl)
+	if err != nil {
+	^
+node/transfer-verifier-utils.go:35:3: assignments should only be cuddled with other assignments (wsl)
+		obj = obj[key].(map[string]interface{})
+		^
+node/transfer-verifier-utils.go:55:2: if statements should only be cuddled with assignments (wsl)
+	if decimals > MAX_DECIMALS {
+	^
+node/transfer-verifier-utils.go:66: the line is 109 characters long, which exceeds the maximum of 100 characters. (lll)
+// denormalize() scales an amount to its native decimal representation by multiplying it by some power of 10.
+node/transfer-verifier-utils.go:68: File is not `goimports`-ed (goimports)
+// - documentation: 
+//	https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#handling-of-token-amounts-and-decimals
+//	https://wormhole.com/docs/build/start-building/supported-networks/evm/#addresses
+// - solidity implementation: 
+//	https://github.com/wormhole-foundation/wormhole/blob/91ec4d1dc01f8b690f0492815407505fb4587520/ethereum/contracts/bridge/Bridge.sol#L295-L300
+node/transfer-verifier-utils.go:68: File is not `gofmt`-ed with `-s` (gofmt)
+// - documentation: 
+//	https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#handling-of-token-amounts-and-decimals
+//	https://wormhole.com/docs/build/start-building/supported-networks/evm/#addresses
+// - solidity implementation: 
+//	https://github.com/wormhole-foundation/wormhole/blob/91ec4d1dc01f8b690f0492815407505fb4587520/ethereum/contracts/bridge/Bridge.sol#L295-L300
+node/transfer-verifier-utils.go:69: the line is 135 characters long, which exceeds the maximum of 100 characters. (lll)
+//	https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#handling-of-token-amounts-and-decimals
+node/transfer-verifier-utils.go:72: the line is 146 characters long, which exceeds the maximum of 100 characters. (lll)
+//	https://github.com/wormhole-foundation/wormhole/blob/91ec4d1dc01f8b690f0492815407505fb4587520/ethereum/contracts/bridge/Bridge.sol#L295-L300
+node/transfer-verifier-utils.go:83:2: block should not end with a whitespace (or comment) (wsl)
+	} else {
+	^
+node/transfer-verifier.go:11:5: TransferVerifierCmd is a global variable (gochecknoglobals)
+var TransferVerifierCmd = &cobra.Command{
+    ^
+node/transfer-verifier.go:17:5: Sentence should start with a capital letter (godot)
+	// logLevel is a global flag that is used to set the logging level for the TransferVerifierCmd
+	   ^
+node/transfer-verifier.go:17:96: Comment should end in a period (godot)
+	// logLevel is a global flag that is used to set the logging level for the TransferVerifierCmd
+	                                                                                              ^
+node/transfer-verifier.go:18:2: logLevel is a global variable (gochecknoglobals)
+	logLevel *string
+	^
+node/transfer-verifier.go:24:1: don't use `init` function (gochecknoinits)
+func init() {
+^
+node/transfer-verifier.go:26: the line is 145 characters long, which exceeds the maximum of 100 characters. (lll)
+	logLevel = TransferVerifierCmd.PersistentFlags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
