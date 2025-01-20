@@ -28,5 +28,7 @@ issues:
       text: "^func.*supervisor.*(waitSettle|waitSettleError).*$"
       linters:
         - unused
-    - path: pkg/transfer-verifier/transfer-verifier-sui_test.go
+    # This file contains hard-coded Sui core contract addresses that are marked as hardcoded credentials.
+    - path: pkg/txverifier/sui_test.go
+
       text: "G101: Potential hardcoded credentials"
