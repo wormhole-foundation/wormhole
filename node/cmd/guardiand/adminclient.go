@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -301,6 +302,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
+
 	emitterAddress := args[1]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -311,6 +313,11 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
 	defer conn.Close()
+
+	// Although chains ids are constrained to be 16 bit, we only constrain to 32 bit here given the protobuf usage later
+	if chainID > math.MaxUint32 {
+		log.Fatalf("chain ID is not a valid 32 bit unsigned integer: %v", err)
+	}
 
 	msg := nodev1.FindMissingMessagesRequest{
 		EmitterChain:   uint32(chainID),
@@ -342,6 +349,10 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	chainID, err := strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
+	}
+	// We only constrain this to int32 now, not uint16, given the ChainID protobuf definition
+	if chainID > math.MaxInt32 {
+		log.Fatalf("chain id must not exceed the max int32: %v", chainID)
 	}
 	emitterAddress := parts[1]
 	seq, err := strconv.ParseUint(parts[2], 10, 64)
@@ -560,7 +571,7 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	if len(args) > 1 {
 		numDaysArg, err := strconv.Atoi(args[1])
 
-		if err != nil {
+		if numDaysArg > math.MaxUint32 || err != nil {
 			log.Fatalf("invalid num_days: %v", err)
 		}
 

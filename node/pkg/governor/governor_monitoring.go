@@ -77,6 +77,7 @@ package governor
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -379,7 +380,7 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 				EmitterChain:   uint32(pe.dbData.Msg.EmitterChain),
 				EmitterAddress: pe.dbData.Msg.EmitterAddress.String(),
 				Sequence:       pe.dbData.Msg.Sequence,
-				ReleaseTime:    uint32(pe.dbData.ReleaseTime.Unix()),
+				ReleaseTime:    uint32(pe.dbData.ReleaseTime.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 				NotionalValue:  value,
 				TxHash:         pe.dbData.Msg.TxHash.String(),
 			})
@@ -398,7 +399,11 @@ func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, err
 		return false, fmt.Errorf("no message ID specified")
 	}
 
-	emitterChain := vaa.ChainID(msgId.EmitterChain)
+	if msgId.GetEmitterChain() > math.MaxUint16 {
+		return false, fmt.Errorf("emitter chain id must be no greater than 16 bits")
+	}
+
+	emitterChain := vaa.ChainID(msgId.GetEmitterChain())
 
 	emitterAddress, err := vaa.StringToAddress(msgId.EmitterAddress)
 	if err != nil {
@@ -647,7 +652,7 @@ func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartb
 				numEnqueued = numEnqueued + 1
 				enqueuedVaas = append(enqueuedVaas, &gossipv1.ChainGovernorStatus_EnqueuedVAA{
 					Sequence:      pe.dbData.Msg.Sequence,
-					ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()),
+					ReleaseTime:   uint32(pe.dbData.ReleaseTime.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 					NotionalValue: value,
 					TxHash:        pe.dbData.Msg.TxHash.String(),
 				})

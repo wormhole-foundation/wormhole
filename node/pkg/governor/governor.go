@@ -145,7 +145,7 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 		return fmt.Errorf("value for transfer.dbTransfer exceeds MaxInt64: %d", transfer.dbTransfer.Value)
 	}
 	// Type conversion is safe here because of the MaxInt64 bounds check above
-	if value != -int64(transfer.dbTransfer.Value) {
+	if value != -int64(transfer.dbTransfer.Value) { // nolint:gosec
 		return fmt.Errorf("transfer is invalid: transfer.value %d must equal the inverse of transfer.dbTransfer.Value %d", value, transfer.dbTransfer.Value)
 	}
 	if targetChain != ce.emitterChainId {
