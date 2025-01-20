@@ -106,8 +106,13 @@ contract DeployTestToken is Script {
 
         console.log("Test token A deployed at: ", address(deployedA));
 
+        // Mint test tokens to Anvil's default account at index 1.
+        // The account at index 0 is used for other tests in the devnet, so
+        // using account 1 to send transfers will hopefully cause things to be
+        // better encapsulated.
+        deployedA.mint(accounts[1], 1_000_000_000_000_000_000_000);
+
         for(uint16 i=0; i<11; i++) {
-            deployedA.mint(accounts[i], 1_000_000_000_000_000_000_000);
             // Give the accounts enough eth to send transactions
             vm.deal(accounts[i], 1e18);
         }
