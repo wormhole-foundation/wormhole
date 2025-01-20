@@ -134,7 +134,6 @@ func setupAccountantAndGuardianSet(t *testing.T, ctx sdk.Context, k *keeper.Keep
 func TestWasmdStoreCode(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
-	_ = privateKeys
 	k.SetConfig(ctx, types.Config{
 		GovernanceEmitter:     vaa.GovernanceEmitter[:],
 		GovernanceChain:       uint32(vaa.GovernanceChain),
@@ -203,7 +202,6 @@ func TestWasmdStoreCode(t *testing.T) {
 func TestWasmdInstantiateContract(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
-	_ = privateKeys
 	k.SetConfig(ctx, types.Config{
 		GovernanceEmitter:     vaa.GovernanceEmitter[:],
 		GovernanceChain:       uint32(vaa.GovernanceChain),

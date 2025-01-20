@@ -39,7 +39,7 @@ func SubmitAllowlistInstantiateContract(
 	}
 	payloadBz, err := payload.Serialize(vaa.ActionAddWasmInstantiateAllowlist)
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 	vHex := hex.EncodeToString(vBz)
@@ -83,7 +83,7 @@ func SubmitUpdateChainToChannelMapMsg(t *testing.T, allowlistChainID uint16, all
 	payload.Write(channelPadded.Bytes())
 	vaa.MustWrite(payload, binary.BigEndian, allowlistChainID)
 
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payload.Bytes())
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 
@@ -162,7 +162,7 @@ func IbcTranslatorCompleteTransferAndConvertMsg(t *testing.T, emitterChainID uin
 		emitterBz[eIndex-1] = emitterAddr[i-1]
 		eIndex--
 	}
-	v := generateVaa(0, guardians, vaa.ChainID(emitterChainID), vaa.Address(emitterBz), payload)
+	v := GenerateVaa(0, guardians, vaa.ChainID(emitterChainID), vaa.Address(emitterBz), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 
