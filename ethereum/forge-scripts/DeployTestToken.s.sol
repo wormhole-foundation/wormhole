@@ -17,7 +17,8 @@ contract DeployTestToken is Script {
             address deployedTokenAddress,
             address deployedNFTaddress,
             address deployedWETHaddress,
-            address deployedAccountantTokenAddress
+            address deployedAccountantTokenAddress,
+            address transferVerificationTokenA
         )
     {
         vm.startBroadcast();
@@ -25,7 +26,8 @@ contract DeployTestToken is Script {
             deployedTokenAddress,
             deployedNFTaddress,
             deployedWETHaddress,
-            deployedAccountantTokenAddress
+            deployedAccountantTokenAddress,
+            transferVerificationTokenA
         ) = _deploy();
         vm.stopBroadcast();
     }
@@ -36,7 +38,8 @@ contract DeployTestToken is Script {
             address deployedTokenAddress,
             address deployedNFTaddress,
             address deployedWETHaddress,
-            address deployedAccountantTokenAddress
+            address deployedAccountantTokenAddress,
+            address transferVerificationTokenA
         )
     {
         address[] memory accounts = new address[](13);
@@ -95,11 +98,31 @@ contract DeployTestToken is Script {
         // mint 1000 units
         accountantToken.mint(accounts[9], 1_000_000_000_000_000_000_000);
 
+        // Deploy a test token for Transfer Verification
+        ERC20PresetMinterPauser deployedA = new ERC20PresetMinterPauser(
+            "TransferVerifier Test Token A",
+            "TVA"
+        );
+
+        console.log("Test token A deployed at: ", address(deployedA));
+
+        // Mint test tokens to Anvil's default account at index 1.
+        // The account at index 0 is used for other tests in the devnet, so
+        // using account 1 to send transfers will hopefully cause things to be
+        // better encapsulated.
+        deployedA.mint(accounts[1], 1_000_000_000_000_000_000_000);
+
+        for(uint16 i=0; i<11; i++) {
+            // Give the accounts enough eth to send transactions
+            vm.deal(accounts[i], 1e18);
+        }
+
         return (
             address(token),
             address(nft),
             address(mockWeth),
-            address(accountantToken)
+            address(accountantToken),
+            address(deployedA)
         );
     }
 }
