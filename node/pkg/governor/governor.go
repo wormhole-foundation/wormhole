@@ -128,10 +128,7 @@ type (
 
 // valid checks whether a pipe is valid. A pipe is invalid if both chain IDs are equal.
 func (p *pipe) valid() bool {
-	if p.first == p.second {
-		return false
-	}
-	return true
+	return p.first != p.second
 }
 
 // equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
@@ -956,9 +953,7 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 }
 
 // tryAddFlowCancelTransfer adds inverse transfer to destination chain entry if this asset can cancel flows.
-func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (added bool, err error) {
-	added = false
-
+func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, error) {
 	originChain := transfer.dbTransfer.OriginChain
 	originAddr := transfer.dbTransfer.OriginAddress
 	hash := transfer.dbTransfer.Hash
