@@ -108,4 +108,7 @@ ictest-ibc-receiver: rm-testcache
 ictest-cw-wormhole: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestCWWormhole ./...
 
-.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver ictest-cw-wormhole
+ictest-cw-shutdown-contracts: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestShutdown ./...
+
+.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver ictest-cw-wormhole ictest-cw-shutdown-contracts
