@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -23,12 +24,16 @@ import (
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
+	eth_client "github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -89,7 +94,7 @@ type (
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 
-		// Channel to send new messages to.
+		// Channel to send new messages to. Should be wrapped be a call to `publishIfSafe()`
 		msgC chan<- *common.MessagePublication
 
 		// Channel to send guardian set changes to.
@@ -137,6 +142,8 @@ type (
 		ccqBatchSize       int64
 		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
+		// Transfer Verifier instance. Only used for Ethereum.
+		txverifier *txverifier.TransferVerifier[*eth_client.Client, connectors.Connector]
 	}
 
 	pendingKey struct {
@@ -168,6 +175,8 @@ func NewEthWatcher(
 	env common.Environment,
 	ccqBackfillCache bool,
 ) *Watcher {
+	// Note: the Transfer Verifier is not added to the struct here because it requires a Connector instance.
+	// Instead, it will be populated in `Run()`.
 	return &Watcher{
 		url:                url,
 		contract:           contract,
@@ -240,6 +249,48 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			}
 		} else {
 			w.logger.Info("assuming instant finality")
+		}
+
+		// For now, only enable Transfer Verification for Ethereum
+		// specifically. This will allow us to test
+		// a minimal rollout rather than ensuring EVM-compatibility
+		// across several chains at once.
+		if w.chainID == vaa.ChainIDEthereum {
+			var tvErr error
+			var addrs txverifier.TVAddresses
+
+			switch w.env {
+			case common.UnsafeDevNet:
+				addrs = txverifier.TVAddresses{
+					CoreBridgeAddr: w.contract,
+					TokenBridgeAddr: eth_common.BytesToAddress(sdk.KnownDevnetTokenbridgeEmitters[w.chainID]),
+					// TODO this shouldn't be hard-coded
+					WrappedNativeAddr: eth_common.HexToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"),
+				}
+			case common.TestNet:
+				addrs = txverifier.TVAddresses{
+					CoreBridgeAddr: w.contract,
+					TokenBridgeAddr: eth_common.BytesToAddress(sdk.KnownTestnetTokenbridgeEmitters[w.chainID]),
+					// TODO this is wrong. Find WETH on testnet
+					WrappedNativeAddr: eth_common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+				}
+			case common.MainNet:
+				addrs = txverifier.TVAddresses{
+					CoreBridgeAddr: w.contract,
+					TokenBridgeAddr: eth_common.Address(sdk.KnownTokenbridgeEmitters[w.chainID]),
+					WrappedNativeAddr: eth_common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
+				}
+			}
+
+			w.txverifier, tvErr = txverifier.NewTransferVerifier(
+				w.ethConn,
+				&addrs,
+				20,
+				logger,
+			)
+			if tvErr != nil {
+				return fmt.Errorf("failed to create Transfer Verifier instance for Ethereum watcher: %w", err)
+			}
 		}
 	}
 
@@ -524,7 +575,31 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("current_blockHash", currentHash),
 						)
 						delete(w.pending, key)
-						w.msgC <- pLock.message
+
+						// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
+						// to protect against fraudulent message emissions.
+						if w.chainID == vaa.ChainIDEthereum && w.txverifier != nil {
+							if !w.txverifier.ProcessEvent(ctx, nil, tx) {
+								logger.Error("Transfer verification failed",
+									zap.String("msgId", pLock.message.MessageIDString()),
+									zap.Stringer("txHash", pLock.message.TxHash),
+									zap.Stringer("blockHash", key.BlockHash),
+									zap.Uint64("target_blockNum", pLock.height),
+									zap.Stringer("current_blockNum", ev.Number),
+									zap.Stringer("finality", ev.Finality),
+									zap.Stringer("current_blockHash", currentHash),
+								)
+								// The purpose of this statement is to short-circuit processing,
+								// but to ensure the mutex is unlocked at the end of the containing function.
+								break
+							}
+						}
+
+						pubErr := w.publishIfSafe(pLock.message, ctx, nil, tx)
+						if pubErr != nil {
+							logger.Error("could not publish message")
+							zap.Error(pubErr)
+						}
 						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					}
 				}
@@ -701,7 +776,15 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 		)
 
-		w.msgC <- message
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		pubErr := w.publishIfSafe(message, ctx, ev, nil)
+		if pubErr != nil {
+			logger.Error("could not publish message")
+			zap.Error(pubErr)
+		}
+
 		ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 		return
 	}
@@ -743,6 +826,37 @@ var blockNotFoundErrors = map[string]struct{}{
 func canRetryGetBlockTime(err error) bool {
 	_, exists := blockNotFoundErrors[err.Error()]
 	return exists
+}
+
+// publishIfSafe validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message.
+// The MessagePulication is checked against either its corresponding raw message publication event log or else a transaction receipt.
+func (w *Watcher) publishIfSafe(
+	message *common.MessagePublication,
+	ctx context.Context,
+	ev *ethabi.AbiLogMessagePublished,
+	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
+	receipt *gethTypes.Receipt,
+) error {
+	if message == nil {
+		return errors.New("message publication cannot be nil")
+	}
+	if ev == nil && receipt == nil {
+		return errors.New("one of event or receipt must not be nil")
+	}
+	// For now, enable this functionality only on Ethereum.
+	if w.chainID == vaa.ChainIDEthereum {
+		// This should have already been initialized.
+		if w.txverifier == nil {
+			return errors.New("transfer verifier is nil")
+		}
+		if !w.txverifier.ProcessEvent(ctx, ev, receipt) {
+			return errors.New("transfer verification failed")
+		}
+	}
+
+	// Broadcast the message.
+	w.msgC <- message
+	return nil
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
