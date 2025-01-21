@@ -697,7 +697,7 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 	return gov, nil
 }
 
-// Converts a string into a go-ethereum Hash object used as test input.
+// Converts a TxHash string into a byte array to be used as a TxID.
 func hashToTxID(str string) []byte {
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]

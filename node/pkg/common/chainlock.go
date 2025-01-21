@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -52,7 +53,7 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	if len(msg.TxID) > math.MaxUint8 {
-		return nil, fmt.Errorf("TxID too long")
+		return nil, errors.New("TxID too long")
 	}
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID)))
 	buf.Write(msg.TxID)
@@ -73,7 +74,7 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 // This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
 func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication, error) {
 	if len(data) < minMsgLength {
-		return nil, fmt.Errorf("message is too short")
+		return nil, errors.New("message is too short")
 	}
 
 	msg := &MessagePublication{}
@@ -131,7 +132,7 @@ func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication,
 // UnmarshalMessagePublication deserializes a MessagePublication
 func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	if len(data) < minMsgLength {
-		return nil, fmt.Errorf("message is too short")
+		return nil, errors.New("message is too short")
 	}
 
 	msg := &MessagePublication{}
