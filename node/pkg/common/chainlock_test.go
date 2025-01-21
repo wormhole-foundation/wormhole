@@ -164,6 +164,28 @@ func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing
 	assert.Equal(t, payload1, payload2)
 }
 
+func TestTxIDStringTooLongShouldFail(t *testing.T) {
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	// This is limited to 255. Make it 256 and the marshal should fail.
+	txID := []byte("0123456789012345678901234567890123456789012345678901234567890123012345678901234567890123456789012345678901234567890123456789012301234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123")
+
+	msg := &MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          []byte("Hello, World!"),
+		ConsistencyLevel: 32,
+	}
+
+	_, err = msg.Marshal()
+	assert.ErrorContains(t, err, "TxID too long")
+}
+
 func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T) {
 	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)

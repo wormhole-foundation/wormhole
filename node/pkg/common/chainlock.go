@@ -51,10 +51,10 @@ const minMsgLength = 88 // Marshalled length with empty payload
 func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	if len(msg.TxID) > math.MaxUint32 {
+	if len(msg.TxID) > math.MaxUint8 {
 		return nil, fmt.Errorf("TxID too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.TxID)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID)))
 	buf.Write(msg.TxID)
 
 	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
@@ -138,7 +138,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 
 	reader := bytes.NewReader(data[:])
 
-	txIdLen := uint32(0)
+	txIdLen := uint8(0)
 	if err := binary.Read(reader, binary.BigEndian, &txIdLen); err != nil {
 		return nil, fmt.Errorf("failed to read TxID len: %w", err)
 	}
