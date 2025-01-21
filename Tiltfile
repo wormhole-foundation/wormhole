@@ -707,7 +707,7 @@ if ci_tests:
     k8s_resource(
         "tx-verifier-test",
         resource_deps = ["eth-devnet", "tx-verifier-with-monitor"],
-        labels = ["evm", "tx-verifier"],
+        labels = ["tx-verifier"],
         trigger_mode = trigger_mode,
     )
 
