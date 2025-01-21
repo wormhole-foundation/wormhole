@@ -62,14 +62,14 @@ var (
 			Name: "global_accountant_guardian_signatures_total",
 			Help: "Total number of VAAs signed by each guardian for each chain",
 		},
-		[]string{"guardian", "chain_name"},
+		[]string{"peer_id", "chain_name"},
 	)
 )
 
 // RecordGuardianSignature increments the guardianSignatures metric for the given guardian and chain.
-func RecordGuardianSignature(guardianName, chain_name string) {
+func RecordGuardianSignature(peer_id, chain_name string) {
 	guardianSignatures.With(prometheus.Labels{
-		"guardian": guardianName,
-		"chain":    chain_name,
+		"peer_id": peer_id,
+		"chain":   chain_name,
 	}).Inc()
 }
