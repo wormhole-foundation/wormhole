@@ -41,6 +41,7 @@ const (
 // If the return value is false, it implies that something serious has gone wrong.
 func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	ctx context.Context,
+	// If nil, only the receipt argument will be used
 	vLog *ethabi.AbiLogMessagePublished,
 	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
 	receipt *geth.Receipt,
@@ -48,6 +49,12 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 
 	// Use this opportunity to prune old transaction information from the cache.
 	tv.pruneCache()
+
+	// TODO there's probably a better way to structure the functions so that this isn't necessary
+	if receipt == nil && vLog == nil {
+		tv.logger.Error("one of receipt or vLog must not be nil")
+		return false
+	}
 
 	tv.logger.Debug("detected LogMessagePublished event",
 		zap.String("txHash", vLog.Raw.TxHash.String()))
