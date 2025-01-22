@@ -50,3 +50,6 @@ func Test_canRetryGetBlockTime(t *testing.T) {
 	assert.True(t, canRetryGetBlockTime(errors.New("cannot query unfinalized data")))
 	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
 }
+
+// Add test for publishIFSafe
+// requires creating a watcher object
