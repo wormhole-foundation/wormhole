@@ -741,7 +741,14 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("failed to determine commitment: %w", err)
 	}
 
-	if level != s.commitment {
+	if !s.checkCommitment(level, isReobservation) {
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("skipping message which does not match the watcher commitment",
+				zap.Stringer("signature", tx.Signatures[0]),
+				zap.String("message commitment", string(level)),
+				zap.String("watcher commitment", string(s.commitment)),
+			)
+		}
 		return true, nil
 	}
 
@@ -923,19 +930,16 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 			zap.Error(err))
 		return
 	}
-	if commitment != s.commitment {
-		if isReobservation && s.commitment == rpc.CommitmentFinalized {
-			// There is only a single reobservation request channel for each chain, which is assigned to the finalized watcher.
-			// If someone requests reobservation of a confirmed message, we should allow the observation to go through.
-			logger.Info("allowing reobservation although the commitment level does not match the watcher",
-				zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)),
+
+	if !s.checkCommitment(commitment, isReobservation) {
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("skipping message which does not match the watcher commitment",
+				zap.Stringer("account", acc),
+				zap.String("message commitment", string(commitment)),
+				zap.String("watcher commitment", string(s.commitment)),
 			)
-		} else {
-			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
-			}
-			return
 		}
+		return
 	}
 
 	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
@@ -1059,4 +1063,17 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, tx *sol
 	}
 
 	return nil
+}
+
+// checkCommitment checks to see if the commitment level of an observation matches the watcher. If it does, the observation should be published.
+// If the commitment level does not match and the message is not a reobservation, then it should be dropped. In the case of a reobservation
+// where the commitment level doesn't match, we need to check to see if this is the finalized watcher. If it is, then we should generate the
+// observation. This is because all reobservation requests are handled by the finalized watcher.
+func (s *SolanaWatcher) checkCommitment(commitment rpc.CommitmentType, isReobservation bool) bool {
+	if commitment != s.commitment {
+		if !isReobservation || s.commitment != rpc.CommitmentFinalized {
+			return false
+		}
+	}
+	return true
 }
