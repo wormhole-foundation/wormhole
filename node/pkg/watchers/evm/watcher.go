@@ -700,7 +700,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if pubErr != nil {
 							logger.Error("could not publish message: transfer verification failed",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.String("txHash",txHash.String()),
+								zap.String("txHash", txHash.String()),
 								zap.Error(pubErr),
 							)
 						}
