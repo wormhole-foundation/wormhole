@@ -937,6 +937,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	txVerifierChains, err := parseTxVerifierChains(*transferVerifierEnabledChains)
+	if err != nil {
+		logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(err))
+	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
 	switch *publicRpcLogDetailStr {
