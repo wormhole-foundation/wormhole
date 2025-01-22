@@ -11,9 +11,12 @@ RPC="${RPC_URL:-ws://eth-devnet:8545}"
 CORE_BRIDGE_CONTRACT=0xC89Ce4735882C9F0f0FE26686c53074E09B0D550
 TOKEN_BRIDGE_CONTRACT=0x0290FB167208Af455bB137780163b7B7a9a10C16
 
+# Corresponds to the mnemonic used by anvil in the devnet set-up.
 MNEMONIC=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
 
-ERC20_ADDR="0x47bdB2D7d6528C760b6f228b3B8F9F650169a10f" # Test token A
+ # "Ethereum Test Token" in devnet.
+ # https://github.com/wormhole-foundation/wormhole/blob/06962c9bd00d2fa081abd6d09d060355ea3af84c/ethereum/forge-scripts/DeployTestToken.s.sol#L66
+ERC20_ADDR="0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A"
 
 VALUE="1000" # Wei value sent as msg.value
 TRANSFER_AMOUNT="10"
@@ -30,7 +33,12 @@ NONCE="234" # arbitrary
 
 # Build the payload for token transfers. Declared on multiple lines to
 # be more legible. Data pulled from an arbitrary LogMessagePublished event
-# on etherscan. Metadata and fees commented out, leaving only the payload
+# on etherscan. 
+# Metadata and fees commented out, leaving only the payload.
+# Note that the token address of `ERC20_ADDR` appears within the payload
+# but is not aligned with the slot size, i.e. the last byte of
+# the address is found on the following line. This is not ideal to work
+# with but it matches how the core bridge actually works.
 PAYLOAD="0x"
 declare -a SLOTS=(
    # "0000000000000000000000000000000000000000000000000000000000055baf"
@@ -39,8 +47,8 @@ declare -a SLOTS=(
    # "0000000000000000000000000000000000000000000000000000000000000001"
    # "00000000000000000000000000000000000000000000000000000000000000ae"
    "030000000000000000000000000000000000000000000000000000000005f5e1"
-   "000000000000000000000000002260fac5e5542a773aa44fbcfedf7c193bc2c5"
-   "9900020000000000000000000000000000000000000000000000000000000000"
+   "000000000000000000000000002D8BE6BF0baA74e0A907016679CaE9190e80dD"
+   "0A00020000000000000000000000000000000000000000000000000000000000"
    "000816001000000000000000000000000044eca3f6295d6d559ca1d99a5ef5a8"
    "f72b4160f10001010200c91f01004554480044eca3f6295d6d559ca1d99a5ef5"
    "a8f72b4160f10000000000000000000000000000000000000000000000000000"
