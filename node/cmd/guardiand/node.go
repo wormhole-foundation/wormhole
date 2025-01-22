@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
@@ -9,6 +10,7 @@ import (
 	"os/signal"
 	"path"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -40,6 +42,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
@@ -278,6 +281,8 @@ var (
 	env common.Environment
 
 	subscribeToVAAs *bool
+
+	transferVerifierEnabledChains *string
 )
 
 func init() {
@@ -504,6 +509,8 @@ func init() {
 	gatewayRelayerKeyPassPhrase = NodeCmd.Flags().String("gatewayRelayerKeyPassPhrase", "", "Pass phrase used to unarmor the gateway relayer key file")
 
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
+
+	transferVerifierEnabledChains = NodeCmd.Flags().String("transferVerifierEnabledChains", "", "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 }
 
 var (
@@ -922,6 +929,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
 
+	txVerifierChains, err := parseTxVerifierChains(*transferVerifierEnabledChains)
+
 	var publicRpcLogDetail common.GrpcLogDetail
 	switch *publicRpcLogDetailStr {
 	case "none":
@@ -1208,6 +1217,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:               *ethContract,
 			GuardianSetUpdateChain: true,
 			CcqBackfillCache:       *ccqBackfillCache,
+			TxVerifier:             slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1220,6 +1230,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *bscRPC,
 			Contract:         *bscContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBSC),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1232,6 +1243,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *polygonRPC,
 			Contract:         *polygonContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDPolygon),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1244,6 +1256,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *avalancheRPC,
 			Contract:         *avalancheContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDAvalanche),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1256,6 +1269,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *oasisRPC,
 			Contract:         *oasisContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDOasis),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1268,6 +1282,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *fantomRPC,
 			Contract:         *fantomContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDFantom),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1280,6 +1295,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *karuraRPC,
 			Contract:         *karuraContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDKarura),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1292,6 +1308,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *acalaRPC,
 			Contract:         *acalaContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDAcala),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1304,6 +1321,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *klaytnRPC,
 			Contract:         *klaytnContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDKlaytn),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1316,6 +1334,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *celoRPC,
 			Contract:         *celoContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDCelo),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1328,6 +1347,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *moonbeamRPC,
 			Contract:         *moonbeamContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMoonbeam),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1340,6 +1360,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:                 *arbitrumRPC,
 			Contract:            *arbitrumContract,
 			L1FinalizerRequired: "eth",
+			TxVerifier:          slices.Contains(txVerifierChains, vaa.ChainIDArbitrum),
 			CcqBackfillCache:    *ccqBackfillCache,
 		}
 
@@ -1353,6 +1374,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *optimismRPC,
 			Contract:         *optimismContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDOptimism),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1365,6 +1387,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *baseRPC,
 			Contract:         *baseContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBase),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1377,6 +1400,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *scrollRPC,
 			Contract:         *scrollContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDScroll),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1389,6 +1413,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *mantleRPC,
 			Contract:         *mantleContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMantle),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1401,6 +1426,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *blastRPC,
 			Contract:         *blastContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBlast),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1413,6 +1439,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *xlayerRPC,
 			Contract:         *xlayerContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDXLayer),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1425,6 +1452,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *lineaRPC,
 			Contract:         *lineaContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDLinea),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1437,6 +1465,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *berachainRPC,
 			Contract:         *berachainContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBerachain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1449,6 +1478,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *snaxchainRPC,
 			Contract:         *snaxchainContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDSnaxchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1461,6 +1491,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *unichainRPC,
 			Contract:         *unichainContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDUnichain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1473,6 +1504,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *worldchainRPC,
 			Contract:         *worldchainContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDWorldchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1485,6 +1517,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *inkRPC,
 			Contract:         *inkContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDInk),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1497,6 +1530,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *hyperEvmRPC,
 			Contract:         *hyperEvmContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDHyperEVM),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1509,6 +1543,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *monadRPC,
 			Contract:         *monadContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMonad),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1521,6 +1556,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:              *seiEvmRPC,
 			Contract:         *seiEvmContract,
 			CcqBackfillCache: *ccqBackfillCache,
+			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDSeiEVM),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1856,4 +1892,32 @@ func argsConsistent(args []string) bool {
 	}
 
 	return true
+}
+
+// Parse a list of chainIds from a comma separated string and validate that they have a Transfer Verifier implementation
+func parseTxVerifierChains(
+	// A comma-separated list of Wormhole ChainIDs.
+	input string,
+) ([]vaa.ChainID, error) {
+	if len(input) == 0 {
+		return nil, errors.New("could not parse input to parseTxVerifierChains: input empty")
+	}
+	// These are the only supported chains. The argument to this function must only include elements
+	// that are members of this slice.
+	// TODO should this be a utility function in the Transfer Verifier package?
+	supported := txverifier.SupportedChains()
+	parsed := strings.Split(input, ",")
+	enabled := make([]vaa.ChainID, 0)
+	for _, c := range parsed {
+		cid, err := vaa.ChainIDFromString(c)
+		if err != nil {
+			return nil, fmt.Errorf("%s is not a valid chainId. input: %s", c, input)
+		}
+		if !slices.Contains(supported, cid) {
+			return nil, fmt.Errorf("chainId %d is not supported by Transfer Verifier", cid)
+		}
+		enabled = append(enabled, cid)
+	}
+
+	return enabled, nil
 }
