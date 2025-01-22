@@ -64,13 +64,14 @@ type G struct {
 	guardianSigner guardiansigner.GuardianSigner
 
 	// components
-	db              *db.Database
-	gst             *common.GuardianSetState
-	acct            *accountant.Accountant
-	gov             *governor.ChainGovernor
-	gatewayRelayer  *gwrelayer.GatewayRelayer
-	queryHandler    *query.QueryHandler
-	publicrpcServer *grpc.Server
+	db               *db.Database
+	gst              *common.GuardianSetState
+	acct             *accountant.Accountant
+	gov              *governor.ChainGovernor
+	txVerifierChains *[]vaa.ChainID
+	gatewayRelayer   *gwrelayer.GatewayRelayer
+	queryHandler     *query.QueryHandler
+	publicrpcServer  *grpc.Server
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
