@@ -20,7 +20,7 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/wormhole-*.ts"
 
 [test]
 startup_wait = 5000
@@ -30,7 +30,7 @@ upgradeable = true
 [test.validator]
 bind_address = "0.0.0.0"
 ledger = ".anchor/test-ledger"
-rpc_port = 8899
+rpc_port = 8599
 
 ## CORE BRIDGE DEVNET
 ### Wormhole Core Bridge Program (Devnet)

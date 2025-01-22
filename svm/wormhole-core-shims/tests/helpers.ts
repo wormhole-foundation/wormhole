@@ -1,4 +1,28 @@
 import * as anchor from "@coral-xyz/anchor";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import WormholePostMessageShimIdl from "./idls/devnet/wormhole_post_message_shim.json";
+
+export async function getSequenceFromTx(tx: string): Promise<bigint> {
+  const txDetails = await getTransactionDetails(tx);
+
+  const borshEventCoder = new anchor.BorshEventCoder(
+    WormholePostMessageShimIdl as any
+  );
+
+  const innerInstructions = txDetails.meta.innerInstructions[0].instructions;
+
+  // Get the last instruction from the inner instructions
+  const lastInstruction = innerInstructions[innerInstructions.length - 1];
+
+  // Decode the Base58 encoded data
+  const decodedData = bs58.decode(lastInstruction.data);
+
+  // Remove the instruction discriminator and re-encode the rest as Base58
+  const eventData = Buffer.from(decodedData.subarray(8)).toString("base64");
+
+  const borshEvents = borshEventCoder.decode(eventData);
+  return BigInt(borshEvents.data.sequence.toString());
+}
 
 export async function getTransactionDetails(
   tx: string

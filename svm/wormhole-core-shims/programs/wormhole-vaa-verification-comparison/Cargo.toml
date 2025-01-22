@@ -11,6 +11,8 @@ name = "wormhole_vaa_verification_comparison"
 [features]
 default = ["mainnet"]
 mainnet = ["wormhole-solana-consts/mainnet"]
+testnet = ["wormhole-solana-consts/testnet"]
+localnet = ["wormhole-solana-consts/localnet"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []

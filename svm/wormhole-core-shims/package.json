@@ -6,7 +6,8 @@
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.10.18",
-    "@coral-xyz/anchor": "^0.30.1"
+    "@coral-xyz/anchor": "^0.30.1",
+    "@improbable-eng/grpc-web-node-http-transport": "0.15.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
@@ -16,6 +17,7 @@
     "mocha": "^9.0.3",
     "prettier": "^2.6.2",
     "ts-mocha": "^10.0.0",
+    "tsx": "^4.19.2",
     "typescript": "^4.3.5"
   }
 }
