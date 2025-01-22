@@ -305,7 +305,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	}
 
 	observation := &common.MessagePublication{
-		TxHash:           txHash,
+		TxID:             txHash.Bytes(),
 		Timestamp:        time.Unix(int64(ts.Uint()), 0),
 		Nonce:            uint32(nonce.Uint()), // uint32
 		Sequence:         sequence.Uint(),
@@ -319,7 +319,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 	aptosMessagesConfirmed.Inc()
 
 	logger.Info("message observed",
-		zap.Stringer("txHash", observation.TxHash),
+		zap.String("txHash", observation.TxIDString()),
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint32("nonce", observation.Nonce),
 		zap.Uint64("sequence", observation.Sequence),
