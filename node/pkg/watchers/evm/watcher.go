@@ -143,8 +143,10 @@ type (
 		ccqBatchSize       int64
 		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
-		// Transfer Verifier instance. Only used for Ethereum.
-		txverifier *txverifier.TransferVerifier[*eth_client.Client, connectors.Connector]
+		// Whether the Transfer Verifier should be initialized for this watcher.
+		txVerifierEnabled bool
+		// Transfer Verifier instance
+		txVerifier *txverifier.TransferVerifier[*eth_client.Client, connectors.Connector]
 	}
 
 	pendingKey struct {
@@ -175,6 +177,7 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	env common.Environment,
 	ccqBackfillCache bool,
+	txVerifier bool,
 ) *Watcher {
 	// Note: the Transfer Verifier is not added to the struct here because it requires a Connector instance.
 	// Instead, it will be populated in `Run()`.
@@ -252,11 +255,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			w.logger.Info("assuming instant finality")
 		}
 
-		// For now, only enable Transfer Verification for Ethereum
-		// specifically. This will allow us to test
-		// a minimal rollout rather than ensuring EVM-compatibility
-		// across several chains at once.
-		if w.chainID == vaa.ChainIDEthereum {
+		if w.txVerifierEnabled {
 			var tvErr error
 			var addrs txverifier.TVAddresses
 
@@ -283,14 +282,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 			}
 
-			w.txverifier, tvErr = txverifier.NewTransferVerifier(
+			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
 				w.ethConn,
 				&addrs,
 				20,
 				logger,
 			)
 			if tvErr != nil {
-				return fmt.Errorf("failed to create Transfer Verifier instance for Ethereum watcher: %w", err)
+				return fmt.Errorf("failed to create Transfer Verifier instance: %w", err)
 			}
 			logger.Info("initialized Transfer Verifier",
 				zap.String("watcher_name", "evm"),
@@ -838,15 +837,14 @@ func (w *Watcher) publishIfSafe(
 	if msg == nil {
 		return errors.New("message publication cannot be nil")
 	}
-	// For now, enable this functionality only on Ethereum.
-	if w.chainID == vaa.ChainIDEthereum {
+	if w.txVerifierEnabled {
 		// This should have already been initialized.
-		if w.txverifier == nil {
+		if w.txVerifier == nil {
 			return errors.New("transfer verifier is nil")
 		}
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
-		if !w.txverifier.ProcessEvent(ctx, txHash, receipt) {
+		if !w.txVerifier.ProcessEvent(ctx, txHash, receipt) {
 			return errors.New("transfer verification failed")
 		}
 	}

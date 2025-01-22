@@ -327,7 +327,7 @@ type IbcWatcherConfig struct {
 	Contract       string
 }
 
-// GuardianOptionWatchers configues all normal watchers and all IBC watchers. They need to be all configured at the same time because they may depend on each other.
+// GuardianOptionWatchers configures all normal watchers and all IBC watchers. They need to be all configured at the same time because they may depend on each other.
 // TODO: currently, IBC watchers are partially statically configured in ibc.ChainConfig. It might make sense to refactor this to instead provide this as a parameter here.
 // Dependencies: none
 func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherConfig *IbcWatcherConfig) *GuardianOption {
