@@ -116,6 +116,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Sei", vaa.ChainIDSei},
 		{"Scroll", vaa.ChainIDScroll},
 		{"Mantle", vaa.ChainIDMantle},
+		{"Movement", vaa.ChainIDMovement},
 		{"Blast", vaa.ChainIDBlast},
 		{"XLayer", vaa.ChainIDXLayer},
 		{"Linea", vaa.ChainIDLinea},
