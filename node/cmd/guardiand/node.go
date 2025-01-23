@@ -11,6 +11,7 @@ import (
 	"path"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -926,6 +927,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	txVerifierChains, err := parseTxVerifierChains(*transferVerifierEnabledChains)
+	logger.Info("parsed txVerifierChains", zap.Any("chains", txVerifierChains))
 	if err != nil {
 		logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(err))
 	}
@@ -1727,6 +1729,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:              *sepoliaRPC,
 				Contract:         *sepoliaContract,
 				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1739,6 +1742,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:              *holeskyRPC,
 				Contract:         *holeskyContract,
 				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDHolesky),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1751,6 +1755,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:              *arbitrumSepoliaRPC,
 				Contract:         *arbitrumSepoliaContract,
 				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDArbitrumSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1763,6 +1768,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:              *baseSepoliaRPC,
 				Contract:         *baseSepoliaContract,
 				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBaseSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1775,6 +1781,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:              *optimismSepoliaRPC,
 				Contract:         *optimismSepoliaContract,
 				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDOptimismSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1787,6 +1794,20 @@ func runNode(cmd *cobra.Command, args []string) {
 				Rpc:              *polygonSepoliaRPC,
 				Contract:         *polygonSepoliaContract,
 				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDPolygonSepolia),
+			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+
+		if shouldStart(monadDevnetRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID:        "monad_devnet",
+				ChainID:          vaa.ChainIDMonadDevnet,
+				Rpc:              *monadDevnetRPC,
+				Contract:         *monadDevnetContract,
+				CcqBackfillCache: *ccqBackfillCache,
+				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMonadDevnet),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1903,12 +1924,13 @@ func parseTxVerifierChains(
 	supported := txverifier.SupportedChains()
 	parsed := strings.Split(input, ",")
 	enabled := make([]vaa.ChainID, 0)
-	for _, chain := range parsed {
-		chainId, err := vaa.ChainIDFromString(chain)
-		if err != nil {
-			return nil, fmt.Errorf("%s is not a valid chainId: %w. input: %s", chain, err, input)
+	for _, chainStr := range parsed {
+		chain, parseErr := strconv.Atoi(chainStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("could not parse chainId from string %s: %w", chainStr, parseErr)
 		}
-		if !slices.Contains(supported, chainId) {
+		chainId := vaa.ChainID(chain)
+		if !slices.Contains(supported, vaa.ChainID(chainId)) {
 			return nil, fmt.Errorf("chainId %d is not supported by Transfer Verifier", chainId)
 		}
 		enabled = append(enabled, chainId)

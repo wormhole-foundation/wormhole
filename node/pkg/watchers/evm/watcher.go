@@ -175,9 +175,9 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	env common.Environment,
 	ccqBackfillCache bool,
-	txVerifier bool,
+	txVerifierEnabled bool,
 ) *Watcher {
-	// Note: the Transfer Verifier is not added to the struct here because it requires a Connector instance.
+	// Note: the watcher's txVerifier field is not set here because it requires a Connector as an argument.
 	// Instead, it will be populated in `Run()`.
 	return &Watcher{
 		url:                url,
@@ -196,6 +196,8 @@ func NewEthWatcher(
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
 		ccqBackfillCache:   ccqBackfillCache,
 		ccqBackfillChannel: make(chan *ccqBackfillRequest, 50),
+		// Signals that a transfer Verifier should be instantiated in Run()
+		txVerifierEnabled: txVerifierEnabled,
 	}
 }
 
@@ -211,6 +213,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.String("networkName", w.networkName),
 		zap.String("chainID", w.chainID.String()),
 		zap.String("env", string(w.env)),
+		zap.Bool("txVerifier", w.txVerifierEnabled),
 	)
 
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
