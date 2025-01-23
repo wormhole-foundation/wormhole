@@ -855,7 +855,7 @@ type testCaseGuardianConfig struct {
 	err  string
 }
 
-// TestWatcherConfigs tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
+// TestWatcherConfigs tries to instantiate a guardian with various invalid []watchers.WatcherConfig and asserts that it errors
 func TestWatcherConfigs(t *testing.T) {
 	tc := []testCaseGuardianConfig{
 		{
