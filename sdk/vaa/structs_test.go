@@ -1123,3 +1123,77 @@ func TestUnmarshalBody(t *testing.T) {
 		})
 	}
 }
+
+func TestAtoi(t *testing.T) {
+
+	happy := []struct {
+		name     string
+		input    string
+		expected ChainID
+	}{
+		{
+			name:     "simple int 1",
+			input:    "1",
+			expected: ChainIDSolana,
+		},
+		{
+			name:     "simple int 2",
+			input:    "3104",
+			expected: ChainIDWormchain,
+		},
+		{
+			name:     "zero is unset",
+			input:    "0",
+			expected: ChainIDUnset,
+		},
+		{
+			name:     "hex is fine",
+			input:    "0x10",
+			expected: ChainIDMoonbeam,
+		},
+	}
+	for _, tt := range happy {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := Atoi(tt.input)
+			require.Equal(t, tt.expected, actual)
+			require.NoError(t, err)
+		})
+	}
+
+	sad := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "negative value",
+			input: "-1",
+		},
+		{
+			name:  "NaN",
+			input: "garbage",
+		},
+		{
+			name:  "overflow",
+			input: "65536",
+		},
+		{
+			name:  "not a real chain",
+			input: "12345",
+		},
+		{
+			name:  "empty string",
+			input: "",
+		},
+	}
+	for _, tt := range sad {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := Atoi(tt.input)
+			require.Equal(t, ChainIDUnset, actual)
+			require.Error(t, err)
+		})
+	}
+}

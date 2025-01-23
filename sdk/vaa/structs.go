@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -266,6 +268,21 @@ func (c ChainID) String() string {
 	}
 }
 
+// Atoi converts from a string representation of an integer into a valid ChainID.
+func Atoi(s string) (chainId ChainID, err error) {
+	u16, err := strconv.ParseUint(s, 0, 16)
+	if err != nil {
+		return
+	}
+	if !slices.Contains(GetAllNetworkIDs(), ChainID(u16)) {
+		err = fmt.Errorf("value %s is not a valid chainId", s)
+		return
+	}
+	chainId = ChainID(u16)
+	return
+}
+
+// ChainIDFromString converts from a chain's full name (e.g. "solana") to its corresponding ChainID.
 func ChainIDFromString(s string) (ChainID, error) {
 	s = strings.ToLower(s)
 
