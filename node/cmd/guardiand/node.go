@@ -1925,21 +1925,18 @@ func parseTxVerifierChains(
 	if len(input) == 0 {
 		return nil, errors.New("could not parse input to parseTxVerifierChains: input empty")
 	}
-	// These are the only supported chains. The argument to this function must only include elements
-	// that are members of this slice.
-	// TODO should this be a utility function in the Transfer Verifier package?
 	supported := txverifier.SupportedChains()
 	parsed := strings.Split(input, ",")
 	enabled := make([]vaa.ChainID, 0)
-	for _, c := range parsed {
-		cid, err := vaa.ChainIDFromString(c)
+	for _, chain := range parsed {
+		chainId, err := vaa.ChainIDFromString(chain)
 		if err != nil {
-			return nil, fmt.Errorf("%s is not a valid chainId. input: %s", c, input)
+			return nil, fmt.Errorf("%s is not a valid chainId: %w. input: %s", chain, err, input)
 		}
-		if !slices.Contains(supported, cid) {
-			return nil, fmt.Errorf("chainId %d is not supported by Transfer Verifier", cid)
+		if !slices.Contains(supported, chainId) {
+			return nil, fmt.Errorf("chainId %d is not supported by Transfer Verifier", chainId)
 		}
-		enabled = append(enabled, cid)
+		enabled = append(enabled, chainId)
 	}
 
 	return enabled, nil
