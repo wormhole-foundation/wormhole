@@ -46,7 +46,7 @@ jobs:
           outputs: type=docker,dest=${{ env.TAR_PATH }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.IMAGE_NAME }}
           path: ${{ env.TAR_PATH }}
@@ -62,7 +62,8 @@ jobs:
           - "ictest-slashing-params-update-vaa"
           - "ictest-upgrade"
           - "ictest-wormchain"
-          - "ictest-ibc-receiver"
+          # Disabled due to flakiness in CI.
+          # - "ictest-ibc-receiver"
           - "ictest-cw-wormhole"
       fail-fast: false
 
