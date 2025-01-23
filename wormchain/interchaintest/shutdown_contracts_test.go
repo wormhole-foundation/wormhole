@@ -22,11 +22,11 @@ func TestShutdownCoreContract(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	oldGuardians := guardians.CreateValSet(t, numVals)
-	chains := CreateChains(t, "v2.24.2", *oldGuardians)
-	ctx, _, _, _ := BuildInterchain(t, chains)
+	chain := createSingleNodeCluster(t, "v2.24.2", *oldGuardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
 
 	// Chains
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// Users
 	users := interchaintest.GetAndFundTestUsers(t, ctx, t.Name(), 1, wormchain)
@@ -119,11 +119,10 @@ func TestShutdownTokenBridge(t *testing.T) {
 	require.NoError(t, err)
 	wormToGaiaChannel := gaiaToWormChannel.Counterparty
 
-	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), wormchain, gaia, osmosis, osmosis)
-	_ = users[0] // Wormchain user
-	gaiaUser := users[1]
-	osmoUser1 := users[2]
-	osmoUser2 := users[3]
+	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), gaia, osmosis, osmosis)
+	gaiaUser := users[0]
+	osmoUser1 := users[1]
+	osmoUser2 := users[2]
 
 	// Store wormhole core contract
 	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
