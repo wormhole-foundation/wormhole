@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -258,7 +259,19 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			w.logger.Info("assuming instant finality")
 		}
 
+		// Initialize a Transfer Verifier
 		if w.txVerifierEnabled {
+
+			// This shouldn't happen as Transfer Verification can
+			// only be enabled by passing at least one chainID as a
+			// CLI flag to guardiand, but this prevents the code
+			// from erroneously setting up a Transfer Verifier or
+			// else continuing in state where txVerifierEnabled is
+			// true but the actual Transfer Verifier is nil.
+			if !slices.Contains(txverifier.SupportedChains(), w.chainID) {
+				return errors.New("watcher attempted to create Transfer Verifier but this chainId is not supported")
+			}
+
 			var tvErr error
 			var addrs txverifier.TVAddresses
 
@@ -843,7 +856,7 @@ func (w *Watcher) publishIfSafe(
 	if w.txVerifierEnabled {
 		// This should have already been initialized.
 		if w.txVerifier == nil {
-			return errors.New("transfer verifier is nil")
+			return errors.New("transfer verifier should be enabled but is nil")
 		}
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
