@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "interfaces/*",
+    "programs/*"
+]
+resolver = "2"
+
+# `anchor build` requires overflow-checks to be enabled.
+[profile.release]
+overflow-checks = true

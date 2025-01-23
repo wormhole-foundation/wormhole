@@ -2,6 +2,12 @@
 anchor_version = "0.30.1"
 solana_version = "1.18.17"
 
+[workspace]
+members = [
+    "interfaces/*",
+    "programs/*"
+]
+
 [features]
 resolution = true
 skip-lint = false
