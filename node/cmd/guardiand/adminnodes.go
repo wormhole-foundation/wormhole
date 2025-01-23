@@ -85,6 +85,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		vaa.ChainID
 	}
 
+	// NOTE: Please keep these in numerical order by chain ID.
 	networks := []network{
 		{"Solana", vaa.ChainIDSolana},
 		{"Ethereum", vaa.ChainIDEthereum},
@@ -92,10 +93,8 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"BSC", vaa.ChainIDBSC},
 		{"Polygon", vaa.ChainIDPolygon},
 		{"Avalanche", vaa.ChainIDAvalanche},
-		{"Algorand", vaa.ChainIDAlgorand},
-		{"Aptos", vaa.ChainIDAptos},
-		{"Sui", vaa.ChainIDSui},
 		{"Oasis", vaa.ChainIDOasis},
+		{"Algorand", vaa.ChainIDAlgorand},
 		{"Aurora", vaa.ChainIDAurora},
 		{"Fantom", vaa.ChainIDFantom},
 		{"Karura", vaa.ChainIDKarura},
@@ -103,33 +102,43 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Klaytn", vaa.ChainIDKlaytn},
 		{"Celo", vaa.ChainIDCelo},
 		{"Near", vaa.ChainIDNear},
-		{"Terra2", vaa.ChainIDTerra2},
-		{"Pythnet", vaa.ChainIDPythNet},
 		{"Moonbeam", vaa.ChainIDMoonbeam},
+		{"Terra2", vaa.ChainIDTerra2},
+		{"Injective", vaa.ChainIDInjective},
+		// Osmosis is not supported in the guardian.
+		{"Sui", vaa.ChainIDSui},
+		{"Aptos", vaa.ChainIDAptos},
 		{"Arbitrum", vaa.ChainIDArbitrum},
 		{"Optimism", vaa.ChainIDOptimism},
+		// Gnosis is not supported in the guardian.
+		{"Pythnet", vaa.ChainIDPythNet},
 		{"Xpla", vaa.ChainIDXpla},
 		{"Btc", vaa.ChainIDBtc},
-		{"Injective", vaa.ChainIDInjective},
-		{"Ink", vaa.ChainIDInk},
 		{"Base", vaa.ChainIDBase},
+		// Filecoin is not supported in the guardian.
 		{"Sei", vaa.ChainIDSei},
+		// Rootstock is not supported in the guardian.
 		{"Scroll", vaa.ChainIDScroll},
 		{"Mantle", vaa.ChainIDMantle},
-		{"Movement", vaa.ChainIDMovement},
 		{"Blast", vaa.ChainIDBlast},
 		{"XLayer", vaa.ChainIDXLayer},
 		{"Linea", vaa.ChainIDLinea},
 		{"Berachain", vaa.ChainIDBerachain},
+		{"SeiEVM", vaa.ChainIDSeiEVM},
 		{"Snaxchain", vaa.ChainIDSnaxchain},
 		{"Unichain", vaa.ChainIDUnichain},
 		{"Worldchain", vaa.ChainIDWorldchain},
+		{"Ink", vaa.ChainIDInk},
+		{"HyperEVM", vaa.ChainIDHyperEVM},
+		{"Monad", vaa.ChainIDMonad},
+		{"Movement", vaa.ChainIDMovement},
 		{"Wormchain", vaa.ChainIDWormchain},
+		// The IBC chains (4000 range) are not included here.
 		{"Sepolia", vaa.ChainIDSepolia},
-		{"Holesky", vaa.ChainIDHolesky},
 		{"ArbitrumSepolia", vaa.ChainIDArbitrumSepolia},
 		{"BaseSepolia", vaa.ChainIDBaseSepolia},
 		{"OptimismSepolia", vaa.ChainIDOptimismSepolia},
+		{"Holesky", vaa.ChainIDHolesky},
 		{"PolygonSepolia", vaa.ChainIDPolygonSepolia},
 		{"MonadDevnet", vaa.ChainIDMonadDevnet},
 	}
