@@ -58,7 +58,7 @@ func GenerateEmptyVAA(
 
 	payloadBz, err := vaa.EmptyPayloadVaa(moduleStr, action, chainID)
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
 
 	v = signVaa(v, guardians)
 	vBz, err := v.Marshal()
