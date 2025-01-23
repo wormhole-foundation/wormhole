@@ -150,6 +150,10 @@ var (
 	aptosAccount *string
 	aptosHandle  *string
 
+	movementRPC     *string
+	movementAccount *string
+	movementHandle  *string
+
 	suiRPC           *string
 	suiMoveEventType *string
 
@@ -376,6 +380,10 @@ func init() {
 	aptosRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
+
+	movementRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "movementRPC", "Movement RPC URL", "", []string{"http", "https"})
+	movementAccount = NodeCmd.Flags().String("movementAccount", "", "movement account")
+	movementHandle = NodeCmd.Flags().String("movementHandle", "", "movement handle")
 
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
@@ -887,6 +895,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*movementAccount, *movementRPC, *movementHandle}) {
+		logger.Fatal("Either --movementAccount, --movementRPC and --movementHandle must all be set or all unset")
+	}
+
 	if !argsConsistent([]string{*suiRPC, *suiMoveEventType}) {
 		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
 	}
@@ -962,6 +974,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["mantleRPC"] = *mantleRPC
 	rpcMap["monadRPC"] = *monadRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
+	rpcMap["movementRPC"] = *movementRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["oasisRPC"] = *oasisRPC
 	rpcMap["optimismRPC"] = *optimismRPC
@@ -1567,6 +1580,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:       *aptosRPC,
 			Account:   *aptosAccount,
 			Handle:    *aptosHandle,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(movementRPC) {
+		wc := &aptos.WatcherConfig{
+			NetworkID: "movement",
+			ChainID:   vaa.ChainIDMovement,
+			Rpc:       *movementRPC,
+			Account:   *movementAccount,
+			Handle:    *movementHandle,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
