@@ -670,7 +670,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Verify flags
 
-	if *nodeName == "" {
+	if *nodeName == "" && env == common.MainNet {
 		logger.Fatal("Please specify --nodeName")
 	}
 	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
@@ -778,6 +778,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	if !*disableTelemetry && (env != common.UnsafeDevNet || (env == common.UnsafeDevNet && usingLoki)) {
 		if !usingLoki {
 			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
+		}
+
+		if *nodeName == "" {
+			logger.Fatal("If telemetry is enabled, --nodeName must be set")
 		}
 
 		// Get libp2p peer ID from private key
