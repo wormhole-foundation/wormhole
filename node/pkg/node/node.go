@@ -29,10 +29,6 @@ const (
 	// gossipVaaSendBufferSize configures the size of the gossip network send buffer
 	gossipVaaSendBufferSize = 5000
 
-	// inboundObservationBufferSize configures the size of the obsvC channel that contains observations from other Guardians.
-	// One observation takes roughly 0.1ms to process on one core, so the whole queue could be processed in 1s
-	inboundObservationBufferSize = 10000
-
 	// inboundBatchObservationBufferSize configures the size of the batchObsvC channel that contains batches of observations from other Guardians.
 	// Since a batch contains many observations, the guardians should not be publishing too many of these. With 19 guardians, we would expect 19 messages
 	// per second during normal operations. However, since some messages get published immediately, we need to allow extra room.
@@ -85,7 +81,6 @@ type G struct {
 	gossipAttestationSendC chan []byte
 	gossipVaaSendC         chan []byte
 	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
-	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 	// Inbound observation batches.
 	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
 	// Finalized guardian observations aggregated across all chains
@@ -127,7 +122,6 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
-	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.

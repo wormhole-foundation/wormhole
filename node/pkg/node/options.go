@@ -83,7 +83,6 @@ func GuardianOptionP2P(
 				p2p.WithGuardianOptions(
 					nodeName,
 					g.guardianSigner,
-					g.obsvC,
 					g.batchObsvC.writeC,
 					signedInC,
 					g.obsvReqC.writeC,
@@ -593,7 +592,6 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.setC.readC,
 				g.gossipAttestationSendC,
 				g.gossipVaaSendC,
-				g.obsvC,
 				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,

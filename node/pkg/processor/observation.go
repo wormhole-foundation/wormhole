@@ -75,18 +75,6 @@ func (p *Processor) handleBatchObservation(m *node_common.MsgWithTimeStamp[gossi
 	batchObservationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 }
 
-// handleObservation processes a remote VAA observation.
-func (p *Processor) handleObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
-	obs := gossipv1.Observation{
-		Hash:      m.Msg.Hash,
-		Signature: m.Msg.Signature,
-		TxHash:    m.Msg.TxHash,
-		MessageId: m.Msg.MessageId,
-	}
-	p.handleSingleObservation(m.Msg.Addr, &obs)
-	observationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-}
-
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum, and assembles and submits a valid VAA if possible.
 func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
@@ -197,7 +185,7 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 		return
 	}
 
-	// Hooray! Now, we have verified all fields on SignedObservation and know that it includes
+	// Hooray! Now, we have verified all fields on the observation and know that it includes
 	// a valid signature by an active guardian. We still don't fully trust them, as they may be
 	// byzantine, but now we know who we're dealing with.
 
