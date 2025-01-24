@@ -937,10 +937,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
 
-	txVerifierChains, err := parseTxVerifierChains(*transferVerifierEnabledChains)
-	logger.Info("parsed txVerifierChains", zap.Any("chains", txVerifierChains))
-	if err != nil {
-		logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(err))
+	if cmd.Flags().Changed("transferVerifierEnabledChains") {
+		txVerifierChains, err := parseTxVerifierChains(*transferVerifierEnabledChains)
+		logger.Info("parsed txVerifierChains", zap.Any("chains", txVerifierChains))
+		if err != nil {
+			logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(err))
+		}
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -1938,7 +1940,7 @@ func argsConsistent(args []string) bool {
 	return true
 }
 
-// Parse a list of chainIds from a comma separated string and validate that they have a Transfer Verifier implementation
+// Parse a list of chainIds from a comma separated string and validate that they have a Transfer Verifier implementation.
 func parseTxVerifierChains(
 	// A comma-separated list of Wormhole ChainIDs.
 	input string,
