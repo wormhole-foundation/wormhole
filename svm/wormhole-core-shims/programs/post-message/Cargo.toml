@@ -1,9 +1,11 @@
 [package]
 name = "wormhole-post-message-shim"
-description = "Anchor Interface for Wormhole Post Message Shim"
+description = "Created with Anchor"
+publish = false
 
 edition.workspace = true
-publish.workspace = true
+license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
@@ -11,10 +13,8 @@ version.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [features]
-### NOTE: IDL builder breaks if there is no default network feature.
-###
-### TODO: Consider a way to generate IDLs for other SVMs.
 default = ["solana"]
+no-entrypoint = []
 
 ### Network types
 testnet = ["wormhole-svm-definitions/testnet"]
@@ -22,12 +22,19 @@ localnet = ["wormhole-svm-definitions/localnet"]
 
 ### Specific networks
 solana = ["wormhole-svm-definitions/solana"]
+
+### TODO: purge
 cpi = ["no-entrypoint"]
-no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
-anchor-lang = { workspace = true, features = ["event-cpi"] }
+anchor-lang = { version = "0.30.1", features = ["event-cpi"] }
+solana-program.workspace = true
+wormhole-anchor-sdk = "=0.30.1-alpha.3"
 wormhole-svm-definitions.workspace = true
+wormhole-svm-shim.workspace = true
+
+[dev-dependencies]
+solana-program-test.workspace = true
+solana-sdk.workspace = true

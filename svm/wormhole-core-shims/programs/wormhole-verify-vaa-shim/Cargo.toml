@@ -1,12 +1,16 @@
 [package]
 name = "wormhole-verify-vaa-shim"
-version = "0.1.0"
 description = "Created with Anchor"
-edition = "2021"
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "wormhole_verify_vaa_shim"
 
 [features]
 default = ["mainnet"]
@@ -21,5 +25,6 @@ idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
-wormhole-raw-vaas = "0.3.0-alpha.1"
-wormhole-solana-consts = "0.3.0-alpha.1"
+solana-program.workspace = true
+wormhole-raw-vaas.workspace = true
+wormhole-solana-consts.workspace = true

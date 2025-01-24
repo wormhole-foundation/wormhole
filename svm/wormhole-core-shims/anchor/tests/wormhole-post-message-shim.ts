@@ -51,12 +51,20 @@ describe("wormhole-post-message-shim", () => {
   it("Posts a message!", async () => {
     const tx = await postMessage("hello world");
     console.log("Your transaction signature", tx);
-    expect(await getSequenceFromTx(tx)).to.equal(BigInt(0));
+    const evt = await getSequenceFromTx(tx);
+    expect(evt).to.eql({
+      emitter: program.provider.publicKey,
+      sequence: BigInt(0),
+    });
   });
   it("Posts a second message!", async () => {
     const tx = await postMessage("hello world");
     console.log("Your transaction signature", tx);
-    expect(await getSequenceFromTx(tx)).to.equal(BigInt(1));
+    const evt = await getSequenceFromTx(tx);
+    expect(evt).to.eql({
+      emitter: program.provider.publicKey,
+      sequence: BigInt(1),
+    });
   });
   it("Compares core post_message to shim post_message!", async () => {
     {

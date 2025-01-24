@@ -3,10 +3,11 @@ clean:
 	cargo clean
 
 .PHONY: test
-test: ../target/deploy/*.so
+test:
+# Build example programs and IDLs.
 	anchor build
-	cp -R ../target/deploy/*.so target/deploy
-	anchor test --skip-build
-
-../target/deploy/*.so:
+# Force rebuild of the programs.
 	cd .. && $(MAKE) build
+	cp -R ../target/deploy/*.so target/deploy
+# Finally run Typescript tests.
+	anchor test --skip-build

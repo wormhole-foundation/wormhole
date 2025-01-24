@@ -1,8 +1,12 @@
 import * as anchor from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { PublicKey } from "@solana/web3.js";
+import { expect } from "chai";
 import WormholePostMessageShimIdl from "./idls/devnet/wormhole_post_message_shim.json";
 
-export async function getSequenceFromTx(tx: string): Promise<bigint> {
+export async function getSequenceFromTx(
+  tx: string
+): Promise<{ emitter: PublicKey; sequence: bigint }> {
   const txDetails = await getTransactionDetails(tx);
 
   const borshEventCoder = new anchor.BorshEventCoder(
@@ -21,7 +25,13 @@ export async function getSequenceFromTx(tx: string): Promise<bigint> {
   const eventData = Buffer.from(decodedData.subarray(8)).toString("base64");
 
   const borshEvents = borshEventCoder.decode(eventData);
-  return BigInt(borshEvents.data.sequence.toString());
+  expect(txDetails.blockTime).is.not.undefined;
+  expect(borshEvents.data.submission_time).to.equal(txDetails.blockTime);
+
+  return {
+    emitter: borshEvents.data.emitter,
+    sequence: BigInt(borshEvents.data.sequence.toString()),
+  };
 }
 
 export async function getTransactionDetails(

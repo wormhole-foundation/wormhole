@@ -51,12 +51,13 @@ pub mod wormhole_verify_vaa_shim {
     ///
     /// A v1 VAA digest can be computed as follows:
     /// ```rust
+    /// # let vaa_body = vec![];
     ///   let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();
-    ///   let digest = keccak::hash(message_hash.as_slice()).to_bytes();
+    ///   let digest = solana_program::keccak::hash(message_hash.as_slice()).to_bytes();
     /// ```
     ///
     /// A QueryResponse digest can be computed as follows:
-    /// ```rust
+    /// ```rust,ignore
     ///   use wormhole_query_sdk::MESSAGE_PREFIX;
     ///   let message_hash = [
     ///     MESSAGE_PREFIX,

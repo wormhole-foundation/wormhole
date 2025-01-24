@@ -2671,10 +2671,10 @@ checksum = "b021a14ea7bcef9517ed9f81d4466c4a663dd90e726c5724707a976fa83ad8f3"
 
 [[package]]
 name = "wormhole-post-message-shim"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "anchor-lang",
- "wormhole-solana-consts",
+ "wormhole-svm-definitions",
 ]
 
 [[package]]
@@ -2694,8 +2694,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-vaa-verification-comparison"
+name = "wormhole-svm-definitions"
 version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "solana-program",
+]
+
+[[package]]
+name = "wormhole-vaa-verification-comparison"
+version = "0.0.0"
 dependencies = [
  "anchor-lang",
  "wormhole-anchor-sdk",
@@ -2705,7 +2713,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-verify-vaa-shim"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "anchor-lang",
  "wormhole-raw-vaas",

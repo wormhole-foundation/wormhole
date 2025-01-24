@@ -76,11 +76,7 @@ pub struct PostSignatures<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    #[account(
-        init, // really init_if_needed
-        payer = payer,
-        space = 0 // placeholder
-    )]
+    #[account(mut, signer)]
     guardian_signatures: Account<'info, GuardianSignatures>,
 
     system_program: Program<'info, System>,

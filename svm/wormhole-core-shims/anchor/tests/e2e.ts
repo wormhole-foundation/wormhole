@@ -100,7 +100,9 @@ import { getSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormh
   ) => {
     const tx = await postMessage(program, msg, consistencyLevel);
     const emitter = program.provider.publicKey.toBuffer().toString("hex");
-    const seq = (await getSequenceFromTx(tx)).toString();
+    const seq = await getSequenceFromTx(tx).then((evt) =>
+      evt.sequence.toString()
+    );
 
     const { vaaBytes } = await getSignedVAAWithRetry(
       [GUARDIAN_URL],
@@ -162,7 +164,9 @@ import { getSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormh
       ])
       .rpc();
     const emitter = emitterBuf.toString("hex");
-    const seq = (await getSequenceFromTx(tx)).toString();
+    const seq = await getSequenceFromTx(tx).then((evt) =>
+      evt.sequence.toString()
+    );
 
     const { vaaBytes } = await getSignedVAAWithRetry(
       [GUARDIAN_URL],

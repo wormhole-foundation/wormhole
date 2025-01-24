@@ -1,16 +1,11 @@
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-use wormhole_anchor_sdk::wormhole::{self, Finality};
-use wormhole_solana_consts::{
-    CORE_BRIDGE_CONFIG, CORE_BRIDGE_FEE_COLLECTOR, CORE_BRIDGE_PROGRAM_ID,
-};
+use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, POST_MESSAGE_SHIM_PROGRAM_ID};
 
-declare_id!("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
+declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
 #[program]
 pub mod wormhole_post_message_shim {
     use super::*;
-    use anchor_lang::solana_program;
 
     /// This instruction is intended to be a significantly cheaper alternative to `post_message` on the core bridge.
     /// It achieves this by reusing the message account, per emitter, via `post_message_unreliable` and
@@ -36,6 +31,19 @@ pub mod wormhole_post_message_shim {
         consistency_level: Finality,
         _payload: Vec<u8>,
     ) -> Result<()> {
+        // Parse the sequence from the account and emit the event. If the
+        // sequence account does not exist, default to 0 because the Wormhole
+        // Core Bridge will create this sequence account on the first message
+        // (where the first message's sequence number is 0).
+        let sequence = {
+            let account_data = ctx.accounts.sequence.data.borrow();
+            if account_data.len() < 8 {
+                0
+            } else {
+                u64::from_le_bytes(account_data[..8].try_into().unwrap())
+            }
+        };
+
         let ix = solana_program::instruction::Instruction {
             program_id: ctx.accounts.wormhole_program.key(),
             accounts: vec![
@@ -51,7 +59,7 @@ pub mod wormhole_post_message_shim {
             ],
             data: Instruction::PostMessageUnreliable {
                 nonce,
-                payload: vec![],
+                payload: Default::default(),
                 consistency_level,
             }
             .try_to_vec()?,
@@ -73,17 +81,21 @@ pub mod wormhole_post_message_shim {
             ],
             &[&[&ctx.accounts.emitter.key.to_bytes(), &[ctx.bumps.message]]],
         )?;
-        // parse the sequence from the account and emit the event
-        // reading the account after avoids having to handle when the account doesn't exist
-        let mut buf = &ctx.accounts.sequence.try_borrow_mut_data()?[..];
-        let seq = wormhole::SequenceTracker::try_deserialize(&mut buf)?;
+
         emit_cpi!(MessageEvent {
             emitter: ctx.accounts.emitter.key(),
-            sequence: seq.sequence - 1, // the sequence was incremented after the post
-            submission_time: Clock::get()?.unix_timestamp as u32, // this is the same casting that the core bridge performs in post_message_internal
+            sequence,
+            submission_time: Clock::get().unwrap().unix_timestamp as u32, // this is the same casting that the core bridge performs in post_message_internal
         });
+
         Ok(())
     }
+}
+
+#[derive(AnchorDeserialize, AnchorSerialize)]
+pub enum Finality {
+    Confirmed,
+    Finalized,
 }
 
 #[event]
@@ -104,7 +116,7 @@ pub struct MessageEvent {
 /// - shim without sysvar and address checks: 45608 (20511 more)
 /// - shim with sysvar and address checks:    45782 (  174 more)
 pub struct PostMessage<'info> {
-    #[account(mut, address = CORE_BRIDGE_CONFIG)]
+    #[account(mut)]
     /// CHECK: Wormhole bridge config. [`wormhole::post_message`] requires this account be mutable.
     pub bridge: UncheckedAccount<'info>,
 
@@ -129,7 +141,7 @@ pub struct PostMessage<'info> {
     /// Payer will pay Wormhole fee to post a message.
     pub payer: Signer<'info>,
 
-    #[account(mut, address = CORE_BRIDGE_FEE_COLLECTOR)]
+    #[account(mut)]
     /// CHECK: Wormhole fee collector. [`wormhole::post_message`] requires this account be mutable.
     pub fee_collector: UncheckedAccount<'info>,
 

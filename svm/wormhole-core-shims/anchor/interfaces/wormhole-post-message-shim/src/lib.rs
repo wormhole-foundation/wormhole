@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
-use wormhole_solana_consts::{
+use wormhole_svm_definitions::{
     CORE_BRIDGE_CONFIG, CORE_BRIDGE_FEE_COLLECTOR, CORE_BRIDGE_PROGRAM_ID,
+    POST_MESSAGE_SHIM_PROGRAM_ID,
 };
 
-declare_id!("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
+declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
 #[program]
 pub mod wormhole_post_message_shim {
