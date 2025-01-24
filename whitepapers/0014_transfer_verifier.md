@@ -12,10 +12,12 @@ has a way to fraudulently emit message from the core bridge, the integrity of th
 # Goals
 
 - Provide another layer of defense for token transfers
+- Allow for a flexible response in the Guardian when suspicious activity is detected
 
 # Non-Goals
 
-- 
+- Address any message publications or Token Bridge activity other than token transfers
+- Check cross-chain invariants. This mechanism only checks that pre-conditions are met on the sender side.
 
 # Overview
 
@@ -28,13 +30,13 @@ chain to complete the cross-chain transfer.
 The ability to spoof messages coming from the Core Bridge would pose a serious threat to the integrity of the system, as
 it would trick the Guardians into minting or unlocking funds on the destination chain without a corresponding deposit on the source chain.
 
-In order to mitigate this attack, the Transfer Verifier is designed to cross-reference core bridge messages against the token bridge's
-activity. If there is no token bridge activity that matches the core bridge message, the Guardians will have the ability to
+In order to mitigate this attack, the Transfer Verifier is designed to cross-reference core bridge messages against the Token Bridge's
+activity. If there is no Token Bridge activity that matches the core bridge message, the Guardians will have the ability to
 respond to a potentially fraudulent message, such as by dropping or delaying it.
 
 # Detailed Design
 
-The overview section described an abstract view of how the token bridge, core bridge, and Guardians interact. However,
+The overview section described an abstract view of how the Token Bridge, core bridge, and Guardians interact. However,
 different blockchain environments operate heterogeneously. For example, the EVM provides reliable logs in the form
 of message receipts that can easily be verified. In contrast, Sui and Solana do not provide the same degree of introspection
 on historical account states. As a result, the Transfer Verifier must be implemented in an ad-hoc way using the state
@@ -70,7 +72,12 @@ The Receipt can be parsed and filtered to isolate Token Bridge and Core Bridge a
 reasons the Ethereum implementation can be considered "reliable". If the Transfer Verifier is enabled, the Guardians will not
 publish Message Publications in violation of the invariants checked by the Transfer Verifier.
 
+For EVM implementations, the contents of the [LogMessagePublished event](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/ethereum/contracts/Implementation.sol#L12-L26)
+can be observed and parsed.
+
 ### Sui
+
+For Sui, [events emitting the WormholeMessage struct](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/sui/wormhole/sources/publish_message.move#L138-L148) are analyzed.
 
 There are a number of complications that arise when querying historical account data on Sui.
 
