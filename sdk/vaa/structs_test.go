@@ -1129,18 +1129,10 @@ func TestAtoi(t *testing.T) {
 			input:    "3104",
 			expected: ChainIDWormchain,
 		},
-		{
-			name:     "zero is unset",
-			input:    "0",
-			expected: ChainIDUnset,
-		},
-		{
-			name:     "hex is fine",
-			input:    "0x10",
-			expected: ChainIDMoonbeam,
-		},
 	}
 	for _, tt := range happy {
+		// Avoid "loop variable capture".
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1154,6 +1146,10 @@ func TestAtoi(t *testing.T) {
 		name  string
 		input string
 	}{
+		{
+			name:  "zero is not a valid ChainID",
+			input: "0",
+		},
 		{
 			name:  "negative value",
 			input: "-1",
@@ -1174,8 +1170,14 @@ func TestAtoi(t *testing.T) {
 			name:  "empty string",
 			input: "",
 		},
+		{
+			name:  "no hex inputs",
+			input: "0x10",
+		},
 	}
 	for _, tt := range sad {
+		// Avoid "loop variable capture".
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
