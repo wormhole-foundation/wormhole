@@ -6,6 +6,8 @@ use solana_program::{pubkey, pubkey::Pubkey};
 
 pub const POST_MESSAGE_SHIM_PROGRAM_ID: Pubkey =
     pubkey!("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
+pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY: Pubkey =
+    pubkey!("HQS31aApX3DDkuXgSpV9XyDUNtFgQ31pUn5BNWHG2PSp");
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "testnet")] {
@@ -33,15 +35,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn core_bridge_fee_collector() {
+    fn test_core_bridge_fee_collector() {
         let (expected, _) =
             Pubkey::find_program_address(&[b"fee_collector"], &CORE_BRIDGE_PROGRAM_ID);
         assert_eq!(CORE_BRIDGE_FEE_COLLECTOR, expected);
     }
 
     #[test]
-    fn core_bridge_config() {
+    fn test_core_bridge_config() {
         let (expected, _) = Pubkey::find_program_address(&[b"Bridge"], &CORE_BRIDGE_PROGRAM_ID);
         assert_eq!(CORE_BRIDGE_CONFIG, expected);
+    }
+
+    #[test]
+    fn test_post_message_shim_event_authority() {
+        let (expected, _) = Pubkey::find_program_address(
+            &[crate::MESSAGE_AUTHORITY_SEED],
+            &POST_MESSAGE_SHIM_PROGRAM_ID,
+        );
+        assert_eq!(POST_MESSAGE_SHIM_EVENT_AUTHORITY, expected);
     }
 }

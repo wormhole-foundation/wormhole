@@ -3,75 +3,119 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub const POST_MESSAGE_SELECTOR: [u8; 8] = trim_digest(
-    sha2_const_stable::Sha256::new()
-        .update(b"global:post_message")
-        .finalize(),
-);
-
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PostMessageShimInstruction<'data> {
+    PostMessage(PostMessageData<'data>),
+    EmitMessage(EmitMessageData),
+}
+
+impl<'data> PostMessageShimInstruction<'data> {
+    pub const POST_MESSAGE_SELECTOR: [u8; 8] = trim_digest(
+        sha2_const_stable::Sha256::new()
+            .update(b"global:post_message")
+            .finalize(),
+    );
+    pub const EMIT_MESSAGE_SELECTOR: [u8; 8] = u64::to_be_bytes(0xe445a52e51cb9a1d);
+
+    #[inline]
+    pub fn to_vec(&self) -> Vec<u8> {
+        match self {
+            Self::PostMessage(data) => {
+                let payload_len = data.payload.len();
+
+                let mut out = Vec::with_capacity({
+                    8 // selector
+                    + 4 // nonce
+                    + 4 // payload length
+                    + payload_len // payload
+                    + 1 // finality
+                });
+                out.extend_from_slice(&Self::POST_MESSAGE_SELECTOR);
+                out.extend_from_slice(&data.nonce.to_le_bytes());
+                out.push(data.finality as u8);
+                out.extend_from_slice(&(payload_len as u32).to_le_bytes());
+                out.extend_from_slice(data.payload);
+
+                out
+            }
+            Self::EmitMessage(data) => {
+                let mut out = Vec::with_capacity({
+                    8 // selector
+                    + EmitMessageData::SIZE
+                });
+                out.extend_from_slice(&Self::EMIT_MESSAGE_SELECTOR);
+                out.extend_from_slice(&EmitMessageData::DISCRIMINATOR);
+                out.extend_from_slice(&data.emitter.to_bytes());
+                out.extend_from_slice(&data.sequence.to_le_bytes());
+                out.extend_from_slice(&data.submission_time.to_le_bytes());
+
+                out
+            }
+        }
+    }
+
+    #[inline]
+    pub fn deserialize(data: &'data [u8]) -> Option<Self> {
+        if data.len() < 8 {
+            return None;
+        }
+
+        match data[..8].try_into().unwrap() {
+            Self::POST_MESSAGE_SELECTOR => {
+                PostMessageData::deserialize(&data[8..]).map(Self::PostMessage)
+            }
+            Self::EMIT_MESSAGE_SELECTOR => {
+                EmitMessageData::deserialize(&data[8..]).map(Self::EmitMessage)
+            }
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PostMessageData<'data> {
     /// Arbitrary message identifier specified by the message sender.
     pub nonce: u32,
-
-    /// Message payload.
-    pub payload: &'data [u8],
 
     /// Whether the message should be finalized. If true, the message will be
     /// observed by the Wormhole guardians at the Finalized commitment level
     /// (32 slots). Otherwise it will be observed at the Confirmed commitment
     /// level (1 slot).
     pub finality: Finality,
+
+    /// Message payload.
+    pub payload: &'data [u8],
 }
 
 impl<'data> PostMessageData<'data> {
-    #[inline]
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut data = Vec::with_capacity(
-            8 // selector
-            + 4 // nonce
-            + 4 // payload length
-            + self.payload.len() // payload
-            + 1, // finality
-        );
-        data.extend_from_slice(&POST_MESSAGE_SELECTOR);
-        data.extend_from_slice(&self.nonce.to_le_bytes());
-        data.push(self.finality as u8);
-        data.extend_from_slice(&(self.payload.len() as u32).to_le_bytes());
-        data.extend_from_slice(self.payload);
+    pub const MINIMUM_SIZE: usize = {
+        4 // nonce
+        + 1 //. finality
+        + 4 // payload length
+    };
 
-        data
-    }
-
-    #[inline]
-    pub fn deserialize(data: &'data [u8]) -> Option<Self> {
-        const MINIMUM_SIZE: usize = {
-            8 // selector
-            + 4 // nonce
-            + 4 // payload length
-            + 1 //. finality
-        };
-        if data.len() < MINIMUM_SIZE || data[..8] != POST_MESSAGE_SELECTOR {
+    fn deserialize(data: &'data [u8]) -> Option<Self> {
+        if data.len() < Self::MINIMUM_SIZE {
             return None;
         }
 
-        let nonce = u32::from_le_bytes(data[8..12].try_into().unwrap());
+        let nonce = u32::from_le_bytes(data[..4].try_into().unwrap());
 
         // NOTE: There may be different finality requirements among SVM
         // networks. This logic will have to change if that is the case.
-        let finality = match data[12] {
+        let finality = match data[4] {
             0 => Finality::Confirmed,
             1 => Finality::Finalized,
             _ => return None,
         };
 
-        let payload_len = u32::from_le_bytes(data[13..17].try_into().unwrap()) as usize;
+        let payload_len = u32::from_le_bytes(data[5..9].try_into().unwrap()) as usize;
 
-        if data.len() < MINIMUM_SIZE.saturating_add(payload_len) {
+        if data.len() < Self::MINIMUM_SIZE.saturating_add(payload_len) {
             return None;
         }
 
-        let payload = &data[17..17 + payload_len];
+        let payload = &data[9..9 + payload_len];
 
         // NOTE: We do not care about trailing bytes.
 
@@ -130,7 +174,7 @@ pub struct PostMessage<'ix> {
     ///
     /// While this could be managed by the integrator, it seems more effective
     /// to have the Wormhole Post Message Shim program manage these accounts.
-    pub message: &'ix Pubkey,
+    pub message: Option<&'ix Pubkey>,
 
     /// Emitter of the Wormhole Core Bridge message. Wormhole Core Bridge
     /// program's post message instruction requires this account to be a signer.
@@ -138,7 +182,7 @@ pub struct PostMessage<'ix> {
 
     /// Emitter's sequence account. Wormhole Core Bridge program's post message
     /// instruction requires this account to be mutable.
-    pub sequence: &'ix Pubkey,
+    pub sequence: Option<&'ix Pubkey>,
 
     /// Payer will pay the Wormhole Core Bridge fee to post a message. The fee
     /// amount is encoded in the [core_bridge_config] account data.
@@ -164,29 +208,77 @@ impl<'data> PostMessage<'data> {
     /// Generate SVM instruction for given Wormhole Post Message Shim program.
     #[inline]
     pub fn instruction(&self, program_id: &Pubkey) -> Instruction {
+        let message = self
+            .message
+            .copied()
+            .unwrap_or(wormhole_svm_definitions::find_shim_message_address(self.emitter).0);
+        let sequence = self
+            .sequence
+            .copied()
+            .unwrap_or(wormhole_svm_definitions::find_emitter_sequence_address(self.emitter).0);
+        let event_authority = self
+            .event_authority
+            .copied()
+            .unwrap_or(wormhole_svm_definitions::find_message_authority_address(program_id).0);
+
         Instruction {
             program_id: *program_id,
             accounts: vec![
                 AccountMeta::new(*self.core_bridge_config, false),
-                AccountMeta::new(*self.message, false),
+                AccountMeta::new(message, false),
                 AccountMeta::new_readonly(*self.emitter, true),
-                AccountMeta::new(*self.sequence, false),
+                AccountMeta::new(sequence, false),
                 AccountMeta::new(*self.payer, true),
                 AccountMeta::new(*self.fee_collector, false),
                 AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
                 AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
                 AccountMeta::new_readonly(*self.core_bridge_program, false),
-                AccountMeta::new_readonly(
-                    self.event_authority.copied().unwrap_or_else(|| {
-                        wormhole_svm_definitions::find_event_authority_address(program_id).0
-                    }),
-                    false,
-                ),
+                AccountMeta::new_readonly(event_authority, false),
                 AccountMeta::new_readonly(*program_id, false),
             ],
-            data: self.data.to_vec(),
+            data: PostMessageShimInstruction::PostMessage(self.data).to_vec(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmitMessageData {
+    pub emitter: Pubkey,
+    pub sequence: u64,
+    pub submission_time: u32,
+}
+
+impl EmitMessageData {
+    pub const DISCRIMINATOR: [u8; 8] = trim_digest(
+        sha2_const_stable::Sha256::new()
+            .update(b"event:MessageEvent")
+            .finalize(),
+    );
+
+    pub const SIZE: usize = {
+        8 // discriminator
+        + 32 // emitter
+        + 8 // sequence
+        + 4 // submission time
+    };
+
+    fn deserialize(data: &[u8]) -> Option<Self> {
+        if data.len() < Self::SIZE || &data[..8] != &Self::DISCRIMINATOR {
+            return None;
+        }
+
+        let emitter = Pubkey::new_from_array(data[8..40].try_into().unwrap());
+        let sequence = u64::from_le_bytes(data[40..48].try_into().unwrap());
+        let submission_time = u32::from_le_bytes(data[48..52].try_into().unwrap());
+
+        // NOTE: We do not care about trailing bytes.
+
+        Some(Self {
+            emitter,
+            sequence,
+            submission_time,
+        })
     }
 }
 

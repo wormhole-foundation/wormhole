@@ -23,15 +23,8 @@ localnet = ["wormhole-svm-definitions/localnet"]
 ### Specific networks
 solana = ["wormhole-svm-definitions/solana"]
 
-### TODO: purge
-cpi = ["no-entrypoint"]
-no-idl = []
-no-log-ix-name = []
-
 [dependencies]
-anchor-lang = { version = "0.30.1", features = ["event-cpi"] }
 solana-program.workspace = true
-wormhole-anchor-sdk = "=0.30.1-alpha.3"
 wormhole-svm-definitions.workspace = true
 wormhole-svm-shim.workspace = true
 

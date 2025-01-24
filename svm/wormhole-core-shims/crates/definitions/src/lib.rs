@@ -7,6 +7,8 @@ cfg_if::cfg_if! {
     }
 }
 
+pub const MESSAGE_AUTHORITY_SEED: &[u8] = b"__event_authority";
+
 // NOTE: Expand this as #[cfg(or(...))] as Wormhole supports more SVM networks.
 #[cfg(feature = "solana")]
 mod pda {
@@ -18,8 +20,8 @@ mod pda {
         Pubkey::find_program_address(&[b"Sequence", emitter.as_ref()], &CORE_BRIDGE_PROGRAM_ID)
     }
 
-    pub fn find_event_authority_address(program_id: &Pubkey) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&[b"__event_authority"], &program_id)
+    pub fn find_message_authority_address(program_id: &Pubkey) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[MESSAGE_AUTHORITY_SEED], &program_id)
     }
 
     pub fn find_shim_message_address(emitter: &Pubkey) -> (Pubkey, u8) {

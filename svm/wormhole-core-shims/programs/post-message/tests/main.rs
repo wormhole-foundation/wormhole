@@ -14,6 +14,7 @@ async fn test_post_message_no_emitter_sequence() {
 
     let emitter_signer = Keypair::new();
     let (transaction, bump_costs) = set_up_post_message_transaction(
+        b"All your base are belong to us",
         &payer_signer,
         &emitter_signer,
         recent_blockhash,
@@ -70,7 +71,8 @@ async fn test_post_message_no_emitter_sequence() {
     // the first message.
     assert_eq!(
         details.units_consumed - bump_costs.message - 2 * bump_costs.sequence,
-        53_418
+        // 53_418
+        46_901
     );
 }
 
@@ -80,6 +82,7 @@ async fn test_cannot_post_message_invalid_message() {
 
     let emitter_signer = Keypair::new();
     let (transaction, _) = set_up_post_message_transaction(
+        b"All your base are belong to us",
         &payer_signer,
         &emitter_signer,
         recent_blockhash,
@@ -97,7 +100,10 @@ async fn test_cannot_post_message_invalid_message() {
     let details = out.simulation_details.unwrap();
     dbg!(&details);
     assert!(out.result.unwrap().is_err());
-    assert!(details.logs.contains(&"Program log: AnchorError caused by account: message. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.".to_string()));
+    //assert!(details.logs.contains(&"Program log: AnchorError caused by account: message. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.".to_string()));
+    assert!(details
+        .logs
+        .contains(&"Program log: Message (account #2) seeds constraint violated".to_string()));
 }
 
 #[tokio::test]
@@ -106,6 +112,7 @@ async fn test_cannot_post_message_invalid_core_bridge_program() {
 
     let emitter_signer = Keypair::new();
     let (transaction, _) = set_up_post_message_transaction(
+        b"All your base are belong to us",
         &payer_signer,
         &emitter_signer,
         recent_blockhash,
@@ -123,15 +130,20 @@ async fn test_cannot_post_message_invalid_core_bridge_program() {
     let details = out.simulation_details.unwrap();
     dbg!(&details);
     assert!(out.result.unwrap().is_err());
-    assert!(details.logs.contains(&"Program log: AnchorError caused by account: wormhole_program. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.".to_string()));
+    //assert!(details.logs.contains(&"Program log: AnchorError caused by account: wormhole_program. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.".to_string()));
+    assert!(details.logs.contains(
+        &"Program log: Wormhole program (account #10) address constraint violated".to_string()
+    ));
 }
 
 #[tokio::test]
 async fn test_post_message() {
     let (mut banks_client, payer_signer, recent_blockhash) = start_test().await;
 
+    let first_message = b"All your base";
     let emitter_signer = Keypair::new();
     let (transaction, _) = set_up_post_message_transaction(
+        first_message,
         &payer_signer,
         &emitter_signer,
         recent_blockhash,
@@ -142,8 +154,12 @@ async fn test_post_message() {
     // Send one to create the emitter sequence account.
     banks_client.process_transaction(transaction).await.unwrap();
 
+    let subsequent_message = b"are belong to us";
+    assert_ne!(&first_message[..], &subsequent_message[..]);
+
     let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
     let (transaction, bump_costs) = set_up_post_message_transaction(
+        subsequent_message,
         &payer_signer,
         &emitter_signer,
         recent_blockhash,
@@ -158,7 +174,8 @@ async fn test_post_message() {
     assert!(out.result.unwrap().is_ok());
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.message - bump_costs.sequence,
-        30_901
+        // 30_901
+        24_382
     );
 }
 
@@ -193,6 +210,7 @@ struct AdditionalTestInputs {
 }
 
 async fn set_up_post_message_transaction(
+    payload: &[u8],
     payer_signer: &Keypair,
     emitter_signer: &Keypair,
     recent_blockhash: Hash,
@@ -220,16 +238,16 @@ async fn set_up_post_message_transaction(
         solana_sdk::system_instruction::transfer(&payer, &CORE_BRIDGE_FEE_COLLECTOR, 100);
     let ix = post_message::PostMessage {
         core_bridge_config: &CORE_BRIDGE_CONFIG,
-        message: &message,
+        message: Some(&message),
         emitter: &emitter,
-        sequence: &sequence,
+        sequence: Some(&sequence),
         payer: &payer,
         fee_collector: &CORE_BRIDGE_FEE_COLLECTOR,
         core_bridge_program: &core_bridge_program,
         event_authority: Default::default(),
         data: post_message::PostMessageData {
             nonce: 420,
-            payload: b"All your base are belong to us.",
+            payload,
             finality: post_message::Finality::Finalized,
         },
     }

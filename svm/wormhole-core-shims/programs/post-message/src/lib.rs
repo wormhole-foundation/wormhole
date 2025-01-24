@@ -1,179 +1,231 @@
-use anchor_lang::prelude::*;
-use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, POST_MESSAGE_SHIM_PROGRAM_ID};
+#![deny(dead_code, unused_imports, unused_mut, unused_variables)]
+
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    declare_id,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
+use wormhole_svm_definitions::{
+    find_shim_message_address, CORE_BRIDGE_PROGRAM_ID, MESSAGE_AUTHORITY_SEED,
+    POST_MESSAGE_SHIM_EVENT_AUTHORITY, POST_MESSAGE_SHIM_PROGRAM_ID,
+};
+use wormhole_svm_shim::post_message::{
+    EmitMessageData, PostMessageData, PostMessageShimInstruction,
+};
 
 declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
-#[program]
-pub mod wormhole_post_message_shim {
-    use super::*;
+const MESSAGE_AUTHORITY_SIGNER_SEEDS: &[&[u8]; 2] = &[MESSAGE_AUTHORITY_SEED, &[255]];
 
-    /// This instruction is intended to be a significantly cheaper alternative to `post_message` on the core bridge.
-    /// It achieves this by reusing the message account, per emitter, via `post_message_unreliable` and
-    /// emitting a CPI event for the guardian to observe containing the information previously only found
-    /// in the resulting message account. Since this passes through the emitter and calls `post_message_unreliable`
-    /// on the core bridge, it can be used (or not used) without disruption.
-    ///
-    /// NOTE: In the initial message publication for a new emitter, this will require one additional CPI call depth
-    /// when compared to using the core bridge directly. If that is an issue, simply emit an empty message on initialization
-    /// (or migration) in order to instantiate the account. This will result in a VAA from your emitter, so be careful to
-    /// avoid any issues that may result in.
-    ///
-    /// Direct case
-    /// shim `PostMessage` -> core `0x8`
-    ///                    -> shim `MesssageEvent`
-    ///
-    /// Integration case
-    /// Integrator Program -> shim `PostMessage` -> core `0x8`
-    ///                                          -> shim `MesssageEvent`
-    pub fn post_message(
-        ctx: Context<PostMessage>,
-        nonce: u32,
-        consistency_level: Finality,
-        _payload: Vec<u8>,
-    ) -> Result<()> {
-        // Parse the sequence from the account and emit the event. If the
-        // sequence account does not exist, default to 0 because the Wormhole
-        // Core Bridge will create this sequence account on the first message
-        // (where the first message's sequence number is 0).
-        let sequence = {
-            let account_data = ctx.accounts.sequence.data.borrow();
-            if account_data.len() < 8 {
-                0
-            } else {
-                u64::from_le_bytes(account_data[..8].try_into().unwrap())
-            }
-        };
+solana_program::entrypoint!(process_instruction);
 
-        let ix = solana_program::instruction::Instruction {
-            program_id: ctx.accounts.wormhole_program.key(),
-            accounts: vec![
-                AccountMeta::new(ctx.accounts.bridge.key(), false),
-                AccountMeta::new(ctx.accounts.message.key(), true),
-                AccountMeta::new_readonly(ctx.accounts.emitter.key(), true),
-                AccountMeta::new(ctx.accounts.sequence.key(), false),
-                AccountMeta::new(ctx.accounts.payer.key(), true),
-                AccountMeta::new(ctx.accounts.fee_collector.key(), false),
-                AccountMeta::new_readonly(ctx.accounts.clock.key(), false),
-                AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
-                AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
-            ],
-            data: Instruction::PostMessageUnreliable {
-                nonce,
-                payload: Default::default(),
-                consistency_level,
-            }
-            .try_to_vec()?,
-        };
-        solana_program::program::invoke_signed(
-            &ix,
-            &[
-                // TODO: it may be possible to omit some of these
-                ctx.accounts.bridge.to_account_info(),
-                ctx.accounts.message.to_account_info(),
-                ctx.accounts.emitter.to_account_info(),
-                ctx.accounts.sequence.to_account_info(),
-                ctx.accounts.payer.to_account_info(),
-                ctx.accounts.fee_collector.to_account_info(),
-                ctx.accounts.clock.to_account_info(),
-                ctx.accounts.rent.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-                ctx.accounts.wormhole_program.to_account_info(),
-            ],
-            &[&[&ctx.accounts.emitter.key.to_bytes(), &[ctx.bumps.message]]],
-        )?;
+#[inline]
+fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    // Verify the program ID is what we expect.
+    if program_id != &POST_MESSAGE_SHIM_PROGRAM_ID {
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
-        emit_cpi!(MessageEvent {
-            emitter: ctx.accounts.emitter.key(),
-            sequence,
-            submission_time: Clock::get().unwrap().unix_timestamp as u32, // this is the same casting that the core bridge performs in post_message_internal
-        });
-
-        Ok(())
+    // Determine whether instruction data is self CPI or post message.
+    match PostMessageShimInstruction::deserialize(instruction_data) {
+        Some(PostMessageShimInstruction::PostMessage(data)) => process_post_message(accounts, data),
+        Some(PostMessageShimInstruction::EmitMessage(_)) => process_emit_message(accounts),
+        None => Err(ProgramError::InvalidInstructionData),
     }
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub enum Finality {
-    Confirmed,
-    Finalized,
+#[inline]
+fn process_emit_message(accounts: &[AccountInfo]) -> ProgramResult {
+    // Verify account.
+    let message_authority_info = next_account_info(&mut accounts.iter())?;
+
+    if !message_authority_info.is_signer {
+        msg!("Message authority (account #1) is not signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    if message_authority_info.key != &POST_MESSAGE_SHIM_EVENT_AUTHORITY {
+        msg!("Message authority (account #1) seeds constraint violated");
+        msg!("Left:");
+        msg!("{}", message_authority_info.key);
+        msg!("Right:");
+        msg!("{}", POST_MESSAGE_SHIM_EVENT_AUTHORITY);
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    Ok(())
 }
 
-#[event]
-pub struct MessageEvent {
-    emitter: Pubkey,
-    sequence: u64,
-    submission_time: u32,
+#[inline]
+fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> ProgramResult {
+    // Verify accounts.
+    let accounts_iter = &mut accounts.iter();
+
+    // Wormhole Core Bridge config. Wormhole Core Bridge program's post message
+    // instruction requires this account be mutable.
+    let bridge_info = next_account_info(accounts_iter)?;
+
+    // Wormhole Message. Wormhole Core Bridge program's post message
+    // instruction requires this account to be a mutable signer.
+    let message_info = next_account_info(accounts_iter)?;
+
+    // Emitter of the Wormhole Core Bridge message. Wormhole Core Bridge
+    // program's post message instruction requires this account to be a signer.
+    let emitter_info = next_account_info(accounts_iter)?;
+    let emitter_key = emitter_info.key;
+
+    // The Wormhole Post Message Shim program uses a PDA per emitter because
+    // these messages are already bottle-necked by sequence and the Wormhole
+    // Core Bridge program enforces that the emitter must be identical for
+    // reused accounts.
+    //
+    // While this could be managed by the integrator, it seems more effective
+    // to have the Wormhole Post Message Shim program manage these accounts.
+    let (expected_message_key, message_bump) = find_shim_message_address(emitter_key);
+    if message_info.key != &expected_message_key {
+        msg!("Message (account #2) seeds constraint violated");
+        msg!("Left:");
+        msg!("{}", message_info.key);
+        msg!("Right:");
+        msg!("{}", expected_message_key);
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    // Emitter's sequence account. Wormhole Core Bridge program's post message
+    // instruction requires this account to be mutable.
+    let sequence_info = next_account_info(accounts_iter)?;
+
+    // Payer will pay the Wormhole Core Bridge fee to post a message. The fee
+    // amount is encoded in the [core_bridge_config] account data.
+    let payer_info = next_account_info(accounts_iter)?;
+
+    // Wormhole Core Bridge fee collector. Wormhole Core Bridge program's post
+    // message instruction requires this account to be mutable.
+    let fee_collector_info = next_account_info(accounts_iter)?;
+
+    // Clock sysvar, which will be used after the message is posted.
+    let clock_info = next_account_info(accounts_iter)?;
+
+    // System program. Wormhole Core Bridge program's post message instruction
+    // requires the System program to create the message account and emitter
+    // sequence account if they have not been created yet.
+    let system_program_info = next_account_info(accounts_iter)?;
+
+    // Rent sysvar. Wormhole Core Bridge program's post message instruction
+    // requires this account.
+    let rent_info = next_account_info(accounts_iter)?;
+
+    // Wormhole Core Bridge program.
+    let wormhole_program_info = next_account_info(accounts_iter)?;
+
+    // We only want to use the Wormhole Core Bridge program to post messages.
+    if wormhole_program_info.key != &CORE_BRIDGE_PROGRAM_ID {
+        msg!("Wormhole program (account #10) address constraint violated");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Wormhole Post Message Shim program's self-CPI authority. The emit message
+    // instruction will verify that this account is a signer and the pubkey is
+    // correct.
+    let event_authority_info = next_account_info(accounts_iter)?;
+
+    let PostMessageData {
+        nonce,
+        finality,
+        payload: _,
+    } = data;
+
+    // Using the data passed in from the instruction, we can construct the
+    // post message unreliable data. If the guardians do not end up checking the
+    // message account, we can just use zeros for the nonce and finality.
+    let mut post_message_unreliable_data = Vec::with_capacity({
+        1 // selector
+        + 4 // nonce
+        + 4 // payload length (zero)
+        + 1 // finality
+    });
+    post_message_unreliable_data.push(8); // selector
+    post_message_unreliable_data.extend_from_slice(&nonce.to_le_bytes());
+    post_message_unreliable_data.extend_from_slice(&u32::to_le_bytes(0));
+    post_message_unreliable_data.push(finality as u8);
+
+    let post_message_unreliable_ix = Instruction {
+        program_id: *wormhole_program_info.key,
+        accounts: vec![
+            AccountMeta::new(*bridge_info.key, false),
+            AccountMeta::new(expected_message_key, true),
+            AccountMeta::new_readonly(*emitter_key, true),
+            AccountMeta::new(*sequence_info.key, false),
+            AccountMeta::new(*payer_info.key, true),
+            AccountMeta::new(*fee_collector_info.key, false),
+            AccountMeta::new_readonly(*clock_info.key, false),
+            AccountMeta::new_readonly(*system_program_info.key, false),
+            AccountMeta::new_readonly(*rent_info.key, false),
+        ],
+        data: post_message_unreliable_data,
+    };
+
+    // There is no account data being borrowed at this point, so this is safe.
+    solana_program::program::invoke_signed_unchecked(
+        &post_message_unreliable_ix,
+        accounts,
+        &[&[emitter_key.as_ref(), &[message_bump]]],
+    )?;
+
+    let event_cpi_ix = {
+        // Parse the sequence from the account and emit the event reading the
+        // account after avoids having to handle when the account doesn't exist.
+        let sequence = {
+            let account_data = sequence_info.data.borrow();
+            u64::from_le_bytes(account_data[..8].try_into().unwrap()).saturating_sub(1)
+        };
+
+        // NOTE: If the Wormhole Core Bridge ever changes to use Clock::get(), this clock account
+        // info may not exist anymore (so we will have to perform Clock::get() here instead).
+        let clock_data = clock_info.data.borrow();
+        let submission_time = i64::from_le_bytes(clock_data[32..40].try_into().unwrap());
+
+        Instruction {
+            program_id: ID,
+            accounts: vec![AccountMeta::new_readonly(*event_authority_info.key, true)],
+            data: PostMessageShimInstruction::EmitMessage(EmitMessageData {
+                emitter: *emitter_key,
+                sequence,
+                submission_time: submission_time as u32,
+            })
+            .to_vec(),
+        }
+    };
+
+    // There is no account data being borrowed at this point, so this is safe.
+    solana_program::program::invoke_signed_unchecked(
+        &event_cpi_ix,
+        accounts,
+        &[MESSAGE_AUTHORITY_SIGNER_SEEDS],
+    )?;
+
+    Ok(())
 }
 
-#[event_cpi]
-#[derive(Accounts)]
-/// The accounts are ordered and named the same as the core bridge's post_message_unreliable instruction
-/// TODO: some of these checks were included for IDL generation / convenience but are completely unnecessary
-/// and costly on-chain. Use configuration to generate the nice IDL but omit the checks on-chain except for
-/// the wormhole program. Alternatively, make this program without Anchor at all.
-/// some comparison of compute units consumed:
-/// - core post_message:                      25097
-/// - shim without sysvar and address checks: 45608 (20511 more)
-/// - shim with sysvar and address checks:    45782 (  174 more)
-pub struct PostMessage<'info> {
-    #[account(mut)]
-    /// CHECK: Wormhole bridge config. [`wormhole::post_message`] requires this account be mutable.
-    pub bridge: UncheckedAccount<'info>,
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    #[account(mut, seeds = [&emitter.key.to_bytes()], bump)]
-    /// CHECK: Wormhole Message. [`wormhole::post_message`] requires this account be signer and mutable.
-    /// This program uses a PDA per emitter, since these are already bottle-necked by sequence and
-    /// the bridge enforces that emitter must be identical for reused accounts.
-    /// While this could be managed by the integrator, it seems more effective to have the shim manage these accounts.
-    /// Bonus, this also allows Anchor to automatically handle deriving the address.
-    pub message: UncheckedAccount<'info>,
-
-    /// CHECK: Emitter of the VAA. [`wormhole::post_message`] requires this account be signer.
-    pub emitter: Signer<'info>,
-
-    #[account(mut)]
-    /// CHECK: Emitter's sequence account. [`wormhole::post_message`] requires this account be mutable.
-    /// Explicitly do not re-derive this account. The core bridge verifies the derivation anyway and
-    /// as of Anchor 0.30.1, auto-derivation for other programs' accounts via IDL doesn't work.
-    pub sequence: UncheckedAccount<'info>,
-
-    #[account(mut)]
-    /// Payer will pay Wormhole fee to post a message.
-    pub payer: Signer<'info>,
-
-    #[account(mut)]
-    /// CHECK: Wormhole fee collector. [`wormhole::post_message`] requires this account be mutable.
-    pub fee_collector: UncheckedAccount<'info>,
-
-    /// Clock sysvar.
-    pub clock: Sysvar<'info, Clock>,
-
-    /// System program.
-    pub system_program: Program<'info, System>,
-
-    /// Rent sysvar.
-    pub rent: Sysvar<'info, Rent>,
-
-    #[account(address = CORE_BRIDGE_PROGRAM_ID)]
-    /// CHECK: Wormhole program.
-    pub wormhole_program: UncheckedAccount<'info>,
-}
-
-// Adapted from wormhole-anchor-sdk instructions.rs
-#[derive(AnchorDeserialize, AnchorSerialize)]
-/// Wormhole instructions.
-pub enum Instruction {
-    Initialize,
-    PostMessage,
-    PostVAA,
-    SetFees,
-    TransferFees,
-    UpgradeContract,
-    UpgradeGuardianSet,
-    VerifySignatures,
-    PostMessageUnreliable {
-        nonce: u32,
-        payload: Vec<u8>,
-        consistency_level: Finality,
-    },
+    #[test]
+    fn test_message_authority_signer_seeds() {
+        let actual = Pubkey::create_program_address(
+            MESSAGE_AUTHORITY_SIGNER_SEEDS,
+            &POST_MESSAGE_SHIM_PROGRAM_ID,
+        )
+        .unwrap();
+        assert_eq!(actual, POST_MESSAGE_SHIM_EVENT_AUTHORITY);
+    }
 }
