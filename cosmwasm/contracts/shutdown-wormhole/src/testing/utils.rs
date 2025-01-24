@@ -1,19 +1,16 @@
-use cosmwasm_std::{Addr, Binary, Uint256};
+use cosmwasm_std::Addr;
 use cw_multi_test::{App, AppBuilder, ContractWrapper, Executor, WasmKeeper};
-use cw_wormhole::contract::{execute, instantiate, query};
-use cw_wormhole::msg::InstantiateMsg;
-use cw_wormhole::state::{GuardianAddress, GuardianSetInfo};
+use cw_wormhole::{
+    contract::{execute, instantiate, query},
+    msg::InstantiateMsg,
+    state::{GuardianAddress, GuardianSetInfo},
+};
 use k256::ecdsa::SigningKey;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
-use serde::Serialize;
 use std::convert::TryInto;
 use tiny_keccak::{Hasher, Keccak};
-use wormhole_bindings::fake::{create_vaa_body, default_guardian_keys, WormholeKeeper};
-use wormhole_sdk::{
-    token::Message,
-    vaa::{Body, Header, Vaa},
-    Address, Amount, Chain, GOVERNANCE_EMITTER,
-};
+use wormhole_bindings::fake::{default_guardian_keys, WormholeKeeper};
+use wormhole_sdk::{Chain, GOVERNANCE_EMITTER};
 
 pub struct WormholeApp {
     pub app: App<
