@@ -81,7 +81,7 @@ For Sui, [events emitting the WormholeMessage struct](https://github.com/wormhol
 
 There are a number of complications that arise when querying historical account data on Sui.
 
-TODO: add details
+TODO: add details from Sui
 
 # Rollout Considerations
 
