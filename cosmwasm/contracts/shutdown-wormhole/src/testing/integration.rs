@@ -1,23 +1,17 @@
-use crate::testing::utils::{
-    create_transfer_vaa_body, instantiate_with_guardians, sign_vaa_body_version_2,
-    IntoGuardianAddress, WormholeApp,
-};
-use cosmwasm_std::{
-    testing::{mock_dependencies, mock_env, mock_info},
-    Coin, Response, StdResult,
-};
-use cosmwasm_std::{Empty, QuerierWrapper, StdError, Uint128, Uint256};
+use crate::testing::utils::{IntoGuardianAddress, WormholeApp};
+use cosmwasm_std::StdResult;
+use cosmwasm_std::Uint256;
 use cw_multi_test::Executor;
 use cw_wormhole::{
     msg::QueryMsg,
-    msg::{ExecuteMsg, GetStateResponse, GuardianSetInfoResponse},
-    state::{ConfigInfo, GuardianAddress, ParsedVAA, CONFIG},
+    msg::{ExecuteMsg, GuardianSetInfoResponse},
+    state::ParsedVAA,
 };
 use k256::ecdsa::SigningKey;
-use wormhole_bindings::fake::{create_gov_vaa_body, SignVaa, WormholeKeeper};
+use wormhole_bindings::fake::{create_gov_vaa_body, SignVaa};
 use wormhole_sdk::{
     core::{Action, GovernancePacket},
-    Address, Amount, Chain, GuardianSetInfo, GOVERNANCE_EMITTER,
+    Address, Amount, Chain, GuardianSetInfo,
 };
 
 #[test]

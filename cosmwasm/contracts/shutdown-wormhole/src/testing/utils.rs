@@ -15,42 +15,6 @@ use wormhole_sdk::{
     Address, Amount, Chain, GOVERNANCE_EMITTER,
 };
 
-/// Sign a VAA body with version 2 in the header.
-pub fn sign_vaa_body_version_2<P: Serialize>(
-    wh: WormholeKeeper,
-    body: Body<P>,
-) -> (Vaa<P>, Binary) {
-    let data = serde_wormhole::to_vec(&body).unwrap();
-    let signatures = WormholeKeeper::new().sign(&data);
-
-    let header = Header {
-        version: 2,
-        guardian_set_index: wh.guardian_set_index(),
-        signatures,
-    };
-
-    let v: Vaa<P> = (header, body).into();
-    let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
-
-    (v, data)
-}
-
-pub fn create_transfer_vaa_body(i: usize, emitter_address: Address) -> Body<Message> {
-    create_vaa_body(
-        i,
-        i as u16,
-        emitter_address,
-        Message::Transfer {
-            amount: Amount(Uint256::from(i as u128).to_be_bytes()),
-            token_address: Address([(i + 1) as u8; 32]),
-            token_chain: (i as u16).into(),
-            recipient: Address([i as u8; 32]),
-            recipient_chain: ((i + 2) as u16).into(),
-            fee: Amount([0u8; 32]),
-        },
-    )
-}
-
 pub struct WormholeApp {
     pub app: App<
         cw_multi_test::BankKeeper,
@@ -59,7 +23,6 @@ pub struct WormholeApp {
         WormholeKeeper,
         WasmKeeper<cosmwasm_std::Empty, wormhole_bindings::WormholeQuery>,
     >,
-    pub admin: Addr,
     pub user: Addr,
     pub wormhole_contract: Addr,
     pub wormhole_keeper: WormholeKeeper,
@@ -146,7 +109,6 @@ pub fn create_wormhole_app(
 
     WormholeApp {
         app,
-        admin,
         user,
         wormhole_contract: contract_addr,
         wormhole_keeper,
