@@ -52,7 +52,7 @@ could choose to delay the transfer, allowing time for the transaction to be manu
 ## General Process
 
 Transfer Verifier
-- Connect to the chain (using a Websockets subscription, or else by polling)
+- Connect to the chain (using a WebSocket subscription, or else by polling)
 - Monitor the Core Contract for Message Publications
 - Filter the Message Publications for Token Transfers
 - Examine Token Bridge activity, ensuring that at least as many funds were transferred into the Token Bridge as are encoded in the Core Bridge's message
