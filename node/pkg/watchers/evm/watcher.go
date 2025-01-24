@@ -84,18 +84,20 @@ var (
 
 type (
 	Watcher struct {
-		// Ethereum RPC url
+		// EVM RPC url.
 		url string
-		// Address of the Eth contract
+		// Address of the EVM contract
 		contract eth_common.Address
-		// Human-readable name of the Eth network, for logging and monitoring.
+		// Human-readable name of the EVM network, for logging and monitoring.
 		networkName string
 		// Readiness component
 		readinessSync readiness.Component
-		// VAA ChainID of the network we're connecting to.
+		// VAA ChainID of the network monitored by this watcher.
 		chainID vaa.ChainID
 
-		// Channel to send new messages to. Should be wrapped be a call to `publishIfSafe()`
+		// Channel for sending new MesssagePublications. Messages should not be sent
+		// to this channel directly. Instead, they should be wrapped by
+		// a call to `publishIfSafe()`.
 		msgC chan<- *common.MessagePublication
 
 		// Channel to send guardian set changes to.
