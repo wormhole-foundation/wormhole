@@ -31,6 +31,7 @@ jobs:
           - "ictest-wormchain"
           - "ictest-ibc-receiver"
           - "ictest-cw-wormhole"
+          - "ictest-cw-shutdown-contracts"
       fail-fast: false
 
     steps:
