@@ -283,7 +283,10 @@ var (
 
 	subscribeToVAAs *bool
 
+	// CLI parameter value
 	transferVerifierEnabledChains *string
+	// CLI parameter value
+	txVerifierChains []vaa.ChainID
 )
 
 func init() {
@@ -931,10 +934,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if cmd.Flags().Changed("transferVerifierEnabledChains") {
-		txVerifierChains, err := parseTxVerifierChains(*transferVerifierEnabledChains)
-		logger.Info("parsed txVerifierChains", zap.Any("chains", txVerifierChains))
-		if err != nil {
-			logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(err))
+		var parseErr error
+		// NOTE: avoid shadowing txVerifierChains here. It should refer to the global variable.
+		txVerifierChains, parseErr = parseTxVerifierChains(*transferVerifierEnabledChains)
+		logger.Debug("parsed txVerifierChains", zap.Any("chains", txVerifierChains))
+		if parseErr != nil {
+			logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(parseErr))
 		}
 	}
 
