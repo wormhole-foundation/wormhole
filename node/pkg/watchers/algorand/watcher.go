@@ -157,7 +157,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 
 	for _, obs := range observations {
 		observation := &common.MessagePublication{
-			TxHash:           txHash,
+			TxID:             txHash.Bytes(),
 			Timestamp:        time.Unix(b.TimeStamp, 0),
 			Nonce:            obs.nonce,
 			Sequence:         obs.sequence,

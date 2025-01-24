@@ -235,7 +235,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	ts := outcomeBlockHeader.Timestamp
 
 	observation := &common.MessagePublication{
-		TxHash:           txHashEthFormat,
+		TxID:             txHashEthFormat.Bytes(),
 		Timestamp:        time.Unix(int64(ts), 0),
 		Nonce:            pubEvent.Nonce,
 		Sequence:         pubEvent.Seq,

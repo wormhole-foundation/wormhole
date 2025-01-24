@@ -150,6 +150,10 @@ var (
 	aptosAccount *string
 	aptosHandle  *string
 
+	movementRPC     *string
+	movementAccount *string
+	movementHandle  *string
+
 	suiRPC           *string
 	suiMoveEventType *string
 
@@ -195,6 +199,9 @@ var (
 	worldchainRPC      *string
 	worldchainContract *string
 
+	monadRPC      *string
+	monadContract *string
+
 	monadDevnetRPC      *string
 	monadDevnetContract *string
 
@@ -203,6 +210,9 @@ var (
 
 	hyperEvmRPC      *string
 	hyperEvmContract *string
+
+	seiEvmRPC      *string
+	seiEvmContract *string
 
 	sepoliaRPC      *string
 	sepoliaContract *string
@@ -371,6 +381,10 @@ func init() {
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
+	movementRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "movementRPC", "Movement RPC URL", "", []string{"http", "https"})
+	movementAccount = NodeCmd.Flags().String("movementAccount", "", "movement account")
+	movementHandle = NodeCmd.Flags().String("movementHandle", "", "movement handle")
+
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
@@ -427,6 +441,12 @@ func init() {
 
 	hyperEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hyperEvmRPC", "HyperEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	hyperEvmContract = NodeCmd.Flags().String("hyperEvmContract", "", "HyperEVM contract address")
+
+	monadRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "monadRPC", "Monad RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	monadContract = NodeCmd.Flags().String("monadContract", "", "Monad contract address")
+
+	seiEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	seiEvmContract = NodeCmd.Flags().String("seiEvmContract", "", "SeiEVM contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -819,6 +839,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
 	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
 	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, "hyperEvm", false)
+	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, "monad", false)
+	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, "seiEvm", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -871,6 +893,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if !argsConsistent([]string{*aptosAccount, *aptosRPC, *aptosHandle}) {
 		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
+	}
+
+	if !argsConsistent([]string{*movementAccount, *movementRPC, *movementHandle}) {
+		logger.Fatal("Either --movementAccount, --movementRPC and --movementHandle must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*suiRPC, *suiMoveEventType}) {
@@ -946,7 +972,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["mantleRPC"] = *mantleRPC
+	rpcMap["monadRPC"] = *monadRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
+	rpcMap["movementRPC"] = *movementRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["oasisRPC"] = *oasisRPC
 	rpcMap["optimismRPC"] = *optimismRPC
@@ -963,6 +991,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
 	}
 	rpcMap["scrollRPC"] = *scrollRPC
+	rpcMap["seiEvmRPC"] = *seiEvmRPC
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["snaxchainRPC"] = *snaxchainRPC
 	rpcMap["suiRPC"] = *suiRPC
@@ -1449,6 +1478,30 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(monadRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "monad",
+			ChainID:          vaa.ChainIDMonad,
+			Rpc:              *monadRPC,
+			Contract:         *monadContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(seiEvmRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "seievm",
+			ChainID:          vaa.ChainIDSeiEVM,
+			Rpc:              *seiEvmRPC,
+			Contract:         *seiEvmContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1527,6 +1580,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:       *aptosRPC,
 			Account:   *aptosAccount,
 			Handle:    *aptosHandle,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(movementRPC) {
+		wc := &aptos.WatcherConfig{
+			NetworkID: "movement",
+			ChainID:   vaa.ChainIDMovement,
+			Rpc:       *movementRPC,
+			Account:   *movementAccount,
+			Handle:    *movementHandle,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}

@@ -14,7 +14,6 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	mockserver "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock"
-	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -231,7 +230,7 @@ func TestWatcherSimple(t *testing.T) {
 		},
 		expectedMsgObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash(txHashBytes),
+				TxID:             txHashBytes,
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -273,7 +272,7 @@ func TestWatcherSimple2(t *testing.T) {
 		},
 		expectedMsgObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash(txHashBytes),
+				TxID:             txHashBytes,
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -309,7 +308,7 @@ func TestWatcherReobservation(t *testing.T) {
 		},
 		expectedMsgReObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash(txHashBytes),
+				TxID:             txHashBytes,
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -359,7 +358,7 @@ func TestWatcherDelayedFinal(t *testing.T) {
 		latestFinalBlocks: lfb,
 		expectedMsgObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash(txHashBytes),
+				TxID:             txHashBytes,
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -398,7 +397,7 @@ func TestWatcherDelayedFinalAndGaps(t *testing.T) {
 		},
 		expectedMsgObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash(txHashBytes),
+				TxID:             txHashBytes,
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -444,7 +443,7 @@ func TestWatcherSynthetic(t *testing.T) {
 		},
 		expectedMsgReObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX1")),
+				TxID:             []byte("_____________________________TX1"),
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -455,7 +454,7 @@ func TestWatcherSynthetic(t *testing.T) {
 				Unreliable:       false,
 			},
 			{
-				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX2")),
+				TxID:             []byte("_____________________________TX2"),
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -466,7 +465,7 @@ func TestWatcherSynthetic(t *testing.T) {
 				Unreliable:       false,
 			},
 			{
-				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX3")),
+				TxID:             []byte("_____________________________TX3"),
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -537,7 +536,7 @@ func TestWatcherUnfinalized(t *testing.T) {
 		},
 		expectedMsgReObserved: []*common.MessagePublication{
 			{
-				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX1")),
+				TxID:             []byte("_____________________________TX1"),
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,
@@ -548,7 +547,7 @@ func TestWatcherUnfinalized(t *testing.T) {
 				Unreliable:       false,
 			},
 			{
-				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX3")),
+				TxID:             []byte("_____________________________TX3"),
 				EmitterAddress:   portalEmitterAddress(),
 				ConsistencyLevel: 0,
 				EmitterChain:     vaa.ChainIDNear,

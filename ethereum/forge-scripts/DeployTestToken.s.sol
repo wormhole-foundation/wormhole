@@ -17,7 +17,8 @@ contract DeployTestToken is Script {
             address deployedTokenAddress,
             address deployedNFTaddress,
             address deployedWETHaddress,
-            address deployedAccountantTokenAddress
+            address deployedAccountantTokenAddress,
+            address transferVerificationTokenA
         )
     {
         vm.startBroadcast();
@@ -25,7 +26,8 @@ contract DeployTestToken is Script {
             deployedTokenAddress,
             deployedNFTaddress,
             deployedWETHaddress,
-            deployedAccountantTokenAddress
+            deployedAccountantTokenAddress,
+            transferVerificationTokenA
         ) = _deploy();
         vm.stopBroadcast();
     }
@@ -36,10 +38,11 @@ contract DeployTestToken is Script {
             address deployedTokenAddress,
             address deployedNFTaddress,
             address deployedWETHaddress,
-            address deployedAccountantTokenAddress
+            address deployedAccountantTokenAddress,
+            address transferVerificationTokenA
         )
     {
-        address[] memory accounts = new address[](13);
+        address[] memory accounts = new address[](14);
         accounts[0] = 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1;
         accounts[1] = 0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0;
         accounts[2] = 0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b;
@@ -53,6 +56,8 @@ contract DeployTestToken is Script {
         accounts[10] = 0x610Bb1573d1046FCb8A70Bbbd395754cD57C2b60;
         accounts[11] = 0x855FA758c77D68a04990E992aA4dcdeF899F654A;
         accounts[12] = 0xfA2435Eacf10Ca62ae6787ba2fB044f8733Ee843;
+        accounts[13] = 0x64E078A8Aa15A41B85890265648e965De686bAE6;
+
         
         ERC20PresetMinterPauser token = new ERC20PresetMinterPauser(
             "Ethereum Test Token",
@@ -95,11 +100,33 @@ contract DeployTestToken is Script {
         // mint 1000 units
         accountantToken.mint(accounts[9], 1_000_000_000_000_000_000_000);
 
+        for(uint16 i=0; i<11; i++) {
+            // Give the accounts enough eth to send transactions
+            vm.deal(accounts[i], 1e18);
+        }
+
+        // Deploy a test token for Transfer Verification
+        ERC20PresetMinterPauser deployedA = new ERC20PresetMinterPauser(
+            "TransferVerifier Test Token A",
+            "TVA"
+        );
+        console.log("Test token A deployed at: ", address(deployedA));
+
+        // Mint Eth and test tokens to Anvil's default account at index 13.
+        // This will be used for Transfer Verification integration tests.
+        // The other accounts created by Anvil are used for other tests in the devnet, so
+        // using account 14 to send transfers will hopefully cause things to be
+        // better encapsulated.
+        deployedA.mint(accounts[13], 1_000_000_000_000_000_000_000);
+        token.mint(accounts[13], 1_000_000_000_000_000_000_000);
+        vm.deal(accounts[13], 1e18);
+
         return (
             address(token),
             address(nft),
             address(mockWeth),
-            address(accountantToken)
+            address(accountantToken),
+            address(deployedA)
         );
     }
 }

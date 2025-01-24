@@ -57,12 +57,19 @@ export const builder = (y: typeof yargs) =>
       "init-token-bridge",
       "Init token bridge contract",
       (yargs) =>
-        yargs.option("network", NETWORK_OPTIONS).option("rpc", RPC_OPTIONS),
+        yargs
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
+          .option("contract-address", {
+            describe: "Core contract address",
+            type: "string",
+            demandOption: false,
+          }),
       async (argv) => {
         const network = getNetwork(argv.network);
-        const contract_address = evm_address(
-          contracts.tokenBridge(network, "Aptos")
-        );
+        const contract_address =
+          argv["contract-address"] ||
+          evm_address(contracts.tokenBridge(network, "Aptos"));
         const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         await callEntryFunc(
           network,
@@ -104,13 +111,18 @@ export const builder = (y: typeof yargs) =>
             demandOption: true,
             describe: "Initial guardian's addresses (CSV)",
             type: "string",
+          })
+          .option("contract-address", {
+            describe: "Core contract address",
+            type: "string",
+            demandOption: false,
           }),
       async (argv) => {
         const network = getNetwork(argv.network);
 
-        const contract_address = evm_address(
-          contracts.coreBridge(network, "Aptos")
-        );
+        const contract_address =
+          argv["contract-address"] ||
+          evm_address(contracts.coreBridge(network, "Aptos"));
         const guardian_addresses = argv["guardian-address"]
           .split(",")
           .map((address) => evm_address(address).substring(24));
@@ -196,11 +208,15 @@ export const builder = (y: typeof yargs) =>
         const b = serializePackage(p);
         const seed = Buffer.from(argv["seed"], "ascii");
 
-        let module_name = APTOS_DEPLOYER_ADDRESS_DEVNET + "::deployer";
-        if (network == "Testnet" || network == "Mainnet") {
-          module_name =
-            "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::deployer";
+        let deployer = APTOS_DEPLOYER_ADDRESS_DEVNET;
+        const addresses = argv["named-addresses"]?.split(",") || [];
+        for (const addressPair of addresses) {
+          const [name, address] = addressPair.split("=");
+          if (name === "deployer") {
+            deployer = address;
+          }
         }
+        const module_name = deployer + "::deployer";
         const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         await callEntryFunc(
           network,
@@ -223,12 +239,19 @@ export const builder = (y: typeof yargs) =>
             describe: "Message to send",
             demandOption: true,
           })
-          .option("network", NETWORK_OPTIONS),
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
+          .option("sender", {
+            describe: "Sender address",
+            type: "string",
+            demandOption: false,
+          }),
       async (argv) => {
         const network = getNetwork(argv.network);
-        const rpc = NETWORKS[network].Aptos.rpc;
-        let module_name = APTOS_DEPLOYER_ADDRESS_DEVNET + "::sender";
-        if (network == "Testnet" || network == "Mainnet") {
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
+        let module_name =
+          (argv.sender || APTOS_DEPLOYER_ADDRESS_DEVNET) + "::sender";
+        if (!argv.sender && (network == "Testnet" || network == "Mainnet")) {
           module_name =
             "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::sender";
         }

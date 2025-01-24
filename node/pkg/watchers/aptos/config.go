@@ -42,5 +42,5 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *common.GuardianSet,
 	env common.Environment,
 ) (interfaces.L1Finalizer, supervisor.Runnable, error) {
-	return nil, NewWatcher(wc.Rpc, wc.Account, wc.Handle, msgC, obsvReqC).Run, nil
+	return nil, NewWatcher(wc.ChainID, wc.NetworkID, wc.Rpc, wc.Account, wc.Handle, msgC, obsvReqC).Run, nil
 }

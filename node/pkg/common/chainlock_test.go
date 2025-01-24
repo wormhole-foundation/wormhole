@@ -51,7 +51,7 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	payloadBytes1 := encodePayloadBytes(payload1)
 
 	msg1 := &MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -74,6 +74,118 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	assert.Equal(t, payload1, payload2)
 }
 
+func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) {
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
+
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	payload1 := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	payloadBytes1 := encodePayloadBytes(payload1)
+
+	msg1 := &MessagePublication{
+		TxID:             []byte{},
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          payloadBytes1,
+		ConsistencyLevel: 32,
+	}
+
+	bytes, err := msg1.Marshal()
+	require.NoError(t, err)
+
+	msg2, err := UnmarshalMessagePublication(bytes)
+	require.NoError(t, err)
+	assert.Equal(t, msg1, msg2)
+
+	payload2, err := vaa.DecodeTransferPayloadHdr(msg2.Payload)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload1, payload2)
+}
+
+func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing.T) {
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
+
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	payload1 := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	payloadBytes1 := encodePayloadBytes(payload1)
+
+	msg1 := &MessagePublication{
+		TxID:             []byte("This is some arbitrary string with just some random junk in it. This is to prove that the TxID does not have to be a ethCommon.Hash"),
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          payloadBytes1,
+		ConsistencyLevel: 32,
+	}
+
+	bytes, err := msg1.Marshal()
+	require.NoError(t, err)
+
+	msg2, err := UnmarshalMessagePublication(bytes)
+	require.NoError(t, err)
+	assert.Equal(t, msg1, msg2)
+
+	payload2, err := vaa.DecodeTransferPayloadHdr(msg2.Payload)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload1, payload2)
+}
+
+func TestTxIDStringTooLongShouldFail(t *testing.T) {
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	// This is limited to 255. Make it 256 and the marshal should fail.
+	txID := []byte("0123456789012345678901234567890123456789012345678901234567890123012345678901234567890123456789012345678901234567890123456789012301234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123")
+
+	msg := &MessagePublication{
+		TxID:             txID,
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          []byte("Hello, World!"),
+		ConsistencyLevel: 32,
+	}
+
+	_, err = msg.Marshal()
+	assert.ErrorContains(t, err, "TxID too long")
+}
+
 func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T) {
 	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
@@ -86,7 +198,7 @@ func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T)
 	}
 
 	msg1 := &MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -127,7 +239,53 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 	payloadBytes1 := encodePayloadBytes(payload1)
 
 	msg1 := &MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          payloadBytes1,
+		ConsistencyLevel: 32,
+	}
+
+	bytes, err := msg1.MarshalJSON()
+	require.NoError(t, err)
+
+	var msg2 MessagePublication
+	err = msg2.UnmarshalJSON(bytes)
+	require.NoError(t, err)
+	assert.Equal(t, *msg1, msg2)
+
+	payload2, err := vaa.DecodeTransferPayloadHdr(msg2.Payload)
+	require.NoError(t, err)
+
+	assert.Equal(t, *payload1, *payload2)
+}
+
+func TestMarshalUnmarshalJSONOfMessagePublicationWithArbitraryTxID(t *testing.T) {
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
+
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	payload1 := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	payloadBytes1 := encodePayloadBytes(payload1)
+
+	msg1 := &MessagePublication{
+		TxID:             []byte("This is some arbitrary string with just some random junk in it. This is to prove that the TxID does not have to be a ethCommon.Hash"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -219,4 +377,24 @@ func TestMessageID(t *testing.T) {
 			assert.Equal(t, tc.output, tc.input.MessageID())
 		})
 	}
+}
+
+func TestTxIDStringMatchesHashToString(t *testing.T) {
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	expectedHashID := "0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"
+
+	msg := &MessagePublication{
+		TxID:             eth_common.HexToHash(expectedHashID).Bytes(),
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          []byte("Hello, World!"),
+		ConsistencyLevel: 32,
+	}
+
+	assert.Equal(t, expectedHashID, msg.TxIDString())
 }

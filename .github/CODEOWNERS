@@ -40,13 +40,13 @@
 
 # Protobuf for node
 
-/proto/node/ @evan-gray @bruce-riley
+/proto/node/ @evan-gray @bruce-riley @panoel
 
 # Guardiand node
 
 ## Fallback
 
-/node/ @bruce-riley @evan-gray @SEJeff
+/node/ @bruce-riley @evan-gray @panoel @SEJeff
 
 ## Entrypoint / RPC
 
@@ -54,7 +54,7 @@
 
 ## DB
 
-/node/pkg/db/ @bruce-riley @panoel
+/node/pkg/db/ @bruce-riley @evan-gray @panoel
 
 ## Accountant
 
@@ -78,11 +78,11 @@
 
 ## Public RPC
 
-/node/pkg/publicrpc/ @bruce-riley @panoel
+/node/pkg/publicrpc/ @bruce-riley @evan-gray @panoel
 
 ## Supervisor Framework
 
-/node/pkg/supervisor/ @bruce-riley @evan-gray
+/node/pkg/supervisor/ @bruce-riley @evan-gray @panoel
 
 ## Watchers
 
@@ -91,6 +91,7 @@
 ## Hacks / Tools
 
 /node/hack/ @bruce-riley @panoel @evan-gray
+/node/hack/governor @claudijd @SEJeff @djb15 @johnsaigle
 
 ## Documentation
 

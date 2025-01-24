@@ -7,19 +7,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const HashLength = 32
 const AddressLength = 32
 
 type MessagePublication struct {
-	TxHash    common.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
+	TxID      []byte
 	Timestamp time.Time
 
 	Nonce            uint32
@@ -35,6 +35,10 @@ type MessagePublication struct {
 	Unreliable bool
 }
 
+func (msg *MessagePublication) TxIDString() string {
+	return "0x" + hex.EncodeToString(msg.TxID)
+}
+
 func (msg *MessagePublication) MessageID() []byte {
 	return []byte(msg.MessageIDString())
 }
@@ -48,7 +52,12 @@ const minMsgLength = 88 // Marshalled length with empty payload
 func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	buf.Write(msg.TxHash[:])
+	if len(msg.TxID) > math.MaxUint8 {
+		return nil, errors.New("TxID too long")
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID)))
+	buf.Write(msg.TxID)
+
 	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
 	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
 	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
@@ -61,12 +70,10 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-const oldMinMsgLength = 83 // Old marshalled length with empty payload
-
-// UnmarshalOldMessagePublicationBeforeIsReobservation deserializes a MessagePublication from prior to the addition of IsReobservation.
+// UnmarshalOldMessagePublicationWithTxHash deserializes a MessagePublication from when the TxHash was a fixed size ethCommon.Hash.
 // This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
-func UnmarshalOldMessagePublicationBeforeIsReobservation(data []byte) (*MessagePublication, error) {
-	if len(data) < oldMinMsgLength {
+func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication, error) {
+	if len(data) < minMsgLength {
 		return nil, errors.New("message is too short")
 	}
 
@@ -78,7 +85,7 @@ func UnmarshalOldMessagePublicationBeforeIsReobservation(data []byte) (*MessageP
 	if n, err := reader.Read(txHash[:]); err != nil || n != HashLength {
 		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
 	}
-	msg.TxHash = txHash
+	msg.TxID = txHash.Bytes()
 
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
@@ -108,6 +115,10 @@ func UnmarshalOldMessagePublicationBeforeIsReobservation(data []byte) (*MessageP
 	}
 	msg.EmitterAddress = emitterAddress
 
+	if err := binary.Read(reader, binary.BigEndian, &msg.IsReobservation); err != nil {
+		return nil, fmt.Errorf("failed to read isReobservation: %w", err)
+	}
+
 	payload := make([]byte, reader.Len())
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
@@ -121,18 +132,22 @@ func UnmarshalOldMessagePublicationBeforeIsReobservation(data []byte) (*MessageP
 // UnmarshalMessagePublication deserializes a MessagePublication
 func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	if len(data) < minMsgLength {
-		return nil, fmt.Errorf("message is too short")
+		return nil, errors.New("message is too short")
 	}
 
 	msg := &MessagePublication{}
 
 	reader := bytes.NewReader(data[:])
 
-	txHash := common.Hash{}
-	if n, err := reader.Read(txHash[:]); err != nil || n != HashLength {
-		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
+	txIdLen := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &txIdLen); err != nil {
+		return nil, fmt.Errorf("failed to read TxID len: %w", err)
 	}
-	msg.TxHash = txHash
+
+	msg.TxID = make([]byte, txIdLen)
+	if n, err := reader.Read(msg.TxID[:]); err != nil || n != int(txIdLen) {
+		return nil, fmt.Errorf("failed to read TxID [%d]: %w", n, err)
+	}
 
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
@@ -229,7 +244,7 @@ func (msg *MessagePublication) CreateDigest() string {
 // TODO refactor the codebase to use this function instead of manually logging the message with inconsistent fields
 func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 	return append(fields,
-		zap.Stringer("tx", msg.TxHash),
+		zap.String("tx", msg.TxIDString()),
 		zap.Time("timestamp", msg.Timestamp),
 		zap.Uint32("nonce", msg.Nonce),
 		zap.Uint8("consistency", msg.ConsistencyLevel),

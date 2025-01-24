@@ -262,7 +262,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 	}
 
 	observation := &common.MessagePublication{
-		TxHash:           txHashEthFormat,
+		TxID:             txHashEthFormat.Bytes(),
 		Timestamp:        time.Unix(ts, 0),
 		Nonce:            uint32(*fields.Nonce),
 		Sequence:         seq,
@@ -276,7 +276,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 	suiMessagesConfirmed.Inc()
 
 	logger.Info("message observed",
-		zap.Stringer("txHash", observation.TxHash),
+		zap.String("txHash", observation.TxIDString()),
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint32("nonce", observation.Nonce),
 		zap.Uint64("sequence", observation.Sequence),
