@@ -7,6 +7,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
+	"github.com/gagliardetto/solana-go"
 	solana_types "github.com/gagliardetto/solana-go"
 	solana_rpc "github.com/gagliardetto/solana-go/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -19,6 +20,7 @@ type WatcherConfig struct {
 	Rpc           string             // RPC URL
 	Websocket     string             // Websocket URL
 	Contract      string             // hex representation of the contract address
+	ShimContract  string             // Address of the shim contract (empty string if disabled)
 	Commitment    solana_rpc.CommitmentType
 }
 
@@ -51,11 +53,19 @@ func (wc *WatcherConfig) Create(
 		return nil, nil, err
 	}
 
+	var shimContractAddr solana.PublicKey
+	if wc.ShimContract != "" {
+		shimContractAddr, err = solana_types.PublicKeyFromBase58(wc.ShimContract)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	if !wc.ReceiveObsReq {
 		obsvReqC = nil
 	}
 
-	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC)
+	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr)
 
 	return watcher, watcher.Run, nil
 }
