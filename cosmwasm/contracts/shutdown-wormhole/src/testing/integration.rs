@@ -29,7 +29,7 @@ fn post_message_blocked_in_shutdown() {
         wormhole_contract.clone(),
         &ExecuteMsg::PostMessage {
             message: b"test".into(),
-            nonce: 1,
+            nonce: 2,
         },
         &[],
     );
