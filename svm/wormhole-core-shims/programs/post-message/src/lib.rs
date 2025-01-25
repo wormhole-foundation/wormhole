@@ -9,8 +9,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use wormhole_svm_definitions::{
-    find_shim_message_address, Finality, MessageEvent, CORE_BRIDGE_PROGRAM_ID,
-    EVENT_AUTHORITY_SEED, POST_MESSAGE_SHIM_EVENT_AUTHORITY,
+    find_shim_message_address, Finality, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
+    MESSAGE_EVENT_DISCRIMINATOR, POST_MESSAGE_SHIM_EVENT_AUTHORITY,
     POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP, POST_MESSAGE_SHIM_PROGRAM_ID,
 };
 use wormhole_svm_shim::post_message::PostMessageShimInstruction;
@@ -117,8 +117,8 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // correct.
     let event_authority_info = &accounts[10];
 
-    // NOTE: We are not checking account at index == 11 because the self CPI will
-    // fail if this account is not this program.
+    // NOTE: We are not checking account at index == 11 because the self CPI
+    // will fail if this program executable is not present.
 
     // Perform two CPIs:
     // 1. Post the message.
@@ -227,7 +227,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
             cpi_data.set_len(MAX_CPI_DATA_LEN);
         }
         cpi_data[..8].copy_from_slice(&ANCHOR_EVENT_CPI_SELECTOR);
-        cpi_data[8..16].copy_from_slice(&MessageEvent::DISCRIMINATOR);
+        cpi_data[8..16].copy_from_slice(&MESSAGE_EVENT_DISCRIMINATOR);
         cpi_data[16..48].copy_from_slice(&emitter_key_bytes);
         cpi_data[48..56].copy_from_slice(&sequence.to_le_bytes());
         cpi_data[56..60].copy_from_slice(&submission_time.to_le_bytes());

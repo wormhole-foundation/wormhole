@@ -1,5 +1,5 @@
 pub use anchor_lang::prelude::*;
-use wormhole_solana_consts::CORE_BRIDGE_PROGRAM_ID;
+use wormhole_svm_definitions::CORE_BRIDGE_PROGRAM_ID;
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct WormholeGuardianSet {

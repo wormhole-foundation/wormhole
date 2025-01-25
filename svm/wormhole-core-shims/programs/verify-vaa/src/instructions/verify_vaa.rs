@@ -7,7 +7,7 @@ use anchor_lang::{
     },
 };
 use wormhole_raw_vaas::{utils::quorum, GuardianSetSig};
-use wormhole_solana_consts::CORE_BRIDGE_PROGRAM_ID;
+use wormhole_svm_definitions::CORE_BRIDGE_PROGRAM_ID;
 
 use crate::{
     error::WormholeVerifyVaaShim,

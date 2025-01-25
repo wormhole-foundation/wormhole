@@ -1,4 +1,7 @@
+#[cfg(feature = "borsh")]
+pub mod borsh;
 pub mod solana;
+pub mod zero_copy;
 
 // NOTE: Expand this conditional as Wormhole supports more SVM networks.
 cfg_if::cfg_if! {
@@ -20,6 +23,12 @@ pub const EMITTER_SEQUENCE_SEED: &[u8] = b"Sequence";
 
 /// Anchor event CPI's authority seed.
 pub const EVENT_AUTHORITY_SEED: &[u8] = b"__event_authority";
+
+pub const MESSAGE_EVENT_DISCRIMINATOR: [u8; 8] = make_anchor_discriminator(b"event:MessageEvent");
+pub const GUARDIAN_SIGNATURES_DISCRIMINATOR: [u8; 8] =
+    make_anchor_discriminator(b"account:GuardianSignatures");
+
+pub const GUARDIAN_SIGNATURE_LENGTH: usize = 66;
 
 /// Derive the Wormhole Core Bridge program's bridge config account address and
 /// bump.
@@ -81,26 +90,13 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
     trimmed
 }
 
-/// Wormhole Post Message Shim program message event. This message is encoded
-/// as instruction data when the Shim program calls itself via CPI.
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
-)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MessageEvent {
-    pub emitter: Pubkey,
-    pub sequence: u64,
-    pub submission_time: u32,
-}
-
-impl MessageEvent {
-    pub const DISCRIMINATOR: [u8; 8] = make_anchor_discriminator(b"event:MessageEvent");
-}
-
 /// Trait to encode and decode the SVM finality of a message.
 pub trait EncodeFinality: Sized + Copy {
     fn encode(&self) -> u8;
 
     fn decode(data: u8) -> Option<Self>;
+}
+
+pub trait AccountDiscriminator {
+    const DISCRIMINATOR: &'static [u8];
 }

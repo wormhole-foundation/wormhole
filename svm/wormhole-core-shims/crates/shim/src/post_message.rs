@@ -107,14 +107,14 @@ pub struct PostMessageDerivedAccounts<'ix> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PostMessageData<'ix, F: EncodeFinality> {
     /// Arbitrary message identifier specified by the message sender.
-    pub nonce: u32,
+    nonce: u32,
 
     /// Finality of the message (which is when the Wormhole guardians will
     /// attest to this message's observation).
-    pub finality: F,
+    finality: F,
 
     /// Message payload.
-    pub payload: &'ix [u8],
+    payload: &'ix [u8],
 }
 
 impl<'ix, F: EncodeFinality> PostMessageData<'ix, F> {
@@ -123,6 +123,35 @@ impl<'ix, F: EncodeFinality> PostMessageData<'ix, F> {
         + 1 // finality
         + 4 // payload length
     };
+
+    #[inline]
+    pub fn nonce(&self) -> u32 {
+        self.nonce
+    }
+
+    #[inline]
+    pub fn finality(&self) -> F {
+        self.finality
+    }
+
+    #[inline]
+    pub fn payload(&self) -> &'ix [u8] {
+        self.payload
+    }
+
+    /// Construct new post message data. This method returns `None` if the
+    /// payload length exceeds the maximum allowed size of [u32::MAX].
+    pub fn new(nonce: u32, finality: F, payload: &'ix [u8]) -> Option<Self> {
+        if payload.len() > u32::MAX as usize {
+            None
+        } else {
+            Some(Self {
+                nonce,
+                finality,
+                payload,
+            })
+        }
+    }
 
     #[inline(always)]
     fn deserialize(data: &'ix [u8]) -> Option<Self> {
@@ -146,7 +175,7 @@ impl<'ix, F: EncodeFinality> PostMessageData<'ix, F> {
             return None;
         }
 
-        let payload = &data[9..9 + payload_len];
+        let payload = &data[9..(9 + payload_len)];
 
         // NOTE: We do not care about trailing bytes.
 

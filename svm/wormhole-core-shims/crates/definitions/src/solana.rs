@@ -10,6 +10,9 @@ pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY: Pubkey =
     pubkey!("HQS31aApX3DDkuXgSpV9XyDUNtFgQ31pUn5BNWHG2PSp");
 pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP: u8 = 255;
 
+pub const VERIFY_VAA_SHIM_PROGRAM_ID: Pubkey =
+    pubkey!("EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at");
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "testnet")] {
         /// Core Bridge program ID on Solana devnet.

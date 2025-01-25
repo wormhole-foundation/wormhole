@@ -25,8 +25,7 @@ async fn test_post_message_no_emitter_sequence() {
         &emitter_signer,
         recent_blockhash,
         None, // additional_inputs
-    )
-    .await;
+    );
 
     let out = banks_client
         .simulate_transaction(transaction)
@@ -96,8 +95,7 @@ async fn test_cannot_post_message_invalid_message() {
             invalid_message: Some(Pubkey::new_unique()),
             ..Default::default()
         }),
-    )
-    .await;
+    );
 
     let out = banks_client
         .simulate_transaction(transaction)
@@ -126,8 +124,7 @@ async fn test_cannot_post_message_invalid_core_bridge_program() {
             invalid_core_bridge_program: Some(Pubkey::new_unique()),
             ..Default::default()
         }),
-    )
-    .await;
+    );
 
     let out = banks_client
         .simulate_transaction(transaction)
@@ -154,8 +151,7 @@ async fn test_post_message() {
         &emitter_signer,
         recent_blockhash,
         None, // additional_inputs
-    )
-    .await;
+    );
 
     // Send one to create the emitter sequence account.
     banks_client.process_transaction(transaction).await.unwrap();
@@ -170,8 +166,7 @@ async fn test_post_message() {
         &emitter_signer,
         recent_blockhash,
         None, // additional_inputs
-    )
-    .await;
+    );
 
     let out = banks_client
         .simulate_transaction(transaction)
@@ -215,7 +210,7 @@ struct AdditionalTestInputs {
     invalid_core_bridge_program: Option<Pubkey>,
 }
 
-async fn set_up_post_message_transaction(
+fn set_up_post_message_transaction(
     payload: &[u8],
     payer_signer: &Keypair,
     emitter_signer: &Keypair,
@@ -257,11 +252,12 @@ async fn set_up_post_message_transaction(
                 ..Default::default()
             },
         },
-        data: post_message::PostMessageData {
-            nonce: 420,
+        data: post_message::PostMessageData::new(
+            420,
+            wormhole_svm_definitions::Finality::Finalized,
             payload,
-            finality: wormhole_svm_definitions::Finality::Finalized,
-        },
+        )
+        .unwrap(),
     }
     .instruction();
 

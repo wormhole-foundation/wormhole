@@ -13,6 +13,7 @@ rust-version = "1.75"
 version = "0.1.0"
 
 [workspace.dependencies]
+base64 = "0.22.1"
 borsh = "1.5"
 cfg-if = "1.0"
 sha2-const-stable = "0.1.0"
