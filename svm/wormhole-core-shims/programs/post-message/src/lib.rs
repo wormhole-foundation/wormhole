@@ -10,16 +10,14 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use wormhole_svm_definitions::{
-    find_shim_message_address, CORE_BRIDGE_PROGRAM_ID, MESSAGE_AUTHORITY_SEED,
+    find_shim_message_address, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
     POST_MESSAGE_SHIM_EVENT_AUTHORITY, POST_MESSAGE_SHIM_PROGRAM_ID,
 };
-use wormhole_svm_shim::post_message::{
-    EmitMessageData, PostMessageData, PostMessageShimInstruction,
-};
+use wormhole_svm_shim::post_message::{PostMessageData, PostMessageShimInstruction};
 
 declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
-const MESSAGE_AUTHORITY_SIGNER_SEEDS: &[&[u8]; 2] = &[MESSAGE_AUTHORITY_SEED, &[255]];
+const MESSAGE_AUTHORITY_SIGNER_SEEDS: &[&[u8]; 2] = &[EVENT_AUTHORITY_SEED, &[255]];
 
 solana_program::entrypoint!(process_instruction);
 
@@ -34,34 +32,11 @@ fn process_instruction(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    // Determine whether instruction data is self CPI or post message.
+    // Determine whether instruction data is post message.
     match PostMessageShimInstruction::deserialize(instruction_data) {
         Some(PostMessageShimInstruction::PostMessage(data)) => process_post_message(accounts, data),
-        Some(PostMessageShimInstruction::EmitMessage(_)) => process_emit_message(accounts),
-        None => Err(ProgramError::InvalidInstructionData),
+        None => process_privileged_invoke(accounts),
     }
-}
-
-#[inline]
-fn process_emit_message(accounts: &[AccountInfo]) -> ProgramResult {
-    // Verify account.
-    let message_authority_info = next_account_info(&mut accounts.iter())?;
-
-    if !message_authority_info.is_signer {
-        msg!("Message authority (account #1) is not signer");
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
-    if message_authority_info.key != &POST_MESSAGE_SHIM_EVENT_AUTHORITY {
-        msg!("Message authority (account #1) seeds constraint violated");
-        msg!("Left:");
-        msg!("{}", message_authority_info.key);
-        msg!("Right:");
-        msg!("{}", POST_MESSAGE_SHIM_EVENT_AUTHORITY);
-        return Err(ProgramError::InvalidSeeds);
-    }
-
-    Ok(())
 }
 
 #[inline]
@@ -89,7 +64,7 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
     //
     // While this could be managed by the integrator, it seems more effective
     // to have the Wormhole Post Message Shim program manage these accounts.
-    let (expected_message_key, message_bump) = find_shim_message_address(emitter_key);
+    let (expected_message_key, message_bump) = find_shim_message_address(emitter_key, &ID);
     if message_info.key != &expected_message_key {
         msg!("Message (account #2) seeds constraint violated");
         msg!("Left:");
@@ -173,11 +148,13 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
         data: post_message_unreliable_data,
     };
 
+    let emitter_key_bytes = emitter_key.to_bytes();
+
     // There is no account data being borrowed at this point, so this is safe.
     solana_program::program::invoke_signed_unchecked(
         &post_message_unreliable_ix,
         accounts,
-        &[&[emitter_key.as_ref(), &[message_bump]]],
+        &[&[&emitter_key_bytes, &[message_bump]]],
     )?;
 
     let event_cpi_ix = {
@@ -193,15 +170,22 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
         let clock_data = clock_info.data.borrow();
         let submission_time = i64::from_le_bytes(clock_data[32..40].try_into().unwrap());
 
+        let mut data = Vec::with_capacity({
+            8 // selector
+            + 32 // emitter
+            + 8 // sequence
+            + 4 // submission time
+        });
+        data.extend_from_slice(&ANCHOR_EVENT_CPI_SELECTOR);
+        data.extend_from_slice(&EVENT_DISCRIMINATOR);
+        data.extend_from_slice(&emitter_key_bytes);
+        data.extend_from_slice(&sequence.to_le_bytes());
+        data.extend_from_slice(&(submission_time as u32).to_le_bytes());
+
         Instruction {
             program_id: ID,
             accounts: vec![AccountMeta::new_readonly(*event_authority_info.key, true)],
-            data: PostMessageShimInstruction::EmitMessage(EmitMessageData {
-                emitter: *emitter_key,
-                sequence,
-                submission_time: submission_time as u32,
-            })
-            .to_vec(),
+            data,
         }
     };
 
@@ -215,17 +199,36 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
     Ok(())
 }
 
+// Event CPI.
+
+const ANCHOR_EVENT_CPI_SELECTOR: [u8; 8] = u64::to_be_bytes(0xe445a52e51cb9a1d);
+pub const EVENT_DISCRIMINATOR: [u8; 8] =
+    wormhole_svm_shim::make_discriminator(b"event:MessageEvent");
+
+#[inline]
+fn process_privileged_invoke(accounts: &[AccountInfo]) -> ProgramResult {
+    // We want to ensure that the message authority is the one invoking this
+    // instruction. If anything else invokes this instruction, we will pretend
+    // that the instruction does not exist with `InvalidInstructionData`.
+
+    match next_account_info(&mut accounts.iter()) {
+        Ok(message_authority_info)
+            if message_authority_info.is_signer
+                && message_authority_info.key == &POST_MESSAGE_SHIM_EVENT_AUTHORITY =>
+        {
+            Ok(())
+        }
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn test_message_authority_signer_seeds() {
-        let actual = Pubkey::create_program_address(
-            MESSAGE_AUTHORITY_SIGNER_SEEDS,
-            &POST_MESSAGE_SHIM_PROGRAM_ID,
-        )
-        .unwrap();
+        let actual = Pubkey::create_program_address(MESSAGE_AUTHORITY_SIGNER_SEEDS, &ID).unwrap();
         assert_eq!(actual, POST_MESSAGE_SHIM_EVENT_AUTHORITY);
     }
 }

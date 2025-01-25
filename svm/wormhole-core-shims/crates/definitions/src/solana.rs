@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn test_post_message_shim_event_authority() {
         let (expected, _) = Pubkey::find_program_address(
-            &[crate::MESSAGE_AUTHORITY_SEED],
+            &[crate::EVENT_AUTHORITY_SEED],
             &POST_MESSAGE_SHIM_PROGRAM_ID,
         );
         assert_eq!(POST_MESSAGE_SHIM_EVENT_AUTHORITY, expected);

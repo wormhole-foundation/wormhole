@@ -1,6 +1,12 @@
 use solana_program_test::{tokio, BanksClient, ProgramTest};
 use solana_sdk::{
-    hash::Hash, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction,
+    compute_budget::ComputeBudgetInstruction,
+    hash::Hash,
+    message::{v0::Message, VersionedMessage},
+    pubkey::Pubkey,
+    signature::Keypair,
+    signer::Signer,
+    transaction::{Transaction, VersionedTransaction},
 };
 use wormhole_svm_definitions::{
     CORE_BRIDGE_CONFIG, CORE_BRIDGE_FEE_COLLECTOR, CORE_BRIDGE_PROGRAM_ID,
@@ -215,7 +221,7 @@ async fn set_up_post_message_transaction(
     emitter_signer: &Keypair,
     recent_blockhash: Hash,
     additional_inputs: Option<AdditionalTestInputs>,
-) -> (Transaction, BumpCosts) {
+) -> (VersionedTransaction, BumpCosts) {
     let emitter = emitter_signer.pubkey();
     let payer = payer_signer.pubkey();
 
@@ -226,35 +232,62 @@ async fn set_up_post_message_transaction(
 
     // Use an invalid message if provided.
     let (message, message_bump) = invalid_message.map(|key| (key, 0)).unwrap_or(
-        wormhole_svm_definitions::find_shim_message_address(&emitter),
+        wormhole_svm_definitions::find_shim_message_address(
+            &emitter,
+            &POST_MESSAGE_SHIM_PROGRAM_ID,
+        ),
     );
     // Use an invalid core bridge program if provided.
     let core_bridge_program = invalid_core_bridge_program.unwrap_or(CORE_BRIDGE_PROGRAM_ID);
 
     let (sequence, sequence_bump) =
-        wormhole_svm_definitions::find_emitter_sequence_address(&emitter);
+        wormhole_svm_definitions::find_emitter_sequence_address(&emitter, &core_bridge_program);
 
     let transfer_fee_ix =
         solana_sdk::system_instruction::transfer(&payer, &CORE_BRIDGE_FEE_COLLECTOR, 100);
-    let ix = post_message::PostMessage {
-        core_bridge_config: &CORE_BRIDGE_CONFIG,
-        message: Some(&message),
-        emitter: &emitter,
-        sequence: Some(&sequence),
-        payer: &payer,
-        fee_collector: &CORE_BRIDGE_FEE_COLLECTOR,
-        core_bridge_program: &core_bridge_program,
-        event_authority: Default::default(),
+    let post_message_ix = post_message::PostMessage {
+        program_id: &POST_MESSAGE_SHIM_PROGRAM_ID,
+        accounts: post_message::PostMessageAccounts {
+            emitter: &emitter,
+            payer: &payer,
+            wormhole_program_id: &core_bridge_program,
+            derived: post_message::PostMessageDerivedAccounts {
+                message: Some(&message),
+                sequence: Some(&sequence),
+                ..Default::default()
+            },
+        },
         data: post_message::PostMessageData {
             nonce: 420,
             payload,
             finality: post_message::Finality::Finalized,
         },
     }
-    .instruction(&POST_MESSAGE_SHIM_PROGRAM_ID);
+    .instruction();
 
-    let mut transaction = Transaction::new_with_payer(&[transfer_fee_ix, ix], Some(&payer));
-    transaction.sign(&[&payer_signer, &emitter_signer], recent_blockhash);
+    // Adding compute budget instructions to ensure all instructions fit into
+    // one transaction.
+    let message = Message::try_compile(
+        &payer,
+        &[
+            transfer_fee_ix,
+            post_message_ix,
+            ComputeBudgetInstruction::set_compute_unit_price(420),
+            ComputeBudgetInstruction::set_compute_unit_limit(69_000),
+        ],
+        &[],
+        recent_blockhash,
+    )
+    .unwrap();
+
+    let transaction = VersionedTransaction::try_new(
+        VersionedMessage::V0(message),
+        &[payer_signer, emitter_signer],
+    )
+    .unwrap();
+
+    // let mut transaction = Transaction::new_with_payer(&[transfer_fee_ix, ix], Some(&payer));
+    // transaction.sign(&[&payer_signer, &emitter_signer], recent_blockhash);
 
     (
         transaction,
