@@ -1,7 +1,7 @@
 #![deny(dead_code, unused_imports, unused_mut, unused_variables)]
 
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
+    account_info::AccountInfo,
     declare_id,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
@@ -13,7 +13,7 @@ use wormhole_svm_definitions::{
     find_shim_message_address, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
     POST_MESSAGE_SHIM_EVENT_AUTHORITY, POST_MESSAGE_SHIM_PROGRAM_ID,
 };
-use wormhole_svm_shim::post_message::{PostMessageData, PostMessageShimInstruction};
+use wormhole_svm_shim::post_message::PostMessageShimInstruction;
 
 declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
@@ -34,27 +34,33 @@ fn process_instruction(
 
     // Determine whether instruction data is post message.
     match PostMessageShimInstruction::deserialize(instruction_data) {
-        Some(PostMessageShimInstruction::PostMessage(data)) => process_post_message(accounts, data),
+        Some(PostMessageShimInstruction::PostMessage(_)) => process_post_message(accounts),
         None => process_privileged_invoke(accounts),
     }
 }
 
 #[inline]
-fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> ProgramResult {
+fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
+    // This instruction requires 12 accounts. If there are more remaining, we
+    // won't do anything with them. We perform this check upfront so we can
+    // index into the accounts slice.
+    if accounts.len() < 12 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
     // Verify accounts.
-    let accounts_iter = &mut accounts.iter();
 
     // Wormhole Core Bridge config. Wormhole Core Bridge program's post message
     // instruction requires this account be mutable.
-    let bridge_info = next_account_info(accounts_iter)?;
+    let bridge_info = &accounts[0];
 
     // Wormhole Message. Wormhole Core Bridge program's post message
     // instruction requires this account to be a mutable signer.
-    let message_info = next_account_info(accounts_iter)?;
+    let message_info = &accounts[1];
 
     // Emitter of the Wormhole Core Bridge message. Wormhole Core Bridge
     // program's post message instruction requires this account to be a signer.
-    let emitter_info = next_account_info(accounts_iter)?;
+    let emitter_info = &accounts[2];
     let emitter_key = emitter_info.key;
 
     // The Wormhole Post Message Shim program uses a PDA per emitter because
@@ -76,30 +82,30 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
 
     // Emitter's sequence account. Wormhole Core Bridge program's post message
     // instruction requires this account to be mutable.
-    let sequence_info = next_account_info(accounts_iter)?;
+    let sequence_info = &accounts[3];
 
     // Payer will pay the Wormhole Core Bridge fee to post a message. The fee
     // amount is encoded in the [core_bridge_config] account data.
-    let payer_info = next_account_info(accounts_iter)?;
+    let payer_info = &accounts[4];
 
     // Wormhole Core Bridge fee collector. Wormhole Core Bridge program's post
     // message instruction requires this account to be mutable.
-    let fee_collector_info = next_account_info(accounts_iter)?;
+    let fee_collector_info = &accounts[5];
 
     // Clock sysvar, which will be used after the message is posted.
-    let clock_info = next_account_info(accounts_iter)?;
+    let clock_info = &accounts[6];
 
     // System program. Wormhole Core Bridge program's post message instruction
     // requires the System program to create the message account and emitter
     // sequence account if they have not been created yet.
-    let system_program_info = next_account_info(accounts_iter)?;
+    let system_program_info = &accounts[7];
 
     // Rent sysvar. Wormhole Core Bridge program's post message instruction
     // requires this account.
-    let rent_info = next_account_info(accounts_iter)?;
+    let rent_info = &accounts[8];
 
     // Wormhole Core Bridge program.
-    let wormhole_program_info = next_account_info(accounts_iter)?;
+    let wormhole_program_info = &accounts[9];
 
     // We only want to use the Wormhole Core Bridge program to post messages.
     if wormhole_program_info.key != &CORE_BRIDGE_PROGRAM_ID {
@@ -110,29 +116,23 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
     // Wormhole Post Message Shim program's self-CPI authority. The emit message
     // instruction will verify that this account is a signer and the pubkey is
     // correct.
-    let event_authority_info = next_account_info(accounts_iter)?;
+    let event_authority_info = &accounts[10];
 
-    let PostMessageData {
-        nonce,
-        finality,
-        payload: _,
-    } = data;
+    // NOTE: We are not checking account at index == 11 because the self CPI will
+    // fail if this account is not this program.
 
-    // Using the data passed in from the instruction, we can construct the
-    // post message unreliable data. If the guardians do not end up checking the
-    // message account, we can just use zeros for the nonce and finality.
-    let mut post_message_unreliable_data = Vec::with_capacity({
-        1 // selector
-        + 4 // nonce
-        + 4 // payload length (zero)
-        + 1 // finality
-    });
-    post_message_unreliable_data.push(8); // selector
-    post_message_unreliable_data.extend_from_slice(&nonce.to_le_bytes());
-    post_message_unreliable_data.extend_from_slice(&u32::to_le_bytes(0));
-    post_message_unreliable_data.push(finality as u8);
+    // Perform two CPIs:
+    // 1. Post the message.
+    // 2. Emit the event (with self CPI)
+    //
+    // The max length of instruction data is 60 bytes between the two
+    // instructions, so we will reuse the same allocated memory for both.
+    const MAX_CPI_DATA_LEN: usize = 60;
 
-    let post_message_unreliable_ix = Instruction {
+    // The post message unreliable instruction needs more accounts than the self
+    // CPI call (which only needs one). We will initialize the instruction with
+    // the Wormhole Core Bridge program's ID and the post message accounts.
+    let mut cpi_ix = Instruction {
         program_id: *wormhole_program_info.key,
         accounts: vec![
             AccountMeta::new(*bridge_info.key, false),
@@ -145,19 +145,46 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
             AccountMeta::new_readonly(*system_program_info.key, false),
             AccountMeta::new_readonly(*rent_info.key, false),
         ],
-        data: post_message_unreliable_data,
+        data: Vec::with_capacity(MAX_CPI_DATA_LEN),
     };
 
     let emitter_key_bytes = emitter_key.to_bytes();
 
-    // There is no account data being borrowed at this point, so this is safe.
-    solana_program::program::invoke_signed_unchecked(
-        &post_message_unreliable_ix,
-        accounts,
-        &[&[&emitter_key_bytes, &[message_bump]]],
-    )?;
+    // First post message.
+    {
+        let cpi_data = &mut cpi_ix.data;
 
-    let event_cpi_ix = {
+        // Safety: Because the capacity is > 10, it is safe to write to the
+        // first 10 elements and set the vector's length to 10.
+        //
+        // Encoding the post message instruction data is:
+        // 1. 1 byte for the selector.
+        // 2. 4 bytes for the nonce.
+        // 3. 4 bytes for the payload length (zero in this case).
+        // 4. 1 byte for the consistency level (finality).
+        //
+        // Nonce and consistency level will not be read from the Wormhole Core
+        // Bridge message account (only from this program's instruction data),
+        // so we might as well set them to zero.
+        unsafe {
+            core::ptr::write_bytes(cpi_data.as_mut_ptr(), 0, 10);
+            cpi_data.set_len(10);
+        }
+
+        // We only need to encode the selector for post message unreliable.
+        cpi_data[0] = 8;
+
+        // There is no account data being borrowed at this point that the CPI'ed
+        // program will be using, so this is safe.
+        solana_program::program::invoke_signed_unchecked(
+            &cpi_ix,
+            accounts,
+            &[&[&emitter_key_bytes, &[message_bump]]],
+        )?;
+    }
+
+    // Finally perform self CPI.
+    {
         // Parse the sequence from the account and emit the event reading the
         // account after avoids having to handle when the account doesn't exist.
         let sequence = {
@@ -165,36 +192,53 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
             u64::from_le_bytes(account_data[..8].try_into().unwrap()).saturating_sub(1)
         };
 
-        // NOTE: If the Wormhole Core Bridge ever changes to use Clock::get(), this clock account
-        // info may not exist anymore (so we will have to perform Clock::get() here instead).
+        // NOTE: If the Wormhole Core Bridge ever changes to use Clock::get(),
+        // this clock account info may not exist anymore (so we will have to
+        // perform Clock::get() here instead).
         let clock_data = clock_info.data.borrow();
         let submission_time = i64::from_le_bytes(clock_data[32..40].try_into().unwrap());
 
-        let mut data = Vec::with_capacity({
-            8 // selector
-            + 32 // emitter
-            + 8 // sequence
-            + 4 // submission time
-        });
-        data.extend_from_slice(&ANCHOR_EVENT_CPI_SELECTOR);
-        data.extend_from_slice(&EVENT_DISCRIMINATOR);
-        data.extend_from_slice(&emitter_key_bytes);
-        data.extend_from_slice(&sequence.to_le_bytes());
-        data.extend_from_slice(&(submission_time as u32).to_le_bytes());
+        let cpi_accounts = &mut cpi_ix.accounts;
 
-        Instruction {
-            program_id: ID,
-            accounts: vec![AccountMeta::new_readonly(*event_authority_info.key, true)],
-            data,
+        // Safety: Setting the length reduces the previous length from the last
+        // CPI call.
+        unsafe {
+            cpi_accounts.set_len(1);
         }
-    };
+        cpi_accounts[0] = AccountMeta::new_readonly(*event_authority_info.key, true);
 
-    // There is no account data being borrowed at this point, so this is safe.
-    solana_program::program::invoke_signed_unchecked(
-        &event_cpi_ix,
-        accounts,
-        &[MESSAGE_AUTHORITY_SIGNER_SEEDS],
-    )?;
+        // "Emit" the MessageEvent. Its schema is:
+        //
+        // struct MessageEvent {
+        //     emitter: Pubkey,
+        //     sequence: u64,
+        //     submission_time: u32,
+        // }
+        //
+        // The invoke below emulates the Anchor event CPI pattern.
+        let cpi_data = &mut cpi_ix.data;
+
+        // Safety: The capacity of this vector is 60. This data will be
+        // overwritten for the next CPI call.
+        unsafe {
+            cpi_data.set_len(MAX_CPI_DATA_LEN);
+        }
+        cpi_data[..8].copy_from_slice(&ANCHOR_EVENT_CPI_SELECTOR);
+        cpi_data[8..16].copy_from_slice(&EVENT_DISCRIMINATOR);
+        cpi_data[16..48].copy_from_slice(&emitter_key_bytes);
+        cpi_data[48..56].copy_from_slice(&sequence.to_le_bytes());
+        cpi_data[56..60].copy_from_slice(&(submission_time as u32).to_le_bytes());
+
+        cpi_ix.program_id = ID;
+
+        // There is no account data being borrowed at this point that the CPI'ed
+        // program will be using, so this is safe.
+        solana_program::program::invoke_signed_unchecked(
+            &cpi_ix,
+            accounts,
+            &[MESSAGE_AUTHORITY_SIGNER_SEEDS],
+        )?;
+    }
 
     Ok(())
 }
@@ -202,24 +246,23 @@ fn process_post_message(accounts: &[AccountInfo], data: PostMessageData) -> Prog
 // Event CPI.
 
 const ANCHOR_EVENT_CPI_SELECTOR: [u8; 8] = u64::to_be_bytes(0xe445a52e51cb9a1d);
-pub const EVENT_DISCRIMINATOR: [u8; 8] =
-    wormhole_svm_shim::make_discriminator(b"event:MessageEvent");
+const EVENT_DISCRIMINATOR: [u8; 8] = wormhole_svm_shim::make_discriminator(b"event:MessageEvent");
 
-#[inline]
+#[inline(always)]
 fn process_privileged_invoke(accounts: &[AccountInfo]) -> ProgramResult {
-    // We want to ensure that the message authority is the one invoking this
-    // instruction. If anything else invokes this instruction, we will pretend
-    // that the instruction does not exist with `InvalidInstructionData`.
+    // We want to ensure that this program's authority (which is the Anchor
+    // event CPI PDA) is the one invoking this instruction. If anything else
+    // invokes this instruction, we will pretend that the instruction does not
+    // exist by reverting with `InvalidInstructionData`.
 
-    match next_account_info(&mut accounts.iter()) {
-        Ok(message_authority_info)
-            if message_authority_info.is_signer
-                && message_authority_info.key == &POST_MESSAGE_SHIM_EVENT_AUTHORITY =>
-        {
-            Ok(())
-        }
-        _ => Err(ProgramError::InvalidInstructionData),
+    if accounts.is_empty()
+        || !accounts[0].is_signer
+        || accounts[0].key != &POST_MESSAGE_SHIM_EVENT_AUTHORITY
+    {
+        return Err(ProgramError::InvalidInstructionData);
     }
+
+    Ok(())
 }
 
 #[cfg(test)]

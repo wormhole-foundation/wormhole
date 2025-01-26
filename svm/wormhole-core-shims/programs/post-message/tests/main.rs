@@ -78,7 +78,7 @@ async fn test_post_message_no_emitter_sequence() {
     assert_eq!(
         details.units_consumed - bump_costs.message - 2 * bump_costs.sequence,
         // 53_418
-        46_901
+        46_772
     );
 }
 
@@ -181,7 +181,7 @@ async fn test_post_message() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.message - bump_costs.sequence,
         // 30_901
-        24_382
+        24_253
     );
 }
 
