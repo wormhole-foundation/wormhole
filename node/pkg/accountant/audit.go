@@ -108,7 +108,7 @@ func (mo *MissingObservation) makeAuditKey() string {
 
 // makeAuditKey creates an audit map key from a pending observation entry.
 func (pe *pendingEntry) makeAuditKey() string {
-	return fmt.Sprintf("%d-%s", pe.msg.EmitterChain, strings.TrimPrefix(pe.msg.TxHash.String(), "0x"))
+	return fmt.Sprintf("%d-%s", pe.msg.EmitterChain, strings.TrimPrefix(pe.msg.TxIDString(), "0x"))
 }
 
 // audit is the runnable that executes the audit each interval.

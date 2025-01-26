@@ -14,6 +14,39 @@ import { arrayify, zeroPad } from "ethers/lib/utils";
 const MinNotional = 0;
 // Price change tolerance in %. Fallback to 30%
 const PriceDeltaTolerance = process.env.PRICE_TOLERANCE ? Math.min(100, Math.max(0, parseInt(process.env.PRICE_TOLERANCE))) : 30;
+// The percentage by which the price deviates from $1 to be considered depegged
+const usdDepegPercentage = process.env.DEPEG_PERCENTAGE ? Math.min(100, Math.max(0, parseInt(process.env.DEPEG_PERCENTAGE))) : 10;
+const usdPeggedStablecoins = [
+  "USD",   // Matches with USDT, USDC, BUSD, etc.
+  "PAX",   // Pax Dollar
+  "DAI",   // Dai
+  "RSV",   // Reserve
+  "VAI",   // Vai
+  "FRAX",  // Frax
+  "FEI",   // Fei
+];
+const expectedUSDDepeggs = [
+  "2-00000000000000000000000045804880de22913dafe09f4980848ece6ecbaf78-PAXG", // This is PaxGold and not pegged to $1
+  "2-000000000000000000000000d13cfd3133239a3c73a9e535a5c4dadee36b395c-VAI", // This is Vaiot, not the VAI stablecoin
+  "5-000000000000000000000000ee327f889d5947c1dc1934bb208a1e792f953e96-frxETH", // Frax ETH
+  "23-0000000000000000000000009d2f299715d94d8a7e6f5eaa8e654e8c74a988a7-FXS", // Frax Share
+  "2-0000000000000000000000003432b6a60d23ca0dfca7761b7ab56459d9c964d0-FXS", // Frax Share
+  "23-00000000000000000000000051318b7d00db7acc4026c88c3952b66278b6a67f-PLS", // Plutus DAO
+  "3-0100000000000000000000000000000000000000000000000000000075757364-UST", // Terra USD
+  "2-000000000000000000000000dfdb7f72c1f195c5951a234e8db9806eb0635346-NFD", // Feisty Doge NFT
+  "2-00000000000000000000000000c5ca160a968f47e7272a0cfcda36428f386cb6-USDEBT", // US Debt Meme coin
+  "4-00000000000000000000000011a38e06699b238d6d9a0c7a01f3ac63a07ad318-USDFI", // USDFI is a protocol, not a stablecoin,
+  "2-000000000000000000000000309627af60f0926daa6041b8279484312f2bf060-USDB", // USDB (USD Bancor) has been deactivated
+  "2-000000000000000000000000df574c24545e5ffecb9a659c229253d4111d87e1-HUSD", // HUSD has been depegged for a number of years now
+  "4-00000000000000000000000023e8a70534308a4aaf76fb8c32ec13d17a3bd89e-lUSD", // Previously exploited version of Linear Finance LUSD
+  "4-000000000000000000000000de7d1ce109236b12809c45b23d22f30dba0ef424-USDS", // Dead token called Spice USD
+  "11-0000000000000000000000000000000000000000000100000000000000000081-aUSD", // Acala USD being converted to aSEED, dead token
+  "12-0000000000000000000000000000000000000000000100000000000000000001-aUSD", // Same as above
+  "13-0000000000000000000000005c74070fdea071359b86082bd9f9b3deaafbe32b-KDAI", // Klatyn DAI Depegged since December 2023
+  "13-000000000000000000000000754288077d0ff82af7a5317c7cb8c444d421d103-oUSDC", // Orbit bridge Klatyn USDC, depegged since December 2023
+  "13-000000000000000000000000cee8faf64bb97a73bb51e115aa89c17ffa8dd167-oUSDT", // Orbit bridge Klatyn USDT, depegged since December 2023
+  "16-000000000000000000000000ffffffff52c56a9257bb97f4b2b6f7b2d624ecda-xcaUSD", // Acala USD being converted to aSEED, dead token
+]
 
 const axios = require("axios");
 const fs = require("fs");
@@ -54,6 +87,7 @@ if (fs.existsSync(IncludeFileName)) {
 var existingTokenPrices = {};
 var existingTokenKeys: string[] = [];
 var newTokenKeys = {};
+var depeggedUSDStablecoins = [];
 
 fs.readFile("../../pkg/governor/generated_mainnet_tokens.go", "utf8", function(_, doc) {
   var matches = doc.matchAll(/{chain: (?<chain>[0-9]+).+addr: "(?<addr>[0-9a-fA-F]+)".*symbol: "(?<symbol>.*)", coin.*price: (?<price>.*)}.*\n/g);
@@ -93,6 +127,8 @@ axios
     var significantPriceChanges = [];
     var addedTokens = [];
     var removedTokens = [];
+    var changedSymbols = [];
+    var failedInputValidationTokens = [];
     var newTokensCount = 0;
 
     for (let chain in res.data.AllTime) {
@@ -135,8 +171,8 @@ axios
                   await (async () => {
                     const provider = new JsonRpcProvider(
                       new Connection({
-                        // fullnode: "https://fullnode.mainnet.sui.io",
-                        fullnode: "https://sui-mainnet-rpc.allthatnode.com",
+                         fullnode: "https://fullnode.mainnet.sui.io",
+                        //fullnode: "https://sui-mainnet.g.allthatnode.com/full/json_rpc",
                       })
                     );
                     const result = await getOriginalAssetSui(
@@ -151,14 +187,35 @@ axios
                 }
                 if (wormholeAddr === undefined) {
                   console.log(
-                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is undefined`
+                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is undefined`,
+                    data,
+                    `Is the SDK up-to-date?`
                   );
                   continue;
                 } else if (wormholeAddr === "") {
                   console.log(
-                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is invalid`
+                    `Ignoring symbol '${data.Symbol}' on chain ${chainId} because the address '${data.Address}' is invalid`,
+                    data
                   );
                   continue;
+                }
+              }
+              
+              // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
+              if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
+                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.symbol)
+                continue; 
+              }
+            }
+
+            // This token looks like a USD stablecoin
+            if (usdPeggedStablecoins.findIndex(element => data.Symbol.toLowerCase().includes(element.toLowerCase()) || data.CoinGeckoId.toLowerCase().includes(element.toLowerCase())) != -1 ) {
+              // The token price has deviated significantly from $1
+              if (data.TokenPrice > 1 * ((100 + usdDepegPercentage) / 100) || data.TokenPrice < 1 * ((100 - usdDepegPercentage) / 100)) {
+                var uniqueIdentifier = chain + "-" + wormholeAddr + "-" + data.Symbol;
+                // Skip tokens that are not expected to be pegged to $1
+                if (!expectedUSDDepeggs.includes(uniqueIdentifier)) {
+                  depeggedUSDStablecoins.push(uniqueIdentifier + " = " + data.TokenPrice);
                 }
               }
             }
@@ -195,7 +252,7 @@ axios
               //   });
               // }
             }
-
+            
             content +=
               "\t{ chain: " +
               chain +
@@ -215,7 +272,9 @@ axios
               notional +
               "\n";
 
-            newTokenKeys[chain + "-" + wormholeAddr + "-" + data.Symbol] = true;
+            // We add in the "=" character to ensure an undefined symbol
+            // does not mess up the removed tokens logic
+            newTokenKeys[chain + "-" + wormholeAddr] = "=" + data.Symbol;
             newTokensCount += 1;
           }
         }
@@ -224,8 +283,16 @@ axios
 
     for (var token of existingTokenKeys) {
       // A token has been removed from the token list 
-      if (!newTokenKeys[token]) {
+      // We cut the symbol off the end of the key as it's possible for a token to change its symbol
+      var tokenParts = token.split("-");
+      var newTokenSymbol = newTokenKeys[tokenParts[0] + "-" + tokenParts[1]];
+      if (!newTokenSymbol) {
         removedTokens.push(token);
+      }
+      // The token symbol has changed
+      // We take a substring of the symbol to cut the "=" character we added above
+      else if (tokenParts[0] + "-" + tokenParts[1] + "-" + newTokenSymbol.substring(1) != token) {
+        changedSymbols.push(token + "->" + newTokenSymbol.substring(1));
       }
     }
 
@@ -241,6 +308,15 @@ axios
     changedContent += JSON.stringify(addedTokens, null, 1);
     changedContent += "\n\nTokens removed = " + removedTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
     changedContent += JSON.stringify(removedTokens, null, 1);
+    changedContent += "\n\nTokens with changed symbols = " + changedSymbols.length + ":\n<WH_chain_id>-<WH_token_addr>-<old_token_symbol>-><new_token_symbol>\n\n";
+    changedContent += JSON.stringify(changedSymbols, null, 1);
+
+    changedContent += "\n\nTokens with invalid symbols = " + failedInputValidationTokens.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol>\n\n";
+    changedContent += JSON.stringify(failedInputValidationTokens, null, 1);
+
+    changedContent += "\n\nPotentially depegged USD stablecoins (>" + usdDepegPercentage + "%) = " + depeggedUSDStablecoins.length + ":\n<WH_chain_id>-<WH_token_addr>-<token_symbol> = <token_price>\n\n";
+    changedContent += JSON.stringify(depeggedUSDStablecoins, null, 1);
+
     changedContent += "\n\nTokens with significant price drops (>" + PriceDeltaTolerance + "%) = " + significantPriceChanges.length + ":\n\n"
     changedContent += JSON.stringify(significantPriceChanges, null, 1);
     changedContent += "\n```";
@@ -277,5 +353,71 @@ axios
     );
   })
   .catch((error) => {
-    console.error(error);
+    console.error("Request error:", error);
   });
+
+
+/*
+  Perform type checks on the incoming values
+  Check for a denylist set of characters
+
+  If either of these fail, we reject adding the token.
+
+  Example data: 30 000000000000000000000000b5c457ddb4ce3312a6c5a2b056a1652bd542a208 O404 omni404 18 1128.69 0xb5c457ddb4ce3312a6c5a2b056a1652bd542a208 7.4832146999999996
+*/
+function safetyCheck(chain, wormholeAddr, symbol, coinGeckoId, tokenDecimals, tokenPrice, address, notional)  : boolean{
+  
+  if(isNaN(chain)){
+    console.log("Invalid chain ID ", chain, " provided")
+    return false; 
+  }
+
+  if(inputHasInvalidChars(wormholeAddr)){
+    console.log("Invalid wormhole address ", wormholeAddr, " provided")
+    return false; 
+  }
+
+  if(inputHasInvalidChars(symbol)){
+    console.log("Invalid token symbol ", symbol, " provided")
+    return false; 
+  }
+
+  if(inputHasInvalidChars(coinGeckoId)){
+    console.log("Invalid coin gecko id ", coinGeckoId, " provided")
+    return false; 
+  }
+
+  if(isNaN(tokenDecimals)){
+    console.log("Invalid token decimals ", tokenDecimals, " provided")
+    return false; 
+  }
+
+  if(isNaN(tokenPrice)){
+    console.log("Invalid token price ", tokenPrice, " provided")
+    return false; 
+  }
+
+  if(inputHasInvalidChars(address)){
+    console.log("Invalid address ", address, " provided")
+    return false; 
+  }
+  if(isNaN(notional)){
+    console.log("Invalid notional", notional, " provided")
+    return false; 
+  }
+
+  return true; 
+}
+
+// Checks whether an illegal character is present in the provided string
+// If a character is found then return true. Otherwise, return false. 
+function inputHasInvalidChars(input) : boolean{
+  var deny_list = ["\"", "%", "\n","\r", "\\","{","}","/","'","[","]","(",")"]
+  for(var char of deny_list) {
+    if(input.includes(char)){
+      return true; 
+    }
+  }
+
+  return false; 
+}

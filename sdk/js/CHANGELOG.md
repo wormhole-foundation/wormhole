@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.18
+
+Add Snaxchain testnet support
+Add Mantle and X Layer
+
+## 0.10.17
+
+Add Mantle mainnet support
+
 ## 0.10.16
 
 Add X Layer mainnet support

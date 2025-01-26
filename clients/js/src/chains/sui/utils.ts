@@ -13,9 +13,10 @@ import {
 } from "@mysten/sui.js";
 import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
 import { NETWORKS } from "../../consts";
-import { Network } from "../../utils";
 import { Payload, VAA, parse, serialiseVAA } from "../../vaa";
 import { SuiRpcValidationError } from "./error";
+import { Network } from "@wormhole-foundation/sdk";
+import { isValidSuiAddress } from "../../sdk/sui";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
@@ -207,7 +208,7 @@ export const getProvider = (
     throw new Error("Must provide network or RPC to initialize provider");
   }
 
-  rpc = rpc || NETWORKS[network!].sui.rpc;
+  rpc = rpc || NETWORKS[network!].Sui.rpc;
   if (!rpc) {
     throw new Error(`No default RPC found for Sui ${network}`);
   }
@@ -235,7 +236,7 @@ export const getSigner = (
   customPrivateKey?: string
 ): RawSigner => {
   const privateKey: string | undefined =
-    customPrivateKey || NETWORKS[network].sui.key;
+    customPrivateKey || NETWORKS[network].Sui.key;
   if (!privateKey) {
     throw new Error(`No private key found for Sui ${network}`);
   }
@@ -323,9 +324,6 @@ export const isSuiPublishEvent = <
   event: T
 ): event is K => event?.type === "published";
 
-export const isValidSuiAddress = (objectId: string): boolean =>
-  /^(0x)?[0-9a-f]{1,64}$/.test(objectId);
-
 // todo(aki): this needs to correctly handle types such as
 // 0x2::dynamic_field::Field<0x3c6d386861470e6f9cb35f3c91f69e6c1f1737bd5d217ca06a15f582e1dc1ce3::state::MigrationControl, bool>
 export const normalizeSuiType = (type: string): string => {
@@ -345,7 +343,7 @@ export const registerChain = async (
   tokenBridgeStateObjectId: string,
   transactionBlock?: TransactionBlock
 ): Promise<TransactionBlock> => {
-  if (network === "DEVNET") {
+  if (network === "Devnet") {
     // Modify the VAA to only have 1 guardian signature
     // TODO: remove this when we can deploy the devnet core contract
     // deterministically with multiple guardians in the initial guardian set
@@ -418,7 +416,7 @@ export const setMaxGasBudgetDevnet = (
   network: Network,
   tx: TransactionBlock
 ) => {
-  if (network === "DEVNET") {
+  if (network === "Devnet" || network === "Testnet") {
     // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
     tx.setGasBudget(10000000000);
   }

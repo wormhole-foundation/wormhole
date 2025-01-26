@@ -11,7 +11,8 @@ BIN = $(OUT)/bin
 
 -include Makefile.help
 
-VERSION = $(shell git describe --tags --dirty)
+# VERSION is the git tag of the current commit if there's a tag, otherwise it's "dev-" plus the git commit sha.
+VERSION = $(shell git describe --tags --dirty 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)")
 
 .PHONY: dirs
 dirs: Makefile
@@ -37,7 +38,6 @@ node: $(BIN)/guardiand
 .PHONY: $(BIN)/guardiand
 $(BIN)/guardiand: CGO_ENABLED=1
 $(BIN)/guardiand: dirs generate
-	@# The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
-	cd node && go build -ldflags "-X github.com/certusone/wormhole/node/pkg/version.version=${VERSION} -extldflags -Wl,--allow-multiple-definition" \
+	cd node && go build -ldflags "-X github.com/certusone/wormhole/node/pkg/version.version=${VERSION}" \
 	  -mod=readonly -o ../$(BIN)/guardiand \
 	  github.com/certusone/wormhole/node

@@ -209,6 +209,20 @@ func (c ChainID) String() string {
 		return "berachain"
 	case ChainIDSeiEVM:
 		return "seievm"
+	case ChainIDSnaxchain:
+		return "snaxchain"
+	case ChainIDUnichain:
+		return "unichain"
+	case ChainIDWorldchain:
+		return "worldchain"
+	case ChainIDInk:
+		return "ink"
+	case ChainIDHyperEVM:
+		return "hyperevm"
+	case ChainIDMonad:
+		return "monad"
+	case ChainIDMovement:
+		return "movement"
 	case ChainIDCosmoshub:
 		return "cosmoshub"
 	case ChainIDEvmos:
@@ -227,6 +241,8 @@ func (c ChainID) String() string {
 		return "dymension"
 	case ChainIDProvenance:
 		return "provenance"
+	case ChainIDNoble:
+		return "noble"
 	case ChainIDSepolia:
 		return "sepolia"
 	case ChainIDArbitrumSepolia:
@@ -239,6 +255,8 @@ func (c ChainID) String() string {
 		return "holesky"
 	case ChainIDPolygonSepolia:
 		return "polygon_sepolia"
+	case ChainIDMonadDevnet:
+		return "monad_devnet"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -322,6 +340,20 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDLinea, nil
 	case "berachain":
 		return ChainIDBerachain, nil
+	case "snaxchain":
+		return ChainIDSnaxchain, nil
+	case "unichain":
+		return ChainIDUnichain, nil
+	case "worldchain":
+		return ChainIDWorldchain, nil
+	case "ink":
+		return ChainIDInk, nil
+	case "hyperevm":
+		return ChainIDHyperEVM, nil
+	case "monad":
+		return ChainIDMonad, nil
+	case "movement":
+		return ChainIDMovement, nil
 	case "cosmoshub":
 		return ChainIDCosmoshub, nil
 	case "seievm":
@@ -342,6 +374,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDDymension, nil
 	case "provenance":
 		return ChainIDProvenance, nil
+	case "noble":
+		return ChainIDNoble, nil
 	case "sepolia":
 		return ChainIDSepolia, nil
 	case "arbitrum_sepolia":
@@ -354,6 +388,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDHolesky, nil
 	case "polygon_sepolia":
 		return ChainIDPolygonSepolia, nil
+	case "monad_devnet":
+		return ChainIDMonadDevnet, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -397,6 +433,13 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDXLayer,
 		ChainIDLinea,
 		ChainIDBerachain,
+		ChainIDSnaxchain,
+		ChainIDUnichain,
+		ChainIDWorldchain,
+		ChainIDInk,
+		ChainIDHyperEVM,
+		ChainIDMonad,
+		ChainIDMovement,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -407,12 +450,14 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDSeda,
 		ChainIDDymension,
 		ChainIDProvenance,
+		ChainIDNoble,
 		ChainIDSepolia,
 		ChainIDArbitrumSepolia,
 		ChainIDBaseSepolia,
 		ChainIDOptimismSepolia,
 		ChainIDHolesky,
 		ChainIDPolygonSepolia,
+		ChainIDMonadDevnet,
 	}
 }
 
@@ -493,6 +538,20 @@ const (
 	ChainIDBerachain ChainID = 39
 	// ChainIDSeiEVM is the ChainID of SeiEVM
 	ChainIDSeiEVM ChainID = 40
+	// ChainIDSnaxchain is the ChainID of Snaxchain
+	ChainIDSnaxchain ChainID = 43
+	// ChainIDUnichain is the ChainID of Unichain
+	ChainIDUnichain ChainID = 44
+	// ChainIDWorldchain is the ChainID of Worldchain
+	ChainIDWorldchain ChainID = 45
+	// ChainIDInk is the ChainID of Ink
+	ChainIDInk ChainID = 46
+	// ChainIDHyperEVM is the ChainID of HyperEVM
+	ChainIDHyperEVM ChainID = 47
+	// ChainIDMonad is the ChainID of Monad
+	ChainIDMonad ChainID = 48
+	// ChainIDMovement is the ChainID of Movement
+	ChainIDMovement ChainID = 49
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
 	// ChainIDCosmoshub is the ChainID of Cosmoshub
@@ -513,6 +572,8 @@ const (
 	ChainIDDymension ChainID = 4007
 	// ChainIDProvenance is the ChainID of Provenance
 	ChainIDProvenance ChainID = 4008
+	// ChainIDNoble is the ChainID of Noble
+	ChainIDNoble ChainID = 4009
 	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
@@ -525,6 +586,8 @@ const (
 	ChainIDHolesky ChainID = 10006
 	// ChainIDPolygonSepolia is the ChainID of Polygon on Sepolia
 	ChainIDPolygonSepolia ChainID = 10007
+	// ChainIDMonadDevnet is the ChainID of Monad Devnet
+	ChainIDMonadDevnet ChainID = 10008
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

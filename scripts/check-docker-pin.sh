@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This script is checks to that all our Docker images are pinned to a specific SHA256 hash
+# This script checks that all our Docker images are pinned to a specific SHA256 hash.
 #
 # References as to why...
 #   - https://nickjanetakis.com/blog/docker-tip-18-please-pin-your-docker-image-versions
@@ -13,7 +13,7 @@
 #   - We ignore cosmwasm_artifacts AS artifacts because it's a local reference only, is built in tilt
 #   - We ignore base AS (ignite-go-build|ignite-vue-build) because the base image is already pinned in wormchain/Dockerfile.proto
 #
-git ls-files -z | grep -z "Dockerfile*" | xargs -r -0 grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos|sui|base|cosmwasm_artifacts|cli-gen|const-gen AS (application|base|builder|ci_tests|tests|artifacts|ignite-go-build|ignite-vue-build|cli-export|const-export)'
+git ls-files -z | grep -z "Dockerfile*" | xargs -r -0 grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos|sui|base|cosmwasm_artifacts|cli-gen|const-gen|dev AS (application|base|builder|ci_tests|tests|artifacts|ignite-go-build|ignite-vue-build|cli-export|const-export|build)'
 if [ $? -eq 0 ]; then
    echo "[!] Unpinned docker files" >&2
    exit 1

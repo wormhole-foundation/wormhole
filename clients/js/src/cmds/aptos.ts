@@ -1,10 +1,3 @@
-import { APTOS_DEPLOYER_ADDRESS_DEVNET } from "@certusone/wormhole-sdk";
-import {
-  assertChain,
-  CHAIN_ID_APTOS,
-  coalesceChainId,
-  CONTRACTS,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { BCS, FaucetClient } from "aptos";
 import { spawnSync } from "child_process";
 import fs from "fs";
@@ -25,12 +18,22 @@ import {
   RPC_OPTIONS,
 } from "../consts";
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
-import { assertNetwork, checkBinary, evm_address, hex } from "../utils";
+import { checkBinary, evm_address, getNetwork, hex } from "../utils";
+import {
+  assertChain,
+  chainToChainId,
+  contracts,
+  toChain,
+  toChainId,
+} from "@wormhole-foundation/sdk-base";
 
 const APTOS_NODE_URL = "http://0.0.0.0:8080/v1";
 const APTOS_FAUCET_URL = "http://0.0.0.0:8081";
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/aptos/README.md";
+
+export const APTOS_DEPLOYER_ADDRESS_DEVNET =
+  "277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b";
 
 interface Package {
   meta_file: string;
@@ -54,14 +57,20 @@ export const builder = (y: typeof yargs) =>
       "init-token-bridge",
       "Init token bridge contract",
       (yargs) =>
-        yargs.option("network", NETWORK_OPTIONS).option("rpc", RPC_OPTIONS),
+        yargs
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
+          .option("contract-address", {
+            describe: "Core contract address",
+            type: "string",
+            demandOption: false,
+          }),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const contract_address = evm_address(
-          CONTRACTS[network].aptos.token_bridge
-        );
-        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
+        const network = getNetwork(argv.network);
+        const contract_address =
+          argv["contract-address"] ||
+          evm_address(contracts.tokenBridge(network, "Aptos"));
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -82,7 +91,7 @@ export const builder = (y: typeof yargs) =>
           .option("chain-id", {
             describe: "Chain id",
             type: "number",
-            default: CHAIN_ID_APTOS,
+            default: chainToChainId("Aptos"),
             demandOption: false,
           })
           .option("governance-chain-id", {
@@ -102,12 +111,18 @@ export const builder = (y: typeof yargs) =>
             demandOption: true,
             describe: "Initial guardian's addresses (CSV)",
             type: "string",
+          })
+          .option("contract-address", {
+            describe: "Core contract address",
+            type: "string",
+            demandOption: false,
           }),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
 
-        const contract_address = evm_address(CONTRACTS[network].aptos.core);
+        const contract_address =
+          argv["contract-address"] ||
+          evm_address(contracts.coreBridge(network, "Aptos"));
         const guardian_addresses = argv["guardian-address"]
           .split(",")
           .map((address) => evm_address(address).substring(24));
@@ -127,7 +142,7 @@ export const builder = (y: typeof yargs) =>
           BCS.bcsSerializeBytes(Buffer.from(governance_address, "hex")),
           guardians_serializer.getBytes(),
         ];
-        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -152,12 +167,11 @@ export const builder = (y: typeof yargs) =>
           .option("rpc", RPC_OPTIONS)
           .option("named-addresses", NAMED_ADDRESSES_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         checkBinary("aptos", README_URL);
         const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
         const b = serializePackage(p);
-        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -188,21 +202,22 @@ export const builder = (y: typeof yargs) =>
           .option("rpc", RPC_OPTIONS)
           .option("named-addresses", NAMED_ADDRESSES_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         checkBinary("aptos", README_URL);
         const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
         const b = serializePackage(p);
         const seed = Buffer.from(argv["seed"], "ascii");
 
-        // TODO(csongor): use deployer address from sdk (when it's there)
-        let module_name =
-          "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::deployer";
-        if (network == "TESTNET" || network == "MAINNET") {
-          module_name =
-            "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::deployer";
+        let deployer = APTOS_DEPLOYER_ADDRESS_DEVNET;
+        const addresses = argv["named-addresses"]?.split(",") || [];
+        for (const addressPair of addresses) {
+          const [name, address] = addressPair.split("=");
+          if (name === "deployer") {
+            deployer = address;
+          }
         }
-        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
+        const module_name = deployer + "::deployer";
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -224,15 +239,19 @@ export const builder = (y: typeof yargs) =>
             describe: "Message to send",
             demandOption: true,
           })
-          .option("network", NETWORK_OPTIONS),
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
+          .option("sender", {
+            describe: "Sender address",
+            type: "string",
+            demandOption: false,
+          }),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = NETWORKS[network].aptos.rpc;
-        // TODO(csongor): use sdk address
+        const network = getNetwork(argv.network);
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         let module_name =
-          "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
-        if (network == "TESTNET" || network == "MAINNET") {
+          (argv.sender || APTOS_DEPLOYER_ADDRESS_DEVNET) + "::sender";
+        if (!argv.sender && (network == "Testnet" || network == "Mainnet")) {
           module_name =
             "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::sender";
         }
@@ -287,13 +306,12 @@ export const builder = (y: typeof yargs) =>
           })
           .option("network", NETWORK_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        let address = CONTRACTS[network].aptos.token_bridge;
+        const network = getNetwork(argv.network);
+        let address: string = contracts.tokenBridge(network, "Aptos");
         if (address.startsWith("0x")) address = address.substring(2);
         const token_bridge_address = Buffer.from(address, "hex");
-        assertChain(argv.chain);
-        const chain = coalesceChainId(argv.chain);
+        assertChain(toChain(argv.chain));
+        const chain = toChainId(argv.chain);
         const origin_address = Buffer.from(
           evm_address(argv["origin-address"]),
           "hex"
@@ -343,12 +361,11 @@ export const builder = (y: typeof yargs) =>
           .option("rpc", RPC_OPTIONS)
           .option("named-addresses", NAMED_ADDRESSES_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         checkBinary("aptos", README_URL);
         const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
         const b = serializePackage(p);
-        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         // TODO(csongor): use deployer address from sdk (when it's there)
         const hash = await callEntryFunc(
           network,
@@ -378,10 +395,9 @@ export const builder = (y: typeof yargs) =>
           .option("network", NETWORK_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
+        const network = getNetwork(argv.network);
         checkBinary("aptos", README_URL);
-        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].Aptos.rpc;
         // TODO(csongor): use deployer address from sdk (when it's there)
         const hash = await callEntryFunc(
           network,

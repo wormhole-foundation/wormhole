@@ -83,17 +83,6 @@ func (i *VAAID) EmitterPrefixBytes() []byte {
 	return []byte(fmt.Sprintf("signed/%d/%s", i.EmitterChain, i.EmitterAddress))
 }
 
-// TODO: Deprecate in favor of OpenDb
-func Open(path string) (*Database, error) {
-	db, err := badger.Open(badger.DefaultOptions(path))
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-	return &Database{
-		db: db,
-	}, nil
-}
-
 func (d *Database) Close() error {
 	return d.db.Close()
 }
@@ -126,6 +115,35 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	storedVaaTotal.Inc()
 
 	return nil
+}
+
+// StoreSignedVAABatch writes multiple VAAs to the database using the BadgerDB batch API.
+// Note that the API takes care of splitting up the slice into the maximum allowed count
+// and size so we don't need to worry about that.
+func (d *Database) StoreSignedVAABatch(vaaBatch []*vaa.VAA) error {
+	batchTx := d.db.NewWriteBatch()
+	defer batchTx.Cancel()
+
+	for _, v := range vaaBatch {
+		if len(v.Signatures) == 0 {
+			panic("StoreSignedVAABatch called for unsigned VAA")
+		}
+
+		b, err := v.Marshal()
+		if err != nil {
+			panic("StoreSignedVAABatch failed to marshal VAA")
+		}
+
+		err = batchTx.Set(VaaIDFromVAA(v).Bytes(), b)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Wait for the batch to finish.
+	err := batchTx.Flush()
+	storedVaaTotal.Add(float64(len(vaaBatch)))
+	return err
 }
 
 func (d *Database) HasVAA(id VAAID) (bool, error) {
@@ -208,7 +226,6 @@ func (d *Database) FindEmitterSequenceGap(prefix VAAID) (resp []uint64, firstSeq
 		// Figure out gaps.
 		for i := firstSeq; i <= lastSeq; i++ {
 			if !seqs[i] {
-				fmt.Printf("missing: %d\n", i)
 				resp = append(resp, i)
 			}
 		}

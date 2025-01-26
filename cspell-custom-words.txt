@@ -109,6 +109,8 @@ Metaplex
 mindshare
 mlock
 moby
+monad
+Monad
 moonscan
 moretags
 Neodyme
@@ -155,6 +157,8 @@ seievm
 Sepolia
 serde
 setcap
+snaxchain
+SnaxChain
 solana
 Solana
 Solana's
@@ -183,6 +187,8 @@ unbond
 Uncompromised
 undercollateralization
 unforgeable
+unichain
+Unichain
 unnormalize
 untampered
 utest
@@ -195,6 +201,8 @@ vphash
 wasmhooks
 wasms
 WORKDIR
+worldchain
+WorldChain
 wormchain
 Wormchain
 wormchaind

@@ -1,8 +1,7 @@
 package p2p
 
 import (
-	"crypto/ecdsa"
-	"crypto/rand"
+	"context"
 	"testing"
 	"time"
 
@@ -10,17 +9,17 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestSignedHeartbeat(t *testing.T) {
 
 	type testCase struct {
 		timestamp             int64
-		gk                    *ecdsa.PrivateKey
+		guardianSigner        guardiansigner.GuardianSigner
 		heartbeatGuardianAddr string
 		fromP2pId             peer.ID
 		p2pNodeId             []byte
@@ -29,17 +28,17 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	// define the tests
 
-	gk, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	assert.NoError(t, err)
-	gAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
 	fromP2pId, err := peer.Decode("12D3KooWSgMXkhzTbKTeupHYmyG7sFJ5LpVreQcwVnX8RD7LBpy9")
 	assert.NoError(t, err)
 	p2pNodeId, err := fromP2pId.Marshal()
 	assert.NoError(t, err)
 
-	gk2, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	assert.NoError(t, err)
-	gAddr2 := ethcrypto.PubkeyToAddress(gk2.PublicKey)
+	gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
 	fromP2pId2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")
 	assert.NoError(t, err)
 	p2pNodeId2, err := fromP2pId2.Marshal()
@@ -49,7 +48,7 @@ func TestSignedHeartbeat(t *testing.T) {
 		// happy case
 		{
 			timestamp:             time.Now().UnixNano(),
-			gk:                    gk,
+			guardianSigner:        guardianSigner,
 			heartbeatGuardianAddr: gAddr.String(),
 			fromP2pId:             fromP2pId,
 			p2pNodeId:             p2pNodeId,
@@ -58,7 +57,7 @@ func TestSignedHeartbeat(t *testing.T) {
 		// guardian signed a heartbeat for another guardian
 		{
 			timestamp:             time.Now().UnixNano(),
-			gk:                    gk,
+			guardianSigner:        guardianSigner,
 			heartbeatGuardianAddr: gAddr2.String(),
 			fromP2pId:             fromP2pId,
 			p2pNodeId:             p2pNodeId,
@@ -67,7 +66,7 @@ func TestSignedHeartbeat(t *testing.T) {
 		// old heartbeat
 		{
 			timestamp:             time.Now().Add(-time.Hour).UnixNano(),
-			gk:                    gk,
+			guardianSigner:        guardianSigner,
 			heartbeatGuardianAddr: gAddr.String(),
 			fromP2pId:             fromP2pId,
 			p2pNodeId:             p2pNodeId,
@@ -76,7 +75,7 @@ func TestSignedHeartbeat(t *testing.T) {
 		// heartbeat from the distant future
 		{
 			timestamp:             time.Now().Add(time.Hour).UnixNano(),
-			gk:                    gk,
+			guardianSigner:        guardianSigner,
 			heartbeatGuardianAddr: gAddr.String(),
 			fromP2pId:             fromP2pId,
 			p2pNodeId:             p2pNodeId,
@@ -85,7 +84,7 @@ func TestSignedHeartbeat(t *testing.T) {
 		// mismatched peer id
 		{
 			timestamp:             time.Now().UnixNano(),
-			gk:                    gk,
+			guardianSigner:        guardianSigner,
 			heartbeatGuardianAddr: gAddr.String(),
 			fromP2pId:             fromP2pId,
 			p2pNodeId:             p2pNodeId2,
@@ -96,7 +95,7 @@ func TestSignedHeartbeat(t *testing.T) {
 
 	testFunc := func(t *testing.T, tc testCase) {
 
-		addr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+		addr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
 
 		heartbeat := &gossipv1.Heartbeat{
 			NodeName:      "someNode",
@@ -110,7 +109,7 @@ func TestSignedHeartbeat(t *testing.T) {
 			P2PNodeId:     tc.p2pNodeId,
 		}
 
-		s := createSignedHeartbeat(gk, heartbeat)
+		s := createSignedHeartbeat(context.Background(), guardianSigner, heartbeat)
 		gs := &node_common.GuardianSet{
 			Keys:  []common.Address{addr},
 			Index: 1,

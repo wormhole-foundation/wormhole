@@ -1,3 +1,7 @@
+## 0.0.13
+
+Add signaturesToSolanaArray
+
 ## 0.0.12
 
 Fix SolanaPda mock for bad rentEpoch parsing

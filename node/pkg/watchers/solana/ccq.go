@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -27,6 +28,12 @@ const (
 
 	// CCQ_FAST_RETRY_INTERVAL is how long we sleep between fast retry attempts.
 	CCQ_FAST_RETRY_INTERVAL = 200 * time.Millisecond
+
+	// CCQ_MAX_BLOCK_READ_ATTEMPTS the total number of times we will try to read the block when it returns "Block not available".
+	CCQ_MAX_BLOCK_READ_ATTEMPTS = 3
+
+	// CCQ_BLOCK_RETRY_DELAY is how long we sleep between attempts to read the block time.
+	CCQ_BLOCK_RETRY_DELAY = 250 * time.Millisecond
 )
 
 // ccqStart starts up CCQ query processing.
@@ -128,7 +135,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 			// Return without posting a response because a go routine was created to handle it.
 			return
 		}
-		w.ccqLogger.Error(fmt.Sprintf("read failed for %s query request", tag),
+		w.ccqLogger.Info(fmt.Sprintf("read failed for %s query request", tag),
 			zap.String("requestId", requestId),
 			zap.Any("accounts", accounts),
 			zap.Any("params", params),
@@ -140,22 +147,44 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	}
 
 	// Read the block for this slot to get the block time.
-	maxSupportedTransactionVersion := uint64(0)
-	block, err := w.rpcClient.GetBlockWithOpts(rCtx, info.Context.Slot, &rpc.GetBlockOpts{
-		Encoding:                       solana.EncodingBase64,
-		Commitment:                     params.Commitment,
-		TransactionDetails:             rpc.TransactionDetailsNone,
-		MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
-	})
-	if err != nil {
-		w.ccqLogger.Error(fmt.Sprintf("failed to read block time for %s query request", tag),
-			zap.String("requestId", requestId),
-			zap.Uint64("slotNumber", info.Context.Slot),
-			zap.Error(err),
-		)
+	var block *rpc.GetBlockResult
+	var numBlockReadAttempts int
+	for {
+		maxSupportedTransactionVersion := uint64(0)
+		block, err = w.rpcClient.GetBlockWithOpts(rCtx, info.Context.Slot, &rpc.GetBlockOpts{
+			Encoding:                       solana.EncodingBase64,
+			Commitment:                     params.Commitment,
+			TransactionDetails:             rpc.TransactionDetailsNone,
+			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
+		})
+		if err == nil {
+			break
+		}
 
-		w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
-		return
+		if !ccqIsBlockNotAvailable(err) {
+			w.ccqLogger.Error(fmt.Sprintf("failed to read block time for %s query request", tag),
+				zap.String("requestId", requestId),
+				zap.Uint64("slotNumber", info.Context.Slot),
+				zap.Error(err),
+			)
+
+			w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
+			return
+		}
+
+		numBlockReadAttempts += 1
+		if numBlockReadAttempts >= CCQ_MAX_BLOCK_READ_ATTEMPTS {
+			w.ccqLogger.Error(fmt.Sprintf("repeatedly failed to read block time for %s query request, giving up", tag),
+				zap.String("requestId", requestId),
+				zap.Uint64("slotNumber", info.Context.Slot),
+				zap.Error(err),
+			)
+
+			w.ccqSendErrorResponse(queryRequest, query.QueryRetryNeeded)
+			return
+		}
+
+		time.Sleep(CCQ_BLOCK_RETRY_DELAY)
 	}
 
 	if info == nil {
@@ -538,4 +567,26 @@ func (w *SolanaWatcher) getMultipleAccountsWithOpts(
 		return nil, rpc.ErrNotFound
 	}
 	return
+}
+
+// ccqIsBlockNotAvailable parses an error to see if it is a "Block not available for slot" error.
+func ccqIsBlockNotAvailable(err error) bool {
+	/*
+		  A "Block not available for slot" error looks like this:
+			"(*jsonrpc.RPCError)(0xc0208a0270)({\n Code: (int) -32004,\n Message: (string) (len=38) \"Block not available for slot 282135928\",\n Data: (interface {}) <nil>\n})\n"
+
+			A "Minimum context slot has not been reached" error looks like this:
+			(*jsonrpc.RPCError)(0xc21e4f8ea0)({\n Code: (int) -32016,\n Message: (string) (len=41) \"Minimum context slot has not been reached\",\n Data: (map[string]interface {}) (len=1) {\n  (string) (len=11) \"contextSlot\": (json.Number) (len=9) \"303955907\"\n }\n})\n"
+	*/
+	var rpcErr *jsonrpc.RPCError
+	if !errors.As(err, &rpcErr) {
+		return false // Some other kind of error.
+	}
+
+	if rpcErr.Code != -32004 && // Block not available for slot
+		rpcErr.Code != -32016 { // Minimum context slot has not been reached
+		return false // Some other kind of RPC error.
+	}
+
+	return strings.Contains(rpcErr.Message, "Block not available for slot")
 }

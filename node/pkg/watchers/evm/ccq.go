@@ -100,7 +100,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	// Create the block query args.
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
-		w.ccqLogger.Error("invalid block id in eth_call query request",
+		w.ccqLogger.Info("invalid block id in eth_call query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Error(err),
@@ -131,7 +131,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	defer cancel()
 	err = w.ethConn.RawBatchCallContext(timeout, batch)
 	if err != nil {
-		w.ccqLogger.Error("failed to process eth_call query request",
+		w.ccqLogger.Info("failed to process eth_call query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -153,19 +153,10 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 		return
 	}
 
-	w.ccqLogger.Info("query complete for eth_call",
-		zap.String("requestId", requestId),
-		zap.String("block", block),
-		zap.String("blockNumber", blockResult.Number.String()),
-		zap.String("blockHash", blockResult.Hash.Hex()),
-		zap.String("blockTime", blockResult.Time.String()),
-		zap.Int64("duration", time.Since(start).Milliseconds()),
-	)
-
 	// Verify all the call results and build the batch of results.
 	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
 	if err != nil {
-		w.ccqLogger.Debug("failed to process eth_call query call request",
+		w.ccqLogger.Info("failed to process eth_call query call request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -174,6 +165,15 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return
 	}
+
+	w.ccqLogger.Info("query complete for eth_call",
+		zap.String("requestId", requestId),
+		zap.String("block", block),
+		zap.String("blockNumber", blockResult.Number.String()),
+		zap.String("blockHash", blockResult.Hash.Hex()),
+		zap.String("blockTime", blockResult.Time.String()),
+		zap.Int64("duration", time.Since(start).Milliseconds()),
+	)
 
 	// Finally, build the response and publish it.
 	resp := query.EthCallQueryResponse{
@@ -201,7 +201,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 
 	// Verify that the two block hints are consistent, either both set, or both unset.
 	if (block == "") != (nextBlock == "") {
-		w.ccqLogger.Error("invalid block id hints in eth_call_by_timestamp query request, both should be either set or unset",
+		w.ccqLogger.Info("invalid block id hints in eth_call_by_timestamp query request, both should be either set or unset",
 			zap.String("requestId", requestId),
 			zap.Uint64("timestamp", req.TargetTimestamp),
 			zap.String("block", block),
@@ -214,52 +214,74 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	// Look up the blocks based on the timestamp if necessary.
 	if block == "" {
 		if w.ccqTimestampCache == nil {
-			w.ccqLogger.Error("error in block id hints in eth_call_by_timestamp query request, they are unset and chain does not support timestamp caching")
+			w.ccqLogger.Info("error in block id hints in eth_call_by_timestamp query request, they are unset and chain does not support timestamp caching")
 			w.ccqSendQueryResponse(queryRequest, query.QueryFatalError, nil)
 			return
 		}
 
 		// Look the timestamp up in the cache. Note that the cache uses native EVM time, which is seconds, but CCQ uses microseconds, so we have to convert.
-		blockNum, nextBlockNum, found := w.ccqTimestampCache.LookUp(req.TargetTimestamp / 1000000)
+		timestampForCache := req.TargetTimestamp / 1000000
+		blockNum, nextBlockNum, found := w.ccqTimestampCache.LookUp(timestampForCache)
 		if !found {
 			status := query.QueryRetryNeeded
+			firstBlockNum, firstBlockTime, lastBlockNum, lastBlockTime := w.ccqTimestampCache.GetRange()
 			if nextBlockNum == 0 {
-				w.ccqLogger.Warn("block look up failed in eth_call_by_timestamp query request, timestamp beyond the end of the cache, will wait and retry",
+				w.ccqLogger.Info("block look up failed in eth_call_by_timestamp query request, timestamp beyond the end of the cache, will wait and retry",
 					zap.String("requestId", requestId),
 					zap.Uint64("timestamp", req.TargetTimestamp),
 					zap.String("block", block),
 					zap.String("nextBlock", nextBlock),
 					zap.Uint64("blockNum", blockNum),
 					zap.Uint64("nextBlockNum", nextBlockNum),
+					zap.Uint64("timestampForCache", timestampForCache),
+					zap.Uint64("firstBlockNum", firstBlockNum),
+					zap.Uint64("firstBlockTime", firstBlockTime),
+					zap.Uint64("lastBlockNum", lastBlockNum),
+					zap.Uint64("lastBlockTime", lastBlockTime),
 				)
 			} else if blockNum == 0 {
-				w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp too old, failing request",
+				w.ccqLogger.Info("block look up failed in eth_call_by_timestamp query request, timestamp too old, failing request",
 					zap.String("requestId", requestId),
 					zap.Uint64("timestamp", req.TargetTimestamp),
 					zap.String("block", block),
 					zap.String("nextBlock", nextBlock),
 					zap.Uint64("blockNum", blockNum),
 					zap.Uint64("nextBlockNum", nextBlockNum),
+					zap.Uint64("timestampForCache", timestampForCache),
+					zap.Uint64("firstBlockNum", firstBlockNum),
+					zap.Uint64("firstBlockTime", firstBlockTime),
+					zap.Uint64("lastBlockNum", lastBlockNum),
+					zap.Uint64("lastBlockTime", lastBlockTime),
 				)
 				status = query.QueryFatalError
 			} else if w.ccqBackfillCache {
-				w.ccqLogger.Warn("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, will request a backfill and retry",
+				w.ccqLogger.Info("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, will request a backfill and retry",
 					zap.String("requestId", requestId),
 					zap.Uint64("timestamp", req.TargetTimestamp),
 					zap.String("block", block),
 					zap.String("nextBlock", nextBlock),
 					zap.Uint64("blockNum", blockNum),
 					zap.Uint64("nextBlockNum", nextBlockNum),
+					zap.Uint64("timestampForCache", timestampForCache),
+					zap.Uint64("firstBlockNum", firstBlockNum),
+					zap.Uint64("firstBlockTime", firstBlockTime),
+					zap.Uint64("lastBlockNum", lastBlockNum),
+					zap.Uint64("lastBlockTime", lastBlockTime),
 				)
-				w.ccqRequestBackfill(req.TargetTimestamp / 1000000)
+				w.ccqRequestBackfill(timestampForCache)
 			} else {
-				w.ccqLogger.Error("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, failing request",
+				w.ccqLogger.Info("block look up failed in eth_call_by_timestamp query request, timestamp is in a gap in the cache, failing request",
 					zap.String("requestId", requestId),
 					zap.Uint64("timestamp", req.TargetTimestamp),
 					zap.String("block", block),
 					zap.String("nextBlock", nextBlock),
 					zap.Uint64("blockNum", blockNum),
 					zap.Uint64("nextBlockNum", nextBlockNum),
+					zap.Uint64("timestampForCache", timestampForCache),
+					zap.Uint64("firstBlockNum", firstBlockNum),
+					zap.Uint64("firstBlockTime", firstBlockTime),
+					zap.Uint64("lastBlockNum", lastBlockNum),
+					zap.Uint64("lastBlockTime", lastBlockTime),
 				)
 				status = query.QueryFatalError
 			}
@@ -283,7 +305,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	// Create the query args for both blocks.
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
-		w.ccqLogger.Error("invalid target block id hint in eth_call_by_timestamp query request",
+		w.ccqLogger.Info("invalid target block id hint in eth_call_by_timestamp query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -295,7 +317,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 
 	nextBlockMethod, _, err := ccqCreateBlockRequest(nextBlock)
 	if err != nil {
-		w.ccqLogger.Error("invalid following block id hint in eth_call_by_timestamp query request",
+		w.ccqLogger.Info("invalid following block id hint in eth_call_by_timestamp query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -340,7 +362,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	defer cancel()
 	err = w.ethConn.RawBatchCallContext(timeout, batch)
 	if err != nil {
-		w.ccqLogger.Error("failed to process eth_call_by_timestamp query request",
+		w.ccqLogger.Info("failed to process eth_call_by_timestamp query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("nextBlock", nextBlock),
@@ -391,7 +413,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	followingTimestamp := uint64(nextBlockResult.Time * 1000000)
 
 	if targetBlockNum+1 != followingBlockNum {
-		w.ccqLogger.Error("eth_call_by_timestamp query blocks are not adjacent",
+		w.ccqLogger.Info("eth_call_by_timestamp query blocks are not adjacent",
 			zap.String("requestId", requestId),
 			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
 			zap.Uint64("targetTimestamp", targetTimestamp),
@@ -408,7 +430,7 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	}
 
 	if req.TargetTimestamp < targetTimestamp || req.TargetTimestamp >= followingTimestamp {
-		w.ccqLogger.Error("eth_call_by_timestamp desired timestamp falls outside of block range",
+		w.ccqLogger.Info("eth_call_by_timestamp desired timestamp falls outside of block range",
 			zap.String("requestId", requestId),
 			zap.Uint64("desiredTimestamp", req.TargetTimestamp),
 			zap.Uint64("targetTimestamp", targetTimestamp),
@@ -421,6 +443,20 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 			zap.String("followingBlockTime", nextBlockResult.Time.String()),
 		)
 		w.ccqSendQueryResponse(queryRequest, query.QueryFatalError, nil)
+		return
+	}
+
+	// Verify all the call results and build the batch of results.
+	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
+	if err != nil {
+		w.ccqLogger.Info("failed to process eth_call_by_timestamp query call request",
+			zap.String("requestId", requestId),
+			zap.String("block", block),
+			zap.String("nextBlock", nextBlock),
+			zap.Any("batch", batch),
+			zap.Error(err),
+		)
+		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return
 	}
 
@@ -437,20 +473,6 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 		zap.String("followingBlockTime", nextBlockResult.Time.String()),
 		zap.Int64("duration", time.Since(start).Milliseconds()),
 	)
-
-	// Verify all the call results and build the batch of results.
-	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
-	if err != nil {
-		w.ccqLogger.Debug("failed to process eth_call_by_timestamp query call request",
-			zap.String("requestId", requestId),
-			zap.String("block", block),
-			zap.String("nextBlock", nextBlock),
-			zap.Any("batch", batch),
-			zap.Error(err),
-		)
-		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
-		return
-	}
 
 	// Finally, build the response and publish it.
 	resp := query.EthCallByTimestampQueryResponse{
@@ -480,7 +502,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	// Validate the requested finality.
 	safeMode := req.Finality == "safe"
 	if req.Finality != "finalized" && !safeMode {
-		w.ccqLogger.Error("invalid finality in eth_call_with_finality query request",
+		w.ccqLogger.Info("invalid finality in eth_call_with_finality query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.String("finality", req.Finality),
@@ -492,7 +514,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	// Create the block query args.
 	blockMethod, callBlockArg, err := ccqCreateBlockRequest(block)
 	if err != nil {
-		w.ccqLogger.Error("invalid block id in eth_call_with_finality query request",
+		w.ccqLogger.Info("invalid block id in eth_call_with_finality query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Error(err),
@@ -523,7 +545,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	defer cancel()
 	err = w.ethConn.RawBatchCallContext(timeout, batch)
 	if err != nil {
-		w.ccqLogger.Error("failed to process eth_call_with_finality query request",
+		w.ccqLogger.Info("failed to process eth_call_with_finality query request",
 			zap.String("requestId", requestId),
 			zap.String("block", block),
 			zap.Any("batch", batch),
@@ -568,20 +590,10 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 		return
 	}
 
-	w.ccqLogger.Info("query complete for eth_call_with_finality",
-		zap.String("requestId", requestId),
-		zap.String("finality", req.Finality),
-		zap.Uint64("requestedBlockNumber", blockNumber),
-		zap.Uint64("latestBlockNumber", latestBlockNum),
-		zap.String("blockHash", blockResult.Hash.Hex()),
-		zap.String("blockTime", blockResult.Time.String()),
-		zap.Int64("duration", time.Since(start).Milliseconds()),
-	)
-
 	// Verify all the call results and build the batch of results.
 	results, err := w.ccqVerifyAndExtractQueryResults(requestId, evmCallData)
 	if err != nil {
-		w.ccqLogger.Debug("failed to process eth_call_with_finality query call request",
+		w.ccqLogger.Info("failed to process eth_call_with_finality query call request",
 			zap.String("requestId", requestId),
 			zap.String("finality", req.Finality),
 			zap.Uint64("requestedBlockNumber", blockNumber),
@@ -593,6 +605,16 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 		w.ccqSendQueryResponse(queryRequest, query.QueryRetryNeeded, nil)
 		return
 	}
+
+	w.ccqLogger.Info("query complete for eth_call_with_finality",
+		zap.String("requestId", requestId),
+		zap.String("finality", req.Finality),
+		zap.Uint64("requestedBlockNumber", blockNumber),
+		zap.Uint64("latestBlockNumber", latestBlockNum),
+		zap.String("blockHash", blockResult.Hash.Hex()),
+		zap.String("blockTime", blockResult.Time.String()),
+		zap.Int64("duration", time.Since(start).Milliseconds()),
+	)
 
 	// Finally, build the response and publish it.
 	resp := query.EthCallWithFinalityQueryResponse{

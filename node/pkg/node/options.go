@@ -39,13 +39,32 @@ type GuardianOption struct {
 
 // GuardianOptionP2P configures p2p networking.
 // Dependencies: Accountant, Governor
-func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, nodeName string, disableHeartbeatVerify bool, port uint, ccqBootstrapPeers string, ccqPort uint, ccqAllowedPeers, gossipAdvertiseAddress string, ibcFeaturesFunc func() string) *GuardianOption {
+func GuardianOptionP2P(
+	p2pKey libp2p_crypto.PrivKey,
+	networkId string,
+	bootstrapPeers string,
+	nodeName string,
+	subscribeToVAAs bool,
+	disableHeartbeatVerify bool,
+	port uint,
+	ccqBootstrapPeers string,
+	ccqPort uint,
+	ccqAllowedPeers string,
+	gossipAdvertiseAddress string,
+	ibcFeaturesFunc func() string,
+) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
 		dependencies: []string{"accountant", "governor", "gateway-relayer"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
+
+			var signedInC chan<- *gossipv1.SignedVAAWithQuorum
+			if subscribeToVAAs {
+				logger.Info("subscribing to incoming signed VAAs")
+				signedInC = g.signedInC.writeC
+			}
 
 			if g.env == common.GoTest {
 				components.WarnChannelOverflow = true
@@ -55,33 +74,43 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId, bootstrapPeers, 
 			// Add the gossip advertisement address
 			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
-			g.runnables["p2p"] = p2p.Run(
-				g.obsvC,
-				g.obsvReqC.writeC,
-				g.obsvReqSendC.readC,
-				g.gossipSendC,
-				g.signedInC.writeC,
-				p2pKey,
-				g.gk,
-				g.gst,
-				networkId,
+			params, err := p2p.NewRunParams(
 				bootstrapPeers,
-				nodeName,
-				disableHeartbeatVerify,
+				networkId,
+				p2pKey,
+				g.gst,
 				g.rootCtxCancel,
-				g.acct,
-				g.gov,
-				nil,
-				nil,
-				components,
-				ibcFeaturesFunc,
-				(g.gatewayRelayer != nil),
-				(g.queryHandler != nil),
-				g.signedQueryReqC.writeC,
-				g.queryResponsePublicationC.readC,
-				ccqBootstrapPeers,
-				ccqPort,
-				ccqAllowedPeers,
+				p2p.WithGuardianOptions(
+					nodeName,
+					g.guardianSigner,
+					g.obsvC,
+					g.batchObsvC.writeC,
+					signedInC,
+					g.obsvReqC.writeC,
+					g.gossipControlSendC,
+					g.gossipAttestationSendC,
+					g.gossipVaaSendC,
+					g.obsvReqSendC.readC,
+					g.acct,
+					g.gov,
+					disableHeartbeatVerify,
+					components,
+					ibcFeaturesFunc,
+					(g.gatewayRelayer != nil), // gatewayRelayerEnabled,
+					(g.queryHandler != nil),   // ccqEnabled,
+					g.signedQueryReqC.writeC,
+					g.queryResponsePublicationC.readC,
+					ccqBootstrapPeers,
+					ccqPort,
+					ccqAllowedPeers),
+				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
+			)
+			if err != nil {
+				return err
+			}
+
+			g.runnables["p2p"] = p2p.Run(
+				params,
 			)
 
 			return nil
@@ -177,7 +206,7 @@ func GuardianOptionAccountant(
 				enforcing,
 				nttContract,
 				nttWormchainConn,
-				g.gk,
+				g.guardianSigner,
 				g.gst,
 				g.acctC.writeC,
 				g.env,
@@ -189,14 +218,22 @@ func GuardianOptionAccountant(
 
 // GuardianOptionGovernor enables or disables the governor.
 // Dependencies: db
-func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
+func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGeckoApiKey string) *GuardianOption {
 	return &GuardianOption{
 		name:         "governor",
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
-				logger.Info("chain governor is enabled")
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env)
+				if flowCancelEnabled {
+					logger.Info("chain governor is enabled with flow cancel enabled")
+				} else {
+
+					logger.Info("chain governor is enabled without flow cancel")
+				}
+				if coinGeckoApiKey != "" {
+					logger.Info("coingecko pro API key in use")
+				}
+				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled, coinGeckoApiKey)
 			} else {
 				logger.Info("chain governor is disabled")
 			}
@@ -316,7 +353,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									level = zapcore.ErrorLevel
 								}
 								logger.Log(level, "SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
-									zap.Stringer("tx", msg.TxHash),
+									zap.String("tx", msg.TxIDString()),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint64("sequence", msg.Sequence),
 									zap.Stringer("msgChainId", msg.EmitterChain),
@@ -331,7 +368,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									level = zapcore.ErrorLevel
 								}
 								logger.Log(level, "SECURITY ERROR: Received observation with EmitterAddress == 0x00",
-									zap.Stringer("tx", msg.TxHash),
+									zap.String("tx", msg.TxIDString()),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint64("sequence", msg.Sequence),
 									zap.Stringer("msgChainId", msg.EmitterChain),
@@ -343,7 +380,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("emitter_chain", msg.EmitterChain),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint32("nonce", msg.Nonce),
-									zap.Stringer("txhash", msg.TxHash),
+									zap.String("txID", msg.TxIDString()),
 									zap.Time("timestamp", msg.Timestamp))
 							} else {
 								g.msgC.writeC <- msg
@@ -469,7 +506,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 				g.db,
 				g.gst,
 				g.gov,
-				g.gk,
+				g.guardianSigner,
 				ethRpc,
 				ethContract,
 				rpcMap,
@@ -542,7 +579,7 @@ func GuardianOptionDatabase(db *db.Database) *GuardianOption {
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: db, governor, accountant
-func GuardianOptionProcessor() *GuardianOption {
+func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
@@ -554,16 +591,19 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.db,
 				g.msgC.readC,
 				g.setC.readC,
-				g.gossipSendC,
+				g.gossipAttestationSendC,
+				g.gossipVaaSendC,
 				g.obsvC,
+				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,
-				g.gk,
+				g.guardianSigner,
 				g.gst,
 				g.gov,
 				g.acct,
 				g.acctC.readC,
 				g.gatewayRelayer,
+				networkId,
 			).Run
 
 			return nil

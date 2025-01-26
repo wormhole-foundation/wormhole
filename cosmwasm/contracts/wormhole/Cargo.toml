@@ -21,6 +21,7 @@ default = ["full"]
 [dependencies]
 cosmwasm-std = { version = "1.0.0" }
 cosmwasm-storage = { version = "1.0.0" }
+cosmwasm-schema = { version = "1.0.0" }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.31" }
@@ -28,3 +29,12 @@ k256 = { version = "0.11", default-features = false, features = ["ecdsa"] }
 sha3 = { version = "0.9.1", default-features = false }
 generic-array = { version = "0.14.4" }
 hex = "0.4.2"
+
+[dev-dependencies]
+cw-multi-test = "0.14"
+serde_wormhole.workspace = true
+wormhole-sdk.workspace = true
+wormhole-bindings = { version = "0.1", features = ["fake"] }
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+serde-json-wasm = "0.4"
+wormchain-ibc-receiver = { path = "../wormchain-ibc-receiver" }

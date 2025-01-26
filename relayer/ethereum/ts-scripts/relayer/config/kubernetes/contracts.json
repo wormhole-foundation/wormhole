@@ -14,21 +14,21 @@
   "wormholeRelayers": [
     {
       "chainId": 2,
-      "address": "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"
+      "address": "0xb98F46E96cb1F519C333FdFB5CCe0B13E0300ED4"
     },
     {
       "chainId": 4,
-      "address": "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083"
+      "address": "0xb98F46E96cb1F519C333FdFB5CCe0B13E0300ED4"
     }
   ],
   "wormholeRelayersDev": [
     {
       "chainId": 2,
-      "address": "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
+      "address": "0xcC680D088586c09c3E0E099a676FA4b6e42467b4"
     },
     {
       "chainId": 4,
-      "address": "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
+      "address": "0xcC680D088586c09c3E0E099a676FA4b6e42467b4"
     }
   ],
   "mockIntegrations": [

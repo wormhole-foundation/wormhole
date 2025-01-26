@@ -21,7 +21,7 @@ set -uo pipefail
 network=testnet
 
 for module in ${MODULES[@]}; do
-  for chain in ${chains[@]}; do
+  for chain in ${CHAINS[@]}; do
     echo "Upgrading ${chain} ${module} ********************************************************************"
     ./sh/upgrade.sh "$network" "$module" "$chain"
   done

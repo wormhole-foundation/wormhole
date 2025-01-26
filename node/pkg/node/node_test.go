@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -26,6 +25,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -34,7 +34,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	libp2p_peer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
@@ -79,7 +78,7 @@ type mockGuardian struct {
 	p2pKey           libp2p_crypto.PrivKey
 	MockObservationC chan *common.MessagePublication
 	MockSetC         chan *common.GuardianSet
-	gk               *ecdsa.PrivateKey
+	guardianSigner   guardiansigner.GuardianSigner
 	guardianAddr     eth_common.Address
 	ready            bool
 	config           *guardianConfig
@@ -112,8 +111,8 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 	gs := make([]*mockGuardian, n)
 
 	for i := 0; i < n; i++ {
-		// generate guardian key
-		gk, err := ecdsa.GenerateKey(eth_crypto.S256(), rand.Reader)
+		// generate guardian signer
+		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 		if err != nil {
 			panic(err)
 		}
@@ -122,8 +121,8 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			p2pKey:           devnet.DeterministicP2PPrivKeyByIndex(int64(i)),
 			MockObservationC: make(chan *common.MessagePublication),
 			MockSetC:         make(chan *common.GuardianSet),
-			gk:               gk,
-			guardianAddr:     ethcrypto.PubkeyToAddress(gk.PublicKey),
+			guardianSigner:   guardianSigner,
+			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
 			config:           createGuardianConfig(t, testId, uint(i)),
 		}
 	}
@@ -189,20 +188,20 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
 			GuardianOptionNoAccountant(), // disable accountant
-			GuardianOptionGovernor(true),
+			GuardianOptionGovernor(true, false, ""),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }),
+			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }),
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
-			GuardianOptionProcessor(),
+			GuardianOptionProcessor(networkID),
 		}
 
 		guardianNode := NewGuardianNode(
 			env,
-			gs[mockGuardianIndex].gk,
+			gs[mockGuardianIndex].guardianSigner,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
@@ -375,8 +374,9 @@ var someMsgEmitterChain vaa.ChainID = vaa.ChainIDSolana
 
 func someMessage() *common.MessagePublication {
 	someMsgSequenceCounter++
+	txID := [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3}
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3},
+		TxID:             txID[:],
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         someMsgSequenceCounter,
@@ -440,8 +440,9 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 	)
 
 	tokenBridgeSequenceCounter++
+	txID := [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76}
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76},
+		TxID:             txID[:],
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         tokenBridgeSequenceCounter,
@@ -459,7 +460,7 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 		if t.unavailableInReobservation {
 			continue
 		}
-		db[t.msg.TxHash] = t.msg
+		db[eth_common.BytesToHash(t.msg.TxID)] = t.msg
 	}
 	return db
 }
@@ -670,10 +671,10 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 		// Inform them of the Guardian Set
-		commonGuardianSet := common.GuardianSet{
-			Keys:  mockGuardianSetToGuardianAddrList(t, gs),
-			Index: guardianSetIndex,
-		}
+		commonGuardianSet := *common.NewGuardianSet(
+			mockGuardianSetToGuardianAddrList(t, gs),
+			guardianSetIndex,
+		)
 		for i, g := range gs {
 			logger.Info("Sending guardian set update", zap.Int("guardian_index", i))
 			g.MockSetC <- &commonGuardianSet
@@ -749,7 +750,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 					_, err := adminCs[adminRpcGuardianIndex].SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
 							ChainId: uint32(testCase.msg.EmitterChain),
-							TxHash:  testCase.msg.TxHash[:],
+							TxHash:  testCase.msg.TxID,
 						},
 					})
 					queryCancel()
@@ -940,54 +941,64 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 		// because we're only instantiating the guardians and kill them right after they started running, 2s should be plenty of time
 		const testTimeout = time.Second * 2
 
-		// Test's main lifecycle context.
-		rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
-		defer rootCtxCancel()
+		func() {
+			// Test's main lifecycle context.
+			rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
+			defer rootCtxCancel()
 
-		// we need to catch a zap.Logger.Fatal() here.
-		// By default zap.Logger.Fatal() will os.Exit(1), which we can't catch.
-		// We modify zap's behavior to instead assert that the error is the one we're looking for and then panic
-		// The panic will be subsequently caught by the supervisor
-		fatalHook := make(fatalHook)
-		defer close(fatalHook)
-		zapLogger, zapObserver, _ := setupLogsCapture(t, zap.WithFatalHook(fatalHook))
+			// we need to catch a zap.Logger.Fatal() here.
+			// By default zap.Logger.Fatal() will os.Exit(1), which we can't catch.
+			// We modify zap's behavior to instead assert that the error is the one we're looking for and then panic
+			// The panic will be subsequently caught by the supervisor
+			fatalHook := make(fatalHook)
+			defer close(fatalHook)
+			zapLogger, zapObserver, _ := setupLogsCapture(t, zap.WithFatalHook(fatalHook))
 
-		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
-			// Create a sub-context with cancel function that we can pass to G.run.
-			ctx, ctxCancel := context.WithCancel(ctx)
-			defer ctxCancel()
+			supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
+				// Create a sub-context with cancel function that we can pass to G.run.
+				ctx, ctxCancel := context.WithCancel(ctx)
+				defer ctxCancel()
 
-			if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
-				panic(err)
+				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
+					panic(err)
+				}
+
+				supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+				// wait for all options to get applied
+				// If we were expecting an error, we should never get past this point.
+				for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
+					time.Sleep(time.Millisecond * 10)
+				}
+
+				// Test done.
+				logger.Info("Test done.")
+				supervisor.Signal(ctx, supervisor.SignalDone)
+				rootCtxCancel()
+
+				return nil
+			})
+
+			select {
+			case r := <-fatalHook:
+				if tc.err == "" {
+					assert.Equal(t, tc.err, r)
+				}
+				assert.Contains(t, r, tc.err)
+				rootCtxCancel()
+			case <-rootCtx.Done():
+				assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
+				assert.Equal(t, tc.err, "") // we only want to end up here if we did not expect an error.
 			}
 
-			supervisor.Signal(ctx, supervisor.SignalHealthy)
-
-			// wait for all options to get applied
-			// If we were expecting an error, we should never get past this point.
-			for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
+			// There is a race condition where the logger can get destroyed before the supervisor finishes logging on exit. Wait for the last log message from the supervisor.
+			count := 0
+			for len(zapObserver.FilterMessage("supervisor exited").All()) == 0 {
 				time.Sleep(time.Millisecond * 10)
+				count++
+				assert.Greater(t, 100, count)
 			}
-
-			// Test done.
-			logger.Info("Test done.")
-			supervisor.Signal(ctx, supervisor.SignalDone)
-			rootCtxCancel()
-
-			return nil
-		})
-
-		select {
-		case r := <-fatalHook:
-			if tc.err == "" {
-				assert.Equal(t, tc.err, r)
-			}
-			assert.Contains(t, r, tc.err)
-			rootCtxCancel()
-		case <-rootCtx.Done():
-			assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
-			assert.Equal(t, tc.err, "") // we only want to end up here if we did not expect an error.
-		}
+		}()
 	}
 }
 
@@ -1015,7 +1026,7 @@ func (c fatalHook) OnWrite(ce *zapcore.CheckedEntry, fields []zapcore.Field) {
 func signingMsgs(n int) [][]byte {
 	msgs := make([][]byte, n)
 	for i := 0; i < len(msgs); i++ {
-		msgs[i] = ethcrypto.Keccak256Hash([]byte{byte(i)}).Bytes()
+		msgs[i] = eth_crypto.Keccak256Hash([]byte{byte(i)}).Bytes()
 	}
 	return msgs
 }
@@ -1039,7 +1050,7 @@ func signMsgsEth(pk *ecdsa.PrivateKey, msgs [][]byte) [][]byte {
 	signatures := make([][]byte, n)
 	// Ed25519.Sign
 	for i := 0; i < n; i++ {
-		sig, err := ethcrypto.Sign(msgs[i], pk)
+		sig, err := eth_crypto.Sign(msgs[i], pk)
 		if err != nil {
 			panic(err)
 		}
@@ -1111,9 +1122,9 @@ func BenchmarkCrypto(b *testing.B) {
 		})
 	})
 
-	b.Run("ethcrypto (secp256k1)", func(b *testing.B) {
+	b.Run("eth_crypto (secp256k1)", func(b *testing.B) {
 
-		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethcrypto.S256(), 0)
+		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(eth_crypto.S256(), 0)
 
 		b.Run("sign", func(b *testing.B) {
 			msgs := signingMsgs(b.N)
@@ -1128,7 +1139,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 			// Ed25519.Verify
 			for i := 0; i < b.N; i++ {
-				_, err := ethcrypto.Ecrecover(msgs[i], signatures[i])
+				_, err := eth_crypto.Ecrecover(msgs[i], signatures[i])
 				assert.NoError(b, err)
 			}
 		})
@@ -1137,7 +1148,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 // How to run:
 //
-//	go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
+//	go test -v -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
 func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
@@ -1184,10 +1195,10 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 			// Inform them of the Guardian Set
-			commonGuardianSet := common.GuardianSet{
-				Keys:  mockGuardianSetToGuardianAddrList(t, gs),
-				Index: guardianSetIndex,
-			}
+			commonGuardianSet := *common.NewGuardianSet(
+				mockGuardianSetToGuardianAddrList(t, gs),
+				guardianSetIndex,
+			)
 			for i, g := range gs {
 				logger.Info("Sending guardian set update", zap.Int("guardian_index", i))
 				g.MockSetC <- &commonGuardianSet

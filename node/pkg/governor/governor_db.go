@@ -18,6 +18,9 @@ func (gov *ChainGovernor) loadFromDB() error {
 	return gov.loadFromDBAlreadyLocked()
 }
 
+// loadFromDBAlreadyLocked method loads transfers and pending data from the database and modifies the corresponding fields in the ChainGovernor.
+// These fields are slices of transfers or pendingTransfers and will be sorted by their Timestamp property.
+// Modifies the state of the database as a side-effect: 'transfers' that are older than 24 hours are deleted.
 func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
@@ -44,7 +47,9 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 		for _, xfer := range xfers {
 			if startTime.Before(xfer.Timestamp) {
-				gov.reloadTransfer(xfer)
+				if err := gov.reloadTransfer(xfer); err != nil {
+					return err
+				}
 			} else {
 				if err := gov.db.DeleteTransfer(xfer); err != nil {
 					return err
@@ -62,7 +67,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if !exists {
 		gov.logger.Error("reloaded pending transfer for unsupported chain, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -76,7 +81,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if msg.EmitterAddress != ce.emitterAddr {
 		gov.logger.Error("reloaded pending transfer for unsupported emitter address, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -91,7 +96,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if err != nil {
 		gov.logger.Error("failed to parse payload for reloaded pending transfer, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -108,7 +113,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if !exists {
 		gov.logger.Error("reloaded pending transfer for unsupported token, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -126,7 +131,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if _, alreadyExists := gov.msgsSeen[hash]; alreadyExists {
 		gov.logger.Error("not reloading pending transfer because it is a duplicate",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -141,7 +146,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 
 	gov.logger.Info("reloaded pending transfer",
 		zap.String("MsgID", msg.MessageIDString()),
-		zap.Stringer("TxHash", msg.TxHash),
+		zap.String("txID", msg.TxIDString()),
 		zap.Stringer("Timestamp", msg.Timestamp),
 		zap.Uint32("Nonce", msg.Nonce),
 		zap.Uint64("Sequence", msg.Sequence),
@@ -152,11 +157,17 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 		zap.String("Hash", hash),
 	)
 
+	// Note: no flow cancel added here. We only want to add an inverse, flow-cancel transfer when the transfer is
+	// released from the pending queue, not when it's added.
 	ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: *pending})
 	gov.msgsSeen[hash] = transferEnqueued
 }
 
-func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
+// reloadTransfer method processes a db.Transfer and validates that it should be loaded into `gov`.
+// Modifies `gov` as a side-effect: when a valid transfer is loaded, the properties 'transfers' and 'msgsSeen' are
+// updated with information about the loaded transfer. In the case where a flow-canceling asset's transfer is loaded,
+// both chain entries (emitter and target) will be updated.
+func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	ce, exists := gov.chains[xfer.EmitterChain]
 	if !exists {
 		gov.logger.Error("reloaded transfer for unsupported chain, dropping it",
@@ -166,7 +177,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.Stringer("EmitterAddress", xfer.EmitterAddress),
 			zap.String("MsgID", xfer.MsgID),
 		)
-		return
+		return nil
 	}
 
 	if xfer.EmitterAddress != ce.emitterAddr {
@@ -177,7 +188,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
 		)
-		return
+		return nil
 	}
 
 	tk := tokenKey{chain: xfer.OriginChain, addr: xfer.OriginAddress}
@@ -190,7 +201,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.Stringer("OriginAddress", xfer.OriginAddress),
 			zap.String("MsgID", xfer.MsgID),
 		)
-		return
+		return nil
 	}
 
 	if _, alreadyExists := gov.msgsSeen[xfer.Hash]; alreadyExists {
@@ -202,7 +213,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 			zap.String("MsgID", xfer.MsgID),
 			zap.String("Hash", xfer.Hash),
 		)
-		return
+		return nil
 	}
 
 	if xfer.Hash != "" {
@@ -226,5 +237,36 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 		)
 	}
 
-	ce.transfers = append(ce.transfers, xfer)
+	transfer, err := newTransferFromDbTransfer(xfer)
+	if err != nil {
+		return err
+	}
+	ce.transfers = append(ce.transfers, transfer)
+
+	// Reload flow-cancel transfers for the TargetChain. This is important when the node restarts so that a corresponding,
+	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` and
+	// `CheckPending` loops but those functions do not capture flow-cancelling when the node is restarted.
+	tokenEntry := gov.tokens[tk]
+	if tokenEntry != nil {
+		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
+		if tokenEntry.flowCancels {
+			if destinationChainEntry, ok := gov.chains[xfer.TargetChain]; ok {
+				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(xfer); err != nil {
+					gov.logger.Error("could not add flow canceling transfer to destination chain",
+						zap.String("msgID", xfer.MsgID),
+						zap.String("hash", xfer.Hash), zap.Error(err),
+					)
+					return err
+				}
+			} else {
+				gov.logger.Error("tried to cancel flow but chain entry for target chain does not exist",
+					zap.String("msgID", xfer.MsgID),
+					zap.Stringer("token chain", xfer.OriginChain),
+					zap.Stringer("token address", xfer.OriginAddress),
+					zap.Stringer("target chain", xfer.TargetChain),
+				)
+			}
+		}
+	}
+	return nil
 }

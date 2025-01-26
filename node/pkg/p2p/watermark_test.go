@@ -2,8 +2,6 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -28,12 +27,15 @@ const LOCAL_P2P_PORTRANGE_START = 11000
 type G struct {
 	// arguments passed to p2p.New
 	obsvC                  chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]
+	batchObsvC             chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	obsvReqC               chan *gossipv1.ObservationRequest
 	obsvReqSendC           chan *gossipv1.ObservationRequest
-	sendC                  chan []byte
+	controlSendC           chan []byte
+	attestationSendC       chan []byte
+	vaaSendC               chan []byte
 	signedInC              chan *gossipv1.SignedVAAWithQuorum
 	priv                   p2pcrypto.PrivKey
-	gk                     *ecdsa.PrivateKey
+	guardianSigner         guardiansigner.GuardianSigner
 	gst                    *node_common.GuardianSetState
 	networkID              string
 	bootstrapPeers         string
@@ -56,23 +58,28 @@ func NewG(t *testing.T, nodeName string) *G {
 		panic(err)
 	}
 
-	guardianpriv, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
 	if err != nil {
 		panic(err)
 	}
 
+	_, rootCtxCancel := context.WithCancel(context.Background())
+
 	g := &G{
 		obsvC:                  make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservation], cs),
+		batchObsvC:             make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
 		obsvReqC:               make(chan *gossipv1.ObservationRequest, cs),
 		obsvReqSendC:           make(chan *gossipv1.ObservationRequest, cs),
-		sendC:                  make(chan []byte, cs),
+		controlSendC:           make(chan []byte, cs),
+		attestationSendC:       make(chan []byte, cs),
+		vaaSendC:               make(chan []byte, cs),
 		signedInC:              make(chan *gossipv1.SignedVAAWithQuorum, cs),
 		priv:                   p2ppriv,
-		gk:                     guardianpriv,
+		guardianSigner:         guardianSigner,
 		gst:                    node_common.NewGuardianSetState(nil),
 		nodeName:               nodeName,
 		disableHeartbeatVerify: false,
-		rootCtxCancel:          nil,
+		rootCtxCancel:          rootCtxCancel,
 		gov:                    nil,
 		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
 		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
@@ -89,7 +96,9 @@ func NewG(t *testing.T, nodeName string) *G {
 		case <-g.signedInC:
 		case <-g.signedGovCfg:
 		case <-g.signedGovSt:
-		case <-g.sendC:
+		case <-g.controlSendC:
+		case <-g.attestationSendC:
+		case <-g.vaaSendC:
 		}
 	}()
 
@@ -110,7 +119,7 @@ func TestWatermark(t *testing.T) {
 		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)
 		gs[i].networkID = "/wormhole/localdev"
 
-		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
 
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)
@@ -164,32 +173,38 @@ func TestWatermark(t *testing.T) {
 
 func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	t.Helper()
-	supervisor.New(ctx, zap.L(),
-		Run(g.obsvC,
-			g.obsvReqC,
-			g.obsvReqSendC,
-			g.sendC,
-			g.signedInC,
-			g.priv,
-			g.gk,
-			g.gst,
-			g.networkID,
-			g.bootstrapPeers,
+	params, err := NewRunParams(
+		g.bootstrapPeers,
+		g.networkID,
+		g.priv,
+		g.gst,
+		g.rootCtxCancel,
+		WithGuardianOptions(
 			g.nodeName,
-			g.disableHeartbeatVerify,
-			g.rootCtxCancel,
+			g.guardianSigner,
+			g.obsvC,
+			g.batchObsvC,
+			g.signedInC,
+			g.obsvReqC,
+			g.controlSendC,
+			g.attestationSendC,
+			g.vaaSendC,
+			g.obsvReqSendC,
 			g.acct,
 			g.gov,
-			g.signedGovCfg,
-			g.signedGovSt,
+			g.disableHeartbeatVerify,
 			g.components,
-			nil,   // ibc feature string
+			nil,   //g.ibcFeaturesFunc,
 			false, // gateway relayer enabled
 			false, // ccqEnabled
 			nil,   // signed query request channel
 			nil,   // query response channel
 			"",    // query bootstrap peers
 			0,     // query port
-			"",    // query allowed peers
+			"",    // query allowed peers),
 		))
+	require.NoError(t, err)
+
+	supervisor.New(ctx, zap.L(),
+		Run(params))
 }

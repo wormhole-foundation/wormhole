@@ -8,6 +8,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -49,8 +50,35 @@ const MaxStateAge = 1 * time.Minute
 type GuardianSet struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address
+
 	// On-chain set index
 	Index uint32
+
+	// quorum value for this set of keys
+	quorum int
+
+	// A map from address to index. Testing showed that, on average, a map is almost three times faster than a sequential search of the key slice.
+	// Testing also showed that the map was twice as fast as using a sorted slice and `slices.BinarySearchFunc`. That being said, on a 4GHz CPU,
+	// the sequential search takes an average of 800 nanos and the map look up takes about 260 nanos. Is this worth doing?
+	keyMap map[common.Address]int
+}
+
+// Quorum returns the current quorum value.
+func (gs *GuardianSet) Quorum() int {
+	return gs.quorum
+}
+
+func NewGuardianSet(keys []common.Address, index uint32) *GuardianSet {
+	keyMap := map[common.Address]int{}
+	for idx, key := range keys {
+		keyMap[key] = idx
+	}
+	return &GuardianSet{
+		Keys:   keys,
+		Index:  index,
+		quorum: vaa.CalculateQuorum(len(keys)),
+		keyMap: keyMap,
+	}
 }
 
 func (g *GuardianSet) KeysAsHexStrings() []string {
@@ -66,9 +94,15 @@ func (g *GuardianSet) KeysAsHexStrings() []string {
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
 func (g *GuardianSet) KeyIndex(addr common.Address) (int, bool) {
-	for n, k := range g.Keys {
-		if k == addr {
-			return n, true
+	if g.keyMap != nil {
+		if idx, found := g.keyMap[addr]; found {
+			return idx, true
+		}
+	} else {
+		for n, k := range g.Keys {
+			if k == addr {
+				return n, true
+			}
 		}
 	}
 
@@ -179,4 +213,9 @@ func (st *GuardianSetState) Cleanup() {
 			}
 		}
 	}
+}
+
+// IsSubscribedToHeartbeats returns true if the heartbeat update channel is set.
+func (st *GuardianSetState) IsSubscribedToHeartbeats() bool {
+	return st.updateC != nil
 }

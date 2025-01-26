@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       - run: make node
 
   algorand:
@@ -97,6 +97,8 @@ jobs:
 
   solana:
     runs-on: ubuntu-20.04
+    container: ghcr.io/wormhole-foundation/solana:1.10.31@sha256:d31e8db926a1d3fbaa9d9211d9979023692614b7b64912651aba0383e8c01bad
+
     env:
       RUSTFLAGS: -Dwarnings
       EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
@@ -163,25 +165,6 @@ jobs:
         run: cargo clippy --workspace --tests --manifest-path solana/Cargo.toml
           --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
 
-      - name: Cache solana tools
-        id: cache-solana
-        uses: actions/cache@v3
-        env:
-          cache-name: solana-tools
-        with:
-          path: |
-            ~/.local/share/solana/install/
-            ~/.cache/solana/
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.solana.outputs.version }}
-
-      - if: ${{ steps.cache-solana.outputs.cache-hit != 'true' }}
-        name: Install solana tools
-        env:
-          SOLANA_VERSION: ${{ steps.solana.outputs.version }}
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
-          ~/.local/share/solana/install/active_release/bin/sdk/bpf/scripts/install.sh
-
       - name: Run unit tests
         env:
           RUST_BACKTRACE: "1"
@@ -203,6 +186,7 @@ jobs:
           done
 
           cargo test --workspace --features "nft-bridge/instructions token-bridge/instructions wormhole-bridge-solana/instructions"
+        shell: bash
 
   aptos:
     name: Aptos
@@ -259,7 +243,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "20"
       - run: |
           cd clients/js && make test
           make docs
@@ -286,7 +270,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
@@ -303,13 +287,13 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       - name: Install formatter
         run: go install golang.org/x/tools/cmd/goimports@v0.8.0
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.57.2
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.60.1
       - name: Run linters
         run: make generate && golangci-lint --version && ./scripts/lint.sh -g lint
       - name: Ensure generated proto matches
@@ -345,10 +329,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.21.9"
+          go-version: "1.23.3"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
-        run: cd node && go test -v -timeout 5m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
+        run: cd node && go test -v -timeout 5m -race ./...
 
   # Run Rust lints and tests
   rust-lint-and-tests:

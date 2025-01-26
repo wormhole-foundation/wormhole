@@ -2,14 +2,13 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/query"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/protobuf/proto"
@@ -71,7 +70,7 @@ func newCcqRunP2p(
 func (ccq *ccqP2p) run(
 	ctx context.Context,
 	priv crypto.PrivKey,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	p2pNetworkID string,
 	bootstrapPeers string,
 	port uint,
@@ -110,6 +109,7 @@ func (ccq *ccqP2p) run(
 	ps, err := pubsub.NewGossipSub(ctx, ccq.h,
 		// We only want to accept subscribes from peers in the allow list.
 		pubsub.WithPeerFilter(func(peerID peer.ID, topic string) bool {
+			ccq.logger.Info("peer request received", zap.String("peerID", peerID.String()), zap.String("topic", topic))
 			if len(ccq.allowedPeers) == 0 {
 				return true
 			}
@@ -174,7 +174,7 @@ func (ccq *ccqP2p) run(
 	})
 
 	common.StartRunnable(ctx, errC, false, "ccqp2p_publisher", func(ctx context.Context) error {
-		return ccq.publisher(ctx, gk, queryResponseReadC)
+		return ccq.publisher(ctx, guardianSigner, queryResponseReadC)
 	})
 
 	ccq.logger.Info("Node has been started", zap.String("peer_id", ccq.h.ID().String()), zap.String("addrs", fmt.Sprintf("%v", ccq.h.Addrs())))
@@ -235,7 +235,7 @@ func (ccq *ccqP2p) listener(ctx context.Context, signedQueryReqC chan<- *gossipv
 	}
 }
 
-func (ccq *ccqP2p) publisher(ctx context.Context, gk *ecdsa.PrivateKey, queryResponseReadC <-chan *query.QueryResponsePublication) error {
+func (ccq *ccqP2p) publisher(ctx context.Context, guardianSigner guardiansigner.GuardianSigner, queryResponseReadC <-chan *query.QueryResponsePublication) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -247,7 +247,7 @@ func (ccq *ccqP2p) publisher(ctx context.Context, gk *ecdsa.PrivateKey, queryRes
 				continue
 			}
 			digest := query.GetQueryResponseDigestFromBytes(msgBytes)
-			sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+			sig, err := guardianSigner.Sign(ctx, digest.Bytes())
 			if err != nil {
 				panic(err)
 			}

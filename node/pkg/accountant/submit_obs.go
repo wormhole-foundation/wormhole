@@ -2,7 +2,6 @@ package accountant
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,9 +10,8 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	wasmdtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -67,7 +65,7 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 	ctx, cancel := context.WithTimeout(ctx, delayInMS)
 	defer cancel()
 
-	msgs, err := readFromChannel[*common.MessagePublication](ctx, subChan, batchSize)
+	msgs, err := common.ReadFromChannelWithTimeout[*common.MessagePublication](ctx, subChan, batchSize)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("failed to read messages from channel for %s: %w", tag, err)
 	}
@@ -93,21 +91,6 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag)
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
-}
-
-// readFromChannel reads events from the channel until a timeout occurs or the batch is full, and returns them.
-func readFromChannel[T any](ctx context.Context, ch <-chan T, count int) ([]T, error) {
-	out := make([]T, 0, count)
-	for len(out) < count {
-		select {
-		case <-ctx.Done():
-			return out, ctx.Err()
-		case msg := <-ch:
-			out = append(out, msg)
-		}
-	}
-
-	return out, nil
 }
 
 // removeCompleted drops any messages that are no longer in the pending transfer map. This is to handle the case where the contract reports
@@ -215,7 +198,7 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 // submitObservationsToContract makes a call to the smart contract to submit a batch of observation requests.
 // It should be called from a go routine because it can block.
 func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32, wormchainConn AccountantWormchainConn, contract string, prefix []byte, tag string) {
-	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, wormchainConn, contract, prefix, msgs)
+	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.guardianSigner, gsIndex, guardianIndex, wormchainConn, contract, prefix, msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
 		acct.logger.Error(fmt.Sprintf("failed to submit any observations in batch to %s", tag), zap.Int("numMsgs", len(msgs)), zap.Error(err))
@@ -314,7 +297,7 @@ func (acct *Accountant) handleTransferError(msgId string, errText string, logTex
 func SubmitObservationsToContract(
 	ctx context.Context,
 	logger *zap.Logger,
-	gk *ecdsa.PrivateKey,
+	guardianSigner guardiansigner.GuardianSigner,
 	gsIndex uint32,
 	guardianIndex uint32,
 	wormchainConn AccountantWormchainConn,
@@ -325,7 +308,7 @@ func SubmitObservationsToContract(
 	obs := make([]Observation, len(msgs))
 	for idx, msg := range msgs {
 		obs[idx] = Observation{
-			TxHash:           msg.TxHash.Bytes(),
+			TxHash:           msg.TxID,
 			Timestamp:        uint32(msg.Timestamp.Unix()),
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
@@ -338,7 +321,7 @@ func SubmitObservationsToContract(
 		logger.Debug("in SubmitObservationsToContract, encoding observation",
 			zap.String("contract", contract),
 			zap.Int("idx", idx),
-			zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
+			zap.String("txHash", msg.TxIDString()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
 			zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[idx].Timestamp),
 			zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[idx].Nonce),
 			zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[idx].EmitterChain),
@@ -359,7 +342,7 @@ func SubmitObservationsToContract(
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
 
-	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
+	sigBytes, err := guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}

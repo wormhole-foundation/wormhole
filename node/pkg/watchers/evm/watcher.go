@@ -2,7 +2,6 @@ package evm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	ethereum "github.com/ethereum/go-ethereum"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
@@ -122,8 +120,8 @@ type (
 		currentGuardianSet *uint32
 
 		// Interface to the chain specific ethereum library.
-		ethConn       connectors.Connector
-		unsafeDevMode bool
+		ethConn connectors.Connector
+		env     common.Environment
 
 		latestBlockNumber          uint64
 		latestSafeBlockNumber      uint64
@@ -137,10 +135,6 @@ type (
 		ccqBatchSize       int64
 		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
-
-		// These parameters are currently only used for Linea and should be set via SetLineaParams()
-		lineaRollUpUrl      string
-		lineaRollUpContract string
 	}
 
 	pendingKey struct {
@@ -169,7 +163,7 @@ func NewEthWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
-	unsafeDevMode bool,
+	env common.Environment,
 	ccqBackfillCache bool,
 ) *Watcher {
 	return &Watcher{
@@ -184,7 +178,7 @@ func NewEthWatcher(
 		queryReqC:          queryReqC,
 		queryResponseC:     queryResponseC,
 		pending:            map[pendingKey]*pendingMessage{},
-		unsafeDevMode:      unsafeDevMode,
+		env:                env,
 		ccqConfig:          query.GetPerChainConfig(chainID),
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
 		ccqBackfillCache:   ccqBackfillCache,
@@ -203,7 +197,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.String("contract", w.contract.String()),
 		zap.String("networkName", w.networkName),
 		zap.String("chainID", w.chainID.String()),
-		zap.Bool("unsafeDevMode", w.unsafeDevMode),
+		zap.String("env", string(w.env)),
 	)
 
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
@@ -238,28 +232,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		w.ethConn = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
-	} else if w.chainID == vaa.ChainIDCelo {
-		// When we are running in mainnet or testnet, we need to use the Celo ethereum library rather than go-ethereum.
-		// However, in devnet, we currently run the standard ETH node for Celo, so we need to use the standard go-ethereum.
-		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-	} else if w.chainID == vaa.ChainIDLinea {
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewLineaConnector(ctx, logger, baseConnector, w.lineaRollUpUrl, w.lineaRollUpContract)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to create Linea poller: %w", err)
-		}
 	} else {
 		// Everything else is instant finality.
 		logger.Info("assuming instant finality")
@@ -278,7 +250,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 
 	if w.ccqConfig.TimestampCacheSupported {
-		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, w.unsafeDevMode)
+		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, (w.env == common.UnsafeDevNet))
 	}
 
 	errC := make(chan error)
@@ -355,7 +327,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 						logger.Info("re-observed message publication transaction, publishing it immediately",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 						)
@@ -367,7 +339,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if safeBlockNumberU == 0 {
 							logger.Error("no safe block number available, ignoring observation request",
 								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
+								zap.String("txHash", msg.TxIDString()),
 							)
 							continue
 						}
@@ -375,7 +347,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if blockNumber <= safeBlockNumberU {
 							logger.Info("re-observed message publication transaction",
 								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
+								zap.String("txHash", msg.TxIDString()),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
 							)
@@ -383,7 +355,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						} else {
 							logger.Info("ignoring re-observed message publication transaction",
 								zap.String("msgId", msg.MessageIDString()),
-								zap.Stringer("txHash", msg.TxHash),
+								zap.String("txHash", msg.TxIDString()),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
 							)
@@ -395,7 +367,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if blockNumberU == 0 {
 						logger.Error("no block number available, ignoring observation request",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 						)
 						continue
 					}
@@ -412,7 +384,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					if blockNumber <= blockNumberU {
 						logger.Info("re-observed message publication transaction",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 						)
@@ -420,7 +392,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					} else {
 						logger.Info("ignoring re-observed message publication transaction",
 							zap.String("msgId", msg.MessageIDString()),
-							zap.Stringer("txHash", msg.TxHash),
+							zap.String("txHash", msg.TxIDString()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 						)
@@ -536,25 +508,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					// Transaction was dropped and never picked up again
-					if pLock.height+MaxWaitConfirmations <= blockNumberU {
-						logger.Info("observation timed out",
-							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.Stringer("txHash", pLock.message.TxHash),
-							zap.Stringer("blockHash", key.BlockHash),
-							zap.Stringer("current_blockNum", ev.Number),
-							zap.Stringer("finality", ev.Finality),
-							zap.Stringer("current_blockHash", currentHash),
-						)
-						ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
-						delete(w.pending, key)
-						continue
-					}
-
 					// Transaction is now ready
 					if pLock.height <= blockNumberU {
+						msm := time.Now()
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
+						tx, err := w.ethConn.TransactionReceipt(timeout, eth_common.BytesToHash(pLock.message.TxID))
+						queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 						cancel()
 
 						// If the node returns an error after waiting expectedConfirmation blocks,
@@ -568,8 +527,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
@@ -585,8 +545,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if tx.Status != 1 {
 							logger.Error("transaction receipt with non-success status",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
@@ -598,14 +559,30 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 						// Any error other than "not found" is likely transient - we retry next block.
 						if err != nil {
-							logger.Warn("transaction could not be fetched",
-								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
-								zap.Stringer("blockHash", key.BlockHash),
-								zap.Stringer("current_blockNum", ev.Number),
-								zap.Stringer("finality", ev.Finality),
-								zap.Stringer("current_blockHash", currentHash),
-								zap.Error(err))
+							if pLock.height+MaxWaitConfirmations <= blockNumberU {
+								// An error from this "transient" case has persisted for more than MaxWaitConfirmations.
+								logger.Info("observation timed out",
+									zap.String("msgId", pLock.message.MessageIDString()),
+									zap.String("txHash", pLock.message.TxIDString()),
+									zap.Stringer("blockHash", key.BlockHash),
+									zap.Uint64("target_blockNum", pLock.height),
+									zap.Stringer("current_blockNum", ev.Number),
+									zap.Stringer("finality", ev.Finality),
+									zap.Stringer("current_blockHash", currentHash),
+								)
+								ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
+								delete(w.pending, key)
+							} else {
+								logger.Warn("transaction could not be fetched",
+									zap.String("msgId", pLock.message.MessageIDString()),
+									zap.String("txHash", pLock.message.TxIDString()),
+									zap.Stringer("blockHash", key.BlockHash),
+									zap.Uint64("target_blockNum", pLock.height),
+									zap.Stringer("current_blockNum", ev.Number),
+									zap.Stringer("finality", ev.Finality),
+									zap.Stringer("current_blockHash", currentHash),
+									zap.Error(err))
+							}
 							continue
 						}
 
@@ -615,8 +592,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						if tx.BlockHash != key.BlockHash {
 							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
 								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.Stringer("txHash", pLock.message.TxHash),
+								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("target_blockNum", pLock.height),
 								zap.Stringer("current_blockNum", ev.Number),
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
@@ -628,8 +606,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 						logger.Info("observation confirmed",
 							zap.String("msgId", pLock.message.MessageIDString()),
-							zap.Stringer("txHash", pLock.message.TxHash),
+							zap.String("txHash", pLock.message.TxIDString()),
 							zap.Stringer("blockHash", key.BlockHash),
+							zap.Uint64("target_blockNum", pLock.height),
 							zap.Stringer("current_blockNum", ev.Number),
 							zap.Stringer("finality", ev.Finality),
 							zap.Stringer("current_blockHash", currentHash),
@@ -690,10 +669,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	w.currentGuardianSet = &idx
 
 	if w.setC != nil {
-		w.setC <- &common.GuardianSet{
-			Keys:  gs.Keys,
-			Index: idx,
-		}
+		w.setC <- common.NewGuardianSet(gs.Keys, idx)
 	}
 
 	return nil
@@ -721,7 +697,7 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	safe := false
 
 	// Tilt supports polling for both finalized and safe.
-	if w.unsafeDevMode {
+	if w.env == common.UnsafeDevNet {
 		finalized = true
 		safe = true
 
@@ -735,20 +711,29 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 		w.chainID == vaa.ChainIDBSC ||
 		w.chainID == vaa.ChainIDEthereum ||
 		w.chainID == vaa.ChainIDHolesky ||
+		w.chainID == vaa.ChainIDHyperEVM ||
+		w.chainID == vaa.ChainIDInk ||
 		w.chainID == vaa.ChainIDKarura ||
 		w.chainID == vaa.ChainIDMantle ||
+		w.chainID == vaa.ChainIDMonad ||
+		w.chainID == vaa.ChainIDMonadDevnet ||
 		w.chainID == vaa.ChainIDMoonbeam ||
 		w.chainID == vaa.ChainIDOptimism ||
 		w.chainID == vaa.ChainIDOptimismSepolia ||
+		w.chainID == vaa.ChainIDSeiEVM ||
 		w.chainID == vaa.ChainIDSepolia ||
+		w.chainID == vaa.ChainIDSnaxchain ||
+		w.chainID == vaa.ChainIDUnichain ||
+		w.chainID == vaa.ChainIDWorldchain ||
 		w.chainID == vaa.ChainIDXLayer {
 		finalized = true
 		safe = true
 
-		// The following chains have their own specialized finalizers.
-	} else if w.chainID == vaa.ChainIDCelo ||
-		w.chainID == vaa.ChainIDLinea {
-		return false, false, nil
+	} else if w.chainID == vaa.ChainIDCelo {
+		// TODO: Celo testnet now supports finalized and safe. As of January 2025, mainnet doesn't yet support safe. Once Celo mainnet cuts over, Celo can
+		// be added to the list above. That change won't be super urgent since we'll just continue to publish safe as finalized, which is not a huge deal.
+		finalized = true
+		safe = w.env != common.MainNet
 
 		// Polygon now supports polling for finalized but not safe.
 		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
@@ -758,6 +743,10 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 
 		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
 	} else if w.chainID == vaa.ChainIDScroll {
+		finalized = true
+
+		// As of 9/06/2024 Linea supports polling for finalized but not safe.
+	} else if w.chainID == vaa.ChainIDLinea {
 		finalized = true
 
 		// The following chains support instant finality.
@@ -843,7 +832,7 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 // postMessage creates a message object from a log event and adds it to the pending list for processing.
 func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
 	message := &common.MessagePublication{
-		TxHash:           ev.Raw.TxHash,
+		TxID:             ev.Raw.TxHash.Bytes(),
 		Timestamp:        time.Unix(int64(blockTime), 0),
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
@@ -858,8 +847,9 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
 		logger.Info("found new message publication transaction, publishing it immediately",
 			zap.String("msgId", message.MessageIDString()),
-			zap.Stringer("txHash", message.TxHash),
+			zap.String("txHash", message.TxIDString()),
 			zap.Uint64("blockNum", ev.Raw.BlockNumber),
+			zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 			zap.Stringer("blockHash", ev.Raw.BlockHash),
 			zap.Uint64("blockTime", blockTime),
 			zap.Uint32("Nonce", ev.Nonce),
@@ -873,8 +863,9 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 
 	logger.Info("found new message publication transaction",
 		zap.String("msgId", message.MessageIDString()),
-		zap.Stringer("txHash", message.TxHash),
+		zap.String("txHash", message.TxIDString()),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint64("blockTime", blockTime),
 		zap.Uint32("Nonce", ev.Nonce),
@@ -882,7 +873,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	)
 
 	key := pendingKey{
-		TxHash:         message.TxHash,
+		TxHash:         eth_common.BytesToHash(message.TxID),
 		BlockHash:      ev.Raw.BlockHash,
 		EmitterAddress: message.EmitterAddress,
 		Sequence:       message.Sequence,
@@ -896,9 +887,17 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	w.pendingMu.Unlock()
 }
 
+// blockNotFoundErrors is used by `canRetryGetBlockTime`. It is a map of the error returns from `getBlockTime` that can trigger a retry.
+var blockNotFoundErrors = map[string]struct{}{
+	"not found":                     {},
+	"Unknown block":                 {},
+	"cannot query unfinalized data": {}, // Seen on Avalanche
+}
+
 // canRetryGetBlockTime returns true if the error returned by getBlockTime warrants doing a retry.
 func canRetryGetBlockTime(err error) bool {
-	return err == ethereum.NotFound /* go-ethereum */ || err.Error() == "cannot query unfinalized data" /* avalanche */
+	_, exists := blockNotFoundErrors[err.Error()]
+	return exists
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
@@ -908,6 +907,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 		zap.String("msgId", msgIdFromLogEvent(w.chainID, ev)),
 		zap.Stringer("txHash", ev.Raw.TxHash),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
+		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint32("Nonce", ev.Nonce),
 		zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
@@ -972,23 +972,4 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
 func msgIdFromLogEvent(chainID vaa.ChainID, ev *ethabi.AbiLogMessagePublished) string {
 	return fmt.Sprintf("%v/%v/%v", uint16(chainID), PadAddress(ev.Sender), ev.Sequence)
-}
-
-// SetLineaParams is used to enable polling on Linea using the roll up contract on Ethereum.
-func (w *Watcher) SetLineaParams(lineaRollUpUrl string, lineaRollUpContract string) error {
-	if w.chainID != vaa.ChainIDLinea {
-		return errors.New("function only allowed for Linea")
-	}
-	if w.unsafeDevMode && lineaRollUpUrl == "" && lineaRollUpContract == "" {
-		return nil
-	}
-	if lineaRollUpUrl == "" {
-		return fmt.Errorf("lineaRollUpUrl must be set")
-	}
-	if lineaRollUpContract == "" {
-		return fmt.Errorf("lineaRollUpContract must be set")
-	}
-	w.lineaRollUpUrl = lineaRollUpUrl
-	w.lineaRollUpContract = lineaRollUpContract
-	return nil
 }

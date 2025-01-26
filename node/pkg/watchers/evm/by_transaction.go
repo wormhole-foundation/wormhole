@@ -16,7 +16,7 @@ var (
 	// SECURITY: Hardcoded ABI identifier for the LogMessagePublished topic. When using the watcher, we don't need this
 	// since the node will only hand us pre-filtered events. In this case, we need to manually verify it
 	// since ParseLogMessagePublished will only verify whether it parses.
-	logMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
+	LogMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
 // MessageEventsForTransaction returns the lockup events for a given transaction.
@@ -65,7 +65,7 @@ func MessageEventsForTransaction(
 			continue
 		}
 
-		if l.Topics[0] != logMessagePublishedTopic {
+		if l.Topics[0] != LogMessagePublishedTopic {
 			continue
 		}
 
@@ -75,7 +75,7 @@ func MessageEventsForTransaction(
 		}
 
 		message := &common.MessagePublication{
-			TxHash:           ev.Raw.TxHash,
+			TxID:             ev.Raw.TxHash.Bytes(),
 			Timestamp:        time.Unix(int64(blockTime), 0),
 			Nonce:            ev.Nonce,
 			Sequence:         ev.Sequence,
