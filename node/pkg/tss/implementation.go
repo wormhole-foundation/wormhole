@@ -82,6 +82,10 @@ type Configurations struct {
 	maxJitter        time.Duration // jitter is used to reduce the chance guardians get back at the same time from DownTime.
 
 	ChainsWithNoSelfReport []uint16
+
+	// LeaderIdentity is used by the TSS engine protocol to determine who is responsible for telling
+	// the other guardians about a new VAAv1.
+	LeaderIdentity PEM // The public key of the leader in PEM format.
 }
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
@@ -117,6 +121,8 @@ type GuardianStorage struct {
 	guardiansProtoIDs []*tsscommv1.PartyId
 	guardianToCert    map[string]*x509.Certificate
 	pemkeyToGuardian  map[string]*tss.PartyID
+
+	isleader bool
 }
 
 func (g *GuardianStorage) contains(pid *tss.PartyID) bool {
@@ -1113,4 +1119,44 @@ func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) err
 	}
 
 	return nil
+}
+
+func (t *Engine) SeeNewVaa(v *vaa.VAA) {
+	if t == nil {
+		return
+	}
+
+	if !t.isleader {
+		return
+	}
+
+	if t.started.Load() != started {
+		return
+	}
+
+	if v == nil {
+		return
+	}
+
+	if v.Version != vaa.VaaVersion1 {
+		return
+	}
+
+	// TODO: if err := verifyVAA(vaa); err != nil {
+	// }
+
+	// TODO: take guardian IDs from signers of the VAA. (they use indices, so we need to convert them to PartyID)
+	send := Unicast{
+		Unicast:     nil,
+		Receipients: t.guardiansProtoIDs, // sending to all guardians.
+	}
+
+	select {
+	case t.messageOutChan <- &send:
+	default:
+		t.logger.Error(
+			"Leader failed to send newly seen VAA to guardians, network output channel buffer is full",
+			zap.String("chainID", v.EmitterChain.String()),
+		)
+	}
 }

@@ -1,6 +1,7 @@
 package tss
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -87,14 +88,18 @@ func (s *GuardianStorage) SetInnerFields() error {
 	}
 
 	s.guardiansProtoIDs = make([]*tsscommv1.PartyId, len(s.Guardians))
+
 	for i, guardian := range s.Guardians {
 		s.guardiansProtoIDs[i] = partyIdToProto(guardian)
 	}
 
 	s.guardianToCert = make(map[string]*x509.Certificate)
+
 	for i, guardian := range s.Guardians {
 		s.guardianToCert[partyIdToString(guardian)] = s.guardiansCerts[i]
 	}
+
+	s.isleader = bytes.Equal(s.Self.Key, s.LeaderIdentity)
 
 	return s.setCertToGuardian()
 }
