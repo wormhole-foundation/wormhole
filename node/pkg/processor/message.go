@@ -141,5 +141,5 @@ func (p *Processor) tssSetup(v *VAA) {
 		startTime: time.Now(),
 	}
 
-	p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes(), v.EmitterChain)
+	p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes(), v.EmitterChain, v.ConsistencyLevel)
 }

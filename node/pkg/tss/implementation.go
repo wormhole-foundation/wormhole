@@ -213,11 +213,12 @@ var (
 )
 
 // BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
-func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID) error {
-	return t.beginTSSSign(vaaDigest, chainID, false)
+
+func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8) error {
+	return t.beginTSSSign(vaaDigest, chainID, consistencyLvl, false)
 }
 
-func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, isRetry bool) error {
+func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8, isRetry bool) error {
 	if t == nil {
 		return errNilTssEngine
 	}
@@ -237,6 +238,7 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, isRetry boo
 	t.logger.Info("signature for VAA requested",
 		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
 		zap.String("chainID", chainID.String()),
+		zap.Uint8("consistency", consistencyLvl),
 		zap.Bool("isRetry", isRetry),
 	)
 
@@ -252,12 +254,18 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, isRetry boo
 		return fmt.Errorf("couldnt generate signing task: %w", err)
 	}
 
-	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: signinginfo}); err != nil {
+	sgCmd := &signCommand{
+		SigningInfo:       signinginfo,
+		passedToFP:        false, // set to true only after FP actually received the message.
+		digestconsistancy: consistencyLvl,
+	}
+
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, sgCmd); err != nil {
 		return fmt.Errorf("couldn't inform the fault-tolerance tracker of the signature start: %w", err)
 	}
 
-	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others:
-	t.anounceNewDigest(d[:], chainID)
+	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others (if consistency levels allows it).
+	t.anounceNewDigest(d[:], chainID, consistencyLvl)
 
 	cmd := prepareToSignCommand{
 		ChainID: chainID,
@@ -340,7 +348,16 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, isRetry boo
 	return nil
 }
 
-func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID) {
+func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsistency uint8) {
+	// We are not reporting on consistency levels of instant.
+	// other levels are SAFE and FINALISED (which are relatively good)
+	if vaaConsistency == instantConsistencyLevel {
+		return
+	}
+	if chainID == vaa.ChainIDPythNet && vaaConsistency != pythnetFinalizedConsistencyLevel {
+		return
+	}
+
 	sm := tsscommv1.SignedMessage{
 		Sender:    partyIdToProto(t.Self),
 		Signature: []byte{},
@@ -835,13 +852,6 @@ func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
 	maxLiveSignatures := t.GuardianStorage.maxSimultaneousSignatures
 
 	if ok := t.sigCounter.add(trackId, from, maxLiveSignatures); ok {
-		// TODO: Should I update that a delivery was made even if sigCounter blocked it?
-
-		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &deliveryCommand{
-			parsedMsg: parsed,
-			from:      from,
-		})
-
 		return t.fp.Update(parsed)
 	}
 

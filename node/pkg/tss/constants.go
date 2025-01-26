@@ -53,4 +53,9 @@ const (
 
 	defaultMaxDownTimeJitter = time.Minute
 	maxHeartbeatInterval     = defaultGuardianDownTime
+
+	// Consistency levels (following https://wormhole.com/docs/build/reference/consistency-levels/):
+	instantConsistencyLevel uint8 = vaa.ConsistencyLevelPublishImmediately // low consistancy
+
+	pythnetFinalizedConsistencyLevel uint8 = 1 // high consistancy
 )

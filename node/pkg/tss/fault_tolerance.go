@@ -45,14 +45,13 @@ import (
 // ftCommand represents commands that reach the ftTracker.
 // to become ftCommand, the struct must implement the apply(*Engine, *ftTracker) method.
 //
-// the commands include signCommand, deliveryCommand, prepareToSignCommand, and reportProblemCommand.
+// the commands include signCommand, prepareToSignCommand, and reportProblemCommand.
 //   - signCommand is used to inform the ftTracker that a guardian saw a digest, and what related information
 //     it has about the digest.
-//   - deliveryCommand is used to inform the ftTracker that a guardian saw a message and forwarded it
-//     to the fullParty.
-//   - prepareToSignCommand is used prior to trying to sign a digest.
-//     it provides the current state of the FTtracker's knowledge (faults for specific ChainID),
-//     and whether a digest has already been requested to be signed.
+//   - newSeenDigestCommand is used to inform the ftTracker that a guardian saw a message and forwarded it
+//     to the fullParty (sent over network iff the consistancy level is good enough).
+//   - prepareToSignCommand is used to know which guardians aren't to be used in the protocol for
+//     specific chainID.
 //   - reportProblemCommand is used to deliver a problem message from another
 //     guardian (after it was accepted by the reliable-broadcast protocol).
 type ftCommand interface {
@@ -62,13 +61,9 @@ type ftCommand interface {
 type trackidStr string
 
 type signCommand struct {
-	SigningInfo *party.SigningInfo
-	passedToFP  bool
-}
-
-type deliveryCommand struct {
-	parsedMsg tss.Message
-	from      *tss.PartyID
+	SigningInfo       *party.SigningInfo
+	passedToFP        bool
+	digestconsistancy uint8
 }
 
 type SigEndCommand struct {
@@ -157,6 +152,10 @@ type signatureState struct {
 	// Once one of the trackidStr saw f+1 guardians and we haven't seent the digest yet, we can assume
 	// we are behind the network and we should inform the others.
 	trackidContext map[trackidStr]*tackingIDContext
+
+	// consistansy states the level of finality floats over the digest.
+	// Bad consistancy means the digest is not final, and even might not be seen by all guardians.
+	digestconsistancy uint8
 
 	alertTime time.Time
 
@@ -395,7 +394,8 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 
 	go func() {
 		for _, sig := range retryNow {
-			if err := t.beginTSSSign(sig.digest[:], chainID, true); err != nil {
+			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
+			if err := t.beginTSSSign(sig.digest[:], chainID, sig.digestconsistancy, true); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}
@@ -523,49 +523,6 @@ func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
 	if sigstate, ok := f.sigsState[key]; ok {
 		f.remove(sigstate)
 	}
-}
-
-func (cmd *deliveryCommand) apply(t *Engine, f *ftTracker) {
-	wmsg := cmd.parsedMsg.WireMsg()
-	if wmsg == nil {
-		t.logger.Error("deliveryCommand: wire message is nil")
-
-		return
-	}
-
-	tid := wmsg.GetTrackingID()
-	if tid == nil {
-		t.logger.Error("deliveryCommand: tracking id is nil")
-
-		return
-	}
-
-	dgst := party.Digest{}
-	copy(dgst[:], tid.GetDigest())
-
-	chain := extractChainIDFromTrackingID(tid)
-
-	state, ok := f.sigsState[intoSigKey(dgst, chain)]
-	if !ok {
-		alertTime := time.Now().Add(t.GuardianStorage.DelayGraceTime)
-		state = f.setNewSigState(dgst, chain, alertTime)
-
-		// Since this is a delivery and not a sign command, we add this to the alert heap.
-		f.sigAlerts.Enqueue(state)
-	}
-
-	tidstr := trackidStr(tid.ToString())
-
-	tidData, ok := state.trackidContext[tidstr]
-	if !ok {
-		tidData = &tackingIDContext{
-			sawProtocolMessagesFrom: map[strPartyId]bool{},
-		}
-
-		state.trackidContext[tidstr] = tidData
-	}
-
-	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(cmd.from))] = true
 }
 
 func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alertTime time.Time) *signatureState {
@@ -738,7 +695,8 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 	// retry signatures...
 	go func() {
 		for _, sig := range toSign {
-			if err := t.beginTSSSign(sig.digest[:], sig.chain, true); err != nil {
+			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
+			if err := t.beginTSSSign(sig.digest[:], sig.chain, sig.digestconsistancy, true); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}
@@ -757,7 +715,7 @@ func (cmd *newSeenDigestCommand) apply(t *Engine, f *ftTracker) {
 		alertTime := time.Now().Add(t.GuardianStorage.DelayGraceTime)
 		state = f.setNewSigState(dgst, chain, alertTime)
 
-		// Since this is a delivery and not a sign command, we add this to the alert heap.
+		// Since this is a not a sign command, we add this to the alert heap.
 		f.sigAlerts.Enqueue(state)
 	}
 

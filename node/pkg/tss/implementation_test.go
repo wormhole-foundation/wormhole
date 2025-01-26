@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -40,7 +41,9 @@ var (
 		round9Message,
 	}
 
-	allRounds = append(unicastRounds, broadcastRounds...)
+	allRounds                     = append(unicastRounds, broadcastRounds...)
+	reportableConsistancyLevel    = uint8(1)                // TODO
+	nonReportableConsistancyLevel = instantConsistencyLevel // TODO
 )
 
 func parsedIntoEcho(a *assert.Assertions, t *Engine, parsed tss.ParsedMessage) *IncomingMessage {
@@ -327,6 +330,9 @@ func TestBadInputs(t *testing.T) {
 
 	e1.Start(ctx) // so it has a logger.
 
+	go func() {
+		http.ListenAndServe(":4937", nil)
+	}()
 	t.Run("signature", func(t *testing.T) {
 		for j, rnd := range allRounds {
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
@@ -476,16 +482,16 @@ func TestBadInputs(t *testing.T) {
 		var tmp *Engine = nil
 		engines2 := load5GuardiansSetupForBroadcastChecks(a)
 
-		a.ErrorIs(tmp.BeginAsyncThresholdSigningProtocol(nil, 0), errNilTssEngine)
-		a.ErrorIs(e2.BeginAsyncThresholdSigningProtocol(nil, 0), errTssEngineNotStarted)
+		a.ErrorIs(tmp.BeginAsyncThresholdSigningProtocol(nil, 0, reportableConsistancyLevel), errNilTssEngine)
+		a.ErrorIs(e2.BeginAsyncThresholdSigningProtocol(nil, 0, reportableConsistancyLevel), errTssEngineNotStarted)
 
 		tmp = engines2[1]
 		tmp.started.Store(started)
 
-		a.ErrorContains(e1.BeginAsyncThresholdSigningProtocol(make([]byte, 12), 0), "length is not 32 bytes")
+		a.ErrorContains(e1.BeginAsyncThresholdSigningProtocol(make([]byte, 12), 0, reportableConsistancyLevel), "length is not 32 bytes")
 
 		tmp.fp = nil
-		a.ErrorContains(tmp.BeginAsyncThresholdSigningProtocol(nil, 0), "not set up correctly")
+		a.ErrorContains(tmp.BeginAsyncThresholdSigningProtocol(nil, 0, reportableConsistancyLevel), "not set up correctly")
 	})
 
 	t.Run("fetch certificate", func(t *testing.T) {
@@ -633,7 +639,7 @@ func TestNoFaultsFlow(t *testing.T) {
 			for _, engine := range engines {
 				tmp := make([]byte, 32)
 				copy(tmp, dgst[:])
-				engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+				engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 			}
 			fmt.Println()
 		}
@@ -673,7 +679,7 @@ func TestNoFaultsFlow(t *testing.T) {
 		for _, engine := range engines {
 			tmp := make([]byte, 32)
 			copy(tmp, dgst[:])
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
@@ -717,12 +723,56 @@ func TestNoFaultsFlow(t *testing.T) {
 				tmp := make([]byte, 32)
 				copy(tmp, d[:])
 
-				engine.BeginAsyncThresholdSigningProtocol(tmp, 1)
+				engine.BeginAsyncThresholdSigningProtocol(tmp, 1, reportableConsistancyLevel)
 			}
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
 			a.FailNow("context expired")
+		}
+	})
+
+	t.Run("with nonreportable consistency level", func(t *testing.T) {
+		// test will check thatno FT is triggered when the consistency level is non-reportable.
+		// does so by starting signing for 2 out of 3 guardians and then wait for timeout.
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Second*10)
+		defer cancel()
+
+		for _, engine := range engines {
+			engine.DelayGraceTime = time.Second
+			engine.maxJitter = time.Nanosecond
+			a.NoError(engine.Start(ctx))
+		}
+
+		dnchn := msgHandler(ctx, engines, 1)
+
+		cID := vaa.ChainID(1)
+
+		e := getSigningGuardian(a, engines, party.SigningTask{
+			Digest:       dgst,
+			Faulties:     []*tss.PartyID{},
+			AuxilaryData: chainIDToBytes(cID),
+		})
+
+		for _, engine := range engines {
+			if equalPartyIds(e.Self, engine.Self) {
+				continue
+			}
+
+			tmp := make([]byte, 32)
+			copy(tmp, dgst[:])
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, nonReportableConsistancyLevel)
+		}
+
+		if !ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("signature shouldn't have been created")
 		}
 	})
 }
@@ -787,7 +837,7 @@ func TestFT(t *testing.T) {
 				if equalPartyIds(e.Self, engine.Self) {
 					continue
 				}
-				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId)
+				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId, reportableConsistancyLevel)
 			}
 		}
 
@@ -835,7 +885,7 @@ func TestFT(t *testing.T) {
 					tmp := make([]byte, 32)
 					copy(tmp, d[:])
 
-					engine.BeginAsyncThresholdSigningProtocol(tmp, 1)
+					engine.BeginAsyncThresholdSigningProtocol(tmp, 1, reportableConsistancyLevel)
 				}()
 			}
 		}
@@ -898,7 +948,7 @@ func TestFT(t *testing.T) {
 			tmp := make([]byte, len(singingTask.Digest))
 			copy(tmp, singingTask.Digest[:])
 
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
@@ -946,7 +996,7 @@ func TestFT(t *testing.T) {
 			tmp := make([]byte, len(tsk.Digest))
 			copy(tmp, tsk.Digest[:])
 
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
@@ -1000,7 +1050,7 @@ func TestFT(t *testing.T) {
 			tmp := make([]byte, len(signingTask.Digest))
 			copy(tmp, signingTask.Digest[:])
 
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
@@ -1051,7 +1101,7 @@ func TestFT(t *testing.T) {
 			d := d
 
 			for _, engine := range engines {
-				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId)
+				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId, reportableConsistancyLevel)
 			}
 		}
 
@@ -1098,7 +1148,7 @@ func TestFT(t *testing.T) {
 			tmp := make([]byte, 32)
 			copy(tmp, dgst[:])
 
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cid)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cid, reportableConsistancyLevel)
 		}
 
 		// expecting the time to run out.
@@ -1157,7 +1207,7 @@ func TestFT(t *testing.T) {
 				tmp := make([]byte, len(tsk.Digest))
 				copy(tmp, tsk.Digest[:])
 
-				engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+				engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 			}
 		}
 
@@ -1213,7 +1263,7 @@ func TestFT(t *testing.T) {
 				dgst := party.Digest{}
 				copy(dgst[:], tsks[i].Digest[:])
 
-				engine.BeginAsyncThresholdSigningProtocol(dgst[:], vaa.ChainID(i))
+				engine.BeginAsyncThresholdSigningProtocol(dgst[:], vaa.ChainID(i), reportableConsistancyLevel)
 			}
 		}
 
@@ -1261,13 +1311,13 @@ func TestFT(t *testing.T) {
 
 		// the signing guardian should use a committee with the other guardians (which we haven't started on purpose),
 		// since it received by now the problem message. (This is mainly to ensure: the guardian WILL allow signing this message)
-		signers[2].BeginAsyncThresholdSigningProtocol(tsk.Digest[:], cID)
+		signers[2].BeginAsyncThresholdSigningProtocol(tsk.Digest[:], cID, reportableConsistancyLevel)
 
 		time.Sleep(signers[0].guardianDownTime + time.Second) // waiting for the downtime to end.
 
 		fmt.Println("###rejoining###")
 		for i := 0; i < 2; i++ { // letting them sign again.
-			signers[i].BeginAsyncThresholdSigningProtocol(tsk.Digest[:], cID)
+			signers[i].BeginAsyncThresholdSigningProtocol(tsk.Digest[:], cID, reportableConsistancyLevel)
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
@@ -1318,7 +1368,7 @@ func TestFT(t *testing.T) {
 			d := d
 
 			for _, engine := range engines {
-				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId)
+				engine.BeginAsyncThresholdSigningProtocol(d.Digest[:], chainId, reportableConsistancyLevel)
 			}
 		}
 
@@ -1390,7 +1440,7 @@ func TestFT(t *testing.T) {
 			tmp := make([]byte, 32)
 			copy(tmp, tsk.Digest[:])
 
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cID)
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
 		}
 
 		if ctxExpiredFirst(ctx, dnchn) {
@@ -1842,7 +1892,7 @@ mainloop:
 }
 
 func beginSigningAndGrabMessage(e1 *Engine, dgst []byte, cid vaa.ChainID) Sendable {
-	go e1.BeginAsyncThresholdSigningProtocol(dgst, cid)
+	go e1.BeginAsyncThresholdSigningProtocol(dgst, cid, reportableConsistancyLevel)
 
 	var msg Sendable
 	for i := 0; i < round1NumberOfMessages(e1); i++ { // cleaning the channel, and taking one of the messages.

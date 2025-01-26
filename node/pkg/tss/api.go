@@ -54,7 +54,8 @@ type ReliableMessenger interface {
 
 // Signer is the interface to give any component with the ability to authorise a new threshold signature over a message.
 type Signer interface {
-	BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID) error
+	// for consistency level see https://wormhole.com/docs/build/reference/consistency-levels/
+	BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID, vaaconsistency uint8) error
 	ProducedSignature() <-chan *common.SignatureData
 
 	GetPublicKey() *ecdsa.PublicKey
