@@ -354,6 +354,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 	if vaaConsistency == instantConsistencyLevel {
 		return
 	}
+
 	if chainID == vaa.ChainIDPythNet && vaaConsistency != pythnetFinalizedConsistencyLevel {
 		return
 	}

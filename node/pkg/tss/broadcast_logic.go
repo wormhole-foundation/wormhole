@@ -90,6 +90,7 @@ func (p *parsedProblem) serialize() ([]byte, error) {
 	if p == nil {
 		return []byte(parsedProblemDomain), fmt.Errorf("nil parsedProblem")
 	}
+
 	unixtime := p.IssuingTime.AsTime().Unix()
 
 	fromId := [hostnameSize]byte{}
@@ -239,10 +240,12 @@ func (t *Engine) updateState(s *broadcaststate, msg *tsscommv1.SignedMessage, ec
 	if s.messageDigest != hashSignedMessage(msg) {
 		if err := t.verifySignedMessage(msg); err == nil { // no error means the sender is the equivicator.
 			err = fmt.Errorf("%w: (signer %v)", ErrEquivicatingGuardian, msg.Sender)
+
 			return false, wrapEquivErrWithTimestamp(err, s.timeReceived)
 		}
 
 		err = fmt.Errorf("%w: (echoer %v)", ErrEquivicatingGuardian, echoer)
+
 		return false, wrapEquivErrWithTimestamp(err, s.timeReceived)
 	}
 

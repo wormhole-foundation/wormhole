@@ -217,6 +217,7 @@ func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
 		if v.Announcement == nil {
 			return fmt.Errorf("announcement is nil")
 		}
+
 		if v.Announcement.Digest == nil {
 			return fmt.Errorf("announcement digest is nil")
 		}
@@ -396,6 +397,7 @@ type sigKey [party.DigestSize + auxiliaryDataSize]byte
 
 func intoSigKey(dgst party.Digest, chain vaa.ChainID) sigKey {
 	var key sigKey
+
 	copy(key[:party.DigestSize], dgst[:])
 	copy(key[party.DigestSize:], chainIDToBytes(chain))
 
@@ -412,6 +414,7 @@ func trackingIdIntoSigKey(tid *common.TrackingID) sigKey {
 func numFaultiesInTrackingID(tid *common.TrackingID, numGuardians int) int {
 	boolarr := common.ConvertByteArrayToBoolArray(tid.PartiesState, numGuardians)
 	faulties := 0
+
 	for _, v := range boolarr {
 		if !v {
 			faulties++

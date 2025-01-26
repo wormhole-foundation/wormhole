@@ -92,6 +92,7 @@ func (i *inactives) getFaultiesLists() [][]*tss.PartyID {
 	for _, v := range append([]*tss.PartyID{nil}, i.downtimeEnding...) {
 		listOfAllFaultiesLists = append(listOfAllFaultiesLists, i.getFaultiesWithout(v))
 	}
+
 	return listOfAllFaultiesLists
 }
 
@@ -105,6 +106,7 @@ func (i *inactives) getFaultiesWithout(pid *tss.PartyID) []*tss.PartyID {
 	}
 
 	faulties := make([]*tss.PartyID, 0, len(i.partyIDs)-1)
+
 	for _, p := range i.partyIDs {
 		if equalPartyIds(p, pid) {
 			continue
@@ -271,6 +273,7 @@ func (f *ftTracker) cleanup(t *Engine, maxttl time.Duration) {
 	now := time.Now()
 
 	toRemove := []sigKey{}
+
 	if len(f.ttlKeys) > sigStateRateLimit {
 		diff := len(f.ttlKeys) - sigStateRateLimit
 
@@ -286,11 +289,13 @@ func (f *ftTracker) cleanup(t *Engine, maxttl time.Duration) {
 	}
 
 	cutoff := 0
+
 	for i, keyAndTtl := range f.ttlKeys {
 		if now.Sub(keyAndTtl.ttl) >= maxttl {
 			toRemove = append(toRemove, keyAndTtl.key)
 		} else {
 			cutoff = i
+
 			break
 		}
 	}
@@ -314,6 +319,7 @@ func (f *ftTracker) remove(sigState *signatureState) {
 	}
 
 	key := intoSigKey(sigState.digest, sigState.chain)
+
 	for _, m := range f.membersData {
 		if chainData, ok := m.ftChainContext[sigState.chain]; ok {
 			delete(chainData.liveSigsWaitingForThisParty, key)
@@ -355,6 +361,7 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	reviveTime := now.Add(t.GuardianStorage.guardianDownTime + jitter)
 
 	chainID := vaa.ChainID(cmd.ChainID)
+
 	chainData, ok := m.ftChainContext[chainID]
 	if !ok {
 		chainData = newChainContext()
@@ -415,6 +422,7 @@ func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
 	}
 
 	sigKey := intoSigKey(cmd.Digest, cmd.ChainID)
+
 	sigState, ok := f.sigsState[sigKey]
 	if ok {
 		for tidStr, ctx := range sigState.trackidContext {
@@ -479,6 +487,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 	}
 
 	state.approvedToSign = true
+
 	for _, pid := range cmd.SigningInfo.SigningCommittee {
 		m, ok := f.membersData[strPartyId(partyIdToString(pid))]
 		if !ok {
@@ -499,6 +508,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 	// if this guardian has request a signature for this TID, then we store it to ensure it doesn't attempt to sign again later.
 	if cmd.passedToFP {
 		tidStr := trackidStr(tid.ToString())
+
 		tidData, ok := state.trackidContext[tidStr]
 		if !ok {
 			tidData = &tackingIDContext{
@@ -619,14 +629,15 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 
 // get the maximal amount of guardians that saw the digest and started signing.
 func (s *signatureState) maxGuardianVotes() int {
-	max := 0
+	maxVotesSeen := 0
+
 	for _, tidData := range s.trackidContext {
-		if len(tidData.sawProtocolMessagesFrom) > max {
-			max = len(tidData.sawProtocolMessagesFrom)
+		if len(tidData.sawProtocolMessagesFrom) > maxVotesSeen {
+			maxVotesSeen = len(tidData.sawProtocolMessagesFrom)
 		}
 	}
 
-	return max
+	return maxVotesSeen
 }
 
 func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
