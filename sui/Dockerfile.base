@@ -1,18 +1,17 @@
-FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016a64a0c as sui-node
+FROM rust:1.79.0@sha256:9b2689d6f99ff381f178fa4361db745c8c355faecde73aa5b18b0efa84f03e62 AS sui-build
+
+# https://github.com/MystenLabs/sui/blob/041c5f2bae2fe52079e44b70514333532d69f4e6/docs/content/guides/developer/getting-started/sui-install.mdx#all-linux-prerequisites
+RUN apt-get update && apt-get install -y curl git-all cmake gcc libssl-dev pkg-config libclang-dev libpq-dev build-essential
+
+# https://github.com/MystenLabs/sui/releases/tag/mainnet-v1.19.1
+RUN cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 041c5f2bae2fe52079e44b70514333532d69f4e6 sui
+
+FROM rust:1.79.0@sha256:9b2689d6f99ff381f178fa4361db745c8c355faecde73aa5b18b0efa84f03e62 AS sui-node
 
 WORKDIR /tmp
 
-RUN curl -L https://github.com/MystenLabs/sui/releases/download/mainnet-v1.19.1/sui-mainnet-v1.19.1-ubuntu-x86_64.tgz > sui-mainnet-v1.19.1-ubuntu-x86_64.tgz
-RUN echo "6a8cc96759760293143a00fe7031a5fea70d2dff5b98d18c0470c09555da63e0  sui-mainnet-v1.19.1-ubuntu-x86_64.tgz" | sha256sum -c --status
+COPY --from=sui-build /usr/local/cargo/bin/sui /bin/sui
 
-RUN tar -xvf sui-mainnet-v1.19.1-ubuntu-x86_64.tgz
-RUN mv target/release/sui-ubuntu-x86_64 /bin/sui
-RUN mv target/release/sui-faucet-ubuntu-x86_64 /bin/sui-faucet
-RUN mv target/release/sui-node-ubuntu-x86_64 /bin/sui-node
-
-RUN rm sui-mainnet-v1.19.1-ubuntu-x86_64.tgz
-
-RUN apt-get update
 RUN apt-get install -y ca-certificates curl gnupg
 RUN mkdir -p /etc/apt/keyrings
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg

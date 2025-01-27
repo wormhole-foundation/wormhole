@@ -65,7 +65,7 @@ func TestPendingMsgID(t *testing.T) {
 	require.NoError(t, err)
 
 	msg1 := &common.MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -75,7 +75,7 @@ func TestPendingMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
+	assert.Equal(t, []byte("GOV:PENDING4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
 }
 
 func TestTransferMsgID(t *testing.T) {
@@ -120,18 +120,18 @@ func TestIsTransfer(t *testing.T) {
 }
 
 func TestIsPendingMsg(t *testing.T) {
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1/1/1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:"+"1")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:"+"1/1/1")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
+	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING4:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
+	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 	assert.Equal(t, false, IsPendingMsg([]byte{0x01, 0x02, 0x03, 0x04}))
 	assert.Equal(t, false, IsPendingMsg([]byte{}))
-	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
 }
 
 func TestGetChainGovernorData(t *testing.T) {
@@ -228,7 +228,7 @@ func TestStorePendingMsg(t *testing.T) {
 	assert.NoError(t, err2)
 
 	msg := &common.MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -253,7 +253,7 @@ func TestDeletePendingMsg(t *testing.T) {
 	assert.NoError(t, err2)
 
 	msg := &common.MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -283,7 +283,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := common.MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -307,7 +307,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 
 	assert.Equal(t, pending1, pending2)
 
-	expectedPendingKey := "GOV:PENDING3:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedPendingKey := "GOV:PENDING4:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedPendingKey, string(PendingMsgID(&pending2.Msg)))
 }
 
@@ -361,7 +361,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	pending1 := &PendingTransfer{
 		ReleaseTime: time.Unix(int64(1654516435+72*60*60), 0),
 		Msg: common.MessagePublication{
-			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 			Timestamp:        time.Unix(int64(1654516435), 0),
 			Nonce:            123456,
 			Sequence:         789101112131417,
@@ -378,7 +378,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	pending2 := &PendingTransfer{
 		ReleaseTime: time.Unix(int64(1654516440+72*60*60), 0),
 		Msg: common.MessagePublication{
-			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 			Timestamp:        time.Unix(int64(1654516440), 0),
 			Nonce:            123456,
 			Sequence:         789101112131418,
@@ -524,7 +524,7 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := common.MessagePublication{
-		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
 		Sequence:         789101112131415,
@@ -585,13 +585,14 @@ func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
 func marshalOldMessagePublication(msg *common.MessagePublication) []byte {
 	buf := new(bytes.Buffer)
 
-	buf.Write(msg.TxHash[:])
+	buf.Write(msg.TxID[:])
 	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
 	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
 	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
 	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
 	vaa.MustWrite(buf, binary.BigEndian, msg.EmitterChain)
 	buf.Write(msg.EmitterAddress[:])
+	vaa.MustWrite(buf, binary.BigEndian, msg.IsReobservation)
 	buf.Write(msg.Payload)
 
 	return buf.Bytes()
@@ -674,13 +675,12 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	err = db.StoreTransfer(newXfer2)
 	require.NoError(t, err)
 
-	now := time.Unix(time.Now().Unix(), 0)
-
 	// Write the first pending event in the old format.
+	now := time.Unix(time.Now().Unix(), 0)
 	pending1 := &PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.,
 		Msg: common.MessagePublication{
-			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 			Timestamp:        now,
 			Nonce:            123456,
 			Sequence:         789101112131417,
@@ -695,14 +695,13 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	db.storeOldPendingMsg(t, pending1)
 	require.NoError(t, err)
 
-	now2 := now.Add(time.Second * 5)
-
 	// Write the second one in the new format.
+	now = now.Add(time.Second * 5)
 	pending2 := &PendingTransfer{
-		ReleaseTime: now2.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.
+		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.
 		Msg: common.MessagePublication{
-			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
-			Timestamp:        now2,
+			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
+			Timestamp:        now,
 			Nonce:            123456,
 			Sequence:         789101112131418,
 			EmitterChain:     vaa.ChainIDEthereum,
@@ -716,12 +715,39 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	err = db.StorePendingMsg(pending2)
 	require.NoError(t, err)
 
-	logger := zap.NewNop()
+	// Write the third pending event in the old format.
+	now = now.Add(time.Second * 5)
+	pending3 := &PendingTransfer{
+		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.,
+		Msg: common.MessagePublication{
+			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064").Bytes(),
+			Timestamp:        now,
+			Nonce:            123456,
+			Sequence:         789101112131419,
+			EmitterChain:     vaa.ChainIDEthereum,
+			EmitterAddress:   ethereumTokenBridgeAddr,
+			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			ConsistencyLevel: 16,
+			// IsReobservation will not be serialized. It should be set to false on reload.
+		},
+	}
+
+	db.storeOldPendingMsg(t, pending3)
+	require.NoError(t, err)
+
+	logger, zapObserver := setupLogsCapture(t)
+
 	xfers, pendings, err := db.GetChainGovernorDataForTime(logger, now)
 
 	require.NoError(t, err)
 	require.Equal(t, 4, len(xfers))
-	require.Equal(t, 2, len(pendings))
+	require.Equal(t, 3, len(pendings))
+
+	// Verify that we converted the two old pending transfers and the two old completed transfers.
+	loggedEntries := zapObserver.FilterMessage("updating format of database entry for pending vaa").All()
+	require.Equal(t, 2, len(loggedEntries))
+	loggedEntries = zapObserver.FilterMessage("updating format of database entry for completed transfer").All()
+	require.Equal(t, 2, len(loggedEntries))
 
 	sort.SliceStable(xfers, func(i, j int) bool {
 		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
@@ -739,14 +765,23 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	assert.Equal(t, pending1.Msg, pendings[0].Msg)
 	assert.Equal(t, pending2.Msg, pendings[1].Msg)
+	assert.Equal(t, pending3.Msg, pendings[2].Msg)
 
 	// Make sure we can reload the updated pendings.
+
+	logger, zapObserver = setupLogsCapture(t)
 
 	xfers2, pendings2, err := db.GetChainGovernorDataForTime(logger, now)
 
 	require.NoError(t, err)
 	require.Equal(t, 4, len(xfers2))
-	require.Equal(t, 2, len(pendings2))
+	require.Equal(t, 3, len(pendings2))
+
+	// This time we shouldn't have updated anything.
+	loggedEntries = zapObserver.FilterMessage("updating format of database entry for pending vaa").All()
+	require.Equal(t, 0, len(loggedEntries))
+	loggedEntries = zapObserver.FilterMessage("updating format of database entry for completed transfer").All()
+	require.Equal(t, 0, len(loggedEntries))
 
 	sort.SliceStable(xfers2, func(i, j int) bool {
 		return xfers2[i].Timestamp.Before(xfers2[j].Timestamp)

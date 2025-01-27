@@ -143,7 +143,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			MockObservationC: make(chan *common.MessagePublication),
 			MockSetC:         make(chan *common.GuardianSet),
 			guardianSigner:   guardianSigner,
-			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey()),
+			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
 			config:           createGuardianConfig(t, testId, uint(i)),
 			tssEngine:        reliableTss,
 		}
@@ -237,7 +237,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
 			GuardianOptionNoAccountant(), // disable accountant
-			GuardianOptionGovernor(true, false),
+			GuardianOptionGovernor(true, false, ""),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }),
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
@@ -430,8 +430,9 @@ var someMsgEmitterChain vaa.ChainID = vaa.ChainIDSolana
 
 func someMessage() *common.MessagePublication {
 	someMsgSequenceCounter++
+	txID := [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3}
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3},
+		TxID:             txID[:],
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         someMsgSequenceCounter,
@@ -495,8 +496,9 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 	)
 
 	tokenBridgeSequenceCounter++
+	txID := [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76}
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76},
+		TxID:             txID[:],
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
 		Sequence:         tokenBridgeSequenceCounter,
@@ -514,7 +516,7 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 		if t.unavailableInReobservation {
 			continue
 		}
-		db[t.msg.TxHash] = t.msg
+		db[eth_common.BytesToHash(t.msg.TxID)] = t.msg
 	}
 	return db
 }
@@ -806,7 +808,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int, inf
 					_, err := adminCs[adminRpcGuardianIndex].SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
 							ChainId: uint32(testCase.msg.EmitterChain),
-							TxHash:  testCase.msg.TxHash[:],
+							TxHash:  testCase.msg.TxID,
 						},
 					})
 					queryCancel()
@@ -1241,7 +1243,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 // How to run:
 //
-//	go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
+//	go test -v -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
 func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel

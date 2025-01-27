@@ -119,7 +119,7 @@ func TestWatermark(t *testing.T) {
 		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)
 		gs[i].networkID = "/wormhole/localdev"
 
-		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey()))
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
 
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)

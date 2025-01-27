@@ -70,7 +70,7 @@ func CreateChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 	wormchainConfig.Images[0].Version = wormchainVersion
 
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, false)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
@@ -132,11 +132,11 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 	})
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
-		TestName:          t.Name(),
-		Client:            client,
-		NetworkID:         network,
-		SkipPathCreation:  false,
-		BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
+		TestName:         t.Name(),
+		Client:           client,
+		NetworkID:        network,
+		SkipPathCreation: false,
+		// BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
 	})
 	require.NoError(t, err)
 
@@ -167,7 +167,7 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 // * Set Guardian Set List using new val set
 // * Set Guardian Validator List using new val set
 // * Allow list the faucet address
-func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guardians.ValSet) func(ibc.ChainConfig, []byte) ([]byte, error) {
+func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guardians.ValSet, skipRelayers bool) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		numVals := len(guardians.Vals)
 		g := make(map[string]interface{})
@@ -202,10 +202,13 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			return nil, fmt.Errorf("failed to get faucet address: %w", err)
 		}
 
-		// Get relayer address
-		relayerAddress, err := dyno.Get(g, "app_state", "auth", "accounts", numVals+1, "address")
-		if err != nil {
-			return nil, fmt.Errorf("failed to get relayer address: %w", err)
+		var relayerAddress interface{}
+		if !skipRelayers {
+			// Get relayer address
+			relayerAddress, err = dyno.Get(g, "app_state", "auth", "accounts", numVals+1, "address")
+			if err != nil {
+				return nil, fmt.Errorf("failed to get relayer address: %w", err)
+			}
 		}
 
 		// Set guardian set list and validators
@@ -236,11 +239,15 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			AllowedAddress:   faucetAddress.(string),
 			Name:             "Faucet",
 		})
-		allowedAddresses = append(allowedAddresses, ValidatorAllowedAddress{
-			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
-			AllowedAddress:   relayerAddress.(string),
-			Name:             "Relayer",
-		})
+
+		if !skipRelayers {
+			allowedAddresses = append(allowedAddresses, ValidatorAllowedAddress{
+				ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
+				AllowedAddress:   relayerAddress.(string),
+				Name:             "Relayer",
+			})
+		}
+
 		if err := dyno.Set(g, allowedAddresses, "app_state", "wormhole", "allowedAddresses"); err != nil {
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
 		}

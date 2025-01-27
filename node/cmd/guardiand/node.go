@@ -154,6 +154,10 @@ var (
 	aptosAccount *string
 	aptosHandle  *string
 
+	movementRPC     *string
+	movementAccount *string
+	movementHandle  *string
+
 	suiRPC           *string
 	suiMoveEventType *string
 
@@ -199,11 +203,20 @@ var (
 	worldchainRPC      *string
 	worldchainContract *string
 
+	monadRPC      *string
+	monadContract *string
+
 	monadDevnetRPC      *string
 	monadDevnetContract *string
 
 	inkRPC      *string
 	inkContract *string
+
+	hyperEvmRPC      *string
+	hyperEvmContract *string
+
+	seiEvmRPC      *string
+	seiEvmContract *string
 
 	sepoliaRPC      *string
 	sepoliaContract *string
@@ -249,6 +262,7 @@ var (
 
 	chainGovernorEnabled      *bool
 	governorFlowCancelEnabled *bool
+	coinGeckoApiKey           *string
 
 	ccqEnabled           *bool
 	ccqAllowedRequesters *string
@@ -374,6 +388,10 @@ func init() {
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
+	movementRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "movementRPC", "Movement RPC URL", "", []string{"http", "https"})
+	movementAccount = NodeCmd.Flags().String("movementAccount", "", "movement account")
+	movementHandle = NodeCmd.Flags().String("movementHandle", "", "movement handle")
+
 	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
@@ -428,6 +446,15 @@ func init() {
 	inkRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "inkRPC", "Ink RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	inkContract = NodeCmd.Flags().String("inkContract", "", "Ink contract address")
 
+	hyperEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hyperEvmRPC", "HyperEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	hyperEvmContract = NodeCmd.Flags().String("hyperEvmContract", "", "HyperEVM contract address")
+
+	monadRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "monadRPC", "Monad RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	monadContract = NodeCmd.Flags().String("monadContract", "", "Monad contract address")
+
+	seiEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	seiEvmContract = NodeCmd.Flags().String("seiEvmContract", "", "SeiEVM contract address")
+
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
@@ -469,6 +496,7 @@ func init() {
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
 	governorFlowCancelEnabled = NodeCmd.Flags().Bool("governorFlowCancelEnabled", false, "Enable flow cancel on the governor")
+	coinGeckoApiKey = NodeCmd.Flags().String("coinGeckoApiKey", "", "CoinGecko Pro API key. If no API key is provided, CoinGecko requests may be throttled or blocked.")
 
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
@@ -702,14 +730,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Node's main lifecycle context.
+	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
 	// Create the Guardian Signer
-	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(*guardianSignerUri, env == common.UnsafeDevNet)
+	guardianSigner, err := guardiansigner.NewGuardianSignerFromUri(rootCtx, *guardianSignerUri, env == common.UnsafeDevNet)
 	if err != nil {
 		logger.Fatal("failed to create a new guardian signer", zap.Error(err))
 	}
 
-	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String()))
+	logger.Info("Created the guardian signer", zap.String(
+		"address", ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String()))
 
 	// Load p2p private key
 	var p2pKey libp2p_crypto.PrivKey
@@ -765,7 +797,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		labels := map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.String(),
-			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 		}
@@ -813,6 +845,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
 	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
+	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, "hyperEvm", false)
+	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, "monad", false)
+	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, "seiEvm", false)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
@@ -867,12 +902,20 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*movementAccount, *movementRPC, *movementHandle}) {
+		logger.Fatal("Either --movementAccount, --movementRPC and --movementHandle must all be set or all unset")
+	}
+
 	if !argsConsistent([]string{*suiRPC, *suiMoveEventType}) {
 		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
+	}
+
+	if !*chainGovernorEnabled && *coinGeckoApiKey != "" {
+		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -910,71 +953,85 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Infura is known to send incorrect blocks - please use your own nodes")
 	}
 
+	// NOTE: Please keep these in numerical order by chain ID.
 	rpcMap := make(map[string]string)
-	rpcMap["acalaRPC"] = *acalaRPC
-	rpcMap["accountantWS"] = *accountantWS
-	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
-	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
-	rpcMap["aptosRPC"] = *aptosRPC
-	rpcMap["arbitrumRPC"] = *arbitrumRPC
-	rpcMap["avalancheRPC"] = *avalancheRPC
-	rpcMap["baseRPC"] = *baseRPC
-	rpcMap["berachainRPC"] = *berachainRPC
-	rpcMap["blastRPC"] = *blastRPC
-	rpcMap["bscRPC"] = *bscRPC
-	rpcMap["celoRPC"] = *celoRPC
-	rpcMap["ethRPC"] = *ethRPC
-	rpcMap["fantomRPC"] = *fantomRPC
-	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
-	rpcMap["ibcLCD"] = *ibcLCD
-	rpcMap["ibcWS"] = *ibcWS
-	rpcMap["injectiveLCD"] = *injectiveLCD
-	rpcMap["injectiveWS"] = *injectiveWS
-	rpcMap["inkRPC"] = *inkRPC
-	rpcMap["karuraRPC"] = *karuraRPC
-	rpcMap["klaytnRPC"] = *klaytnRPC
-	rpcMap["lineaRPC"] = *lineaRPC
-	rpcMap["mantleRPC"] = *mantleRPC
-	rpcMap["moonbeamRPC"] = *moonbeamRPC
-	rpcMap["nearRPC"] = *nearRPC
-	rpcMap["oasisRPC"] = *oasisRPC
-	rpcMap["optimismRPC"] = *optimismRPC
-	rpcMap["polygonRPC"] = *polygonRPC
-	rpcMap["pythnetRPC"] = *pythnetRPC
-	rpcMap["pythnetWS"] = *pythnetWS
-	if env == common.TestNet {
-		rpcMap["sepoliaRPC"] = *sepoliaRPC
-		rpcMap["holeskyRPC"] = *holeskyRPC
-		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
-		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
-		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
-		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
-		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
-	}
-	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["solanaRPC"] = *solanaRPC
-	rpcMap["snaxchainRPC"] = *snaxchainRPC
-	rpcMap["suiRPC"] = *suiRPC
+	rpcMap["ethRPC"] = *ethRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
+	rpcMap["bscRPC"] = *bscRPC
+	rpcMap["polygonRPC"] = *polygonRPC
+	rpcMap["avalancheRPC"] = *avalancheRPC
+	rpcMap["oasisRPC"] = *oasisRPC
+	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
+	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+	// ChainIDAurora is not supported in the guardian.
+	rpcMap["fantomRPC"] = *fantomRPC
+	rpcMap["karuraRPC"] = *karuraRPC
+	rpcMap["acalaRPC"] = *acalaRPC
+	rpcMap["klaytnRPC"] = *klaytnRPC
+	rpcMap["celoRPC"] = *celoRPC
+	rpcMap["nearRPC"] = *nearRPC
+	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["terra2WS"] = *terra2WS
 	rpcMap["terra2LCD"] = *terra2LCD
-	rpcMap["unichainRPC"] = *unichainRPC
-	rpcMap["worldchainRPC"] = *worldchainRPC
-	rpcMap["gatewayWS"] = *gatewayWS
-	rpcMap["gatewayLCD"] = *gatewayLCD
-	rpcMap["wormchainURL"] = *wormchainURL
-	rpcMap["xlayerRPC"] = *xlayerRPC
+	rpcMap["injectiveLCD"] = *injectiveLCD
+	rpcMap["injectiveWS"] = *injectiveWS
+	// ChainIDOsmosis is not supported in the guardian.
+	rpcMap["suiRPC"] = *suiRPC
+	rpcMap["aptosRPC"] = *aptosRPC
+	rpcMap["arbitrumRPC"] = *arbitrumRPC
+	rpcMap["optimismRPC"] = *optimismRPC
+	// ChainIDGnosis is not supported in the guardian.
+	rpcMap["pythnetRPC"] = *pythnetRPC
+	rpcMap["pythnetWS"] = *pythnetWS
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
+	// ChainIDBtc is not supported in the guardian.
+	rpcMap["baseRPC"] = *baseRPC
+	// ChainIDSei is supported over IBC, so it's not listed here.
+	// ChainIDRootstock is not supported in the guardian.
+	rpcMap["scrollRPC"] = *scrollRPC
+	rpcMap["mantleRPC"] = *mantleRPC
+	rpcMap["blastRPC"] = *blastRPC
+	rpcMap["xlayerRPC"] = *xlayerRPC
+	rpcMap["lineaRPC"] = *lineaRPC
+	rpcMap["berachainRPC"] = *berachainRPC
+	rpcMap["seiEvmRPC"] = *seiEvmRPC
+	rpcMap["snaxchainRPC"] = *snaxchainRPC
+	rpcMap["unichainRPC"] = *unichainRPC
+	rpcMap["worldchainRPC"] = *worldchainRPC
+	rpcMap["inkRPC"] = *inkRPC
+	rpcMap["hyperEvmRPC"] = *hyperEvmRPC
+	rpcMap["monadRPC"] = *monadRPC
+	rpcMap["movementRPC"] = *movementRPC
 
+	// Wormchain is in the 3000 range.
+	rpcMap["wormchainURL"] = *wormchainURL
+
+	// Generate the IBC chains (3000 range).
 	for _, ibcChain := range ibc.Chains {
 		rpcMap[ibcChain.String()] = "IBC"
 	}
 
-	// Node's main lifecycle context.
-	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
-	defer rootCtxCancel()
+	// The testnet only chains (10000 range) go here.
+	if env == common.TestNet {
+		rpcMap["sepoliaRPC"] = *sepoliaRPC
+		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
+		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
+		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
+		rpcMap["holeskyRPC"] = *holeskyRPC
+		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
+		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
+	}
+
+	// Other, non-chain specific parameters go here.
+	rpcMap["accountantWS"] = *accountantWS
+	rpcMap["gatewayWS"] = *gatewayWS
+	rpcMap["gatewayLCD"] = *gatewayLCD
+	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
+	rpcMap["ibcLCD"] = *ibcLCD
+	rpcMap["ibcWS"] = *ibcWS
 
 	// Handle SIGTERM
 	sigterm := make(chan os.Signal, 1)
@@ -1112,7 +1169,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		info.PromRemoteURL = *promRemoteURL
 		info.Labels = map[string]string{
 			"node_name":     *nodeName,
-			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()).String(),
+			"guardian_addr": ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 			"product":       "wormhole",
@@ -1430,6 +1487,42 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(hyperEvmRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "hyperevm",
+			ChainID:          vaa.ChainIDHyperEVM,
+			Rpc:              *hyperEvmRPC,
+			Contract:         *hyperEvmContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(monadRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "monad",
+			ChainID:          vaa.ChainIDMonad,
+			Rpc:              *monadRPC,
+			Contract:         *monadContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(seiEvmRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "seievm",
+			ChainID:          vaa.ChainIDSeiEVM,
+			Rpc:              *seiEvmRPC,
+			Contract:         *seiEvmContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1508,6 +1601,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:       *aptosRPC,
 			Account:   *aptosAccount,
 			Handle:    *aptosHandle,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(movementRPC) {
+		wc := &aptos.WatcherConfig{
+			NetworkID: "movement",
+			ChainID:   vaa.ChainIDMovement,
+			Rpc:       *movementRPC,
+			Account:   *movementAccount,
+			Handle:    *movementHandle,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
@@ -1692,7 +1796,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
-		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled),
+		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),

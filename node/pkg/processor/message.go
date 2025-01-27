@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/hex"
 	"time"
 
@@ -31,12 +32,12 @@ var (
 
 // handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
 // event may be received multiple times and must be handled in an idempotent fashion.
-func (p *Processor) handleMessage(k *common.MessagePublication) {
+func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublication) {
 	if p.gs == nil {
 		p.logger.Warn("dropping observation since we haven't initialized our guardian set yet",
 			zap.String("message_id", k.MessageIDString()),
 			zap.Uint32("nonce", k.Nonce),
-			zap.Stringer("txhash", k.TxHash),
+			zap.String("txID", k.TxIDString()),
 			zap.Time("timestamp", k.Timestamp),
 		)
 		return
@@ -72,7 +73,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	hash := hex.EncodeToString(digest.Bytes())
 
 	// Sign the digest using the node's GuardianSigner
-	signature, err := p.guardianSigner.Sign(digest.Bytes())
+	signature, err := p.guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		panic(err)
 	}
@@ -82,8 +83,8 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("observed and signed confirmed message publication",
 			zap.String("message_id", k.MessageIDString()),
-			zap.Stringer("txhash", k.TxHash),
-			zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
+			zap.String("txID", k.TxIDString()),
+			zap.String("txID_b58", base58.Encode(k.TxID)),
 			zap.String("hash", hash),
 			zap.Uint32("nonce", k.Nonce),
 			zap.Time("timestamp", k.Timestamp),
@@ -95,7 +96,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 	}
 
 	// Broadcast the signature.
-	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxHash.Bytes(), digest, signature, shouldPublishImmediately)
+	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxID, digest, signature, shouldPublishImmediately)
 
 	// Indicate that we observed this one.
 	observationsReceivedTotal.Inc()
@@ -116,7 +117,7 @@ func (p *Processor) handleMessage(k *common.MessagePublication) {
 
 	// Update our state.
 	s.ourObservation = v
-	s.txHash = k.TxHash.Bytes()
+	s.txHash = k.TxID
 	s.source = v.GetEmitterChain().String()
 	s.gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
 	s.signatures[p.ourAddr] = signature

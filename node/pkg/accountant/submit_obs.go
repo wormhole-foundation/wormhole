@@ -308,7 +308,7 @@ func SubmitObservationsToContract(
 	obs := make([]Observation, len(msgs))
 	for idx, msg := range msgs {
 		obs[idx] = Observation{
-			TxHash:           msg.TxHash.Bytes(),
+			TxHash:           msg.TxID,
 			Timestamp:        uint32(msg.Timestamp.Unix()),
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
@@ -321,7 +321,7 @@ func SubmitObservationsToContract(
 		logger.Debug("in SubmitObservationsToContract, encoding observation",
 			zap.String("contract", contract),
 			zap.Int("idx", idx),
-			zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
+			zap.String("txHash", msg.TxIDString()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
 			zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[idx].Timestamp),
 			zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[idx].Nonce),
 			zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[idx].EmitterChain),
@@ -342,7 +342,7 @@ func SubmitObservationsToContract(
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
 
-	sigBytes, err := guardianSigner.Sign(digest.Bytes())
+	sigBytes, err := guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}

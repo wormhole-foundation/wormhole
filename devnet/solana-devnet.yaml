@@ -35,9 +35,9 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
         - name: devnet
-          image: solana-contract
+          image: solana-test-validator
           command:
-            - /root/.local/share/solana/install/active_release/bin/solana-test-validator
+            - solana-test-validator
             - --bpf-program
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - /opt/solana/deps/bridge.so

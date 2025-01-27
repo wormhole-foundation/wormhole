@@ -95,7 +95,7 @@ func generateGuardianSigners(num int) (signers []guardiansigner.GuardianSigner, 
 			panic(err)
 		}
 		signers = append(signers, signer)
-		addrs = append(addrs, ethcrypto.PubkeyToAddress(signer.PublicKey()))
+		addrs = append(addrs, ethcrypto.PubkeyToAddress(signer.PublicKey(context.Background())))
 	}
 	return
 }
@@ -122,7 +122,7 @@ func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, t 
 		Payload:          []byte("test"),
 	}
 	for i, signer := range signers {
-		sig, err := signer.Sign(v.SigningDigest().Bytes())
+		sig, err := signer.Sign(context.Background(), v.SigningDigest().Bytes())
 		if err != nil {
 			require.NoError(t, err)
 		}
@@ -164,7 +164,7 @@ func setupAdminServerForVAASigning(gsIndex uint32, gsAddrs []common.Address) *no
 		governor:        nil,
 		evmConnector:    connector,
 		guardianSigner:  guardianSigner,
-		guardianAddress: ethcrypto.PubkeyToAddress(guardianSigner.PublicKey()),
+		guardianAddress: ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
 	}
 }
 
@@ -335,7 +335,7 @@ func Test_adminCommands(t *testing.T) {
 }
 
 func newNodePrivilegedServiceForGovernorTests() *nodePrivilegedService {
-	gov := governor.NewChainGovernor(zap.NewNop(), &db.MockGovernorDB{}, wh_common.GoTest, false)
+	gov := governor.NewChainGovernor(zap.NewNop(), &db.MockGovernorDB{}, wh_common.GoTest, false, "")
 
 	return &nodePrivilegedService{
 		db:              nil,

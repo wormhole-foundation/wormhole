@@ -81,7 +81,7 @@ impl KeyDeserialize for Key {
     }
 }
 
-impl<'a> PrimaryKey<'a> for Key {
+impl PrimaryKey<'_> for Key {
     type Prefix = (u16, u16);
     type SubPrefix = u16;
     type Suffix = TokenAddress;

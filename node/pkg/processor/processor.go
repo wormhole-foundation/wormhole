@@ -265,7 +265,7 @@ func NewProcessor(
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey()),
+		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		governor:       g,
 		acct:           acct,
 		acctReadC:      acctReadC,
@@ -323,7 +323,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					continue
 				}
 			}
-			p.handleMessage(k)
+			p.handleMessage(ctx, k)
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
@@ -333,9 +333,11 @@ func (p *Processor) Run(ctx context.Context) error {
 			if !p.acct.IsMessageCoveredByAccountant(k) {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
-			p.handleMessage(k)
+
+			p.handleMessage(ctx, k)
 		case sig := <-p.thresholdSigner.ProducedSignature():
 			p.processTssSignature(sig)
+
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(m)
@@ -369,7 +371,7 @@ func (p *Processor) Run(ctx context.Context) error {
 								continue
 							}
 						}
-						p.handleMessage(k)
+						p.handleMessage(ctx, k)
 					}
 				}
 			}

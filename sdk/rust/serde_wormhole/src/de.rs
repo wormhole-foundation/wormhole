@@ -46,7 +46,7 @@ macro_rules! deserialize_be_number {
     }};
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, _: V) -> Result<V::Value, Self::Error>
@@ -338,7 +338,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-impl<'de, 'a> VariantAccess<'de> for &'a mut Deserializer<'de> {
+impl<'de> VariantAccess<'de> for &mut Deserializer<'de> {
     type Error = Error;
 
     #[inline]
@@ -386,7 +386,7 @@ impl<'de, 'a> BoundedSequence<'de, 'a> {
     }
 }
 
-impl<'de, 'a> SeqAccess<'de> for BoundedSequence<'de, 'a> {
+impl<'de> SeqAccess<'de> for BoundedSequence<'de, '_> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -407,7 +407,7 @@ impl<'de, 'a> SeqAccess<'de> for BoundedSequence<'de, 'a> {
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for BoundedSequence<'de, 'a> {
+impl<'de> MapAccess<'de> for BoundedSequence<'de, '_> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
