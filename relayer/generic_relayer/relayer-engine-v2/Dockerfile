@@ -1,11 +1,11 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
-FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
+FROM node:19.6.1-slim@sha256:e684615bdfb71cb676b3d0dfcc538c416f7254697d8f9639bd87255062fd1681
 
 # npm wants to clone random Git repositories - lovely.
 # RUN apk add git python make build-base
 # RUN apk update && apk add bash
 RUN apt-get update && apt-get -y install \
-  git python make curl netcat
+  git python3 make curl netcat g++
 
 RUN npm i typescript -g
 
@@ -19,14 +19,14 @@ WORKDIR /home/node/app
 # Fix git ssh error
 RUN git config --global url."https://".insteadOf ssh://
 
-COPY --chown=node:node ./relayer/ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
+COPY --chown=node:node ./ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
 
 #Path matters so as to not break imports
 WORKDIR /home/node/app/relayer/generic_relayer/relayer-engine-v2/
 
 # Only invalidate the npm install step if package.json changed
-COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package.json .
-COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package-lock.json .
+COPY --chown=node:node /generic_relayer/relayer-engine-v2/package.json .
+COPY --chown=node:node /generic_relayer/relayer-engine-v2/package-lock.json .
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
@@ -42,7 +42,7 @@ RUN rm -rf node_modules && mv node_modules_cache node_modules
 ARG dev
 ENV DEV=$dev
 
-COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/ .
+COPY --chown=node:node /generic_relayer/relayer-engine-v2/ .
 
 
 
