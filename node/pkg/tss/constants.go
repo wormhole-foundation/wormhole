@@ -57,5 +57,6 @@ const (
 	// Consistency levels (following https://wormhole.com/docs/build/reference/consistency-levels/):
 	instantConsistencyLevel uint8 = vaa.ConsistencyLevelPublishImmediately // low consistancy
 
-	pythnetFinalizedConsistencyLevel uint8 = 1 // high consistancy
+	pythnetFinalizedConsistencyLevel uint8 = 1
+	solanaFinalizedConsistencyLevel  uint8 = 1
 )

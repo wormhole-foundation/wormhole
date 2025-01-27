@@ -349,14 +349,21 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 }
 
 func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsistency uint8) {
-	// We are not reporting on consistency levels of instant.
-	// other levels are SAFE and FINALISED (which are relatively good)
-	if vaaConsistency == instantConsistencyLevel {
-		return
-	}
-
-	if chainID == vaa.ChainIDPythNet && vaaConsistency != pythnetFinalizedConsistencyLevel {
-		return
+	switch chainID {
+	case vaa.ChainIDPythNet:
+		if vaaConsistency != pythnetFinalizedConsistencyLevel {
+			return
+		}
+	case vaa.ChainIDSolana:
+		if vaaConsistency != solanaFinalizedConsistencyLevel {
+			return
+		}
+	default:
+		// We are not reporting on consistency levels of instant.
+		// other levels are SAFE and FINALISED (which are relatively good)
+		if vaaConsistency == instantConsistencyLevel {
+			return
+		}
 	}
 
 	sm := tsscommv1.SignedMessage{
