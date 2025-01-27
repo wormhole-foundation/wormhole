@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    has_coins, to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    has_coins, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Storage, WasmMsg,
 };
 
@@ -272,7 +272,7 @@ fn vaa_update_contract(_deps: DepsMut, env: Env, data: &[u8]) -> StdResult<Respo
         .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
             contract_addr: env.contract.address.to_string(),
             new_code_id: new_contract,
-            msg: to_binary(&MigrateMsg {})?,
+            msg: to_json_binary(&MigrateMsg {})?,
         }))
         .add_attribute("action", "contract_upgrade"))
 }
@@ -333,14 +333,16 @@ fn handle_post_message(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GuardianSetInfo {} => to_binary(&query_guardian_set_info(deps)?),
-        QueryMsg::VerifyVAA { vaa, block_time } => to_binary(&query_parse_and_verify_vaa(
+        QueryMsg::GuardianSetInfo {} => to_json_binary(&query_guardian_set_info(deps)?),
+        QueryMsg::VerifyVAA { vaa, block_time } => to_json_binary(&query_parse_and_verify_vaa(
             deps,
             vaa.as_slice(),
             block_time,
         )?),
-        QueryMsg::GetState {} => to_binary(&query_state(deps)?),
-        QueryMsg::QueryAddressHex { address } => to_binary(&query_address_hex(deps, &address)?),
+        QueryMsg::GetState {} => to_json_binary(&query_state(deps)?),
+        QueryMsg::QueryAddressHex { address } => {
+            to_json_binary(&query_address_hex(deps, &address)?)
+        }
     }
 }
 
