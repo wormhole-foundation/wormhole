@@ -205,15 +205,22 @@ func (e *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
+				eventSeq := eventSequence.Uint()
+				if nextSequence == 0 && eventSeq != 0 {
+					// Avoid publishing an old observation on startup. This does not block the first message on a new chain (when eventSeq would be zero).
+					nextSequence = eventSeq + 1
+					continue
+				}
+
 				// this is interesting in the last iteration, whereby we
 				// find the next sequence that comes after the array
-				nextSequence = eventSequence.Uint() + 1
+				nextSequence = eventSeq + 1
 
 				data := event.Get("data")
 				if !data.Exists() {
 					continue
 				}
-				e.observeData(logger, data, eventSequence.Uint(), false)
+				e.observeData(logger, data, eventSeq, false)
 			}
 
 			health, err := e.retrievePayload(aptosHealth)
@@ -255,6 +262,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
