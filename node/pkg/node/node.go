@@ -80,7 +80,6 @@ type G struct {
 	gossipControlSendC     chan []byte
 	gossipAttestationSendC chan []byte
 	gossipVaaSendC         chan []byte
-	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
 	// Inbound observation batches.
 	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
 	// Finalized guardian observations aggregated across all chains
