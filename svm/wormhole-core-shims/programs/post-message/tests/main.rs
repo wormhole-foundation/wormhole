@@ -6,7 +6,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::Keypair,
     signer::Signer,
-    transaction::{Transaction, VersionedTransaction},
+    transaction::VersionedTransaction,
 };
 use wormhole_svm_definitions::{
     CORE_BRIDGE_CONFIG, CORE_BRIDGE_FEE_COLLECTOR, CORE_BRIDGE_PROGRAM_ID,
@@ -78,7 +78,7 @@ async fn test_post_message_no_emitter_sequence() {
     assert_eq!(
         details.units_consumed - bump_costs.message - 2 * bump_costs.sequence,
         // 53_418
-        46_772
+        47_056
     );
 }
 
@@ -181,7 +181,7 @@ async fn test_post_message() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.message - bump_costs.sequence,
         // 30_901
-        24_253
+        24_537
     );
 }
 
@@ -267,6 +267,8 @@ async fn set_up_post_message_transaction(
 
     // Adding compute budget instructions to ensure all instructions fit into
     // one transaction.
+    //
+    // NOTE: Invoking the compute budget costs in total 300 CU.
     let message = Message::try_compile(
         &payer,
         &[
@@ -285,9 +287,6 @@ async fn set_up_post_message_transaction(
         &[payer_signer, emitter_signer],
     )
     .unwrap();
-
-    // let mut transaction = Transaction::new_with_payer(&[transfer_fee_ix, ix], Some(&payer));
-    // transaction.sign(&[&payer_signer, &emitter_signer], recent_blockhash);
 
     (
         transaction,

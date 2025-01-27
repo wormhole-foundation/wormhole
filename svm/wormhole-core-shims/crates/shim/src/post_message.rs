@@ -122,10 +122,11 @@ pub struct PostMessageData<'ix> {
 impl<'ix> PostMessageData<'ix> {
     pub const MINIMUM_SIZE: usize = {
         4 // nonce
-        + 1 //. finality
+        + 1 // finality
         + 4 // payload length
     };
 
+    #[inline(always)]
     fn deserialize(data: &'ix [u8]) -> Option<Self> {
         if data.len() < Self::MINIMUM_SIZE {
             return None;
@@ -265,4 +266,8 @@ pub struct MessageEvent {
     pub emitter: Pubkey,
     pub sequence: u64,
     pub submission_time: u32,
+}
+
+impl MessageEvent {
+    pub const DISCRIMINATOR: [u8; 8] = super::make_discriminator(b"event:MessageEvent");
 }

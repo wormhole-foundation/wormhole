@@ -2,7 +2,6 @@
 
 use solana_program::{
     account_info::AccountInfo,
-    declare_id,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
@@ -13,9 +12,7 @@ use wormhole_svm_definitions::{
     find_shim_message_address, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
     POST_MESSAGE_SHIM_EVENT_AUTHORITY, POST_MESSAGE_SHIM_PROGRAM_ID,
 };
-use wormhole_svm_shim::post_message::PostMessageShimInstruction;
-
-declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
+use wormhole_svm_shim::post_message::{MessageEvent, PostMessageShimInstruction};
 
 const MESSAGE_AUTHORITY_SIGNER_SEEDS: &[&[u8]; 2] = &[EVENT_AUTHORITY_SEED, &[255]];
 
@@ -39,7 +36,7 @@ fn process_instruction(
     }
 }
 
-#[inline]
+#[inline(always)]
 fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // This instruction requires 12 accounts. If there are more remaining, we
     // won't do anything with them. We perform this check upfront so we can
@@ -70,7 +67,8 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     //
     // While this could be managed by the integrator, it seems more effective
     // to have the Wormhole Post Message Shim program manage these accounts.
-    let (expected_message_key, message_bump) = find_shim_message_address(emitter_key, &ID);
+    let (expected_message_key, message_bump) =
+        find_shim_message_address(emitter_key, &POST_MESSAGE_SHIM_PROGRAM_ID);
     if message_info.key != &expected_message_key {
         msg!("Message (account #2) seeds constraint violated");
         msg!("Left:");
@@ -224,12 +222,12 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
             cpi_data.set_len(MAX_CPI_DATA_LEN);
         }
         cpi_data[..8].copy_from_slice(&ANCHOR_EVENT_CPI_SELECTOR);
-        cpi_data[8..16].copy_from_slice(&EVENT_DISCRIMINATOR);
+        cpi_data[8..16].copy_from_slice(&MessageEvent::DISCRIMINATOR);
         cpi_data[16..48].copy_from_slice(&emitter_key_bytes);
         cpi_data[48..56].copy_from_slice(&sequence.to_le_bytes());
         cpi_data[56..60].copy_from_slice(&(submission_time as u32).to_le_bytes());
 
-        cpi_ix.program_id = ID;
+        cpi_ix.program_id = POST_MESSAGE_SHIM_PROGRAM_ID;
 
         // There is no account data being borrowed at this point that the CPI'ed
         // program will be using, so this is safe.
@@ -246,7 +244,6 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
 // Event CPI.
 
 const ANCHOR_EVENT_CPI_SELECTOR: [u8; 8] = u64::to_be_bytes(0xe445a52e51cb9a1d);
-const EVENT_DISCRIMINATOR: [u8; 8] = wormhole_svm_shim::make_discriminator(b"event:MessageEvent");
 
 #[inline(always)]
 fn process_privileged_invoke(accounts: &[AccountInfo]) -> ProgramResult {
@@ -270,8 +267,12 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_message_authority_signer_seeds() {
-        let actual = Pubkey::create_program_address(MESSAGE_AUTHORITY_SIGNER_SEEDS, &ID).unwrap();
+    fn test_event_authority_signer_seeds() {
+        let actual = Pubkey::create_program_address(
+            MESSAGE_AUTHORITY_SIGNER_SEEDS,
+            &POST_MESSAGE_SHIM_PROGRAM_ID,
+        )
+        .unwrap();
         assert_eq!(actual, POST_MESSAGE_SHIM_EVENT_AUTHORITY);
     }
 }

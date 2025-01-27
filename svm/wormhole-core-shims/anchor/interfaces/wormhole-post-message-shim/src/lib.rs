@@ -34,10 +34,11 @@ pub mod wormhole_post_message_shim {
     ///                                          -> shim `MesssageEvent`
     pub fn post_message(
         _ctx: Context<PostMessage>,
-        _nonce: u32,
-        _consistency_level: Finality,
-        _payload: Vec<u8>,
+        nonce: u32,
+        consistency_level: Finality,
+        payload: Vec<u8>,
     ) -> Result<()> {
+        let _ = (nonce, consistency_level, payload);
         err!(ErrorCode::InstructionMissing)
     }
 }
@@ -46,6 +47,13 @@ pub mod wormhole_post_message_shim {
 pub enum Finality {
     Confirmed,
     Finalized,
+}
+
+#[event]
+pub struct MessageEvent {
+    pub emitter: Pubkey,
+    pub sequence: u64,
+    pub submission_time: u32,
 }
 
 #[event_cpi]
@@ -63,7 +71,7 @@ pub enum Finality {
 /// - shim without sysvar and address checks: 45608 (20511 more)
 /// - shim with sysvar and address checks:    45782 (  174 more)
 pub struct PostMessage<'info> {
-    #[account(mut, address = CORE_BRIDGE_CONFIG)]
+    #[account(mut, seeds = [b"Bridge"], bump, seeds::program = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole bridge config. [`wormhole::post_message`] requires this
     /// account be mutable.
     pub bridge: UncheckedAccount<'info>,
@@ -99,7 +107,7 @@ pub struct PostMessage<'info> {
     /// Payer will pay Wormhole fee to post a message.
     pub payer: Signer<'info>,
 
-    #[account(mut, address = CORE_BRIDGE_FEE_COLLECTOR)]
+    #[account(mut, seeds = [b"fee_collector"], bump, seeds::program = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole fee collector. [`wormhole::post_message`] requires this
     /// account be mutable.
     pub fee_collector: UncheckedAccount<'info>,

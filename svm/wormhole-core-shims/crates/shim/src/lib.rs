@@ -1,7 +1,7 @@
 pub mod post_message;
 pub mod verify_vaa;
 
-pub const fn make_discriminator(input: &[u8]) -> [u8; 8] {
+const fn make_discriminator(input: &[u8]) -> [u8; 8] {
     let digest = sha2_const_stable::Sha256::new().update(input).finalize();
     let mut trimmed = [0; 8];
     let mut i = 0;
