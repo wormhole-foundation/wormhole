@@ -355,7 +355,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		zap.String("wsUrl", wsUrl),
 		zap.String("contract", contractAddr),
 		zap.String("rawContract", s.rawContract),
-		zap.String("shimContractAddr", s.shimContractStr),
+		zap.String("shimContract", s.shimContractStr),
 	)
 
 	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
