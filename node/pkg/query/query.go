@@ -140,7 +140,6 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDBaseSepolia:     {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDOptimismSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDPolygonSepolia:  {NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDMonadDevnet:     {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDHyperEVM:        {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDMonad:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDSeiEVM:          {NumWorkers: 1, TimestampCacheSupported: true},

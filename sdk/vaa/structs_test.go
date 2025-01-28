@@ -93,7 +93,6 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "optimism_sepolia", output: ChainIDOptimismSepolia},
 		{input: "holesky", output: ChainIDHolesky},
 		{input: "polygon_sepolia", output: ChainIDPolygonSepolia},
-		{input: "monad_devnet", output: ChainIDMonadDevnet},
 
 		{input: "Solana", output: ChainIDSolana},
 		{input: "Ethereum", output: ChainIDEthereum},
@@ -159,7 +158,6 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Optimism_Sepolia", output: ChainIDOptimismSepolia},
 		{input: "Holesky", output: ChainIDHolesky},
 		{input: "Polygon_Sepolia", output: ChainIDPolygonSepolia},
-		{input: "Monad_Devnet", output: ChainIDMonadDevnet},
 	}
 
 	// Negative Test Cases
@@ -367,7 +365,6 @@ func TestChainId_String(t *testing.T) {
 		{input: 10005, output: "optimism_sepolia"},
 		{input: 10006, output: "holesky"},
 		{input: 10007, output: "polygon_sepolia"},
-		{input: 10008, output: "monad_devnet"},
 		{input: 10000, output: "unknown chain ID: 10000"},
 	}
 

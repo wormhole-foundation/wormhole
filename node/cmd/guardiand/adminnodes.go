@@ -140,7 +140,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"OptimismSepolia", vaa.ChainIDOptimismSepolia},
 		{"Holesky", vaa.ChainIDHolesky},
 		{"PolygonSepolia", vaa.ChainIDPolygonSepolia},
-		{"MonadDevnet", vaa.ChainIDMonadDevnet},
 	}
 
 	if len(only) > 0 {
