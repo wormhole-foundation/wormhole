@@ -59,13 +59,18 @@ message Echo {
   SignedMessage message = 1;
 }
 
+message VaaV1Info {
+  bytes marshaled = 1;
+}
+
 message Unicast{
-  TssContent content = 1;
+  oneof content{
+    TssContent tss = 1;
+    VaaV1Info vaav1 = 2;
+  }
 }
 
-message fault{
 
-}
 // PropagatedMessage is a message that is sent across the network,
 // either to a specific recipient or all nodes (using reliable broadcast).
 message PropagatedMessage {
