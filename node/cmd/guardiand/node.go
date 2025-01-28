@@ -65,7 +65,6 @@ var (
 
 	guardianKeyPath   *string
 	guardianSignerUri *string
-	solanaContract    *string
 
 	ethRPC      *string
 	ethContract *string
@@ -157,7 +156,9 @@ var (
 	suiRPC           *string
 	suiMoveEventType *string
 
-	solanaRPC *string
+	solanaRPC          *string
+	solanaContract     *string
+	solanaShimContract *string
 
 	pythnetContract *string
 	pythnetRPC      *string
@@ -296,7 +297,8 @@ func init() {
 
 	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key")
 	guardianSignerUri = NodeCmd.Flags().String("guardianSignerUri", "", "Guardian signer URI")
-	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
+	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required if solanaRpc is specified)")
+	solanaShimContract = NodeCmd.Flags().String("solanaShimContract", "", "Address of the Solana shim program")
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
@@ -670,7 +672,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Verify flags
 
-	if *nodeName == "" {
+	if *nodeName == "" && env == common.MainNet {
 		logger.Fatal("Please specify --nodeName")
 	}
 	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
@@ -780,6 +782,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
 		}
 
+		if *nodeName == "" {
+			logger.Fatal("If telemetry is enabled, --nodeName must be set")
+		}
+
 		// Get libp2p peer ID from private key
 		pk := p2pKey.GetPublic()
 		peerID, err := peer.IDFromPublicKey(pk)
@@ -853,6 +859,14 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
+	}
+
+	if *solanaShimContract != "" && *solanaContract == "" {
+		logger.Fatal("--solanaShimContract may only be specified if --solanaContract is specified")
+	}
+
+	if *solanaShimContract != "" && env == common.MainNet {
+		logger.Fatal("--solanaShimContract is not currently supported in mainnet")
 	}
 
 	if !argsConsistent([]string{*pythnetContract, *pythnetRPC, *pythnetWS}) {
@@ -946,71 +960,85 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Infura is known to send incorrect blocks - please use your own nodes")
 	}
 
+	// NOTE: Please keep these in numerical order by chain ID.
 	rpcMap := make(map[string]string)
-	rpcMap["acalaRPC"] = *acalaRPC
-	rpcMap["accountantWS"] = *accountantWS
-	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
-	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
-	rpcMap["aptosRPC"] = *aptosRPC
-	rpcMap["arbitrumRPC"] = *arbitrumRPC
-	rpcMap["avalancheRPC"] = *avalancheRPC
-	rpcMap["baseRPC"] = *baseRPC
-	rpcMap["berachainRPC"] = *berachainRPC
-	rpcMap["blastRPC"] = *blastRPC
-	rpcMap["bscRPC"] = *bscRPC
-	rpcMap["celoRPC"] = *celoRPC
-	rpcMap["ethRPC"] = *ethRPC
-	rpcMap["fantomRPC"] = *fantomRPC
-	rpcMap["hyperEvmRPC"] = *hyperEvmRPC
-	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
-	rpcMap["ibcLCD"] = *ibcLCD
-	rpcMap["ibcWS"] = *ibcWS
-	rpcMap["injectiveLCD"] = *injectiveLCD
-	rpcMap["injectiveWS"] = *injectiveWS
-	rpcMap["inkRPC"] = *inkRPC
-	rpcMap["karuraRPC"] = *karuraRPC
-	rpcMap["klaytnRPC"] = *klaytnRPC
-	rpcMap["lineaRPC"] = *lineaRPC
-	rpcMap["mantleRPC"] = *mantleRPC
-	rpcMap["monadRPC"] = *monadRPC
-	rpcMap["moonbeamRPC"] = *moonbeamRPC
-	rpcMap["movementRPC"] = *movementRPC
-	rpcMap["nearRPC"] = *nearRPC
-	rpcMap["oasisRPC"] = *oasisRPC
-	rpcMap["optimismRPC"] = *optimismRPC
-	rpcMap["polygonRPC"] = *polygonRPC
-	rpcMap["pythnetRPC"] = *pythnetRPC
-	rpcMap["pythnetWS"] = *pythnetWS
-	if env == common.TestNet {
-		rpcMap["sepoliaRPC"] = *sepoliaRPC
-		rpcMap["holeskyRPC"] = *holeskyRPC
-		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
-		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
-		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
-		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
-		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
-	}
-	rpcMap["scrollRPC"] = *scrollRPC
-	rpcMap["seiEvmRPC"] = *seiEvmRPC
 	rpcMap["solanaRPC"] = *solanaRPC
-	rpcMap["snaxchainRPC"] = *snaxchainRPC
-	rpcMap["suiRPC"] = *suiRPC
+	rpcMap["ethRPC"] = *ethRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
+	rpcMap["bscRPC"] = *bscRPC
+	rpcMap["polygonRPC"] = *polygonRPC
+	rpcMap["avalancheRPC"] = *avalancheRPC
+	rpcMap["oasisRPC"] = *oasisRPC
+	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
+	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+	// ChainIDAurora is not supported in the guardian.
+	rpcMap["fantomRPC"] = *fantomRPC
+	rpcMap["karuraRPC"] = *karuraRPC
+	rpcMap["acalaRPC"] = *acalaRPC
+	rpcMap["klaytnRPC"] = *klaytnRPC
+	rpcMap["celoRPC"] = *celoRPC
+	rpcMap["nearRPC"] = *nearRPC
+	rpcMap["moonbeamRPC"] = *moonbeamRPC
 	rpcMap["terra2WS"] = *terra2WS
 	rpcMap["terra2LCD"] = *terra2LCD
-	rpcMap["unichainRPC"] = *unichainRPC
-	rpcMap["worldchainRPC"] = *worldchainRPC
-	rpcMap["gatewayWS"] = *gatewayWS
-	rpcMap["gatewayLCD"] = *gatewayLCD
-	rpcMap["wormchainURL"] = *wormchainURL
-	rpcMap["xlayerRPC"] = *xlayerRPC
+	rpcMap["injectiveLCD"] = *injectiveLCD
+	rpcMap["injectiveWS"] = *injectiveWS
+	// ChainIDOsmosis is not supported in the guardian.
+	rpcMap["suiRPC"] = *suiRPC
+	rpcMap["aptosRPC"] = *aptosRPC
+	rpcMap["arbitrumRPC"] = *arbitrumRPC
+	rpcMap["optimismRPC"] = *optimismRPC
+	// ChainIDGnosis is not supported in the guardian.
+	rpcMap["pythnetRPC"] = *pythnetRPC
+	rpcMap["pythnetWS"] = *pythnetWS
 	rpcMap["xplaWS"] = *xplaWS
 	rpcMap["xplaLCD"] = *xplaLCD
+	// ChainIDBtc is not supported in the guardian.
+	rpcMap["baseRPC"] = *baseRPC
+	// ChainIDSei is supported over IBC, so it's not listed here.
+	// ChainIDRootstock is not supported in the guardian.
+	rpcMap["scrollRPC"] = *scrollRPC
+	rpcMap["mantleRPC"] = *mantleRPC
+	rpcMap["blastRPC"] = *blastRPC
+	rpcMap["xlayerRPC"] = *xlayerRPC
+	rpcMap["lineaRPC"] = *lineaRPC
+	rpcMap["berachainRPC"] = *berachainRPC
+	rpcMap["seiEvmRPC"] = *seiEvmRPC
+	rpcMap["snaxchainRPC"] = *snaxchainRPC
+	rpcMap["unichainRPC"] = *unichainRPC
+	rpcMap["worldchainRPC"] = *worldchainRPC
+	rpcMap["inkRPC"] = *inkRPC
+	rpcMap["hyperEvmRPC"] = *hyperEvmRPC
+	rpcMap["monadRPC"] = *monadRPC
+	rpcMap["movementRPC"] = *movementRPC
 
+	// Wormchain is in the 3000 range.
+	rpcMap["wormchainURL"] = *wormchainURL
+
+	// Generate the IBC chains (3000 range).
 	for _, ibcChain := range ibc.Chains {
 		rpcMap[ibcChain.String()] = "IBC"
 	}
+
+	// The testnet only chains (10000 range) go here.
+	if env == common.TestNet {
+		rpcMap["sepoliaRPC"] = *sepoliaRPC
+		rpcMap["arbitrumSepoliaRPC"] = *arbitrumSepoliaRPC
+		rpcMap["baseSepoliaRPC"] = *baseSepoliaRPC
+		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
+		rpcMap["holeskyRPC"] = *holeskyRPC
+		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
+		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
+	}
+
+	// Other, non-chain specific parameters go here.
+	rpcMap["accountantWS"] = *accountantWS
+	rpcMap["gatewayWS"] = *gatewayWS
+	rpcMap["gatewayLCD"] = *gatewayLCD
+	rpcMap["ibcBlockHeightURL"] = *ibcBlockHeightURL
+	rpcMap["ibcLCD"] = *ibcLCD
+	rpcMap["ibcWS"] = *ibcWS
 
 	// Handle SIGTERM
 	sigterm := make(chan os.Signal, 1)
@@ -1613,6 +1641,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:           *solanaRPC,
 			Websocket:     "",
 			Contract:      *solanaContract,
+			ShimContract:  *solanaShimContract,
 			ReceiveObsReq: false,
 			Commitment:    rpc.CommitmentConfirmed,
 		}
@@ -1626,6 +1655,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:           *solanaRPC,
 			Websocket:     "",
 			Contract:      *solanaContract,
+			ShimContract:  *solanaShimContract,
 			ReceiveObsReq: true,
 			Commitment:    rpc.CommitmentFinalized,
 		}
