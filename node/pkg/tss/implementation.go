@@ -1210,6 +1210,10 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
 		return
 	}
 
+	if t.gst == nil {
+		return
+	}
+
 	if !t.isleader {
 		return
 	}
@@ -1226,12 +1230,27 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
 		return
 	}
 
-	// TODO: if err := verifyVAA(vaa); err != nil {
+	// TODO: Consider: does the leader have to verify what it send?
+	// I think i should assume it receives a valid VAA.
+	// if err := v.Verify(t.gst.Get().Keys); err != nil {
+	// 	return
 	// }
+
+	bts, err := v.Marshal()
+	if err != nil {
+		t.logger.Error("couldn't marshal VAAv1.", zap.Error(err))
+		return
+	}
 
 	// TODO: take guardian IDs from signers of the VAA. (they use indices, so we need to convert them to PartyID)
 	send := Unicast{
-		Unicast:     nil,
+		Unicast: &tsscommv1.Unicast{
+			Content: &tsscommv1.Unicast_Vaav1{
+				Vaav1: &tsscommv1.VaaV1Info{
+					Marshaled: bts,
+				},
+			},
+		},
 		Receipients: t.guardiansProtoIDs, // sending to all guardians.
 	}
 
@@ -1239,7 +1258,7 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
 	case t.messageOutChan <- &send:
 	default:
 		t.logger.Error(
-			"Leader failed to send newly seen VAA to guardians, network output channel buffer is full",
+			"Leader failed to send new VAA seen to guardians, network output channel buffer is full",
 			zap.String("chainID", v.EmitterChain.String()),
 		)
 	}
