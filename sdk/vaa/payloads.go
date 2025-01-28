@@ -69,11 +69,12 @@ type GovernanceAction uint8
 var (
 	// Wormhole core governance actions
 	// See e.g. GovernanceStructs.sol for semantic meaning of these
-	ActionContractUpgrade    GovernanceAction = 1
-	ActionGuardianSetUpdate  GovernanceAction = 2
-	ActionCoreSetMessageFee  GovernanceAction = 3
-	ActionCoreTransferFees   GovernanceAction = 4
-	ActionCoreRecoverChainId GovernanceAction = 5
+	ActionContractUpgrade      GovernanceAction = 1
+	ActionGuardianSetUpdate    GovernanceAction = 2
+	ActionCoreSetMessageFee    GovernanceAction = 3
+	ActionCoreTransferFees     GovernanceAction = 4
+	ActionCoreRecoverChainId   GovernanceAction = 5
+	ActionSlashingParamsUpdate GovernanceAction = 6
 
 	// Wormchain cosmwasm/middleware governance actions
 	ActionStoreCode                      GovernanceAction = 1
@@ -125,6 +126,32 @@ type (
 	BodyGuardianSetUpdate struct {
 		Keys     []ethcommon.Address
 		NewIndex uint32
+	}
+
+	// BodySlashingParamsUpdate is a governance message to update the slashing parameters on Wormchain.
+	//
+	// It is important to note that the slashing keeper only accepts `int64` values as input, so we need to convert
+	// the `uint64` values to `int64` before passing them to the keeper. This conversion can introduce overflow
+	// issues if the `uint64` values are too large. To combat this, the Wormchain CLI and the slashing keeper run
+	// validation checks on the new parameter values.
+	//
+	// Below documents the entire process of updating the slashing parameters:
+	// 1. The CLI command receives the new slashing parameters from the user as `uint64` values for `SignedBlocksWindow` and `DowntimeJailDuration` and as `string` values
+	// for `MinSignedPerWindow`, `SlashFractionDoubleSign`, and `SlashFractionDowntime`. The command accepts `string` values for ease of use when providing decimal values.
+	// 2. The CLI command converts the `string` values into `sdk.Dec` values and then into `uint64` values.
+	// 3. The CLI command validates that the `uint64` values are within the acceptable range for the slashing parameters.
+	// 4. The CLI command serializes the new slashing parameters into a governance VAA.
+	// 5. The governance VAA is signed & broadcasted to the Wormchain.
+	// 6. Wormchain deserializes the governance VAA and extracts every new slashing parameter as a uint64 value.
+	// 7. Wormchain converts the uint64 values to int64 values and passes them to the slashing keeper.
+	// 8. The slashing keeper runs validation checks on the new slashing parameters and throws an error if they are invalid.
+	// 9. If the new slashing parameters pass the validation checks, the slashing keeper updates its parameters.
+	BodySlashingParamsUpdate struct {
+		SignedBlocksWindow      uint64
+		MinSignedPerWindow      uint64
+		DowntimeJailDuration    uint64
+		SlashFractionDoubleSign uint64
+		SlashFractionDowntime   uint64
 	}
 
 	// BodyTokenBridgeRegisterChain is a governance message to register a chain on the token bridge
@@ -279,6 +306,25 @@ func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	for _, k := range b.Keys {
 		buf.Write(k[:])
 	}
+
+	return buf.Bytes(), nil
+}
+
+func (b BodySlashingParamsUpdate) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Module
+	buf.Write(CoreModule)
+	// // Action
+	MustWrite(buf, binary.BigEndian, ActionSlashingParamsUpdate)
+	// // ChainID - 0 for universal
+	MustWrite(buf, binary.BigEndian, uint16(0))
+
+	MustWrite(buf, binary.BigEndian, b.SignedBlocksWindow)
+	MustWrite(buf, binary.BigEndian, b.MinSignedPerWindow)
+	MustWrite(buf, binary.BigEndian, b.DowntimeJailDuration)
+	MustWrite(buf, binary.BigEndian, b.SlashFractionDoubleSign)
+	MustWrite(buf, binary.BigEndian, b.SlashFractionDowntime)
 
 	return buf.Bytes(), nil
 }
