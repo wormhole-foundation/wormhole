@@ -93,7 +93,7 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 		return fmt.Errorf("guardian index greater than max uint32 %v", guardianIndex)
 	}
 
-	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag)
+	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag) // #nosec G115 -- This is checked above
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
 }

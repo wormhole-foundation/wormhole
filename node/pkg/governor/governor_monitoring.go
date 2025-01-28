@@ -403,7 +403,7 @@ func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, err
 		return false, fmt.Errorf("emitter chain id must be no greater than 16 bits")
 	}
 
-	emitterChain := vaa.ChainID(msgId.GetEmitterChain())
+	emitterChain := vaa.ChainID(msgId.GetEmitterChain()) // #nosec G115 -- This conversion is checked above
 
 	emitterAddress, err := vaa.StringToAddress(msgId.EmitterAddress)
 	if err != nil {
@@ -501,6 +501,11 @@ func (gov *ChainGovernor) CollectMetrics(ctx context.Context, hb *gossipv1.Heart
 	totalPending := 0
 	for _, n := range hb.Networks {
 		if n == nil {
+			continue
+		}
+
+		if n.Id > math.MaxUint16 {
+			gov.logger.Error("CollectMetrics: chain id is not a valid uint16", zap.Uint32("chain_id", n.Id))
 			continue
 		}
 

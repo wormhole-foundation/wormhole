@@ -192,7 +192,7 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("emitter chain id must be a valid 16 bit unsigned integer: %v", t.EmitterFilter.ChainId.Number()))
 				}
 				fi = append(fi, filterSignedVaa{
-					chainId:     vaa.ChainID(t.EmitterFilter.ChainId),
+					chainId:     vaa.ChainID(t.EmitterFilter.ChainId), // #nosec G115 -- This is validated above
 					emitterAddr: addr,
 				})
 			default:

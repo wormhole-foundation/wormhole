@@ -314,13 +314,12 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
-	// Although chains ids are constrained to be 16 bit, we only constrain to 32 bit here given the protobuf usage later
-	if chainID > math.MaxUint32 {
-		log.Fatalf("chain ID is not a valid 32 bit unsigned integer: %v", err)
+	if chainID > math.MaxUint16 {
+		log.Fatalf("chain ID is not a valid 16 bit unsigned integer: %v", err)
 	}
 
 	msg := nodev1.FindMissingMessagesRequest{
-		EmitterChain:   uint32(chainID),
+		EmitterChain:   uint32(chainID), // #nosec G115 -- This conversion is checked above
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
 		BackfillNodes:  sdk.PublicRPCEndpoints,
@@ -575,7 +574,7 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 			log.Fatalf("invalid num_days: %v", err)
 		}
 
-		numDays = uint32(numDaysArg)
+		numDays = uint32(numDaysArg) // #nosec G115 -- This is validated above
 	}
 
 	msg := nodev1.ChainGovernorResetReleaseTimerRequest{
