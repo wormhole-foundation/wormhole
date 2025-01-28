@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // Constants
@@ -95,4 +97,12 @@ func denormalize(
 	}
 
 	return denormalizedAmount
+}
+
+// SupportedChains returns a slice of Wormhole Chain IDs that have a Transfer Verifier implementation.
+func SupportedChains() []vaa.ChainID {
+	return []vaa.ChainID{
+		vaa.ChainIDEthereum,
+		vaa.ChainIDSui,
+	}
 }
