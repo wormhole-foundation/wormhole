@@ -1077,7 +1077,7 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Conte
 
 func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev1.PurgePythNetVaasRequest) (*nodev1.PurgePythNetVaasResponse, error) {
 	prefix := db.VAAID{EmitterChain: vaa.ChainIDPythNet}
-	oldestTime := time.Now().Add(-time.Hour * 24 * time.Duration(req.DaysOld))
+	oldestTime := time.Now().Add(-time.Hour * 24 * time.Duration(req.DaysOld)) // #nosec G115 -- This conversion is safe indefinitely
 	resp, err := s.db.PurgeVaas(prefix, oldestTime, req.LogOnly)
 	if err != nil {
 		return nil, err
@@ -1179,7 +1179,7 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 			continue
 		}
 		newVAA.Signatures = append(newVAA.Signatures, &vaa.Signature{
-			Index:     uint8(newIndex),
+			Index:     uint8(newIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
 			Signature: sig.Signature,
 		})
 	}
@@ -1199,7 +1199,7 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 	copy(signature[:], sig)
 
 	newVAA.Signatures = append(v.Signatures, &vaa.Signature{
-		Index:     uint8(localGuardianIndex),
+		Index:     uint8(localGuardianIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
 		Signature: signature,
 	})
 
@@ -1294,7 +1294,12 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		splits := strings.Split(missingVAA.VaaKey, "/")
 		chainID, err := strconv.Atoi(splits[0])
 		if err != nil {
-			errMsgs += fmt.Sprintf("\nerror converting chainID [%s] to int", missingVAA.VaaKey)
+			errMsgs += fmt.Sprintf("\nerror converting chainID [%d] to int", chainID)
+			errCounter++
+			continue
+		}
+		if chainID > math.MaxUint16 {
+			errMsgs += fmt.Sprintf("\nchainID [%d] not a valid uint16", chainID)
 			errCounter++
 			continue
 		}
@@ -1312,7 +1317,12 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			continue
 		}
 		var obsvReq gossipv1.ObservationRequest
-		obsvReq.ChainId = uint32(missingVAA.Chain)
+		if missingVAA.Chain > math.MaxUint16 {
+			errMsgs += fmt.Sprintf("\nmissing VAA chainID [%d] not a valid uint16", missingVAA.Chain)
+			errCounter++
+			continue
+		}
+		obsvReq.ChainId = uint32(missingVAA.Chain) // #nosec G115 -- This conversion is checked above
 		obsvReq.TxHash, err = hex.DecodeString(strings.TrimPrefix(missingVAA.Txhash, "0x"))
 		if err != nil {
 			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)

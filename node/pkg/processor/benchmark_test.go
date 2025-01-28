@@ -51,7 +51,7 @@ func BenchmarkHandleObservation(b *testing.B) {
 	var totalTime, underQuorumTime, quorumReachedTime, overQuorumTime, handleMsgTime time.Duration
 	var totalCount, underQuorumCount, quorumReachedCount, overQuorumCount int
 	for count := 0; count < NumObservations; count++ {
-		k := pd.createMessagePublication(b, uint64(count))
+		k := pd.createMessagePublication(b, uint64(count)) // #nosec G115 -- Safe as NumObservations hard coded above
 		start := time.Now()
 		p.handleMessage(ctx, k)
 		handleMsgTime += time.Since(start)
@@ -107,7 +107,7 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 	require.NotNil(b, pd)
 
 	for count := 0; count < NumObservations; count++ {
-		k := pd.createMessagePublication(b, uint64(count))
+		k := pd.createMessagePublication(b, uint64(count)) // #nosec G115 -- Safe as NumObservations hard coded above
 		p.handleMessage(ctx, k)
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
@@ -210,7 +210,7 @@ func (pd *ProcessorData) createObservation(b *testing.B, guardianIdx int, k *com
 	v := &VAA{
 		VAA: vaa.VAA{
 			Version:          vaa.SupportedVAAVersion,
-			GuardianSetIndex: uint32(guardianIdx),
+			GuardianSetIndex: uint32(guardianIdx), // #nosec G115 -- Safe as number of guardians constrained to 19 in these tests
 			Signatures:       nil,
 			Timestamp:        k.Timestamp,
 			Nonce:            k.Nonce,
