@@ -75,6 +75,7 @@ fn fee_change_blocked_in_shutdown() -> StdResult<()> {
         },
         &[],
     );
+    println!("vaa resp {:?}", vaa_response);
 
     assert!(
         vaa_response.is_err(),
