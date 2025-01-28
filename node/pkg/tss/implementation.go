@@ -255,42 +255,13 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
-	signinginfo, err := t.fp.GetSigningInfo(party.SigningTask{
-		Digest:       d,
-		Faulties:     []*tss.PartyID{}, // no faulties
-		AuxilaryData: chainIDToBytes(chainID),
-	})
+	if err := t.prepareThenanounceNewDigest(d, chainID, consistencyLvl); err != nil {
+		return err
+	}
+
+	sigPrepInfo, err := t.getSigPrepInfo(chainID, d)
 	if err != nil {
-		return fmt.Errorf("couldnt generate signing task: %w", err)
-	}
-
-	sgCmd := &signCommand{
-		SigningInfo:       signinginfo,
-		passedToFP:        false, // set to true only after FP actually received the message.
-		digestconsistancy: consistencyLvl,
-	}
-
-	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, sgCmd); err != nil {
-		return fmt.Errorf("couldn't inform the fault-tolerance tracker of the signature start: %w", err)
-	}
-
-	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others (if consistency levels allows it).
-	t.anounceNewDigest(d[:], chainID, consistencyLvl)
-
-	cmd := prepareToSignCommand{
-		ChainID: chainID,
-		Digest:  d,
-		reply:   make(chan sigPreparationInfo, 1),
-	}
-
-	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &cmd); err != nil {
-		return fmt.Errorf("failed to request for inactive guardians: %w", err)
-	}
-
-	// waiting for the reply.
-	sigPrepInfo, err := outOfChannelOrDone(t.ctx, cmd.reply)
-	if err != nil {
-		return fmt.Errorf("failed to get inactive guardians: %w", err)
+		return err
 	}
 
 	dgstStr := fmt.Sprintf("%x", vaaDigest)
@@ -354,6 +325,54 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (t *Engine) getSigPrepInfo(chainID vaa.ChainID, d party.Digest) (sigPreparationInfo, error) {
+	cmd := prepareToSignCommand{
+		ChainID: chainID,
+		Digest:  d,
+		reply:   make(chan sigPreparationInfo, 1),
+	}
+
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &cmd); err != nil {
+		return sigPreparationInfo{}, fmt.Errorf("failed to request for inactive guardians: %w", err)
+	}
+
+	// waiting for the reply.
+	sigPrepInfo, err := outOfChannelOrDone(t.ctx, cmd.reply)
+	if err != nil {
+		return sigPreparationInfo{}, fmt.Errorf("failed to get inactive guardians: %w", err)
+	}
+
+	return sigPrepInfo, nil
+}
+
+// prepareThenanounceNewDigest updates the inner state of the engine before announcing to others about a new digest seen.
+func (t *Engine) prepareThenanounceNewDigest(d party.Digest, chainID vaa.ChainID, consistencyLvl uint8) error {
+	signinginfo, err := t.fp.GetSigningInfo(party.SigningTask{
+		Digest:       d,
+		Faulties:     []*tss.PartyID{}, // no faulties
+		AuxilaryData: chainIDToBytes(chainID),
+	})
+
+	if err != nil {
+		return fmt.Errorf("couldnt generate signing task: %w", err)
+	}
+
+	sgCmd := &signCommand{
+		SigningInfo:       signinginfo,
+		passedToFP:        false, // set to true only after FP actually received the message.
+		digestconsistancy: consistencyLvl,
+	}
+
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, sgCmd); err != nil {
+		return fmt.Errorf("couldn't inform the fault-tolerance tracker of the signature start: %w", err)
+	}
+
+	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others (if consistency levels allows it).
+	t.anounceNewDigest(d[:], chainID, consistencyLvl)
 
 	return nil
 }
@@ -917,24 +936,24 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 	}
 
 	if !bytes.Equal(t.LeaderIdentity, src.Key) {
-		return fmt.Errorf("received a VAA unicast from a replica (non-leader): %s", src.Id)
+		return fmt.Errorf("tss received a VAA unicast from a replica (non-leader): %s", src.Id)
 	}
 
 	if v.Vaav1 == nil {
-		return fmt.Errorf("received nil VAA")
+		return fmt.Errorf("tss received nil VAA")
 	}
 
 	newVaa, err := vaa.Unmarshal(v.Vaav1.Marshaled)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal VAA %w", err)
+		return fmt.Errorf("tss failed to unmarshal VAA %w", err)
 	}
 
 	if newVaa.Version != vaa.VaaVersion1 {
-		return fmt.Errorf("unsupported VAA version: %d", newVaa.Version)
+		return fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", newVaa.Version)
 	}
 
 	if err := newVaa.Verify(t.gst.Get().Keys); err != nil {
-		return fmt.Errorf("received VAA that fails verification: %w", err)
+		return fmt.Errorf("tss received VAA that fails verification: %w", err)
 	}
 
 	dgst := newVaa.SigningDigest()
