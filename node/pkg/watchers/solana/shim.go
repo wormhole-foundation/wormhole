@@ -341,7 +341,7 @@ func (s *SolanaWatcher) shimProcessRest(
 			zap.Uint64("sequence", observation.Sequence),
 			zap.Stringer("emitter_chain", observation.EmitterChain),
 			zap.Stringer("emitter_address", observation.EmitterAddress),
-			zap.Bool("isReobservation", false),
+			zap.Bool("isReobservation", observation.IsReobservation),
 			zap.Binary("payload", observation.Payload),
 			zap.Uint8("consistency_level", observation.ConsistencyLevel),
 		)
