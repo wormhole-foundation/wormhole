@@ -243,7 +243,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	w.ccqLogger.Info(fmt.Sprintf("account read for %s query succeeded", tag),
 		zap.String("requestId", requestId),
 		zap.Uint64("slotNumber", info.Context.Slot),
-		zap.Uint64("blockTime", uint64(*block.BlockTime)),
+		zap.Uint64("blockTime", uint64(*block.BlockTime)), // #nosec G115 -- This conversion is safe indefinitely
 		zap.String("blockHash", hex.EncodeToString(block.Blockhash[:])),
 		zap.Uint64("blockHeight", *block.BlockHeight),
 		zap.Int("numFastRetries", numFastRetries),
