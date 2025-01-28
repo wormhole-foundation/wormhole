@@ -73,7 +73,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		return nil, status.Error(codes.InvalidArgument, "emitter chain id must be no greater than 16 bits")
 	}
 
-	chainID := vaa.ChainID(req.MessageId.GetEmitterChain())
+	chainID := vaa.ChainID(req.MessageId.GetEmitterChain()) // #nosec G115 -- This conversion is checked above
 
 	// This interface is not supported for PythNet messages because those VAAs are not stored in the database.
 	if chainID == vaa.ChainIDPythNet {
