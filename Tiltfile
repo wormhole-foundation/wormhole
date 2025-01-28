@@ -604,6 +604,11 @@ if evm2:
     )
 
 
+# Note that ci_tests requires other resources in order to build properly:
+# - eth-devnet  -- required by: accountant_tests, ntt_accountant_tests, tx-verifier
+# - eth-devnet2 -- required by: accountant_tests, ntt_accountant_tests
+# - wormchain   -- required by: accountant_tests, ntt_accountant_tests
+# - solana      -- required by: spydk-ci-tests
 if ci_tests:
     docker_build(
         ref = "sdk-test-image",
@@ -635,6 +640,16 @@ if ci_tests:
             sync("./testing", "/app/testing"),
         ],
     )
+    docker_build(
+        ref = "tx-verifier-monitor", 
+        context = "./devnet/tx-verifier-monitor/",
+        dockerfile = "./devnet/tx-verifier-monitor/Dockerfile"
+    )
+    docker_build(
+        ref = "tx-verifier-test", 
+        context = "./devnet/tx-verifier-monitor/",
+        dockerfile = "./devnet/tx-verifier-monitor/Dockerfile.cast"
+    )
 
     k8s_yaml_with_ns(
         encode_yaml_stream(
@@ -644,6 +659,11 @@ if ci_tests:
                     "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
                     "MAX_WORKERS", max_workers))
     )
+    
+    # transfer-verifier -- daemon and log monitoring
+    k8s_yaml_with_ns("devnet/tx-verifier.yaml")
+
+    k8s_yaml_with_ns("devnet/tx-verifier-test.yaml")
 
     # separate resources to parallelize docker builds
     k8s_resource(
@@ -675,6 +695,20 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
+    )
+    # launches tx-verifier binary and sets up monitoring script
+    k8s_resource(
+        "tx-verifier-with-monitor",
+        resource_deps = ["eth-devnet"],
+        labels = ["tx-verifier"],
+        trigger_mode = trigger_mode,
+    )
+    # triggers the integration tests that will be detected by the monitor
+    k8s_resource(
+        "tx-verifier-test",
+        resource_deps = ["eth-devnet", "tx-verifier-with-monitor"],
+        labels = ["tx-verifier"],
+        trigger_mode = trigger_mode,
     )
 
 if terra_classic:

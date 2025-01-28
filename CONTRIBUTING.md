@@ -23,9 +23,7 @@ and code reviews are our most important tools to accomplish that.
   Small commits, meaningful commit messages and useful comments make it easier to review code and improve the
   quality of code review as well as review turnaround times. It's much easier to spot mistakes in small,
   well-defined changes.
-- We welcome typo and grammar fixes to *public facing* documents. This includes
-  things like the whitepapers, but excludes inline code comments. PRs that touch
-  only the latter will be rejected. Fixing typos in comments alongside other non-trivial engineering work is welcome.
+- PRs that only correct typos or make minor wording adjustments will be rejected. Fixing typos alongside other non-trivial engineering work is welcome.
 - Pull requests that modify dependencies must be well-documented so that the benefits of updating can be weighed against
   security and compatibility concerns. Low-effort PRs that update dependencies without any documentation will be rejected.
 

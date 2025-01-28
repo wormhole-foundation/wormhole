@@ -63,6 +63,7 @@ jobs:
           - "ictest-wormchain"
           - "ictest-ibc-receiver"
           - "ictest-validator-hotswap"
+          - "ictest-cw-wormhole"
       fail-fast: false
 
     steps:
