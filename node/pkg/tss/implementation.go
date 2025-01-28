@@ -1,6 +1,7 @@
 package tss
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -12,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	whcommon "github.com/certusone/wormhole/node/pkg/common"
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
@@ -65,6 +67,8 @@ type Engine struct {
 	ftCommandChan chan ftCommand
 
 	SignatureMetrics sync.Map
+
+	gst *whcommon.GuardianSetState
 }
 
 type PEM []byte
@@ -412,6 +416,16 @@ func makeSigningRequest(d party.Digest, faulties []*tss.PartyID, chainID vaa.Cha
 	}
 }
 
+func NewReliableTSSWithGuardianSetState(storage *GuardianStorage, gst *whcommon.GuardianSetState) (ReliableTSS, error) {
+	e, err := NewReliableTSS(storage)
+	if err != nil {
+		return nil, err
+	}
+
+	e.(*Engine).gst = gst
+
+	return e, nil
+}
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
@@ -880,6 +894,7 @@ func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
 
 var errUnicastBadRound = fmt.Errorf("bad round for unicast (can accept round1Message1 and round2Message)")
 
+// handleUnicast is responsible to handle any incoming unicast messages.
 func (t *Engine) handleUnicast(m Incoming) error {
 	unicast := m.toUnicast()
 	if err := validateUnicastCorrectForm(unicast); err != nil {
@@ -888,31 +903,70 @@ func (t *Engine) handleUnicast(m Incoming) error {
 
 	switch v := unicast.Content.(type) {
 	case *tsscommv1.Unicast_Vaav1:
-		// parse
-
+		t.handleUnicastVaaV1(v, m.GetSource())
 	case *tsscommv1.Unicast_Tss:
-		fpmsg, err := t.parseTssContent(v.Tss, m.GetSource())
-		if err != nil {
-			err = fmt.Errorf("couldn't parse unicast_tss payload: %w", err)
-			if fpmsg != nil {
-				err = fpmsg.wrapError(err)
-			}
+		return t.handleUnicastTSS(v, m.GetSource())
+	}
 
-			return err
+	return nil
+}
+
+func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.PartyId) error {
+	if t.gst == nil {
+		return fmt.Errorf("no guardian set state")
+	}
+
+	if !bytes.Equal(t.LeaderIdentity, src.Key) {
+		return fmt.Errorf("received a VAA unicast from a replica (non-leader): %s", src.Id)
+	}
+
+	if v.Vaav1 == nil {
+		return fmt.Errorf("received nil VAA")
+	}
+
+	newVaa, err := vaa.Unmarshal(v.Vaav1.Marshaled)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal VAA %w", err)
+	}
+
+	if newVaa.Version != vaa.VaaVersion1 {
+		return fmt.Errorf("unsupported VAA version: %d", newVaa.Version)
+	}
+
+	if err := newVaa.Verify(t.gst.Get().Keys); err != nil {
+		return fmt.Errorf("received VAA that fails verification: %w", err)
+	}
+
+	dgst := newVaa.SigningDigest()
+
+	// TODO: Starting signing protocol should be done with just the guys that KNOW the vaa.
+	t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, false)
+
+	return nil
+}
+
+// handleUnicastTSS is helper function. responsible for handling unicast.TSS messages.
+func (t *Engine) handleUnicastTSS(v *tsscommv1.Unicast_Tss, src *tsscommv1.PartyId) error {
+	fpmsg, err := t.parseTssContent(v.Tss, src)
+	if err != nil {
+		err = fmt.Errorf("couldn't parse unicast_tss payload: %w", err)
+		if fpmsg != nil {
+			err = fpmsg.wrapError(err)
 		}
 
-		err = t.validateUnicastDoesntExist(fpmsg)
-		if err == errUnicastAlreadyReceived {
-			return nil
-		}
+		return err
+	}
 
-		if err != nil {
-			return fpmsg.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, m.GetSource().Id))
-		}
+	if err = t.validateUnicastDoesntExist(fpmsg); err == errUnicastAlreadyReceived {
+		return nil
+	}
 
-		if err := t.feedIncomingToFp(fpmsg); err != nil {
-			return fpmsg.wrapError(fmt.Errorf("unicast failed to update the full party: %w", err))
-		}
+	if err != nil {
+		return fpmsg.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, src.Id))
+	}
+
+	if err := t.feedIncomingToFp(fpmsg); err != nil {
+		return fpmsg.wrapError(fmt.Errorf("unicast failed to update the full party: %w", err))
 	}
 
 	return nil
