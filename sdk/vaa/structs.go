@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -266,6 +267,33 @@ func (c ChainID) String() string {
 	}
 }
 
+// Atoi converts from a string representation of an integer into a valid ChainID.
+func Atoi(s string) (chainId ChainID, err error) {
+	u16, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return
+	}
+
+	fmt.Printf("Parsed %s to %d\n", s, u16)
+	// TODO: using slice.Contains would be nicer here, but it requires that users of the SDK are on Go version >= 1.21
+	// This is not the case for e.g. Wormchain, so this function can't be used here until SDK users upgrade their Go versions
+	found := false
+	// NOTE: This function does not contain ChainIDUnset, therefore this function returns an error if the argument is 0.
+	for _, id := range GetAllNetworkIDs() {
+		if ChainID(u16) == ChainID(id) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		err = fmt.Errorf("value %s is not a valid chainId", s)
+		return
+	}
+	chainId = ChainID(u16)
+	return
+}
+
+// ChainIDFromString converts from a chain's full name (e.g. "solana") to its corresponding ChainID.
 func ChainIDFromString(s string) (ChainID, error) {
 	s = strings.ToLower(s)
 
