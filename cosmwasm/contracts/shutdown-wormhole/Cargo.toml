@@ -10,3 +10,16 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wormhole-cosmwasm = { version = "0.1.0", default-features = false }
+
+[dev-dependencies]
+cw-multi-test = "0.14"
+serde_wormhole.workspace = true
+wormhole-sdk.workspace = true
+wormhole-bindings = { version = "0.1", features = ["fake"] }
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+serde-json-wasm = "0.4"
+wormchain-ibc-receiver = { path = "../wormchain-ibc-receiver" }
+hex = "0.4.2"
+serde = { version = "1.0.137", default-features = false, features = ["derive"] }
+k256 = { version = "0.11", default-features = false, features = ["ecdsa"] }
+cosmwasm-std = { version = "1.0.0" }

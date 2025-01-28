@@ -5,7 +5,7 @@ use cw_wormhole::{
         execute as core_execute, instantiate as core_instantiate, migrate as core_migrate,
         query as core_query, query_parse_and_verify_vaa,
     },
-    state::config_read,
+    state::CONFIG,
 };
 use wormhole_sdk::{
     ibc_receiver::{Action, GovernancePacket},
@@ -87,8 +87,8 @@ fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {
         .context("failed to parse governance packet")?;
 
     // validate the governance VAA is directed to this chain
-    let state = config_read(deps.storage)
-        .load()
+    let state = CONFIG
+        .load(deps.storage)
         .context("failed to load contract config")?;
     ensure!(
         govpacket.chain == Chain::from(state.chain_id),
