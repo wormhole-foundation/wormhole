@@ -1184,7 +1184,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 
 			// run the guardians
 			for i := 0; i < numGuardians; i++ {
-				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb)
+				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb) // #nosec G115 -- This conversion is safe based on the constant used above
 				err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 				if i == 0 && numGuardians > 1 {
 					time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -1281,7 +1281,8 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			logger.Info("Tests completed.")
 			t.StopTimer()
 			logsize := setupLogsCapture.Reset()
-			logsize = logsize / uint64(numMessages) / uint64(numGuardians) // normalize
+			// normalize
+			logsize = logsize / uint64(numMessages) / uint64(numGuardians) // #nosec G115 -- These conversions are safe based on the constants used above
 			logger.Warn("benchmarkConsensus: logsize report", zap.Uint64("logbytes_per_msg", logsize))
 			supervisor.Signal(ctx, supervisor.SignalDone)
 			rootCtxCancel()
