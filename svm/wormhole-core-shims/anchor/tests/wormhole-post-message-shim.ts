@@ -16,12 +16,12 @@ describe("wormhole-post-message-shim", () => {
       .postMessage(0, { confirmed: {} }, Buffer.from(msg, "ascii"))
       .accounts({
         emitter: program.provider.publicKey,
-        sequence: anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
-          new anchor.web3.PublicKey(
-            "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-          )
-        )[0],
+        // sequence: anchor.web3.PublicKey.findProgramAddressSync(
+        //   [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
+        //   new anchor.web3.PublicKey(
+        //     "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+        //   )
+        // )[0],
         // these are needed if removing the address checks
         // bridge: new anchor.web3.PublicKey(
         //   "FKoMTctsC7vJbEqyRiiPskPnuQx2tX1kurmvWByq5uZP"

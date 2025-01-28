@@ -2,14 +2,15 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
+use wormhole_svm_definitions::{make_anchor_discriminator, EncodeFinality};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PostMessageShimInstruction<'ix> {
-    PostMessage(PostMessageData<'ix>),
+pub enum PostMessageShimInstruction<'ix, F: EncodeFinality> {
+    PostMessage(PostMessageData<'ix, F>),
 }
 
-impl<'ix> PostMessageShimInstruction<'ix> {
-    pub const POST_MESSAGE_SELECTOR: [u8; 8] = super::make_discriminator(b"global:post_message");
+impl<'ix, F: EncodeFinality> PostMessageShimInstruction<'ix, F> {
+    pub const POST_MESSAGE_SELECTOR: [u8; 8] = make_anchor_discriminator(b"global:post_message");
 
     #[inline]
     pub fn to_vec(&self) -> Vec<u8> {
@@ -26,7 +27,7 @@ impl<'ix> PostMessageShimInstruction<'ix> {
                 });
                 out.extend_from_slice(&Self::POST_MESSAGE_SELECTOR);
                 out.extend_from_slice(&data.nonce.to_le_bytes());
-                out.push(data.finality as u8);
+                out.push(data.finality.encode());
                 out.extend_from_slice(&(payload_len as u32).to_le_bytes());
                 out.extend_from_slice(data.payload);
 
@@ -56,10 +57,9 @@ pub struct PostMessageAccounts<'ix> {
     /// program's post message instruction requires this account to be a signer.
     pub emitter: &'ix Pubkey,
 
-    /// Payer will pay the Wormhole Core Bridge fee to post a message. The fee
-    /// amount is encoded in the [core_bridge_config] account data.
-    ///
-    /// [core_bridge_config]: Self::core_bridge_config
+    /// Payer will pay the rent for the Wormhole Core Bridge emitter sequence
+    /// and message on the first post message call. Subsequent calls will not
+    /// require more lamports for rent.
     pub payer: &'ix Pubkey,
 
     /// Wormhole Core Bridge program.
@@ -105,21 +105,19 @@ pub struct PostMessageDerivedAccounts<'ix> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PostMessageData<'ix> {
+pub struct PostMessageData<'ix, F: EncodeFinality> {
     /// Arbitrary message identifier specified by the message sender.
     pub nonce: u32,
 
-    /// Whether the message should be finalized. If true, the message will be
-    /// observed by the Wormhole guardians at the Finalized commitment level
-    /// (32 slots). Otherwise it will be observed at the Confirmed commitment
-    /// level (1 slot).
-    pub finality: Finality,
+    /// Finality of the message (which is when the Wormhole guardians will
+    /// attest to this message's observation).
+    pub finality: F,
 
     /// Message payload.
     pub payload: &'ix [u8],
 }
 
-impl<'ix> PostMessageData<'ix> {
+impl<'ix, F: EncodeFinality> PostMessageData<'ix, F> {
     pub const MINIMUM_SIZE: usize = {
         4 // nonce
         + 1 // finality
@@ -136,15 +134,15 @@ impl<'ix> PostMessageData<'ix> {
 
         // NOTE: There may be different finality requirements among SVM
         // networks. This logic will have to change if that is the case.
-        let finality = match data[4] {
-            0 => Finality::Confirmed,
-            1 => Finality::Finalized,
-            _ => return None,
-        };
+        let finality = EncodeFinality::decode(data[4])?;
 
         let payload_len = u32::from_le_bytes(data[5..9].try_into().unwrap()) as usize;
 
-        if data.len() < Self::MINIMUM_SIZE.saturating_add(payload_len) {
+        // This operation is unlikely to overflow (beware 32-bit architectures).
+        // But it does not cost much to be paranoid.
+        let total_len = Self::MINIMUM_SIZE.checked_add(payload_len)?;
+
+        if data.len() < total_len {
             return None;
         }
 
@@ -183,13 +181,13 @@ impl<'ix> PostMessageData<'ix> {
 /// Integrator Program -> shim `PostMessage` -> core `0x8`
 ///                                          -> shim `MesssageEvent`
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PostMessage<'ix> {
+pub struct PostMessage<'ix, F: EncodeFinality> {
     pub program_id: &'ix Pubkey,
     pub accounts: PostMessageAccounts<'ix>,
-    pub data: PostMessageData<'ix>,
+    pub data: PostMessageData<'ix, F>,
 }
 
-impl<'ix> PostMessage<'ix> {
+impl<'ix, F: EncodeFinality> PostMessage<'ix, F> {
     /// Generate SVM instruction.
     #[inline]
     pub fn instruction(&self) -> Instruction {
@@ -244,30 +242,4 @@ impl<'ix> PostMessage<'ix> {
             data: PostMessageShimInstruction::PostMessage(self.data).to_vec(),
         }
     }
-}
-
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
-)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum Finality {
-    Confirmed,
-    Finalized,
-}
-
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
-)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MessageEvent {
-    pub emitter: Pubkey,
-    pub sequence: u64,
-    pub submission_time: u32,
-}
-
-impl MessageEvent {
-    pub const DISCRIMINATOR: [u8; 8] = super::make_discriminator(b"event:MessageEvent");
 }

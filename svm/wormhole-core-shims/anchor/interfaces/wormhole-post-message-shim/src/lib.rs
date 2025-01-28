@@ -1,8 +1,5 @@
 use anchor_lang::prelude::*;
-use wormhole_svm_definitions::{
-    CORE_BRIDGE_CONFIG, CORE_BRIDGE_FEE_COLLECTOR, CORE_BRIDGE_PROGRAM_ID,
-    POST_MESSAGE_SHIM_PROGRAM_ID,
-};
+use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, POST_MESSAGE_SHIM_PROGRAM_ID};
 
 declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
@@ -43,12 +40,13 @@ pub mod wormhole_post_message_shim {
     }
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, AnchorDeserialize, AnchorSerialize)]
 pub enum Finality {
     Confirmed,
     Finalized,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[event]
 pub struct MessageEvent {
     pub emitter: Pubkey,
@@ -56,8 +54,6 @@ pub struct MessageEvent {
     pub submission_time: u32,
 }
 
-#[event_cpi]
-#[derive(Accounts)]
 /// The accounts are ordered and named the same as the core bridge's
 /// post_message_unreliable instruction.
 ///
@@ -70,13 +66,19 @@ pub struct MessageEvent {
 /// - core post_message:                      25097
 /// - shim without sysvar and address checks: 45608 (20511 more)
 /// - shim with sysvar and address checks:    45782 (  174 more)
+#[derive(Accounts)]
+#[event_cpi]
 pub struct PostMessage<'info> {
-    #[account(mut, seeds = [b"Bridge"], bump, seeds::program = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole bridge config. [`wormhole::post_message`] requires this
     /// account be mutable.
-    pub bridge: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"Bridge"],
+        bump,
+        seeds::program = CORE_BRIDGE_PROGRAM_ID
+    )]
+    bridge: UncheckedAccount<'info>,
 
-    #[account(mut, seeds = [&emitter.key.to_bytes()], bump)]
     /// CHECK: Wormhole Message. [`wormhole::post_message`] requires this
     /// account be signer and mutable.
     ///
@@ -88,40 +90,57 @@ pub struct PostMessage<'info> {
     ///
     /// Bonus, this also allows Anchor to automatically handle deriving the
     /// address.
-    pub message: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [&emitter.key.to_bytes()],
+        bump
+    )]
+    message: UncheckedAccount<'info>,
 
     /// CHECK: Emitter of the VAA. [`wormhole::post_message`] requires this
     /// account be signer.
-    pub emitter: Signer<'info>,
+    emitter: Signer<'info>,
 
-    #[account(mut)]
     /// CHECK: Emitter's sequence account. [`wormhole::post_message`] requires
     /// this account be mutable.
     ///
     /// Explicitly do not re-derive this account. The core bridge verifies the
     /// derivation anyway and as of Anchor 0.30.1, auto-derivation for other
     /// programs' accounts via IDL doesn't work.
-    pub sequence: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"Sequence", &emitter.key.to_bytes()],
+        bump,
+        seeds::program = CORE_BRIDGE_PROGRAM_ID
+    )]
+    sequence: UncheckedAccount<'info>,
 
+    /// Payer will pay the rent for the Wormhole Core Bridge emitter sequence
+    /// and message on the first post message call. Subsequent calls will not
+    /// require more lamports for rent.
     #[account(mut)]
-    /// Payer will pay Wormhole fee to post a message.
-    pub payer: Signer<'info>,
+    payer: Signer<'info>,
 
-    #[account(mut, seeds = [b"fee_collector"], bump, seeds::program = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole fee collector. [`wormhole::post_message`] requires this
     /// account be mutable.
-    pub fee_collector: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"fee_collector"],
+        bump,
+        seeds::program = CORE_BRIDGE_PROGRAM_ID
+    )]
+    fee_collector: UncheckedAccount<'info>,
 
     /// Clock sysvar.
-    pub clock: Sysvar<'info, Clock>,
+    clock: Sysvar<'info, Clock>,
 
     /// System program.
-    pub system_program: Program<'info, System>,
+    system_program: Program<'info, System>,
 
     /// Rent sysvar.
-    pub rent: Sysvar<'info, Rent>,
+    rent: Sysvar<'info, Rent>,
 
     #[account(address = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole program.
-    pub wormhole_program: UncheckedAccount<'info>,
+    wormhole_program: UncheckedAccount<'info>,
 }

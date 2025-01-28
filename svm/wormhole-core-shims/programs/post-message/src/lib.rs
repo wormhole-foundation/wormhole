@@ -9,12 +9,13 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use wormhole_svm_definitions::{
-    find_shim_message_address, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
-    POST_MESSAGE_SHIM_EVENT_AUTHORITY, POST_MESSAGE_SHIM_PROGRAM_ID,
+    find_shim_message_address, Finality, MessageEvent, CORE_BRIDGE_PROGRAM_ID,
+    EVENT_AUTHORITY_SEED, POST_MESSAGE_SHIM_EVENT_AUTHORITY,
+    POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP, POST_MESSAGE_SHIM_PROGRAM_ID,
 };
-use wormhole_svm_shim::post_message::{MessageEvent, PostMessageShimInstruction};
+use wormhole_svm_shim::post_message::PostMessageShimInstruction;
 
-const MESSAGE_AUTHORITY_SIGNER_SEEDS: &[&[u8]; 2] = &[EVENT_AUTHORITY_SEED, &[255]];
+solana_program::declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
 
 solana_program::entrypoint!(process_instruction);
 
@@ -25,12 +26,12 @@ fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // Verify the program ID is what we expect.
-    if program_id != &POST_MESSAGE_SHIM_PROGRAM_ID {
+    if program_id != &ID {
         return Err(ProgramError::IncorrectProgramId);
     }
 
     // Determine whether instruction data is post message.
-    match PostMessageShimInstruction::deserialize(instruction_data) {
+    match PostMessageShimInstruction::<Finality>::deserialize(instruction_data) {
         Some(PostMessageShimInstruction::PostMessage(_)) => process_post_message(accounts),
         None => process_privileged_invoke(accounts),
     }
@@ -67,8 +68,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     //
     // While this could be managed by the integrator, it seems more effective
     // to have the Wormhole Post Message Shim program manage these accounts.
-    let (expected_message_key, message_bump) =
-        find_shim_message_address(emitter_key, &POST_MESSAGE_SHIM_PROGRAM_ID);
+    let (expected_message_key, message_bump) = find_shim_message_address(emitter_key, &ID);
     if message_info.key != &expected_message_key {
         msg!("Message (account #2) seeds constraint violated");
         msg!("Left:");
@@ -82,8 +82,9 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // instruction requires this account to be mutable.
     let sequence_info = &accounts[3];
 
-    // Payer will pay the Wormhole Core Bridge fee to post a message. The fee
-    // amount is encoded in the [core_bridge_config] account data.
+    // Payer will pay the rent for the Wormhole Core Bridge emitter sequence
+    // and message on the first post message call. Subsequent calls will not
+    // require more lamports for rent.
     let payer_info = &accounts[4];
 
     // Wormhole Core Bridge fee collector. Wormhole Core Bridge program's post
@@ -194,7 +195,11 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
         // this clock account info may not exist anymore (so we will have to
         // perform Clock::get() here instead).
         let clock_data = clock_info.data.borrow();
-        let submission_time = i64::from_le_bytes(clock_data[32..40].try_into().unwrap());
+        let unix_timestamp = i64::from_le_bytes(clock_data[32..40].try_into().unwrap());
+
+        // Casting to u32 matches the Wormhole Core Bridge's timestamp. This
+        // operation will panic quite far in the future.
+        let submission_time = u32::try_from(unix_timestamp).unwrap();
 
         let cpi_accounts = &mut cpi_ix.accounts;
 
@@ -225,16 +230,19 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
         cpi_data[8..16].copy_from_slice(&MessageEvent::DISCRIMINATOR);
         cpi_data[16..48].copy_from_slice(&emitter_key_bytes);
         cpi_data[48..56].copy_from_slice(&sequence.to_le_bytes());
-        cpi_data[56..60].copy_from_slice(&(submission_time as u32).to_le_bytes());
+        cpi_data[56..60].copy_from_slice(&submission_time.to_le_bytes());
 
-        cpi_ix.program_id = POST_MESSAGE_SHIM_PROGRAM_ID;
+        cpi_ix.program_id = ID;
 
         // There is no account data being borrowed at this point that the CPI'ed
         // program will be using, so this is safe.
         solana_program::program::invoke_signed_unchecked(
             &cpi_ix,
             accounts,
-            &[MESSAGE_AUTHORITY_SIGNER_SEEDS],
+            &[&[
+                EVENT_AUTHORITY_SEED,
+                &[POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP],
+            ]],
         )?;
     }
 
@@ -260,19 +268,4 @@ fn process_privileged_invoke(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_event_authority_signer_seeds() {
-        let actual = Pubkey::create_program_address(
-            MESSAGE_AUTHORITY_SIGNER_SEEDS,
-            &POST_MESSAGE_SHIM_PROGRAM_ID,
-        )
-        .unwrap();
-        assert_eq!(actual, POST_MESSAGE_SHIM_EVENT_AUTHORITY);
-    }
 }

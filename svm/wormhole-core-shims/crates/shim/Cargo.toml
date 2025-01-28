@@ -12,11 +12,7 @@ version.workspace = true
 
 [features]
 default = []
-borsh = ["dep:borsh"]
 
 [dependencies]
-sha2-const-stable.workspace = true
 solana-program.workspace = true
 wormhole-svm-definitions.workspace = true
-
-borsh = { workspace = true, optional = true}

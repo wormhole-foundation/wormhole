@@ -13,6 +13,7 @@ version.workspace = true
 
 [features]
 default = []
+borsh = ["dep:borsh"]
 
 ### Network types
 testnet = []
@@ -22,5 +23,7 @@ localnet = []
 solana = []
 
 [dependencies]
+borsh = { optional = true, workspace = true }
 cfg-if.workspace = true
+sha2-const-stable.workspace = true
 solana-program.workspace = true

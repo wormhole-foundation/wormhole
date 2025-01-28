@@ -78,7 +78,7 @@ async fn test_post_message_no_emitter_sequence() {
     assert_eq!(
         details.units_consumed - bump_costs.message - 2 * bump_costs.sequence,
         // 53_418
-        47_056
+        47_060
     );
 }
 
@@ -181,7 +181,7 @@ async fn test_post_message() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.message - bump_costs.sequence,
         // 30_901
-        24_537
+        24_541
     );
 }
 
@@ -260,7 +260,7 @@ async fn set_up_post_message_transaction(
         data: post_message::PostMessageData {
             nonce: 420,
             payload,
-            finality: post_message::Finality::Finalized,
+            finality: wormhole_svm_definitions::Finality::Finalized,
         },
     }
     .instruction();

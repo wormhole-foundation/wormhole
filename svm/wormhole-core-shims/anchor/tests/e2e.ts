@@ -74,10 +74,10 @@ import { getSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormh
       )
       .accounts({
         emitter: program.provider.publicKey,
-        sequence: web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
-          new web3.PublicKey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-        )[0],
+        // sequence: web3.PublicKey.findProgramAddressSync(
+        //   [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
+        //   new web3.PublicKey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
+        // )[0],
       })
       .preInstructions([
         // gotta pay the fee
@@ -143,10 +143,10 @@ import { getSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormh
     const tx = await program.methods
       .postMessage()
       .accounts({
-        sequence: web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("Sequence"), emitterBuf],
-          new web3.PublicKey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-        )[0],
+        // sequence: web3.PublicKey.findProgramAddressSync(
+        //   [Buffer.from("Sequence"), emitterBuf],
+        //   new web3.PublicKey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
+        // )[0],
         wormholePostMessageShimEa: web3.PublicKey.findProgramAddressSync(
           [Buffer.from("__event_authority")],
           postShimProgram.programId

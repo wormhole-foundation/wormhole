@@ -8,6 +8,7 @@ pub const POST_MESSAGE_SHIM_PROGRAM_ID: Pubkey =
     pubkey!("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
 pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY: Pubkey =
     pubkey!("HQS31aApX3DDkuXgSpV9XyDUNtFgQ31pUn5BNWHG2PSp");
+pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP: u8 = 255;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "testnet")] {
@@ -30,29 +31,64 @@ cfg_if::cfg_if! {
     }
 }
 
+/// Finality of the message (which is when the Wormhole guardians will attest to
+/// this message's observation).
+///
+/// On Solana, there are only two commitment levels that the Wormhole guardians
+/// recognize.
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Finality {
+    /// Equivalent to observing after one slot.
+    Confirmed,
+
+    /// Equivalent to observing after 32 slots.
+    Finalized,
+}
+
+impl super::EncodeFinality for Finality {
+    fn encode(&self) -> u8 {
+        *self as u8
+    }
+
+    fn decode(data: u8) -> Option<Self> {
+        match data {
+            0 => Some(Self::Confirmed),
+            1 => Some(Self::Finalized),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_core_bridge_fee_collector() {
-        let (expected, _) =
-            Pubkey::find_program_address(&[b"fee_collector"], &CORE_BRIDGE_PROGRAM_ID);
+        let (expected, _) = crate::find_fee_collector_address(&CORE_BRIDGE_PROGRAM_ID);
         assert_eq!(CORE_BRIDGE_FEE_COLLECTOR, expected);
     }
 
     #[test]
     fn test_core_bridge_config() {
-        let (expected, _) = Pubkey::find_program_address(&[b"Bridge"], &CORE_BRIDGE_PROGRAM_ID);
+        let (expected, _) = crate::find_core_bridge_config_address(&CORE_BRIDGE_PROGRAM_ID);
         assert_eq!(CORE_BRIDGE_CONFIG, expected);
     }
 
     #[test]
     fn test_post_message_shim_event_authority() {
-        let (expected, _) = Pubkey::find_program_address(
-            &[crate::EVENT_AUTHORITY_SEED],
-            &POST_MESSAGE_SHIM_PROGRAM_ID,
+        let expected = crate::find_event_authority_address(&POST_MESSAGE_SHIM_PROGRAM_ID);
+        assert_eq!(
+            (
+                POST_MESSAGE_SHIM_EVENT_AUTHORITY,
+                POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP
+            ),
+            expected
         );
-        assert_eq!(POST_MESSAGE_SHIM_EVENT_AUTHORITY, expected);
     }
 }
