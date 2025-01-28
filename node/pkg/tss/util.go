@@ -250,6 +250,18 @@ func validatePartIdProtoCorrectForm(p *tsscommv1.PartyId) error {
 	return nil
 }
 
+func validateUnicastCorrectForm(m *tsscommv1.Unicast) error {
+	if m == nil {
+		return ErrNoContent
+	}
+
+	if m.Content == nil {
+		return ErrNoContent
+	}
+
+	return nil
+}
+
 func validateContentCorrectForm(m *tsscommv1.TssContent) error {
 	if m == nil {
 		return ErrNoContent

@@ -11,7 +11,7 @@ type Echo struct {
 }
 
 type Unicast struct {
-	Unicast     *tsscommv1.TssContent
+	Unicast     *tsscommv1.Unicast
 	Receipients []*tsscommv1.PartyId
 }
 
@@ -46,13 +46,13 @@ func (i *IncomingMessage) toEcho() *tsscommv1.Echo {
 	return nil
 }
 
-func (i *IncomingMessage) toUnicast() *tsscommv1.TssContent {
+func (i *IncomingMessage) toUnicast() *tsscommv1.Unicast {
 	if !i.hasContent() {
 		return nil
 	}
 
 	if unicast, ok := i.Content.Message.(*tsscommv1.PropagatedMessage_Unicast); ok {
-		return unicast.Unicast.Content
+		return unicast.Unicast
 	}
 
 	return nil
@@ -121,7 +121,7 @@ func (u *Unicast) GetDestinations() []*tsscommv1.PartyId {
 func (u *Unicast) GetNetworkMessage() *tsscommv1.PropagatedMessage {
 	return &tsscommv1.PropagatedMessage{
 		Message: &tsscommv1.PropagatedMessage_Unicast{
-			Unicast: &tsscommv1.Unicast{Content: u.Unicast},
+			Unicast: u.Unicast,
 		},
 	}
 }
@@ -133,7 +133,7 @@ func (u *Unicast) cloneSelf() Sendable {
 	}
 
 	return &Unicast{
-		Unicast:     proto.Clone(u.Unicast).(*tsscommv1.TssContent),
+		Unicast:     proto.Clone(u.Unicast).(*tsscommv1.Unicast),
 		Receipients: clns,
 	}
 }

@@ -202,7 +202,14 @@ func TestRelentlessReconnections(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		msgChan <- &tss.Unicast{
-			Unicast:     &tsscommv1.TssContent{},
+			Unicast: &tsscommv1.Unicast{
+				Content: &tsscommv1.Unicast_Tss{
+					Tss: &tsscommv1.TssContent{
+						Payload:         []byte{1},
+						MsgSerialNumber: 2,
+					},
+				},
+			},
 			Receipients: workingServerAsMessageRecipient,
 		}
 

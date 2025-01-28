@@ -30,7 +30,7 @@ type Incoming interface {
 	IsUnicast() bool
 	GetSource() *tsscommv1.PartyId
 
-	toUnicast() *tsscommv1.TssContent
+	toUnicast() *tsscommv1.Unicast
 	toEcho() *tsscommv1.Echo
 }
 
@@ -50,8 +50,6 @@ type ReliableMessenger interface {
 	// FetchPartyId returns the PartyId for a given certificate, it'll use the public key
 	// in the certificate and match it to the public key expected to be found in `*tsscommv1.PartyId`.
 	FetchPartyId(cert *x509.Certificate) (*tsscommv1.PartyId, error)
-
-	SeeNewVaa(vaa *vaa.VAA) // to be called when a new VAA is seen.
 }
 
 // Signer is the interface to give any component with the ability to authorise a new threshold signature over a message.
@@ -66,6 +64,8 @@ type Signer interface {
 	// tells the maximal duration one might wait on a signature to be produced
 	// (realisticly, it should be produced within a few seconds).
 	MaxTTL() time.Duration
+
+	WitnessNewVaa(v *vaa.VAA)
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of

@@ -297,9 +297,11 @@ func TestEquivocation(t *testing.T) {
 				Content: &tsscommv1.PropagatedMessage{
 					Message: &tsscommv1.PropagatedMessage_Unicast{
 						Unicast: &tsscommv1.Unicast{
-							Content: &tsscommv1.TssContent{
-								Payload:         bts,
-								MsgSerialNumber: 0,
+							Content: &tsscommv1.Unicast_Tss{
+								&tsscommv1.TssContent{
+									Payload:         bts,
+									MsgSerialNumber: 0,
+								},
 							},
 						},
 					},
@@ -313,7 +315,8 @@ func TestEquivocation(t *testing.T) {
 			bts, _, err = parsed2.WireBytes()
 			a.NoError(err)
 
-			msg.Content.Message.(*tsscommv1.PropagatedMessage_Unicast).Unicast.Content.Payload = bts
+			msg.Content.Message.(*tsscommv1.PropagatedMessage_Unicast).
+				Unicast.Content.(*tsscommv1.Unicast_Tss).Tss.Payload = bts
 			a.ErrorIs(e2.handleUnicast(msg), ErrEquivicatingGuardian)
 		}
 	})
@@ -1467,7 +1470,9 @@ func TestMessagesWithBadRounds(t *testing.T) {
 				Source: partyIdToProto(from),
 				Content: &tsscommv1.PropagatedMessage{Message: &tsscommv1.PropagatedMessage_Unicast{
 					Unicast: &tsscommv1.Unicast{
-						Content: &tsscommv1.TssContent{Payload: bts},
+						Content: &tsscommv1.Unicast_Tss{
+							Tss: &tsscommv1.TssContent{Payload: bts},
+						},
 					},
 				}},
 			}
@@ -1783,7 +1788,7 @@ func TestSigCounter(t *testing.T) {
 
 		a.NoError(e1.handleIncomingTssMessage(incoming))
 
-		parsed, err := e1.parseUnicast(incoming)
+		parsed, err := e1.parseTssContent(incoming.toUnicast().GetTss(), incoming.GetSource())
 		a.NoError(err)
 
 		// test:
@@ -1821,7 +1826,7 @@ func TestSigCounter(t *testing.T) {
 
 		a.NoError(e1.handleIncomingTssMessage(incoming))
 
-		parsed, err := e1.parseUnicast(incoming)
+		parsed, err := e1.parseTssContent(incoming.toUnicast().GetTss(), incoming.GetSource())
 		a.NoError(err)
 
 		// test:

@@ -753,7 +753,11 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 		}
 
 		sendable = &Unicast{
-			Unicast:     content.TssContent,
+			Unicast: &tsscommv1.Unicast{
+				Content: &tsscommv1.Unicast_Tss{
+					Tss: content.TssContent,
+				},
+			},
 			Receipients: indices,
 		}
 	}
@@ -877,32 +881,38 @@ func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
 var errUnicastBadRound = fmt.Errorf("bad round for unicast (can accept round1Message1 and round2Message)")
 
 func (t *Engine) handleUnicast(m Incoming) error {
-	parsed, err := t.parseUnicast(m)
-	if err != nil {
-		err = fmt.Errorf("couldn't parse unicast payload: %w", err)
-		if parsed != nil {
-			err = parsed.wrapError(err)
-		}
-
+	unicast := m.toUnicast()
+	if err := validateUnicastCorrectForm(unicast); err != nil {
 		return err
 	}
 
-	fpmsg, ok := parsed.(*parsedTssContent)
-	if !ok {
-		return parsed.wrapError(fmt.Errorf("unicast casting issue"))
-	}
+	switch v := unicast.Content.(type) {
+	case *tsscommv1.Unicast_Vaav1:
+		// parse
 
-	err = t.validateUnicastDoesntExist(fpmsg)
-	if err == errUnicastAlreadyReceived {
-		return nil
-	}
+	case *tsscommv1.Unicast_Tss:
+		fpmsg, err := t.parseTssContent(v.Tss, m.GetSource())
+		if err != nil {
+			err = fmt.Errorf("couldn't parse unicast_tss payload: %w", err)
+			if fpmsg != nil {
+				err = fpmsg.wrapError(err)
+			}
 
-	if err != nil {
-		return parsed.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, m.GetSource().Id))
-	}
+			return err
+		}
 
-	if err := t.feedIncomingToFp(fpmsg); err != nil {
-		return parsed.wrapError(fmt.Errorf("unicast failed to update the full party: %w", err))
+		err = t.validateUnicastDoesntExist(fpmsg)
+		if err == errUnicastAlreadyReceived {
+			return nil
+		}
+
+		if err != nil {
+			return fpmsg.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, m.GetSource().Id))
+		}
+
+		if err := t.feedIncomingToFp(fpmsg); err != nil {
+			return fpmsg.wrapError(fmt.Errorf("unicast failed to update the full party: %w", err))
+		}
 	}
 
 	return nil
@@ -1042,12 +1052,13 @@ func getMessageUUID(msg tss.ParsedMessage, loadDistKey []byte) (uuid, error) {
 	return uuid(hash(d)), nil
 }
 
-func (t *Engine) parseUnicast(m Incoming) (processedMessage, error) {
-	if err := validateContentCorrectForm(m.toUnicast()); err != nil {
+func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *tsscommv1.PartyId) (*parsedTssContent, error) {
+	if err := validateContentCorrectForm(m); err != nil {
 		return nil, err
 	}
 
-	p, err := tss.ParseWireMessage(m.toUnicast().Payload, protoToPartyId(m.GetSource()), false)
+	spid := protoToPartyId(source)
+	p, err := tss.ParseWireMessage(m.Payload, spid, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1055,7 +1066,7 @@ func (t *Engine) parseUnicast(m Incoming) (processedMessage, error) {
 	parsed := &parsedTssContent{p, ""}
 
 	// ensuring the reported source of the message matches the claimed source. (parsed.GetFrom() used by the tss-lib)
-	if !equalPartyIds(parsed.GetFrom(), protoToPartyId(m.GetSource())) {
+	if !equalPartyIds(parsed.GetFrom(), spid) {
 		return parsed, fmt.Errorf("parsed message sender doesn't match the source of the message")
 	}
 
@@ -1121,7 +1132,7 @@ func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) err
 	return nil
 }
 
-func (t *Engine) SeeNewVaa(v *vaa.VAA) {
+func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
 	if t == nil {
 		return
 	}
