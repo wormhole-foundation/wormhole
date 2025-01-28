@@ -113,7 +113,7 @@ func TestWatermark(t *testing.T) {
 	var gs [4]*G
 	for i := range gs {
 		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
-		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)
+		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i) // #nosec G115 -- This is safe as the inputs are constants
 		gs[i].networkID = "/wormhole/localdev"
 
 		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
