@@ -586,6 +586,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	t.logger.Info(
 		"tss engine started",
 		zap.Any("configs", t.GuardianStorage.Configurations),
+		zap.Bool("GST", t.gst != nil),
 	)
 
 	return nil
@@ -956,6 +957,7 @@ func (t *Engine) handleUnicast(m Incoming) error {
 
 	switch v := unicast.Content.(type) {
 	case *tsscommv1.Unicast_Vaav1:
+		t.logger.Info("received unicast Vaav1 message", zap.String("source", m.GetSource().Id)) // TODO remove.
 		t.handleUnicastVaaV1(v, m.GetSource())
 	case *tsscommv1.Unicast_Tss:
 		return t.handleUnicastTSS(v, m.GetSource())
@@ -967,7 +969,6 @@ func (t *Engine) handleUnicast(m Incoming) error {
 // handleUnicastVaaV1 expects to receive valid Vaav1 messages.
 // If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
 func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.PartyId) error {
-	t.logger.Info("received unicast Vaav1 message", zap.String("source", src.Id)) // TODO remove.
 	if t.gst == nil {
 		return fmt.Errorf("no guardian set state")
 	}
@@ -1251,6 +1252,8 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 	if t.started.Load() != started {
 		return errTssEngineNotStarted
 	}
+
+	t.logger.Info("witnessing new VAA", zap.String("chainID", v.EmitterChain.String()))
 
 	if t.gst == nil {
 		return errNilGuardianSetState
