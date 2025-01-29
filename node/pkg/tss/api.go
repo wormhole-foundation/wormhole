@@ -65,7 +65,7 @@ type Signer interface {
 	// (realisticly, it should be produced within a few seconds).
 	MaxTTL() time.Duration
 
-	WitnessNewVaa(v *vaa.VAA)
+	WitnessNewVaa(v *vaa.VAA) error
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of

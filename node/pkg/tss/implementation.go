@@ -930,6 +930,8 @@ func (t *Engine) handleUnicast(m Incoming) error {
 	return nil
 }
 
+// handleUnicastVaaV1 expects to receive valid Vaav1 messages.
+// If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
 func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.PartyId) error {
 	if t.gst == nil {
 		return fmt.Errorf("no guardian set state")
@@ -939,7 +941,7 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 		return fmt.Errorf("tss received a VAA unicast from a replica (non-leader): %s", src.Id)
 	}
 
-	if v.Vaav1 == nil {
+	if v == nil || v.Vaav1 == nil {
 		return fmt.Errorf("tss received nil VAA")
 	}
 
@@ -958,7 +960,6 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 
 	dgst := newVaa.SigningDigest()
 
-	// TODO: Starting signing protocol should be done with just the guys that KNOW the vaa.
 	t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, false)
 
 	return nil
@@ -1205,29 +1206,31 @@ func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) err
 	return nil
 }
 
-func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
+var errNilGuardianSetState = fmt.Errorf("tss' guardianSetState nil")
+
+func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 	if t == nil {
-		return
-	}
-
-	if t.gst == nil {
-		return
-	}
-
-	if !t.isleader {
-		return
+		return errNilTssEngine
 	}
 
 	if t.started.Load() != started {
-		return
+		return errTssEngineNotStarted
+	}
+
+	if t.gst == nil {
+		return errNilGuardianSetState
+	}
+
+	if !t.isleader {
+		return nil
 	}
 
 	if v == nil {
-		return
+		return fmt.Errorf("nil VAA")
 	}
 
 	if v.Version != vaa.VaaVersion1 {
-		return
+		return fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", v.Version)
 	}
 
 	// TODO: Consider: does the leader have to verify what it send?
@@ -1238,11 +1241,9 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
 
 	bts, err := v.Marshal()
 	if err != nil {
-		t.logger.Error("couldn't marshal VAAv1.", zap.Error(err))
-		return
+		return fmt.Errorf("failed to marshal VAA: %w", err)
 	}
 
-	// TODO: take guardian IDs from signers of the VAA. (they use indices, so we need to convert them to PartyID)
 	send := Unicast{
 		Unicast: &tsscommv1.Unicast{
 			Content: &tsscommv1.Unicast_Vaav1{
@@ -1262,4 +1263,6 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) {
 			zap.String("chainID", v.EmitterChain.String()),
 		)
 	}
+
+	return nil
 }

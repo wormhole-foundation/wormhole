@@ -507,8 +507,133 @@ func TestBadInputs(t *testing.T) {
 		a.ErrorContains(err, "not found")
 	})
 
-	t.Run("bad VAAs", func(t *testing.T) {
-		panic("unimplemented")
+	t.Run("handle incoming VAAs", func(t *testing.T) {
+		a := assert.New(t)
+
+		v, gs := genVaaAndGuardianSet(a)
+
+		gst := whcommon.NewGuardianSetState(nil)
+		gst.Set(gs)
+
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+		engine := engines[0] // Not starting engine so it doesn't run BeginTSSSign
+
+		engine.gst = gst
+
+		// bad verfication run
+		v.Version = 2
+		v.Nonce = 0
+
+		bts, err := v.Marshal()
+		a.NoError(err)
+
+		engine.LeaderIdentity = nil
+		// No leader defined -> expects bad leader error
+		t.Run("No Leader", func(t *testing.T) {
+			engine.LeaderIdentity = []byte("UnknownLeader")
+
+			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
+				Vaav1: &tsscommv1.VaaV1Info{
+					Marshaled: bts,
+				},
+			}, partyIdToProto(engine.Self))
+
+			a.ErrorContains(err, "replica")
+		})
+
+		engine.LeaderIdentity = engine.Self.Key
+
+		t.Run("Bad Version", func(t *testing.T) {
+			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
+				Vaav1: &tsscommv1.VaaV1Info{
+					Marshaled: bts,
+				},
+			}, partyIdToProto(engine.Self))
+
+			a.ErrorContains(err, "version")
+		})
+
+		v.Version = vaa.VaaVersion1
+		bts, err = v.Marshal()
+		a.NoError(err)
+
+		t.Run("Bad Signature", func(t *testing.T) {
+			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
+				Vaav1: &tsscommv1.VaaV1Info{
+					Marshaled: bts,
+				},
+			}, partyIdToProto(engine.Self))
+
+			a.ErrorContains(err, "verification")
+		})
+
+		t.Run("Bad Marshal", func(t *testing.T) {
+			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
+				Vaav1: &tsscommv1.VaaV1Info{
+					Marshaled: []byte("BadMarshal"),
+				},
+			}, partyIdToProto(engine.Self))
+
+			a.ErrorContains(err, "unmarshal")
+		})
+
+		t.Run("nil VAA", func(t *testing.T) {
+			err = engine.handleUnicastVaaV1(nil, partyIdToProto(engine.Self))
+
+			a.ErrorContains(err, "nil")
+		})
+
+		t.Run("no guardian set state", func(t *testing.T) {
+			engine.gst = nil
+
+			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
+				Vaav1: &tsscommv1.VaaV1Info{
+					Marshaled: bts,
+				},
+			}, partyIdToProto(engine.Self))
+
+			a.ErrorContains(err, "guardian set")
+		})
+	})
+
+	t.Run("witness Vaas", func(t *testing.T) {
+		a := assert.New(t)
+
+		v, gs := genVaaAndGuardianSet(a)
+
+		gst := whcommon.NewGuardianSetState(nil)
+		gst.Set(gs)
+
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+		engine := engines[0] // Not starting engine so it doesn't run BeginTSSSign
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		ctx = testutils.MakeSupervisorContext(ctx)
+
+		a.ErrorContains(engine.WitnessNewVaa(v), errTssEngineNotStarted.Error())
+
+		engine.Start(ctx)
+
+		a.ErrorContains(engine.WitnessNewVaa(v), errNilGuardianSetState.Error())
+		engine.gst = gst
+
+		a.NoError(engine.WitnessNewVaa(v))
+
+		engine.isleader = true
+
+		a.ErrorContains(engine.WitnessNewVaa(nil), "nil")
+		a.NoError(engine.WitnessNewVaa(v))
+
+		engine.messageOutChan = nil
+		a.NoError(engine.WitnessNewVaa(v)) //shouldn't output error but log.
+
+		v.Version += 1
+		a.ErrorContains(engine.WitnessNewVaa(v), "version")
+
+		engine = nil
+		a.ErrorContains(engine.WitnessNewVaa(v), errNilTssEngine.Error())
 	})
 }
 
