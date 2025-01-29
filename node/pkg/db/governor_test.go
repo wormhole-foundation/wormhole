@@ -809,14 +809,14 @@ func marshalOldTransfer(xfer *Transfer) ([]byte, error) {
 	if len(xfer.MsgID) > math.MaxUint16 {
 		return nil, fmt.Errorf("failed to marshal MsgID, length too long: %d", len(xfer.MsgID))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.MsgID)))
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.MsgID))) // #nosec G115 -- This conversion is checked above
 	if len(xfer.MsgID) > 0 {
 		buf.Write([]byte(xfer.MsgID))
 	}
 	if len(xfer.Hash) > math.MaxUint16 {
 		return nil, fmt.Errorf("failed to marshal Hash, length too long: %d", len(xfer.Hash))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.Hash)))
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.Hash))) // #nosec G115 -- This conversion is checked above
 	if len(xfer.Hash) > 0 {
 		buf.Write([]byte(xfer.Hash))
 	}
