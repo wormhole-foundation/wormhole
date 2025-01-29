@@ -352,7 +352,7 @@ func (t *Engine) SetGuardianSetState(gss *whcommon.GuardianSetState) error {
 		return errNilTssEngine
 	}
 
-	if t.started.Load() != started {
+	if t.started.Load() != notStarted {
 		return fmt.Errorf("tss engine has started, and cannot receive new guardian set state")
 	}
 
