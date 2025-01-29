@@ -662,7 +662,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			programIndex = uint16(n)
+			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if s.shimEnabled && key.Equals(s.shimContractAddr) {
 			shimProgramIndex = uint16(n)
