@@ -967,6 +967,7 @@ func (t *Engine) handleUnicast(m Incoming) error {
 // handleUnicastVaaV1 expects to receive valid Vaav1 messages.
 // If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
 func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.PartyId) error {
+	t.logger.Info("received unicast Vaav1 message", zap.String("source", src.Id)) // TODO remove.
 	if t.gst == nil {
 		return fmt.Errorf("no guardian set state")
 	}
@@ -993,7 +994,7 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 	}
 
 	dgst := newVaa.SigningDigest()
-
+	t.logger.Info("signing from unicast Vaav1 message", zap.String("source", src.Id)) // TODO remove.
 	t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
 
 	return nil
@@ -1291,6 +1292,7 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 
 	select {
 	case t.messageOutChan <- &send:
+		t.logger.Info("leader sent VAAV1 to all guardians")
 	default:
 		t.logger.Error(
 			"Leader failed to send new VAA seen to guardians, network output channel buffer is full",
