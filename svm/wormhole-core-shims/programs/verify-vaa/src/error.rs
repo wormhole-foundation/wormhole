@@ -2,12 +2,6 @@ use anchor_lang::prelude::error_code;
 
 #[error_code]
 pub enum WormholeVerifyVaaShim {
-    #[msg("EmptyGuardianSignatures")]
-    EmptyGuardianSignatures = 0x0,
-
-    #[msg("WriteAuthorityMismatch")]
-    WriteAuthorityMismatch = 0x1,
-
     #[msg("GuardianSetExpired")]
     GuardianSetExpired = 0x2,
 

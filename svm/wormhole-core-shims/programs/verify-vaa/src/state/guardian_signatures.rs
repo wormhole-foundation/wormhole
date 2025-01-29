@@ -18,12 +18,6 @@ pub struct GuardianSignatures {
 }
 
 impl GuardianSignatures {
-    pub(crate) fn compute_size(num_guardians: usize) -> usize {
-        32 // refund_recipient
-        + 4 // guardian set index
-        + 4 + num_guardians * 66 // signatures
-    }
-
     pub fn is_initialized(&self) -> bool {
         !self.guardian_signatures.is_empty()
     }
