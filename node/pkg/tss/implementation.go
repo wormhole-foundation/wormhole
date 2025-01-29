@@ -445,6 +445,7 @@ func NewReliableTSSWithGuardianSetState(storage *GuardianStorage, gst *whcommon.
 
 	return e, nil
 }
+
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	if storage == nil {
 		return nil, fmt.Errorf("the guardian's tss storage is nil")
@@ -472,6 +473,18 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 
 	if storage.maxSimultaneousSignatures == 0 {
 		storage.maxSimultaneousSignatures = defaultMaxLiveSignatures
+	}
+
+	if storage.LeaderIdentity == nil {
+		leader, err := storage.getSortedFirst()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't determine the leader: %w", err)
+		}
+		storage.LeaderIdentity = leader.Key
+	}
+
+	if bytes.Equal(storage.Self.Key, storage.LeaderIdentity) {
+		storage.isleader = true
 	}
 
 	fpParams := &party.Parameters{

@@ -1,6 +1,7 @@
 package tss
 
 import (
+	"bytes"
 	"context"
 	crand "crypto/rand"
 	"crypto/x509"
@@ -743,6 +744,25 @@ func TestRouteCheck(t *testing.T) {
 	e1.fpErrChannel <- nil
 
 	time.Sleep(time.Millisecond * 200)
+}
+
+func TestDefaultSameLeader(t *testing.T) {
+	a := assert.New(t)
+
+	engines := load5GuardiansSetupForBroadcastChecks(a)
+
+	leader := engines[0].LeaderIdentity
+	a.NotNil(leader)
+
+	for _, e := range engines {
+		a.Equal(e.LeaderIdentity, leader)
+
+		if bytes.Equal(e.Self.Key, leader) {
+			a.True(e.isleader)
+		} else {
+			a.False(e.isleader)
+		}
+	}
 }
 
 func TestNoFaultsFlow(t *testing.T) {

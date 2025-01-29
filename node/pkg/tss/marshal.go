@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/xlabs/tss-lib/v2/tss"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
@@ -145,4 +147,29 @@ func (s *GuardianStorage) parseCerts() error {
 	}
 
 	return nil
+}
+
+func (s *GuardianStorage) getSortedFirst() (*tss.PartyID, error) {
+	guardians := make([]*tss.PartyID, len(s.Guardians))
+	for i, guardian := range s.Guardians {
+		pid, ok := proto.Clone(guardian.MessageWrapper_PartyID).(*tss.MessageWrapper_PartyID)
+		if !ok {
+			return nil, fmt.Errorf("error cloning guardian %v", i)
+		}
+
+		guardians[i] = &tss.PartyID{
+			MessageWrapper_PartyID: pid,
+			// Index:                  i,
+		}
+	}
+
+	slices.SortFunc(guardians, func(a, b *tss.PartyID) int {
+		return bytes.Compare(a.Key, b.Key)
+	})
+
+	for i, g := range guardians {
+		g.Index = i
+	}
+
+	return guardians[0], nil
 }
