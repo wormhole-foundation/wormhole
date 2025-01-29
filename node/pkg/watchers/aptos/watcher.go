@@ -245,6 +245,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			blockHeight := pHealth.Get("block_height")
 
+			if blockHeight.Uint() > math.MaxInt64 {
+				logger.Error("Block height not a valid uint64: ", zap.Uint64("blockHeight", blockHeight.Uint()))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				continue
+			}
+
 			if blockHeight.Exists() {
 				currentAptosHeight.WithLabelValues(e.networkID).Set(float64(blockHeight.Uint()))
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
