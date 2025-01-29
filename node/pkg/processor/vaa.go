@@ -36,6 +36,7 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	// Broadcast the VAA and store it in the database.
 	p.broadcastSignedVAA(signed)
 	p.storeSignedVAA(signed)
+	p.thresholdSigner.WitnessNewVaa(signed)
 }
 
 func (v *VAA) IsReliable() bool {
