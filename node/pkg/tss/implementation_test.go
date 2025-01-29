@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	whcommon "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/internal/testutils"
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/ethereum/go-ethereum/common"
@@ -504,6 +506,10 @@ func TestBadInputs(t *testing.T) {
 		_, err = e1.FetchCertificate(&tsscommv1.PartyId{})
 		a.ErrorContains(err, "not found")
 	})
+
+	t.Run("bad VAAs", func(t *testing.T) {
+		panic("unimplemented")
+	})
 }
 
 func createX509Cert(dnsName string) *x509.Certificate {
@@ -778,6 +784,81 @@ func TestNoFaultsFlow(t *testing.T) {
 			a.FailNow("signature shouldn't have been created")
 		}
 	})
+
+	t.Run("TSS sign after VAA seen by leader", func(t *testing.T) {
+		a := assert.New(t)
+
+		nvaa, gs := genVaaAndGuardianSet(a)
+
+		// ensuring valid vaa.
+		a.NoError(nvaa.Verify(gs.Keys))
+
+		gst := whcommon.NewGuardianSetState(nil)
+		gst.Set(gs)
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*30)
+		defer cancel()
+
+		engines[0].isleader = true
+		for _, engine := range engines {
+			engine.LeaderIdentity = engines[0].Self.Key
+			engine.gst = gst
+			a.NoError(engine.Start(ctx))
+		}
+
+		dnchn := msgHandler(ctx, engines, 1)
+
+		engines[0].WitnessNewVaa(nvaa)
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("context expired without signature")
+		}
+	})
+}
+
+func genVaaAndGuardianSet(a *assert.Assertions) (*vaa.VAA, *whcommon.GuardianSet) {
+	gss := whcommon.NewGuardianSetState(nil)
+	_ = gss
+
+	nvaa := &vaa.VAA{
+		Version:          vaa.VaaVersion1,
+		GuardianSetIndex: 0,
+		Signatures:       nil,
+		Timestamp:        time.Now(),
+		Nonce:            12345,
+		EmitterChain:     vaa.ChainIDPythNet,
+		EmitterAddress:   vaa.Address{1, 2, 3, 4, 54, 56, 67},
+		Payload:          []byte("hello world"),
+		Sequence:         5578,
+		ConsistencyLevel: pythnetFinalizedConsistencyLevel,
+	}
+
+	addrss := []common.Address{}
+	sigs := []*vaa.Signature{}
+	for i := range 5 {
+		guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+		a.NoError(err)
+
+		dgst := nvaa.SigningDigest()
+
+		tmp, err := guardianSigner.Sign(context.Background(), dgst[:])
+		a.NoError(err)
+
+		sig := &vaa.Signature{Index: uint8(i)}
+		copy(sig.Signature[:], tmp)
+
+		sigs = append(sigs, sig)
+
+		addrss = append(addrss, crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())))
+	}
+
+	gs := whcommon.NewGuardianSet(addrss, 0)
+
+	nvaa.Signatures = sigs
+	return nvaa, gs
 }
 
 func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
