@@ -104,7 +104,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != vaa.ChainIDAptos {
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDAptos {
 				panic("invalid chain ID")
 			}
 
@@ -317,13 +317,13 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 
 	observation := &common.MessagePublication{
 		TxHash:           txHash,
-		Timestamp:        time.Unix(int64(ts.Uint()), 0),
-		Nonce:            uint32(nonce.Uint()), // uint32
+		Timestamp:        time.Unix(int64(ts.Uint()), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Nonce:            uint32(nonce.Uint()),           // #nosec G115 -- This is validated above
 		Sequence:         sequence.Uint(),
 		EmitterChain:     vaa.ChainIDAptos,
 		EmitterAddress:   a,
 		Payload:          pl,
-		ConsistencyLevel: uint8(consistencyLevel.Uint()),
+		ConsistencyLevel: uint8(consistencyLevel.Uint()), // #nosec G115 -- This is validated above
 		IsReobservation:  isReobservation,
 	}
 
