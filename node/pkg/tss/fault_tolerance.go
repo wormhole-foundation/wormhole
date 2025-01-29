@@ -402,7 +402,7 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	go func() {
 		for _, sig := range retryNow {
 			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
-			if err := t.beginTSSSign(sig.digest[:], chainID, sig.digestconsistancy, true); err != nil {
+			if err := t.beginTSSSign(sig.digest[:], chainID, sig.digestconsistancy, signingMeta{isRetry: true}); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}
@@ -707,7 +707,7 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 	go func() {
 		for _, sig := range toSign {
 			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
-			if err := t.beginTSSSign(sig.digest[:], sig.chain, sig.digestconsistancy, true); err != nil {
+			if err := t.beginTSSSign(sig.digest[:], sig.chain, sig.digestconsistancy, signingMeta{isRetry: true}); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}

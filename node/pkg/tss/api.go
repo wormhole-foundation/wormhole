@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"time"
 
+	whcommon "github.com/certusone/wormhole/node/pkg/common"
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -73,5 +74,7 @@ type Signer interface {
 type ReliableTSS interface {
 	ReliableMessenger
 	Signer
+
+	SetGuardianSetState(gs *whcommon.GuardianSetState) error
 	Start(ctx context.Context) error
 }

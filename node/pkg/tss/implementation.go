@@ -225,10 +225,15 @@ var (
 // BeginAsyncThresholdSigningProtocol used to start the TSS protocol over a specific msg.
 
 func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8) error {
-	return t.beginTSSSign(vaaDigest, chainID, consistencyLvl, false)
+	return t.beginTSSSign(vaaDigest, chainID, consistencyLvl, signingMeta{})
 }
 
-func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8, isRetry bool) error {
+type signingMeta struct {
+	isFromVaav1 bool
+	isRetry     bool
+}
+
+func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8, mt signingMeta) error {
 	if t == nil {
 		return errNilTssEngine
 	}
@@ -245,12 +250,21 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
-	t.logger.Info("signature for VAA requested",
+	flds := []zap.Field{
 		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
 		zap.String("chainID", chainID.String()),
 		zap.Uint8("consistency", consistencyLvl),
-		zap.Bool("isRetry", isRetry),
-	)
+	}
+
+	if mt.isFromVaav1 {
+		flds = append(flds, zap.Bool("isFromVaav1", true))
+	}
+
+	if mt.isRetry {
+		flds = append(flds, zap.Bool("isRetry", true))
+	}
+
+	t.logger.Info("signature for VAA requested", flds...)
 
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
@@ -325,6 +339,24 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (t *Engine) SetGuardianSetState(gss *whcommon.GuardianSetState) error {
+	if gss == nil {
+		return fmt.Errorf("guardian set state is nil")
+	}
+
+	if t == nil {
+		return errNilTssEngine
+	}
+
+	if t.started.Load() != started {
+		return fmt.Errorf("tss engine has started, and cannot receive new guardian set state")
+	}
+
+	t.gst = gss
 
 	return nil
 }
@@ -433,17 +465,6 @@ func makeSigningRequest(d party.Digest, faulties []*tss.PartyID, chainID vaa.Cha
 		Faulties:     faulties,
 		AuxilaryData: chainIDToBytes(chainID),
 	}
-}
-
-func NewReliableTSSWithGuardianSetState(storage *GuardianStorage, gst *whcommon.GuardianSetState) (ReliableTSS, error) {
-	e, err := NewReliableTSS(storage)
-	if err != nil {
-		return nil, err
-	}
-
-	e.(*Engine).gst = gst
-
-	return e, nil
 }
 
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
@@ -973,7 +994,7 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 
 	dgst := newVaa.SigningDigest()
 
-	t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, false)
+	t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
 
 	return nil
 }
