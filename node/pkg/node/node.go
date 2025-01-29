@@ -206,6 +206,10 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 
 		if g.tssEngine != nil {
 			logger.Info("Starting TSS engine")
+			if err := g.tssEngine.SetGuardianSetState(g.gst); err != nil {
+				logger.Fatal("failed to set guardian set state", zap.Error(err))
+			}
+
 			if err := g.tssEngine.Start(ctx); err != nil {
 				logger.Fatal("failed to start TSS engine", zap.Error(err))
 			}
