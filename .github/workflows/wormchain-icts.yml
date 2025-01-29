@@ -64,6 +64,7 @@ jobs:
           - "ictest-wormchain"
           # Disabled due to flakiness in CI.
           # - "ictest-ibc-receiver"
+          - "ictest-validator-hotswap"
           - "ictest-cw-wormhole"
       fail-fast: false
 

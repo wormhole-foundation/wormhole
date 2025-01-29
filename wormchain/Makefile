@@ -90,29 +90,40 @@ local-image: build/wormchaind
 # Individual Tests ($$ is interpreted as $)
 rm-testcache:
 	go clean -testcache
+.PHONY: rm-testcache
 
 ictest-cancel-upgrade: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestCancelUpgrade$$ ./...
+.PHONY: ictest-cancel-upgrade
 
 ictest-malformed-payload: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestMalformedPayload$$ ./...
+.PHONY: ictest-malformed-payload
 
 ictest-slashing-params-update-vaa: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestSlashingParamsUpdateVaa$$ ./...
+.PHONY: ictest-slashing-params-update-vaa
 
 ictest-upgrade-failure: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
+.PHONY: ictest-upgrade-failure
 
 ictest-upgrade: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgrade$$ ./...
+.PHONY: ictest-upgrade
 
 ictest-wormchain: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
+.PHONY: ictest-wormchain
 
 ictest-ibc-receiver: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestIbcReceiver ./...
+.PHONY: ictest-ibc-receiver
 
 ictest-cw-wormhole: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestCWWormhole ./...
+.PHONY: ictest-cw-wormhole
 
-.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-slashing-params-update-vaa ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver ictest-cw-wormhole
+ictest-validator-hotswap: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...
+.PHONY: ictest-validator-hotswap

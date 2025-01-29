@@ -74,7 +74,7 @@ func CreateChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 	}
 
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, false)
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, len(guardians.Vals), false)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
@@ -171,9 +171,8 @@ func BuildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 // * Set Guardian Set List using new val set
 // * Set Guardian Validator List using new val set
 // * Allow list the faucet address
-func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guardians.ValSet, skipRelayers bool) func(ibc.ChainConfig, []byte) ([]byte, error) {
+func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guardians.ValSet, numVals int, skipRelayers bool) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
-		numVals := len(guardians.Vals)
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
@@ -222,7 +221,7 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			Keys:  [][]byte{},
 		}
 		guardianValidators := []GuardianValidator{}
-		for i := 0; i < numVals; i++ {
+		for i := 0; i < len(guardians.Vals); i++ {
 			guardianSet.Keys = append(guardianSet.Keys, guardians.Vals[i].Addr)
 			guardianValidators = append(guardianValidators, GuardianValidator{
 				GuardianKey:   guardians.Vals[i].Addr,

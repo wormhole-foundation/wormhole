@@ -14,8 +14,6 @@ import (
 
 // This function is used to onboard Wormhole Guardians as Validators on Wormchain.
 // It creates a 1:1 association between a Guardian addresss and a Wormchain validator address.
-// There is also a special case -- when the size of the Guardian set is 1, the Guardian is allowed to "hot-swap" their validator address in the mapping.
-// We include the special case to make it easier to shuffle things in testnets and local devnets.
 // 1. Guardian signs their validator address -- SIGNATURE=$(guardiand admin sign-wormchain-address <wormhole...>)
 // 2. Guardian submits $SIGNATURE to Wormchain via this handler, using their new validator address as the signer of the Wormchain tx.
 func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.MsgRegisterAccountAsGuardian) (*types.MsgRegisterAccountAsGuardianResponse, error) {
@@ -25,6 +23,7 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 	if err != nil {
 		return nil, err
 	}
+
 	// recover guardian key from signature
 	signerHash := crypto.Keccak256Hash(wormholesdk.SignedWormchainAddressPrefix, signer)
 	guardianKey, err := crypto.Ecrecover(signerHash.Bytes(), msg.Signature)
@@ -50,14 +49,12 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 		return nil, types.ErrGuardianSetNotFound
 	}
 
-	consensusGuardianSetIndex, consensusIndexFound := k.GetConsensusGuardianSetIndex(ctx)
+	// With the change to allow hot swapping on validator sets > 1 validator, this check is no
+	// longer useful. However, it is necessary. This check ensures the gas usage of the transaction
+	// matches the previous implementation as this is included in a non-consensus breaking change.
+	_, consensusIndexFound := k.GetConsensusGuardianSetIndex(ctx)
 	if !consensusIndexFound {
 		return nil, types.ErrConsensusSetUndefined
-	}
-
-	// If the size of the guardian set is 1, allow hot-swapping the validator address.
-	if consensusIndexFound && latestGuardianSetIndex == consensusGuardianSetIndex.Index && len(latestGuardianSet.Keys) > 1 {
-		return nil, types.ErrConsensusSetNotUpdatable
 	}
 
 	if !latestGuardianSet.ContainsKey(guardianKeyAddr) {
