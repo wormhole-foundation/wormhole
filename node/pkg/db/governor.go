@@ -75,14 +75,14 @@ func (t *Transfer) Marshal() ([]byte, error) {
 	if len(t.MsgID) > math.MaxUint16 {
 		return nil, fmt.Errorf("failed to marshal MsgID, length too long: %d", len(t.MsgID))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID)))
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID))) // #nosec G115 -- This is checked above
 	if len(t.MsgID) > 0 {
 		buf.Write([]byte(t.MsgID))
 	}
 	if len(t.Hash) > math.MaxUint16 {
 		return nil, fmt.Errorf("failed to marshal Hash, length too long: %d", len(t.Hash))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash)))
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash))) // #nosec G115 -- This is checked above
 	if len(t.Hash) > 0 {
 		buf.Write([]byte(t.Hash))
 	}
