@@ -364,4 +364,6 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	}
 
 	p.storeSignedVAA(v)
+
+	p.thresholdSigner.WitnessNewVaa(v)
 }
