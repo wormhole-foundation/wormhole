@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -440,7 +441,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 		case <-ctx.Done():
 			return nil
 		case r := <-ce.obsvReqC:
-			if vaa.ChainID(r.ChainId) != ce.chainID {
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != ce.chainID {
 				panic("invalid chain ID")
 			}
 
@@ -564,7 +565,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.Nonce = uint32(unumber)
+	evt.Msg.Nonce = uint32(unumber) // #nosec G115 -- This conversion is safe based on GetAsUint usage above
 
 	unumber, err = attributes.GetAsUint("message.sequence", 64)
 	if err != nil {

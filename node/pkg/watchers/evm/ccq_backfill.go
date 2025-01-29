@@ -125,7 +125,7 @@ func (w *Watcher) ccqBackfillInit(ctx context.Context) error {
 			zap.Uint64("oldestBlockTimestamp", newBlocks[len(newBlocks)-1].Timestamp),
 			zap.Uint64("latestBlockTimestamp", newBlocks[0].Timestamp),
 			zap.Stringer("oldestTime", time.Unix(int64(newBlocks[len(newBlocks)-1].Timestamp), 0)), // #nosec G115 -- This conversion is safe indefinitely
-			zap.Stringer("latestTime", time.Unix(int64(newBlocks[0].Timestamp), 0)),
+			zap.Stringer("latestTime", time.Unix(int64(newBlocks[0].Timestamp), 0)),                // #nosec G115 -- This conversion is safe indefinitely
 		)
 	}
 
@@ -136,8 +136,8 @@ func (w *Watcher) ccqBackfillInit(ctx context.Context) error {
 		zap.Uint64("latestBlockNum", blocks[0].BlockNum),
 		zap.Uint64("oldestBlockTimestamp", blocks[len(blocks)-1].Timestamp),
 		zap.Uint64("latestBlockTimestamp", blocks[0].Timestamp),
-		zap.Stringer("oldestTime", time.Unix(int64(blocks[len(blocks)-1].Timestamp), 0)),
-		zap.Stringer("latestTime", time.Unix(int64(blocks[0].Timestamp), 0)),
+		zap.Stringer("oldestTime", time.Unix(int64(blocks[len(blocks)-1].Timestamp), 0)), // #nosec G115 -- This conversion is safe indefinitely
+		zap.Stringer("latestTime", time.Unix(int64(blocks[0].Timestamp), 0)),             // #nosec G115 -- This conversion is safe indefinitely
 	)
 
 	w.ccqTimestampCache.AddBatch(blocks)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -391,7 +392,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("sui_fetch_obvs_req context done")
 				return ctx.Err()
 			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
+				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
 					panic("invalid chain ID")
 				}
 

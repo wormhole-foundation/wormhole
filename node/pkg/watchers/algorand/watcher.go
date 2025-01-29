@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
@@ -241,7 +242,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != vaa.ChainIDAlgorand {
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDAlgorand {
 				panic("invalid chain ID")
 			}
 
