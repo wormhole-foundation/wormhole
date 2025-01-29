@@ -250,6 +250,18 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 		return fmt.Errorf("vaaDigest length is not 32 bytes")
 	}
 
+	d := party.Digest{}
+	copy(d[:], vaaDigest)
+
+	if err := t.prepareThenanounceNewDigest(d, chainID, consistencyLvl); err != nil {
+		return err
+	}
+
+	sigPrepInfo, err := t.getSigPrepInfo(chainID, d)
+	if err != nil {
+		return err
+	}
+
 	flds := []zap.Field{
 		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
 		zap.String("chainID", chainID.String()),
@@ -264,19 +276,11 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 		flds = append(flds, zap.Bool("isRetry", true))
 	}
 
+	if len(sigPrepInfo.alreadyStartedSigningTrackingIDs) > 0 {
+		flds = append(flds, zap.Int("numMatchingTrackIDS", len(sigPrepInfo.alreadyStartedSigningTrackingIDs)))
+	}
+
 	t.logger.Info("signature for VAA requested", flds...)
-
-	d := party.Digest{}
-	copy(d[:], vaaDigest)
-
-	if err := t.prepareThenanounceNewDigest(d, chainID, consistencyLvl); err != nil {
-		return err
-	}
-
-	sigPrepInfo, err := t.getSigPrepInfo(chainID, d)
-	if err != nil {
-		return err
-	}
 
 	dgstStr := fmt.Sprintf("%x", vaaDigest)
 
@@ -957,7 +961,6 @@ func (t *Engine) handleUnicast(m Incoming) error {
 
 	switch v := unicast.Content.(type) {
 	case *tsscommv1.Unicast_Vaav1:
-		t.logger.Info("received unicast Vaav1 message", zap.String("source", m.GetSource().Id)) // TODO remove.
 		t.handleUnicastVaaV1(v, m.GetSource())
 	case *tsscommv1.Unicast_Tss:
 		return t.handleUnicastTSS(v, m.GetSource())
@@ -995,7 +998,7 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 	}
 
 	dgst := newVaa.SigningDigest()
-	t.logger.Info("signing from unicast Vaav1 message", zap.String("source", src.Id)) // TODO remove.
+
 	t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
 
 	return nil
@@ -1244,6 +1247,7 @@ func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) err
 
 var errNilGuardianSetState = fmt.Errorf("tss' guardianSetState nil")
 
+// Assumes valid VAAs only.
 func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 	if t == nil {
 		return errNilTssEngine
@@ -1252,8 +1256,6 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 	if t.started.Load() != started {
 		return errTssEngineNotStarted
 	}
-
-	t.logger.Info("witnessing new VAA", zap.String("chainID", v.EmitterChain.String()))
 
 	if t.gst == nil {
 		return errNilGuardianSetState
@@ -1270,12 +1272,6 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 	if v.Version != vaa.VaaVersion1 {
 		return fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", v.Version)
 	}
-
-	// TODO: Consider: does the leader have to verify what it send?
-	// I think i should assume it receives a valid VAA.
-	// if err := v.Verify(t.gst.Get().Keys); err != nil {
-	// 	return
-	// }
 
 	bts, err := v.Marshal()
 	if err != nil {
@@ -1295,10 +1291,13 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 
 	select {
 	case t.messageOutChan <- &send:
-		t.logger.Info("leader sent VAAV1 to all guardians")
+		t.logger.Info("leader sent VAAV1 to all guardians",
+			zap.String("chainID", v.EmitterChain.String()),
+			zap.String("digest", fmt.Sprintf("%x", v.SigningDigest())),
+		)
 	default:
 		t.logger.Error(
-			"Leader failed to send new VAA seen to guardians, network output channel buffer is full",
+			"leader failed to send new VAA seen to guardians, network output channel buffer is full",
 			zap.String("chainID", v.EmitterChain.String()),
 		)
 	}

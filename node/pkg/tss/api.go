@@ -66,6 +66,7 @@ type Signer interface {
 	// (realisticly, it should be produced within a few seconds).
 	MaxTTL() time.Duration
 
+	// WitnessNewVaa is a method to witness a new VAA, andto start a signing protocol for it.
 	WitnessNewVaa(v *vaa.VAA) error
 }
 
