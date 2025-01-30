@@ -83,6 +83,10 @@ clean:
 ## INTERCHAINTESTS ##
 #####################
 
+# Generate Wormchain Image
+local-image: build/wormchaind
+	docker build -t wormchain:local -f Dockerfile.ict ..
+
 # Individual Tests ($$ is interpreted as $)
 rm-testcache:
 	go clean -testcache
@@ -112,3 +116,9 @@ ictest-cw-shutdown-contracts: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestShutdown ./...
 
 .PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver ictest-cw-wormhole ictest-cw-shutdown-contracts
+
+ictest-validator-hotswap: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...
+
+.PHONY: ictest-cancel-upgrade ictest-malformed-payload ictest-upgrade-failure ictest-upgrade ictest-wormchain ictest-ibc-receiver ictest-cw-wormhole ictest-validator-hotswap
+

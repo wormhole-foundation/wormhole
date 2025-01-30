@@ -77,6 +77,12 @@ type (
 
 		ccqConfig query.PerChainConfig
 		ccqLogger *zap.Logger
+
+		shimContractStr               string
+		shimContractAddr              solana.PublicKey
+		shimEnabled                   bool
+		shimPostMessageDiscriminator  []byte
+		shimMessageEventDiscriminator []byte
 	}
 
 	EventSubscriptionError struct {
@@ -232,6 +238,8 @@ func NewSolanaWatcher(
 	chainID vaa.ChainID,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
+	shimContractStr string,
+	shimContractAddr solana.PublicKey,
 ) *SolanaWatcher {
 	msgObservedLogLevel := zapcore.InfoLevel
 	if chainID == vaa.ChainIDPythNet {
@@ -254,6 +262,8 @@ func NewSolanaWatcher(
 		queryReqC:           queryReqC,
 		queryResponseC:      queryResponseC,
 		ccqConfig:           query.GetPerChainConfig(chainID),
+		shimContractStr:     shimContractStr,
+		shimContractAddr:    shimContractAddr,
 	}
 }
 
@@ -345,9 +355,12 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		zap.String("wsUrl", wsUrl),
 		zap.String("contract", contractAddr),
 		zap.String("rawContract", s.rawContract),
+		zap.String("shimContract", s.shimContractStr),
 	)
 
 	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
+
+	s.shimSetup()
 
 	s.errC = make(chan error)
 	s.pumpData = make(chan []byte)
@@ -598,6 +611,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 		// If the logs don't contain the contract address, skip the transaction.
 		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]",
+		// Assumption: Transactions for the shim contract also contain the core contract address so this check is still valid.
 		var possiblyWormhole bool
 		for i := 0; i < len(txRpc.Meta.LogMessages) && !possiblyWormhole; i++ {
 			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], s.whLogPrefix)
@@ -644,9 +658,15 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 	}
 
 	var programIndex uint16
+	var shimProgramIndex uint16
+	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
 			programIndex = uint16(n)
+		}
+		if s.shimEnabled && key.Equals(s.shimContractAddr) {
+			shimProgramIndex = uint16(n)
+			shimFound = true
 		}
 	}
 	if programIndex == 0 {
@@ -660,47 +680,94 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 			zap.String("commitment", string(s.commitment)))
 	}
 
+	alreadyProcessed := ShimAlreadyProcessed{}
+
 	// Find top-level instructions
 	for i, inst := range tx.Message.Instructions {
-		found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
-		if err != nil {
-			logger.Error("malformed Wormhole instruction",
-				zap.Error(err),
-				zap.Int("idx", i),
-				zap.Stringer("signature", signature),
-				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)),
-				zap.Binary("data", inst.Data))
-		} else if found {
-			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("found a top-level Wormhole instruction",
+		if shimFound && inst.ProgramIDIndex == shimProgramIndex {
+			found, err := s.shimProcessTopLevelInstruction(logger, programIndex, shimProgramIndex, tx, meta.InnerInstructions, i, alreadyProcessed, isReobservation)
+			if err != nil {
+				logger.Error("malformed wormhole shim instruction",
+					zap.Error(err),
 					zap.Int("idx", i),
 					zap.Stringer("signature", signature),
 					zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)))
+					zap.String("commitment", string(s.commitment)),
+					zap.Binary("data", inst.Data))
+			} else if found {
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("found a top-level wormhole shim instruction",
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(s.commitment)))
+				}
+			}
+		} else {
+			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
+			if err != nil {
+				logger.Error("malformed Wormhole instruction",
+					zap.Error(err),
+					zap.Int("idx", i),
+					zap.Stringer("signature", signature),
+					zap.Uint64("slot", slot),
+					zap.String("commitment", string(s.commitment)),
+					zap.Binary("data", inst.Data))
+			} else if found {
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("found a top-level Wormhole instruction",
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(s.commitment)))
+				}
 			}
 		}
 	}
 
 	for outerIdx, inner := range meta.InnerInstructions {
 		for innerIdx, inst := range inner.Instructions {
-			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, innerIdx, isReobservation)
-			if err != nil {
-				logger.Error("malformed Wormhole instruction",
-					zap.Error(err),
-					zap.Int("outerIdx", outerIdx),
-					zap.Int("innerIdx", innerIdx),
-					zap.Stringer("signature", signature),
-					zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)))
-			} else if found {
-				if logger.Level().Enabled(zapcore.DebugLevel) {
-					logger.Debug("found an inner Wormhole instruction",
-						zap.Int("outerIdx", outerIdx),
-						zap.Int("innerIdx", innerIdx),
-						zap.Stringer("signature", signature),
-						zap.Uint64("slot", slot),
-						zap.String("commitment", string(s.commitment)))
+			if !alreadyProcessed.exists(outerIdx, innerIdx) {
+				if shimFound && inst.ProgramIDIndex == shimProgramIndex {
+					found, err := s.shimProcessInnerInstruction(logger, programIndex, shimProgramIndex, tx, inner.Instructions, outerIdx, innerIdx, alreadyProcessed, isReobservation)
+					if err != nil {
+						logger.Error("malformed inner wormhole shim instruction",
+							zap.Error(err),
+							zap.Int("outerIdx", outerIdx),
+							zap.Int("innerIdx", innerIdx),
+							zap.Stringer("signature", signature),
+							zap.Uint64("slot", slot),
+							zap.String("commitment", string(s.commitment)))
+					} else if found {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("found an inner wormhole shim instruction",
+								zap.Int("outerIdx", outerIdx),
+								zap.Int("innerIdx", innerIdx),
+								zap.Stringer("signature", signature),
+								zap.Uint64("slot", slot),
+								zap.String("commitment", string(s.commitment)))
+						}
+					}
+				} else {
+					found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, innerIdx, isReobservation)
+					if err != nil {
+						logger.Error("malformed Wormhole instruction",
+							zap.Error(err),
+							zap.Int("outerIdx", outerIdx),
+							zap.Int("innerIdx", innerIdx),
+							zap.Stringer("signature", signature),
+							zap.Uint64("slot", slot),
+							zap.String("commitment", string(s.commitment)))
+					} else if found {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("found an inner Wormhole instruction",
+								zap.Int("outerIdx", outerIdx),
+								zap.Int("innerIdx", innerIdx),
+								zap.Stringer("signature", signature),
+								zap.Uint64("slot", slot),
+								zap.String("commitment", string(s.commitment)))
+						}
+					}
 				}
 			}
 		}
@@ -979,6 +1046,23 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		ConsistencyLevel: proposal.ConsistencyLevel,
 		IsReobservation:  isReobservation,
 		Unreliable:       !reliable,
+	}
+
+	// SECURITY: An unreliable message with an empty payload is most like a PostMessage generated as part
+	// of a shim event where this guardian is not watching the shim contract. Those events should be ignored.
+	if !reliable && len(observation.Payload) == 0 {
+		logger.Debug("ignoring an observation because it is marked unreliable and has a zero length payload, probably from the shim",
+			zap.Stringer("account", acc),
+			zap.Time("timestamp", observation.Timestamp),
+			zap.Uint32("nonce", observation.Nonce),
+			zap.Uint64("sequence", observation.Sequence),
+			zap.Stringer("emitter_chain", observation.EmitterChain),
+			zap.Stringer("emitter_address", observation.EmitterAddress),
+			zap.Bool("isReobservation", isReobservation),
+			zap.Binary("payload", observation.Payload),
+			zap.Uint8("consistency_level", observation.ConsistencyLevel),
+		)
+		return
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
