@@ -32,6 +32,7 @@ fn process_instruction(
         Some(VerifyVaaShimInstruction::PostSignatures(data)) => {
             process_post_signatures(accounts, data)
         }
+        Some(VerifyVaaShimInstruction::CloseSignatures) => process_close_signatures(accounts),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -48,11 +49,6 @@ pub mod wormhole_verify_vaa_shim {
         instruction_data: &[u8],
     ) -> Result<()> {
         process_instruction(program_id, accounts, instruction_data).map_err(Into::into)
-    }
-
-    /// Allows the initial payer to close the signature account, reclaiming the rent taken by `post_signatures`.
-    pub fn close_signatures(ctx: Context<CloseSignatures>) -> Result<()> {
-        instructions::close_signatures(ctx)
     }
 
     /// This instruction is intended to be invoked via CPI call. It verifies a digest against a GuardianSignatures account
@@ -111,7 +107,7 @@ fn process_post_signatures(
 
     let total_signatures = data.total_signatures();
     if total_signatures == 0 {
-        msg!("Total signatures must be greater than 0");
+        msg!("Total signatures must not be 0");
         return Err(ProgramError::InvalidArgument);
     }
 
@@ -123,7 +119,7 @@ fn process_post_signatures(
 
     let mut guardian_signatures_len = data.guardian_signatures().len() as u32;
 
-    let idx = if guardian_signatures.owner != &ID {
+    let start_idx = if guardian_signatures.owner != &ID {
         create_guardian_signatures_account(
             payer.key,
             guardian_signatures.key,
@@ -155,8 +151,8 @@ fn process_post_signatures(
             return Err(ProgramError::InvalidArgument);
         }
 
-        if guardian_signatures.refund_recipient_slice() != payer.key.as_ref() {
-            msg!("Payer (account #1) must match refund recipient");
+        if payer.key.as_ref() != guardian_signatures.refund_recipient_slice() {
+            msg!("Payer (account #1) must match refund recipient in guardian signatures");
             msg!("Left:");
             msg!("{}", payer.key);
             msg!("Right:");
@@ -164,8 +160,8 @@ fn process_post_signatures(
             return Err(ProgramError::InvalidAccountData);
         }
 
-        if guardian_signatures.guardian_set_index() != data.guardian_set_index() {
-            msg!("Guardian set index must match the guardian signature's");
+        if data.guardian_set_index() != guardian_signatures.guardian_set_index() {
+            msg!("Guardian set index must match guardian set index in guardian signatures");
             msg!("Left:");
             msg!("{}", data.guardian_set_index());
             msg!("Right:");
@@ -183,19 +179,60 @@ fn process_post_signatures(
     };
 
     let mut account_data = guardian_signatures.data.borrow_mut();
+    let end_idx = start_idx + guardian_signatures_slice.len();
 
     // Check if the account data is not large enough to hold the signatures.
-    if account_data.len() < idx + guardian_signatures_slice.len() {
+    if end_idx > account_data.len() {
         msg!("Too many input guardian signatures");
         return Err(ProgramError::AccountDataTooSmall);
     }
 
     // Write signatures.
-    account_data[idx..(idx + guardian_signatures_slice.len())]
-        .copy_from_slice(guardian_signatures_slice);
+    account_data[start_idx..end_idx].copy_from_slice(guardian_signatures_slice);
 
     // Update length.
     account_data[44..48].copy_from_slice(&guardian_signatures_len.to_le_bytes());
+
+    Ok(())
+}
+
+fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
+    if accounts.len() < 2 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    // Verify accounts.
+
+    // Guardian signatures account will be closed by the end of this
+    // instruction. Rent will be moved to the refund recipient.
+    let guardian_signatures = &accounts[0];
+
+    // Recipient of guardian signatures account's lamports.
+    let refund_recipient = &accounts[1];
+
+    {
+        let account_data = guardian_signatures.data.borrow();
+        let guardian_signatures =
+            GuardianSignatures::new(&account_data).ok_or(ProgramError::InvalidAccountData)?;
+
+        if refund_recipient.key.as_ref() != guardian_signatures.refund_recipient_slice() {
+            msg!(
+                "Refund recipient (account #2) must match refund recipient in guardian signatures"
+            );
+            msg!("Left:");
+            msg!("{}", refund_recipient.key);
+            msg!("Right:");
+            msg!("{}", guardian_signatures.refund_recipient());
+            return Err(ProgramError::InvalidAccountData);
+        }
+    }
+
+    let mut guardian_signatures_lamports = guardian_signatures.lamports.borrow_mut();
+    **refund_recipient.lamports.borrow_mut() += **guardian_signatures_lamports;
+    **guardian_signatures_lamports = 0;
+
+    guardian_signatures.realloc(0, false).unwrap();
+    guardian_signatures.assign(&Default::default());
 
     Ok(())
 }

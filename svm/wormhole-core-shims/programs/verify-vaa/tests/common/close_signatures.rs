@@ -35,7 +35,7 @@ pub fn set_up_transaction(
         &[
             post_signatures_ix,
             ComputeBudgetInstruction::set_compute_unit_price(69),
-            ComputeBudgetInstruction::set_compute_unit_limit(420_000),
+            ComputeBudgetInstruction::set_compute_unit_limit(1_100),
         ],
         &[],
         recent_blockhash,

@@ -42,7 +42,7 @@ async fn test_post_signatures_13_at_once() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 13_355
-        3_526
+        3_533
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -83,7 +83,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
         recent_blockhash,
         &payer_signer,
         &guardian_signatures_signer.pubkey(),
-        6960 * 128,
+        6_960 * 128,
     )
     .await;
 
@@ -104,7 +104,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        6_534
+        6_540
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -163,7 +163,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 12_828
-        3_526
+        3_533
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -211,7 +211,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 7_628
-        1_209
+        1_222
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -290,13 +290,14 @@ async fn test_cannot_post_signatures_refund_recipient_mismatch() {
     );
 
     let out = banks_client
-        .simulate_transaction(transaction.clone())
+        .simulate_transaction(transaction)
         .await
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
     // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/post_signatures.rs:42. Error Code: WriteAuthorityMismatch. Error Number: 6001. Error Message: WriteAuthorityMismatch.";
-    let err_msg = "Program log: Payer (account #1) must match refund recipient";
+    let err_msg =
+        "Program log: Payer (account #1) must match refund recipient in guardian signatures";
     assert!(out
         .simulation_details
         .unwrap()
@@ -354,7 +355,7 @@ async fn test_cannot_post_signatures_total_signatures_mismatch() {
     );
 
     let out = banks_client
-        .simulate_transaction(transaction.clone())
+        .simulate_transaction(transaction)
         .await
         .unwrap();
     assert!(out.result.unwrap().is_err());
@@ -382,7 +383,7 @@ async fn test_cannot_post_signatures_zero_signatures() {
     );
 
     let out = banks_client
-        .simulate_transaction(transaction.clone())
+        .simulate_transaction(transaction)
         .await
         .unwrap();
     assert!(out.result.unwrap().is_err());
@@ -411,7 +412,7 @@ async fn test_cannot_post_signatures_total_signatures_too_large() {
     );
 
     let out = banks_client
-        .simulate_transaction(transaction.clone())
+        .simulate_transaction(transaction)
         .await
         .unwrap();
     assert!(out.result.unwrap().is_err());
@@ -481,7 +482,7 @@ async fn test_cannot_post_signatures_payer_is_guardian_signatures() {
     .unwrap();
 
     let out = banks_client
-        .simulate_transaction(transaction.clone())
+        .simulate_transaction(transaction)
         .await
         .unwrap();
     assert!(out.result.unwrap().is_err());
@@ -513,7 +514,7 @@ async fn test_cannot_post_signatures_more_signatures_than_total() {
     );
 
     let out = banks_client
-        .simulate_transaction(transaction.clone())
+        .simulate_transaction(transaction)
         .await
         .unwrap();
     assert!(out.result.unwrap().is_err());
@@ -525,4 +526,108 @@ async fn test_cannot_post_signatures_more_signatures_than_total() {
         .unwrap()
         .logs
         .contains(&err_msg.to_string()))
+}
+
+// Close signatures.
+
+#[tokio::test]
+async fn test_close_signatures() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let guardian_signatures_signer = Keypair::new();
+    let transaction = common::post_signatures::set_up_transaction(
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &decoded_vaa.guardian_signatures,
+        &payer_signer,
+        &guardian_signatures_signer,
+        recent_blockhash,
+    );
+
+    banks_client.process_transaction(transaction).await.unwrap();
+
+    let transaction = common::close_signatures::set_up_transaction(
+        &payer_signer, // refund recipient
+        &guardian_signatures_signer.pubkey(),
+        recent_blockhash,
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction.clone())
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_ok());
+    assert_eq!(
+        out.simulation_details.unwrap().units_consumed,
+        // 5_165
+        1_067
+    );
+
+    banks_client.process_transaction(transaction).await.unwrap();
+
+    // Check that the guardian signatures account does not exist anymore.
+    //
+    // NOTE: Because there are only two accounts in this instruction, we can
+    // assume the refund recipient received all of the lamports from the
+    // guardian signatures account.
+    assert!(banks_client
+        .get_account(guardian_signatures_signer.pubkey())
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn test_cannot_close_signatures_refund_recipient_mismatch() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let guardian_signatures_signer = Keypair::new();
+    let transaction = common::post_signatures::set_up_transaction(
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &decoded_vaa.guardian_signatures,
+        &payer_signer,
+        &guardian_signatures_signer,
+        recent_blockhash,
+    );
+
+    banks_client.process_transaction(transaction).await.unwrap();
+
+    let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
+
+    let another_refund_recipient_signer = Keypair::new();
+
+    // Send some lamports to the another payer.
+    let recent_blockhash = common::transfer_lamports(
+        &mut banks_client,
+        recent_blockhash,
+        &payer_signer,
+        &another_refund_recipient_signer.pubkey(),
+        2_000_000_000,
+    )
+    .await;
+
+    let transaction = common::close_signatures::set_up_transaction(
+        &another_refund_recipient_signer,
+        &guardian_signatures_signer.pubkey(),
+        recent_blockhash,
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    // let err_msg = "Program log: AnchorError caused by account: guardian_signatures. Error Code: ConstraintHasOne. Error Number: 2001. Error Message: A has one constraint was violated.";
+    let err_msg = "Program log: Refund recipient (account #2) must match refund recipient in guardian signatures";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()));
 }

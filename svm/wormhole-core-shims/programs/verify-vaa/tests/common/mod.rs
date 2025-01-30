@@ -1,3 +1,4 @@
+pub mod close_signatures;
 pub mod post_signatures;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
