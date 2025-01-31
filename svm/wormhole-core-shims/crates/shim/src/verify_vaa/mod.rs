@@ -1,15 +1,19 @@
 mod close_signatures;
 mod post_signatures;
+#[allow(clippy::module_inception)]
+mod verify_vaa;
 
 pub use close_signatures::*;
 pub use post_signatures::*;
+pub use verify_vaa::*;
 
-use solana_program::keccak::HASH_BYTES;
-use wormhole_svm_definitions::{make_anchor_discriminator, GUARDIAN_SIGNATURE_LENGTH};
+use wormhole_svm_definitions::{
+    make_anchor_discriminator, Hash, GUARDIAN_SIGNATURE_LENGTH, HASH_BYTES,
+};
 
 pub enum VerifyVaaShimInstruction<'ix, const CONTIGUOUS: bool> {
     PostSignatures(PostSignaturesData<'ix, CONTIGUOUS>),
-    VerifyVaa([u8; HASH_BYTES]),
+    VerifyVaa(Hash),
     CloseSignatures,
 }
 
@@ -38,22 +42,19 @@ impl<'ix> VerifyVaaShimInstruction<'ix, false> {
                 out.extend_from_slice(&data.guardian_set_index.to_le_bytes());
                 out.push(data.total_signatures);
                 out.extend_from_slice(&(guardian_signatures_len as u32).to_le_bytes());
-                out.extend_from_slice(unsafe {
-                    core::slice::from_raw_parts(
-                        data.guardian_signatures.as_ptr() as *const u8,
-                        encoded_signatures_len,
-                    )
-                });
+                for signature in data.guardian_signatures.iter() {
+                    out.extend_from_slice(signature);
+                }
 
                 out
             }
-            Self::VerifyVaa(hash) => {
+            Self::VerifyVaa(digest) => {
                 let mut out = Vec::with_capacity({
                     8 // selector
                     + HASH_BYTES
                 });
                 out.extend_from_slice(&Self::VERIFY_VAA_SELECTOR);
-                out.extend_from_slice(hash);
+                out.extend_from_slice(&digest.0);
 
                 out
             }
@@ -73,10 +74,17 @@ impl<'ix> VerifyVaaShimInstruction<'ix, true> {
             Self::POST_SIGNATURES_SELECTOR => {
                 PostSignaturesData::deserialize(&data[8..]).map(Self::PostSignatures)
             }
-            Self::VERIFY_VAA_SELECTOR => data[8..(8 + HASH_BYTES)]
-                .try_into()
-                .ok()
-                .map(Self::VerifyVaa),
+            Self::VERIFY_VAA_SELECTOR => {
+                let data = &data[8..];
+
+                if data.len() < HASH_BYTES {
+                    return None;
+                }
+
+                Some(Self::VerifyVaa(Hash(
+                    data[..HASH_BYTES].try_into().unwrap(),
+                )))
+            }
             Self::CLOSE_SIGNATURES_SELECTOR => Some(Self::CloseSignatures),
             _ => None,
         }

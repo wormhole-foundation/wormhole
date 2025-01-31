@@ -42,7 +42,7 @@ pub fn set_up_transaction(
         &[
             post_signatures_ix,
             ComputeBudgetInstruction::set_compute_unit_price(69),
-            ComputeBudgetInstruction::set_compute_unit_limit(8_000),
+            ComputeBudgetInstruction::set_compute_unit_limit(25_000),
         ],
         &[],
         recent_blockhash,
@@ -51,7 +51,7 @@ pub fn set_up_transaction(
 
     VersionedTransaction::try_new(
         VersionedMessage::V0(message),
-        &[&payer_signer, &guardian_signatures_signer],
+        &[payer_signer, guardian_signatures_signer],
     )
     .unwrap()
 }

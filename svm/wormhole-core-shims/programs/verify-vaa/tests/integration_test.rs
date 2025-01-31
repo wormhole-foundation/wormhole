@@ -2,13 +2,14 @@ use solana_program_test::tokio;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
     message::{v0::Message, VersionedMessage},
+    pubkey::Pubkey,
     signature::Keypair,
     signer::Signer,
     transaction::VersionedTransaction,
 };
 use wormhole_svm_definitions::{
     borsh::{deserialize_account_data, GuardianSignatures},
-    VERIFY_VAA_SHIM_PROGRAM_ID,
+    compute_keccak_digest, VERIFY_VAA_SHIM_PROGRAM_ID,
 };
 use wormhole_svm_shim::verify_vaa;
 
@@ -42,7 +43,7 @@ async fn test_post_signatures_13_at_once() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 13_355
-        3_533
+        3_538
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -104,7 +105,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        6_540
+        6_543
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -163,7 +164,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 12_828
-        3_533
+        3_538
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -211,7 +212,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 7_628
-        1_222
+        1_227
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -536,21 +537,19 @@ async fn test_close_signatures() {
         common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
-    let guardian_signatures_signer = Keypair::new();
-    let transaction = common::post_signatures::set_up_transaction(
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
         &decoded_vaa.guardian_signatures,
-        &payer_signer,
-        &guardian_signatures_signer,
         recent_blockhash,
-    );
-
-    banks_client.process_transaction(transaction).await.unwrap();
+    )
+    .await;
 
     let transaction = common::close_signatures::set_up_transaction(
         &payer_signer, // refund recipient
-        &guardian_signatures_signer.pubkey(),
+        &guardian_signatures,
         recent_blockhash,
     );
 
@@ -562,7 +561,7 @@ async fn test_close_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 5_165
-        1_067
+        1_066
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -573,7 +572,7 @@ async fn test_close_signatures() {
     // assume the refund recipient received all of the lamports from the
     // guardian signatures account.
     assert!(banks_client
-        .get_account(guardian_signatures_signer.pubkey())
+        .get_account(guardian_signatures)
         .await
         .unwrap()
         .is_none());
@@ -585,19 +584,15 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
         common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
-    let guardian_signatures_signer = Keypair::new();
-    let transaction = common::post_signatures::set_up_transaction(
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
         &decoded_vaa.guardian_signatures,
-        &payer_signer,
-        &guardian_signatures_signer,
         recent_blockhash,
-    );
-
-    banks_client.process_transaction(transaction).await.unwrap();
-
-    let recent_blockhash = banks_client.get_latest_blockhash().await.unwrap();
+    )
+    .await;
 
     let another_refund_recipient_signer = Keypair::new();
 
@@ -613,7 +608,7 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
 
     let transaction = common::close_signatures::set_up_transaction(
         &another_refund_recipient_signer,
-        &guardian_signatures_signer.pubkey(),
+        &guardian_signatures,
         recent_blockhash,
     );
 
@@ -630,4 +625,404 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
         .unwrap()
         .logs
         .contains(&err_msg.to_string()));
+}
+
+// Verify VAA.
+
+#[tokio::test]
+async fn test_verify_vaa() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &decoded_vaa.guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, bump_costs) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_ok());
+    assert_eq!(
+        out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
+        342_251
+    );
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_invalid_guardian_set() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &decoded_vaa.guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        Some(common::verify_vaa::AdditionalTestInputs {
+            invalid_guardian_set: Some(Pubkey::new_unique()),
+        }),
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError caused by account: guardian_set. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_invalid_guardian_set_index() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &decoded_vaa.guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index - 1,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError caused by account: guardian_set. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_expired_guardian_set() {
+    const VAA_EXPIRED_SET: &str = "AQAAAAMNAnTlXVVK+fjEIYfgQggRENn0/f++V7dCtNCHnrSj05X8ctnm0x1Fzn8hODqvC44/eWTUso+tUPQpHjCgEP0g1xMBA/S7K8O34D/AkEkYLrQbgKFDq6W3uDycJ90B75GmLaniGrmPxDBX1gog6ISTqrDIB9OBL1e3fVGqaMOTCrrPS6gABFrsiVNLrIsU2hPJHWF0c/CT2+DWS+TAq05lfSVvVExfLjv6WejfY3PdN+dLbCKE0JpD14BiNbcYeRXGJxPE76sBBs8nYy7KLd5McKmEGvhN2zBdlHcNByoJf8ZK1WXifnUeWhHnnWDr05wWigqw657ZjRytNVzgFA+MruATReXsxM0BB+NIIlTBvvqF0WZ5FNpT53nzmcpypZYDIU6041CcY2FqU5ntQdEsjZDiu1Q4W0Sjjcfg3xfApMURec+5Q3IP0isBCTjCgO4J/+tgfxazGf8WC2kMRn21Dh1E1u6QG52wul7wIhCQTejShVbWG1U4f8y5mk3wA/X4qHVK3tizoozeJHsACjGD+X3upTjNNQZFfqMxYrnDxRLK6UCGSTb++1AlWHwNQGBfbPf/upVZBO1qIHAiEGQllkyTg4aEoinp38bSN9oADDcEbPbb9R+g1VTWOg8VS8ucHEX4ojahNghH/n6r9tOKfMwfprBtnasT5y1NjSDO7uvt9WTDMTgUCtDdtluz4ToBDQd4w/uKG0pQziUsWMZZeeNTgrdTP1LBJ/6eTWMmMV7QGHep0XwCsEhXOmIVgrDcny6+g8GOpS7bV5Y9d5WQBpYAD2xbXI9zaXN/mRqsk6dF87dzpYHqf4lGPXkv7sKACUZyI71qwyTfjua0XAuNpsUPWLT1pXEa5iIBpgzR8A81M04AEHOKvkaYNNmg6WXsq8noXD4iA3Q8ibC7r4mOkPsOhqPmYX1SzR4g3jLRSM/Ck4BTGo7hVXKv37zMcrAddEErqiIBESYgyM+I7XUdNNWGZ4lWxSnc5WF65DiHH1U8nRsZ5RiPJFic1xp8Zg/5uil3sRUKcXti6M3coO4N9x4W++PxV2MBEqUxI7EX5evuk6uHyoh8VVYYvVAo1XWt8Yx8sDlDqNLOWJaxpGzq0WbB8EUPpRlDzG8YgZVyXl49ZEFj/vMxgW0BZhTIZwAAAAAAAgAAAAAAAAAAAAAAAO4MzphZqQ+m4rdRggW+9MeZtxbXAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlQL5AASAAAAAAAAAAAAAAAAtTNofvd0WQkzaMQ+lfjfHCtaH3oAAAAAAAAAAAAAAACVPJV2dXAP9gZNOrN+ppSrFdP9wgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0W8AD2fGpZ2cDa08dvhobF0SoEEHFqAoL7PN5HTYzDEM0lCf6DptD8OMI950PhoAt0aoIpOjLblmX6I3DGC27gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB";
+
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA_EXPIRED_SET).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+    assert_eq!(decoded_vaa.guardian_set_index, 3);
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &decoded_vaa.guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_vaa.rs:43. Error Code: GuardianSetExpired. Error Number: 6002. Error Message: GuardianSetExpired.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_no_quorum() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let mut insufficient_guardian_signatures = decoded_vaa.guardian_signatures.clone();
+    insufficient_guardian_signatures.pop();
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &insufficient_guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_vaa.rs:55. Error Code: NoQuorum. Error Number: 6003. Error Message: NoQuorum.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_non_increasing_guardian_index() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let mut non_increasing_guardian_signatures = decoded_vaa.guardian_signatures.clone();
+    non_increasing_guardian_signatures.rotate_right(1);
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &non_increasing_guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_vaa.rs:68. Error Code: InvalidGuardianIndexNonIncreasing. Error Number: 6005. Error Message: InvalidGuardianIndexNonIncreasing.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_guardian_index_out_of_range() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
+    out_of_range_guardian_signatures[0][0] = 19;
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &out_of_range_guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_vaa.rs:77. Error Code: InvalidGuardianIndexOutOfRange. Error Number: 6006. Error Message: InvalidGuardianIndexOutOfRange.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_invalid_signature() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
+    out_of_range_guardian_signatures[0][65] = 255;
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &out_of_range_guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError occurred. Error Code: InvalidSignature. Error Number: 6004. Error Message: InvalidSignature.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
+}
+
+#[tokio::test]
+async fn test_cannot_verify_vaa_invalid_guardian_recovery() {
+    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+        common::start_test(VAA).await;
+    assert_eq!(decoded_vaa.total_signatures, 13);
+
+    let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
+
+    let mismatched_signature: [u8; 65] =
+        out_of_range_guardian_signatures[1][1..].try_into().unwrap();
+    out_of_range_guardian_signatures[0][1..].copy_from_slice(&mismatched_signature);
+
+    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+        &mut banks_client,
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        decoded_vaa.total_signatures,
+        &out_of_range_guardian_signatures,
+        recent_blockhash,
+    )
+    .await;
+
+    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+    let digest = compute_keccak_digest(message_hash, None);
+
+    let (transaction, _) = common::verify_vaa::set_up_transaction(
+        &payer_signer,
+        decoded_vaa.guardian_set_index,
+        &guardian_signatures,
+        digest,
+        recent_blockhash,
+        None, // additional_inputs
+    );
+
+    let out = banks_client
+        .simulate_transaction(transaction)
+        .await
+        .unwrap();
+    assert!(out.result.unwrap().is_err());
+
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_vaa.rs:122. Error Code: InvalidGuardianKeyRecovery. Error Number: 6007. Error Message: InvalidGuardianKeyRecovery.";
+    assert!(out
+        .simulation_details
+        .unwrap()
+        .logs
+        .contains(&err_msg.to_string()))
 }

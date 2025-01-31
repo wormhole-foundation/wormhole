@@ -42,6 +42,6 @@ pub fn set_up_transaction(
     )
     .unwrap();
 
-    VersionedTransaction::try_new(VersionedMessage::V0(message), &[&refund_recipient_signer])
+    VersionedTransaction::try_new(VersionedMessage::V0(message), &[refund_recipient_signer])
         .unwrap()
 }

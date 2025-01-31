@@ -1,5 +1,6 @@
 pub mod close_signatures;
 pub mod post_signatures;
+pub mod verify_vaa;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use solana_program_test::{BanksClient, ProgramTest};
@@ -21,11 +22,19 @@ pub async fn start_test(vaa: &str) -> (BanksClient, Keypair, Hash, DecodedVaa) {
         CORE_BRIDGE_PROGRAM_ID,
         "BAAAAAQYDQ0AAAAAgFEBAGQAAAAAAAAA",
     );
+    // Guardian set 4 (active).
     program_test.add_account_with_base64_data(
         find_guardian_set_address(u32::to_be_bytes(4), &CORE_BRIDGE_PROGRAM_ID).0,
         3_647_040,
         CORE_BRIDGE_PROGRAM_ID,
         "BAAAABMAAABYk7WnbD9zlkVkiIW9zMBs1wo80/9suVJYm96GLCXvQ5ITL7nUpCFXEU3oRgGTvfOi/PgfhqCXZfR2L9EQegCGsy16CXeSaiBRMdhzHTnL64yCsv2C+u0nEdWa8PJJnRbnJvayEbOXVsBCRBvm2GULabVOvnFeI0NUzltNNI+3S5WOiWbi7D29SVinzRXnyvB8Tj3I58Rp+SyM2I+4AFogdKO/kTlT1pUmDYi8GqJaTu42PvAACsAHZyezX76i2sKP7lzLD+p2jq9FztE2udniSQNGSuiJ9cinI/wU+TEkt8c4hDy7iehkyGLDjN3Mz5XSzDek3ANqjSMrSPYs3UcxQS9IkNp5j2iWozMfZLSMEtHVf9nL5wgRcaob4dNsr+OGeRD5nAnjR4mcGcOBkrbnOHzNdoJ3wX2rG3pQJ8CzzxeOIa0ud64GcRVJz7sfnHqdgJboXhSH81UV0CqSdTUEqNdUcbn0nttvvryJj0A+R3PpX+sV6Ayamcg0jXiZHmYAAAAA",
+    );
+    // Guardian set 3 (expired).
+    program_test.add_account_with_base64_data(
+        find_guardian_set_address(u32::to_be_bytes(3), &CORE_BRIDGE_PROGRAM_ID).0,
+        3_647_040,
+        CORE_BRIDGE_PROGRAM_ID,
+        "AwAAABMAAABYzDrlwJeyE848gZeeG5+VcHRqpf9suVJYm96GLCXvQ5ITL7nUpCFXEU3oRgGTvfOi/PgfhqCXZfR2L9EQegCGsy16CXeSaiBRMdhzHTnL64yCsv2C+u0nEdWa8PJJnRbnJvayEbOXVsBCRBvm2GULabVOvnFeI0NUzltNNI+3S5WOiWbi7D29SVinzRXnyvB8Tj3I58Rp+SyM2I+4AFogdKO/kTlT1pUmDYi8GqJaTu42PvAACsAHZyezX76i2sKP7lzLD+p2jq9FztE2udniSQNGSuiJ9cinI/wU+TEkt8c4hDy7iehkyGLDjN3Mz5XSzDek3ANqjSMrSPYs3UcxQS9IkNp5j2iWozMfZLSMEtHVf9nL5wgRcaob4dNsr+OGeRD5nAnjR4mcGcOBkrbnOHzNdoJ3wX2rG3pQJ8CzzxeOIa0ud64GcRVJz7sfnHqdgJboXhSH81UV0CqSdTUEqNdUcbn0nttvvryJj0A+R3PpX+sV6Ayamcg0jUA8xWP46h9m",
     );
     program_test.prefer_bpf(true);
 
@@ -115,4 +124,37 @@ pub fn generate_expected_guardian_signatures_info(
     };
 
     (expected_length, guardian_signatures)
+}
+
+pub fn bump_cu_cost(bump: u8) -> u64 {
+    1_500 * (255 - u64::from(bump))
+}
+
+pub async fn send_post_signatures_transaction(
+    banks_client: &mut BanksClient,
+    payer_signer: &Keypair,
+    guardian_set_index: u32,
+    total_signatures: u8,
+    guardian_signatures: &[[u8; GUARDIAN_SIGNATURE_LENGTH]],
+    recent_blockhash: Hash,
+) -> (
+    Pubkey, // guardian signatures
+    Hash,
+) {
+    let guardian_signatures_signer = Keypair::new();
+    let transaction = post_signatures::set_up_transaction(
+        guardian_set_index,
+        total_signatures,
+        guardian_signatures,
+        payer_signer,
+        &guardian_signatures_signer,
+        recent_blockhash,
+    );
+
+    banks_client.process_transaction(transaction).await.unwrap();
+
+    (
+        guardian_signatures_signer.pubkey(),
+        banks_client.get_latest_blockhash().await.unwrap(),
+    )
 }

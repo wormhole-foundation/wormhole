@@ -10,6 +10,8 @@ cfg_if::cfg_if! {
     }
 }
 
+pub use solana_program::keccak::{Hash, HASH_BYTES};
+
 use solana_program::pubkey::Pubkey;
 
 /// Wormhole Core Bridge program's bridge config account seed.
@@ -29,6 +31,53 @@ pub const GUARDIAN_SIGNATURES_DISCRIMINATOR: [u8; 8] =
     make_anchor_discriminator(b"account:GuardianSignatures");
 
 pub const GUARDIAN_SIGNATURE_LENGTH: usize = 66;
+pub const GUARDIAN_PUBKEY_LENGTH: usize = 20;
+
+/// Convenience method to compute the Keccak-256 digest of Keccak-256 hashed
+/// input data. For some messages (like query responses), there is a prefix
+/// prepended to this hash before producing the digest. Otherwise the hash is
+/// simply hashed again. This digest along with a guardian's signature is used
+/// to recover this guardian's pubkey.
+///
+/// NOTE: In an SVM program, prefer this method or
+/// [solana_program::keccak::hashv]. Both of these methods use the
+/// `sol_keccak256` syscall under the hood in SVM runtime, which uses minimal
+/// compute units.
+///
+/// # Examples
+///
+/// A v1 VAA digest can be computed as follows:
+/// ```rust
+/// use wormhole_svm_definitions::compute_keccak_digest;
+///
+/// // `vec_body` is the encoded body of the VAA.
+/// # let vaa_body = vec![];
+/// let digest = compute_keccak_digest(
+///     solana_program::keccak::hash(&vaa_body),
+///     None, // there is no prefix for V1 messages
+/// );
+/// ```
+///
+/// A QueryResponse digest can be computed as follows:
+/// ```rust
+/// # mod wormhole_query_sdk {
+/// #    pub const MESSAGE_PREFIX: &'static [u8] = b"ruh roh";
+/// # }
+/// use wormhole_query_sdk::MESSAGE_PREFIX;
+/// use wormhole_svm_definitions::compute_keccak_digest;
+///
+/// # let query_response_bytes = vec![];
+/// let digest = compute_keccak_digest(
+///     solana_program::keccak::hash(&query_response_bytes),
+///     Some(MESSAGE_PREFIX)
+/// );
+#[inline]
+pub fn compute_keccak_digest(hashed_data: Hash, prefix: Option<&[u8]>) -> Hash {
+    match prefix {
+        Some(prefix) => solana_program::keccak::hashv(&[prefix, &hashed_data.0]),
+        None => solana_program::keccak::hashv(&[&hashed_data.0]),
+    }
+}
 
 /// Derive the Wormhole Core Bridge program's bridge config account address and
 /// bump.

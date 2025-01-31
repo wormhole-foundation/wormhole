@@ -1,9 +1,16 @@
 use solana_program::pubkey::Pubkey;
 
+use crate::{GUARDIAN_SIGNATURES_DISCRIMINATOR, GUARDIAN_SIGNATURE_LENGTH};
+
+/// Guardian signatures account owned by the Wormhole Verify VAA program.
+///
+/// NOTE: This is a zero-copy struct only meant to read in account data. There
+/// is no verification of whether this account is owned by the Wormhole Verify
+/// VAA program. You must ensure that the account is owned by this program.
 pub struct GuardianSignatures<'data>(&'data [u8]);
 
 impl<'data> GuardianSignatures<'data> {
-    pub const DISCRIMINATOR: [u8; 8] = super::GUARDIAN_SIGNATURES_DISCRIMINATOR;
+    pub const DISCRIMINATOR: [u8; 8] = GUARDIAN_SIGNATURES_DISCRIMINATOR;
 
     pub const MINIMUM_SIZE: usize = {
         8 // discriminator
@@ -19,7 +26,7 @@ impl<'data> GuardianSignatures<'data> {
 
         let account = Self(data);
         let total_len = (account.guardian_signatures_len() as usize)
-            .checked_mul(super::GUARDIAN_SIGNATURE_LENGTH)?
+            .checked_mul(GUARDIAN_SIGNATURE_LENGTH)?
             .checked_add(Self::MINIMUM_SIZE)?;
 
         if data.len() < total_len {
@@ -50,10 +57,7 @@ impl<'data> GuardianSignatures<'data> {
     }
 
     #[inline]
-    pub fn guardian_signature(
-        &self,
-        index: usize,
-    ) -> Option<[u8; super::GUARDIAN_SIGNATURE_LENGTH]> {
+    pub fn guardian_signature(&self, index: usize) -> Option<[u8; GUARDIAN_SIGNATURE_LENGTH]> {
         let signature = self.guardian_signature_slice(index)?;
         Some(signature.try_into().unwrap())
     }
@@ -76,9 +80,9 @@ impl<'data> GuardianSignatures<'data> {
     #[inline(always)]
     pub fn guardian_signature_slice(&self, index: usize) -> Option<&'data [u8]> {
         let start = index
-            .checked_mul(super::GUARDIAN_SIGNATURE_LENGTH)?
+            .checked_mul(GUARDIAN_SIGNATURE_LENGTH)?
             .checked_add(Self::MINIMUM_SIZE)?;
-        let end = start.checked_add(super::GUARDIAN_SIGNATURE_LENGTH)?;
+        let end = start.checked_add(GUARDIAN_SIGNATURE_LENGTH)?;
         self.0.get(start..end)
     }
 }

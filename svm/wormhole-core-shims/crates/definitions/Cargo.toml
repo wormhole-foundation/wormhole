@@ -27,3 +27,6 @@ borsh = { optional = true, workspace = true }
 cfg-if.workspace = true
 sha2-const-stable.workspace = true
 solana-program.workspace = true
+
+[dev-dependencies]
+base64.workspace = true
