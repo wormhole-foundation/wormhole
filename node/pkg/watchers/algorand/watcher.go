@@ -303,9 +303,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 			}
 
+			if status.LastRound > math.MaxInt64 {
+				logger.Error("Last round not a valid uint64: ", zap.Uint64("lastRound", status.LastRound))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+				continue
+			}
+
 			currentAlgorandHeight.Set(float64(status.LastRound))
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
-				Height:          int64(status.LastRound),
+				Height:          int64(status.LastRound), // #nosec G115 -- This is validated above
 				ContractAddress: fmt.Sprintf("%d", e.appid),
 			})
 

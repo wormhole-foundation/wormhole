@@ -1309,7 +1309,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			errCounter++
 			continue
 		}
-		vaaKey := db.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence}
+		vaaKey := db.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence} // #nosec G115 -- This chainId conversion is verified above
 		hasVaa, err := s.db.HasVAA(vaaKey)
 		if err != nil || hasVaa {
 			errMsgs += fmt.Sprintf("\nerror checking for VAA %s", missingVAA.VaaKey)

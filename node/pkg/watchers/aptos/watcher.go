@@ -254,7 +254,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			if blockHeight.Exists() {
 				currentAptosHeight.WithLabelValues(e.networkID).Set(float64(blockHeight.Uint()))
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(blockHeight.Uint()),
+					Height:          int64(blockHeight.Uint()), // #nosec G115 -- This is validated above
 					ContractAddress: e.aptosAccount,
 				})
 

@@ -291,7 +291,7 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(
 	}
 
 	// Estimate how far in the future the requested slot is, using our estimated slot time.
-	futureSlotEstimate := time.Duration(req.MinContextSlot-currentSlot) * CCQ_ESTIMATED_SLOT_TIME
+	futureSlotEstimate := time.Duration(req.MinContextSlot-currentSlot) * CCQ_ESTIMATED_SLOT_TIME // #nosec G115 -- This conversion is safe indefinitely
 
 	// If the requested slot is definitively more than the retry interval, use the regular retry mechanism.
 	if futureSlotEstimate > query.RetryInterval*2 {
