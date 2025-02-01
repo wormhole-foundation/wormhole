@@ -149,16 +149,16 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		return errors.New("Wormhole publish event malformed")
 	}
 
-	successValueInt, err := successValueToInt(successValue)
+	successValueUint64, err := successValueToUint64(successValue)
 
 	// SECURITY defense-in-depth: check that outcome.status.SuccessValue should equal to the base64 encoded sequence number
-	if err != nil || successValueInt == 0 || uint64(successValueInt) != pubEvent.Seq {
+	if err != nil || successValueUint64 == 0 || successValueUint64 != pubEvent.Seq {
 		logger.Error(
 			"SuccessValue does not match sequence number",
 			zap.String("error_type", "malformed_wormhole_event"),
 			zap.String("log_msg_type", "tx_processing_error"),
 			zap.String("SuccessValue", successValue),
-			zap.Int("int(SuccessValue)", successValueInt),
+			zap.Uint64("int(SuccessValue)", successValueUint64),
 			zap.Uint64("log.seq", pubEvent.Seq),
 		)
 		return errors.New("Wormhole publish event.seq does not match SuccessValue")
@@ -269,16 +269,16 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 }
 
 // TODO test this code
-func successValueToInt(successValue string) (int, error) {
+func successValueToUint64(successValue string) (uint64, error) {
 	successValueBytes, err := base64.StdEncoding.DecodeString(successValue)
 	if err != nil {
 		return 0, err
 	}
-	successValueInt, err := strconv.Atoi(string(successValueBytes))
+	successValueUint64, err := strconv.ParseUint(string(successValueBytes), 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return successValueInt, nil
+	return successValueUint64, nil
 }
 
 func isWormholePublishEvent(logger *zap.Logger, eventJsonStr string) bool {
