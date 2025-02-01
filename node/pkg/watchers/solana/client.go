@@ -440,7 +440,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
 				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(slot),
+					Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
 					ContractAddress: contractAddr,
 				})
 
