@@ -608,7 +608,7 @@ func TestSuccessValueToInt(t *testing.T) {
 
 	for _, tc := range testsPositive {
 		t.Run(tc.input, func(t *testing.T) {
-			i, err := successValueToInt(tc.input)
+			i, err := successValueToUint64(tc.input)
 			assert.Equal(t, tc.output, i)
 			assert.NoError(t, err)
 		})
@@ -616,7 +616,7 @@ func TestSuccessValueToInt(t *testing.T) {
 
 	for _, tc := range testsNegative {
 		t.Run(tc.input, func(t *testing.T) {
-			i, err := successValueToInt(tc.input)
+			i, err := successValueToUint64(tc.input)
 			assert.Equal(t, tc.output, i)
 			assert.NotNil(t, err)
 		})

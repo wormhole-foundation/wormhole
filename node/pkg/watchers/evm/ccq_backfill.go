@@ -290,14 +290,14 @@ func (w *Watcher) ccqPerformBackfill(ctx context.Context, evt *ccqBackfillReques
 		return
 	}
 
-	numBlocks := int64(lastBlock - firstBlock - 1)
+	numBlocks := int64(lastBlock - firstBlock - 1) // #nosec G115 -- Realistically impossible to overflow
 	if numBlocks > w.ccqBatchSize {
 		numBlocks = w.ccqBatchSize
 	}
 	w.ccqLogger.Info("received a backfill request", zap.Uint64("timestamp", evt.timestamp), zap.Uint64("firstBlock", firstBlock), zap.Uint64("lastBlock", lastBlock), zap.Int64("numBlocks", numBlocks))
 	blocks, err := w.ccqBackfillGetBlocks(ctx, lastBlock-1, numBlocks)
 	if err != nil {
-		w.ccqLogger.Error("failed to get backfill batch", zap.Int64("startingBlock", int64(lastBlock-1)), zap.Int64("numBlocks", numBlocks))
+		w.ccqLogger.Error("failed to get backfill batch", zap.Uint64("startingBlock", lastBlock-1), zap.Int64("numBlocks", numBlocks))
 		return
 	}
 
@@ -308,8 +308,8 @@ func (w *Watcher) ccqPerformBackfill(ctx context.Context, evt *ccqBackfillReques
 		zap.Uint64("latestBlockNum", blocks[0].BlockNum),
 		zap.Uint64("oldestBlockTimestamp", blocks[len(blocks)-1].Timestamp),
 		zap.Uint64("latestBlockTimestamp", blocks[0].Timestamp),
-		zap.Stringer("oldestTime", time.Unix(int64(blocks[len(blocks)-1].Timestamp), 0)),
-		zap.Stringer("latestTime", time.Unix(int64(blocks[0].Timestamp), 0)),
+		zap.Stringer("oldestTime", time.Unix(int64(blocks[len(blocks)-1].Timestamp), 0)), // #nosec G115 -- This conversion is safe indefinitely
+		zap.Stringer("latestTime", time.Unix(int64(blocks[0].Timestamp), 0)),             // #nosec G115 -- This conversion is safe indefinitely
 	)
 
 	w.ccqTimestampCache.AddBatch(blocks)
