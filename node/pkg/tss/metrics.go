@@ -89,6 +89,12 @@ func (t *Engine) sigMetricDone(trackid *common.TrackingID, hadIssue bool) {
 	sigLatency.WithLabelValues(chain.String()).Observe(float64(latency.Milliseconds()))
 
 	t.SignatureMetrics.Delete(key)
+
+	t.logger.Info("tss signature produced",
+		zap.String("digest", fmt.Sprintf("%x", trackid.Digest)),
+		zap.String("chain", chain.String()),
+		zap.Duration("protocol duration", latency),
+	)
 }
 
 func (t *Engine) loadMetric(key sigKey, trackid *common.TrackingID) (*signatureMetadata, bool) {
