@@ -253,7 +253,7 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 	d := party.Digest{}
 	copy(d[:], vaaDigest)
 
-	if err := t.prepareThenanounceNewDigest(d, chainID, consistencyLvl); err != nil {
+	if err := t.prepareThenAnounceNewDigest(d, chainID, consistencyLvl, mt); err != nil {
 		return err
 	}
 
@@ -262,25 +262,14 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 		return err
 	}
 
-	flds := []zap.Field{
+	t.logger.Info("signature for VAA requested",
 		zap.String("digest", fmt.Sprintf("%x", vaaDigest)),
 		zap.String("chainID", chainID.String()),
 		zap.Uint8("consistency", consistencyLvl),
-	}
-
-	if mt.isFromVaav1 {
-		flds = append(flds, zap.Bool("isFromVaav1", true))
-	}
-
-	if mt.isRetry {
-		flds = append(flds, zap.Bool("isRetry", true))
-	}
-
-	if len(sigPrepInfo.alreadyStartedSigningTrackingIDs) > 0 {
-		flds = append(flds, zap.Int("numMatchingTrackIDS", len(sigPrepInfo.alreadyStartedSigningTrackingIDs)))
-	}
-
-	t.logger.Info("signature for VAA requested", flds...)
+		zap.Bool("isFromVaav1", mt.isFromVaav1),
+		zap.Bool("isRetry", mt.isRetry),
+		zap.Int("numMatchingTrackIDS", len(sigPrepInfo.alreadyStartedSigningTrackingIDs)),
+	)
 
 	dgstStr := fmt.Sprintf("%x", vaaDigest)
 
@@ -334,7 +323,8 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 			flds...,
 		)
 
-		if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &signCommand{SigningInfo: info, passedToFP: true}); err != nil {
+		scmd := signCommand{SigningInfo: info, passedToFP: true, signingMeta: mt, digestconsistancy: consistencyLvl}
+		if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &scmd); err != nil {
 			t.logger.Error("couldn't inform the fault-tolerance tracker of the signature start",
 				zap.Error(err),
 				zap.String("trackingID", info.TrackingID.ToString()),
@@ -385,8 +375,8 @@ func (t *Engine) getSigPrepInfo(chainID vaa.ChainID, d party.Digest) (sigPrepara
 	return sigPrepInfo, nil
 }
 
-// prepareThenanounceNewDigest updates the inner state of the engine before announcing to others about a new digest seen.
-func (t *Engine) prepareThenanounceNewDigest(d party.Digest, chainID vaa.ChainID, consistencyLvl uint8) error {
+// prepareThenAnounceNewDigest updates the inner state of the engine before announcing to others about a new digest seen.
+func (t *Engine) prepareThenAnounceNewDigest(d party.Digest, chainID vaa.ChainID, consistencyLvl uint8, mt signingMeta) error {
 	signinginfo, err := t.fp.GetSigningInfo(party.SigningTask{
 		Digest:       d,
 		Faulties:     []*tss.PartyID{}, // no faulties
@@ -401,6 +391,7 @@ func (t *Engine) prepareThenanounceNewDigest(d party.Digest, chainID vaa.ChainID
 		SigningInfo:       signinginfo,
 		passedToFP:        false, // set to true only after FP actually received the message.
 		digestconsistancy: consistencyLvl,
+		signingMeta:       mt,
 	}
 
 	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, sgCmd); err != nil {
@@ -590,7 +581,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	t.logger.Info(
 		"tss engine started",
 		zap.Any("configs", t.GuardianStorage.Configurations),
-		zap.Bool("GST", t.gst != nil),
+		zap.Bool("hasGuardianSet", t.gst != nil),
 	)
 
 	return nil

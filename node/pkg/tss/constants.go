@@ -29,7 +29,8 @@ const (
 	// 2 bytes for '-' between each field.
 	trackingIDHexStrSize = 2*(trackindIDSize) + 2
 
-	defaultMaxLiveSignatures = 1000
+	defaultMaxLiveSignatures = 20000
+
 	// Since each sigState is created via almost any of the ftCommands, I decided on setting it as 1000 sigs a minute
 	// and multiplied it by number of minutes we have
 	sigStateRateLimit = defaultMaxLiveSignatures * int(2*defaultMaxSignerTTL/time.Minute)

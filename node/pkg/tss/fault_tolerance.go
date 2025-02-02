@@ -64,6 +64,7 @@ type signCommand struct {
 	SigningInfo       *party.SigningInfo
 	passedToFP        bool
 	digestconsistancy uint8
+	signingMeta       signingMeta
 }
 
 type SigEndCommand struct {
@@ -158,10 +159,12 @@ type signatureState struct {
 	// consistansy states the level of finality floats over the digest.
 	// Bad consistancy means the digest is not final, and even might not be seen by all guardians.
 	digestconsistancy uint8
+	isFromVaav1       bool
 
 	alertTime time.Time
 
 	beginTime time.Time // used to do cleanups.
+
 }
 
 // GetEndTime is in capital to support the HasTTl interface.
@@ -401,8 +404,9 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 
 	go func() {
 		for _, sig := range retryNow {
+			mt := signingMeta{isRetry: true, isFromVaav1: sig.isFromVaav1}
 			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
-			if err := t.beginTSSSign(sig.digest[:], chainID, sig.digestconsistancy, signingMeta{isRetry: true}); err != nil {
+			if err := t.beginTSSSign(sig.digest[:], chainID, sig.digestconsistancy, mt); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}
@@ -484,6 +488,9 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 	state, ok := f.sigsState[intoSigKey(dgst, chain)]
 	if !ok {
 		state = f.setNewSigState(dgst, chain, time.Now())
+
+		state.digestconsistancy = cmd.digestconsistancy
+		state.isFromVaav1 = cmd.signingMeta.isFromVaav1 // this is only interesting in case the guardian first saw this message via VAAv1.
 	}
 
 	state.approvedToSign = true
@@ -706,8 +713,9 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 	// retry signatures...
 	go func() {
 		for _, sig := range toSign {
+			mt := signingMeta{isRetry: true, isFromVaav1: sig.isFromVaav1}
 			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
-			if err := t.beginTSSSign(sig.digest[:], sig.chain, sig.digestconsistancy, signingMeta{isRetry: true}); err != nil {
+			if err := t.beginTSSSign(sig.digest[:], sig.chain, sig.digestconsistancy, mt); err != nil {
 				t.logger.Error("failed to retry a signature", zap.Error(err))
 			}
 		}
