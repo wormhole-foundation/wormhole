@@ -7,6 +7,7 @@ import "../contracts/Messages.sol";
 import "../contracts/Setters.sol";
 import "../contracts/Structs.sol";
 import "forge-test/rv-helpers/TestUtils.sol";
+import "../contracts/libraries/external/BytesLib.sol";
 
 contract TestMessagesRV is TestUtils {
     using BytesLib for bytes;
