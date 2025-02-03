@@ -43,7 +43,7 @@ async fn test_post_signatures_13_at_once() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 13_355
-        3_520
+        3_516
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -105,7 +105,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        6_525
+        5_805
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -164,7 +164,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 12_828
-        3_520
+        3_516
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -212,7 +212,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 7_628
-        1_224
+        1_211
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -297,8 +297,7 @@ async fn test_cannot_post_signatures_refund_recipient_mismatch() {
     assert!(out.result.unwrap().is_err());
 
     // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/post_signatures.rs:42. Error Code: WriteAuthorityMismatch. Error Number: 6001. Error Message: WriteAuthorityMismatch.";
-    let err_msg =
-        "Program log: Payer (account #1) must match refund recipient in guardian signatures";
+    let err_msg = "Program log: Payer (account #1) must match refund recipient";
     assert!(out
         .simulation_details
         .unwrap()
@@ -561,7 +560,7 @@ async fn test_close_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 5_165
-        1_042
+        1_005
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -619,7 +618,7 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
     assert!(out.result.unwrap().is_err());
 
     // let err_msg = "Program log: AnchorError caused by account: guardian_signatures. Error Code: ConstraintHasOne. Error Number: 2001. Error Message: A has one constraint was violated.";
-    let err_msg = "Program log: Refund recipient (account #2) must match refund recipient in guardian signatures";
+    let err_msg = "Program log: Refund recipient (account #2) mismatch";
     assert!(out
         .simulation_details
         .unwrap()
@@ -665,7 +664,7 @@ async fn test_verify_hash() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
         // 342_276
-        336_916
+        336_915
     );
 }
 

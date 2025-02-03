@@ -42,6 +42,7 @@ pub fn set_up_transaction(
         &[
             post_signatures_ix,
             ComputeBudgetInstruction::set_compute_unit_price(69),
+            // NOTE: CU limit is higher than needed to resolve errors in test.
             ComputeBudgetInstruction::set_compute_unit_limit(25_000),
         ],
         &[],

@@ -1,7 +1,17 @@
+#![deny(dead_code, unused_imports, unused_mut, unused_variables)]
+
 use solana_program::{
-    account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult, msg,
-    program::invoke_signed_unchecked, program_error::ProgramError, pubkey::Pubkey, rent::Rent,
-    system_instruction, sysvar::Sysvar,
+    account_info::AccountInfo,
+    clock::Clock,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program::invoke_signed_unchecked,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
+    sysvar::Sysvar,
 };
 use wormhole_svm_definitions::{
     zero_copy::{GuardianSet, GuardianSignatures},
@@ -14,6 +24,7 @@ solana_program::declare_id!(VERIFY_VAA_SHIM_PROGRAM_ID);
 
 solana_program::entrypoint!(process_instruction);
 
+#[inline]
 fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -34,6 +45,7 @@ fn process_instruction(
     }
 }
 
+#[inline(always)]
 fn process_post_signatures(
     accounts: &[AccountInfo],
     data: PostSignaturesData<true>,
@@ -53,19 +65,9 @@ fn process_post_signatures(
     // account will be created if it does not already exist. For subsequent
     // calls to this instruction, this account does not need to be a signer.
     let guardian_signatures_info = &accounts[1];
-    if guardian_signatures_info.key == payer_info.key {
-        msg!("Guardian signatures (account #2) cannot be initialized as payer (account #1)");
-        return Err(ProgramError::InvalidAccountData);
-    }
 
     // NOTE: We are not checking account at index == 2 because the System
     // program CPI will fail if the System program account is not present.
-
-    let total_signatures = data.total_signatures();
-    if total_signatures == 0 {
-        msg!("Total signatures must not be 0");
-        return Err(ProgramError::InvalidArgument);
-    }
 
     let guardian_signatures_slice = data.guardian_signatures_slice();
     if guardian_signatures_slice.is_empty() {
@@ -73,10 +75,23 @@ fn process_post_signatures(
         return Err(ProgramError::InvalidArgument);
     }
 
+    let total_signatures = data.total_signatures();
     let mut guardian_signatures_len = data.guardian_signatures().len() as u32;
 
     let start_idx = if guardian_signatures_info.owner != &ID {
-        create_guardian_signatures_account(
+        if guardian_signatures_info.key == payer_info.key {
+            msg!("Guardian signatures (account #2) cannot be initialized as payer (account #1)");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // There is no point in creating this account if there are no
+        // signatures to write.
+        if total_signatures == 0 {
+            msg!("Total signatures must not be 0");
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        create_account_reliably(
             payer_info.key,
             guardian_signatures_info.key,
             guardian_signatures_info.lamports(),
@@ -87,7 +102,7 @@ fn process_post_signatures(
         // Now write some data.
         let mut account_data = guardian_signatures_info.data.borrow_mut();
         account_data[..8].copy_from_slice(&GuardianSignatures::DISCRIMINATOR);
-        account_data[8..40].copy_from_slice(payer_info.key.as_ref());
+        account_data[8..40].copy_from_slice(&payer_info.key.to_bytes());
         account_data[40..44].copy_from_slice(&data.guardian_set_index().to_be_bytes());
 
         GuardianSignatures::MINIMUM_SIZE
@@ -100,34 +115,36 @@ fn process_post_signatures(
             let expected_total_signatures =
                 (account_data.len() - GuardianSignatures::MINIMUM_SIZE) / GUARDIAN_SIGNATURE_LENGTH;
             msg!("Total signatures mismatch");
-            msg!("Left:");
+            msg!("Actual:");
             msg!("{}", total_signatures);
-            msg!("Right:");
+            msg!("Expected:");
             msg!("{}", expected_total_signatures);
             return Err(ProgramError::InvalidArgument);
         }
 
         if payer_info.key.as_ref() != guardian_signatures.refund_recipient_slice() {
-            msg!("Payer (account #1) must match refund recipient in guardian signatures");
-            msg!("Left:");
+            msg!("Payer (account #1) must match refund recipient");
+            msg!("Actual:");
             msg!("{}", payer_info.key);
-            msg!("Right:");
+            msg!("Expected:");
             msg!("{}", guardian_signatures.refund_recipient());
             return Err(ProgramError::InvalidAccountData);
         }
 
         if data.guardian_set_index() != guardian_signatures.guardian_set_index() {
-            msg!("Guardian set index must match guardian set index in guardian signatures");
-            msg!("Left:");
+            msg!("Guardian set index mismatch");
+            msg!("Actual:");
             msg!("{}", data.guardian_set_index());
-            msg!("Right:");
+            msg!("Expected:");
             msg!("{}", guardian_signatures.guardian_set_index());
             return Err(ProgramError::InvalidArgument);
         }
 
         let current_guardian_signatures_len = guardian_signatures.guardian_signatures_len();
 
-        // Update the length, which will be written back to the account.
+        // Update the length, which will be written back to the account. Simply
+        // adding is safe because the number of signatures will never
+        // exceed 154 (which is much smaller than u32::MAX).
         guardian_signatures_len += current_guardian_signatures_len;
 
         GuardianSignatures::MINIMUM_SIZE
@@ -152,6 +169,7 @@ fn process_post_signatures(
     Ok(())
 }
 
+#[inline(always)]
 fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> ProgramResult {
     if accounts.len() < 2 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -164,7 +182,9 @@ fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> Progra
     // signatures in the guardian signatures account with the provided digest.
     let guardian_set_info = &accounts[0];
 
-    // Guardian signatures account.
+    // Guardian signatures account. This account was created in the post
+    // signatures instruction. Its signatures will be validated against the
+    // guardian pubkeys found in the guardian set account.
     let guardian_signatures_info_data = accounts[1].data.borrow();
     let guardian_signatures = GuardianSignatures::new(&guardian_signatures_info_data)
         .ok_or(ProgramError::InvalidAccountData)?;
@@ -185,9 +205,9 @@ fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> Progra
     })?;
     if guardian_set_info.key != &expected_address {
         msg!("Guardian set (account #1) seeds constraint violated");
-        msg!("Left:");
+        msg!("Actual:");
         msg!("{}", guardian_set_info.key);
-        msg!("Right:");
+        msg!("Expected:");
         msg!("{}", expected_address);
         return Err(ProgramError::InvalidAccountData);
     }
@@ -263,6 +283,7 @@ fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> Progra
     Ok(())
 }
 
+#[inline(always)]
 fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
     if accounts.len() < 2 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -274,7 +295,8 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
     // instruction. Rent will be moved to the refund recipient.
     let guardian_signatures_info = &accounts[0];
 
-    // Recipient of guardian signatures account's lamports.
+    // Recipient of guardian signatures account's lamports. This pubkey must
+    // match the refund recipient stored in the guardian signatures account.
     let refund_recipient_info = &accounts[1];
 
     {
@@ -283,12 +305,10 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
             GuardianSignatures::new(&account_data).ok_or(ProgramError::InvalidAccountData)?;
 
         if refund_recipient_info.key.as_ref() != guardian_signatures.refund_recipient_slice() {
-            msg!(
-                "Refund recipient (account #2) must match refund recipient in guardian signatures"
-            );
-            msg!("Left:");
+            msg!("Refund recipient (account #2) mismatch");
+            msg!("Actual:");
             msg!("{}", refund_recipient_info.key);
-            msg!("Right:");
+            msg!("Expected:");
             msg!("{}", guardian_signatures.refund_recipient());
             return Err(ProgramError::InvalidAccountData);
         }
@@ -298,16 +318,24 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
     **refund_recipient_info.lamports.borrow_mut() += **guardian_signatures_lamports;
     **guardian_signatures_lamports = 0;
 
-    guardian_signatures_info.realloc(0, false).unwrap();
-    guardian_signatures_info.assign(&Default::default());
+    let mut data = guardian_signatures_info.data.borrow_mut();
+    let data_ptr = data.as_mut_ptr();
+
+    // Safety: The pointer for the data length is 8 bytes before the start of
+    // the data for a given account info). When this is set to zero, there is no
+    // data that needs to be zeroed out.
+    unsafe {
+        *(data_ptr.offset(-8) as *mut u64) = 0;
+    }
+    guardian_signatures_info.assign(&solana_program::system_program::ID);
 
     Ok(())
 }
 
 #[inline(always)]
-fn create_guardian_signatures_account(
+fn create_account_reliably(
     payer_key: &Pubkey,
-    guardian_signatures_key: &Pubkey,
+    account_key: &Pubkey,
     current_lamports: u64,
     total_signatures: u8,
     accounts: &[AccountInfo],
@@ -319,10 +347,9 @@ fn create_guardian_signatures_account(
     let lamports = Rent::get().unwrap().minimum_balance(data_len);
 
     if current_lamports == 0 {
-        // Create the account.
         let ix = system_instruction::create_account(
             payer_key,
-            guardian_signatures_key,
+            account_key,
             lamports,
             data_len as u64,
             &ID,
@@ -330,19 +357,89 @@ fn create_guardian_signatures_account(
 
         invoke_signed_unchecked(&ix, accounts, &[])?;
     } else if current_lamports < lamports {
+        const MAX_CPI_DATA_LEN: usize = 36;
+
+        // Perform up to three CPIs:
+        // 1. Transfer lamports from payer to account (may not be necessary).
+        // 2. Allocate data to the account.
+        // 3. Assign the account owner to this program.
+        //
+        // The max length of instruction data is 36 bytes among the three
+        // instructions, so we will reuse the same allocated memory for all.
+        let mut cpi_ix = Instruction {
+            program_id: solana_program::system_program::ID,
+            accounts: vec![
+                AccountMeta::new(*payer_key, true),
+                AccountMeta::new(*account_key, true),
+            ],
+            data: Vec::with_capacity(MAX_CPI_DATA_LEN),
+        };
+
+        // We will have to transfer the remaining lamports needed to cover rent
+        // for the account.
         let lamport_diff = lamports.saturating_sub(current_lamports);
 
+        // Only invoke transfer if there are lamports required.
         if lamport_diff != 0 {
-            // Fund the account.
-            let ix = system_instruction::transfer(payer_key, guardian_signatures_key, lamports);
-            invoke_signed_unchecked(&ix, accounts, &[])?;
+            let cpi_data = &mut cpi_ix.data;
+
+            // Safety: Because the capacity is > 4, it is safe to write to the
+            // first 4 elements, which covers the System program instruction
+            // selectors.
+            //
+            // The transfer and allocate instructions are 12 bytes long:
+            // - 4 bytes for the discriminator
+            // - 8 bytes for the lamports (transfer) or data length (allocate)
+            //
+            // The last 8 bytes will be copied to the data slice.
+            unsafe {
+                core::ptr::write_bytes(cpi_data.as_mut_ptr(), 0, 4);
+                cpi_data.set_len(12);
+            }
+            cpi_data[0] = 2; // transfer selector
+            cpi_data[4..12].copy_from_slice(&lamport_diff.to_le_bytes());
+
+            invoke_signed_unchecked(&cpi_ix, accounts, &[])?;
         }
 
-        let ix = system_instruction::allocate(guardian_signatures_key, data_len as u64);
-        invoke_signed_unchecked(&ix, accounts, &[])?;
+        let cpi_accounts = &mut cpi_ix.accounts;
 
-        let ix = system_instruction::assign(guardian_signatures_key, &ID);
-        invoke_signed_unchecked(&ix, accounts, &[])?;
+        // Safety: Setting the length reduces the previous length from the last
+        // CPI call.
+        //
+        // Both allocate and assign instructions require one account (the
+        // account being created).
+        unsafe {
+            cpi_accounts.set_len(1);
+        }
+
+        // Because the payer and account are writable signers, we can simply
+        // overwrite the pubkey of the first account.
+        cpi_accounts[0].pubkey = *account_key;
+
+        {
+            let cpi_data = &mut cpi_ix.data;
+
+            cpi_data[0] = 8; // allocate selector
+            cpi_data[4..12].copy_from_slice(&(data_len as u64).to_le_bytes());
+
+            invoke_signed_unchecked(&cpi_ix, accounts, &[])?;
+        }
+
+        {
+            let cpi_data = &mut cpi_ix.data;
+
+            // Safety: The capacity of this vector is 36. This data will be
+            // overwritten for the next CPI call.
+            unsafe {
+                cpi_data.set_len(MAX_CPI_DATA_LEN);
+            }
+
+            cpi_data[0] = 1; // assign selector
+            cpi_data[4..36].copy_from_slice(&ID.to_bytes());
+
+            invoke_signed_unchecked(&cpi_ix, accounts, &[])?;
+        }
     }
 
     Ok(())

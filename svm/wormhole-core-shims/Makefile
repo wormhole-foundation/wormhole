@@ -10,7 +10,7 @@ build:
 	cargo build-sbf
 
 .PHONY: test
-test: $(POST_MESSAGE_TEST_FIXTURES_PATH)/core_bridge.so $(VERIFY_VAA_TEST_FIXTURES_PATH)/core_bridge.so
+test: $(POST_MESSAGE_TEST_FIXTURES_PATH)/core_bridge.so
 	cargo test --lib --features solana
 	cargo test --doc --features solana
 	cargo test-sbf --features solana

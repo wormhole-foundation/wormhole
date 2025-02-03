@@ -71,9 +71,9 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     let (expected_message_key, message_bump) = find_shim_message_address(emitter_key, &ID);
     if message_info.key != &expected_message_key {
         msg!("Message (account #2) seeds constraint violated");
-        msg!("Left:");
+        msg!("Actual:");
         msg!("{}", message_info.key);
-        msg!("Right:");
+        msg!("Expected:");
         msg!("{}", expected_message_key);
         return Err(ProgramError::InvalidSeeds);
     }
