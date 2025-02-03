@@ -343,7 +343,7 @@ jobs:
       matrix:
         manifest:
           - path: cosmwasm/Cargo.toml
-            args: "--workspace --locked --exclude 'shutdown-*"
+            args: "--workspace --locked --exclude 'shutdown-*'"
           - path: cosmwasm/Cargo.toml
             args: "-p 'shutdown-*' --no-default-features --locked"
           - path: terra/Cargo.toml
