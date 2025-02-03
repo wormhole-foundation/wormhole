@@ -17,7 +17,7 @@ export interface Http {
    */
   rules: HttpRule[];
   /**
-   * When set to true, URL path parmeters will be fully URI-decoded except in
+   * When set to true, URL path parameters will be fully URI-decoded except in
    * cases of single segment matches in reserved expansion, where "%2F" will be
    * left encoded.
    *
@@ -65,7 +65,7 @@ export interface Http {
  *         - selector: <proto_package_name>.Messaging.GetMessage
  *           get: /v1/messages/{message_id}/{sub.subfield}
  *
- * This definition enables an automatic, bidrectional mapping of HTTP
+ * This definition enables an automatic, bidirectional mapping of HTTP
  * JSON to RPC. Example:
  *
  * HTTP | RPC
