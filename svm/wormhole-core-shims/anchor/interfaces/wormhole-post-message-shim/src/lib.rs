@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, POST_MESSAGE_SHIM_PROGRAM_ID};
+use wormhole_svm_definitions::CORE_BRIDGE_PROGRAM_ID;
 
-declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
+declare_id!("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
 
 #[program]
 pub mod wormhole_post_message_shim {
@@ -69,8 +69,8 @@ pub struct MessageEvent {
 #[derive(Accounts)]
 #[event_cpi]
 pub struct PostMessage<'info> {
-    /// CHECK: Wormhole bridge config. [`wormhole::post_message`] requires this
-    /// account be mutable.
+    /// Wormhole bridge config. [`wormhole::post_message`] requires this
+    /// account to be mutable.
     #[account(
         mut,
         seeds = [b"Bridge"],
@@ -79,8 +79,8 @@ pub struct PostMessage<'info> {
     )]
     bridge: UncheckedAccount<'info>,
 
-    /// CHECK: Wormhole Message. [`wormhole::post_message`] requires this
-    /// account be signer and mutable.
+    /// Wormhole Message. [`wormhole::post_message`] requires this account to be
+    /// a mutable signer.
     ///
     /// This program uses a PDA per emitter, since these are already
     /// bottle-necked by sequence and the bridge enforces that emitter must be
@@ -97,12 +97,12 @@ pub struct PostMessage<'info> {
     )]
     message: UncheckedAccount<'info>,
 
-    /// CHECK: Emitter of the VAA. [`wormhole::post_message`] requires this
-    /// account be signer.
+    /// Emitter of the VAA. [`wormhole::post_message`] requires this account to
+    /// be a signer.
     emitter: Signer<'info>,
 
-    /// CHECK: Emitter's sequence account. [`wormhole::post_message`] requires
-    /// this account be mutable.
+    /// Emitter's sequence account. [`wormhole::post_message`] requires this
+    /// account to be mutable.
     ///
     /// Explicitly do not re-derive this account. The core bridge verifies the
     /// derivation anyway and as of Anchor 0.30.1, auto-derivation for other
@@ -121,8 +121,8 @@ pub struct PostMessage<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// CHECK: Wormhole fee collector. [`wormhole::post_message`] requires this
-    /// account be mutable.
+    /// Wormhole fee collector. [`wormhole::post_message`] requires this account
+    /// to be mutable.
     #[account(
         mut,
         seeds = [b"fee_collector"],
@@ -140,7 +140,7 @@ pub struct PostMessage<'info> {
     /// Rent sysvar.
     rent: Sysvar<'info, Rent>,
 
+    /// Wormhole program.
     #[account(address = CORE_BRIDGE_PROGRAM_ID)]
-    /// CHECK: Wormhole program.
     wormhole_program: UncheckedAccount<'info>,
 }

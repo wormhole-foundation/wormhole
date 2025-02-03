@@ -11,6 +11,12 @@ version.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [features]
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
 ### NOTE: IDL builder breaks if there is no default network feature.
 ###
 ### TODO: Consider a way to generate IDLs for other SVMs.
@@ -22,11 +28,6 @@ localnet = ["wormhole-svm-definitions/localnet"]
 
 ### Specific networks
 solana = ["wormhole-svm-definitions/solana"]
-cpi = ["no-entrypoint"]
-no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true, features = ["event-cpi"] }

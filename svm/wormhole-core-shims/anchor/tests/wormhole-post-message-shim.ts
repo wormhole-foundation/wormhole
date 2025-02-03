@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { WormholePostMessageShim } from "../target/types/wormhole_post_message_shim";
+import { WormholePostMessageShim } from "../idls/wormhole_post_message_shim";
 import { getSequenceFromTx, logCostAndCompute } from "./helpers";
 
 describe("wormhole-post-message-shim", () => {

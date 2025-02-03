@@ -6,7 +6,7 @@ use solana_program::{
 use super::{Hash, VerifyVaaShimInstruction};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VerifyVaaAccounts<'ix> {
+pub struct VerifyHashAccounts<'ix> {
     pub guardian_set: &'ix Pubkey,
 
     pub guardian_signatures: &'ix Pubkey,
@@ -20,7 +20,7 @@ pub struct VerifyVaaAccounts<'ix> {
 /// signatures instruction to create the guardian signatures account.
 ///
 /// Immediately after this verify call, call the close signatures instruction
-/// to reclaim the rent paid to create the guardian signatures account
+/// to reclaim the rent paid to create the guardian signatures account.
 ///
 /// A v1 VAA digest can be computed as follows:
 /// ```rust
@@ -48,13 +48,13 @@ pub struct VerifyVaaAccounts<'ix> {
 ///     Some(MESSAGE_PREFIX)
 /// );
 /// ```
-pub struct VerifyVaa<'ix> {
+pub struct VerifyHash<'ix> {
     pub program_id: &'ix Pubkey,
-    pub accounts: VerifyVaaAccounts<'ix>,
+    pub accounts: VerifyHashAccounts<'ix>,
     pub data: Hash,
 }
 
-impl<'ix> VerifyVaa<'ix> {
+impl<'ix> VerifyHash<'ix> {
     pub fn instruction(&self) -> Instruction {
         Instruction {
             program_id: *self.program_id,
@@ -62,7 +62,7 @@ impl<'ix> VerifyVaa<'ix> {
                 AccountMeta::new_readonly(*self.accounts.guardian_set, false),
                 AccountMeta::new_readonly(*self.accounts.guardian_signatures, false),
             ],
-            data: VerifyVaaShimInstruction::VerifyVaa(self.data).to_vec(),
+            data: VerifyVaaShimInstruction::VerifyHash(self.data).to_vec(),
         }
     }
 }

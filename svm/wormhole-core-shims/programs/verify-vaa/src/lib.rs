@@ -73,8 +73,8 @@ pub mod wormhole_verify_vaa_shim {
     ///   .concat();
     ///   let digest = keccak::hash(message_hash.as_slice()).to_bytes();
     /// ```
-    pub fn verify_vaa(ctx: Context<VerifyVaa>, digest: [u8; HASH_BYTES]) -> Result<()> {
-        instructions::verify_vaa(ctx, digest)
+    pub fn verify_hash(ctx: Context<VerifyHash>, digest: [u8; HASH_BYTES]) -> Result<()> {
+        instructions::verify_hash(ctx, digest)
     }
 }
 

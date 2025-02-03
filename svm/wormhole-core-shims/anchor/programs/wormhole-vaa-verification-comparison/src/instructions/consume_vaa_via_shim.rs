@@ -4,7 +4,7 @@ use anchor_lang::{
     prelude::*,
     solana_program::{self, keccak},
 };
-use wormhole_verify_vaa_shim::cpi::accounts::VerifyVaa;
+use wormhole_verify_vaa_shim::cpi::accounts::VerifyHash;
 use wormhole_verify_vaa_shim::program::WormholeVerifyVaaShim;
 
 #[derive(Accounts)]
@@ -23,10 +23,10 @@ pub fn consume_vaa_via_shim(ctx: Context<ConsumeVaaViaShim>, vaa_body: Vec<u8>) 
     // Compute the message hash.
     let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();
     let digest = keccak::hash(message_hash.as_slice()).to_bytes();
-    wormhole_verify_vaa_shim::cpi::verify_vaa(
+    wormhole_verify_vaa_shim::cpi::verify_hash(
         CpiContext::new(
             ctx.accounts.wormhole_verify_vaa_shim.to_account_info(),
-            VerifyVaa {
+            VerifyHash {
                 guardian_set: ctx.accounts.guardian_set.to_account_info(),
                 guardian_signatures: ctx.accounts.guardian_signatures.to_account_info(),
             },

@@ -2,7 +2,7 @@ import { keccak256 } from "@certusone/wormhole-sdk/lib/cjs/utils/keccak";
 import { parseVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { WormholeVerifyVaaShim } from "../target/types/wormhole_verify_vaa_shim";
+import { WormholeVerifyVaaShim } from "../idls/wormhole_verify_vaa_shim";
 import { logCostAndCompute } from "./helpers";
 
 // VAA from https://wormholescan.io/#/tx/AEa98mf68bcwUmT8Yheidw4C4KUVSG9732SVg5kqnfmH?view=advanced
@@ -32,7 +32,7 @@ describe("wormhole-verify-vaa-shim", () => {
     await logCostAndCompute("shim", tx);
 
     const tx2 = await program.methods
-      .verifyVaa([...keccak256(vaa.hash)])
+      .verifyHash([...keccak256(vaa.hash)])
       .accounts({
         guardianSignatures: signatureKeypair.publicKey,
       })

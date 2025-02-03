@@ -5,8 +5,8 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { WormholeIntegratorExample } from "../target/types/wormhole_integrator_example";
-import { WormholePostMessageShim } from "../target/types/wormhole_post_message_shim";
-import { WormholeVerifyVaaShim } from "../target/types/wormhole_verify_vaa_shim";
+import { WormholePostMessageShim } from "../idls/wormhole_post_message_shim";
+import { WormholeVerifyVaaShim } from "../idls/wormhole_verify_vaa_shim";
 import { logCostAndCompute } from "./helpers";
 
 // VAA from https://wormholescan.io/#/tx/AEa98mf68bcwUmT8Yheidw4C4KUVSG9732SVg5kqnfmH?view=advanced

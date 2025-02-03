@@ -1,6 +1,6 @@
 pub mod close_signatures;
 pub mod post_signatures;
-pub mod verify_vaa;
+pub mod verify_hash;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use solana_program_test::{BanksClient, ProgramTest};

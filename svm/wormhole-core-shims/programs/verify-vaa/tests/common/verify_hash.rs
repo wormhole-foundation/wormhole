@@ -43,9 +43,9 @@ pub fn set_up_transaction(
         ),
     );
 
-    let post_signatures_ix = verify_vaa::VerifyVaa {
+    let post_signatures_ix = verify_vaa::VerifyHash {
         program_id: &VERIFY_VAA_SHIM_PROGRAM_ID,
-        accounts: verify_vaa::VerifyVaaAccounts {
+        accounts: verify_vaa::VerifyHashAccounts {
             guardian_set: &guardian_set,
             guardian_signatures,
         },

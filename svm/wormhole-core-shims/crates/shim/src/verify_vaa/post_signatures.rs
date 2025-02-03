@@ -108,6 +108,7 @@ impl<'ix> PostSignaturesData<'ix, true> {
         }
     }
 }
+
 /// Creates or appends to a GuardianSignatures account for subsequent use by
 /// the verify vaa instruction.
 ///

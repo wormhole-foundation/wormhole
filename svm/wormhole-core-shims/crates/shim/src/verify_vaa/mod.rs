@@ -1,11 +1,10 @@
 mod close_signatures;
 mod post_signatures;
-#[allow(clippy::module_inception)]
-mod verify_vaa;
+mod verify_hash;
 
 pub use close_signatures::*;
 pub use post_signatures::*;
-pub use verify_vaa::*;
+pub use verify_hash::*;
 
 use wormhole_svm_definitions::{
     make_anchor_discriminator, Hash, GUARDIAN_SIGNATURE_LENGTH, HASH_BYTES,
@@ -13,7 +12,7 @@ use wormhole_svm_definitions::{
 
 pub enum VerifyVaaShimInstruction<'ix, const CONTIGUOUS: bool> {
     PostSignatures(PostSignaturesData<'ix, CONTIGUOUS>),
-    VerifyVaa(Hash),
+    VerifyHash(Hash),
     CloseSignatures,
 }
 
@@ -22,7 +21,7 @@ impl<'ix, const CONTIGUOUS: bool> VerifyVaaShimInstruction<'ix, CONTIGUOUS> {
         make_anchor_discriminator(b"global:close_signatures");
     pub const POST_SIGNATURES_SELECTOR: [u8; 8] =
         make_anchor_discriminator(b"global:post_signatures");
-    pub const VERIFY_VAA_SELECTOR: [u8; 8] = make_anchor_discriminator(b"global:verify_vaa");
+    pub const VERIFY_VAA_SELECTOR: [u8; 8] = make_anchor_discriminator(b"global:verify_hash");
 }
 
 impl<'ix> VerifyVaaShimInstruction<'ix, false> {
@@ -48,7 +47,7 @@ impl<'ix> VerifyVaaShimInstruction<'ix, false> {
 
                 out
             }
-            Self::VerifyVaa(digest) => {
+            Self::VerifyHash(digest) => {
                 let mut out = Vec::with_capacity({
                     8 // selector
                     + HASH_BYTES
@@ -81,7 +80,7 @@ impl<'ix> VerifyVaaShimInstruction<'ix, true> {
                     return None;
                 }
 
-                Some(Self::VerifyVaa(Hash(
+                Some(Self::VerifyHash(Hash(
                     data[..HASH_BYTES].try_into().unwrap(),
                 )))
             }

@@ -2723,8 +2723,7 @@ name = "wormhole-verify-vaa-shim"
 version = "0.0.0"
 dependencies = [
  "anchor-lang",
- "wormhole-raw-vaas",
- "wormhole-solana-consts",
+ "wormhole-svm-definitions",
 ]
 
 [[package]]

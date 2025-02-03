@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-pub struct VerifyVaa<'info> {
+pub struct VerifyHash<'info> {
     /// Guardian set used for signature verification.
     #[account(
         seeds = [
@@ -31,7 +31,7 @@ pub struct VerifyVaa<'info> {
     guardian_signatures: Account<'info, GuardianSignatures>,
 }
 
-impl<'info> VerifyVaa<'info> {
+impl<'info> VerifyHash<'info> {
     pub fn constraints(ctx: &Context<Self>, digest: &[u8; HASH_BYTES]) -> Result<()> {
         let guardian_set = &ctx.accounts.guardian_set;
 
@@ -88,8 +88,8 @@ impl<'info> VerifyVaa<'info> {
     }
 }
 
-#[access_control(VerifyVaa::constraints(&ctx, &digest))]
-pub fn verify_vaa(ctx: Context<VerifyVaa>, digest: [u8; HASH_BYTES]) -> Result<()> {
+#[access_control(VerifyHash::constraints(&ctx, &digest))]
+pub fn verify_hash(ctx: Context<VerifyHash>, digest: [u8; HASH_BYTES]) -> Result<()> {
     Ok(())
 }
 

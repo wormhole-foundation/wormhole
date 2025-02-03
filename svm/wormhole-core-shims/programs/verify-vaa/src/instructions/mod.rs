@@ -1,2 +1,2 @@
-mod verify_vaa;
-pub use verify_vaa::*;
+mod verify_hash;
+pub use verify_hash::*;

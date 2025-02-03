@@ -2,7 +2,7 @@ import { postVaa } from "@certusone/wormhole-sdk/lib/cjs/solana/sendAndConfirmPo
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { WormholeVaaVerificationComparison } from "../target/types/wormhole_vaa_verification_comparison";
-import { WormholeVerifyVaaShim } from "../target/types/wormhole_verify_vaa_shim";
+import { WormholeVerifyVaaShim } from "../idls/wormhole_verify_vaa_shim";
 import { parseVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";
 import { logCostAndCompute } from "./helpers";
 import { SignedVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/wormhole";

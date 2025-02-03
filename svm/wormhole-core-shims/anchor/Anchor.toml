@@ -1,6 +1,6 @@
 [toolchain]
 anchor_version = "0.30.1"
-solana_version = "1.18.17"
+solana_version = "1.18.26"
 
 [workspace]
 members = [
@@ -10,7 +10,7 @@ members = [
 
 [features]
 resolution = true
-skip-lint = false
+skip-lint = true
 
 [programs.localnet]
 wormhole_integrator_example = "AEwubmehHNvkMXoH2C5MgDSemZgQ3HUSYpeaF3UrNZdQ"

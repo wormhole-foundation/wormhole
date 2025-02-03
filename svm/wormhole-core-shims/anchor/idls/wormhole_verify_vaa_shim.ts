@@ -8,15 +8,16 @@ export type WormholeVerifyVaaShim = {
   "address": "EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at",
   "metadata": {
     "name": "wormholeVerifyVaaShim",
-    "version": "0.1.0",
+    "version": "0.0.0",
     "spec": "0.1.0",
-    "description": "Created with Anchor"
+    "description": "Anchor Interface for Wormhole Verify VAA Shim"
   },
   "instructions": [
     {
       "name": "closeSignatures",
       "docs": [
-        "Allows the initial payer to close the signature account, reclaiming the rent taken by `post_signatures`."
+        "Allows the initial payer to close the signature account, reclaiming the",
+        "rent taken by the post signatures instruction."
       ],
       "discriminator": [
         192,
@@ -47,16 +48,24 @@ export type WormholeVerifyVaaShim = {
     {
       "name": "postSignatures",
       "docs": [
-        "Creates or appends to a GuardianSignatures account for subsequent use by verify_vaa.",
+        "Creates or appends to a GuardianSignatures account for subsequent use by",
+        "the verify vaa instruction.",
+        "",
         "This is necessary as the Wormhole VAA body, which has an arbitrary size,",
-        "and 13 guardian signatures (a quorum of the current 19 mainnet guardians, 66 bytes each)",
-        "alongside the required accounts is likely larger than the transaction size limit on Solana (1232 bytes).",
-        "This will also allow for the verification of other messages which guardians sign, such as QueryResults.",
+        "and 13 guardian signatures (a quorum of the current 19 mainnet",
+        "guardians, 66 bytes each) alongside the required accounts is likely",
+        "larger than the transaction size limit on Solana (1232 bytes).",
         "",
-        "This instruction allows for the initial payer to append additional signatures to the account by calling the instruction again.",
-        "This may be necessary if a quorum of signatures from the current guardian set grows larger than can fit into a single transaction.",
+        "This will also allow for the verification of other messages which",
+        "guardians sign, such as QueryResults.",
         "",
-        "The GuardianSignatures account can be closed by the initial payer via close_signatures, which will refund the initial payer."
+        "This instruction allows for the initial payer to append additional",
+        "signatures to the account by calling the instruction again. This may be",
+        "necessary if a quorum of signatures from the current guardian set grows",
+        "larger than can fit into a single transaction.",
+        "",
+        "The GuardianSignatures account can be closed by the initial payer via",
+        "the close signatures instruction, which will refund the initial payer."
       ],
       "discriminator": [
         138,
@@ -107,39 +116,55 @@ export type WormholeVerifyVaaShim = {
       ]
     },
     {
-      "name": "verifyVaa",
+      "name": "verifyHash",
       "docs": [
-        "This instruction is intended to be invoked via CPI call. It verifies a digest against a GuardianSignatures account",
-        "and a core bridge GuardianSet.",
-        "Prior to this call, and likely in a separate transaction, `post_signatures` must be called to create the account.",
-        "Immediately after this call, `close_signatures` should be called to reclaim the lamports.",
+        "This instruction is intended to be invoked via CPI call. It verifies a",
+        "digest against a guardian signatures account and a Wormhole Core Bridge",
+        "guardian set account.",
+        "",
+        "Prior to this call (and likely in a separate transaction), call the post",
+        "signatures instruction to create the guardian signatures account.",
+        "",
+        "Immediately after this verify call, call the close signatures",
+        "instruction to reclaim the rent paid to create the guardian signatures",
+        "account.",
         "",
         "A v1 VAA digest can be computed as follows:",
         "```rust",
-        "let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();",
-        "let digest = keccak::hash(message_hash.as_slice()).to_bytes();",
+        "use wormhole_svm_definitions::compute_keccak_digest;",
+        "",
+        "// `vec_body` is the encoded body of the VAA.",
+        "# let vaa_body = vec![];",
+        "let digest = compute_keccak_digest(",
+        "solana_program::keccak::hash(&vaa_body),",
+        "None, // there is no prefix for V1 messages",
+        ");",
         "```",
         "",
         "A QueryResponse digest can be computed as follows:",
         "```rust",
+        "# mod wormhole_query_sdk {",
+        "#    pub const MESSAGE_PREFIX: &'static [u8] = b\"ruh roh\";",
+        "# }",
         "use wormhole_query_sdk::MESSAGE_PREFIX;",
-        "let message_hash = [",
-        "MESSAGE_PREFIX,",
-        "&solana_program::keccak::hashv(&[&bytes]).to_bytes(),",
-        "]",
-        ".concat();",
-        "let digest = keccak::hash(message_hash.as_slice()).to_bytes();",
+        "use wormhole_svm_definitions::compute_keccak_digest;",
+        "",
+        "# let query_response_bytes = vec![];",
+        "let digest = compute_keccak_digest(",
+        "solana_program::keccak::hash(&query_response_bytes),",
+        "Some(MESSAGE_PREFIX)",
+        ");",
         "```"
       ],
       "discriminator": [
-        147,
-        254,
-        88,
-        41,
-        24,
-        223,
-        219,
-        29
+        22,
+        152,
+        160,
+        69,
+        241,
+        148,
+        14,
+        124
       ],
       "accounts": [
         {
@@ -213,7 +238,8 @@ export type WormholeVerifyVaaShim = {
         {
           "name": "guardianSignatures",
           "docs": [
-            "Stores unverified guardian signatures as they are too large to fit in the instruction data."
+            "Stores unverified guardian signatures as they are too large to fit in",
+            "the instruction data."
           ]
         }
       ],
@@ -243,61 +269,6 @@ export type WormholeVerifyVaaShim = {
         184,
         83
       ]
-    },
-    {
-      "name": "wormholeGuardianSet",
-      "discriminator": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ]
-    }
-  ],
-  "errors": [
-    {
-      "code": 6000,
-      "name": "emptyGuardianSignatures",
-      "msg": "emptyGuardianSignatures"
-    },
-    {
-      "code": 6001,
-      "name": "writeAuthorityMismatch",
-      "msg": "writeAuthorityMismatch"
-    },
-    {
-      "code": 6002,
-      "name": "guardianSetExpired",
-      "msg": "guardianSetExpired"
-    },
-    {
-      "code": 6003,
-      "name": "noQuorum",
-      "msg": "noQuorum"
-    },
-    {
-      "code": 6004,
-      "name": "invalidSignature",
-      "msg": "invalidSignature"
-    },
-    {
-      "code": 6005,
-      "name": "invalidGuardianIndexNonIncreasing",
-      "msg": "invalidGuardianIndexNonIncreasing"
-    },
-    {
-      "code": 6006,
-      "name": "invalidGuardianIndexOutOfRange",
-      "msg": "invalidGuardianIndexOutOfRange"
-    },
-    {
-      "code": 6007,
-      "name": "invalidGuardianKeyRecovery",
-      "msg": "invalidGuardianKeyRecovery"
     }
   ],
   "types": [
@@ -345,49 +316,7 @@ export type WormholeVerifyVaaShim = {
           }
         ]
       }
-    },
-    {
-      "name": "wormholeGuardianSet",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "index",
-            "docs": [
-              "Index representing an incrementing version number for this guardian set."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "keys",
-            "docs": [
-              "Ethereum-style public keys."
-            ],
-            "type": {
-              "vec": {
-                "array": [
-                  "u8",
-                  20
-                ]
-              }
-            }
-          },
-          {
-            "name": "creationTime",
-            "docs": [
-              "Timestamp representing the time this guardian became active."
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "expirationTime",
-            "docs": [
-              "Expiration time when VAAs issued by this set are no longer valid."
-            ],
-            "type": "u32"
-          }
-        ]
-      }
     }
   ]
 };
+
