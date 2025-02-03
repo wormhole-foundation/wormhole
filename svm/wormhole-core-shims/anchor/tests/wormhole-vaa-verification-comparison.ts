@@ -128,12 +128,13 @@ describe("wormhole-vaa-verification-comparison", () => {
     const guardianSetIndex = vaa.guardianSetIndex;
     const indexBuffer = Buffer.alloc(4); // guardian_set_index is a u32
     indexBuffer.writeUInt32BE(guardianSetIndex);
-    const [guardianSetPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from(SEED_PREFIX), indexBuffer],
-      CORE_BRIDGE_PROGRAM_ID
-    );
+    const [guardianSetPDA, guardianSetBump] =
+      anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(SEED_PREFIX), indexBuffer],
+        CORE_BRIDGE_PROGRAM_ID
+      );
     const tx2 = await program.methods
-      .consumeVaaViaShim(vaaBody(buf))
+      .consumeVaaViaShim(guardianSetBump, vaaBody(buf))
       .accounts({
         guardianSignatures: signatureKeypair.publicKey,
       })

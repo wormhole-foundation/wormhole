@@ -22,8 +22,12 @@ pub mod wormhole_integrator_example {
     /// with `post_signatures` and the corresponding guardian set from the core bridge and verifies a
     /// provided VAA body against it. `close_signatures` on the shim should be called immediately
     /// afterwards in order to reclaim the rent lamports taken by `post_signatures`.
-    pub fn consume_vaa(ctx: Context<ConsumeVaa>, vaa_body: Vec<u8>) -> Result<()> {
-        instructions::consume_vaa(ctx, vaa_body)
+    pub fn consume_vaa(
+        ctx: Context<ConsumeVaa>,
+        guardian_set_bump: u8,
+        vaa_body: Vec<u8>,
+    ) -> Result<()> {
+        instructions::consume_vaa(ctx, guardian_set_bump, vaa_body)
     }
 
     /// This example instruction posts a message via the post message shim.

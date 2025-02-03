@@ -245,6 +245,10 @@ export type WormholeVerifyVaaShim = {
       ],
       "args": [
         {
+          "name": "guardianSetBump",
+          "type": "u8"
+        },
+        {
           "name": "digest",
           "type": {
             "array": [

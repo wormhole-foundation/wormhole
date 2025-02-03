@@ -36,7 +36,11 @@ pub mod wormhole_vaa_verification_comparison {
         instructions::consume_vaa(ctx, vaa_body, guardian_set_index)
     }
 
-    pub fn consume_vaa_via_shim(ctx: Context<ConsumeVaaViaShim>, vaa_body: Vec<u8>) -> Result<()> {
-        instructions::consume_vaa_via_shim(ctx, vaa_body)
+    pub fn consume_vaa_via_shim(
+        ctx: Context<ConsumeVaaViaShim>,
+        guardian_set_bump: u8,
+        vaa_body: Vec<u8>,
+    ) -> Result<()> {
+        instructions::consume_vaa_via_shim(ctx, guardian_set_bump, vaa_body)
     }
 }

@@ -23,6 +23,9 @@ pub const FEE_COLLECTOR_SEED: &[u8] = b"fee_collector";
 /// Wormhole Core Bridge program's emitter sequence account seed.
 pub const EMITTER_SEQUENCE_SEED: &[u8] = b"Sequence";
 
+/// Wormhole Core Bridge program's guardian set account seed.
+pub const GUARDIAN_SET_SEED: &[u8] = b"GuardianSet";
+
 /// Anchor event CPI's authority seed.
 pub const EVENT_AUTHORITY_SEED: &[u8] = b"__event_authority";
 
@@ -82,13 +85,13 @@ pub fn compute_keccak_digest(hashed_data: Hash, prefix: Option<&[u8]>) -> Hash {
 /// Derive the Wormhole Core Bridge program's bridge config account address and
 /// bump.
 pub fn find_core_bridge_config_address(wormhole_program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[b"Bridge"], wormhole_program_id)
+    Pubkey::find_program_address(&[CORE_BRIDGE_CONFIG_SEED], wormhole_program_id)
 }
 
 /// Derive the Wormhole Core Bridge program's fee collector account address and
 /// bump.
 pub fn find_fee_collector_address(wormhole_program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[b"fee_collector"], wormhole_program_id)
+    Pubkey::find_program_address(&[FEE_COLLECTOR_SEED], wormhole_program_id)
 }
 
 /// Derive the Wormhole Core Bridge program's emitter sequence account address
@@ -97,7 +100,10 @@ pub fn find_emitter_sequence_address(
     emitter: &Pubkey,
     wormhole_program_id: &Pubkey,
 ) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[b"Sequence", emitter.as_ref()], wormhole_program_id)
+    Pubkey::find_program_address(
+        &[EMITTER_SEQUENCE_SEED, emitter.as_ref()],
+        wormhole_program_id,
+    )
 }
 
 /// Derive the Wormhole Core Bridge program's guardian set address and bump.
@@ -105,7 +111,7 @@ pub fn find_guardian_set_address(
     index_be_bytes: [u8; 4],
     wormhole_program_id: &Pubkey,
 ) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[b"GuardianSet", &index_be_bytes], wormhole_program_id)
+    Pubkey::find_program_address(&[GUARDIAN_SET_SEED, &index_be_bytes], wormhole_program_id)
 }
 
 /// Derive the Wormhole Post Message Shim program's message account address and

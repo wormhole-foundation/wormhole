@@ -15,6 +15,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
+#[instruction(guardian_set_bump: u8)]
 pub struct VerifyHash<'info> {
     /// Guardian set used for signature verification.
     #[account(
@@ -22,7 +23,7 @@ pub struct VerifyHash<'info> {
             WormholeGuardianSet::SEED_PREFIX,
             guardian_signatures.guardian_set_index_be.as_ref()
         ],
-        bump,
+        bump = guardian_set_bump,
         seeds::program = CORE_BRIDGE_PROGRAM_ID
     )]
     guardian_set: Account<'info, WormholeGuardianSet>,
@@ -89,7 +90,11 @@ impl<'info> VerifyHash<'info> {
 }
 
 #[access_control(VerifyHash::constraints(&ctx, &digest))]
-pub fn verify_hash(ctx: Context<VerifyHash>, digest: [u8; HASH_BYTES]) -> Result<()> {
+pub fn verify_hash(
+    ctx: Context<VerifyHash>,
+    _guardian_set_bump: u8,
+    digest: [u8; HASH_BYTES],
+) -> Result<()> {
     Ok(())
 }
 

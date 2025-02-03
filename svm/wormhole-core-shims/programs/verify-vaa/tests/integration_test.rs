@@ -664,7 +664,7 @@ async fn test_verify_hash() {
     assert!(out.result.unwrap().is_ok());
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
-        342_250
+        342_276
     );
 }
 
@@ -791,7 +791,7 @@ async fn test_cannot_verify_hash_expired_guardian_set() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:43. Error Code: GuardianSetExpired. Error Number: 6002. Error Message: GuardianSetExpired.";
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:44. Error Code: GuardianSetExpired. Error Number: 6002. Error Message: GuardianSetExpired.";
     assert!(out
         .simulation_details
         .unwrap()
@@ -836,7 +836,7 @@ async fn test_cannot_verify_hash_no_quorum() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:55. Error Code: NoQuorum. Error Number: 6003. Error Message: NoQuorum.";
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:56. Error Code: NoQuorum. Error Number: 6003. Error Message: NoQuorum.";
     assert!(out
         .simulation_details
         .unwrap()
@@ -881,7 +881,7 @@ async fn test_cannot_verify_hash_non_increasing_guardian_index() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:68. Error Code: InvalidGuardianIndexNonIncreasing. Error Number: 6005. Error Message: InvalidGuardianIndexNonIncreasing.";
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:69. Error Code: InvalidGuardianIndexNonIncreasing. Error Number: 6005. Error Message: InvalidGuardianIndexNonIncreasing.";
     assert!(out
         .simulation_details
         .unwrap()
@@ -926,7 +926,7 @@ async fn test_cannot_verify_hash_guardian_index_out_of_range() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:77. Error Code: InvalidGuardianIndexOutOfRange. Error Number: 6006. Error Message: InvalidGuardianIndexOutOfRange.";
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:78. Error Code: InvalidGuardianIndexOutOfRange. Error Number: 6006. Error Message: InvalidGuardianIndexOutOfRange.";
     assert!(out
         .simulation_details
         .unwrap()
@@ -1019,7 +1019,7 @@ async fn test_cannot_verify_hash_invalid_guardian_recovery() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:122. Error Code: InvalidGuardianKeyRecovery. Error Number: 6007. Error Message: InvalidGuardianKeyRecovery.";
+    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:127. Error Code: InvalidGuardianKeyRecovery. Error Number: 6007. Error Message: InvalidGuardianKeyRecovery.";
     assert!(out
         .simulation_details
         .unwrap()

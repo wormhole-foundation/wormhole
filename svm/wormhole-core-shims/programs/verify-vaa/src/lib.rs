@@ -73,8 +73,12 @@ pub mod wormhole_verify_vaa_shim {
     ///   .concat();
     ///   let digest = keccak::hash(message_hash.as_slice()).to_bytes();
     /// ```
-    pub fn verify_hash(ctx: Context<VerifyHash>, digest: [u8; HASH_BYTES]) -> Result<()> {
-        instructions::verify_hash(ctx, digest)
+    pub fn verify_hash(
+        ctx: Context<VerifyHash>,
+        guardian_set_bump: u8,
+        digest: [u8; HASH_BYTES],
+    ) -> Result<()> {
+        instructions::verify_hash(ctx, guardian_set_bump, digest)
     }
 }
 
@@ -91,13 +95,13 @@ fn process_post_signatures(
     // Payer will pay the rent for the guardian signatures account if it does
     // not exist. CPI call to System program will fail if the account is not
     // writable or is not a signer.
-    let payer = &accounts[0];
+    let payer_info = &accounts[0];
 
     // Guardian signatures account will store the guardian signatures. This
     // account will be created if it does not already exist. For subsequent
     // calls to this instruction, this account does not need to be a signer.
-    let guardian_signatures = &accounts[1];
-    if guardian_signatures.key == payer.key {
+    let guardian_signatures_info = &accounts[1];
+    if guardian_signatures_info.key == payer_info.key {
         msg!("Guardian signatures (account #2) cannot be initialized as payer (account #1)");
         return Err(ProgramError::InvalidAccountData);
     }
@@ -119,24 +123,24 @@ fn process_post_signatures(
 
     let mut guardian_signatures_len = data.guardian_signatures().len() as u32;
 
-    let start_idx = if guardian_signatures.owner != &ID {
+    let start_idx = if guardian_signatures_info.owner != &ID {
         create_guardian_signatures_account(
-            payer.key,
-            guardian_signatures.key,
-            guardian_signatures.lamports(),
+            payer_info.key,
+            guardian_signatures_info.key,
+            guardian_signatures_info.lamports(),
             total_signatures,
             accounts,
         )?;
 
         // Now write some data.
-        let mut account_data = guardian_signatures.data.borrow_mut();
+        let mut account_data = guardian_signatures_info.data.borrow_mut();
         account_data[..8].copy_from_slice(&GuardianSignatures::DISCRIMINATOR);
-        account_data[8..40].copy_from_slice(payer.key.as_ref());
+        account_data[8..40].copy_from_slice(payer_info.key.as_ref());
         account_data[40..44].copy_from_slice(&data.guardian_set_index().to_be_bytes());
 
         GuardianSignatures::MINIMUM_SIZE
     } else {
-        let account_data = guardian_signatures.data.borrow();
+        let account_data = guardian_signatures_info.data.borrow();
         let guardian_signatures =
             GuardianSignatures::new(&account_data).ok_or(ProgramError::InvalidAccountData)?;
 
@@ -151,10 +155,10 @@ fn process_post_signatures(
             return Err(ProgramError::InvalidArgument);
         }
 
-        if payer.key.as_ref() != guardian_signatures.refund_recipient_slice() {
+        if payer_info.key.as_ref() != guardian_signatures.refund_recipient_slice() {
             msg!("Payer (account #1) must match refund recipient in guardian signatures");
             msg!("Left:");
-            msg!("{}", payer.key);
+            msg!("{}", payer_info.key);
             msg!("Right:");
             msg!("{}", guardian_signatures.refund_recipient());
             return Err(ProgramError::InvalidAccountData);
@@ -178,7 +182,7 @@ fn process_post_signatures(
             + (current_guardian_signatures_len as usize) * GUARDIAN_SIGNATURE_LENGTH
     };
 
-    let mut account_data = guardian_signatures.data.borrow_mut();
+    let mut account_data = guardian_signatures_info.data.borrow_mut();
     let end_idx = start_idx + guardian_signatures_slice.len();
 
     // Check if the account data is not large enough to hold the signatures.
@@ -205,34 +209,34 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Guardian signatures account will be closed by the end of this
     // instruction. Rent will be moved to the refund recipient.
-    let guardian_signatures = &accounts[0];
+    let guardian_signatures_info = &accounts[0];
 
     // Recipient of guardian signatures account's lamports.
-    let refund_recipient = &accounts[1];
+    let refund_recipient_info = &accounts[1];
 
     {
-        let account_data = guardian_signatures.data.borrow();
+        let account_data = guardian_signatures_info.data.borrow();
         let guardian_signatures =
             GuardianSignatures::new(&account_data).ok_or(ProgramError::InvalidAccountData)?;
 
-        if refund_recipient.key.as_ref() != guardian_signatures.refund_recipient_slice() {
+        if refund_recipient_info.key.as_ref() != guardian_signatures.refund_recipient_slice() {
             msg!(
                 "Refund recipient (account #2) must match refund recipient in guardian signatures"
             );
             msg!("Left:");
-            msg!("{}", refund_recipient.key);
+            msg!("{}", refund_recipient_info.key);
             msg!("Right:");
             msg!("{}", guardian_signatures.refund_recipient());
             return Err(ProgramError::InvalidAccountData);
         }
     }
 
-    let mut guardian_signatures_lamports = guardian_signatures.lamports.borrow_mut();
-    **refund_recipient.lamports.borrow_mut() += **guardian_signatures_lamports;
+    let mut guardian_signatures_lamports = guardian_signatures_info.lamports.borrow_mut();
+    **refund_recipient_info.lamports.borrow_mut() += **guardian_signatures_lamports;
     **guardian_signatures_lamports = 0;
 
-    guardian_signatures.realloc(0, false).unwrap();
-    guardian_signatures.assign(&Default::default());
+    guardian_signatures_info.realloc(0, false).unwrap();
+    guardian_signatures_info.assign(&Default::default());
 
     Ok(())
 }

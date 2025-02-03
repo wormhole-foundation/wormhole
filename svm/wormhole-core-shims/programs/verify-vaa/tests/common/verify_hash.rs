@@ -9,7 +9,7 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, VERIFY_VAA_SHIM_PROGRAM_ID};
-use wormhole_svm_shim::verify_vaa;
+use wormhole_svm_shim::verify_vaa::{self, VerifyHashData};
 
 use super::bump_cu_cost;
 
@@ -49,7 +49,7 @@ pub fn set_up_transaction(
             guardian_set: &guardian_set,
             guardian_signatures,
         },
-        data: digest,
+        data: VerifyHashData::new(guardian_set_bump, digest),
     }
     .instruction();
 

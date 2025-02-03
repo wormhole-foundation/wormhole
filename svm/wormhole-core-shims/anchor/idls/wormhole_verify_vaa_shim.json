@@ -239,6 +239,10 @@
       ],
       "args": [
         {
+          "name": "guardian_set_bump",
+          "type": "u8"
+        },
+        {
           "name": "digest",
           "type": {
             "array": [

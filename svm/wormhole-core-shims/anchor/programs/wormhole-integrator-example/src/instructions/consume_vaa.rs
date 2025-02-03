@@ -20,7 +20,11 @@ pub struct ConsumeVaa<'info> {
     wormhole_verify_vaa_shim: Program<'info, WormholeVerifyVaaShim>,
 }
 
-pub fn consume_vaa(ctx: Context<ConsumeVaa>, vaa_body: Vec<u8>) -> Result<()> {
+pub fn consume_vaa(
+    ctx: Context<ConsumeVaa>,
+    guardian_set_bump: u8,
+    vaa_body: Vec<u8>,
+) -> Result<()> {
     // Compute the message hash.
     let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();
     let digest = keccak::hash(message_hash.as_slice()).to_bytes();
@@ -33,6 +37,7 @@ pub fn consume_vaa(ctx: Context<ConsumeVaa>, vaa_body: Vec<u8>) -> Result<()> {
                 guardian_signatures: ctx.accounts.guardian_signatures.to_account_info(),
             },
         ),
+        guardian_set_bump,
         digest,
     )?;
     // Decode vaa_body, perform security checks, and do your thing.

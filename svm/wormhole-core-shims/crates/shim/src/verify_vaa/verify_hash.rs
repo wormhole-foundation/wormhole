@@ -12,6 +12,48 @@ pub struct VerifyHashAccounts<'ix> {
     pub guardian_signatures: &'ix Pubkey,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerifyHashData {
+    pub(super) guardian_set_bump: u8,
+    pub(super) digest: Hash,
+}
+
+impl VerifyHashData {
+    pub const SIZE: usize = {
+        1 // guardian set bump
+        + 32 // digest
+    };
+
+    pub fn new(guardian_set_bump: u8, digest: Hash) -> Self {
+        Self {
+            guardian_set_bump,
+            digest,
+        }
+    }
+
+    #[inline]
+    pub fn guardian_set_bump(&self) -> u8 {
+        self.guardian_set_bump
+    }
+
+    #[inline]
+    pub fn digest(&self) -> Hash {
+        self.digest
+    }
+
+    #[inline(always)]
+    pub(super) fn deserialize(data: &[u8]) -> Option<Self> {
+        if data.len() < Self::SIZE {
+            return None;
+        }
+
+        Some(Self {
+            guardian_set_bump: data[0],
+            digest: Hash(data[1..33].try_into().unwrap()),
+        })
+    }
+}
+
 /// This instruction is intended to be invoked via CPI call. It verifies a
 /// digest against a guardian signatures account and a Wormhole Core Bridge
 /// guardian set account.
@@ -51,7 +93,7 @@ pub struct VerifyHashAccounts<'ix> {
 pub struct VerifyHash<'ix> {
     pub program_id: &'ix Pubkey,
     pub accounts: VerifyHashAccounts<'ix>,
-    pub data: Hash,
+    pub data: VerifyHashData,
 }
 
 impl<'ix> VerifyHash<'ix> {

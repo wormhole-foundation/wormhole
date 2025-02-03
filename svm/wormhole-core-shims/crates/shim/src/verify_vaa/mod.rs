@@ -6,13 +6,11 @@ pub use close_signatures::*;
 pub use post_signatures::*;
 pub use verify_hash::*;
 
-use wormhole_svm_definitions::{
-    make_anchor_discriminator, Hash, GUARDIAN_SIGNATURE_LENGTH, HASH_BYTES,
-};
+use wormhole_svm_definitions::{make_anchor_discriminator, Hash, GUARDIAN_SIGNATURE_LENGTH};
 
 pub enum VerifyVaaShimInstruction<'ix, const CONTIGUOUS: bool> {
     PostSignatures(PostSignaturesData<'ix, CONTIGUOUS>),
-    VerifyHash(Hash),
+    VerifyHash(VerifyHashData),
     CloseSignatures,
 }
 
@@ -21,7 +19,7 @@ impl<'ix, const CONTIGUOUS: bool> VerifyVaaShimInstruction<'ix, CONTIGUOUS> {
         make_anchor_discriminator(b"global:close_signatures");
     pub const POST_SIGNATURES_SELECTOR: [u8; 8] =
         make_anchor_discriminator(b"global:post_signatures");
-    pub const VERIFY_VAA_SELECTOR: [u8; 8] = make_anchor_discriminator(b"global:verify_hash");
+    pub const VERIFY_HASH_SELECTOR: [u8; 8] = make_anchor_discriminator(b"global:verify_hash");
 }
 
 impl<'ix> VerifyVaaShimInstruction<'ix, false> {
@@ -47,13 +45,14 @@ impl<'ix> VerifyVaaShimInstruction<'ix, false> {
 
                 out
             }
-            Self::VerifyHash(digest) => {
+            Self::VerifyHash(data) => {
                 let mut out = Vec::with_capacity({
                     8 // selector
-                    + HASH_BYTES
+                    + VerifyHashData::SIZE
                 });
-                out.extend_from_slice(&Self::VERIFY_VAA_SELECTOR);
-                out.extend_from_slice(&digest.0);
+                out.extend_from_slice(&Self::VERIFY_HASH_SELECTOR);
+                out.push(data.guardian_set_bump);
+                out.extend_from_slice(&data.digest.0);
 
                 out
             }
@@ -73,16 +72,8 @@ impl<'ix> VerifyVaaShimInstruction<'ix, true> {
             Self::POST_SIGNATURES_SELECTOR => {
                 PostSignaturesData::deserialize(&data[8..]).map(Self::PostSignatures)
             }
-            Self::VERIFY_VAA_SELECTOR => {
-                let data = &data[8..];
-
-                if data.len() < HASH_BYTES {
-                    return None;
-                }
-
-                Some(Self::VerifyHash(Hash(
-                    data[..HASH_BYTES].try_into().unwrap(),
-                )))
+            Self::VERIFY_HASH_SELECTOR => {
+                VerifyHashData::deserialize(&data[8..]).map(Self::VerifyHash)
             }
             Self::CLOSE_SIGNATURES_SELECTOR => Some(Self::CloseSignatures),
             _ => None,

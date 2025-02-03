@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use wormhole_svm_definitions::{HASH_BYTES, CORE_BRIDGE_PROGRAM_ID};
+use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, HASH_BYTES};
 
 declare_id!("EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at");
 
@@ -78,7 +78,11 @@ pub mod wormhole_verify_vaa_shim {
     ///     Some(MESSAGE_PREFIX)
     /// );
     /// ```
-    pub fn verify_hash(_ctx: Context<VerifyHash>, digest: [u8; HASH_BYTES]) -> Result<()> {
+    pub fn verify_hash(
+        _ctx: Context<VerifyHash>,
+        guardian_set_bump: u8,
+        digest: [u8; HASH_BYTES],
+    ) -> Result<()> {
         let _ = digest;
         err!(ErrorCode::InstructionMissing)
     }
@@ -105,6 +109,7 @@ pub struct PostSignatures<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(guardian_set_bump: u8)]
 pub struct VerifyHash<'info> {
     /// Guardian set used for signature verification.
     #[account(
@@ -112,7 +117,7 @@ pub struct VerifyHash<'info> {
             b"GuardianSet",
             guardian_signatures.guardian_set_index_be.as_ref()
         ],
-        bump,
+        bump = guardian_set_bump,
         seeds::program = CORE_BRIDGE_PROGRAM_ID
     )]
     guardian_set: UncheckedAccount<'info>,
