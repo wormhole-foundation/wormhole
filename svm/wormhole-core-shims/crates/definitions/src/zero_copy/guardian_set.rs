@@ -114,6 +114,11 @@ impl<'data> GuardianSet<'data> {
         }
     }
 
+    #[inline]
+    pub fn quorum(&self) -> u32 {
+        (self.keys_len() * 2) / 3 + 1
+    }
+
     #[inline(always)]
     fn keys_end_index(&self) -> usize {
         8 + (self.keys_len() as usize) * GUARDIAN_PUBKEY_LENGTH

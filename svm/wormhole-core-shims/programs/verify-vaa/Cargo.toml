@@ -29,9 +29,7 @@ no-idl = []
 no-log-ix-name = []
 
 [dependencies]
-anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
 solana-program.workspace = true
-wormhole-raw-vaas.workspace = true
 wormhole-svm-definitions.workspace = true
 wormhole-svm-shim.workspace = true
 

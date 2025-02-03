@@ -15,7 +15,7 @@ use wormhole_svm_definitions::{
 pub async fn start_test(vaa: &str) -> (BanksClient, Keypair, Hash, DecodedVaa) {
     let mut program_test =
         ProgramTest::new("wormhole_verify_vaa_shim", VERIFY_VAA_SHIM_PROGRAM_ID, None);
-    program_test.add_program("core_bridge", CORE_BRIDGE_PROGRAM_ID, None);
+    // program_test.add_program("core_bridge", CORE_BRIDGE_PROGRAM_ID, None);
     program_test.add_account_with_base64_data(
         CORE_BRIDGE_CONFIG,
         1_057_920,

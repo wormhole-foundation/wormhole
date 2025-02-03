@@ -43,7 +43,7 @@ async fn test_post_signatures_13_at_once() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 13_355
-        3_538
+        3_520
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -105,7 +105,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        6_543
+        6_525
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -164,7 +164,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 12_828
-        3_538
+        3_520
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -212,7 +212,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 7_628
-        1_227
+        1_224
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -561,7 +561,7 @@ async fn test_close_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 5_165
-        1_067
+        1_042
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -627,7 +627,7 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
         .contains(&err_msg.to_string()));
 }
 
-// Verify VAA.
+// Verify hash.
 
 #[tokio::test]
 async fn test_verify_hash() {
@@ -664,7 +664,8 @@ async fn test_verify_hash() {
     assert!(out.result.unwrap().is_ok());
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
-        342_276
+        // 342_276
+        336_916
     );
 }
 
@@ -704,7 +705,8 @@ async fn test_cannot_verify_hash_invalid_guardian_set() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError caused by account: guardian_set. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.";
+    // let err_msg = "Program log: AnchorError caused by account: guardian_set. Error Code: AccountNotInitialized. Error Number: 3012. Error Message: The program expected this account to be already initialized.";
+    let err_msg = "Program log: Guardian set (account #1) seeds constraint violated";
     assert!(out
         .simulation_details
         .unwrap()
@@ -746,7 +748,8 @@ async fn test_cannot_verify_hash_invalid_guardian_set_index() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError caused by account: guardian_set. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.";
+    // let err_msg = "Program log: AnchorError caused by account: guardian_set. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.";
+    let err_msg = "Program log: Guardian set (account #1) address creation failed";
     assert!(out
         .simulation_details
         .unwrap()
@@ -791,7 +794,8 @@ async fn test_cannot_verify_hash_expired_guardian_set() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:44. Error Code: GuardianSetExpired. Error Number: 6002. Error Message: GuardianSetExpired.";
+    // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:44. Error Code: GuardianSetExpired. Error Number: 6002. Error Message: GuardianSetExpired.";
+    let err_msg = "Program log: Guardian set (account #1) is expired";
     assert!(out
         .simulation_details
         .unwrap()
@@ -836,7 +840,8 @@ async fn test_cannot_verify_hash_no_quorum() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:56. Error Code: NoQuorum. Error Number: 6003. Error Message: NoQuorum.";
+    // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:56. Error Code: NoQuorum. Error Number: 6003. Error Message: NoQuorum.";
+    let err_msg = "Program log: Guardian signatures (account #2) fails to meet quorum";
     assert!(out
         .simulation_details
         .unwrap()
@@ -881,7 +886,8 @@ async fn test_cannot_verify_hash_non_increasing_guardian_index() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:69. Error Code: InvalidGuardianIndexNonIncreasing. Error Number: 6005. Error Message: InvalidGuardianIndexNonIncreasing.";
+    // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:69. Error Code: InvalidGuardianIndexNonIncreasing. Error Number: 6005. Error Message: InvalidGuardianIndexNonIncreasing.";
+    let err_msg = "Program log: Guardian signatures (account #2) has non-increasing guardian index";
     assert!(out
         .simulation_details
         .unwrap()
@@ -926,7 +932,8 @@ async fn test_cannot_verify_hash_guardian_index_out_of_range() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:78. Error Code: InvalidGuardianIndexOutOfRange. Error Number: 6006. Error Message: InvalidGuardianIndexOutOfRange.";
+    // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:78. Error Code: InvalidGuardianIndexOutOfRange. Error Number: 6006. Error Message: InvalidGuardianIndexOutOfRange.";
+    let err_msg = "Program log: Guardian signatures (account #2) guardian index out of range";
     assert!(out
         .simulation_details
         .unwrap()
@@ -940,43 +947,50 @@ async fn test_cannot_verify_hash_invalid_signature() {
         common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
-    let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
-    out_of_range_guardian_signatures[0][65] = 255;
+    for i in 0..13 {
+        let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
+        out_of_range_guardian_signatures[i][65] = 255;
 
-    let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
-        &payer_signer,
-        decoded_vaa.guardian_set_index,
-        decoded_vaa.total_signatures,
-        &out_of_range_guardian_signatures,
-        recent_blockhash,
-    )
-    .await;
+        let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
+            &mut banks_client,
+            &payer_signer,
+            decoded_vaa.guardian_set_index,
+            decoded_vaa.total_signatures,
+            &out_of_range_guardian_signatures,
+            recent_blockhash,
+        )
+        .await;
 
-    let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
-    let digest = compute_keccak_digest(message_hash, None);
+        let message_hash = solana_sdk::keccak::hash(&decoded_vaa.body);
+        let digest = compute_keccak_digest(message_hash, None);
 
-    let (transaction, _) = common::verify_hash::set_up_transaction(
-        &payer_signer,
-        decoded_vaa.guardian_set_index,
-        &guardian_signatures,
-        digest,
-        recent_blockhash,
-        None, // additional_inputs
-    );
+        let (transaction, _) = common::verify_hash::set_up_transaction(
+            &payer_signer,
+            decoded_vaa.guardian_set_index,
+            &guardian_signatures,
+            digest,
+            recent_blockhash,
+            None, // additional_inputs
+        );
 
-    let out = banks_client
-        .simulate_transaction(transaction)
-        .await
-        .unwrap();
-    assert!(out.result.unwrap().is_err());
+        let out = banks_client
+            .simulate_transaction(transaction)
+            .await
+            .unwrap();
+        assert!(
+            out.result.unwrap().is_err(),
+            "Unexpected success at index {}",
+            i
+        );
 
-    let err_msg = "Program log: AnchorError occurred. Error Code: InvalidSignature. Error Number: 6004. Error Message: InvalidSignature.";
-    assert!(out
-        .simulation_details
-        .unwrap()
-        .logs
-        .contains(&err_msg.to_string()))
+        // let err_msg = "Program log: AnchorError occurred. Error Code: InvalidSignature. Error Number: 6004. Error Message: InvalidSignature.";
+        let err_msg = format!("Program log: Guardian signature index {} is invalid", i);
+        assert!(
+            out.simulation_details.unwrap().logs.contains(&err_msg),
+            "Unexpected error message at index {}",
+            i
+        );
+    }
 }
 
 #[tokio::test]
@@ -987,9 +1001,10 @@ async fn test_cannot_verify_hash_invalid_guardian_recovery() {
 
     let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
 
-    let mismatched_signature: [u8; 65] =
-        out_of_range_guardian_signatures[1][1..].try_into().unwrap();
-    out_of_range_guardian_signatures[0][1..].copy_from_slice(&mismatched_signature);
+    let mismatched_signature: [u8; 65] = out_of_range_guardian_signatures[11][1..]
+        .try_into()
+        .unwrap();
+    out_of_range_guardian_signatures[12][1..].copy_from_slice(&mismatched_signature);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
         &mut banks_client,
@@ -1019,7 +1034,8 @@ async fn test_cannot_verify_hash_invalid_guardian_recovery() {
         .unwrap();
     assert!(out.result.unwrap().is_err());
 
-    let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:127. Error Code: InvalidGuardianKeyRecovery. Error Number: 6007. Error Message: InvalidGuardianKeyRecovery.";
+    // let err_msg = "Program log: AnchorError thrown in programs/verify-vaa/src/instructions/verify_hash.rs:127. Error Code: InvalidGuardianKeyRecovery. Error Number: 6007. Error Message: InvalidGuardianKeyRecovery.";
+    let err_msg = "Program log: Guardian signature index 12 does not recover guardian 18 pubkey";
     assert!(out
         .simulation_details
         .unwrap()

@@ -1,22 +1,18 @@
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::keccak::HASH_BYTES;
-
-declare_id!(VERIFY_VAA_SHIM_PROGRAM_ID);
-
-mod instructions;
-pub(crate) use instructions::*;
-
-pub mod state;
-
-pub mod error;
-
 use solana_program::{
-    entrypoint::ProgramResult, program::invoke_signed_unchecked, system_instruction,
+    account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult, msg,
+    program::invoke_signed_unchecked, program_error::ProgramError, pubkey::Pubkey, rent::Rent,
+    system_instruction, sysvar::Sysvar,
 };
 use wormhole_svm_definitions::{
-    zero_copy::GuardianSignatures, GUARDIAN_SIGNATURE_LENGTH, VERIFY_VAA_SHIM_PROGRAM_ID,
+    zero_copy::{GuardianSet, GuardianSignatures},
+    CORE_BRIDGE_PROGRAM_ID, GUARDIAN_SET_SEED, GUARDIAN_SIGNATURE_LENGTH,
+    VERIFY_VAA_SHIM_PROGRAM_ID,
 };
-use wormhole_svm_shim::verify_vaa::{PostSignaturesData, VerifyVaaShimInstruction};
+use wormhole_svm_shim::verify_vaa::{PostSignaturesData, VerifyHashData, VerifyVaaShimInstruction};
+
+solana_program::declare_id!(VERIFY_VAA_SHIM_PROGRAM_ID);
+
+solana_program::entrypoint!(process_instruction);
 
 fn process_instruction(
     program_id: &Pubkey,
@@ -32,53 +28,9 @@ fn process_instruction(
         Some(VerifyVaaShimInstruction::PostSignatures(data)) => {
             process_post_signatures(accounts, data)
         }
+        Some(VerifyVaaShimInstruction::VerifyHash(data)) => process_verify_hash(accounts, data),
         Some(VerifyVaaShimInstruction::CloseSignatures) => process_close_signatures(accounts),
         _ => Err(ProgramError::InvalidInstructionData),
-    }
-}
-
-#[program]
-pub mod wormhole_verify_vaa_shim {
-
-    use super::*;
-
-    // Temporary while rewrite is in progress.
-    pub fn fallback_process_instruction(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        instruction_data: &[u8],
-    ) -> Result<()> {
-        process_instruction(program_id, accounts, instruction_data).map_err(Into::into)
-    }
-
-    /// This instruction is intended to be invoked via CPI call. It verifies a digest against a GuardianSignatures account
-    /// and a core bridge GuardianSet.
-    /// Prior to this call, and likely in a separate transaction, `post_signatures` must be called to create the account.
-    /// Immediately after this call, `close_signatures` should be called to reclaim the lamports.
-    ///
-    /// A v1 VAA digest can be computed as follows:
-    /// ```rust
-    /// # let vaa_body = vec![];
-    ///   let message_hash = &solana_program::keccak::hashv(&[&vaa_body]).to_bytes();
-    ///   let digest = solana_program::keccak::hash(message_hash.as_slice()).to_bytes();
-    /// ```
-    ///
-    /// A QueryResponse digest can be computed as follows:
-    /// ```rust,ignore
-    ///   use wormhole_query_sdk::MESSAGE_PREFIX;
-    ///   let message_hash = [
-    ///     MESSAGE_PREFIX,
-    ///     &solana_program::keccak::hashv(&[&bytes]).to_bytes(),
-    ///   ]
-    ///   .concat();
-    ///   let digest = keccak::hash(message_hash.as_slice()).to_bytes();
-    /// ```
-    pub fn verify_hash(
-        ctx: Context<VerifyHash>,
-        guardian_set_bump: u8,
-        digest: [u8; HASH_BYTES],
-    ) -> Result<()> {
-        instructions::verify_hash(ctx, guardian_set_bump, digest)
     }
 }
 
@@ -196,6 +148,117 @@ fn process_post_signatures(
 
     // Update length.
     account_data[44..48].copy_from_slice(&guardian_signatures_len.to_le_bytes());
+
+    Ok(())
+}
+
+fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> ProgramResult {
+    if accounts.len() < 2 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    // Verify accounts.
+
+    // Guardian set account warehouses the guardians' ETH public keys. These
+    // keys are used to verify the public keys recovered from verifying the
+    // signatures in the guardian signatures account with the provided digest.
+    let guardian_set_info = &accounts[0];
+
+    // Guardian signatures account.
+    let guardian_signatures_info_data = accounts[1].data.borrow();
+    let guardian_signatures = GuardianSignatures::new(&guardian_signatures_info_data)
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    // With the guardian signatures account's encoded guardian set index and
+    // provided bump, create the guardian set account's address.
+    let expected_address = Pubkey::create_program_address(
+        &[
+            GUARDIAN_SET_SEED,
+            guardian_signatures.guardian_index_be_slice(),
+            &[data.guardian_set_bump()],
+        ],
+        &CORE_BRIDGE_PROGRAM_ID,
+    )
+    .map_err(|err| {
+        msg!("Guardian set (account #1) address creation failed");
+        err
+    })?;
+    if guardian_set_info.key != &expected_address {
+        msg!("Guardian set (account #1) seeds constraint violated");
+        msg!("Left:");
+        msg!("{}", guardian_set_info.key);
+        msg!("Right:");
+        msg!("{}", expected_address);
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let guardian_set_info_data = guardian_set_info.data.borrow();
+
+    // Unwrapping here is safe because we verified the guardian set's address.
+    let guardian_set = GuardianSet::new(&guardian_set_info_data).unwrap();
+
+    // This operation will panic quite far in the future.
+    let timestamp = u32::try_from(Clock::get().unwrap().unix_timestamp).unwrap();
+    if !guardian_set.is_active(timestamp) {
+        msg!("Guardian set (account #1) is expired");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let guardian_signatures_len = guardian_signatures.guardian_signatures_len();
+
+    // Number of signatures must meet quorum, which is at least two thirds of
+    // the guardian set's size.
+    if guardian_signatures_len < guardian_set.quorum() {
+        msg!("Guardian signatures (account #2) fails to meet quorum");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let digest = data.digest().0;
+    let mut last_guardian_index = None;
+
+    for i in 0..(guardian_signatures_len as usize) {
+        // Signature is encoded as:
+        // - 1 byte: guardian index
+        // - 64 bytes: r and s concatenated
+        // - 1 byte: recovery ID
+        let signature = guardian_signatures.guardian_signature(i).unwrap();
+        let index = signature[0] as usize;
+        if let Some(last_index) = last_guardian_index {
+            if index <= last_index {
+                msg!("Guardian signatures (account #2) has non-increasing guardian index");
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
+
+        let guardian_pubkey = guardian_set.key_slice(index).ok_or_else(|| {
+            msg!("Guardian signatures (account #2) guardian index out of range");
+            ProgramError::InvalidAccountData
+        })?;
+
+        // Keccak-256 hash the recovered public key and compare it with the
+        // guardian set's public key.
+        let recovered_pubkey = solana_program::secp256k1_recover::secp256k1_recover(
+            &digest,
+            signature[65],
+            &signature[1..65],
+        )
+        .map(|pubkey| solana_program::keccak::hashv(&[&pubkey.0]).0)
+        .map_err(|_| {
+            msg!("Guardian signature index {} is invalid", i);
+            ProgramError::InvalidAccountData
+        })?;
+
+        if &recovered_pubkey[12..] != guardian_pubkey {
+            msg!(
+                "Guardian signature index {} does not recover guardian {} pubkey",
+                i,
+                index
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        last_guardian_index.replace(index);
+    }
 
     Ok(())
 }
