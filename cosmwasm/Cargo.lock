@@ -1860,7 +1860,18 @@ dependencies = [
 name = "shutdown-core-bridge-cosmwasm"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-std",
+ "cw-multi-test",
+ "hex",
+ "k256",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "serde_wormhole",
+ "tiny-keccak",
+ "wormchain-ibc-receiver",
+ "wormhole-bindings",
  "wormhole-cosmwasm",
+ "wormhole-vaas-serde",
 ]
 
 [[package]]
