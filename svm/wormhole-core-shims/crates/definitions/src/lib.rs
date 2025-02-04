@@ -36,6 +36,8 @@ pub const GUARDIAN_SIGNATURES_DISCRIMINATOR: [u8; 8] =
 pub const GUARDIAN_SIGNATURE_LENGTH: usize = 66;
 pub const GUARDIAN_PUBKEY_LENGTH: usize = 20;
 
+pub const ANCHOR_EVENT_CPI_SELECTOR: [u8; 8] = u64::to_be_bytes(0xe445a52e51cb9a1d);
+
 /// Convenience method to compute the Keccak-256 digest of Keccak-256 hashed
 /// input data. For some messages (like query responses), there is a prefix
 /// prepended to this hash before producing the digest. Otherwise the hash is

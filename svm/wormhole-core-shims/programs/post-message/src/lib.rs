@@ -9,8 +9,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use wormhole_svm_definitions::{
-    find_shim_message_address, Finality, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
-    MESSAGE_EVENT_DISCRIMINATOR, POST_MESSAGE_SHIM_EVENT_AUTHORITY,
+    find_shim_message_address, Finality, ANCHOR_EVENT_CPI_SELECTOR, CORE_BRIDGE_PROGRAM_ID,
+    EVENT_AUTHORITY_SEED, MESSAGE_EVENT_DISCRIMINATOR, POST_MESSAGE_SHIM_EVENT_AUTHORITY,
     POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP, POST_MESSAGE_SHIM_PROGRAM_ID as ID,
 };
 use wormhole_svm_shim::post_message::PostMessageShimInstruction;
@@ -248,8 +248,6 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
 }
 
 // Event CPI.
-
-const ANCHOR_EVENT_CPI_SELECTOR: [u8; 8] = u64::to_be_bytes(0xe445a52e51cb9a1d);
 
 #[inline(always)]
 fn process_privileged_invoke(accounts: &[AccountInfo]) -> ProgramResult {
