@@ -83,7 +83,7 @@ pub mod wormhole_verify_vaa_shim {
         guardian_set_bump: u8,
         digest: [u8; HASH_BYTES],
     ) -> Result<()> {
-        let _ = digest;
+        let _ = (guardian_set_bump, digest);
         err!(ErrorCode::InstructionMissing)
     }
 }
@@ -109,7 +109,6 @@ pub struct PostSignatures<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(guardian_set_bump: u8)]
 pub struct VerifyHash<'info> {
     /// Guardian set used for signature verification.
     #[account(
@@ -117,7 +116,7 @@ pub struct VerifyHash<'info> {
             b"GuardianSet",
             guardian_signatures.guardian_set_index_be.as_ref()
         ],
-        bump = guardian_set_bump,
+        bump,
         seeds::program = CORE_BRIDGE_PROGRAM_ID
     )]
     guardian_set: UncheckedAccount<'info>,

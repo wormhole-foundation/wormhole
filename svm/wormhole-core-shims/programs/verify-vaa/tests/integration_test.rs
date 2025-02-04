@@ -21,8 +21,7 @@ const VAA: &str = "AQAAAAQNAL1qji7v9KnngyX0VxK+3fCMVscWTLoYX8L48NWquq2WGrcHd4H0w
 
 #[tokio::test]
 async fn test_post_signatures_13_at_once() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let guardian_signatures_signer = Keypair::new();
@@ -43,7 +42,7 @@ async fn test_post_signatures_13_at_once() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 13_355
-        3_516
+        3_336
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -72,15 +71,14 @@ async fn test_post_signatures_13_at_once() {
 
 #[tokio::test]
 async fn test_post_signatures_lamports_already_in_guardian_signatures() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let guardian_signatures_signer = Keypair::new();
 
     // Send lamports to the guardian signatures account.
     let recent_blockhash = common::transfer_lamports(
-        &mut banks_client,
+        &banks_client,
         recent_blockhash,
         &payer_signer,
         &guardian_signatures_signer.pubkey(),
@@ -105,7 +103,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        5_805
+        5_640
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -134,8 +132,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
 
 #[tokio::test]
 async fn test_post_signatures_separate_transactions() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     // Split up signatures
@@ -164,7 +161,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 12_828
-        3_516
+        3_336
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -212,7 +209,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 7_628
-        1_211
+        1_005
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -243,8 +240,7 @@ async fn test_post_signatures_separate_transactions() {
 
 #[tokio::test]
 async fn test_cannot_post_signatures_refund_recipient_mismatch() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     // Split up signatures
@@ -273,7 +269,7 @@ async fn test_cannot_post_signatures_refund_recipient_mismatch() {
 
     // Send some lamports to the another payer.
     let recent_blockhash = common::transfer_lamports(
-        &mut banks_client,
+        &banks_client,
         recent_blockhash,
         &payer_signer,
         &another_payer_signer.pubkey(),
@@ -307,8 +303,7 @@ async fn test_cannot_post_signatures_refund_recipient_mismatch() {
 
 #[tokio::test]
 async fn test_cannot_post_signatures_total_signatures_mismatch() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     // Split up signatures
@@ -337,7 +332,7 @@ async fn test_cannot_post_signatures_total_signatures_mismatch() {
 
     // Send some lamports to the another payer.
     let recent_blockhash = common::transfer_lamports(
-        &mut banks_client,
+        &banks_client,
         recent_blockhash,
         &payer_signer,
         &another_payer_signer.pubkey(),
@@ -370,7 +365,7 @@ async fn test_cannot_post_signatures_total_signatures_mismatch() {
 
 #[tokio::test]
 async fn test_cannot_post_signatures_zero_signatures() {
-    let (mut banks_client, payer_signer, recent_blockhash, _) = common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, _) = common::start_test(VAA).await;
 
     let guardian_signatures_signer = Keypair::new();
     let transaction = common::post_signatures::set_up_transaction(
@@ -399,7 +394,7 @@ async fn test_cannot_post_signatures_zero_signatures() {
 
 #[tokio::test]
 async fn test_cannot_post_signatures_total_signatures_too_large() {
-    let (mut banks_client, payer_signer, recent_blockhash, _) = common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, _) = common::start_test(VAA).await;
 
     let guardian_signatures_signer = Keypair::new();
     let transaction = common::post_signatures::set_up_transaction(
@@ -427,15 +422,14 @@ async fn test_cannot_post_signatures_total_signatures_too_large() {
 
 #[tokio::test]
 async fn test_cannot_post_signatures_payer_is_guardian_signatures() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let guardian_signatures_signer = Keypair::new();
 
     // First transfer lamports to guardian signatures signer.
     let recent_blockhash = common::transfer_lamports(
-        &mut banks_client,
+        &banks_client,
         recent_blockhash,
         &payer_signer,
         &guardian_signatures_signer.pubkey(),
@@ -499,8 +493,7 @@ async fn test_cannot_post_signatures_payer_is_guardian_signatures() {
 
 #[tokio::test]
 async fn test_cannot_post_signatures_more_signatures_than_total() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let guardian_signatures_signer = Keypair::new();
@@ -532,12 +525,11 @@ async fn test_cannot_post_signatures_more_signatures_than_total() {
 
 #[tokio::test]
 async fn test_close_signatures() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -560,7 +552,7 @@ async fn test_close_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 5_165
-        1_005
+        733
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -579,12 +571,11 @@ async fn test_close_signatures() {
 
 #[tokio::test]
 async fn test_cannot_close_signatures_refund_recipient_mismatch() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -597,7 +588,7 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
 
     // Send some lamports to the another payer.
     let recent_blockhash = common::transfer_lamports(
-        &mut banks_client,
+        &banks_client,
         recent_blockhash,
         &payer_signer,
         &another_refund_recipient_signer.pubkey(),
@@ -630,12 +621,11 @@ async fn test_cannot_close_signatures_refund_recipient_mismatch() {
 
 #[tokio::test]
 async fn test_verify_hash() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -664,18 +654,17 @@ async fn test_verify_hash() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
         // 342_276
-        336_915
+        338_119
     );
 }
 
 #[tokio::test]
 async fn test_cannot_verify_hash_invalid_guardian_set() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -715,12 +704,11 @@ async fn test_cannot_verify_hash_invalid_guardian_set() {
 
 #[tokio::test]
 async fn test_cannot_verify_hash_invalid_guardian_set_index() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -760,13 +748,13 @@ async fn test_cannot_verify_hash_invalid_guardian_set_index() {
 async fn test_cannot_verify_hash_expired_guardian_set() {
     const VAA_EXPIRED_SET: &str = "AQAAAAMNAnTlXVVK+fjEIYfgQggRENn0/f++V7dCtNCHnrSj05X8ctnm0x1Fzn8hODqvC44/eWTUso+tUPQpHjCgEP0g1xMBA/S7K8O34D/AkEkYLrQbgKFDq6W3uDycJ90B75GmLaniGrmPxDBX1gog6ISTqrDIB9OBL1e3fVGqaMOTCrrPS6gABFrsiVNLrIsU2hPJHWF0c/CT2+DWS+TAq05lfSVvVExfLjv6WejfY3PdN+dLbCKE0JpD14BiNbcYeRXGJxPE76sBBs8nYy7KLd5McKmEGvhN2zBdlHcNByoJf8ZK1WXifnUeWhHnnWDr05wWigqw657ZjRytNVzgFA+MruATReXsxM0BB+NIIlTBvvqF0WZ5FNpT53nzmcpypZYDIU6041CcY2FqU5ntQdEsjZDiu1Q4W0Sjjcfg3xfApMURec+5Q3IP0isBCTjCgO4J/+tgfxazGf8WC2kMRn21Dh1E1u6QG52wul7wIhCQTejShVbWG1U4f8y5mk3wA/X4qHVK3tizoozeJHsACjGD+X3upTjNNQZFfqMxYrnDxRLK6UCGSTb++1AlWHwNQGBfbPf/upVZBO1qIHAiEGQllkyTg4aEoinp38bSN9oADDcEbPbb9R+g1VTWOg8VS8ucHEX4ojahNghH/n6r9tOKfMwfprBtnasT5y1NjSDO7uvt9WTDMTgUCtDdtluz4ToBDQd4w/uKG0pQziUsWMZZeeNTgrdTP1LBJ/6eTWMmMV7QGHep0XwCsEhXOmIVgrDcny6+g8GOpS7bV5Y9d5WQBpYAD2xbXI9zaXN/mRqsk6dF87dzpYHqf4lGPXkv7sKACUZyI71qwyTfjua0XAuNpsUPWLT1pXEa5iIBpgzR8A81M04AEHOKvkaYNNmg6WXsq8noXD4iA3Q8ibC7r4mOkPsOhqPmYX1SzR4g3jLRSM/Ck4BTGo7hVXKv37zMcrAddEErqiIBESYgyM+I7XUdNNWGZ4lWxSnc5WF65DiHH1U8nRsZ5RiPJFic1xp8Zg/5uil3sRUKcXti6M3coO4N9x4W++PxV2MBEqUxI7EX5evuk6uHyoh8VVYYvVAo1XWt8Yx8sDlDqNLOWJaxpGzq0WbB8EUPpRlDzG8YgZVyXl49ZEFj/vMxgW0BZhTIZwAAAAAAAgAAAAAAAAAAAAAAAO4MzphZqQ+m4rdRggW+9MeZtxbXAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlQL5AASAAAAAAAAAAAAAAAAtTNofvd0WQkzaMQ+lfjfHCtaH3oAAAAAAAAAAAAAAACVPJV2dXAP9gZNOrN+ppSrFdP9wgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0W8AD2fGpZ2cDa08dvhobF0SoEEHFqAoL7PN5HTYzDEM0lCf6DptD8OMI950PhoAt0aoIpOjLblmX6I3DGC27gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB";
 
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) =
         common::start_test(VAA_EXPIRED_SET).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
     assert_eq!(decoded_vaa.guardian_set_index, 3);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -804,15 +792,14 @@ async fn test_cannot_verify_hash_expired_guardian_set() {
 
 #[tokio::test]
 async fn test_cannot_verify_hash_no_quorum() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let mut insufficient_guardian_signatures = decoded_vaa.guardian_signatures.clone();
     insufficient_guardian_signatures.pop();
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -850,15 +837,14 @@ async fn test_cannot_verify_hash_no_quorum() {
 
 #[tokio::test]
 async fn test_cannot_verify_hash_non_increasing_guardian_index() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let mut non_increasing_guardian_signatures = decoded_vaa.guardian_signatures.clone();
     non_increasing_guardian_signatures.rotate_right(1);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -896,15 +882,14 @@ async fn test_cannot_verify_hash_non_increasing_guardian_index() {
 
 #[tokio::test]
 async fn test_cannot_verify_hash_guardian_index_out_of_range() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
     out_of_range_guardian_signatures[0][0] = 19;
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,
@@ -942,8 +927,7 @@ async fn test_cannot_verify_hash_guardian_index_out_of_range() {
 
 #[tokio::test]
 async fn test_cannot_verify_hash_invalid_signature() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     for i in 0..13 {
@@ -951,7 +935,7 @@ async fn test_cannot_verify_hash_invalid_signature() {
         out_of_range_guardian_signatures[i][65] = 255;
 
         let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-            &mut banks_client,
+            &banks_client,
             &payer_signer,
             decoded_vaa.guardian_set_index,
             decoded_vaa.total_signatures,
@@ -994,8 +978,7 @@ async fn test_cannot_verify_hash_invalid_signature() {
 
 #[tokio::test]
 async fn test_cannot_verify_hash_invalid_guardian_recovery() {
-    let (mut banks_client, payer_signer, recent_blockhash, decoded_vaa) =
-        common::start_test(VAA).await;
+    let (banks_client, payer_signer, recent_blockhash, decoded_vaa) = common::start_test(VAA).await;
     assert_eq!(decoded_vaa.total_signatures, 13);
 
     let mut out_of_range_guardian_signatures = decoded_vaa.guardian_signatures.clone();
@@ -1006,7 +989,7 @@ async fn test_cannot_verify_hash_invalid_guardian_recovery() {
     out_of_range_guardian_signatures[12][1..].copy_from_slice(&mismatched_signature);
 
     let (guardian_signatures, recent_blockhash) = common::send_post_signatures_transaction(
-        &mut banks_client,
+        &banks_client,
         &payer_signer,
         decoded_vaa.guardian_set_index,
         decoded_vaa.total_signatures,

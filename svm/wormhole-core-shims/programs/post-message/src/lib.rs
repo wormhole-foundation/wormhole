@@ -11,13 +11,11 @@ use solana_program::{
 use wormhole_svm_definitions::{
     find_shim_message_address, Finality, CORE_BRIDGE_PROGRAM_ID, EVENT_AUTHORITY_SEED,
     MESSAGE_EVENT_DISCRIMINATOR, POST_MESSAGE_SHIM_EVENT_AUTHORITY,
-    POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP, POST_MESSAGE_SHIM_PROGRAM_ID,
+    POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP, POST_MESSAGE_SHIM_PROGRAM_ID as ID,
 };
 use wormhole_svm_shim::post_message::PostMessageShimInstruction;
 
-solana_program::declare_id!(POST_MESSAGE_SHIM_PROGRAM_ID);
-
-solana_program::entrypoint!(process_instruction);
+solana_program::entrypoint_no_alloc!(process_instruction);
 
 #[inline]
 fn process_instruction(

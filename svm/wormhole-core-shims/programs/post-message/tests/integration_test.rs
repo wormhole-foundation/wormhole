@@ -16,7 +16,7 @@ use wormhole_svm_shim::post_message;
 
 #[tokio::test]
 async fn test_post_message_no_emitter_sequence() {
-    let (mut banks_client, payer_signer, recent_blockhash) = start_test().await;
+    let (banks_client, payer_signer, recent_blockhash) = start_test().await;
 
     let emitter_signer = Keypair::new();
     let (transaction, bump_costs) = set_up_post_message_transaction(
@@ -77,13 +77,13 @@ async fn test_post_message_no_emitter_sequence() {
     assert_eq!(
         details.units_consumed - bump_costs.message - 2 * bump_costs.sequence,
         // 53_418
-        47_060
+        46_499
     );
 }
 
 #[tokio::test]
 async fn test_cannot_post_message_invalid_message() {
-    let (mut banks_client, payer_signer, recent_blockhash) = start_test().await;
+    let (banks_client, payer_signer, recent_blockhash) = start_test().await;
 
     let emitter_signer = Keypair::new();
     let (transaction, _) = set_up_post_message_transaction(
@@ -112,7 +112,7 @@ async fn test_cannot_post_message_invalid_message() {
 
 #[tokio::test]
 async fn test_cannot_post_message_invalid_core_bridge_program() {
-    let (mut banks_client, payer_signer, recent_blockhash) = start_test().await;
+    let (banks_client, payer_signer, recent_blockhash) = start_test().await;
 
     let emitter_signer = Keypair::new();
     let (transaction, _) = set_up_post_message_transaction(
@@ -141,7 +141,7 @@ async fn test_cannot_post_message_invalid_core_bridge_program() {
 
 #[tokio::test]
 async fn test_post_message() {
-    let (mut banks_client, payer_signer, recent_blockhash) = start_test().await;
+    let (banks_client, payer_signer, recent_blockhash) = start_test().await;
 
     let first_message = b"All your base";
     let emitter_signer = Keypair::new();
@@ -176,7 +176,7 @@ async fn test_post_message() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.message - bump_costs.sequence,
         // 30_901
-        24_541
+        23_980
     );
 }
 

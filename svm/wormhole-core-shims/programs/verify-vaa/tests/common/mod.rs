@@ -78,7 +78,7 @@ impl From<&str> for DecodedVaa {
 }
 
 pub async fn transfer_lamports(
-    banks_client: &mut BanksClient,
+    banks_client: &BanksClient,
     recent_blockhash: Hash,
     payer: &Keypair,
     recipient: &Pubkey,
@@ -131,7 +131,7 @@ pub fn bump_cu_cost(bump: u8) -> u64 {
 }
 
 pub async fn send_post_signatures_transaction(
-    banks_client: &mut BanksClient,
+    banks_client: &BanksClient,
     payer_signer: &Keypair,
     guardian_set_index: u32,
     total_signatures: u8,

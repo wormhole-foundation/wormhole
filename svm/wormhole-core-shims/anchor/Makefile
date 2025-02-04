@@ -1,3 +1,5 @@
+SOLANA_VERSION := 1.18.26
+
 INTERFACES := wormhole_post_message_shim wormhole_verify_vaa_shim
 EXAMPLES := wormhole_integrator_example wormhole_vaa_verification_comparison
 
@@ -16,16 +18,17 @@ test: build-examples
 		cp idls/$$interface.ts target/types; \
 	done
 # Finally run Typescript tests.
+	$(MAKE) solana-install
 	anchor test --skip-build
 
 .PHONY: build-examples
-build-examples: build-interfaces
+build-examples: solana-install build-interfaces
 	@for example in $(EXAMPLES); do \
 		anchor build -p $$example; \
 	done
 
 .PHONY: build-interfaces
-build-interfaces:
+build-interfaces: solana-install 
 	@for interface in $(INTERFACES); do \
 		anchor idl build -p $$interface -o idls/$$interface.json; \
 		anchor idl type idls/$$interface.json > idls/$$interface.ts; \
@@ -37,3 +40,7 @@ clean-test: clean test
 .PHONY: check-idl
 check-idl: build-interfaces
 	git diff --exit-code idls/
+
+.PHONY: solana-install
+solana-install:
+	agave-install init $(SOLANA_VERSION)

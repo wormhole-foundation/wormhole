@@ -16,13 +16,11 @@ use solana_program::{
 use wormhole_svm_definitions::{
     zero_copy::{GuardianSet, GuardianSignatures},
     CORE_BRIDGE_PROGRAM_ID, GUARDIAN_SET_SEED, GUARDIAN_SIGNATURE_LENGTH,
-    VERIFY_VAA_SHIM_PROGRAM_ID,
+    VERIFY_VAA_SHIM_PROGRAM_ID as ID,
 };
 use wormhole_svm_shim::verify_vaa::{PostSignaturesData, VerifyHashData, VerifyVaaShimInstruction};
 
-solana_program::declare_id!(VERIFY_VAA_SHIM_PROGRAM_ID);
-
-solana_program::entrypoint!(process_instruction);
+solana_program::entrypoint_no_alloc!(process_instruction);
 
 #[inline]
 fn process_instruction(
