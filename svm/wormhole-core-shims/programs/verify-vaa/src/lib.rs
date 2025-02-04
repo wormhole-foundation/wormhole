@@ -354,7 +354,7 @@ fn create_account_reliably(
         );
 
         invoke_signed_unchecked(&ix, accounts, &[])?;
-    } else if current_lamports < lamports {
+    } else {
         const MAX_CPI_DATA_LEN: usize = 36;
 
         // Perform up to three CPIs:

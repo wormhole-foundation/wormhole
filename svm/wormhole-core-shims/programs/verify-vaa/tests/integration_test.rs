@@ -103,7 +103,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        5_639
+        5_638
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -656,7 +656,7 @@ async fn test_verify_hash() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
         // 342_276
-        334_561
+        334_556
     );
 }
 
