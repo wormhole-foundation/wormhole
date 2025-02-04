@@ -54,7 +54,7 @@ func TestMalformedPayload(t *testing.T) {
 	fmt.Println("IBC hooks contract addr: ", ibcHooksContractAddr)
 
 	// Store wormhole core contract
-	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
+	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract

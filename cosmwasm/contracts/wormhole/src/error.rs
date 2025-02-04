@@ -98,6 +98,9 @@ pub enum ContractError {
     /// Registering asset outside of the wormhole
     #[error("RegistrationForbidden")]
     RegistrationForbidden,
+
+    #[error("SequenceNotFound")]
+    SequenceNotFound,
 }
 
 impl ContractError {

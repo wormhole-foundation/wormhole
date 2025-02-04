@@ -100,7 +100,7 @@ func TestWormchain(t *testing.T) {
 	require.NoError(t, err, "error waiting for 2 blocks")
 
 	// Store wormhole core contract
-	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
+	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract

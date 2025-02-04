@@ -34,11 +34,11 @@ func TestShutdownCoreContract(t *testing.T) {
 
 	// Deploy contract to wormhole
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, oldGuardians)
-	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", "wormhole_core", coreInstantiateMsg, oldGuardians)
+	contractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, oldGuardians)
 	contractAddr := contractInfo.Address
 
 	// Store a new version of the contract to upgrade to
-	wormNewCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/shutdown_wormhole_core.wasm", oldGuardians)
+	wormNewCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/shutdown_core_bridge_cosmwasm.wasm", oldGuardians)
 
 	// Submit contract upgrade
 	err := cw_wormhole.SubmitContractUpgrade(t, ctx, oldGuardians, wormchain, contractAddr, wormNewCodeId)
@@ -125,7 +125,7 @@ func TestShutdownTokenBridge(t *testing.T) {
 	osmoUser2 := users[2]
 
 	// Store wormhole core contract
-	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", guardians)
+	coreContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", guardians)
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract
