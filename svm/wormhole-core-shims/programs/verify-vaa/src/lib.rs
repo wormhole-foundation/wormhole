@@ -76,7 +76,7 @@ fn process_post_signatures(
     let total_signatures = data.total_signatures();
     let mut guardian_signatures_len = data.guardian_signatures().len() as u32;
 
-    let start_idx = if guardian_signatures_info.owner != &ID {
+    let start_data_index = if guardian_signatures_info.owner != &ID {
         if guardian_signatures_info.key == payer_info.key {
             msg!("Guardian signatures (account #2) cannot be initialized as payer (account #1)");
             return Err(ProgramError::InvalidAccountData);
@@ -150,16 +150,16 @@ fn process_post_signatures(
     };
 
     let mut account_data = guardian_signatures_info.data.borrow_mut();
-    let end_idx = start_idx + guardian_signatures_slice.len();
+    let end_data_index = start_data_index + guardian_signatures_slice.len();
 
     // Check if the account data is not large enough to hold the signatures.
-    if end_idx > account_data.len() {
+    if end_data_index > account_data.len() {
         msg!("Too many input guardian signatures");
         return Err(ProgramError::AccountDataTooSmall);
     }
 
     // Write signatures.
-    account_data[start_idx..end_idx].copy_from_slice(guardian_signatures_slice);
+    account_data[start_data_index..end_data_index].copy_from_slice(guardian_signatures_slice);
 
     // Update length.
     account_data[44..48].copy_from_slice(&guardian_signatures_len.to_le_bytes());
@@ -239,7 +239,7 @@ fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> Progra
         // - 1 byte: guardian index
         // - 64 bytes: r and s concatenated
         // - 1 byte: recovery ID
-        let signature = guardian_signatures.guardian_signature(i).unwrap();
+        let signature = guardian_signatures.guardian_signature_slice(i).unwrap();
         let index = signature[0] as usize;
         if let Some(last_index) = last_guardian_index {
             if index <= last_index {

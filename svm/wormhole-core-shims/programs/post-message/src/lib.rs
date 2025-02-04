@@ -184,20 +184,22 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     {
         // Parse the sequence from the account and emit the event reading the
         // account after avoids having to handle when the account doesn't exist.
-        let sequence = {
-            let account_data = sequence_info.data.borrow();
-            u64::from_le_bytes(account_data[..8].try_into().unwrap()).saturating_sub(1)
-        };
+        let sequence_info_data = sequence_info.data.borrow();
+        let sequence = u64::from_le_bytes(sequence_info_data[..8].try_into().unwrap()) - 1;
 
         // NOTE: If the Wormhole Core Bridge ever changes to use Clock::get(),
         // this clock account info may not exist anymore (so we will have to
         // perform Clock::get() here instead).
-        let clock_data = clock_info.data.borrow();
-        let unix_timestamp = i64::from_le_bytes(clock_data[32..40].try_into().unwrap());
+        let clock_info_data = clock_info.data.borrow();
+        let encoded_unix_timestamp = &clock_info_data[32..40];
 
         // Casting to u32 matches the Wormhole Core Bridge's timestamp. This
         // operation will panic quite far in the future.
-        let submission_time = u32::try_from(unix_timestamp).unwrap();
+        //
+        // Clock encodes unix timestamp as little-endian i64, so the first 4
+        // bytes will be the timestamp encoded as u32. We expect the last 4
+        // bytes to be zero.
+        assert!(encoded_unix_timestamp[4..] == [0, 0, 0, 0]);
 
         let cpi_accounts = &mut cpi_ix.accounts;
 
@@ -228,7 +230,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
         cpi_data[8..16].copy_from_slice(&MESSAGE_EVENT_DISCRIMINATOR);
         cpi_data[16..48].copy_from_slice(&emitter_key_bytes);
         cpi_data[48..56].copy_from_slice(&sequence.to_le_bytes());
-        cpi_data[56..60].copy_from_slice(&submission_time.to_le_bytes());
+        cpi_data[56..60].copy_from_slice(&encoded_unix_timestamp[..4]);
 
         cpi_ix.program_id = ID;
 
