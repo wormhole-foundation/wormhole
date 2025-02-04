@@ -1,7 +1,7 @@
 use borsh::{io, BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
-use super::AccountDiscriminator;
+use super::DataDiscriminator;
 
 /// Wormhole Post Message Shim program message event. This message is encoded
 /// as instruction data when the Shim program calls itself via CPI.
@@ -12,7 +12,7 @@ pub struct MessageEvent {
     pub submission_time: u32,
 }
 
-impl AccountDiscriminator for MessageEvent {
+impl DataDiscriminator for MessageEvent {
     const DISCRIMINATOR: &'static [u8] = &super::MESSAGE_EVENT_DISCRIMINATOR;
 }
 
@@ -34,11 +34,11 @@ pub struct GuardianSignatures {
     pub guardian_signatures: Vec<[u8; 66]>,
 }
 
-impl AccountDiscriminator for GuardianSignatures {
+impl DataDiscriminator for GuardianSignatures {
     const DISCRIMINATOR: &'static [u8] = &super::GUARDIAN_SIGNATURES_DISCRIMINATOR;
 }
 
-pub fn deserialize_account_data<T: BorshDeserialize + AccountDiscriminator>(
+pub fn deserialize_with_discriminator<T: BorshDeserialize + DataDiscriminator>(
     data: &[u8],
 ) -> io::Result<T> {
     if data.len() < T::DISCRIMINATOR.len() || &data[..T::DISCRIMINATOR.len()] != T::DISCRIMINATOR {

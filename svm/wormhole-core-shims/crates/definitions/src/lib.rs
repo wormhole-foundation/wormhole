@@ -154,6 +154,9 @@ pub trait EncodeFinality: Sized + Copy {
     fn decode(data: u8) -> Option<Self>;
 }
 
-pub trait AccountDiscriminator {
+/// Trait that defines an arbitrary discriminator for deserializing data. This
+/// discriminator acts as a prefix to identify which kind of data is encoded.
+/// For Anchor accounts and events, this discriminator is 8 bytes long.
+pub trait DataDiscriminator {
     const DISCRIMINATOR: &'static [u8];
 }

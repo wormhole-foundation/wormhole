@@ -8,7 +8,7 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 use wormhole_svm_definitions::{
-    borsh::{deserialize_account_data, GuardianSignatures},
+    borsh::{deserialize_with_discriminator, GuardianSignatures},
     compute_keccak_digest, VERIFY_VAA_SHIM_PROGRAM_ID,
 };
 use wormhole_svm_shim::verify_vaa;
@@ -64,7 +64,7 @@ async fn test_post_signatures_13_at_once() {
         );
     assert_eq!(account_data.len(), expected_length);
     assert_eq!(
-        deserialize_account_data::<GuardianSignatures>(&account_data[..]).unwrap(),
+        deserialize_with_discriminator::<GuardianSignatures>(&account_data[..]).unwrap(),
         expected_guardian_signatures_data
     );
 }
@@ -125,7 +125,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
         );
     assert_eq!(account_data.len(), expected_length);
     assert_eq!(
-        deserialize_account_data::<GuardianSignatures>(&account_data[..]).unwrap(),
+        deserialize_with_discriminator::<GuardianSignatures>(&account_data[..]).unwrap(),
         expected_guardian_signatures_data
     );
 }
@@ -185,7 +185,8 @@ async fn test_post_signatures_separate_transactions() {
         );
     assert_eq!(guardian_signatures_info_data.len(), expected_length);
     assert_eq!(
-        deserialize_account_data::<GuardianSignatures>(&guardian_signatures_info_data[..]).unwrap(),
+        deserialize_with_discriminator::<GuardianSignatures>(&guardian_signatures_info_data[..])
+            .unwrap(),
         expected_guardian_signatures_data
     );
 
@@ -233,7 +234,8 @@ async fn test_post_signatures_separate_transactions() {
         );
     assert_eq!(guardian_signatures_info_data.len(), expected_length);
     assert_eq!(
-        deserialize_account_data::<GuardianSignatures>(&guardian_signatures_info_data[..]).unwrap(),
+        deserialize_with_discriminator::<GuardianSignatures>(&guardian_signatures_info_data[..])
+            .unwrap(),
         expected_guardian_signatures_data
     );
 }
