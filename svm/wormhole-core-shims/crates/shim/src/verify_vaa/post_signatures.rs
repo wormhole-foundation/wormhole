@@ -134,7 +134,7 @@ pub struct PostSignatures<'ix> {
     pub data: PostSignaturesData<'ix, false>,
 }
 
-impl<'ix> PostSignatures<'ix> {
+impl PostSignatures<'_> {
     #[inline]
     pub fn instruction(&self) -> Instruction {
         Instruction {

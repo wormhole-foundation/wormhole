@@ -19,7 +19,7 @@ pub struct CloseSignatures<'ix> {
     pub accounts: CloseSignaturesAccounts<'ix>,
 }
 
-impl<'ix> CloseSignatures<'ix> {
+impl CloseSignatures<'_> {
     pub fn instruction(&self) -> Instruction {
         Instruction {
             program_id: *self.program_id,

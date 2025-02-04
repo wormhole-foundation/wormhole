@@ -216,7 +216,7 @@ pub struct PostMessage<'ix, F: EncodeFinality> {
     pub data: PostMessageData<'ix, F>,
 }
 
-impl<'ix, F: EncodeFinality> PostMessage<'ix, F> {
+impl<F: EncodeFinality> PostMessage<'_, F> {
     /// Generate SVM instruction.
     #[inline]
     pub fn instruction(&self) -> Instruction {

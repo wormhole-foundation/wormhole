@@ -96,7 +96,7 @@ pub struct VerifyHash<'ix> {
     pub data: VerifyHashData,
 }
 
-impl<'ix> VerifyHash<'ix> {
+impl VerifyHash<'_> {
     pub fn instruction(&self) -> Instruction {
         Instruction {
             program_id: *self.program_id,

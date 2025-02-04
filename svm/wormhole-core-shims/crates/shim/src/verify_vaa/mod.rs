@@ -14,7 +14,7 @@ pub enum VerifyVaaShimInstruction<'ix, const CONTIGUOUS: bool> {
     CloseSignatures,
 }
 
-impl<'ix, const CONTIGUOUS: bool> VerifyVaaShimInstruction<'ix, CONTIGUOUS> {
+impl<const CONTIGUOUS: bool> VerifyVaaShimInstruction<'_, CONTIGUOUS> {
     pub const CLOSE_SIGNATURES_SELECTOR: [u8; 8] =
         make_anchor_discriminator(b"global:close_signatures");
     pub const POST_SIGNATURES_SELECTOR: [u8; 8] =
@@ -22,7 +22,7 @@ impl<'ix, const CONTIGUOUS: bool> VerifyVaaShimInstruction<'ix, CONTIGUOUS> {
     pub const VERIFY_HASH_SELECTOR: [u8; 8] = make_anchor_discriminator(b"global:verify_hash");
 }
 
-impl<'ix> VerifyVaaShimInstruction<'ix, false> {
+impl VerifyVaaShimInstruction<'_, false> {
     #[inline]
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
