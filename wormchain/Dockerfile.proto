@@ -1,4 +1,4 @@
-FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf AS base
+FROM golang:1.23.3-bullseye@sha256:9e53abacfc22cd3df3e4ebcc04ac64951b71d2a38c52b690f3807af6a2000ed2 AS base
 
 WORKDIR /home
 
@@ -10,7 +10,7 @@ RUN apt update && \
         curl
 
 # Enable faster module downloading.
-ENV GOPROXY https://proxy.golang.org
+ENV GOPROXY=https://proxy.golang.org
 
 
 
@@ -24,7 +24,9 @@ RUN git clone --branch release/v0.27.2 https://github.com/ignite/cli.git
 
 WORKDIR /ignite/cli
 
-RUN sed -i 's/go 1.19/go 1.22.5/g' go.mod
+RUN sed -i 's/go 1.19/go 1.23/g' go.mod
+RUN sed -i 's#github.com/rogpeppe/go-internal v1.10.0#github.com/rogpeppe/go-internal v1.13.1#g' go.mod
+RUN sed -i 's#golang.org/x/mod v0.10.0#golang.org/x/mod v0.23.0#g' go.mod
 RUN go mod tidy
 
 # Install ignite binary & verify installation
@@ -58,7 +60,7 @@ RUN ignite doctor
 ## GO PROTO BUILDER STAGE
 FROM wormchain-builder AS ignite-go-build
 # Ignite only likes minor versions in go.mod
-RUN sed -i 's/go 1.22.5/go 1.22/g' go.mod
+RUN sed -i 's/go 1.22.7/go 1.23/g' go.mod
 RUN ignite generate proto-go
 
 
@@ -74,7 +76,7 @@ COPY --from=ignite-go-build /wh/apps/wormchain/x/ibc-composability-mw/types /x/i
 ## TS CLIENT BUILDER STAGE
 FROM wormchain-builder AS ignite-ts-client-build
 # Ignite only likes minor versions in go.mod
-RUN sed -i 's/go 1.22.5/go 1.22/g' go.mod
+RUN sed -i 's/go 1.22.7/go 1.23/g' go.mod
 RUN NODE_OPTIONS="" ignite generate ts-client
 
 
