@@ -5,6 +5,7 @@ POST_MESSAGE_TEST_FIXTURES_PATH = programs/post-message/tests/fixtures
 .PHONY: clean
 clean:
 	cargo clean
+	rm -rf $(POST_MESSAGE_TEST_FIXTURES_PATH)
 	cd anchor && $(MAKE) clean
 
 .PHONY: build

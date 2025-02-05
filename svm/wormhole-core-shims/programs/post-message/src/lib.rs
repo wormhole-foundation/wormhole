@@ -37,7 +37,7 @@ fn process_instruction(
 
 #[inline(always)]
 fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
-    // This instruction requires 12 accounts. If there are more remaining, we
+    // This instruction requires 11 accounts. If there are more remaining, we
     // won't do anything with them. We perform this check upfront so we can
     // index into the accounts slice.
     if accounts.len() < 11 {
@@ -111,7 +111,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // correct.
     let event_authority_info = &accounts[9];
 
-    // NOTE: We are not checking account at index == 11 because the self CPI
+    // NOTE: We are not checking account at index == 10 because the self CPI
     // will fail if this program executable is not present.
 
     // Perform two CPIs:
