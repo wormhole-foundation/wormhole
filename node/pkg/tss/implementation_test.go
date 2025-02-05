@@ -804,6 +804,37 @@ func TestNoFaultsFlow(t *testing.T) {
 		}
 	})
 
+	t.Run("19 signers", func(t *testing.T) {
+		a := assert.New(t)
+		engines, err := loadGuardians(19, "tss19")
+		a.NoError(err)
+
+		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+		defer cancel()
+
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		dnchn := msgHandler(ctx, engines, 1)
+
+		cID := vaa.ChainID(1)
+
+		for _, engine := range engines {
+			tmp := make([]byte, 32)
+			copy(tmp, dgst[:])
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
+		}
+
+		time.Sleep(time.Millisecond * 500)
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("context expired")
+		}
+	})
+
 	t.Run("with correct metrics", func(t *testing.T) {
 		sigProducedCntr.Reset()
 		a := assert.New(t)
