@@ -3,10 +3,8 @@ package keeper
 import (
 	"context"
 	"encoding/binary"
-	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -61,33 +59,6 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		if err != nil {
 			return nil, err
 		}
-	case vaa.ActionSlashingParamsUpdate:
-		if len(payload) != 40 {
-			return nil, types.ErrInvalidGovernancePayloadLength
-		}
-
-		// Extract params from payload
-		signedBlocksWindow := int64(binary.BigEndian.Uint64(payload[:8]))
-		minSignedPerWindow := int64(binary.BigEndian.Uint64(payload[8:16]))
-		downtimeJailDuration := int64(binary.BigEndian.Uint64(payload[16:24]))
-		slashFractionDoubleSign := int64(binary.BigEndian.Uint64(payload[24:32]))
-		slashFractionDowntime := int64(binary.BigEndian.Uint64(payload[32:40]))
-
-		// Update slashing params
-		params := slashingtypes.NewParams(
-			signedBlocksWindow,
-			sdk.NewDecWithPrec(minSignedPerWindow, 18),
-			time.Duration(downtimeJailDuration),
-			sdk.NewDecWithPrec(slashFractionDoubleSign, 18),
-			sdk.NewDecWithPrec(slashFractionDowntime, 18),
-		)
-
-		// Set the new params
-		//
-		// TODO: Once upgraded to CosmosSDK v0.47, this method will return an error
-		// if the params do not pass validation checks. Because of that, we need to
-		// return the error from this function.
-		k.slashingKeeper.SetParams(ctx, params)
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 

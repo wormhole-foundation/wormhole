@@ -2,7 +2,6 @@ package ictest
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"strconv"
@@ -15,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
-	types "github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -37,9 +35,6 @@ func createSlashingParamsUpdate(
 	slashFractionDoubleSign string,
 	slashFractionDowntime string,
 ) ([]byte, error) {
-	var coreModule [32]byte
-	copy(coreModule[:], vaa.CoreModule[:])
-
 	minSignedWindow, err := sdk.NewDecFromStr(minSignedPerWindow)
 	if err != nil {
 		return nil, err
@@ -57,17 +52,15 @@ func createSlashingParamsUpdate(
 		return nil, err
 	}
 
-	payload := make([]byte, 40)
-	binary.BigEndian.PutUint64(payload[0:8], signedBlocksWindow)
-	binary.BigEndian.PutUint64(payload[8:16], minSignedWindow.BigInt().Uint64())
-	binary.BigEndian.PutUint64(payload[16:24], downtimeJailDurationSeconds)
-	binary.BigEndian.PutUint64(payload[24:32], slashFractionDoubleSignDec.BigInt().Uint64())
-	binary.BigEndian.PutUint64(payload[32:40], slashFractionDowntimeDec.BigInt().Uint64())
+	payloadBody := vaa.BodyGatewaySlashingParamsUpdate{
+		SignedBlocksWindow:      signedBlocksWindow,
+		MinSignedPerWindow:      minSignedWindow.BigInt().Uint64(),
+		DowntimeJailDuration:    downtimeJailDurationSeconds,
+		SlashFractionDoubleSign: slashFractionDoubleSignDec.BigInt().Uint64(),
+		SlashFractionDowntime:   slashFractionDowntimeDec.BigInt().Uint64(),
+	}
 
-	gov_msg := types.NewGovernanceMessage(coreModule, byte(vaa.ActionSlashingParamsUpdate), uint16(vaa.ChainIDWormchain),
-		payload)
-
-	return gov_msg.MarshalBinary(), nil
+	return payloadBody.Serialize()
 }
 
 // querySlashingParams queries the slashing params from the chain
@@ -121,7 +114,7 @@ func createAndExecuteVaa(ctx context.Context, guardians *guardians.ValSet, wormc
 	}
 	vHex := hex.EncodeToString(vBz)
 
-	_, err = wormchain.FullNodes[0].ExecTx(ctx, "faucet", "wormhole", "execute-governance-vaa", vHex)
+	_, err = wormchain.FullNodes[0].ExecTx(ctx, "faucet", "wormhole", "execute-gateway-governance-vaa", vHex)
 	if err != nil {
 		return err
 	}

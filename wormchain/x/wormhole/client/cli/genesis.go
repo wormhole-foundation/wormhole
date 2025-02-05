@@ -482,19 +482,19 @@ func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
 				return fmt.Errorf("slash fraction downtime must be greater than or equal to 0.000000000000000000 and less than or equal to 1.000000000000000000")
 			}
 
-			slashingUpdate := make([]byte, 40)
-			binary.BigEndian.PutUint64(slashingUpdate[:8], signedBlocksWindow)
-			binary.BigEndian.PutUint64(slashingUpdate[8:16], minSignedPerWindowDec.BigInt().Uint64())
-			binary.BigEndian.PutUint64(slashingUpdate[16:24], downtimeJailDuration*uint64(time.Second))
-			binary.BigEndian.PutUint64(slashingUpdate[24:32], slashFractionDoubleSignDec.BigInt().Uint64())
-			binary.BigEndian.PutUint64(slashingUpdate[32:40], slashFractionDowntimeDec.BigInt().Uint64())
+			slashingBody := vaa.BodyGatewaySlashingParamsUpdate{
+				SignedBlocksWindow:      signedBlocksWindow,
+				MinSignedPerWindow:      minSignedPerWindowDec.BigInt().Uint64(),
+				DowntimeJailDuration:    downtimeJailDuration * uint64(time.Second),
+				SlashFractionDoubleSign: slashFractionDoubleSignDec.BigInt().Uint64(),
+				SlashFractionDowntime:   slashFractionDowntimeDec.BigInt().Uint64(),
+			}
+			payload, err := slashingBody.Serialize()
+			if err != nil {
+				return
+			}
 
-			action := vaa.ActionSlashingParamsUpdate
-			chain := vaa.ChainIDWormchain
-			module := [32]byte{}
-			copy(module[:], vaa.CoreModule)
-			msg := types.NewGovernanceMessage(module, byte(action), uint16(chain), slashingUpdate)
-			v.Payload = msg.MarshalBinary()
+			v.Payload = payload
 			v.EmitterChain = 1
 
 			for i, key := range privateKeys {

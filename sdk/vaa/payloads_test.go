@@ -74,27 +74,6 @@ func TestBodyGuardianSetUpdateSerialize(t *testing.T) {
 	assert.Equal(t, expected, hex.EncodeToString(serializedBodyGuardianSetUpdate))
 }
 
-func TestBodySlashingParamsUpdateSerialize(t *testing.T) {
-	signedBlocksWindow := uint64(100)
-	minSignedPerWindow := uint64(500000000000000000)
-	downtimeJailDuration := uint64(600 * time.Second)
-	slashFractionDoubleSign := uint64(50000000000000000)
-	slashFractionDowntime := uint64(10000000000000000)
-
-	bodySlashingParamsUpdate := BodySlashingParamsUpdate{
-		SignedBlocksWindow:      signedBlocksWindow,
-		MinSignedPerWindow:      minSignedPerWindow,
-		DowntimeJailDuration:    downtimeJailDuration,
-		SlashFractionDoubleSign: slashFractionDoubleSign,
-		SlashFractionDowntime:   slashFractionDowntime,
-	}
-	serializedBody, err := bodySlashingParamsUpdate.Serialize()
-	require.NoError(t, err)
-
-	expected := "00000000000000000000000000000000000000000000000000000000436f7265060000000000000000006406f05b59d3b200000000008bb2c9700000b1a2bc2ec50000002386f26fc10000"
-	assert.Equal(t, expected, hex.EncodeToString(serializedBody))
-}
-
 func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
 	module := "test"
 	tests := []struct {
@@ -383,6 +362,63 @@ func TestBodyGatewayIbcComposabilityMwContractDeserializeFailureTooLong(t *testi
 	var actual BodyGatewayIbcComposabilityMwContract
 	err = actual.Deserialize(buf)
 	require.ErrorContains(t, err, "incorrect payload length, should be 32, is 33")
+}
+
+func TestBodySlashingParamsUpdateSerialize(t *testing.T) {
+	signedBlocksWindow := uint64(100)
+	minSignedPerWindow := uint64(500000000000000000)
+	downtimeJailDuration := uint64(600 * time.Second)
+	slashFractionDoubleSign := uint64(50000000000000000)
+	slashFractionDowntime := uint64(10000000000000000)
+
+	bodySlashingParamsUpdate := BodyGatewaySlashingParamsUpdate{
+		SignedBlocksWindow:      signedBlocksWindow,
+		MinSignedPerWindow:      minSignedPerWindow,
+		DowntimeJailDuration:    downtimeJailDuration,
+		SlashFractionDoubleSign: slashFractionDoubleSign,
+		SlashFractionDowntime:   slashFractionDowntime,
+	}
+	serializedBody, err := bodySlashingParamsUpdate.Serialize()
+	require.NoError(t, err)
+
+	expected := "00000000000000000000000000000000000000476174657761794d6f64756c65040c20000000000000006406f05b59d3b200000000008bb2c9700000b1a2bc2ec50000002386f26fc10000"
+	assert.Equal(t, expected, hex.EncodeToString(serializedBody))
+}
+
+const BodySlashingParamsUpdateBuf = "000000000000006406f05b59d3b200000000008bb2c9700000b1a2bc2ec50000002386f26fc10000"
+
+func TestBodySlashingParamsUpdateDeserialize(t *testing.T) {
+	expected := BodyGatewaySlashingParamsUpdate{
+		SignedBlocksWindow:      100,
+		MinSignedPerWindow:      500000000000000000,
+		DowntimeJailDuration:    uint64(600 * time.Second),
+		SlashFractionDoubleSign: 50000000000000000,
+		SlashFractionDowntime:   10000000000000000,
+	}
+	var payloadBody BodyGatewaySlashingParamsUpdate
+	bz, err := hex.DecodeString(BodySlashingParamsUpdateBuf)
+	require.NoError(t, err)
+	err = payloadBody.Deserialize(bz)
+	require.NoError(t, err)
+	assert.Equal(t, expected, payloadBody)
+}
+
+func TestBodySlashingParamsUpdateDeserializeFailureTooShort(t *testing.T) {
+	buf, err := hex.DecodeString(BodySlashingParamsUpdateBuf[0 : len(BodySlashingParamsUpdateBuf)-2])
+	require.NoError(t, err)
+
+	var actual BodyGatewaySlashingParamsUpdate
+	err = actual.Deserialize(buf)
+	require.ErrorContains(t, err, "incorrect payload length, should be 40, is 39")
+}
+
+func TestBodySlashingParamsUpdateDeserializeFailureTooLong(t *testing.T) {
+	buf, err := hex.DecodeString(BodySlashingParamsUpdateBuf + "00")
+	require.NoError(t, err)
+
+	var actual BodyGatewaySlashingParamsUpdate
+	err = actual.Deserialize(buf)
+	require.ErrorContains(t, err, "incorrect payload length, should be 40, is 41")
 }
 
 func TestBodyCoreRecoverChainIdSerialize(t *testing.T) {
