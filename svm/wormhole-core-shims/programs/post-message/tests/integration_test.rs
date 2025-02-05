@@ -271,7 +271,7 @@ fn set_up_post_message_transaction(
             transfer_fee_ix,
             post_message_ix,
             ComputeBudgetInstruction::set_compute_unit_price(420),
-            ComputeBudgetInstruction::set_compute_unit_limit(69_000),
+            ComputeBudgetInstruction::set_compute_unit_limit(100_000),
         ],
         &[],
         recent_blockhash,

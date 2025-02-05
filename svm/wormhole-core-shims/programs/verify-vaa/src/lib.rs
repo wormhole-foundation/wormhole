@@ -55,8 +55,8 @@ fn process_post_signatures(
     // Verify accounts.
 
     // Payer will pay the rent for the guardian signatures account if it does
-    // not exist. CPI call to System program will fail if the account is not
-    // writable or is not a signer.
+    // not exist. CPI calls to System program will fail if the account is not
+    // writable and is not a signer.
     let payer_info = &accounts[0];
 
     // Guardian signatures account will store the guardian signatures. This
@@ -89,11 +89,14 @@ fn process_post_signatures(
             return Err(ProgramError::InvalidArgument);
         }
 
+        // TODO: Should we revert if total signatures exceeds 154? If it does, the
+        // System program's allocate attempt will fail. But it might be nicer to
+        // have an explicit error for this case.
         create_account_reliably(
             payer_info.key,
             guardian_signatures_info.key,
             guardian_signatures_info.lamports(),
-            total_signatures,
+            compute_guardian_signatures_data_len(total_signatures),
             accounts,
         )?;
 
@@ -106,9 +109,14 @@ fn process_post_signatures(
         GuardianSignatures::MINIMUM_SIZE
     } else {
         let account_data = guardian_signatures_info.data.borrow();
-        let guardian_signatures =
-            GuardianSignatures::new(&account_data).ok_or(ProgramError::InvalidAccountData)?;
+        let guardian_signatures = GuardianSignatures::new(&account_data).ok_or_else(|| {
+            msg!("Guardian signatures (account #2) failed to deserialize");
+            ProgramError::InvalidAccountData
+        })?;
 
+        // This check may not be necessary. But we ensure that the total
+        // signatures is consistent with the account data (even though it is
+        // only used when creating the guardian signatures account).
         if compute_guardian_signatures_data_len(total_signatures) != account_data.len() {
             let expected_total_signatures =
                 (account_data.len() - GuardianSignatures::MINIMUM_SIZE) / GUARDIAN_SIGNATURE_LENGTH;
@@ -120,6 +128,8 @@ fn process_post_signatures(
             return Err(ProgramError::InvalidArgument);
         }
 
+        // Only the original payer (refund recipient) can write to this account
+        // with subsequent calls to this instruction.
         if payer_info.key.as_ref() != guardian_signatures.refund_recipient_slice() {
             msg!("Payer (account #1) must match refund recipient");
             msg!("Actual:");
@@ -129,6 +139,10 @@ fn process_post_signatures(
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Same as the total signatures check above, this check may not be
+        // necessary. But we ensure that the guardian set index is consistent
+        // with the account data (even though it is only used when creating the
+        // guardian signatures account).
         if data.guardian_set_index() != guardian_signatures.guardian_set_index() {
             msg!("Guardian set index mismatch");
             msg!("Actual:");
@@ -150,6 +164,8 @@ fn process_post_signatures(
     };
 
     let mut account_data = guardian_signatures_info.data.borrow_mut();
+
+    // This operation is safe because this sum will never reach usize::MAX.
     let end_data_index = start_data_index + guardian_signatures_slice.len();
 
     // Check if the account data is not large enough to hold the signatures.
@@ -184,8 +200,11 @@ fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> Progra
     // signatures instruction. Its signatures will be validated against the
     // guardian pubkeys found in the guardian set account.
     let guardian_signatures_info_data = accounts[1].data.borrow();
-    let guardian_signatures = GuardianSignatures::new(&guardian_signatures_info_data)
-        .ok_or(ProgramError::InvalidAccountData)?;
+    let guardian_signatures =
+        GuardianSignatures::new(&guardian_signatures_info_data).ok_or_else(|| {
+            msg!("Guardian signatures (account #2) failed to deserialize");
+            ProgramError::InvalidAccountData
+        })?;
 
     // With the guardian signatures account's encoded guardian set index and
     // provided bump, create the guardian set account's address.
@@ -320,7 +339,7 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
     let data_ptr = data.as_mut_ptr();
 
     // Safety: The pointer for the data length is 8 bytes before the start of
-    // the data for a given account info). When this is set to zero, there is no
+    // the data for a given account info. When this is set to zero, there is no
     // data that needs to be zeroed out.
     unsafe {
         *(data_ptr.offset(-8) as *mut u64) = 0;
@@ -335,13 +354,9 @@ fn create_account_reliably(
     payer_key: &Pubkey,
     account_key: &Pubkey,
     current_lamports: u64,
-    total_signatures: u8,
+    data_len: usize,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
-    // TODO: Should we revert if total signatures exceeds 154? If it does, the
-    // System program's allocate attempt will fail. But it might be nicer to
-    // have an explicit error for this case.
-    let data_len = compute_guardian_signatures_data_len(total_signatures);
     let lamports = Rent::get().unwrap().minimum_balance(data_len);
 
     if current_lamports == 0 {
