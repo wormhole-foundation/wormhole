@@ -263,7 +263,6 @@ impl<F: EncodeFinality> PostMessage<'_, F> {
                 AccountMeta::new(fee_collector, false),
                 AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
-                AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
                 AccountMeta::new_readonly(*wormhole_program_id, false),
                 AccountMeta::new_readonly(event_authority, false),
                 AccountMeta::new_readonly(*program_id, false),

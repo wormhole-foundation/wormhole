@@ -77,7 +77,7 @@ async fn test_post_message_no_emitter_sequence() {
     assert_eq!(
         details.units_consumed - bump_costs.message - 2 * bump_costs.sequence,
         // 53_418
-        46_491
+        46_076
     );
 }
 
@@ -135,7 +135,7 @@ async fn test_cannot_post_message_invalid_core_bridge_program() {
     assert!(out.result.unwrap().is_err());
     //assert!(details.logs.contains(&"Program log: AnchorError caused by account: wormhole_program. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.".to_string()));
     assert!(details.logs.contains(
-        &"Program log: Wormhole program (account #10) address constraint violated".to_string()
+        &"Program log: Wormhole program (account #9) address constraint violated".to_string()
     ));
 }
 
@@ -176,7 +176,7 @@ async fn test_post_message() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.message - bump_costs.sequence,
         // 30_901
-        23_972
+        23_557
     );
 }
 

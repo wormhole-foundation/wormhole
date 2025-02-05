@@ -240,13 +240,6 @@ export type WormholeIntegratorExample = {
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "rent",
-          "docs": [
-            "Rent sysvar."
-          ],
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
           "name": "wormholeProgram",
           "address": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
         },
@@ -394,14 +387,6 @@ export type WormholeIntegratorExample = {
             "Type for IDL generation / convenience, it will be enforced by the core bridge."
           ],
           "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "docs": [
-            "Rent sysvar.",
-            "Type added for IDL generation / convenience, it will be enforced by the core bridge."
-          ],
-          "address": "SysvarRent111111111111111111111111111111111"
         },
         {
           "name": "wormholeProgram",

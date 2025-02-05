@@ -32,9 +32,6 @@ describe("wormhole-post-message-shim", () => {
         // clock: new anchor.web3.PublicKey(
         //   "SysvarC1ock11111111111111111111111111111111"
         // ),
-        // rent: new anchor.web3.PublicKey(
-        //   "SysvarRent111111111111111111111111111111111"
-        // ),
       })
       .preInstructions([
         // gotta pay the fee
@@ -148,14 +145,6 @@ describe("wormhole-post-message-shim", () => {
               isWritable: false,
               pubkey: new anchor.web3.PublicKey(
                 "11111111111111111111111111111111"
-              ),
-            },
-            {
-              // rent
-              isSigner: false,
-              isWritable: false,
-              pubkey: new anchor.web3.PublicKey(
-                "SysvarRent111111111111111111111111111111111"
               ),
             },
           ],

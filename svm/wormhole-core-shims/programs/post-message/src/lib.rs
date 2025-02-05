@@ -40,7 +40,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // This instruction requires 12 accounts. If there are more remaining, we
     // won't do anything with them. We perform this check upfront so we can
     // index into the accounts slice.
-    if accounts.len() < 12 {
+    if accounts.len() < 11 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -97,23 +97,19 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // sequence account if they have not been created yet.
     let system_program_info = &accounts[7];
 
-    // Rent sysvar. Wormhole Core Bridge program's post message instruction
-    // requires this account.
-    let rent_info = &accounts[8];
-
     // Wormhole Core Bridge program.
-    let wormhole_program_info = &accounts[9];
+    let wormhole_program_info = &accounts[8];
 
     // We only want to use the Wormhole Core Bridge program to post messages.
     if wormhole_program_info.key != &CORE_BRIDGE_PROGRAM_ID {
-        msg!("Wormhole program (account #10) address constraint violated");
+        msg!("Wormhole program (account #9) address constraint violated");
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Wormhole Post Message Shim program's self-CPI authority. The emit message
     // instruction will verify that this account is a signer and the pubkey is
     // correct.
-    let event_authority_info = &accounts[10];
+    let event_authority_info = &accounts[9];
 
     // NOTE: We are not checking account at index == 11 because the self CPI
     // will fail if this program executable is not present.
@@ -140,7 +136,6 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
             AccountMeta::new(*fee_collector_info.key, false),
             AccountMeta::new_readonly(*clock_info.key, false),
             AccountMeta::new_readonly(*system_program_info.key, false),
-            AccountMeta::new_readonly(*rent_info.key, false),
         ],
         data: Vec::with_capacity(MAX_CPI_DATA_LEN),
     };

@@ -137,9 +137,6 @@ pub struct PostMessage<'info> {
     /// System program.
     system_program: Program<'info, System>,
 
-    /// Rent sysvar.
-    rent: Sysvar<'info, Rent>,
-
     /// Wormhole program.
     #[account(address = CORE_BRIDGE_PROGRAM_ID)]
     wormhole_program: UncheckedAccount<'info>,

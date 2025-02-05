@@ -305,13 +305,6 @@ export type WormholePostMessageShim = {
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "rent",
-          "docs": [
-            "Rent sysvar."
-          ],
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
           "name": "wormholeProgram",
           "docs": [
             "Wormhole program."

@@ -48,10 +48,6 @@ pub struct PostMessage<'info> {
     /// Type for IDL generation / convenience, it will be enforced by the core bridge.
     pub system_program: Program<'info, System>,
 
-    /// Rent sysvar.
-    /// Type added for IDL generation / convenience, it will be enforced by the core bridge.
-    pub rent: Sysvar<'info, Rent>,
-
     #[account(address = CORE_BRIDGE_PROGRAM_ID)]
     /// CHECK: Wormhole program.
     /// Address constraint added for IDL generation / convenience, it will be enforced by the shim.
@@ -92,7 +88,6 @@ pub fn post_message(ctx: Context<PostMessage>) -> Result<()> {
                 fee_collector: ctx.accounts.fee_collector.to_account_info(),
                 clock: ctx.accounts.clock.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
                 wormhole_program: ctx.accounts.wormhole_program.to_account_info(),
                 program: ctx.accounts.wormhole_post_message_shim.to_account_info(),
                 event_authority: ctx.accounts.wormhole_post_message_shim_ea.to_account_info(),
