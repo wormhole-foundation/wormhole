@@ -393,7 +393,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the attestation channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipAttestationSendC != nil || params.obsvRecvC != nil || params.batchObsvRecvC != nil {
+		if params.gossipAttestationSendC != nil || params.batchObsvRecvC != nil {
 			attestationTopic := fmt.Sprintf("%s/%s", params.networkID, "attestation")
 			logger.Info("joining the attestation topic", zap.String("topic", attestationTopic))
 			attestationPubsubTopic, err = ps.Join(attestationTopic)
@@ -407,7 +407,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvRecvC != nil || params.batchObsvRecvC != nil {
+			if params.batchObsvRecvC != nil {
 				logger.Info("subscribing to the attestation topic", zap.String("topic", attestationTopic))
 				attestationSubscription, err = attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -497,7 +497,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
 			go func() {
-				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey())
+				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx))
 
 				ctr := int64(0)
 				// Guardians should send out their first heartbeat immediately to speed up test runs.
@@ -574,12 +574,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 							if params.gov != nil {
-								params.gov.CollectMetrics(heartbeat, params.gossipControlSendC, params.guardianSigner, ourAddr)
+								params.gov.CollectMetrics(ctx, heartbeat, params.gossipControlSendC, params.guardianSigner, ourAddr)
 							}
 
 							msg := gossipv1.GossipMessage{
 								Message: &gossipv1.GossipMessage_SignedHeartbeat{
-									SignedHeartbeat: createSignedHeartbeat(params.guardianSigner, heartbeat),
+									SignedHeartbeat: createSignedHeartbeat(ctx, params.guardianSigner, heartbeat),
 								},
 							}
 
@@ -648,7 +648,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 					// Sign the observation request using our node's guardian key.
 					digest := signedObservationRequestDigest(b)
-					sig, err := params.guardianSigner.Sign(digest.Bytes())
+					sig, err := params.guardianSigner.Sign(ctx, digest.Bytes())
 					if err != nil {
 						panic(err)
 					}
@@ -656,7 +656,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					sReq := &gossipv1.SignedObservationRequest{
 						ObservationRequest: b,
 						Signature:          sig,
-						GuardianAddr:       ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()).Bytes(),
+						GuardianAddr:       ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx)).Bytes(),
 					}
 
 					envelope := &gossipv1.GossipMessage{
@@ -768,7 +768,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 											zap.String("from", envelope.GetFrom().String()))
 									} else {
 										guardianAddr := eth_common.BytesToAddress(s.GuardianAddr)
-										if params.guardianSigner == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey()) {
+										if params.guardianSigner == nil || guardianAddr != ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx)) {
 											prevPeerId, ok := params.components.ProtectedHostByGuardianKey[guardianAddr]
 											if ok {
 												if prevPeerId != peerId {
@@ -883,17 +883,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					switch m := msg.Message.(type) {
-					case *gossipv1.GossipMessage_SignedObservation:
-						if params.obsvRecvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvRecvC); err == nil {
-								p2pMessagesReceived.WithLabelValues("observation").Inc()
-							} else {
-								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservation.Addr)))
-								}
-								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
-							}
-						}
 					case *gossipv1.GossipMessage_SignedObservationBatch:
 						if params.batchObsvRecvC != nil {
 							if err := common.PostMsgWithTimestamp(m.SignedObservationBatch, params.batchObsvRecvC); err == nil {
@@ -989,8 +978,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 	}
 }
 
-func createSignedHeartbeat(guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
-	ourAddr := ethcrypto.PubkeyToAddress(guardianSigner.PublicKey())
+func createSignedHeartbeat(ctx context.Context, guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
+	ourAddr := ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx))
 
 	b, err := proto.Marshal(heartbeat)
 	if err != nil {
@@ -999,7 +988,7 @@ func createSignedHeartbeat(guardianSigner guardiansigner.GuardianSigner, heartbe
 
 	// Sign the heartbeat using our node's guardian signer.
 	digest := heartbeatDigest(b)
-	sig, err := guardianSigner.Sign(digest.Bytes())
+	sig, err := guardianSigner.Sign(ctx, digest.Bytes())
 	if err != nil {
 		panic(err)
 	}

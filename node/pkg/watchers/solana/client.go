@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -76,6 +77,12 @@ type (
 
 		ccqConfig query.PerChainConfig
 		ccqLogger *zap.Logger
+
+		shimContractStr               string
+		shimContractAddr              solana.PublicKey
+		shimEnabled                   bool
+		shimPostMessageDiscriminator  []byte
+		shimMessageEventDiscriminator []byte
 	}
 
 	EventSubscriptionError struct {
@@ -123,6 +130,16 @@ type (
 		EmitterAddress   vaa.Address
 		Payload          []byte
 	}
+)
+
+const (
+	// NOTE:  We have a test to make sure these constants don't change in solana-go.
+
+	// SolanaAccountLen is the expected length of an account identifier, which is a public key. Using the number here because that's what the admin client will populate.
+	SolanaAccountLen = 32
+
+	// SolanaSignatureLen is the expected length of a signature. As of v1.12.0, solana-go does not have a const for this.
+	SolanaSignatureLen = 64
 )
 
 var (
@@ -221,6 +238,8 @@ func NewSolanaWatcher(
 	chainID vaa.ChainID,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
+	shimContractStr string,
+	shimContractAddr solana.PublicKey,
 ) *SolanaWatcher {
 	msgObservedLogLevel := zapcore.InfoLevel
 	if chainID == vaa.ChainIDPythNet {
@@ -243,6 +262,8 @@ func NewSolanaWatcher(
 		queryReqC:           queryReqC,
 		queryResponseC:      queryResponseC,
 		ccqConfig:           query.GetPerChainConfig(chainID),
+		shimContractStr:     shimContractStr,
+		shimContractAddr:    shimContractAddr,
 	}
 }
 
@@ -334,9 +355,12 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		zap.String("wsUrl", wsUrl),
 		zap.String("contract", contractAddr),
 		zap.String("rawContract", s.rawContract),
+		zap.String("shimContract", s.shimContractStr),
 	)
 
 	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
+
+	s.shimSetup()
 
 	s.errC = make(chan error)
 	s.pumpData = make(chan []byte)
@@ -370,13 +394,39 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if m.ChainId != uint32(s.chainID) {
 					panic("unexpected chain id")
 				}
-
-				acc := solana.PublicKeyFromBytes(m.TxHash)
-				logger.Info("received observation request", zap.String("account", acc.String()))
-
-				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-				s.fetchMessageAccount(rCtx, logger, acc, 0, true)
-				cancel()
+				if len(m.TxHash) == SolanaAccountLen { // Request by account ID
+					acc := solana.PublicKeyFromBytes(m.TxHash)
+					logger.Info("received observation request with account id", zap.String("account", acc.String()))
+					rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+					s.fetchMessageAccount(rCtx, logger, acc, 0, true)
+					cancel()
+				} else if len(m.TxHash) == SolanaSignatureLen { // Request by transaction ID
+					signature := solana.SignatureFromBytes(m.TxHash)
+					logger.Info("received observation request with transaction id", zap.Stringer("signature", signature))
+					rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+					version := uint64(0)
+					result, err := s.rpcClient.GetTransaction(
+						rCtx,
+						signature,
+						&rpc.GetTransactionOpts{
+							MaxSupportedTransactionVersion: &version,
+							Encoding:                       solana.EncodingBase64,
+						},
+					)
+					cancel()
+					if err != nil {
+						logger.Error("failed to get transaction for observation request", zap.String("bytes", hex.EncodeToString(m.TxHash)), zap.Stringer("signature", signature), zap.Error(err))
+					} else {
+						tx, err := result.Transaction.GetTransaction()
+						if err != nil {
+							logger.Error("failed to extract transaction for observation request", zap.String("bytes", hex.EncodeToString(m.TxHash)), zap.Stringer("signature", signature), zap.Error(err))
+						} else {
+							s.processTransaction(ctx, logger, tx, result.Meta, result.Slot, true)
+						}
+					}
+				} else {
+					logger.Error("ignoring an observation request of unexpected length", zap.Int("len", len(m.TxHash)), zap.String("bytes", hex.EncodeToString(m.TxHash)))
+				}
 			case <-timer.C:
 				// Get current slot height
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
@@ -561,6 +611,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 		// If the logs don't contain the contract address, skip the transaction.
 		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]",
+		// Assumption: Transactions for the shim contract also contain the core contract address so this check is still valid.
 		var possiblyWormhole bool
 		for i := 0; i < len(txRpc.Meta.LogMessages) && !possiblyWormhole; i++ {
 			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], s.whLogPrefix)
@@ -580,36 +631,79 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			continue
 		}
 
-		err = s.populateLookupTableAccounts(ctx, tx)
-		if err != nil {
-			logger.Error("failed to fetch lookup table accounts",
-				zap.Uint64("slot", slot),
-				zap.Int("txNum", txNum),
-				zap.Error(err),
-			)
-			continue
-		}
+		s.processTransaction(ctx, logger, tx, txRpc.Meta, slot, false)
+	}
 
-		signature := tx.Signatures[0]
-		var programIndex uint16
-		for n, key := range tx.Message.AccountKeys {
-			if key.Equals(s.contract) {
-				programIndex = uint16(n)
+	if emptyRetry > 0 && logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("skipped or unavailable block retrieved on retry attempt",
+			zap.Uint("empty_retry", emptyRetry),
+			zap.Uint64("slot", slot),
+			zap.String("commitment", string(s.commitment)))
+	}
+
+	return true
+}
+
+// processTransaction processes a transaction and publishes any Wormhole events.
+func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logger, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) {
+	signature := tx.Signatures[0]
+	err := s.populateLookupTableAccounts(ctx, tx)
+	if err != nil {
+		logger.Error("failed to fetch lookup table accounts for transaction",
+			zap.Uint64("slot", slot),
+			zap.Stringer("signature", signature),
+			zap.Error(err),
+		)
+		return
+	}
+
+	var programIndex uint16
+	var shimProgramIndex uint16
+	var shimFound bool
+	for n, key := range tx.Message.AccountKeys {
+		if key.Equals(s.contract) {
+			programIndex = uint16(n)
+		}
+		if s.shimEnabled && key.Equals(s.shimContractAddr) {
+			shimProgramIndex = uint16(n)
+			shimFound = true
+		}
+	}
+	if programIndex == 0 {
+		return
+	}
+
+	if logger.Level().Enabled(zapcore.DebugLevel) {
+		logger.Debug("found Wormhole transaction",
+			zap.Stringer("signature", signature),
+			zap.Uint64("slot", slot),
+			zap.String("commitment", string(s.commitment)))
+	}
+
+	alreadyProcessed := ShimAlreadyProcessed{}
+
+	// Find top-level instructions
+	for i, inst := range tx.Message.Instructions {
+		if shimFound && inst.ProgramIDIndex == shimProgramIndex {
+			found, err := s.shimProcessTopLevelInstruction(logger, programIndex, shimProgramIndex, tx, meta.InnerInstructions, i, alreadyProcessed, isReobservation)
+			if err != nil {
+				logger.Error("malformed wormhole shim instruction",
+					zap.Error(err),
+					zap.Int("idx", i),
+					zap.Stringer("signature", signature),
+					zap.Uint64("slot", slot),
+					zap.String("commitment", string(s.commitment)),
+					zap.Binary("data", inst.Data))
+			} else if found {
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("found a top-level wormhole shim instruction",
+						zap.Int("idx", i),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(s.commitment)))
+				}
 			}
-		}
-		if programIndex == 0 {
-			continue
-		}
-
-		if logger.Level().Enabled(zapcore.DebugLevel) {
-			logger.Debug("found Wormhole transaction",
-				zap.Stringer("signature", signature),
-				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)))
-		}
-
-		// Find top-level instructions
-		for i, inst := range tx.Message.Instructions {
+		} else {
 			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
 			if err != nil {
 				logger.Error("malformed Wormhole instruction",
@@ -629,38 +723,55 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 				}
 			}
 		}
+	}
 
-		for _, inner := range txRpc.Meta.InnerInstructions {
-			for i, inst := range inner.Instructions {
-				found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i, isReobservation)
-				if err != nil {
-					logger.Error("malformed Wormhole instruction",
-						zap.Error(err),
-						zap.Int("idx", i),
-						zap.Stringer("signature", signature),
-						zap.Uint64("slot", slot),
-						zap.String("commitment", string(s.commitment)))
-				} else if found {
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("found an inner Wormhole instruction",
-							zap.Int("idx", i),
+	for outerIdx, inner := range meta.InnerInstructions {
+		for innerIdx, inst := range inner.Instructions {
+			if !alreadyProcessed.exists(outerIdx, innerIdx) {
+				if shimFound && inst.ProgramIDIndex == shimProgramIndex {
+					found, err := s.shimProcessInnerInstruction(logger, programIndex, shimProgramIndex, tx, inner.Instructions, outerIdx, innerIdx, alreadyProcessed, isReobservation)
+					if err != nil {
+						logger.Error("malformed inner wormhole shim instruction",
+							zap.Error(err),
+							zap.Int("outerIdx", outerIdx),
+							zap.Int("innerIdx", innerIdx),
 							zap.Stringer("signature", signature),
 							zap.Uint64("slot", slot),
 							zap.String("commitment", string(s.commitment)))
+					} else if found {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("found an inner wormhole shim instruction",
+								zap.Int("outerIdx", outerIdx),
+								zap.Int("innerIdx", innerIdx),
+								zap.Stringer("signature", signature),
+								zap.Uint64("slot", slot),
+								zap.String("commitment", string(s.commitment)))
+						}
+					}
+				} else {
+					found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, innerIdx, isReobservation)
+					if err != nil {
+						logger.Error("malformed Wormhole instruction",
+							zap.Error(err),
+							zap.Int("outerIdx", outerIdx),
+							zap.Int("innerIdx", innerIdx),
+							zap.Stringer("signature", signature),
+							zap.Uint64("slot", slot),
+							zap.String("commitment", string(s.commitment)))
+					} else if found {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("found an inner Wormhole instruction",
+								zap.Int("outerIdx", outerIdx),
+								zap.Int("innerIdx", innerIdx),
+								zap.Stringer("signature", signature),
+								zap.Uint64("slot", slot),
+								zap.String("commitment", string(s.commitment)))
+						}
 					}
 				}
 			}
 		}
 	}
-
-	if emptyRetry > 0 && logger.Level().Enabled(zapcore.DebugLevel) {
-		logger.Debug("skipped or unavailable block retrieved on retry attempt",
-			zap.Uint("empty_retry", emptyRetry),
-			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)))
-	}
-
-	return true
 }
 
 func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
@@ -697,7 +808,14 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("failed to determine commitment: %w", err)
 	}
 
-	if level != s.commitment {
+	if !s.checkCommitment(level, isReobservation) {
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("skipping message which does not match the watcher commitment",
+				zap.Stringer("signature", tx.Signatures[0]),
+				zap.String("message commitment", string(level)),
+				zap.String("watcher commitment", string(s.commitment)),
+			)
+		}
 		return true, nil
 	}
 
@@ -879,19 +997,16 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 			zap.Error(err))
 		return
 	}
-	if commitment != s.commitment {
-		if isReobservation && s.commitment == rpc.CommitmentFinalized {
-			// There is only a single reobservation request channel for each chain, which is assigned to the finalized watcher.
-			// If someone requests reobservation of a confirmed message, we should allow the observation to go through.
-			logger.Info("allowing reobservation although the commitment level does not match the watcher",
-				zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)),
+
+	if !s.checkCommitment(commitment, isReobservation) {
+		if logger.Level().Enabled(zapcore.DebugLevel) {
+			logger.Debug("skipping message which does not match the watcher commitment",
+				zap.Stringer("account", acc),
+				zap.String("message commitment", string(commitment)),
+				zap.String("watcher commitment", string(s.commitment)),
 			)
-		} else {
-			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("skipping message which does not match the watcher commitment", zap.Stringer("account", acc), zap.String("message commitment", string(commitment)), zap.String("watcher commitment", string(s.commitment)))
-			}
-			return
 		}
+		return
 	}
 
 	// As of 2023-11-09, Pythnet has a bug which is not zeroing out these fields appropriately. This carve out should be removed after a fix is deployed.
@@ -921,7 +1036,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	}
 
 	observation := &common.MessagePublication{
-		TxHash:           txHash,
+		TxID:             txHash.Bytes(),
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
 		Nonce:            proposal.Nonce,
 		Sequence:         proposal.Sequence,
@@ -931,6 +1046,23 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		ConsistencyLevel: proposal.ConsistencyLevel,
 		IsReobservation:  isReobservation,
 		Unreliable:       !reliable,
+	}
+
+	// SECURITY: An unreliable message with an empty payload is most like a PostMessage generated as part
+	// of a shim event where this guardian is not watching the shim contract. Those events should be ignored.
+	if !reliable && len(observation.Payload) == 0 {
+		logger.Debug("ignoring an observation because it is marked unreliable and has a zero length payload, probably from the shim",
+			zap.Stringer("account", acc),
+			zap.Time("timestamp", observation.Timestamp),
+			zap.Uint32("nonce", observation.Nonce),
+			zap.Uint64("sequence", observation.Sequence),
+			zap.Stringer("emitter_chain", observation.EmitterChain),
+			zap.Stringer("emitter_address", observation.EmitterAddress),
+			zap.Bool("isReobservation", isReobservation),
+			zap.Binary("payload", observation.Payload),
+			zap.Uint8("consistency_level", observation.ConsistencyLevel),
+		)
+		return
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
@@ -1015,4 +1147,17 @@ func (s *SolanaWatcher) populateLookupTableAccounts(ctx context.Context, tx *sol
 	}
 
 	return nil
+}
+
+// checkCommitment checks to see if the commitment level of an observation matches the watcher. If it does, the observation should be published.
+// If the commitment level does not match and the message is not a reobservation, then it should be dropped. In the case of a reobservation
+// where the commitment level doesn't match, we need to check to see if this is the finalized watcher. If it is, then we should generate the
+// observation. This is because all reobservation requests are handled by the finalized watcher.
+func (s *SolanaWatcher) checkCommitment(commitment rpc.CommitmentType, isReobservation bool) bool {
+	if commitment != s.commitment {
+		if !isReobservation || s.commitment != rpc.CommitmentFinalized {
+			return false
+		}
+	}
+	return true
 }

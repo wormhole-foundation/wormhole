@@ -114,9 +114,6 @@ type Processor struct {
 	// gossipVaaSendC is a channel of outbound VAA messages to broadcast on p2p
 	gossipVaaSendC chan<- []byte
 
-	// obsvC is a channel of inbound decoded observations from p2p
-	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
-
 	// batchObsvC is a channel of inbound decoded batches of observations from p2p
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
@@ -166,20 +163,6 @@ type updateVaaEntry struct {
 }
 
 var (
-	observationChanDelay = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_signed_observation_channel_delay_us",
-			Help:    "Latency histogram for delay of signed observations in channel",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-		})
-
-	observationTotalDelay = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "wormhole_signed_observation_total_delay_us",
-			Help:    "Latency histogram for total time to process signed observations",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
-		})
-
 	batchObservationChanDelay = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "wormhole_batch_observation_channel_delay_us",
@@ -225,7 +208,6 @@ func NewProcessor(
 	setC <-chan *common.GuardianSet,
 	gossipAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
-	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
@@ -243,7 +225,6 @@ func NewProcessor(
 		setC:                   setC,
 		gossipAttestationSendC: gossipAttestationSendC,
 		gossipVaaSendC:         gossipVaaSendC,
-		obsvC:                  obsvC,
 		batchObsvC:             batchObsvC,
 		obsvReqSendC:           obsvReqSendC,
 		signedInC:              signedInC,
@@ -253,7 +234,7 @@ func NewProcessor(
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
-		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey()),
+		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		governor:       g,
 		acct:           acct,
 		acctReadC:      acctReadC,
@@ -308,7 +289,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					continue
 				}
 			}
-			p.handleMessage(k)
+			p.handleMessage(ctx, k)
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
@@ -318,10 +299,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if !p.acct.IsMessageCoveredByAccountant(k) {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
-			p.handleMessage(k)
-		case m := <-p.obsvC:
-			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-			p.handleObservation(m)
+			p.handleMessage(ctx, k)
 		case m := <-p.batchObsvC:
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleBatchObservation(m)
@@ -352,7 +330,7 @@ func (p *Processor) Run(ctx context.Context) error {
 								continue
 							}
 						}
-						p.handleMessage(k)
+						p.handleMessage(ctx, k)
 					}
 				}
 			}

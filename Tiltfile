@@ -38,6 +38,7 @@ config.define_bool("ci", False, "We are running in CI")
 config.define_bool("manual", False, "Set TRIGGER_MODE_MANUAL by default")
 
 config.define_string("num", False, "Number of guardian nodes to run")
+config.define_string("maxWorkers", False, "Maximum number of workers for sdk-ci-tests. See https://jestjs.io/docs/cli#--maxworkersnumstring")
 
 # You do not usually need to set this argument - this argument is for debugging only. If you do use a different
 # namespace, note that the "wormhole" namespace is hardcoded in tests and don't forget specifying the argument
@@ -77,6 +78,7 @@ config.define_bool("query_server", False, "Enable cross-chain query server")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
+max_workers = cfg.get("maxWorkers", "50%")
 namespace = cfg.get("namespace", "wormhole")
 webHost = cfg.get("webHost", "localhost")
 ci = cfg.get("ci", False)
@@ -485,6 +487,12 @@ if solana or pythnet:
 
     # solana local devnet
 
+    docker_build(
+        ref = "solana-test-validator",
+        context = "solana",
+        dockerfile = "solana/Dockerfile.test-validator",
+    )
+
     k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
     k8s_resource(
@@ -596,6 +604,11 @@ if evm2:
     )
 
 
+# Note that ci_tests requires other resources in order to build properly:
+# - eth-devnet  -- required by: accountant_tests, ntt_accountant_tests, tx-verifier
+# - eth-devnet2 -- required by: accountant_tests, ntt_accountant_tests
+# - wormchain   -- required by: accountant_tests, ntt_accountant_tests
+# - solana      -- required by: spydk-ci-tests
 if ci_tests:
     docker_build(
         ref = "sdk-test-image",
@@ -627,13 +640,30 @@ if ci_tests:
             sync("./testing", "/app/testing"),
         ],
     )
+    docker_build(
+        ref = "tx-verifier-monitor", 
+        context = "./devnet/tx-verifier-monitor/",
+        dockerfile = "./devnet/tx-verifier-monitor/Dockerfile"
+    )
+    docker_build(
+        ref = "tx-verifier-test", 
+        context = "./devnet/tx-verifier-monitor/",
+        dockerfile = "./devnet/tx-verifier-monitor/Dockerfile.cast"
+    )
 
     k8s_yaml_with_ns(
         encode_yaml_stream(
             set_env_in_jobs(
-                set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
-                "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)))
+                set_env_in_jobs(
+                    set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians)),
+                    "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
+                    "MAX_WORKERS", max_workers))
     )
+    
+    # transfer-verifier -- daemon and log monitoring
+    k8s_yaml_with_ns("devnet/tx-verifier.yaml")
+
+    k8s_yaml_with_ns("devnet/tx-verifier-test.yaml")
 
     # separate resources to parallelize docker builds
     k8s_resource(
@@ -666,18 +696,34 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
     )
+    # launches tx-verifier binary and sets up monitoring script
+    k8s_resource(
+        "tx-verifier-with-monitor",
+        resource_deps = ["eth-devnet"],
+        labels = ["tx-verifier"],
+        trigger_mode = trigger_mode,
+    )
+    # triggers the integration tests that will be detected by the monitor
+    k8s_resource(
+        "tx-verifier-test",
+        resource_deps = ["eth-devnet", "tx-verifier-with-monitor"],
+        labels = ["tx-verifier"],
+        trigger_mode = trigger_mode,
+    )
 
 if terra_classic:
     docker_build(
         ref = "terra-image",
         context = "./terra/devnet",
         dockerfile = "terra/devnet/Dockerfile",
+        platform = "linux/amd64",
     )
 
     docker_build(
         ref = "terra-contracts",
         context = "./terra",
         dockerfile = "./terra/Dockerfile",
+        platform = "linux/amd64",
     )
 
     k8s_yaml_with_ns("devnet/terra-devnet.yaml")
@@ -698,6 +744,7 @@ if terra2 or wormchain:
         context = ".",
         dockerfile = "./cosmwasm/Dockerfile",
         target = "artifacts",
+        platform = "linux/amd64",
     )
 
 if terra2:
@@ -705,6 +752,7 @@ if terra2:
         ref = "terra2-image",
         context = "./cosmwasm/deployment/terra2/devnet",
         dockerfile = "./cosmwasm/deployment/terra2/devnet/Dockerfile",
+        platform = "linux/amd64",
     )
 
     docker_build(
@@ -812,6 +860,7 @@ if wormchain:
         ref = "wormchaind-image",
         context = ".",
         dockerfile = "./wormchain/Dockerfile",
+        platform = "linux/amd64",
         build_args = {"num_guardians": str(num_guardians)},
         only = [],
         ignore = ["./wormchain/testing", "./wormchain/ts-sdk", "./wormchain/design", "./wormchain/ts-client", "./wormchain/build/wormchaind"],

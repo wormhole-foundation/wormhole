@@ -55,7 +55,7 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 	expectedResult := ibcReceivePublishEvent{
 		ChannelID: "channel-0",
 		Msg: &common.MessagePublication{
-			TxHash:         txHash,
+			TxID:           txHash.Bytes(),
 			EmitterAddress: expectedSender,
 			EmitterChain:   vaa.ChainIDTerra2,
 			Nonce:          1,

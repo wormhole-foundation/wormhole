@@ -201,6 +201,7 @@ type ChainGovernor struct {
 	statusPublishCounter  int64
 	configPublishCounter  int64
 	flowCancelEnabled     bool
+	coinGeckoApiKey       string
 }
 
 func NewChainGovernor(
@@ -208,6 +209,7 @@ func NewChainGovernor(
 	db db.GovernorDB,
 	env common.Environment,
 	flowCancelEnabled bool,
+	coinGeckoApiKey string,
 ) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
@@ -218,6 +220,7 @@ func NewChainGovernor(
 		msgsSeen:            make(map[string]bool),
 		env:                 env,
 		flowCancelEnabled:   flowCancelEnabled,
+		coinGeckoApiKey:     coinGeckoApiKey,
 	}
 }
 
@@ -461,7 +464,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			gov.logger.Info("ignoring duplicate vaa because it is enqueued",
 				zap.String("msgID", msg.MessageIDString()),
 				zap.String("hash", hash),
-				zap.Stringer("txHash", msg.TxHash),
+				zap.String("txID", msg.TxIDString()),
 			)
 			return false, nil
 		}
@@ -469,7 +472,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Info("allowing duplicate vaa to be published again, but not adding it to the notional value",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 		return true, nil
 	}
@@ -481,7 +484,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("Error when attempting to trim and sum transfers",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Error(err),
 		)
 		return false, err
@@ -493,7 +496,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("failed to compute value of transfer",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Error(err),
 		)
 		return false, err
@@ -504,7 +507,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("total value has overflowed",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
 		)
@@ -524,7 +527,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Stringer("releaseTime", releaseTime),
 			zap.Uint64("bigTransactionSize", emitterChainEntry.bigTransactionSize),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 	} else if newTotalValue > emitterChainEntry.dailyLimit {
 		enqueueIt = true
@@ -536,7 +539,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Stringer("releaseTime", releaseTime),
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 	}
 
@@ -547,7 +550,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			gov.logger.Error("failed to store pending vaa",
 				zap.String("msgID", msg.MessageIDString()),
 				zap.String("hash", hash),
-				zap.Stringer("txHash", msg.TxHash),
+				zap.String("txID", msg.TxIDString()),
 				zap.Error(err),
 			)
 			return false, err
@@ -567,7 +570,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Uint64("newTotalValue", newTotalValue),
 		zap.String("msgID", msg.MessageIDString()),
 		zap.String("hash", hash),
-		zap.Stringer("txHash", msg.TxHash),
+		zap.String("txID", msg.TxIDString()),
 	)
 
 	dbTransfer := db.Transfer{
@@ -588,7 +591,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("failed to store transfer",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash), zap.Error(err),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 		return false, err
 	}

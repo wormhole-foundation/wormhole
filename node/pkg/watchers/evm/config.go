@@ -53,9 +53,7 @@ func (wc *WatcherConfig) Create(
 		setWriteC = setC
 	}
 
-	var devMode bool = (env == common.UnsafeDevNet)
-
-	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, devMode, wc.CcqBackfillCache)
+	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, env, wc.CcqBackfillCache)
 	watcher.SetL1Finalizer(wc.l1Finalizer)
 	return watcher, watcher.Run, nil
 }

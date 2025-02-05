@@ -40,7 +40,7 @@ import (
 //   - Verify asset 1 balance of gaia user 1, osmo user 1, osmo user 2, and cw20 contract total supply
 func TestUpgrade(t *testing.T) {
 	// Base setup
-	numVals := 5
+	numVals := 3
 	guardians := guardians.CreateValSet(t, numVals)
 
 	chains := CreateChain(t, *guardians, ibc.DockerImage{
@@ -177,7 +177,7 @@ func TestUpgrade(t *testing.T) {
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 

@@ -185,7 +185,7 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 	)
 
 	msg := &common.MessagePublication{
-		TxHash:           ethCommon.BytesToHash(xfer.TxHash),
+		TxID:             xfer.TxHash,
 		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,

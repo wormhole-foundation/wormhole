@@ -238,7 +238,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			continue
 		}
 		messagePublication := &common.MessagePublication{
-			TxHash:           txHashValue,
+			TxID:             txHashValue.Bytes(),
 			Timestamp:        time.Unix(blockTimeInt, 0),
 			Nonce:            uint32(nonceInt),
 			Sequence:         sequenceInt,

@@ -83,7 +83,6 @@ func GuardianOptionP2P(
 				p2p.WithGuardianOptions(
 					nodeName,
 					g.guardianSigner,
-					g.obsvC,
 					g.batchObsvC.writeC,
 					signedInC,
 					g.obsvReqC.writeC,
@@ -218,7 +217,7 @@ func GuardianOptionAccountant(
 
 // GuardianOptionGovernor enables or disables the governor.
 // Dependencies: db
-func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool) *GuardianOption {
+func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGeckoApiKey string) *GuardianOption {
 	return &GuardianOption{
 		name:         "governor",
 		dependencies: []string{"db"},
@@ -227,9 +226,13 @@ func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool) *Guard
 				if flowCancelEnabled {
 					logger.Info("chain governor is enabled with flow cancel enabled")
 				} else {
+
 					logger.Info("chain governor is enabled without flow cancel")
 				}
-				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled)
+				if coinGeckoApiKey != "" {
+					logger.Info("coingecko pro API key in use")
+				}
+				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled, coinGeckoApiKey)
 			} else {
 				logger.Info("chain governor is disabled")
 			}
@@ -349,7 +352,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									level = zapcore.ErrorLevel
 								}
 								logger.Log(level, "SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
-									zap.Stringer("tx", msg.TxHash),
+									zap.String("tx", msg.TxIDString()),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint64("sequence", msg.Sequence),
 									zap.Stringer("msgChainId", msg.EmitterChain),
@@ -364,7 +367,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									level = zapcore.ErrorLevel
 								}
 								logger.Log(level, "SECURITY ERROR: Received observation with EmitterAddress == 0x00",
-									zap.Stringer("tx", msg.TxHash),
+									zap.String("tx", msg.TxIDString()),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint64("sequence", msg.Sequence),
 									zap.Stringer("msgChainId", msg.EmitterChain),
@@ -376,7 +379,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("emitter_chain", msg.EmitterChain),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint32("nonce", msg.Nonce),
-									zap.Stringer("txhash", msg.TxHash),
+									zap.String("txID", msg.TxIDString()),
 									zap.Time("timestamp", msg.Timestamp))
 							} else {
 								g.msgC.writeC <- msg
@@ -589,7 +592,6 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.setC.readC,
 				g.gossipAttestationSendC,
 				g.gossipVaaSendC,
-				g.obsvC,
 				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,

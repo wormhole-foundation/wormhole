@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 env:
-  GO_VERSION: 1.22.0
+  GO_VERSION: 1.23
   TAR_PATH: /tmp/wormchain-docker-image.tar
   IMAGE_NAME: wormchain-docker-image
 
@@ -59,12 +59,10 @@ jobs:
         # names of `make` commands to run tests
         test:
           - "ictest-cancel-upgrade"
-          - "ictest-chain-start"
-          - "ictest-malformed-payload"
-          - "ictest-upgrade-failure"
           - "ictest-upgrade"
-          - "ictest-wasmd-ante"
           - "ictest-wormchain"
+          - "ictest-validator-hotswap"
+          - "ictest-cw-wormhole"
       fail-fast: false
 
     steps:

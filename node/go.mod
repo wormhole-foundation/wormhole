@@ -47,6 +47,9 @@ require (
 	cosmossdk.io/math v1.4.0
 	github.com/CosmWasm/wasmd v0.45.0
 	github.com/algorand/go-algorand-sdk v1.23.0
+	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go-v2/config v1.28.1
+	github.com/aws/aws-sdk-go-v2/service/kms v1.37.3
 	github.com/benbjohnson/clock v1.3.5
 	github.com/blendle/zapdriver v1.3.1
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce

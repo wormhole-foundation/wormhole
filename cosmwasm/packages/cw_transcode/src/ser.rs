@@ -266,7 +266,7 @@ pub struct Transcoder<'a> {
     event: Event,
 }
 
-impl<'a> Transcoder<'a> {
+impl Transcoder<'_> {
     fn serialize_field<T>(&mut self, k: &'static str, v: &T) -> Result<(), Error>
     where
         T: ?Sized + Serialize,
@@ -285,7 +285,7 @@ impl<'a> Transcoder<'a> {
     }
 }
 
-impl<'a> SerializeStruct for Transcoder<'a> {
+impl SerializeStruct for Transcoder<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -303,7 +303,7 @@ impl<'a> SerializeStruct for Transcoder<'a> {
     }
 }
 
-impl<'a> SerializeStructVariant for Transcoder<'a> {
+impl SerializeStructVariant for Transcoder<'_> {
     type Ok = ();
     type Error = Error;
 
