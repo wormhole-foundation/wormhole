@@ -10,7 +10,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-func setupMsgServer(t testing.TB) (types.MsgServer, context.Context) {
+func setupMsgServer(t *testing.T) (types.MsgServer, context.Context) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	return keeper.NewMsgServerImpl(*k), sdk.WrapSDKContext(ctx)
 }

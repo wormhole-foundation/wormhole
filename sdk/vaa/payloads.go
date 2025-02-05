@@ -86,6 +86,7 @@ var (
 	ActionScheduleUpgrade               GovernanceAction = 1
 	ActionCancelUpgrade                 GovernanceAction = 2
 	ActionSetIbcComposabilityMwContract GovernanceAction = 3
+	ActionSlashingParamsUpdate          GovernanceAction = 4
 
 	// Accountant governance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -191,6 +192,32 @@ type (
 	// BodyGatewayIbcComposabilityMwContract is a governance message to set a specific contract (i.e. IBC Translator) for the ibc composability middleware to use
 	BodyGatewayIbcComposabilityMwContract struct {
 		ContractAddr [32]byte
+	}
+
+	// BodyGatewaySlashingParamsUpdate is a governance message to update the slashing parameters on Wormchain.
+	//
+	// It is important to note that the slashing keeper only accepts `int64` values as input, so we need to convert
+	// the `uint64` values to `int64` before passing them to the keeper. This conversion can introduce overflow
+	// issues if the `uint64` values are too large. To combat this, the Wormchain CLI and the slashing keeper run
+	// validation checks on the new parameter values.
+	//
+	// Below documents the entire process of updating the slashing parameters:
+	// 1. The CLI command receives the new slashing parameters from the user as `uint64` values for `SignedBlocksWindow` and `DowntimeJailDuration` and as `string` values
+	// for `MinSignedPerWindow`, `SlashFractionDoubleSign`, and `SlashFractionDowntime`. The command accepts `string` values for ease of use when providing decimal values.
+	// 2. The CLI command converts the `string` values into `sdk.Dec` values and then into `uint64` values.
+	// 3. The CLI command validates that the `uint64` values are within the acceptable range for the slashing parameters.
+	// 4. The CLI command serializes the new slashing parameters into a governance VAA.
+	// 5. The governance VAA is signed & broadcasted to the Wormchain.
+	// 6. Wormchain deserializes the governance VAA and extracts every new slashing parameter as a uint64 value.
+	// 7. Wormchain converts the uint64 values to int64 values and passes them to the slashing keeper.
+	// 8. The slashing keeper runs validation checks on the new slashing parameters and throws an error if they are invalid.
+	// 9. If the new slashing parameters pass the validation checks, the slashing keeper updates its parameters.
+	BodyGatewaySlashingParamsUpdate struct {
+		SignedBlocksWindow      uint64
+		MinSignedPerWindow      uint64
+		DowntimeJailDuration    uint64
+		SlashFractionDoubleSign uint64
+		SlashFractionDowntime   uint64
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -390,6 +417,29 @@ func (r *BodyGatewayIbcComposabilityMwContract) Deserialize(bz []byte) error {
 	copy(contractAddr[:], bz[0:32])
 
 	r.ContractAddr = contractAddr
+	return nil
+}
+
+func (b BodyGatewaySlashingParamsUpdate) Serialize() ([]byte, error) {
+	payload := new(bytes.Buffer)
+	MustWrite(payload, binary.BigEndian, b.SignedBlocksWindow)
+	MustWrite(payload, binary.BigEndian, b.MinSignedPerWindow)
+	MustWrite(payload, binary.BigEndian, b.DowntimeJailDuration)
+	MustWrite(payload, binary.BigEndian, b.SlashFractionDoubleSign)
+	MustWrite(payload, binary.BigEndian, b.SlashFractionDowntime)
+	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionSlashingParamsUpdate, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyGatewaySlashingParamsUpdate) Deserialize(bz []byte) error {
+	if len(bz) != 40 {
+		return fmt.Errorf("incorrect payload length, should be 40, is %d", len(bz))
+	}
+
+	r.SignedBlocksWindow = binary.BigEndian.Uint64(bz[0:8])
+	r.MinSignedPerWindow = binary.BigEndian.Uint64(bz[8:16])
+	r.DowntimeJailDuration = binary.BigEndian.Uint64(bz[16:24])
+	r.SlashFractionDoubleSign = binary.BigEndian.Uint64(bz[24:32])
+	r.SlashFractionDowntime = binary.BigEndian.Uint64(bz[32:40])
 	return nil
 }
 

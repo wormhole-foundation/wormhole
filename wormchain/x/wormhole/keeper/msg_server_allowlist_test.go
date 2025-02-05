@@ -178,8 +178,7 @@ func TestAllowlistEntry(t *testing.T) {
 
 func TestAllowlistEntryAnteHandler(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
-	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
-	_ = privateKeys
+	guardians, _ := createNGuardianValidator(k, ctx, 10)
 	k.SetConfig(ctx, types.Config{
 		GovernanceEmitter:     vaa.GovernanceEmitter[:],
 		GovernanceChain:       uint32(vaa.GovernanceChain),
