@@ -23,9 +23,6 @@ type (
 		gst            *common.GuardianSetState
 		rootCtxCancel  context.CancelFunc
 
-		// obsvRecvC is optional and can be set with `WithSignedObservationListener`.
-		obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]
-
 		// batchObsvRecvC is optional and can be set with `WithSignedObservationBatchListener`.
 		batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
@@ -117,14 +114,6 @@ func WithProcessorFeaturesFunc(processorFeaturesFunc func() string) RunOpt {
 	}
 }
 
-// WithSignedObservationListener is used to set the channel to receive `SignedObservation` messages.
-func WithSignedObservationListener(obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]) RunOpt {
-	return func(p *RunParams) error {
-		p.obsvRecvC = obsvRecvC
-		return nil
-	}
-}
-
 // WithSignedObservationBatchListener is used to set the channel to receive `SignedObservationBatch` messages.
 func WithSignedObservationBatchListener(batchObsvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) RunOpt {
 	return func(p *RunParams) error {
@@ -177,7 +166,6 @@ func WithDisableHeartbeatVerify(disableHeartbeatVerify bool) RunOpt {
 func WithGuardianOptions(
 	nodeName string,
 	guardianSigner guardiansigner.GuardianSigner,
-	obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedIncomingVaaRecvC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqRecvC chan<- *gossipv1.ObservationRequest,
@@ -201,7 +189,6 @@ func WithGuardianOptions(
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
 		p.guardianSigner = guardianSigner
-		p.obsvRecvC = obsvRecvC
 		p.batchObsvRecvC = batchObsvRecvC
 		p.signedIncomingVaaRecvC = signedIncomingVaaRecvC
 		p.obsvReqRecvC = obsvReqRecvC

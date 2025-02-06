@@ -75,6 +75,7 @@ var (
 		vaa.ChainIDSeda,
 		vaa.ChainIDDymension,
 		vaa.ChainIDProvenance,
+		vaa.ChainIDNoble,
 	}
 
 	// features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
@@ -536,7 +537,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 
 	evt := new(ibcReceivePublishEvent)
 	evt.Msg = new(common.MessagePublication)
-	evt.Msg.TxHash = txHash
+	evt.Msg.TxID = txHash.Bytes()
 
 	evt.ChannelID, err = attributes.GetAsString("channel_id")
 	if err != nil {
@@ -594,7 +595,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 	if err != nil {
 		w.logger.Error("query for IBC channel ID failed",
 			zap.String("IbcChannelID", evt.ChannelID),
-			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.String("TxID", evt.Msg.TxIDString()),
 			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
 			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
 			zap.Uint64("Sequence", evt.Msg.Sequence),
@@ -612,7 +613,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		// Therefore we don't want to return an error here. Restarting won't help.
 		w.logger.Error(fmt.Sprintf("received %s message from unknown IBC channel, dropping observation", observationType),
 			zap.String("IbcChannelID", evt.ChannelID),
-			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.String("TxID", evt.Msg.TxIDString()),
 			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
 			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
 			zap.Uint64("Sequence", evt.Msg.Sequence),
@@ -630,7 +631,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		w.logger.Debug(fmt.Sprintf("received %s message from an unconfigured chain, dropping observation", observationType),
 			zap.String("IbcChannelID", evt.ChannelID),
 			zap.Stringer("ChainID", mappedChainID),
-			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.String("TxID", evt.Msg.TxIDString()),
 			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
 			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
 			zap.Uint64("Sequence", evt.Msg.Sequence),
@@ -646,7 +647,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 			zap.String("IbcChannelID", evt.ChannelID),
 			zap.Uint16("MappedChainID", uint16(mappedChainID)),
 			zap.Uint16("ExpectedChainID", uint16(ce.chainID)),
-			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.String("TxID", evt.Msg.TxIDString()),
 			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
 			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
 			zap.Uint64("Sequence", evt.Msg.Sequence),
@@ -661,7 +662,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 	w.logger.Info(fmt.Sprintf("%s message detected", observationType),
 		zap.String("IbcChannelID", evt.ChannelID),
 		zap.String("ChainName", ce.chainName),
-		zap.Stringer("TxHash", evt.Msg.TxHash),
+		zap.String("TxID", evt.Msg.TxIDString()),
 		zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
 		zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
 		zap.Uint64("Sequence", evt.Msg.Sequence),

@@ -138,7 +138,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, guardianSigner)
 
-	obsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation], 42)
 	batchObsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 42)
 	signedInC := make(chan<- *gossipv1.SignedVAAWithQuorum, 42)
 	obsvReqC := make(chan<- *gossipv1.ObservationRequest, 42)
@@ -170,7 +169,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 		WithGuardianOptions(
 			nodeName,
 			guardianSigner,
-			obsvC,
 			batchObsvC,
 			signedInC,
 			obsvReqC,
@@ -195,7 +193,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, params)
 	assert.Equal(t, nodeName, params.nodeName)
-	assert.Equal(t, obsvC, params.obsvRecvC)
 	assert.Equal(t, signedInC, params.signedIncomingVaaRecvC)
 	assert.Equal(t, obsvReqC, params.obsvReqRecvC)
 	assert.Equal(t, gossipControlSendC, params.gossipControlSendC)

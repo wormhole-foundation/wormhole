@@ -33,13 +33,16 @@ spec:
       containers:
         - name: anvil
           image: eth-node
+          # This command generates additional accounts compared to the default of 10. The purpose is to use dedicated
+          # accounts for different aspects of the test suite. When adding new integration tests, consider increasing
+          # the number of accounts below and using a fresh key for the new tests.
           command:
             - anvil
             - --silent
             - --mnemonic=myth like bonus scare over problem client lizard pioneer submit female collect
             - --block-time=1
             - --host=0.0.0.0
-            - --accounts=13
+            - --accounts=14
             - --chain-id=1337
           ports:
             - containerPort: 8545

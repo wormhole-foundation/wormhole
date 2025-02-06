@@ -83,7 +83,6 @@ func GuardianOptionP2P(
 				p2p.WithGuardianOptions(
 					nodeName,
 					g.guardianSigner,
-					g.obsvC,
 					g.batchObsvC.writeC,
 					signedInC,
 					g.obsvReqC.writeC,
@@ -353,7 +352,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									level = zapcore.ErrorLevel
 								}
 								logger.Log(level, "SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
-									zap.Stringer("tx", msg.TxHash),
+									zap.String("tx", msg.TxIDString()),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint64("sequence", msg.Sequence),
 									zap.Stringer("msgChainId", msg.EmitterChain),
@@ -368,7 +367,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									level = zapcore.ErrorLevel
 								}
 								logger.Log(level, "SECURITY ERROR: Received observation with EmitterAddress == 0x00",
-									zap.Stringer("tx", msg.TxHash),
+									zap.String("tx", msg.TxIDString()),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint64("sequence", msg.Sequence),
 									zap.Stringer("msgChainId", msg.EmitterChain),
@@ -380,7 +379,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("emitter_chain", msg.EmitterChain),
 									zap.Stringer("emitter_address", msg.EmitterAddress),
 									zap.Uint32("nonce", msg.Nonce),
-									zap.Stringer("txhash", msg.TxHash),
+									zap.String("txID", msg.TxIDString()),
 									zap.Time("timestamp", msg.Timestamp))
 							} else {
 								g.msgC.writeC <- msg
@@ -593,7 +592,6 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.setC.readC,
 				g.gossipAttestationSendC,
 				g.gossipVaaSendC,
-				g.obsvC,
 				g.batchObsvC.readC,
 				g.obsvReqSendC.writeC,
 				g.signedInC.readC,

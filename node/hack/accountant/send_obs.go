@@ -58,6 +58,7 @@ func main() {
 		return
 	}
 
+	// Don't increment the sequence number here.
 	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Already commited should succeed") {
 		return
 	}
@@ -82,6 +83,11 @@ func main() {
 		return
 	}
 
+	sequence += 10
+	if !testBigBatch(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Submit of big batch should succeed") {
+		return
+	}
+
 	logger.Info("Success! All tests passed!")
 }
 
@@ -102,7 +108,7 @@ func testSubmit(
 	Payload, _ := hex.DecodeString("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
 
 	msg := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        timestamp,
 		Nonce:            uint32(0),
 		Sequence:         sequence,
@@ -167,7 +173,7 @@ func testBatch(
 	msgs := []*common.MessagePublication{}
 
 	msg1 := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        timestamp,
 		Nonce:            nonce,
 		Sequence:         sequence,
@@ -181,7 +187,7 @@ func testBatch(
 	nonce = nonce + 1
 	sequence = sequence + 1
 	msg2 := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        time.Now(),
 		Nonce:            nonce,
 		Sequence:         sequence,
@@ -246,7 +252,7 @@ func testBatchWithcommitted(
 
 	logger.Info("submitting a single transfer that should work")
 	msg1 := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        timestamp,
 		Nonce:            nonce,
 		Sequence:         sequence,
@@ -269,7 +275,7 @@ func testBatchWithcommitted(
 	nonce = nonce + 1
 	sequence = sequence + 1
 	msg2 := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        time.Now(),
 		Nonce:            nonce,
 		Sequence:         sequence,
@@ -338,7 +344,7 @@ func testBatchWithDigestError(
 
 	logger.Info("submitting a single transfer that should work")
 	msg1 := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        timestamp,
 		Nonce:            nonce,
 		Sequence:         sequence,
@@ -361,7 +367,7 @@ func testBatchWithDigestError(
 	nonce = nonce + 1
 	sequence = sequence + 1
 	msg2 := common.MessagePublication{
-		TxHash:           TxHash,
+		TxID:             TxHash.Bytes(),
 		Timestamp:        time.Now(),
 		Nonce:            nonce,
 		Sequence:         sequence,
@@ -439,4 +445,73 @@ func submit(
 	guardianIndex := uint32(0)
 
 	return accountant.SubmitObservationsToContract(ctx, logger, guardianSigner, gsIndex, guardianIndex, wormchainConn, contract, accountant.SubmitObservationPrefix, msgs)
+}
+
+func testBigBatch(
+	ctx context.Context,
+	logger *zap.Logger,
+	guardianSigner guardiansigner.GuardianSigner,
+	wormchainConn *wormconn.ClientConn,
+	contract string,
+	emitterAddressStr string,
+	timestamp time.Time,
+	sequence uint64,
+	expectedResult bool,
+	tag string,
+) bool {
+	EmitterAddress, _ := vaa.StringToAddress(emitterAddressStr)
+	TxHash := []byte("0123456789012345678901234567890123456789012345678901234567890123") // 64 bytes, the size of a Solana signature.
+	Payload, _ := hex.DecodeString("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
+
+	msgs := []*common.MessagePublication{}
+	for idx := 0; idx < 10; idx++ {
+		msg := common.MessagePublication{
+			TxID:             TxHash,
+			Timestamp:        timestamp,
+			Nonce:            uint32(0),
+			Sequence:         sequence,
+			EmitterChain:     vaa.ChainIDEthereum,
+			EmitterAddress:   EmitterAddress,
+			ConsistencyLevel: uint8(15),
+			Payload:          Payload,
+		}
+
+		msgs = append(msgs, &msg)
+		sequence += 1
+	}
+
+	txResp, err := submit(ctx, logger, guardianSigner, wormchainConn, contract, msgs)
+	if err != nil {
+		logger.Error("failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
+		return false
+	}
+
+	responses, err := accountant.GetObservationResponses(txResp)
+	if err != nil {
+		logger.Error("failed to get responses", zap.Error(err))
+		return false
+	}
+
+	if len(responses) != len(msgs) {
+		logger.Error("number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		return false
+	}
+
+	msgId := msgs[0].MessageIDString()
+	status, exists := responses[msgId]
+	if !exists {
+		logger.Info("test failed: did not receive an observation response for message", zap.String("test", tag), zap.String("msgId", msgId))
+		return false
+	}
+
+	committed := status.Type == "committed"
+
+	if committed != expectedResult {
+		logger.Info("test failed", zap.String("test", tag), zap.Uint64("seqNo", sequence), zap.Bool("committed", committed),
+			zap.String("response", wormchainConn.BroadcastTxResponseToString(txResp)))
+		return false
+	}
+
+	logger.Info("test of big batch succeeded", zap.String("test", tag))
+	return true
 }

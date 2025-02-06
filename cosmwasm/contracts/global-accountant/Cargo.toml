@@ -32,6 +32,6 @@ wormhole-sdk = { workspace = true, features = ["schemars"] }
 
 [dev-dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
-cw-multi-test = "0.13.2"
+cw-multi-test = "0.14"
 serde-json-wasm = "0.4"
 wormhole-bindings = { version = "0.1", features = ["fake"] }
