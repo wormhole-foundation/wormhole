@@ -11,12 +11,12 @@ import (
 )
 
 type QueryPlugin struct {
-	bankKeeper         *bankkeeper.BaseKeeper
+	bankKeeper         bankkeeper.Keeper
 	tokenFactoryKeeper *tokenfactorykeeper.Keeper
 }
 
 // NewQueryPlugin returns a reference to a new QueryPlugin.
-func NewQueryPlugin(b *bankkeeper.BaseKeeper, tfk *tokenfactorykeeper.Keeper) *QueryPlugin {
+func NewQueryPlugin(b bankkeeper.Keeper, tfk *tokenfactorykeeper.Keeper) *QueryPlugin {
 	return &QueryPlugin{
 		bankKeeper:         b,
 		tokenFactoryKeeper: tfk,

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -69,7 +69,7 @@ func TbRegisterChainMsg(t *testing.T, chainID uint16, emitterAddr string, guardi
 
 	payload, err := bodyTbRegisterChain.Serialize()
 	require.NoError(t, err)
-	v := generateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
+	v := GenerateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 
@@ -106,7 +106,7 @@ func TbRegisterForeignAsset(t *testing.T, tokenAddr string, chainID uint16, emit
 		emitterBz[eIndex-1] = emitterAddr[i-1]
 		eIndex--
 	}
-	v := generateVaa(0, guardians, vaa.ChainID(chainID), vaa.Address(emitterBz), payload.Bytes())
+	v := GenerateVaa(0, guardians, vaa.ChainID(chainID), vaa.Address(emitterBz), payload.Bytes())
 	vBz, err := v.Marshal()
 	require.NoError(t, err)
 
