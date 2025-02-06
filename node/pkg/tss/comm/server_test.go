@@ -587,3 +587,87 @@ func tlsCert(rootCA *x509.Certificate, rootKey *ecdsa.PrivateKey) (*tls.Certific
 	}
 	return &tlscert, pubcert
 }
+
+func TestDialWithDefaultPort(t *testing.T) {
+	a := require.New(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
+	defer cancel()
+	ctx = testutils.MakeSupervisorContext(ctx)
+
+	en, err := _loadGuardians(3)
+	a.NoError(err)
+
+	communicatingEngine := en[0]
+	listenerEngine := en[1]
+
+	listenerServerPath := "localhost:" + tss.DefaultPort
+	// set up server that only listent and aren't able to connect to anyone.
+	listenerServer, err := NewServer(listenerServerPath, supervisor.Logger(ctx), &mockTssMessageHandler{
+		chn:      nil,
+		selfCert: listenerEngine.GetCertificate(),
+		// the listening server will expect this cert to connect with.
+		peersToConnectTo: []*x509.Certificate{communicatingEngine.GetCertificate().Leaf},
+		peerId:           &tsscommv1.PartyId{},
+	})
+	a.NoError(err)
+
+	ListenerWrapper := testServer{
+		server:                       listenerServer.(*server),
+		Uint32:                       atomic.Uint32{},
+		done:                         make(chan struct{}),
+		numberOfReconnectionAttempts: 1,
+		isMaliciousBlocker:           true,
+	}
+
+	ListenerWrapper.server.ctx = ctx
+
+	l, err := net.Listen("tcp", listenerServerPath)
+	a.NoError(err)
+	defer l.Close()
+
+	gserver := grpc.NewServer(ListenerWrapper.makeServerCredentials())
+	defer gserver.Stop()
+
+	tsscommv1.RegisterDirectLinkServer(gserver, &ListenerWrapper)
+	go gserver.Serve(l)
+
+	//  SETTING THE ID TO CONNECT TO WITHOUT A PORT:
+	// ensuring the communicating server will have to use the default port to dial.
+	for _, v := range communicatingEngine.Guardians {
+		if v.Id == listenerEngine.Self.Id {
+			v.Id = "localhost"
+			continue
+		}
+		v.Id = ""
+	}
+
+	msgChan := make(chan tss.Sendable)
+	communicator, err := NewServer("localhost:5930", supervisor.Logger(ctx), &tssMockJustForMessageGeneration{
+		ReliableMessenger: communicatingEngine,
+		chn:               msgChan,
+	})
+	a.NoError(err)
+
+	tmp := communicator.(*server)
+	tmp.ctx = ctx
+	tmp.run()
+
+	time.Sleep(time.Second)
+
+	for i := 0; i < 10; i++ {
+		msgChan <- &tss.Echo{
+			Recipients: workingServerAsMessageRecipient,
+		}
+
+		select {
+		case <-ctx.Done():
+			t.FailNow()
+		case <-ListenerWrapper.done:
+			return
+		default:
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
+
+	t.FailNow()
+}

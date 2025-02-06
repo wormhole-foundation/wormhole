@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
@@ -209,9 +211,35 @@ func (s *server) dialer() {
 	}
 }
 
+func addDefaultPortIfMissing(addr string) (string, error) {
+	_, _, err := net.SplitHostPort(addr)
+
+	if err != nil {
+		// Check if error is due to missing port
+		var addrErr *net.AddrError
+		if errors.As(err, &addrErr) && addrErr.Err == "missing port in address" {
+			return addr + ":" + tss.DefaultPort, nil
+		}
+
+		return "", err
+	}
+
+	return addr, nil
+}
+
 func (s *server) dial(hostname string) error {
+	crt, ok := s.peerToCert[hostname]
+	if !ok {
+		return fmt.Errorf("no cert found for peer %s", hostname)
+	}
+
 	pool := x509.NewCertPool()
-	pool.AddCert(s.peerToCert[hostname]) // dialing to peer and accepting his cert only.
+	pool.AddCert(crt) // dialing to peer and accepting his cert only.
+
+	hostname, err := addDefaultPortIfMissing(hostname)
+	if err != nil {
+		return err
+	}
 
 	cc, err := grpc.Dial(hostname,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
