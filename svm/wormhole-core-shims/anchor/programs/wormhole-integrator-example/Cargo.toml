@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "wormhole_integrator_example"
 
 [features]
-default = ["mainnet"]
+default = ["localnet"]
 mainnet = ["wormhole-solana-consts/mainnet"]
 testnet = ["wormhole-solana-consts/testnet"]
 localnet = ["wormhole-solana-consts/localnet"]

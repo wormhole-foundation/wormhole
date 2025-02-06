@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use wormhole_svm_definitions::CORE_BRIDGE_PROGRAM_ID;
 
 declare_id!("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
 
@@ -8,27 +7,36 @@ pub mod wormhole_post_message_shim {
     use super::*;
 
     /// This instruction is intended to be a significantly cheaper alternative
-    /// to `post_message` on the core bridge. It achieves this by reusing the
-    /// message account, per emitter, via `post_message_unreliable` and emitting
-    /// a CPI event for the guardian to observe containing the information
-    /// previously only found in the resulting message account. Since this
-    /// passes through the emitter and calls `post_message_unreliable` on the
-    /// core bridge, it can be used (or not used) without disruption.
+    /// to the post message instruction on Wormhole Core Bridge program. It
+    /// achieves this by reusing the message account (per emitter) via the post
+    /// message unreliable instruction and emitting data via self-CPI (Anchor
+    /// event) for the guardian to observe. This instruction data contains
+    /// information previously found only in the resulting message account.
+    ///
+    /// Because this instruction passes through the emitter and calls the post
+    /// message unreliable instruction on the Wormhole Core Bridge, it can be
+    /// used without disruption.
     ///
     /// NOTE: In the initial message publication for a new emitter, this will
-    /// require one additional CPI call depth when compared to using the core
-    /// bridge directly. If that is an issue, simply emit an empty message on
-    /// initialization (or migration) in order to instantiate the account. This
-    /// will result in a VAA from your emitter, so be careful to avoid any
-    /// issues that may result in.
+    /// require one additional CPI call depth when compared to using the
+    /// Wormhole Core Bridge directly. If this initial call depth is an issue,
+    /// emit an empty message on initialization (or migration) in order to
+    /// instantiate the message account. Posting a message will result in a VAA
+    /// from your emitter, so be careful to avoid any issues that may result
+    /// from this first message.
     ///
-    /// Direct case
-    /// shim `PostMessage` -> core `0x8`
-    ///                    -> shim `MesssageEvent`
+    /// Call depth of direct case:
+    /// 1. post message (Wormhole Post Message Shim)
+    /// 2. multiple CPI
+    ///     - post message unreliable (Wormhole Core Bridge)
+    ///     - Anchor event of `MesssageEvent` (Wormhole Post Message Shim)
     ///
-    /// Integration case
-    /// Integrator Program -> shim `PostMessage` -> core `0x8`
-    ///                                          -> shim `MesssageEvent`
+    /// Call depth of integrator case:
+    /// 1. integrator instruction
+    /// 2. CPI post message (Wormhole Post Message Shim)
+    /// 3. multiple CPI
+    ///    - post message unreliable (Wormhole Core Bridge)
+    ///    - Anchor event of `MesssageEvent` (Wormhole Post Message Shim)
     pub fn post_message(
         _ctx: Context<PostMessage>,
         nonce: u32,
@@ -54,42 +62,29 @@ pub struct MessageEvent {
     pub submission_time: u32,
 }
 
-/// The accounts are ordered and named the same as the core bridge's
-/// post_message_unreliable instruction.
-///
-/// TODO: some of these checks were included for IDL generation / convenience
-/// but are completely unnecessary and costly on-chain. Use configuration to
-/// generate the nice IDL but omit the checks on-chain except for the wormhole
-/// program. Alternatively, make this program without Anchor at all.
-///
-/// Some comparison of compute units consumed:
-/// - core post_message:                      25097
-/// - shim without sysvar and address checks: 45608 (20511 more)
-/// - shim with sysvar and address checks:    45782 (  174 more)
+/// The accounts are ordered and named the same as the Wormhole Core Bridge
+/// program's post message unreliable instruction.
 #[derive(Accounts)]
 #[event_cpi]
 pub struct PostMessage<'info> {
-    /// Wormhole bridge config. [`wormhole::post_message`] requires this
-    /// account to be mutable.
+    /// Wormhole Core Bridge config. The Wormhole Core Bridge program's post
+    /// message instruction requires this account to be mutable.
     #[account(
         mut,
         seeds = [b"Bridge"],
         bump,
-        seeds::program = CORE_BRIDGE_PROGRAM_ID
+        seeds::program = wormhole_program.key()
     )]
     bridge: UncheckedAccount<'info>,
 
-    /// Wormhole Message. [`wormhole::post_message`] requires this account to be
-    /// a mutable signer.
+    /// Wormhole Message. The Wormhole Core Bridge program's post message
+    /// instruction requires this account to be a mutable signer.
     ///
-    /// This program uses a PDA per emitter, since these are already
-    /// bottle-necked by sequence and the bridge enforces that emitter must be
-    /// identical for reused accounts. While this could be managed by the
-    /// integrator, it seems more effective to have the shim manage these
-    /// accounts.
-    ///
-    /// Bonus, this also allows Anchor to automatically handle deriving the
-    /// address.
+    /// This program uses a PDA per emitter. Messages are already bottle-necked
+    /// by emitter sequence and the Wormhole Core Bridge program enforces that
+    /// emitter must be identical for reused accounts. While this could be
+    /// managed by the integrator, it seems more effective to have this Shim
+    /// program manage these accounts.
     #[account(
         mut,
         seeds = [&emitter.key.to_bytes()],
@@ -97,21 +92,17 @@ pub struct PostMessage<'info> {
     )]
     message: UncheckedAccount<'info>,
 
-    /// Emitter of the VAA. [`wormhole::post_message`] requires this account to
-    /// be a signer.
+    /// Emitter of the Wormhole Core Bridge message. Wormhole Core Bridge
+    /// program's post message instruction requires this account to be a signer.
     emitter: Signer<'info>,
 
-    /// Emitter's sequence account. [`wormhole::post_message`] requires this
-    /// account to be mutable.
-    ///
-    /// Explicitly do not re-derive this account. The core bridge verifies the
-    /// derivation anyway and as of Anchor 0.30.1, auto-derivation for other
-    /// programs' accounts via IDL doesn't work.
+    /// Emitter's sequence account. Wormhole Core Bridge program's post message
+    /// instruction requires this account to be mutable.
     #[account(
         mut,
         seeds = [b"Sequence", &emitter.key.to_bytes()],
         bump,
-        seeds::program = CORE_BRIDGE_PROGRAM_ID
+        seeds::program = wormhole_program.key()
     )]
     sequence: UncheckedAccount<'info>,
 
@@ -121,13 +112,13 @@ pub struct PostMessage<'info> {
     #[account(mut)]
     payer: Signer<'info>,
 
-    /// Wormhole fee collector. [`wormhole::post_message`] requires this account
-    /// to be mutable.
+    /// Wormhole Core Bridge fee collector. Wormhole Core Bridge program's post
+    /// message instruction requires this account to be mutable.
     #[account(
         mut,
         seeds = [b"fee_collector"],
         bump,
-        seeds::program = CORE_BRIDGE_PROGRAM_ID
+        seeds::program = wormhole_program.key()
     )]
     fee_collector: UncheckedAccount<'info>,
 
@@ -137,7 +128,6 @@ pub struct PostMessage<'info> {
     /// System program.
     system_program: Program<'info, System>,
 
-    /// Wormhole program.
-    #[account(address = CORE_BRIDGE_PROGRAM_ID)]
+    /// Wormhole Core Bridge program.
     wormhole_program: UncheckedAccount<'info>,
 }

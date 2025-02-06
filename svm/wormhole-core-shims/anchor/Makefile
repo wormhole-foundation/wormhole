@@ -10,7 +10,7 @@ clean:
 .PHONY: test
 test: build-examples
 # Force rebuild of the programs.
-	cd .. && $(MAKE) build
+	cd .. && SVM=solana $(MAKE) build
 	cp -R ../target/deploy/*.so target/deploy
 # Copy IDLs and Typescript types to target directory.
 	@for interface in $(INTERFACES); do \

@@ -21,6 +21,8 @@ impl<'data> GuardianSet<'data> {
         + 4 // expiration time
     };
 
+    /// Attempts to read a guardian set account from the given data. This method
+    /// will return `None` if the data is not a valid guardian set account.
     pub fn new(data: &'data [u8]) -> Option<Self> {
         if data.len() < Self::MINIMUM_SIZE {
             return None;
@@ -38,26 +40,33 @@ impl<'data> GuardianSet<'data> {
         Some(account)
     }
 
+    /// Guardian set index that these keys correspond to.
     #[inline]
     pub fn guardian_set_index(&self) -> u32 {
         u32::from_le_bytes(self.guardian_set_index_slice().try_into().unwrap())
     }
 
+    /// Number of guardian public keys in this set.
     #[inline]
     pub fn keys_len(&self) -> u32 {
         u32::from_le_bytes(self.keys_len_slice().try_into().unwrap())
     }
 
+    /// Guardian public key at the given index. This method will return `None`
+    /// if the index is out of bounds.
     #[inline]
     pub fn key(&self, index: usize) -> Option<[u8; GUARDIAN_PUBKEY_LENGTH]> {
         self.key_slice(index)?.try_into().ok()
     }
 
+    /// When the guardian set was created.
     #[inline]
     pub fn creation_time(&self) -> u32 {
         u32::from_le_bytes(self.creation_time_slice().try_into().unwrap())
     }
 
+    /// When the guardian set will expire. A value of 0 means that the guardian
+    /// set is the current one.
     #[inline]
     pub fn expiration_time(&self) -> u32 {
         u32::from_le_bytes(self.expiration_time_slice().try_into().unwrap())
@@ -97,6 +106,12 @@ impl<'data> GuardianSet<'data> {
         &self.0[(end_idx + 4)..(end_idx + 8)]
     }
 
+    /// Checks if the guardian set is active at the given timestamp. A guardian
+    /// set is active if its expiration time is 0 or if the given timestamp is
+    /// less than or equal to the expiration time.
+    ///
+    /// NOTE: This method also handles a special case for the initial guardian
+    /// set on mainnet. The initial guardian set was never expired.
     #[inline]
     pub fn is_active(&self, timestamp: u32) -> bool {
         const GUARDIAN_SET_ZERO_INDEX: [u8; 4] = [0, 0, 0, 0];
@@ -114,6 +129,7 @@ impl<'data> GuardianSet<'data> {
         }
     }
 
+    /// Returns the number of guardian public keys required to form a quorum.
     #[inline]
     pub fn quorum(&self) -> u32 {
         (self.keys_len() * 2) / 3 + 1

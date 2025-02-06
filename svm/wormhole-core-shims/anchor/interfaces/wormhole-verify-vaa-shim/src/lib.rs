@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use wormhole_svm_definitions::{CORE_BRIDGE_PROGRAM_ID, HASH_BYTES};
+use wormhole_svm_definitions::HASH_BYTES;
 
 declare_id!("EFaNWErqAtVWufdNb7yofSHHfWFos843DFpu4JBw24at");
 
@@ -13,24 +13,24 @@ pub mod wormhole_verify_vaa_shim {
         err!(ErrorCode::InstructionMissing)
     }
 
-    /// Creates or appends to a GuardianSignatures account for subsequent use by
-    /// the verify vaa instruction.
+    /// Creates or appends to a guardian signatures account for subsequent use
+    /// by the verify hash instruction.
     ///
-    /// This is necessary as the Wormhole VAA body, which has an arbitrary size,
-    /// and 13 guardian signatures (a quorum of the current 19 mainnet
-    /// guardians, 66 bytes each) alongside the required accounts is likely
-    /// larger than the transaction size limit on Solana (1232 bytes).
+    /// This instruction is necessary due to the Wormhole VAA body, which has an
+    /// arbitrary size, and 13 guardian signatures (a quorum of the current 19
+    /// mainnet guardians, 66 bytes each) alongside the required accounts is
+    /// likely larger than the transaction size limit on Solana (1232 bytes).
     ///
-    /// This will also allow for the verification of other messages which
-    /// guardians sign, such as QueryResults.
+    /// This instruction will also allow for the verification of other messages
+    /// which guardians sign, such as query results.
     ///
     /// This instruction allows for the initial payer to append additional
-    /// signatures to the account by calling the instruction again. This may be
-    /// necessary if a quorum of signatures from the current guardian set grows
-    /// larger than can fit into a single transaction.
+    /// signatures to the account by calling the instruction again. Subsequent
+    /// calls may be necessary if a quorum of signatures from the current guardian
+    /// set grows larger than can fit into a single transaction.
     ///
-    /// The GuardianSignatures account can be closed by the initial payer via
-    /// the close signatures instruction, which will refund the initial payer.
+    /// The guardian signatures account can be closed by the initial payer via
+    /// the close signatures instruction, which will refund this payer.
     pub fn post_signatures(
         _ctx: Context<PostSignatures>,
         guardian_set_index: u32,
@@ -111,14 +111,6 @@ pub struct PostSignatures<'info> {
 #[derive(Accounts)]
 pub struct VerifyHash<'info> {
     /// Guardian set used for signature verification.
-    #[account(
-        seeds = [
-            b"GuardianSet",
-            guardian_signatures.guardian_set_index_be.as_ref()
-        ],
-        bump,
-        seeds::program = CORE_BRIDGE_PROGRAM_ID
-    )]
     guardian_set: UncheckedAccount<'info>,
 
     /// Stores unverified guardian signatures as they are too large to fit in

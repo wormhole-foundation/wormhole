@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import WormholePostMessageShimIdl from "./idls/devnet/wormhole_post_message_shim.json";
+import WormholePostMessageShimIdl from "../idls/wormhole_post_message_shim.json";
 
 export async function getSequenceFromTx(
   tx: string

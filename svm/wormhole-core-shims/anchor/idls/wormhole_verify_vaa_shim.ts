@@ -48,24 +48,24 @@ export type WormholeVerifyVaaShim = {
     {
       "name": "postSignatures",
       "docs": [
-        "Creates or appends to a GuardianSignatures account for subsequent use by",
-        "the verify vaa instruction.",
+        "Creates or appends to a guardian signatures account for subsequent use",
+        "by the verify hash instruction.",
         "",
-        "This is necessary as the Wormhole VAA body, which has an arbitrary size,",
-        "and 13 guardian signatures (a quorum of the current 19 mainnet",
-        "guardians, 66 bytes each) alongside the required accounts is likely",
-        "larger than the transaction size limit on Solana (1232 bytes).",
+        "This instruction is necessary due to the Wormhole VAA body, which has an",
+        "arbitrary size, and 13 guardian signatures (a quorum of the current 19",
+        "mainnet guardians, 66 bytes each) alongside the required accounts is",
+        "likely larger than the transaction size limit on Solana (1232 bytes).",
         "",
-        "This will also allow for the verification of other messages which",
-        "guardians sign, such as QueryResults.",
+        "This instruction will also allow for the verification of other messages",
+        "which guardians sign, such as query results.",
         "",
         "This instruction allows for the initial payer to append additional",
-        "signatures to the account by calling the instruction again. This may be",
-        "necessary if a quorum of signatures from the current guardian set grows",
-        "larger than can fit into a single transaction.",
+        "signatures to the account by calling the instruction again. Subsequent",
+        "calls may be necessary if a quorum of signatures from the current guardian",
+        "set grows larger than can fit into a single transaction.",
         "",
-        "The GuardianSignatures account can be closed by the initial payer via",
-        "the close signatures instruction, which will refund the initial payer."
+        "The guardian signatures account can be closed by the initial payer via",
+        "the close signatures instruction, which will refund this payer."
       ],
       "discriminator": [
         138,
@@ -171,69 +171,7 @@ export type WormholeVerifyVaaShim = {
           "name": "guardianSet",
           "docs": [
             "Guardian set used for signature verification."
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  71,
-                  117,
-                  97,
-                  114,
-                  100,
-                  105,
-                  97,
-                  110,
-                  83,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "guardian_signatures.guardian_set_index_be",
-                "account": "guardianSignatures"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                14,
-                10,
-                88,
-                154,
-                65,
-                165,
-                95,
-                189,
-                102,
-                197,
-                42,
-                71,
-                95,
-                45,
-                146,
-                166,
-                211,
-                220,
-                155,
-                71,
-                71,
-                17,
-                76,
-                185,
-                175,
-                130,
-                90,
-                152,
-                181,
-                69,
-                211,
-                206
-              ]
-            }
-          }
+          ]
         },
         {
           "name": "guardianSignatures",

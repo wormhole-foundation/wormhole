@@ -6,6 +6,7 @@ use wormhole_svm_definitions::GUARDIAN_SIGNATURE_LENGTH;
 
 use super::VerifyVaaShimInstruction;
 
+/// Accounts for the post signatures instruction.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostSignaturesAccounts<'ix> {
     pub payer: &'ix Pubkey,
@@ -13,10 +14,24 @@ pub struct PostSignaturesAccounts<'ix> {
     pub guardian_signatures: &'ix Pubkey,
 }
 
+/// Instruction data for the post signatures instruction.
+///
+/// Being contiguous is a feature that allows for the guardian signatures to be
+/// stored in a single slice, which is more efficient for the SVM runtime.
+/// When instruction data is initialized via [PostSignaturesData::new], the
+/// data is not guaranteed to be contiguous.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PostSignaturesData<'ix, const CONTIGUOUS: bool> {
+    /// Argument to encode the guardian set index associated with the guardian
+    /// signatures.
     pub(super) guardian_set_index: u32,
+
+    /// Total expected number of signatures, which determines the total size of
+    /// the guardian signatures account.
     pub(super) total_signatures: u8,
+
+    /// Guardian signatures to load into the guardian signatures account at this
+    /// call.
     pub(super) guardian_signatures: &'ix [[u8; GUARDIAN_SIGNATURE_LENGTH]],
 }
 
@@ -109,24 +124,24 @@ impl<'ix> PostSignaturesData<'ix, true> {
     }
 }
 
-/// Creates or appends to a GuardianSignatures account for subsequent use by
-/// the verify vaa instruction.
+/// Creates or appends to a guardian signatures account for subsequent use by
+/// the verify hash instruction.
 ///
-/// This is necessary as the Wormhole VAA body, which has an arbitrary size,
-/// and 13 guardian signatures (a quorum of the current 19 mainnet guardians, 66
-/// bytes each) alongside the required accounts is likely larger than the
-/// transaction size limit on Solana (1232 bytes).
+/// This instruction is necessary due to the Wormhole VAA body, which has an
+/// arbitrary size, and 13 guardian signatures (a quorum of the current 19
+/// mainnet guardians, 66 bytes each) alongside the required accounts is likely
+/// larger than the transaction size limit on Solana (1232 bytes).
 ///
-/// This will also allow for the verification of other messages which guardians
-/// sign, such as QueryResults.
+/// This instruction will also allow for the verification of other messages
+/// which guardians sign, such as query results.
 ///
 /// This instruction allows for the initial payer to append additional
-/// signatures to the account by calling the instruction again. This may be
-/// necessary if a quorum of signatures from the current guardian set grows
-/// larger than can fit into a single transaction.
+/// signatures to the account by calling the instruction again. Subsequent
+/// calls may be necessary if a quorum of signatures from the current guardian
+/// set grows larger than can fit into a single transaction.
 ///
-/// The GuardianSignatures account can be closed by the initial payer via the
-/// close signatures instruction, which will refund the initial payer.
+/// The guardian signatures account can be closed by the initial payer via the
+/// close signatures instruction, which will refund this payer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostSignatures<'ix> {
     pub program_id: &'ix Pubkey,
@@ -135,6 +150,7 @@ pub struct PostSignatures<'ix> {
 }
 
 impl PostSignatures<'_> {
+    /// Generate SVM instruction.
     #[inline]
     pub fn instruction(&self) -> Instruction {
         Instruction {

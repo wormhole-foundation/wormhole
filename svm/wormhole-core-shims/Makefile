@@ -10,7 +10,7 @@ clean:
 
 .PHONY: build
 build: solana-install
-	cargo build-sbf
+	cargo build-sbf --features $(SVM)
 
 .PHONY: test
 test: solana-install $(POST_MESSAGE_TEST_FIXTURES_PATH)/core_bridge.so

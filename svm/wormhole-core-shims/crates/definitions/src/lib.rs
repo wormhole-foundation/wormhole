@@ -1,3 +1,6 @@
+#![deny(dead_code, unused_imports, unused_mut, unused_variables)]
+#![doc = include_str!("../README.md")]
+
 #[cfg(feature = "borsh")]
 pub mod borsh;
 pub mod solana;
@@ -29,7 +32,10 @@ pub const GUARDIAN_SET_SEED: &[u8] = b"GuardianSet";
 /// Anchor event CPI's authority seed.
 pub const EVENT_AUTHORITY_SEED: &[u8] = b"__event_authority";
 
+/// Wormhole Post Message Shim's message event instruction data discriminator.
 pub const MESSAGE_EVENT_DISCRIMINATOR: [u8; 8] = make_anchor_discriminator(b"event:MessageEvent");
+
+/// Wormhole Verify VAA Shim's guardian signatures account data discriminator.
 pub const GUARDIAN_SIGNATURES_DISCRIMINATOR: [u8; 8] =
     make_anchor_discriminator(b"account:GuardianSignatures");
 
@@ -149,8 +155,10 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 
 /// Trait to encode and decode the SVM finality of a message.
 pub trait EncodeFinality: Sized + Copy {
+    /// Encode SVM finality into a byte.
     fn encode(&self) -> u8;
 
+    /// Decode SVM finality from a byte.
     fn decode(data: u8) -> Option<Self>;
 }
 

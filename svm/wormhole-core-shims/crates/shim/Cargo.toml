@@ -1,6 +1,6 @@
 [package]
 name = "wormhole-svm-shim"
-description = "Wormhole SVM Shims API"
+description = "Wormhole SVM Shim Programs API"
 
 edition.workspace = true
 license.workspace = true

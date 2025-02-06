@@ -13,7 +13,8 @@ version.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [features]
-default = ["solana"]
+default = []
+no-entrypoint = []
 
 ### Network types
 testnet = ["wormhole-svm-definitions/testnet"]
@@ -21,12 +22,6 @@ localnet = ["wormhole-svm-definitions/localnet"]
 
 ### Specific networks
 solana = ["wormhole-svm-definitions/solana"]
-
-### TODO: purge these
-cpi = ["no-entrypoint"]
-no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
 
 [dependencies]
 solana-program.workspace = true

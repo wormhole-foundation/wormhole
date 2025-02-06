@@ -51,6 +51,10 @@ export type WormholeIntegratorExample = {
       ],
       "args": [
         {
+          "name": "guardianSetBump",
+          "type": "u8"
+        },
+        {
           "name": "vaaBody",
           "type": "bytes"
         }
@@ -407,3 +411,4 @@ export type WormholeIntegratorExample = {
     }
   ]
 };
+

@@ -5,8 +5,8 @@ import {
   Wallet,
   web3,
 } from "@coral-xyz/anchor";
-import WormholePostMessageShimIdl from "./idls/devnet/wormhole_post_message_shim.json";
-import { WormholePostMessageShim } from "./idls/devnet/wormhole_post_message_shim";
+import WormholePostMessageShimIdl from "../idls/wormhole_post_message_shim.json";
+import { WormholePostMessageShim } from "../idls/wormhole_post_message_shim";
 import WormholeIntegratorExampleIdl from "./idls/devnet/wormhole_integrator_example.json";
 import { WormholeIntegratorExample } from "./idls/devnet/wormhole_integrator_example";
 import { getSequenceFromTx } from "./helpers";
@@ -19,7 +19,7 @@ import { getSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormh
   const SOLANA_RPC_URL = "http://127.0.0.1:8899";
   const GUARDIAN_URL = "http://127.0.0.1:7071";
 
-  const coreBridgeAddress = new web3.PublicKey(
+  const CORE_BRIDGE_PROGRAM_ID = new web3.PublicKey(
     "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
   );
 
@@ -74,10 +74,7 @@ import { getSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormh
       )
       .accounts({
         emitter: program.provider.publicKey,
-        // sequence: web3.PublicKey.findProgramAddressSync(
-        //   [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
-        //   new web3.PublicKey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o")
-        // )[0],
+        wormholeProgram: CORE_BRIDGE_PROGRAM_ID,
       })
       .preInstructions([
         // gotta pay the fee

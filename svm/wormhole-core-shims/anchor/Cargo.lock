@@ -2680,7 +2680,6 @@ name = "wormhole-post-message-shim"
 version = "0.0.0"
 dependencies = [
  "anchor-lang",
- "wormhole-svm-definitions",
 ]
 
 [[package]]

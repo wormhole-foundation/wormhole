@@ -1,32 +1,56 @@
 # Wormhole Core Shims
 
-The intent of the following programs is to reduce the cost of Core Bridge message emission and verification on Solana without making changes to the existing core bridge.
+The intent of the following programs is to reduce the cost of Core Bridge
+message emission and verification on Solana without making changes to the
+existing core bridge.
 
-- [Wormhole Post Message Shim](programs/wormhole-post-message-shim/README.md)
-- [Wormhole Verify VAA Shim](programs/wormhole-verify-vaa-shim/README.md)
+- [Wormhole Post Message Shim]
+- [Wormhole Verify VAA Shim]
 
 The following are provided for example purposes only
 
-- [Wormhole Integrator Example](programs/wormhole-integrator-example/src/lib.rs)
+- [Wormhole Integrator Example]
 
 ## Tests
 
-See examples of integration testing each program in [tests](tests); run with `anchor test`.
+To perform unit, doc and integration tests, run:
 
-For initial end-to-end (e2e) testing the post message shim with the guardian, the programs were built with the following:
-
-```bash
-anchor build -- --no-default-features --features localnet
+```sh
+make test
 ```
 
-The resulting `.so`s were then
+Integration tests are run using `cargo test-sbf`, but this requires having the
+Solana toolchain installed via [agave-install].
 
-- copied to [../../solana/tests/artifacts](../../solana/tests/artifacts)
-- copied into the test validator dockerfile in [../../solana/Dockerfile.test-validator](../../solana/Dockerfile.test-validator)
-- and loaded into the test validator at startup in [../../devnet/solana-devnet.yaml](../../devnet/solana-devnet.yaml)
+Programs are built using Solana version 2.1.11, which is the current CLI
+available at the time these programs were written.
 
-The IDLs for devnet (as the Wormhole core program is different) were copied into [tests/idls/devnet](tests/idls/devnet).
+**The `make` command above will initialize the Solana CLI version needed to
+build and test. After running the tests, your CLI will still be configured to
+this version. Please note your Solana CLI version before running this command.**
 
-The e2e tests can then be run with `npx tsx tests/e2e.ts` against a running Tilt environment with at least `tilt up -- --solana --manual`.
+There are separate Anchor tests found in the [anchor directory].
 
-These are _not_ currently run within Tilt. It would be prudent to both build and run these within Tilt once the shim approach has been finalized.
+For initial end-to-end (e2e) testing the post message shim with the guardian,
+the programs were built with the following:
+
+```sh
+SVM=solana make build
+```
+
+Please see the [anchor directory] to build the examples. The resulting program
+binaries were then
+
+- Copied to [../../solana/tests/artifacts]
+- Copied into the test validator dockerfile in
+  [../../solana/Dockerfile.test-validator]
+- Loaded into the test validator at startup in [../../devnet/solana-devnet.yaml]
+
+[../../devnet/solana-devnet.yaml]: ../../devnet/solana-devnet.yaml
+[../../solana/Dockerfile.test-validator]: ../../solana/Dockerfile.test-validator
+[../../solana/tests/artifacts]: ../../solana/tests/artifacts
+[agave-install]: https://docs.anza.xyz/cli/install#use-the-solana-install-tool
+[anchor directory]: anchor
+[Wormhole Integrator Example]: anchor/programs/wormhole-integrator-example/src/lib.rs
+[Wormhole Post Message Shim]: programs/wormhole-post-message-shim/README.md
+[Wormhole Verify VAA Shim]: programs/wormhole-verify-vaa-shim/README.md

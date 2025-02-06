@@ -17,18 +17,6 @@ no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build"]
 
-### NOTE: IDL builder breaks if there is no default network feature.
-###
-### TODO: Consider a way to generate IDLs for other SVMs.
-default = ["solana"]
-
-### Network types
-testnet = ["wormhole-svm-definitions/testnet"]
-localnet = ["wormhole-svm-definitions/localnet"]
-
-### Specific networks
-solana = ["wormhole-svm-definitions/solana"]
-
 [dependencies]
 anchor-lang.workspace = true
 wormhole-svm-definitions.workspace = true

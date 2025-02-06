@@ -4,6 +4,10 @@ import { expect } from "chai";
 import { WormholePostMessageShim } from "../idls/wormhole_post_message_shim";
 import { getSequenceFromTx, logCostAndCompute } from "./helpers";
 
+const CORE_BRIDGE_PROGRAM_ID = new anchor.web3.PublicKey(
+  "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+);
+
 describe("wormhole-post-message-shim", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -16,6 +20,7 @@ describe("wormhole-post-message-shim", () => {
       .postMessage(0, { confirmed: {} }, Buffer.from(msg, "ascii"))
       .accounts({
         emitter: program.provider.publicKey,
+        wormholeProgram: CORE_BRIDGE_PROGRAM_ID,
         // sequence: anchor.web3.PublicKey.findProgramAddressSync(
         //   [Buffer.from("Sequence"), program.provider.publicKey.toBuffer()],
         //   new anchor.web3.PublicKey(
@@ -112,9 +117,7 @@ describe("wormhole-post-message-shim", () => {
                   Buffer.from("Sequence"),
                   program.provider.publicKey.toBuffer(),
                 ],
-                new anchor.web3.PublicKey(
-                  "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
-                )
+                CORE_BRIDGE_PROGRAM_ID
               )[0],
             },
             {

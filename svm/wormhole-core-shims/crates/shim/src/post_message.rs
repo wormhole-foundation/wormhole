@@ -1,3 +1,5 @@
+//! Wormhole Post Message Shim program instruction and related types.
+
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -76,20 +78,18 @@ pub struct PostMessageAccounts<'ix> {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct PostMessageDerivedAccounts<'ix> {
-    /// Wormhole Core Bridge config. Wormhole Core Bridge program's post message
-    /// instruction requires this account be mutable.
+    /// Wormhole Core Bridge config. The Wormhole Core Bridge program's post
+    /// message instruction requires this account to be mutable.
     pub core_bridge_config: Option<&'ix Pubkey>,
 
-    /// Wormhole Message. Wormhole Core Bridge program's post message
+    /// Wormhole Message. The Wormhole Core Bridge program's post message
     /// instruction requires this account to be a mutable signer.
     ///
-    /// The Wormhole Post Message Shim program uses a PDA per emitter because
-    /// these messages are already bottle-necked by sequence and the Wormhole
-    /// Core Bridge program enforces that the emitter must be identical for
-    /// reused accounts.
-    ///
-    /// While this could be managed by the integrator, it seems more effective
-    /// to have the Wormhole Post Message Shim program manage these accounts.
+    /// This program uses a PDA per emitter. Messages are already bottle-necked
+    /// by emitter sequence and the Wormhole Core Bridge program enforces that
+    /// emitter must be identical for reused accounts. While this could be
+    /// managed by the integrator, it seems more effective to have this Shim
+    /// program manage these accounts.
     pub message: Option<&'ix Pubkey>,
 
     /// Emitter's sequence account. Wormhole Core Bridge program's post message
@@ -188,27 +188,35 @@ impl<'ix, F: EncodeFinality> PostMessageData<'ix, F> {
 }
 
 /// This instruction is intended to be a significantly cheaper alternative to
-/// `post_message` on the core bridge. It achieves this by reusing the message
-/// account, per emitter, via `post_message_unreliable` and emitting a CPI event
-/// for the guardian to observe containing the information previously only found
-/// in the resulting message account. Since this passes through the emitter and
-/// calls `post_message_unreliable` on the core bridge, it can be used (or not
-/// used) without disruption.
+/// the post message instruction on Wormhole Core Bridge program. It achieves
+/// this by reusing the message account (per emitter) via the post message
+/// unreliable instruction and emitting data via self-CPI (Anchor event)
+/// for the guardian to observe. This instruction data contains information
+/// previously found only in the resulting message account.
+///
+/// Because this instruction passes through the emitter and calls the post
+/// message unreliable instruction on the Wormhole Core Bridge, it can be used
+/// without disruption.
 ///
 /// NOTE: In the initial message publication for a new emitter, this will
-/// require one additional CPI call depth when compared to using the core bridge
-/// directly. If that is an issue, simply emit an empty message on
-/// initialization (or migration) in order to instantiate the account. This will
-/// result in a VAA from your emitter, so be careful to avoid any issues that
-/// may result in.
+/// require one additional CPI call depth when compared to using the Wormhole
+/// Core Bridge directly. If this initial call depth is an issue, emit an empty
+/// message on initialization (or migration) in order to instantiate the
+/// message account. Posting a message will result in a VAA from your emitter,
+/// so be careful to avoid any issues that may result from this first message.
 ///
-/// Direct case
-/// shim `PostMessage` -> core `0x8`
-///                    -> shim `MesssageEvent`
+/// Call depth of direct case:
+/// 1. post message (Wormhole Post Message Shim)
+/// 2. multiple CPI
+///     - post message unreliable (Wormhole Core Bridge)
+///     - Anchor event of `MesssageEvent` (Wormhole Post Message Shim)
 ///
-/// Integration case
-/// Integrator Program -> shim `PostMessage` -> core `0x8`
-///                                          -> shim `MesssageEvent`
+/// Call depth of integrator case:
+/// 1. integrator instruction
+/// 2. CPI post message (Wormhole Post Message Shim)
+/// 3. multiple CPI
+///    - post message unreliable (Wormhole Core Bridge)
+///    - Anchor event of `MesssageEvent` (Wormhole Post Message Shim)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostMessage<'ix, F: EncodeFinality> {
     pub program_id: &'ix Pubkey,

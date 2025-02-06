@@ -45,6 +45,10 @@
       ],
       "args": [
         {
+          "name": "guardian_set_bump",
+          "type": "u8"
+        },
+        {
           "name": "vaa_body",
           "type": "bytes"
         }
@@ -234,13 +238,6 @@
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "rent",
-          "docs": [
-            "Rent sysvar."
-          ],
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
           "name": "wormhole_program",
           "address": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
         },
@@ -388,14 +385,6 @@
             "Type for IDL generation / convenience, it will be enforced by the core bridge."
           ],
           "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "docs": [
-            "Rent sysvar.",
-            "Type added for IDL generation / convenience, it will be enforced by the core bridge."
-          ],
-          "address": "SysvarRent111111111111111111111111111111111"
         },
         {
           "name": "wormhole_program",

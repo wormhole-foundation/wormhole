@@ -1,3 +1,5 @@
+//! Wormhole Verify VAA Shim program instructions and related types.
+
 mod close_signatures;
 mod post_signatures;
 mod verify_hash;
@@ -8,6 +10,7 @@ pub use verify_hash::*;
 
 use wormhole_svm_definitions::{make_anchor_discriminator, Hash, GUARDIAN_SIGNATURE_LENGTH};
 
+/// Instructions for the Verify VAA Shim program.
 pub enum VerifyVaaShimInstruction<'ix, const CONTIGUOUS: bool> {
     PostSignatures(PostSignaturesData<'ix, CONTIGUOUS>),
     VerifyHash(VerifyHashData),
@@ -23,6 +26,7 @@ impl<const CONTIGUOUS: bool> VerifyVaaShimInstruction<'_, CONTIGUOUS> {
 }
 
 impl VerifyVaaShimInstruction<'_, false> {
+    /// Serialize the instruction data.
     #[inline]
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
@@ -62,6 +66,7 @@ impl VerifyVaaShimInstruction<'_, false> {
 }
 
 impl<'ix> VerifyVaaShimInstruction<'ix, true> {
+    /// Deserialize the instruction data.
     #[inline]
     pub fn deserialize(data: &'ix [u8]) -> Option<Self> {
         if data.len() < 8 {

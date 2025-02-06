@@ -5,10 +5,17 @@ use solana_program::{
 
 use super::VerifyVaaShimInstruction;
 
+/// Accounts for the close signatures instruction.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CloseSignaturesAccounts<'ix> {
+    /// Guardian signatures account created using [PostSignatures]. This account
+    /// will be closed and the rent refunded to the original payer.
+    ///
+    /// [PostSignatures]: super::PostSignatures
     pub guardian_signatures: &'ix Pubkey,
 
+    /// Original payer of the guardian signatures account. This account will
+    /// receive the rent refund when the guardian signatures account is closed.
     pub refund_recipient: &'ix Pubkey,
 }
 
@@ -20,6 +27,7 @@ pub struct CloseSignatures<'ix> {
 }
 
 impl CloseSignatures<'_> {
+    /// Generate SVM instruction.
     pub fn instruction(&self) -> Instruction {
         Instruction {
             program_id: *self.program_id,
