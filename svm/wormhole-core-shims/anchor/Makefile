@@ -43,4 +43,8 @@ check-idl: build-interfaces
 
 .PHONY: solana-install
 solana-install:
-	agave-install init $(SOLANA_VERSION)
+	@if ! solana --version | grep -q "$(SOLANA_VERSION)"; then \
+		agave-install init $(SOLANA_VERSION); \
+	else \
+		echo "Solana $(SOLANA_VERSION) is already installed"; \
+	fi

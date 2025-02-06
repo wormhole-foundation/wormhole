@@ -35,7 +35,7 @@ For initial end-to-end (e2e) testing the post message shim with the guardian,
 the programs were built with the following:
 
 ```sh
-SVM=solana make build
+NETWORK=localnet SVM=solana make build
 ```
 
 Please see the [anchor directory] to build the examples. The resulting program
