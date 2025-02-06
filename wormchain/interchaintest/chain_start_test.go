@@ -1,4 +1,4 @@
-package interchaintest
+package ictest
 
 import (
 	"testing"

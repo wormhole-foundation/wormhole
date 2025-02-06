@@ -1,4 +1,4 @@
-package interchaintest
+package ictest
 
 import (
 	"encoding/json"
@@ -62,7 +62,7 @@ func TestMalformedPayload(t *testing.T) {
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, vaa.ChainIDWormchain, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 

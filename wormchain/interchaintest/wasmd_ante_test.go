@@ -1,4 +1,4 @@
-package interchaintest
+package ictest
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	wasmdante "github.com/wormhole-foundation/wormchain/x/wormhole/ante"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func TestWasmdAnteDecorator(t *testing.T) {
@@ -48,7 +49,7 @@ func TestWasmdAnteDecorator(t *testing.T) {
 
 	// === PART #4 ===
 	// Instantiate contract via Wormhole (pass)
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, vaa.ChainIDWormchain, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 

@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/stretchr/testify/require"
 )
 
 // QueryContractInfo queries the information about a contract like the admin and code_id.
 func QueryContractInfo(t *testing.T, chain *cosmos.CosmosChain, ctx context.Context, contractAddress string) ContractInfoResponse {
-	stdout, _, err := chain.GetFullNode().ExecQuery(ctx,
+	stdout, _, err := chain.FullNodes[0].ExecQuery(ctx,
 		"wasm", "contract", contractAddress,
 	)
 	require.NoError(t, err)

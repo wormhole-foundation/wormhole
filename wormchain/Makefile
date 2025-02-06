@@ -134,10 +134,6 @@ ictest-wormchain: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
 .PHONY: ictest-wormchain
 
-ictest-wormchain: rm-testcache
-	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
-.PHONY: ictest-wormchain
-
 ictest-ibc-receiver: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestIbcReceiver ./...
 .PHONY: ictest-ibc-receiver

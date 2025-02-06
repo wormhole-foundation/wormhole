@@ -11,8 +11,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	ethCommon "github.com/ethereum/go-ethereum/common"
-
 	tmAbci "github.com/cometbft/cometbft/abci/types"
 	tmHttp "github.com/cometbft/cometbft/rpc/client/http"
 	tmCoreTypes "github.com/cometbft/cometbft/rpc/core/types"

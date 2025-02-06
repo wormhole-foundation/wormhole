@@ -1,10 +1,11 @@
 module github.com/wormhole-foundation/wormchain/interchaintest
 
-go 1.22.7
+go 1.23.3
 
 require (
 	cosmossdk.io/math v1.4.0
 	github.com/btcsuite/btcd/btcutil v1.1.6
+	github.com/cometbft/cometbft v0.37.15
 	github.com/cosmos/cosmos-sdk v0.47.12
 	github.com/cosmos/ibc-go/v7 v7.6.0
 	github.com/docker/docker v24.0.7+incompatible
@@ -55,7 +56,6 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0 // indirect
-	github.com/cometbft/cometbft v0.37.15 // indirect
 	github.com/cometbft/cometbft-db v0.9.5 // indirect
 	github.com/confio/ics23/go v0.9.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect

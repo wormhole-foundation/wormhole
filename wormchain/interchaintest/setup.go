@@ -1,4 +1,4 @@
-package interchaintest
+package ictest
 
 import (
 	"context"
@@ -78,12 +78,29 @@ func WormchainEncoding() *testutil.TestEncodingConfig {
 	return cfg
 }
 
-func CreateChains(t *testing.T, wormchainVersion string, guardians guardians.ValSet) []ibc.Chain {
-	numWormchainVals := len(guardians.Vals)
-	wormchainConfig.Images[0].Version = wormchainVersion
+// CreateChain generates a new chain with a custom image (useful for upgrades)
+func CreateChain(t *testing.T, guardians guardians.ValSet, img ibc.DockerImage) []ibc.Chain {
+	cfg := WormchainConfig
+	cfg.ModifyGenesis = ModifyGenesis(VotingPeriod, MaxDepositPeriod, guardians, len(guardians.Vals), false)
+	cfg.Images = []ibc.DockerImage{img}
 
-	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
+	// Append env variable to flag chain as sdk 47 or not
+	if img.Version == WormchainLocalVersion || strings.Contains(img.Version, "v3") {
+		cfg.Env = []string{"ICT_ABOVE_SDK_47=true"}
+	} else {
+		cfg.Env = []string{"ICT_ABOVE_SDK_47=false"}
+	}
+
+	return CreateChainWithCustomConfig(t, guardians, cfg)
+}
+
+// CreateLocalChain generates a new chain with the local image of Wormchain
+func CreateLocalChain(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
+	return CreateChain(t, guardians, WormchainImage)
+}
+
+func CreateChainWithCustomConfig(t *testing.T, guardians guardians.ValSet, config ibc.ChainConfig) []ibc.Chain {
+	numVals := len(guardians.Vals)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
@@ -258,8 +275,8 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			Index: 0,
 			Keys:  [][]byte{},
 		}
-		guardianValidators := []GuardianValidator{}
-		for i := 0; i < numVals; i++ {
+		guardianValidators := []wormholetypes.GuardianValidator{}
+		for i := 0; i < len(guardians.Vals); i++ {
 			guardianSet.Keys = append(guardianSet.Keys, guardians.Vals[i].Addr)
 			guardianValidators = append(guardianValidators, wormholetypes.GuardianValidator{
 				GuardianKey:   guardians.Vals[i].Addr,
@@ -280,11 +297,13 @@ func ModifyGenesis(votingPeriod string, maxDepositPeriod string, guardians guard
 			AllowedAddress:   faucetAddress.(string),
 			Name:             "Faucet",
 		})
-		allowedAddresses = append(allowedAddresses, ValidatorAllowedAddress{
-			ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
-			AllowedAddress:   relayerAddress.(string),
-			Name:             "Relayer",
-		})
+		if !skipRelayers {
+			allowedAddresses = append(allowedAddresses, wormholetypes.ValidatorAllowedAddress{
+				ValidatorAddress: sdk.MustBech32ifyAddressBytes(chainConfig.Bech32Prefix, validators[0]),
+				AllowedAddress:   relayerAddress.(string),
+				Name:             "Relayer",
+			})
+		}
 		if err := dyno.Set(g, allowedAddresses, "app_state", "wormhole", "allowedAddresses"); err != nil {
 			return nil, fmt.Errorf("failed to set guardian validator list: %w", err)
 		}

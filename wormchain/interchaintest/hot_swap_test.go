@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
-	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/testreporter"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
@@ -25,20 +25,20 @@ import (
 )
 
 func SetupHotSwapChain(t *testing.T, wormchainVersion string, guardians guardians.ValSet, numVals int) ibc.Chain {
-	wormchainConfig.Images[0].Version = wormchainVersion
+	WormchainConfig.Images[0].Version = wormchainVersion
 
 	if wormchainVersion == "local" {
-		wormchainConfig.Images[0].Repository = "wormchain"
+		WormchainConfig.Images[0].Repository = "wormchain"
 	}
 
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, numVals, true)
+	WormchainConfig.ModifyGenesis = ModifyGenesis(VotingPeriod, MaxDepositPeriod, guardians, numVals, true)
 
 	numFullNodes := 0
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
 			ChainName:     "wormchain",
-			ChainConfig:   wormchainConfig,
+			ChainConfig:   WormchainConfig,
 			NumValidators: &numVals,
 			NumFullNodes:  &numFullNodes,
 		},
@@ -58,11 +58,11 @@ type ValidatorInfo struct {
 }
 
 type QueryAllGuardianValidatorResponse struct {
-	GuardianValidators []GuardianValidator `json:"guardianValidator"`
+	GuardianValidators []wormholetypes.GuardianValidator `json:"guardianValidator"`
 }
 
 type QueryGetGuardianValidatorResponse struct {
-	GuardianValidator GuardianValidator `json:"guardianValidator"`
+	GuardianValidator wormholetypes.GuardianValidator `json:"guardianValidator"`
 }
 
 func TestValidatorHotswap(t *testing.T) {

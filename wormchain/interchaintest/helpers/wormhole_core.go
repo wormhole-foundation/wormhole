@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
@@ -56,7 +57,7 @@ func CoreContractInstantiateMsg(t *testing.T, cfg ibc.ChainConfig, vaaChainId va
 
 // QueryConsensusGuardianSetIndex queries the index of the consensus guardian set
 func QueryConsensusGuardianSetIndex(t *testing.T, wormchain *cosmos.CosmosChain, ctx context.Context) uint64 {
-	stdout, _, err := wormchain.GetFullNode().ExecQuery(ctx,
+	stdout, _, err := wormchain.FullNodes[0].ExecQuery(ctx,
 		"wormhole", "show-consensus-guardian-set-index",
 	)
 	require.NoError(t, err)
