@@ -108,6 +108,14 @@ fn process_post_signatures(
 
         GuardianSignatures::MINIMUM_SIZE
     } else {
+        // Because the payer encoded in the guardian signatures is the only
+        // authority to write to this account, we must check that it is a
+        // signer.
+        if !payer_info.is_signer {
+            msg!("Payer (account #1) must be a signer");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         let account_data = guardian_signatures_info.data.borrow();
         let guardian_signatures = GuardianSignatures::new(&account_data).ok_or_else(|| {
             msg!("Guardian signatures (account #2) failed to deserialize");
@@ -315,6 +323,13 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
     // Recipient of guardian signatures account's lamports. This pubkey must
     // match the refund recipient stored in the guardian signatures account.
     let refund_recipient_info = &accounts[1];
+
+    // Because the refund recipient encoded in the guardian signatures is the
+    // only authority to close this account, we must check that it is a signer.
+    if !refund_recipient_info.is_signer {
+        msg!("Refund recipient (account #2) must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
 
     {
         let account_data = guardian_signatures_info.data.borrow();

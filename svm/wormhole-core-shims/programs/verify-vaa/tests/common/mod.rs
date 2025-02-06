@@ -132,29 +132,47 @@ pub fn bump_cu_cost(bump: u8) -> u64 {
 
 pub async fn send_post_signatures_transaction(
     banks_client: &BanksClient,
-    payer_signer: &Keypair,
+    tx_payer_signer: &Keypair,
     guardian_set_index: u32,
     total_signatures: u8,
     guardian_signatures: &[[u8; GUARDIAN_SIGNATURE_LENGTH]],
     recent_blockhash: Hash,
+    guardian_signatures_signer: Option<&Keypair>,
 ) -> (
-    Pubkey, // guardian signatures
+    Pubkey,  // guardian signatures
+    Keypair, // refund recipient signer
     Hash,
 ) {
-    let guardian_signatures_signer = Keypair::new();
+    let refund_recipient_signer = Keypair::new();
+
+    let recent_blockhash = transfer_lamports(
+        banks_client,
+        recent_blockhash,
+        tx_payer_signer,
+        &refund_recipient_signer.pubkey(),
+        2_000_000_000,
+    )
+    .await;
+
+    let arbitrary_signer = Keypair::new();
+    let guardian_signatures_signer = guardian_signatures_signer.unwrap_or(&arbitrary_signer);
+
     let transaction = post_signatures::set_up_transaction(
+        tx_payer_signer,
         guardian_set_index,
         total_signatures,
         guardian_signatures,
-        payer_signer,
-        &guardian_signatures_signer,
+        &refund_recipient_signer,
+        guardian_signatures_signer,
         recent_blockhash,
+        None,
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
 
     (
         guardian_signatures_signer.pubkey(),
+        refund_recipient_signer,
         banks_client.get_latest_blockhash().await.unwrap(),
     )
 }

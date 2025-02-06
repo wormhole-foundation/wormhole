@@ -23,14 +23,14 @@ pub struct BumpCosts {
 }
 
 pub fn set_up_transaction(
-    payer_signer: &Keypair,
+    tx_payer_signer: &Keypair,
     guardian_set_index: u32,
     guardian_signatures: &Pubkey,
     digest: keccak::Hash,
     recent_blockhash: Hash,
     additional_inputs: Option<AdditionalTestInputs>,
 ) -> (VersionedTransaction, BumpCosts) {
-    let payer = payer_signer.pubkey();
+    let tx_payer = tx_payer_signer.pubkey();
 
     let AdditionalTestInputs {
         invalid_guardian_set,
@@ -43,7 +43,7 @@ pub fn set_up_transaction(
         ),
     );
 
-    let post_signatures_ix = verify_vaa::VerifyHash {
+    let verify_hash_ix = verify_vaa::VerifyHash {
         program_id: &VERIFY_VAA_SHIM_PROGRAM_ID,
         accounts: verify_vaa::VerifyHashAccounts {
             guardian_set: &guardian_set,
@@ -58,9 +58,9 @@ pub fn set_up_transaction(
     //
     // NOTE: Invoking the compute budget costs in total 300 CU.
     let message = Message::try_compile(
-        &payer,
+        &tx_payer,
         &[
-            post_signatures_ix,
+            verify_hash_ix,
             ComputeBudgetInstruction::set_compute_unit_price(69),
             ComputeBudgetInstruction::set_compute_unit_limit(340_000),
         ],
@@ -70,7 +70,7 @@ pub fn set_up_transaction(
     .unwrap();
 
     (
-        VersionedTransaction::try_new(VersionedMessage::V0(message), &[payer_signer]).unwrap(),
+        VersionedTransaction::try_new(VersionedMessage::V0(message), &[tx_payer_signer]).unwrap(),
         BumpCosts {
             guardian_set: bump_cu_cost(guardian_set_bump),
         },
