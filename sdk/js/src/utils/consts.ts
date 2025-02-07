@@ -39,6 +39,7 @@ export const CHAINS = {
   berachain: 39,
   seievm: 40,
   snaxchain: 43,
+  unichain: 44,
   worldchain: 45,
   wormchain: 3104,
   cosmoshub: 4000,
@@ -92,6 +93,7 @@ export const EVMChainNames = [
   "berachain",
   "seievm",
   "snaxchain",
+  "unichain",
   "worldchain",
   "sepolia",
   "arbitrum_sepolia",
@@ -350,6 +352,11 @@ const MAINNET = {
   snaxchain: {
     core: "0xc1BA3CC4bFE724A08FbbFbF64F8db196738665f4",
     token_bridge: "0x8B94bfE456B48a6025b92E11Be393BAa86e68410",
+    nft_bridge: undefined,
+  },
+  unichain: {
+    core: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D",
+    token_bridge: "0x3Ff72741fd67D6AD0668d93B41a09248F4700560",
     nft_bridge: undefined,
   },
   worldchain: {
@@ -1113,6 +1120,7 @@ export const CHAIN_ID_LINEA = CHAINS["linea"];
 export const CHAIN_ID_BERACHAIN = CHAINS["berachain"];
 export const CHAIN_ID_SEIEVM = CHAINS["seievm"];
 export const CHAIN_ID_SNAXCHAIN = CHAINS["snaxchain"];
+export const CHAIN_ID_UNICHAIN = CHAINS["unichain"];
 export const CHAIN_ID_WORLDCHAIN = CHAINS["worldchain"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_GATEWAY = CHAIN_ID_WORMCHAIN;

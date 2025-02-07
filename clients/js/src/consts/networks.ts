@@ -124,6 +124,11 @@ const Mainnet = {
     key: getEnvVar("ETH_KEY"),
     chain_id: 480,
   },
+  Unichain: {
+    rpc: "https://unichain-mainnet.g.alchemy.com/v2/2AXTCs3DadR80uNQd-nHRYfXqSX8uVdJ",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 130,
+  },
   Wormchain: {
     rpc: undefined,
     key: undefined,
