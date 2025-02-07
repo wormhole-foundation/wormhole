@@ -20,7 +20,7 @@ func hasKnownSchemePrefix(urlStr string) bool {
 	return false
 }
 
-func validateURL(urlStr string, validSchemes []string) bool {
+func ValidateURL(urlStr string, validSchemes []string) bool {
 	// If no scheme is required, validate host:port format
 	if len(validSchemes) == 1 && validSchemes[0] == "" {
 		host, port, err := net.SplitHostPort(urlStr)
@@ -69,7 +69,7 @@ func RegisterFlagWithValidationOrFail(cmd *cobra.Command, name string, descripti
 			return
 		}
 
-		if valid := validateURL(*flagValue, expectedSchemes); !valid {
+		if valid := ValidateURL(*flagValue, expectedSchemes); !valid {
 			log.Fatalf("Invalid format for flag --%s. Expected format: %s. Example: '%s'", name, formatExample, example)
 		}
 	})

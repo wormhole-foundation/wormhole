@@ -20,6 +20,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/holiman/uint256"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -65,6 +66,7 @@ type nodePrivilegedService struct {
 	guardianSigner  guardiansigner.GuardianSigner
 	guardianAddress ethcommon.Address
 	rpcMap          map[string]string
+	reobservers     interfaces.Reobservers
 }
 
 func NewPrivService(
@@ -78,6 +80,7 @@ func NewPrivService(
 	guardianSigner guardiansigner.GuardianSigner,
 	guardianAddress ethcommon.Address,
 	rpcMap map[string]string,
+	reobservers interfaces.Reobservers,
 
 ) *nodePrivilegedService {
 	return &nodePrivilegedService{
@@ -91,6 +94,7 @@ func NewPrivService(
 		guardianSigner:  guardianSigner,
 		guardianAddress: guardianAddress,
 		rpcMap:          rpcMap,
+		reobservers:     reobservers,
 	}
 }
 
@@ -960,6 +964,20 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 
 	s.logger.Info("sent observation request", zap.Any("request", req.ObservationRequest))
 	return &nodev1.SendObservationRequestResponse{}, nil
+}
+
+func (s *nodePrivilegedService) ReobservetWithEndpoint(ctx context.Context, req *nodev1.ReobservetWithEndpointRequest) (*nodev1.ReobservetWithEndpointResponse, error) {
+	watcher := s.reobservers[vaa.ChainID(req.ChainId)]
+	if watcher == nil {
+		return nil, status.Errorf(codes.Internal, "chain %d does not support reobservation by endpoint", req.ChainId)
+	}
+
+	numObservations, err := watcher.Reobserve(ctx, vaa.ChainID(req.ChainId), req.TxHash, req.Url)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "reobservation failed: %v", err)
+	}
+
+	return &nodev1.ReobservetWithEndpointResponse{NumObservations: numObservations}, nil
 }
 
 func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *nodev1.ChainGovernorStatusRequest) (*nodev1.ChainGovernorStatusResponse, error) {

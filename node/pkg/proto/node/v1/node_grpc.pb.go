@@ -34,6 +34,8 @@ type NodePrivilegedServiceClient interface {
 	// using the node's guardian key. The network rate limits these requests to one per second.
 	// Requests at higher rates will fail silently.
 	SendObservationRequest(ctx context.Context, in *SendObservationRequestRequest, opts ...grpc.CallOption) (*SendObservationRequestResponse, error)
+	// ReobservetWithEndpoint performs a local reobservation request using the specified endpoint.
+	ReobservetWithEndpoint(ctx context.Context, in *ReobservetWithEndpointRequest, opts ...grpc.CallOption) (*ReobservetWithEndpointResponse, error)
 	// ChainGovernorStatus displays the status of the chain governor.
 	ChainGovernorStatus(ctx context.Context, in *ChainGovernorStatusRequest, opts ...grpc.CallOption) (*ChainGovernorStatusResponse, error)
 	// ChainGovernorReload clears the chain governor history and reloads it from the database.
@@ -83,6 +85,15 @@ func (c *nodePrivilegedServiceClient) FindMissingMessages(ctx context.Context, i
 func (c *nodePrivilegedServiceClient) SendObservationRequest(ctx context.Context, in *SendObservationRequestRequest, opts ...grpc.CallOption) (*SendObservationRequestResponse, error) {
 	out := new(SendObservationRequestResponse)
 	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/SendObservationRequest", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodePrivilegedServiceClient) ReobservetWithEndpoint(ctx context.Context, in *ReobservetWithEndpointRequest, opts ...grpc.CallOption) (*ReobservetWithEndpointResponse, error) {
+	out := new(ReobservetWithEndpointResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/ReobservetWithEndpoint", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +201,8 @@ type NodePrivilegedServiceServer interface {
 	// using the node's guardian key. The network rate limits these requests to one per second.
 	// Requests at higher rates will fail silently.
 	SendObservationRequest(context.Context, *SendObservationRequestRequest) (*SendObservationRequestResponse, error)
+	// ReobservetWithEndpoint performs a local reobservation request using the specified endpoint.
+	ReobservetWithEndpoint(context.Context, *ReobservetWithEndpointRequest) (*ReobservetWithEndpointResponse, error)
 	// ChainGovernorStatus displays the status of the chain governor.
 	ChainGovernorStatus(context.Context, *ChainGovernorStatusRequest) (*ChainGovernorStatusResponse, error)
 	// ChainGovernorReload clears the chain governor history and reloads it from the database.
@@ -223,6 +236,9 @@ func (UnimplementedNodePrivilegedServiceServer) FindMissingMessages(context.Cont
 }
 func (UnimplementedNodePrivilegedServiceServer) SendObservationRequest(context.Context, *SendObservationRequestRequest) (*SendObservationRequestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendObservationRequest not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) ReobservetWithEndpoint(context.Context, *ReobservetWithEndpointRequest) (*ReobservetWithEndpointResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReobservetWithEndpoint not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) ChainGovernorStatus(context.Context, *ChainGovernorStatusRequest) (*ChainGovernorStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChainGovernorStatus not implemented")
@@ -314,6 +330,24 @@ func _NodePrivilegedService_SendObservationRequest_Handler(srv interface{}, ctx 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodePrivilegedServiceServer).SendObservationRequest(ctx, req.(*SendObservationRequestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodePrivilegedService_ReobservetWithEndpoint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReobservetWithEndpointRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).ReobservetWithEndpoint(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/ReobservetWithEndpoint",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).ReobservetWithEndpoint(ctx, req.(*ReobservetWithEndpointRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -498,6 +532,10 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendObservationRequest",
 			Handler:    _NodePrivilegedService_SendObservationRequest_Handler,
+		},
+		{
+			MethodName: "ReobservetWithEndpoint",
+			Handler:    _NodePrivilegedService_ReobservetWithEndpoint_Handler,
 		},
 		{
 			MethodName: "ChainGovernorStatus",
