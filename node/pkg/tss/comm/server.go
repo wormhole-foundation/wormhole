@@ -31,8 +31,8 @@ type redialResponse struct {
 }
 
 type redialRequest struct {
-	hostname   string
-	immediatly bool //used to skip waiting in the dialer backoff mechanism
+	hostname    string
+	immediately bool //used to skip waiting in the dialer backoff mechanism
 }
 
 type server struct {
@@ -57,8 +57,8 @@ func (s *server) run() {
 
 	for _, pid := range s.peers {
 		s.enqueueRedialRequest(redialRequest{
-			hostname:   pid.Id,
-			immediatly: false,
+			hostname:    pid.Id,
+			immediately: false,
 		})
 	}
 }
@@ -113,8 +113,8 @@ func (s *server) forceDialIfNotConnected() {
 			hostname := pid.Id
 			if _, ok := s.connections[hostname]; !ok {
 				s.enqueueRedialRequest(redialRequest{
-					hostname:   hostname,
-					immediatly: true,
+					hostname:    hostname,
+					immediately: true,
 				})
 			}
 		}
@@ -128,8 +128,8 @@ func (s *server) send(msg tss.Sendable) {
 		conn, ok := s.connections[hostname]
 		if !ok {
 			s.enqueueRedialRequest(redialRequest{
-				hostname:   hostname,
-				immediatly: false,
+				hostname:    hostname,
+				immediately: false,
 			})
 
 			s.logger.Warn(
@@ -143,8 +143,8 @@ func (s *server) send(msg tss.Sendable) {
 		if err := conn.stream.Send(msg.GetNetworkMessage()); err != nil {
 			delete(s.connections, hostname)
 			s.enqueueRedialRequest(redialRequest{
-				hostname:   hostname,
-				immediatly: false,
+				hostname:    hostname,
+				immediately: false,
 			})
 
 			s.logger.Error(
@@ -183,7 +183,7 @@ func (s *server) dialer() {
 		case <-waiters.WaitOnTimer():
 			dialTo = waiters.Dequeue()
 		case rqst := <-s.requestRedial:
-			if rqst.immediatly {
+			if rqst.immediately {
 				dialTo = rqst.hostname // will drop down to the dialing section.
 			} else {
 				waiters.Enqueue(rqst.hostname)

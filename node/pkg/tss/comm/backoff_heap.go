@@ -13,7 +13,7 @@ const (
 
 // NOT THREAD SAFE! do NOT share between two different goroutines.
 //
-// This struct is a a conjunction of min-heap and timer to create a list of tasks with deadlines cheaply.
+// This struct is a conjunction of min-heap and timer to create a list of tasks with deadlines cheaply.
 // Mainly similar to multiple cases of `time.After(func(){})“, but without using goroutines under the hood for each
 // invocation of Enqueue.
 type backoffHeap struct {
@@ -67,6 +67,7 @@ func (d *backoffHeap) Enqueue(hostname string) {
 	}
 
 	elem.setBackoff()
+
 	d.alreadyInHeap[hostname] = true
 
 	d.Ttlheap.Enqueue(elem)
@@ -79,6 +80,7 @@ func (d *backoffHeap) Dequeue() string {
 	}
 
 	d.alreadyInHeap[elem.hostname] = false
+
 	return elem.hostname
 }
 
