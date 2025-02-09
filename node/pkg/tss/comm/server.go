@@ -236,12 +236,12 @@ func (s *server) dial(hostname string) error {
 	pool := x509.NewCertPool()
 	pool.AddCert(crt) // dialing to peer and accepting his cert only.
 
-	hostname, err := addDefaultPortIfMissing(hostname)
+	dialToAddress, err := addDefaultPortIfMissing(hostname)
 	if err != nil {
 		return err
 	}
 
-	cc, err := grpc.Dial(hostname,
+	cc, err := grpc.Dial(dialToAddress,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			MinVersion:   tls.VersionTLS13,                                    // tls 1.3
 			Certificates: []tls.Certificate{*s.tssMessenger.GetCertificate()}, // our cert to be sent to the peer.
