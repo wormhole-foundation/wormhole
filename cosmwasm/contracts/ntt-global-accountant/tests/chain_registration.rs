@@ -1,6 +1,6 @@
 mod helpers;
 
-use cosmwasm_std::{to_binary, Event};
+use cosmwasm_std::{to_json_binary, Event};
 use helpers::*;
 use ntt_global_accountant::msg::RelayerChainRegistrationResponse;
 use wormhole_sdk::{
@@ -216,7 +216,7 @@ fn bad_serialization() {
     let (v, _) = sign_vaa_body(&wh, create_vaa_body());
 
     // Rather than using the wormhole wire format use cosmwasm json.
-    let data = to_binary(&v).unwrap();
+    let data = to_json_binary(&v).unwrap();
 
     let err = contract
         .submit_vaas(vec![data])

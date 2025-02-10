@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     testing::{mock_dependencies, mock_env},
-    to_binary, to_vec, Binary, ContractResult,
+    to_json_binary, to_json_vec, Binary, ContractResult,
     CosmosMsg::Stargate,
     Reply, Response, SubMsgResponse, SystemError, SystemResult, Uint128, WasmQuery,
 };
@@ -206,7 +206,7 @@ fn handle_complete_transfer_reply_invalid_response_data_type() {
     // encode a payload as protobuf
     // the payload is NOT a CompleteTransferResponse
     let execute_reply = MsgExecuteContractResponse {
-        data: to_vec(&AssetInfo::NativeToken {
+        data: to_json_vec(&AssetInfo::NativeToken {
             denom: "denomA".to_string(),
         })
         .unwrap(),
@@ -235,7 +235,7 @@ fn handle_complete_transfer_reply_no_response_contract() {
     // encode a payload as protobuf
     // the payload is a CompleteTransferResponse
     let execute_reply = MsgExecuteContractResponse {
-        data: to_vec(&CompleteTransferResponse {
+        data: to_json_vec(&CompleteTransferResponse {
             contract: None,
             denom: None,
             recipient: "fake".to_string(),
@@ -472,7 +472,7 @@ fn convert_cw20_to_bank_happy_path_create_denom() {
             contract_addr: _,
             msg: _,
         } => SystemResult::Ok(ContractResult::Ok(
-            to_binary(&token_info_response_copy).unwrap(),
+            to_json_binary(&token_info_response_copy).unwrap(),
         )),
         _ => SystemResult::Err(SystemError::UnsupportedRequest {
             kind: "wasm".to_string(),
@@ -578,7 +578,7 @@ fn convert_cw20_to_bank_happy_path_create_denom_empty_symbol() {
             contract_addr: _,
             msg: _,
         } => SystemResult::Ok(ContractResult::Ok(
-            to_binary(&token_info_response_copy).unwrap(),
+            to_json_binary(&token_info_response_copy).unwrap(),
         )),
         _ => SystemResult::Err(SystemError::UnsupportedRequest {
             kind: "wasm".to_string(),
