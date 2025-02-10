@@ -3,10 +3,9 @@ package keeper_test
 import (
 	"fmt"
 
-	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	//banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 // TestMintDenomMsg tests TypeMsgMint message is emitted on a successful mint
@@ -91,23 +90,23 @@ func (suite *KeeperTestSuite) TestBurnDenomMsg() {
 
 // TestCreateDenomMsg tests TypeMsgCreateDenom message is emitted on a successful denom creation
 func (suite *KeeperTestSuite) TestCreateDenomMsg() {
-	//defaultDenomCreationFee := types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(50000000)))}
+	// defaultDenomCreationFee := types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(50000000)))}
 	for _, tc := range []struct {
-		desc string
-		//denomCreationFee      types.Params
+		desc                  string
+		denomCreationFee      types.Params
 		subdenom              string
 		valid                 bool
 		expectedMessageEvents int
 	}{
 		{
 			desc: "subdenom too long",
-			//denomCreationFee: defaultDenomCreationFee,
+			// denomCreationFee: defaultDenomCreationFee,
 			subdenom: "assadsadsadasdasdsadsadsadsadsadsadsklkadaskkkdasdasedskhanhassyeunganassfnlksdflksafjlkasd",
 			valid:    false,
 		},
 		{
 			desc: "success case: defaultDenomCreationFee",
-			//denomCreationFee:      defaultDenomCreationFee,
+			// denomCreationFee:      defaultDenomCreationFee,
 			subdenom:              "evmos",
 			valid:                 true,
 			expectedMessageEvents: 1,
@@ -115,11 +114,13 @@ func (suite *KeeperTestSuite) TestCreateDenomMsg() {
 	} {
 		suite.SetupTest()
 		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
-			//tokenFactoryKeeper := suite.App.TokenFactoryKeeper
+			tokenFactoryKeeper := suite.App.TokenFactoryKeeper
 			ctx := suite.Ctx.WithEventManager(sdk.NewEventManager())
 			suite.Require().Equal(0, len(ctx.EventManager().Events()))
 			// Set denom creation fee in params
-			//tokenFactoryKeeper.SetParams(suite.Ctx, tc.denomCreationFee)
+			if err := tokenFactoryKeeper.SetParams(suite.Ctx, tc.denomCreationFee); err != nil {
+				suite.Require().NoError(err)
+			}
 			// Test create denom message
 			suite.msgServer.CreateDenom(sdk.WrapSDKContext(ctx), types.NewMsgCreateDenom(suite.TestAccs[0].String(), tc.subdenom)) //nolint:errcheck
 			// Ensure current number and type of event is emitted
@@ -179,8 +180,8 @@ func (suite *KeeperTestSuite) TestChangeAdminDenomMsg() {
 	}
 }
 
-// TestSetDenomMetaDataMsg tests TypeMsgSetDenomMetadata message is emitted on a successful denom metadata change
 // Capability disabled
+// TestSetDenomMetaDataMsg tests TypeMsgSetDenomMetadata message is emitted on a successful denom metadata change
 /*func (suite *KeeperTestSuite) TestSetDenomMetaDataMsg() {
 	// setup test
 	suite.SetupTest()
@@ -211,7 +212,7 @@ func (suite *KeeperTestSuite) TestChangeAdminDenomMsg() {
 				Name:    "OSMO",
 				Symbol:  "OSMO",
 			}),
-			expectedPass:          false,
+			expectedPass:          true,
 			expectedMessageEvents: 1,
 		},
 		{
@@ -237,6 +238,7 @@ func (suite *KeeperTestSuite) TestChangeAdminDenomMsg() {
 		},
 	} {
 		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			tc := tc
 			ctx := suite.Ctx.WithEventManager(sdk.NewEventManager())
 			suite.Require().Equal(0, len(ctx.EventManager().Events()))
 			// Test set denom metadata message

@@ -107,7 +107,6 @@ export interface ProtobufAny {
    * expect it to use in the context of Any. However, for URLs which use the
    * scheme `http`, `https`, or no scheme, one can optionally set up a type
    * server that maps type URLs to message definitions as follows:
-   *
    * * If no scheme is provided, `https` is assumed.
    * * An HTTP GET on the URL must yield a [google.protobuf.Type][]
    *   value in binary format, or produce an error.
@@ -116,11 +115,9 @@ export interface ProtobufAny {
    *   lookup. Therefore, binary compatibility needs to be preserved
    *   on changes to types. (Use versioned type names to manage
    *   breaking changes.)
-   *
    * Note: this functionality is not currently available in the official
    * protobuf release, and it is not used for type URLs beginning with
    * type.googleapis.com.
-   *
    * Schemes other than `http`, `https` (or the empty scheme) might be
    * used with implementation specific semantics.
    */
@@ -139,10 +136,17 @@ export interface RpcStatus {
 ordering of transactions.
 */
 export interface V1AbsoluteTxPosition {
-  /** @format uint64 */
+  /**
+   * BlockHeight is the block the contract was created at
+   * @format uint64
+   */
   block_height?: string;
 
-  /** @format uint64 */
+  /**
+   * TxIndex is a monotonic counter within the block (actual transaction index,
+   * or gas consumed)
+   * @format uint64
+   */
   tx_index?: string;
 }
 
@@ -153,34 +157,31 @@ export interface V1AccessConfig {
   /**
    * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
    *  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
-   *  - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to a single address
-   * Deprecated: use AccessTypeAnyOfAddresses instead
    *  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
    *  - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
    */
   permission?: V1AccessType;
-  address?: string;
   addresses?: string[];
 }
 
 /**
 * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
- - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to a single address
-Deprecated: use AccessTypeAnyOfAddresses instead
  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
  - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
 */
 export enum V1AccessType {
   ACCESS_TYPE_UNSPECIFIED = "ACCESS_TYPE_UNSPECIFIED",
   ACCESS_TYPE_NOBODY = "ACCESS_TYPE_NOBODY",
-  ACCESS_TYPE_ONLY_ADDRESS = "ACCESS_TYPE_ONLY_ADDRESS",
   ACCESS_TYPE_EVERYBODY = "ACCESS_TYPE_EVERYBODY",
   ACCESS_TYPE_ANY_OF_ADDRESSES = "ACCESS_TYPE_ANY_OF_ADDRESSES",
 }
 
 export interface V1CodeInfoResponse {
-  /** @format uint64 */
+  /**
+   * id for legacy support
+   * @format uint64
+   */
   code_id?: string;
   creator?: string;
 
@@ -203,7 +204,10 @@ export interface V1ContractCodeHistoryEntry {
    */
   operation?: V1ContractCodeHistoryOperationType;
 
-  /** @format uint64 */
+  /**
+   * CodeID is the reference to the stored WASM code
+   * @format uint64
+   */
   code_id?: string;
 
   /** Updated Tx position when the operation was executed. */
@@ -226,33 +230,25 @@ export enum V1ContractCodeHistoryOperationType {
   CONTRACT_CODE_HISTORY_OPERATION_TYPE_GENESIS = "CONTRACT_CODE_HISTORY_OPERATION_TYPE_GENESIS",
 }
 
-export interface V1ContractInfo {
-  /** @format uint64 */
-  code_id?: string;
-  creator?: string;
-  admin?: string;
-
-  /** Label is optional metadata to be stored with a contract instance. */
-  label?: string;
-
-  /** Created Tx position when the contract was instantiated. */
-  created?: V1AbsoluteTxPosition;
-  ibc_port_id?: string;
-
-  /**
-   * Extension is an extension point to store custom metadata within the
-   * persistence model.
-   */
-  extension?: ProtobufAny;
-}
-
 export interface V1Model {
-  /** @format byte */
+  /**
+   * hex-encode key to read it better (this is often ascii)
+   * @format byte
+   */
   key?: string;
 
-  /** @format byte */
+  /**
+   * base64-encode raw value
+   * @format byte
+   */
   value?: string;
 }
+
+/**
+* MsgAddCodeUploadParamsAddressesResponse defines the response
+structure for executing a MsgAddCodeUploadParamsAddresses message.
+*/
+export type V1MsgAddCodeUploadParamsAddressesResponse = object;
 
 export type V1MsgClearAdminResponse = object;
 
@@ -260,7 +256,10 @@ export type V1MsgClearAdminResponse = object;
  * MsgExecuteContractResponse returns execution result data.
  */
 export interface V1MsgExecuteContractResponse {
-  /** @format byte */
+  /**
+   * Data contains bytes to returned from the contract
+   * @format byte
+   */
   data?: string;
 }
 
@@ -268,7 +267,10 @@ export interface V1MsgInstantiateContract2Response {
   /** Address is the bech32 address of the new contract instance. */
   address?: string;
 
-  /** @format byte */
+  /**
+   * Data contains bytes to returned from the contract
+   * @format byte
+   */
   data?: string;
 }
 
@@ -276,7 +278,10 @@ export interface V1MsgInstantiateContractResponse {
   /** Address is the bech32 address of the new contract instance. */
   address?: string;
 
-  /** @format byte */
+  /**
+   * Data contains bytes to returned from the contract
+   * @format byte
+   */
   data?: string;
 }
 
@@ -284,7 +289,68 @@ export interface V1MsgInstantiateContractResponse {
  * MsgMigrateContractResponse returns contract migration result data.
  */
 export interface V1MsgMigrateContractResponse {
-  /** @format byte */
+  /**
+   * Data contains same raw bytes returned as data from the wasm contract.
+   * (May be empty)
+   * @format byte
+   */
+  data?: string;
+}
+
+/**
+* MsgPinCodesResponse defines the response structure for executing a
+MsgPinCodes message.
+
+Since: 0.40
+*/
+export type V1MsgPinCodesResponse = object;
+
+/**
+* MsgRemoveCodeUploadParamsAddressesResponse defines the response
+structure for executing a MsgRemoveCodeUploadParamsAddresses message.
+*/
+export type V1MsgRemoveCodeUploadParamsAddressesResponse = object;
+
+/**
+* MsgStoreAndInstantiateContractResponse defines the response structure
+for executing a MsgStoreAndInstantiateContract message.
+
+Since: 0.40
+*/
+export interface V1MsgStoreAndInstantiateContractResponse {
+  /** Address is the bech32 address of the new contract instance. */
+  address?: string;
+
+  /**
+   * Data contains bytes to returned from the contract
+   * @format byte
+   */
+  data?: string;
+}
+
+/**
+* MsgStoreAndMigrateContractResponse defines the response structure
+for executing a MsgStoreAndMigrateContract message.
+
+Since: 0.42
+*/
+export interface V1MsgStoreAndMigrateContractResponse {
+  /**
+   * CodeID is the reference to the stored WASM code
+   * @format uint64
+   */
+  code_id?: string;
+
+  /**
+   * Checksum is the sha256 hash of the stored code
+   * @format byte
+   */
+  checksum?: string;
+
+  /**
+   * Data contains bytes to returned from the contract
+   * @format byte
+   */
   data?: string;
 }
 
@@ -292,32 +358,54 @@ export interface V1MsgMigrateContractResponse {
  * MsgStoreCodeResponse returns store result data.
  */
 export interface V1MsgStoreCodeResponse {
-  /** @format uint64 */
+  /**
+   * CodeID is the reference to the stored WASM code
+   * @format uint64
+   */
   code_id?: string;
 
-  /** @format byte */
+  /**
+   * Checksum is the sha256 hash of the stored code
+   * @format byte
+   */
   checksum?: string;
 }
 
-export type V1MsgUpdateAdminResponse = object;
+/**
+* MsgSudoContractResponse defines the response structure for executing a
+MsgSudoContract message.
+
+Since: 0.40
+*/
+export interface V1MsgSudoContractResponse {
+  /**
+   * Data contains bytes to returned from the contract
+   * @format byte
+   */
+  data?: string;
+}
 
 /**
- * Params defines the set of wasm parameters.
- */
-export interface V1Params {
-  /** AccessConfig access control type. */
-  code_upload_access?: V1AccessConfig;
+* MsgUnpinCodesResponse defines the response structure for executing a
+MsgUnpinCodes message.
 
-  /**
-   * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
-   *  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
-   *  - ACCESS_TYPE_ONLY_ADDRESS: AccessTypeOnlyAddress restricted to a single address
-   * Deprecated: use AccessTypeAnyOfAddresses instead
-   *  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
-   *  - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
-   */
-  instantiate_default_permission?: V1AccessType;
-}
+Since: 0.40
+*/
+export type V1MsgUnpinCodesResponse = object;
+
+export type V1MsgUpdateAdminResponse = object;
+
+export type V1MsgUpdateContractLabelResponse = object;
+
+export type V1MsgUpdateInstantiateConfigResponse = object;
+
+/**
+* MsgUpdateParamsResponse defines the response structure for executing a
+MsgUpdateParams message.
+
+Since: 0.40
+*/
+export type V1MsgUpdateParamsResponse = object;
 
 export interface V1QueryAllContractStateResponse {
   models?: V1Model[];
@@ -348,11 +436,13 @@ export interface V1QueryContractHistoryResponse {
 }
 
 export interface V1QueryContractInfoResponse {
+  /** address is the address of the contract */
   address?: string;
-  contract_info?: V1ContractInfo;
+  contract_info?: Wasmv1ContractInfo;
 }
 
 export interface V1QueryContractsByCodeResponse {
+  /** contracts are a set of contract addresses */
   contracts?: string[];
 
   /** pagination defines the pagination in the response. */
@@ -364,6 +454,7 @@ export interface V1QueryContractsByCodeResponse {
 Query/ContractsByCreator RPC method.
 */
 export interface V1QueryContractsByCreatorResponse {
+  /** ContractAddresses result set */
   contract_addresses?: string[];
 
   /** Pagination defines the pagination in the response. */
@@ -375,7 +466,7 @@ export interface V1QueryContractsByCreatorResponse {
  */
 export interface V1QueryParamsResponse {
   /** params defines the parameters of the module. */
-  params?: V1Params;
+  params?: Wasmv1Params;
 }
 
 export interface V1QueryPinnedCodesResponse {
@@ -386,12 +477,18 @@ export interface V1QueryPinnedCodesResponse {
 }
 
 export interface V1QueryRawContractStateResponse {
-  /** @format byte */
+  /**
+   * Data contains the raw store data
+   * @format byte
+   */
   data?: string;
 }
 
 export interface V1QuerySmartContractStateResponse {
-  /** @format byte */
+  /**
+   * Data contains the json data returned from the smart contract
+   * @format byte
+   */
   data?: string;
 }
 
@@ -443,6 +540,13 @@ export interface V1Beta1PageRequest {
    * is set.
    */
   count_total?: boolean;
+
+  /**
+   * reverse is set to true if results are to be returned in the descending order.
+   *
+   * Since: cosmos-sdk 0.43
+   */
+  reverse?: boolean;
 }
 
 /**
@@ -455,17 +559,70 @@ corresponding request message has used PageRequest.
  }
 */
 export interface V1Beta1PageResponse {
-  /** @format byte */
+  /**
+   * next_key is the key to be passed to PageRequest.key to
+   * query the next page most efficiently. It will be empty if
+   * there are no more results.
+   * @format byte
+   */
   next_key?: string;
 
-  /** @format uint64 */
+  /**
+   * total is total number of results available if PageRequest.count_total
+   * was set, its value is undefined otherwise
+   * @format uint64
+   */
   total?: string;
 }
 
-export type QueryParamsType = Record<string | number, any>;
-export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
+export interface Wasmv1ContractInfo {
+  /**
+   * CodeID is the reference to the stored Wasm code
+   * @format uint64
+   */
+  code_id?: string;
 
-export interface FullRequestParams extends Omit<RequestInit, "body"> {
+  /** Creator address who initially instantiated the contract */
+  creator?: string;
+
+  /** Admin is an optional address that can execute migrations */
+  admin?: string;
+
+  /** Label is optional metadata to be stored with a contract instance. */
+  label?: string;
+
+  /** Created Tx position when the contract was instantiated. */
+  created?: V1AbsoluteTxPosition;
+  ibc_port_id?: string;
+
+  /**
+   * Extension is an extension point to store custom metadata within the
+   * persistence model.
+   */
+  extension?: ProtobufAny;
+}
+
+/**
+ * Params defines the set of wasm parameters.
+ */
+export interface Wasmv1Params {
+  /** AccessConfig access control type. */
+  code_upload_access?: V1AccessConfig;
+
+  /**
+   * - ACCESS_TYPE_UNSPECIFIED: AccessTypeUnspecified placeholder for empty value
+   *  - ACCESS_TYPE_NOBODY: AccessTypeNobody forbidden
+   *  - ACCESS_TYPE_EVERYBODY: AccessTypeEverybody unrestricted
+   *  - ACCESS_TYPE_ANY_OF_ADDRESSES: AccessTypeAnyOfAddresses allow any of the addresses
+   */
+  instantiate_default_permission?: V1AccessType;
+}
+
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
+
+export type QueryParamsType = Record<string | number, any>;
+
+export interface FullRequestParams extends Omit<AxiosRequestConfig, "data" | "params" | "url" | "responseType"> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -475,29 +632,20 @@ export interface FullRequestParams extends Omit<RequestInit, "body"> {
   /** query params */
   query?: QueryParamsType;
   /** format of response (i.e. response.json() -> format: "json") */
-  format?: keyof Omit<Body, "body" | "bodyUsed">;
+  format?: ResponseType;
   /** request body */
   body?: unknown;
-  /** base url */
-  baseUrl?: string;
-  /** request cancellation token */
-  cancelToken?: CancelToken;
 }
 
 export type RequestParams = Omit<FullRequestParams, "body" | "method" | "query" | "path">;
 
-export interface ApiConfig<SecurityDataType = unknown> {
-  baseUrl?: string;
-  baseApiParams?: Omit<RequestParams, "baseUrl" | "cancelToken" | "signal">;
-  securityWorker?: (securityData: SecurityDataType) => RequestParams | void;
+export interface ApiConfig<SecurityDataType = unknown> extends Omit<AxiosRequestConfig, "data" | "cancelToken"> {
+  securityWorker?: (
+    securityData: SecurityDataType | null,
+  ) => Promise<AxiosRequestConfig | void> | AxiosRequestConfig | void;
+  secure?: boolean;
+  format?: ResponseType;
 }
-
-export interface HttpResponse<D extends unknown, E extends unknown = unknown> extends Response {
-  data: D;
-  error: E;
-}
-
-type CancelToken = Symbol | string | number;
 
 export enum ContentType {
   Json = "application/json",
@@ -506,149 +654,86 @@ export enum ContentType {
 }
 
 export class HttpClient<SecurityDataType = unknown> {
-  public baseUrl: string = "";
-  private securityData: SecurityDataType = null as any;
-  private securityWorker: null | ApiConfig<SecurityDataType>["securityWorker"] = null;
-  private abortControllers = new Map<CancelToken, AbortController>();
+  public instance: AxiosInstance;
+  private securityData: SecurityDataType | null = null;
+  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
+  private secure?: boolean;
+  private format?: ResponseType;
 
-  private baseApiParams: RequestParams = {
-    credentials: "same-origin",
-    headers: {},
-    redirect: "follow",
-    referrerPolicy: "no-referrer",
-  };
-
-  constructor(apiConfig: ApiConfig<SecurityDataType> = {}) {
-    Object.assign(this, apiConfig);
+  constructor({ securityWorker, secure, format, ...axiosConfig }: ApiConfig<SecurityDataType> = {}) {
+    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || "" });
+    this.secure = secure;
+    this.format = format;
+    this.securityWorker = securityWorker;
   }
 
-  public setSecurityData = (data: SecurityDataType) => {
+  public setSecurityData = (data: SecurityDataType | null) => {
     this.securityData = data;
   };
 
-  private addQueryParam(query: QueryParamsType, key: string) {
-    const value = query[key];
-
-    return (
-      encodeURIComponent(key) +
-      "=" +
-      encodeURIComponent(Array.isArray(value) ? value.join(",") : typeof value === "number" ? value : `${value}`)
-    );
-  }
-
-  protected toQueryString(rawQuery?: QueryParamsType): string {
-    const query = rawQuery || {};
-    const keys = Object.keys(query).filter((key) => "undefined" !== typeof query[key]);
-    return keys
-      .map((key) =>
-        typeof query[key] === "object" && !Array.isArray(query[key])
-          ? this.toQueryString(query[key] as QueryParamsType)
-          : this.addQueryParam(query, key),
-      )
-      .join("&");
-  }
-
-  protected addQueryParams(rawQuery?: QueryParamsType): string {
-    const queryString = this.toQueryString(rawQuery);
-    return queryString ? `?${queryString}` : "";
-  }
-
-  private contentFormatters: Record<ContentType, (input: any) => any> = {
-    [ContentType.Json]: (input: any) =>
-      input !== null && (typeof input === "object" || typeof input === "string") ? JSON.stringify(input) : input,
-    [ContentType.FormData]: (input: any) =>
-      Object.keys(input || {}).reduce((data, key) => {
-        data.append(key, input[key]);
-        return data;
-      }, new FormData()),
-    [ContentType.UrlEncoded]: (input: any) => this.toQueryString(input),
-  };
-
-  private mergeRequestParams(params1: RequestParams, params2?: RequestParams): RequestParams {
+  private mergeRequestParams(params1: AxiosRequestConfig, params2?: AxiosRequestConfig): AxiosRequestConfig {
     return {
-      ...this.baseApiParams,
+      ...this.instance.defaults,
       ...params1,
       ...(params2 || {}),
       headers: {
-        ...(this.baseApiParams.headers || {}),
+        ...(this.instance.defaults.headers || {}),
         ...(params1.headers || {}),
         ...((params2 && params2.headers) || {}),
       },
     };
   }
 
-  private createAbortSignal = (cancelToken: CancelToken): AbortSignal | undefined => {
-    if (this.abortControllers.has(cancelToken)) {
-      const abortController = this.abortControllers.get(cancelToken);
-      if (abortController) {
-        return abortController.signal;
-      }
-      return void 0;
-    }
+  private createFormData(input: Record<string, unknown>): FormData {
+    return Object.keys(input || {}).reduce((formData, key) => {
+      const property = input[key];
+      formData.append(
+        key,
+        property instanceof Blob
+          ? property
+          : typeof property === "object" && property !== null
+          ? JSON.stringify(property)
+          : `${property}`,
+      );
+      return formData;
+    }, new FormData());
+  }
 
-    const abortController = new AbortController();
-    this.abortControllers.set(cancelToken, abortController);
-    return abortController.signal;
-  };
-
-  public abortRequest = (cancelToken: CancelToken) => {
-    const abortController = this.abortControllers.get(cancelToken);
-
-    if (abortController) {
-      abortController.abort();
-      this.abortControllers.delete(cancelToken);
-    }
-  };
-
-  public request = <T = any, E = any>({
-    body,
+  public request = async <T = any, _E = any>({
     secure,
     path,
     type,
     query,
-    format = "json",
-    baseUrl,
-    cancelToken,
+    format,
+    body,
     ...params
-  }: FullRequestParams): Promise<HttpResponse<T, E>> => {
-    const secureParams = (secure && this.securityWorker && this.securityWorker(this.securityData)) || {};
+  }: FullRequestParams): Promise<AxiosResponse<T>> => {
+    const secureParams =
+      ((typeof secure === "boolean" ? secure : this.secure) &&
+        this.securityWorker &&
+        (await this.securityWorker(this.securityData))) ||
+      {};
     const requestParams = this.mergeRequestParams(params, secureParams);
-    const queryString = query && this.toQueryString(query);
-    const payloadFormatter = this.contentFormatters[type || ContentType.Json];
+    const responseFormat = (format && this.format) || void 0;
 
-    return fetch(`${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`, {
+    if (type === ContentType.FormData && body && body !== null && typeof body === "object") {
+      requestParams.headers.common = { Accept: "*/*" };
+      requestParams.headers.post = {};
+      requestParams.headers.put = {};
+
+      body = this.createFormData(body as Record<string, unknown>);
+    }
+
+    return this.instance.request({
       ...requestParams,
       headers: {
         ...(type && type !== ContentType.FormData ? { "Content-Type": type } : {}),
         ...(requestParams.headers || {}),
       },
-      signal: cancelToken ? this.createAbortSignal(cancelToken) : void 0,
-      body: typeof body === "undefined" || body === null ? null : payloadFormatter(body),
-    }).then(async (response) => {
-      const r = response as HttpResponse<T, E>;
-      r.data = (null as unknown) as T;
-      r.error = (null as unknown) as E;
-
-      const data = await response[format]()
-        .then((data) => {
-          if (r.ok) {
-            r.data = data;
-          } else {
-            r.error = data;
-          }
-          return r;
-        })
-        .catch((e) => {
-          r.error = e;
-          return r;
-        });
-
-      if (cancelToken) {
-        this.abortControllers.delete(cancelToken);
-      }
-
-      if (!response.ok) throw data;
-      return data;
+      params: query,
+      responseType: responseFormat,
+      data: body,
+      url: path,
     });
   };
 }
@@ -672,6 +757,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -691,9 +777,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @summary Code gets the binary code and metadata for a singe wasm code
    * @request GET:/cosmwasm/wasm/v1/code/{code_id}
    */
-  queryCode = (code_id: string, params: RequestParams = {}) =>
+  queryCode = (codeId: string, params: RequestParams = {}) =>
     this.request<V1QueryCodeResponse, RpcStatus>({
-      path: `/cosmwasm/wasm/v1/code/${code_id}`,
+      path: `/cosmwasm/wasm/v1/code/${codeId}`,
       method: "GET",
       format: "json",
       ...params,
@@ -708,17 +794,18 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @request GET:/cosmwasm/wasm/v1/code/{code_id}/contracts
    */
   queryContractsByCode = (
-    code_id: string,
+    codeId: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
     this.request<V1QueryContractsByCodeResponse, RpcStatus>({
-      path: `/cosmwasm/wasm/v1/code/${code_id}/contracts`,
+      path: `/cosmwasm/wasm/v1/code/${codeId}/contracts`,
       method: "GET",
       query: query,
       format: "json",
@@ -755,6 +842,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -797,6 +885,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -816,9 +905,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @summary RawContractState gets single key from the raw store data of a contract
    * @request GET:/cosmwasm/wasm/v1/contract/{address}/raw/{query_data}
    */
-  queryRawContractState = (address: string, query_data: string, params: RequestParams = {}) =>
+  queryRawContractState = (address: string, queryData: string, params: RequestParams = {}) =>
     this.request<V1QueryRawContractStateResponse, RpcStatus>({
-      path: `/cosmwasm/wasm/v1/contract/${address}/raw/${query_data}`,
+      path: `/cosmwasm/wasm/v1/contract/${address}/raw/${queryData}`,
       method: "GET",
       format: "json",
       ...params,
@@ -832,9 +921,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @summary SmartContractState get smart query result from the contract
    * @request GET:/cosmwasm/wasm/v1/contract/{address}/smart/{query_data}
    */
-  querySmartContractState = (address: string, query_data: string, params: RequestParams = {}) =>
+  querySmartContractState = (address: string, queryData: string, params: RequestParams = {}) =>
     this.request<V1QuerySmartContractStateResponse, RpcStatus>({
-      path: `/cosmwasm/wasm/v1/contract/${address}/smart/${query_data}`,
+      path: `/cosmwasm/wasm/v1/contract/${address}/smart/${queryData}`,
       method: "GET",
       format: "json",
       ...params,
@@ -855,6 +944,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -875,17 +965,18 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @request GET:/cosmwasm/wasm/v1/contracts/creator/{creator_address}
    */
   queryContractsByCreator = (
-    creator_address: string,
+    creatorAddress: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
     this.request<V1QueryContractsByCreatorResponse, RpcStatus>({
-      path: `/cosmwasm/wasm/v1/contracts/creator/${creator_address}`,
+      path: `/cosmwasm/wasm/v1/contracts/creator/${creatorAddress}`,
       method: "GET",
       query: query,
       format: "json",

@@ -1,9 +1,0 @@
-syntax = "proto3";
-package wormhole_foundation.wormchain.wormhole;
-
-option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
-
-message ConsensusGuardianSetIndex {
-  uint32 index = 1;
-  
-}
