@@ -339,7 +339,7 @@ func instantiateWormholeIbcContracts(t *testing.T, ctx context.Context,
 
 	// Instantiate the Wormchain core contract
 	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
-	wormchainCoreContractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", "wormhole_core", coreInstantiateMsg, guardians)
+	wormchainCoreContractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/cw_wormhole.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 
 	// Store wormhole-ibc-receiver contract on wormchain
 	ibcReceiverContractCodeId := helpers.StoreContract(t, ctx, wormchain, "faucet", "./contracts/wormchain_ibc_receiver.wasm", guardians)
