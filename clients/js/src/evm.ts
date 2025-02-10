@@ -300,12 +300,12 @@ async function getSigner(
     };
   } else if (chain === "Klaytn" || chain === "Fantom") {
     overrides = { gasPrice: (await signer.getGasPrice()).toString() };
-  } else if (chain === "mantle") {
+  } else if (chain === "Mantle") {
     overrides = {
       maxFeePerGas: ethers.utils.parseUnits("0.2", "gwei"),
       maxPriorityFeePerGas: 0,
     }
-  }
+  } 
   return {
     signer,
     provider,

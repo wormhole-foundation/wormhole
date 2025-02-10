@@ -203,9 +203,9 @@ const Mainnet = {
     chain_id: 59144,
   },
   Berachain: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://rpc.berachain.com",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 80094,
   },
   Snaxchain: {
     rpc: "https://mainnet.snaxchain.io",
@@ -428,6 +428,10 @@ const Testnet = {
     rpc: "https://bartio.rpc.berachain.com/",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 80084,
+  },
+  Unichain: {
+    rpc: undefined,
+    key: undefined,
   },
   Snaxchain: {
     rpc: "https://testnet.snaxchain.io",
@@ -704,6 +708,10 @@ const Devnet = {
   Holesky: {
     rpc: undefined,
     key: undefined,
+  },
+  Unichain: {
+    rpc: undefined,
+    key: undefined
   },
   Wormchain: {
     rpc: "http://localhost:1319",

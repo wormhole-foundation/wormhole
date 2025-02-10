@@ -340,8 +340,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   berachain: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D",
+    token_bridge: "0x3Ff72741fd67D6AD0668d93B41a09248F4700560",
     nft_bridge: undefined,
   },
   seievm: {
@@ -655,6 +655,11 @@ const TESTNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  unichain: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   snaxchain: {
     core: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd",
     token_bridge: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a",
@@ -950,6 +955,11 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   snaxchain: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  unichain: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
