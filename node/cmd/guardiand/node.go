@@ -835,7 +835,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", true)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
 	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
-	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
+	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", true)
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
 	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
 	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, "hyperEvm", false)
