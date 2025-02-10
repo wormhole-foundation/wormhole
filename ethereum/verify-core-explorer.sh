@@ -10,7 +10,6 @@ source "$2"
 
 export CHAIN="$INIT_EVM_CHAIN_ID"
 export ETHERSCAN_API_KEY=$(jq --raw-output ".[] | select(.chainId == $INIT_CHAIN_ID) | .etherscan" "$SCAN_API_TOKENS")
-
 if [ -z $ETHERSCAN_API_KEY ]; then
   echo "No Etherscan API key found for chain $INIT_CHAIN_ID in $SCAN_API_TOKENS"
   exit 1
@@ -33,6 +32,20 @@ if [ $INIT_CHAIN_ID -eq 45 ]; then   # Worldscan
   forge verify-contract --verifier blockscout --verifier-url "$worldscan_explorer_url" --watch \
     "$implementation_address" contracts/Implementation.sol:Implementation
   forge verify-contract --verifier blockscout --verifier-url "$worldscan_explorer_url" --watch \
+     "$wormhole_address" contracts/Wormhole.sol:Wormhole \
+     --constructor-args $(cast abi-encode "constructor(address,bytes)" "$setup_address" \
+      $(cast calldata "setup(address,address[],uint16,uint16,bytes32,uint256)" "$implementation_address" "$INIT_SIGNERS" "$INIT_CHAIN_ID" "$INIT_GOV_CHAIN_ID" "$INIT_GOV_CONTRACT" "$INIT_EVM_CHAIN_ID"))
+
+  exit 0
+fi
+
+if [ $INIT_CHAIN_ID -eq 39 ]; then   # Berachain
+  berascan_explorer_url="https://api.berascan.com/api?apikey=$ETHERSCAN_API_KEY"
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
+    "$setup_address" contracts/Setup.sol:Setup 
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
+    "$implementation_address" contracts/Implementation.sol:Implementation
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
      "$wormhole_address" contracts/Wormhole.sol:Wormhole \
      --constructor-args $(cast abi-encode "constructor(address,bytes)" "$setup_address" \
       $(cast calldata "setup(address,address[],uint16,uint16,bytes32,uint256)" "$implementation_address" "$INIT_SIGNERS" "$INIT_CHAIN_ID" "$INIT_GOV_CHAIN_ID" "$INIT_GOV_CONTRACT" "$INIT_EVM_CHAIN_ID"))

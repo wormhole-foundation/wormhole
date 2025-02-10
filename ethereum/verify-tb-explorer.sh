@@ -42,6 +42,23 @@ if [ $INIT_CHAIN_ID -eq 45 ]; then   # Worldscan
   exit 0
 fi
 
+if [ $INIT_CHAIN_ID -eq 39 ]; then   # Worldscan
+   berascan_explorer_url="https://api.berascan.com/api?apikey=$ETHERSCAN_API_KEY"
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
+    "$token_bridge_setup_address" contracts/bridge/BridgeSetup.sol:BridgeSetup
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
+    "$token_implementation_address" contracts/bridge/token/TokenImplementation.sol:TokenImplementation
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
+    "$token_bridge_implementation_address" contracts/bridge/BridgeImplementation.sol:BridgeImplementation
+  forge verify-contract --verifier blockscout --verifier-url "$berascan_explorer_url" --watch \
+    "$token_bridge_address" contracts/bridge/TokenBridge.sol:TokenBridge \
+    --constructor-args $(cast abi-encode "constructor(address,bytes)" "$token_bridge_setup_address" \
+      $(cast calldata "setup(address,uint16,address,uint16,bytes32,address,address,uint8,uint256)" \
+        "$token_bridge_implementation_address" "$BRIDGE_INIT_CHAIN_ID" "$wormhole_address" "$BRIDGE_INIT_GOV_CHAIN_ID" "$BRIDGE_INIT_GOV_CONTRACT" \
+        "$token_implementation_address" "$BRIDGE_INIT_WETH" "$BRIDGE_INIT_FINALITY" "$INIT_EVM_CHAIN_ID"))
+
+  exit 0
+fi
 
 forge verify-contract --watch \
   "$token_bridge_setup_address" contracts/bridge/BridgeSetup.sol:BridgeSetup
