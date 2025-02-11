@@ -567,7 +567,7 @@ export class TestLib {
 
   /**
    * Create a packed and signed VAA for testing.
-   * See https://github.com/wormhole-foundation/wormhole/blob/main/design/0001_generic_message_passing.md
+   * See https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0001_generic_message_passing.md
    *
    * @param {} guardianSetIndex  The guardian set index
    * @param {*} signers The list of private keys for signing the VAA
