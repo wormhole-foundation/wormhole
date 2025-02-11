@@ -40,7 +40,7 @@ The core of the issue is the differing trust assumptions and security program ma
 
 ## Overview
 
-The `global-accountant` contract on wormchain acts as an [Integrity Checker](0010_integrity_checkers.md).  Guardians submit [pre-observations](0010_integrity_checker.md#pre-observations) to it and only finalize their observations if the `global-accountant` gives the go-ahead.
+The `global-accountant` contract on wormchain acts as an [Integrity Checker](0010_integrity_checkers.md).  Guardians submit [pre-observations](0010_integrity_checkers.md#terminology) to it and only finalize their observations if the `global-accountant` gives the go-ahead.
 
 `global-accountant`keeps track of the tokens locked and minted on each connected blockchain.
 
