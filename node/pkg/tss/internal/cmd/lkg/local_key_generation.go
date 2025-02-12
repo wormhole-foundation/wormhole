@@ -7,16 +7,11 @@ package main
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math/big"
-	"net"
 	"os"
 	"path"
-	"time"
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
@@ -304,9 +299,15 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		dnsName := crt.DNSNames[0]
+		if (dnsName == "" || dnsName == "localhost") && len(crt.DNSNames) > 1 {
+			dnsName = crt.DNSNames[1]
+		}
+
 		partyIDS[i] = &tss.PartyID{
 			MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
-				Id:      string(crt.DNSNames[0]),
+				Id:      fmt.Sprintf("%s:%v", dnsName, engine.DefaultPort),
 				Moniker: "",
 				Key:     bts, // TODO this isn't the key but the full cert. this is a bug.
 			},
@@ -354,29 +355,6 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 	}
 
 	return all, nil
-}
-
-func createX509Cert(dnsName string) *x509.Certificate {
-	// using random serial number
-	var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
-
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		panic(err)
-	}
-
-	tmpl := x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"tsscomm"}},
-		SignatureAlgorithm:    x509.ECDSAWithSHA256,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 366 * 40), // valid for > 40 years used for tests...
-		BasicConstraintsValid: true,
-
-		DNSNames:    []string{"localhost", dnsName},
-		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)},
-	}
-	return &tmpl
 }
 
 func (player *dkgPlayer) setNewKeygenHandler() {
