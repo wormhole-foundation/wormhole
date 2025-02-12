@@ -42,6 +42,8 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 	ignoredChains := map[vaa.ChainID]bool{
 		// TODO: Remove this once we have governed tokens for Snax.
 		vaa.ChainIDSnaxchain: true,
+		// TODO: Remove this once we have governed tokens for Berachain.
+		vaa.ChainIDBerachain: true,
 		// TODO: Remove this once we have governed tokens for Unichain.
 		vaa.ChainIDUnichain: true,
 
