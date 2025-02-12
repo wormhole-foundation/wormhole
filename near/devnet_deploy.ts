@@ -42,6 +42,27 @@ async function initNear() {
   let masterKey: any;
 
   if (e === "sandbox") {
+    // wait for rpc to come up
+    let success = false;
+    while (!success) {
+      try {
+        const response = await fetch("http://localhost:3030", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: '{"jsonrpc": "2.0","id": "dontcare","method": "block","params": {"finality": "final"}}',
+        });
+        if (response.ok) {
+          success = true;
+        } else {
+          await new Promise((f) => setTimeout(f, 1000));
+        }
+      } catch (e) {
+        await new Promise((f) => setTimeout(f, 1000));
+      }
+    }
+
     // Retrieve the validator key directly in the Tilt environment
     const response = await fetch("http://localhost:3031/validator_key.json");
 
