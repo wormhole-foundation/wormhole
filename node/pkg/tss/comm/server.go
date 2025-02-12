@@ -141,7 +141,13 @@ func (s *server) send(msg tss.Sendable) {
 		}
 
 		if err := conn.stream.Send(msg.GetNetworkMessage()); err != nil {
+			if err == io.EOF {
+				_, err2 := conn.stream.CloseAndRecv()
+				err = fmt.Errorf("stream closed by peer. peer reason: %w", err2)
+			}
+
 			delete(s.connections, hostname)
+
 			s.enqueueRedialRequest(redialRequest{
 				hostname:    hostname,
 				immediately: false,
