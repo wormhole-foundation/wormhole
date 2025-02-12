@@ -25,5 +25,5 @@ type WatcherConfig interface {
 		queryResponseC chan<- *query.PerChainQueryResponseInternal,
 		setC chan<- *common.GuardianSet,
 		env common.Environment,
-	) (interfaces.L1Finalizer, supervisor.Runnable, error)
+	) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error)
 }
