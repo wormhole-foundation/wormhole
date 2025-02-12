@@ -143,7 +143,7 @@ func (s *server) send(msg tss.Sendable) {
 		if err := conn.stream.Send(msg.GetNetworkMessage()); err != nil {
 			if err == io.EOF {
 				_, err2 := conn.stream.CloseAndRecv()
-				err = fmt.Errorf("stream closed by peer. peer reason: %w", err2)
+				err = fmt.Errorf("stream closed by peer. peer's reason: %w", err2)
 			}
 
 			delete(s.connections, hostname)
@@ -284,7 +284,7 @@ func (s *server) Send(inStream tsscommv1.DirectLink_SendServer) error {
 			zap.Error(err),
 		)
 
-		return err
+		return status.Error(codes.Unauthenticated, fmt.Sprintf("couldn't accept incoming connection: %s", err))
 	}
 
 	for {
@@ -296,7 +296,7 @@ func (s *server) Send(inStream tsscommv1.DirectLink_SendServer) error {
 					zap.String("peer", clientId.Id),
 				)
 
-				return nil
+				return status.Error(codes.Canceled, "client closed the connection")
 			}
 
 			s.logger.Error(
@@ -305,7 +305,7 @@ func (s *server) Send(inStream tsscommv1.DirectLink_SendServer) error {
 				zap.String("peer", clientId.Id),
 			)
 
-			return err
+			return status.Error(codes.Unknown, "error receiving message from client "+err.Error()) //fmt.Errorf("received error while receiving message: %w", err)
 		}
 
 		s.tssMessenger.HandleIncomingTssMessage(&tss.IncomingMessage{
