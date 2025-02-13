@@ -200,6 +200,7 @@ vimdiff
 vphash
 wasmhooks
 wasms
+WebSocket
 WORKDIR
 worldchain
 WorldChain
