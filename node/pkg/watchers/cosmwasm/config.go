@@ -41,6 +41,6 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, error) {
-	return nil, NewWatcher(wc.Websocket, wc.Lcd, wc.Contract, msgC, obsvReqC, wc.ChainID, env).Run, nil
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+	return nil, NewWatcher(wc.Websocket, wc.Lcd, wc.Contract, msgC, obsvReqC, wc.ChainID, env).Run, nil, nil
 }

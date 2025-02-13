@@ -29,7 +29,7 @@ func TestValidateURL(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := validateURL(test.urlStr, test.validSchemes)
+		result := ValidateURL(test.urlStr, test.validSchemes)
 		assert.Equal(t, test.expected, result)
 	}
 }
