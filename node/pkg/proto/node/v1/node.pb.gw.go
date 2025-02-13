@@ -133,8 +133,8 @@ func local_request_NodePrivilegedService_SendObservationRequest_0(ctx context.Co
 
 }
 
-func request_NodePrivilegedService_ReobservetWithEndpoint_0(ctx context.Context, marshaler runtime.Marshaler, client NodePrivilegedServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ReobservetWithEndpointRequest
+func request_NodePrivilegedService_ReobserveWithEndpoint_0(ctx context.Context, marshaler runtime.Marshaler, client NodePrivilegedServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ReobserveWithEndpointRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -145,13 +145,13 @@ func request_NodePrivilegedService_ReobservetWithEndpoint_0(ctx context.Context,
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.ReobservetWithEndpoint(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.ReobserveWithEndpoint(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_NodePrivilegedService_ReobservetWithEndpoint_0(ctx context.Context, marshaler runtime.Marshaler, server NodePrivilegedServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ReobservetWithEndpointRequest
+func local_request_NodePrivilegedService_ReobserveWithEndpoint_0(ctx context.Context, marshaler runtime.Marshaler, server NodePrivilegedServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ReobserveWithEndpointRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -162,7 +162,7 @@ func local_request_NodePrivilegedService_ReobservetWithEndpoint_0(ctx context.Co
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.ReobservetWithEndpoint(ctx, &protoReq)
+	msg, err := server.ReobserveWithEndpoint(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -548,18 +548,18 @@ func RegisterNodePrivilegedServiceHandlerServer(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("POST", pattern_NodePrivilegedService_ReobservetWithEndpoint_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_NodePrivilegedService_ReobserveWithEndpoint_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/node.v1.NodePrivilegedService/ReobservetWithEndpoint", runtime.WithHTTPPathPattern("/node.v1.NodePrivilegedService/ReobservetWithEndpoint"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/node.v1.NodePrivilegedService/ReobserveWithEndpoint", runtime.WithHTTPPathPattern("/node.v1.NodePrivilegedService/ReobserveWithEndpoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_NodePrivilegedService_ReobservetWithEndpoint_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_NodePrivilegedService_ReobserveWithEndpoint_0(rctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -567,7 +567,7 @@ func RegisterNodePrivilegedServiceHandlerServer(ctx context.Context, mux *runtim
 			return
 		}
 
-		forward_NodePrivilegedService_ReobservetWithEndpoint_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_NodePrivilegedService_ReobserveWithEndpoint_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -879,23 +879,23 @@ func RegisterNodePrivilegedServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
-	mux.Handle("POST", pattern_NodePrivilegedService_ReobservetWithEndpoint_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_NodePrivilegedService_ReobserveWithEndpoint_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/node.v1.NodePrivilegedService/ReobservetWithEndpoint", runtime.WithHTTPPathPattern("/node.v1.NodePrivilegedService/ReobservetWithEndpoint"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/node.v1.NodePrivilegedService/ReobserveWithEndpoint", runtime.WithHTTPPathPattern("/node.v1.NodePrivilegedService/ReobserveWithEndpoint"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_NodePrivilegedService_ReobservetWithEndpoint_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_NodePrivilegedService_ReobserveWithEndpoint_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_NodePrivilegedService_ReobservetWithEndpoint_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_NodePrivilegedService_ReobserveWithEndpoint_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1089,7 +1089,7 @@ var (
 
 	pattern_NodePrivilegedService_SendObservationRequest_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"node.v1.NodePrivilegedService", "SendObservationRequest"}, ""))
 
-	pattern_NodePrivilegedService_ReobservetWithEndpoint_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"node.v1.NodePrivilegedService", "ReobservetWithEndpoint"}, ""))
+	pattern_NodePrivilegedService_ReobserveWithEndpoint_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"node.v1.NodePrivilegedService", "ReobserveWithEndpoint"}, ""))
 
 	pattern_NodePrivilegedService_ChainGovernorStatus_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"node.v1.NodePrivilegedService", "ChainGovernorStatus"}, ""))
 
@@ -1117,7 +1117,7 @@ var (
 
 	forward_NodePrivilegedService_SendObservationRequest_0 = runtime.ForwardResponseMessage
 
-	forward_NodePrivilegedService_ReobservetWithEndpoint_0 = runtime.ForwardResponseMessage
+	forward_NodePrivilegedService_ReobserveWithEndpoint_0 = runtime.ForwardResponseMessage
 
 	forward_NodePrivilegedService_ChainGovernorStatus_0 = runtime.ForwardResponseMessage
 
