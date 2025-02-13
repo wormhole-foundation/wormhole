@@ -63,7 +63,7 @@ func init() {
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
 	DumpRPCs.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
-	ReobservetWithEndpoint.Flags().AddFlagSet(pf)
+	ReobserveWithEndpoint.Flags().AddFlagSet(pf)
 	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
@@ -86,7 +86,7 @@ func init() {
 	AdminCmd.AddCommand(DumpVAAByMessageID)
 	AdminCmd.AddCommand(DumpRPCs)
 	AdminCmd.AddCommand(SendObservationRequest)
-	AdminCmd.AddCommand(ReobservetWithEndpoint)
+	AdminCmd.AddCommand(ReobserveWithEndpoint)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
@@ -139,10 +139,10 @@ var SendObservationRequest = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 }
 
-var ReobservetWithEndpoint = &cobra.Command{
+var ReobserveWithEndpoint = &cobra.Command{
 	Use:   "reobserve-with-endpoint [CHAIN_ID|CHAIN_NAME] [TX_HASH_HEX] [CUSTOM_URL]",
 	Short: "Performs a local reobservation for the given chain ID and chain-specific tx_hash using the specified endpoint",
-	Run:   runReobservetWithEndpoint,
+	Run:   runReobserveWithEndpoint,
 	Args:  cobra.ExactArgs(3),
 }
 
@@ -425,7 +425,7 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	}
 }
 
-func runReobservetWithEndpoint(cmd *cobra.Command, args []string) {
+func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
 	chainID, err := parseChainID(args[0])
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
@@ -455,7 +455,7 @@ func runReobservetWithEndpoint(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
-	resp, err := c.ReobservetWithEndpoint(ctx, &nodev1.ReobservetWithEndpointRequest{
+	resp, err := c.ReobserveWithEndpoint(ctx, &nodev1.ReobserveWithEndpointRequest{
 		ChainId: uint32(chainID),
 		TxHash:  txHash,
 		Url:     url,

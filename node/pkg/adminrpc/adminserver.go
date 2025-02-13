@@ -966,7 +966,7 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 	return &nodev1.SendObservationRequestResponse{}, nil
 }
 
-func (s *nodePrivilegedService) ReobservetWithEndpoint(ctx context.Context, req *nodev1.ReobservetWithEndpointRequest) (*nodev1.ReobservetWithEndpointResponse, error) {
+func (s *nodePrivilegedService) ReobserveWithEndpoint(ctx context.Context, req *nodev1.ReobserveWithEndpointRequest) (*nodev1.ReobserveWithEndpointResponse, error) {
 	watcher := s.reobservers[vaa.ChainID(req.ChainId)]
 	if watcher == nil {
 		return nil, status.Errorf(codes.Internal, "chain %d does not support reobservation by endpoint", req.ChainId)
@@ -977,7 +977,7 @@ func (s *nodePrivilegedService) ReobservetWithEndpoint(ctx context.Context, req 
 		return nil, status.Errorf(codes.Internal, "reobservation failed: %v", err)
 	}
 
-	return &nodev1.ReobservetWithEndpointResponse{NumObservations: numObservations}, nil
+	return &nodev1.ReobserveWithEndpointResponse{NumObservations: numObservations}, nil
 }
 
 func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *nodev1.ChainGovernorStatusRequest) (*nodev1.ChainGovernorStatusResponse, error) {
