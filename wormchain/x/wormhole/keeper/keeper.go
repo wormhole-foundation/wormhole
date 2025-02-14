@@ -22,8 +22,10 @@ type (
 		accountKeeper  types.AccountKeeper
 		bankKeeper     types.BankKeeper
 		wasmdKeeper    types.WasmdKeeper
-		upgradeKeeper  upgradekeeper.Keeper
+		upgradeKeeper  *upgradekeeper.Keeper
 		slashingKeeper slashingkeeper.Keeper
+
+		authority string
 
 		setWasmd    bool
 		setUpgrade  bool

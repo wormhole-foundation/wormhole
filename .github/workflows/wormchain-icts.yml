@@ -63,6 +63,7 @@ jobs:
           - "ictest-cancel-upgrade"
           - "ictest-slashing-params-update-vaa"
           - "ictest-cw-wormhole"
+          - "ictest-validator-hotswap"
       fail-fast: false
 
     steps:

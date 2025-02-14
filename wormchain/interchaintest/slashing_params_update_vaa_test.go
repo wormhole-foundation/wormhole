@@ -10,7 +10,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
@@ -66,7 +66,7 @@ func createSlashingParamsUpdate(
 // querySlashingParams queries the slashing params from the chain
 func querySlashingParams(ctx context.Context, wormchain *cosmos.CosmosChain) (params slashingtypes.Params, err error) {
 	// query the slashing params
-	res, _, err := wormchain.GetFullNode().ExecQuery(ctx, "slashing", "params")
+	res, _, err := wormchain.FullNodes[0].ExecQuery(ctx, "slashing", "params")
 	if err != nil {
 		return
 	}
@@ -146,11 +146,11 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// base setup
 	guardians := guardians.CreateValSet(t, 2)
-	chains := CreateChains(t, "local", *guardians)
-	ctx, _, _, _ := BuildInterchain(t, chains)
+	chain := createSingleNodeCluster(t, *guardians)
+	ctx, _ := buildSingleNodeInterchain(t, chain)
 	require.NotNil(t, ctx)
 
-	wormchain := chains[0].(*cosmos.CosmosChain)
+	wormchain := chain.(*cosmos.CosmosChain)
 
 	// ------------------------------
 
@@ -173,8 +173,7 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// create and send
 	err = createAndExecuteVaa(ctx, guardians, wormchain, payloadBytes)
-	// TODO: ON COSMOS SDK V0.47 - WILL ERROR
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	// verify the slashing params
 	verifyParams(t, ctx, wormchain)
@@ -187,8 +186,7 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// create and send
 	err = createAndExecuteVaa(ctx, guardians, wormchain, payloadBytes)
-	// TODO: ON COSMOS SDK V0.47 - WILL ERROR
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	// verify the slashing params
 	verifyParams(t, ctx, wormchain)
@@ -201,8 +199,7 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// create and send
 	err = createAndExecuteVaa(ctx, guardians, wormchain, payloadBytes)
-	// TODO: ON COSMOS SDK V0.47 - WILL ERROR
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	// verify the slashing params
 	verifyParams(t, ctx, wormchain)
@@ -215,8 +212,7 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// create and send
 	err = createAndExecuteVaa(ctx, guardians, wormchain, payloadBytes)
-	// TODO: ON COSMOS SDK V0.47 - WILL ERROR
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	// verify the slashing params
 	verifyParams(t, ctx, wormchain)
@@ -229,8 +225,7 @@ func TestSlashingParamsUpdateVaa(t *testing.T) {
 
 	// create and send
 	err = createAndExecuteVaa(ctx, guardians, wormchain, payloadBytes)
-	// TODO: ON COSMOS SDK V0.47 - WILL ERROR
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	// verify the slashing params
 	verifyParams(t, ctx, wormchain)

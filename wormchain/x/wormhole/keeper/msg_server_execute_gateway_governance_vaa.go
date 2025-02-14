@@ -122,11 +122,5 @@ func (k msgServer) setSlashingParams(
 	)
 
 	// Set the new params
-	//
-	// TODO: Once upgraded to CosmosSDK v0.47, this method will return an error
-	// if the params do not pass validation checks. Because of that, we need to
-	// return the error from this function.
-	k.slashingKeeper.SetParams(ctx, params)
-
-	return &types.EmptyResponse{}, nil
+	return &types.EmptyResponse{}, k.slashingKeeper.SetParams(ctx, params)
 }

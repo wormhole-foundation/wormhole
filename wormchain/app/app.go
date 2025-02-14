@@ -497,6 +497,7 @@ func New(
 		stakingKeeper,
 		govModAddress,
 	)
+	app.WormholeKeeper.SetSlashingKeeper(app.SlashingKeeper)
 
 	app.CrisisKeeper = crisiskeeper.NewKeeper(
 		appCodec,
