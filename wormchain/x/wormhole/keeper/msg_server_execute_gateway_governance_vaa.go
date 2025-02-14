@@ -2,9 +2,11 @@ package keeper
 
 import (
 	"context"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -48,6 +50,8 @@ func (k msgServer) ExecuteGatewayGovernanceVaa(
 		return k.cancelUpgrade(ctx)
 	case vaa.ActionSetIbcComposabilityMwContract:
 		return k.setIbcComposabilityMwContract(ctx, payload)
+	case vaa.ActionSlashingParamsUpdate:
+		return k.setSlashingParams(ctx, payload)
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 	}
@@ -97,6 +101,32 @@ func (k msgServer) setIbcComposabilityMwContract(
 	}
 
 	k.StoreIbcComposabilityMwContract(ctx, newContract)
+
+	return &types.EmptyResponse{}, nil
+}
+
+func (k msgServer) setSlashingParams(
+	ctx sdk.Context,
+	payload []byte,
+) (*types.EmptyResponse, error) {
+	var payloadBody vaa.BodyGatewaySlashingParamsUpdate
+	payloadBody.Deserialize(payload)
+
+	// Update slashing params
+	params := slashingtypes.NewParams(
+		int64(payloadBody.SignedBlocksWindow),
+		sdk.NewDecWithPrec(int64(payloadBody.MinSignedPerWindow), 18),
+		time.Duration(int64(payloadBody.DowntimeJailDuration)),
+		sdk.NewDecWithPrec(int64(payloadBody.SlashFractionDoubleSign), 18),
+		sdk.NewDecWithPrec(int64(payloadBody.SlashFractionDowntime), 18),
+	)
+
+	// Set the new params
+	//
+	// TODO: Once upgraded to CosmosSDK v0.47, this method will return an error
+	// if the params do not pass validation checks. Because of that, we need to
+	// return the error from this function.
+	k.slashingKeeper.SetParams(ctx, params)
 
 	return &types.EmptyResponse{}, nil
 }

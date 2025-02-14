@@ -105,6 +105,7 @@ local-image: build/wormchaind
 # Individual Tests ($$ is interpreted as $)
 rm-testcache:
 	go clean -testcache
+.PHONY: rm-testcache
 
 ictest-cancel-upgrade: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestCancelUpgrade$$ ./...
@@ -117,6 +118,10 @@ ictest-chain-start: rm-testcache
 ictest-malformed-payload: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestMalformedPayload$$ ./...
 .PHONY: ictest-malformed-payload
+
+ictest-slashing-params-update-vaa: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestSlashingParamsUpdateVaa$$ ./...
+.PHONY: ictest-slashing-params-update-vaa
 
 ictest-upgrade-failure: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
@@ -145,5 +150,3 @@ ictest-cw-wormhole: rm-testcache
 ictest-validator-hotswap: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...
 .PHONY: ictest-validator-hotswap
-
-

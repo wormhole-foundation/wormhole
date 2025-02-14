@@ -58,10 +58,10 @@ jobs:
       matrix:
         # names of `make` commands to run tests
         test:
-          - "ictest-cancel-upgrade"
-          - "ictest-upgrade"
           - "ictest-wormchain"
-          - "ictest-validator-hotswap"
+          - "ictest-upgrade"
+          - "ictest-cancel-upgrade"
+          - "ictest-slashing-params-update-vaa"
           - "ictest-cw-wormhole"
       fail-fast: false
 

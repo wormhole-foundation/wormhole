@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
@@ -18,15 +19,15 @@ type (
 		storeKey storetypes.StoreKey
 		memKey   storetypes.StoreKey
 
-		accountKeeper types.AccountKeeper
-		bankKeeper    types.BankKeeper
-		wasmdKeeper   types.WasmdKeeper
-		upgradeKeeper *upgradekeeper.Keeper
+		accountKeeper  types.AccountKeeper
+		bankKeeper     types.BankKeeper
+		wasmdKeeper    types.WasmdKeeper
+		upgradeKeeper  upgradekeeper.Keeper
+		slashingKeeper slashingkeeper.Keeper
 
-		authority string
-
-		setWasmd   bool
-		setUpgrade bool
+		setWasmd    bool
+		setUpgrade  bool
+		setSlashing bool
 	}
 )
 
@@ -62,6 +63,11 @@ func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 func (k *Keeper) SetUpgradeKeeper(keeper *upgradekeeper.Keeper) {
 	k.upgradeKeeper = keeper
 	k.setUpgrade = true
+}
+
+func (k *Keeper) SetSlashingKeeper(keeper slashingkeeper.Keeper) {
+	k.slashingKeeper = keeper
+	k.setSlashing = true
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
