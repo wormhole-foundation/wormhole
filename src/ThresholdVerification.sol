@@ -4,14 +4,14 @@ pragma solidity ^0.8.0;
 
 import "wormhole-sdk/libraries/BytesParsing.sol";
 import "wormhole-sdk/libraries/VaaLib.sol";
+import "./WormholeVerifier.sol";
 
-contract ThresholdVerification {
+contract ThresholdVerification is WormholeVerifier {
 	using BytesParsing for bytes;
 	using VaaLib for bytes;
 
 	error InvalidVaa(bytes encodedVaa);
 	error InvalidSignatureCount(uint8 count);
-	error VerificationFailed();
 
 	// Current threshold info is stord in a single slot
 	// Format:

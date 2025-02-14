@@ -7,13 +7,12 @@ import "wormhole-sdk/interfaces/IWormhole.sol";
 import "wormhole-sdk/libraries/VaaLib.sol";
 import "wormhole-sdk/libraries/BytesParsing.sol";
 import "wormhole-sdk/libraries/UncheckedIndexing.sol";
+import "./WormholeVerifier.sol";
 
-contract GuardianSetVerification is ExtStore {
+contract GuardianSetVerification is ExtStore, WormholeVerifier {
 	using UncheckedIndexing for address[];
 	using BytesParsing for bytes;
 	using VaaLib for bytes;
-
-	error VerificationFailed();
 
 	IWormhole private _coreV1;
 
