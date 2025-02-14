@@ -3,13 +3,17 @@
 pragma solidity ^0.8.0;
 
 import "wormhole-sdk/libraries/BytesParsing.sol";
-import "./RawDispatcher.sol";
-import "./ThresholdCore.sol";
-import "./GuardianSetCore.sol";
+import "wormhole-sdk/RawDispatcher.sol";
+import "./ThresholdVerification.sol";
+import "./GuardianSetVerification.sol";
 
 contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVerification {
 	using BytesParsing for bytes;
 	using VaaLib for bytes;
+
+	error InvalidDispatchVersion(uint8 version);
+	error InvalidModule(bytes32 module);
+	error InvalidAction(uint8 action);
 
 	uint8 constant OP_GOVERNANCE = 0x00;
 	uint8 constant OP_PULL_GUARDIAN_SETS = 0x01;
@@ -21,41 +25,49 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
 	uint8 constant OP_GUARDIAN_SET_GET = 0x24;
 
 	bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
+	uint8 constant RAW_DISPATCH_PROTOCOL_VERSION = 0x01;
 
 	uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
 
-	function decodeAndVerifyVaa(bytes calldata encodedVaa) internal view returns (bool verified, IWormhole.VM memory vm) {
-		vm = encodedVaa.decodeVmStructCd();
-
-		if (vm.version == 2) {
-			verified = verifyThresholdVAA(vm);
-		} else if (vm.version == 1) {
-			verified = verifyGuardianSetVAA(vm);
+	function decodeAndVerifyVaa(bytes calldata encodedVaa) internal view returns (VaaBody memory) {
+		uint8 version = uint8(encodedVaa[0]);
+		if (version == 2) {
+			return verifyThresholdVAA(encodedVaa);
+		} else if (version == 1) {
+			return verifyGuardianSetVAA(encodedVaa);
 		} else {
-			revert("Unsupported VAA version");
+			revert VaaLib.InvalidVersion(version);
 		}
 	}
 
-	function decodeThresholdVaaPayload(bytes memory payload) internal pure returns (
+	function decodeThresholdKeyUpdatePayload(bytes memory payload) internal pure returns (
 		bytes32 module,
 		uint8 action,
-		uint8 newThresholdIndex,
+		uint32 newThresholdIndex,
 		address newThresholdAddr,
-		uint32 oldExpirationTime
+		uint32 expirationDelaySeconds,
+		bytes32[] memory shards
 	) {
 		uint offset = 0;
 		(module, offset) = payload.asBytes32MemUnchecked(offset);
 		(action, offset) = payload.asUint8MemUnchecked(offset);
-		(newThresholdIndex, offset) = payload.asUint8MemUnchecked(offset);
+		(newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
 		(newThresholdAddr, offset) = payload.asAddressMemUnchecked(offset);
-		(oldExpirationTime, offset) = payload.asUint32MemUnchecked(offset);
+		(expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
+
+		uint8 shardsLength;
+		(shardsLength, offset) = payload.asUint8MemUnchecked(offset);
+		shards = new bytes32[](shardsLength);
+		for (uint8 i = 0; i < shardsLength; i++) {
+			(shards[i], offset) = payload.asBytes32MemUnchecked(offset);
+		}
 	}
 
 	function _exec(bytes calldata data) internal override returns (bytes memory) {
 		uint offset = 0;
 		uint8 version;
 		(version, offset) = data.asUint8CdUnchecked(offset);
-		require(version == RawDispatcher.VERSION, "invalid version");
+		if (version != RAW_DISPATCH_PROTOCOL_VERSION) revert InvalidDispatchVersion(version);
 
 		uint length = data.length;
 		while (offset < length) {
@@ -68,16 +80,23 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
 				(dataLength, offset) = data.asUint32CdUnchecked(offset);
 
 				bytes calldata encodedVaa = data[offset:offset + dataLength];
-				(bool verified, IWormhole.VM memory vm) = decodeAndVerifyVaa(encodedVaa);
-				require(verified, "invalid threshold vaa");
+				VaaBody memory vaaBody = decodeAndVerifyVaa(encodedVaa);
 				
 				// Decode the payload
-				(bytes32 module, uint8 action, uint8 newThresholdIndex, address newThresholdAddr, uint32 oldExpirationTime) = decodeThresholdVaaPayload(vm.payload);
-				require(module == MODULE_VERIFICATION_V2, "invalid module");
-				require(action == ACTION_APPEND_THRESHOLD_KEY, "invalid action");
+				(
+					bytes32 module,
+					uint8 action,
+					uint32 newThresholdIndex,
+					address newThresholdAddr,
+					uint32 expirationDelaySeconds,
+					bytes32[] memory shards
+				) = decodeThresholdKeyUpdatePayload(vaaBody.payload);
+
+				if (module != MODULE_VERIFICATION_V2) revert InvalidModule(module);
+				if (action != ACTION_APPEND_THRESHOLD_KEY) revert InvalidAction(action);
 				
 				// Append the threshold key
-				_appendThresholdKey(newThresholdIndex, newThresholdAddr, oldExpirationTime);
+				_appendThresholdKey(newThresholdIndex, newThresholdAddr, expirationDelaySeconds, shards);
 			} else if (op == OP_PULL_GUARDIAN_SETS) {
 				pullGuardianSets();
 			}
@@ -90,7 +109,7 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
 		uint offset = 0;
 		uint8 version;
 		(version, offset) = data.asUint8CdUnchecked(offset);
-		require(version == RawDispatcher.VERSION, "invalid version");
+		if (version != RAW_DISPATCH_PROTOCOL_VERSION) revert InvalidDispatchVersion(version);
 
 		bytes memory result;
 		uint length = data.length;
@@ -104,8 +123,8 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
 				(dataLength, offset) = data.asUint32CdUnchecked(offset);
 
 				bytes calldata encodedVaa = data[offset:offset + dataLength];
-				(bool verified,) = decodeAndVerifyVaa(encodedVaa);
-				result_entry = abi.encodePacked(verified);
+				VaaBody memory vaaBody = decodeAndVerifyVaa(encodedVaa);
+				result_entry = abi.encode(vaaBody);
 			} else if (op == OP_THRESHOLD_GET_CURRENT) {
 				(uint32 thresholdIndex, address thresholdAddr) = getCurrentThresholdInfo();
 				result_entry = abi.encodePacked(thresholdIndex, thresholdAddr);
