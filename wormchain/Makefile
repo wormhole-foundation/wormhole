@@ -123,6 +123,10 @@ ictest-slashing-params-update-vaa: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestSlashingParamsUpdateVaa$$ ./...
 .PHONY: ictest-slashing-params-update-vaa
 
+ictest-ibc-client-update-vaa: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestIBCClientUpdateVaa$$ ./...
+.PHONY: ictest-ibc-client-update-vaa
+
 ictest-upgrade-failure: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
 .PHONY: ictest-upgrade-failure

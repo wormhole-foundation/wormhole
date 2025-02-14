@@ -10,6 +10,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
+	clientkeeper "github.com/cosmos/ibc-go/v7/modules/core/02-client/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
@@ -24,12 +25,14 @@ type (
 		wasmdKeeper    types.WasmdKeeper
 		upgradeKeeper  *upgradekeeper.Keeper
 		slashingKeeper slashingkeeper.Keeper
+		clientKeeper   clientkeeper.Keeper
 
 		authority string
 
-		setWasmd    bool
-		setUpgrade  bool
-		setSlashing bool
+		setWasmd        bool
+		setUpgrade      bool
+		setSlashing     bool
+		setClientKeeper bool
 	}
 )
 
@@ -70,6 +73,11 @@ func (k *Keeper) SetUpgradeKeeper(keeper *upgradekeeper.Keeper) {
 func (k *Keeper) SetSlashingKeeper(keeper slashingkeeper.Keeper) {
 	k.slashingKeeper = keeper
 	k.setSlashing = true
+}
+
+func (k *Keeper) SetClientKeeper(keeper clientkeeper.Keeper) {
+	k.clientKeeper = keeper
+	k.setClientKeeper = true
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

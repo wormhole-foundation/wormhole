@@ -168,3 +168,54 @@ func TestExecuteSlashingParamsUpdate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, &types.EmptyResponse{}, res)
 }
+
+func TestExecuteUpdateClientVAA(t *testing.T) {
+	k, ctx := keepertest.WormholeKeeper(t)
+	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
+	_ = privateKeys
+	k.SetConfig(ctx, types.Config{
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
+		GuardianSetExpiration: 86400,
+	})
+	signer_bz := [20]byte{}
+	signer := sdk.AccAddress(signer_bz[:])
+
+	set := createNewGuardianSet(k, ctx, guardians)
+	k.SetConsensusGuardianSetIndex(ctx, types.ConsensusGuardianSetIndex{Index: set.Index})
+
+	context := sdk.WrapSDKContext(ctx)
+	msgServer := keeper.NewMsgServerImpl(*k)
+
+	// create governance to update ibc client
+	subjectClientId := "07-tendermint-0"
+	substituteClientId := "07-tendermint-1"
+
+	subjectBz := [64]byte{}
+	buf, err := vaa.LeftPadBytes(subjectClientId, 64)
+	require.NoError(t, err)
+	copy(subjectBz[:], buf.Bytes())
+
+	substituteBz := [64]byte{}
+	buf, err = vaa.LeftPadBytes(substituteClientId, 64)
+	require.NoError(t, err)
+	copy(substituteBz[:], buf.Bytes())
+
+	payloadBody := vaa.BodyGatewayIBCClientUpdate{
+		SubjectClientId:    subjectBz,
+		SubstituteClientId: substituteBz,
+	}
+
+	payloadBz, err := payloadBody.Serialize()
+	assert.NoError(t, err)
+
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payloadBz)
+	vBz, _ := v.Marshal()
+	_, err = msgServer.ExecuteGatewayGovernanceVaa(context, &types.MsgExecuteGatewayGovernanceVaa{
+		Signer: signer.String(),
+		Vaa:    vBz,
+	})
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "light client not found")
+}

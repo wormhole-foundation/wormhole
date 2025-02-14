@@ -543,6 +543,7 @@ func New(
 		app.UpgradeKeeper,
 		app.ScopedIBCKeeper,
 	)
+	app.WormholeKeeper.SetClientKeeper(app.IBCKeeper.ClientKeeper)
 
 	app.WireICS20PreWasmKeeper()
 
