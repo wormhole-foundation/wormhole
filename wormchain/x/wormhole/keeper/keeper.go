@@ -3,9 +3,10 @@ package keeper
 import (
 	"fmt"
 
-	"github.com/tendermint/tendermint/libs/log"
+	"github.com/cometbft/cometbft/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
@@ -15,14 +16,16 @@ import (
 type (
 	Keeper struct {
 		cdc      codec.BinaryCodec
-		storeKey sdk.StoreKey
-		memKey   sdk.StoreKey
+		storeKey storetypes.StoreKey
+		memKey   storetypes.StoreKey
 
 		accountKeeper  types.AccountKeeper
 		bankKeeper     types.BankKeeper
 		wasmdKeeper    types.WasmdKeeper
-		upgradeKeeper  upgradekeeper.Keeper
+		upgradeKeeper  *upgradekeeper.Keeper
 		slashingKeeper slashingkeeper.Keeper
+
+		authority string
 
 		setWasmd    bool
 		setUpgrade  bool
@@ -33,16 +36,18 @@ type (
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey,
-	memKey sdk.StoreKey,
-
-	accountKeeper types.AccountKeeper, bankKeeper types.BankKeeper,
+	memKey storetypes.StoreKey,
+	accountKeeper types.AccountKeeper,
+	bankKeeper types.BankKeeper,
+	authority string,
 ) *Keeper {
 	return &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
-		memKey:   memKey,
-
-		accountKeeper: accountKeeper, bankKeeper: bankKeeper,
+		cdc:           cdc,
+		storeKey:      storeKey,
+		memKey:        memKey,
+		accountKeeper: accountKeeper,
+		bankKeeper:    bankKeeper,
+		authority:     authority,
 	}
 }
 
@@ -57,7 +62,7 @@ func (k *Keeper) SetWasmdKeeper(keeper types.WasmdKeeper) {
 	k.setWasmd = true
 }
 
-func (k *Keeper) SetUpgradeKeeper(keeper upgradekeeper.Keeper) {
+func (k *Keeper) SetUpgradeKeeper(keeper *upgradekeeper.Keeper) {
 	k.upgradeKeeper = keeper
 	k.setUpgrade = true
 }

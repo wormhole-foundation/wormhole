@@ -1,33 +1,33 @@
 //@ts-nocheck
 /* eslint-disable */
+import Long from "long";
+import _m0 from "protobufjs/minimal";
 import { Timestamp } from "../../google/protobuf/timestamp";
-import * as Long from "long";
-import { util, configure, Writer, Reader } from "protobufjs/minimal";
-import { Vote, LightBlock } from "../../tendermint/types/types";
-import { Validator } from "../../tendermint/types/validator";
+import { LightBlock, Vote } from "./types";
+import { Validator } from "./validator";
 
 export const protobufPackage = "tendermint.types";
 
 export interface Evidence {
-  duplicate_vote_evidence: DuplicateVoteEvidence | undefined;
-  light_client_attack_evidence: LightClientAttackEvidence | undefined;
+  duplicateVoteEvidence: DuplicateVoteEvidence | undefined;
+  lightClientAttackEvidence: LightClientAttackEvidence | undefined;
 }
 
 /** DuplicateVoteEvidence contains evidence of a validator signed two conflicting votes. */
 export interface DuplicateVoteEvidence {
-  vote_a: Vote | undefined;
-  vote_b: Vote | undefined;
-  total_voting_power: number;
-  validator_power: number;
+  voteA: Vote | undefined;
+  voteB: Vote | undefined;
+  totalVotingPower: number;
+  validatorPower: number;
   timestamp: Date | undefined;
 }
 
 /** LightClientAttackEvidence contains evidence of a set of validators attempting to mislead a light client. */
 export interface LightClientAttackEvidence {
-  conflicting_block: LightBlock | undefined;
-  common_height: number;
-  byzantine_validators: Validator[];
-  total_voting_power: number;
+  conflictingBlock: LightBlock | undefined;
+  commonHeight: number;
+  byzantineValidators: Validator[];
+  totalVotingPower: number;
   timestamp: Date | undefined;
 }
 
@@ -35,43 +35,33 @@ export interface EvidenceList {
   evidence: Evidence[];
 }
 
-const baseEvidence: object = {};
+function createBaseEvidence(): Evidence {
+  return { duplicateVoteEvidence: undefined, lightClientAttackEvidence: undefined };
+}
 
 export const Evidence = {
-  encode(message: Evidence, writer: Writer = Writer.create()): Writer {
-    if (message.duplicate_vote_evidence !== undefined) {
-      DuplicateVoteEvidence.encode(
-        message.duplicate_vote_evidence,
-        writer.uint32(10).fork()
-      ).ldelim();
+  encode(message: Evidence, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.duplicateVoteEvidence !== undefined) {
+      DuplicateVoteEvidence.encode(message.duplicateVoteEvidence, writer.uint32(10).fork()).ldelim();
     }
-    if (message.light_client_attack_evidence !== undefined) {
-      LightClientAttackEvidence.encode(
-        message.light_client_attack_evidence,
-        writer.uint32(18).fork()
-      ).ldelim();
+    if (message.lightClientAttackEvidence !== undefined) {
+      LightClientAttackEvidence.encode(message.lightClientAttackEvidence, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): Evidence {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): Evidence {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseEvidence } as Evidence;
+    const message = createBaseEvidence();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.duplicate_vote_evidence = DuplicateVoteEvidence.decode(
-            reader,
-            reader.uint32()
-          );
+          message.duplicateVoteEvidence = DuplicateVoteEvidence.decode(reader, reader.uint32());
           break;
         case 2:
-          message.light_client_attack_evidence = LightClientAttackEvidence.decode(
-            reader,
-            reader.uint32()
-          );
+          message.lightClientAttackEvidence = LightClientAttackEvidence.decode(reader, reader.uint32());
           break;
         default:
           reader.skipType(tag & 7);
@@ -82,123 +72,87 @@ export const Evidence = {
   },
 
   fromJSON(object: any): Evidence {
-    const message = { ...baseEvidence } as Evidence;
-    if (
-      object.duplicate_vote_evidence !== undefined &&
-      object.duplicate_vote_evidence !== null
-    ) {
-      message.duplicate_vote_evidence = DuplicateVoteEvidence.fromJSON(
-        object.duplicate_vote_evidence
-      );
-    } else {
-      message.duplicate_vote_evidence = undefined;
-    }
-    if (
-      object.light_client_attack_evidence !== undefined &&
-      object.light_client_attack_evidence !== null
-    ) {
-      message.light_client_attack_evidence = LightClientAttackEvidence.fromJSON(
-        object.light_client_attack_evidence
-      );
-    } else {
-      message.light_client_attack_evidence = undefined;
-    }
-    return message;
+    return {
+      duplicateVoteEvidence: isSet(object.duplicateVoteEvidence)
+        ? DuplicateVoteEvidence.fromJSON(object.duplicateVoteEvidence)
+        : undefined,
+      lightClientAttackEvidence: isSet(object.lightClientAttackEvidence)
+        ? LightClientAttackEvidence.fromJSON(object.lightClientAttackEvidence)
+        : undefined,
+    };
   },
 
   toJSON(message: Evidence): unknown {
     const obj: any = {};
-    message.duplicate_vote_evidence !== undefined &&
-      (obj.duplicate_vote_evidence = message.duplicate_vote_evidence
-        ? DuplicateVoteEvidence.toJSON(message.duplicate_vote_evidence)
-        : undefined);
-    message.light_client_attack_evidence !== undefined &&
-      (obj.light_client_attack_evidence = message.light_client_attack_evidence
-        ? LightClientAttackEvidence.toJSON(message.light_client_attack_evidence)
+    message.duplicateVoteEvidence !== undefined && (obj.duplicateVoteEvidence = message.duplicateVoteEvidence
+      ? DuplicateVoteEvidence.toJSON(message.duplicateVoteEvidence)
+      : undefined);
+    message.lightClientAttackEvidence !== undefined
+      && (obj.lightClientAttackEvidence = message.lightClientAttackEvidence
+        ? LightClientAttackEvidence.toJSON(message.lightClientAttackEvidence)
         : undefined);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<Evidence>): Evidence {
-    const message = { ...baseEvidence } as Evidence;
-    if (
-      object.duplicate_vote_evidence !== undefined &&
-      object.duplicate_vote_evidence !== null
-    ) {
-      message.duplicate_vote_evidence = DuplicateVoteEvidence.fromPartial(
-        object.duplicate_vote_evidence
-      );
-    } else {
-      message.duplicate_vote_evidence = undefined;
-    }
-    if (
-      object.light_client_attack_evidence !== undefined &&
-      object.light_client_attack_evidence !== null
-    ) {
-      message.light_client_attack_evidence = LightClientAttackEvidence.fromPartial(
-        object.light_client_attack_evidence
-      );
-    } else {
-      message.light_client_attack_evidence = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<Evidence>, I>>(object: I): Evidence {
+    const message = createBaseEvidence();
+    message.duplicateVoteEvidence =
+      (object.duplicateVoteEvidence !== undefined && object.duplicateVoteEvidence !== null)
+        ? DuplicateVoteEvidence.fromPartial(object.duplicateVoteEvidence)
+        : undefined;
+    message.lightClientAttackEvidence =
+      (object.lightClientAttackEvidence !== undefined && object.lightClientAttackEvidence !== null)
+        ? LightClientAttackEvidence.fromPartial(object.lightClientAttackEvidence)
+        : undefined;
     return message;
   },
 };
 
-const baseDuplicateVoteEvidence: object = {
-  total_voting_power: 0,
-  validator_power: 0,
-};
+function createBaseDuplicateVoteEvidence(): DuplicateVoteEvidence {
+  return { voteA: undefined, voteB: undefined, totalVotingPower: 0, validatorPower: 0, timestamp: undefined };
+}
 
 export const DuplicateVoteEvidence = {
-  encode(
-    message: DuplicateVoteEvidence,
-    writer: Writer = Writer.create()
-  ): Writer {
-    if (message.vote_a !== undefined) {
-      Vote.encode(message.vote_a, writer.uint32(10).fork()).ldelim();
+  encode(message: DuplicateVoteEvidence, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.voteA !== undefined) {
+      Vote.encode(message.voteA, writer.uint32(10).fork()).ldelim();
     }
-    if (message.vote_b !== undefined) {
-      Vote.encode(message.vote_b, writer.uint32(18).fork()).ldelim();
+    if (message.voteB !== undefined) {
+      Vote.encode(message.voteB, writer.uint32(18).fork()).ldelim();
     }
-    if (message.total_voting_power !== 0) {
-      writer.uint32(24).int64(message.total_voting_power);
+    if (message.totalVotingPower !== 0) {
+      writer.uint32(24).int64(message.totalVotingPower);
     }
-    if (message.validator_power !== 0) {
-      writer.uint32(32).int64(message.validator_power);
+    if (message.validatorPower !== 0) {
+      writer.uint32(32).int64(message.validatorPower);
     }
     if (message.timestamp !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.timestamp),
-        writer.uint32(42).fork()
-      ).ldelim();
+      Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(42).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): DuplicateVoteEvidence {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): DuplicateVoteEvidence {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseDuplicateVoteEvidence } as DuplicateVoteEvidence;
+    const message = createBaseDuplicateVoteEvidence();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.vote_a = Vote.decode(reader, reader.uint32());
+          message.voteA = Vote.decode(reader, reader.uint32());
           break;
         case 2:
-          message.vote_b = Vote.decode(reader, reader.uint32());
+          message.voteB = Vote.decode(reader, reader.uint32());
           break;
         case 3:
-          message.total_voting_power = longToNumber(reader.int64() as Long);
+          message.totalVotingPower = longToNumber(reader.int64() as Long);
           break;
         case 4:
-          message.validator_power = longToNumber(reader.int64() as Long);
+          message.validatorPower = longToNumber(reader.int64() as Long);
           break;
         case 5:
-          message.timestamp = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          );
+          message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           break;
         default:
           reader.skipType(tag & 7);
@@ -209,166 +163,87 @@ export const DuplicateVoteEvidence = {
   },
 
   fromJSON(object: any): DuplicateVoteEvidence {
-    const message = { ...baseDuplicateVoteEvidence } as DuplicateVoteEvidence;
-    if (object.vote_a !== undefined && object.vote_a !== null) {
-      message.vote_a = Vote.fromJSON(object.vote_a);
-    } else {
-      message.vote_a = undefined;
-    }
-    if (object.vote_b !== undefined && object.vote_b !== null) {
-      message.vote_b = Vote.fromJSON(object.vote_b);
-    } else {
-      message.vote_b = undefined;
-    }
-    if (
-      object.total_voting_power !== undefined &&
-      object.total_voting_power !== null
-    ) {
-      message.total_voting_power = Number(object.total_voting_power);
-    } else {
-      message.total_voting_power = 0;
-    }
-    if (
-      object.validator_power !== undefined &&
-      object.validator_power !== null
-    ) {
-      message.validator_power = Number(object.validator_power);
-    } else {
-      message.validator_power = 0;
-    }
-    if (object.timestamp !== undefined && object.timestamp !== null) {
-      message.timestamp = fromJsonTimestamp(object.timestamp);
-    } else {
-      message.timestamp = undefined;
-    }
-    return message;
+    return {
+      voteA: isSet(object.voteA) ? Vote.fromJSON(object.voteA) : undefined,
+      voteB: isSet(object.voteB) ? Vote.fromJSON(object.voteB) : undefined,
+      totalVotingPower: isSet(object.totalVotingPower) ? Number(object.totalVotingPower) : 0,
+      validatorPower: isSet(object.validatorPower) ? Number(object.validatorPower) : 0,
+      timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
+    };
   },
 
   toJSON(message: DuplicateVoteEvidence): unknown {
     const obj: any = {};
-    message.vote_a !== undefined &&
-      (obj.vote_a = message.vote_a ? Vote.toJSON(message.vote_a) : undefined);
-    message.vote_b !== undefined &&
-      (obj.vote_b = message.vote_b ? Vote.toJSON(message.vote_b) : undefined);
-    message.total_voting_power !== undefined &&
-      (obj.total_voting_power = message.total_voting_power);
-    message.validator_power !== undefined &&
-      (obj.validator_power = message.validator_power);
-    message.timestamp !== undefined &&
-      (obj.timestamp =
-        message.timestamp !== undefined
-          ? message.timestamp.toISOString()
-          : null);
+    message.voteA !== undefined && (obj.voteA = message.voteA ? Vote.toJSON(message.voteA) : undefined);
+    message.voteB !== undefined && (obj.voteB = message.voteB ? Vote.toJSON(message.voteB) : undefined);
+    message.totalVotingPower !== undefined && (obj.totalVotingPower = Math.round(message.totalVotingPower));
+    message.validatorPower !== undefined && (obj.validatorPower = Math.round(message.validatorPower));
+    message.timestamp !== undefined && (obj.timestamp = message.timestamp.toISOString());
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<DuplicateVoteEvidence>
-  ): DuplicateVoteEvidence {
-    const message = { ...baseDuplicateVoteEvidence } as DuplicateVoteEvidence;
-    if (object.vote_a !== undefined && object.vote_a !== null) {
-      message.vote_a = Vote.fromPartial(object.vote_a);
-    } else {
-      message.vote_a = undefined;
-    }
-    if (object.vote_b !== undefined && object.vote_b !== null) {
-      message.vote_b = Vote.fromPartial(object.vote_b);
-    } else {
-      message.vote_b = undefined;
-    }
-    if (
-      object.total_voting_power !== undefined &&
-      object.total_voting_power !== null
-    ) {
-      message.total_voting_power = object.total_voting_power;
-    } else {
-      message.total_voting_power = 0;
-    }
-    if (
-      object.validator_power !== undefined &&
-      object.validator_power !== null
-    ) {
-      message.validator_power = object.validator_power;
-    } else {
-      message.validator_power = 0;
-    }
-    if (object.timestamp !== undefined && object.timestamp !== null) {
-      message.timestamp = object.timestamp;
-    } else {
-      message.timestamp = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<DuplicateVoteEvidence>, I>>(object: I): DuplicateVoteEvidence {
+    const message = createBaseDuplicateVoteEvidence();
+    message.voteA = (object.voteA !== undefined && object.voteA !== null) ? Vote.fromPartial(object.voteA) : undefined;
+    message.voteB = (object.voteB !== undefined && object.voteB !== null) ? Vote.fromPartial(object.voteB) : undefined;
+    message.totalVotingPower = object.totalVotingPower ?? 0;
+    message.validatorPower = object.validatorPower ?? 0;
+    message.timestamp = object.timestamp ?? undefined;
     return message;
   },
 };
 
-const baseLightClientAttackEvidence: object = {
-  common_height: 0,
-  total_voting_power: 0,
-};
+function createBaseLightClientAttackEvidence(): LightClientAttackEvidence {
+  return {
+    conflictingBlock: undefined,
+    commonHeight: 0,
+    byzantineValidators: [],
+    totalVotingPower: 0,
+    timestamp: undefined,
+  };
+}
 
 export const LightClientAttackEvidence = {
-  encode(
-    message: LightClientAttackEvidence,
-    writer: Writer = Writer.create()
-  ): Writer {
-    if (message.conflicting_block !== undefined) {
-      LightBlock.encode(
-        message.conflicting_block,
-        writer.uint32(10).fork()
-      ).ldelim();
+  encode(message: LightClientAttackEvidence, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.conflictingBlock !== undefined) {
+      LightBlock.encode(message.conflictingBlock, writer.uint32(10).fork()).ldelim();
     }
-    if (message.common_height !== 0) {
-      writer.uint32(16).int64(message.common_height);
+    if (message.commonHeight !== 0) {
+      writer.uint32(16).int64(message.commonHeight);
     }
-    for (const v of message.byzantine_validators) {
+    for (const v of message.byzantineValidators) {
       Validator.encode(v!, writer.uint32(26).fork()).ldelim();
     }
-    if (message.total_voting_power !== 0) {
-      writer.uint32(32).int64(message.total_voting_power);
+    if (message.totalVotingPower !== 0) {
+      writer.uint32(32).int64(message.totalVotingPower);
     }
     if (message.timestamp !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.timestamp),
-        writer.uint32(42).fork()
-      ).ldelim();
+      Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(42).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(
-    input: Reader | Uint8Array,
-    length?: number
-  ): LightClientAttackEvidence {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): LightClientAttackEvidence {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseLightClientAttackEvidence,
-    } as LightClientAttackEvidence;
-    message.byzantine_validators = [];
+    const message = createBaseLightClientAttackEvidence();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.conflicting_block = LightBlock.decode(
-            reader,
-            reader.uint32()
-          );
+          message.conflictingBlock = LightBlock.decode(reader, reader.uint32());
           break;
         case 2:
-          message.common_height = longToNumber(reader.int64() as Long);
+          message.commonHeight = longToNumber(reader.int64() as Long);
           break;
         case 3:
-          message.byzantine_validators.push(
-            Validator.decode(reader, reader.uint32())
-          );
+          message.byzantineValidators.push(Validator.decode(reader, reader.uint32()));
           break;
         case 4:
-          message.total_voting_power = longToNumber(reader.int64() as Long);
+          message.totalVotingPower = longToNumber(reader.int64() as Long);
           break;
         case 5:
-          message.timestamp = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          );
+          message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           break;
         default:
           reader.skipType(tag & 7);
@@ -379,134 +254,61 @@ export const LightClientAttackEvidence = {
   },
 
   fromJSON(object: any): LightClientAttackEvidence {
-    const message = {
-      ...baseLightClientAttackEvidence,
-    } as LightClientAttackEvidence;
-    message.byzantine_validators = [];
-    if (
-      object.conflicting_block !== undefined &&
-      object.conflicting_block !== null
-    ) {
-      message.conflicting_block = LightBlock.fromJSON(object.conflicting_block);
-    } else {
-      message.conflicting_block = undefined;
-    }
-    if (object.common_height !== undefined && object.common_height !== null) {
-      message.common_height = Number(object.common_height);
-    } else {
-      message.common_height = 0;
-    }
-    if (
-      object.byzantine_validators !== undefined &&
-      object.byzantine_validators !== null
-    ) {
-      for (const e of object.byzantine_validators) {
-        message.byzantine_validators.push(Validator.fromJSON(e));
-      }
-    }
-    if (
-      object.total_voting_power !== undefined &&
-      object.total_voting_power !== null
-    ) {
-      message.total_voting_power = Number(object.total_voting_power);
-    } else {
-      message.total_voting_power = 0;
-    }
-    if (object.timestamp !== undefined && object.timestamp !== null) {
-      message.timestamp = fromJsonTimestamp(object.timestamp);
-    } else {
-      message.timestamp = undefined;
-    }
-    return message;
+    return {
+      conflictingBlock: isSet(object.conflictingBlock) ? LightBlock.fromJSON(object.conflictingBlock) : undefined,
+      commonHeight: isSet(object.commonHeight) ? Number(object.commonHeight) : 0,
+      byzantineValidators: Array.isArray(object?.byzantineValidators)
+        ? object.byzantineValidators.map((e: any) => Validator.fromJSON(e))
+        : [],
+      totalVotingPower: isSet(object.totalVotingPower) ? Number(object.totalVotingPower) : 0,
+      timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
+    };
   },
 
   toJSON(message: LightClientAttackEvidence): unknown {
     const obj: any = {};
-    message.conflicting_block !== undefined &&
-      (obj.conflicting_block = message.conflicting_block
-        ? LightBlock.toJSON(message.conflicting_block)
-        : undefined);
-    message.common_height !== undefined &&
-      (obj.common_height = message.common_height);
-    if (message.byzantine_validators) {
-      obj.byzantine_validators = message.byzantine_validators.map((e) =>
-        e ? Validator.toJSON(e) : undefined
-      );
+    message.conflictingBlock !== undefined
+      && (obj.conflictingBlock = message.conflictingBlock ? LightBlock.toJSON(message.conflictingBlock) : undefined);
+    message.commonHeight !== undefined && (obj.commonHeight = Math.round(message.commonHeight));
+    if (message.byzantineValidators) {
+      obj.byzantineValidators = message.byzantineValidators.map((e) => e ? Validator.toJSON(e) : undefined);
     } else {
-      obj.byzantine_validators = [];
+      obj.byzantineValidators = [];
     }
-    message.total_voting_power !== undefined &&
-      (obj.total_voting_power = message.total_voting_power);
-    message.timestamp !== undefined &&
-      (obj.timestamp =
-        message.timestamp !== undefined
-          ? message.timestamp.toISOString()
-          : null);
+    message.totalVotingPower !== undefined && (obj.totalVotingPower = Math.round(message.totalVotingPower));
+    message.timestamp !== undefined && (obj.timestamp = message.timestamp.toISOString());
     return obj;
   },
 
-  fromPartial(
-    object: DeepPartial<LightClientAttackEvidence>
-  ): LightClientAttackEvidence {
-    const message = {
-      ...baseLightClientAttackEvidence,
-    } as LightClientAttackEvidence;
-    message.byzantine_validators = [];
-    if (
-      object.conflicting_block !== undefined &&
-      object.conflicting_block !== null
-    ) {
-      message.conflicting_block = LightBlock.fromPartial(
-        object.conflicting_block
-      );
-    } else {
-      message.conflicting_block = undefined;
-    }
-    if (object.common_height !== undefined && object.common_height !== null) {
-      message.common_height = object.common_height;
-    } else {
-      message.common_height = 0;
-    }
-    if (
-      object.byzantine_validators !== undefined &&
-      object.byzantine_validators !== null
-    ) {
-      for (const e of object.byzantine_validators) {
-        message.byzantine_validators.push(Validator.fromPartial(e));
-      }
-    }
-    if (
-      object.total_voting_power !== undefined &&
-      object.total_voting_power !== null
-    ) {
-      message.total_voting_power = object.total_voting_power;
-    } else {
-      message.total_voting_power = 0;
-    }
-    if (object.timestamp !== undefined && object.timestamp !== null) {
-      message.timestamp = object.timestamp;
-    } else {
-      message.timestamp = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<LightClientAttackEvidence>, I>>(object: I): LightClientAttackEvidence {
+    const message = createBaseLightClientAttackEvidence();
+    message.conflictingBlock = (object.conflictingBlock !== undefined && object.conflictingBlock !== null)
+      ? LightBlock.fromPartial(object.conflictingBlock)
+      : undefined;
+    message.commonHeight = object.commonHeight ?? 0;
+    message.byzantineValidators = object.byzantineValidators?.map((e) => Validator.fromPartial(e)) || [];
+    message.totalVotingPower = object.totalVotingPower ?? 0;
+    message.timestamp = object.timestamp ?? undefined;
     return message;
   },
 };
 
-const baseEvidenceList: object = {};
+function createBaseEvidenceList(): EvidenceList {
+  return { evidence: [] };
+}
 
 export const EvidenceList = {
-  encode(message: EvidenceList, writer: Writer = Writer.create()): Writer {
+  encode(message: EvidenceList, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     for (const v of message.evidence) {
       Evidence.encode(v!, writer.uint32(10).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): EvidenceList {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): EvidenceList {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseEvidenceList } as EvidenceList;
-    message.evidence = [];
+    const message = createBaseEvidenceList();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -522,60 +324,55 @@ export const EvidenceList = {
   },
 
   fromJSON(object: any): EvidenceList {
-    const message = { ...baseEvidenceList } as EvidenceList;
-    message.evidence = [];
-    if (object.evidence !== undefined && object.evidence !== null) {
-      for (const e of object.evidence) {
-        message.evidence.push(Evidence.fromJSON(e));
-      }
-    }
-    return message;
+    return { evidence: Array.isArray(object?.evidence) ? object.evidence.map((e: any) => Evidence.fromJSON(e)) : [] };
   },
 
   toJSON(message: EvidenceList): unknown {
     const obj: any = {};
     if (message.evidence) {
-      obj.evidence = message.evidence.map((e) =>
-        e ? Evidence.toJSON(e) : undefined
-      );
+      obj.evidence = message.evidence.map((e) => e ? Evidence.toJSON(e) : undefined);
     } else {
       obj.evidence = [];
     }
     return obj;
   },
 
-  fromPartial(object: DeepPartial<EvidenceList>): EvidenceList {
-    const message = { ...baseEvidenceList } as EvidenceList;
-    message.evidence = [];
-    if (object.evidence !== undefined && object.evidence !== null) {
-      for (const e of object.evidence) {
-        message.evidence.push(Evidence.fromPartial(e));
-      }
-    }
+  fromPartial<I extends Exact<DeepPartial<EvidenceList>, I>>(object: I): EvidenceList {
+    const message = createBaseEvidenceList();
+    message.evidence = object.evidence?.map((e) => Evidence.fromPartial(e)) || [];
     return message;
   },
 };
 
 declare var self: any | undefined;
 declare var window: any | undefined;
+declare var global: any | undefined;
 var globalThis: any = (() => {
-  if (typeof globalThis !== "undefined") return globalThis;
-  if (typeof self !== "undefined") return self;
-  if (typeof window !== "undefined") return window;
-  if (typeof global !== "undefined") return global;
+  if (typeof globalThis !== "undefined") {
+    return globalThis;
+  }
+  if (typeof self !== "undefined") {
+    return self;
+  }
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined") {
+    return global;
+  }
   throw "Unable to locate global object";
 })();
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {
   const seconds = date.getTime() / 1_000;
@@ -606,7 +403,11 @@ function longToNumber(long: Long): number {
   return long.toNumber();
 }
 
-if (util.Long !== Long) {
-  util.Long = Long as any;
-  configure();
+if (_m0.util.Long !== Long) {
+  _m0.util.Long = Long as any;
+  _m0.configure();
+}
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
 }

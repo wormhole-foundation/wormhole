@@ -10,6 +10,30 @@
  * ---------------------------------------------------------------
  */
 
+/**
+ * Params defines the parameters for the bank module.
+ */
+export interface Bankv1Beta1Params {
+  /**
+   * Deprecated: Use of SendEnabled in params is deprecated.
+   * For genesis, use the newly added send_enabled field in the genesis object.
+   * Storage, lookup, and manipulation of this information is now in the keeper.
+   *
+   * As of cosmos-sdk 0.47, this only exists for backwards compatibility of genesis files.
+   */
+  send_enabled?: Bankv1Beta1SendEnabled[];
+  default_send_enabled?: boolean;
+}
+
+/**
+* SendEnabled maps coin denom to a send_enabled status (whether a denom is
+sendable).
+*/
+export interface Bankv1Beta1SendEnabled {
+  denom?: string;
+  enabled?: boolean;
+}
+
 export interface ProtobufAny {
   "@type"?: string;
 }
@@ -33,6 +57,21 @@ export interface V1Beta1Coin {
 }
 
 /**
+* DenomOwner defines structure representing an account that owns or holds a
+particular denominated token. It contains the account address and account
+balance of the denominated token.
+
+Since: cosmos-sdk 0.46
+*/
+export interface V1Beta1DenomOwner {
+  /** address defines the address that owns a particular denomination. */
+  address?: string;
+
+  /** balance is the balance of the denominated coin for an account. */
+  balance?: V1Beta1Coin;
+}
+
+/**
 * DenomUnit represents a struct that describes a given
 denomination unit of the basic token.
 */
@@ -43,12 +82,14 @@ export interface V1Beta1DenomUnit {
   /**
    * exponent represents power of 10 exponent that one must
    * raise the base_denom to in order to equal the given DenomUnit's denom
-   * 1 denom = 1^exponent base_denom
+   * 1 denom = 10^exponent base_denom
    * (e.g. with a base_denom of uatom, one can create a DenomUnit of 'atom' with
    * exponent = 6, thus: 1 atom = 10^6 uatom).
    * @format int64
    */
   exponent?: number;
+
+  /** aliases is a list of string aliases for the given denom */
   aliases?: string[];
 }
 
@@ -66,6 +107,8 @@ a basic token.
 */
 export interface V1Beta1Metadata {
   description?: string;
+
+  /** denom_units represents the list of DenomUnit's for a given coin */
   denom_units?: V1Beta1DenomUnit[];
 
   /** base represents the base denom (should be the DenomUnit with exponent = 0). */
@@ -77,7 +120,10 @@ export interface V1Beta1Metadata {
    */
   display?: string;
 
-  /** Since: cosmos-sdk 0.43 */
+  /**
+   * name defines the name of the token (eg: Cosmos Atom)
+   * Since: cosmos-sdk 0.43
+   */
   name?: string;
 
   /**
@@ -87,6 +133,21 @@ export interface V1Beta1Metadata {
    * Since: cosmos-sdk 0.43
    */
   symbol?: string;
+
+  /**
+   * URI to a document (on or off-chain) that contains additional information. Optional.
+   *
+   * Since: cosmos-sdk 0.46
+   */
+  uri?: string;
+
+  /**
+   * URIHash is a sha256 hash of a document pointed by URI. It's used to verify that
+   * the document didn't change. Optional.
+   *
+   * Since: cosmos-sdk 0.46
+   */
+  uri_hash?: string;
 }
 
 /**
@@ -98,6 +159,21 @@ export type V1Beta1MsgMultiSendResponse = object;
  * MsgSendResponse defines the Msg/Send response type.
  */
 export type V1Beta1MsgSendResponse = object;
+
+/**
+* MsgSetSendEnabledResponse defines the Msg/SetSendEnabled response type.
+
+Since: cosmos-sdk 0.47
+*/
+export type V1Beta1MsgSetSendEnabledResponse = object;
+
+/**
+* MsgUpdateParamsResponse defines the response structure for executing a
+MsgUpdateParams message.
+
+Since: cosmos-sdk 0.47
+*/
+export type V1Beta1MsgUpdateParamsResponse = object;
 
 /**
  * Output models transaction outputs.
@@ -163,19 +239,20 @@ corresponding request message has used PageRequest.
  }
 */
 export interface V1Beta1PageResponse {
-  /** @format byte */
+  /**
+   * next_key is the key to be passed to PageRequest.key to
+   * query the next page most efficiently. It will be empty if
+   * there are no more results.
+   * @format byte
+   */
   next_key?: string;
 
-  /** @format uint64 */
+  /**
+   * total is total number of results available if PageRequest.count_total
+   * was set, its value is undefined otherwise
+   * @format uint64
+   */
   total?: string;
-}
-
-/**
- * Params defines the parameters for the bank module.
- */
-export interface V1Beta1Params {
-  send_enabled?: V1Beta1SendEnabled[];
-  default_send_enabled?: boolean;
 }
 
 /**
@@ -208,6 +285,18 @@ export interface V1Beta1QueryDenomMetadataResponse {
 }
 
 /**
+* QueryDenomOwnersResponse defines the RPC response of a DenomOwners RPC query.
+
+Since: cosmos-sdk 0.46
+*/
+export interface V1Beta1QueryDenomOwnersResponse {
+  denom_owners?: V1Beta1DenomOwner[];
+
+  /** pagination defines the pagination in the response. */
+  pagination?: V1Beta1PageResponse;
+}
+
+/**
 * QueryDenomsMetadataResponse is the response type for the Query/DenomsMetadata RPC
 method.
 */
@@ -224,12 +313,40 @@ export interface V1Beta1QueryDenomsMetadataResponse {
  */
 export interface V1Beta1QueryParamsResponse {
   /** Params defines the parameters for the bank module. */
-  params?: V1Beta1Params;
+  params?: Bankv1Beta1Params;
+}
+
+/**
+* QuerySendEnabledResponse defines the RPC response of a SendEnable query.
+
+Since: cosmos-sdk 0.47
+*/
+export interface V1Beta1QuerySendEnabledResponse {
+  send_enabled?: Bankv1Beta1SendEnabled[];
+
+  /**
+   * pagination defines the pagination in the response. This field is only
+   * populated if the denoms field in the request is empty.
+   */
+  pagination?: V1Beta1PageResponse;
+}
+
+/**
+* QuerySpendableBalanceByDenomResponse defines the gRPC response structure for
+querying an account's spendable balance for a specific denom.
+
+Since: cosmos-sdk 0.47
+*/
+export interface V1Beta1QuerySpendableBalanceByDenomResponse {
+  /** balance is the balance of the coin. */
+  balance?: V1Beta1Coin;
 }
 
 /**
 * QuerySpendableBalancesResponse defines the gRPC response structure for querying
 an account's spendable balances.
+
+Since: cosmos-sdk 0.46
 */
 export interface V1Beta1QuerySpendableBalancesResponse {
   /** balances is the spendable balances of all the coins. */
@@ -248,6 +365,7 @@ export interface V1Beta1QuerySupplyOfResponse {
 }
 
 export interface V1Beta1QueryTotalSupplyResponse {
+  /** supply is the supply of the coins */
   supply?: V1Beta1Coin[];
 
   /**
@@ -258,19 +376,11 @@ export interface V1Beta1QueryTotalSupplyResponse {
   pagination?: V1Beta1PageResponse;
 }
 
-/**
-* SendEnabled maps coin denom to a send_enabled status (whether a denom is
-sendable).
-*/
-export interface V1Beta1SendEnabled {
-  denom?: string;
-  enabled?: boolean;
-}
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 
 export type QueryParamsType = Record<string | number, any>;
-export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
 
-export interface FullRequestParams extends Omit<RequestInit, "body"> {
+export interface FullRequestParams extends Omit<AxiosRequestConfig, "data" | "params" | "url" | "responseType"> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -280,29 +390,20 @@ export interface FullRequestParams extends Omit<RequestInit, "body"> {
   /** query params */
   query?: QueryParamsType;
   /** format of response (i.e. response.json() -> format: "json") */
-  format?: keyof Omit<Body, "body" | "bodyUsed">;
+  format?: ResponseType;
   /** request body */
   body?: unknown;
-  /** base url */
-  baseUrl?: string;
-  /** request cancellation token */
-  cancelToken?: CancelToken;
 }
 
 export type RequestParams = Omit<FullRequestParams, "body" | "method" | "query" | "path">;
 
-export interface ApiConfig<SecurityDataType = unknown> {
-  baseUrl?: string;
-  baseApiParams?: Omit<RequestParams, "baseUrl" | "cancelToken" | "signal">;
-  securityWorker?: (securityData: SecurityDataType) => RequestParams | void;
+export interface ApiConfig<SecurityDataType = unknown> extends Omit<AxiosRequestConfig, "data" | "cancelToken"> {
+  securityWorker?: (
+    securityData: SecurityDataType | null,
+  ) => Promise<AxiosRequestConfig | void> | AxiosRequestConfig | void;
+  secure?: boolean;
+  format?: ResponseType;
 }
-
-export interface HttpResponse<D extends unknown, E extends unknown = unknown> extends Response {
-  data: D;
-  error: E;
-}
-
-type CancelToken = Symbol | string | number;
 
 export enum ContentType {
   Json = "application/json",
@@ -311,149 +412,86 @@ export enum ContentType {
 }
 
 export class HttpClient<SecurityDataType = unknown> {
-  public baseUrl: string = "";
-  private securityData: SecurityDataType = null as any;
-  private securityWorker: null | ApiConfig<SecurityDataType>["securityWorker"] = null;
-  private abortControllers = new Map<CancelToken, AbortController>();
+  public instance: AxiosInstance;
+  private securityData: SecurityDataType | null = null;
+  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
+  private secure?: boolean;
+  private format?: ResponseType;
 
-  private baseApiParams: RequestParams = {
-    credentials: "same-origin",
-    headers: {},
-    redirect: "follow",
-    referrerPolicy: "no-referrer",
-  };
-
-  constructor(apiConfig: ApiConfig<SecurityDataType> = {}) {
-    Object.assign(this, apiConfig);
+  constructor({ securityWorker, secure, format, ...axiosConfig }: ApiConfig<SecurityDataType> = {}) {
+    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || "" });
+    this.secure = secure;
+    this.format = format;
+    this.securityWorker = securityWorker;
   }
 
-  public setSecurityData = (data: SecurityDataType) => {
+  public setSecurityData = (data: SecurityDataType | null) => {
     this.securityData = data;
   };
 
-  private addQueryParam(query: QueryParamsType, key: string) {
-    const value = query[key];
-
-    return (
-      encodeURIComponent(key) +
-      "=" +
-      encodeURIComponent(Array.isArray(value) ? value.join(",") : typeof value === "number" ? value : `${value}`)
-    );
-  }
-
-  protected toQueryString(rawQuery?: QueryParamsType): string {
-    const query = rawQuery || {};
-    const keys = Object.keys(query).filter((key) => "undefined" !== typeof query[key]);
-    return keys
-      .map((key) =>
-        typeof query[key] === "object" && !Array.isArray(query[key])
-          ? this.toQueryString(query[key] as QueryParamsType)
-          : this.addQueryParam(query, key),
-      )
-      .join("&");
-  }
-
-  protected addQueryParams(rawQuery?: QueryParamsType): string {
-    const queryString = this.toQueryString(rawQuery);
-    return queryString ? `?${queryString}` : "";
-  }
-
-  private contentFormatters: Record<ContentType, (input: any) => any> = {
-    [ContentType.Json]: (input: any) =>
-      input !== null && (typeof input === "object" || typeof input === "string") ? JSON.stringify(input) : input,
-    [ContentType.FormData]: (input: any) =>
-      Object.keys(input || {}).reduce((data, key) => {
-        data.append(key, input[key]);
-        return data;
-      }, new FormData()),
-    [ContentType.UrlEncoded]: (input: any) => this.toQueryString(input),
-  };
-
-  private mergeRequestParams(params1: RequestParams, params2?: RequestParams): RequestParams {
+  private mergeRequestParams(params1: AxiosRequestConfig, params2?: AxiosRequestConfig): AxiosRequestConfig {
     return {
-      ...this.baseApiParams,
+      ...this.instance.defaults,
       ...params1,
       ...(params2 || {}),
       headers: {
-        ...(this.baseApiParams.headers || {}),
+        ...(this.instance.defaults.headers || {}),
         ...(params1.headers || {}),
         ...((params2 && params2.headers) || {}),
       },
     };
   }
 
-  private createAbortSignal = (cancelToken: CancelToken): AbortSignal | undefined => {
-    if (this.abortControllers.has(cancelToken)) {
-      const abortController = this.abortControllers.get(cancelToken);
-      if (abortController) {
-        return abortController.signal;
-      }
-      return void 0;
-    }
+  private createFormData(input: Record<string, unknown>): FormData {
+    return Object.keys(input || {}).reduce((formData, key) => {
+      const property = input[key];
+      formData.append(
+        key,
+        property instanceof Blob
+          ? property
+          : typeof property === "object" && property !== null
+          ? JSON.stringify(property)
+          : `${property}`,
+      );
+      return formData;
+    }, new FormData());
+  }
 
-    const abortController = new AbortController();
-    this.abortControllers.set(cancelToken, abortController);
-    return abortController.signal;
-  };
-
-  public abortRequest = (cancelToken: CancelToken) => {
-    const abortController = this.abortControllers.get(cancelToken);
-
-    if (abortController) {
-      abortController.abort();
-      this.abortControllers.delete(cancelToken);
-    }
-  };
-
-  public request = <T = any, E = any>({
-    body,
+  public request = async <T = any, _E = any>({
     secure,
     path,
     type,
     query,
-    format = "json",
-    baseUrl,
-    cancelToken,
+    format,
+    body,
     ...params
-  }: FullRequestParams): Promise<HttpResponse<T, E>> => {
-    const secureParams = (secure && this.securityWorker && this.securityWorker(this.securityData)) || {};
+  }: FullRequestParams): Promise<AxiosResponse<T>> => {
+    const secureParams =
+      ((typeof secure === "boolean" ? secure : this.secure) &&
+        this.securityWorker &&
+        (await this.securityWorker(this.securityData))) ||
+      {};
     const requestParams = this.mergeRequestParams(params, secureParams);
-    const queryString = query && this.toQueryString(query);
-    const payloadFormatter = this.contentFormatters[type || ContentType.Json];
+    const responseFormat = (format && this.format) || void 0;
 
-    return fetch(`${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`, {
+    if (type === ContentType.FormData && body && body !== null && typeof body === "object") {
+      requestParams.headers.common = { Accept: "*/*" };
+      requestParams.headers.post = {};
+      requestParams.headers.put = {};
+
+      body = this.createFormData(body as Record<string, unknown>);
+    }
+
+    return this.instance.request({
       ...requestParams,
       headers: {
         ...(type && type !== ContentType.FormData ? { "Content-Type": type } : {}),
         ...(requestParams.headers || {}),
       },
-      signal: cancelToken ? this.createAbortSignal(cancelToken) : void 0,
-      body: typeof body === "undefined" || body === null ? null : payloadFormatter(body),
-    }).then(async (response) => {
-      const r = response as HttpResponse<T, E>;
-      r.data = (null as unknown) as T;
-      r.error = (null as unknown) as E;
-
-      const data = await response[format]()
-        .then((data) => {
-          if (r.ok) {
-            r.data = data;
-          } else {
-            r.error = data;
-          }
-          return r;
-        })
-        .catch((e) => {
-          r.error = e;
-          return r;
-        });
-
-      if (cancelToken) {
-        this.abortControllers.delete(cancelToken);
-      }
-
-      if (!response.ok) throw data;
-      return data;
+      params: query,
+      responseType: responseFormat,
+      data: body,
+      url: path,
     });
   };
 }
@@ -464,7 +502,7 @@ export class HttpClient<SecurityDataType = unknown> {
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryAllBalances
@@ -508,13 +546,42 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     });
 
   /**
-   * No description
-   *
-   * @tags Query
-   * @name QueryDenomsMetadata
-   * @summary DenomsMetadata queries the client metadata for all registered coin denominations.
-   * @request GET:/cosmos/bank/v1beta1/denoms_metadata
-   */
+ * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set. Since: cosmos-sdk 0.46
+ * 
+ * @tags Query
+ * @name QueryDenomOwners
+ * @summary DenomOwners queries for all account addresses that own a particular token
+denomination.
+ * @request GET:/cosmos/bank/v1beta1/denom_owners/{denom}
+ */
+  queryDenomOwners = (
+    denom: string,
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<V1Beta1QueryDenomOwnersResponse, RpcStatus>({
+      path: `/cosmos/bank/v1beta1/denom_owners/${denom}`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+ * No description
+ * 
+ * @tags Query
+ * @name QueryDenomsMetadata
+ * @summary DenomsMetadata queries the client metadata for all registered coin
+denominations.
+ * @request GET:/cosmos/bank/v1beta1/denoms_metadata
+ */
   queryDenomsMetadata = (
     query?: {
       "pagination.key"?: string;
@@ -566,11 +633,38 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     });
 
   /**
- * No description
+   * @description This query only returns denominations that have specific SendEnabled settings. Any denomination that does not have a specific setting will use the default params.default_send_enabled, and will not be returned by this query. Since: cosmos-sdk 0.47
+   *
+   * @tags Query
+   * @name QuerySendEnabled
+   * @summary SendEnabled queries for SendEnabled entries.
+   * @request GET:/cosmos/bank/v1beta1/send_enabled
+   */
+  querySendEnabled = (
+    query?: {
+      denoms?: string[];
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.count_total"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<V1Beta1QuerySendEnabledResponse, RpcStatus>({
+      path: `/cosmos/bank/v1beta1/send_enabled`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+ * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set. Since: cosmos-sdk 0.46
  * 
  * @tags Query
  * @name QuerySpendableBalances
- * @summary SpendableBalances queries the spenable balance of all coins for a single
+ * @summary SpendableBalances queries the spendable balance of all coins for a single
 account.
  * @request GET:/cosmos/bank/v1beta1/spendable_balances/{address}
  */
@@ -594,7 +688,25 @@ account.
     });
 
   /**
-   * No description
+ * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set. Since: cosmos-sdk 0.47
+ * 
+ * @tags Query
+ * @name QuerySpendableBalanceByDenom
+ * @summary SpendableBalanceByDenom queries the spendable balance of a single denom for
+a single account.
+ * @request GET:/cosmos/bank/v1beta1/spendable_balances/{address}/by_denom
+ */
+  querySpendableBalanceByDenom = (address: string, query?: { denom?: string }, params: RequestParams = {}) =>
+    this.request<V1Beta1QuerySpendableBalanceByDenomResponse, RpcStatus>({
+      path: `/cosmos/bank/v1beta1/spendable_balances/${address}/by_denom`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryTotalSupply
@@ -620,17 +732,18 @@ account.
     });
 
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QuerySupplyOf
    * @summary SupplyOf queries the supply of a single coin.
-   * @request GET:/cosmos/bank/v1beta1/supply/{denom}
+   * @request GET:/cosmos/bank/v1beta1/supply/by_denom
    */
-  querySupplyOf = (denom: string, params: RequestParams = {}) =>
+  querySupplyOf = (query?: { denom?: string }, params: RequestParams = {}) =>
     this.request<V1Beta1QuerySupplyOfResponse, RpcStatus>({
-      path: `/cosmos/bank/v1beta1/supply/${denom}`,
+      path: `/cosmos/bank/v1beta1/supply/by_denom`,
       method: "GET",
+      query: query,
       format: "json",
       ...params,
     });
