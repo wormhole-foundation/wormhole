@@ -38,7 +38,6 @@ func hashSignedMessage(msg *tsscommv1.SignedMessage) digest {
 
 		b.Write([]byte(msg.Sender.Id))
 		b.Write(msg.Sender.Key)
-
 	case *tsscommv1.SignedMessage_Problem:
 		bts, _ := (&parsedProblem{
 			Problem: m.Problem,
@@ -53,6 +52,11 @@ func hashSignedMessage(msg *tsscommv1.SignedMessage) digest {
 		}).serialize()
 
 		b = bytes.NewBuffer(bts)
+	case *tsscommv1.SignedMessage_HashEcho:
+		d := digest{}
+		copy(d[:], m.HashEcho.OriginalContetDigest)
+
+		return d
 	}
 
 	return hash(b.Bytes())

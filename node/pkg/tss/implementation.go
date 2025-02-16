@@ -26,7 +26,6 @@ import (
 	"github.com/xlabs/tss-lib/v2/ecdsa/party"
 	"github.com/xlabs/tss-lib/v2/tss"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 type uuid digest // distinguishing between types to avoid confusion.
@@ -863,28 +862,36 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 		return errNeitherBroadcastNorUnicast
 	}
 
-	shouldEcho, err := t.handleEcho(msg)
+	if err := t.handleEcho(msg); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *Engine) sendEchoOut(parsed relbroadcastables, m Incoming) error {
+	e := m.toEcho()
+
+	uuid, err := parsed.getUUID(t.LoadDistributionKey)
 	if err != nil {
 		return err
 	}
 
-	if !shouldEcho {
-		return nil // not an error, just don't echo.
+	contentDigest := hashSignedMessage(e.Message)
+
+	content := &tsscommv1.SignedMessage{
+		Sender:    e.Message.Sender,
+		Signature: e.Message.Signature,
+		Content: &tsscommv1.SignedMessage_HashEcho{
+			HashEcho: &tsscommv1.HashEcho{
+				SessionUuid:          uuid[:],
+				OriginalContetDigest: contentDigest[:],
+			},
+		},
 	}
-
-	return t.sendEchoOut(msg)
-}
-
-func (t *Engine) sendEchoOut(m Incoming) error {
-	content, ok := proto.Clone(m.toEcho()).(*tsscommv1.Echo)
-	if !ok {
-		return fmt.Errorf("failed to clone echo message")
-	}
-
-	ech := newEcho(content.Message, t.guardiansProtoIDs)
 
 	select {
-	case t.messageOutChan <- ech:
+	case t.messageOutChan <- newEcho(content, t.guardiansProtoIDs):
 	default:
 		return fmt.Errorf("couldn't echo the message, network output channel buffer is full")
 	}
@@ -894,23 +901,27 @@ func (t *Engine) sendEchoOut(m Incoming) error {
 
 var errBadRoundsInEcho = fmt.Errorf("cannot receive echos for rounds: %v,%v", round1Message1, round2Message)
 
-func (t *Engine) handleEcho(m Incoming) (bool, error) {
+func (t *Engine) handleEcho(m Incoming) error {
 	parsed, err := t.parseEcho(m)
 	if err != nil {
 		if parsed != nil {
 			err = parsed.wrapError(err)
 		}
 
-		return false, err
+		return err
 	}
 
-	shouldEcho, shouldDeliver, err := t.relbroadcastInspection(parsed, m)
+	shouldEcho, deliverable, err := t.relbroadcastInspection(parsed, m)
 	if err != nil {
-		return false, parsed.wrapError(err)
+		return parsed.wrapError(err)
 	}
 
-	if !shouldDeliver {
-		return shouldEcho, nil
+	if shouldEcho {
+		t.sendEchoOut(parsed, m)
+	}
+
+	if deliverable == nil {
+		return nil
 	}
 
 	switch v := parsed.(type) {
@@ -920,11 +931,11 @@ func (t *Engine) handleEcho(m Incoming) (bool, error) {
 		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*v})
 	case *parsedTssContent:
 		if err := t.feedIncomingToFp(v.ParsedMessage); err != nil {
-			return shouldEcho, parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))
+			return parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))
 		}
 	}
 
-	return shouldEcho, nil
+	return nil
 }
 
 func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
@@ -1041,7 +1052,11 @@ func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
 	defer t.mtx.Unlock()
 
 	if stored, ok := t.received[id]; ok {
-		if stored.messageDigest != msgDigest {
+		if stored.verifiedDigest == nil {
+			return fmt.Errorf("internal error. Unicast stored without verified hash")
+		}
+
+		if *stored.verifiedDigest != msgDigest {
 			return fmt.Errorf("%w. (time first unicast received %v)", ErrEquivicatingGuardian, stored.timeReceived)
 		}
 
@@ -1049,11 +1064,11 @@ func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
 	}
 
 	t.received[id] = &broadcaststate{
-		timeReceived:  time.Now(), // used for GC.
-		messageDigest: hash(bts),  // used to ensure no equivocation.
-		votes:         nil,        // no votes should be stored for a unicast.
-		echoedAlready: true,       // ensuring this never echoed since it is a unicast.
-		mtx:           nil,        // no need to lock this, just store it.
+		timeReceived:   time.Now(), // used for GC.
+		verifiedDigest: &msgDigest, // used to ensure no equivocation.
+		votes:          nil,        // no votes should be stored for a unicast.
+		echoedAlready:  true,       // ensuring this never echoed since it is a unicast.
+		mtx:            nil,        // no need to lock this, just store it.
 	}
 
 	return nil
