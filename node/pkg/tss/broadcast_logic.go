@@ -62,6 +62,28 @@ type parsedAnnouncement struct {
 	issuer *tsscommv1.PartyId
 }
 
+type parsedHashEcho struct {
+	*tsscommv1.HashEcho
+}
+
+// getTrackingID implements processedMessage.
+func (p *parsedHashEcho) getTrackingID() *common.TrackingID {
+	return nil
+}
+
+// getUUID implements processedMessage.
+func (p *parsedHashEcho) getUUID(loadDistKey []byte) (uuid, error) {
+	uid := uuid{}
+	copy(uid[:], p.HashEcho.SessionUuid)
+
+	return uid, nil
+}
+
+// wrapError implements processedMessage.
+func (p *parsedHashEcho) wrapError(e error) error {
+	return logableError{cause: fmt.Errorf("error with hashEcho: %w", e)}
+}
+
 func serializeableToUUID(s serialzeable, loadDistKey []byte) (uuid, error) {
 	bts, err := s.serialize()
 	if err != nil {
@@ -121,7 +143,7 @@ func (p *parsedProblem) getUUID(loadDistKey []byte) (uuid, error) {
 }
 
 func (msg *parsedTssContent) getUUID(loadDistKey []byte) (uuid, error) {
-	return getMessageUUID(msg.ParsedMessage, loadDistKey)
+	return getMessageUUID(msg.ParsedMessage, loadDistKey), nil
 }
 
 func (p *parsedTssContent) wrapError(err error) error {
@@ -292,12 +314,12 @@ func (t *Engine) relbroadcastInspection(parsed relbroadcastables, msg Incoming) 
 	signed := msg.toEcho().Message
 	echoer := msg.GetSource()
 
-	state, err := t.fetchOrCreateState(msg, parsed, signed)
+	state, err := t.fetchOrCreateState(parsed)
 	if err != nil {
 		return false, nil, err
 	}
 
-	if err := t.validateBroadcastState(state, signed, msg.GetSource()); err != nil {
+	if err := t.validateBroadcastState(state, parsed, signed, msg.GetSource()); err != nil {
 		return false, nil, err
 	}
 
@@ -309,7 +331,7 @@ func (t *Engine) relbroadcastInspection(parsed relbroadcastables, msg Incoming) 
 	return shouldBroadcast, t.getDeliverableIfAllowed(state), nil
 }
 
-func (t *Engine) fetchOrCreateState(msg Incoming, parsed relbroadcastables, signed *tsscommv1.SignedMessage) (*broadcaststate, error) {
+func (t *Engine) fetchOrCreateState(parsed relbroadcastables) (*broadcaststate, error) {
 	uuid, err := parsed.getUUID(t.LoadDistributionKey)
 	if err != nil {
 		return nil, err
@@ -337,23 +359,32 @@ func (t *Engine) fetchOrCreateState(msg Incoming, parsed relbroadcastables, sign
 	return state, nil
 }
 
-func (t *Engine) validateBroadcastState(s *broadcaststate, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {
+func (t *Engine) validateBroadcastState(s *broadcaststate, parsed relbroadcastables, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {
 	// locking a single state. Can be reached by multiple echoers.
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	// non echo is a deliverable message. which only the original signer of the message can send.
 	if _, ok := signed.Content.(*tsscommv1.SignedMessage_HashEcho); !ok {
+		if _, ok := parsed.(*parsedHashEcho); ok {
+			return fmt.Errorf("internal error. Parsed messsaage is a hash echo, but the signed message is not")
+		}
+
 		if !equalPartyIds(protoToPartyId(signed.Sender), protoToPartyId(source)) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
+	}
+
+	uid, err := parsed.getUUID(t.LoadDistributionKey)
+	if err != nil {
+		return fmt.Errorf("error validating broadcast state: %w", err)
 	}
 
 	// verify incoming
 	if s.verifiedDigest == nil {
 		// TODO: Ensure the session UUID is also signed!
 		// 		If it isn't someone can copy a meesage and send a signed message with a different session UUID.
-		if err := t.verifySignedMessage(signed); err != nil {
+		if err := t.verifySignedMessage(uid, signed); err != nil {
 			return err
 		}
 
@@ -361,7 +392,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, signed *tsscommv1.Sig
 		s.verifiedDigest = &tmp
 
 	} else if *s.verifiedDigest != hashSignedMessage(signed) {
-		if err := t.verifySignedMessage(signed); err != nil {
+		if err := t.verifySignedMessage(uid, signed); err != nil {
 			// two different digest and bad signature.
 			return fmt.Errorf("equivication attack detected. echoer %v sent a digest that can't be verified", source.Id)
 		}

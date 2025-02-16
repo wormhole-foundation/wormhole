@@ -223,6 +223,15 @@ func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
 		}
 	case nil:
 		return ErrNoContent
+	case *tsscommv1.SignedMessage_HashEcho:
+		if len(v.HashEcho.OriginalContetDigest) != len(digest{}) {
+			return fmt.Errorf("hashEcho digest is not in correct size")
+		}
+		if len(v.HashEcho.SessionUuid) != len(uuid{}) {
+			return fmt.Errorf("hashEcho sessionUuid is not in correct size")
+		}
+
+		return nil
 	default:
 		return fmt.Errorf("unknown content type: %T", v)
 	}

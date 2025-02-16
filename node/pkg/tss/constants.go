@@ -17,9 +17,9 @@ const (
 	started    uint32 = 1
 
 	// byte sizes
-	hostnameSize     = 255
-	pemKeySize       = 178
-	signingRoundSize = 8
+	hostnameSize = 255
+	pemKeySize   = 178
+	msgTypeSize  = 60 // message types: "binance.tsslib.ecdsa.signing.SignRound1Message1"
 
 	// auxiliaryData is emmiterChain in bytes.
 	auxiliaryDataSize = int(unsafe.Sizeof(vaa.ChainID(0)))

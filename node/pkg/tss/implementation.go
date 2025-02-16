@@ -432,12 +432,26 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 		},
 	}
 
-	if err := t.sign(&sm); err != nil {
-		t.logger.Error("couldn't sign new tss digest",
-			zap.String("chainID", chainID.String()),
-			zap.String("digest", fmt.Sprintf("%x", digest)),
-			zap.Error(err),
-		)
+	tmp := &parsedAnnouncement{
+		SawDigest: sm.GetAnnouncement(),
+		issuer:    sm.Sender,
+	}
+
+	flds := []zap.Field{zap.String("chainID", chainID.String()),
+		zap.String("digest", fmt.Sprintf("%x", digest)),
+	}
+
+	uid, err := tmp.getUUID(t.LoadDistributionKey)
+	if err != nil {
+		flds = append(flds, zap.Error(err))
+		t.logger.Error("couldn't create uuid to sign new announcement ", flds...)
+
+		return
+	}
+
+	if err := t.sign(uid, &sm); err != nil {
+		flds = append(flds, zap.Error(err))
+		t.logger.Error("couldn't sign a new announcement", flds...)
 
 		return
 	}
@@ -445,10 +459,9 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 	select {
 	case t.messageOutChan <- newEcho(&sm, t.guardiansProtoIDs):
 	default:
-		t.logger.Error("couldn't anounce to others about new tss digest, network output channel buffer is full",
-			zap.String("chainID", chainID.String()),
-			zap.String("digest", fmt.Sprintf("%x", digest)),
-		)
+		t.logger.Error(
+			"couldn't anounce to others about new tss digest, network output channel buffer is full",
+			flds...)
 	}
 }
 
@@ -803,7 +816,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 			Signature: nil,
 		}
 
-		if err := t.sign(msgToSend); err != nil {
+		if err := t.sign(getMessageUUID(m, t.LoadDistributionKey), msgToSend); err != nil {
 			return nil, err
 		}
 
@@ -924,7 +937,7 @@ func (t *Engine) handleEcho(m Incoming) error {
 		return nil
 	}
 
-	switch v := parsed.(type) {
+	switch v := deliverable.(type) {
 	case *parsedProblem:
 		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
 	case *parsedAnnouncement:
@@ -1036,10 +1049,7 @@ func (t *Engine) handleUnicastTSS(v *tsscommv1.Unicast_Tss, src *tsscommv1.Party
 var errUnicastAlreadyReceived = fmt.Errorf("unicast already received")
 
 func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
-	id, err := getMessageUUID(parsed, t.LoadDistributionKey)
-	if err != nil {
-		return err
-	}
+	id := getMessageUUID(parsed, t.LoadDistributionKey)
 
 	bts, _, err := parsed.WireBytes()
 	if err != nil {
@@ -1127,6 +1137,10 @@ func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 		}
 
 		return parsed, nil
+	case *tsscommv1.SignedMessage_HashEcho:
+		return &parsedHashEcho{
+			HashEcho: cntnt.HashEcho,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown content type: %T", cntnt)
 	}
@@ -1137,7 +1151,7 @@ func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
 // this is used by the reliable broadcast to check no two messages from the same sender will be used to update the full party
 // in the same round for the specific session of the protocol.
-func getMessageUUID(msg tss.ParsedMessage, loadDistKey []byte) (uuid, error) {
+func getMessageUUID(msg tss.Message, loadDistKey []byte) uuid {
 	// The TackingID of a parsed message is tied to the run of the protocol for a single
 	//  signature, thus we use it as a sessionID.
 	messageTrackingID := [trackingIDHexStrSize]byte{}
@@ -1149,15 +1163,12 @@ func getMessageUUID(msg tss.ParsedMessage, loadDistKey []byte) (uuid, error) {
 	fromKey := [pemKeySize]byte{}
 	copy(fromKey[:], msg.GetFrom().Key)
 
-	// Adding the round allows the same sender to send messages for different rounds.
+	// Adding the Message type allows the same sender to send messages for different rounds.
 	// but, sender j is not allowed to send two different messages to the same round.
-	rnd, err := getRound(msg)
-	if err != nil {
-		return uuid{}, err
-	}
+	tp := msg.Type()
 
-	round := [signingRoundSize]byte{}
-	copy(round[:], rnd)
+	msgType := [msgTypeSize]byte{}
+	copy(msgType[:], tp[:])
 
 	d := make([]byte, 0, len(tssContentDomain)+len(loadDistKey)+int(trackingIDHexStrSize)+hostnameSize+pemKeySize)
 
@@ -1166,9 +1177,9 @@ func getMessageUUID(msg tss.ParsedMessage, loadDistKey []byte) (uuid, error) {
 	d = append(d, messageTrackingID[:]...)
 	d = append(d, fromId[:]...)
 	d = append(d, fromKey[:]...)
-	d = append(d, round[:]...)
+	d = append(d, msgType[:]...)
 
-	return uuid(hash(d)), nil
+	return uuid(hash(d))
 }
 
 func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *tsscommv1.PartyId) (*parsedTssContent, error) {
@@ -1208,8 +1219,9 @@ func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *tsscommv1.Part
 	return parsed, nil
 }
 
-func (st *GuardianStorage) sign(msg *tsscommv1.SignedMessage) error {
-	digest := hashSignedMessage(msg)
+func (st *GuardianStorage) sign(uuid uuid, msg *tsscommv1.SignedMessage) error {
+	tmp := hashSignedMessage(msg)
+	digest := hash(append(uuid[:], tmp[:]...))
 
 	sig, err := st.signingKey.Sign(rand.Reader, digest[:], nil)
 	msg.Signature = sig
@@ -1221,7 +1233,7 @@ var ErrInvalidSignature = fmt.Errorf("invalid signature")
 
 var errEmptySignature = fmt.Errorf("empty signature")
 
-func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) error {
+func (st *GuardianStorage) verifySignedMessage(uid uuid, msg *tsscommv1.SignedMessage) error {
 	if msg == nil {
 		return fmt.Errorf("nil signed message")
 	}
@@ -1240,7 +1252,8 @@ func (st *GuardianStorage) verifySignedMessage(msg *tsscommv1.SignedMessage) err
 		return fmt.Errorf("certificated stored with non-ecdsa public key, guardian storage is corrupted")
 	}
 
-	digest := hashSignedMessage(msg)
+	tmp := hashSignedMessage(msg)
+	digest := hash(append(uid[:], tmp[:]...))
 
 	isValid := ecdsa.VerifyASN1(pk, digest[:], msg.Signature)
 
