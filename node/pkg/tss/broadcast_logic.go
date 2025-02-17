@@ -333,6 +333,10 @@ func (t *Engine) broadcastInspection(parsed broadcastable, msg Incoming) (bool, 
 		return false, nil, err
 	}
 
+	if shouldBroadcast && equalPartyIds(protoToPartyId(signed.Sender), t.Self) {
+		shouldBroadcast = false // no need to echo if we're the original sender.
+	}
+
 	return shouldBroadcast, t.getDeliverableIfAllowed(state), nil
 }
 

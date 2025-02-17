@@ -86,18 +86,40 @@ func TestBroadcast(t *testing.T) {
 		a := assert.New(t)
 		// f = 1, n = 5
 		engines := load5GuardiansSetupForBroadcastChecks(a)
+		receiver := engines[4]
 
 		e1 := engines[0]
 		// make parsedMessage, and insert into e1
 		// then add another one for the same round.
 		for j, rnd := range allRounds {
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rnd, party.Digest{byte(j)})
 
 			echo := parsedIntoEcho(a, e1, parsed1)
 
-			shouldBroadcast, shouldDeliver, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, shouldDeliver, err := receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
+			a.Nil(shouldDeliver)
+		}
+	})
+
+	t.Run("forLeaderNotReBroadcasting", func(t *testing.T) {
+		a := assert.New(t)
+		// f = 1, n = 5
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+
+		e1 := engines[0]
+		receiver := e1
+		// make parsedMessage, and insert into e1
+		// then add another one for the same round.
+		for j, rnd := range allRounds {
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rnd, party.Digest{byte(j)})
+
+			echo := parsedIntoEcho(a, e1, parsed1)
+
+			shouldBroadcast, shouldDeliver, err := receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			a.NoError(err)
+			a.False(shouldBroadcast)
 			a.Nil(shouldDeliver)
 		}
 	})
@@ -106,26 +128,27 @@ func TestBroadcast(t *testing.T) {
 		a := assert.New(t)
 		// f = 1, n = 5
 		engines := load5GuardiansSetupForBroadcastChecks(a)
+		receiver := engines[4]
 
 		e1 := engines[0]
 		// make parsedMessage, and insert into e1
 		// then add another one for the same round.
 		for j, rnd := range allRounds {
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rnd, party.Digest{byte(j)})
 
 			echo := parsedIntoEcho(a, e1, parsed1)
 
-			shouldBroadcast, shouldDeliver, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, shouldDeliver, err := receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.Nil(shouldDeliver)
 
-			shouldBroadcast, shouldDeliver, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, shouldDeliver, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(shouldDeliver)
 
-			shouldBroadcast, shouldDeliver, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, shouldDeliver, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(shouldDeliver)
@@ -137,10 +160,11 @@ func TestBroadcast(t *testing.T) {
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2, e3 := engines[0], engines[1], engines[2]
 
+		receiver := engines[4]
 		// two different signers on an echo, meaning it will receive from two players.
 		// since f=1 and we have f+1 echos: it should broadcast at the end of this test.
 		for j, rnd := range allRounds {
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rnd, party.Digest{byte(j)})
 
 			originalValue := parsedIntoEcho(a, e1, parsed1)
 
@@ -152,26 +176,26 @@ func TestBroadcast(t *testing.T) {
 
 			echo.setSource(e2.Self)
 
-			shouldBroadcast, deliverable, err := e1.broadcastInspection(parsed, echo)
+			shouldBroadcast, deliverable, err := receiver.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
 			echo.setSource(e3.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(parsed, echo)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast) // should broadcast only for leader.
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(parsed, echo)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast) // should not broadcast if it hadn't seen the actual value from the leader!
 			a.Nil(deliverable)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, originalValue)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, originalValue)
 			a.NoError(err)
 			a.True(shouldBroadcast) // should echo when seeing the actual value from the leader.
 			a.NotNil(deliverable)
@@ -219,17 +243,18 @@ func TestDeliver(t *testing.T) {
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2, e3 := engines[0], engines[1], engines[2]
 
+		receiver := engines[4]
 		// two different signers on an echo, meaning it will receive from two players.
 		// since f=1 and we have f+1 echos: it should broadcast at the end of this test.
 		for j, rnd := range allRounds {
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rnd, party.Digest{byte(j)})
 
 			echo := parsedIntoEcho(a, e1, parsed1)
 			hshEcho := makeHashEcho(e1, parsed1, echo)
 			hshEcho.setSource(e2.Self)
 
 			prsedHashEcho := &parsedHashEcho{hshEcho.toEcho().Message.GetHashEcho()}
-			shouldBroadcast, deliverable, err := e1.broadcastInspection(prsedHashEcho, hshEcho)
+			shouldBroadcast, deliverable, err := receiver.broadcastInspection(prsedHashEcho, hshEcho)
 
 			a.NoError(err)
 			a.False(shouldBroadcast)
@@ -237,14 +262,14 @@ func TestDeliver(t *testing.T) {
 
 			hshEcho.setSource(e3.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hshEcho)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(prsedHashEcho, hshEcho)
 			a.NoError(err)
 			a.False(shouldBroadcast) // haven't seen the actual value from the leader yet.
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.NotNil(deliverable)
@@ -256,36 +281,37 @@ func TestDeliver(t *testing.T) {
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2, e3, e4 := engines[0], engines[1], engines[2], engines[3]
 
+		receiver := engines[4]
 		// two different signers on an echo, meaning it will receive from two players.
 		// since f=1 and we have f+1 echos: it should broadcast at the end of this test.
 		for j, rnd := range allRounds {
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rnd, party.Digest{byte(j)})
 			echo := parsedIntoEcho(a, e1, parsed1)
 			hashecho := makeHashEcho(e1, parsed1, echo)
 			hashecho.setSource(e2.Self)
 
 			prsedHashEcho := &parsedHashEcho{hashecho.toEcho().Message.GetHashEcho()}
-			shouldBroadcast, deliverable, err := e1.broadcastInspection(prsedHashEcho, hashecho)
+			shouldBroadcast, deliverable, err := receiver.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
 			hashecho.setSource(e3.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hashecho)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.NotNil(deliverable)
 
 			// twice in a row
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
@@ -293,7 +319,7 @@ func TestDeliver(t *testing.T) {
 			// new hash echo, shouldn't deliver again too.
 			hashecho.setSource(e4.Self)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hashecho)
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
@@ -327,20 +353,21 @@ func TestEquivocation(t *testing.T) {
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2 := engines[0], engines[1]
 
+		receiver := engines[4]
 		for i, rndType := range allRounds {
 
 			trackingId := party.Digest{byte(i)}
 
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rndType, trackingId)
 
-			shouldBroadcast, deliverable, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, parsedIntoEcho(a, e2, parsed1))
+			shouldBroadcast, deliverable, err := receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, parsedIntoEcho(a, e2, parsed1))
 			a.NoError(err)
 			a.True(shouldBroadcast) //should broadcast since e2 is the source of this message.
 			a.Nil(deliverable)
 
 			parsed2 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
 
-			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed2, ""}, parsedIntoEcho(a, e2, parsed2))
+			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&parsedTssContent{parsed2, ""}, parsedIntoEcho(a, e2, parsed2))
 			a.ErrorAs(err, &ErrEquivicatingGuardian)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
@@ -354,7 +381,7 @@ func TestEquivocation(t *testing.T) {
 				TssContent.
 				Payload[0] += 1
 			// now echoer is equivicating (change content, but of some seen message):
-			_, _, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, equvicatingEchoerMessage)
+			_, _, err = receiver.broadcastInspection(&parsedTssContent{parsed1, ""}, equvicatingEchoerMessage)
 			a.ErrorContains(err, e2.Self.Id)
 		}
 	})
@@ -364,6 +391,7 @@ func TestEquivocation(t *testing.T) {
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2 := engines[0], engines[1]
 
+		receiver := engines[4]
 		supctx := testutils.MakeSupervisorContext(context.Background())
 		ctx, cncl := context.WithCancel(supctx)
 		defer cncl()
@@ -375,8 +403,8 @@ func TestEquivocation(t *testing.T) {
 
 			trackingId := party.Digest{byte(i)}
 
-			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
-			parsed2 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rndType, trackingId)
+			parsed2 := generateFakeMessageWithRandomContent(e1.Self, receiver.Self, rndType, trackingId)
 
 			bts, _, err := parsed1.WireBytes()
 			a.NoError(err)
@@ -398,14 +426,14 @@ func TestEquivocation(t *testing.T) {
 
 			msg.setSource(e1.Self)
 
-			e2.handleUnicast(msg)
+			receiver.handleUnicast(msg)
 
 			bts, _, err = parsed2.WireBytes()
 			a.NoError(err)
 
 			msg.Content.Message.(*tsscommv1.PropagatedMessage_Unicast).
 				Unicast.Content.(*tsscommv1.Unicast_Tss).Tss.Payload = bts
-			a.ErrorIs(e2.handleUnicast(msg), ErrEquivicatingGuardian)
+			a.ErrorIs(receiver.handleUnicast(msg), ErrEquivicatingGuardian)
 		}
 	})
 }
