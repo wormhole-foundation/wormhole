@@ -879,6 +879,49 @@ func TestDefaultSameLeader(t *testing.T) {
 }
 
 func TestNoFaultsFlow(t *testing.T) {
+	// checking metrics first since this is a bit flakey.
+	t.Run("with correct metrics", func(t *testing.T) {
+		sigProducedCntr.Reset()
+		a := assert.New(t)
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Second*20)
+		defer cancel()
+
+		fmt.Println("starting engines.")
+		for _, engine := range engines {
+			a.NoError(engine.Start(ctx))
+		}
+
+		fmt.Println("msgHandler settup:")
+		dnchn := msgHandler(ctx, engines, 1)
+
+		fmt.Println("engines started, requesting sigs")
+
+		m := dto.Metric{}
+
+		cID := vaa.ChainID(1)
+		// all engines are started, now we can begin the protocol.
+		for _, engine := range engines {
+			tmp := make([]byte, 32)
+			copy(tmp, dgst[:])
+			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
+		}
+
+		if ctxExpiredFirst(ctx, dnchn) {
+			a.FailNow("context expired")
+		}
+
+		time.Sleep(time.Millisecond * 500) // ensuring all other engines have finished and not just one of them.
+
+		sigProducedCntr.WithLabelValues(cID.String()).Write(&m)
+		a.Equal(engines[0].Threshold+1, int(m.Counter.GetValue()))
+	})
+
 	// Setting up all engines (not just 5), each with a different guardian storage.
 	// all will attempt to sign a single message, while outputing messages to each other,
 	// and reliably broadcasting them.
@@ -946,48 +989,6 @@ func TestNoFaultsFlow(t *testing.T) {
 		if ctxExpiredFirst(ctx, dnchn) {
 			a.FailNow("context expired")
 		}
-	})
-
-	t.Run("with correct metrics", func(t *testing.T) {
-		sigProducedCntr.Reset()
-		a := assert.New(t)
-		engines, err := loadGuardians(5, "tss5")
-		a.NoError(err)
-
-		dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
-
-		supctx := testutils.MakeSupervisorContext(context.Background())
-		ctx, cancel := context.WithTimeout(supctx, time.Second*20)
-		defer cancel()
-
-		fmt.Println("starting engines.")
-		for _, engine := range engines {
-			a.NoError(engine.Start(ctx))
-		}
-
-		fmt.Println("msgHandler settup:")
-		dnchn := msgHandler(ctx, engines, 1)
-
-		fmt.Println("engines started, requesting sigs")
-
-		m := dto.Metric{}
-
-		cID := vaa.ChainID(1)
-		// all engines are started, now we can begin the protocol.
-		for _, engine := range engines {
-			tmp := make([]byte, 32)
-			copy(tmp, dgst[:])
-			engine.BeginAsyncThresholdSigningProtocol(tmp, cID, reportableConsistancyLevel)
-		}
-
-		if ctxExpiredFirst(ctx, dnchn) {
-			a.FailNow("context expired")
-		}
-
-		time.Sleep(time.Millisecond * 500) // ensuring all other engines have finished and not just one of them.
-
-		sigProducedCntr.WithLabelValues(cID.String()).Write(&m)
-		a.Equal(engines[0].Threshold+1, int(m.Counter.GetValue()))
 	})
 
 	t.Run("with 5 sigs", func(t *testing.T) {
