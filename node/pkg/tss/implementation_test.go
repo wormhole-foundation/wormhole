@@ -95,7 +95,7 @@ func TestBroadcast(t *testing.T) {
 
 			echo := parsedIntoEcho(a, e1, parsed1)
 
-			shouldBroadcast, shouldDeliver, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, shouldDeliver, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.Nil(shouldDeliver)
@@ -121,14 +121,14 @@ func TestBroadcast(t *testing.T) {
 				HashEcho: echo.toEcho().Message.GetHashEcho(),
 			}
 
-			shouldBroadcast, deliverable, err := e1.relbroadcastInspection(parsed, echo)
+			shouldBroadcast, deliverable, err := e1.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
 			echo.setSource(e3.Self)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(parsed, echo)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.Nil(deliverable)
@@ -186,7 +186,7 @@ func TestDeliver(t *testing.T) {
 			hshEcho.setSource(e2.Self)
 
 			prsedHashEcho := &parsedHashEcho{hshEcho.toEcho().Message.GetHashEcho()}
-			shouldBroadcast, deliverable, err := e1.relbroadcastInspection(prsedHashEcho, hshEcho)
+			shouldBroadcast, deliverable, err := e1.broadcastInspection(prsedHashEcho, hshEcho)
 
 			a.NoError(err)
 			a.False(shouldBroadcast)
@@ -194,14 +194,14 @@ func TestDeliver(t *testing.T) {
 
 			hshEcho.setSource(e3.Self)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(prsedHashEcho, hshEcho)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hshEcho)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.NotNil(deliverable)
@@ -222,27 +222,27 @@ func TestDeliver(t *testing.T) {
 			hashecho.setSource(e2.Self)
 
 			prsedHashEcho := &parsedHashEcho{hashecho.toEcho().Message.GetHashEcho()}
-			shouldBroadcast, deliverable, err := e1.relbroadcastInspection(prsedHashEcho, hashecho)
+			shouldBroadcast, deliverable, err := e1.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
 			hashecho.setSource(e3.Self)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(prsedHashEcho, hashecho)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.True(shouldBroadcast)
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.NotNil(deliverable)
 
 			// twice in a row
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
@@ -250,7 +250,7 @@ func TestDeliver(t *testing.T) {
 			// new hash echo, shouldn't deliver again too.
 			hashecho.setSource(e4.Self)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(prsedHashEcho, hashecho)
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
@@ -290,14 +290,14 @@ func TestEquivocation(t *testing.T) {
 
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
 
-			shouldBroadcast, deliverable, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, parsedIntoEcho(a, e2, parsed1))
+			shouldBroadcast, deliverable, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, parsedIntoEcho(a, e2, parsed1))
 			a.NoError(err)
 			a.True(shouldBroadcast) //should broadcast since e2 is the source of this message.
 			a.Nil(deliverable)
 
 			parsed2 := generateFakeMessageWithRandomContent(e1.Self, e2.Self, rndType, trackingId)
 
-			shouldBroadcast, deliverable, err = e1.relbroadcastInspection(&parsedTssContent{parsed2, ""}, parsedIntoEcho(a, e2, parsed2))
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed2, ""}, parsedIntoEcho(a, e2, parsed2))
 			a.ErrorAs(err, &ErrEquivicatingGuardian)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
@@ -311,7 +311,7 @@ func TestEquivocation(t *testing.T) {
 				TssContent.
 				Payload[0] += 1
 			// now echoer is equivicating (change content, but of some seen message):
-			_, _, err = e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, equvicatingEchoerMessage)
+			_, _, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, equvicatingEchoerMessage)
 			a.ErrorContains(err, e2.Self.Id)
 		}
 	})
@@ -343,7 +343,7 @@ func TestEquivocation(t *testing.T) {
 					Message: &tsscommv1.PropagatedMessage_Unicast{
 						Unicast: &tsscommv1.Unicast{
 							Content: &tsscommv1.Unicast_Tss{
-								&tsscommv1.TssContent{
+								Tss: &tsscommv1.TssContent{
 									Payload:         bts,
 									MsgSerialNumber: 0,
 								},
@@ -389,7 +389,7 @@ func TestBadInputs(t *testing.T) {
 			echo.setSource(e1.Self)
 
 			echo.toEcho().Message.Signature[0] += 1
-			_, _, err := e1.relbroadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			_, _, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.ErrorIs(err, ErrInvalidSignature)
 
 			if rnd == round1Message1 || rnd == round2Message {

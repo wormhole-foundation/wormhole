@@ -31,7 +31,7 @@ import (
 type uuid digest // distinguishing between types to avoid confusion.
 
 // Engine is the implementation of reliableTSS, it is a wrapper for the
-// tss-lib fullParty and adds reliable broadcast logic
+// tss-lib fullParty and adds  hash-broadcast logic
 // to the message sending and receiving.
 type Engine struct {
 	ctx context.Context
@@ -51,7 +51,7 @@ type Engine struct {
 	started         atomic.Uint32
 	msgSerialNumber uint64
 
-	// used to perform reliable broadcast:
+	// used to perform  hash-broadcast:
 	mtx      *sync.Mutex
 	received map[uuid]*broadcaststate
 
@@ -882,7 +882,7 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 	return nil
 }
 
-func (t *Engine) sendEchoOut(parsed relbroadcastables, m Incoming) error {
+func (t *Engine) sendEchoOut(parsed broadcastable, m Incoming) error {
 	e := m.toEcho()
 
 	uuid, err := parsed.getUUID(t.LoadDistributionKey)
@@ -924,7 +924,7 @@ func (t *Engine) handleEcho(m Incoming) error {
 		return err
 	}
 
-	shouldEcho, deliverable, err := t.relbroadcastInspection(parsed, m)
+	shouldEcho, deliverable, err := t.broadcastInspection(parsed, m)
 	if err != nil {
 		return parsed.wrapError(err)
 	}
@@ -1149,7 +1149,7 @@ func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 // SECURITY NOTE: this function sets a sessionID to a message. Used to ensure no equivocation.
 //
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
-// this is used by the reliable broadcast to check no two messages from the same sender will be used to update the full party
+// this is used by the broadcast protocol to check no two messages from the same sender will be used to update the full party
 // in the same round for the specific session of the protocol.
 func getMessageUUID(msg tss.Message, loadDistKey []byte) uuid {
 	// The TackingID of a parsed message is tied to the run of the protocol for a single
