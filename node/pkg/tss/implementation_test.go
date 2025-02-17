@@ -102,7 +102,37 @@ func TestBroadcast(t *testing.T) {
 		}
 	})
 
-	t.Run("forEnoughEchos", func(t *testing.T) {
+	t.Run("OnlyOnce", func(t *testing.T) {
+		a := assert.New(t)
+		// f = 1, n = 5
+		engines := load5GuardiansSetupForBroadcastChecks(a)
+
+		e1 := engines[0]
+		// make parsedMessage, and insert into e1
+		// then add another one for the same round.
+		for j, rnd := range allRounds {
+			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
+
+			echo := parsedIntoEcho(a, e1, parsed1)
+
+			shouldBroadcast, shouldDeliver, err := e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			a.NoError(err)
+			a.True(shouldBroadcast)
+			a.Nil(shouldDeliver)
+
+			shouldBroadcast, shouldDeliver, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			a.NoError(err)
+			a.False(shouldBroadcast)
+			a.Nil(shouldDeliver)
+
+			shouldBroadcast, shouldDeliver, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
+			a.NoError(err)
+			a.False(shouldBroadcast)
+			a.Nil(shouldDeliver)
+		}
+	})
+
+	t.Run("waitForActualValueFromLeader", func(t *testing.T) {
 		a := assert.New(t)
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1, e2, e3 := engines[0], engines[1], engines[2]
@@ -112,14 +142,15 @@ func TestBroadcast(t *testing.T) {
 		for j, rnd := range allRounds {
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
 
-			echo := parsedIntoEcho(a, e1, parsed1)
-			echo.setSource(e2.Self)
+			originalValue := parsedIntoEcho(a, e1, parsed1)
 
-			echo = makeHashEcho(e1, parsed1, echo)
+			echo := makeHashEcho(e1, parsed1, originalValue)
 
 			parsed := &parsedHashEcho{
 				HashEcho: echo.toEcho().Message.GetHashEcho(),
 			}
+
+			echo.setSource(e2.Self)
 
 			shouldBroadcast, deliverable, err := e1.broadcastInspection(parsed, echo)
 			a.NoError(err)
@@ -130,8 +161,20 @@ func TestBroadcast(t *testing.T) {
 
 			shouldBroadcast, deliverable, err = e1.broadcastInspection(parsed, echo)
 			a.NoError(err)
-			a.True(shouldBroadcast)
+			a.False(shouldBroadcast) // should broadcast only for leader.
 			a.Nil(deliverable)
+
+			echo.setSource(e1.Self)
+
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(parsed, echo)
+			a.NoError(err)
+			a.False(shouldBroadcast) // should not broadcast if it hadn't seen the actual value from the leader!
+			a.Nil(deliverable)
+
+			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, originalValue)
+			a.NoError(err)
+			a.True(shouldBroadcast) // should echo when seeing the actual value from the leader.
+			a.NotNil(deliverable)
 		}
 	})
 }
@@ -196,14 +239,14 @@ func TestDeliver(t *testing.T) {
 
 			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hshEcho)
 			a.NoError(err)
-			a.True(shouldBroadcast)
+			a.False(shouldBroadcast) // haven't seen the actual value from the leader yet.
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
 			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
-			a.False(shouldBroadcast)
+			a.True(shouldBroadcast)
 			a.NotNil(deliverable)
 		}
 	})
@@ -231,14 +274,14 @@ func TestDeliver(t *testing.T) {
 
 			shouldBroadcast, deliverable, err = e1.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
-			a.True(shouldBroadcast)
+			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
 			echo.setSource(e1.Self)
 
 			shouldBroadcast, deliverable, err = e1.broadcastInspection(&parsedTssContent{parsed1, ""}, echo)
 			a.NoError(err)
-			a.False(shouldBroadcast)
+			a.True(shouldBroadcast)
 			a.NotNil(deliverable)
 
 			// twice in a row

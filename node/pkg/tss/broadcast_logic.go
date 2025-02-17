@@ -273,13 +273,17 @@ func wrapEquivErrWithTimestamp(err error, t time.Time) error {
 func (s *broadcaststate) update(parsed broadcastable, msg *tsscommv1.SignedMessage, echoer *tsscommv1.PartyId) (shouldEcho bool, err error) {
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(msg.Sender))
 
+	_, ok1 := msg.Content.(*tsscommv1.SignedMessage_HashEcho)
+	_, ok2 := parsed.(*parsedHashEcho)
+	isEcho := ok1 || ok2
+
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	// the incoming message is valid when this function is reached.
 	// So if the incomming message is not an echo, we can set the deliverable (which we'll return once we should deliver).
 	if s.deliverableMessage == nil {
-		if _, ok := msg.Content.(*tsscommv1.SignedMessage_HashEcho); !ok {
+		if !isEcho { // has actual content.
 			s.deliverableMessage = parsed
 		}
 	}
@@ -289,7 +293,7 @@ func (s *broadcaststate) update(parsed broadcastable, msg *tsscommv1.SignedMessa
 		return shouldEcho, err
 	}
 
-	if isMsgSrc {
+	if isMsgSrc && !isEcho {
 		s.echoedAlready = true
 		shouldEcho = true
 
@@ -365,7 +369,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastable,
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	// non echo is a deliverable message. which only the original signer of the message can send.
+	// non-echo is a deliverable message. which only the original signer of the message can send.
 	if _, ok := signed.Content.(*tsscommv1.SignedMessage_HashEcho); !ok {
 		if _, ok := parsed.(*parsedHashEcho); ok {
 			return fmt.Errorf("internal error. Parsed messsaage is a hash echo, but the signed message is not")
@@ -383,8 +387,6 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastable,
 
 	// verify incoming
 	if s.verifiedDigest == nil {
-		// TODO: Ensure the session UUID is also signed!
-		// 		If it isn't someone can copy a meesage and send a signed message with a different session UUID.
 		if err := t.verifySignedMessage(uid, signed); err != nil {
 			return err
 		}
