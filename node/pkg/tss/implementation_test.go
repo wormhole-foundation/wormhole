@@ -632,7 +632,7 @@ func TestBadInputs(t *testing.T) {
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		engine := engines[0] // Not starting engine so it doesn't run BeginTSSSign
 
-		engine.gst = gst
+		engine.SetGuardianSetState(gst)
 
 		// bad verfication run
 		v.Version = 2
@@ -1096,7 +1096,7 @@ func TestNoFaultsFlow(t *testing.T) {
 		engines[0].isleader = true
 		for _, engine := range engines {
 			engine.LeaderIdentity = engines[0].Self.Key
-			engine.gst = gst
+			engine.SetGuardianSetState(gst)
 			a.NoError(engine.Start(ctx))
 		}
 
