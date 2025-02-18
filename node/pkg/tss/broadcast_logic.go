@@ -40,6 +40,11 @@ type broadcastMessage interface {
 	getUUID(loadDistKey []byte) uuid
 }
 
+type deliverableMessage interface {
+	broadcastMessage
+	deliver(*Engine) error
+}
+
 type processedMessage interface {
 	broadcastMessage
 	wrapError(error) error
@@ -128,6 +133,10 @@ func (p *parsedProblem) getUUID(loadDistKey []byte) uuid {
 	return serializeableToUUID(p, loadDistKey)
 }
 
+func (p *parsedProblem) deliver(t *Engine) error {
+	return intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*p})
+}
+
 func (msg *parsedTssContent) getUUID(loadDistKey []byte) uuid {
 	return getMessageUUID(msg.ParsedMessage, loadDistKey)
 }
@@ -158,6 +167,14 @@ func (p *parsedTssContent) getTrackingID() *common.TrackingID {
 	}
 
 	return p.WireMsg().GetTrackingID()
+}
+
+func (p *parsedTssContent) deliver(t *Engine) error {
+	if err := t.feedIncomingToFp(p.ParsedMessage); err != nil {
+		return p.wrapError(fmt.Errorf("failed to update the full party: %w", err))
+	}
+
+	return nil
 }
 
 func (p *parsedAnnouncement) serialize() []byte {
@@ -192,18 +209,18 @@ func (p *parsedAnnouncement) getUUID(loadDistKey []byte) uuid {
 }
 
 func (p *parsedAnnouncement) wrapError(err error) error {
-	return logableError{
-		cause:      fmt.Errorf("error with digest announcement from %v: %w", p.issuer, err),
-		trackingId: nil, // parsedAnnouncement doesn't have a trackingID.
-		round:      "",  // parsedAnnouncement doesn't have a round.
-	}
+	return logableError{cause: fmt.Errorf("error with digest announcement from %v: %w", p.issuer, err)}
+}
+
+func (p *parsedAnnouncement) deliver(t *Engine) error {
+	return intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*p})
 }
 
 type broadcaststate struct {
 	timeReceived   time.Time
 	verifiedDigest *digest
 
-	deliverableMessage broadcastMessage
+	deliverableMessage deliverableMessage
 
 	votes map[voterId]bool
 	// if set to true: don't echo again, even if received from original sender.
@@ -214,7 +231,7 @@ type broadcaststate struct {
 	mtx *sync.Mutex
 }
 
-func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) broadcastMessage {
+func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverableMessage {
 	f := t.GuardianStorage.getMaxExpectedFaults()
 
 	s.mtx.Lock()
@@ -250,8 +267,7 @@ func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incomin
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(unparsedSignedMessage.Sender))
 
 	_, ok1 := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
-	_, ok2 := parsed.(*parsedHashEcho)
-	isEcho := ok1 || ok2
+	isEcho := ok1
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -259,8 +275,9 @@ func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incomin
 	// the incoming message is valid when this function is reached.
 	// So if the incomming message is not an echo, we can set the deliverable (which we'll return once we should deliver).
 	if s.deliverableMessage == nil {
-		if !isEcho { // has actual content.
-			s.deliverableMessage = parsed
+		deliverable, ok := parsed.(deliverableMessage)
+		if !isEcho && ok { // has actual content.
+			s.deliverableMessage = deliverable
 		}
 	}
 
@@ -290,7 +307,7 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 // broadcastInspection is the main function that handles the hash-broadcast algorithm.
 // it returns whether a message should be re-broadcasted, a deiliverable message, or an error.
 // Once a deliverable is returned from this function, it can be used by the caller.
-func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, broadcastMessage, error) {
+func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, deliverableMessage, error) {
 	state := t.fetchOrCreateState(parsed)
 
 	if err := t.validateBroadcastState(state, parsed, msg); err != nil {

@@ -916,18 +916,7 @@ func (t *Engine) handleEcho(m Incoming) error {
 		return nil
 	}
 
-	switch v := deliverable.(type) {
-	case *parsedProblem:
-		_ = intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
-	case *parsedAnnouncement:
-		_ = intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*v})
-	case *parsedTssContent:
-		if err := t.feedIncomingToFp(v.ParsedMessage); err != nil {
-			return parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))
-		}
-	}
-
-	return nil
+	return deliverable.deliver(t)
 }
 
 func (t *Engine) feedIncomingToFp(parsed tss.ParsedMessage) error {
