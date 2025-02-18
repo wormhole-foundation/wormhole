@@ -22,7 +22,7 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_tss_signature_produced",
 			Help: "total number of tss signatures produced",
-		}, []string{"chain_name"}, //followed example from ccq
+		}, []string{"chain_name"}, // followed example from ccq
 	)
 
 	tooManySimulSigsErrCntr = promauto.NewCounter(

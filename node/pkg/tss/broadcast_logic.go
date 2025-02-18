@@ -315,25 +315,27 @@ func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (boo
 func (t *Engine) fetchOrCreateState(parsed broadcastMessage) *broadcaststate {
 	uuid := parsed.getUUID(t.LoadDistributionKey)
 
-	t.mtx.Lock()
-	state, ok := t.received[uuid]
-	if !ok {
-		state = &broadcaststate{
-			timeReceived:       time.Now(),
-			verifiedDigest:     nil,
-			deliverableMessage: nil,
+	state := &broadcaststate{
+		timeReceived:       time.Now(),
+		verifiedDigest:     nil,
+		deliverableMessage: nil,
 
-			votes:            make(map[voterId]bool),
-			echoedAlready:    false,
-			alreadyDelivered: false,
-			mtx:              &sync.Mutex{},
-		}
-
-		t.received[uuid] = state
+		votes:            make(map[voterId]bool),
+		echoedAlready:    false,
+		alreadyDelivered: false,
+		mtx:              &sync.Mutex{},
 	}
-	t.mtx.Unlock()
 
-	return state
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	st, ok := t.received[uuid]
+	if !ok {
+		t.received[uuid] = state
+		st = state
+	}
+
+	return st
 }
 
 func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessage, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {

@@ -87,6 +87,7 @@ func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *tsscommv1.Part
 	}
 
 	spid := protoToPartyId(source)
+
 	p, err := tss.ParseWireMessage(m.Payload, spid, false)
 	if err != nil {
 		return nil, err

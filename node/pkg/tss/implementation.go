@@ -687,6 +687,7 @@ func (t *Engine) handleFpError(err *tss.Error) {
 	trackid := err.TrackingId()
 	if trackid == nil {
 		t.logger.Error("error (without trackingID) in signing protocol ", zap.Error(err.Cause()))
+
 		return
 	}
 
@@ -754,6 +755,7 @@ func (t *Engine) cleanup(maxTTL time.Duration) {
 		mt, ok := v.(*signatureMetadata)
 		if !ok {
 			keysToBeRemoved = append(keysToBeRemoved, k)
+
 			return true
 		}
 
@@ -869,7 +871,7 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 	return nil
 }
 
-func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) error {
+func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) {
 	e := m.toEcho()
 
 	uuid := parsed.getUUID(t.LoadDistributionKey)
@@ -889,10 +891,8 @@ func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) error {
 	select {
 	case t.messageOutChan <- newEcho(content, t.guardiansProtoIDs):
 	default:
-		return fmt.Errorf("couldn't echo the message, network output channel buffer is full")
+		t.logger.Warn("couldn't echo the message, network output channel buffer is full")
 	}
-
-	return nil
 }
 
 var errBadRoundsInEcho = fmt.Errorf("cannot receive echos for rounds: %v,%v", round1Message1, round2Message)
@@ -918,9 +918,9 @@ func (t *Engine) handleEcho(m Incoming) error {
 
 	switch v := deliverable.(type) {
 	case *parsedProblem:
-		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
+		_ = intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*v}) // received delivery status.
 	case *parsedAnnouncement:
-		intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*v})
+		_ = intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*v})
 	case *parsedTssContent:
 		if err := t.feedIncomingToFp(v.ParsedMessage); err != nil {
 			return parsed.wrapError(fmt.Errorf("failed to update the full party: %w", err))

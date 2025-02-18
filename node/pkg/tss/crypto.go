@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-type digest [digestSize]byte // TODO: Consider using the common.Hash they use in other places.
+type digest [digestSize]byte
 
 func hash(msg []byte) digest {
 	d := sha3.Sum256(msg)

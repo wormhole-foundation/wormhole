@@ -458,7 +458,7 @@ func (f *ftTracker) getIncatives(chainID vaa.ChainID) inactives {
 			reply.downtimeEnding = append(reply.downtimeEnding, m.partyID)
 		}
 
-		//there is time to wait until the guardian is back, so it's inactive.
+		// there is time to wait until the guardian is back, so it's inactive.
 		if diff > 0 {
 			reply.partyIDs = append(reply.partyIDs, m.partyID)
 		}
@@ -474,6 +474,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 	tid := cmd.SigningInfo.TrackingID
 	if tid == nil {
 		t.logger.Error("signCommand: tracking id is nil")
+
 		return
 	}
 

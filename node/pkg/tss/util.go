@@ -430,12 +430,14 @@ func getCommitteeIDs(pids []*tss.PartyID) []string {
 func extractChainIDFromTrackingID(tid *common.TrackingID) vaa.ChainID {
 	bts := [2]byte{}
 	copy(bts[:], tid.AuxilaryData)
+
 	return vaa.ChainID(binary.BigEndian.Uint16(bts[:]))
 }
 
 func chainIDToBytes(chainID vaa.ChainID) []byte {
 	bts := [2]byte{}
 	binary.BigEndian.PutUint16(bts[:], uint16(chainID))
+
 	return bts[:]
 }
 
