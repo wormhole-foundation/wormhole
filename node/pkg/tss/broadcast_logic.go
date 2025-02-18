@@ -30,7 +30,6 @@ import (
 // voterId is comprised from the id and key of the signer, should match the guardians (in GuardianStorage) id and key.
 type voterId string
 
-// messages that were processed and parsed.
 type broadcastMessage interface {
 	// We use the UUID to distinguish between messages the
 	// broadcast algorithm handles.
@@ -244,10 +243,13 @@ func wrapEquivErrWithTimestamp(err error, t time.Time) error {
 	return fmt.Errorf("%w (first seen %v ago)", err, time.Since(t))
 }
 
-func (s *broadcaststate) update(parsed broadcastMessage, msg *tsscommv1.SignedMessage, echoer *tsscommv1.PartyId) (shouldEcho bool, err error) {
-	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(msg.Sender))
+func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incoming) (shouldEcho bool, err error) {
+	unparsedSignedMessage := unparsedContent.toEcho().Message
+	echoer := unparsedContent.GetSource()
 
-	_, ok1 := msg.Content.(*tsscommv1.SignedMessage_HashEcho)
+	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(unparsedSignedMessage.Sender))
+
+	_, ok1 := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
 	_, ok2 := parsed.(*parsedHashEcho)
 	isEcho := ok1 || ok2
 
@@ -289,22 +291,18 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 // it returns whether a message should be re-broadcasted, a deiliverable message, or an error.
 // Once a deliverable is returned from this function, it can be used by the caller.
 func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, broadcastMessage, error) {
-	// No need to check input: it was already checked before reaching this point
-	signed := msg.toEcho().Message
-	echoer := msg.GetSource()
-
 	state := t.fetchOrCreateState(parsed)
 
-	if err := t.validateBroadcastState(state, parsed, signed, msg.GetSource()); err != nil {
+	if err := t.validateBroadcastState(state, parsed, msg); err != nil {
 		return false, nil, err
 	}
 
-	shouldBroadcast, err := state.update(parsed, signed, echoer)
+	shouldBroadcast, err := state.update(parsed, msg)
 	if err != nil {
 		return false, nil, err
 	}
 
-	if shouldBroadcast && equalPartyIds(protoToPartyId(signed.Sender), t.Self) {
+	if shouldBroadcast && equalPartyIds(protoToPartyId(msg.toEcho().Message.Sender), t.Self) {
 		shouldBroadcast = false // no need to echo if we're the original sender.
 	}
 
@@ -337,18 +335,21 @@ func (t *Engine) fetchOrCreateState(parsed broadcastMessage) *broadcaststate {
 	return st
 }
 
-func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessage, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {
+func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessage, msg Incoming) error {
+	unparsedSignedMessage := msg.toEcho().Message
+	src := msg.GetSource()
+
 	// locking a single state. Can be reached by multiple echoers.
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	// non-echo is a deliverable message. which only the original signer of the message can send.
-	if _, ok := signed.Content.(*tsscommv1.SignedMessage_HashEcho); !ok {
+	if _, ok := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho); !ok {
 		if _, ok := parsed.(*parsedHashEcho); ok {
 			return fmt.Errorf("internal error. Parsed messsaage is a hash echo, but the signed message is not")
 		}
 
-		if !equalPartyIds(protoToPartyId(signed.Sender), protoToPartyId(source)) {
+		if !equalPartyIds(protoToPartyId(unparsedSignedMessage.Sender), protoToPartyId(src)) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
 	}
@@ -357,21 +358,21 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 
 	// verify incoming
 	if s.verifiedDigest == nil {
-		if err := t.verifySignedMessage(uid, signed); err != nil {
+		if err := t.verifySignedMessage(uid, unparsedSignedMessage); err != nil {
 			return err
 		}
 
-		tmp := hashSignedMessage(signed)
+		tmp := hashSignedMessage(unparsedSignedMessage)
 		s.verifiedDigest = &tmp
 
-	} else if *s.verifiedDigest != hashSignedMessage(signed) {
-		if err := t.verifySignedMessage(uid, signed); err != nil {
+	} else if *s.verifiedDigest != hashSignedMessage(unparsedSignedMessage) {
+		if err := t.verifySignedMessage(uid, unparsedSignedMessage); err != nil {
 			// two different digest and bad signature.
-			return fmt.Errorf("Echoer %v sent a digest that can't be verified", source.Id)
+			return fmt.Errorf("Echoer %v sent a digest that can't be verified", src.Id)
 		}
 
 		// no error and two different digests:
-		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests", signed.Sender.Id)
+		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests", unparsedSignedMessage.Sender.Id)
 	}
 
 	return nil
