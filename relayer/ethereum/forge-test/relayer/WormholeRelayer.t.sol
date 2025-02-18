@@ -2108,6 +2108,7 @@ contract WormholeRelayerTests is Test {
         checkMessageKey(WormholeRelayerSerde.encodeMessageKey(newMessageKey), 0, messageKey);
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function testRevertEncodeAndDecodeTooLongMessageKeyArray() public {
         uint256 len = uint256(type(uint8).max) + 1;
         MessageKey[] memory messageKeys = new MessageKey[](len);

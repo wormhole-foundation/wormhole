@@ -392,7 +392,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
     }
 
-    function testFailPermitWithSameSignature(
+    function test_Revert_PermitWithSameSignature(
         bytes32 walletPrivateKey,
         uint256 amount,
         address spender
@@ -424,10 +424,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
             signature.s
         );
 
-        // try again... you shall not pass
-        // NOTE: using "testFail" instead of "test" because
-        // vm.expectRevert("ERC20Permit: invalid signature") does not work
-        permit(
+        vm.expectRevert("ERC20Permit: invalid signature");
+        this.permit(
             signature.allower,
             spender,
             amount,
@@ -438,7 +436,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
     }
 
-    function testFailPermitWithBadSignature(
+    function test_Revert_PermitWithBadSignature(
         bytes32 walletPrivateKey,
         uint256 amount,
         address spender
@@ -466,9 +464,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
 
         // you shall not pass!
-        // NOTE: using "testFail" instead of "test" because
-        // vm.expectRevert("ERC20Permit: invalid signature") does not work
-        permit(
+        vm.expectRevert("ERC20Permit: invalid signature");
+        this.permit(
             signature.allower,
             spender,
             amount,
@@ -505,7 +502,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // and fail
         vm.expectRevert("ERC20Permit: expired deadline");
-        permit(
+        this.permit(
             signature.allower,
             spender,
             amount,
