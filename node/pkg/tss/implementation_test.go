@@ -799,17 +799,11 @@ func TestCleanup(t *testing.T) {
 	uuid1 := uuid{1}
 	e1.received[uuid1] = &broadcaststate{
 		timeReceived: time.Now().Add(time.Minute * 10 * (-1)),
-		trackingId: &tsscommon.TrackingID{
-			Digest: uuid1[:],
-		},
 	}
 
 	uuid2 := uuid{2}
 	e1.received[uuid2] = &broadcaststate{
 		timeReceived: time.Now(),
-		trackingId: &tsscommon.TrackingID{
-			Digest: uuid2[:],
-		},
 	}
 
 	e1.cleanup(time.Minute * 5) // if more than 5 minutes passed -> delete

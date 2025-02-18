@@ -24,7 +24,6 @@ type logableError struct {
 
 type set[T comparable] map[T]struct{}
 
-type strDigest string
 type strPartyId string
 
 // activeSigCounter is a helper struct to keep track of active signatures.
@@ -35,16 +34,18 @@ type strPartyId string
 type activeSigCounter struct {
 	mtx sync.RWMutex
 
-	digestToGuardians map[strDigest]set[strPartyId]
-	guardianToDigests map[strPartyId]set[strDigest]
+	digestToGuardians map[sigKey]set[strPartyId]
+	guardianToDigests map[strPartyId]set[sigKey]
+	firstSeen         map[sigKey]time.Time
 }
 
 func newSigCounter() activeSigCounter {
 	return activeSigCounter{
 		mtx: sync.RWMutex{},
 
-		digestToGuardians: make(map[strDigest]set[strPartyId]),
-		guardianToDigests: make(map[strPartyId]set[strDigest]),
+		digestToGuardians: make(map[sigKey]set[strPartyId]),
+		guardianToDigests: make(map[strPartyId]set[sigKey]),
+		firstSeen:         make(map[sigKey]time.Time),
 	}
 }
 
@@ -62,18 +63,20 @@ func (c *activeSigCounter) add(trackId *common.TrackingID, guardian *tss.PartyID
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	if _, ok := c.digestToGuardians[strDigest(trackId.Digest)]; !ok {
-		c.digestToGuardians[strDigest(trackId.Digest)] = make(set[strPartyId])
+	sgkey := trackingIdIntoSigKey(trackId)
+
+	if _, ok := c.digestToGuardians[sgkey]; !ok {
+		c.digestToGuardians[sgkey] = make(set[strPartyId])
 	}
 
 	strPartyId := idToString(guardian)
 
 	if _, ok := c.guardianToDigests[strPartyId]; !ok {
-		c.guardianToDigests[strPartyId] = make(set[strDigest])
+		c.guardianToDigests[strPartyId] = make(set[sigKey])
 	}
 
 	// if already an active signature for this guardian, then it doesn't count as an additional signature
-	if _, ok := c.guardianToDigests[strPartyId][strDigest(trackId.Digest)]; ok {
+	if _, ok := c.guardianToDigests[strPartyId][sgkey]; ok {
 		return true
 	}
 
@@ -82,8 +85,9 @@ func (c *activeSigCounter) add(trackId *common.TrackingID, guardian *tss.PartyID
 		return false
 	}
 
-	c.digestToGuardians[strDigest(trackId.Digest)][strPartyId] = struct{}{}
-	c.guardianToDigests[strPartyId][strDigest(trackId.Digest)] = struct{}{}
+	c.digestToGuardians[sgkey][strPartyId] = struct{}{}
+	c.guardianToDigests[strPartyId][sgkey] = struct{}{}
+	c.firstSeen[sgkey] = time.Now()
 
 	return true
 }
@@ -93,15 +97,35 @@ func (c *activeSigCounter) remove(trackid *common.TrackingID) {
 		return
 	}
 
+	key := trackingIdIntoSigKey(trackid)
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	guardians := c.digestToGuardians[strDigest(trackid.Digest)]
-	delete(c.digestToGuardians, strDigest(trackid.Digest))
+	c.unlockedRemover(key)
+}
+
+func (c *activeSigCounter) unlockedRemover(key sigKey) {
+	guardians := c.digestToGuardians[key]
+	delete(c.digestToGuardians, key)
 
 	for g := range guardians {
-		delete(c.guardianToDigests[g], strDigest(trackid.Digest))
+		delete(c.guardianToDigests[g], key)
 	}
+
+	delete(c.firstSeen, key)
+}
+
+func (c *activeSigCounter) cleanSelf(maxDuration time.Duration) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	for k, v := range c.firstSeen {
+		if time.Since(v).Abs() > maxDuration {
+			c.unlockedRemover(k)
+		}
+	}
+
 }
 
 func (l logableError) Error() string {

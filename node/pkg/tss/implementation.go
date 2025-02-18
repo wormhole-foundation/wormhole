@@ -777,19 +777,14 @@ func (t *Engine) cleanup(maxTTL time.Duration) {
 		t.SignatureMetrics.Delete(k)
 	}
 
+	t.sigCounter.cleanSelf(maxTTL)
+
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
 	for k, v := range t.received {
 		if now.Sub(v.timeReceived) > maxTTL {
 			delete(t.received, k)
-
-			if v.trackingId == nil {
-				continue
-			}
-
-			// since the fullParty deleted its state, we can remove the sigCounter entry.
-			t.sigCounter.remove(v.trackingId)
 		}
 	}
 }
@@ -882,7 +877,7 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 	return nil
 }
 
-func (t *Engine) sendEchoOut(parsed broadcastable, m Incoming) error {
+func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) error {
 	e := m.toEcho()
 
 	uuid, err := parsed.getUUID(t.LoadDistributionKey)

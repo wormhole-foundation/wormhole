@@ -31,7 +31,7 @@ import (
 type voterId string
 
 // messages that were processed and parsed.
-type broadcastable interface {
+type broadcastMessage interface {
 	// We use the UUID to distinguish between messages the
 	// broadcast algorithm handles.
 	// When supporting a new uuid, take careful considertaions.
@@ -39,16 +39,10 @@ type broadcastable interface {
 	// make each message unique, but also ensure the broadcast can
 	// detect equivication attacks.
 	getUUID(loadDistKey []byte) (uuid, error)
-
-	// can be used for tracking and managing messages and
-	// cross referencing them across the Engine (not just broadcast),
-	// and is mainly used for cleanup.
-	// Non-TSS messages can return nil.
-	getTrackingID() *common.TrackingID
 }
 
 type processedMessage interface {
-	broadcastable
+	broadcastMessage
 	wrapError(error) error
 }
 
@@ -229,8 +223,7 @@ type broadcaststate struct {
 	timeReceived   time.Time
 	verifiedDigest *digest
 
-	deliverableMessage broadcastable
-	trackingId         *common.TrackingID
+	deliverableMessage broadcastMessage
 
 	votes map[voterId]bool
 	// if set to true: don't echo again, even if received from original sender.
@@ -241,7 +234,7 @@ type broadcaststate struct {
 	mtx *sync.Mutex
 }
 
-func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) broadcastable {
+func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) broadcastMessage {
 	f := t.GuardianStorage.getMaxExpectedFaults()
 
 	s.mtx.Lock()
@@ -270,7 +263,7 @@ func wrapEquivErrWithTimestamp(err error, t time.Time) error {
 	return fmt.Errorf("%w (first seen %v ago)", err, time.Since(t))
 }
 
-func (s *broadcaststate) update(parsed broadcastable, msg *tsscommv1.SignedMessage, echoer *tsscommv1.PartyId) (shouldEcho bool, err error) {
+func (s *broadcaststate) update(parsed broadcastMessage, msg *tsscommv1.SignedMessage, echoer *tsscommv1.PartyId) (shouldEcho bool, err error) {
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(msg.Sender))
 
 	_, ok1 := msg.Content.(*tsscommv1.SignedMessage_HashEcho)
@@ -314,7 +307,7 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 // broadcastInspection is the main function that handles the hash-broadcast algorithm.
 // it returns whether a message should be re-broadcasted, a deiliverable message, or an error.
 // Once a deliverable is returned from this function, it can be used by the caller.
-func (t *Engine) broadcastInspection(parsed broadcastable, msg Incoming) (bool, broadcastable, error) {
+func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, broadcastMessage, error) {
 	// No need to check input: it was already checked before reaching this point
 	signed := msg.toEcho().Message
 	echoer := msg.GetSource()
@@ -340,7 +333,7 @@ func (t *Engine) broadcastInspection(parsed broadcastable, msg Incoming) (bool, 
 	return shouldBroadcast, t.getDeliverableIfAllowed(state), nil
 }
 
-func (t *Engine) fetchOrCreateState(parsed broadcastable) (*broadcaststate, error) {
+func (t *Engine) fetchOrCreateState(parsed broadcastMessage) (*broadcaststate, error) {
 	uuid, err := parsed.getUUID(t.LoadDistributionKey)
 	if err != nil {
 		return nil, err
@@ -353,7 +346,6 @@ func (t *Engine) fetchOrCreateState(parsed broadcastable) (*broadcaststate, erro
 			timeReceived:       time.Now(),
 			verifiedDigest:     nil,
 			deliverableMessage: nil,
-			trackingId:         parsed.getTrackingID(),
 
 			votes:            make(map[voterId]bool),
 			echoedAlready:    false,
@@ -368,7 +360,7 @@ func (t *Engine) fetchOrCreateState(parsed broadcastable) (*broadcaststate, erro
 	return state, nil
 }
 
-func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastable, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {
+func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessage, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {
 	// locking a single state. Can be reached by multiple echoers.
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
