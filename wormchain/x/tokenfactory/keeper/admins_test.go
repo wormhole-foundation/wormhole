@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	//banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
@@ -35,14 +34,14 @@ func (suite *KeeperTestSuite) TestAdminMsgs() {
 	suite.Require().NoError(err)
 	suite.Require().True(suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[1], suite.defaultDenom).Amount.Int64() == addr1bal, suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[1], suite.defaultDenom))
 
+	// Capaility is disabled
 	// Test force transferring
-	// Capability is disabled
-	/*_, err = suite.msgServer.ForceTransfer(sdk.WrapSDKContext(suite.Ctx), types.NewMsgForceTransfer(suite.TestAccs[0].String(), sdk.NewInt64Coin(suite.defaultDenom, 5), suite.TestAccs[1].String(), suite.TestAccs[0].String()))
-	addr1bal -= 5
-	addr0bal += 5
-	suite.Require().NoError(err)
-	suite.Require().True(suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[0], suite.defaultDenom).Amount.Int64() == addr0bal, suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[0], suite.defaultDenom))
-	suite.Require().True(suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[1], suite.defaultDenom).Amount.Int64() == addr1bal, suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[1], suite.defaultDenom))*/
+	// _, err = suite.msgServer.ForceTransfer(sdk.WrapSDKContext(suite.Ctx), types.NewMsgForceTransfer(suite.TestAccs[0].String(), sdk.NewInt64Coin(suite.defaultDenom, 5), suite.TestAccs[1].String(), suite.TestAccs[0].String()))
+	// addr1bal -= 5
+	// addr0bal += 5
+	// suite.Require().NoError(err)
+	// suite.Require().True(suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[0], suite.defaultDenom).Amount.Int64() == addr0bal, suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[0], suite.defaultDenom))
+	// suite.Require().True(suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[1], suite.defaultDenom).Amount.Int64() == addr1bal, suite.App.BankKeeper.GetBalance(suite.Ctx, suite.TestAccs[1], suite.defaultDenom))
 
 	// Test burning from own account
 	_, err = suite.msgServer.Burn(sdk.WrapSDKContext(suite.Ctx), types.NewMsgBurn(suite.TestAccs[0].String(), sdk.NewInt64Coin(suite.defaultDenom, 5)))
@@ -79,7 +78,7 @@ func (suite *KeeperTestSuite) TestAdminMsgs() {
 }
 
 // TestMintDenom ensures the following properties of the MintMessage:
-// * Noone can mint tokens for a denom that doesn't exist
+// * No one can mint tokens for a denom that doesn't exist
 // * Only the admin of a denom can mint tokens for it
 // * The admin of a denom can mint tokens for it
 func (suite *KeeperTestSuite) TestMintDenom() {
@@ -132,6 +131,7 @@ func (suite *KeeperTestSuite) TestMintDenom() {
 		},
 	} {
 		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			tc := tc
 			_, err := suite.msgServer.Mint(sdk.WrapSDKContext(suite.Ctx), &tc.mintMsg)
 			if tc.expectPass {
 				suite.Require().NoError(err)
@@ -197,17 +197,18 @@ func (suite *KeeperTestSuite) TestBurnDenom() {
 			),
 			expectPass: true,
 		},
-		/*{
-			desc: "success case - burn from another address",
-			burnMsg: *types.NewMsgBurnFrom(
-				suite.TestAccs[0].String(),
-				sdk.NewInt64Coin(suite.defaultDenom, 10),
-				suite.TestAccs[1].String(),
-			),
-			expectPass: true,
-		},*/
+		// {
+		// 	desc: "success case - burn from another address",
+		// 	burnMsg: *types.NewMsgBurnFrom(
+		// 		suite.TestAccs[0].String(),
+		// 		sdk.NewInt64Coin(suite.defaultDenom, 10),
+		// 		suite.TestAccs[1].String(),
+		// 	),
+		// 	expectPass: true,
+		// },
 	} {
 		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			tc := tc
 			_, err := suite.msgServer.Burn(sdk.WrapSDKContext(suite.Ctx), &tc.burnMsg)
 			if tc.expectPass {
 				suite.Require().NoError(err)
@@ -283,6 +284,7 @@ func (suite *KeeperTestSuite) TestBurnDenom() {
 		},
 	} {
 		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			tc := tc
 			_, err := suite.msgServer.ForceTransfer(sdk.WrapSDKContext(suite.Ctx), &tc.forceTransferMsg)
 			if tc.expectPass {
 				suite.Require().NoError(err)
@@ -394,7 +396,7 @@ func (suite *KeeperTestSuite) TestChangeAdminDenom() {
 	}
 }
 
-// Capability is diabled
+// Capability is disabled
 /*func (suite *KeeperTestSuite) TestSetDenomMetaData() {
 	// setup test
 	suite.SetupTest()
@@ -508,6 +510,7 @@ func (suite *KeeperTestSuite) TestChangeAdminDenom() {
 		},
 	} {
 		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			tc := tc
 			bankKeeper := suite.App.BankKeeper
 			res, err := suite.msgServer.SetDenomMetadata(sdk.WrapSDKContext(suite.Ctx), &tc.msgSetDenomMetadata)
 			if tc.expectedPass {

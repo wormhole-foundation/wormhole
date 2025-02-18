@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/client"
-	"github.com/strangelove-ventures/interchaintest/v4"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos/wasm"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
-	"github.com/strangelove-ventures/interchaintest/v4/relayer"
-	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos/wasm"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/relayer"
+	"github.com/strangelove-ventures/interchaintest/v7/testreporter"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"go.uber.org/zap/zaptest"
 
 	"github.com/stretchr/testify/require"
@@ -29,17 +29,17 @@ import (
 
 const CUSTOM_IBC_VERSION string = "ibc-wormhole-v1"
 
-func createChains(t *testing.T, wormchainVersion string, guardians guardians.ValSet) []ibc.Chain {
+func createChains(t *testing.T, guardians guardians.ValSet) []ibc.Chain {
 	numWormchainVals := len(guardians.Vals)
-	wormchainConfig.Images[0].Version = wormchainVersion
+	numFullNodes := 1
 
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, len(guardians.Vals), false)
+	WormchainConfig.ModifyGenesis = ModifyGenesis(VotingPeriod, MaxDepositPeriod, guardians, len(guardians.Vals), false)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
 			ChainName:     "wormchain",
-			ChainConfig:   wormchainConfig,
+			ChainConfig:   WormchainConfig,
 			NumValidators: &numWormchainVals,
 			NumFullNodes:  &numFullNodes,
 		},
@@ -89,11 +89,10 @@ func buildInterchain(t *testing.T, chains []ibc.Chain) (context.Context, ibc.Rel
 	})
 
 	err := ic.Build(ctx, eRep, interchaintest.InterchainBuildOptions{
-		TestName:          t.Name(),
-		Client:            client,
-		NetworkID:         network,
-		SkipPathCreation:  false,
-		BlockDatabaseFile: interchaintest.DefaultBlockDatabaseFilepath(),
+		TestName:         t.Name(),
+		Client:           client,
+		NetworkID:        network,
+		SkipPathCreation: false,
 	})
 	require.NoError(t, err)
 
@@ -122,7 +121,7 @@ func TestIbcReceiverHappyPath(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createChains(t, "v2.24.2", *guardians)
+	chains := createChains(t, *guardians)
 	ctx, r, eRep, _ := buildInterchain(t, chains)
 
 	// Chains
@@ -184,7 +183,7 @@ func TestIbcReceiverHappyPath(t *testing.T) {
 		string(postMessageJson))
 	require.NoError(t, err, "failed to execute wormhole-ibc post message")
 
-	ibcTx, err := helpers.GetIBCTx(osmosis, postMessageTxHash)
+	ibcTx, err := helpers.GetIBCTx(osmosis, postMessageTxHash.TxHash)
 	require.NoError(t, err, "failed to get ibc tx")
 
 	// Poll for the receiver acknowledgement so that we can see if the packet was processed successfully
@@ -202,7 +201,7 @@ func TestIbcReceiverWithoutReceiverWhitelist(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createChains(t, "v2.24.2", *guardians)
+	chains := createChains(t, *guardians)
 	ctx, r, eRep, _ := buildInterchain(t, chains)
 
 	// Chains
@@ -256,7 +255,7 @@ func TestIbcReceiverWithoutReceiverWhitelist(t *testing.T) {
 		string(postMessageJson))
 	require.NoError(t, err)
 
-	ibcTx, err := helpers.GetIBCTx(osmosis, postMessageTxHash)
+	ibcTx, err := helpers.GetIBCTx(osmosis, postMessageTxHash.TxHash)
 	require.NoError(t, err)
 
 	// Poll for the receiver acknowledgement so that we can see if the packet was processed successfully
@@ -274,7 +273,7 @@ func TestIbcReceiverWormholeIbcState(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createChains(t, "v2.24.2", *guardians)
+	chains := createChains(t, *guardians)
 	ctx, r, eRep, _ := buildInterchain(t, chains)
 
 	// Chains
@@ -338,7 +337,7 @@ func instantiateWormholeIbcContracts(t *testing.T, ctx context.Context,
 	guardians *guardians.ValSet) (helpers.ContractInfoResponse, helpers.ContractInfoResponse) {
 
 	// Instantiate the Wormchain core contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, vaa.ChainIDWormchain, guardians)
 	wormchainCoreContractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 
 	// Store wormhole-ibc-receiver contract on wormchain
@@ -354,7 +353,7 @@ func instantiateWormholeIbcContracts(t *testing.T, ctx context.Context,
 	require.NotEmpty(t, wormchainReceiverContractInfo.ContractInfo.IbcPortID, "wormchain (wormchain-ibc-receiver) contract port id is nil")
 
 	// Store and instantiate wormhole-ibc contract on osmosis
-	senderInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
+	senderInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, vaa.ChainIDWormchain, guardians)
 	senderCodeId, err := remoteChain.StoreContract(ctx, "faucet", "./contracts/wormhole_ibc.wasm")
 	require.NoError(t, err)
 	senderContractAddr, err := remoteChain.InstantiateContract(ctx, "faucet", senderCodeId, senderInstantiateMsg, true)

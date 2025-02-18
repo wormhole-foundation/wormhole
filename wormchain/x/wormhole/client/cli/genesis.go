@@ -43,6 +43,8 @@ const FLAG_MIN_SIGNED_PER_WINDOW = "min-signed-per-window"
 const FLAG_DOWNTIME_JAIL_DURATION = "downtime-jail-duration"
 const FLAG_SLASH_FRACTION_DOUBLE_SIGN = "slash-fraction-double-sign"
 const FLAG_SLASH_FRACTION_DOWNTIME = "slash-fraction-downtime"
+const FLAG_SUBJECT_CLIENT_ID = "subject-client-id"
+const FLAG_SUBSTITUTE_CLIENT_ID = "substitute-client-id"
 
 // GetGenesisCmd returns the genesis related commands for this module
 func GetGenesisCmd() *cobra.Command {
@@ -60,6 +62,7 @@ func GetGenesisCmd() *cobra.Command {
 	cmd.AddCommand(CmdGenerateGovernanceVaa())
 	cmd.AddCommand(CmdGenerateGuardianSetUpdatea())
 	cmd.AddCommand(CmdGenerateSlashingParamsUpdateVaa())
+	cmd.AddCommand(CmdGenerateIBCClientUpdateVaa())
 	cmd.AddCommand(CmdTestSignAddress())
 
 	return cmd
@@ -88,7 +91,7 @@ func CmdGenerateTestGuardianKey() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			os.WriteFile(outPublicPath, []byte(hex.EncodeToString(addr.Bytes())), 0644)
+			err = os.WriteFile(outPublicPath, []byte(hex.EncodeToString(addr.Bytes())), 0644)
 			if err != nil {
 				return err
 			}
@@ -521,6 +524,95 @@ func CmdGenerateSlashingParamsUpdateVaa() *cobra.Command {
 	return cmd
 }
 
+func CmdGenerateIBCClientUpdateVaa() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "generate-ibc-client-update-vaa",
+		Short: "generate and sign a governance vaa to update and revive an expired IBC client",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+
+			privateKeys := []*ecdsa.PrivateKey{}
+			privateKeysFiles, err := cmd.Flags().GetStringArray(FLAG_KEY)
+			if err != nil {
+				return err
+			}
+			for _, privFile := range privateKeysFiles {
+				priv, err := ImportKeyFromFile(privFile)
+				if err != nil {
+					return err
+				}
+				privateKeys = append(privateKeys, priv)
+			}
+			v, err := parseVaaFromFlags(cmd)
+			if err != nil {
+				return err
+			}
+
+			subjectClientId, err := cmd.Flags().GetString(FLAG_SUBJECT_CLIENT_ID)
+			if err != nil {
+				return
+			}
+
+			substituteClientId, err := cmd.Flags().GetString(FLAG_SUBSTITUTE_CLIENT_ID)
+			if err != nil {
+				return
+			}
+
+			if len(subjectClientId) == 0 || len(substituteClientId) == 0 {
+				return fmt.Errorf("subject-client-id and substitute-client-id must be provided via flags")
+			}
+
+			if len([]byte(subjectClientId)) > 64 || len([]byte(substituteClientId)) > 64 {
+				return fmt.Errorf("subject-client-id and substitute-client-id must not exceed 64 bytes")
+			}
+
+			subjectBz := [64]byte{}
+			buf, err := vaa.LeftPadBytes(subjectClientId, 64)
+			if err != nil {
+				return
+			}
+			copy(subjectBz[:], buf.Bytes())
+
+			substituteBz := [64]byte{}
+			buf, err = vaa.LeftPadBytes(substituteClientId, 64)
+			if err != nil {
+				return
+			}
+			copy(substituteBz[:], buf.Bytes())
+
+			payloadBody := vaa.BodyGatewayIBCClientUpdate{
+				SubjectClientId:    subjectBz,
+				SubstituteClientId: substituteBz,
+			}
+			payload, err := payloadBody.Serialize()
+			if err != nil {
+				return
+			}
+
+			v.Payload = payload
+			v.EmitterChain = 1
+
+			for i, key := range privateKeys {
+				v.AddSignature(key, uint8(i))
+			}
+
+			v_bz, err := v.Marshal()
+			if err != nil {
+				return err
+			}
+			fmt.Println(hex.EncodeToString(v_bz))
+
+			return nil
+		},
+	}
+
+	addVaaFlags(cmd)
+	cmd.Flags().String(FLAG_SUBJECT_CLIENT_ID, "", "subject client id")
+	cmd.Flags().String(FLAG_SUBSTITUTE_CLIENT_ID, "", "substitute client id")
+
+	return cmd
+}
+
 func CmdTestSignAddress() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "test-sign-address",
@@ -541,7 +633,12 @@ func CmdTestSignAddress() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			addr := info.GetAddress()
+
+			addr, err := info.GetAddress()
+			if err != nil {
+				return err
+			}
+
 			addrHash := crypto.Keccak256Hash(wormholesdk.SignedWormchainAddressPrefix, addr)
 			sig, err := crypto.Sign(addrHash[:], key)
 			if err != nil {
