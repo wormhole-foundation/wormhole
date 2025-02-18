@@ -201,7 +201,6 @@ func (p *parsedAnnouncement) wrapError(err error) error {
 }
 
 type broadcaststate struct {
-	// The following three fields should not be changed after creation of broadcaststate:
 	timeReceived   time.Time
 	verifiedDigest *digest
 
