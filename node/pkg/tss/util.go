@@ -460,16 +460,3 @@ func trackingIdIntoSigKey(tid *common.TrackingID) sigKey {
 
 	return intoSigKey(dgst, extractChainIDFromTrackingID(tid))
 }
-
-func numFaultiesInTrackingID(tid *common.TrackingID, numGuardians int) int {
-	boolarr := common.ConvertByteArrayToBoolArray(tid.PartiesState, numGuardians)
-	faulties := 0
-
-	for _, v := range boolarr {
-		if !v {
-			faulties++
-		}
-	}
-
-	return faulties
-}

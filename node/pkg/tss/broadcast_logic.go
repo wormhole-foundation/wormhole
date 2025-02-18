@@ -92,11 +92,7 @@ func serializeableToUUID(s serialzeable, loadDistKey []byte) uuid {
 }
 
 func (p *parsedProblem) wrapError(err error) error {
-	return logableError{
-		cause:      fmt.Errorf("error parsing problem, issuer %v: %w", p.issuer, err),
-		trackingId: nil, // parsedProblem doesn't have a trackingID.
-		round:      "",  // parsedProblem doesn't have a round.
-	}
+	return logableError{cause: fmt.Errorf("error parsing problem, issuer %v: %w", p.issuer, err)}
 }
 
 func (p *parsedProblem) serialize() []byte {
@@ -255,10 +251,6 @@ func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverableMessage {
 }
 
 var ErrEquivicatingGuardian = fmt.Errorf("equivication, guardian sent two different messages for the same round and session")
-
-func wrapEquivErrWithTimestamp(err error, t time.Time) error {
-	return fmt.Errorf("%w (first seen %v ago)", err, time.Since(t))
-}
 
 func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incoming) (shouldEcho bool, err error) {
 	unparsedSignedMessage := unparsedContent.toEcho().Message
