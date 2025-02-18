@@ -338,10 +338,7 @@ func (f *ftTracker) remove(sigState *signatureState) {
 }
 
 func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) time.Duration {
-	bts, err := cmd.serialize()
-	if err != nil {
-		return 0
-	}
+	bts := cmd.serialize()
 
 	jitterBytes := hash(bts)
 	nanoJitter := binary.BigEndian.Uint64(jitterBytes[:8])
@@ -619,14 +616,10 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 		Signature: []byte{},
 	}
 
-	uid, err := (&parsedProblem{
+	uid := (&parsedProblem{
 		Problem: sm.GetProblem(),
 		issuer:  sm.Sender,
 	}).getUUID(t.LoadDistributionKey)
-
-	if err != nil {
-		t.logger.Error("failed to report a problem to the other guardians (couldn't create uuid)", zap.Error(err))
-	}
 
 	if err := t.sign(uid, sm); err != nil {
 		t.logger.Error("failed to report a problem to the other guardians", zap.Error(err))

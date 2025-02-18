@@ -38,7 +38,7 @@ type broadcastMessage interface {
 	// for instance, TSS messages create their uuid from values that
 	// make each message unique, but also ensure the broadcast can
 	// detect equivication attacks.
-	getUUID(loadDistKey []byte) (uuid, error)
+	getUUID(loadDistKey []byte) uuid
 }
 
 type processedMessage interface {
@@ -47,7 +47,7 @@ type processedMessage interface {
 }
 
 type serialzeable interface {
-	serialize() ([]byte, error)
+	serialize() []byte
 }
 
 type parsedProblem struct {
@@ -69,17 +69,12 @@ type parsedHashEcho struct {
 	*tsscommv1.HashEcho
 }
 
-// getTrackingID implements processedMessage.
-func (p *parsedHashEcho) getTrackingID() *common.TrackingID {
-	return nil
-}
-
 // getUUID implements processedMessage.
-func (p *parsedHashEcho) getUUID(loadDistKey []byte) (uuid, error) {
+func (p *parsedHashEcho) getUUID(loadDistKey []byte) uuid {
 	uid := uuid{}
 	copy(uid[:], p.HashEcho.SessionUuid)
 
-	return uid, nil
+	return uid
 }
 
 // wrapError implements processedMessage.
@@ -87,20 +82,9 @@ func (p *parsedHashEcho) wrapError(e error) error {
 	return logableError{cause: fmt.Errorf("error with hashEcho: %w", e)}
 }
 
-func serializeableToUUID(s serialzeable, loadDistKey []byte) (uuid, error) {
-	bts, err := s.serialize()
-	if err != nil {
-		return uuid{}, err
-	}
+func serializeableToUUID(s serialzeable, loadDistKey []byte) uuid {
+	return uuid(hash(append(s.serialize(), loadDistKey...)))
 
-	return uuid(hash(append(bts, loadDistKey...))), nil
-
-}
-
-func (p *parsedProblem) getTrackingID() *common.TrackingID {
-	// parsedProblem is not a tss.ParsedMessage, so it doesn't have a trackingID.
-	// and as stated in the comment above, it can be nil.
-	return nil
 }
 
 func (p *parsedProblem) wrapError(err error) error {
@@ -111,9 +95,9 @@ func (p *parsedProblem) wrapError(err error) error {
 	}
 }
 
-func (p *parsedProblem) serialize() ([]byte, error) {
+func (p *parsedProblem) serialize() []byte {
 	if p == nil {
-		return []byte(parsedProblemDomain), fmt.Errorf("nil parsedProblem")
+		return []byte(parsedProblemDomain)
 	}
 
 	unixtime := p.IssuingTime.AsTime().Unix()
@@ -138,15 +122,15 @@ func (p *parsedProblem) serialize() ([]byte, error) {
 	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
 	vaa.MustWrite(b, binary.BigEndian, unixtime)
 
-	return b.Bytes(), nil
+	return b.Bytes()
 }
 
-func (p *parsedProblem) getUUID(loadDistKey []byte) (uuid, error) {
+func (p *parsedProblem) getUUID(loadDistKey []byte) uuid {
 	return serializeableToUUID(p, loadDistKey)
 }
 
-func (msg *parsedTssContent) getUUID(loadDistKey []byte) (uuid, error) {
-	return getMessageUUID(msg.ParsedMessage, loadDistKey), nil
+func (msg *parsedTssContent) getUUID(loadDistKey []byte) uuid {
+	return getMessageUUID(msg.ParsedMessage, loadDistKey)
 }
 
 func (p *parsedTssContent) wrapError(err error) error {
@@ -177,9 +161,9 @@ func (p *parsedTssContent) getTrackingID() *common.TrackingID {
 	return p.WireMsg().GetTrackingID()
 }
 
-func (p *parsedAnnouncement) serialize() ([]byte, error) {
+func (p *parsedAnnouncement) serialize() []byte {
 	if p == nil {
-		return []byte(newAnouncementDomain), fmt.Errorf("nil parsedAnnouncement")
+		return []byte(newAnouncementDomain)
 	}
 
 	fromId := [hostnameSize]byte{}
@@ -201,14 +185,12 @@ func (p *parsedAnnouncement) serialize() ([]byte, error) {
 	b.Write(p.Digest[:])
 	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
 
-	return b.Bytes(), nil
+	return b.Bytes()
 }
 
-func (p *parsedAnnouncement) getUUID(loadDistKey []byte) (uuid, error) {
+func (p *parsedAnnouncement) getUUID(loadDistKey []byte) uuid {
 	return serializeableToUUID(p, loadDistKey)
 }
-
-func (p *parsedAnnouncement) getTrackingID() *common.TrackingID { return nil }
 
 func (p *parsedAnnouncement) wrapError(err error) error {
 	return logableError{
@@ -312,10 +294,7 @@ func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (boo
 	signed := msg.toEcho().Message
 	echoer := msg.GetSource()
 
-	state, err := t.fetchOrCreateState(parsed)
-	if err != nil {
-		return false, nil, err
-	}
+	state := t.fetchOrCreateState(parsed)
 
 	if err := t.validateBroadcastState(state, parsed, signed, msg.GetSource()); err != nil {
 		return false, nil, err
@@ -333,11 +312,8 @@ func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (boo
 	return shouldBroadcast, t.getDeliverableIfAllowed(state), nil
 }
 
-func (t *Engine) fetchOrCreateState(parsed broadcastMessage) (*broadcaststate, error) {
-	uuid, err := parsed.getUUID(t.LoadDistributionKey)
-	if err != nil {
-		return nil, err
-	}
+func (t *Engine) fetchOrCreateState(parsed broadcastMessage) *broadcaststate {
+	uuid := parsed.getUUID(t.LoadDistributionKey)
 
 	t.mtx.Lock()
 	state, ok := t.received[uuid]
@@ -357,7 +333,7 @@ func (t *Engine) fetchOrCreateState(parsed broadcastMessage) (*broadcaststate, e
 	}
 	t.mtx.Unlock()
 
-	return state, nil
+	return state
 }
 
 func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessage, signed *tsscommv1.SignedMessage, source *tsscommv1.PartyId) error {
@@ -376,10 +352,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 		}
 	}
 
-	uid, err := parsed.getUUID(t.LoadDistributionKey)
-	if err != nil {
-		return fmt.Errorf("error validating broadcast state: %w", err)
-	}
+	uid := parsed.getUUID(t.LoadDistributionKey)
 
 	// verify incoming
 	if s.verifiedDigest == nil {

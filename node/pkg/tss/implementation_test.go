@@ -338,11 +338,10 @@ func TestUuidNotAffectedByMessageContentChange(t *testing.T) {
 		parsed1 := generateFakeParsedMessageWithRandomContent(e1.Self, e1.Self, rnd, trackingId)
 		parsed2 := generateFakeParsedMessageWithRandomContent(e1.Self, e1.Self, rnd, trackingId)
 
-		uid1, err := parsed1.getUUID(e1.LoadDistributionKey)
-		a.NoError(err)
+		uid1 := parsed1.getUUID(e1.LoadDistributionKey)
 
-		uid2, err := parsed2.getUUID(e1.LoadDistributionKey)
-		a.NoError(err)
+		uid2 := parsed2.getUUID(e1.LoadDistributionKey)
+
 		a.Equal(uid1, uid2)
 	}
 }

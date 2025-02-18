@@ -441,15 +441,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 		zap.String("digest", fmt.Sprintf("%x", digest)),
 	}
 
-	uid, err := tmp.getUUID(t.LoadDistributionKey)
-	if err != nil {
-		flds = append(flds, zap.Error(err))
-		t.logger.Error("couldn't create uuid to sign new announcement ", flds...)
-
-		return
-	}
-
-	if err := t.sign(uid, &sm); err != nil {
+	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), &sm); err != nil {
 		flds = append(flds, zap.Error(err))
 		t.logger.Error("couldn't sign a new announcement", flds...)
 
@@ -880,11 +872,7 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) error {
 	e := m.toEcho()
 
-	uuid, err := parsed.getUUID(t.LoadDistributionKey)
-	if err != nil {
-		return err
-	}
-
+	uuid := parsed.getUUID(t.LoadDistributionKey)
 	contentDigest := hashSignedMessage(e.Message)
 
 	content := &tsscommv1.SignedMessage{

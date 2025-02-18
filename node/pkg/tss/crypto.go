@@ -39,14 +39,14 @@ func hashSignedMessage(msg *tsscommv1.SignedMessage) digest {
 		b.Write([]byte(msg.Sender.Id))
 		b.Write(msg.Sender.Key)
 	case *tsscommv1.SignedMessage_Problem:
-		bts, _ := (&parsedProblem{
+		bts := (&parsedProblem{
 			Problem: m.Problem,
 			issuer:  msg.Sender,
 		}).serialize()
 
 		b = bytes.NewBuffer(bts)
 	case *tsscommv1.SignedMessage_Announcement:
-		bts, _ := (&parsedAnnouncement{
+		bts := (&parsedAnnouncement{
 			SawDigest: m.Announcement,
 			issuer:    msg.Sender,
 		}).serialize()
