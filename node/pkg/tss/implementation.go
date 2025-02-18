@@ -900,10 +900,6 @@ var errBadRoundsInEcho = fmt.Errorf("cannot receive echos for rounds: %v,%v", ro
 func (t *Engine) handleEcho(m Incoming) error {
 	parsed, err := t.parseEcho(m)
 	if err != nil {
-		if parsed != nil {
-			err = parsed.wrapError(err)
-		}
-
 		return err
 	}
 
@@ -1072,63 +1068,6 @@ var (
 	ErrUnkownSender = fmt.Errorf("sender is not a known guardian")
 )
 
-func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
-	echoMsg := m.toEcho()
-	if err := vaidateEchoCorrectForm(echoMsg); err != nil {
-		return nil, err
-	}
-
-	senderPid := protoToPartyId(echoMsg.Message.Sender)
-	if !t.GuardianStorage.contains(senderPid) {
-		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderPid)
-	}
-
-	switch cntnt := echoMsg.Message.Content.(type) {
-	case *tsscommv1.SignedMessage_Problem:
-		return &parsedProblem{
-			Problem: cntnt.Problem,
-			issuer:  echoMsg.Message.Sender,
-		}, nil
-
-	case *tsscommv1.SignedMessage_Announcement:
-		return &parsedAnnouncement{
-			SawDigest: cntnt.Announcement,
-			issuer:    echoMsg.Message.Sender,
-		}, nil
-	case *tsscommv1.SignedMessage_TssContent:
-		p, err := tss.ParseWireMessage(cntnt.TssContent.Payload, senderPid, true)
-		if err != nil {
-			return nil, err
-		}
-
-		parsed := &parsedTssContent{p, ""}
-
-		rnd, err := getRound(parsed)
-		if err != nil {
-			return parsed, fmt.Errorf("couldn't extract round from echo: %w", err)
-		}
-
-		parsed.signingRound = rnd
-
-		// according to gg18 (tss ecdsa paper), unicasts are sent in these rounds.
-		if rnd == round1Message1 || rnd == round2Message {
-			return parsed, errBadRoundsInEcho
-		}
-
-		if err := t.validateTrackingIDForm(parsed.getTrackingID()); err != nil {
-			return parsed, err
-		}
-
-		return parsed, nil
-	case *tsscommv1.SignedMessage_HashEcho:
-		return &parsedHashEcho{
-			HashEcho: cntnt.HashEcho,
-		}, nil
-	default:
-		return nil, fmt.Errorf("unknown content type: %T", cntnt)
-	}
-}
-
 // SECURITY NOTE: this function sets a sessionID to a message. Used to ensure no equivocation.
 //
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
@@ -1163,43 +1102,6 @@ func getMessageUUID(msg tss.Message, loadDistKey []byte) uuid {
 	d = append(d, msgType[:]...)
 
 	return uuid(hash(d))
-}
-
-func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *tsscommv1.PartyId) (*parsedTssContent, error) {
-	if err := validateContentCorrectForm(m); err != nil {
-		return nil, err
-	}
-
-	spid := protoToPartyId(source)
-	p, err := tss.ParseWireMessage(m.Payload, spid, false)
-	if err != nil {
-		return nil, err
-	}
-
-	parsed := &parsedTssContent{p, ""}
-
-	// ensuring the reported source of the message matches the claimed source. (parsed.GetFrom() used by the tss-lib)
-	if !equalPartyIds(parsed.GetFrom(), spid) {
-		return parsed, fmt.Errorf("parsed message sender doesn't match the source of the message")
-	}
-
-	rnd, err := getRound(parsed)
-	if err != nil {
-		return parsed, fmt.Errorf("unicast parsing error: %w", err)
-	}
-
-	parsed.signingRound = rnd
-
-	// only round 1 and round 2 are unicasts.
-	if rnd != round1Message1 && rnd != round2Message {
-		return parsed, errUnicastBadRound
-	}
-
-	if err := t.validateTrackingIDForm(parsed.getTrackingID()); err != nil {
-		return parsed, err
-	}
-
-	return parsed, nil
 }
 
 func (st *GuardianStorage) sign(uuid uuid, msg *tsscommv1.SignedMessage) error {

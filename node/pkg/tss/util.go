@@ -223,24 +223,15 @@ func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
 		return fmt.Errorf("signedMessage sender pID error:%w", err)
 	}
 
+	if m.Content == nil {
+		return ErrNoContent
+	}
+
 	if len(m.Signature) == 0 {
 		return errEmptySignature
 	}
 
-	switch v := m.Content.(type) {
-	case *tsscommv1.SignedMessage_TssContent:
-		return validateContentCorrectForm(v.TssContent)
-	case *tsscommv1.SignedMessage_Problem:
-		return validateProblemMessageCorrectForm(v)
-	case *tsscommv1.SignedMessage_Announcement:
-		return validateAnouncementCorrectForm(v)
-	case nil:
-		return ErrNoContent
-	case *tsscommv1.SignedMessage_HashEcho:
-		return validateHashEchoMessageCorrectForm(v)
-	default:
-		return fmt.Errorf("unknown content type: %T", v)
-	}
+	return nil
 }
 
 func validateHashEchoMessageCorrectForm(v *tsscommv1.SignedMessage_HashEcho) error {

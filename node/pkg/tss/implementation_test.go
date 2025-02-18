@@ -548,7 +548,7 @@ func TestBadInputs(t *testing.T) {
 				},
 			}}},
 		})
-		a.ErrorIs(err, errEmptySignature)
+		a.ErrorIs(err, ErrNoContent)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
