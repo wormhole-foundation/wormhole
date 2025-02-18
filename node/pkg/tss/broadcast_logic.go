@@ -401,11 +401,11 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastable,
 	} else if *s.verifiedDigest != hashSignedMessage(signed) {
 		if err := t.verifySignedMessage(uid, signed); err != nil {
 			// two different digest and bad signature.
-			return fmt.Errorf("equivication attack detected. echoer %v sent a digest that can't be verified", source.Id)
+			return fmt.Errorf("Echoer %v sent a digest that can't be verified", source.Id)
 		}
 
 		// no error and two different digests:
-		return fmt.Errorf("equivication attack detected. sender %v sent two different digests", signed.Sender.Id)
+		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests", signed.Sender.Id)
 	}
 
 	return nil
