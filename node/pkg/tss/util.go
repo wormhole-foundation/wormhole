@@ -199,15 +199,14 @@ func partyIdToString(guardian *tss.PartyID) string {
 }
 
 var (
-	ErrEchoIsNil             = fmt.Errorf("echo is nil")
-	ErrNoAuthenticationField = fmt.Errorf("SignedMessage doesn't contain an authentication field")
-	ErrNilPartyId            = fmt.Errorf("party id is nil")
-	ErrEmptyIDInPID          = fmt.Errorf("partyId identifier is empty")
-	ErrEmptyKeyInPID         = fmt.Errorf("partyId doesn't contain a key")
-	ErrSignedMessageIsNil    = fmt.Errorf("SignedMessage is nil")
-	ErrNoContent             = fmt.Errorf("SignedMessage doesn't contain a content")
-	ErrNilPayload            = fmt.Errorf("SignedMessage doesn't contain a payload")
-	ErrMissingTimestamp      = fmt.Errorf("problem struct missing timestamp field")
+	ErrEchoIsNil          = fmt.Errorf("echo is nil")
+	ErrNilPartyId         = fmt.Errorf("party id is nil")
+	ErrEmptyIDInPID       = fmt.Errorf("partyId identifier is empty")
+	ErrEmptyKeyInPID      = fmt.Errorf("partyId doesn't contain a key")
+	ErrSignedMessageIsNil = fmt.Errorf("SignedMessage is nil")
+	ErrNoContent          = fmt.Errorf("SignedMessage doesn't contain a content")
+	ErrNilPayload         = fmt.Errorf("SignedMessage doesn't contain a payload")
+	ErrMissingTimestamp   = fmt.Errorf("problem struct missing timestamp field")
 )
 
 func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
@@ -224,44 +223,57 @@ func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
 		return fmt.Errorf("signedMessage sender pID error:%w", err)
 	}
 
+	if len(m.Signature) == 0 {
+		return errEmptySignature
+	}
+
 	switch v := m.Content.(type) {
 	case *tsscommv1.SignedMessage_TssContent:
-		if err := validateContentCorrectForm(v.TssContent); err != nil {
-			return fmt.Errorf("signedMessage content error:%w", err)
-		}
+		return validateContentCorrectForm(v.TssContent)
 	case *tsscommv1.SignedMessage_Problem:
-		if err := validateProblemCorrectForm(v.Problem); err != nil {
-			return err
-		}
-
-		if time.Since(v.Problem.IssuingTime.AsTime()).Abs() > maxHeartbeatInterval {
-			return fmt.Errorf("problem's timestamp is too old")
-		}
+		return validateProblemMessageCorrectForm(v)
 	case *tsscommv1.SignedMessage_Announcement:
-		if v.Announcement == nil {
-			return fmt.Errorf("announcement is nil")
-		}
-
-		if v.Announcement.Digest == nil {
-			return fmt.Errorf("announcement digest is nil")
-		}
+		return validateAnouncementCorrectForm(v)
 	case nil:
 		return ErrNoContent
 	case *tsscommv1.SignedMessage_HashEcho:
-		if len(v.HashEcho.OriginalContetDigest) != len(digest{}) {
-			return fmt.Errorf("hashEcho digest is not in correct size")
-		}
-		if len(v.HashEcho.SessionUuid) != len(uuid{}) {
-			return fmt.Errorf("hashEcho sessionUuid is not in correct size")
-		}
-
-		return nil
+		return validateHashEchoMessageCorrectForm(v)
 	default:
 		return fmt.Errorf("unknown content type: %T", v)
 	}
+}
 
-	if len(m.Signature) == 0 {
-		return ErrNoAuthenticationField
+func validateHashEchoMessageCorrectForm(v *tsscommv1.SignedMessage_HashEcho) error {
+	if len(v.HashEcho.OriginalContetDigest) != len(digest{}) {
+		return fmt.Errorf("hashEcho digest is not in correct size")
+	}
+
+	if len(v.HashEcho.SessionUuid) != len(uuid{}) {
+		return fmt.Errorf("hashEcho sessionUuid is not in correct size")
+	}
+
+	return nil
+}
+
+func validateProblemMessageCorrectForm(v *tsscommv1.SignedMessage_Problem) error {
+	if err := validateProblemCorrectForm(v.Problem); err != nil {
+		return err
+	}
+
+	if time.Since(v.Problem.IssuingTime.AsTime()).Abs() > maxHeartbeatInterval {
+		return fmt.Errorf("problem's timestamp is too old")
+	}
+
+	return nil
+}
+
+func validateAnouncementCorrectForm(v *tsscommv1.SignedMessage_Announcement) error {
+	if v.Announcement == nil {
+		return fmt.Errorf("announcement is nil")
+	}
+
+	if v.Announcement.Digest == nil {
+		return fmt.Errorf("announcement digest is nil")
 	}
 
 	return nil

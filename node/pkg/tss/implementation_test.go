@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
-	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -448,9 +447,6 @@ func TestBadInputs(t *testing.T) {
 
 	e1.Start(ctx) // so it has a logger.
 
-	go func() {
-		http.ListenAndServe(":4937", nil)
-	}()
 	t.Run("signature", func(t *testing.T) {
 		for j, rnd := range allRounds {
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self, e1.Self, rnd, party.Digest{byte(j)})
@@ -552,7 +548,7 @@ func TestBadInputs(t *testing.T) {
 				},
 			}}},
 		})
-		a.ErrorIs(err, ErrNoContent)
+		a.ErrorIs(err, errEmptySignature)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
@@ -560,7 +556,8 @@ func TestBadInputs(t *testing.T) {
 					Content: &tsscommv1.SignedMessage_TssContent{
 						TssContent: &tsscommv1.TssContent{},
 					},
-					Sender: partyIdToProto(e2.Self),
+					Sender:    partyIdToProto(e2.Self),
+					Signature: []byte{1, 2, 3},
 				},
 			}}},
 		})
@@ -578,7 +575,7 @@ func TestBadInputs(t *testing.T) {
 				},
 			}}},
 		})
-		a.ErrorIs(err, ErrNoAuthenticationField)
+		a.ErrorIs(err, errEmptySignature)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
