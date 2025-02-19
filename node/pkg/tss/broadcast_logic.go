@@ -352,12 +352,8 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	// non-echo is a deliverable message. which only the original signer of the message can send.
-	if _, ok := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho); !ok {
-		if _, ok := parsed.(*parsedHashEcho); ok {
-			return fmt.Errorf("internal error. Parsed messsaage is a hash echo, but the signed message is not")
-		}
-
+	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
+	if _, ok := parsed.(deliverableMessage); ok {
 		if !equalPartyIds(protoToPartyId(unparsedSignedMessage.Sender), protoToPartyId(src)) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
