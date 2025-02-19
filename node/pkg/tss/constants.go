@@ -72,8 +72,9 @@ const (
 	numBroadcastsPerSignature = 8 // GG18
 	numUnicastsRounds         = 2 // GG18
 
-	// the assumed time thata message can be delayed between two parties.
-	// for instance guardian 1 received a problem report at time 00:07, then guardian 2 can be assumed to have received the same problem report between times 00:02 and 00:12
+	// the assumed time that a message can be delayed between two parties.
+	// for instance guardian 1 received a problem report at time 00:07, then guardian 2 can be
+	// assumed to have received the same problem report between times 00:02 and 00:12
 	synchronsingInterval = time.Second * 5
 
 	// Domain separation strings for hashing.

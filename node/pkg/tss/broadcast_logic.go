@@ -73,7 +73,6 @@ type parsedHashEcho struct {
 	*tsscommv1.HashEcho
 }
 
-// getUUID implements processedMessage.
 func (p *parsedHashEcho) getUUID(loadDistKey []byte) uuid {
 	uid := uuid{}
 	copy(uid[:], p.HashEcho.SessionUuid)
@@ -81,7 +80,6 @@ func (p *parsedHashEcho) getUUID(loadDistKey []byte) uuid {
 	return uid
 }
 
-// wrapError implements processedMessage.
 func (p *parsedHashEcho) wrapError(e error) error {
 	return logableError{cause: fmt.Errorf("error with hashEcho: %w", e)}
 }
