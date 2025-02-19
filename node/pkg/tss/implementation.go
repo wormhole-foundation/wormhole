@@ -1043,7 +1043,7 @@ func getMessageUUID(msg tss.Message, loadDistKey []byte) uuid {
 	// but, sender j is not allowed to send two different messages to the same round.
 	tp := msg.Type()
 
-	msgType := [msgTypeSize]byte{}
+	msgType := make([]byte, tssProtoMessageSize)
 	copy(msgType[:], tp[:])
 
 	d := make([]byte, 0, len(tssContentDomain)+len(loadDistKey)+int(trackingIDHexStrSize)+hostnameSize+pemKeySize)

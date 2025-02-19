@@ -5,8 +5,37 @@ import (
 	"unsafe"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/xlabs/tss-lib/v2/ecdsa/keygen"
 	"github.com/xlabs/tss-lib/v2/ecdsa/party"
+	"github.com/xlabs/tss-lib/v2/ecdsa/resharing"
+	"github.com/xlabs/tss-lib/v2/ecdsa/signing"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+var tssProtoMessageNames = []string{}
+
+var tssProtoMessageSize = 0
+
+func init() {
+	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(signing.File_protob_ecdsa_signing_proto)...)
+	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(keygen.File_protob_ecdsa_keygen_proto)...)
+	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(resharing.File_protob_ecdsa_resharing_proto)...)
+
+	for _, name := range tssProtoMessageNames {
+		tssProtoMessageSize = max(tssProtoMessageSize, len(name))
+	}
+}
+
+func extractProtoTypeNames(protoreflectDesc protoreflect.FileDescriptor) []string {
+	names := make([]string, protoreflectDesc.Messages().Len())
+
+	for i := range protoreflectDesc.Messages().Len() {
+		m := protoreflectDesc.Messages().Get(i)
+		names[i] = string(m.FullName())
+	}
+
+	return names
+}
 
 const (
 	DefaultPort = "8998"
@@ -19,7 +48,6 @@ const (
 	// byte sizes
 	hostnameSize = 255
 	pemKeySize   = 178
-	msgTypeSize  = 60 // message types: "binance.tsslib.ecdsa.signing.SignRound1Message1"
 
 	// auxiliaryData is emmiterChain in bytes.
 	auxiliaryDataSize = int(unsafe.Sizeof(vaa.ChainID(0)))
