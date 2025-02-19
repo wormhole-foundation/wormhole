@@ -373,7 +373,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 	} else if *s.verifiedDigest != hashSignedMessage(unparsedSignedMessage) {
 		if err := t.verifySignedMessage(uid, unparsedSignedMessage); err != nil {
 			// two different digest and bad signature.
-			return fmt.Errorf("Echoer %v sent a digest that can't be verified", src.Id)
+			return fmt.Errorf("caught bad behaviour: Echoer %v sent a digest that can't be verified", src.Id)
 		}
 
 		// no error and two different digests:
