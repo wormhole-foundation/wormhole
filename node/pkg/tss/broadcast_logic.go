@@ -296,17 +296,16 @@ func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incomin
 
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(unparsedSignedMessage.Sender))
 
-	_, ok1 := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
-	isEcho := ok1
+	_, isEcho := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	// the incoming message is valid when this function is reached.
 	// So if the incomming message is not an echo, we can set the deliverable (which we'll return once we should deliver).
-	if s.deliverable == nil {
+	if s.deliverable == nil && !isEcho {
 		deliverable, ok := parsed.(deliverable)
-		if !isEcho && ok { // has actual content.
+		if ok { // has actual content.
 			s.deliverable = deliverable
 		}
 	}
