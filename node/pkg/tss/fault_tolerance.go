@@ -617,12 +617,12 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 		Signature: []byte{},
 	}
 
-	uid := (&parsedProblem{
+	tmp := serializeableMessage{&parsedProblem{
 		Problem: sm.GetProblem(),
 		issuer:  sm.Sender,
-	}).getUUID(t.LoadDistributionKey)
+	}}
 
-	if err := t.sign(uid, sm); err != nil {
+	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), sm); err != nil {
 		t.logger.Error("failed to report a problem to the other guardians", zap.Error(err))
 
 		return

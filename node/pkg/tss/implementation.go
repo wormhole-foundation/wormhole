@@ -432,10 +432,10 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 		},
 	}
 
-	tmp := &parsedAnnouncement{
+	tmp := serializeableMessage{&parsedAnnouncement{
 		SawDigest: sm.GetAnnouncement(),
 		issuer:    sm.Sender,
-	}
+	}}
 
 	flds := []zap.Field{zap.String("chainID", chainID.String()),
 		zap.String("digest", fmt.Sprintf("%x", digest)),
@@ -805,7 +805,9 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 			Signature: nil,
 		}
 
-		if err := t.sign(getMessageUUID(m, t.LoadDistributionKey), msgToSend); err != nil {
+		tmp := serializeableMessage{&tssMessageWrapper{m}}
+
+		if err := t.sign(tmp.getUUID(t.LoadDistributionKey), msgToSend); err != nil {
 			return nil, err
 		}
 
@@ -905,7 +907,7 @@ func (t *Engine) handleEcho(m Incoming) error {
 
 	shouldEcho, deliverable, err := t.broadcastInspection(parsed, m)
 	if err != nil {
-		return parsed.wrapError(err)
+		return err
 	}
 
 	if shouldEcho {
@@ -982,7 +984,8 @@ func (t *Engine) handleUnicastTSS(v *tsscommv1.Unicast_Tss, src *tsscommv1.Party
 var errUnicastAlreadyReceived = fmt.Errorf("unicast already received")
 
 func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
-	id := getMessageUUID(parsed, t.LoadDistributionKey)
+	tmp := serializeableMessage{&tssMessageWrapper{parsed}}
+	id := tmp.getUUID(t.LoadDistributionKey)
 
 	bts, _, err := parsed.WireBytes()
 	if err != nil {
@@ -1021,42 +1024,6 @@ var (
 	ErrUnkownEchoer = fmt.Errorf("echoer is not a known guardian")
 	ErrUnkownSender = fmt.Errorf("sender is not a known guardian")
 )
-
-// This function sets a message's sessionID. It is crucial for SECURITY to ensure no equivocation
-//
-// We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
-// this is used by the broadcast protocol to check no two messages from the same sender will be used to update the full party
-// in the same round for the specific session of the protocol.
-func getMessageUUID(msg tss.Message, loadDistKey []byte) uuid {
-	// The TackingID of a parsed message is tied to the run of the protocol for a single
-	//  signature, thus we use it as a sessionID.
-	messageTrackingID := [trackingIDHexStrSize]byte{}
-	copy(messageTrackingID[:], []byte(msg.WireMsg().GetTrackingID().ToString()))
-
-	fromId := [hostnameSize]byte{}
-	copy(fromId[:], msg.GetFrom().Id)
-
-	fromKey := [pemKeySize]byte{}
-	copy(fromKey[:], msg.GetFrom().Key)
-
-	// Adding the Message type allows the same sender to send messages for different rounds.
-	// but, sender j is not allowed to send two different messages to the same round.
-	tp := msg.Type()
-
-	msgType := make([]byte, tssProtoMessageSize)
-	copy(msgType[:], tp[:])
-
-	d := make([]byte, 0, len(tssContentDomain)+len(loadDistKey)+int(trackingIDHexStrSize)+hostnameSize+pemKeySize)
-
-	d = append(d, tssContentDomain...)
-	d = append(d, loadDistKey...)
-	d = append(d, messageTrackingID[:]...)
-	d = append(d, fromId[:]...)
-	d = append(d, fromKey[:]...)
-	d = append(d, msgType[:]...)
-
-	return uuid(hash(d))
-}
 
 func (st *GuardianStorage) sign(uuid uuid, msg *tsscommv1.SignedMessage) error {
 	tmp := hashSignedMessage(msg)

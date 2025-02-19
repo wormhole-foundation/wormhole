@@ -7,7 +7,7 @@ import (
 	"github.com/xlabs/tss-lib/v2/tss"
 )
 
-func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
+func (t *Engine) parseEcho(m Incoming) (broadcastMessage, error) {
 	echoMsg := m.toEcho()
 	if err := vaidateEchoCorrectForm(echoMsg); err != nil {
 		return nil, err
@@ -24,20 +24,20 @@ func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 			return nil, err
 		}
 
-		return &parsedProblem{
+		return &deliverableMessage{&parsedProblem{
 			Problem: v.Problem,
 			issuer:  echoMsg.Message.Sender,
-		}, nil
+		}}, nil
 
 	case *tsscommv1.SignedMessage_Announcement:
 		if err := validateAnouncementCorrectForm(v); err != nil {
 			return nil, err
 		}
 
-		return &parsedAnnouncement{
+		return &deliverableMessage{&parsedAnnouncement{
 			SawDigest: v.Announcement,
 			issuer:    echoMsg.Message.Sender,
-		}, nil
+		}}, nil
 
 	case *tsscommv1.SignedMessage_TssContent:
 		if err := validateContentCorrectForm(v.TssContent); err != nil {
@@ -50,24 +50,25 @@ func (t *Engine) parseEcho(m Incoming) (processedMessage, error) {
 		}
 
 		parsed := &parsedTssContent{p, ""}
+		res := &deliverableMessage{parsed}
 
 		rnd, err := getRound(parsed)
 		if err != nil {
-			return parsed, fmt.Errorf("couldn't extract round from echo: %w", err)
+			return res, fmt.Errorf("couldn't extract round from echo: %w", err)
 		}
 
 		parsed.signingRound = rnd
 
 		// according to gg18 (tss ecdsa paper), unicasts are sent in these rounds.
 		if rnd == round1Message1 || rnd == round2Message {
-			return parsed, errBadRoundsInEcho
+			return res, errBadRoundsInEcho
 		}
 
 		if err := t.validateTrackingIDForm(parsed.getTrackingID()); err != nil {
-			return parsed, err
+			return res, err
 		}
 
-		return parsed, nil
+		return res, nil
 	case *tsscommv1.SignedMessage_HashEcho:
 		if err := validateHashEchoMessageCorrectForm(v); err != nil {
 			return nil, err

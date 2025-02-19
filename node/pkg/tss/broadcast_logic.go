@@ -40,23 +40,48 @@ type broadcastMessage interface {
 	getUUID(loadDistKey []byte) uuid
 }
 
-type deliverableMessage interface {
-	broadcastMessage
-	deliver(*Engine) error
-}
-
-type processedMessage interface {
-	broadcastMessage
-	wrapError(error) error
-}
-
 type serialzeable interface {
 	serialize() []byte
 }
 
+// Deliverable represents what the broadcast protocol returns.
+// It is a message that its hash has been seen by at least 2f+1 guardians.
+type deliverable interface {
+	serialzeable
+
+	deliver(*Engine) error
+}
+
+type deliverableMessage struct {
+	deliverable
+}
+
+// serializeableMessage is a helper struct that converts a serializable message into a broadcastMessage.
+type serializeableMessage struct {
+	serialzeable
+}
+
+func (s *serializeableMessage) getUUID(loadDistKey []byte) uuid {
+	return uuid(hash(append(s.serialize(), loadDistKey...)))
+}
+
+// implementing broadcastMessage interface for any deliverableMessage.
+func (s *deliverableMessage) getUUID(loadDistKey []byte) uuid {
+	return (&serializeableMessage{s}).getUUID(loadDistKey)
+}
+
+// serializeables:
 type parsedProblem struct {
 	*tsscommv1.Problem
 	issuer *tsscommv1.PartyId
+}
+
+type tssMessageWrapper struct {
+	tss.Message
+}
+
+func (t *tssMessageWrapper) serialize() []byte {
+	return serializeTSSMessage(t.Message)
 }
 
 type parsedTssContent struct {
@@ -69,6 +94,7 @@ type parsedAnnouncement struct {
 	issuer *tsscommv1.PartyId
 }
 
+// broadcastable only struct (not deliverable or serializable):
 type parsedHashEcho struct {
 	*tsscommv1.HashEcho
 }
@@ -78,19 +104,6 @@ func (p *parsedHashEcho) getUUID(loadDistKey []byte) uuid {
 	copy(uid[:], p.HashEcho.SessionUuid)
 
 	return uid
-}
-
-func (p *parsedHashEcho) wrapError(e error) error {
-	return logableError{cause: fmt.Errorf("error with hashEcho: %w", e)}
-}
-
-func serializeableToUUID(s serialzeable, loadDistKey []byte) uuid {
-	return uuid(hash(append(s.serialize(), loadDistKey...)))
-
-}
-
-func (p *parsedProblem) wrapError(err error) error {
-	return logableError{cause: fmt.Errorf("error parsing problem, issuer %v: %w", p.issuer, err)}
 }
 
 func (p *parsedProblem) serialize() []byte {
@@ -123,16 +136,43 @@ func (p *parsedProblem) serialize() []byte {
 	return b.Bytes()
 }
 
-func (p *parsedProblem) getUUID(loadDistKey []byte) uuid {
-	return serializeableToUUID(p, loadDistKey)
-}
-
 func (p *parsedProblem) deliver(t *Engine) error {
 	return intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*p})
 }
 
-func (msg *parsedTssContent) getUUID(loadDistKey []byte) uuid {
-	return getMessageUUID(msg.ParsedMessage, loadDistKey)
+// This function sets a message's sessionID. It is crucial for SECURITY to ensure no equivocation
+//
+// We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
+// this is used by the broadcast protocol to check no two messages from the same sender will be used to update the full party
+// in the same round for the specific session of the protocol.
+func serializeTSSMessage(msg tss.Message) []byte {
+	// The TackingID of a parsed message is tied to the run of the protocol for a single
+	//  signature, thus we use it as a sessionID.
+	messageTrackingID := [trackingIDHexStrSize]byte{}
+	copy(messageTrackingID[:], []byte(msg.WireMsg().GetTrackingID().ToString()))
+
+	fromId := [hostnameSize]byte{}
+	copy(fromId[:], msg.GetFrom().Id)
+
+	fromKey := [pemKeySize]byte{}
+	copy(fromKey[:], msg.GetFrom().Key)
+
+	// Adding the Message type allows the same sender to send messages for different rounds.
+	// but, sender j is not allowed to send two different messages to the same round.
+	tp := msg.Type()
+
+	msgType := make([]byte, tssProtoMessageSize)
+	copy(msgType[:], tp[:])
+
+	d := make([]byte, 0, len(tssContentDomain)+int(trackingIDHexStrSize)+hostnameSize+pemKeySize)
+
+	d = append(d, tssContentDomain...)
+	d = append(d, messageTrackingID[:]...)
+	d = append(d, fromId[:]...)
+	d = append(d, fromKey[:]...)
+	d = append(d, msgType[:]...)
+
+	return d
 }
 
 func (p *parsedTssContent) wrapError(err error) error {
@@ -171,6 +211,10 @@ func (p *parsedTssContent) deliver(t *Engine) error {
 	return nil
 }
 
+func (p *parsedTssContent) serialize() []byte {
+	return serializeTSSMessage(p.ParsedMessage)
+}
+
 func (p *parsedAnnouncement) serialize() []byte {
 	if p == nil {
 		return []byte(newAnouncementDomain)
@@ -198,10 +242,6 @@ func (p *parsedAnnouncement) serialize() []byte {
 	return b.Bytes()
 }
 
-func (p *parsedAnnouncement) getUUID(loadDistKey []byte) uuid {
-	return serializeableToUUID(p, loadDistKey)
-}
-
 func (p *parsedAnnouncement) wrapError(err error) error {
 	return logableError{cause: fmt.Errorf("error with digest announcement from %v: %w", p.issuer, err)}
 }
@@ -214,7 +254,7 @@ type broadcaststate struct {
 	timeReceived   time.Time
 	verifiedDigest *digest
 
-	deliverableMessage deliverableMessage
+	deliverable deliverable
 
 	votes map[voterId]bool
 	// if set to true: don't echo again, even if received from original sender.
@@ -225,7 +265,7 @@ type broadcaststate struct {
 	mtx *sync.Mutex
 }
 
-func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverableMessage {
+func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverable {
 	f := t.GuardianStorage.getMaxExpectedFaults()
 
 	s.mtx.Lock()
@@ -239,13 +279,13 @@ func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverableMessage {
 		return nil
 	}
 
-	if s.deliverableMessage == nil {
+	if s.deliverable == nil {
 		return nil
 	}
 
 	s.alreadyDelivered = true
 
-	return s.deliverableMessage
+	return s.deliverable
 }
 
 var ErrEquivicatingGuardian = fmt.Errorf("equivication, guardian sent two different messages for the same round and session")
@@ -264,10 +304,10 @@ func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incomin
 
 	// the incoming message is valid when this function is reached.
 	// So if the incomming message is not an echo, we can set the deliverable (which we'll return once we should deliver).
-	if s.deliverableMessage == nil {
-		deliverable, ok := parsed.(deliverableMessage)
+	if s.deliverable == nil {
+		deliverable, ok := parsed.(deliverable)
 		if !isEcho && ok { // has actual content.
-			s.deliverableMessage = deliverable
+			s.deliverable = deliverable
 		}
 	}
 
@@ -294,8 +334,8 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 
 // broadcastInspection is the main function that handles the hash-broadcast algorithm.
 // it returns whether a message should be echoed, delivered, or an error.
-// Once a deliverableMessage is returned from this function, it can be used by the caller.
-func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, deliverableMessage, error) {
+// Once a deliverable is returned from this function, it can be used by the caller.
+func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, deliverable, error) {
 	state := t.fetchOrCreateState(parsed)
 
 	if err := t.validateBroadcastState(state, parsed, msg); err != nil {
@@ -318,9 +358,9 @@ func (t *Engine) fetchOrCreateState(parsed broadcastMessage) *broadcaststate {
 	uuid := parsed.getUUID(t.LoadDistributionKey)
 
 	state := &broadcaststate{
-		timeReceived:       time.Now(),
-		verifiedDigest:     nil,
-		deliverableMessage: nil,
+		timeReceived:   time.Now(),
+		verifiedDigest: nil,
+		deliverable:    nil,
 
 		votes:            make(map[voterId]bool),
 		echoedAlready:    false,
@@ -349,7 +389,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 	defer s.mtx.Unlock()
 
 	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
-	if _, ok := parsed.(deliverableMessage); ok {
+	if _, ok := parsed.(deliverable); ok {
 		if !equalPartyIds(protoToPartyId(unparsedSignedMessage.Sender), protoToPartyId(src)) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
