@@ -1022,7 +1022,7 @@ var (
 	ErrUnkownSender = fmt.Errorf("sender is not a known guardian")
 )
 
-// SECURITY NOTE: this function sets a sessionID to a message. Used to ensure no equivocation.
+// This function sets a message's sessionID. It is crucial for SECURITY to ensure no equivocation
 //
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
 // this is used by the broadcast protocol to check no two messages from the same sender will be used to update the full party
