@@ -285,8 +285,6 @@ func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incomin
 		return shouldEcho, err
 	}
 
-	// Unlike RB, we don't echo if we have enough votes.
-	// that is, we don't want to echo something we don't hold the original message for.
 	return shouldEcho, err
 }
 
@@ -297,8 +295,8 @@ func (st *GuardianStorage) getMaxExpectedFaults() int {
 }
 
 // broadcastInspection is the main function that handles the hash-broadcast algorithm.
-// it returns whether a message should be re-broadcasted, a deiliverable message, or an error.
-// Once a deliverable is returned from this function, it can be used by the caller.
+// it returns whether a message should be echoed, delivered, or an error.
+// Once a deliverableMessage is returned from this function, it can be used by the caller.
 func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (bool, deliverableMessage, error) {
 	state := t.fetchOrCreateState(parsed)
 
