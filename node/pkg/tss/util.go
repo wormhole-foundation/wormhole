@@ -199,7 +199,7 @@ func partyIdToString(guardian *tss.PartyID) string {
 }
 
 var (
-	ErrEchoIsNil          = fmt.Errorf("echo is nil")
+	ErrBroadcastIsNil     = fmt.Errorf("broadcast is nil")
 	ErrNilPartyId         = fmt.Errorf("party id is nil")
 	ErrEmptyIDInPID       = fmt.Errorf("partyId identifier is empty")
 	ErrEmptyKeyInPID      = fmt.Errorf("partyId doesn't contain a key")
@@ -209,9 +209,9 @@ var (
 	ErrMissingTimestamp   = fmt.Errorf("problem struct missing timestamp field")
 )
 
-func vaidateEchoCorrectForm(e *tsscommv1.Echo) error {
+func validateBroadcastCorrectForm(e *tsscommv1.Echo) error {
 	if e == nil {
-		return ErrEchoIsNil
+		return ErrBroadcastIsNil
 	}
 
 	m := e.Message

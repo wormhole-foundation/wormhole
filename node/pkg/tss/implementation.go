@@ -866,7 +866,7 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 		return errNeitherBroadcastNorUnicast
 	}
 
-	if err := t.handleEcho(msg); err != nil {
+	if err := t.handleBroadcast(msg); err != nil {
 		return err
 	}
 
@@ -874,7 +874,7 @@ func (t *Engine) handleIncomingTssMessage(msg Incoming) error {
 }
 
 func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) {
-	e := m.toEcho()
+	e := m.toBroadcastMsg()
 
 	uuid := parsed.getUUID(t.LoadDistributionKey)
 	contentDigest := hashSignedMessage(e.Message)
@@ -897,10 +897,10 @@ func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) {
 	}
 }
 
-var errBadRoundsInEcho = fmt.Errorf("cannot receive echos for rounds: %v,%v", round1Message1, round2Message)
+var errBadRoundsInBroadcast = fmt.Errorf("cannot receive broadcast for rounds: %v,%v", round1Message1, round2Message)
 
-func (t *Engine) handleEcho(m Incoming) error {
-	parsed, err := t.parseEcho(m)
+func (t *Engine) handleBroadcast(m Incoming) error {
+	parsed, err := t.parseBroadcast(m)
 	if err != nil {
 		return err
 	}

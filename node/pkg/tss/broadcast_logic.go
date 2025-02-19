@@ -291,7 +291,7 @@ func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverable {
 var ErrEquivicatingGuardian = fmt.Errorf("equivication, guardian sent two different messages for the same round and session")
 
 func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incoming) (shouldEcho bool, err error) {
-	unparsedSignedMessage := unparsedContent.toEcho().Message
+	unparsedSignedMessage := unparsedContent.toBroadcastMsg().Message
 	echoer := unparsedContent.GetSource()
 
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(unparsedSignedMessage.Sender))
@@ -303,7 +303,7 @@ func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incomin
 
 	// the incoming message is valid when this function is reached.
 	// So if the incomming message is not an echo, we can set the deliverable (which we'll return once we should deliver).
-	if s.deliverable == nil && !isEcho {
+	if !isEcho && s.deliverable == nil {
 		deliverable, ok := parsed.(deliverable)
 		if ok { // has actual content.
 			s.deliverable = deliverable
@@ -346,7 +346,7 @@ func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (boo
 		return false, nil, err
 	}
 
-	if shouldBroadcast && equalPartyIds(protoToPartyId(msg.toEcho().Message.Sender), t.Self) {
+	if shouldBroadcast && equalPartyIds(protoToPartyId(msg.toBroadcastMsg().Message.Sender), t.Self) {
 		shouldBroadcast = false // no need to echo if we're the original sender.
 	}
 
@@ -380,7 +380,7 @@ func (t *Engine) fetchOrCreateState(parsed broadcastMessage) *broadcaststate {
 }
 
 func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessage, msg Incoming) error {
-	unparsedSignedMessage := msg.toEcho().Message
+	unparsedSignedMessage := msg.toBroadcastMsg().Message
 	src := msg.GetSource()
 
 	// locking a single state. Can be reached by multiple echoers.

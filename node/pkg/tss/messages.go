@@ -5,6 +5,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Echo is a broadcast message.
+// can contain a `tsscommv1.Echo` and a list of recipients.
+// and implements the `Sendable` interface.
 type Echo struct {
 	Echo       *tsscommv1.Echo
 	Recipients []*tsscommv1.PartyId
@@ -34,7 +37,7 @@ func (i *IncomingMessage) IsUnicast() bool {
 	return ok
 }
 
-func (i *IncomingMessage) toEcho() *tsscommv1.Echo {
+func (i *IncomingMessage) toBroadcastMsg() *tsscommv1.Echo {
 	if !i.hasContent() {
 		return nil
 	}

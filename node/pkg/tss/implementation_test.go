@@ -173,7 +173,7 @@ func TestBroadcast(t *testing.T) {
 			echo := makeHashEcho(e1, parsed1, originalValue)
 
 			parsed := &parsedHashEcho{
-				HashEcho: echo.toEcho().Message.GetHashEcho(),
+				HashEcho: echo.toBroadcastMsg().Message.GetHashEcho(),
 			}
 
 			echo.setSource(e2.Self)
@@ -217,7 +217,7 @@ func load5GuardiansSetupForBroadcastChecks(a *assert.Assertions) []*Engine {
 }
 
 func makeHashEcho(e *Engine, parsed tss.ParsedMessage, in *IncomingMessage) *IncomingMessage {
-	echocpy := proto.Clone(in.toEcho()).(*tsscommv1.Echo)
+	echocpy := proto.Clone(in.toBroadcastMsg()).(*tsscommv1.Echo)
 
 	outgoing := &IncomingMessage{
 		Source: in.Source,
@@ -237,7 +237,7 @@ func makeHashEcho(e *Engine, parsed tss.ParsedMessage, in *IncomingMessage) *Inc
 		OriginalContetDigest: dgst[:],
 	}
 
-	outgoing.toEcho().Message.Content = &tsscommv1.SignedMessage_HashEcho{hshEcho}
+	outgoing.toBroadcastMsg().Message.Content = &tsscommv1.SignedMessage_HashEcho{hshEcho}
 	return outgoing
 
 }
@@ -257,7 +257,7 @@ func TestDeliver(t *testing.T) {
 			hshEcho := makeHashEcho(e1, parsed1, echo)
 			hshEcho.setSource(e2.Self)
 
-			prsedHashEcho := &parsedHashEcho{hshEcho.toEcho().Message.GetHashEcho()}
+			prsedHashEcho := &parsedHashEcho{hshEcho.toBroadcastMsg().Message.GetHashEcho()}
 			shouldBroadcast, deliverable, err := receiver.broadcastInspection(prsedHashEcho, hshEcho)
 
 			a.NoError(err)
@@ -294,7 +294,7 @@ func TestDeliver(t *testing.T) {
 			hashecho := makeHashEcho(e1, parsed1, echo)
 			hashecho.setSource(e2.Self)
 
-			prsedHashEcho := &parsedHashEcho{hashecho.toEcho().Message.GetHashEcho()}
+			prsedHashEcho := &parsedHashEcho{hashecho.toBroadcastMsg().Message.GetHashEcho()}
 			shouldBroadcast, deliverable, err := receiver.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
@@ -459,7 +459,7 @@ func TestBadInputs(t *testing.T) {
 
 			echo.setSource(e1.Self)
 
-			echo.toEcho().Message.Signature[0] += 1
+			echo.toBroadcastMsg().Message.Signature[0] += 1
 			_, _, err := e1.broadcastInspection(&deliverableMessage{&parsedTssContent{parsed1, ""}}, echo)
 			a.ErrorIs(err, ErrInvalidSignature)
 
@@ -502,7 +502,7 @@ func TestBadInputs(t *testing.T) {
 				Message: &tsscommv1.PropagatedMessage_Echo{},
 			},
 		})
-		a.ErrorIs(err, ErrEchoIsNil)
+		a.ErrorIs(err, ErrBroadcastIsNil)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{
 			Source: partyIdToProto(e2.Self),
@@ -1870,8 +1870,8 @@ func TestMessagesWithBadRounds(t *testing.T) {
 			}
 			a.NoError(e1.sign(uuid{}, m.Content.GetEcho().Message))
 
-			err = e2.handleEcho(m)
-			a.ErrorIs(err, errBadRoundsInEcho)
+			err = e2.handleBroadcast(m)
+			a.ErrorIs(err, errBadRoundsInBroadcast)
 		}
 	})
 }

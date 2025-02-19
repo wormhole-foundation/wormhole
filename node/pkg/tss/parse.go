@@ -7,18 +7,18 @@ import (
 	"github.com/xlabs/tss-lib/v2/tss"
 )
 
-func (t *Engine) parseEcho(m Incoming) (broadcastMessage, error) {
-	echoMsg := m.toEcho()
-	if err := vaidateEchoCorrectForm(echoMsg); err != nil {
+func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
+	broadcastMsg := m.toBroadcastMsg()
+	if err := validateBroadcastCorrectForm(broadcastMsg); err != nil {
 		return nil, err
 	}
 
-	senderPid := protoToPartyId(echoMsg.Message.Sender)
+	senderPid := protoToPartyId(broadcastMsg.Message.Sender)
 	if !t.GuardianStorage.contains(senderPid) {
 		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderPid)
 	}
 
-	switch v := echoMsg.Message.Content.(type) {
+	switch v := broadcastMsg.Message.Content.(type) {
 	case *tsscommv1.SignedMessage_Problem:
 		if err := validateProblemMessageCorrectForm(v); err != nil {
 			return nil, err
@@ -26,7 +26,7 @@ func (t *Engine) parseEcho(m Incoming) (broadcastMessage, error) {
 
 		return &deliverableMessage{&parsedProblem{
 			Problem: v.Problem,
-			issuer:  echoMsg.Message.Sender,
+			issuer:  broadcastMsg.Message.Sender,
 		}}, nil
 
 	case *tsscommv1.SignedMessage_Announcement:
@@ -36,7 +36,7 @@ func (t *Engine) parseEcho(m Incoming) (broadcastMessage, error) {
 
 		return &deliverableMessage{&parsedAnnouncement{
 			SawDigest: v.Announcement,
-			issuer:    echoMsg.Message.Sender,
+			issuer:    broadcastMsg.Message.Sender,
 		}}, nil
 
 	case *tsscommv1.SignedMessage_TssContent:
@@ -54,14 +54,14 @@ func (t *Engine) parseEcho(m Incoming) (broadcastMessage, error) {
 
 		rnd, err := getRound(parsed)
 		if err != nil {
-			return res, fmt.Errorf("couldn't extract round from echo: %w", err)
+			return res, fmt.Errorf("couldn't extract from broadcast message: %w", err)
 		}
 
 		parsed.signingRound = rnd
 
 		// according to gg18 (tss ecdsa paper), unicasts are sent in these rounds.
 		if rnd == round1Message1 || rnd == round2Message {
-			return res, errBadRoundsInEcho
+			return res, errBadRoundsInBroadcast
 		}
 
 		if err := t.validateTrackingIDForm(parsed.getTrackingID()); err != nil {
