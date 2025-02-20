@@ -136,10 +136,6 @@ func (a SignatureData) String() string {
 	return hex.EncodeToString(a[:])
 }
 
-// func ToChainID() string {
-// 	return hex.EncodeToString(a[:])
-// }
-
 func (c ChainID) String() string {
 	switch c {
 	case ChainIDUnset:
