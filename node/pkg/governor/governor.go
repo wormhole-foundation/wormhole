@@ -102,6 +102,7 @@ type (
 	// supported token.
 	transfer struct {
 		dbTransfer *guardianDB.Transfer
+		// Corresponds to dbTransfers.Value field, but may be negative
 		value      int64
 	}
 
@@ -151,8 +152,10 @@ func (p *pipe) equals(p2 *pipe) bool {
 	return false
 }
 
-// newTransferFromDbTransfer performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
-// This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
+// newTransferFromDbTransfer converts a db.Transfer into a transfer. It
+// performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
+// This should always be the case for normal operations as dbTransfer.Value
+// represents the USD value of a transfer, which should be less than the max int64 value.
 func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, err error) {
 	if dbTransfer.Value > math.MaxInt64 {
 		return tx, fmt.Errorf("value for db.Transfer exceeds MaxInt64: %d", dbTransfer.Value)
@@ -165,7 +168,7 @@ func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, er
 // SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching flow cancel pipe.
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
-// - the Value must be negative (in order to represent an incoming value)
+// - the Value must be negative (in order to ultimately reduce the Governor usage of the target chain)
 // - the TargetChain must match the chain ID of the Chain Entry
 func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	value := transfer.value
@@ -188,8 +191,8 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	return nil
 }
 
-// addFlowCancelTransferFromDbTransfer converts a dbTransfer to a transfer and adds it to the
-// Chain Entry.
+// addFlowCancelTransferFromDbTransfer is a wrapper for addFlowCancelTransfer that works with a `db.Transfer` argument
+// instead of a `transfer` argument.
 // Validation of transfer data is performed by other methods: see addFlowCancelTransfer, newTransferFromDbTransfer.
 func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) error {
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
@@ -900,11 +903,15 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 
 						gov.msgsSeen[pe.hash] = transferComplete
 						if gov.flowCancelEnabled {
+							// The point here is to add a flow-cancelling transfer to the governor's pending queue if applicable.
+							// If the function returns (false, nil), just ignore it.
 							_, err := gov.tryAddFlowCancelTransfer(&transfer)
 							if err != nil {
 								gov.logger.Error("Error when attempting to add a flow cancel transfer",
 									zap.Error(err),
 								)
+								// Process the next pending transfer. (Continues to inner for-loop.)
+								continue
 
 							}
 						}
@@ -952,7 +959,10 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
-// tryAddFlowCancelTransfer adds inverse transfer to destination chain entry if this asset can cancel flows.
+// tryAddFlowCancelTransfer adds an inverse transfer to the destination chain entry. This occurs only if the transfer's asset
+// is allow-listed, and if the source and destination chain are connected via an enabled "pipe" (allow-list of chain ID pairs).
+// A return value of false means that the transfer will not do flow cancelling, i.e. it will not reduce the destination chain's
+// Governor usage.
 func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, error) {
 	originChain := transfer.dbTransfer.OriginChain
 	originAddr := transfer.dbTransfer.OriginAddress
@@ -960,10 +970,10 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	target := transfer.dbTransfer.TargetChain
 	emitter := transfer.dbTransfer.EmitterChain
 
-	// Validate the pipe to make sure these chains are flow cancel enabled.
+	// Check whether the source and destination chain are in the allow-list for flow cancelling.
 	pipe := &pipe{emitter, target}
 	if !pipe.valid() {
-		gov.logger.Warn("Not adding flow cancel transfer because emitter and target chain are the same",
+		gov.logger.Warn("not adding flow cancel transfer because emitter and target chain are the same",
 			zap.String("hash", hash),
 		)
 		return false, nil
@@ -975,8 +985,8 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	key := tokenKey{originChain, originAddr}
 	tokenEntry := gov.tokens[key]
 	if tokenEntry == nil {
-		// Weird but not critical
-		gov.logger.Warn("Not adding flow cancel transfer because token is not governed",
+		// Weird but not critical.
+		gov.logger.Warn("not adding flow cancel transfer because token is not governed",
 			zap.String("OriginChain", originChain.String()),
 			zap.String("tokenEntry", originAddr.String()),
 			zap.String("msgID", transfer.dbTransfer.MsgID),
@@ -994,7 +1004,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	if !ok {
 		// Weird that TargetChain does not exist but not relevant for the flow cancel feature. We just
 		// fail closed here: do not add the flow cancelling transfer.
-		gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
+		gov.logger.Warn("tried to cancel flow but there is no chain entry for the target chain",
 			zap.String("msgID", transfer.dbTransfer.MsgID),
 			zap.String("hash", hash),
 			zap.Stringer("target chain", transfer.dbTransfer.TargetChain),
@@ -1009,7 +1019,6 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 			zap.String("hash", transfer.dbTransfer.Hash),
 			zap.Error(err),
 		)
-		// Process the next pending transfer
 		return false, err
 	}
 
@@ -1020,7 +1029,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
-// The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
+// The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling transfers
 // into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
 // As a side-effect, this function modifies the parameter `chainEntry`, updating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
