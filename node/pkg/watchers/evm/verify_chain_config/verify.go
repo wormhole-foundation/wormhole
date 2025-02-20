@@ -55,7 +55,7 @@ func verifyForEnv(env common.Environment) {
 		os.Exit(1)
 	}
 
-	// The map is ordered by hash. Sort it by chain ID.
+	// Create a slice sorted by ChainID that corresponds to the Chain Config Map.
 	orderedList := []ListEntry{}
 	for chainId, entry := range m {
 		orderedList = append(orderedList, ListEntry{chainId, entry})

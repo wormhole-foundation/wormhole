@@ -97,7 +97,7 @@ var (
 		// vaa.ChainIDMonad:      Not in Mainnet yet.
 	}
 
-	// testnetChainConfig specifies the configuration for all chains enabled in Mainnet.
+	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
 	// NOTE: Only add a chain here if the watcher should allow it in Testnet.
 	// NOTE: If you change this data, be sure and run the tests described at the top of this file!
 	testnetChainConfig = EnvMap{
