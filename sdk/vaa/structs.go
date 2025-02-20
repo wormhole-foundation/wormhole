@@ -267,14 +267,24 @@ func (c ChainID) String() string {
 	}
 }
 
-// Atoi converts from a string representation of an integer into a valid ChainID.
-func Atoi(s string) (chainId ChainID, err error) {
-	u16, err := strconv.ParseUint(s, 10, 16)
-	if err != nil {
-		return
+// StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
+// The argument can be either a numeric string representation of a number or a known chain name such as "solana".
+// Inputs of unknown ChainIDs, including 0, will result in an error.
+func StringToKnownChainID(s string) (ChainID, error) {
+
+	// Try to convert from chain name first, and return early if it's found.
+	id, err := ChainIDFromString(s)
+	if err == nil {
+		return id, nil
 	}
 
-	fmt.Printf("Parsed %s to %d\n", s, u16)
+	// Ensure that the string can be parsed into a uint16 in order to avoid overflow issues when converting
+	// to ChainID (which is a uint16).
+	u16, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return ChainIDUnset, err
+	}
+
 	// TODO: using slice.Contains would be nicer here, but it requires that users of the SDK are on Go version >= 1.21
 	// This is not the case for e.g. Wormchain, so this function can't be used here until SDK users upgrade their Go versions
 	found := false
@@ -286,11 +296,10 @@ func Atoi(s string) (chainId ChainID, err error) {
 		}
 	}
 	if !found {
-		err = fmt.Errorf("value %s is not a valid chainId", s)
-		return
+		return ChainIDUnset, fmt.Errorf("value %s does not any known ChainID", s)
 	}
-	chainId = ChainID(u16)
-	return
+
+	return ChainID(u16), nil
 }
 
 // ChainIDFromString converts from a chain's full name (e.g. "solana") to its corresponding ChainID.

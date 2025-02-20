@@ -1124,7 +1124,7 @@ func TestUnmarshalBody(t *testing.T) {
 	}
 }
 
-func TestAtoi(t *testing.T) {
+func TestStringToKnownChainID(t *testing.T) {
 
 	happy := []struct {
 		name     string
@@ -1141,6 +1141,11 @@ func TestAtoi(t *testing.T) {
 			input:    "3104",
 			expected: ChainIDWormchain,
 		},
+		{
+			name:     "chain name 1",
+			input:    "solana",
+			expected: ChainIDSolana,
+		},
 	}
 	for _, tt := range happy {
 		// Avoid "loop variable capture".
@@ -1148,12 +1153,13 @@ func TestAtoi(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			actual, err := Atoi(tt.input)
+			actual, err := StringToKnownChainID(tt.input)
 			require.Equal(t, tt.expected, actual)
 			require.NoError(t, err)
 		})
 	}
 
+	// Check error cases
 	sad := []struct {
 		name  string
 		input string
@@ -1193,7 +1199,7 @@ func TestAtoi(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			actual, err := Atoi(tt.input)
+			actual, err := StringToKnownChainID(tt.input)
 			require.Equal(t, ChainIDUnset, actual)
 			require.Error(t, err)
 		})
