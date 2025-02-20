@@ -6,7 +6,7 @@
 [ ] polygon 
 [ ] avalanche 
 [ ] oasis 
-[ ] algorand 
+[ ] algorand (*) 
 [ ] fantom 
 [ ] karura 
 [ ] acala 
@@ -28,6 +28,9 @@
 [ ] blast
 [ ] x layer
 [ ] worldchain
+[ ] unichain
+[ ] berachain
+[ ] linea
 
 # Need to use a special key
 [ ] wormchain TB
@@ -37,61 +40,64 @@
 # Also mark with an x in the checkboxes above
 # Make sure to write down the txid in the URL to track the VAA submit tx.
 
-worm submit --network mainnet --chain solana "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain solana "$BERACHAIN_TB_VAA"
 🕰️ https://explorer.solana.com/tx/<txid>
-worm submit --network mainnet --chain ethereum "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain ethereum "$BERACHAIN_TB_VAA"
 🕰️ https://etherscan.io/tx/<txid>
-worm submit --network mainnet --chain terra "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain terra "$BERACHAIN_TB_VAA"
 🕰️ https://finder.terra.money/classic/tx/<txid>
-worm submit --network mainnet --chain bsc "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain bsc "$BERACHAIN_TB_VAA"
 🕰️ https://bscscan.com/tx/<txid>
-worm submit --network mainnet --chain polygon "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain polygon "$BERACHAIN_TB_VAA"
 🕰️ https://polygonscan.com/tx/<txid>
-worm submit --network mainnet --chain avalanche "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain avalanche "$BERACHAIN_TB_VAA"
 🕰️ https://snowtrace.io/tx/<txid>
-worm submit --network mainnet --chain oasis "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain oasis "$BERACHAIN_TB_VAA"
 🕰️ https://explorer.oasis.io/mainnet/emerald/tx/<txid>
-worm submit --network mainnet --chain algorand "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain algorand "$BERACHAIN_TB_VAA"
 🕰️ https://explorer.perawallet.app/tx-group/<txid>
-worm submit --network mainnet --chain fantom "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain fantom "$BERACHAIN_TB_VAA"
 🕰️ https://ftmscan.com/tx/<txid>
-worm submit --network mainnet --chain karura "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain karura "$BERACHAIN_TB_VAA"
 🕰️ https://blockscout.karura.network/tx/<txid>
-worm submit --network mainnet --chain acala "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain acala "$BERACHAIN_TB_VAA"
 🕰️ https://blockscout.acala.network/tx/<txid>
-worm submit --network mainnet --chain klaytn --rpc https://rpc.ankr.com/klaytn "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain klaytn --rpc https://rpc.ankr.com/klaytn "$BERACHAIN_TB_VAA"
 🕰️ https://klaytnscope.com/tx/<txid>
-worm submit --network mainnet --chain celo "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain celo "$BERACHAIN_TB_VAA"
 🕰️ https://celoscan.io/tx/<txid>
 # These usually happen in two txs
-worm submit --network mainnet --chain near "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain near "$BERACHAIN_TB_VAA"
 🕰️ https://nearblocks.io/txns/<txid>
 🕰️ https://nearblocks.io/txns/<txid>
-worm submit --network mainnet --chain injective "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain injective "$BERACHAIN_TB_VAA"
 🕰️ https://explorer.injective.network/transaction/<txid>
-worm submit --network mainnet --chain aptos "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain aptos "$BERACHAIN_TB_VAA"
 # Check here: https://explorer.aptoslabs.com/account/0xd06d672640ef2faf4baf27c2b79c524fc49c539f72fe4dfc3376159519c4be9b?network=mainnet
 🕰️ https://explorer.aptoslabs.com/txn/<txid>?network=mainnet
-worm submit --network mainnet --chain sui "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain sui "$BERACHAIN_TB_VAA"
 🕰️ https://suivision.xyz/txblock/<txid>
-worm submit --network mainnet --chain moonbeam "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain moonbeam "$BERACHAIN_TB_VAA"
 🕰️ https://moonscan.io/tx/<txid>
-worm submit --network mainnet --chain terra2 "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain terra2 "$BERACHAIN_TB_VAA"
 🕰️ https://atomscan.com/terra2/transactions/<txid>
-worm submit --network mainnet --chain optimism "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain optimism "$BERACHAIN_TB_VAA"
 🕰️ https://optimistic.etherscan.io/tx/<txid>
-worm submit --network mainnet --chain arbitrum "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain arbitrum "$BERACHAIN_TB_VAA"
 🕰️ https://arbiscan.io/tx/<txid>
-worm submit --network mainnet --chain base "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain base "$BERACHAIN_TB_VAA"
 🕰️ https://basescan.org/tx/<txid>
-worm submit --network mainnet --chain sei "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain sei "$BERACHAIN_TB_VAA"
 🕰️ https://www.seiscan.app/pacific-1/txs/<txid>
-worm submit --network mainnet --chain scroll "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain scroll "$BERACHAIN_TB_VAA"
 🕰️ https://scrollscan.com/tx/<txid>
-worm submit --network mainnet --chain blast "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain blast "$BERACHAIN_TB_VAA"
 🕰️ https://blastscan.io/tx/<txid>
-worm submit --network mainnet --chain xlayer "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain xlayer "$BERACHAIN_TB_VAA"
 🕰️ https://www.oklink.com/xlayer/tx/<txid>
-worm submit --network mainnet --chain worldchain "$MANTLE_TB_VAA"
+worm submit --network mainnet --chain worldchain "$BERACHAIN_TB_VAA"
 🕰️ https://worldscan.org/tx/<txid>
-
+worm submit --network mainnet --chain mantle "$BERACHAIN_TB_VAA" --rpc https://rpc.mantle.xyz
+🕰️ https://explorer.mantle.xyz/tx/<txid>
+worm submit --network mainnet --chain unichain "$BERACHAIN_TB_VAA"
+🕰️ https://uniscan.xyz/tx/<txid>
