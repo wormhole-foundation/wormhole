@@ -60,8 +60,8 @@ type Transfer struct {
 	MsgID          string
 	Hash           string
 	TargetAddress  vaa.Address
-	// The destination chain. 
-	TargetChain    vaa.ChainID
+	// The destination chain.
+	TargetChain vaa.ChainID
 }
 
 func (t *Transfer) Marshal() ([]byte, error) {
