@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,7 +28,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -214,7 +211,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		ContractAddress: w.contract.Hex(),
 	})
 
-	if err := w.verifyEvmChainID(ctx, logger); err != nil {
+	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
 		return fmt.Errorf("failed to verify evm chain id: %w", err)
 	}
 
@@ -700,73 +697,9 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
 // to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
 func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
-	finalized := false
-	safe := false
-
-	// Tilt supports polling for both finalized and safe.
-	if w.env == common.UnsafeDevNet {
-		finalized = true
-		safe = true
-
-		// The following chains support polling for both finalized and safe.
-	} else if w.chainID == vaa.ChainIDAcala ||
-		w.chainID == vaa.ChainIDArbitrum ||
-		w.chainID == vaa.ChainIDArbitrumSepolia ||
-		w.chainID == vaa.ChainIDBase ||
-		w.chainID == vaa.ChainIDBaseSepolia ||
-		w.chainID == vaa.ChainIDBlast ||
-		w.chainID == vaa.ChainIDBSC ||
-		w.chainID == vaa.ChainIDEthereum ||
-		w.chainID == vaa.ChainIDHolesky ||
-		w.chainID == vaa.ChainIDHyperEVM ||
-		w.chainID == vaa.ChainIDInk ||
-		w.chainID == vaa.ChainIDKarura ||
-		w.chainID == vaa.ChainIDMantle ||
-		w.chainID == vaa.ChainIDMonad ||
-		w.chainID == vaa.ChainIDMoonbeam ||
-		w.chainID == vaa.ChainIDOptimism ||
-		w.chainID == vaa.ChainIDOptimismSepolia ||
-		w.chainID == vaa.ChainIDSeiEVM ||
-		w.chainID == vaa.ChainIDSepolia ||
-		w.chainID == vaa.ChainIDSnaxchain ||
-		w.chainID == vaa.ChainIDUnichain ||
-		w.chainID == vaa.ChainIDWorldchain ||
-		w.chainID == vaa.ChainIDXLayer {
-		finalized = true
-		safe = true
-
-	} else if w.chainID == vaa.ChainIDCelo {
-		// TODO: Celo testnet now supports finalized and safe. As of January 2025, mainnet doesn't yet support safe. Once Celo mainnet cuts over, Celo can
-		// be added to the list above. That change won't be super urgent since we'll just continue to publish safe as finalized, which is not a huge deal.
-		finalized = true
-		safe = w.env != common.MainNet
-
-		// Polygon now supports polling for finalized but not safe.
-		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
-	} else if w.chainID == vaa.ChainIDPolygon ||
-		w.chainID == vaa.ChainIDPolygonSepolia {
-		finalized = true
-
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-	} else if w.chainID == vaa.ChainIDScroll {
-		finalized = true
-
-		// As of 9/06/2024 Linea supports polling for finalized but not safe.
-	} else if w.chainID == vaa.ChainIDLinea {
-		finalized = true
-
-		// The following chains support instant finality.
-	} else if w.chainID == vaa.ChainIDAvalanche ||
-		w.chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
-		w.chainID == vaa.ChainIDOasis ||
-		w.chainID == vaa.ChainIDAurora ||
-		w.chainID == vaa.ChainIDFantom ||
-		w.chainID == vaa.ChainIDKlaytn {
-		return false, false, nil
-
-		// Anything else is undefined / not supported.
-	} else {
-		return false, false, fmt.Errorf("unsupported chain: %s", w.chainID.String())
+	finalized, safe, err := GetFinality(w.env, w.chainID)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to get finality for %s chain %v: %v", w.env, w.chainID, err)
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
@@ -798,46 +731,6 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	}
 
 	return finalized, safe, nil
-}
-
-// verifyEvmChainID reads the EVM chain ID from the node and verifies that it matches the expected value (making sure we aren't connected to the wrong chain).
-func (w *Watcher) verifyEvmChainID(ctx context.Context, logger *zap.Logger) error {
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	c, err := rpc.DialContext(timeout, w.url)
-	if err != nil {
-		return fmt.Errorf("failed to connect to endpoint: %w", err)
-	}
-
-	var str string
-	err = c.CallContext(ctx, &str, "eth_chainId")
-	if err != nil {
-		return fmt.Errorf("failed to read evm chain id: %w", err)
-	}
-
-	evmChainID, err := strconv.ParseUint(strings.TrimPrefix(str, "0x"), 16, 64)
-	if err != nil {
-		return fmt.Errorf(`eth_chainId returned an invalid int: "%s"`, str)
-	}
-
-	logger.Info("queried evm chain id", zap.Uint64("evmChainID", evmChainID))
-
-	if w.env == common.UnsafeDevNet {
-		// In devnet we log the result but don't enforce it.
-		return nil
-	}
-
-	expectedEvmChainID, err := sdk.GetEvmChainID(string(w.env), w.chainID)
-	if err != nil {
-		return fmt.Errorf("failed to look up evm chain id: %w", err)
-	}
-
-	if evmChainID != uint64(expectedEvmChainID) {
-		return fmt.Errorf("evm chain ID miss match, expected %d, received %d", expectedEvmChainID, evmChainID)
-	}
-
-	return nil
 }
 
 // SetL1Finalizer is used to set the layer one finalizer.
