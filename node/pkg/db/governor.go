@@ -59,6 +59,7 @@ type Transfer struct {
 	MsgID          string
 	Hash           string
 	TargetAddress  vaa.Address
+	// The destination chain. 
 	TargetChain    vaa.ChainID
 }
 
