@@ -19,7 +19,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		acc := solana.PublicKeyFromBytes(txID)
 		s.logger.Info("received observation request with account id", zap.String("account", acc.String()))
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
-		numObservations, _ = s.fetchMessageAccount(rCtx, s.logger, rpcClient, acc, 0, true)
+		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, true)
 		cancel()
 	} else if len(txID) == SolanaSignatureLen { // Request by transaction ID
 		signature := solana.SignatureFromBytes(txID)
@@ -43,7 +43,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		if err != nil {
 			return 0, fmt.Errorf("failed to extract transaction for observation request: %v", err)
 		}
-		numObservations = s.processTransaction(s.ctx, s.logger, rpcClient, tx, result.Meta, result.Slot, true)
+		numObservations = s.processTransaction(s.ctx, rpcClient, tx, result.Meta, result.Slot, true)
 	} else {
 		return 0, fmt.Errorf("ignoring an observation request of unexpected length: %d", len(txID))
 	}
