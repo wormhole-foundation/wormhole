@@ -620,7 +620,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			continue
 		}
 
-		s.processTransaction(ctx, logger, s.rpcClient, tx, txRpc.Meta, slot, false)
+		s.processTransaction(ctx, s.rpcClient, tx, txRpc.Meta, slot, false)
 	}
 
 	if emptyRetry > 0 && logger.Level().Enabled(zapcore.DebugLevel) {
@@ -634,11 +634,11 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 }
 
 // processTransaction processes a transaction and publishes any Wormhole events.
-func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logger, rpcClient *rpc.Client, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
+func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.Client, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
 	signature := tx.Signatures[0]
 	err := s.populateLookupTableAccounts(ctx, rpcClient, tx)
 	if err != nil {
-		logger.Error("failed to fetch lookup table accounts for transaction",
+		s.logger.Error("failed to fetch lookup table accounts for transaction",
 			zap.Uint64("slot", slot),
 			zap.Stringer("signature", signature),
 			zap.Error(err),
@@ -662,8 +662,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 		return
 	}
 
-	if logger.Level().Enabled(zapcore.DebugLevel) {
-		logger.Debug("found Wormhole transaction",
+	if s.logger.Level().Enabled(zapcore.DebugLevel) {
+		s.logger.Debug("found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
@@ -674,9 +674,9 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 	// Find top-level instructions
 	for i, inst := range tx.Message.Instructions {
 		if shimFound && inst.ProgramIDIndex == shimProgramIndex {
-			found, err := s.shimProcessTopLevelInstruction(logger, programIndex, shimProgramIndex, tx, meta.InnerInstructions, i, alreadyProcessed, isReobservation)
+			found, err := s.shimProcessTopLevelInstruction(s.logger, programIndex, shimProgramIndex, tx, meta.InnerInstructions, i, alreadyProcessed, isReobservation)
 			if err != nil {
-				logger.Error("malformed wormhole shim instruction",
+				s.logger.Error("malformed wormhole shim instruction",
 					zap.Error(err),
 					zap.Int("idx", i),
 					zap.Stringer("signature", signature),
@@ -685,8 +685,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 					zap.Binary("data", inst.Data))
 			} else if found {
 				numObservations++
-				if logger.Level().Enabled(zapcore.DebugLevel) {
-					logger.Debug("found a top-level wormhole shim instruction",
+				if s.logger.Level().Enabled(zapcore.DebugLevel) {
+					s.logger.Debug("found a top-level wormhole shim instruction",
 						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
@@ -694,9 +694,9 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 				}
 			}
 		} else {
-			found, err := s.processInstruction(ctx, logger, rpcClient, slot, inst, programIndex, tx, signature, i, isReobservation)
+			found, err := s.processInstruction(ctx, rpcClient, slot, inst, programIndex, tx, signature, i, isReobservation)
 			if err != nil {
-				logger.Error("malformed Wormhole instruction",
+				s.logger.Error("malformed Wormhole instruction",
 					zap.Error(err),
 					zap.Int("idx", i),
 					zap.Stringer("signature", signature),
@@ -705,8 +705,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 					zap.Binary("data", inst.Data))
 			} else if found {
 				numObservations++
-				if logger.Level().Enabled(zapcore.DebugLevel) {
-					logger.Debug("found a top-level Wormhole instruction",
+				if s.logger.Level().Enabled(zapcore.DebugLevel) {
+					s.logger.Debug("found a top-level Wormhole instruction",
 						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
@@ -720,9 +720,9 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 		for innerIdx, inst := range inner.Instructions {
 			if !alreadyProcessed.exists(outerIdx, innerIdx) {
 				if shimFound && inst.ProgramIDIndex == shimProgramIndex {
-					found, err := s.shimProcessInnerInstruction(logger, programIndex, shimProgramIndex, tx, inner.Instructions, outerIdx, innerIdx, alreadyProcessed, isReobservation)
+					found, err := s.shimProcessInnerInstruction(s.logger, programIndex, shimProgramIndex, tx, inner.Instructions, outerIdx, innerIdx, alreadyProcessed, isReobservation)
 					if err != nil {
-						logger.Error("malformed inner wormhole shim instruction",
+						s.logger.Error("malformed inner wormhole shim instruction",
 							zap.Error(err),
 							zap.Int("outerIdx", outerIdx),
 							zap.Int("innerIdx", innerIdx),
@@ -731,8 +731,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 							zap.String("commitment", string(s.commitment)))
 					} else if found {
 						numObservations++
-						if logger.Level().Enabled(zapcore.DebugLevel) {
-							logger.Debug("found an inner wormhole shim instruction",
+						if s.logger.Level().Enabled(zapcore.DebugLevel) {
+							s.logger.Debug("found an inner wormhole shim instruction",
 								zap.Int("outerIdx", outerIdx),
 								zap.Int("innerIdx", innerIdx),
 								zap.Stringer("signature", signature),
@@ -741,9 +741,9 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 						}
 					}
 				} else {
-					found, err := s.processInstruction(ctx, logger, rpcClient, slot, inst, programIndex, tx, signature, innerIdx, isReobservation)
+					found, err := s.processInstruction(ctx, rpcClient, slot, inst, programIndex, tx, signature, innerIdx, isReobservation)
 					if err != nil {
-						logger.Error("malformed Wormhole instruction",
+						s.logger.Error("malformed Wormhole instruction",
 							zap.Error(err),
 							zap.Int("outerIdx", outerIdx),
 							zap.Int("innerIdx", innerIdx),
@@ -752,8 +752,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 							zap.String("commitment", string(s.commitment)))
 					} else if found {
 						numObservations++
-						if logger.Level().Enabled(zapcore.DebugLevel) {
-							logger.Debug("found an inner Wormhole instruction",
+						if s.logger.Level().Enabled(zapcore.DebugLevel) {
+							s.logger.Debug("found an inner Wormhole instruction",
 								zap.Int("outerIdx", outerIdx),
 								zap.Int("innerIdx", innerIdx),
 								zap.Stringer("signature", signature),
@@ -769,7 +769,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 	return
 }
 
-func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, rpcClient *rpc.Client, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
+func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.Client, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx *solana.Transaction, signature solana.Signature, idx int, isReobservation bool) (bool, error) {
 	if inst.ProgramIDIndex != programIndex {
 		return false, nil
 	}
@@ -793,8 +793,8 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
 	}
 
-	if logger.Level().Enabled(zapcore.DebugLevel) {
-		logger.Debug("post message data", zap.Any("deserialized_data", data),
+	if s.logger.Level().Enabled(zapcore.DebugLevel) {
+		s.logger.Debug("post message data", zap.Any("deserialized_data", data),
 			zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 	}
 
@@ -804,8 +804,8 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	}
 
 	if !s.checkCommitment(level, isReobservation) {
-		if logger.Level().Enabled(zapcore.DebugLevel) {
-			logger.Debug("skipping message which does not match the watcher commitment",
+		if s.logger.Level().Enabled(zapcore.DebugLevel) {
+			s.logger.Debug("skipping message which does not match the watcher commitment",
 				zap.Stringer("signature", tx.Signatures[0]),
 				zap.String("message commitment", string(level)),
 				zap.String("watcher commitment", string(s.commitment)),
@@ -817,25 +817,25 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
 	acc := tx.Message.AccountKeys[inst.Accounts[1]]
 
-	if logger.Level().Enabled(zapcore.DebugLevel) {
-		logger.Debug("fetching VAA account", zap.Stringer("acc", acc),
+	if s.logger.Level().Enabled(zapcore.DebugLevel) {
+		s.logger.Debug("fetching VAA account", zap.Stringer("acc", acc),
 			zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 	}
 
 	common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-		s.retryFetchMessageAccount(ctx, logger, rpcClient, acc, slot, 0, isReobservation)
+		s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation)
 		return nil
 	})
 
 	return true, nil
 }
 
-func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *zap.Logger, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool) {
-	_, retryable := s.fetchMessageAccount(ctx, logger, rpcClient, acc, slot, isReobservation)
+func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool) {
+	_, retryable := s.fetchMessageAccount(ctx, rpcClient, acc, slot, isReobservation)
 
 	if retryable {
 		if retry >= maxRetries {
-			logger.Error("max retries for account",
+			s.logger.Error("max retries for account",
 				zap.Uint64("slot", slot),
 				zap.Stringer("account", acc),
 				zap.String("commitment", string(s.commitment)),
@@ -845,20 +845,20 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *za
 
 		time.Sleep(retryDelay)
 
-		logger.Info("retrying account",
+		s.logger.Info("retrying account",
 			zap.Uint64("slot", slot),
 			zap.Stringer("account", acc),
 			zap.String("commitment", string(s.commitment)),
 			zap.Uint("retry", retry))
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-			s.retryFetchMessageAccount(ctx, logger, rpcClient, acc, slot, retry+1, isReobservation)
+			s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation)
 			return nil
 		})
 	}
 }
 
-func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Logger, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool) (numObservations uint32, retryable bool) {
+func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool) (numObservations uint32, retryable bool) {
 	// Fetching account
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -871,7 +871,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_account_info_error").Inc()
-		logger.Error("failed to request account",
+		s.logger.Error("failed to request account",
 			zap.Error(err),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
@@ -882,7 +882,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	if !info.Value.Owner.Equals(s.contract) {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_owner_mismatch").Inc()
-		logger.Error("account has invalid owner",
+		s.logger.Error("account has invalid owner",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc),
@@ -894,23 +894,22 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	if string(data[:3]) != accountPrefixReliable && string(data[:3]) != accountPrefixUnreliable {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "bad_account_data").Inc()
-		logger.Error("account is not a message account",
+		s.logger.Error("account is not a message account",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc))
 		return 0, false
 	}
 
-	if logger.Level().Enabled(zapcore.DebugLevel) {
-		logger.Debug("found valid VAA account",
+	if s.logger.Level().Enabled(zapcore.DebugLevel) {
+		s.logger.Debug("found valid VAA account",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc),
 			zap.Binary("data", data))
 	}
 
-	numObservations = s.processMessageAccount(logger, data, acc, isReobservation)
-	return numObservations, false
+	return s.processMessageAccount(s.logger, data, acc, isReobservation), false
 }
 
 func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte, isReobservation bool) error {
