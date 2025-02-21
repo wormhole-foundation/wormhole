@@ -135,6 +135,32 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	return headerSubscription, nil
 }
 
+func (b *BatchPollConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
+	block, err := GetBlockByFinality(ctx, b.Connector, Latest)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get latest block: %w", err)
+	}
+	latest = block.Number.Uint64()
+
+	block, err = GetBlockByFinality(ctx, b.Connector, Finalized)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get finalized block: %w", err)
+	}
+	finalized = block.Number.Uint64()
+
+	if b.generateSafe {
+		safe = finalized
+	} else {
+		block, err = GetBlockByFinality(ctx, b.Connector, Safe)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("failed to get safe block: %w", err)
+		}
+		safe = block.Number.Uint64()
+	}
+
+	return
+}
+
 // pollBlocks polls for the latest blocks (finalized, safe and latest), compares them to the last ones, and publishes any new ones.
 // In the case of an error, it returns the last blocks that were passed in, otherwise it returns the new blocks.
 func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlock, prevBlocks Blocks) (Blocks, error) {

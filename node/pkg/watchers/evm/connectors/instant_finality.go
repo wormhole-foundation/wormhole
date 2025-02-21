@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
@@ -61,4 +62,16 @@ func (c *InstantFinalityConnector) SubscribeForBlocks(ctx context.Context, errC 
 	})
 
 	return headerSubscription, err
+}
+
+func (c *InstantFinalityConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
+	latestBlock, err := GetBlockByFinality(ctx, c.Connector, Latest)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get latest block: %w", err)
+	}
+
+	latest = latestBlock.Number.Uint64()
+	finalized = latest
+	safe = latest
+	return
 }
