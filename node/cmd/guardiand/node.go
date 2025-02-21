@@ -1831,18 +1831,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			watcherConfigs = append(watcherConfigs, wc)
 		}
 
-		if shouldStart(monadDevnetRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID:        "monad_devnet",
-				ChainID:          vaa.ChainIDMonadDevnet,
-				Rpc:              *monadDevnetRPC,
-				Contract:         *monadDevnetContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMonadDevnet),
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
 	}
 
 	var ibcWatcherConfig *node.IbcWatcherConfig = nil
