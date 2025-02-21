@@ -93,10 +93,9 @@ type (
 		GetEmitterChain() ChainID
 	}
 
-	// number is a constraint that permits compatible integer types that can represent a ChainID (uint16).
-	// This excludes uint8, int8, and int16 because they are too small to hold the range of uint16.
+	// number is a constraint for generic functions that can safely convert integer types to a ChainID (uint16).
 	number interface {
-		~int | ~int32 | ~int64 | ~uint | ~uint16 | ~uint32 | ~uint64
+		~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
 	}
 )
 
@@ -285,10 +284,20 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 	if n < 0 {
 		return ChainIDUnset, fmt.Errorf("chainID cannot be negative but got %d", n)
 	}
-	if n > N(math.MaxUint16) {
+	switch any(n).(type) {
+	case int8, uint8, int16, uint16:
+		// Because these values have been checked to be non-negative, we can return early with a simple conversion.
+		return ChainID(n), nil
+
+	}
+	// Use intermediate uint64 to safely handle conversion and allow comparison with MaxUint16.
+	// This is safe to do because the negative case is already handled.
+	val := uint64(n)
+	if val > uint64(math.MaxUint16) {
 		return ChainIDUnset, fmt.Errorf("chainID must be less than or equal to %d but got %d", math.MaxUint16, n)
 	}
 	return ChainID(n), nil
+
 }
 
 // KnownChainIDFromNumber converts an unsigned integer into a known ChainID. It is a wrapper function for ChainIDFromNumber
@@ -299,6 +308,7 @@ func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
 		return ChainIDUnset, err
 	}
 
+	// NOTE: slice.Contains is not used here because some SDK integrators (e.g. wormchain, maybe others) use old versions of Go.
 	for _, known := range GetAllNetworkIDs() {
 		if id == known {
 			return id, nil
