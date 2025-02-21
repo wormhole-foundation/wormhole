@@ -46,7 +46,7 @@ func main() {
 
 	transactionHash := ethCommon.HexToHash(*flagTx)
 
-	block, msgs, err := evm.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
+	_, block, msgs, err := evm.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
 	if err != nil {
 		log.Fatal(err)
 	}
