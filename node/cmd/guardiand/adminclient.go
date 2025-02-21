@@ -349,9 +349,8 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
-	// We only constrain this to int32 now, not uint16, given the ChainID protobuf definition
-	if chainID > math.MaxInt32 {
-		log.Fatalf("chain id must not exceed the max int32: %v", chainID)
+	if chainID > math.MaxUint16 {
+		log.Fatalf("chain id must not exceed the max uint16: %v", chainID)
 	}
 	emitterAddress := parts[1]
 	seq, err := strconv.ParseUint(parts[2], 10, 64)

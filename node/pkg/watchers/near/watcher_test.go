@@ -589,7 +589,7 @@ func TestSuccessValueToInt(t *testing.T) {
 
 	type test struct {
 		input  string
-		output int
+		output uint64
 	}
 
 	testsPositive := []test{
