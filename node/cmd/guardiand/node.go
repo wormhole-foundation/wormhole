@@ -286,9 +286,10 @@ var (
 
 	subscribeToVAAs *bool
 
-	// CLI parameter value
+	// A list of chain IDs that should enable the Transfer Verifier. If empty, Transfer Verifier will not be enabled.
 	transferVerifierEnabledChains *string
-	// CLI parameter value
+	// Global variable used to store enabled Chain IDs for Transfer Verification. Contents are parsed from
+	// transferVerifierEnabledChains.
 	txVerifierChains []vaa.ChainID
 )
 
@@ -1933,7 +1934,8 @@ func argsConsistent(args []string) bool {
 	return true
 }
 
-// Parse a list of chainIds from a comma separated string and validate that they have a Transfer Verifier implementation.
+// parseTxVerifierChains parses a list of chainIds from a comma separated string and validate that they have a Transfer Verifier implementation.
+// If the input is empty, Transfer Verifier will not be enabled.
 func parseTxVerifierChains(
 	// A comma-separated list of Wormhole ChainIDs.
 	input string,
@@ -1941,19 +1943,31 @@ func parseTxVerifierChains(
 	if len(input) == 0 {
 		return nil, errors.New("could not parse input to parseTxVerifierChains: input empty")
 	}
-	supported := txverifier.SupportedChains()
 	parsed := strings.Split(input, ",")
-	enabled := make([]vaa.ChainID, 0)
+	knownChains := vaa.GetAllNetworkIDs()
+	supportedChains := txverifier.SupportedChains()
+
+	// NOTE: Using a known capacity and counter here avoids unnecessary reallocations compared to using `append()`.
+	enabled := make([]vaa.ChainID, 0, len(parsed))
+	i := uint8(0)
 	for _, chainStr := range parsed {
 		chain, parseErr := strconv.Atoi(chainStr)
 		if parseErr != nil {
 			return nil, fmt.Errorf("could not parse chainId from string %s: %w", chainStr, parseErr)
 		}
+
 		chainId := vaa.ChainID(chain)
-		if !slices.Contains(supported, vaa.ChainID(chainId)) {
-			return nil, fmt.Errorf("chainId %d is not supported by Transfer Verifier", chainId)
+
+		if !slices.Contains(knownChains, chainId) {
+			return nil, fmt.Errorf("chainId %d is not a known Chain ID", chainId)
 		}
-		enabled = append(enabled, chainId)
+
+		if !slices.Contains(supportedChains, chainId) {
+			return nil, fmt.Errorf("chainId %d does not have a Transfer Verifier implementation", chainId)
+		}
+
+		enabled[i] = chainId
+		i++
 	}
 
 	return enabled, nil
