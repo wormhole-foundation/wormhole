@@ -665,7 +665,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, logger *zap.Logg
 			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if s.shimEnabled && key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
