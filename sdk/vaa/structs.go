@@ -891,7 +891,7 @@ func (v *VAA) Marshal() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, v.GuardianSetIndex)
 
 	// Write signatures
-	MustWrite(buf, binary.BigEndian, uint8(len(v.Signatures)))
+	MustWrite(buf, binary.BigEndian, uint8(len(v.Signatures))) // #nosec G115 -- There will never be 256 guardians
 	for _, sig := range v.Signatures {
 		MustWrite(buf, binary.BigEndian, sig.Index)
 		buf.Write(sig.Signature[:])
@@ -942,7 +942,7 @@ the same observation. But xDapps rely on the hash of an observation for replay p
 */
 func (v *VAA) serializeBody() []byte {
 	buf := new(bytes.Buffer)
-	MustWrite(buf, binary.BigEndian, uint32(v.Timestamp.Unix()))
+	MustWrite(buf, binary.BigEndian, uint32(v.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	MustWrite(buf, binary.BigEndian, v.Nonce)
 	MustWrite(buf, binary.BigEndian, v.EmitterChain)
 	buf.Write(v.EmitterAddress[:])

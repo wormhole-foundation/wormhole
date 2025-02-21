@@ -265,7 +265,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
 		Timestamp:        time.Unix(ts, 0),
-		Nonce:            uint32(*fields.Nonce),
+		Nonce:            uint32(*fields.Nonce), // #nosec G115 -- Nonce is 32 bits on chain
 		Sequence:         seq,
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,

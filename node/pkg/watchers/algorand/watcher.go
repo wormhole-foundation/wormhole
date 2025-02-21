@@ -119,7 +119,7 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *
 	copy(a[:], at.Sender[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
 
 	obs = append(obs, algorandObservation{
-		nonce:          uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
+		nonce:          uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])), // #nosec G115 -- Nonce is 32 bits on chain
 		sequence:       binary.BigEndian.Uint64([]byte(ed.Logs[0])),
 		emitterAddress: a,
 		payload:        at.ApplicationArgs[1],
