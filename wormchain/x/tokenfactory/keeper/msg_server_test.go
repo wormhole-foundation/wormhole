@@ -12,9 +12,8 @@ import (
 
 	//banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
+	keeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
 )
-
-var mainnetUseConditionalHeight = int64(11445039)
 
 // TestMintDenomMsg tests TypeMsgMint message is emitted on a successful mint
 func (suite *KeeperTestSuite) TestMintDenomMsg() {
@@ -60,7 +59,7 @@ func (suite *KeeperTestSuite) TestMintHuge() {
 	// Create a denom
 	suite.CreateDefaultDenom()
 
-	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: mainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
 
 	largeAmount := big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0)), big.NewInt(1)) // (2 ** 256)-1
 	belowLargeAmount := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(191), big.NewInt(0))                              // 2 ** 191
@@ -111,7 +110,7 @@ func (suite *KeeperTestSuite) TestMintHuge() {
 func (suite *KeeperTestSuite) TestMintOffByOne() {
 	// Create a denom
 	suite.CreateDefaultDenom()
-	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: mainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
 
 	for _, tc := range []struct {
 		desc                  string
@@ -195,7 +194,7 @@ func (suite *KeeperTestSuite) TestMintFixBlockHeightChecks() {
 		},
 	}
 	// Before the block has been reached. Should succeed with the call.
-	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: mainnetUseConditionalHeight - 1, ChainID: "wormchain", Time: time.Now().UTC()})
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight - 1, ChainID: "wormchain", Time: time.Now().UTC()})
 
 	ctx := suite.Ctx.WithEventManager(sdk.NewEventManager())
 	suite.Require().Equal(0, len(ctx.EventManager().Events()))
@@ -206,7 +205,7 @@ func (suite *KeeperTestSuite) TestMintFixBlockHeightChecks() {
 	suite.AssertEventEmitted(ctx, types.TypeMsgMint, test_cases[0].expectedMessageEvents)
 
 	// On the block has been reached
-	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: mainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
 	ctx = suite.Ctx.WithEventManager(sdk.NewEventManager())
 	suite.Require().Equal(0, len(ctx.EventManager().Events()))
 	// Test mint message
@@ -216,7 +215,7 @@ func (suite *KeeperTestSuite) TestMintFixBlockHeightChecks() {
 	suite.AssertEventEmitted(ctx, types.TypeMsgMint, test_cases[1].expectedMessageEvents)
 
 	// After the block has been reached
-	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: mainnetUseConditionalHeight + 1, ChainID: "wormchain", Time: time.Now().UTC()})
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight + 1, ChainID: "wormchain", Time: time.Now().UTC()})
 	ctx = suite.Ctx.WithEventManager(sdk.NewEventManager())
 	suite.Require().Equal(0, len(ctx.EventManager().Events()))
 	// Test mint message

@@ -9,6 +9,8 @@ import (
 	denoms "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
+var MainnetUseConditionalHeight = int64(12275950)
+
 func (k Keeper) mintTo(ctx sdk.Context, amount sdk.Coin, mintTo string) error {
 	// verify that denom is an x/tokenfactory denom
 	_, _, err := types.DeconstructDenom(amount.Denom)
@@ -26,7 +28,7 @@ func (k Keeper) mintTo(ctx sdk.Context, amount sdk.Coin, mintTo string) error {
 	isMainnet := ctx.ChainID() == "wormchain"
 	isTestnet := ctx.ChainID() == "wormchain-testnet-0"
 
-	if (isMainnet && ctx.BlockHeight() >= 12275950) || (isTestnet && ctx.BlockHeight() >= 13563306) {
+	if (isMainnet && ctx.BlockHeight() >= MainnetUseConditionalHeight) || (isTestnet && ctx.BlockHeight() >= 13563306) {
 		// Cutover is required because the call to GetSupply() will use more gas, which would result in a consensus failure.
 		totalSupplyCurrent := k.bankKeeper.GetSupply(ctx, amount.Denom)
 		TotalSupplyAfter := totalSupplyCurrent.Add(amount) // Can't integer overflow because of a ValidateBasic() check on this amount
