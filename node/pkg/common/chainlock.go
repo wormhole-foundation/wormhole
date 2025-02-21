@@ -55,7 +55,7 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	if len(msg.TxID) > math.MaxUint8 {
 		return nil, errors.New("TxID too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID))) // #nosec G115 -- This is validated above
 	buf.Write(msg.TxID)
 
 	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
