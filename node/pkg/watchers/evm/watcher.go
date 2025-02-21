@@ -249,6 +249,13 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	}
 
+	latest, finalized, safe, err := w.ethConn.GetLatest(ctx)
+	if err != nil {
+		logger.Error("failed to get latest blocks", zap.Error(err))
+	} else {
+		logger.Info("got initial blocks", zap.Uint64("latest", latest), zap.Uint64("finalized", finalized), zap.Uint64("safe", safe))
+	}
+
 	if w.ccqConfig.TimestampCacheSupported {
 		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, (w.env == common.UnsafeDevNet))
 	}
