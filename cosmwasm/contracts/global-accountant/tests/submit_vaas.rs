@@ -1,7 +1,7 @@
 mod helpers;
 
 use accountant::state::{transfer, TokenAddress};
-use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
+use cosmwasm_std::{from_json, to_json_binary, Binary, Event, Uint256};
 use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
 use serde_wormhole::RawMessage;
@@ -178,7 +178,7 @@ fn bad_serialization() {
     let (v, _) = sign_vaa_body(&wh, create_vaa_body(3));
 
     // Rather than using the wormhole wire format use cosmwasm json.
-    let data = to_binary(&v).unwrap();
+    let data = to_json_binary(&v).unwrap();
 
     let err = contract
         .submit_vaas(vec![data])
@@ -339,13 +339,12 @@ fn reobservation() {
     };
     let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
 
-    let obs = to_binary(&vec![o]).unwrap();
+    let obs = to_json_binary(&vec![o]).unwrap();
     let index = wh.guardian_set_index();
     let signatures = sign_observations(&wh, &obs);
     for s in signatures {
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
-        let mut responses: Vec<SubmitObservationResponse> =
-            from_binary(&resp.data.unwrap()).unwrap();
+        let mut responses: Vec<SubmitObservationResponse> = from_json(resp.data.unwrap()).unwrap();
 
         assert_eq!(1, responses.len());
         let d = responses.remove(0);
@@ -378,12 +377,12 @@ fn digest_mismatch() {
     };
 
     let key = transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
-    let obs = to_binary(&vec![o]).unwrap();
+    let obs = to_json_binary(&vec![o]).unwrap();
     let index = wh.guardian_set_index();
     let signatures = sign_observations(&wh, &obs);
     for s in signatures {
         let resp = contract.submit_observations(obs.clone(), index, s).unwrap();
-        let responses = from_binary::<Vec<SubmitObservationResponse>>(&resp.data.unwrap()).unwrap();
+        let responses = from_json::<Vec<SubmitObservationResponse>>(&resp.data.unwrap()).unwrap();
         assert_eq!(key, responses[0].key);
         if let ObservationStatus::Error(ref err) = responses[0].status {
             assert!(err.contains("digest mismatch"));

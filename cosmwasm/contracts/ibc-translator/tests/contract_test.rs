@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     coin,
     testing::{mock_dependencies, mock_env, mock_info},
-    to_binary, Binary, ContractResult, CosmosMsg, Empty, Event, Reply, ReplyOn, Response,
+    to_json_binary, Binary, ContractResult, CosmosMsg, Empty, Event, Reply, ReplyOn, Response,
     SubMsgResponse, SystemError, SystemResult, Uint128, WasmMsg, WasmQuery,
 };
 use cw_token_bridge::msg::TransferInfoResponse;
@@ -98,7 +98,7 @@ fn execute_complete_transfer_and_convert() {
             contract_addr: _,
             msg: _,
         } => SystemResult::Ok(ContractResult::Ok(
-            to_binary(&transfer_info_response_copy).unwrap(),
+            to_json_binary(&transfer_info_response_copy).unwrap(),
         )),
         _ => SystemResult::Err(SystemError::UnsupportedRequest {
             kind: "wasm".to_string(),
@@ -363,7 +363,7 @@ fn query_query_ibc_channel_happy_path() {
         .save(deps.as_mut().storage, 0, &channel)
         .unwrap();
 
-    let expected_response = to_binary(&ChannelResponse { channel }).unwrap();
+    let expected_response = to_json_binary(&ChannelResponse { channel }).unwrap();
 
     let response = query(deps.as_ref(), env, msg).unwrap();
     assert_eq!(expected_response, response);
