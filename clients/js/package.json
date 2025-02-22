@@ -75,5 +75,8 @@
     "ts-jest": "^29.1.2",
     "tsx": "^4.12.0",
     "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

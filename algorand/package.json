@@ -12,5 +12,8 @@
   },
   "scripts": {
     "test": "npm run --prefix=../sdk/js build-lib && ts-node test/test.ts"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }
