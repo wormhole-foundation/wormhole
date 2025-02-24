@@ -343,13 +343,16 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		ContractAddress: contractAddr,
 	})
 
-	// Don't overwrite these fields if they are already set in case there is an old go routine still using them.
+	// Don't overwrite these fields if they are already set. They will always be set on a watcher restart and don't need to be reinitialized.
 	if s.ctx == nil {
 		s.ctx = ctx
 	}
-	logger := supervisor.Logger(ctx)
+	var logger *zap.Logger
 	if s.logger == nil {
+		logger = supervisor.Logger(ctx)
 		s.logger = logger
+	} else {
+		logger = s.logger
 	}
 	if s.ccqLogger == nil {
 		s.ccqLogger = s.logger.With(zap.String("component", "ccqsol"))

@@ -214,45 +214,33 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		ContractAddress: w.contract.Hex(),
 	})
 
+	// Verify that we are connected to the correct chain.
 	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
 		return fmt.Errorf("failed to verify evm chain id: %w", err)
 	}
 
-	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to determine finality: %w", err)
-	}
+	// Connect to the node using the appropriate type of connector.
+	{
+		var finalizedPollingSupported, safePollingSupported bool
+		var err error
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		w.ethConn, finalizedPollingSupported, safePollingSupported, err = w.createConnector(timeout, w.url)
+		cancel()
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
+		}
 
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	if finalizedPollingSupported {
-		if safePollingSupported {
-			logger.Info("polling for finalized and safe blocks")
+		// Log the connector details for troubleshooting purposes.
+		if finalizedPollingSupported {
+			if safePollingSupported {
+				w.logger.Info("polling for finalized and safe blocks")
+			} else {
+				w.logger.Info("polling for finalized blocks, will generate safe blocks")
+			}
 		} else {
-			logger.Info("polling for finalized blocks, will generate safe blocks")
-		}
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
-	} else {
-		// Everything else is instant finality.
-		logger.Info("assuming instant finality")
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewInstantFinalityConnector(baseConnector, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to connect to instant finality chain: %w", err)
+			w.logger.Info("assuming instant finality")
 		}
 	}
 
@@ -301,7 +289,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				numObservations, err := w.handleReobservationRequest(ctx, vaa.ChainID(r.ChainId), r.TxHash, w.ethConn)
+				numObservations, err := w.handleReobservationRequest(
+					ctx,
+					vaa.ChainID(r.ChainId),
+					r.TxHash,
+					w.ethConn,
+					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
+					atomic.LoadUint64(&w.latestSafeBlockNumber),
+				)
 				if err != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", r.ChainId),
@@ -823,4 +818,27 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
 func msgIdFromLogEvent(chainID vaa.ChainID, ev *ethabi.AbiLogMessagePublished) string {
 	return fmt.Sprintf("%v/%v/%v", uint16(chainID), PadAddress(ev.Sender), ev.Sequence)
+}
+
+// createConnector determines the type of connector needed for a chain and creates the appropriate one.
+func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn connectors.Connector, finalizedPollingSupported, safePollingSupported bool, err error) {
+	finalizedPollingSupported, safePollingSupported, err = w.getFinality(ctx)
+	if err != nil {
+		err = fmt.Errorf("failed to determine finality: %w", err)
+		return
+	}
+
+	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.logger)
+	if err != nil {
+		err = fmt.Errorf("dialing eth client failed: %w", err)
+		return
+	}
+
+	// We support two types of pollers, either the batch poller or the instant finality poller.
+	if finalizedPollingSupported {
+		ethConn = connectors.NewBatchPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+	} else {
+		ethConn = connectors.NewInstantFinalityConnector(baseConnector, w.logger)
+	}
+	return
 }
