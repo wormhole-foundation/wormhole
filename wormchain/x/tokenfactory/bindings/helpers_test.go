@@ -21,7 +21,7 @@ import (
 
 func CreateTestInput(t *testing.T) (*app.App, sdk.Context) {
 	osmosis := apptesting.Setup(t, true, 0)
-	ctx := osmosis.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: "osmosis-1", Time: time.Now().UTC()})
+	ctx := osmosis.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: "wormchain", Time: time.Now().UTC()})
 	return osmosis, ctx
 }
 
