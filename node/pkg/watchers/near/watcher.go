@@ -257,7 +257,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 			if job.hasWormholeMsg {
 				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime) // nolint:channelcheck // Only pauses this watcher
 			}
 		}
 
