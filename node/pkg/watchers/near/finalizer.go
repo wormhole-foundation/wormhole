@@ -64,7 +64,7 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 	}
 
 	logger.Debug("block finalization cache miss", zap.String("method", "isFinalized"), zap.String("parameters", queriedBlockHash))
-	f.eventChan <- EVENT_FINALIZED_CACHE_MISS
+	f.eventChan <- EVENT_FINALIZED_CACHE_MISS // nolint:channelcheck // Only pauses this watcher
 
 	queriedBlock, err := f.nearAPI.GetBlock(ctx, queriedBlockHash)
 	if err != nil {
