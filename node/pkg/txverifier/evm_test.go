@@ -168,7 +168,7 @@ func TestParseReceiptHappyPath(t *testing.T) {
 						Amount:       big.NewInt(1),
 					},
 				},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -205,9 +205,9 @@ func TestParseReceiptHappyPath(t *testing.T) {
 				assert.Zero(t, ret.Amount.Cmp(expectedTransfers[0].Amount))
 			}
 
-			expectedMessages := *test.expected.MessagePublicatons
-			assert.Equal(t, len(expectedMessages), len(*transferReceipt.MessagePublicatons))
-			for _, ret := range *transferReceipt.MessagePublicatons {
+			expectedMessages := *test.expected.MessagePublications
+			assert.Equal(t, len(expectedMessages), len(*transferReceipt.MessagePublications))
+			for _, ret := range *transferReceipt.MessagePublications {
 				// TODO: switch argument order to (expected, actual)
 				assert.Equal(t, ret.MsgSender, expectedMessages[0].MsgSender)
 				assert.Equal(t, ret.EventEmitter, expectedMessages[0].EventEmitter)
@@ -320,7 +320,7 @@ func TestParseReceiptErrors(t *testing.T) {
 
 			receipt, err := mocks.transferVerifier.ParseReceipt(test.receipt)
 			require.Error(t, err)
-			assert.Equal(t, TransferReceipt{}, *receipt)
+			assert.Nil(t, receipt)
 		})
 	}
 }
@@ -464,7 +464,7 @@ func TestProcessReceipt(t *testing.T) {
 					},
 				},
 				Transfers: &[]*ERC20Transfer{},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -495,7 +495,7 @@ func TestProcessReceipt(t *testing.T) {
 						Amount:       big.NewInt(456),
 					},
 				},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -525,7 +525,7 @@ func TestProcessReceipt(t *testing.T) {
 					},
 				},
 				Transfers: &[]*ERC20Transfer{},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -556,7 +556,7 @@ func TestProcessReceipt(t *testing.T) {
 						Amount:       big.NewInt(999),
 					},
 				},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -586,7 +586,7 @@ func TestProcessReceipt(t *testing.T) {
 					},
 				},
 				Transfers: &[]*ERC20Transfer{},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -617,7 +617,7 @@ func TestProcessReceipt(t *testing.T) {
 						Amount:       big.NewInt(1),
 					},
 				},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -648,7 +648,7 @@ func TestProcessReceipt(t *testing.T) {
 						Amount:       big.NewInt(2),
 					},
 				},
-				MessagePublicatons: &[]*LogMessagePublished{
+				MessagePublications: &[]*LogMessagePublished{
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -685,6 +685,39 @@ func TestProcessReceipt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTransferReceiptValidate(t *testing.T) {
+	transferReceipt := &TransferReceipt{
+		Deposits:            &[]*NativeDeposit{},
+		Transfers:           &[]*ERC20Transfer{},
+		MessagePublications: &[]*LogMessagePublished{},
+	}
+	err := transferReceipt.Validate()
+	require.Error(t, err, "Validate must return error when its fields are nil")
+
+	transferReceipt.MessagePublications = &[]*LogMessagePublished{
+		{
+			EventEmitter:    [20]byte{},
+			MsgSender:       [20]byte{},
+			TransferDetails: &TransferDetails{},
+		},
+	}
+
+	err = transferReceipt.Validate()
+	require.NoError(t, err, "Validate must not return an error when it has a non-zero Message Publication slice")
+}
+
+func TestNoPanics(t *testing.T) {
+	mocks := setup()
+	require.NotPanics(t, func() {
+		_, err := mocks.transferVerifier.ProcessReceipt(nil)
+		require.Error(t, err, "ProcessReceipt must return an error on nil input")
+	}, "ProcessReceipt should handle nil without panicking")
+	require.NotPanics(t, func() {
+		err := mocks.transferVerifier.UpdateReceiptDetails(nil)
+		require.Error(t, err, "UpdateReceiptDetails must return an error on nil input")
+	}, "UpdateReceiptDetails should handle nil without panicking")
 }
 
 func receiptData(payloadAmount *big.Int) (data []byte) {
