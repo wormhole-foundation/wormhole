@@ -398,7 +398,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.String("txID", msg.TxIDString()),
 									zap.Time("timestamp", msg.Timestamp))
 							} else {
-								g.msgC.writeC <- msg
+								g.msgC.writeC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 							}
 						}
 					}
@@ -424,7 +424,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("watcherChainId", chainId),
 								)
 							}
-							g.queryResponseC.writeC <- response
+							g.queryResponseC.writeC <- response //nolint:channelcheck // This channel is buffered, if it backs up we'll stop processing queries until it clears
 						}
 					}
 				}(chainQueryResponseC[chainId], chainId)

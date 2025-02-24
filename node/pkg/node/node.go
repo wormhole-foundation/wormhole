@@ -36,6 +36,10 @@ const (
 	// per second during normal operations. However, since some messages get published immediately, we need to allow extra room.
 	inboundBatchObservationBufferSize = 1000
 
+	// inboundMessageBufferSize configures the size of the msgC channel used to publish new observations from the watcher to the processor.
+	// This channel is shared across all the watchers so we don't want to hang up other watchers while the processor is handling an observation from one.
+	inboundMessageBufferSize = 1000
+
 	// inboundSignedVaaBufferSize configures the size of the signedInC channel that contains VAAs from other Guardians.
 	// One VAA takes roughly 0.01ms to process if we already have one in the database and 2ms if we don't.
 	// So in the worst case the entire queue can be processed in 2s.
@@ -126,7 +130,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
-	g.msgC = makeChannelPair[*common.MessagePublication](0)
+	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
