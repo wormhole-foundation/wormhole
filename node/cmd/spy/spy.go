@@ -126,7 +126,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 					return err
 				}
 			}
-			sub.ch <- message{vaaBytes: vaaBytes}
+			sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
 			continue
 		}
 
@@ -146,7 +146,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 						return err
 					}
 				}
-				sub.ch <- message{vaaBytes: vaaBytes}
+				sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
 			}
 		}
 
@@ -252,7 +252,7 @@ func newSpyServer(logger *zap.Logger) *spyServer {
 func DoWithTimeout(f func() error, d time.Duration) error {
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- f()
+		errChan <- f() //nolint:channelcheck // Has timeout below
 		close(errChan)
 	}()
 	t := time.NewTimer(d)
