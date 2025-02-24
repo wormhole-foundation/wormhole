@@ -19,7 +19,7 @@ func GRPCServer(srv *grpc.Server, lis net.Listener, graceful bool) Runnable {
 		Signal(ctx, SignalHealthy)
 		errC := make(chan error)
 		go func() {
-			errC <- srv.Serve(lis)
+			errC <- srv.Serve(lis) //should_this_block: Only does one write
 		}()
 		select {
 		case <-ctx.Done():
