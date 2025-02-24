@@ -77,7 +77,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				case err := <-headerSubscription.Err():
-					errC <- fmt.Errorf("block subscription failed: %w", err)
+					errC <- fmt.Errorf("block subscription failed: %w", err) // nolint:channelcheck // The watcher will exit anyway
 					return
 				case block := <-headSink:
 					// These two pointers should have been checked before the event was placed on the channel, but just being safe.
@@ -114,7 +114,7 @@ func main() {
 				case <-ctx.Done():
 					return
 				case err := <-messageSub.Err():
-					errC <- fmt.Errorf("message subscription failed: %w", err)
+					errC <- fmt.Errorf("message subscription failed: %w", err) // nolint:channelcheck // The watcher will exit anyway
 					return
 				case ev := <-messageC:
 					logger.Info("Received a log event from the contract", zap.Any("ev", ev))
