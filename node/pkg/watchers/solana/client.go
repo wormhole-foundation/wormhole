@@ -334,7 +334,7 @@ func (s *SolanaWatcher) setupWebSocket(ctx context.Context) error {
 					logger.Error("failed to read from account web socket", zap.Error(err))
 					return err
 				} else {
-					s.pumpData <- msg
+					s.pumpData <- msg // nolint:channelcheck // Only pauses this watcher
 				}
 			}
 		}
@@ -416,7 +416,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_subscription_data").Inc()
-					s.errC <- err
+					s.errC <- err // nolint:channelcheck // The watcher will exit anyway
 					return err
 				}
 			case m := <-s.obsvReqC:
@@ -453,7 +453,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 					solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_slot_error").Inc()
-					s.errC <- err
+					s.errC <- err // nolint:channelcheck // The watcher will exit anyway
 					return err
 				}
 
@@ -1088,7 +1088,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		)
 	}
 
-	s.msgC <- observation
+	s.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	return 1
 }
 
