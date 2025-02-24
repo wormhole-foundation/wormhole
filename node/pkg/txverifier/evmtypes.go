@@ -988,7 +988,7 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("failed to get decimals for token: result has insufficient length",
+		tv.logger.Warn("failed to get decimals for token: decimals() result has insufficient length",
 			zap.String("tokenAddress", tokenAddress.String()),
 			zap.ByteString("result", result))
 		return 0, err
