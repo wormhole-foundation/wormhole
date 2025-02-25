@@ -830,7 +830,7 @@ func TestParseERC20TransferFrom(t *testing.T) {
 	invalidTests := map[string]struct {
 		log types.Log
 	}{
-		"invalid transfer: From is zero address": {
+		"invalid transfer: From and To are both equal to the zero address": {
 			log: types.Log{
 				Address: usdcAddr,
 				Topics: []common.Hash{
@@ -838,7 +838,7 @@ func TestParseERC20TransferFrom(t *testing.T) {
 					// From
 					common.HexToHash(ZERO_ADDRESS.String()),
 					// To
-					common.HexToHash(tokenBridgeAddr.String()),
+					common.HexToHash(ZERO_ADDRESS.String()),
 				},
 				TxHash: common.BytesToHash([]byte{0x01}),
 				Data:   common.LeftPadBytes(big.NewInt(100).Bytes(), EVM_WORD_LENGTH),
