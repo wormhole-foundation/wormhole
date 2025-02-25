@@ -687,25 +687,72 @@ func TestProcessReceipt(t *testing.T) {
 	}
 }
 
+// TestTransferReceiptValidate verifies the happy path and expected errors for the TransferReceipt's Validate() method.
 func TestTransferReceiptValidate(t *testing.T) {
-	transferReceipt := &TransferReceipt{
-		Deposits:            &[]*NativeDeposit{},
-		Transfers:           &[]*ERC20Transfer{},
-		MessagePublications: &[]*LogMessagePublished{},
-	}
-	err := transferReceipt.Validate()
-	require.Error(t, err, "Validate must return error when its fields are nil")
 
-	transferReceipt.MessagePublications = &[]*LogMessagePublished{
-		{
-			EventEmitter:    [20]byte{},
-			MsgSender:       [20]byte{},
-			TransferDetails: &TransferDetails{},
+	// Test happy path: a TransferReceipt is well-formed if it has at least one MessagePublication.
+	transferReceipt := TransferReceipt{
+		Deposits:  &[]*NativeDeposit{},
+		Transfers: &[]*ERC20Transfer{},
+		MessagePublications: &[]*LogMessagePublished{
+
+			{
+				EventEmitter:    [20]byte{},
+				MsgSender:       [20]byte{},
+				TransferDetails: &TransferDetails{},
+			},
 		},
 	}
 
-	err = transferReceipt.Validate()
+	err := transferReceipt.Validate()
 	require.NoError(t, err, "Validate must not return an error when it has a non-zero Message Publication slice")
+
+	// Test error cases.
+	// NOTE: The test cases below distinguish between nil and the empty struct values for a TransferReceipt.
+	tests := map[string]struct {
+		transferReceipt *TransferReceipt
+		errMsg          string
+	}{
+		"nil Deposits": {
+			&TransferReceipt{
+				Deposits:            nil,
+				Transfers:           &[]*ERC20Transfer{},
+				MessagePublications: &[]*LogMessagePublished{},
+			},
+			"parsed receipt's Deposits field is nil",
+		},
+		"nil Transfers": {
+			&TransferReceipt{
+				Deposits:            &[]*NativeDeposit{},
+				Transfers:           nil,
+				MessagePublications: &[]*LogMessagePublished{},
+			},
+			"parsed receipt's Transfers field is nil",
+		},
+		"nil MessagePublications": {
+			&TransferReceipt{
+				Deposits:            &[]*NativeDeposit{},
+				Transfers:           &[]*ERC20Transfer{},
+				MessagePublications: nil,
+			},
+			"parsed receipt's MessagePublications field is nil",
+		},
+		"empty MessagePublications": {
+			&TransferReceipt{
+				Deposits:            &[]*NativeDeposit{},
+				Transfers:           &[]*ERC20Transfer{},
+				MessagePublications: &[]*LogMessagePublished{},
+			},
+			"parsed receipt has no Message Publications",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := test.transferReceipt.Validate()
+			require.ErrorContains(t, err, test.errMsg)
+		})
+	}
 }
 
 func TestNoPanics(t *testing.T) {

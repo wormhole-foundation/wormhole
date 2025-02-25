@@ -525,9 +525,15 @@ type TransferReceipt struct {
 	MessagePublications *[]*LogMessagePublished
 }
 
-// Validate ensures that a parsed TransferReceipt struct is well-formed. Its fields must not be nil, though they can be empty,
-// with the exception of MessagePublications. There should always be at least one relevant Message Publication by the
-// time this function is called.
+// Validate ensures that a parsed TransferReceipt struct is well-formed (i.e.
+// structurally valid, even if the semantic contents of the TransferReceipt
+// would be evaluated as "bad" from a security perspective.
+//
+// Well-formed means:
+// - The structs fields must not be nil.
+// - The MessagePublications fields must have at least one element.
+// As as result, this function should only be used near the end of parsing and processing
+// when all the logs have been parsed and used to populate the TransferReceipt instance.
 func (r *TransferReceipt) Validate() (err error) {
 	if r.Deposits == nil {
 		return errors.Join(err, errors.New("parsed receipt's Deposits field is nil"))
@@ -539,7 +545,7 @@ func (r *TransferReceipt) Validate() (err error) {
 		return errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
 	}
 	if len(*r.MessagePublications) == 0 {
-		return errors.Join(err, errors.New("parsed receipt' has no Message Publications"))
+		return errors.Join(err, errors.New("parsed receipt has no Message Publications"))
 	}
 
 	return
