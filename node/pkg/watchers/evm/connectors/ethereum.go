@@ -101,6 +101,10 @@ func (e *EthereumBaseConnector) SubscribeForBlocks(ctx context.Context, errC cha
 	panic("not implemented")
 }
 
+func (e *EthereumBaseConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
+	panic("not implemented")
+}
+
 func (e *EthereumBaseConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	return e.rawClient.CallContext(ctx, result, method, args...)
 }

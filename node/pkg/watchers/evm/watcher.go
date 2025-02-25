@@ -211,13 +211,17 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		ContractAddress: w.contract.Hex(),
 	})
 
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
+		return fmt.Errorf("failed to verify evm chain id: %w", err)
+	}
 
 	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine finality: %w", err)
 	}
+
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
 	if finalizedPollingSupported {
 		if safePollingSupported {
@@ -693,73 +697,9 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
 // to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
 func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
-	finalized := false
-	safe := false
-
-	// Tilt supports polling for both finalized and safe.
-	if w.env == common.UnsafeDevNet {
-		finalized = true
-		safe = true
-
-		// The following chains support polling for both finalized and safe.
-	} else if w.chainID == vaa.ChainIDAcala ||
-		w.chainID == vaa.ChainIDArbitrum ||
-		w.chainID == vaa.ChainIDArbitrumSepolia ||
-		w.chainID == vaa.ChainIDBase ||
-		w.chainID == vaa.ChainIDBaseSepolia ||
-		w.chainID == vaa.ChainIDBlast ||
-		w.chainID == vaa.ChainIDBSC ||
-		w.chainID == vaa.ChainIDEthereum ||
-		w.chainID == vaa.ChainIDHolesky ||
-		w.chainID == vaa.ChainIDHyperEVM ||
-		w.chainID == vaa.ChainIDInk ||
-		w.chainID == vaa.ChainIDKarura ||
-		w.chainID == vaa.ChainIDMantle ||
-		w.chainID == vaa.ChainIDMonad ||
-		w.chainID == vaa.ChainIDMoonbeam ||
-		w.chainID == vaa.ChainIDOptimism ||
-		w.chainID == vaa.ChainIDOptimismSepolia ||
-		w.chainID == vaa.ChainIDSeiEVM ||
-		w.chainID == vaa.ChainIDSepolia ||
-		w.chainID == vaa.ChainIDSnaxchain ||
-		w.chainID == vaa.ChainIDUnichain ||
-		w.chainID == vaa.ChainIDWorldchain ||
-		w.chainID == vaa.ChainIDXLayer {
-		finalized = true
-		safe = true
-
-	} else if w.chainID == vaa.ChainIDCelo {
-		// TODO: Celo testnet now supports finalized and safe. As of January 2025, mainnet doesn't yet support safe. Once Celo mainnet cuts over, Celo can
-		// be added to the list above. That change won't be super urgent since we'll just continue to publish safe as finalized, which is not a huge deal.
-		finalized = true
-		safe = w.env != common.MainNet
-
-		// Polygon now supports polling for finalized but not safe.
-		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
-	} else if w.chainID == vaa.ChainIDPolygon ||
-		w.chainID == vaa.ChainIDPolygonSepolia {
-		finalized = true
-
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-	} else if w.chainID == vaa.ChainIDScroll {
-		finalized = true
-
-		// As of 9/06/2024 Linea supports polling for finalized but not safe.
-	} else if w.chainID == vaa.ChainIDLinea {
-		finalized = true
-
-		// The following chains support instant finality.
-	} else if w.chainID == vaa.ChainIDAvalanche ||
-		w.chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
-		w.chainID == vaa.ChainIDOasis ||
-		w.chainID == vaa.ChainIDAurora ||
-		w.chainID == vaa.ChainIDFantom ||
-		w.chainID == vaa.ChainIDKlaytn {
-		return false, false, nil
-
-		// Anything else is undefined / not supported.
-	} else {
-		return false, false, fmt.Errorf("unsupported chain: %s", w.chainID.String())
+	finalized, safe, err := GetFinality(w.env, w.chainID)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to get finality for %s chain %v: %v", w.env, w.chainID, err)
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
