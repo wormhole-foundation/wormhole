@@ -40,5 +40,8 @@
     "@solana/web3.js": "^1.24.0",
     "@truffle/hdwallet-provider": "^1.7.0",
     "truffle-plugin-verify": "^0.5.11"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

@@ -31,7 +31,7 @@
     "@cosmjs/tendermint-rpc": "^0.27.1",
     "axios": "^0.26.0",
     "bech32": "^2.0.0",
-    "elliptic": "^6.5.4",
+    "elliptic": "^6.6.1",
     "ethers": "^5.5.4",
     "keccak256": "^1.0.6",
     "node-fetch": "^2.6.7",
@@ -42,5 +42,8 @@
   },
   "devDependencies": {
     "jest": "^27.5.1"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

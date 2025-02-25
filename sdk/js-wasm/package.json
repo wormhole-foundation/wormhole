@@ -28,5 +28,8 @@
   "dependencies": {
     "@types/long": "^4.0.2",
     "@types/node": "^18.0.3"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

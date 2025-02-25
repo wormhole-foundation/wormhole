@@ -51,5 +51,8 @@
     "transferFromNear": "ts-node test/transferFromNear",
     "transferToNear": "ts-node test/transferToNear",
     "attester": "ts-node test/attester"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }
