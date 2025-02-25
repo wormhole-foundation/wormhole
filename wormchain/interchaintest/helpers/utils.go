@@ -2,20 +2,21 @@ package helpers
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
-	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/testreporter"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 
+	abcitypes "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
-	abcitypes "github.com/tendermint/tendermint/abci/types"
 )
 
 func MustAccAddressFromBech32(address string, bech32Prefix string) sdk.AccAddress {
@@ -88,7 +89,7 @@ func GetIBCTx(
 	if err != nil {
 		return tx, fmt.Errorf("failed to get transaction %s: %w", txHash, err)
 	}
-	tx.Height = uint64(txResp.Height)
+	tx.Height = txResp.Height
 	tx.TxHash = txHash
 	// In cosmos, user is charged for entire gas requested, not the actual gas used.
 	tx.GasSpent = txResp.GasWanted
@@ -134,8 +135,24 @@ func AttributeValue(events []abcitypes.Event, eventType, attrKey string) (string
 			continue
 		}
 		for _, attr := range event.Attributes {
-			if string(attr.Key) == attrKey {
-				return string(attr.Value), true
+
+			// base64 decode attr.key
+			decodedKey, err := base64.StdEncoding.DecodeString(string(attr.Key))
+			if err != nil {
+				fmt.Println("Error decoding base64:", err)
+				continue
+			}
+
+			if string(decodedKey) == attrKey {
+
+				// decode the value
+				decodedValue, err := base64.StdEncoding.DecodeString(string(attr.Value))
+				if err != nil {
+					fmt.Println("Error decoding base64:", err)
+					continue
+				}
+
+				return string(decodedValue), true
 			}
 		}
 	}
