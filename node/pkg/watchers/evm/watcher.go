@@ -214,7 +214,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		ContractAddress: w.contract.Hex(),
 	})
 
-	// Verify that we are connected to the correct chain.
+	// Verify that we are connecting to the correct chain.
 	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
 		return fmt.Errorf("failed to verify evm chain id: %w", err)
 	}
@@ -222,7 +222,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	// Connect to the node using the appropriate type of connector.
 	{
 		var finalizedPollingSupported, safePollingSupported bool
-		var err error
 		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 		w.ethConn, finalizedPollingSupported, safePollingSupported, err = w.createConnector(timeout, w.url)
 		cancel()
@@ -834,7 +833,7 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 		return
 	}
 
-	// We support two types of pollers, either the batch poller or the instant finality poller.
+	// We support two types of pollers, the batch poller and the instant finality poller. Instantiate the right one.
 	if finalizedPollingSupported {
 		ethConn = connectors.NewBatchPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
 	} else {

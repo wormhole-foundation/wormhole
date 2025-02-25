@@ -123,6 +123,12 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 // Reobserve is the interface for reobserving using a custom URL. It opens a connection to that URL and does the reobservation on it.
 func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byte, customEndpoint string) (uint32, error) {
 	w.logger.Info("received a request to reobserve using a custom endpoint", zap.Stringer("chainID", chainID), zap.Any("txID", txID), zap.String("url", customEndpoint))
+
+	// Verify that this endpoint is for the correct chain.
+	if err := w.verifyEvmChainID(ctx, w.logger, customEndpoint); err != nil {
+		return 0, fmt.Errorf("failed to verify evm chain id: %w", err)
+	}
+
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
