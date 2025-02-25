@@ -3,7 +3,6 @@ module github.com/certusone/wormhole/node
 go 1.23.3
 
 require (
-	github.com/celo-org/celo-blockchain v1.5.5
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
 	github.com/davecgh/go-spew v1.1.1
@@ -79,7 +78,6 @@ require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
 	github.com/CosmWasm/wasmvm v1.1.1 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
-	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
 	github.com/algorand/go-codec/codec v1.1.8 // indirect
@@ -92,10 +90,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.22 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.22 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.42.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/route53 v1.46.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.32.3 // indirect
@@ -106,7 +102,6 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/c2h5oh/datasize v0.0.0-20200112174442-28bbd4740fee // indirect
-	github.com/celo-org/celo-bls-go v0.2.4 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coinbase/rosetta-sdk-go v0.7.0 // indirect
@@ -173,7 +168,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v1.12.0 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
@@ -202,7 +196,6 @@ require (
 	github.com/hashicorp/memberlist v0.5.0 // indirect
 	github.com/hashicorp/serf v0.10.1 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
-	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/iancoleman/orderedmap v0.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
@@ -243,7 +236,6 @@ require (
 	github.com/marten-seemann/tcp v0.0.0-20210406111302-dfbc87cc63fd // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mgutz/str v1.2.0 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/mikioh/tcpinfo v0.0.0-20190314235526-30a79bb1804b // indirect
@@ -269,9 +261,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/onsi/ginkgo/v2 v2.20.2 // indirect
-	github.com/onsi/gomega v1.34.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/runtime-spec v1.2.0 // indirect
 	github.com/opentracing-contrib/go-grpc v0.0.0-20210225150812-73cb765af46e // indirect
@@ -305,7 +295,6 @@ require (
 	github.com/prometheus/exporter-toolkit v0.8.2 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/prometheus/prometheus v0.42.0 // indirect
-	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.48.1 // indirect
 	github.com/quic-go/webtransport-go v0.8.1-0.20241018022711-4ac2c9250e66 // indirect
