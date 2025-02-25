@@ -331,7 +331,7 @@ func main() {
 	limiter := rate.NewLimiter(rate.Every(time.Duration(*sleepTime)*time.Second), 1)
 
 	log.Printf("Starting search for missing sequence numbers (sleeping %ds between requests)...", *sleepTime)
-	offset := 0
+	var offset uint64 = 0
 
 	var firstTime bool = true
 	for (offset > 0) || firstTime {
@@ -363,7 +363,7 @@ func main() {
 		}
 		next := gjson.Get(blockJSON, "next")
 		log.Println("next block", next.Int())
-		offset = int(next.Uint())
+		offset = next.Uint()
 		// Get the transactions.  Should be 100 of them
 		txs := gjson.Get(blockJSON, "txs")
 		for _, tx := range txs.Array() {

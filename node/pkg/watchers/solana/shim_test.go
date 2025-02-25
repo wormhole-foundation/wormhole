@@ -309,10 +309,10 @@ func TestShimDirect(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n)
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -486,10 +486,10 @@ func TestShimFromIntegrator(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n)
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -727,10 +727,10 @@ func TestShimDirectWithMultipleShimTransactions(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n)
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -945,10 +945,10 @@ func TestShimFromIntegratorWithMultipleShimTransactions(t *testing.T) {
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			whProgramIndex = uint16(n)
+			whProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
