@@ -440,7 +440,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					wc.SetL1Finalizer(l1watcher)
 				}
 
-				l1finalizer, runnable, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
+				l1finalizer, runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
 					return fmt.Errorf("error creating watcher: %w", err)
@@ -448,6 +448,10 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 
 				g.runnablesWithScissors[watcherName] = runnable
 				watchers[wc.GetNetworkID()] = l1finalizer
+
+				if reobserver != nil {
+					g.reobservers[wc.GetChainID()] = reobserver
+				}
 			}
 
 			if ibcWatcherConfig != nil {
@@ -509,6 +513,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 				ethRpc,
 				ethContract,
 				rpcMap,
+				g.reobservers,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create admin service: %w", err)

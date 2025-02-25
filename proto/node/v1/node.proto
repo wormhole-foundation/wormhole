@@ -28,6 +28,9 @@ service NodePrivilegedService {
   // using the node's guardian key. The network rate limits these requests to one per second.
   // Requests at higher rates will fail silently.
   rpc SendObservationRequest (SendObservationRequestRequest) returns (SendObservationRequestResponse);
+  
+  // ReobserveWithEndpoint performs a local reobservation request using the specified endpoint.
+  rpc ReobserveWithEndpoint (ReobserveWithEndpointRequest) returns (ReobserveWithEndpointResponse);
 
   // ChainGovernorStatus displays the status of the chain governor.
   rpc ChainGovernorStatus (ChainGovernorStatusRequest) returns (ChainGovernorStatusResponse);
@@ -351,6 +354,16 @@ message SendObservationRequestRequest {
 }
 
 message SendObservationRequestResponse {}
+
+message ReobserveWithEndpointRequest {
+  uint32 chain_id = 1;
+  bytes tx_hash = 2;
+  string url = 3;
+}
+
+message ReobserveWithEndpointResponse {
+  uint32 num_observations = 1;
+}
 
 message ChainGovernorStatusRequest {}
 
