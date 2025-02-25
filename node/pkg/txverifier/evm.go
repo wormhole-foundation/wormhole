@@ -99,6 +99,14 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 		// for confirmed bad scenarios (arbitrary message
 		// publications), not parsing errors or irrelevant receipts.
 		return true
+	} else {
+		// ParseReceipt is expected to return a nil TransferReceipt when there is an error,
+		// but this error handling is included in case of a programming error.
+		if parseErr != nil {
+			tv.logger.Warn("ParseReceipt encountered an error but returned a non-nil TransferReceipt. This is likely a programming error. Skipping validation",
+				zap.String("receipt hash", receipt.TxHash.String()),
+				zap.Error(parseErr))
+		}
 	}
 
 	// Add wormhole-specific data to the receipt by making
@@ -282,6 +290,8 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 // Verification. Any other events will be discarded.
 // This function is not responsible for checking that the values for the
 // various fields are relevant, only that they are well-formed.
+//
+// This function should return a nil TransferReceipt when an error is encountered.
 func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	receipt *geth.Receipt,
 ) (*TransferReceipt, error) {
@@ -300,7 +310,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	var transfers []*ERC20Transfer
 	var messagePublications []*LogMessagePublished
 
-	// Aggregate all errors without returning early
+	// This variable is used to aggregate multiple errors.
 	var receiptErr error
 
 	for _, log := range receipt.Logs {
