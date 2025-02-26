@@ -304,7 +304,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 			if status.LastRound > math.MaxInt64 {
-				logger.Error("Last round not a valid uint64: ", zap.Uint64("lastRound", status.LastRound))
+				logger.Error("Last round not a valid int64: ", zap.Uint64("lastRound", status.LastRound))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				continue
 			}
