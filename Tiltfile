@@ -697,10 +697,9 @@ if ci_tests:
     # launches Transfer Verifier binary and sets up monitoring script
     k8s_resource(
         "tx-verifier-test",
-        resource_deps = ["eth-devnet"],
         labels = ["tx-verifier"],
         trigger_mode = trigger_mode,
-        auto_init=True,
+        resource_deps = ["eth-devnet"],
     )
 
 if terra_classic:
