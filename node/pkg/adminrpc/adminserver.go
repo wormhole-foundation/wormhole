@@ -976,6 +976,10 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 }
 
 func (s *nodePrivilegedService) ReobserveWithEndpoint(ctx context.Context, req *nodev1.ReobserveWithEndpointRequest) (*nodev1.ReobserveWithEndpointResponse, error) {
+	if req.ChainId > math.MaxUint16 {
+		return nil, status.Errorf(codes.Internal, "chain %d is not a valid uint16", req.ChainId)
+	}
+
 	watcher := s.reobservers[vaa.ChainID(req.ChainId)]
 	if watcher == nil {
 		return nil, status.Errorf(codes.Internal, "chain %d does not support reobservation by endpoint", req.ChainId)
