@@ -2,6 +2,7 @@ package txverifier
 
 import (
 	"bytes"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -607,7 +608,8 @@ func TestValidateLogMessagePublished(t *testing.T) {
 
 			err := validate[*LogMessagePublished](&test.logMessagePublished)
 			require.Error(t, err)
-			_, ok := err.(*InvalidLogError)
+			var invalidErr *InvalidLogError
+			ok := errors.As(err, &invalidErr)
 			assert.True(t, ok, "wrong error type: ", err.Error())
 		})
 	}

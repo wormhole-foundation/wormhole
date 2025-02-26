@@ -226,6 +226,8 @@ func main() {
 							log.Fatalf("verify: %v", err)
 						}
 
+						defer resp.Body.Close()
+
 						if resp.StatusCode != http.StatusOK {
 							log.Printf("status %d, retrying", resp.StatusCode)
 							time.Sleep(5 * time.Second)

@@ -60,6 +60,7 @@ func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMo
 	// Create the new guardian signer, based on the signerType. If an invalid
 	// signer type is supplied, an error is returned; or if the signer creation
 	// returns an error, the error is bubbled up.
+	// nolint:exhaustive // default is sufficient for handling errors
 	switch signerType {
 	case FileSignerType:
 		guardianSigner, err = NewFileSigner(ctx, unsafeDevMode, signerKeyConfig)

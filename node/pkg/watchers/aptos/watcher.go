@@ -41,11 +41,13 @@ type (
 )
 
 var (
+	//nolint:exhaustruct
 	aptosMessagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_aptos_observations_confirmed_total",
 			Help: "Total number of verified observations found for the chain",
 		}, []string{"chain_name"})
+	//nolint:exhaustruct
 	currentAptosHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "wormhole_aptos_current_height",

@@ -248,6 +248,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 	}
 
+	// nolint:bodyclose // Misses the close below
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
