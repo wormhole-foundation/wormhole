@@ -63,7 +63,7 @@ spec:
             - name: ERROR_LOG_PATH
               value: "/logs/error.log"
             - name: TIMEOUT_SECONDS
-              value: "300"  # 5 minutes timeout
+              value: "3600"  # TODO: 1 hour timeout -- testing CI failures
           command: ["/bin/sh", "-c"]
           args:
             - |
