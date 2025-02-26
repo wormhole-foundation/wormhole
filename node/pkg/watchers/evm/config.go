@@ -45,7 +45,7 @@ func (wc *WatcherConfig) Create(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	setC chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, error) {
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 
 	// only actually use the guardian set channel if wc.GuardianSetUpdateChain == true
 	var setWriteC chan<- *common.GuardianSet = nil
@@ -55,5 +55,5 @@ func (wc *WatcherConfig) Create(
 
 	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, env, wc.CcqBackfillCache)
 	watcher.SetL1Finalizer(wc.l1Finalizer)
-	return watcher, watcher.Run, nil
+	return watcher, watcher.Run, watcher, nil
 }

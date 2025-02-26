@@ -18,12 +18,12 @@ type InstantFinalityConnector struct {
 	logger *zap.Logger
 }
 
-func NewInstantFinalityConnector(baseConnector Connector, logger *zap.Logger) (*InstantFinalityConnector, error) {
+func NewInstantFinalityConnector(baseConnector Connector, logger *zap.Logger) *InstantFinalityConnector {
 	connector := &InstantFinalityConnector{
 		Connector: baseConnector,
 		logger:    logger,
 	}
-	return connector, nil
+	return connector
 }
 
 func (c *InstantFinalityConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
