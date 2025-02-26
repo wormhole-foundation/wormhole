@@ -2,33 +2,8 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-use wormhole_svm_definitions::find_guardian_set_address;
 
 use super::{Hash, VerifyVaaShimInstruction};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GuardianSetPubkey<'ix> {
-    /// Key is already known (e.g. from account info).
-    Provided(&'ix Pubkey),
-
-    /// Derive the key from the guardian set index.
-    Derived {
-        index: u32,
-        wormhole_program_id: &'ix Pubkey,
-    },
-}
-
-impl From<GuardianSetPubkey<'_>> for Pubkey {
-    fn from(guardian_set: GuardianSetPubkey) -> Self {
-        match guardian_set {
-            GuardianSetPubkey::Provided(pubkey) => *pubkey,
-            GuardianSetPubkey::Derived {
-                index,
-                wormhole_program_id,
-            } => find_guardian_set_address(index.to_be_bytes(), wormhole_program_id).0,
-        }
-    }
-}
 
 /// Accounts for the verify hash instruction.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,7 +11,7 @@ pub struct VerifyHashAccounts<'ix> {
     /// Guardian set is used to verify the recovered public keys from the
     /// signatures found in the guardian signatures account and
     /// [VerifyHashData::digest].
-    pub guardian_set: GuardianSetPubkey<'ix>,
+    pub guardian_set: &'ix Pubkey,
 
     /// Guardian signatures account created using [PostSignatures].
     ///
@@ -136,7 +111,7 @@ impl VerifyHash<'_> {
         Instruction {
             program_id: *self.program_id,
             accounts: vec![
-                AccountMeta::new_readonly(self.accounts.guardian_set.into(), false),
+                AccountMeta::new_readonly(*self.accounts.guardian_set, false),
                 AccountMeta::new_readonly(*self.accounts.guardian_signatures, false),
             ],
             data: VerifyVaaShimInstruction::VerifyHash(self.data).to_vec(),

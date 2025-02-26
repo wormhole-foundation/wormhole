@@ -46,7 +46,7 @@ pub fn set_up_transaction(
     let verify_hash_ix = verify_vaa::VerifyHash {
         program_id: &VERIFY_VAA_SHIM_PROGRAM_ID,
         accounts: verify_vaa::VerifyHashAccounts {
-            guardian_set: verify_vaa::GuardianSetPubkey::Provided(&guardian_set),
+            guardian_set: &guardian_set,
             guardian_signatures,
         },
         data: VerifyHashData::new(guardian_set_bump, digest),
