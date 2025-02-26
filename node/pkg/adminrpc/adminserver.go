@@ -1294,7 +1294,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		splits := strings.Split(missingVAA.VaaKey, "/")
 		chainID, err := strconv.Atoi(splits[0])
 		if err != nil {
-			errMsgs += fmt.Sprintf("\nerror converting chainID [%d] to int", chainID)
+			errMsgs += fmt.Sprintf("\nerror converting chainID [%s] to int", missingVAA.VaaKey)
 			errCounter++
 			continue
 		}
