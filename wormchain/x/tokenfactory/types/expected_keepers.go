@@ -12,6 +12,7 @@ type BankKeeper interface {
 	SetDenomMetaData(ctx sdk.Context, denomMetaData banktypes.Metadata)
 
 	HasSupply(ctx sdk.Context, denom string) bool
+	IterateTotalSupply(ctx sdk.Context, cb func(sdk.Coin) bool)
 
 	SendCoinsFromModuleToAccount(ctx sdk.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromAccountToModule(ctx sdk.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
@@ -30,6 +31,7 @@ type BankKeeper interface {
 type AccountKeeper interface {
 	SetModuleAccount(ctx sdk.Context, macc authtypes.ModuleAccountI)
 	GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI
+	GetModuleAccount(ctx sdk.Context, moduleName string) authtypes.ModuleAccountI
 }
 
 // CommunityPoolKeeper defines the contract needed to be fulfilled for community pool interactions.
