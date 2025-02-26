@@ -721,7 +721,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	for {
 		row, err := oldVAAReader.Read()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			log.Fatalf("failed to parse VAA CSV: %v", err)
@@ -757,7 +757,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	newVAAWriter.Flush()
 }
 
-// This exposes keccak256 as a command line utility, mostly for validating goverance messages
+// This exposes keccak256 as a command line utility, mostly for validating governance messages
 // that use this hash.  There isn't any common utility that computes this since this is nonstandard outside of evm.
 // It is used similar to other hashing utilities, e.g. `cat <file> | guardiand admin keccak256`.
 func runKeccak256Hash(cmd *cobra.Command, args []string) {

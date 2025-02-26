@@ -1238,6 +1238,8 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		return nil, err
 	}
 
+	defer results.Body.Close()
+
 	// Collect the results
 	resBody, err := io.ReadAll(results.Body)
 	if err != nil {

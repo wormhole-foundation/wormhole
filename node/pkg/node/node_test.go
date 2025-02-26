@@ -260,7 +260,7 @@ func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, g
 // WARNING: Currently, there is only a global registry for all prometheus metrics, leading to all guardian nodes writing to the same one.
 //
 //	As long as this is the case, you probably don't want to use this function.
-func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, min int) {
+func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, minimum int) {
 	t.Helper()
 	metricBytes := []byte(metric)
 	requests := make([]*http.Request, len(gs))
@@ -299,7 +299,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 					if bytes.HasPrefix(line, metricBytes) {
 						res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
 						assert.NoError(t, err)
-						if res >= min {
+						if res >= minimum {
 							return true
 						}
 					}
@@ -855,7 +855,7 @@ type testCaseGuardianConfig struct {
 	err  string
 }
 
-// TestWatcherConfigs tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
+// TestWatcherConfigs tries to instantiate a guardian with various invalid []watchers.WatcherConfig and asserts that it errors
 func TestWatcherConfigs(t *testing.T) {
 	tc := []testCaseGuardianConfig{
 		{

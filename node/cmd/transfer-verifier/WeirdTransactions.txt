@@ -1,0 +1,5 @@
+- 8rJkQDUfnTRkDSPRtfX6uUWPLRiNkmAAqVMKe86bY9Tw:
+    - USDC just disappears
+    - No mention of USDC token registry object though. So, I don't think it's burned. 
+    - The Wormhole Message has a different sender than the token bridge for this message. 
+    - So, I think it's fine.

@@ -157,6 +157,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
+	//nolint:bodyclose // The close is down below. The linter misses it.
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)

@@ -2,6 +2,7 @@ package evm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -524,7 +525,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						// Check multiple possible error cases - the node seems to return a
 						// "not found" error most of the time, but it could conceivably also
 						// return a nil tx or rpc.ErrNoResult.
-						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
+						if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", pLock.message.TxIDString()),
