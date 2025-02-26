@@ -1948,7 +1948,7 @@ func parseTxVerifierChains(
 	supportedChains := txverifier.SupportedChains()
 
 	// NOTE: Using a known capacity and counter here avoids unnecessary reallocations compared to using `append()`.
-	enabled := make([]vaa.ChainID, 0, len(parsed))
+	enabled := make([]vaa.ChainID, len(parsed))
 	i := uint8(0)
 	for _, chainStr := range parsed {
 		chain, parseErr := strconv.Atoi(chainStr)
