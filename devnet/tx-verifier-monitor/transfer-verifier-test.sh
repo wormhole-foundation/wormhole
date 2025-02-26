@@ -1,4 +1,27 @@
 #!/usr/bin/env bash
+# Overview
+# This script simulates unusual, dangerous messages being emitted by the Core Bridge.
+# Its purpose is to be used as an integration test for the Transfer Verifier. The 
+# Transfer Verifier can be set up as standalone binary to monitor the core bridge.
+# Once this is done, this script can be used to simulate dangerous scenarios. The
+# Transfer Verifier should pick up on this behaviour and log errors accordingly.
+#
+# Strategy
+# The code below sets up several contract and wallet addresses that match
+# the state of the devnet created by Tilt. Using the anvil and cast tools
+# from foundry, it impersonates the Token Bridge, setting its address
+# as the sender for messages to the core bridge. It sends messages that
+# contain token transfer data. The Core Bridge emits a Message Publication
+# as a result. However, no actual funds have been sent from a user into the
+# Token Bridge. This is the danger that Transfer Verifier should detect.
+#
+# Coverage
+# The code currently sends both a Transfer and Transfer With Payload type.
+# As a result, exactly 2 violations should be detected by the Transfer Verifier.
+# It should report an error that says that a message was sent without any
+# transfers or deposits in its receipt. (Compare this with 
+# devnet/tx-verifier-monitor/monitor.sh)
+
 set -euo pipefail
 
 RPC="${RPC_URL:-ws://eth-devnet:8545}"
@@ -28,11 +51,34 @@ FROM="${ETH_WHALE}"
 RECIPIENT="0x00000000000000000000000064E078A8Aa15A41B85890265648e965De686bAE6" 
 NONCE="234" # arbitrary
 
-# Build the payload for token transfers. Declared on multiple lines to
-# be more legible. Data pulled from an arbitrary LogMessagePublished event
-# on etherscan. Metadata and fees commented out, leaving only the payload
-PAYLOAD="0x"
-declare -a SLOTS=(
+# Build the payloads for token transfers. The payloads are built using 
+# arrays of strings and are concatenated together in a loop. Also, the
+# data is declared on multiple lines in 32 bytes chunks. This isn't 
+# necessary but it makes the data a little easier to grok and work with.
+#
+# The data is pulled from an arbitrary LogMessagePublished event on
+# etherscan. Metadata and fees are commented out, leaving only the payload.
+# Note that the first non-commented byte corresponds to the payload type.
+# (https://wormhole.com/docs/learn/infrastructure/vaas/#payload-types)
+
+declare -a TRANSFER_SLOTS=(
+ # "0000000000000000000000000000000000000000000000000000000000077009"
+ # "0000000000000000000000000000000000000000000000000000000067be1656"
+ # "0000000000000000000000000000000000000000000000000000000000000080"
+ # "0000000000000000000000000000000000000000000000000000000000000001"
+ # "0000000000000000000000000000000000000000000000000000000000000085"
+ "01000000000000000000000000000000000000000000000000000006c0260fe4"
+ "5f0000000000000000000000006b0b3a982b4634ac68dd83a4dbf02311ce3241"
+ "810002a5f3c5bf0f76bb899300b7ec6345ed3740f22fd4bb79501bc6204938fc"
+ "3a6c780001000000000000000000000000000000000000000000000000000000"
+ "0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+# Note that the token address of `ERC20_ADDR` appears within the payload
+# but is not aligned with the slot size, i.e. the last byte of
+# the address is found on the following line. This is not ideal to work
+# with but it matches how the core bridge actually works.
+declare -a TRANSFER_WITH_PAYLOAD_SLOTS=(
    # "0000000000000000000000000000000000000000000000000000000000055baf"
    # "0000000000000000000000000000000000000000000000000000000000000000"
    # "0000000000000000000000000000000000000000000000000000000000000080"
@@ -45,12 +91,23 @@ declare -a SLOTS=(
    "f72b4160f10001010200c91f01004554480044eca3f6295d6d559ca1d99a5ef5"
    "a8f72b4160f10000000000000000000000000000000000000000000000000000"
 )
-for i in "${SLOTS[@]}"
+
+# Build payloads by joining the arrays of hex strings.
+TRANSFER_DATA="0x"
+TRANSFER_WITH_PAYLOAD_DATA="0x"
+
+for i in "${TRANSFER_SLOTS[@]}"
 do
-   PAYLOAD="$PAYLOAD$i"
+   TRANSFER_DATA="$TRANSFER_DATA$i"
 done
 
-echo "DEBUG:"
+for i in "${TRANSFER_WITH_PAYLOAD_SLOTS[@]}"
+do
+   TRANSFER_WITH_PAYLOAD_DATA="$TRANSFER_WITH_PAYLOAD_DATA$i"
+done
+
+# Header information for beginning the test.
+echo "Beginning test with the following configuration"
 echo "- RPC=${RPC}"
 echo "- CORE_BRIDGE_CONTRACT=${CORE_BRIDGE_CONTRACT}"
 echo "- TOKEN_BRIDGE_CONTRACT=${TOKEN_BRIDGE_CONTRACT}"
@@ -60,11 +117,13 @@ echo "- VALUE=${VALUE}"
 echo "- RECIPIENT=${RECIPIENT}" 
 echo 
 
-# Fund the token bridge from the user
-echo "Start impersonating Anvil key: ${ANVIL_USER}"
+# Fund the token bridge from the user.
+echo "Start impersonating Anvil user: ${ANVIL_USER}"
 cast rpc \
    anvil_impersonateAccount "${ANVIL_USER}" \
    --rpc-url "${RPC}"
+
+# Set-up function to make sure that the token bridge in the devnet is solvent.
 echo "Funding token bridge using the user's balance"
 cast send --unlocked \
    --rpc-url "${RPC}" \
@@ -72,11 +131,13 @@ cast send --unlocked \
    --value 100000000000000 \
    ${TOKEN_BRIDGE_CONTRACT}
 echo ""
-echo "End impersonating User0"
+echo "End impersonating ${ANVIL_USER}"
 cast rpc \
    anvil_stopImpersonatingAccount "${ANVIL_USER}" \
    --rpc-url "${RPC}"
 
+# Start the test, printing the conditions before any Token Bridge
+# activity (except the initial funding).
 BALANCE_CORE=$(cast balance --rpc-url "${RPC}" $CORE_BRIDGE_CONTRACT)
 BALANCE_TOKEN=$(cast balance --rpc-url "${RPC}" $TOKEN_BRIDGE_CONTRACT)
 BALANCE_USER=$(cast balance --rpc-url "${RPC}" $ANVIL_USER)
@@ -86,18 +147,24 @@ echo "- TOKEN_BRIDGE_CONTRACT=${BALANCE_TOKEN}"
 echo "- ANVIL_USER=${BALANCE_USER}"
 echo 
 
-# === Malicious call to transferTokensWithPayload()
-# This is the exploit scenario: the token bridge has called publishMessage() without a ERC20 Transfer or Deposit
-# being present in the same receipt.
-# This is done by impersonating the token bridge contract and sending a message directly to the core bridge.
-# Ensure that anvil is using `--auto-impersonate` or else that account impersonation is enabled in your local environment.
-# --private-key "$MNEMONIC" \
-# --max-fee 500000 \
+# Simulate the Token Bridge so that it's possible to communicate with the core
+# bridge in arbitrary ways. Normally, the only path to do this would involve
+# doing a WETH Deposit or ERC20 transfer in the same transaction. This is
+# exactly the invariant that we are trying to test with Transfer Verifier. If
+# the Token Bridge can cause a Message Publication from the Core Bridge without
+# any funds being sent into in to the Token Bridge first, there's a serious
+# error.
+# Ensure that anvil is using `--auto-impersonate` or else that account
+# impersonation is enabled in your local environment. For Tilt, this should
+# be handled already by the eth-devnet pod.
 echo "Start impersonate token bridge" 
 cast rpc \
    --rpc-url "${RPC}" \
    anvil_impersonateAccount "${TOKEN_BRIDGE_CONTRACT}"
-echo "Calling publishMessage as ${TOKEN_BRIDGE_CONTRACT}" 
+   
+# === Test Scenario 1: Malicious call to transferTokens()
+NONCE=0
+echo "Calling publishMessage() with transferTokens() payload as ${TOKEN_BRIDGE_CONTRACT}" 
 cast send --unlocked \
    --rpc-url "${RPC}" \
    --json \
@@ -107,12 +174,39 @@ cast send --unlocked \
    --value "0" \
    "${CORE_BRIDGE_CONTRACT}" \
    "publishMessage(uint32,bytes,uint8)" \
-   0 "${PAYLOAD}" 1
+   $NONCE "${TRANSFER_DATA}" 1
 echo ""
+NONCE=$(($NONCE + 1))
+
+# === Test Scenario 2: Malicious call to transferTokensWithPayload()
+echo "Calling publishMessage() with transferTokensWithPayload() payload as ${TOKEN_BRIDGE_CONTRACT}" 
+cast send --unlocked \
+   --rpc-url "${RPC}" \
+   --json \
+   --gas-limit 10000000 \
+   --priority-gas-price 1 \
+   --from "${TOKEN_BRIDGE_CONTRACT}" \
+   --value "0" \
+   "${CORE_BRIDGE_CONTRACT}" \
+   "publishMessage(uint32,bytes,uint8)" \
+   1 "${TRANSFER_WITH_PAYLOAD_DATA}" 1
+echo ""
+
+# Cleanup.
 cast rpc \
    --rpc-url "${RPC}" \
    anvil_stopImpersonatingAccount "${TOKEN_BRIDGE_CONTRACT}"
 echo "End impersonate token bridge" 
+
+# Print balances after.
+BALANCE_CORE=$(cast balance --rpc-url "${RPC}" $CORE_BRIDGE_CONTRACT)
+BALANCE_TOKEN=$(cast balance --rpc-url "${RPC}" $TOKEN_BRIDGE_CONTRACT)
+BALANCE_USER=$(cast balance --rpc-url "${RPC}" $ANVIL_USER)
+echo "BALANCES:"
+echo "- CORE_BRIDGE_CONTRACT=${BALANCE_CORE}"
+echo "- TOKEN_BRIDGE_CONTRACT=${BALANCE_TOKEN}"
+echo "- ANVIL_USER=${BALANCE_USER}"
+echo 
 
 # TODO add the 'multicall' scenario encoded in the forge script
 
