@@ -157,10 +157,10 @@ echo
 # Ensure that anvil is using `--auto-impersonate` or else that account
 # impersonation is enabled in your local environment. For Tilt, this should
 # be handled already by the eth-devnet pod.
-echo "Start impersonate token bridge" 
+echo "Start impersonating the Token Bridge" 
 cast rpc \
    --rpc-url "${RPC}" \
-   anvil_impersonateAccount "${TOKEN_BRIDGE_CONTRACT}"
+   anvil_impersonateAccount "${TOKEN_BRIDGE_CONTRACT}" &> /dev/null
    
 # === Test Scenario 1: Malicious call to transferTokens()
 NONCE=0
@@ -195,8 +195,8 @@ echo ""
 # Cleanup.
 cast rpc \
    --rpc-url "${RPC}" \
-   anvil_stopImpersonatingAccount "${TOKEN_BRIDGE_CONTRACT}"
-echo "End impersonate token bridge" 
+   anvil_stopImpersonatingAccount "${TOKEN_BRIDGE_CONTRACT}" &> /dev/null
+echo "End impersonating the Token Bridge" 
 
 # Print balances after.
 BALANCE_CORE=$(cast balance --rpc-url "${RPC}" $CORE_BRIDGE_CONTRACT)
@@ -210,5 +210,4 @@ echo
 
 # TODO add the 'multicall' scenario encoded in the forge script
 
-echo "Done Transfer Verifier integration test."
-echo "Exiting."
+echo "Done Transfer Verifier integration test. Exiting"
