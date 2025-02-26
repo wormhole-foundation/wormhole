@@ -44,7 +44,7 @@ async fn test_post_signatures_13_at_once() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 13_355
-        3_337
+        3_343
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -107,7 +107,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        5_641
+        5_651
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -167,7 +167,7 @@ async fn test_post_signatures_separate_transactions() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 12_828
-        3_337
+        3_343
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -626,7 +626,7 @@ async fn test_close_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 5_165
-        736
+        715
     );
 
     banks_client.process_transaction(transaction).await.unwrap();
@@ -773,7 +773,7 @@ async fn test_verify_hash() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed - bump_costs.guardian_set,
         // 342_276
-        334_561
+        334_558
     );
 }
 

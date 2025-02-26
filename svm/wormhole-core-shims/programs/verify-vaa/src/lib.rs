@@ -207,7 +207,13 @@ fn process_verify_hash(accounts: &[AccountInfo], data: VerifyHashData) -> Progra
     // Guardian signatures account. This account was created in the post
     // signatures instruction. Its signatures will be validated against the
     // guardian pubkeys found in the guardian set account.
-    let guardian_signatures_info_data = accounts[1].data.borrow();
+    let guardian_signatures_info = &accounts[1];
+    if guardian_signatures_info.owner != &ID {
+        msg!("Guardian signatures (account #2) must be owned by this program");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let guardian_signatures_info_data = guardian_signatures_info.data.borrow();
     let guardian_signatures =
         GuardianSignatures::new(&guardian_signatures_info_data).ok_or_else(|| {
             msg!("Guardian signatures (account #2) failed to deserialize");
@@ -350,16 +356,14 @@ fn process_close_signatures(accounts: &[AccountInfo]) -> ProgramResult {
     **refund_recipient_info.lamports.borrow_mut() += **guardian_signatures_lamports;
     **guardian_signatures_lamports = 0;
 
-    let mut data = guardian_signatures_info.data.borrow_mut();
-    let data_ptr = data.as_mut_ptr();
-
-    // Safety: The pointer for the data length is 8 bytes before the start of
-    // the data for a given account info. When this is set to zero, there is no
-    // data that needs to be zeroed out.
-    unsafe {
-        *(data_ptr.offset(-8) as *mut u64) = 0;
-    }
-    guardian_signatures_info.assign(&solana_program::system_program::ID);
+    // The refund recipient is the only authority that can close this account.
+    // So even if lamports were sent to the guardian signatures account to keep
+    // it open, the refund recipient will still get the lamports he is owed.
+    // Therefore, we do not need to make sure that the account's size is zero
+    // and that its owner is ssigned to the System program.
+    //
+    // When the guardian signatures account's lamports are zero, SVM runtime
+    // will ensure that this account will be closed.
 
     Ok(())
 }
