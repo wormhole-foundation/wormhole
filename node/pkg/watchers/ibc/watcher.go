@@ -441,6 +441,9 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 		case <-ctx.Done():
 			return nil
 		case r := <-ce.obsvReqC:
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
 			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != ce.chainID {
 				panic("invalid chain ID")
 			}

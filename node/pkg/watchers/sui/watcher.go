@@ -392,6 +392,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("sui_fetch_obvs_req context done")
 				return ctx.Err()
 			case r := <-e.obsvReqC:
+				// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+				// and only writes to the channel for this chain id.
+				// If either of the below cases are true, something has gone wrong
 				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
 					panic("invalid chain ID")
 				}
