@@ -2,11 +2,17 @@ package keeper_test
 
 import (
 	"fmt"
+	"math/big"
+	"time"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	denoms "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
+
 	//banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
+	keeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
 )
 
 // TestMintDenomMsg tests TypeMsgMint message is emitted on a successful mint
@@ -47,6 +53,177 @@ func (suite *KeeperTestSuite) TestMintDenomMsg() {
 			suite.AssertEventEmitted(ctx, types.TypeMsgMint, tc.expectedMessageEvents)
 		})
 	}
+}
+
+func (suite *KeeperTestSuite) TestMintHuge() {
+	// Create a denom
+	suite.CreateDefaultDenom()
+
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
+
+	largeAmount := big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0)), big.NewInt(1)) // (2 ** 256)-1
+	belowLargeAmount := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(191), big.NewInt(0))                              // 2 ** 191
+	for _, tc := range []struct {
+		desc                  string
+		amount                sdk.Int
+		mintDenom             string
+		admin                 string
+		valid                 bool
+		expectedMessageEvents int
+	}{
+		{
+			desc:                  "failure case - too many",
+			amount:                sdk.NewIntFromBigInt(largeAmount),
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 false,
+			expectedMessageEvents: 0,
+		},
+		{
+			desc:                  "success case with 191",
+			amount:                sdk.NewIntFromBigInt(belowLargeAmount),
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 true,
+			expectedMessageEvents: 1,
+		},
+		{
+			desc:                  "failure case - too many accumulated tokens",
+			amount:                sdk.NewIntFromBigInt(belowLargeAmount),
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 false,
+			expectedMessageEvents: 0,
+		},
+	} {
+		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			ctx := suite.Ctx.WithEventManager(sdk.NewEventManager())
+			suite.Require().Equal(0, len(ctx.EventManager().Events()))
+			// Test mint message
+			suite.msgServer.Mint(sdk.WrapSDKContext(ctx), types.NewMsgMint(tc.admin, sdk.NewCoin(tc.mintDenom, tc.amount))) //nolint:errcheck
+			// Ensure current number and type of event is emitted
+			suite.AssertEventEmitted(ctx, types.TypeMsgMint, tc.expectedMessageEvents)
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestMintOffByOne() {
+	// Create a denom
+	suite.CreateDefaultDenom()
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
+
+	for _, tc := range []struct {
+		desc                  string
+		amount                sdk.Int
+		mintDenom             string
+		admin                 string
+		valid                 bool
+		expectedMessageEvents int
+	}{
+		{
+			desc:                  "failure case - too many plus 1",
+			amount:                denoms.MintAmountLimit.Add(sdk.NewIntFromUint64(1)), // 2 ** 192 + 1
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 false,
+			expectedMessageEvents: 0,
+		},
+		{
+			desc:                  "failure case - too many exactly",
+			amount:                denoms.MintAmountLimit, // 2 ** 192
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 true,
+			expectedMessageEvents: 0,
+		},
+		{
+			desc:                  "success case - one less than limit",
+			amount:                denoms.MintAmountLimit.Sub(sdk.NewIntFromUint64(1)), // 2 ** 192 -1
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 true,
+			expectedMessageEvents: 1,
+		},
+	} {
+		suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
+			ctx := suite.Ctx.WithEventManager(sdk.NewEventManager())
+			suite.Require().Equal(0, len(ctx.EventManager().Events()))
+			// Test mint message
+			suite.msgServer.Mint(sdk.WrapSDKContext(ctx), types.NewMsgMint(tc.admin, sdk.NewCoin(tc.mintDenom, tc.amount))) //nolint:errcheck
+			// Ensure current number and type of event is emitted
+			suite.AssertEventEmitted(ctx, types.TypeMsgMint, tc.expectedMessageEvents)
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestMintFixBlockHeightChecks() {
+	// Create a denom
+	suite.CreateDefaultDenom()
+
+	test_cases := []struct {
+		desc                  string
+		amount                sdk.Int
+		mintDenom             string
+		admin                 string
+		valid                 bool
+		expectedMessageEvents int
+	}{
+		{
+			desc:                  "success case - check not implemented before block height",
+			amount:                denoms.MintAmountLimit, // 2 ** 192
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 true,
+			expectedMessageEvents: 1,
+		},
+		{
+			desc:                  "failure case - check implemented on specific block height",
+			amount:                denoms.MintAmountLimit, // 2 ** 192
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 false,
+			expectedMessageEvents: 0,
+		},
+		{
+			desc:                  "failure case - check implemented after specific block height",
+			amount:                denoms.MintAmountLimit, // 2 ** 192
+			mintDenom:             suite.defaultDenom,
+			admin:                 suite.TestAccs[0].String(),
+			valid:                 false,
+			expectedMessageEvents: 0,
+		},
+	}
+	// Before the block has been reached. Should succeed with the call.
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight - 1, ChainID: "wormchain", Time: time.Now().UTC()})
+
+	ctx := suite.Ctx.WithEventManager(sdk.NewEventManager())
+	suite.Require().Equal(0, len(ctx.EventManager().Events()))
+	// Test mint message
+	suite.msgServer.Mint(sdk.WrapSDKContext(ctx), types.NewMsgMint(test_cases[0].admin, sdk.NewCoin(test_cases[0].mintDenom, test_cases[0].amount))) //nolint:errcheck
+
+	// Ensure current number and type of event is emitted
+	suite.AssertEventEmitted(ctx, types.TypeMsgMint, test_cases[0].expectedMessageEvents)
+
+	// On the block has been reached
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight, ChainID: "wormchain", Time: time.Now().UTC()})
+	ctx = suite.Ctx.WithEventManager(sdk.NewEventManager())
+	suite.Require().Equal(0, len(ctx.EventManager().Events()))
+	// Test mint message
+	suite.msgServer.Mint(sdk.WrapSDKContext(ctx), types.NewMsgMint(test_cases[1].admin, sdk.NewCoin(test_cases[1].mintDenom, test_cases[1].amount))) //nolint:errcheck
+
+	// Ensure current number and type of event is emitted
+	suite.AssertEventEmitted(ctx, types.TypeMsgMint, test_cases[1].expectedMessageEvents)
+
+	// After the block has been reached
+	suite.Ctx = suite.App.BaseApp.NewContext(false, tmtypes.Header{Height: keeper.MainnetUseConditionalHeight + 1, ChainID: "wormchain", Time: time.Now().UTC()})
+	ctx = suite.Ctx.WithEventManager(sdk.NewEventManager())
+	suite.Require().Equal(0, len(ctx.EventManager().Events()))
+	// Test mint message
+	suite.msgServer.Mint(sdk.WrapSDKContext(ctx), types.NewMsgMint(test_cases[2].admin, sdk.NewCoin(test_cases[2].mintDenom, test_cases[2].amount))) //nolint:errcheck
+
+	// Ensure current number and type of event is emitted
+	suite.AssertEventEmitted(ctx, types.TypeMsgMint, test_cases[2].expectedMessageEvents)
+
 }
 
 // TestBurnDenomMsg tests TypeMsgBurn message is emitted on a successful burn
