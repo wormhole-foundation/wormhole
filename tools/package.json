@@ -4,5 +4,8 @@
   "description": "tooling for building web code from protobufs",
   "devDependencies": {
     "ts-proto": "^1.82.3"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

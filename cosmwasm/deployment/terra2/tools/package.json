@@ -15,5 +15,8 @@
     "dotenv": "^16.0.0",
     "ethers": "^5.4.4",
     "yargs": "^17.0.1"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }
