@@ -200,7 +200,7 @@ func (s *supervisor) nodeByDN(dn string) *node {
 }
 
 // reNodeName validates a node name against constraints.
-var reNodeName = regexp.MustCompile(`[a-z90-9_]{1,64}`)
+var reNodeName = regexp.MustCompile(`[a-z0-9_]{1,64}`)
 
 // runGroup schedules a new group of runnables to run on a node.
 func (n *node) runGroup(runnables map[string]Runnable) error {

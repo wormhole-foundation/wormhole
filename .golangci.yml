@@ -33,8 +33,8 @@ linters:
     - bidichk
     # - godox
     - exhaustruct
-    # - contextcheck
-    # - gocritic
+    - contextcheck
+    - gocritic
     # revive
     # exhauststruct - required to initialize
     # nil pointer exception checks...
@@ -70,9 +70,14 @@ issues:
     - path: _test\.go
       linters:
         - exhaustruct
+        - contextcheck
     - path: '(?i).*mock.*' # Don't match mocks for exhaustruct
       linters:
         - exhaustruct
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
 linters-settings:
   errorlint:
     errorf: false 
@@ -109,4 +114,15 @@ linters-settings:
     #   - ifElseChain
     #   - elseif
     enabled-checks: 
-      - commentFormatting
+      - badCall
+      - badRegexp
+      - builtinShadowDecl
+      - dupCase
+      - externalErrorReassign
+      - sloppyReassign
+      - offBy1
+      - truncateCmp
+      - regexpPattern
+      - builtinShadow
+      - importShadow
+      - newDeref

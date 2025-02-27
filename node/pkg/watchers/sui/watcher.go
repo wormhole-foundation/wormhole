@@ -311,7 +311,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	)
 
 	// Get the latest checkpoint sequence number.  This will be the starting point for the watcher.
-	latest, err := e.getLatestCheckpointSN(logger)
+	latest, err := e.getLatestCheckpointSN(ctx, logger)
 	if err != nil {
 		return fmt.Errorf("failed to get latest checkpoint sequence number: %w", err)
 	}
@@ -335,7 +335,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return ctx.Err()
 
 			default:
-				dataWithEvents, err := e.getEvents()
+				dataWithEvents, err := e.getEvents(ctx)
 				if err != nil {
 					logger.Error("sui_data_pump Error", zap.Error(err))
 					continue
@@ -367,7 +367,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return ctx.Err()
 
 			case <-timer.C:
-				height, err := e.getLatestCheckpointSN(logger)
+				height, err := e.getLatestCheckpointSN(ctx, logger)
 				if err != nil {
 					logger.Error("Failed to get latest checkpoint sequence number", zap.Error(err))
 				} else {
@@ -403,7 +403,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				payload := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": ["%s"]}`, tx58)
 
-				body, err := e.createAndExecReq(payload)
+				body, err := e.createAndExecReq(ctx, payload)
 				if err != nil {
 					logger.Error("sui_fetch_obvs_req failed", zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
@@ -454,7 +454,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func (w *Watcher) getEvents() ([]SuiResultInfo, error) {
+func (w *Watcher) getEvents(ctx context.Context) ([]SuiResultInfo, error) {
 	// Only get events newer than the last processed height
 	var retVal []SuiResultInfo
 	var results []SuiResult
@@ -473,7 +473,7 @@ func (w *Watcher) getEvents() ([]SuiResultInfo, error) {
 			payload = fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "suix_queryEvents", "params": [{ "MoveEventType": "%s" }, { "txDigest": "%s", "eventSeq": "%s" }, %d, %t]}`,
 				w.suiMoveEventType, nextCursor.TxDigest, nextCursor.EventSeq, w.maximumBatchSize, w.descendingOrder)
 		}
-		res, err := w.suiQueryEvents(payload)
+		res, err := w.suiQueryEvents(ctx, payload)
 		if err != nil {
 			return retVal, err
 		}
@@ -489,7 +489,7 @@ func (w *Watcher) getEvents() ([]SuiResultInfo, error) {
 			return retVal, errors.New("getEvents was unable to get any events")
 		}
 		// Get and check the checkpoint for the last event against the lastProcessedHeight to see if we are done.
-		height, hErr := w.getCheckpointForDigest(txs[len(txs)-1])
+		height, hErr := w.getCheckpointForDigest(ctx, txs[len(txs)-1])
 		if hErr != nil {
 			return retVal, hErr
 		}
@@ -502,7 +502,7 @@ func (w *Watcher) getEvents() ([]SuiResultInfo, error) {
 	// At this point we have events but no checkpoints.
 	// Also, we probably have more events than we need.
 	// Need to do a bulk query to get all the checkpoints and then filter out the ones we don't need.
-	mbRes, err := w.getMultipleBlocks(txs)
+	mbRes, err := w.getMultipleBlocks(ctx, txs)
 	if err != nil {
 		return retVal, err
 	}
@@ -530,7 +530,7 @@ func (w *Watcher) getEvents() ([]SuiResultInfo, error) {
 	return retVal, nil
 }
 
-func (w *Watcher) getMultipleBlocks(txs []string) ([]TxBlockResult, error) {
+func (w *Watcher) getMultipleBlocks(ctx context.Context, txs []string) ([]TxBlockResult, error) {
 	retVal := []TxBlockResult{}
 	payload := RequestPayload{
 		JSONRPC: "2.0",
@@ -544,7 +544,7 @@ func (w *Watcher) getMultipleBlocks(txs []string) ([]TxBlockResult, error) {
 		return retVal, fmt.Errorf("getMultipleBlocks failed to marshal payload: %w", err)
 	}
 
-	body, err := w.createAndExecReq(string(payloadBytes))
+	body, err := w.createAndExecReq(ctx, string(payloadBytes))
 	if err != nil {
 		return retVal, fmt.Errorf("getMultipleBlocks failed to create and execute request: %w", err)
 	}
@@ -559,10 +559,10 @@ func (w *Watcher) getMultipleBlocks(txs []string) ([]TxBlockResult, error) {
 	return retVal, nil
 }
 
-func (e *Watcher) getLatestCheckpointSN(logger *zap.Logger) (int64, error) {
+func (e *Watcher) getLatestCheckpointSN(ctx context.Context, logger *zap.Logger) (int64, error) {
 	payload := `{"jsonrpc":"2.0", "id": 1, "method": "sui_getLatestCheckpointSequenceNumber", "params": []}`
 
-	body, err := e.createAndExecReq(payload)
+	body, err := e.createAndExecReq(ctx, payload)
 	if err != nil {
 		logger.Error("sui_getLatestCheckpointSequenceNumber failed", zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
@@ -586,11 +586,11 @@ func (e *Watcher) getLatestCheckpointSN(logger *zap.Logger) (int64, error) {
 	return height, nil
 }
 
-func (e *Watcher) getCheckpointForDigest(tx string) (int64, error) {
+func (e *Watcher) getCheckpointForDigest(ctx context.Context, tx string) (int64, error) {
 	retVal := int64(0)
 	payload := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getTransactionBlock", "params": [ "%s" ]}`, tx)
 
-	body, err := e.createAndExecReq(payload)
+	body, err := e.createAndExecReq(ctx, payload)
 	if err != nil {
 		return retVal, fmt.Errorf("getCheckpointForDigest failed to create and execute request: %w", err)
 	}
@@ -608,10 +608,10 @@ func (e *Watcher) getCheckpointForDigest(tx string) (int64, error) {
 	return retVal, nil
 }
 
-func (w *Watcher) suiQueryEvents(payload string) (SuiEventResponse, error) {
+func (w *Watcher) suiQueryEvents(ctx context.Context, payload string) (SuiEventResponse, error) {
 	retVal := SuiEventResponse{}
 
-	body, err := w.createAndExecReq(payload)
+	body, err := w.createAndExecReq(ctx, payload)
 	if err != nil {
 		return retVal, fmt.Errorf("suix_queryEvents failed to create and execute request: %w", err)
 	}
@@ -623,12 +623,12 @@ func (w *Watcher) suiQueryEvents(payload string) (SuiEventResponse, error) {
 	return retVal, nil
 }
 
-func (w *Watcher) createAndExecReq(payload string) ([]byte, error) {
+func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte, error) {
 	var retVal []byte
-	ctx, cancel := context.WithTimeout(context.Background(), w.postTimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, w.postTimeout)
 	defer cancel()
 	// Create a new request with the context
-	req, err := http.NewRequestWithContext(ctx, "POST", w.suiRPC, strings.NewReader(payload))
+	req, err := http.NewRequestWithContext(timeoutCtx, "POST", w.suiRPC, strings.NewReader(payload))
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to create request: %w, payload: %s", err, payload)
 	}
