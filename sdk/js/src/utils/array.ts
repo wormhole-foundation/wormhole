@@ -70,7 +70,7 @@ const isLikely20ByteCosmwasm = (h: string): boolean =>
   h.startsWith("000000000000000000000000");
 
 export const nativeTerraHexToDenom = (h: string): string =>
-  Buffer.from(stripZeros(hexToUint8Array(h.substr(2)))).toString("ascii");
+  Buffer.from(stripZeros(hexToUint8Array(h.substring(2)))).toString("ascii");
 
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   Buffer.from(a).toString("hex");
