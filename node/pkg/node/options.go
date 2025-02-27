@@ -304,7 +304,8 @@ func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 					logger.Info("status server listening", zap.String("status_addr", statusAddr))
 
 					<-ctx.Done()
-					if err := server.Shutdown(context.Background()); err != nil { // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+					//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+					if err := server.Shutdown(context.Background()); err != nil {
 						logger := supervisor.Logger(ctx)
 						logger.Error("error while shutting down status server: ", zap.Error(err))
 					}
@@ -496,6 +497,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 		name:         "admin-service",
 		dependencies: []string{"governor", "db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			//nolint:contextcheck // Independent service that should not be affected by other services
 			adminService, err := adminServiceRunnable(
 				logger,
 				socketPath,
@@ -527,11 +529,11 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 		dependencies: []string{"db", "governor"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			// local public grpc service socket
+			//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
 				return fmt.Errorf("failed to create publicrpc service: %w", err)
 			}
-
 			g.runnables["publicrpcsocket"] = publicrpcUnixService
 			g.publicrpcServer = publicrpcServer
 			return nil

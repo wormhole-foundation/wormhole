@@ -268,7 +268,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 		case <-timer.C:
-			status, err := algodClient.Status().Do(context.Background())
+			status, err := algodClient.Status().Do(ctx)
 			if err != nil {
 				logger.Error(fmt.Sprintf("algodClient.Status: %s", err.Error()))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -277,7 +277,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			if e.next_round <= status.LastRound {
 				for {
-					block, err := algodClient.Block(e.next_round).Do(context.Background())
+					block, err := algodClient.Block(e.next_round).Do(ctx)
 					if err != nil {
 						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
 						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
