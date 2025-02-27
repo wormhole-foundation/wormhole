@@ -359,7 +359,7 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	// Use deterministic devnet addresses as examples in the template, such that this doubles as a test fixture.
 	guardians := make([]*nodev1.GuardianSetUpdate_Guardian, *setUpdateNumGuardians)
 	for i := 0; i < *setUpdateNumGuardians; i++ {
-		k := devnet.InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(i))
+		k := devnet.InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(i)) // #nosec G115 -- Number of guardians will never overflow here
 		guardians[i] = &nodev1.GuardianSetUpdate_Guardian{
 			Pubkey: crypto.PubkeyToAddress(k.PublicKey).Hex(),
 			Name:   fmt.Sprintf("Example validator %d", i),
@@ -367,7 +367,7 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -397,7 +397,7 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -429,7 +429,7 @@ func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -463,7 +463,7 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -505,7 +505,7 @@ func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -596,7 +596,7 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 		log.Fatalf("reason is too long, can be at most %d bytes", vaa.AccountantModifyBalanceReasonLength)
 	}
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -642,7 +642,7 @@ func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -695,7 +695,7 @@ func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, ar
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -736,7 +736,7 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -775,7 +775,7 @@ func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -812,7 +812,7 @@ func runWormchainInstantiateContractTemplate(cmd *cobra.Command, args []string) 
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -851,7 +851,7 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -895,7 +895,7 @@ func runWormchainWasmInstantiateAllowlistTemplate(action nodev1.WormchainWasmIns
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -933,7 +933,7 @@ func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -957,7 +957,7 @@ func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 func runGatewayCancelUpgradeTemplate(cmd *cobra.Command, args []string) {
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -980,7 +980,7 @@ func runGatewayIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args []
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -1034,7 +1034,7 @@ func runIbcUpdateChannelChainTemplate(module nodev1.IbcUpdateChannelChainModule)
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -1070,7 +1070,7 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -1119,7 +1119,7 @@ func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []strin
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),
@@ -1163,7 +1163,7 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: rand.Uint64(),

@@ -39,7 +39,7 @@ func createQueryResponseFromRequestWithRequestBytes(t *testing.T, queryRequest *
 			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
 				ChainId: pcr.ChainId,
 				Response: &EthCallQueryResponse{
-					BlockNumber: uint64(1000 + idx),
+					BlockNumber: uint64(1000 + idx), // #nosec G115 -- This is safe in this test suite
 					Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
 					Time:        timeForTest(t, time.Now()),
 					Results:     results,
@@ -54,10 +54,10 @@ func createQueryResponseFromRequestWithRequestBytes(t *testing.T, queryRequest *
 			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
 				ChainId: pcr.ChainId,
 				Response: &EthCallByTimestampQueryResponse{
-					TargetBlockNumber:    uint64(1000 + idx),
+					TargetBlockNumber:    uint64(1000 + idx), // #nosec G115 -- This is safe in this test suite
 					TargetBlockHash:      ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
 					TargetBlockTime:      timeForTest(t, time.Now()),
-					FollowingBlockNumber: uint64(1000 + idx + 1),
+					FollowingBlockNumber: uint64(1000 + idx + 1), // #nosec G115 -- This is safe in this test suite
 					FollowingBlockHash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3"),
 					FollowingBlockTime:   timeForTest(t, time.Now().Add(10*time.Second)),
 					Results:              results,
@@ -72,7 +72,7 @@ func createQueryResponseFromRequestWithRequestBytes(t *testing.T, queryRequest *
 			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
 				ChainId: pcr.ChainId,
 				Response: &EthCallWithFinalityQueryResponse{
-					BlockNumber: uint64(1000 + idx),
+					BlockNumber: uint64(1000 + idx), // #nosec G115 -- This is safe in this test suite
 					Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
 					Time:        timeForTest(t, time.Now()),
 					Results:     results,
@@ -282,8 +282,8 @@ func createSolanaAccountQueryResponseFromRequest(t *testing.T, queryRequest *Que
 			results := []SolanaAccountResult{}
 			for idx := range req.Accounts {
 				results = append(results, SolanaAccountResult{
-					Lamports:   uint64(2000 + idx),
-					RentEpoch:  uint64(3000 + idx),
+					Lamports:   uint64(2000 + idx), // #nosec G115 -- This is safe in this test suite
+					RentEpoch:  uint64(3000 + idx), // #nosec G115 -- This is safe in this test suite
 					Executable: (idx%2 == 0),
 					Owner:      ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
 					Data:       []byte([]byte(fmt.Sprintf("Result %d", idx))),
@@ -292,7 +292,7 @@ func createSolanaAccountQueryResponseFromRequest(t *testing.T, queryRequest *Que
 			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
 				ChainId: pcr.ChainId,
 				Response: &SolanaAccountQueryResponse{
-					SlotNumber: uint64(1000 + idx),
+					SlotNumber: uint64(1000 + idx), // #nosec G115 -- This is safe in this test suite
 					BlockTime:  timeForTest(t, time.Now()),
 					BlockHash:  ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3"),
 					Results:    results,
@@ -345,9 +345,9 @@ func createSolanaPdaQueryResponseFromRequest(t *testing.T, queryRequest *QueryRe
 			for idx := range req.PDAs {
 				results = append(results, SolanaPdaResult{
 					Account:    ethCommon.HexToHash("4fa9188b339cfd573a0778c5deaeeee94d4bcfb12b345bf8e417e5119dae773e"),
-					Bump:       uint8(255 - idx),
-					Lamports:   uint64(2000 + idx),
-					RentEpoch:  uint64(3000 + idx),
+					Bump:       uint8(255 - idx),   // #nosec G115 -- This is safe in this test suite
+					Lamports:   uint64(2000 + idx), // #nosec G115 -- This is safe in this test suite
+					RentEpoch:  uint64(3000 + idx), // #nosec G115 -- This is safe in this test suite
 					Executable: (idx%2 == 0),
 					Owner:      ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
 					Data:       []byte([]byte(fmt.Sprintf("Result %d", idx))),
@@ -356,7 +356,7 @@ func createSolanaPdaQueryResponseFromRequest(t *testing.T, queryRequest *QueryRe
 			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
 				ChainId: pcr.ChainId,
 				Response: &SolanaPdaQueryResponse{
-					SlotNumber: uint64(1000 + idx),
+					SlotNumber: uint64(1000 + idx), // #nosec G115 -- This is safe in this test suite
 					BlockTime:  timeForTest(t, time.Now()),
 					BlockHash:  ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e3"),
 					Results:    results,

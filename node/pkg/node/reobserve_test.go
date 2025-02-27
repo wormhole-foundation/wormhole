@@ -29,7 +29,7 @@ func setUpReobservationTest() (reobservationTestContext, func()) {
 
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
 	for i := 0; i < 10; i++ {
-		chainObsvReqC[vaa.ChainID(i)] = make(chan *gossipv1.ObservationRequest, 1)
+		chainObsvReqC[vaa.ChainID(i)] = make(chan *gossipv1.ObservationRequest, 1) // #nosec G115 -- This conversion is safe as we're only looping to 10
 	}
 
 	go handleReobservationRequests(ctx, clock, zap.NewNop(), obsvReqC, chainObsvReqC)
@@ -66,7 +66,7 @@ func TestReobservationRequest(t *testing.T) {
 
 	ctx.obsvReqC <- req
 
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 
 	assert.Equal(t, req, actual)
@@ -83,14 +83,14 @@ func TestDuplicateReobservation(t *testing.T) {
 
 	ctx.obsvReqC <- req
 
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
 
 	// Receiving the same request again should not trigger another re-observation.
 	ctx.obsvReqC <- req
 
-	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	assert.False(t, ok)
 }
 
@@ -105,7 +105,7 @@ func TestMultipleReobservations(t *testing.T) {
 
 	ctx.obsvReqC <- req
 
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
 
@@ -114,7 +114,7 @@ func TestMultipleReobservations(t *testing.T) {
 
 	ctx.obsvReqC <- req
 
-	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
 
@@ -122,7 +122,7 @@ func TestMultipleReobservations(t *testing.T) {
 	req.ChainId = 3
 	ctx.obsvReqC <- req
 
-	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
 }
@@ -132,13 +132,13 @@ func TestReobserveUnknownChainId(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: uint32(len(ctx.chainObsvReqC)) + 1,
+		ChainId: uint32(len(ctx.chainObsvReqC)) + 1, // #nosec G115 -- This is safe as it's 10 + 1
 		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
 	}
 
 	ctx.obsvReqC <- req
 
-	_, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	_, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 10 + 1 above
 	assert.False(t, ok)
 }
 
@@ -153,7 +153,7 @@ func TestReobservationCacheEviction(t *testing.T) {
 
 	ctx.obsvReqC <- req
 
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
 
@@ -163,7 +163,7 @@ func TestReobservationCacheEviction(t *testing.T) {
 	// Receiving the same request again should not trigger another re-observation.
 	ctx.obsvReqC <- req
 
-	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	assert.False(t, ok)
 
 	// Advance the clock by another 7 minutes, which should evict the re-observation request
@@ -173,7 +173,7 @@ func TestReobservationCacheEviction(t *testing.T) {
 	// This time the request should be passed through.
 	ctx.obsvReqC <- req
 
-	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	require.True(t, ok)
 	assert.Equal(t, req, actual)
 }
@@ -203,10 +203,10 @@ func TestBlockingSend(t *testing.T) {
 	// when the handler is done without adding unnecessary complexity.
 	time.Sleep(50 * time.Millisecond)
 
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
+	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	assert.True(t, ok)
 	assert.Equal(t, req, actual)
 
-	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req2.ChainId)])
+	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req2.ChainId)]) // #nosec G115 -- Chain id set to 1 above
 	assert.False(t, ok)
 }
