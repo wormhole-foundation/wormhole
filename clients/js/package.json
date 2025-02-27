@@ -21,7 +21,7 @@
     "buffer-layout": "^1.2.2",
     "config": "^3.3.7",
     "dotenv": "^10.0.0",
-    "ethers": "^6.0.0",
+    "ethers": "^6.13.1",
     "js-base64": "^3.6.1",
     "near-api-js": "^0.45.1",
     "near-seed-phrase": "^0.2.0",
