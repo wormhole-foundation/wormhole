@@ -31,7 +31,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 	// by relying on the same websocket connection).
 
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-	blockNumber, msgs, err := MessageEventsForTransaction(timeout, ethConn, w.contract, w.chainID, tx)
+	receipt, blockNumber, msgs, err := MessageEventsForTransaction(timeout, ethConn, w.contract, w.chainID, tx)
 	cancel()
 
 	if err != nil {
@@ -47,7 +47,14 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("current_block", finalizedBlockNum),
 				zap.Uint64("observed_block", blockNumber),
 			)
-			w.msgC <- msg
+
+			pubErr := w.publishIfSafe(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+
+			if pubErr != nil {
+				w.logger.Error("Error when publishing message", zap.Error(err))
+				continue
+			}
+
 			numObservations++
 			continue
 		}
@@ -68,7 +75,14 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 					zap.Uint64("current_safe_block", safeBlockNum),
 					zap.Uint64("observed_block", blockNumber),
 				)
-				w.msgC <- msg
+
+				pubErr := w.publishIfSafe(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+
+				if pubErr != nil {
+					w.logger.Error("Error when publishing message", zap.Error(err))
+					continue
+				}
+
 				numObservations++
 			} else {
 				w.logger.Info("ignoring re-observed message publication transaction",
@@ -106,7 +120,14 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("current_block", finalizedBlockNum),
 				zap.Uint64("observed_block", blockNumber),
 			)
-			w.msgC <- msg
+
+			pubErr := w.publishIfSafe(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+
+			if pubErr != nil {
+				w.logger.Error("Error when publishing message", zap.Error(err))
+				continue
+			}
+
 			numObservations++
 		} else {
 			w.logger.Info("ignoring re-observed message publication transaction",
