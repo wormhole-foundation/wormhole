@@ -4,6 +4,7 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -287,7 +288,7 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 	if v == nil {
 		vb, err := p.db.GetSignedVAABytes(*vaaID)
 		if err != nil {
-			if err == db.ErrVAANotFound {
+			if errors.Is(err, db.ErrVAANotFound) {
 				if p.logger.Level().Enabled(zapcore.DebugLevel) {
 					p.logger.Debug("VAA not in DB",
 						zap.String("message_id", s.ourObservation.MessageID()),

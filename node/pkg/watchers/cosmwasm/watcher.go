@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -156,6 +157,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
+	//nolint:bodyclose // The close is down below. The linter misses it.
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
@@ -242,7 +244,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != e.chainID {
+				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
 					panic("invalid chain ID")
 				}
 

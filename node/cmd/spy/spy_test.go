@@ -3,6 +3,7 @@ package spy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -173,7 +174,7 @@ func TestSpyHandleGossipVAA(t *testing.T) {
 		defer close(doneCh)
 		// receive is a blocking call, it will keep receiving/looping until the pipe breaks.
 		signedVAA, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			t.Log("the SignedVAA stream has closed, err == io.EOF. going to break.")
 			t.Fail()
 			return
@@ -238,7 +239,7 @@ func TestSpyHandleEmitterFilter(t *testing.T) {
 		defer close(doneCh)
 		// receive is a blocking call, it will keep receiving/looping until the pipe breaks.
 		signedVAA, err := emitterFilterStream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			t.Log("the SignedVAA stream has closed, err == io.EOF. going to break.")
 			t.Fail()
 			return
@@ -274,7 +275,7 @@ func TestSpyHandleEmitterFilter(t *testing.T) {
 		t.Fatal("failed to publish signed VAA")
 	}
 	// should not be sent to us by the server
-	// everything passes the filter except except for emitterAddress
+	// everything passes the filter except for emitterAddress
 	differentEmitter := vaa.Address{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	msg2 := getVAA(vaa.ChainIDEthereum, differentEmitter)
 	msg2Bytes, err := msg2.Marshal()

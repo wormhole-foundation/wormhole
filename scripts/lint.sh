@@ -89,7 +89,7 @@ while getopts 'cwdlgh' opt; do
         SELF_ARGS_WITHOUT_DOCKER+="-l "
         ;;
     g)
-        GOLANGCI_LINT_ARGS+="--out-format=github-actions "
+        GOLANGCI_LINT_ARGS+=""
         GITHUB_ACTION="true"
         SELF_ARGS_WITHOUT_DOCKER+="-g "
         ;;

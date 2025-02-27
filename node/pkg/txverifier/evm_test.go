@@ -6,6 +6,7 @@ package txverifier
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -678,7 +679,8 @@ func TestProcessReceipt(t *testing.T) {
 
 			if err != nil {
 				assert.True(t, test.shouldError, "test should have returned an error")
-				_, ok := err.(*InvariantError)
+				var invErr *InvariantError
+				ok := errors.As(err, &invErr)
 				assert.True(t, ok, "wrong error type. expected InvariantError, got: `%w`", err)
 			} else {
 				assert.False(t, test.shouldError, "test should not have returned an error but got: `%w`", err)

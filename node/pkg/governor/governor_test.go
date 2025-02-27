@@ -46,8 +46,8 @@ func (gov *ChainGovernor) initConfigForTest(
 	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
 }
 
-func (gov *ChainGovernor) setDayLengthInMinutes(min int) {
-	gov.dayLengthInMinutes = min
+func (gov *ChainGovernor) setDayLengthInMinutes(minimum int) {
+	gov.dayLengthInMinutes = minimum
 }
 
 // Utility method: adds a new `chainEntry` to `gov`
@@ -218,7 +218,7 @@ func TestSumAllFromToday(t *testing.T) {
 	transfers = append(transfers, transfer)
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, uint64(125000), uint64(sum))
+	assert.Equal(t, uint64(125000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
 	assert.Equal(t, 1, len(updatedTransfers))
 }
 
@@ -470,7 +470,7 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 
 	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, emitterTransferValue*uint64(expectedNumTransfers), usage)
+	assert.Equal(t, emitterTransferValue*uint64(expectedNumTransfers), usage) // #nosec G115 -- If this overflowed the test would fail anyway
 }
 
 func TestTrimAndSumValueOverflowErrors(t *testing.T) {
@@ -564,7 +564,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(updatedTransfers))
-	assert.Equal(t, uint64(225000), uint64(sum))
+	assert.Equal(t, uint64(225000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
 }
 
 func TestTrimSeveralTransfers(t *testing.T) {
@@ -620,7 +620,7 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(updatedTransfers))
-	assert.Equal(t, uint64(465000), uint64(sum))
+	assert.Equal(t, uint64(465000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
 }
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
@@ -2246,7 +2246,7 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	msg.MessageIDString()
 
 	// check that the enqueued vaa's release date is now + 1 day
-	expectedReleaseTime := uint32(now.Add(24 * time.Hour).Unix())
+	expectedReleaseTime := uint32(now.Add(24 * time.Hour).Unix()) // #nosec G115 -- This conversion is safe until year 2106
 	enqueuedVaas := gov.GetEnqueuedVAAs()
 	assert.Equal(t, len(enqueuedVaas), 1)
 	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
@@ -2258,7 +2258,7 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	// check that the enqueued vaa's release date is now + 5 days
 	enqueuedVaas = gov.GetEnqueuedVAAs()
 	assert.Equal(t, len(enqueuedVaas), 1)
-	expectedReleaseTime = uint32(now.Add(5 * 24 * time.Hour).Unix())
+	expectedReleaseTime = uint32(now.Add(5 * 24 * time.Hour).Unix()) // #nosec G115 -- This conversion is safe until year 2106
 	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
 
 }
@@ -2905,7 +2905,8 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	governorUsageEth, err = gov.TrimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, uint64(8000), governorUsageEth)
-	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 2000) // Remaining capacity
+	// Remaining capacity
+	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 2000) // #nosec G115 -- If this overflowed the test would fail
 	require.NoError(t, err)
 	governorUsageSui, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, governorUsageSui)
@@ -2928,7 +2929,8 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	governorUsageEth, err = gov.TrimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, uint64(8050), governorUsageEth)
-	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 1950) // Remaining capacity
+	// Remaining capacity
+	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 1950) // #nosec G115 -- If this overflowed the test would fail
 	require.NoError(t, err)
 	governorUsageSui, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	require.NoError(t, err)
@@ -3324,7 +3326,7 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 		),
 	}
 
-	// Post the two big transfers and and verify they get enqueued.
+	// Post the two big transfers and verify they get enqueued.
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	canPost, err := gov.ProcessMsgForTime(&msg1, now)
 	require.NoError(t, err)

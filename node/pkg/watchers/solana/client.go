@@ -440,7 +440,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
 				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(slot),
+					Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
 					ContractAddress: contractAddr,
 				})
 
@@ -654,10 +654,10 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			programIndex = uint16(n)
+			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if s.shimEnabled && key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}

@@ -138,7 +138,7 @@ func main() {
 
 	// Manual p2p setup
 	components := p2p.DefaultComponents()
-	components.Port = uint(*p2pPort)
+	components.Port = uint(*p2pPort) // #nosec G115 -- TCP ports are 16 bit, so this conversion is safe
 	bootstrapPeers := *p2pBootstrap
 	networkID := *p2pNetworkID + "/ccq"
 

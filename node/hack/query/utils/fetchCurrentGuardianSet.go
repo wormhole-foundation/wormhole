@@ -24,6 +24,8 @@ func GetRpcUrl(network common.Environment) string {
 		return "http://localhost:8545"
 	case common.GoTest:
 		return "http://eth-devnet:8545"
+	case common.AccountantMock:
+		return ""
 	default:
 		return ""
 	}
@@ -67,6 +69,7 @@ func FetchCurrentGuardianSet(network common.Environment) (uint32, *ethAbi.Struct
 	case common.UnsafeDevNet:
 	case common.GoTest:
 		ethContract = "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+	case common.AccountantMock:
 	default:
 		return 0, nil, fmt.Errorf("unable to fetch guardian set for unknown network %s", network)
 	}

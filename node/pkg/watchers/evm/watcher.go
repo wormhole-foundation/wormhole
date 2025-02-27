@@ -2,6 +2,7 @@ package evm
 
 import (
 	"context"
+	"errors"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -391,7 +392,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if ev.Finality == connectors.Latest {
 					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.Height = int64(blockNumberU)
+					stats.Height = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 					w.updateNetworkStats(&stats)
 					w.ccqAddLatestBlock(ev)
 					continue
@@ -402,11 +403,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if ev.Finality == connectors.Safe {
 					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
 					currentEthSafeHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.SafeHeight = int64(blockNumberU)
+					stats.SafeHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				} else {
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.FinalizedHeight = int64(blockNumberU)
+					stats.FinalizedHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				}
 				w.updateNetworkStats(&stats)
 
@@ -434,7 +435,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						// Check multiple possible error cases - the node seems to return a
 						// "not found" error most of the time, but it could conceivably also
 						// return a nil tx or rpc.ErrNoResult.
-						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
+						if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", pLock.message.TxIDString()),
@@ -678,7 +679,7 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
 	message := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
-		Timestamp:        time.Unix(int64(blockTime), 0),
+		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
 		EmitterChain:     w.chainID,
