@@ -6,7 +6,7 @@
     "@certusone/wormhole-sdk": "^0.10.18",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "axios": "^1.6.4",
-    "ethers": "^6.0.0"
+    "ethers": "^6.13.1"
   },
   "scripts": {}
 }
