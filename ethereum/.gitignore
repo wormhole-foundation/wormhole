@@ -5,3 +5,6 @@ flattened
 ethers-contracts
 build-forge/
 broadcast/
+corpus/
+crytic-cache/
+crytic-export/
