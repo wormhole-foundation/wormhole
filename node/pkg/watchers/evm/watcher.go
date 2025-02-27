@@ -838,7 +838,8 @@ func canRetryGetBlockTime(err error) bool {
 	return exists
 }
 
-// publishIfSafe validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message.
+// publishIfSafe validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message. This function
+// should be the only location where the watcher's msgC channel is written to.
 // The MessagePulication is checked against either its corresponding raw message publication event log or else a transaction receipt.
 func (w *Watcher) publishIfSafe(
 	msg *common.MessagePublication,
