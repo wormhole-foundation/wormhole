@@ -12,10 +12,14 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
@@ -83,6 +87,45 @@ func verifyForEnv(env common.Environment) {
 			}
 
 			fmt.Printf("EVM chain ID match for %v %v: value: %v\n", env, entry.ChainID, evmChainID)
+
+			if entry.Entry.Finalized || entry.Entry.Safe {
+				err := verifyFinality(ctx, entry.Entry.PublicRPC, entry.Entry.Finalized, entry.Entry.Safe)
+				if err != nil {
+					fmt.Printf("ERROR: failed to verify finality values for %v %v: %v\n", env, entry.ChainID, err)
+					os.Exit(1)
+				}
+			}
 		}
 	}
+}
+
+func verifyFinality(ctx context.Context, url string, finalized, safe bool) error {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	c, err := rpc.DialContext(timeout, url)
+	if err != nil {
+		return fmt.Errorf("failed to connect to endpoint: %w", err)
+	}
+
+	type Marshaller struct {
+		Number *eth_hexutil.Big
+	}
+	var m Marshaller
+
+	if finalized {
+		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "finalized", false)
+		if err != nil || m.Number == nil {
+			return fmt.Errorf("finalized not supported by the node when it should be")
+		}
+	}
+
+	if safe {
+		err = c.CallContext(ctx, &m, "eth_getBlockByNumber", "safe", false)
+		if err != nil || m.Number == nil {
+			return fmt.Errorf("safe not supported by the node when it should be")
+		}
+	}
+
+	return nil
 }

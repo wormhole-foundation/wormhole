@@ -27,6 +27,10 @@ import (
 type (
 	// EnvEntry specifies the config data for a given chain / environment.
 	EnvEntry struct {
+		// InstantFinality indicates that the chain has instant finality, meaning finalized and safe blocks can be generated along with the latest block.
+		// Note that if InstantFinality is set to true, Finalized and Safe are for documentation purposes only.
+		InstantFinality bool
+
 		// Finalized indicates if the chain supports querying for finalized blocks.
 		Finalized bool
 
@@ -58,13 +62,13 @@ var (
 		// Polygon supports polling for finalized but not safe: https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
 		vaa.ChainIDPolygon: {Finalized: true, Safe: false, EvmChainID: 137, PublicRPC: "https://polygon-bor-rpc.publicnode.com"},
 
-		vaa.ChainIDAvalanche: {Finalized: false, Safe: false, EvmChainID: 43114, PublicRPC: "https://avalanche-c-chain-rpc.publicnode.com"},
-		vaa.ChainIDOasis:     {Finalized: false, Safe: false, EvmChainID: 42262, PublicRPC: "https://emerald.oasis.dev/"},
+		vaa.ChainIDAvalanche: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 43114, PublicRPC: "https://avalanche-c-chain-rpc.publicnode.com"},
+		vaa.ChainIDOasis:     {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 42262, PublicRPC: "https://emerald.oasis.dev/"},
 		// vaa.ChainIDAurora:    Not supported in the guardian.
-		vaa.ChainIDFantom:   {Finalized: false, Safe: false, EvmChainID: 250, PublicRPC: "https://fantom-rpc.publicnode.com"},
+		vaa.ChainIDFantom:   {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 250, PublicRPC: "https://fantom-rpc.publicnode.com"},
 		vaa.ChainIDKarura:   {Finalized: true, Safe: true, EvmChainID: 686, PublicRPC: "https://eth-rpc-karura.aca-api.network/"},
 		vaa.ChainIDAcala:    {Finalized: true, Safe: true, EvmChainID: 787, PublicRPC: "https://eth-rpc-acala.aca-api.network/"},
-		vaa.ChainIDKlaytn:   {Finalized: false, Safe: false, EvmChainID: 8217}, // As of Feb 2025, can't find a working public node.
+		vaa.ChainIDKlaytn:   {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 8217}, // As of Feb 2025, can't find a working public node.
 		vaa.ChainIDCelo:     {Finalized: true, Safe: false, EvmChainID: 42220, PublicRPC: "https://celo-rpc.publicnode.com"},
 		vaa.ChainIDMoonbeam: {Finalized: true, Safe: true, EvmChainID: 1284, PublicRPC: "https://moonbeam-rpc.publicnode.com"},
 		vaa.ChainIDArbitrum: {Finalized: true, Safe: true, EvmChainID: 42161, PublicRPC: "https://arbitrum-one-rpc.publicnode.com"},
@@ -83,9 +87,9 @@ var (
 		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 196, PublicRPC: "https://xlayerrpc.okx.com"},
 
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
-		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://linea-rpc.publicnode.com"},
+		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://rpc.linea.build"},
 
-		vaa.ChainIDBerachain: {Finalized: false, Safe: false, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com"},
+		vaa.ChainIDBerachain: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com"},
 		// vaa.ChainIDSeiEVM:     Not in Mainnet yet.
 		// vaa.ChainIDEclipse:    Not supported in the guardian.
 		// vaa.ChainIDBOB:        Not supported in the guardian.
@@ -102,19 +106,19 @@ var (
 	// NOTE: If you change this data, be sure and run the tests described at the top of this file!
 	testnetChainConfig = EnvMap{
 		// For Ethereum testnet we actually use Holeksy since Goerli is deprecated.
-		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://ethereum-holesky-rpc.publicnode.com"},
+		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky"},
 		vaa.ChainIDBSC:      {Finalized: true, Safe: true, EvmChainID: 97, PublicRPC: "https://bsc-testnet-rpc.publicnode.com"},
 
 		// Polygon supports polling for finalized but not safe: https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
 		vaa.ChainIDPolygon: {Finalized: true, Safe: false, EvmChainID: 80001}, // Polygon Mumbai is deprecated.
 
-		vaa.ChainIDAvalanche: {Finalized: false, Safe: false, EvmChainID: 43113, PublicRPC: "https://avalanche-fuji-c-chain-rpc.publicnode.com"},
-		vaa.ChainIDOasis:     {Finalized: false, Safe: false, EvmChainID: 42261, PublicRPC: "https://testnet.emerald.oasis.dev"},
+		vaa.ChainIDAvalanche: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 43113, PublicRPC: "https://avalanche-fuji-c-chain-rpc.publicnode.com"},
+		vaa.ChainIDOasis:     {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 42261, PublicRPC: "https://testnet.emerald.oasis.dev"},
 		// vaa.ChainIDAurora:    Not supported in the guardian.
-		vaa.ChainIDFantom:   {Finalized: false, Safe: false, EvmChainID: 4002, PublicRPC: "https://fantom-testnet-rpc.publicnode.com"},
+		vaa.ChainIDFantom:   {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 4002, PublicRPC: "https://fantom-testnet-rpc.publicnode.com"},
 		vaa.ChainIDKarura:   {Finalized: true, Safe: true, EvmChainID: 596, PublicRPC: "https://eth-rpc-karura-testnet.aca-staging.network"},
 		vaa.ChainIDAcala:    {Finalized: true, Safe: true, EvmChainID: 597, PublicRPC: "https://eth-rpc-acala-testnet.aca-staging.network"},
-		vaa.ChainIDKlaytn:   {Finalized: false, Safe: false, EvmChainID: 1001}, // As of Feb 2025, can't find a working public node.
+		vaa.ChainIDKlaytn:   {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 1001}, // As of Feb 2025, can't find a working public node.
 		vaa.ChainIDCelo:     {Finalized: true, Safe: true, EvmChainID: 44787, PublicRPC: "https://alfajores-forno.celo-testnet.org"},
 		vaa.ChainIDMoonbeam: {Finalized: true, Safe: true, EvmChainID: 1287, PublicRPC: "https://rpc.api.moonbase.moonbeam.network"},
 		vaa.ChainIDArbitrum: {Finalized: true, Safe: true, EvmChainID: 421613}, // Arbitrum Goerli is deprecated.
@@ -128,14 +132,14 @@ var (
 		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
 		vaa.ChainIDScroll: {Finalized: true, Safe: false, EvmChainID: 534351, PublicRPC: "https://scroll-sepolia-rpc.publicnode.com"},
 
-		vaa.ChainIDMantle: {Finalized: true, Safe: true, EvmChainID: 5003, PublicRPC: "https://mantle-sepolia.drpc.org"},
-		vaa.ChainIDBlast:  {Finalized: true, Safe: true, EvmChainID: 168587773, PublicRPC: "https://blast-sepolia.drpc.org"},
+		vaa.ChainIDMantle: {Finalized: true, Safe: true, EvmChainID: 5003, PublicRPC: "https://rpc.sepolia.mantle.xyz"},
+		vaa.ChainIDBlast:  {Finalized: true, Safe: true, EvmChainID: 168587773, PublicRPC: "https://sepolia.blast.io"},
 		vaa.ChainIDXLayer: {Finalized: true, Safe: true, EvmChainID: 195, PublicRPC: "https://xlayertestrpc.okx.com"},
 
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
-		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59141, PublicRPC: "https://linea-sepolia-rpc.publicnode.com"},
+		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59141, PublicRPC: "https://rpc.sepolia.linea.build"},
 
-		vaa.ChainIDBerachain: {Finalized: false, Safe: false, EvmChainID: 80084, PublicRPC: "https://bartio.rpc.berachain.com"},
+		vaa.ChainIDBerachain: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 80084, PublicRPC: "https://bartio.rpc.berachain.com"},
 		vaa.ChainIDSeiEVM:    {Finalized: true, Safe: true, EvmChainID: 1328, PublicRPC: "https://evm-rpc-testnet.sei-apis.com/"},
 		// vaa.ChainIDEclipse:     Not supported in the guardian.
 		// vaa.ChainIDBOB:         Not supported in the guardian.
@@ -149,7 +153,7 @@ var (
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com"},
 		vaa.ChainIDOptimismSepolia: {Finalized: true, Safe: true, EvmChainID: 11155420, PublicRPC: "https://optimism-sepolia-rpc.publicnode.com"},
-		vaa.ChainIDHolesky:         {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://ethereum-holesky-rpc.publicnode.com"},
+		vaa.ChainIDHolesky:         {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky"},
 		vaa.ChainIDPolygonSepolia:  {Finalized: true, Safe: false, EvmChainID: 80002, PublicRPC: "https://polygon-amoy-bor-rpc.publicnode.com"},
 	}
 )
@@ -175,6 +179,10 @@ func GetFinality(env common.Environment, chainID vaa.ChainID) (finalized bool, s
 	entry, exists := m[chainID]
 	if !exists {
 		return false, false, ErrNotFound
+	}
+
+	if entry.InstantFinality {
+		return false, false, nil
 	}
 
 	return entry.Finalized, entry.Safe, nil
