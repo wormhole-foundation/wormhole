@@ -85,6 +85,10 @@ type chainIds struct {
 	wormholeChainId vaa.ChainID
 }
 
+type TransferVerifierInterface interface {
+	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) bool
+}
+
 // TransferVerifier contains configuration values for verifying transfers.
 type TransferVerifier[E evmClient, C connector] struct {
 	Addresses *TVAddresses

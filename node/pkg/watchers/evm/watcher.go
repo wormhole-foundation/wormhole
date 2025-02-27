@@ -26,7 +26,6 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
-	eth_client "github.com/ethereum/go-ethereum/ethclient"
 
 	"go.uber.org/zap"
 
@@ -149,7 +148,8 @@ type (
 		// Whether the Transfer Verifier should be initialized for this watcher.
 		txVerifierEnabled bool
 		// Transfer Verifier instance
-		txVerifier *txverifier.TransferVerifier[*eth_client.Client, connectors.Connector]
+		txVerifier txverifier.TransferVerifierInterface
+		// txVerifier *txverifier.TransferVerifier[*eth_client.Client, connectors.Connector]
 	}
 
 	pendingKey struct {
@@ -274,32 +274,29 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return errors.New("watcher attempted to create Transfer Verifier but this chainId is not supported")
 			}
 
-			var tvErr error
-			var addrs txverifier.TVAddresses
-
+			// TODO: It would be better to avoid hard-coding the Wrapped Native Addresses.
+			var tbridge eth_common.Address
+			var weth eth_common.Address
 			switch w.env {
 			case common.UnsafeDevNet:
-				addrs = txverifier.TVAddresses{
-					CoreBridgeAddr:  w.contract,
-					TokenBridgeAddr: eth_common.BytesToAddress(sdk.KnownDevnetTokenbridgeEmitters[w.chainID]),
-					// TODO this shouldn't be hard-coded
-					WrappedNativeAddr: eth_common.HexToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"),
-				}
+				tbridge = eth_common.BytesToAddress(sdk.KnownDevnetTokenbridgeEmitters[w.chainID])
+				weth = eth_common.HexToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 			case common.TestNet:
-				addrs = txverifier.TVAddresses{
-					CoreBridgeAddr:  w.contract,
-					TokenBridgeAddr: eth_common.BytesToAddress(sdk.KnownTestnetTokenbridgeEmitters[w.chainID]),
-					// TODO this is wrong. Find WETH on testnet
-					WrappedNativeAddr: eth_common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
-				}
+				tbridge = eth_common.BytesToAddress(sdk.KnownTestnetTokenbridgeEmitters[w.chainID])
+				// NOTE: This is Holesky WETH address. Should it be Sepolia?
+				weth = eth_common.HexToAddress("0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8")
 			case common.MainNet:
-				addrs = txverifier.TVAddresses{
-					CoreBridgeAddr:    w.contract,
-					TokenBridgeAddr:   eth_common.Address(sdk.KnownTokenbridgeEmitters[w.chainID]),
-					WrappedNativeAddr: eth_common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
-				}
+				tbridge = eth_common.Address(sdk.KnownTokenbridgeEmitters[w.chainID])
+				// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+				weth = eth_common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+			}
+			addrs := txverifier.TVAddresses{
+				CoreBridgeAddr:    w.contract,
+				TokenBridgeAddr:   tbridge,
+				WrappedNativeAddr: weth,
 			}
 
+			var tvErr error
 			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
 				w.ethConn,
 				&addrs,

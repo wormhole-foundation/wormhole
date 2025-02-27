@@ -1,12 +1,18 @@
 package evm
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
+	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -51,5 +57,72 @@ func Test_canRetryGetBlockTime(t *testing.T) {
 	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
 }
 
-// Add test for publishIFSafe
-// requires creating a watcher object
+func TestPublishIfSafe(t *testing.T) {
+
+	msgC := make(chan *common.MessagePublication, 1)
+	w := NewWatcherForTest(t, msgC)
+
+	// Contents of the message don't matter for the sake of these tests.
+	msg := common.MessagePublication{}
+	ctx := context.TODO()
+
+	// Check preconditions
+	require.Equal(t, 0, len(w.msgC))
+
+	// Check nil message
+	err := w.publishIfSafe(nil, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "message publication cannot be nil")
+
+	// Check transfer verifier not enabled case. The message should be published normally
+	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg := <-msgC
+	require.NotNil(t, publishedMsg)
+	require.Equal(t, 0, len(msgC))
+
+	// Check scenario where transfer verifier is enabled but isn't initialized.
+	w.txVerifierEnabled = true
+	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "transfer verifier should be enabled but is nil")
+	require.Equal(t, 0, len(msgC))
+
+	// Check case where Transfer Verifier finds a dangerous transaction
+	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
+	w.txVerifier = failMock
+	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "transfer verification failed")
+	require.Equal(t, 0, len(msgC))
+
+	// Check happy path where txverifier is enabled and initialized
+	successMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{true}
+	w.txVerifier = successMock
+	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.NotNil(t, publishedMsg)
+	require.Equal(t, 0, len(msgC))
+}
+
+// Helper function to set up a test Ethereum Watcher
+func NewWatcherForTest(t *testing.T, msgC chan<- *common.MessagePublication) *Watcher {
+	t.Helper()
+
+	w := &Watcher{
+		// this is implicit but added here for clarity
+		txVerifierEnabled: false,
+		msgC:              msgC,
+	}
+
+	return w
+}
+
+type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
+	success bool
+}
+
+// Mock ProcessEvent function that simulates the evaluation made by the Transfer Verifier.
+func (m *MockTransferVerifier[E, C]) ProcessEvent(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt) bool {
+	return m.success
+}
