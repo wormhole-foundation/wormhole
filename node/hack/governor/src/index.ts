@@ -289,7 +289,7 @@ axios
       var tokenParts = token.split("-");
       var newTokenSymbol = newTokenKeys[tokenParts[0] + "-" + tokenParts[1]];
       if (!newTokenSymbol) {
-        removedTokens.push(token + " (https://www.coingecko.com/en/coins/" + newTokenSymbol[1] + ")");
+        removedTokens.push(token);
       }
       // The token symbol has changed
       // We take a substring of the symbol to cut the "=" character we added above

@@ -47,5 +47,8 @@
   "dependencies": {
     "@certusone/wormhole-sdk-proto-node": "^0.0.1",
     "@grpc/grpc-js": "^1.6.7"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

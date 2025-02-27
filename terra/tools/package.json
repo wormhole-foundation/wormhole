@@ -18,5 +18,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.4"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

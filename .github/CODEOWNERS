@@ -52,6 +52,10 @@
 
 /node/cmd/ @bruce-riley @panoel @evan-gray
 
+## Transfer Verifier standalone tool
+
+/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## DB
 
 /node/pkg/db/ @bruce-riley @evan-gray @panoel
@@ -83,6 +87,10 @@
 ## Supervisor Framework
 
 /node/pkg/supervisor/ @bruce-riley @evan-gray @panoel
+
+## Transfer Verifier
+
+/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Watchers
 

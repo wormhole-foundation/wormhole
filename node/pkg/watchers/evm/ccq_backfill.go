@@ -74,7 +74,7 @@ func (w *Watcher) ccqBackfillStart(ctx context.Context, errC chan error) {
 // ccqBackfillInit determines the maximum batch size to be used for backfilling the cache. It also loads the initial batch of timestamps.
 func (w *Watcher) ccqBackfillInit(ctx context.Context) error {
 	// Get the latest block so we can use that as the starting point in our cache.
-	latestBlock, err := connectors.GetLatestBlock(ctx, w.ccqLogger, w.ethConn)
+	latestBlock, err := connectors.GetLatestBlock(ctx, w.ethConn)
 	if err != nil {
 		return fmt.Errorf("failed to look up latest block: %w", err)
 	}

@@ -91,6 +91,10 @@ func (e *mockConnectorForBatchPoller) SubscribeForBlocks(ctx context.Context, er
 	return e.sub, fmt.Errorf("not implemented")
 }
 
+func (e *mockConnectorForBatchPoller) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
+	return e.prevLatest, e.prevFinalized, e.prevSafe, nil
+}
+
 func (e *mockConnectorForBatchPoller) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	panic("method not implemented by mockConnectorForBatchPoller")
 }

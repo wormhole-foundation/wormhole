@@ -181,6 +181,7 @@ trustlessly
 tsig
 tsproto
 TWAP
+txverifier
 uatom
 uluna
 unbond
