@@ -107,7 +107,7 @@ async fn test_post_signatures_lamports_already_in_guardian_signatures() {
     assert_eq!(
         out.simulation_details.unwrap().units_consumed,
         // 17_267
-        5_651
+        5_650
     );
 
     banks_client.process_transaction(transaction).await.unwrap();

@@ -407,6 +407,22 @@ fn create_account_reliably(
             data: Vec::with_capacity(MAX_CPI_DATA_LEN),
         };
 
+        // Safety: Because capacity is > 12, it is safe to set this length and
+        // to set the first 4 elements to zero, which covers the System program
+        // instruction selectors.
+        //
+        // The transfer and allocate instructions are 12 bytes long:
+        // - 4 bytes for the discriminator
+        // - 8 bytes for the lamports (transfer) or data length (allocate)
+        //
+        // The last 8 bytes will be copied to the data slice.
+        unsafe {
+            let cpi_data = &mut cpi_ix.data;
+
+            core::ptr::write_bytes(cpi_data.as_mut_ptr(), 0, 4);
+            cpi_data.set_len(12);
+        }
+
         // We will have to transfer the remaining lamports needed to cover rent
         // for the account.
         let lamport_diff = lamports.saturating_sub(current_lamports);
@@ -415,19 +431,6 @@ fn create_account_reliably(
         if lamport_diff != 0 {
             let cpi_data = &mut cpi_ix.data;
 
-            // Safety: Because the capacity is > 4, it is safe to write to the
-            // first 4 elements, which covers the System program instruction
-            // selectors.
-            //
-            // The transfer and allocate instructions are 12 bytes long:
-            // - 4 bytes for the discriminator
-            // - 8 bytes for the lamports (transfer) or data length (allocate)
-            //
-            // The last 8 bytes will be copied to the data slice.
-            unsafe {
-                core::ptr::write_bytes(cpi_data.as_mut_ptr(), 0, 4);
-                cpi_data.set_len(12);
-            }
             cpi_data[0] = 2; // transfer selector
             cpi_data[4..12].copy_from_slice(&lamport_diff.to_le_bytes());
 
