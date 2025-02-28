@@ -129,7 +129,7 @@ type (
 
 // valid checks whether a pipe is valid. A pipe is invalid if both chain IDs are equal.
 func (p *pipe) valid() bool {
-	return p.first != p.second
+	return p.first != p.second && p.first != vaa.ChainIDUnset && p.second != vaa.ChainIDUnset
 }
 
 // equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
