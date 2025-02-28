@@ -273,21 +273,19 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return errors.New("watcher attempted to create Transfer Verifier but this chainId is not supported")
 			}
 
-			// TODO: It would be better to avoid hard-coding the Wrapped Native Addresses.
 			var tbridge eth_common.Address
 			var weth eth_common.Address
 			switch w.env {
 			case common.UnsafeDevNet:
 				tbridge = eth_common.BytesToAddress(sdk.KnownDevnetTokenbridgeEmitters[w.chainID])
-				weth = eth_common.HexToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
+				weth = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
 			case common.TestNet:
 				tbridge = eth_common.BytesToAddress(sdk.KnownTestnetTokenbridgeEmitters[w.chainID])
-				// NOTE: This is Holesky WETH address. Should it be Sepolia?
-				weth = eth_common.HexToAddress("0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8")
+				weth = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
 			case common.MainNet:
 				tbridge = eth_common.Address(sdk.KnownTokenbridgeEmitters[w.chainID])
 				// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-				weth = eth_common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+				weth = sdk.KnownWrappedNativeAddress[w.chainID]
 			}
 			addrs := txverifier.TVAddresses{
 				CoreBridgeAddr:    w.contract,
@@ -295,15 +293,18 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				WrappedNativeAddr: weth,
 			}
 
+			// The block height difference between the latest block and the oldest block to keep in memory.
+			// Value is arbitrary and can be adjusted if it helps performance.
+			pruneHeightDelta := uint64(20)
 			var tvErr error
 			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
 				w.ethConn,
 				&addrs,
-				20,
+				pruneHeightDelta,
 				logger,
 			)
 			if tvErr != nil {
-				return fmt.Errorf("failed to create Transfer Verifier instance: %w", err)
+				return fmt.Errorf("failed to create Transfer Verifier instance: %w", tvErr)
 			}
 			logger.Info("initialized Transfer Verifier",
 				zap.String("watcher_name", "evm"),
