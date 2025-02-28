@@ -288,6 +288,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
+				if r.ChainId > math.MaxUint16 {
+					logger.Error("chain id for observation request is not a valid uint16",
+						zap.Uint32("chainID", r.ChainId),
+						zap.String("txID", hex.EncodeToString(r.TxHash)),
+					)
+				}
 				numObservations, err := w.handleReobservationRequest(
 					ctx,
 					vaa.ChainID(r.ChainId),
@@ -391,7 +397,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if ev.Finality == connectors.Latest {
 					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.Height = int64(blockNumberU)
+					stats.Height = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 					w.updateNetworkStats(&stats)
 					w.ccqAddLatestBlock(ev)
 					continue
@@ -402,11 +408,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if ev.Finality == connectors.Safe {
 					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
 					currentEthSafeHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.SafeHeight = int64(blockNumberU)
+					stats.SafeHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				} else {
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.FinalizedHeight = int64(blockNumberU)
+					stats.FinalizedHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				}
 				w.updateNetworkStats(&stats)
 
@@ -678,7 +684,7 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
 	message := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
-		Timestamp:        time.Unix(int64(blockTime), 0),
+		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
 		EmitterChain:     w.chainID,
