@@ -36,9 +36,6 @@ spec:
               # Run the monitoring script
               echo "staring to run the monitor script"
               /monitor.sh && touch /logs/success
-              
-              pkill -f guardiand || true
-              exit 0
           readinessProbe:
             exec:
               command:
