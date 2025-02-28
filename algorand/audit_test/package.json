@@ -39,5 +39,8 @@
     "testEnvironment": "node",
     "collectCoverage": true,
     "testTimeout": 30000
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

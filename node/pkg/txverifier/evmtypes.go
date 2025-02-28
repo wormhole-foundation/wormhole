@@ -413,13 +413,17 @@ func ERC20TransferFromLog(
 ) (transfer *ERC20Transfer, err error) {
 	from, to, amount := parseERC20TransferEvent(log.Topics, log.Data)
 
-	// Ensure From address is not empty. The To address is allowed to be empty when funds are being burned.
-	if cmp(from, ZERO_ADDRESS) == 0 {
-		return transfer, errors.New("could not parse ERC20 Transfer from log: address From is empty")
+	// NOTE: When minting tokens, some ERC20 implementations will emit a
+	// Transfer event that has the From field set to the zero address.
+	// Similarly, burn operations may set the To field to the zero address.
+	// However, there shouldn't be a case where both fields are equal to
+	// the zero address.
+	if to == ZERO_ADDRESS && from == ZERO_ADDRESS {
+		return nil, errors.New("could not parse ERC20 Transfer from log: transfer's To and From fields are both zero")
 	}
 
 	if amount == nil {
-		return transfer, errors.New("could not parse ERC20 Transfer from log: nil Amount")
+		return nil, errors.New("could not parse ERC20 Transfer from log: nil Amount")
 	}
 
 	transfer = &ERC20Transfer{
@@ -518,7 +522,33 @@ type TransferReceipt struct {
 	Deposits  *[]*NativeDeposit
 	Transfers *[]*ERC20Transfer
 	// There must be at least one LogMessagePublished for a valid receipt.
-	MessagePublicatons *[]*LogMessagePublished
+	MessagePublications *[]*LogMessagePublished
+}
+
+// Validate ensures that a parsed TransferReceipt struct is well-formed (i.e.
+// structurally valid, even if the semantic contents of the TransferReceipt
+// would be evaluated as "bad" from a security perspective.
+//
+// Well-formed means:
+// - The structs fields must not be nil.
+// - The MessagePublications fields must have at least one element.
+// As as result, this function should only be used near the end of parsing and processing
+// when all the logs have been parsed and used to populate the TransferReceipt instance.
+func (r *TransferReceipt) Validate() (err error) {
+	if r.Deposits == nil {
+		return errors.Join(err, errors.New("parsed receipt's Deposits field is nil"))
+	}
+	if r.Transfers == nil {
+		return errors.Join(err, errors.New("parsed receipt's Transfers field is nil"))
+	}
+	if r.MessagePublications == nil {
+		return errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
+	}
+	if len(*r.MessagePublications) == 0 {
+		return errors.Join(err, errors.New("parsed receipt has no Message Publications"))
+	}
+
+	return
 }
 
 func (r *TransferReceipt) String() string {
@@ -541,8 +571,8 @@ func (r *TransferReceipt) String() string {
 	}
 
 	mStr := ""
-	if r.MessagePublicatons != nil {
-		for _, m := range *r.MessagePublicatons {
+	if r.MessagePublications != nil {
+		for _, m := range *r.MessagePublications {
 			if m != nil {
 				mStr += m.String()
 			}

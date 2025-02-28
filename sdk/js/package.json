@@ -84,7 +84,7 @@
     "bech32": "^2.0.0",
     "binary-parser": "^2.2.1",
     "bs58": "^4.0.1",
-    "elliptic": "^6.5.4",
+    "elliptic": "^6.6.1",
     "js-base64": "^3.6.1",
     "js-sha3": "0.8.0",
     "near-api-js": "^1.0.0"
@@ -93,5 +93,8 @@
     "@injectivelabs/networks": "1.10.12",
     "@injectivelabs/sdk-ts": "1.10.72",
     "@injectivelabs/utils": "1.10.12"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }
