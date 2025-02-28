@@ -128,6 +128,7 @@ func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (instantFin
 		chainID == vaa.ChainIDArbitrumSepolia ||
 		chainID == vaa.ChainIDBase ||
 		chainID == vaa.ChainIDBaseSepolia ||
+		chainID == vaa.ChainIDBerachain || // Berachain really isn't instant finality, despite what this doc says: https://docs.berachain.com/faq/
 		chainID == vaa.ChainIDBlast ||
 		chainID == vaa.ChainIDBSC ||
 		chainID == vaa.ChainIDEthereum ||
@@ -171,7 +172,6 @@ func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (instantFin
 
 		// The following chains support instant finality.
 	} else if chainID == vaa.ChainIDAvalanche ||
-		chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
 		chainID == vaa.ChainIDOasis ||
 		chainID == vaa.ChainIDAurora ||
 		chainID == vaa.ChainIDFantom ||

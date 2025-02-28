@@ -89,7 +89,7 @@ var (
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://rpc.linea.build"},
 
-		vaa.ChainIDBerachain: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com"},
+		vaa.ChainIDBerachain: {Finalized: true, Safe: true, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com"},
 		// vaa.ChainIDSeiEVM:     Not in Mainnet yet.
 		// vaa.ChainIDEclipse:    Not supported in the guardian.
 		// vaa.ChainIDBOB:        Not supported in the guardian.
@@ -139,7 +139,7 @@ var (
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59141, PublicRPC: "https://rpc.sepolia.linea.build"},
 
-		vaa.ChainIDBerachain: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 80084, PublicRPC: "https://berachain-testnet-rpc.publicnode.com"},
+		vaa.ChainIDBerachain: {Finalized: true, Safe: true, EvmChainID: 80084, PublicRPC: "https://berachain-testnet-rpc.publicnode.com"},
 		vaa.ChainIDSeiEVM:    {Finalized: true, Safe: true, EvmChainID: 1328, PublicRPC: "https://evm-rpc-testnet.sei-apis.com/"},
 		// vaa.ChainIDEclipse:     Not supported in the guardian.
 		// vaa.ChainIDBOB:         Not supported in the guardian.
