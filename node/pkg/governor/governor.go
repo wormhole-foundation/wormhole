@@ -677,6 +677,7 @@ func (gov *ChainGovernor) pipeCanFlowCancel(pipe *pipe) bool {
 		return false
 	}
 	for _, configuredPipe := range gov.flowCancelPipes {
+		// Note that equals() also checks that both pipes are valid.
 		if pipe.equals(&configuredPipe) {
 			return true
 		}
@@ -970,14 +971,9 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	target := transfer.dbTransfer.TargetChain
 	emitter := transfer.dbTransfer.EmitterChain
 
-	// Check whether the source and destination chain are in the allow-list for flow cancelling.
 	pipe := &pipe{emitter, target}
-	if !pipe.valid() {
-		gov.logger.Warn("not adding flow cancel transfer because emitter and target chain are the same",
-			zap.String("hash", hash),
-		)
-		return false, nil
-	}
+
+	// Check whether the source and destination chain are in the allow-list for flow cancelling.
 	if !gov.pipeCanFlowCancel(pipe) {
 		return false, nil
 	}
