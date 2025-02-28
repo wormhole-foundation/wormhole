@@ -1,6 +1,8 @@
 package governor
 
-import "github.com/wormhole-foundation/wormhole/sdk/vaa"
+import (
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
 
 // FlowCancelPipes returns a list of `pipe`s representing a pair of chains for which flow canceling is enabled.
 // In practice this list should contain pairs of chains that have a large amount of volume between each other.
@@ -11,4 +13,23 @@ func FlowCancelPipes() []pipe {
 	return []pipe{
 		{first: vaa.ChainIDEthereum, second: vaa.ChainIDSui},
 	}
+}
+
+func Valid(input []pipe) bool {
+	seen := make([]pipe, 10)
+	for _, p := range input {
+		// This check is needed when there is exactly one pipe. Otherwise, the seen loop detects this.
+		if !p.valid() {
+			return false
+		}
+		for _, s := range seen {
+			// Note that equals() also checks that both pipes are valid.
+			if p.equals(&s) {
+				return false
+			}
+		}
+
+		seen = append(seen, p)
+	}
+	return true
 }
