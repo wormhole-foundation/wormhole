@@ -84,7 +84,7 @@ func TestPublishIfSafe(t *testing.T) {
 	// Check scenario where transfer verifier is enabled but isn't initialized.
 	w.txVerifierEnabled = true
 	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.ErrorContains(t, err, "transfer verifier should be enabled but is nil")
+	require.ErrorContains(t, err, "transfer verifier should be instantiated but is nil")
 	require.Equal(t, 0, len(msgC))
 
 	// Check case where Transfer Verifier finds a dangerous transaction
