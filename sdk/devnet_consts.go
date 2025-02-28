@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // KnownDevnetEmitters is a list of known emitters used during development.
@@ -40,4 +41,10 @@ var KnownDevnetAutomaticRelayerEmitters = []struct {
 	// NTT end to end testing uses special emitters in local dev and CI.
 	{ChainId: vaa.ChainIDEthereum, Addr: "000000000000000000000000cc680d088586c09c3e0e099a676fa4b6e42467b4"},
 	{ChainId: vaa.ChainIDBSC, Addr: "000000000000000000000000cc680d088586c09c3e0e099a676fa4b6e42467b4"},
+}
+
+// KnownDevnetWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum
+var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]common.Address{
+	// WETH deployed by the Tilt devnet configuration.
+	vaa.ChainIDEthereum: common.HexToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"),
 }
