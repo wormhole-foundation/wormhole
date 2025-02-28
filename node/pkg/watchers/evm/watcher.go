@@ -149,7 +149,6 @@ type (
 		txVerifierEnabled bool
 		// Transfer Verifier instance
 		txVerifier txverifier.TransferVerifierInterface
-		// txVerifier *txverifier.TransferVerifier[*eth_client.Client, connectors.Connector]
 	}
 
 	pendingKey struct {
@@ -856,12 +855,12 @@ func (w *Watcher) publishIfSafe(
 	if w.txVerifierEnabled {
 		// This should have already been initialized.
 		if w.txVerifier == nil {
-			return errors.New("transfer verifier should be enabled but is nil")
+			return errors.New("transfer verifier should be instantiated but is nil")
 		}
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
 		if !w.txVerifier.ProcessEvent(ctx, txHash, receipt) {
-			return errors.New("transfer verification failed")
+			return fmt.Errorf("transfer verification failed for txHash %s", txHash)
 		}
 	}
 
