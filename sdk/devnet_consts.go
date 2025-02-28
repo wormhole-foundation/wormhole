@@ -1,8 +1,8 @@
 package sdk
 
 import (
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // KnownDevnetEmitters is a list of known emitters used during development.
