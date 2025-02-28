@@ -88,6 +88,10 @@ func (m MsgMint) ValidateBasic() error {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, m.Amount.String())
 	}
 
+	if m.Amount.Amount.GTE(MintAmountLimit) {
+		return ErrMintAmountTooLarge
+	}
+
 	return nil
 }
 
