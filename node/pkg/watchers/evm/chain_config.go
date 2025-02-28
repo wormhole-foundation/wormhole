@@ -139,7 +139,7 @@ var (
 		// As of 9/06/2024 Linea supports polling for finalized but not safe.
 		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59141, PublicRPC: "https://rpc.sepolia.linea.build"},
 
-		vaa.ChainIDBerachain: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 80084, PublicRPC: "https://bartio.rpc.berachain.com"},
+		vaa.ChainIDBerachain: {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 80084, PublicRPC: "https://berachain-testnet-rpc.publicnode.com"},
 		vaa.ChainIDSeiEVM:    {Finalized: true, Safe: true, EvmChainID: 1328, PublicRPC: "https://evm-rpc-testnet.sei-apis.com/"},
 		// vaa.ChainIDEclipse:     Not supported in the guardian.
 		// vaa.ChainIDBOB:         Not supported in the guardian.
