@@ -631,6 +631,12 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		Hash:           hash,
 	}
 
+	// Check that the transfer is valid before writing to the database.
+	transfer, err := newTransferFromDbTransfer(&dbTransfer)
+	if err != nil {
+		return false, err
+	}
+
 	err = gov.db.StoreTransfer(&dbTransfer)
 	if err != nil {
 		gov.logger.Error("failed to store transfer",
@@ -638,11 +644,6 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.String("hash", hash), zap.Error(err),
 			zap.String("txID", msg.TxIDString()),
 		)
-		return false, err
-	}
-
-	transfer, err := newTransferFromDbTransfer(&dbTransfer)
-	if err != nil {
 		return false, err
 	}
 
@@ -659,10 +660,12 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	if gov.flowCancelEnabled {
 		_, err = gov.tryAddFlowCancelTransfer(&transfer)
 		if err != nil {
+			// Don't interrupt the the control flow when a flow cancel fails. Instead, fail open and allow
+			// the transfers to be processed normally. The only consequence is that the outbound limit
+			// for the emitter won't be reduced.
 			gov.logger.Warn("Error when attempting to add a flow cancel transfer",
 				zap.Error(err),
 			)
-			return false, err
 		}
 	}
 
