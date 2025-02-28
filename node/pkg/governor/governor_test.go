@@ -2945,7 +2945,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 }
 
 func TestPipeType(t *testing.T) {
-	// Check basic validity functions and ensure ordering doesn't matter
+	// Check basic validity functions and ensure ordering doesn't matter.
 	pipeEthSui := pipe{vaa.ChainIDEthereum, vaa.ChainIDSui}
 	pipeSuiEth := pipe{vaa.ChainIDSui, vaa.ChainIDEthereum}
 	assert.True(t, pipeEthSui.valid())
@@ -2953,9 +2953,16 @@ func TestPipeType(t *testing.T) {
 	assert.True(t, pipeEthSui.equals(&pipeSuiEth))
 	assert.True(t, pipeSuiEth.equals(&pipeEthSui))
 
-	// The two ends of a pipe must be different
+	// The two ends of a pipe must be different.
 	pipeInvalid := pipe{vaa.ChainIDEvmos, vaa.ChainIDEvmos}
 	assert.False(t, pipeInvalid.valid())
+
+	// Check the case for ChainIDUnset in both positions.
+	unset := pipe{vaa.ChainIDEthereum, vaa.ChainIDUnset}
+	assert.False(t, unset.valid())
+	unset = pipe{vaa.ChainIDUnset, vaa.ChainIDSolana}
+	assert.False(t, unset.valid())
+
 	// Invalid pipes are never equal to anything, even to itself. The idea here is to make invalid states
 	// unrepresentable/unusable by the program.
 	assert.False(t, pipeInvalid.equals(&pipeInvalid))
