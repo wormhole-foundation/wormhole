@@ -58,8 +58,8 @@ func TestValid(t *testing.T) {
 					second: vaa.ChainIDSolana,
 				},
 				{
-					first: vaa.ChainIDSolana,
-					second:  vaa.ChainIDEthereum,
+					first:  vaa.ChainIDSolana,
+					second: vaa.ChainIDEthereum,
 				},
 			},
 			want: false,
