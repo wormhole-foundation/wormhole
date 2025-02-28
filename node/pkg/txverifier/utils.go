@@ -103,6 +103,5 @@ func denormalize(
 func SupportedChains() []vaa.ChainID {
 	return []vaa.ChainID{
 		vaa.ChainIDEthereum,
-		vaa.ChainIDSui,
 	}
 }
