@@ -906,14 +906,14 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						if gov.flowCancelEnabled {
 							// The point here is to add a flow-cancelling transfer to the governor's pending queue if applicable.
 							// If the function returns (false, nil), just ignore it.
+							// Note that the inverse, flow-cancelling transfers are not stored in the database; they only
+							// exist in memory. When the Guardian is restarted, the flow cancelling transfers
+							// will be reconstructed manually.
 							_, err := gov.tryAddFlowCancelTransfer(&transfer)
 							if err != nil {
 								gov.logger.Error("Error when attempting to add a flow cancel transfer",
 									zap.Error(err),
 								)
-								// Process the next pending transfer. (Continues to inner for-loop.)
-								continue
-
 							}
 						}
 
@@ -922,6 +922,8 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					}
 				}
 
+				// Cleanup step: remove the pending message from the database now that it has been processed.
+				// This must happen for all non-error (panic) scenarios.
 				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
 					gov.msgsToPublish = msgsToPublish
 					return nil, err
