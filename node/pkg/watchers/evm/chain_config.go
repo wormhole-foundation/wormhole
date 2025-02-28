@@ -68,7 +68,7 @@ var (
 		vaa.ChainIDFantom:   {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 250, PublicRPC: "https://fantom-rpc.publicnode.com"},
 		vaa.ChainIDKarura:   {Finalized: true, Safe: true, EvmChainID: 686, PublicRPC: "https://eth-rpc-karura.aca-api.network/"},
 		vaa.ChainIDAcala:    {Finalized: true, Safe: true, EvmChainID: 787, PublicRPC: "https://eth-rpc-acala.aca-api.network/"},
-		vaa.ChainIDKlaytn:   {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 8217}, // As of Feb 2025, can't find a working public node.
+		vaa.ChainIDKlaytn:   {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 8217, PublicRPC: "https://public-en.node.kaia.io"},
 		vaa.ChainIDCelo:     {Finalized: true, Safe: false, EvmChainID: 42220, PublicRPC: "https://celo-rpc.publicnode.com"},
 		vaa.ChainIDMoonbeam: {Finalized: true, Safe: true, EvmChainID: 1284, PublicRPC: "https://moonbeam-rpc.publicnode.com"},
 		vaa.ChainIDArbitrum: {Finalized: true, Safe: true, EvmChainID: 42161, PublicRPC: "https://arbitrum-one-rpc.publicnode.com"},
@@ -118,7 +118,7 @@ var (
 		vaa.ChainIDFantom:   {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 4002, PublicRPC: "https://fantom-testnet-rpc.publicnode.com"},
 		vaa.ChainIDKarura:   {Finalized: true, Safe: true, EvmChainID: 596, PublicRPC: "https://eth-rpc-karura-testnet.aca-staging.network"},
 		vaa.ChainIDAcala:    {Finalized: true, Safe: true, EvmChainID: 597, PublicRPC: "https://eth-rpc-acala-testnet.aca-staging.network"},
-		vaa.ChainIDKlaytn:   {InstantFinality: true, Finalized: true, Safe: true, EvmChainID: 1001}, // As of Feb 2025, can't find a working public node.
+		vaa.ChainIDKlaytn:   {InstantFinality: true, Finalized: false, Safe: false, EvmChainID: 1001, PublicRPC: "https://public-en-kairos.node.kaia.io"},
 		vaa.ChainIDCelo:     {Finalized: true, Safe: true, EvmChainID: 44787, PublicRPC: "https://alfajores-forno.celo-testnet.org"},
 		vaa.ChainIDMoonbeam: {Finalized: true, Safe: true, EvmChainID: 1287, PublicRPC: "https://rpc.api.moonbase.moonbeam.network"},
 		vaa.ChainIDArbitrum: {Finalized: true, Safe: true, EvmChainID: 421613}, // Arbitrum Goerli is deprecated.
@@ -147,7 +147,7 @@ var (
 		vaa.ChainIDUnichain:        {Finalized: true, Safe: true, EvmChainID: 1301, PublicRPC: "https://unichain-sepolia-rpc.publicnode.com"},
 		vaa.ChainIDWorldchain:      {Finalized: true, Safe: true, EvmChainID: 4801, PublicRPC: "https://worldchain-sepolia.g.alchemy.com/public"},
 		vaa.ChainIDInk:             {Finalized: true, Safe: true, EvmChainID: 763373, PublicRPC: "https://rpc-qnd-sepolia.inkonchain.com"},
-		vaa.ChainIDHyperEVM:        {Finalized: true, Safe: true, EvmChainID: 998}, // As of Feb 2025, this does not work: "https://api.hyperliquid-testnet.xyz/evm"
+		vaa.ChainIDHyperEVM:        {Finalized: true, Safe: true, EvmChainID: 998, PublicRPC: "https://rpc.hyperliquid-testnet.xyz/evm"},
 		vaa.ChainIDMonad:           {Finalized: true, Safe: true, EvmChainID: 10143, PublicRPC: "https://testnet-rpc.monad.xyz"},
 		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com"},
