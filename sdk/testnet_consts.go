@@ -1,6 +1,9 @@
 package sdk
 
-import "github.com/wormhole-foundation/wormhole/sdk/vaa"
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
 
 // KnownTestnetEmitters is a list of known emitters on the various L1 testnets.
 var KnownTestnetEmitters = buildKnownEmitters(knownTestnetTokenbridgeEmitters, knownTestnetNFTBridgeEmitters)
@@ -102,4 +105,12 @@ var KnownTestnetAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDArbitrumSepolia, Addr: "0000000000000000000000007B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470"},
 	{ChainId: vaa.ChainIDOptimismSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
 	{ChainId: vaa.ChainIDBaseSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
+}
+
+// KnownTestnetWrappedNativeAddresses is a list of addresses for deployments of wrapped native asssets (e.g. WETH) on various testnets.
+var KnownTestnetWrappedNativeAddresses = map[vaa.ChainID]common.Address {
+	// WETH
+	vaa.ChainIDSepolia: common.HexToAddress("0x7b79995e5f793a07bc00c21412e50ecae098e7f9"),
+	// WETH
+	vaa.ChainIDHolesky: common.HexToAddress("0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8"),
 }
