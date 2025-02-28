@@ -249,7 +249,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	// tell everyone about it
 	job.hasWormholeMsg = true
 
-	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED
+	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED // can_block: Only pauses this watcher
 
 	logger.Info("message observed",
 		zap.String("log_msg_type", "wormhole_event_success"),
@@ -263,7 +263,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		zap.Uint8("consistency_level", observation.ConsistencyLevel),
 	)
 
-	e.msgC <- observation
+	e.msgC <- observation //can_block: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }

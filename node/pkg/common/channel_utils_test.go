@@ -78,3 +78,17 @@ func TestReadFromChannelWithTimeout_TooMuchData(t *testing.T) {
 	require.Equal(t, 1, len(observations))
 	assert.Equal(t, 3, observations[0])
 }
+
+func TestWriteToChannelWithoutBlocking(t *testing.T) {
+	myChan := make(chan int, 1)
+	assert.Equal(t, 0.0, getCounterValue(channelWriteDrops, "numbers"))
+	WriteToChannelWithoutBlocking(myChan, 42, "numbers")
+	assert.Equal(t, 0.0, getCounterValue(channelWriteDrops, "numbers"))
+	WriteToChannelWithoutBlocking(myChan, 43, "numbers")
+	assert.Equal(t, 1.0, getCounterValue(channelWriteDrops, "numbers"))
+	WriteToChannelWithoutBlocking(myChan, 44, "numbers")
+	assert.Equal(t, 2.0, getCounterValue(channelWriteDrops, "numbers"))
+	WriteToChannelWithoutBlocking(myChan, 44, "different_label")
+	assert.Equal(t, 1.0, getCounterValue(channelWriteDrops, "different_label"))
+	assert.Equal(t, 2.0, getCounterValue(channelWriteDrops, "numbers"))
+}

@@ -10,7 +10,7 @@ import (
 // This is used in tests only.
 func (s *supervisor) waitSettle(ctx context.Context) error {
 	waiter := make(chan struct{})
-	s.pReq <- &processorRequest{
+	s.pReq <- &processorRequest{ //should_this_block: ???
 		waitSettled: &processorRequestWaitSettled{
 			waiter: waiter,
 		},
