@@ -7,7 +7,7 @@ Wormhole is a mission-critical, high-stakes project. We optimize for quality ove
 and code reviews are our most important tools to accomplish that.
 
 - All new features must first be discussed in a GitHub issue before starting to implement them. For
-  complex features, it can be useful to submit a [formal design document](design/template.md).
+  complex features, it can be useful to submit a [formal design document](whitepapers/template.md).
 
 - Development happens on a long-lived development branch (`main` and `dev.v1`).
   Every change going into a development branch is reviewed individually (see below). Release branches may be used
