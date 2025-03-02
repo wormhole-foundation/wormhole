@@ -106,8 +106,8 @@ type GuardianStorage struct {
 	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of PriavteKey.
 
 	// Stored sorted by Key. include Self.
-	Guardians            []*tss.PartyID
-	senderTypeToGuardian map[senderType]*tss.PartyID
+	Guardians      []*tss.PartyID
+	indexToPartyID map[senderIndex]*tss.PartyID
 
 	// guardianCert[i] should be the x509.Cert of guardians[i]. (uses p256, since golang x509 doesn't support secp256k1)
 	GuardianCerts  []PEM
@@ -127,12 +127,6 @@ type GuardianStorage struct {
 	pemkeyToGuardian  map[string]*tss.PartyID
 
 	isleader bool
-}
-
-func (g *GuardianStorage) contains(sender senderType) bool {
-	_, ok := g.senderTypeToGuardian[sender]
-
-	return ok
 }
 
 // GuardianStorageFromFile loads a guardian storage from a file.
@@ -163,20 +157,6 @@ func (st *GuardianStorage) fetchPartyIdFromBytes(pk []byte) *tsscommv1.PartyId {
 	}
 
 	return partyIdToProto(pid)
-}
-
-func (st *GuardianStorage) fetchCertificate(sender senderType) (*x509.Certificate, error) {
-	pid, ok := st.senderTypeToGuardian[sender]
-	if !ok {
-		return nil, ErrUnkownSender
-	}
-
-	cert, ok := st.guardianToCert[partyIdToString(pid)]
-	if !ok {
-		return nil, fmt.Errorf("partyID certificate not found: %v", pid)
-	}
-
-	return cert, nil
 }
 
 // FetchPartyId implements ReliableTSS.
@@ -432,7 +412,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 
 	tmp := serializeableMessage{&parsedAnnouncement{
 		SawDigest: sm.GetAnnouncement(),
-		issuer:    senderType(sm.Sender),
+		issuer:    senderIndex(sm.Sender),
 	}}
 
 	flds := []zap.Field{zap.String("chainID", chainID.String()),
@@ -799,7 +779,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 	if routing.IsBroadcast || len(routing.To) == 0 {
 		msgToSend := &tsscommv1.SignedMessage{
 			Content:   content,
-			Sender:    senderType(t.Self.Index).toProto(),
+			Sender:    senderIndex(t.Self.Index).toProto(),
 			Signature: nil,
 		}
 
@@ -1046,7 +1026,7 @@ func (st *GuardianStorage) verifySignedMessage(uid uuid, msg *tsscommv1.SignedMe
 		return errEmptySignature
 	}
 
-	cert, err := st.fetchCertificate(senderType(msg.Sender))
+	cert, err := st.fetchCertificate(senderIndex(msg.Sender))
 	if err != nil {
 		return err
 	}

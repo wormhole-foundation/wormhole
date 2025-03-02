@@ -220,10 +220,6 @@ func validateBroadcastCorrectForm(e *tsscommv1.Echo) error {
 		return ErrSignedMessageIsNil
 	}
 
-	// if err := validatePartIdProtoCorrectForm(m.Sender); err != nil {
-	// return fmt.Errorf("signedMessage sender pID error:%w", err)
-	// }
-
 	if m.Content == nil {
 		return ErrNoContent
 	}
@@ -266,22 +262,6 @@ func validateAnouncementCorrectForm(v *tsscommv1.SignedMessage_Announcement) err
 
 	if v.Announcement.Digest == nil {
 		return fmt.Errorf("announcement digest is nil")
-	}
-
-	return nil
-}
-
-func validatePartIdProtoCorrectForm(p *tsscommv1.PartyId) error {
-	if p == nil {
-		return ErrNilPartyId
-	}
-
-	if p.Id == "" {
-		return ErrEmptyIDInPID
-	}
-
-	if len(p.Key) == 0 {
-		return ErrEmptyKeyInPID
 	}
 
 	return nil
@@ -462,12 +442,12 @@ func trackingIdIntoSigKey(tid *common.TrackingID) sigKey {
 	return intoSigKey(dgst, extractChainIDFromTrackingID(tid))
 }
 
-type senderType uint32
+type senderIndex uint32
 
-func (s senderType) intoBuffer(b io.Writer) {
+func (s senderIndex) intoBuffer(b io.Writer) {
 	vaa.MustWrite(b, binary.BigEndian, s)
 }
 
-func (s senderType) toProto() uint32 {
+func (s senderIndex) toProto() uint32 {
 	return uint32(s)
 }

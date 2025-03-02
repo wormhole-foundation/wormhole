@@ -512,26 +512,6 @@ func TestBadInputs(t *testing.T) {
 		})
 		a.ErrorIs(err, ErrSignedMessageIsNil)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{
-			Source: partyIdToProto(e2.Self),
-			Content: &tsscommv1.PropagatedMessage{
-				Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
-					Message: &tsscommv1.SignedMessage{},
-				}}},
-		})
-		a.ErrorIs(err, ErrNilPartyId)
-
-		// err = e1.handleIncomingTssMessage(&IncomingMessage{
-		// 	Source: partyIdToProto(e2.Self),
-		// 	Content: &tsscommv1.PropagatedMessage{
-		// 		Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
-		// 			Message: &tsscommv1.SignedMessage{
-		// 				Sender: 0,
-		// 			},
-		// 		}}},
-		// })
-		// a.ErrorIs(err, ErrEmptyIDInPID) // TODO: consider deleting this check.
-
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
@@ -553,20 +533,6 @@ func TestBadInputs(t *testing.T) {
 			}}},
 		})
 		a.ErrorIs(err, ErrNilPayload)
-
-		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
-			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
-				Message: &tsscommv1.SignedMessage{
-					Content: &tsscommv1.SignedMessage_TssContent{
-						TssContent: &tsscommv1.TssContent{
-							Payload: []byte{1, 2, 3},
-						},
-					},
-					Sender: uint32(len(e2.GuardianStorage.Guardians) + 1),
-				},
-			}}},
-		})
-		a.ErrorIs(err, ErrEmptyKeyInPID)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
@@ -615,8 +581,8 @@ func TestBadInputs(t *testing.T) {
 	})
 
 	t.Run("fetch certificate", func(t *testing.T) {
-		_, err := e1.fetchCertificate(senderType(len(e1.GuardianStorage.Guardians) + 1))
-		a.ErrorContains(err, "not found")
+		_, err := e1.fetchCertificate(senderIndex(len(e1.GuardianStorage.Guardians) + 1))
+		a.ErrorIs(err, ErrUnkownSender)
 	})
 
 	t.Run("handle incoming VAAs", func(t *testing.T) {

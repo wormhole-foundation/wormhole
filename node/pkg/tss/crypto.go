@@ -27,7 +27,8 @@ func hashSignedMessage(msg *tsscommv1.SignedMessage) digest {
 
 	var b *bytes.Buffer
 
-	sender := senderType(msg.Sender)
+	sender := senderIndex(msg.Sender)
+
 	// Since the msg is a protobug, we need to switch on the type of
 	// the content (instead of adding an interface to the protogen file).
 	switch m := msg.Content.(type) {

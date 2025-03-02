@@ -349,7 +349,7 @@ func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) tim
 func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	// the incoming command is assumed to be from a reliable-broadcast protocol and to be valid:
 	// not too old (less than maxHeartbeatInterval), signed by the correct party, etc.
-	pid := t.GuardianStorage.senderTypeToGuardian[cmd.issuer]
+	pid := t.GuardianStorage.getPartyIdFromIndex(cmd.issuer)
 
 	m := f.membersData[strPartyId(partyIdToString(pid))]
 
@@ -619,7 +619,7 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 
 	tmp := serializeableMessage{&parsedProblem{
 		Problem: sm.GetProblem(),
-		issuer:  senderType(sm.Sender),
+		issuer:  senderIndex(sm.Sender),
 	}}
 
 	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), sm); err != nil {
@@ -757,6 +757,6 @@ func (cmd *newSeenDigestCommand) apply(t *Engine, f *ftTracker) {
 		state.trackidContext[tidStr] = tidData
 	}
 
-	pid := t.GuardianStorage.senderTypeToGuardian[cmd.issuer]
+	pid := t.GuardianStorage.getPartyIdFromIndex(cmd.issuer)
 	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(pid))] = true
 }

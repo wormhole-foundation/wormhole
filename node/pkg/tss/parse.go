@@ -12,7 +12,9 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 	if err := validateBroadcastCorrectForm(broadcastMsg); err != nil {
 		return nil, err
 	}
-	senderId := senderType(broadcastMsg.Message.Sender)
+
+	senderId := senderIndex(broadcastMsg.Message.Sender)
+
 	if !t.GuardianStorage.contains(senderId) {
 		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderId)
 	}
@@ -43,9 +45,9 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 			return nil, err
 		}
 
-		tmp := &tss.PartyID{MessageWrapper_PartyID: t.senderTypeToGuardian[senderId].MessageWrapper_PartyID}
+		pid := t.GuardianStorage.getPartyIdFromIndex(senderId)
 
-		p, err := tss.ParseWireMessage(v.TssContent.Payload, tmp, true)
+		p, err := tss.ParseWireMessage(v.TssContent.Payload, pid, true)
 		if err != nil {
 			return nil, err
 		}

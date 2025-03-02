@@ -73,7 +73,7 @@ func (s *deliverableMessage) getUUID(loadDistKey []byte) uuid {
 // serializeables:
 type parsedProblem struct {
 	*tsscommv1.Problem
-	issuer senderType
+	issuer senderIndex
 }
 
 type tssMessageWrapper struct {
@@ -91,7 +91,7 @@ type parsedTssContent struct {
 
 type parsedAnnouncement struct {
 	*tsscommv1.SawDigest
-	issuer senderType
+	issuer senderIndex
 }
 
 // broadcastable only struct (not deliverable or serializable):
@@ -114,7 +114,7 @@ func (p *parsedProblem) serialize() []byte {
 	unixtime := p.IssuingTime.AsTime().Unix()
 
 	capacity := len(parsedProblemDomain) +
-		senderTypeSize +
+		senderIndexSize +
 		pemKeySize +
 		auxiliaryDataSize +
 		int(unsafe.Sizeof(unixtime))
@@ -214,7 +214,7 @@ func (p *parsedAnnouncement) serialize() []byte {
 	}
 
 	capacity := len(newAnouncementDomain) +
-		(senderTypeSize) +
+		(senderIndexSize) +
 		auxiliaryDataSize +
 		party.DigestSize
 
@@ -280,7 +280,7 @@ func (t *Engine) updateState(s *broadcaststate, parsed broadcastMessage, unparse
 	unparsedSignedMessage := unparsedContent.toBroadcastMsg().Message
 	echoer := unparsedContent.GetSource()
 
-	pid := t.GuardianStorage.senderTypeToGuardian[senderType(unparsedSignedMessage.Sender)]
+	pid := t.GuardianStorage.getPartyIdFromIndex(senderIndex(unparsedSignedMessage.Sender))
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), pid)
 
 	_, isEcho := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
@@ -376,8 +376,8 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 
 	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
 	if _, ok := parsed.(deliverable); ok {
-		senderPid, ok := t.senderTypeToGuardian[senderType(unparsedSignedMessage.Sender)]
-		if !ok {
+		senderPid := t.GuardianStorage.getPartyIdFromIndex(senderIndex(unparsedSignedMessage.Sender))
+		if senderPid == nil {
 			return fmt.Errorf("sender %v is not a guardian", unparsedSignedMessage.Sender)
 		}
 

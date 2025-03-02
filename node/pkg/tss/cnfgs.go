@@ -85,10 +85,10 @@ func (s *GuardianStorage) SetInnerFields() error {
 		return fmt.Errorf("number of guardians and guardiansCerts do not match")
 	}
 
-	s.senderTypeToGuardian = map[senderType]*tss.PartyID{}
+	s.indexToPartyID = map[senderIndex]*tss.PartyID{}
 	// Since the guardians are sorted by key, we can use their position as their index.
 	for i, g := range s.Guardians {
-		s.senderTypeToGuardian[senderType(i)] = g
+		s.indexToPartyID[senderIndex(i)] = g
 	}
 
 	if err := s.parseCerts(); err != nil {
@@ -178,4 +178,39 @@ func (s *GuardianStorage) getSortedFirst() (*tss.PartyID, error) {
 	}
 
 	return guardians[0], nil
+}
+
+func (s *GuardianStorage) fetchCertificate(sender senderIndex) (*x509.Certificate, error) {
+	pid, ok := s.indexToPartyID[sender]
+	if !ok {
+		return nil, ErrUnkownSender
+	}
+
+	return s.guardianToCert[partyIdToString(pid)], nil
+}
+
+func (g *GuardianStorage) contains(sender senderIndex) bool {
+	_, ok := g.indexToPartyID[sender]
+
+	return ok
+}
+
+func (s *GuardianStorage) getPartyIdFromIndex(senderId senderIndex) *tss.PartyID {
+	tmp, ok := s.indexToPartyID[senderId]
+	if !ok {
+		return nil
+	}
+
+	keyCpy := make([]byte, len(tmp.Key))
+	copy(keyCpy, tmp.Key)
+
+	return &tss.PartyID{
+		MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
+			Id:      tmp.Id,
+			Moniker: tmp.Moniker,
+			Key:     keyCpy,
+		},
+
+		Index: tmp.Index,
+	}
 }

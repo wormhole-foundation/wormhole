@@ -92,5 +92,5 @@ const (
 	pythnetFinalizedConsistencyLevel uint8 = 1
 	solanaFinalizedConsistencyLevel  uint8 = 1
 
-	senderTypeSize = int(unsafe.Sizeof(senderType(0)))
+	senderIndexSize = int(unsafe.Sizeof(senderIndex(0)))
 )
