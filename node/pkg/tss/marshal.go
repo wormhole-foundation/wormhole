@@ -85,6 +85,12 @@ func (s *GuardianStorage) SetInnerFields() error {
 		return fmt.Errorf("number of guardians and guardiansCerts do not match")
 	}
 
+	s.senderTypeToGuardian = map[senderType]*tss.PartyID{}
+	// Since the guardians are sorted by key, we can use their position as their index.
+	for i, g := range s.Guardians {
+		s.senderTypeToGuardian[senderType(i)] = g
+	}
+
 	if err := s.parseCerts(); err != nil {
 		return err
 	}

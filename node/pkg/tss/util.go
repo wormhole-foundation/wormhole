@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -219,9 +220,9 @@ func validateBroadcastCorrectForm(e *tsscommv1.Echo) error {
 		return ErrSignedMessageIsNil
 	}
 
-	if err := validatePartIdProtoCorrectForm(m.Sender); err != nil {
-		return fmt.Errorf("signedMessage sender pID error:%w", err)
-	}
+	// if err := validatePartIdProtoCorrectForm(m.Sender); err != nil {
+	// return fmt.Errorf("signedMessage sender pID error:%w", err)
+	// }
 
 	if m.Content == nil {
 		return ErrNoContent
@@ -459,4 +460,14 @@ func trackingIdIntoSigKey(tid *common.TrackingID) sigKey {
 	copy(dgst[:], tid.Digest)
 
 	return intoSigKey(dgst, extractChainIDFromTrackingID(tid))
+}
+
+type senderType uint32
+
+func (s senderType) intoBuffer(b io.Writer) {
+	vaa.MustWrite(b, binary.BigEndian, s)
+}
+
+func (s senderType) toProto() uint32 {
+	return uint32(s)
 }

@@ -73,7 +73,7 @@ func (s *deliverableMessage) getUUID(loadDistKey []byte) uuid {
 // serializeables:
 type parsedProblem struct {
 	*tsscommv1.Problem
-	issuer *tsscommv1.PartyId
+	issuer senderType
 }
 
 type tssMessageWrapper struct {
@@ -91,7 +91,7 @@ type parsedTssContent struct {
 
 type parsedAnnouncement struct {
 	*tsscommv1.SawDigest
-	issuer *tsscommv1.PartyId
+	issuer senderType
 }
 
 // broadcastable only struct (not deliverable or serializable):
@@ -113,14 +113,8 @@ func (p *parsedProblem) serialize() []byte {
 
 	unixtime := p.IssuingTime.AsTime().Unix()
 
-	fromId := [hostnameSize]byte{}
-	copy(fromId[:], []byte(p.issuer.Id))
-
-	fromKey := [pemKeySize]byte{}
-	copy(fromKey[:], p.issuer.Key)
-
 	capacity := len(parsedProblemDomain) +
-		hostnameSize +
+		senderTypeSize +
 		pemKeySize +
 		auxiliaryDataSize +
 		int(unsafe.Sizeof(unixtime))
@@ -128,8 +122,7 @@ func (p *parsedProblem) serialize() []byte {
 	b := bytes.NewBuffer(make([]byte, 0, capacity))
 
 	b.WriteString(parsedProblemDomain) // domain separation.
-	b.Write(fromId[:])
-	b.Write(fromKey[:])
+	p.issuer.intoBuffer(b)
 	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
 	vaa.MustWrite(b, binary.BigEndian, unixtime)
 
@@ -220,22 +213,15 @@ func (p *parsedAnnouncement) serialize() []byte {
 		return []byte(newAnouncementDomain)
 	}
 
-	fromId := [hostnameSize]byte{}
-	copy(fromId[:], []byte(p.issuer.Id))
-
-	fromKey := [pemKeySize]byte{}
-	copy(fromKey[:], p.issuer.Key)
-
 	capacity := len(newAnouncementDomain) +
-		(hostnameSize + pemKeySize) +
+		(senderTypeSize) +
 		auxiliaryDataSize +
 		party.DigestSize
 
 	b := bytes.NewBuffer(make([]byte, 0, capacity))
 
 	b.WriteString(newAnouncementDomain) // domain separation.
-	b.Write(fromId[:])
-	b.Write(fromKey[:])
+	p.issuer.intoBuffer(b)
 	b.Write(p.Digest[:])
 	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
 
@@ -290,11 +276,12 @@ func (t *Engine) getDeliverableIfAllowed(s *broadcaststate) deliverable {
 
 var ErrEquivicatingGuardian = fmt.Errorf("equivication, guardian sent two different messages for the same round and session")
 
-func (s *broadcaststate) update(parsed broadcastMessage, unparsedContent Incoming) (shouldEcho bool, err error) {
+func (t *Engine) updateState(s *broadcaststate, parsed broadcastMessage, unparsedContent Incoming) (shouldEcho bool, err error) {
 	unparsedSignedMessage := unparsedContent.toBroadcastMsg().Message
 	echoer := unparsedContent.GetSource()
 
-	isMsgSrc := equalPartyIds(protoToPartyId(echoer), protoToPartyId(unparsedSignedMessage.Sender))
+	pid := t.GuardianStorage.senderTypeToGuardian[senderType(unparsedSignedMessage.Sender)]
+	isMsgSrc := equalPartyIds(protoToPartyId(echoer), pid)
 
 	_, isEcho := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
 
@@ -341,12 +328,12 @@ func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (boo
 		return false, nil, err
 	}
 
-	shouldBroadcast, err := state.update(parsed, msg)
+	shouldBroadcast, err := t.updateState(state, parsed, msg)
 	if err != nil {
 		return false, nil, err
 	}
 
-	if shouldBroadcast && equalPartyIds(protoToPartyId(msg.toBroadcastMsg().Message.Sender), t.Self) {
+	if shouldBroadcast && msg.toBroadcastMsg().Message.Sender == uint32(t.Self.Index) {
 		shouldBroadcast = false // no need to echo if we're the original sender.
 	}
 
@@ -389,7 +376,12 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 
 	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
 	if _, ok := parsed.(deliverable); ok {
-		if !equalPartyIds(protoToPartyId(unparsedSignedMessage.Sender), protoToPartyId(src)) {
+		senderPid, ok := t.senderTypeToGuardian[senderType(unparsedSignedMessage.Sender)]
+		if !ok {
+			return fmt.Errorf("sender %v is not a guardian", unparsedSignedMessage.Sender)
+		}
+
+		if !equalPartyIds(senderPid, protoToPartyId(src)) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
 	}
@@ -412,7 +404,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 		}
 
 		// no error and two different digests:
-		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests", unparsedSignedMessage.Sender.Id)
+		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests", unparsedSignedMessage.Sender)
 	}
 
 	return nil

@@ -58,7 +58,7 @@ func parsedIntoEcho(a *assert.Assertions, t *Engine, parsed tss.ParsedMessage) *
 			Content: &tsscommv1.SignedMessage_TssContent{
 				TssContent: &tsscommv1.TssContent{Payload: payload},
 			},
-			Sender:    partyIdToProto(t.Self),
+			Sender:    uint32(t.Self.Index),
 			Signature: nil,
 		},
 	}
@@ -521,35 +521,21 @@ func TestBadInputs(t *testing.T) {
 		})
 		a.ErrorIs(err, ErrNilPartyId)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{
-			Source: partyIdToProto(e2.Self),
-			Content: &tsscommv1.PropagatedMessage{
-				Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
-					Message: &tsscommv1.SignedMessage{
-						Sender: &tsscommv1.PartyId{},
-					},
-				}}},
-		})
-		a.ErrorIs(err, ErrEmptyIDInPID)
-
-		err = e1.handleIncomingTssMessage(&IncomingMessage{
-			Source: partyIdToProto(e2.Self),
-			Content: &tsscommv1.PropagatedMessage{
-				Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
-					Message: &tsscommv1.SignedMessage{
-						Sender: &tsscommv1.PartyId{
-							Id:  "a",
-							Key: []byte{},
-						},
-					},
-				}}},
-		})
-		a.ErrorIs(err, ErrEmptyKeyInPID)
+		// err = e1.handleIncomingTssMessage(&IncomingMessage{
+		// 	Source: partyIdToProto(e2.Self),
+		// 	Content: &tsscommv1.PropagatedMessage{
+		// 		Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
+		// 			Message: &tsscommv1.SignedMessage{
+		// 				Sender: 0,
+		// 			},
+		// 		}}},
+		// })
+		// a.ErrorIs(err, ErrEmptyIDInPID) // TODO: consider deleting this check.
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
-					Sender: partyIdToProto(e2.Self),
+					Sender: uint32(e2.Self.Index),
 				},
 			}}},
 		})
@@ -561,7 +547,7 @@ func TestBadInputs(t *testing.T) {
 					Content: &tsscommv1.SignedMessage_TssContent{
 						TssContent: &tsscommv1.TssContent{},
 					},
-					Sender:    partyIdToProto(e2.Self),
+					Sender:    uint32(e2.Self.Index),
 					Signature: []byte{1, 2, 3},
 				},
 			}}},
@@ -576,7 +562,21 @@ func TestBadInputs(t *testing.T) {
 							Payload: []byte{1, 2, 3},
 						},
 					},
-					Sender: partyIdToProto(e2.Self),
+					Sender: uint32(len(e2.GuardianStorage.Guardians) + 1),
+				},
+			}}},
+		})
+		a.ErrorIs(err, ErrEmptyKeyInPID)
+
+		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self), Content: &tsscommv1.PropagatedMessage{
+			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
+				Message: &tsscommv1.SignedMessage{
+					Content: &tsscommv1.SignedMessage_TssContent{
+						TssContent: &tsscommv1.TssContent{
+							Payload: []byte{1, 2, 3},
+						},
+					},
+					Sender: uint32(e2.Self.Index),
 				},
 			}}},
 		})
@@ -590,7 +590,7 @@ func TestBadInputs(t *testing.T) {
 							Payload: []byte{1, 2, 3},
 						},
 					},
-					Sender:    partyIdToProto(e2.Self),
+					Sender:    uint32(e2.Self.Index),
 					Signature: []byte{1, 2, 3},
 				},
 			}}},
@@ -615,10 +615,7 @@ func TestBadInputs(t *testing.T) {
 	})
 
 	t.Run("fetch certificate", func(t *testing.T) {
-		_, err := e1.FetchCertificate(nil)
-		a.ErrorIs(err, ErrNilPartyId)
-
-		_, err = e1.FetchCertificate(&tsscommv1.PartyId{})
+		_, err := e1.fetchCertificate(senderType(len(e1.GuardianStorage.Guardians) + 1))
 		a.ErrorContains(err, "not found")
 	})
 
@@ -1862,7 +1859,7 @@ func TestMessagesWithBadRounds(t *testing.T) {
 							Content: &tsscommv1.SignedMessage_TssContent{
 								TssContent: &tsscommv1.TssContent{Payload: bts},
 							},
-							Sender:    partyIdToProto(from),
+							Sender:    uint32(from.Index),
 							Signature: nil,
 						},
 					},

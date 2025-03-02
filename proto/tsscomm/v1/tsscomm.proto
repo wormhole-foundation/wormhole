@@ -44,7 +44,7 @@ message SawDigest{
 
 // SignedMessage is the content of a broadcast message. It may be echoed and as a result requires a signature.
 message SignedMessage {
-  PartyId sender = 1;
+  uint32 sender = 1; // pointer to specific PartyID
   bytes signature = 2;
 
   oneof content {

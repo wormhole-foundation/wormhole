@@ -12,10 +12,9 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 	if err := validateBroadcastCorrectForm(broadcastMsg); err != nil {
 		return nil, err
 	}
-
-	senderPid := protoToPartyId(broadcastMsg.Message.Sender)
-	if !t.GuardianStorage.contains(senderPid) {
-		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderPid)
+	senderId := senderType(broadcastMsg.Message.Sender)
+	if !t.GuardianStorage.contains(senderId) {
+		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderId)
 	}
 
 	switch v := broadcastMsg.Message.Content.(type) {
@@ -26,7 +25,7 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 
 		return &deliverableMessage{&parsedProblem{
 			Problem: v.Problem,
-			issuer:  broadcastMsg.Message.Sender,
+			issuer:  senderId,
 		}}, nil
 
 	case *tsscommv1.SignedMessage_Announcement:
@@ -36,7 +35,7 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 
 		return &deliverableMessage{&parsedAnnouncement{
 			SawDigest: v.Announcement,
-			issuer:    broadcastMsg.Message.Sender,
+			issuer:    senderId,
 		}}, nil
 
 	case *tsscommv1.SignedMessage_TssContent:
@@ -44,7 +43,9 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 			return nil, err
 		}
 
-		p, err := tss.ParseWireMessage(v.TssContent.Payload, senderPid, true)
+		tmp := &tss.PartyID{MessageWrapper_PartyID: t.senderTypeToGuardian[senderId].MessageWrapper_PartyID}
+
+		p, err := tss.ParseWireMessage(v.TssContent.Payload, tmp, true)
 		if err != nil {
 			return nil, err
 		}

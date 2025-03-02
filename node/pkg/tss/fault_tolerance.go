@@ -349,7 +349,7 @@ func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) tim
 func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	// the incoming command is assumed to be from a reliable-broadcast protocol and to be valid:
 	// not too old (less than maxHeartbeatInterval), signed by the correct party, etc.
-	pid := protoToPartyId(cmd.issuer)
+	pid := t.GuardianStorage.senderTypeToGuardian[cmd.issuer]
 
 	m := f.membersData[strPartyId(partyIdToString(pid))]
 
@@ -381,7 +381,7 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 	numberInactive := len(f.getIncatives(chainID).partyIDs)
 
 	t.logger.Info("received a problem message from guardian",
-		zap.String("problem issuer", cmd.issuer.Id),
+		zap.String("problem issuer", pid.Id),
 		zap.String("chainID", vaa.ChainID(cmd.ChainID).String()),
 		zap.Int("number of inactives on chain", numberInactive),
 	)
@@ -613,13 +613,13 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 			},
 		},
 
-		Sender:    partyIdToProto(t.Self),
+		Sender:    uint32(t.Self.Index),
 		Signature: []byte{},
 	}
 
 	tmp := serializeableMessage{&parsedProblem{
 		Problem: sm.GetProblem(),
-		issuer:  sm.Sender,
+		issuer:  senderType(sm.Sender),
 	}}
 
 	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), sm); err != nil {
@@ -757,5 +757,6 @@ func (cmd *newSeenDigestCommand) apply(t *Engine, f *ftTracker) {
 		state.trackidContext[tidStr] = tidData
 	}
 
-	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(protoToPartyId(cmd.issuer)))] = true
+	pid := t.GuardianStorage.senderTypeToGuardian[cmd.issuer]
+	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(pid))] = true
 }
