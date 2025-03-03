@@ -74,7 +74,7 @@ func ScrapeAndSendLocalMetrics(ctx context.Context, info PromTelemetryInfo, logg
 	}
 
 	logger.Debug("Grafana result", zap.Int("status code", res.StatusCode))
-	if res.StatusCode != 200 && res.StatusCode != 204 {
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNoContent {
 		logger.Error("Grafana returned a status code other than 200 or 204", zap.Int("status code", res.StatusCode))
 		return err
 	}
