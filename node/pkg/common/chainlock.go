@@ -18,6 +18,25 @@ import (
 const HashLength = 32
 const AddressLength = 32
 
+// This type represents whether a message has been verified for some definition of verification. This may mean different things
+// on a per-application or per-chain basis.
+// NOTE: This status is currently used only by the Transfer Verifier for supported chains.
+type VerificationState uint8
+
+const (
+	// The default state for a message. This can be used before verification occurs. If no verification is required, `NotApplicable` should be used instead.
+	// NOTE: this value is used as the default, zero-value for the type, so this field should not be re-ordered among other variants.
+	NotVerified VerificationState = iota
+	// Represents a "known bad" status where a Message has been validated and the result indicates an erroneous or invalid message. The message should be discarded.
+	Rejected
+	// Represents an unusual state after validation, neither confirmed to be good or bad.
+	Anomalous
+	// Represents a "known good" status where a Message has been validated and the result is good. The message should be process normally.
+	Valid
+	// Indicates that no verification is necessary.
+	NotApplicable
+)
+
 type MessagePublication struct {
 	TxID      []byte
 	Timestamp time.Time
@@ -33,6 +52,9 @@ type MessagePublication struct {
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
 	Unreliable bool
+	// This type represents whether a message has been verified for some definition of verification. This may mean different things
+	// on a per-application or per-chain basis.
+	verificationState VerificationState
 }
 
 func (msg *MessagePublication) TxIDString() string {
@@ -45,6 +67,29 @@ func (msg *MessagePublication) MessageID() []byte {
 
 func (msg *MessagePublication) MessageIDString() string {
 	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
+}
+
+func (msg *MessagePublication) VerificationState() VerificationState {
+	return msg.verificationState
+}
+
+// SetVerificationState is the setter for verificationState. Returns an error if called in a way that likely indicates a programming mistake.
+// This includes cases where:
+// - an existing state would be overwritten by the NotVerified state
+// - the argument is equal to the existing value
+func (msg *MessagePublication) SetVerificationState(s VerificationState) error {
+	// Avoid rewriting an existing state with the default value. There shouldn't be a reason to overwrite an existing verification,
+	// and if it happens it's probably a bug.
+	if s == NotVerified && msg.verificationState != NotVerified {
+		return fmt.Errorf("SetVerificationState: refusing to overwrite existing VerificationState %s to NotVerified state", s)
+
+	}
+	// Not a problem per se but likely indicates a programming error.
+	if s == msg.verificationState {
+		return fmt.Errorf("SetVerificationState: called with value %s but Message Publication already has this value", s)
+	}
+	msg.verificationState = s
+	return nil
 }
 
 const minMsgLength = 88 // Marshalled length with empty payload
@@ -250,5 +295,23 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.Uint8("consistency", msg.ConsistencyLevel),
 		zap.String("message_id", string(msg.MessageID())),
 		zap.Bool("unreliable", msg.Unreliable),
+		zap.String("verificationState", msg.verificationState.String()),
 	)
+}
+
+func (v VerificationState) String() string {
+	switch v {
+	case NotVerified:
+		return "NotVerified"
+	case Valid:
+		return "Valid"
+	case Anomalous:
+		return "Anomalous"
+	case Rejected:
+		return "Rejected"
+	case NotApplicable:
+		return "NotApplicable"
+	default:
+		return ""
+	}
 }
