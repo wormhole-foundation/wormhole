@@ -268,6 +268,9 @@ type SignedMessage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Although we don’t anticipate more senders than 255 (which is equivalent to 1 byte),
+	// the uint32 data type is highly optimized in protobuf for sending smaller
+	// numbers (refer to https://protobuf.dev/programming-guides/encoding/#simple).
 	Sender    uint32 `protobuf:"varint,1,opt,name=sender,proto3" json:"sender,omitempty"` // pointer to specific PartyID
 	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Types that are assignable to Content:

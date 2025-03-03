@@ -44,6 +44,9 @@ message SawDigest{
 
 // SignedMessage is the content of a broadcast message. It may be echoed and as a result requires a signature.
 message SignedMessage {
+  // Although we don’t anticipate more senders than 255 (which is equivalent to 1 byte),
+  // the uint32 data type is highly optimized in protobuf for sending smaller 
+  // numbers (refer to https://protobuf.dev/programming-guides/encoding/#simple).
   uint32 sender = 1; // pointer to specific PartyID
   bytes signature = 2;
 

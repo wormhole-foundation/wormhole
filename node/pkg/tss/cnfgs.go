@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -180,13 +181,19 @@ func (s *GuardianStorage) getSortedFirst() (*tss.PartyID, error) {
 	return guardians[0], nil
 }
 
+var errInternalNoCert = errors.New("internal error. no certificate found")
+
 func (s *GuardianStorage) fetchCertificate(sender senderIndex) (*x509.Certificate, error) {
 	pid, ok := s.indexToPartyID[sender]
 	if !ok {
 		return nil, ErrUnkownSender
 	}
 
-	return s.guardianToCert[partyIdToString(pid)], nil
+	if cert, ok := s.guardianToCert[partyIdToString(pid)]; ok {
+		return cert, nil
+	}
+
+	return nil, errInternalNoCert
 }
 
 func (g *GuardianStorage) contains(sender senderIndex) bool {
