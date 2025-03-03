@@ -97,7 +97,8 @@ func TestVerifyAndPublish(t *testing.T) {
 
 	// Check scenario where the message already has a verification status.
 	msg = common.MessagePublication{}
-	msg.SetVerificationState(common.Anomalous)
+	setErr := msg.SetVerificationState(common.Anomalous)
+	require.NoError(t, setErr)
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "message publication already has a verification status")
