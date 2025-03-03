@@ -47,11 +47,11 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDOptimism:   "https://api-optimistic.etherscan.io",
 	vaa.ChainIDBase:       "https://api.basescan.org",
 	vaa.ChainIDScroll:     "https://api.scrollscan.com",
-	vaa.ChainIDMantle:     "", // TODO: Does Mantle have an etherscan equivalent API endpoint?
+	vaa.ChainIDMantle:     "https://api.mantlescan.xyz/",
 	vaa.ChainIDBlast:      "https://api.blastscan.io",
 	vaa.ChainIDXLayer:     "", // TODO: Does X Layer have an etherscan API endpoint?
 	vaa.ChainIDBerachain:  "https://api.berascan.com/",
-	vaa.ChainIDUnichain:   "", // TODO: Add Unichain once the public explorer is available.
+	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",
 	vaa.ChainIDWorldchain: "https://api.worldscan.org",
 }
 
