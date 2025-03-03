@@ -85,7 +85,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 			if err == nil {
 				defer resp.Body.Close()
 				result, err := io.ReadAll(resp.Body)
-				if resp.StatusCode == 200 {
+				if resp.StatusCode == http.StatusOK {
 					return result, err
 				}
 			}
