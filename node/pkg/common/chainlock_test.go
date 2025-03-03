@@ -398,3 +398,47 @@ func TestTxIDStringMatchesHashToString(t *testing.T) {
 
 	assert.Equal(t, expectedHashID, msg.TxIDString())
 }
+
+func TestMessagePublication_SetVerificationState(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial VerificationState
+		arg     VerificationState
+		wantErr bool
+	}{
+		{
+			"can't overwrite existing status with default value",
+			Valid,
+			NotVerified,
+			true,
+		},
+		{
+			"can't overwrite with the same value",
+			Valid,
+			Valid,
+			true,
+		},
+		{
+			"happy path: default status to non-default",
+			NotVerified,
+			Valid,
+			false,
+		},
+		{
+			"happy path: non-default status to non-default",
+			Rejected,
+			Valid,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := &MessagePublication{
+				verificationState: tt.initial,
+			}
+			if err := msg.SetVerificationState(tt.arg); (err != nil) != tt.wantErr {
+				t.Errorf("MessagePublication.SetVerificationState() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

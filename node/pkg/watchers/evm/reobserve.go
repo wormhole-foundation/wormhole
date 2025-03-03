@@ -48,7 +48,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("observed_block", blockNumber),
 			)
 
-			pubErr := w.publishIfSafe(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+			pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
 
 			if pubErr != nil {
 				w.logger.Error("Error when publishing message", zap.Error(err))
@@ -76,7 +76,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 					zap.Uint64("observed_block", blockNumber),
 				)
 
-				pubErr := w.publishIfSafe(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+				pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
 
 				if pubErr != nil {
 					w.logger.Error("Error when publishing message", zap.Error(err))
@@ -121,7 +121,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("observed_block", blockNumber),
 			)
 
-			pubErr := w.publishIfSafe(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
+			pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
 
 			if pubErr != nil {
 				w.logger.Error("Error when publishing message", zap.Error(err))

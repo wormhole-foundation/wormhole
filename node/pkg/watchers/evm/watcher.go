@@ -599,7 +599,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 						// Note that `tx` here is actually a receipt
 						txHash := eth_common.Hash(pLock.message.TxID)
-						pubErr := w.publishIfSafe(pLock.message, ctx, txHash, tx)
+						pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
 						if pubErr != nil {
 							logger.Error("could not publish message: transfer verification failed",
 								zap.String("msgId", pLock.message.MessageIDString()),
@@ -786,7 +786,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		pubErr := w.publishIfSafe(msg, ctx, ev.Raw.TxHash, nil)
+		pubErr := w.verifyAndPublish(msg, ctx, ev.Raw.TxHash, nil)
 		if pubErr != nil {
 			logger.Error("could not publish message: transfer verification failed",
 				zap.String("msgId", msg.MessageIDString()),
@@ -838,36 +838,60 @@ func canRetryGetBlockTime(err error) bool {
 	return exists
 }
 
-// publishIfSafe validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message. This function
+// verifyAndPublish validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message. This function
 // should be the only location where the watcher's msgC channel is written to.
-// The MessagePulication is checked against either its corresponding raw message publication event log or else a transaction receipt.
-func (w *Watcher) publishIfSafe(
+// Modifies the verificationState field of the message as a side-effect.
+// Even if an invalid Transfer is detected, the message will still be published. It is the responsibility of the calling code to handle
+// a status of Rejected.
+// Note that the result of verification is not returned by this function, but can be accessed directly via the reference to message.
+func (w *Watcher) verifyAndPublish(
+	// Must be non-nil and have verificationState equal to NotVerified.
 	msg *common.MessagePublication,
 	ctx context.Context,
 	// TODO: in practice it might be possible to read the txHash from the MessagePublication and so this argument might be redundant
 	txHash eth_common.Hash,
-	// If nil, the transfer verifier will fetch the receipt. Otherwise we can use the receipt in the calling context
-	// and save on RPC requests and parsing.
+	// This argument is only used when Transfer Verifier is enabled. If nil, transfer verifier will fetch the receipt.
+	// Otherwise, the receipt in the calling context can be passed here to save on RPC requests and parsing.
 	receipt *gethTypes.Receipt,
 ) error {
 	if msg == nil {
-		return errors.New("message publication cannot be nil")
+		return errors.New("verifyAndPublish: message publication cannot be nil")
 	}
+	if msg.VerificationState() != common.NotVerified {
+		return errors.New("verifyAndPublish: message publication already has a verification status")
+	}
+
+	// Verification is only relevant when Transfer Verification is enabled.
+	verificationState := common.NotApplicable
+
 	if w.txVerifierEnabled {
-		// This should have already been initialized.
+		// This should have already been initialized by the constructor.
 		if w.txVerifier == nil {
-			return errors.New("transfer verifier should be instantiated but is nil")
+			return errors.New("verifyAndPublish: transfer verifier should be instantiated but is nil")
 		}
+
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
-		if !w.txVerifier.ProcessEvent(ctx, txHash, receipt) {
-			return fmt.Errorf("transfer verification failed for txHash %s", txHash)
+		valid := w.txVerifier.ProcessEvent(ctx, txHash, receipt)
+		if !valid {
+			w.logger.Error("verifyAndPublish: transfer verification failed", zap.String("txHash", txHash.String()))
+			verificationState = common.Rejected
+		} else {
+			w.logger.Debug("verifyAndPublish: transfer verification successful", zap.String("txHash", txHash.String()))
+			verificationState = common.Valid
 		}
 	}
 
-	// Broadcast the message.
+	updateErr := msg.SetVerificationState(verificationState)
+	if updateErr != nil {
+		errMsg := fmt.Sprintf("verifyAndPublish: could not set verification state for message with txID %s", msg.TxIDString())
+		w.logger.Error(errMsg, zap.Error(updateErr))
+		return fmt.Errorf("%s %w", errMsg, updateErr)
+	}
+
 	w.msgC <- msg
 	return nil
+
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read

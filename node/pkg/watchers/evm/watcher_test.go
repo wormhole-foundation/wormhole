@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 func TestMsgIdFromLogEvent(t *testing.T) {
@@ -57,7 +58,7 @@ func Test_canRetryGetBlockTime(t *testing.T) {
 	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
 }
 
-func TestPublishIfSafe(t *testing.T) {
+func TestVerifyAndPublish(t *testing.T) {
 
 	msgC := make(chan *common.MessagePublication, 1)
 	w := NewWatcherForTest(t, msgC)
@@ -68,51 +69,79 @@ func TestPublishIfSafe(t *testing.T) {
 
 	// Check preconditions
 	require.Equal(t, 0, len(w.msgC))
+	require.Equal(t, common.NotVerified, msg.VerificationState())
 
 	// Check nil message
-	err := w.publishIfSafe(nil, ctx, eth_common.Hash{}, &types.Receipt{})
+	err := w.verifyAndPublish(nil, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "message publication cannot be nil")
+	require.Equal(t, common.NotVerified, msg.VerificationState())
 
 	// Check transfer verifier not enabled case. The message should be published normally
-	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	msg = common.MessagePublication{}
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(msgC))
 	publishedMsg := <-msgC
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.NotApplicable, publishedMsg.VerificationState())
 
 	// Check scenario where transfer verifier is enabled but isn't initialized.
+	msg = common.MessagePublication{}
 	w.txVerifierEnabled = true
-	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "transfer verifier should be instantiated but is nil")
 	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.NotVerified, publishedMsg.VerificationState())
 
-	// Check case where Transfer Verifier finds a dangerous transaction
+	// Check scenario where the message already has a verification status.
+	msg = common.MessagePublication{}
+	msg.SetVerificationState(common.Anomalous)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "message publication already has a verification status")
+	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Anomalous, msg.VerificationState())
+
+	// Check case where Transfer Verifier finds a dangerous transaction. Note that this case does
+	// not return an error, but the published message should be marked as Rejected.
+	msg = common.MessagePublication{}
 	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
 	w.txVerifier = failMock
-	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.ErrorContains(t, err, "transfer verification failed")
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Rejected, publishedMsg.VerificationState())
 
 	// Check happy path where txverifier is enabled and initialized
+	msg = common.MessagePublication{}
 	successMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{true}
 	w.txVerifier = successMock
-	err = w.publishIfSafe(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(msgC))
 	publishedMsg = <-msgC
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Valid, publishedMsg.VerificationState())
 }
 
 // Helper function to set up a test Ethereum Watcher
 func NewWatcherForTest(t *testing.T, msgC chan<- *common.MessagePublication) *Watcher {
 	t.Helper()
+	logger := zap.NewNop()
 
 	w := &Watcher{
 		// this is implicit but added here for clarity
 		txVerifierEnabled: false,
 		msgC:              msgC,
+		logger:            logger,
 	}
 
 	return w
