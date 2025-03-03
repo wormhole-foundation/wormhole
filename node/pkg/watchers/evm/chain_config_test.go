@@ -102,17 +102,21 @@ func testFinalityValuesForEnvironment(t *testing.T, env common.Environment) {
 
 	for chainID, entry := range m {
 		t.Run(chainID.String(), func(t *testing.T) {
-			finalized, safe, err := getFinalityForTest(env, chainID)
+			instantFinality, finalized, safe, err := getFinalityForTest(env, chainID)
 			require.NoError(t, err)
-			assert.Equal(t, finalized, entry.Finalized)
-			assert.Equal(t, safe, entry.Safe)
+			require.Equal(t, instantFinality, entry.InstantFinality)
+			// For instant finality, the values for finalized and safe are for documentation only, so we can't audit them.
+			if !instantFinality {
+				assert.Equal(t, finalized, entry.Finalized)
+				assert.Equal(t, safe, entry.Safe)
+			}
 		})
 	}
 }
 
 // getFinalityForTest was lifted from the old `getFinality` watcher function so we could validate our config data.
 // TODO: Once this code is merged and verified to be stable, this function can be deleted so we don't have to maintain it.
-func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (finalized bool, safe bool, err error) {
+func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (instantFinality bool, finalized bool, safe bool, err error) {
 	// Tilt supports polling for both finalized and safe.
 	if env == common.UnsafeDevNet {
 		finalized = true
@@ -124,6 +128,7 @@ func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (finalized 
 		chainID == vaa.ChainIDArbitrumSepolia ||
 		chainID == vaa.ChainIDBase ||
 		chainID == vaa.ChainIDBaseSepolia ||
+		chainID == vaa.ChainIDBerachain || // Berachain really isn't instant finality, despite what this doc says: https://docs.berachain.com/faq/
 		chainID == vaa.ChainIDBlast ||
 		chainID == vaa.ChainIDBSC ||
 		chainID == vaa.ChainIDEthereum ||
@@ -167,16 +172,15 @@ func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (finalized 
 
 		// The following chains support instant finality.
 	} else if chainID == vaa.ChainIDAvalanche ||
-		chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
 		chainID == vaa.ChainIDOasis ||
 		chainID == vaa.ChainIDAurora ||
 		chainID == vaa.ChainIDFantom ||
 		chainID == vaa.ChainIDKlaytn {
-		return false, false, nil
+		return true, false, false, nil
 
 		// Anything else is undefined / not supported.
 	} else {
-		return false, false, fmt.Errorf("unsupported chain: %s", chainID.String())
+		return false, false, false, fmt.Errorf("unsupported chain: %s", chainID.String())
 	}
 
 	return
