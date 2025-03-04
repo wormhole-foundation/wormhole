@@ -52,7 +52,6 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 
 			if pubErr != nil {
 				w.logger.Error("Error when publishing message", zap.Error(err))
-				continue
 			}
 
 			numObservations++
@@ -80,7 +79,6 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 
 				if pubErr != nil {
 					w.logger.Error("Error when publishing message", zap.Error(err))
-					continue
 				}
 
 				numObservations++
@@ -125,7 +123,6 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 
 			if pubErr != nil {
 				w.logger.Error("Error when publishing message", zap.Error(err))
-				continue
 			}
 
 			numObservations++
