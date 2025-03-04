@@ -335,6 +335,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 		}()
 
+		if len(params.protectedPeers) != 0 {
+			for _, peerId := range params.protectedPeers {
+				logger.Info("protecting peer", zap.String("peerId", peerId))
+				params.components.ConnMgr.Protect(peer.ID(peerId), "configured")
+			}
+		}
+
 		nodeIdBytes, err := h.ID().Marshal()
 		if err != nil {
 			panic(err)

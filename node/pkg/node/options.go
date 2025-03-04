@@ -52,6 +52,7 @@ func GuardianOptionP2P(
 	ccqAllowedPeers string,
 	gossipAdvertiseAddress string,
 	ibcFeaturesFunc func() string,
+	protectedPeers []string,
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
@@ -101,7 +102,8 @@ func GuardianOptionP2P(
 					g.queryResponsePublicationC.readC,
 					ccqBootstrapPeers,
 					ccqPort,
-					ccqAllowedPeers),
+					ccqAllowedPeers,
+					protectedPeers),
 				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
 			)
 			if err != nil {

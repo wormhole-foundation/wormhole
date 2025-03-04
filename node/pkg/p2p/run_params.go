@@ -60,6 +60,7 @@ type (
 		ccqBootstrapPeers      string
 		ccqPort                uint
 		ccqAllowedPeers        string
+		protectedPeers         []string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -162,6 +163,14 @@ func WithDisableHeartbeatVerify(disableHeartbeatVerify bool) RunOpt {
 	}
 }
 
+// WithProtectedPeers is used to set the protected peers.
+func WithProtectedPeers(protectedPeers []string) RunOpt {
+	return func(p *RunParams) error {
+		p.protectedPeers = protectedPeers
+		return nil
+	}
+}
+
 // WithGuardianOptions is used to set options that are only meaningful to the guardian.
 func WithGuardianOptions(
 	nodeName string,
@@ -185,6 +194,7 @@ func WithGuardianOptions(
 	ccqBootstrapPeers string,
 	ccqPort uint,
 	ccqAllowedPeers string,
+	protectedPeers []string,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
@@ -208,6 +218,7 @@ func WithGuardianOptions(
 		p.ccqBootstrapPeers = ccqBootstrapPeers
 		p.ccqPort = ccqPort
 		p.ccqAllowedPeers = ccqAllowedPeers
+		p.protectedPeers = protectedPeers
 		return nil
 	}
 }

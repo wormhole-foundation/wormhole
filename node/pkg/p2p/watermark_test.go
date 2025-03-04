@@ -190,14 +190,15 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.gov,
 			g.disableHeartbeatVerify,
 			g.components,
-			nil,   //g.ibcFeaturesFunc,
-			false, // gateway relayer enabled
-			false, // ccqEnabled
-			nil,   // signed query request channel
-			nil,   // query response channel
-			"",    // query bootstrap peers
-			0,     // query port
-			"",    // query allowed peers),
+			nil,        //g.ibcFeaturesFunc,
+			false,      // gateway relayer enabled
+			false,      // ccqEnabled
+			nil,        // signed query request channel
+			nil,        // query response channel
+			"",         // query bootstrap peers
+			0,          // query port
+			"",         // query allowed peers),
+			[]string{}, // protected peers
 		))
 	require.NoError(t, err)
 

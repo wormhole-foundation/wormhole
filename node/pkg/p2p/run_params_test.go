@@ -159,6 +159,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	ccqBootstrapPeers := "some bootstrap string"
 	ccqPort := uint(4242)
 	ccqAllowedPeers := "some allowed peers"
+	protectedPeers := []string{"peer1", "peer2", "peer3"}
 
 	params, err := NewRunParams(
 		bootstrapPeers,
@@ -187,7 +188,8 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			queryResponseReadC,
 			ccqBootstrapPeers,
 			ccqPort,
-			ccqAllowedPeers),
+			ccqAllowedPeers,
+			protectedPeers),
 	)
 
 	require.NoError(t, err)
@@ -210,4 +212,9 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	assert.Equal(t, ccqBootstrapPeers, params.ccqBootstrapPeers)
 	assert.Equal(t, ccqPort, params.ccqPort)
 	assert.Equal(t, ccqAllowedPeers, params.ccqAllowedPeers)
+
+	require.Equal(t, len(protectedPeers), len(params.protectedPeers))
+	assert.Equal(t, protectedPeers[0], params.protectedPeers[0])
+	assert.Equal(t, protectedPeers[1], params.protectedPeers[1])
+	assert.Equal(t, protectedPeers[2], params.protectedPeers[2])
 }
