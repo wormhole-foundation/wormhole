@@ -199,6 +199,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			0,          // query port
 			"",         // query allowed peers),
 			[]string{}, // protected peers
+			[]string{}, // ccq protected peers
 		))
 	require.NoError(t, err)
 

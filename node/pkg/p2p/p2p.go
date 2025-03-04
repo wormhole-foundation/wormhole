@@ -469,7 +469,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, params.ccqProtectedPeers, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()

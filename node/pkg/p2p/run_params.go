@@ -61,6 +61,7 @@ type (
 		ccqPort                uint
 		ccqAllowedPeers        string
 		protectedPeers         []string
+		ccqProtectedPeers      []string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -171,6 +172,14 @@ func WithProtectedPeers(protectedPeers []string) RunOpt {
 	}
 }
 
+// WithCcqProtectedPeers is used to set the protected peers for CCQ.
+func WithCcqProtectedPeers(ccqProtectedPeers []string) RunOpt {
+	return func(p *RunParams) error {
+		p.ccqProtectedPeers = ccqProtectedPeers
+		return nil
+	}
+}
+
 // WithGuardianOptions is used to set options that are only meaningful to the guardian.
 func WithGuardianOptions(
 	nodeName string,
@@ -195,6 +204,7 @@ func WithGuardianOptions(
 	ccqPort uint,
 	ccqAllowedPeers string,
 	protectedPeers []string,
+	ccqProtectedPeers []string,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
@@ -219,6 +229,7 @@ func WithGuardianOptions(
 		p.ccqPort = ccqPort
 		p.ccqAllowedPeers = ccqAllowedPeers
 		p.protectedPeers = protectedPeers
+		p.ccqProtectedPeers = ccqProtectedPeers
 		return nil
 	}
 }
