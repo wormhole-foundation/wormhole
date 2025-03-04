@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -198,7 +197,7 @@ var KnownAutomaticRelayerEmitters = []struct {
 }
 
 // KnownWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum
-var KnownWrappedNativeAddress = map[vaa.ChainID]common.Address{
+var KnownWrappedNativeAddress = map[vaa.ChainID]string{
 	// WETH
-	vaa.ChainIDEthereum: common.HexToAddress("0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8"),
+	vaa.ChainIDEthereum: "0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8",
 }

@@ -18,24 +18,40 @@ import (
 const HashLength = 32
 const AddressLength = 32
 
-// This type represents whether a message has been verified for some definition of verification. This may mean different things
-// on a per-application or per-chain basis.
-// NOTE: This status is currently used only by the Transfer Verifier for supported chains.
+// The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
+// While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
+// Consequently, its status should be set to `NotVerified` or `NotApplicable` for all messages that aren't token transfers.
 type VerificationState uint8
 
 const (
 	// The default state for a message. This can be used before verification occurs. If no verification is required, `NotApplicable` should be used instead.
-	// NOTE: this value is used as the default, zero-value for the type, so this field should not be re-ordered among other variants.
 	NotVerified VerificationState = iota
 	// Represents a "known bad" status where a Message has been validated and the result indicates an erroneous or invalid message. The message should be discarded.
 	Rejected
 	// Represents an unusual state after validation, neither confirmed to be good or bad.
 	Anomalous
-	// Represents a "known good" status where a Message has been validated and the result is good. The message should be process normally.
+	// Represents a "known good" status where a Message has been validated and the result is good. The message should be processed normally.
 	Valid
 	// Indicates that no verification is necessary.
 	NotApplicable
 )
+
+func (v VerificationState) String() string {
+	switch v {
+	case NotVerified:
+		return "NotVerified"
+	case Valid:
+		return "Valid"
+	case Anomalous:
+		return "Anomalous"
+	case Rejected:
+		return "Rejected"
+	case NotApplicable:
+		return "NotApplicable"
+	default:
+		return ""
+	}
+}
 
 type MessagePublication struct {
 	TxID      []byte
@@ -52,8 +68,10 @@ type MessagePublication struct {
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
 	Unreliable bool
-	// This type represents whether a message has been verified for some definition of verification. This may mean different things
-	// on a per-application or per-chain basis.
+
+	// The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
+	// While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
+	// Consequently, its status should be set to `NotVerified` or `NotApplicable` for all messages that aren't token transfers.
 	verificationState VerificationState
 }
 
@@ -297,21 +315,4 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.Bool("unreliable", msg.Unreliable),
 		zap.String("verificationState", msg.verificationState.String()),
 	)
-}
-
-func (v VerificationState) String() string {
-	switch v {
-	case NotVerified:
-		return "NotVerified"
-	case Valid:
-		return "Valid"
-	case Anomalous:
-		return "Anomalous"
-	case Rejected:
-		return "Rejected"
-	case NotApplicable:
-		return "NotApplicable"
-	default:
-		return ""
-	}
 }
