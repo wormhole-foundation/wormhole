@@ -121,6 +121,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
     // The max length of instruction data is 60 bytes between the two
     // instructions, so we will reuse the same allocated memory for both.
     const MAX_CPI_DATA_LEN: usize = 60;
+    const POST_MESSAGE_UNRELIABLE_DATA_LEN: usize = 10;
 
     // The post message unreliable instruction needs more accounts than the self
     // CPI call (which only needs one). We will initialize the instruction with
@@ -159,8 +160,8 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
         // Bridge message account (only from this program's instruction data),
         // so we might as well set them to zero.
         unsafe {
-            core::ptr::write_bytes(cpi_data.as_mut_ptr(), 0, 10);
-            cpi_data.set_len(10);
+            core::ptr::write_bytes(cpi_data.as_mut_ptr(), 0, POST_MESSAGE_UNRELIABLE_DATA_LEN);
+            cpi_data.set_len(POST_MESSAGE_UNRELIABLE_DATA_LEN);
         }
 
         // We only need to encode the selector for post message unreliable.
@@ -219,6 +220,13 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
         // Safety: The capacity of this vector is 60. This data will be
         // overwritten for the next CPI call.
         unsafe {
+            core::ptr::write_bytes(
+                cpi_data
+                    .as_mut_ptr()
+                    .offset(POST_MESSAGE_UNRELIABLE_DATA_LEN as isize),
+                0,
+                MAX_CPI_DATA_LEN - POST_MESSAGE_UNRELIABLE_DATA_LEN,
+            );
             cpi_data.set_len(MAX_CPI_DATA_LEN);
         }
         cpi_data[..8].copy_from_slice(&ANCHOR_EVENT_CPI_SELECTOR);
