@@ -43,7 +43,7 @@ jobs:
 
   # Verify whether the Makefile builds the node (no dependencies other than Go)
   node:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
@@ -52,7 +52,7 @@ jobs:
       - run: make node
 
   algorand:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v3
@@ -96,7 +96,7 @@ jobs:
       - run: cd ethereum && make test-upgrade
 
   solana:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     container: ghcr.io/wormhole-foundation/solana:1.10.31@sha256:d31e8db926a1d3fbaa9d9211d9979023692614b7b64912651aba0383e8c01bad
 
     env:
@@ -190,7 +190,7 @@ jobs:
 
   aptos:
     name: Aptos
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -204,7 +204,7 @@ jobs:
 
   sui:
     name: Sui
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -213,7 +213,7 @@ jobs:
         run: cd sui && make test-docker
 
   terra:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -221,7 +221,7 @@ jobs:
           node-version: "16"
       - run: cd terra && make test
   terra-2:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -229,7 +229,7 @@ jobs:
           node-version: "16"
       - run: cd cosmwasm/deployment/terra2 && make test
   cosmwasm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -238,7 +238,7 @@ jobs:
       - run: cd cosmwasm && make test
 
   cli:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -251,7 +251,7 @@ jobs:
 
   # Verify wormhole chain unit tests
   wormchain:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
@@ -265,7 +265,7 @@ jobs:
 
   # Verify go sdk unit/fuzz tests
   sdk_vaa:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
@@ -336,7 +336,7 @@ jobs:
 
   # Run Rust lints and tests
   rust-lint-and-tests:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       RUSTFLAGS: -Dwarnings
     strategy:
