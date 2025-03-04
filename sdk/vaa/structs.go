@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -266,6 +267,42 @@ func (c ChainID) String() string {
 	}
 }
 
+// StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
+// The argument can be either a numeric string representation of a number or a known chain name such as "solana".
+// Inputs of unknown ChainIDs, including 0, will result in an error.
+func StringToKnownChainID(s string) (ChainID, error) {
+
+	// Try to convert from chain name first, and return early if it's found.
+	id, err := ChainIDFromString(s)
+	if err == nil {
+		return id, nil
+	}
+
+	// Ensure that the string can be parsed into a uint16 in order to avoid overflow issues when converting
+	// to ChainID (which is a uint16).
+	u16, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return ChainIDUnset, err
+	}
+
+	// TODO: using slice.Contains would be nicer here, but it requires that users of the SDK are on Go version >= 1.21
+	// This is not the case for e.g. Wormchain, so this function can't be used here until SDK users upgrade their Go versions
+	found := false
+	// NOTE: This function does not contain ChainIDUnset, therefore this function returns an error if the argument is 0.
+	for _, id := range GetAllNetworkIDs() {
+		if ChainID(u16) == ChainID(id) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ChainIDUnset, fmt.Errorf("value %s does not any known ChainID", s)
+	}
+
+	return ChainID(u16), nil
+}
+
+// ChainIDFromString converts from a chain's full name (e.g. "solana") to its corresponding ChainID.
 func ChainIDFromString(s string) (ChainID, error) {
 	s = strings.ToLower(s)
 
