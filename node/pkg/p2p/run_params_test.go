@@ -127,6 +127,57 @@ func TestRunParamsWithDisableHeartbeatVerify(t *testing.T) {
 	assert.True(t, params.disableHeartbeatVerify)
 }
 
+func TestRunParamsWithProtectedPeers(t *testing.T) {
+	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
+	require.NoError(t, err)
+	gst := common.NewGuardianSetState(nil)
+	_, rootCtxCancel := context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
+	protectedPeers := []string{"peer1", "peer2", "peer3"}
+	params, err := NewRunParams(
+		bootstrapPeers,
+		networkId,
+		priv,
+		gst,
+		rootCtxCancel,
+		WithProtectedPeers(protectedPeers),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, params)
+
+	require.Equal(t, len(protectedPeers), len(params.protectedPeers))
+	assert.Equal(t, protectedPeers[0], params.protectedPeers[0])
+	assert.Equal(t, protectedPeers[1], params.protectedPeers[1])
+	assert.Equal(t, protectedPeers[2], params.protectedPeers[2])
+}
+
+func TestRunParamsWithCcqProtectedPeers(t *testing.T) {
+	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
+	require.NoError(t, err)
+	gst := common.NewGuardianSetState(nil)
+	_, rootCtxCancel := context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
+	ccqProtectedPeers := []string{"peerA", "peerB"}
+	params, err := NewRunParams(
+		bootstrapPeers,
+		networkId,
+		priv,
+		gst,
+		rootCtxCancel,
+		WithCcqProtectedPeers(ccqProtectedPeers),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, params)
+
+	require.Equal(t, len(ccqProtectedPeers), len(params.ccqProtectedPeers))
+	assert.Equal(t, ccqProtectedPeers[0], params.ccqProtectedPeers[0])
+	assert.Equal(t, ccqProtectedPeers[1], params.ccqProtectedPeers[1])
+}
+
 func TestRunParamsWithGuardianOptions(t *testing.T) {
 	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 	require.NoError(t, err)
