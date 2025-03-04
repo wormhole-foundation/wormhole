@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -68,7 +69,11 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
 
-	chainID := vaa.ChainID(req.MessageId.EmitterChain.Number())
+	if req.MessageId.GetEmitterChain() > math.MaxUint16 {
+		return nil, status.Error(codes.InvalidArgument, "emitter chain id must be no greater than 16 bits")
+	}
+
+	chainID := vaa.ChainID(req.MessageId.GetEmitterChain()) // #nosec G115 -- This conversion is checked above
 
 	// This interface is not supported for PythNet messages because those VAAs are not stored in the database.
 	if chainID == vaa.ChainIDPythNet {

@@ -127,7 +127,7 @@ func TestStoreSignedVAABatch(t *testing.T) {
 	require.Less(t, int64(0), db.db.MaxBatchSize())  // In testing this was 10066329.
 
 	// Make sure we exceed the max batch size.
-	numVAAs := uint64(db.db.MaxBatchCount() + 1)
+	numVAAs := uint64(db.db.MaxBatchCount() + 1) // #nosec G115 -- This is safe given the testing values noted above
 
 	// Build the VAA batch.
 	vaaBatch := make([]*vaa.VAA, 0, numVAAs)

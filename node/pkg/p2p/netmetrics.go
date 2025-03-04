@@ -38,7 +38,7 @@ func collectNodeMetrics(addr common.Address, peerId peer.ID, hb *gossipv1.Heartb
 			continue
 		}
 
-		chain := vaa.ChainID(n.Id)
+		chain := vaa.ChainID(n.Id) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 
 		wormholeNetworkNodeHeight.WithLabelValues(
 			addr.Hex(), peerId.String(), hb.NodeName, chain.String()).Set(float64(n.Height))
