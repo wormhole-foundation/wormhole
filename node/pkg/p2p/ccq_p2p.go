@@ -76,6 +76,7 @@ func (ccq *ccqP2p) run(
 	port uint,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
+	protectedPeers []string,
 	errC chan error,
 ) error {
 	networkID := p2pNetworkID + "/ccq"
@@ -93,6 +94,12 @@ func (ccq *ccqP2p) run(
 	ccq.h, err = NewHost(ccq.logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
 		return fmt.Errorf("failed to create p2p: %w", err)
+	}
+
+	if len(protectedPeers) != 0 {
+		for _, peerId := range protectedPeers {
+			components.ConnMgr.Protect(peer.ID(peerId), "configured")
+		}
 	}
 
 	// Build a map of bootstrap peers so we can always allow subscribe requests from them.

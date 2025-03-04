@@ -36,9 +36,10 @@ var (
 var (
 	envStr *string
 
-	p2pNetworkID *string
-	p2pPort      *uint
-	p2pBootstrap *string
+	p2pNetworkID   *string
+	p2pPort        *uint
+	p2pBootstrap   *string
+	protectedPeers []string
 
 	statusAddr *string
 
@@ -59,6 +60,7 @@ func init() {
 	p2pNetworkID = SpyCmd.Flags().String("network", "", "P2P network identifier (optional for testnet or mainnet, overrides default, required for devnet)")
 	p2pPort = SpyCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = SpyCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for testnet or mainnet, overrides default, required for devnet)")
+	SpyCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
 
 	statusAddr = SpyCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -396,6 +398,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 			rootCtxCancel,
 			p2p.WithSignedVAAListener(signedInC),
 			p2p.WithComponents(components),
+			p2p.WithProtectedPeers(protectedPeers),
 		)
 		if err != nil {
 			return err
