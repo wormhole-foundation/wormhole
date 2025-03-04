@@ -273,24 +273,25 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return errors.New("watcher attempted to create Transfer Verifier but this chainId is not supported")
 			}
 
-			var tbridge eth_common.Address
-			var weth eth_common.Address
+			// Fetch the constants for the Token Bridge and the WETH address from the SDK.
+			var tbridge []byte
+			var weth string
 			switch w.env {
 			case common.UnsafeDevNet:
-				tbridge = eth_common.BytesToAddress(sdk.KnownDevnetTokenbridgeEmitters[w.chainID])
+				tbridge = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
 				weth = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
 			case common.TestNet:
-				tbridge = eth_common.BytesToAddress(sdk.KnownTestnetTokenbridgeEmitters[w.chainID])
+				tbridge = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
 				weth = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
 			case common.MainNet:
-				tbridge = eth_common.Address(sdk.KnownTokenbridgeEmitters[w.chainID])
+				tbridge = sdk.KnownTokenbridgeEmitters[w.chainID]
 				// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
 				weth = sdk.KnownWrappedNativeAddress[w.chainID]
 			}
 			addrs := txverifier.TVAddresses{
 				CoreBridgeAddr:    w.contract,
-				TokenBridgeAddr:   tbridge,
-				WrappedNativeAddr: weth,
+				TokenBridgeAddr:   eth_common.BytesToAddress(tbridge[:]),
+				WrappedNativeAddr: eth_common.HexToAddress(weth),
 			}
 
 			// The block height difference between the latest block and the oldest block to keep in memory.
@@ -861,14 +862,16 @@ func (w *Watcher) verifyAndPublish(
 		return errors.New("verifyAndPublish: message publication already has a verification status")
 	}
 
-	// Verification is only relevant when Transfer Verification is enabled.
-	verificationState := common.NotApplicable
-
 	if w.txVerifierEnabled {
 		// This should have already been initialized by the constructor.
 		if w.txVerifier == nil {
 			return errors.New("verifyAndPublish: transfer verifier should be instantiated but is nil")
 		}
+
+		// Setting a custom verification state is only required when
+		// Transfer Verification is enabled. If disabled, the message
+		// will be emitted with the default value `NotVerified`.
+		var verificationState common.VerificationState
 
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
@@ -880,13 +883,14 @@ func (w *Watcher) verifyAndPublish(
 			w.logger.Debug("verifyAndPublish: transfer verification successful", zap.String("txHash", txHash.String()))
 			verificationState = common.Valid
 		}
-	}
 
-	updateErr := msg.SetVerificationState(verificationState)
-	if updateErr != nil {
-		errMsg := fmt.Sprintf("verifyAndPublish: could not set verification state for message with txID %s", msg.TxIDString())
-		w.logger.Error(errMsg, zap.Error(updateErr))
-		return fmt.Errorf("%s %w", errMsg, updateErr)
+		// Update the state of the message depending on the results of transfer verification.
+		updateErr := msg.SetVerificationState(verificationState)
+		if updateErr != nil {
+			errMsg := fmt.Sprintf("verifyAndPublish: could not set verification state for message with txID %s", msg.TxIDString())
+			w.logger.Error(errMsg, zap.Error(updateErr))
+			return fmt.Errorf("%s %w", errMsg, updateErr)
+		}
 	}
 
 	w.msgC <- msg

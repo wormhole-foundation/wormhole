@@ -1,7 +1,6 @@
 package sdk
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -44,7 +43,7 @@ var KnownDevnetAutomaticRelayerEmitters = []struct {
 }
 
 // KnownDevnetWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum
-var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]common.Address{
+var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]string{
 	// WETH deployed by the Tilt devnet configuration.
-	vaa.ChainIDEthereum: common.HexToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"),
+	vaa.ChainIDEthereum: "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
 }

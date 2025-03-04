@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
@@ -11,7 +12,6 @@ import (
 	"path"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -287,7 +287,7 @@ var (
 	subscribeToVAAs *bool
 
 	// A list of chain IDs that should enable the Transfer Verifier. If empty, Transfer Verifier will not be enabled.
-	transferVerifierEnabledChains *string
+	transferVerifierEnabledChains *[]uint
 	// Global variable used to store enabled Chain IDs for Transfer Verification. Contents are parsed from
 	// transferVerifierEnabledChains.
 	txVerifierChains []vaa.ChainID
@@ -521,7 +521,7 @@ func init() {
 
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
 
-	transferVerifierEnabledChains = NodeCmd.Flags().String("transferVerifierEnabledChains", "", "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
+	transferVerifierEnabledChains = NodeCmd.Flags().UintSlice("transferVerifierEnabledChains", make([]uint, 2), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 }
 
 var (
@@ -941,13 +941,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
 
+	// NOTE: If this flag isn't set, or the list is empty, Transfer Verifier should not be enabled.
 	if cmd.Flags().Changed("transferVerifierEnabledChains") {
 		var parseErr error
 		// NOTE: avoid shadowing txVerifierChains here. It should refer to the global variable.
-		txVerifierChains, parseErr = parseTxVerifierChains(*transferVerifierEnabledChains)
-		logger.Debug("parsed txVerifierChains", zap.Any("chains", txVerifierChains))
+		txVerifierChains, parseErr = validateTxVerifierChains(*transferVerifierEnabledChains)
+
+		logger.Debug("validated txVerifierChains", zap.Any("chains", txVerifierChains))
 		if parseErr != nil {
-			logger.Fatal("Could not parse transferVerifierEnabledChains", zap.Error(parseErr))
+			logger.Fatal("transferVerifierEnabledChains input is invalid", zap.Error(parseErr))
 		}
 	}
 
@@ -1934,28 +1936,24 @@ func argsConsistent(args []string) bool {
 	return true
 }
 
-// parseTxVerifierChains parses a list of chainIds from a comma separated string and validate that they have a Transfer Verifier implementation.
-// If the input is empty, Transfer Verifier will not be enabled.
-func parseTxVerifierChains(
+// validateTxVerifierChains validates that a slice of uints correspond to chain IDs with a Transfer Verifier implementation.
+func validateTxVerifierChains(
 	// A comma-separated list of Wormhole ChainIDs.
-	input string,
+	input []uint,
 ) ([]vaa.ChainID, error) {
 	if len(input) == 0 {
-		return nil, errors.New("could not parse input to parseTxVerifierChains: input empty")
+		return nil, errors.New("no chain IDs provided for transfer verification")
 	}
-	parsed := strings.Split(input, ",")
 	knownChains := vaa.GetAllNetworkIDs()
 	supportedChains := txverifier.SupportedChains()
 
 	// NOTE: Using a known capacity and counter here avoids unnecessary reallocations compared to using `append()`.
-	enabled := make([]vaa.ChainID, len(parsed))
+	enabled := make([]vaa.ChainID, len(input))
 	i := uint8(0)
-	for _, chainStr := range parsed {
-		chain, parseErr := strconv.Atoi(chainStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("could not parse chainId from string %s: %w", chainStr, parseErr)
+	for _, chain := range input {
+		if chain > uint(math.MaxUint16) {
+			return nil, fmt.Errorf("invalid chain ID %d: exceeds MaxUint16", chain)
 		}
-
 		chainId := vaa.ChainID(chain)
 
 		if !slices.Contains(knownChains, chainId) {
