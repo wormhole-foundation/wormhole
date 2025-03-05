@@ -85,6 +85,10 @@ type chainIds struct {
 	wormholeChainId vaa.ChainID
 }
 
+type TransferVerifierInterface interface {
+	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) bool
+}
+
 // TransferVerifier contains configuration values for verifying transfers.
 type TransferVerifier[E evmClient, C connector] struct {
 	Addresses *TVAddresses
@@ -1018,7 +1022,7 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("failed to get decimals for token: result has insufficient length",
+		tv.logger.Warn("failed to get decimals for token: decimals() result has insufficient length",
 			zap.String("tokenAddress", tokenAddress.String()),
 			zap.ByteString("result", result))
 		return 0, err
