@@ -23,6 +23,7 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	"github.com/certusone/wormhole/node/pkg/node"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -62,6 +63,7 @@ func init() {
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
 	DumpRPCs.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
+	ReobserveWithEndpoint.Flags().AddFlagSet(pf)
 	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
@@ -84,6 +86,7 @@ func init() {
 	AdminCmd.AddCommand(DumpVAAByMessageID)
 	AdminCmd.AddCommand(DumpRPCs)
 	AdminCmd.AddCommand(SendObservationRequest)
+	AdminCmd.AddCommand(ReobserveWithEndpoint)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
@@ -134,6 +137,13 @@ var SendObservationRequest = &cobra.Command{
 	Short: "Broadcast an observation request for the given chain ID and chain-specific tx_hash",
 	Run:   runSendObservationRequest,
 	Args:  cobra.ExactArgs(2),
+}
+
+var ReobserveWithEndpoint = &cobra.Command{
+	Use:   "reobserve-with-endpoint [CHAIN_ID|CHAIN_NAME] [TX_HASH_HEX] [CUSTOM_URL]",
+	Short: "Performs a local reobservation for the given chain ID and chain-specific tx_hash using the specified endpoint",
+	Run:   runReobserveWithEndpoint,
+	Args:  cobra.ExactArgs(3),
 }
 
 var ClientChainGovernorStatusCmd = &cobra.Command{
@@ -412,6 +422,51 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	})
 	if err != nil {
 		log.Fatalf("failed to send observation request: %v", err)
+	}
+}
+
+func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
+	chainID, err := parseChainID(args[0])
+	if err != nil {
+		log.Fatalf("invalid chain ID: %v", err)
+	}
+
+	// Support tx with or without leading 0x.
+	txHash, err := hex.DecodeString(strings.TrimPrefix(args[1], "0x"))
+	if err != nil {
+		txHash, err = base58.Decode(args[1])
+		if err != nil {
+			log.Fatalf("invalid transaction hash (neither hex nor base58): %v", err)
+		}
+	}
+
+	url := args[2]
+	if valid := node.ValidateURL(url, []string{"http", "https"}); !valid {
+		log.Fatalf(`invalid url, must be "http" or "https"`)
+	}
+
+	// Allow extra time since the watcher can block on the reobservation.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	resp, err := c.ReobserveWithEndpoint(ctx, &nodev1.ReobserveWithEndpointRequest{
+		ChainId: uint32(chainID),
+		TxHash:  txHash,
+		Url:     url,
+	})
+	if err != nil {
+		log.Fatalf("failed to send observation request with endpoint: %v", err)
+	}
+	if resp.NumObservations == 0 {
+		fmt.Println("Did not reobserve anything")
+	} else {
+		fmt.Println("Reobserved", resp.NumObservations, "messages")
 	}
 }
 

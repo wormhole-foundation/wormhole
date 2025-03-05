@@ -50,9 +50,10 @@ import (
 )
 
 var (
-	p2pNetworkID *string
-	p2pPort      *uint
-	p2pBootstrap *string
+	p2pNetworkID   *string
+	p2pPort        *uint
+	p2pBootstrap   *string
+	protectedPeers []string
 
 	nodeKeyPath *string
 
@@ -262,6 +263,7 @@ var (
 	ccqAllowedRequesters *string
 	ccqP2pPort           *uint
 	ccqP2pBootstrap      *string
+	ccqProtectedPeers    []string
 	ccqAllowedPeers      *string
 	ccqBackfillCache     *bool
 
@@ -282,6 +284,7 @@ func init() {
 	p2pNetworkID = NodeCmd.Flags().String("network", "", "P2P network identifier (optional, overrides default for environment)")
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
+	NodeCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -491,6 +494,7 @@ func init() {
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
 	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
 	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
+	NodeCmd.Flags().StringSliceVarP(&ccqProtectedPeers, "ccqProtectedPeers", "", []string{}, "")
 	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
 	ccqBackfillCache = NodeCmd.Flags().Bool("ccqBackfillCache", true, "Should EVM chains backfill CCQ timestamp cache on startup")
 	gossipAdvertiseAddress = NodeCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on Guardian and CCQ p2p (use if behind a NAT or running in k8s)")
@@ -814,41 +818,41 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate the args for all the EVM chains. The last flag indicates if the chain is allowed in mainnet.
-	*ethContract = checkEvmArgs(logger, *ethRPC, *ethContract, "eth", true)
-	*bscContract = checkEvmArgs(logger, *bscRPC, *bscContract, "bsc", true)
-	*polygonContract = checkEvmArgs(logger, *polygonRPC, *polygonContract, "polygon", true)
-	*avalancheContract = checkEvmArgs(logger, *avalancheRPC, *avalancheContract, "avalanche", true)
-	*oasisContract = checkEvmArgs(logger, *oasisRPC, *oasisContract, "oasis", true)
-	*fantomContract = checkEvmArgs(logger, *fantomRPC, *fantomContract, "fantom", true)
-	*karuraContract = checkEvmArgs(logger, *karuraRPC, *karuraContract, "karura", true)
-	*acalaContract = checkEvmArgs(logger, *acalaRPC, *acalaContract, "acala", true)
-	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, "klaytn", true)
-	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, "celo", true)
-	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, "moonbeam", true)
-	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, "arbitrum", true)
-	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, "optimism", true)
-	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, "base", true)
-	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, "scroll", true)
-	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, "mantle", true)
-	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", true)
-	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", true)
-	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", true)
-	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
-	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
-	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
-	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
-	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
-	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, "hyperEvm", false)
-	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, "monad", false)
-	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, "seiEvm", false)
+	*ethContract = checkEvmArgs(logger, *ethRPC, *ethContract, vaa.ChainIDEthereum)
+	*bscContract = checkEvmArgs(logger, *bscRPC, *bscContract, vaa.ChainIDBSC)
+	*polygonContract = checkEvmArgs(logger, *polygonRPC, *polygonContract, vaa.ChainIDPolygon)
+	*avalancheContract = checkEvmArgs(logger, *avalancheRPC, *avalancheContract, vaa.ChainIDAvalanche)
+	*oasisContract = checkEvmArgs(logger, *oasisRPC, *oasisContract, vaa.ChainIDOasis)
+	*fantomContract = checkEvmArgs(logger, *fantomRPC, *fantomContract, vaa.ChainIDFantom)
+	*karuraContract = checkEvmArgs(logger, *karuraRPC, *karuraContract, vaa.ChainIDKarura)
+	*acalaContract = checkEvmArgs(logger, *acalaRPC, *acalaContract, vaa.ChainIDAcala)
+	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, vaa.ChainIDKlaytn)
+	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, vaa.ChainIDCelo)
+	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, vaa.ChainIDMoonbeam)
+	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, vaa.ChainIDArbitrum)
+	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, vaa.ChainIDOptimism)
+	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
+	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, vaa.ChainIDScroll)
+	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, vaa.ChainIDMantle)
+	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, vaa.ChainIDBlast)
+	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, vaa.ChainIDXLayer)
+	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, vaa.ChainIDLinea)
+	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, vaa.ChainIDBerachain)
+	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, vaa.ChainIDSnaxchain)
+	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, vaa.ChainIDUnichain)
+	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, vaa.ChainIDWorldchain)
+	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, vaa.ChainIDInk)
+	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, vaa.ChainIDHyperEVM)
+	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, vaa.ChainIDMonad)
+	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, vaa.ChainIDSeiEVM)
 
 	// These chains will only ever be testnet / devnet.
-	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
-	*arbitrumSepoliaContract = checkEvmArgs(logger, *arbitrumSepoliaRPC, *arbitrumSepoliaContract, "arbitrumSepolia", false)
-	*baseSepoliaContract = checkEvmArgs(logger, *baseSepoliaRPC, *baseSepoliaContract, "baseSepolia", false)
-	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, "optimismSepolia", false)
-	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, "holesky", false)
-	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, "polygonSepolia", false)
+	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
+	*arbitrumSepoliaContract = checkEvmArgs(logger, *arbitrumSepoliaRPC, *arbitrumSepoliaContract, vaa.ChainIDArbitrumSepolia)
+	*baseSepoliaContract = checkEvmArgs(logger, *baseSepoliaRPC, *baseSepoliaContract, vaa.ChainIDBaseSepolia)
+	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, vaa.ChainIDOptimismSepolia)
+	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, vaa.ChainIDHolesky)
+	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, vaa.ChainIDPolygonSepolia)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
@@ -1777,7 +1781,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures, protectedPeers, ccqProtectedPeers),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionProcessor(*p2pNetworkID),
 	}
@@ -1812,17 +1816,17 @@ func shouldStart(rpc *string) bool {
 
 // checkEvmArgs verifies that the RPC and contract address parameters for an EVM chain make sense, given the environment.
 // If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
-func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel string, mainnetSupported bool) string {
+func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr string, chainID vaa.ChainID) string {
 	if env != common.UnsafeDevNet {
 		// In mainnet / testnet, if either parameter is specified, they must both be specified.
 		if (rpc == "") != (contractAddr == "") {
-			logger.Fatal(fmt.Sprintf("Both --%sContract and --%sRPC must be set or both unset", chainLabel, chainLabel))
+			logger.Fatal(fmt.Sprintf("Both contract and RPC for chain %s must be set or both unset", chainID.String()))
 		}
 	} else {
 		// In devnet, if RPC is set but contract is not set, use the deterministic one for tilt.
 		if rpc == "" {
 			if contractAddr != "" {
-				logger.Fatal(fmt.Sprintf("If --%sRPC is not set, --%sContract must not be set", chainLabel, chainLabel))
+				logger.Fatal(fmt.Sprintf("If RPC is not set for chain %s, contract must not be set", chainID.String()))
 			}
 		} else {
 			if contractAddr == "" {
@@ -1830,8 +1834,9 @@ func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel strin
 			}
 		}
 	}
+	mainnetSupported := evm.SupportedInMainnet(chainID)
 	if contractAddr != "" && !mainnetSupported && env == common.MainNet {
-		logger.Fatal(fmt.Sprintf("Chain %s not supported in mainnet", chainLabel))
+		logger.Fatal(fmt.Sprintf("Chain %s is not supported in mainnet", chainID.String()))
 	}
 	return contractAddr
 }

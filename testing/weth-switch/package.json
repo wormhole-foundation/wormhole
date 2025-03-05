@@ -8,5 +8,8 @@
     "axios": "^0.24.0",
     "ethers": "^5.5.2"
   },
-  "scripts": {}
+  "scripts": {},
+  "overrides": {
+    "elliptic": "^6.6.1"
+  }
 }

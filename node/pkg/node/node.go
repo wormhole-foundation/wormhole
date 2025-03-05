@@ -13,6 +13,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
@@ -74,6 +75,7 @@ type G struct {
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
 	runnables             map[string]supervisor.Runnable
+	reobservers           interfaces.Reobservers
 
 	// various channels
 	// Outbound gossip message queues (need to be read/write because p2p needs read/write)
@@ -140,6 +142,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	// allocate maps
 	g.runnablesWithScissors = make(map[string]supervisor.Runnable)
 	g.runnables = make(map[string]supervisor.Runnable)
+	g.reobservers = make(interfaces.Reobservers)
 }
 
 // applyOptions applies `options` to the GuardianNode.

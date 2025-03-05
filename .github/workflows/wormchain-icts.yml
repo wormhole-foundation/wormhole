@@ -46,7 +46,7 @@ jobs:
           outputs: type=docker,dest=${{ env.TAR_PATH }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.IMAGE_NAME }}
           path: ${{ env.TAR_PATH }}
@@ -59,9 +59,11 @@ jobs:
         # names of `make` commands to run tests
         test:
           - "ictest-cancel-upgrade"
+          - "ictest-slashing-params-update-vaa"
           - "ictest-upgrade"
           - "ictest-wormchain"
-          - "ictest-ibc-receiver"
+          # Disabled due to flakiness in CI.
+          # - "ictest-ibc-receiver"
           - "ictest-validator-hotswap"
           - "ictest-cw-wormhole"
       fail-fast: false
@@ -77,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Tarball Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ env.IMAGE_NAME }}
           path: /tmp

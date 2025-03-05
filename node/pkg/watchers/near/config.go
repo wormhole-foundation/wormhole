@@ -40,7 +40,7 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, error) {
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 	var mainnet bool = (env == common.MainNet)
-	return nil, NewWatcher(wc.Rpc, wc.Contract, msgC, obsvReqC, mainnet).Run, nil
+	return nil, NewWatcher(wc.Rpc, wc.Contract, msgC, obsvReqC, mainnet).Run, nil, nil
 }
