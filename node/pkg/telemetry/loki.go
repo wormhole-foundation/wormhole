@@ -89,14 +89,18 @@ func (logger *ExternalLoggerLoki) log(ts time.Time, message json.RawMessage, lev
 
 	// A fatal error exits, which can cause us to lose messages. Flush everything.
 	if level == zapcore.FatalLevel {
-		// Signal the go routine to shut down the logger and exit.
+		// Signal the go routine to exit and give it some time to go away before shutting down.
 		logger.localCancel()
+		time.Sleep(250 * time.Millisecond)
+		logger.c.StopNow()
 	}
 }
 
 func (logger *ExternalLoggerLoki) close() error {
-	// Signal the go routine to shut down the logger and exit.
+	// Signal the go routine to exit and give it some time to go away before shutting down.
 	logger.localCancel()
+	time.Sleep(250 * time.Millisecond)
+	logger.c.Stop()
 	return nil
 }
 
@@ -161,17 +165,17 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 	localContext, localCancel := context.WithCancel(ctx)
 
 	// Kick off a go routine to read from the local buffered channel and write to the Loki unbuffered channel.
-	go func(ctx context.Context, c client.Client, localC chan api.Entry) {
+	go func(ctx context.Context, localC chan api.Entry, remoteC chan<- api.Entry) {
 		for {
 			select {
 			case <-ctx.Done():
 				c.Stop()
 				return
 			case entry := <-localC:
-				c.Chan() <- entry // can_block: That's why we are in this separate go routine.
+				remoteC <- entry // can_block: That's why we are in this separate go routine.
 			}
 		}
-	}(localContext, c, localChan)
+	}(localContext, localChan, c.Chan())
 
 	return &Telemetry{
 		encoder: &guardianTelemetryEncoder{
