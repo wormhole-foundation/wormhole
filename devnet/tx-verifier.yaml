@@ -11,6 +11,7 @@ spec:
         name: tx-verifier
     spec:
       restartPolicy: Never
+      activeDeadlineSeconds: 900
       shareProcessNamespace: true
       securityContext:
         runAsUser: 1000
