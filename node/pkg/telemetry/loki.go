@@ -44,6 +44,9 @@ type ExternalLoggerLoki struct {
 	// gets logged locally). There is then a go routine picking messages off of this local channel and writing them to the Loki
 	// channel in a blocking manner.
 	localChan chan api.Entry
+
+	// localCancel is used to cancel the go routine on shutdown or a fatal error.
+	localCancel context.CancelFunc
 }
 
 var (
@@ -60,7 +63,7 @@ var (
 		})
 )
 
-func (logger *ExternalLoggerLoki) log(time time.Time, message json.RawMessage, level zapcore.Level) {
+func (logger *ExternalLoggerLoki) log(ts time.Time, message json.RawMessage, level zapcore.Level) {
 	lokiLabels := logger.labels[level]
 
 	bytes, err := message.MarshalJSON()
@@ -70,7 +73,7 @@ func (logger *ExternalLoggerLoki) log(time time.Time, message json.RawMessage, l
 	}
 	entry := api.Entry{
 		Entry: logproto.Entry{
-			Timestamp: time,
+			Timestamp: ts,
 			Line:      string(bytes),
 		},
 
@@ -86,12 +89,14 @@ func (logger *ExternalLoggerLoki) log(time time.Time, message json.RawMessage, l
 
 	// A fatal error exits, which can cause us to lose messages. Flush everything.
 	if level == zapcore.FatalLevel {
-		logger.c.StopNow()
+		// Signal the go routine to shut down the logger and exit.
+		logger.localCancel()
 	}
 }
 
 func (logger *ExternalLoggerLoki) close() error {
-	logger.c.Stop()
+	// Signal the go routine to shut down the logger and exit.
+	logger.localCancel()
 	return nil
 }
 
@@ -152,17 +157,21 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 	// channel should be big enough to handle a burst of log messages from the app.
 	localChan := make(chan api.Entry, 1000)
 
+	// Create a local context with a cancel function so we can signal our go routine to shutdown when the time comes.
+	localContext, localCancel := context.WithCancel(ctx)
+
 	// Kick off a go routine to read from the local buffered channel and write to the Loki unbuffered channel.
-	go func(localC chan api.Entry, remoteC chan<- api.Entry) {
+	go func(ctx context.Context, c client.Client, localC chan api.Entry) {
 		for {
 			select {
 			case <-ctx.Done():
+				c.Stop()
 				return
 			case entry := <-localC:
-				remoteC <- entry // can_block: That's why we are in this separate go routine.
+				c.Chan() <- entry // can_block: That's why we are in this separate go routine.
 			}
 		}
-	}(localChan, c.Chan())
+	}(localContext, c, localChan)
 
 	return &Telemetry{
 		encoder: &guardianTelemetryEncoder{
@@ -172,6 +181,7 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 				labels:      lokiLabels,
 				localLogger: localLogger,
 				localChan:   localChan,
+				localCancel: localCancel,
 			},
 			skipPrivateLogs: skipPrivateLogs,
 		},
