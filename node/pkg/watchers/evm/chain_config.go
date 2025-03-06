@@ -96,7 +96,7 @@ var (
 		vaa.ChainIDSnaxchain:  {Finalized: true, Safe: true, EvmChainID: 2192, PublicRPC: "https://mainnet.snaxchain.io"},
 		vaa.ChainIDUnichain:   {Finalized: true, Safe: true, EvmChainID: 130, PublicRPC: "https://unichain-rpc.publicnode.com"},
 		vaa.ChainIDWorldchain: {Finalized: true, Safe: true, EvmChainID: 480, PublicRPC: "https://worldchain-mainnet.g.alchemy.com/public"},
-		// vaa.ChainIDInk:        Not in Mainnet yet.
+		vaa.ChainIDInk:        {Finalized: true, Safe: true, EvmChainID: 57073, PublicRPC: "https://rpc-qnd.inkonchain.com"},
 		// vaa.ChainIDHyperEVM:   Not in Mainnet yet.
 		// vaa.ChainIDMonad:      Not in Mainnet yet.
 	}

@@ -53,6 +53,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDBerachain:  "https://api.berascan.com/",
 	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",
 	vaa.ChainIDWorldchain: "https://api.worldscan.org",
+	vaa.ChainIDInk:        "", // TODO: Does Ink have an etherscan API endpoint?
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -78,6 +79,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDBerachain:  strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
 	vaa.ChainIDUnichain:   strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
 	vaa.ChainIDWorldchain: strings.ToLower("0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"),
+	vaa.ChainIDInk:        strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
 }
 
 var (
