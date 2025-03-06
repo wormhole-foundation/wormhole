@@ -671,7 +671,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	ce.msgC <- evt.Msg
+	ce.msgC <- evt.Msg //can_block: The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 	return nil
 }
