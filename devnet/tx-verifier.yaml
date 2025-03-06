@@ -96,3 +96,5 @@ spec:
       volumes:
       - name: log-volume
         emptyDir: {}
+      - name: log-volume-2
+        emptyDir: {}
