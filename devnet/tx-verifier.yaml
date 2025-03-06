@@ -11,7 +11,6 @@ spec:
         name: tx-verifier
     spec:
       restartPolicy: Never
-      activeDeadlineSeconds: 900
       shareProcessNamespace: true
       securityContext:
         runAsUser: 1000
@@ -31,12 +30,16 @@ spec:
               value: "invalid receipt: no deposits and no transfers"
             - name: ERROR_LOG_PATH
               value: "/logs/error.log"
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              # Run the monitoring script
-              echo "staring to run the monitor script"
-              /monitor.sh && touch /logs/success
+          # command: ["/bin/sh", "-c"]
+          # args:
+          #   - |
+          #     # Run the monitoring script
+          #     echo "staring to run the monitor script"
+          #     /monitor.sh && touch /logs/success
+          command:
+            - /bin/sh
+            - -c
+            - "bash /monitor.sh && touch /logs/success" 
           readinessProbe:
             exec:
               command:
@@ -54,7 +57,7 @@ spec:
           command:
             - /bin/bash
             - -c
-            - "/transfer-verifier-test.sh"
+            - "bash /transfer-verifier-test.sh"
           env:
             - name: RPC_URL
               value: "ws://eth-devnet:8545"
