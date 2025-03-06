@@ -48,7 +48,7 @@ spec:
         - name: tx-verifier-test
           image: tx-verifier-test
           volumeMounts:
-           - name: log-volume
+           - name: log-volume-2
              mountPath: /logs
           command:
             - /bin/bash
