@@ -47,9 +47,6 @@ spec:
         # This container runs the script that simulates malicious traffic. The Transfer Verifier should detect this.
         - name: tx-verifier-test
           image: tx-verifier-test
-          volumeMounts:
-           - name: log-volume-2
-             mountPath: /logs
           command:
             - /bin/bash
             - -c
@@ -62,7 +59,7 @@ spec:
               command:
                 - test
                 - -e
-                - "/logs/success"
+                - "/tmp/success"
             initialDelaySeconds: 30
             periodSeconds: 5
         # This container runs the Transfer Verifier CLI tool, monitoring the Ethereum devnet set-up by Tilt.
