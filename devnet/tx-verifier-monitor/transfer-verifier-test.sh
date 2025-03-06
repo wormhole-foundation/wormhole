@@ -26,7 +26,7 @@ set -euo pipefail
 
 RPC="${RPC_URL:-ws://eth-devnet:8545}"
 
-touch /logs/success
+touch /tmp/success
 
 echo "Early exiting from test"
 exit 0
