@@ -129,6 +129,11 @@ const Mainnet = {
     key: getEnvVar("ETH_KEY"),
     chain_id: 130,
   },
+  Ink: {
+    rpc: "https://rpc-gel.inkonchain.com",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 57073,
+  },
   Wormchain: {
     rpc: undefined,
     key: undefined,
@@ -433,6 +438,10 @@ const Testnet = {
     rpc: undefined,
     key: undefined,
   },
+  Ink: {
+    rpc: undefined,
+    key: undefined
+  },
   Snaxchain: {
     rpc: "https://testnet.snaxchain.io",
     key: getEnvVar("ETH_KEY_TESTNET"),
@@ -722,6 +731,11 @@ const Devnet = {
     rpc: undefined,
     key: undefined,
     chain_id: 4801,
+  },
+  Ink: {
+    rpc: undefined,
+    key: undefined,
+    chain_id: undefined,
   },
   Aptos: {
     rpc: "http://0.0.0.0:8080",
