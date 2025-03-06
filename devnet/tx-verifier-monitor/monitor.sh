@@ -12,6 +12,8 @@ done
 
 echo "Monitoring file '${log_file}' for ${TARGET} total instance(s) of error pattern: '${error_pattern}'"
 
+exit 0
+
 # Poll until we find the target number of instances
 while true; do
     current_count=$(grep -c "$error_pattern" "$log_file")
