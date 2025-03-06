@@ -211,3 +211,5 @@ echo
 # TODO add the 'multicall' scenario encoded in the forge script
 
 echo "Done Transfer Verifier integration test. Exiting"
+
+touch /log/success
