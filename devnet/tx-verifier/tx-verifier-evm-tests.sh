@@ -26,9 +26,6 @@ set -euo pipefail
 
 RPC="${RPC_URL:-ws://eth-devnet:8545}"
 
-echo "Early exiting from test"
-exit 0
-
 # mainnet values
 # export CORE_CONTRACT="0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
 # export TOKEN_BRIDGE_CONTRACT="0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
