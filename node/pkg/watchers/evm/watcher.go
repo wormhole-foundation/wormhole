@@ -212,6 +212,32 @@ func NewEthWatcher(
 	}
 }
 
+func (w *Watcher) tokenBridge() eth_common.Address {
+	var tb []byte
+	switch w.env {
+	case common.UnsafeDevNet:
+		tb = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
+	case common.TestNet:
+		tb = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
+	case common.MainNet:
+		tb = sdk.KnownTokenbridgeEmitters[w.chainID]
+	}
+	return eth_common.BytesToAddress(tb)
+}
+
+func (w *Watcher) wrappedNative() eth_common.Address {
+	var wnative string
+	switch w.env {
+	case common.UnsafeDevNet:
+		wnative = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
+	case common.TestNet:
+		wnative = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
+	case common.MainNet:
+		wnative = sdk.KnownWrappedNativeAddress[w.chainID]
+	}
+	return eth_common.HexToAddress(wnative)
+}
+
 func (w *Watcher) Run(parentCtx context.Context) error {
 	var err error
 	logger := supervisor.Logger(parentCtx)
@@ -280,33 +306,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return errors.New("watcher attempted to create Transfer Verifier but this chainId is not supported")
 			}
 
-			// Fetch the constants for the Token Bridge and the WETH address from the SDK.
-			// Token Bridge address
-			var tbridge []byte
-			// Address of wrapped native asset, e.g. WETH for Ethereum.
-			var wnative string
-
-			switch w.env {
-			case common.UnsafeDevNet:
-				tbridge = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
-				wnative = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
-			case common.TestNet:
-				tbridge = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
-				wnative = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
-			case common.MainNet:
-				tbridge = sdk.KnownTokenbridgeEmitters[w.chainID]
-				wnative = sdk.KnownWrappedNativeAddress[w.chainID]
-			}
-			addrs := txverifier.TVAddresses{
-				CoreBridgeAddr:    w.contract,
-				TokenBridgeAddr:   eth_common.BytesToAddress(tbridge[:]),
-				WrappedNativeAddr: eth_common.HexToAddress(wnative),
-			}
-
 			var tvErr error
 			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
 				w.ethConn,
-				&addrs,
+				&txverifier.TVAddresses{
+					CoreBridgeAddr:    w.contract,
+					TokenBridgeAddr:   w.tokenBridge(),
+					WrappedNativeAddr: w.wrappedNative(),
+				},
 				PruneHeightDelta,
 				logger,
 			)
@@ -869,28 +876,37 @@ func (w *Watcher) verifyAndPublish(
 	}
 
 	if w.txVerifierEnabled {
-		// This should have already been initialized by the constructor.
-		if w.txVerifier == nil {
-			return errors.New("verifyAndPublish: transfer verifier should be instantiated but is nil")
-		}
-
 		// Setting a custom verification state is only required when
 		// Transfer Verification is enabled. If disabled, the message
 		// will be emitted with the default value `NotVerified`.
 		var verificationState common.VerificationState
 
-		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
-		// to protect against fraudulent message emissions.
-		valid := w.txVerifier.ProcessEvent(ctx, txHash, receipt)
-		if !valid {
-			w.logger.Error("verifyAndPublish: transfer verification failed", zap.String("txHash", txHash.String()))
-			verificationState = common.Rejected
-		} else {
-			w.logger.Debug("verifyAndPublish: transfer verification successful", zap.String("txHash", txHash.String()))
-			verificationState = common.Valid
+		// This should have already been initialized by the constructor.
+		if w.txVerifier == nil {
+			return errors.New("verifyAndPublish: transfer verifier should be instantiated but is nil")
 		}
 
-		// Update the state of the message depending on the results of transfer verification.
+		// Only involve the transfer verifier for core messages sent
+		// from the token bridge. This check is also done in the
+		// transfer verifier package, but this helps us skip useless
+		// computation.
+		if txverifier.Cmp(msg.EmitterAddress, w.txVerifier.Addrs().TokenBridgeAddr) != 0 {
+			verificationState = common.NotApplicable
+		} else {
+			// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
+			// to protect against fraudulent message emissions.
+			valid := w.txVerifier.ProcessEvent(ctx, txHash, receipt)
+			if !valid {
+				w.logger.Error("verifyAndPublish: transfer verification failed", zap.String("txHash", txHash.String()))
+				verificationState = common.Rejected
+			} else {
+				w.logger.Debug("verifyAndPublish: transfer verification successful", zap.String("txHash", txHash.String()))
+				verificationState = common.Valid
+			}
+
+		}
+
+		// Update the state of the message.
 		updateErr := msg.SetVerificationState(verificationState)
 		if updateErr != nil {
 			errMsg := fmt.Sprintf("verifyAndPublish: could not set verification state for message with txID %s", msg.TxIDString())

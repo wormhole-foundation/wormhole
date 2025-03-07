@@ -48,7 +48,7 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	// Use this opportunity to prune old transaction information from the cache.
 	tv.pruneCache()
 
-	if cmp(txHash, ZERO_ADDRESS) == 0 {
+	if Cmp(txHash, ZERO_ADDRESS) == 0 {
 		tv.logger.Error("txHash is the zero address")
 		return false
 	}
@@ -265,7 +265,7 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 	}
 
 	// Asset is wrapped but not in wrappedAsset map for the Token Bridge.
-	if cmp(unwrapped, ZERO_ADDRESS) == 0 {
+	if Cmp(unwrapped, ZERO_ADDRESS) == 0 {
 		return 0, ZERO_ADDRESS, errors.New("asset is wrapped but unwrapping gave the zero address. this is an unusual asset or there is a bug in the program")
 	}
 
@@ -663,7 +663,7 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 			return newDetails, unwrapErr
 		}
 
-		if cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
+		if Cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
 			// If the unwrap function returns the zero address, that means
 			// it has no knowledge of this token. In this case set the
 			// OriginAddress to OriginAddressRaw rather than to the zero
