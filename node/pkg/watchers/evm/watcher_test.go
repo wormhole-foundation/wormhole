@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
@@ -78,6 +79,7 @@ func TestVerifyAndPublish(t *testing.T) {
 
 	// Check transfer verifier not enabled case. The message should be published normally
 	msg = common.MessagePublication{}
+
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(msgC))
@@ -86,9 +88,12 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
+	tbAddr, byteErr := vaa.BytesToAddress([]byte{0x01})
+	require.NoError(t, byteErr)
+
 	// Check scenario where transfer verifier is enabled but isn't initialized.
-	msg = common.MessagePublication{}
 	w.txVerifierEnabled = true
+	msg = common.MessagePublication{}
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "transfer verifier should be instantiated but is nil")
@@ -96,6 +101,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
 	// Check scenario where the message already has a verification status.
+	w.txVerifierEnabled = true
 	msg = common.MessagePublication{}
 	setErr := msg.SetVerificationState(common.Anomalous)
 	require.NoError(t, setErr)
@@ -107,9 +113,11 @@ func TestVerifyAndPublish(t *testing.T) {
 
 	// Check case where Transfer Verifier finds a dangerous transaction. Note that this case does
 	// not return an error, but the published message should be marked as Rejected.
-	msg = common.MessagePublication{}
 	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
 	w.txVerifier = failMock
+	msg = common.MessagePublication{
+		EmitterAddress: tbAddr,
+	}
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.Nil(t, err)
@@ -119,10 +127,12 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Rejected.String(), publishedMsg.VerificationState().String())
 
-	// Check happy path where txverifier is enabled and initialized
-	msg = common.MessagePublication{}
+	// Check happy path where txverifier is enabled, initialized, and the message is from the token bridge.
 	successMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{true}
 	w.txVerifier = successMock
+	msg = common.MessagePublication{
+		EmitterAddress: tbAddr,
+	}
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
@@ -131,6 +141,28 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Valid.String(), publishedMsg.VerificationState().String())
+
+	// Check that message status is not changed if it didn't come from token bridge.
+	// The NotVerified status is used when Transfer Verification is not enabled.
+	msg = common.MessagePublication{}
+	w.txVerifierEnabled = false
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
+
+	// Check that message status is not changed if it didn't come from token bridge.
+	// The NotApplicable status is used when Transfer Verification is enabled.
+	msg = common.MessagePublication{}
+	w.txVerifierEnabled = true
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotApplicable.String(), publishedMsg.VerificationState().String())
 }
 
 // Helper function to set up a test Ethereum Watcher
@@ -155,4 +187,9 @@ type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
 // Mock ProcessEvent function that simulates the evaluation made by the Transfer Verifier.
 func (m *MockTransferVerifier[E, C]) ProcessEvent(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt) bool {
 	return m.success
+}
+func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {
+	return &txverifier.TVAddresses{
+		TokenBridgeAddr: eth_common.BytesToAddress([]byte{0x01}),
+	}
 }
