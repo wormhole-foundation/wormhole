@@ -164,8 +164,15 @@ type (
 	}
 )
 
-// MaxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned.
-const MaxWaitConfirmations = 60
+const (
+	// MaxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned.
+	MaxWaitConfirmations = 60
+
+	// pruneHeightDelta is the block height difference between the latest block and the oldest block to keep in memory.
+	// It is used as a parameter for the Transfer Verifier.
+	// Value is arbitrary and can be adjusted if it helps performance.
+	PruneHeightDelta = uint64(20)
+)
 
 func NewEthWatcher(
 	url string,
@@ -294,14 +301,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				WrappedNativeAddr: eth_common.HexToAddress(weth),
 			}
 
-			// The block height difference between the latest block and the oldest block to keep in memory.
-			// Value is arbitrary and can be adjusted if it helps performance.
-			pruneHeightDelta := uint64(20)
 			var tvErr error
 			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
 				w.ethConn,
 				&addrs,
-				pruneHeightDelta,
+				PruneHeightDelta,
 				logger,
 			)
 			if tvErr != nil {
