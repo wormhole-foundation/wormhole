@@ -12,9 +12,13 @@
 #   - We ignore solana AS (builder|ci_tests) because it's a relative reference to another FROM call
 #   - We ignore cosmwasm_artifacts AS artifacts because it's a local reference only, is built in tilt
 #   - We ignore base AS (ignite-go-build|ignite-vue-build) because the base image is already pinned in wormchain/Dockerfile.proto
+#   - We ignore guardiand-image AS guardian because this is it's a local reference built in tilt
 #
-git ls-files -z | grep -z "Dockerfile*" | xargs -r -0 grep -s "FROM" | egrep -v 'sha256|scratch|solana|aptos|sui|base|cosmwasm_artifacts|cli-gen|const-gen|dev AS (application|base|builder|ci_tests|tests|artifacts|ignite-go-build|ignite-vue-build|cli-export|const-export|build)'
-if [ $? -eq 0 ]; then
+if git ls-files -z \
+   | grep -Ez "(Dockerfile)" \
+   | xargs -r -0 grep -s "FROM" \
+   | grep -E -v 'sha256|scratch|solana|aptos|sui|base|cosmwasm_artifacts|cli-gen|const-gen|dev|guardiand-image AS (application|base|builder|ci_tests|tests|artifacts|ignite-go-build|ignite-vue-build|cli-export|const-export|build|guardian)'
+then
    echo "[!] Unpinned docker files" >&2
    exit 1
 else
