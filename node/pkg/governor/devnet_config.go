@@ -23,10 +23,6 @@ func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []tokenConfigE
 		flowCancelTokens = []tokenConfigEntry{
 			{chain: 1, addr: "3b442cb3912157f13a933d0134282d032b5ffecd01a2dbf1b7790608df002ea7", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 1.001}, // Addr: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU, Notional: 6780118.197035182
 		}
-
-		flowCancelPipes = []pipe{
-			{first: vaa.ChainIDEthereum, second: vaa.ChainIDSui},
-		}
 	}
 
 	chains := []chainConfigEntry{
