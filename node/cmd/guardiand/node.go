@@ -521,7 +521,7 @@ func init() {
 
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
 
-	transferVerifierEnabledChains = NodeCmd.Flags().UintSlice("transferVerifierEnabledChains", make([]uint, 2), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
+	transferVerifierEnabledChains = NodeCmd.Flags().UintSlice("transferVerifierEnabledChains", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 }
 
 var (
