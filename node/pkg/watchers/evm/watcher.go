@@ -97,7 +97,7 @@ type (
 
 		// Channel for sending new MesssagePublications. Messages should not be sent
 		// to this channel directly. Instead, they should be wrapped by
-		// a call to `publishIfSafe()`.
+		// a call to `verifyAndPublish()`.
 		msgC chan<- *common.MessagePublication
 
 		// Channel to send guardian set changes to.
@@ -281,24 +281,26 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			}
 
 			// Fetch the constants for the Token Bridge and the WETH address from the SDK.
+			// Token Bridge address
 			var tbridge []byte
-			var weth string
+			// Address of wrapped native asset, e.g. WETH for Ethereum.
+			var wnative string
+
 			switch w.env {
 			case common.UnsafeDevNet:
 				tbridge = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
-				weth = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
+				wnative = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
 			case common.TestNet:
 				tbridge = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
-				weth = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
+				wnative = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
 			case common.MainNet:
 				tbridge = sdk.KnownTokenbridgeEmitters[w.chainID]
-				// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-				weth = sdk.KnownWrappedNativeAddress[w.chainID]
+				wnative = sdk.KnownWrappedNativeAddress[w.chainID]
 			}
 			addrs := txverifier.TVAddresses{
 				CoreBridgeAddr:    w.contract,
 				TokenBridgeAddr:   eth_common.BytesToAddress(tbridge[:]),
-				WrappedNativeAddr: eth_common.HexToAddress(weth),
+				WrappedNativeAddr: eth_common.HexToAddress(wnative),
 			}
 
 			var tvErr error
