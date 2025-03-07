@@ -102,6 +102,10 @@ func denormalize(
 // SupportedChains returns a slice of Wormhole Chain IDs that have a Transfer Verifier implementation.
 func SupportedChains() []vaa.ChainID {
 	return []vaa.ChainID{
+		// Mainnets
 		vaa.ChainIDEthereum,
+		// Testnets
+		vaa.ChainIDSepolia,
+		vaa.ChainIDHolesky,
 	}
 }
