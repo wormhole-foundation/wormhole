@@ -666,20 +666,20 @@ func TestCmp(t *testing.T) {
 	// in that format.
 
 	// Test identity
-	assert.Zero(t, cmp(ZERO_ADDRESS, ZERO_ADDRESS))
-	assert.Zero(t, cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS))
+	assert.Zero(t, Cmp(ZERO_ADDRESS, ZERO_ADDRESS))
+	assert.Zero(t, Cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS))
 
 	// Test mixed types
-	assert.Zero(t, cmp(ZERO_ADDRESS, ZERO_ADDRESS_VAA))
-	assert.Zero(t, cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS_VAA))
+	assert.Zero(t, Cmp(ZERO_ADDRESS, ZERO_ADDRESS_VAA))
+	assert.Zero(t, Cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS_VAA))
 
 	vaaAddr, err := vaa.BytesToAddress([]byte{0x01})
 	require.NoError(t, err)
-	assert.Zero(t, cmp(vaaAddr, common.BytesToAddress([]byte{0x01})))
+	assert.Zero(t, Cmp(vaaAddr, common.BytesToAddress([]byte{0x01})))
 
 	vaaAddr, err = vaa.BytesToAddress([]byte{0xff, 0x02})
 	require.NoError(t, err)
-	assert.Zero(t, cmp(common.BytesToAddress([]byte{0xff, 0x02}), vaaAddr))
+	assert.Zero(t, Cmp(common.BytesToAddress([]byte{0xff, 0x02}), vaaAddr))
 }
 
 func TestVAAFromAddr(t *testing.T) {
