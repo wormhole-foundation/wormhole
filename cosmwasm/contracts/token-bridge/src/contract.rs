@@ -23,7 +23,7 @@ use cw_wormhole::{
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    coin, to_binary, BankMsg, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, Empty, Env,
+    coin, to_json_binary, BankMsg, Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, Empty, Env,
     MessageInfo, QueryRequest, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
     WasmQuery,
 };
@@ -169,7 +169,7 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
     let new_balance: BalanceResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: state.token_address.to_string(),
-            msg: to_binary(&TokenQuery::Balance {
+            msg: to_json_binary(&TokenQuery::Balance {
                 address: env.contract.address.to_string(),
             })?,
         }))?;
@@ -212,7 +212,7 @@ pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
     let message = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.wormhole_contract,
         funds: vec![],
-        msg: to_binary(&WormholeExecuteMsg::PostMessage {
+        msg: to_json_binary(&WormholeExecuteMsg::PostMessage {
             message: Binary::from(token_bridge_message.serialize()),
             nonce: state.nonce,
         })?,
@@ -229,7 +229,7 @@ fn parse_vaa(deps: Deps, block_time: u64, data: &Binary) -> StdResult<ParsedVAA>
     let cfg = config_read(deps.storage).load()?;
     let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cfg.wormhole_contract,
-        msg: to_binary(&WormholeQueryMsg::VerifyVAA {
+        msg: to_json_binary(&WormholeQueryMsg::VerifyVAA {
             vaa: data.clone(),
             block_time,
         })?,
@@ -454,7 +454,7 @@ fn handle_attest_meta(
         }
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract.into_string(),
-            msg: to_binary(&WrappedMsg::UpdateMetadata {
+            msg: to_json_binary(&WrappedMsg::UpdateMetadata {
                 name: get_string_from_32(&meta.name),
                 symbol: get_string_from_32(&meta.symbol),
             })?,
@@ -464,7 +464,7 @@ fn handle_attest_meta(
         CosmosMsg::Wasm(WasmMsg::Instantiate {
             admin: Some(env.contract.address.clone().into_string()),
             code_id: cfg.wrapped_asset_code_id,
-            msg: to_binary(&WrappedInit {
+            msg: to_json_binary(&WrappedInit {
                 name: get_string_from_32(&meta.name),
                 symbol: get_string_from_32(&meta.symbol),
                 asset_chain: meta.token_chain,
@@ -473,7 +473,7 @@ fn handle_attest_meta(
                 mint: None,
                 init_hook: Some(InitHook {
                     contract_addr: env.contract.address.to_string(),
-                    msg: to_binary(&ExecuteMsg::RegisterAssetHook {
+                    msg: to_json_binary(&ExecuteMsg::RegisterAssetHook {
                         chain: meta.token_chain,
                         token_address: meta.token_address.clone(),
                     })?,
@@ -515,7 +515,7 @@ fn handle_create_asset_meta_token(
 
     let request = QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone(),
-        msg: to_binary(&TokenQuery::TokenInfo {})?,
+        msg: to_json_binary(&TokenQuery::TokenInfo {})?,
     });
 
     let asset_human = deps.api.addr_validate(&asset_address)?;
@@ -541,7 +541,7 @@ fn handle_create_asset_meta_token(
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.wormhole_contract,
-            msg: to_binary(&WormholeExecuteMsg::PostMessage {
+            msg: to_json_binary(&WormholeExecuteMsg::PostMessage {
                 message: Binary::from(token_bridge_message.serialize()),
                 nonce,
             })?,
@@ -584,7 +584,7 @@ fn handle_create_asset_meta_native_token(
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.wormhole_contract,
-            msg: to_binary(&WormholeExecuteMsg::PostMessage {
+            msg: to_json_binary(&WormholeExecuteMsg::PostMessage {
                 message: Binary::from(token_bridge_message.serialize()),
                 nonce,
             })?,
@@ -729,7 +729,7 @@ fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResul
         .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
             contract_addr: env.contract.address.to_string(),
             new_code_id: new_contract,
-            msg: to_binary(&MigrateMsg {})?,
+            msg: to_json_binary(&MigrateMsg {})?,
         }))
         .add_attribute("action", "contract_upgrade"))
 }
@@ -870,7 +870,7 @@ fn handle_complete_transfer_token(
             // Asset already deployed, just mint
             let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: contract_addr.clone(),
-                msg: to_binary(&WrappedMsg::Mint {
+                msg: to_json_binary(&WrappedMsg::Mint {
                     recipient: recipient.to_string(),
                     amount: Uint128::from(amount),
                 })?,
@@ -879,7 +879,7 @@ fn handle_complete_transfer_token(
             if fee != 0 {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
-                    msg: to_binary(&WrappedMsg::Mint {
+                    msg: to_json_binary(&WrappedMsg::Mint {
                         recipient: relayer_address.to_string(),
                         amount: Uint128::from(fee),
                     })?,
@@ -888,7 +888,7 @@ fn handle_complete_transfer_token(
             }
 
             // serialize response data that will be returned to the caller
-            let response_data = to_binary(&CompleteTransferResponse {
+            let response_data = to_json_binary(&CompleteTransferResponse {
                 contract: Some(contract_addr.clone()),
                 denom: None,
                 recipient: recipient.clone().into_string(),
@@ -916,7 +916,7 @@ fn handle_complete_transfer_token(
             let token_info: TokenInfoResponse =
                 deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                     contract_addr: contract_address.to_string(),
-                    msg: to_binary(&TokenQuery::TokenInfo {})?,
+                    msg: to_json_binary(&TokenQuery::TokenInfo {})?,
                 }))?;
 
             let decimals = token_info.decimals;
@@ -926,7 +926,7 @@ fn handle_complete_transfer_token(
 
             let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: contract_address.to_string(),
-                msg: to_binary(&TokenMsg::Transfer {
+                msg: to_json_binary(&TokenMsg::Transfer {
                     recipient: recipient.to_string(),
                     amount: Uint128::from(amount),
                 })?,
@@ -936,7 +936,7 @@ fn handle_complete_transfer_token(
             if fee != 0 {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_address.to_string(),
-                    msg: to_binary(&TokenMsg::Transfer {
+                    msg: to_json_binary(&TokenMsg::Transfer {
                         recipient: relayer_address.to_string(),
                         amount: Uint128::from(fee),
                     })?,
@@ -945,7 +945,7 @@ fn handle_complete_transfer_token(
             }
 
             // serialize response data that will be returned to the caller
-            let response_data = to_binary(&CompleteTransferResponse {
+            let response_data = to_json_binary(&CompleteTransferResponse {
                 contract: Some(contract_address.to_string()),
                 denom: None,
                 recipient: recipient.clone().into_string(),
@@ -1046,7 +1046,7 @@ fn handle_complete_transfer_token_native(
     }
 
     // serialize response data that will be returned to the caller
-    let response_data = to_binary(&CompleteTransferResponse {
+    let response_data = to_json_binary(&CompleteTransferResponse {
         contract: None,
         denom: Some(denom.clone()),
         recipient: recipient.clone().into_string(),
@@ -1150,7 +1150,7 @@ fn handle_initiate_transfer_token(
             // This is a deployed wrapped asset, burn it
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: asset.clone(),
-                msg: to_binary(&WrappedMsg::Burn {
+                msg: to_json_binary(&WrappedMsg::Burn {
                     account: info.sender.to_string(),
                     amount,
                 })?,
@@ -1158,7 +1158,7 @@ fn handle_initiate_transfer_token(
             }));
             let request = QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
                 contract_addr: asset,
-                msg: to_binary(&WrappedQuery::WrappedAssetInfo {})?,
+                msg: to_json_binary(&WrappedQuery::WrappedAssetInfo {})?,
             });
             let wrapped_token_info: WrappedAssetInfoResponse = deps.querier.query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
@@ -1201,7 +1201,7 @@ fn handle_initiate_transfer_token(
 
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.wormhole_contract,
-                msg: to_binary(&WormholeExecuteMsg::PostMessage {
+                msg: to_json_binary(&WormholeExecuteMsg::PostMessage {
                     message: Binary::from(token_bridge_message.serialize()),
                     nonce,
                 })?,
@@ -1216,7 +1216,7 @@ fn handle_initiate_transfer_token(
             let token_info: TokenInfoResponse =
                 deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                     contract_addr: asset.clone(),
-                    msg: to_binary(&TokenQuery::TokenInfo {})?,
+                    msg: to_json_binary(&TokenQuery::TokenInfo {})?,
                 }))?;
 
             let decimals = token_info.decimals;
@@ -1241,7 +1241,7 @@ fn handle_initiate_transfer_token(
             submessages.push(SubMsg::reply_on_success(
                 CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: asset.clone(),
-                    msg: to_binary(&TokenMsg::TransferFrom {
+                    msg: to_json_binary(&TokenMsg::TransferFrom {
                         owner: info.sender.to_string(),
                         recipient: env.contract.address.to_string(),
                         amount,
@@ -1267,7 +1267,7 @@ fn handle_initiate_transfer_token(
             let balance: BalanceResponse =
                 deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                     contract_addr: asset.to_string(),
-                    msg: to_binary(&TokenQuery::Balance {
+                    msg: to_json_binary(&TokenQuery::Balance {
                         address: env.contract.address.to_string(),
                     })?,
                 }))?;
@@ -1449,7 +1449,7 @@ fn handle_initiate_transfer_native_token(
     let sender = deps.api.addr_canonicalize(info.sender.as_str())?;
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.wormhole_contract,
-        msg: to_binary(&WormholeExecuteMsg::PostMessage {
+        msg: to_json_binary(&WormholeExecuteMsg::PostMessage {
             message: Binary::from(token_bridge_message.serialize()),
             nonce,
         })?,
@@ -1475,13 +1475,15 @@ fn handle_initiate_transfer_native_token(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::WrappedRegistry { chain, address } => {
-            to_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
+            to_json_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
         }
-        QueryMsg::TransferInfo { vaa } => to_binary(&query_transfer_info(deps, env, &vaa)?),
-        QueryMsg::ExternalId { external_id } => to_binary(&query_external_id(deps, external_id)?),
-        QueryMsg::IsVaaRedeemed { vaa } => to_binary(&query_is_vaa_redeemed(deps, env, &vaa)?),
+        QueryMsg::TransferInfo { vaa } => to_json_binary(&query_transfer_info(deps, env, &vaa)?),
+        QueryMsg::ExternalId { external_id } => {
+            to_json_binary(&query_external_id(deps, external_id)?)
+        }
+        QueryMsg::IsVaaRedeemed { vaa } => to_json_binary(&query_is_vaa_redeemed(deps, env, &vaa)?),
         QueryMsg::ChainRegistration { chain } => {
-            query_chain_registration(deps, chain).and_then(|r| to_binary(&r))
+            query_chain_registration(deps, chain).and_then(|r| to_json_binary(&r))
         }
     }
 }

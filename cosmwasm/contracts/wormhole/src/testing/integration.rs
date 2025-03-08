@@ -9,7 +9,7 @@ use crate::{
     state::{ConfigInfo, GuardianAddress, ParsedVAA, CONFIG_KEY},
 };
 use cosmwasm_std::{
-    from_slice,
+    from_json,
     testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
     Coin, OwnedDeps, Response, StdResult, Storage,
 };
@@ -29,7 +29,7 @@ static INITIALIZER: &str = "initializer";
 fn get_config_info<S: Storage>(storage: &S) -> ConfigInfo {
     let key = to_length_prefixed(CONFIG_KEY);
     let data = storage.get(&key).expect("data should exist");
-    from_slice(&data).expect("invalid data")
+    from_json(&data).expect("invalid data")
 }
 
 fn do_init(guardians: &[GuardianAddress]) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
