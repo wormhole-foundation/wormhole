@@ -12,11 +12,13 @@ contract ThresholdVerification is WormholeVerifier {
 
 	error InvalidVaa(bytes encodedVaa);
 	error InvalidSignatureCount(uint8 count);
+	error InvalidIndex();
 
 	// Current threshold info is stord in a single slot
 	// Format:
 	//   index (32 bits)
 	//   address (160 bits)
+	// TODO: Extract this into its own functions
 	uint256 private _currentThresholdInfo;
 
 	// Past threshold info is stored in an array
@@ -45,7 +47,15 @@ contract ThresholdVerification is WormholeVerifier {
 	}
 
 	// Verify a threshold signature VAA
-	function verifyThresholdVAA(bytes calldata encodedVaa) public view returns (VaaBody memory) {
+	function verifyThresholdVAA(bytes calldata encodedVaa) public view returns (
+		uint32  timestamp,
+		uint32  nonce,
+		uint16  emitterChainId,
+		bytes32 emitterAddress,
+		uint64  sequence,
+		uint8   consistencyLevel,
+		bytes calldata payload
+	) {
 		unchecked {
 			// Check the VAA version
 			uint offset = 0;
@@ -86,38 +96,29 @@ contract ThresholdVerification is WormholeVerifier {
 
 			// Verify the threshold signature
 			if (ecrecover(vaaHash, v, r, s) != thresholdAddr) revert VerificationFailed();
-		
-			// Decode the VAA body
-			VaaBody memory vaaBody;
-			(
-				vaaBody.envelope.timestamp,
-				vaaBody.envelope.nonce,
-				vaaBody.envelope.emitterChainId,
-				vaaBody.envelope.emitterAddress,
-				vaaBody.envelope.sequence,
-				vaaBody.envelope.consistencyLevel,
-				vaaBody.payload
-			) = encodedVaa.decodeVaaBodyCd(envelopeOffset);
 
-			return vaaBody;
+			// Decode the VAA body and return it
+			return encodedVaa.decodeVaaBodyCd(envelopeOffset);
 		}
 	}
 
 	function _appendThresholdKey(uint32 newIndex, address newAddr, uint32 expirationDelaySeconds, bytes32[] memory shards) internal {
-		// Get the current threshold info and verify the new index is sequential
-		(uint32 index, address currentAddr) = this.getCurrentThresholdInfo();
-		require(newIndex == index + 1, "non-sequential index");
+		unchecked {
+			// Get the current threshold info and verify the new index is sequential
+			(uint32 index, address currentAddr) = this.getCurrentThresholdInfo();
+			if (newIndex != index + 1) revert InvalidIndex();
 
-		// Store the current threshold info in past threshold info
-		uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-		uint256 oldInfo = (uint256(uint160(currentAddr)) << 32) | uint256(expirationTime);
-		_pastThresholdInfo.push(oldInfo);
+			// Store the current threshold info in past threshold info
+			uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
+			uint256 oldInfo = (uint256(uint160(currentAddr)) << 32) | uint256(expirationTime);
+			_pastThresholdInfo.push(oldInfo);
 
-		// Update the current threshold info
-		uint256 newInfo = (uint256(uint160(newAddr)) << 32) | uint256(newIndex);
-		_currentThresholdInfo = newInfo;
+			// Update the current threshold info
+			uint256 newInfo = (uint256(uint160(newAddr)) << 32) | uint256(newIndex);
+			_currentThresholdInfo = newInfo;
 
-		// Store the shards
-		_shards.push(shards);
+			// Store the shards
+			_shards.push(shards);
+		}
 	}
 }
