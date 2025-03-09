@@ -302,6 +302,7 @@ pub fn handle_transfer_fee(deps: DepsMut, _env: Env, data: &[u8]) -> StdResult<R
     })))
 }
 
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 fn handle_post_message(
     deps: DepsMut,
     env: Env,
