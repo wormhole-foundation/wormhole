@@ -22,16 +22,20 @@ func verify(
 	txVerifier txverifier.TransferVerifierInterface,
 ) (common.MessagePublication, error) {
 
-	// Create a local copy of the MessagePublication so that the original isn't modified.
-	localMsg := msg
+	if msg == nil {
+		return common.MessagePublication{}, fmt.Errorf("MessagePublication is nil")
+	}
 
-	if localMsg.VerificationState() != common.NotVerified {
-		return common.MessagePublication{}, fmt.Errorf("message publication already has a verification status")
+	if msg.VerificationState() != common.NotVerified {
+		return common.MessagePublication{}, fmt.Errorf("MessagePublication already has a non-default verification state")
 	}
 
 	if txVerifier == nil {
 		return common.MessagePublication{}, fmt.Errorf("transfer verifier is nil")
 	}
+
+	// Create a local copy of the MessagePublication.
+	localMsg := msg
 
 	var verificationState common.VerificationState
 
@@ -45,10 +49,10 @@ func verify(
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
 		valid := txVerifier.ProcessEvent(ctx, txHash, receipt)
-		if !valid {
-			verificationState = common.Rejected
-		} else {
+		if valid {
 			verificationState = common.Valid
+		} else {
+			verificationState = common.Rejected
 		}
 	}
 
