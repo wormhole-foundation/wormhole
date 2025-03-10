@@ -1230,7 +1230,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:               *ethContract,
 			GuardianSetUpdateChain: true,
 			CcqBackfillCache:       *ccqBackfillCache,
-			TxVerifier:             slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
+			TxVerifierEnabled:      slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1238,12 +1238,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(bscRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "bsc",
-			ChainID:          vaa.ChainIDBSC,
-			Rpc:              *bscRPC,
-			Contract:         *bscContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBSC),
+			NetworkID:         "bsc",
+			ChainID:           vaa.ChainIDBSC,
+			Rpc:               *bscRPC,
+			Contract:          *bscContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBSC),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1251,12 +1251,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(polygonRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "polygon",
-			ChainID:          vaa.ChainIDPolygon,
-			Rpc:              *polygonRPC,
-			Contract:         *polygonContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDPolygon),
+			NetworkID:         "polygon",
+			ChainID:           vaa.ChainIDPolygon,
+			Rpc:               *polygonRPC,
+			Contract:          *polygonContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDPolygon),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1264,12 +1264,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(avalancheRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "avalanche",
-			ChainID:          vaa.ChainIDAvalanche,
-			Rpc:              *avalancheRPC,
-			Contract:         *avalancheContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDAvalanche),
+			NetworkID:         "avalanche",
+			ChainID:           vaa.ChainIDAvalanche,
+			Rpc:               *avalancheRPC,
+			Contract:          *avalancheContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDAvalanche),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1277,12 +1277,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(oasisRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "oasis",
-			ChainID:          vaa.ChainIDOasis,
-			Rpc:              *oasisRPC,
-			Contract:         *oasisContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDOasis),
+			NetworkID:         "oasis",
+			ChainID:           vaa.ChainIDOasis,
+			Rpc:               *oasisRPC,
+			Contract:          *oasisContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDOasis),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1290,12 +1290,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(fantomRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "fantom",
-			ChainID:          vaa.ChainIDFantom,
-			Rpc:              *fantomRPC,
-			Contract:         *fantomContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDFantom),
+			NetworkID:         "fantom",
+			ChainID:           vaa.ChainIDFantom,
+			Rpc:               *fantomRPC,
+			Contract:          *fantomContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDFantom),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1303,12 +1303,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(karuraRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "karura",
-			ChainID:          vaa.ChainIDKarura,
-			Rpc:              *karuraRPC,
-			Contract:         *karuraContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDKarura),
+			NetworkID:         "karura",
+			ChainID:           vaa.ChainIDKarura,
+			Rpc:               *karuraRPC,
+			Contract:          *karuraContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDKarura),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1316,12 +1316,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(acalaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "acala",
-			ChainID:          vaa.ChainIDAcala,
-			Rpc:              *acalaRPC,
-			Contract:         *acalaContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDAcala),
+			NetworkID:         "acala",
+			ChainID:           vaa.ChainIDAcala,
+			Rpc:               *acalaRPC,
+			Contract:          *acalaContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDAcala),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1329,12 +1329,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(klaytnRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "klaytn",
-			ChainID:          vaa.ChainIDKlaytn,
-			Rpc:              *klaytnRPC,
-			Contract:         *klaytnContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDKlaytn),
+			NetworkID:         "klaytn",
+			ChainID:           vaa.ChainIDKlaytn,
+			Rpc:               *klaytnRPC,
+			Contract:          *klaytnContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDKlaytn),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1342,12 +1342,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(celoRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "celo",
-			ChainID:          vaa.ChainIDCelo,
-			Rpc:              *celoRPC,
-			Contract:         *celoContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDCelo),
+			NetworkID:         "celo",
+			ChainID:           vaa.ChainIDCelo,
+			Rpc:               *celoRPC,
+			Contract:          *celoContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDCelo),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1355,12 +1355,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(moonbeamRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "moonbeam",
-			ChainID:          vaa.ChainIDMoonbeam,
-			Rpc:              *moonbeamRPC,
-			Contract:         *moonbeamContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMoonbeam),
+			NetworkID:         "moonbeam",
+			ChainID:           vaa.ChainIDMoonbeam,
+			Rpc:               *moonbeamRPC,
+			Contract:          *moonbeamContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMoonbeam),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1373,7 +1373,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:                 *arbitrumRPC,
 			Contract:            *arbitrumContract,
 			L1FinalizerRequired: "eth",
-			TxVerifier:          slices.Contains(txVerifierChains, vaa.ChainIDArbitrum),
+			TxVerifierEnabled:   slices.Contains(txVerifierChains, vaa.ChainIDArbitrum),
 			CcqBackfillCache:    *ccqBackfillCache,
 		}
 
@@ -1382,12 +1382,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(optimismRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "optimism",
-			ChainID:          vaa.ChainIDOptimism,
-			Rpc:              *optimismRPC,
-			Contract:         *optimismContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDOptimism),
+			NetworkID:         "optimism",
+			ChainID:           vaa.ChainIDOptimism,
+			Rpc:               *optimismRPC,
+			Contract:          *optimismContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDOptimism),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1395,12 +1395,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(baseRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "base",
-			ChainID:          vaa.ChainIDBase,
-			Rpc:              *baseRPC,
-			Contract:         *baseContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBase),
+			NetworkID:         "base",
+			ChainID:           vaa.ChainIDBase,
+			Rpc:               *baseRPC,
+			Contract:          *baseContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBase),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1408,12 +1408,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(scrollRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "scroll",
-			ChainID:          vaa.ChainIDScroll,
-			Rpc:              *scrollRPC,
-			Contract:         *scrollContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDScroll),
+			NetworkID:         "scroll",
+			ChainID:           vaa.ChainIDScroll,
+			Rpc:               *scrollRPC,
+			Contract:          *scrollContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDScroll),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1421,12 +1421,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(mantleRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "mantle",
-			ChainID:          vaa.ChainIDMantle,
-			Rpc:              *mantleRPC,
-			Contract:         *mantleContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMantle),
+			NetworkID:         "mantle",
+			ChainID:           vaa.ChainIDMantle,
+			Rpc:               *mantleRPC,
+			Contract:          *mantleContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMantle),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1434,12 +1434,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(blastRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "blast",
-			ChainID:          vaa.ChainIDBlast,
-			Rpc:              *blastRPC,
-			Contract:         *blastContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBlast),
+			NetworkID:         "blast",
+			ChainID:           vaa.ChainIDBlast,
+			Rpc:               *blastRPC,
+			Contract:          *blastContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBlast),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1447,12 +1447,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(xlayerRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "xlayer",
-			ChainID:          vaa.ChainIDXLayer,
-			Rpc:              *xlayerRPC,
-			Contract:         *xlayerContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDXLayer),
+			NetworkID:         "xlayer",
+			ChainID:           vaa.ChainIDXLayer,
+			Rpc:               *xlayerRPC,
+			Contract:          *xlayerContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDXLayer),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1460,12 +1460,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(lineaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "linea",
-			ChainID:          vaa.ChainIDLinea,
-			Rpc:              *lineaRPC,
-			Contract:         *lineaContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDLinea),
+			NetworkID:         "linea",
+			ChainID:           vaa.ChainIDLinea,
+			Rpc:               *lineaRPC,
+			Contract:          *lineaContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDLinea),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1473,12 +1473,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(berachainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "berachain",
-			ChainID:          vaa.ChainIDBerachain,
-			Rpc:              *berachainRPC,
-			Contract:         *berachainContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBerachain),
+			NetworkID:         "berachain",
+			ChainID:           vaa.ChainIDBerachain,
+			Rpc:               *berachainRPC,
+			Contract:          *berachainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBerachain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1486,12 +1486,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(snaxchainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "snaxchain",
-			ChainID:          vaa.ChainIDSnaxchain,
-			Rpc:              *snaxchainRPC,
-			Contract:         *snaxchainContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDSnaxchain),
+			NetworkID:         "snaxchain",
+			ChainID:           vaa.ChainIDSnaxchain,
+			Rpc:               *snaxchainRPC,
+			Contract:          *snaxchainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSnaxchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1499,12 +1499,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(unichainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "unichain",
-			ChainID:          vaa.ChainIDUnichain,
-			Rpc:              *unichainRPC,
-			Contract:         *unichainContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDUnichain),
+			NetworkID:         "unichain",
+			ChainID:           vaa.ChainIDUnichain,
+			Rpc:               *unichainRPC,
+			Contract:          *unichainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDUnichain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1512,12 +1512,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(worldchainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "worldchain",
-			ChainID:          vaa.ChainIDWorldchain,
-			Rpc:              *worldchainRPC,
-			Contract:         *worldchainContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDWorldchain),
+			NetworkID:         "worldchain",
+			ChainID:           vaa.ChainIDWorldchain,
+			Rpc:               *worldchainRPC,
+			Contract:          *worldchainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDWorldchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1525,12 +1525,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(inkRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "ink",
-			ChainID:          vaa.ChainIDInk,
-			Rpc:              *inkRPC,
-			Contract:         *inkContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDInk),
+			NetworkID:         "ink",
+			ChainID:           vaa.ChainIDInk,
+			Rpc:               *inkRPC,
+			Contract:          *inkContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDInk),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1538,12 +1538,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(hyperEvmRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "hyperevm",
-			ChainID:          vaa.ChainIDHyperEVM,
-			Rpc:              *hyperEvmRPC,
-			Contract:         *hyperEvmContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDHyperEVM),
+			NetworkID:         "hyperevm",
+			ChainID:           vaa.ChainIDHyperEVM,
+			Rpc:               *hyperEvmRPC,
+			Contract:          *hyperEvmContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDHyperEVM),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1551,12 +1551,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(monadRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "monad",
-			ChainID:          vaa.ChainIDMonad,
-			Rpc:              *monadRPC,
-			Contract:         *monadContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDMonad),
+			NetworkID:         "monad",
+			ChainID:           vaa.ChainIDMonad,
+			Rpc:               *monadRPC,
+			Contract:          *monadContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMonad),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1564,12 +1564,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(seiEvmRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "seievm",
-			ChainID:          vaa.ChainIDSeiEVM,
-			Rpc:              *seiEvmRPC,
-			Contract:         *seiEvmContract,
-			CcqBackfillCache: *ccqBackfillCache,
-			TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDSeiEVM),
+			NetworkID:         "seievm",
+			ChainID:           vaa.ChainIDSeiEVM,
+			Rpc:               *seiEvmRPC,
+			Contract:          *seiEvmContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSeiEVM),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1736,12 +1736,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.TestNet || env == common.UnsafeDevNet {
 		if shouldStart(sepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "sepolia",
-				ChainID:          vaa.ChainIDSepolia,
-				Rpc:              *sepoliaRPC,
-				Contract:         *sepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDSepolia),
+				NetworkID:         "sepolia",
+				ChainID:           vaa.ChainIDSepolia,
+				Rpc:               *sepoliaRPC,
+				Contract:          *sepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1749,12 +1749,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(holeskyRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "holesky",
-				ChainID:          vaa.ChainIDHolesky,
-				Rpc:              *holeskyRPC,
-				Contract:         *holeskyContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDHolesky),
+				NetworkID:         "holesky",
+				ChainID:           vaa.ChainIDHolesky,
+				Rpc:               *holeskyRPC,
+				Contract:          *holeskyContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDHolesky),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1762,12 +1762,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(arbitrumSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "arbitrum_sepolia",
-				ChainID:          vaa.ChainIDArbitrumSepolia,
-				Rpc:              *arbitrumSepoliaRPC,
-				Contract:         *arbitrumSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDArbitrumSepolia),
+				NetworkID:         "arbitrum_sepolia",
+				ChainID:           vaa.ChainIDArbitrumSepolia,
+				Rpc:               *arbitrumSepoliaRPC,
+				Contract:          *arbitrumSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDArbitrumSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1775,12 +1775,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(baseSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "base_sepolia",
-				ChainID:          vaa.ChainIDBaseSepolia,
-				Rpc:              *baseSepoliaRPC,
-				Contract:         *baseSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDBaseSepolia),
+				NetworkID:         "base_sepolia",
+				ChainID:           vaa.ChainIDBaseSepolia,
+				Rpc:               *baseSepoliaRPC,
+				Contract:          *baseSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBaseSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1788,12 +1788,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(optimismSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "optimism_sepolia",
-				ChainID:          vaa.ChainIDOptimismSepolia,
-				Rpc:              *optimismSepoliaRPC,
-				Contract:         *optimismSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDOptimismSepolia),
+				NetworkID:         "optimism_sepolia",
+				ChainID:           vaa.ChainIDOptimismSepolia,
+				Rpc:               *optimismSepoliaRPC,
+				Contract:          *optimismSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDOptimismSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1801,12 +1801,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(polygonSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "polygon_sepolia",
-				ChainID:          vaa.ChainIDPolygonSepolia,
-				Rpc:              *polygonSepoliaRPC,
-				Contract:         *polygonSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
-				TxVerifier:       slices.Contains(txVerifierChains, vaa.ChainIDPolygonSepolia),
+				NetworkID:         "polygon_sepolia",
+				ChainID:           vaa.ChainIDPolygonSepolia,
+				Rpc:               *polygonSepoliaRPC,
+				Contract:          *polygonSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDPolygonSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)

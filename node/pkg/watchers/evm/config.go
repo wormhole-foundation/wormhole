@@ -20,7 +20,7 @@ type WatcherConfig struct {
 	L1FinalizerRequired    watchers.NetworkID // (optional)
 	l1Finalizer            interfaces.L1Finalizer
 	CcqBackfillCache       bool
-	TxVerifier             bool
+	TxVerifierEnabled      bool
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -66,7 +66,7 @@ func (wc *WatcherConfig) Create(
 		queryResponseC,
 		env,
 		wc.CcqBackfillCache,
-		wc.TxVerifier,
+		wc.TxVerifierEnabled,
 	)
 	watcher.SetL1Finalizer(wc.l1Finalizer)
 	return watcher, watcher.Run, watcher, nil
