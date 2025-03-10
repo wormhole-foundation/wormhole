@@ -59,6 +59,9 @@ func Test_canRetryGetBlockTime(t *testing.T) {
 	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
 }
 
+// TestVerifyAndPublish checks the operation of the verifyAndPublish method of the watcher in
+// scenarios where the Transfer Verifier is disabled and when it's enabled. It covers much of
+// the behaviour of the verify() function.
 func TestVerifyAndPublish(t *testing.T) {
 
 	msgC := make(chan *common.MessagePublication, 1)
@@ -68,7 +71,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	msg := common.MessagePublication{}
 	ctx := context.TODO()
 
-	// Check preconditions
+	// Check preconditions for the Transfer Verifier disabled case.
 	require.Equal(t, 0, len(w.msgC))
 	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
 	require.Nil(t, w.txVerifier)
@@ -78,7 +81,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.ErrorContains(t, err, "message publication cannot be nil")
 	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
 
-	// Check transfer verifier not enabled case. The message should be published normally
+	// Check transfer verifier not enabled case. The message should be published normally.
 	msg = common.MessagePublication{}
 	require.Nil(t, w.txVerifier)
 
@@ -108,17 +111,6 @@ func TestVerifyAndPublish(t *testing.T) {
 	publishedMsg = <-msgC
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
-	// Check scenario where the message already has a verification status.
-	msg = common.MessagePublication{}
-	setErr := msg.SetVerificationState(common.Anomalous)
-	require.NoError(t, setErr)
-	require.Nil(t, w.txVerifier)
-
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.ErrorContains(t, err, "message publication already has a verification status")
-	require.Equal(t, 0, len(msgC))
-	require.Equal(t, common.Anomalous.String(), msg.VerificationState().String())
-
 	// Check that message status is not changed if it didn't come from token bridge.
 	// The NotVerified status is used when Transfer Verification is not enabled.
 	msg = common.MessagePublication{}
@@ -130,9 +122,22 @@ func TestVerifyAndPublish(t *testing.T) {
 	publishedMsg = <-msgC
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
+	// Check scenario where the message already has a verification status.
+	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
+	w.txVerifier = failMock
+	msg = common.MessagePublication{}
+	setErr := msg.SetVerificationState(common.Anomalous)
+	require.NoError(t, setErr)
+	require.NotNil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "message publication already has a verification status")
+	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Anomalous.String(), msg.VerificationState().String())
+
 	// Check case where Transfer Verifier finds a dangerous transaction. Note that this case does
 	// not return an error, but the published message should be marked as Rejected.
-	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
+	failMock = &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
 	w.txVerifier = failMock
 	require.NotNil(t, w.txVerifier)
 	msg = common.MessagePublication{
