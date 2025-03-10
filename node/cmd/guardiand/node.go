@@ -2,9 +2,7 @@ package guardiand
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math"
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
@@ -945,7 +943,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	if cmd.Flags().Changed("transferVerifierEnabledChains") {
 		var parseErr error
 		// NOTE: avoid shadowing txVerifierChains here. It should refer to the global variable.
-		txVerifierChains, parseErr = validateTxVerifierChains(*transferVerifierEnabledChains)
+		txVerifierChains, parseErr = txverifier.ValidateChains(*transferVerifierEnabledChains)
 
 		logger.Debug("validated txVerifierChains", zap.Any("chains", txVerifierChains))
 		if parseErr != nil {
@@ -1934,39 +1932,4 @@ func argsConsistent(args []string) bool {
 	}
 
 	return true
-}
-
-// validateTxVerifierChains validates that a slice of uints correspond to chain IDs with a Transfer Verifier implementation.
-func validateTxVerifierChains(
-	// A comma-separated list of Wormhole ChainIDs.
-	input []uint,
-) ([]vaa.ChainID, error) {
-	if len(input) == 0 {
-		return nil, errors.New("no chain IDs provided for transfer verification")
-	}
-	knownChains := vaa.GetAllNetworkIDs()
-	supportedChains := txverifier.SupportedChains()
-
-	// NOTE: Using a known capacity and counter here avoids unnecessary reallocations compared to using `append()`.
-	enabled := make([]vaa.ChainID, len(input))
-	i := uint8(0)
-	for _, chain := range input {
-		if chain > uint(math.MaxUint16) {
-			return nil, fmt.Errorf("invalid chain ID %d: exceeds MaxUint16", chain)
-		}
-		chainId := vaa.ChainID(chain)
-
-		if !slices.Contains(knownChains, chainId) {
-			return nil, fmt.Errorf("chainId %d is not a known Chain ID", chainId)
-		}
-
-		if !slices.Contains(supportedChains, chainId) {
-			return nil, fmt.Errorf("chainId %d does not have a Transfer Verifier implementation", chainId)
-		}
-
-		enabled[i] = chainId
-		i++
-	}
-
-	return enabled, nil
 }
