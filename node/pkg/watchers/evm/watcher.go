@@ -147,7 +147,7 @@ type (
 		ccqLogger          *zap.Logger
 		// Whether the Transfer Verifier should be initialized for this watcher.
 		txVerifierEnabled bool
-		// Transfer Verifier instance
+		// Transfer Verifier instance. If nil, transfer verification is disabled.
 		txVerifier txverifier.TransferVerifierInterface
 	}
 
@@ -875,16 +875,11 @@ func (w *Watcher) verifyAndPublish(
 		return errors.New("verifyAndPublish: message publication already has a verification status")
 	}
 
-	if w.txVerifierEnabled {
+	if w.txVerifier != nil {
 		// Setting a custom verification state is only required when
 		// Transfer Verification is enabled. If disabled, the message
 		// will be emitted with the default value `NotVerified`.
 		var verificationState common.VerificationState
-
-		// This should have already been initialized by the constructor.
-		if w.txVerifier == nil {
-			return errors.New("verifyAndPublish: transfer verifier should be instantiated but is nil")
-		}
 
 		// Only involve the transfer verifier for core messages sent
 		// from the token bridge. This check is also done in the

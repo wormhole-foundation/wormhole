@@ -71,6 +71,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	// Check preconditions
 	require.Equal(t, 0, len(w.msgC))
 	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
+	require.Nil(t, w.txVerifier)
 
 	// Check nil message
 	err := w.verifyAndPublish(nil, ctx, eth_common.Hash{}, &types.Receipt{})
@@ -79,6 +80,7 @@ func TestVerifyAndPublish(t *testing.T) {
 
 	// Check transfer verifier not enabled case. The message should be published normally
 	msg = common.MessagePublication{}
+	require.Nil(t, w.txVerifier)
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.NoError(t, err)
@@ -91,30 +93,48 @@ func TestVerifyAndPublish(t *testing.T) {
 	tbAddr, byteErr := vaa.BytesToAddress([]byte{0x01})
 	require.NoError(t, byteErr)
 
-	// Check scenario where transfer verifier is enabled but isn't initialized.
+	// Check scenario where transfer verifier is enabled on the watcher level but
+	// there is no Transfer Verifier instantiated. In this case, fail open and continue
+	// to process messages. This shouldn't be possible in practice as the constructor
+	// should return an error on startup if the Transfer Verifier can't be instantiated
+	// when txVerifierEnabled is true.
 	w.txVerifierEnabled = true
 	msg = common.MessagePublication{}
+	require.Nil(t, w.txVerifier)
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.ErrorContains(t, err, "transfer verifier should be instantiated but is nil")
-	require.Equal(t, 0, len(msgC))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
 	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
 
 	// Check scenario where the message already has a verification status.
-	w.txVerifierEnabled = true
 	msg = common.MessagePublication{}
 	setErr := msg.SetVerificationState(common.Anomalous)
 	require.NoError(t, setErr)
+	require.Nil(t, w.txVerifier)
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
 	require.ErrorContains(t, err, "message publication already has a verification status")
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Anomalous.String(), msg.VerificationState().String())
 
+	// Check that message status is not changed if it didn't come from token bridge.
+	// The NotVerified status is used when Transfer Verification is not enabled.
+	msg = common.MessagePublication{}
+	require.Nil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
+
 	// Check case where Transfer Verifier finds a dangerous transaction. Note that this case does
 	// not return an error, but the published message should be marked as Rejected.
 	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
 	w.txVerifier = failMock
+	require.NotNil(t, w.txVerifier)
 	msg = common.MessagePublication{
 		EmitterAddress: tbAddr,
 	}
@@ -127,9 +147,21 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Rejected.String(), publishedMsg.VerificationState().String())
 
+	// Check that message status is not changed if it didn't come from token bridge.
+	// The NotApplicable status is used when Transfer Verification is enabled.
+	msg = common.MessagePublication{}
+	require.NotNil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotApplicable.String(), publishedMsg.VerificationState().String())
+
 	// Check happy path where txverifier is enabled, initialized, and the message is from the token bridge.
 	successMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{true}
 	w.txVerifier = successMock
+	require.NotNil(t, w.txVerifier)
 	msg = common.MessagePublication{
 		EmitterAddress: tbAddr,
 	}
@@ -141,28 +173,6 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.NotNil(t, publishedMsg)
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Valid.String(), publishedMsg.VerificationState().String())
-
-	// Check that message status is not changed if it didn't come from token bridge.
-	// The NotVerified status is used when Transfer Verification is not enabled.
-	msg = common.MessagePublication{}
-	w.txVerifierEnabled = false
-
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.Nil(t, err)
-	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
-	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
-
-	// Check that message status is not changed if it didn't come from token bridge.
-	// The NotApplicable status is used when Transfer Verification is enabled.
-	msg = common.MessagePublication{}
-	w.txVerifierEnabled = true
-
-	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.Nil(t, err)
-	require.Equal(t, 1, len(msgC))
-	publishedMsg = <-msgC
-	require.Equal(t, common.NotApplicable.String(), publishedMsg.VerificationState().String())
 }
 
 // Helper function to set up a test Ethereum Watcher
