@@ -177,7 +177,7 @@ func (s *SolanaWatcher) shimProcessTopLevelInstruction(
 ) (bool, error) {
 	topLevelIdx := uint16(topLevelIndex)
 	if topLevelIdx >= uint16(len(tx.Message.Instructions)) {
-		return false, fmt.Errorf("topLevelIndex %d is greater than %d", topLevelIdx, len(tx.Message.Instructions))
+		return false, fmt.Errorf("topLevelIndex %d is greater than the total number of instructions in the tx message, %d", topLevelIdx, len(tx.Message.Instructions))
 	}
 	inst := tx.Message.Instructions[topLevelIdx]
 
@@ -231,7 +231,7 @@ func (s *SolanaWatcher) shimProcessInnerInstruction(
 	isReobservation bool,
 ) (bool, error) {
 	if startIdx >= len(innerInstructions) {
-		return false, fmt.Errorf("startIdx %d is greater than or equal to %d", startIdx, len(innerInstructions))
+		return false, fmt.Errorf("startIdx %d is out of bounds of slice innerInstructions (length: %d)", startIdx, len(innerInstructions))
 	}
 
 	// See if this is a PostMessage event from the shim contract. If so, parse it. If not, bail out now.
@@ -285,38 +285,43 @@ func (s *SolanaWatcher) shimProcessRest(
 	for idx := startIdx; idx < len(innerInstructions); idx++ {
 		inst := innerInstructions[idx]
 		if inst.ProgramIDIndex == whProgramIndex {
-			if verifiedCoreEvent {
-				return fmt.Errorf("detected multiple inner core instructions when there should not be at instruction %d, %d", outerIdx, idx)
-			}
 			foundIt, err := shimVerifyCoreMessage(inst.Data)
 			if err != nil {
 				return fmt.Errorf("failed to verify inner core instruction for shim instruction %d, %d: %w", outerIdx, idx, err)
 			}
 			if foundIt {
+				if verifiedCoreEvent {
+					return fmt.Errorf("detected multiple inner core instructions when there should not be at instruction %d, %d", outerIdx, idx)
+				}
 				alreadyProcessed.add(outerIdx, idx)
 				verifiedCoreEvent = true
 			}
 		} else if inst.ProgramIDIndex == shimProgramIndex {
-			if messageEvent != nil {
-				return fmt.Errorf("detected multiple shim message event instructions when there should not be at instruction %d, %d", outerIdx, idx)
-			}
-			if !verifiedCoreEvent {
-				return fmt.Errorf("detected an inner shim message event instruction before the core event for shim instruction %d, %d: %w", outerIdx, idx, err)
-			}
-			messageEvent, err = shimParseMessageEvent(s.shimMessageEventDiscriminator, inst.Data)
+			thisEvent, err := shimParseMessageEvent(s.shimMessageEventDiscriminator, inst.Data)
 			if err != nil {
 				return fmt.Errorf("failed to parse inner shim message event instruction for shim instruction %d, %d: %w", outerIdx, idx, err)
 			}
-			alreadyProcessed.add(outerIdx, idx)
+
+			if thisEvent != nil {
+				if !verifiedCoreEvent {
+					return fmt.Errorf("detected an inner shim message event instruction before the core event for shim instruction %d, %d: %w", outerIdx, idx, err)
+				}
+
+				if messageEvent != nil {
+					return fmt.Errorf("detected multiple shim message event instructions when there should not be at instruction %d, %d", outerIdx, idx)
+				}
+
+				messageEvent = thisEvent
+				alreadyProcessed.add(outerIdx, idx)
+			}
 		}
 
 		if verifiedCoreEvent && messageEvent != nil {
+			// In the direct (top level instruction) case, we need to keep looking to make sure there are no other shim publications in this inner instruction set,
+			// but in the integration (inner instruction) case, that is valid, so we can stop looking. Any additional shim publications will be handled separately.
 			if !isTopLevel {
-				// We found what we are looking for, and additional shim events in the inner instruction case are allowed, so we can stop looking.
 				break
 			}
-
-			// In the top level instruction case, we should not have any additional shim events in this instruction set.
 		}
 	}
 

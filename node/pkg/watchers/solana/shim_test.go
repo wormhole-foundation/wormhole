@@ -1004,7 +1004,7 @@ func TestShimFromIntegratorWithMultipleShimTransactions(t *testing.T) {
 	assert.False(t, msg.Unreliable)
 }
 
-func TestShimDirectWithExtraWhEventBeforeShimEventShouldFails(t *testing.T) {
+func TestShimDirectWithExtraWhEventBeforeShimEventShouldFail(t *testing.T) {
 	eventJson := `
 	{
 		"blockTime": 1736530812,
@@ -1616,7 +1616,7 @@ func TestShimDirectWithExtraCoreEventShouldFail(t *testing.T) {
 	require.Equal(t, 2, len(alreadyProcessed)) // The first core and shim events will have been added.
 }
 
-func TestShimTopLevelShouldFailIfNoInstructionsShouldFail(t *testing.T) {
+func TestShimTopLevelEmptyInstructionsShouldFail(t *testing.T) {
 	eventJson := `
 	{
 		"blockTime": 1736530812,
@@ -1802,13 +1802,13 @@ func TestShimTopLevelShouldFailIfNoInstructionsShouldFail(t *testing.T) {
 
 	alreadyProcessed := ShimAlreadyProcessed{}
 	found, err := s.shimProcessTopLevelInstruction(logger, whProgramIndex, shimProgramIndex, tx, txRpc.Meta.InnerInstructions, 1, alreadyProcessed, false)
-	require.ErrorContains(t, err, "topLevelIndex 1 is greater than 0")
+	require.ErrorContains(t, err, "topLevelIndex 1 is greater than the total number of instructions in the tx message, 0")
 	require.False(t, found)
 	require.Equal(t, 0, len(s.msgC))
 	require.Equal(t, 0, len(alreadyProcessed))
 }
 
-func TestShimInnerShouldFailIfNoInstructionsShouldFail(t *testing.T) {
+func TestShimProcessInnerInstructions_OutOfBoundsStartIndexShouldFail(t *testing.T) {
 	eventJson := `
 	{
 		"blockTime": 1736542615,
@@ -1959,7 +1959,7 @@ func TestShimInnerShouldFailIfNoInstructionsShouldFail(t *testing.T) {
 
 	alreadyProcessed := ShimAlreadyProcessed{}
 	found, err := s.shimProcessInnerInstruction(logger, whProgramIndex, shimProgramIndex, tx, txRpc.Meta.InnerInstructions[0].Instructions, 0, len(txRpc.Meta.InnerInstructions[0].Instructions), alreadyProcessed, false)
-	require.ErrorContains(t, err, "startIdx 3 is greater than or equal to 3")
+	require.ErrorContains(t, err, "startIdx 3 is out of bounds of slice innerInstructions (length: 3)")
 	require.False(t, found)
 	require.Equal(t, 0, len(s.msgC))
 	require.Equal(t, 0, len(alreadyProcessed))
