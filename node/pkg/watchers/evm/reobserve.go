@@ -79,6 +79,8 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 
 				if pubErr != nil {
 					w.logger.Error("Error when publishing message", zap.Error(err))
+					// Avoid increasing the observations metrics for messages that weren't published.
+					continue
 				}
 
 				numObservations++
