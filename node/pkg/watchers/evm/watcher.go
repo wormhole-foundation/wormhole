@@ -868,46 +868,19 @@ func (w *Watcher) verifyAndPublish(
 	// Otherwise, the receipt in the calling context can be passed here to save on RPC requests and parsing.
 	receipt *gethTypes.Receipt,
 ) error {
+
 	if msg == nil {
 		return errors.New("verifyAndPublish: message publication cannot be nil")
 	}
-	if msg.VerificationState() != common.NotVerified {
-		return errors.New("verifyAndPublish: message publication already has a verification status")
-	}
 
 	if w.txVerifier != nil {
-		// Setting a custom verification state is only required when
-		// Transfer Verification is enabled. If disabled, the message
-		// will be emitted with the default value `NotVerified`.
-		var verificationState common.VerificationState
+		verifiedMsg, err := verify(ctx, msg, txHash, receipt, w.txVerifier)
 
-		// Only involve the transfer verifier for core messages sent
-		// from the token bridge. This check is also done in the
-		// transfer verifier package, but this helps us skip useless
-		// computation.
-		if txverifier.Cmp(msg.EmitterAddress, w.txVerifier.Addrs().TokenBridgeAddr) != 0 {
-			verificationState = common.NotApplicable
-		} else {
-			// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
-			// to protect against fraudulent message emissions.
-			valid := w.txVerifier.ProcessEvent(ctx, txHash, receipt)
-			if !valid {
-				w.logger.Error("verifyAndPublish: transfer verification failed", zap.String("txHash", txHash.String()))
-				verificationState = common.Rejected
-			} else {
-				w.logger.Debug("verifyAndPublish: transfer verification successful", zap.String("txHash", txHash.String()))
-				verificationState = common.Valid
-			}
-
+		if err != nil {
+			return err
 		}
 
-		// Update the state of the message.
-		updateErr := msg.SetVerificationState(verificationState)
-		if updateErr != nil {
-			errMsg := fmt.Sprintf("verifyAndPublish: could not set verification state for message with txID %s", msg.TxIDString())
-			w.logger.Error(errMsg, zap.Error(updateErr))
-			return fmt.Errorf("%s %w", errMsg, updateErr)
-		}
+		msg = &verifiedMsg
 	}
 
 	w.msgC <- msg
