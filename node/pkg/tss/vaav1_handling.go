@@ -60,7 +60,6 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 	}
 
 	if v.Version != vaa.VaaVersion1 {
-		// err = fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", v.Version)
 		// not an error. but will not accept.
 		return nil
 	}
