@@ -404,7 +404,8 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 		}
 
 		// no error and two different digests:
-		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests", unparsedSignedMessage.Sender)
+		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests. "+
+			"Time %v passed from prev msg", unparsedSignedMessage.Sender, time.Since(s.timeReceived))
 	}
 
 	return nil

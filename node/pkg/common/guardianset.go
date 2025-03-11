@@ -41,7 +41,7 @@ const MaxGuardianCount = 19
 //
 // There currently isn't any state clean up, so the value is on the high side to prevent
 // accidentally reaching the limit due to operational mistakes.
-const MaxNodesPerGuardian = 15
+const MaxNodesPerGuardian = 20
 
 // MaxStateAge specified the maximum age of state entries in seconds. Expired entries are purged
 // from the state by Cleanup().

@@ -1431,6 +1431,15 @@ func TestTssCorrectRun(t *testing.T) {
 			performManualReobservationRequest: true,
 			tssVaaVersionChecks:               true,
 		},
+		{
+			// two will start TSS, one already has VAA in db, thus will NOT start tss, but! should run TSS.WitnessVAA once it is
+			// signed by 3 of the guardians.
+			msg:                 someMessage(),
+			numGuardiansObserve: 2,
+			mustReachQuorum:     true,
+			prePopulateVAA:      true,
+			tssVaaVersionChecks: true,
+		},
 	}
 
 	runConsensusTests(t, testCases, guardians, true)

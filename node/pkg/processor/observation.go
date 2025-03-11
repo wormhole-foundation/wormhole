@@ -304,6 +304,10 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		return
 	}
 
+	if v.Version == vaa.VaaVersion1 {
+		p.thresholdSigner.WitnessNewVaa(v)
+	}
+
 	// Check if we already store this VAA
 	if p.haveSignedVAA(*db.VaaIDFromVAA(v)) {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
@@ -364,6 +368,4 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	}
 
 	p.storeSignedVAA(v)
-
-	p.thresholdSigner.WitnessNewVaa(v)
 }

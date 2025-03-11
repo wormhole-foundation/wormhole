@@ -52,9 +52,9 @@ type Engine struct {
 	msgSerialNumber uint64
 
 	// used to perform  hash-broadcast:
-	mtx      *sync.Mutex
-	received map[uuid]*broadcaststate
-
+	mtx        *sync.Mutex
+	received   map[uuid]*broadcaststate
+	seenVaas   map[digest]time.Time // time is the time it was seen first.
 	sigCounter activeSigCounter
 
 	// used for fault-tolerance:
@@ -376,7 +376,8 @@ func (t *Engine) prepareThenAnounceNewDigest(d party.Digest, chainID vaa.ChainID
 	}
 
 	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others (if consistency levels allows it).
-	t.anounceNewDigest(d[:], chainID, consistencyLvl)
+	// TODO: Consider what to do with anouncement mechanism.
+	// t.anounceNewDigest(d[:], chainID, consistencyLvl)
 
 	return nil
 }
@@ -519,6 +520,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		msgSerialNumber: 0,
 		mtx:             &sync.Mutex{},
 		received:        map[uuid]*broadcaststate{},
+		seenVaas:        map[digest]time.Time{},
 
 		started: atomic.Uint32{}, // default value is 0
 
@@ -560,10 +562,15 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	go t.ftTracker()
 
+	leaderPID, err := t.GuardianStorage.getSortedFirst()
+	if err != nil {
+		panic(fmt.Errorf("couldn't determine the leader: %w", err))
+	}
 	t.logger.Info(
 		"tss engine started",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 		zap.Bool("hasGuardianSet", t.gst != nil),
+		zap.String("leaderID", leaderPID.Id),
 	)
 
 	return nil
@@ -759,6 +766,12 @@ func (t *Engine) cleanup(maxTTL time.Duration) {
 			delete(t.received, k)
 		}
 	}
+
+	for k, timeReceived := range t.seenVaas {
+		if now.Sub(timeReceived) > maxTTL {
+			delete(t.seenVaas, k)
+		}
+	}
 }
 
 func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
@@ -924,9 +937,15 @@ func (t *Engine) handleUnicast(m Incoming) error {
 
 	switch v := unicast.Content.(type) {
 	case *tsscommv1.Unicast_Vaav1:
-		t.handleUnicastVaaV1(v, m.GetSource())
+		if err := t.handleUnicastVaaV1(v, m.GetSource()); err != nil {
+			return fmt.Errorf("failed to handle unicast vaav1: %w", err)
+		}
 	case *tsscommv1.Unicast_Tss:
-		return t.handleUnicastTSS(v, m.GetSource())
+		if err := t.handleUnicastTSS(v, m.GetSource()); err != nil {
+			return fmt.Errorf("failed to handle unicast tss message: %w", err)
+		}
+	default:
+		return fmt.Errorf("received unicast with unknown content type: %T", v)
 	}
 
 	return nil
@@ -981,7 +1000,7 @@ func (t *Engine) validateUnicastDoesntExist(parsed tss.ParsedMessage) error {
 		}
 
 		if *stored.verifiedDigest != msgDigest {
-			return fmt.Errorf("%w. (time first unicast received %v)", ErrEquivicatingGuardian, stored.timeReceived)
+			return fmt.Errorf("%w. (duration from prev unicast %v)", ErrEquivicatingGuardian, time.Since(stored.timeReceived))
 		}
 
 		return errUnicastAlreadyReceived

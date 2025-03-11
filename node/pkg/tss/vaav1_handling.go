@@ -1,8 +1,8 @@
 package tss
 
 import (
-	"bytes"
 	"fmt"
+	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -10,9 +10,10 @@ import (
 )
 
 var errNilGuardianSetState = fmt.Errorf("tss' guardianSetState nil")
+var errNilVaa = fmt.Errorf("nil VAA")
 
 // Assumes valid VAAs only.
-func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
+func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 	if t == nil {
 		return errNilTssEngine
 	}
@@ -21,20 +22,47 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 		return errTssEngineNotStarted
 	}
 
-	if t.gst == nil {
-		return errNilGuardianSetState
-	}
-
+	// consider removing this check.
 	if !t.isleader {
 		return nil
 	}
 
 	if v == nil {
-		return fmt.Errorf("nil VAA")
+		err = errNilVaa
+
+		return
+	}
+
+	// at end of function check if logging is needed too.
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		t.logger.Error("issue sending VAAv1 to others", zap.Error(err))
+	}()
+
+	if t.gst == nil {
+		err = errNilGuardianSetState
+
+		return
+	}
+
+	dgst := digest{}
+	copy(dgst[:], v.SigningDigest().Bytes())
+
+	t.mtx.Lock()
+	_, ok := t.seenVaas[dgst]
+	t.mtx.Unlock()
+
+	if ok {
+		return nil // vaa already seen, thus was sent and received already.
 	}
 
 	if v.Version != vaa.VaaVersion1 {
-		return fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", v.Version)
+		// err = fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", v.Version)
+		// not an error. but will not accept.
+		return nil
 	}
 
 	bts, err := v.Marshal()
@@ -55,49 +83,82 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 
 	select {
 	case t.messageOutChan <- &send:
-		t.logger.Info("leader sent VAAV1 to all guardians",
+		t.logger.Info("informed all guardians on vaav1",
 			zap.String("chainID", v.EmitterChain.String()),
 			zap.String("digest", fmt.Sprintf("%x", v.SigningDigest())),
 		)
 	default:
-		t.logger.Error(
-			"leader failed to send new VAA seen to guardians, network output channel buffer is full",
-			zap.String("chainID", v.EmitterChain.String()),
-		)
+		err = fmt.Errorf("network output channel buffer is full")
 	}
 
 	return nil
 }
 
+var errNilGuardianSet = fmt.Errorf("nil guardian set")
+var errNotVaaV1 = fmt.Errorf("not a v1 VAA")
+
 // handleUnicastVaaV1 expects to receive valid Vaav1 messages.
 // If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
 func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.PartyId) error {
-	if t.gst == nil {
-		return fmt.Errorf("no guardian set state")
+	if t == nil {
+		return errNilTssEngine
 	}
 
-	if !bytes.Equal(t.LeaderIdentity, src.Key) {
-		return fmt.Errorf("tss received a VAA unicast from a replica (non-leader): %s", src.Id)
+	if t.started.Load() != started {
+		return errTssEngineNotStarted
+	}
+
+	if t.gst == nil {
+		return errNilGuardianSetState
+	}
+
+	gs := t.gst.Get()
+	if gs == nil {
+		return errNilGuardianSet
 	}
 
 	if v == nil || v.Vaav1 == nil {
-		return fmt.Errorf("tss received nil VAA")
+		return errNilVaa
 	}
 
 	newVaa, err := vaa.Unmarshal(v.Vaav1.Marshaled)
 	if err != nil {
-		return fmt.Errorf("tss failed to unmarshal VAA %w", err)
+		return fmt.Errorf("unmarshal err: %w", err)
+	}
+
+	dgst := digest{}
+	copy(dgst[:], newVaa.SigningDigest().Bytes())
+
+	if !t.tryAddVaa(dgst) {
+		return nil // not error, just doesn't need to continue with this VAA.
 	}
 
 	if newVaa.Version != vaa.VaaVersion1 {
-		return fmt.Errorf("tss accepts VAA version 1 only. (received: %v)", newVaa.Version)
+		return errNotVaaV1
 	}
 
-	if err := newVaa.Verify(t.gst.Get().Keys); err != nil {
-		return fmt.Errorf("tss received VAA that fails verification: %w", err)
+	if err := newVaa.Verify(gs.Keys); err != nil {
+		return err
 	}
 
-	dgst := newVaa.SigningDigest()
+	err = t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
+	if err != nil {
+		return err
+	}
 
-	return t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
+	return nil
+}
+
+// attempts to add VAA, if it was already seen, returns false.
+func (t *Engine) tryAddVaa(d digest) bool {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	if _, seen := t.seenVaas[d]; seen {
+		return false
+	}
+
+	t.seenVaas[d] = time.Now()
+
+	return true
 }
