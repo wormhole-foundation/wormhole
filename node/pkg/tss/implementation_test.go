@@ -441,12 +441,6 @@ func TestEquivocation(t *testing.T) {
 	})
 }
 
-func (e *Engine) cleanVaaMap() {
-	e.mtx.Lock()
-	defer e.mtx.Unlock()
-
-	e.seenVaas = map[digest]time.Time{}
-}
 func TestBadInputs(t *testing.T) {
 	a := assert.New(t)
 	engines := load5GuardiansSetupForBroadcastChecks(a)
@@ -621,7 +615,6 @@ func TestBadInputs(t *testing.T) {
 		engine.LeaderIdentity = engine.Self.Key
 
 		t.Run("Bad Version", func(t *testing.T) {
-			engine.cleanVaaMap()
 			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: bts,
@@ -636,7 +629,6 @@ func TestBadInputs(t *testing.T) {
 		a.NoError(err)
 
 		t.Run("Bad Signature", func(t *testing.T) {
-			engine.cleanVaaMap()
 			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: bts,
@@ -647,7 +639,6 @@ func TestBadInputs(t *testing.T) {
 		})
 
 		t.Run("Bad Marshal", func(t *testing.T) {
-			engine.cleanVaaMap()
 			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: []byte("BadMarshal"),
@@ -658,14 +649,12 @@ func TestBadInputs(t *testing.T) {
 		})
 
 		t.Run("nil VAA", func(t *testing.T) {
-			engine.cleanVaaMap()
 			err = engine.handleUnicastVaaV1(nil, partyIdToProto(engine.Self))
 
 			a.ErrorContains(err, "nil")
 		})
 
 		t.Run("no guardian set state", func(t *testing.T) {
-			engine.cleanVaaMap()
 			engine.gst = nil
 
 			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
@@ -710,8 +699,6 @@ func TestBadInputs(t *testing.T) {
 
 		engine.messageOutChan = nil
 		a.NoError(engine.WitnessNewVaa(v)) //shouldn't output error but log.
-
-		engine.cleanVaaMap()
 
 		v.Version += 1
 		a.NoError(engine.WitnessNewVaa(v))

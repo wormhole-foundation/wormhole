@@ -52,9 +52,9 @@ type Engine struct {
 	msgSerialNumber uint64
 
 	// used to perform  hash-broadcast:
-	mtx        *sync.Mutex
-	received   map[uuid]*broadcaststate
-	seenVaas   map[digest]time.Time // time is the time it was seen first.
+	mtx      *sync.Mutex
+	received map[uuid]*broadcaststate
+
 	sigCounter activeSigCounter
 
 	// used for fault-tolerance:
@@ -520,7 +520,6 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		msgSerialNumber: 0,
 		mtx:             &sync.Mutex{},
 		received:        map[uuid]*broadcaststate{},
-		seenVaas:        map[digest]time.Time{},
 
 		started: atomic.Uint32{}, // default value is 0
 
@@ -764,12 +763,6 @@ func (t *Engine) cleanup(maxTTL time.Duration) {
 	for k, v := range t.received {
 		if now.Sub(v.timeReceived) > maxTTL {
 			delete(t.received, k)
-		}
-	}
-
-	for k, timeReceived := range t.seenVaas {
-		if now.Sub(timeReceived) > maxTTL {
-			delete(t.seenVaas, k)
 		}
 	}
 }

@@ -2,7 +2,6 @@ package tss
 
 import (
 	"fmt"
-	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -50,14 +49,6 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 
 	dgst := digest{}
 	copy(dgst[:], v.SigningDigest().Bytes())
-
-	t.mtx.Lock()
-	_, ok := t.seenVaas[dgst]
-	t.mtx.Unlock()
-
-	if ok {
-		return nil // vaa already seen, thus was sent and received already.
-	}
 
 	if v.Version != vaa.VaaVersion1 {
 		// not an error. but will not accept.
@@ -128,10 +119,6 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 	dgst := digest{}
 	copy(dgst[:], newVaa.SigningDigest().Bytes())
 
-	if !t.tryAddVaa(dgst) {
-		return nil // not error, just doesn't need to continue with this VAA.
-	}
-
 	if newVaa.Version != vaa.VaaVersion1 {
 		return errNotVaaV1
 	}
@@ -146,18 +133,4 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 	}
 
 	return nil
-}
-
-// attempts to add VAA, if it was already seen, returns false.
-func (t *Engine) tryAddVaa(d digest) bool {
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
-
-	if _, seen := t.seenVaas[d]; seen {
-		return false
-	}
-
-	t.seenVaas[d] = time.Now()
-
-	return true
 }
