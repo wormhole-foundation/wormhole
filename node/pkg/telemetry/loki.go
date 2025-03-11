@@ -72,12 +72,6 @@ var (
 			Name: "wormhole_loki_messages_dropped",
 			Help: "Total number of log messages dropped while posting to Loki",
 		})
-
-	lokiWriteFailed = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_loki_write_failed",
-			Help: "Total number of log messages dropped because the write to Loki failed",
-		})
 )
 
 func (logger *ExternalLoggerLoki) log(ts time.Time, message json.RawMessage, level zapcore.Level) {
@@ -217,8 +211,7 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 			case c.Chan() <- entry:
 				pendingEntry = nil
 			case <-ctx.Done():
-				logger.Info("Loki log write failed")
-				lokiWriteFailed.Inc()
+				// Time to shutdown. We probably failed to write this message, save it so we can try to flush it.
 				pendingEntry = &entry
 			}
 		case <-ctx.Done():
