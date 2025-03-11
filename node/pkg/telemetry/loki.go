@@ -33,11 +33,8 @@ const (
 	// bufferSize specifies how many log messages can be queued up locally before we start dropping them.
 	bufferSize = 1000
 
-	// clientTimeout is how long we are willing to wait on Loki. Note that this is an UPPER LIMIT. In the sunny day scenario, we will not wait.
+	// clientTimeout is how long we are willing to wait for Loki on shutdown. Note that this is an UPPER LIMIT. In the sunny day scenario, we won't need to wait.
 	clientTimeout = 250 * time.Millisecond
-
-	// clientInitialTimeout is how long we allow the first write to Loki to take. It can take longer to set things up.
-	clientInitialTimeout = 1 * time.Second
 )
 
 // ExternalLoggerLoki implements ExternalLogger for the Grafana Loki cloud logging.
@@ -200,10 +197,13 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 	}, nil
 }
 
-// logWriter is the go routine that takes log messages off of the buffered channel and posts them to the Loki client. It uses a timeout
-// in case the Loki channel blocks indefinitely. If we timeout writing to Loki, that log entry is dropped, but we do peg a metric.
+// logWriter is the go routine that takes log messages off the buffered channel and posts them to the Loki client. It can block
+// on the Loki client until our context is canceled, meaning we are shutting down. On shutdown, it tries to flush buffered messages
+// and shutdown the Loki client using a timeout for both actions.
 func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, workerExitedC chan struct{}, c client.Client) {
-	first := true
+	// pendingEntry is used to save the last log message if the write to Loki is interrupted by the context being canceled. We will attempt to flush it.
+	var pendingEntry *api.Entry
+
 	for {
 		select {
 		case entry, ok := <-localC:
@@ -212,18 +212,20 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 				return
 			}
 
-			// The first write can take longer, so give it extra time.
-			timeout := clientTimeout
-			if first {
-				timeout = clientInitialTimeout
-				first = false
+			// Write to Loki in a blocking manner unless we are signaled to shutdown.
+			select {
+			case c.Chan() <- entry:
+				pendingEntry = nil
+			case <-ctx.Done():
+				logger.Info("Loki log write failed")
+				lokiWriteFailed.Inc()
+				pendingEntry = &entry
 			}
-			sendEntryWithTimeout(c, entry, timeout)
 		case <-ctx.Done():
 			logger.Info("Loki log writer shutting down")
 
 			// Flush as much as we can in our allowed time.
-			if err := flushLogsWithTimeout(ctx, localC, c); err != nil {
+			if err := flushLogsWithTimeout(localC, c, pendingEntry); err != nil {
 				logger.Error("worker failed to flush logs", zap.Error(err), zap.Int("numEventsRemaining", len(localC)))
 			}
 
@@ -240,27 +242,25 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 	}
 }
 
-// sendEntryWithTimeout sends a log entry to Loki with a timeout in case Grafana is down.
-func sendEntryWithTimeout(c client.Client, entry api.Entry, timeout time.Duration) {
-	select {
-	case c.Chan() <- entry: // can_block: Has a timeout.
-		return
-	case <-time.After(timeout):
-		lokiWriteFailed.Inc()
-		return
-	}
-}
-
 // flushLogsWithTimeout is used to flush any buffered log messages on shutdown.
 // It uses a timeout so that we only delay guardian shutdown for so long.
-func flushLogsWithTimeout(ctx context.Context, localC chan api.Entry, c client.Client) error {
-	timeout, cancel := context.WithTimeout(ctx, clientTimeout)
+func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *api.Entry) error {
+	// Create a timeout context. Base it on the background one since ours has been canceled.
+	timeout, cancel := context.WithTimeout(context.Background(), clientTimeout)
 	defer cancel()
+
+	if pendingEntry != nil {
+		select {
+		case c.Chan() <- *pendingEntry:
+		case <-timeout.Done():
+			return errors.New("timeout")
+		}
+	}
 
 	for len(localC) > 0 {
 		select {
 		case entry := <-localC:
-			sendEntryWithTimeout(c, entry, clientTimeout)
+			c.Chan() <- entry
 		case <-timeout.Done():
 			return errors.New("timeout")
 		}
@@ -269,12 +269,12 @@ func flushLogsWithTimeout(ctx context.Context, localC chan api.Entry, c client.C
 	return nil
 }
 
-// stopClientWithTimeout calls the Loki client Stop() function with a timeout so that we only delay guardian shutdown for so long.
+// stopClientWithTimeout calls the Loki client shutdown function using a timeout so that we only delay guardian shutdown for so long.
 func stopClientWithTimeout(c client.Client) error {
-	// Call Stop() in a go routine so we can use a timeout.
+	// Call the stop function in a go routine so we can use a timeout.
 	stopExitedC := make(chan struct{}, 1)
 	go func(c client.Client) {
-		c.Stop()
+		c.StopNow()
 		stopExitedC <- struct{}{}
 	}(c)
 
