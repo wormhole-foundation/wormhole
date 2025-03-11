@@ -564,7 +564,7 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	leaderPID, err := t.GuardianStorage.getSortedFirst()
 	if err != nil {
-		panic(fmt.Errorf("couldn't determine the leader: %w", err))
+		return fmt.Errorf("couldn't determine leader's ID: %w", err)
 	}
 	t.logger.Info(
 		"tss engine started",
