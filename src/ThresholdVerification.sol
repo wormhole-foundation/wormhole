@@ -29,21 +29,29 @@ contract ThresholdVerification is WormholeVerifier {
 	
 	bytes32[][] private _shards;
 
+	function _decodeThresholdInfo(uint256 info) internal pure returns (uint32 index, address addr) {
+		unchecked {
+			return (
+				uint32(info),
+				address(uint160(info >> 32))
+			);
+		}
+	}
+
+	function _encodeThresholdInfo(uint32 index, address addr) internal pure returns (uint256 info) {
+		unchecked {
+			return (uint256(uint160(addr)) << 32) | uint256(index);
+		}
+	}
+
 	// Get the current threshold signature info
 	function getCurrentThresholdInfo() public view returns (uint32 index, address addr) {
-		return (
-			uint32(_currentThresholdInfo),
-			address(uint160(_currentThresholdInfo >> 32))
-		);
+		return _decodeThresholdInfo(_currentThresholdInfo);
 	}
 
 	// Get the past threshold signature info
 	function getPastThresholdInfo(uint32 index) public view returns (uint32 expirationTime, address addr) {
-		uint256 info = _pastThresholdInfo[index];
-		return (
-			uint32(info),
-			address(uint160(info >> 32))
-		);
+		return _decodeThresholdInfo(_pastThresholdInfo[index]);
 	}
 
 	// Verify a threshold signature VAA
@@ -110,12 +118,10 @@ contract ThresholdVerification is WormholeVerifier {
 
 			// Store the current threshold info in past threshold info
 			uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-			uint256 oldInfo = (uint256(uint160(currentAddr)) << 32) | uint256(expirationTime);
-			_pastThresholdInfo.push(oldInfo);
+			_pastThresholdInfo.push(_encodeThresholdInfo(expirationTime, currentAddr));
 
 			// Update the current threshold info
-			uint256 newInfo = (uint256(uint160(newAddr)) << 32) | uint256(newIndex);
-			_currentThresholdInfo = newInfo;
+			_currentThresholdInfo = _encodeThresholdInfo(newIndex, newAddr);
 
 			// Store the shards
 			_shards.push(shards);
