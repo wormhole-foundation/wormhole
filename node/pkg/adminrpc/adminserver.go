@@ -801,7 +801,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 
 		vaaInjectionsTotal.Inc()
 
-		s.injectC <- &common.MessagePublication{ //can_block: Only blocks this command
+		s.injectC <- &common.MessagePublication{ //nolint:channelcheck // Only blocks this command
 			TxID:             ethcommon.Hash{}.Bytes(),
 			Timestamp:        v.Timestamp,
 			Nonce:            v.Nonce,
@@ -901,7 +901,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			// Inject into the gossip signed VAA receive path.
 			// This has the same effect as if the VAA was received from the network
 			// (verifying signature, storing in local DB...).
-			s.signedInC <- &gossipv1.SignedVAAWithQuorum{ //can_block: Only blocks this command
+			s.signedInC <- &gossipv1.SignedVAAWithQuorum{ //nolint:channelcheck // Only blocks this command
 				Vaa: vaaBytes,
 			}
 

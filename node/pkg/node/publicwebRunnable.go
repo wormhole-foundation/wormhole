@@ -147,9 +147,9 @@ func publicwebServiceRunnable(
 		go func() {
 			logger.Info("publicweb server listening", zap.String("addr", srv.Addr))
 			if tlsHostname != "" {
-				errC <- srv.ServeTLS(listener, "", "") //can_block: Only does one write
+				errC <- srv.ServeTLS(listener, "", "") //nolint:channelcheck // Only does one write
 			} else {
-				errC <- srv.Serve(listener) //can_block: Only does one write
+				errC <- srv.Serve(listener) //nolint:channelcheck // Only does one write
 			}
 		}()
 		select {

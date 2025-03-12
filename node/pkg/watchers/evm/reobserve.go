@@ -47,7 +47,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("current_block", finalizedBlockNum),
 				zap.Uint64("observed_block", blockNumber),
 			)
-			w.msgC <- msg
+			w.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 			numObservations++
 			continue
 		}
@@ -68,7 +68,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 					zap.Uint64("current_safe_block", safeBlockNum),
 					zap.Uint64("observed_block", blockNumber),
 				)
-				w.msgC <- msg
+				w.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 				numObservations++
 			} else {
 				w.logger.Info("ignoring re-observed message publication transaction",
@@ -106,7 +106,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				zap.Uint64("current_block", finalizedBlockNum),
 				zap.Uint64("observed_block", blockNumber),
 			)
-			w.msgC <- msg
+			w.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 			numObservations++
 		} else {
 			w.logger.Info("ignoring re-observed message publication transaction",
