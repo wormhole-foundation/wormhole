@@ -1,5 +1,5 @@
 # We need the built guardiand image
-FROM guardiand-image as guardiand
+FROM guardiand-image as base
 
 # These versions are pinned to match the Dockerfile in the `ethereum/`
 # directory. Otherwise, there is nothing special about them and they can be
