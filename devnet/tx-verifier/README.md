@@ -18,7 +18,7 @@ The basic idea is as follows:
 
 ### Scripts
 
-#### transfer-verifier-test.sh
+#### tx-verifier-evm-tests.sh
 
 Contains the `cast` commands that simulate malicious interactions with the Token Bridge and Core Bridge. It is able to broadcast
 transactions to the `anvil` instance that powers the Ethereum testnet while being able to impersonate arbitrary senders.
@@ -29,27 +29,17 @@ without a corresponding deposit or transfer into the Token Bridge.
 The current integration test sends exactly two messages, each one corresponding to a different Token Bridge endpoint
 (Transfer and Transfer With Payload).
 
-#### monitor.sh
+#### tx-verifier-evm-runner.sh
+
+Runs the guardiand binary which contains the transfer verifier tool. This tool monitors the local Ethereum network for events.
 
 A bash script that monitors the error log file for a specific error pattern. It runs in an infinite loop so it will
 not exit until the error pattern is detected.
 
-The error pattern is defined in `devnet/tx-verifier.yaml` and matches an error string in the Transfer Verifier package.
-
-Once the pattern is detected, a success message is logged to a status file. Currently this is unused but this set-up
-could be modified to detect that this script has written the success message to figure out whether the whole test completed successfully.
+The error pattern is defined in the YAML file and matches an error string in the Transfer Verifier package.
 
 The integration test is considered successful as soon as two instances of the error pattern are detected, one for
-each message type sent by the `transfer-verifier-test.sh`.
-
-### YAML File Description
-
-The YAML file that runs the integration tests runs three containers:
-* The Transfer Verifier binary which monitors the state of the local Ethereum network
-* The integration test script that generates activity that the Transfer Verifier classifies as malicious
-* The monitor script which ensures that the Transfer Verifier successfully
-detected the error we expected, and signals to Tilt that the overall test has
-succeeded
+each message type sent by the `transfer-verifier-evm-test.sh`.
 
 ## Further Work
 
