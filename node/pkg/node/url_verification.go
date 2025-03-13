@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -33,12 +34,7 @@ func ValidateURL(urlStr string, validSchemes []string) bool {
 		return false
 	}
 
-	for _, scheme := range validSchemes {
-		if parsedURL.Scheme == scheme {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(validSchemes, parsedURL.Scheme)
 }
 
 func generateFormatString(schemes []string) string {
