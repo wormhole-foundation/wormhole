@@ -20,6 +20,7 @@ type WatcherConfig struct {
 	L1FinalizerRequired    watchers.NetworkID // (optional)
 	l1Finalizer            interfaces.L1Finalizer
 	CcqBackfillCache       bool
+	TxVerifierEnabled      bool
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -53,7 +54,20 @@ func (wc *WatcherConfig) Create(
 		setWriteC = setC
 	}
 
-	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, env, wc.CcqBackfillCache)
+	watcher := NewEthWatcher(
+		wc.Rpc,
+		eth_common.HexToAddress(wc.Contract),
+		string(wc.NetworkID),
+		wc.ChainID,
+		msgC,
+		setWriteC,
+		obsvReqC,
+		queryReqC,
+		queryResponseC,
+		env,
+		wc.CcqBackfillCache,
+		wc.TxVerifierEnabled,
+	)
 	watcher.SetL1Finalizer(wc.l1Finalizer)
 	return watcher, watcher.Run, watcher, nil
 }
