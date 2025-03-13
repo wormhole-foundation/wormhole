@@ -104,10 +104,9 @@ func (logger *ExternalLoggerLoki) log(ts time.Time, message json.RawMessage, lev
 	}
 }
 
-func (logger *ExternalLoggerLoki) close() error {
+func (logger *ExternalLoggerLoki) close() {
 	// Shut down the worker and wait for it to exit. It has a timeout so we won't wait forever.
 	logger.stopWorkerWithTimeout()
-	return nil
 }
 
 // NewLokiCloudLogger creates a new Telemetry logger using Grafana Loki Cloud Logging.
@@ -167,6 +166,7 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 	bufferedChan := make(chan api.Entry, bufferSize)
 
 	// Create a local context with a cancel function so we can signal our worker to shutdown when the time comes.
+	// Cancelling the worker also closes the Loki client.
 	workerContext, cancelWorker := context.WithCancel(ctx)
 
 	// Create a channel used by the worker to signal that it has exited.
@@ -203,6 +203,7 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 		case entry, ok := <-localC:
 			if !ok {
 				logger.Error("Loki log writer is exiting because the buffered channel has been closed")
+				cleanUpWorker(logger, workerExitedC, c)
 				return
 			}
 
@@ -218,18 +219,11 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 			logger.Info("Loki log writer shutting down")
 
 			// Flush as much as we can in our allowed time.
-			if err := flushLogsWithTimeout(localC, c, pendingEntry); err != nil {
-				logger.Error("worker failed to flush logs", zap.Error(err), zap.Int("numEventsRemaining", len(localC)))
+			if numRemaining, err := flushLogsWithTimeout(localC, c, pendingEntry); err != nil {
+				logger.Error("worker failed to flush logs", zap.Error(err), zap.Int("numEventsRemaining", numRemaining))
 			}
 
-			// Stop the client without blocking indefinitely.
-			if err := stopClientWithTimeout(c); err != nil {
-				logger.Error("worker failed to stop Loki client", zap.Error(err))
-			}
-
-			// Signal that we are done.
-			workerExitedC <- struct{}{}
-			logger.Info("Loki log writer exiting")
+			cleanUpWorker(logger, workerExitedC, c)
 			return
 		}
 	}
@@ -237,8 +231,10 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 
 // flushLogsWithTimeout is used to flush any buffered log messages on shutdown.
 // It uses a timeout so that we only delay guardian shutdown for so long.
-func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *api.Entry) error {
+func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *api.Entry) (int, error) {
 	// Create a timeout context. Base it on the background one since ours has been canceled.
+	// We are using a timeout context rather than `time.After` here because that is the maximum
+	// we want to wait, rather than a per-event timeout.
 	timeout, cancel := context.WithTimeout(context.Background(), clientTimeout)
 	defer cancel()
 
@@ -246,7 +242,8 @@ func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *
 		select {
 		case c.Chan() <- *pendingEntry:
 		case <-timeout.Done():
-			return errors.New("timeout")
+			// If we timeout, we didn't write the pending one, so count that as remaining.
+			return (1 + len(localC)), errors.New("timeout writing pending entry")
 		}
 	}
 
@@ -255,11 +252,28 @@ func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *
 		case entry := <-localC:
 			c.Chan() <- entry
 		case <-timeout.Done():
-			return errors.New("timeout")
+			// If we timeout, we didn't write the current one, so count that as remaining.
+			return (1 + len(localC)), errors.New("timeout flushing buffered entry")
 		}
 	}
 
-	return nil
+	return 0, nil
+}
+
+// cleanUpWorker is called when the worker is shutting down. It closes the Loki client connection and signals that the worker has exited.
+func cleanUpWorker(logger *zap.Logger, workerExitedC chan struct{}, c client.Client) {
+	// Stop the client without blocking indefinitely.
+	if err := stopClientWithTimeout(c); err != nil {
+		logger.Error("worker failed to stop Loki client", zap.Error(err))
+	}
+
+	// Signal that we are done.
+	select {
+	case workerExitedC <- struct{}{}:
+		logger.Info("Loki log writer exiting")
+	default:
+		logger.Error("Loki log writer failed to write the exited flag, exiting anyway")
+	}
 }
 
 // stopClientWithTimeout calls the Loki client shutdown function using a timeout so that we only delay guardian shutdown for so long.
@@ -271,7 +285,7 @@ func stopClientWithTimeout(c client.Client) error {
 		stopExitedC <- struct{}{}
 	}(c)
 
-	// Wait for the go routine to exit or the timer to expire.
+	// Wait for the go routine to exit or the timer to expire. Using `time.After` since this is a one shot and we don't have the context.
 	select {
 	case <-stopExitedC:
 		return nil
@@ -287,6 +301,7 @@ func (logger *ExternalLoggerLoki) stopWorkerWithTimeout() {
 
 	// Wait for the worker to signal that it has exited. Use a timeout so we don't wait forever.
 	// It could take up to twice the client timeout for the worker to exit. Wait a little longer than that.
+	// Using `time.After` since this is a one shot and we don't have the context.
 	select {
 	case <-logger.workerExitedC:
 	case <-time.After(3 * clientTimeout):
