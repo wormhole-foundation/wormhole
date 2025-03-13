@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -409,13 +408,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if err != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", m.ChainId),
-						zap.String("txID", hex.EncodeToString(m.TxHash)),
+						zap.String("identifier", base58.Encode(m.TxHash)),
 						zap.Error(err),
 					)
 				} else {
 					logger.Info("reobserved transactions",
 						zap.Uint32("chainID", m.ChainId),
-						zap.String("txID", hex.EncodeToString(m.TxHash)),
+						zap.String("identifier", base58.Encode(m.TxHash)),
 						zap.Uint32("numObservations", numObservations),
 					)
 				}
