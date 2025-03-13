@@ -1,0 +1,23 @@
+# We need the built guardiand image
+FROM guardiand-image AS base
+
+# These versions are pinned to match the Dockerfile in the `ethereum/`
+# directory. Otherwise, there is nothing special about them and they can be
+# updated alongside the other Dockerfile.
+FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:nightly-55bf41564f605cae3ca4c95ac5d468b1f14447f9@sha256:8c15d322da81a6deaf827222e173f3f81c653136a3518d5eeb41250a0f2e17ea as foundry
+
+# node is required to install Foundry
+FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
+
+# prepare cast
+COPY --from=foundry /usr/local/bin/cast /bin/cast
+
+# prepare guardiand
+COPY --from=base /guardiand /bin/guardiand
+COPY --from=base /usr/lib/libwasmvm.*.so /usr/lib/
+
+# prepare test scripts
+COPY tx-verifier-evm-tests.sh /tx-verifier-evm-tests.sh
+COPY tx-verifier-evm-runner.sh /tx-verifier-evm-runner.sh
+RUN chmod +x /tx-verifier-evm-tests.sh
+RUN chmod +x /tx-verifier-evm-runner.sh
