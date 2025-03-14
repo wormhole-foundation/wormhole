@@ -35,8 +35,7 @@ func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, l
 	}
 
 }
-func (logger *externalLoggerMock) close() error {
-	return nil
+func (logger *externalLoggerMock) close() {
 }
 
 func TestTelemetryWithPrivate(t *testing.T) {

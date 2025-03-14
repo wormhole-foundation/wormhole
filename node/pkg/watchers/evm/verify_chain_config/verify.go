@@ -23,15 +23,16 @@ import (
 )
 
 var (
-	envStr = flag.String("env", "both", `Environment to be validated, may be "mainnet", "testnet" or "both", default is "both"`)
+	envStr  = flag.String("env", "both", `Environment to be validated, may be "mainnet", "testnet" or "both", default is "both"`)
+	chainId = flag.Int("chainId", 0, `An individual chain to be validated, default is all chains`)
 )
 
 func main() {
 	flag.Parse()
 
 	if *envStr == "both" {
-		verifyForEnv(common.MainNet)
-		verifyForEnv(common.TestNet)
+		verifyForEnv(common.MainNet, vaa.ChainID(*chainId))
+		verifyForEnv(common.TestNet, vaa.ChainID(*chainId))
 	} else {
 		env, err := common.ParseEnvironment(*envStr)
 		if err != nil || (env != common.TestNet && env != common.MainNet) {
@@ -43,7 +44,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		verifyForEnv(env)
+		verifyForEnv(env, vaa.ChainID(*chainId))
 	}
 }
 
@@ -52,7 +53,7 @@ type ListEntry struct {
 	Entry   evm.EnvEntry
 }
 
-func verifyForEnv(env common.Environment) {
+func verifyForEnv(env common.Environment, chainID vaa.ChainID) {
 	m, err := evm.GetChainConfigMap(env)
 	if err != nil {
 		fmt.Printf("Failed to get chain config map for %snet\n", env)
@@ -72,27 +73,29 @@ func verifyForEnv(env common.Environment) {
 	ctx := context.Background()
 
 	for _, entry := range orderedList {
-		if entry.Entry.PublicRPC == "" {
-			fmt.Printf("Skipping %v %v because the rpc is null\n", env, entry.ChainID)
-		} else {
-			evmChainID, err := evm.QueryEvmChainID(ctx, entry.Entry.PublicRPC)
-			if err != nil {
-				fmt.Printf("ERROR: Failed to query EVM chain ID for %v %v: %v\n", env, entry.ChainID, err)
-				os.Exit(1)
-			}
-
-			if evmChainID != entry.Entry.EvmChainID {
-				fmt.Printf("ERROR: EVM chain ID mismatch for %v %v: config: %v, actual: %v\n", env, entry.ChainID, entry.Entry.EvmChainID, evmChainID)
-				os.Exit(1)
-			}
-
-			fmt.Printf("EVM chain ID match for %v %v: value: %v\n", env, entry.ChainID, evmChainID)
-
-			if entry.Entry.Finalized || entry.Entry.Safe {
-				err := verifyFinality(ctx, entry.Entry.PublicRPC, entry.Entry.Finalized, entry.Entry.Safe)
+		if chainID == vaa.ChainIDUnset || entry.ChainID == chainID {
+			if entry.Entry.PublicRPC == "" {
+				fmt.Printf("Skipping %v %v because the rpc is null\n", env, entry.ChainID)
+			} else {
+				evmChainID, err := evm.QueryEvmChainID(ctx, entry.Entry.PublicRPC)
 				if err != nil {
-					fmt.Printf("ERROR: failed to verify finality values for %v %v: %v\n", env, entry.ChainID, err)
+					fmt.Printf("ERROR: Failed to query EVM chain ID for %v %v: %v\n", env, entry.ChainID, err)
 					os.Exit(1)
+				}
+
+				if evmChainID != entry.Entry.EvmChainID {
+					fmt.Printf("ERROR: EVM chain ID mismatch for %v %v: config: %v, actual: %v\n", env, entry.ChainID, entry.Entry.EvmChainID, evmChainID)
+					os.Exit(1)
+				}
+
+				fmt.Printf("EVM chain ID match for %v %v: value: %v\n", env, entry.ChainID, evmChainID)
+
+				if entry.Entry.Finalized || entry.Entry.Safe {
+					err := verifyFinality(ctx, entry.Entry.PublicRPC, entry.Entry.Finalized, entry.Entry.Safe)
+					if err != nil {
+						fmt.Printf("ERROR: failed to verify finality values for %v %v: %v\n", env, entry.ChainID, err)
+						os.Exit(1)
+					}
 				}
 			}
 		}

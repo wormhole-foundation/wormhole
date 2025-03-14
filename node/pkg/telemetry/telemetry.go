@@ -20,7 +20,7 @@ type Telemetry struct {
 
 type ExternalLogger interface {
 	log(time time.Time, message json.RawMessage, level zapcore.Level)
-	close() error
+	close()
 }
 
 // guardianTelemetryEncoder is a wrapper around zapcore.jsonEncoder that logs to cloud based logging
@@ -86,6 +86,6 @@ func (s *Telemetry) WrapLogger(logger *zap.Logger) *zap.Logger {
 	}))
 }
 
-func (s *Telemetry) Close() error {
-	return s.encoder.logger.close()
+func (s *Telemetry) Close() {
+	s.encoder.logger.close()
 }
