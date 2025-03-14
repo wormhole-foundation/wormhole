@@ -99,6 +99,7 @@ var (
 		vaa.ChainIDInk:        {Finalized: true, Safe: true, EvmChainID: 57073, PublicRPC: "https://rpc-qnd.inkonchain.com"},
 		// vaa.ChainIDHyperEVM:   Not in Mainnet yet.
 		// vaa.ChainIDMonad:      Not in Mainnet yet.
+		// vaa.ChainIDMezo:       Not in Mainnet yet.
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
@@ -149,6 +150,7 @@ var (
 		vaa.ChainIDInk:             {Finalized: true, Safe: true, EvmChainID: 763373, PublicRPC: "https://rpc-qnd-sepolia.inkonchain.com"},
 		vaa.ChainIDHyperEVM:        {Finalized: true, Safe: true, EvmChainID: 998, PublicRPC: "https://rpc.hyperliquid-testnet.xyz/evm"},
 		vaa.ChainIDMonad:           {Finalized: true, Safe: true, EvmChainID: 10143, PublicRPC: "https://testnet-rpc.monad.xyz"},
+		vaa.ChainIDMezo:            {Finalized: true, Safe: true, EvmChainID: 31611, PublicRPC: "https://rpc.test.mezo.org"},
 		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com"},
