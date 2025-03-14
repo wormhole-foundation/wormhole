@@ -1,26 +1,26 @@
 # Token bridge registration chain checklist
 [ ] solana 
 [ ] ethereum 
-[ ] terra 
+[1] terra 
 [ ] bsc 
 [ ] polygon 
 [ ] avalanche 
 [ ] oasis 
-[ ] algorand (*) 
+[3] algorand
 [ ] fantom 
 [ ] karura 
 [ ] acala 
 [ ] klaytn 
 [ ] celo 
 [ ] near 
-[ ] injective
+[2] injective
 [ ] aptos 
 [ ] sui 
 [ ] moonbeam 
 [ ] terra2 
 [ ] optimism 
 [ ] arbitrum 
-[ ] xpla (need more funds)
+[1] xpla
 [ ] base 
 [ ] sei 
 [ ] scroll
@@ -31,73 +31,80 @@
 [ ] unichain
 [ ] berachain
 [ ] linea
+[ ] ink
 
 # Need to use a special key
 [ ] wormchain TB
 [ ] wormchain Accountant
 
+# Notes:git p
+# 1. Terra and Xpla lack funding.
+# 2. Injective has GRPC problems in the worm-cli tool.
+# 3. Algorand core contracts storage space is exhausted, so no new registrations can be submitted.  
+
+# Replace $SUBMIT_VAA with the VAA you want to submit.
 # Replace 🕰️ with ✅ when done and the tx shows success in the block explorer
 # Also mark with an x in the checkboxes above
 # Make sure to write down the txid in the URL to track the VAA submit tx.
 
-worm submit --network mainnet --chain solana "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain solana "$SUBMIT_VAA"
 🕰️ https://explorer.solana.com/tx/<txid>
-worm submit --network mainnet --chain ethereum "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain ethereum "$SUBMIT_VAA"
 🕰️ https://etherscan.io/tx/<txid>
-worm submit --network mainnet --chain terra "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain terra "$SUBMIT_VAA"
 🕰️ https://finder.terra.money/classic/tx/<txid>
-worm submit --network mainnet --chain bsc "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain bsc "$SUBMIT_VAA"
 🕰️ https://bscscan.com/tx/<txid>
-worm submit --network mainnet --chain polygon "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain polygon "$SUBMIT_VAA"
 🕰️ https://polygonscan.com/tx/<txid>
-worm submit --network mainnet --chain avalanche "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain avalanche "$SUBMIT_VAA"
 🕰️ https://snowtrace.io/tx/<txid>
-worm submit --network mainnet --chain oasis "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain oasis "$SUBMIT_VAA"
 🕰️ https://explorer.oasis.io/mainnet/emerald/tx/<txid>
-worm submit --network mainnet --chain algorand "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain algorand "$SUBMIT_VAA"
 🕰️ https://explorer.perawallet.app/tx-group/<txid>
-worm submit --network mainnet --chain fantom "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain fantom "$SUBMIT_VAA"
 🕰️ https://ftmscan.com/tx/<txid>
-worm submit --network mainnet --chain karura "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain karura "$SUBMIT_VAA"
 🕰️ https://blockscout.karura.network/tx/<txid>
-worm submit --network mainnet --chain acala "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain acala "$SUBMIT_VAA"
 🕰️ https://blockscout.acala.network/tx/<txid>
-worm submit --network mainnet --chain klaytn --rpc https://rpc.ankr.com/klaytn "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain klaytn --rpc https://rpc.ankr.com/klaytn "$SUBMIT_VAA"
 🕰️ https://klaytnscope.com/tx/<txid>
-worm submit --network mainnet --chain celo "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain celo "$SUBMIT_VAA"
 🕰️ https://celoscan.io/tx/<txid>
 # These usually happen in two txs
-worm submit --network mainnet --chain near "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain near "$SUBMIT_VAA"
 🕰️ https://nearblocks.io/txns/<txid>
 🕰️ https://nearblocks.io/txns/<txid>
-worm submit --network mainnet --chain injective "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain injective "$SUBMIT_VAA"
 🕰️ https://explorer.injective.network/transaction/<txid>
-worm submit --network mainnet --chain aptos "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain aptos "$SUBMIT_VAA"
 # Check here: https://explorer.aptoslabs.com/account/0xd06d672640ef2faf4baf27c2b79c524fc49c539f72fe4dfc3376159519c4be9b?network=mainnet
 🕰️ https://explorer.aptoslabs.com/txn/<txid>?network=mainnet
-worm submit --network mainnet --chain sui "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain sui "$SUBMIT_VAA"
 🕰️ https://suivision.xyz/txblock/<txid>
-worm submit --network mainnet --chain moonbeam "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain moonbeam "$SUBMIT_VAA"
 🕰️ https://moonscan.io/tx/<txid>
-worm submit --network mainnet --chain terra2 "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain terra2 "$SUBMIT_VAA"
 🕰️ https://atomscan.com/terra2/transactions/<txid>
-worm submit --network mainnet --chain optimism "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain optimism "$SUBMIT_VAA"
 🕰️ https://optimistic.etherscan.io/tx/<txid>
-worm submit --network mainnet --chain arbitrum "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain arbitrum "$SUBMIT_VAA"
 🕰️ https://arbiscan.io/tx/<txid>
-worm submit --network mainnet --chain base "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain base "$SUBMIT_VAA"
 🕰️ https://basescan.org/tx/<txid>
-worm submit --network mainnet --chain sei "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain sei "$SUBMIT_VAA"
 🕰️ https://www.seiscan.app/pacific-1/txs/<txid>
-worm submit --network mainnet --chain scroll "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain scroll "$SUBMIT_VAA"
 🕰️ https://scrollscan.com/tx/<txid>
-worm submit --network mainnet --chain blast "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain blast "$SUBMIT_VAA"
 🕰️ https://blastscan.io/tx/<txid>
-worm submit --network mainnet --chain xlayer "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain xlayer "$SUBMIT_VAA"
 🕰️ https://www.oklink.com/xlayer/tx/<txid>
-worm submit --network mainnet --chain worldchain "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain worldchain "$SUBMIT_VAA"
 🕰️ https://worldscan.org/tx/<txid>
-worm submit --network mainnet --chain mantle "$BERACHAIN_TB_VAA" --rpc https://rpc.mantle.xyz
+worm submit --network mainnet --chain mantle "$SUBMIT_VAA" --rpc https://rpc.mantle.xyz
 🕰️ https://explorer.mantle.xyz/tx/<txid>
-worm submit --network mainnet --chain unichain "$BERACHAIN_TB_VAA"
+worm submit --network mainnet --chain unichain "$SUBMIT_VAA"
 🕰️ https://uniscan.xyz/tx/<txid>
