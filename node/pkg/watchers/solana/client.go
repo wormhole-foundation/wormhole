@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
