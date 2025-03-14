@@ -10,6 +10,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"time"
@@ -30,9 +31,14 @@ var (
 func main() {
 	flag.Parse()
 
+	if *chainId > math.MaxUint16 {
+		fmt.Printf("chainId is not a valid Uint16: %d", *chainId)
+		os.Exit(1)
+	}
+
 	if *envStr == "both" {
-		verifyForEnv(common.MainNet, vaa.ChainID(*chainId))
-		verifyForEnv(common.TestNet, vaa.ChainID(*chainId))
+		verifyForEnv(common.MainNet, vaa.ChainID(*chainId)) // #nosec G115 -- Conversion is checked above
+		verifyForEnv(common.TestNet, vaa.ChainID(*chainId)) // #nosec G115 -- Conversion is checked above
 	} else {
 		env, err := common.ParseEnvironment(*envStr)
 		if err != nil || (env != common.TestNet && env != common.MainNet) {
@@ -44,7 +50,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		verifyForEnv(env, vaa.ChainID(*chainId))
+		verifyForEnv(env, vaa.ChainID(*chainId)) // #nosec G115 -- Conversion is checked above
 	}
 }
 
