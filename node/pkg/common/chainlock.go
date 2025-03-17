@@ -70,9 +70,16 @@ type MessagePublication struct {
 	// This field is not marshalled/serialized.
 	Unreliable bool
 
-	// The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
-	// While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
-	// Consequently, its status should be set to `NotVerified` or `NotApplicable` for all messages that aren't token transfers.
+	// The `VerificationState` is the result of applying transfer
+	// verification to the transaction associated with the
+	// `MessagePublication`. While this could likely be extended to
+	// additional security controls in the future, it is only used for
+	// `txverifier` at present. Consequently, its status should be set to
+	// `NotVerified` or `NotApplicable` for all messages that aren't token
+	// transfers.
+	// This field is intentionally private so that it must be
+	// updated using the setter, which performs verification on the new
+	// state.
 	// This field is not marshalled/serialized.
 	verificationState VerificationState
 }
