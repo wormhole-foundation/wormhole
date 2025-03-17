@@ -67,11 +67,13 @@ type MessagePublication struct {
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
+	// This field is not marshalled/serialized.
 	Unreliable bool
 
 	// The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 	// While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
 	// Consequently, its status should be set to `NotVerified` or `NotApplicable` for all messages that aren't token transfers.
+	// This field is not marshalled/serialized.
 	verificationState VerificationState
 }
 
@@ -128,6 +130,8 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, msg.EmitterChain)
 	buf.Write(msg.EmitterAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, msg.IsReobservation)
+	// Unreliable and verificationState are not marshalled because they are not used in the Governor code,
+	// which is currently the only place in the node where marshalling this struct is done.
 	buf.Write(msg.Payload)
 
 	return buf.Bytes(), nil
@@ -243,6 +247,9 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	if err := binary.Read(reader, binary.BigEndian, &msg.IsReobservation); err != nil {
 		return nil, fmt.Errorf("failed to read isReobservation: %w", err)
 	}
+
+	// Unreliable and verificationState are not unmarshalled because they are not used in the Governor code,
+	// which is currently the only place in the node where unmarshalling this struct is done.
 
 	payload := make([]byte, reader.Len())
 	n, err := reader.Read(payload)

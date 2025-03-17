@@ -59,6 +59,10 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 		EmitterAddress:   tokenBridgeAddress,
 		Payload:          payloadBytes1,
 		ConsistencyLevel: 32,
+		// NOTE: these fields are not marshalled or unmarshalled. They are set to non-default values
+		// here to prove that they will be unmarshalled into their defaults.
+		Unreliable:        true,
+		verificationState: Anomalous,
 	}
 
 	bytes, err := msg1.Marshal()
@@ -66,7 +70,18 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 
 	msg2, err := UnmarshalMessagePublication(bytes)
 	require.NoError(t, err)
-	assert.Equal(t, msg1, msg2)
+
+	require.Equal(t, msg1.TxID, msg2.TxID)
+	require.Equal(t, msg1.Timestamp, msg2.Timestamp)
+	require.Equal(t, msg1.Nonce, msg2.Nonce)
+	require.Equal(t, msg1.Sequence, msg2.Sequence)
+	require.Equal(t, msg1.EmitterChain, msg2.EmitterChain)
+	require.Equal(t, msg1.EmitterAddress, msg2.EmitterAddress)
+	require.Equal(t, msg1.ConsistencyLevel, msg2.ConsistencyLevel)
+	// These fields are not currently marshalled or unmarshalled. Ensure that the unmarshalled values are equal
+	// to the defaults for the types, even if the original struct instance had non-default values.
+	require.Equal(t, NotVerified, msg2.verificationState)
+	require.Equal(t, false, msg2.Unreliable)
 
 	payload2, err := vaa.DecodeTransferPayloadHdr(msg2.Payload)
 	require.NoError(t, err)
