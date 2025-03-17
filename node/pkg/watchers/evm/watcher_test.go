@@ -131,7 +131,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	require.NotNil(t, w.txVerifier)
 
 	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
-	require.ErrorContains(t, err, "message publication already has a verification status")
+	require.ErrorContains(t, err, "MessagePublication already has a non-default verification state")
 	require.Equal(t, 0, len(msgC))
 	require.Equal(t, common.Anomalous.String(), msg.VerificationState().String())
 

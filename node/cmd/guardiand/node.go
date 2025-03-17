@@ -285,9 +285,9 @@ var (
 	subscribeToVAAs *bool
 
 	// A list of chain IDs that should enable the Transfer Verifier. If empty, Transfer Verifier will not be enabled.
-	transferVerifierEnabledChains *[]uint
+	transferVerifierEnabledChainIDs *[]uint
 	// Global variable used to store enabled Chain IDs for Transfer Verification. Contents are parsed from
-	// transferVerifierEnabledChains.
+	// transferVerifierEnabledChainIDs.
 	txVerifierChains []vaa.ChainID
 )
 
@@ -519,7 +519,7 @@ func init() {
 
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
 
-	transferVerifierEnabledChains = NodeCmd.Flags().UintSlice("transferVerifierEnabledChains", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
+	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 }
 
 var (
@@ -940,14 +940,14 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// NOTE: If this flag isn't set, or the list is empty, Transfer Verifier should not be enabled.
-	if cmd.Flags().Changed("transferVerifierEnabledChains") {
+	if len(*transferVerifierEnabledChainIDs) != 0 {
 		var parseErr error
 		// NOTE: avoid shadowing txVerifierChains here. It should refer to the global variable.
-		txVerifierChains, parseErr = txverifier.ValidateChains(*transferVerifierEnabledChains)
+		txVerifierChains, parseErr = txverifier.ValidateChains(*transferVerifierEnabledChainIDs)
 
 		logger.Debug("validated txVerifierChains", zap.Any("chains", txVerifierChains))
 		if parseErr != nil {
-			logger.Fatal("transferVerifierEnabledChains input is invalid", zap.Error(parseErr))
+			logger.Fatal("transferVerifierEnabledChainIDs input is invalid", zap.Error(parseErr))
 		}
 	}
 
