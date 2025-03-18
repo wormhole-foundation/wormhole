@@ -8,6 +8,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
+	"strconv"
 
 	"sync"
 	"sync/atomic"
@@ -101,6 +103,17 @@ type Identity struct {
 	CommunicationIndex SenderIndex // the number representing the guardian when passing messages.
 	Hostname           string
 	Port               int // the port the guardian is listening on. if 0 -> use the default port.
+}
+
+func (id *Identity) NetworkName() string {
+	var port string
+	if id.Port == 0 {
+		port = DefaultPort
+	} else {
+		port = strconv.Itoa(id.Port)
+	}
+
+	return net.JoinHostPort(id.Hostname, port)
 }
 
 func (id *Identity) getPidCopy() *tss.PartyID {

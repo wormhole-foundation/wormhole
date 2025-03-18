@@ -43,7 +43,7 @@ type server struct {
 
 	tssMessenger tss.ReliableMessenger
 
-	peers      []*tsscommv1.PartyId
+	peers      []*tss.Identity
 	peerToCert map[string]*x509.Certificate
 	// to ensure thread-safety without locks, only the sender is allowed to change this map.
 	connections   map[string]*connection
@@ -55,9 +55,9 @@ func (s *server) run() {
 	go s.dialer()
 	go s.sender()
 
-	for _, pid := range s.peers {
+	for _, id := range s.peers {
 		s.enqueueRedialRequest(redialRequest{
-			hostname:    pid.Id,
+			hostname:    id.NetworkName(),
 			immediately: false,
 		})
 	}
@@ -109,8 +109,8 @@ func (s *server) closeConnection(con *connection) {
 
 func (s *server) forceDialIfNotConnected() {
 	if len(s.connections) != len(s.peers) {
-		for _, pid := range s.peers {
-			hostname := pid.Id
+		for _, id := range s.peers {
+			hostname := id.NetworkName()
 			if _, ok := s.connections[hostname]; !ok {
 				s.enqueueRedialRequest(redialRequest{
 					hostname:    hostname,
@@ -293,7 +293,7 @@ func (s *server) Send(inStream tsscommv1.DirectLink_SendServer) error {
 			if err == io.EOF {
 				s.logger.Info(
 					"closing input stream",
-					zap.String("peer", clientId.Id),
+					zap.String("peer", clientId.Hostname),
 				)
 
 				return status.Error(codes.Canceled, "client closed the connection")
@@ -302,7 +302,7 @@ func (s *server) Send(inStream tsscommv1.DirectLink_SendServer) error {
 			s.logger.Error(
 				"error receiving from guardian. Closing connection",
 				zap.Error(err),
-				zap.String("peer", clientId.Id),
+				zap.String("peer", clientId.Hostname),
 			)
 
 			return status.Error(codes.Unknown, "error receiving message from client "+err.Error()) //fmt.Errorf("received error while receiving message: %w", err)
@@ -318,7 +318,7 @@ func (s *server) Send(inStream tsscommv1.DirectLink_SendServer) error {
 // getIdentityFromIncomingStream extracts the peer identity from the
 // incoming TLS certificate embbeded into the stream.
 // adds various checks to ensure the client is a valid guardian.
-func (s *server) getIdentityFromIncomingStream(inStream tsscommv1.DirectLink_SendServer) (*tsscommv1.PartyId, error) {
+func (s *server) getIdentityFromIncomingStream(inStream tsscommv1.DirectLink_SendServer) (*tss.Identity, error) {
 	p, ok := peer.FromContext(inStream.Context())
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "unable to retrieve peer from context")

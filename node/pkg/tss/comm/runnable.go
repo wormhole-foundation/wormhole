@@ -22,7 +22,7 @@ type DirectLink interface {
 
 func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableMessenger) (DirectLink, error) {
 	peers := tssMessenger.GetPeers()
-	partyIds := make([]*tsscommv1.PartyId, len(peers))
+	partyIds := make([]*tss.Identity, len(peers))
 	peerToCert := make(map[string]*x509.Certificate, len(peers))
 
 	var err error
@@ -32,7 +32,7 @@ func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableM
 			return nil, err
 		}
 
-		peerToCert[partyIds[i].Id] = peer
+		peerToCert[partyIds[i].Hostname] = peer
 	}
 
 	return &server{

@@ -1,6 +1,7 @@
 package comm
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -26,6 +27,8 @@ import (
 )
 
 const workingServerSock = "127.0.0.1:5933"
+const workingServerName = "127.0.0.1"
+const workingServerPort = 5933
 
 var workingServerAsMessageRecipient = []*tsscommv1.PartyId{&tsscommv1.PartyId{
 	Id: workingServerSock,
@@ -35,12 +38,12 @@ type mockTssMessageHandler struct {
 	chn              chan tss.Sendable
 	selfCert         *tls.Certificate
 	peersToConnectTo []*x509.Certificate
-	peerId           *tsscommv1.PartyId
+	peerId           *tss.Identity
 }
 
 func (m *mockTssMessageHandler) GetCertificate() *tls.Certificate { return m.selfCert }
 func (m *mockTssMessageHandler) GetPeers() []*x509.Certificate    { return m.peersToConnectTo }
-func (m *mockTssMessageHandler) FetchPartyId(*x509.Certificate) (*tsscommv1.PartyId, error) {
+func (m *mockTssMessageHandler) FetchPartyId(*x509.Certificate) (*tss.Identity, error) {
 	return m.peerId, nil
 }
 func (m *mockTssMessageHandler) ProducedOutputMessages() <-chan tss.Sendable {
@@ -86,7 +89,7 @@ func TestTLSConnectAndRedial(t *testing.T) {
 		selfCert: en[0].GetCertificate(),
 		// connect to no one.
 		peersToConnectTo: en[0].GetPeers(), // Give the peer a certificate.
-		peerId:           &tsscommv1.PartyId{},
+		peerId:           &tss.Identity{},
 	})
 	a.NoError(err)
 
@@ -117,8 +120,10 @@ func TestTLSConnectAndRedial(t *testing.T) {
 		chn:              msgChan,
 		selfCert:         en[1].GetCertificate(),
 		peersToConnectTo: []*x509.Certificate{serverCert}, // will ask to fetch each peer (and return the below peerId)
-		peerId: &tsscommv1.PartyId{
-			Id: workingServerSock,
+		peerId: &tss.Identity{
+			Cert:     serverCert,
+			Hostname: workingServerSock,
+			Port:     workingServerPort,
 		},
 	})
 	a.NoError(err)
@@ -165,8 +170,10 @@ func TestRelentlessReconnections(t *testing.T) {
 		chn:              msgChan,
 		selfCert:         en[1].GetCertificate(),
 		peersToConnectTo: []*x509.Certificate{serverCert}, // will ask to fetch each peer (and return the below peerId)
-		peerId: &tsscommv1.PartyId{
-			Id: workingServerSock,
+		peerId: &tss.Identity{
+			Cert:     serverCert,
+			Hostname: workingServerSock,
+			Port:     0,
 		},
 	})
 	a.NoError(err)
@@ -181,7 +188,7 @@ func TestRelentlessReconnections(t *testing.T) {
 		selfCert: en[0].GetCertificate(),
 		// connect to no one.
 		peersToConnectTo: en[0].GetPeers(), // Give the peer a certificate.
-		peerId:           &tsscommv1.PartyId{},
+		peerId:           &tss.Identity{},
 	})
 	a.NoError(err)
 
@@ -255,7 +262,7 @@ func TestNonBlockedBroadcast(t *testing.T) {
 			chn:              nil,
 			selfCert:         en[i].GetCertificate(),
 			peersToConnectTo: en[0].GetPeers(), // Give the peer a certificate.
-			peerId:           &tsscommv1.PartyId{},
+			peerId:           &tss.Identity{},
 		})
 		a.NoError(err)
 
@@ -280,17 +287,21 @@ func TestNonBlockedBroadcast(t *testing.T) {
 		go gserver.Serve(listener)
 	}
 
-	for _, v := range en[2].Guardians {
-		if v.Id == en[0].Self.Id {
-			v.Id = "localhost:5500"
-			continue
-		}
-		if v.Id == en[1].Self.Id {
-			v.Id = "localhost:5501"
-			continue
-		}
-		v.Id = ""
+	for _, v := range en[2].GuardianStorage.Guardians.Identities {
+		v.Hostname = "localhost"
+		if bytes.Equal(v.KeyPEM, en[0].Self.KeyPEM) {
+			v.Port = 5500
 
+			continue
+		}
+
+		if bytes.Equal(v.KeyPEM, en[1].Self.KeyPEM) {
+			v.Port = 5501
+
+			continue
+		}
+
+		v.Hostname = ""
 	}
 
 	msgChan := make(chan tss.Sendable)
@@ -519,7 +530,7 @@ func TestNotAcceptNonCAs(t *testing.T) {
 		selfCert: en[0].GetCertificate(),
 		// connect to no one.
 		peersToConnectTo: []*x509.Certificate{clientCert}, // Give the peer a certificate.
-		peerId:           &tsscommv1.PartyId{},
+		peerId:           &tss.Identity{},
 	})
 	a.NoError(err)
 
@@ -610,7 +621,7 @@ func TestDialWithDefaultPort(t *testing.T) {
 		selfCert: listenerEngine.GetCertificate(),
 		// the listening server will expect this cert to connect with.
 		peersToConnectTo: []*x509.Certificate{communicatingEngine.GetCertificate().Leaf},
-		peerId:           &tsscommv1.PartyId{},
+		peerId:           &tss.Identity{},
 	})
 	a.NoError(err)
 
@@ -636,12 +647,14 @@ func TestDialWithDefaultPort(t *testing.T) {
 
 	//  SETTING THE ID TO CONNECT TO WITHOUT A PORT:
 	// ensuring the communicating server will have to use the default port to dial.
-	for _, v := range communicatingEngine.Guardians {
-		if v.Id == listenerEngine.Self.Id {
-			v.Id = "localhost"
+	for _, v := range communicatingEngine.Guardians.Identities {
+		if bytes.Equal(v.KeyPEM, listenerEngine.Self.KeyPEM) {
+			v.Hostname = "localhost"
+
 			continue
 		}
-		v.Id = ""
+
+		v.Hostname = ""
 	}
 
 	msgChan := make(chan tss.Sendable)
@@ -703,21 +716,25 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	// the tls key, then returns the tss.PartyID according to what is
 	// stored in the guardian storage.
 	expectedText := "This text is what i expect to see in the incoming message."
-	for _, v := range streamReceiverEngine.Guardians {
-		if v.Id == senderEngine.Self.Id {
-			v.Id = expectedText
+	for _, v := range streamReceiverEngine.Guardians.Identities {
+		if bytes.Equal(v.KeyPEM, senderEngine.Self.KeyPEM) {
+			v.Hostname = expectedText
+
 			continue
 		}
-		v.Id = ""
+
+		v.Pid.Id = ""
 	}
 
 	// Setting the ID as they will be sent and used to connect to the other party.
-	for _, v := range senderEngine.Guardians {
-		if v.Id == streamReceiverEngine.Self.Id {
-			v.Id = streamReceiverPath // ensuring the server connects
+	for _, v := range senderEngine.Guardians.Identities {
+		if bytes.Equal(v.KeyPEM, streamReceiverEngine.Self.KeyPEM) {
+			v.Hostname = streamReceiverPath // ensuring the server connects
+
 			continue
 		}
-		v.Id = ""
+
+		v.Hostname = ""
 	}
 
 	incomingDataChan := make(chan tss.Incoming)
@@ -767,7 +784,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 		t.FailNow()
 	case incoming := <-incomingDataChan:
 		// ensuring the incoming message has the correct ID without any port.
-		a.Equal(expectedText, incoming.GetSource().Id)
+		a.Equal(expectedText, incoming.GetSource().Pid.Id)
 		return
 	}
 }
