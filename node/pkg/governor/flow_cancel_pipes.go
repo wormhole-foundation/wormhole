@@ -16,7 +16,7 @@ func FlowCancelPipes() []pipe {
 }
 
 func Valid(input []pipe) bool {
-	seen := make([]pipe, 10)
+	seen := make([]pipe, len(input))
 	for _, p := range input {
 		// This check is needed when there is exactly one pipe. Otherwise, the seen loop detects this.
 		if !p.valid() {
