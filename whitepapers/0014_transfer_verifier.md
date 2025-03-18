@@ -66,7 +66,7 @@ malicious activity.
 
 In order to handle messages flexibly, they can be tagged with a "verification state". 
 This state will be embedded in to the message itself to allow 
-for different parts of the message publicaton process within the node to handle messages in specific ways. For example,
+for different parts of the message publication process within the node to handle messages in specific ways. For example,
 an `Anomalous` message originating from Sui could be treated in a different way than one coming from Solana. As chains
 are developed, they may introduce other tools or logging artifacts that result in a Transfer Verifier implementation to
 become more or less strict.
