@@ -21,7 +21,9 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 		return errTssEngineNotStarted
 	}
 
-	// consider removing this check.
+	// consider removing this check: Going leaderless, and letting everyone send VAAs they see
+	// adds a layer of availability (no need to worry about leader missing VAAs or going offline),
+	// but will spam the network with duplicated VAAs.
 	if !t.isleader {
 		return nil
 	}
@@ -127,10 +129,5 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.P
 		return err
 	}
 
-	err = t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
 }
