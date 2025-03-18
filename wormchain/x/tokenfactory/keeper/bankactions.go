@@ -1,10 +1,11 @@
 package keeper
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
-	denoms "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 var MainnetUseConditionalHeight = int64(12275950)
@@ -30,7 +31,7 @@ func (k Keeper) mintTo(ctx sdk.Context, amount sdk.Coin, mintTo string) error {
 		// Cutover is required because the call to GetSupply() will use more gas, which would result in a consensus failure.
 		totalSupplyCurrent := k.bankKeeper.GetSupply(ctx, amount.Denom)
 		TotalSupplyAfter := totalSupplyCurrent.Add(amount) // Can't integer overflow because of a ValidateBasic() check on this amount
-		if TotalSupplyAfter.Amount.GTE(denoms.MintAmountLimit) {
+		if TotalSupplyAfter.Amount.GTE(types.MintAmountLimit) {
 			return fmt.Errorf("failed to mint - surpassed maximum mint amount")
 		}
 	}

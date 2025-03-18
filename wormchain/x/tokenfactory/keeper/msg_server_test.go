@@ -8,8 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
-	//banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	tmtypes "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmtypes "github.com/cometbft/cometbft/proto/tendermint/types"
 	keeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
 )
 
