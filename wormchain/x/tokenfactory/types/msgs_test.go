@@ -2,6 +2,7 @@ package types_test
 
 import (
 	fmt "fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -186,6 +187,14 @@ func TestMsgMint(t *testing.T) {
 			name: "negative amount",
 			msg: createMsg(func(msg types.MsgMint) types.MsgMint {
 				msg.Amount.Amount = sdk.NewInt(-10000000)
+				return msg
+			}),
+			expectPass: false,
+		},
+		{
+			name: "too large amount",
+			msg: createMsg(func(msg types.MsgMint) types.MsgMint {
+				msg.Amount.Amount = sdk.NewIntFromBigInt(big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0)), big.NewInt(1)))
 				return msg
 			}),
 			expectPass: false,

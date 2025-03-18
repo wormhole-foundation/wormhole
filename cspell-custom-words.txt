@@ -106,6 +106,8 @@ localterra
 lockfiles
 merkle
 Metaplex
+mezo
+Mezo
 mindshare
 mlock
 moby
@@ -186,6 +188,7 @@ trustlessly
 tsig
 tsproto
 TWAP
+txverifier
 uatom
 uluna
 unbond

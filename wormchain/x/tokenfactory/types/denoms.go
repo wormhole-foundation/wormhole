@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math/big"
 	"strings"
 
 	errorsmod "cosmossdk.io/errors"
@@ -18,6 +19,9 @@ const (
 	// MaxCreatorLength = 59 + MaxHrpLength
 	MaxCreatorLength = 59 + MaxHrpLength
 )
+
+// 2 ** 192
+var MintAmountLimit = sdk.NewIntFromBigInt(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(192), big.NewInt(0)))
 
 // GetTokenDenom constructs a denom string for tokens created by tokenfactory
 // based on an input creator address and a subdenom

@@ -21,7 +21,7 @@ import (
 
 func CreateTestInput(t *testing.T) (*app.App, sdk.Context) {
 	wormchain := apptesting.Setup(t, true, 0)
-	ctx := wormchain.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: "testing", Time: time.Now().UTC()})
+	ctx := wormchain.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: apptesting.SimAppChainID, Time: time.Now().UTC()})
 	return wormchain, ctx
 }
 

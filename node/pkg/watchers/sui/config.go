@@ -40,8 +40,8 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, error) {
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 	var devMode bool = (env == common.UnsafeDevNet)
 
-	return nil, NewWatcher(wc.Rpc, wc.SuiMoveEventType, devMode, msgC, obsvReqC).Run, nil
+	return nil, NewWatcher(wc.Rpc, wc.SuiMoveEventType, devMode, msgC, obsvReqC).Run, nil, nil
 }

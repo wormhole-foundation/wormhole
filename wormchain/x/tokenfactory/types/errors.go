@@ -21,4 +21,5 @@ var (
 	ErrDenomDoesNotExist        = errorsmod.Register(ModuleName, 10, "denom does not exist")
 	ErrCapabilityNotEnabled     = errorsmod.Register(ModuleName, 11, "this capability is not enabled on chain")
 	ErrModuleAccount            = errorsmod.Register(ModuleName, 12, "interacting with module accounts not allowed")
+	ErrMintAmountTooLarge       = errorsmod.Register(ModuleName, 13, "mint amount exceeds capacity")
 )

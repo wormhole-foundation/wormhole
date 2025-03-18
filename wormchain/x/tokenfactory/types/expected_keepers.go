@@ -13,6 +13,7 @@ type BankKeeper interface {
 
 	HasSupply(ctx sdk.Context, denom string) bool
 	IterateTotalSupply(ctx sdk.Context, cb func(sdk.Coin) bool)
+	GetSupply(ctx sdk.Context, denom string) sdk.Coin
 
 	SendCoinsFromModuleToAccount(ctx sdk.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromAccountToModule(ctx sdk.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
