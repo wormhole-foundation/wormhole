@@ -29,7 +29,7 @@ type Sendable interface {
 type Incoming interface {
 	message
 	IsUnicast() bool
-	GetSource() *tsscommv1.PartyId
+	GetSource() *Identity
 
 	toUnicast() *tsscommv1.Unicast
 	toBroadcastMsg() *tsscommv1.Echo

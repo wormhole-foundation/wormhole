@@ -281,7 +281,7 @@ func (t *Engine) updateState(s *broadcaststate, parsed broadcastMessage, unparse
 	echoer := unparsedContent.GetSource()
 
 	pid := t.GuardianStorage.getPartyIdFromIndex(SenderIndex(unparsedSignedMessage.Sender))
-	isMsgSrc := equalPartyIds(protoToPartyId(echoer), pid)
+	isMsgSrc := equalPartyIds(echoer.Pid, pid)
 
 	_, isEcho := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
 
@@ -297,7 +297,7 @@ func (t *Engine) updateState(s *broadcaststate, parsed broadcastMessage, unparse
 		}
 	}
 
-	s.votes[voterId(echoer.Key)] = true
+	s.votes[voterId(echoer.KeyPEM)] = true
 	if s.echoedAlready {
 		return shouldEcho, err
 	}
@@ -381,7 +381,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 			return fmt.Errorf("sender %v is not a guardian", unparsedSignedMessage.Sender)
 		}
 
-		if !equalPartyIds(senderPid, protoToPartyId(src)) {
+		if !equalPartyIds(senderPid, src.Pid) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
 	}
@@ -400,7 +400,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 	} else if *s.verifiedDigest != hashSignedMessage(unparsedSignedMessage) {
 		if err := t.verifySignedMessage(uid, unparsedSignedMessage); err != nil {
 			// two different digest and bad signature.
-			return fmt.Errorf("caught bad behaviour: Echoer %v sent a digest that can't be verified", src.Id)
+			return fmt.Errorf("caught bad behaviour: Echoer %v sent a digest that can't be verified", src.Hostname)
 		}
 
 		// no error and two different digests:

@@ -91,7 +91,7 @@ var errNotVaaV1 = fmt.Errorf("not a v1 VAA")
 
 // handleUnicastVaaV1 expects to receive valid Vaav1 messages.
 // If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
-func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1, src *tsscommv1.PartyId) error {
+func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1) error {
 	if t == nil {
 		return errNilTssEngine
 	}

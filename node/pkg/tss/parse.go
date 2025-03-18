@@ -85,12 +85,12 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 	}
 }
 
-func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *tsscommv1.PartyId) (*parsedTssContent, error) {
+func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *Identity) (*parsedTssContent, error) {
 	if err := validateContentCorrectForm(m); err != nil {
 		return nil, err
 	}
 
-	spid := protoToPartyId(source)
+	spid := source.getPidCopy()
 
 	p, err := tss.ParseWireMessage(m.Payload, spid, false)
 	if err != nil {

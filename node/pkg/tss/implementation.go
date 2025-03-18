@@ -103,6 +103,22 @@ type Identity struct {
 	Port               int // the port the guardian is listening on. if 0 -> use the default port.
 }
 
+func (id *Identity) getPidCopy() *tss.PartyID {
+	keyCpy := make([]byte, len(id.Pid.Key))
+	copy(keyCpy, id.Pid.Key)
+
+	// return a copy, tss-lib might modify this object.
+	return &tss.PartyID{
+		MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
+			Id:      id.Pid.Id,
+			Moniker: id.Pid.Moniker,
+			Key:     keyCpy,
+		},
+
+		Index: id.Pid.Index,
+	}
+}
+
 type Identities struct {
 	Identities []*Identity
 
@@ -943,7 +959,7 @@ func (t *Engine) handleUnicast(m Incoming) error {
 
 	switch v := unicast.Content.(type) {
 	case *tsscommv1.Unicast_Vaav1:
-		if err := t.handleUnicastVaaV1(v, m.GetSource()); err != nil {
+		if err := t.handleUnicastVaaV1(v); err != nil {
 			return fmt.Errorf("failed to handle unicast vaav1: %w", err)
 		}
 	case *tsscommv1.Unicast_Tss:
@@ -958,7 +974,7 @@ func (t *Engine) handleUnicast(m Incoming) error {
 }
 
 // handleUnicastTSS is helper function. responsible for handling unicast.TSS messages.
-func (t *Engine) handleUnicastTSS(v *tsscommv1.Unicast_Tss, src *tsscommv1.PartyId) error {
+func (t *Engine) handleUnicastTSS(v *tsscommv1.Unicast_Tss, src *Identity) error {
 	fpmsg, err := t.parseTssContent(v.Tss, src)
 	if err != nil {
 		err = fmt.Errorf("couldn't parse unicast_tss payload: %w", err)
@@ -974,7 +990,7 @@ func (t *Engine) handleUnicastTSS(v *tsscommv1.Unicast_Tss, src *tsscommv1.Party
 	}
 
 	if err != nil {
-		return fpmsg.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, src.Id))
+		return fpmsg.wrapError(fmt.Errorf("failed to ensure no equivication present in unicast: %w, sender:%v", err, src.Hostname))
 	}
 
 	if err := t.feedIncomingToFp(fpmsg); err != nil {

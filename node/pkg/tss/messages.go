@@ -19,7 +19,7 @@ type Unicast struct {
 }
 
 type IncomingMessage struct {
-	Source  *tsscommv1.PartyId
+	Source  *Identity
 	Content *tsscommv1.PropagatedMessage
 }
 
@@ -79,7 +79,7 @@ func (i *IncomingMessage) GetNetworkMessage() *tsscommv1.PropagatedMessage {
 	return nil
 }
 
-func (i *IncomingMessage) GetSource() *tsscommv1.PartyId {
+func (i *IncomingMessage) GetSource() *Identity {
 	if i == nil {
 		return nil
 	}

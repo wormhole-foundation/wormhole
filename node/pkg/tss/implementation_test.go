@@ -68,7 +68,7 @@ func parsedIntoEcho(a *assert.Assertions, t *Engine, parsed tss.ParsedMessage) *
 	a.NoError(t.sign(tmp.getUUID(t.LoadDistributionKey), msg.Message))
 
 	return &IncomingMessage{
-		Source: partyIdToProto(t.Self.Pid),
+		Source: t.Self,
 		Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{
 				Echo: msg,
@@ -77,8 +77,8 @@ func parsedIntoEcho(a *assert.Assertions, t *Engine, parsed tss.ParsedMessage) *
 	}
 }
 
-func (i *IncomingMessage) setSource(id *tss.PartyID) {
-	i.Source = partyIdToProto(id)
+func (i *IncomingMessage) setSource(id *Identity) {
+	i.Source = id
 }
 
 func TestBroadcast(t *testing.T) {
@@ -176,21 +176,21 @@ func TestBroadcast(t *testing.T) {
 				HashEcho: echo.toBroadcastMsg().Message.GetHashEcho(),
 			}
 
-			echo.setSource(e2.Self.Pid)
+			echo.setSource(e2.Self)
 
 			shouldBroadcast, deliverable, err := receiver.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
-			echo.setSource(e3.Self.Pid)
+			echo.setSource(e3.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(parsed, echo)
 			a.NoError(err)
 			a.False(shouldBroadcast) // should broadcast only for leader.
 			a.Nil(deliverable)
 
-			echo.setSource(e1.Self.Pid)
+			echo.setSource(e1.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(parsed, echo)
 			a.NoError(err)
@@ -255,7 +255,7 @@ func TestDeliver(t *testing.T) {
 
 			echo := parsedIntoEcho(a, e1, parsed1)
 			hshEcho := makeHashEcho(e1, parsed1, echo)
-			hshEcho.setSource(e2.Self.Pid)
+			hshEcho.setSource(e2.Self)
 
 			prsedHashEcho := &parsedHashEcho{hshEcho.toBroadcastMsg().Message.GetHashEcho()}
 			shouldBroadcast, deliverable, err := receiver.broadcastInspection(prsedHashEcho, hshEcho)
@@ -264,14 +264,14 @@ func TestDeliver(t *testing.T) {
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
-			hshEcho.setSource(e3.Self.Pid)
+			hshEcho.setSource(e3.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(prsedHashEcho, hshEcho)
 			a.NoError(err)
 			a.False(shouldBroadcast) // haven't seen the actual value from the leader yet.
 			a.Nil(deliverable)
 
-			echo.setSource(e1.Self.Pid)
+			echo.setSource(e1.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&deliverableMessage{&parsedTssContent{parsed1, ""}}, echo)
 			a.NoError(err)
@@ -292,7 +292,7 @@ func TestDeliver(t *testing.T) {
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self.Pid, receiver.Self.Pid, rnd, party.Digest{byte(j)})
 			echo := parsedIntoEcho(a, e1, parsed1)
 			hashecho := makeHashEcho(e1, parsed1, echo)
-			hashecho.setSource(e2.Self.Pid)
+			hashecho.setSource(e2.Self)
 
 			prsedHashEcho := &parsedHashEcho{hashecho.toBroadcastMsg().Message.GetHashEcho()}
 			shouldBroadcast, deliverable, err := receiver.broadcastInspection(prsedHashEcho, hashecho)
@@ -300,14 +300,14 @@ func TestDeliver(t *testing.T) {
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
-			hashecho.setSource(e3.Self.Pid)
+			hashecho.setSource(e3.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
 			a.False(shouldBroadcast)
 			a.Nil(deliverable)
 
-			echo.setSource(e1.Self.Pid)
+			echo.setSource(e1.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(&deliverableMessage{&parsedTssContent{parsed1, ""}}, echo)
 			a.NoError(err)
@@ -321,7 +321,7 @@ func TestDeliver(t *testing.T) {
 			a.Nil(deliverable)
 
 			// new hash echo, shouldn't deliver again too.
-			hashecho.setSource(e4.Self.Pid)
+			hashecho.setSource(e4.Self)
 
 			shouldBroadcast, deliverable, err = receiver.broadcastInspection(prsedHashEcho, hashecho)
 			a.NoError(err)
@@ -427,7 +427,7 @@ func TestEquivocation(t *testing.T) {
 				},
 			}
 
-			msg.setSource(e1.Self.Pid)
+			msg.setSource(e1.Self)
 
 			receiver.handleUnicast(msg)
 
@@ -457,7 +457,7 @@ func TestBadInputs(t *testing.T) {
 			parsed1 := generateFakeMessageWithRandomContent(e1.Self.Pid, e1.Self.Pid, rnd, party.Digest{byte(j)})
 			echo := parsedIntoEcho(a, e1, parsed1)
 
-			echo.setSource(e1.Self.Pid)
+			echo.setSource(e1.Self)
 
 			echo.toBroadcastMsg().Message.Signature[0] += 1
 			_, _, err := e1.broadcastInspection(&deliverableMessage{&parsedTssContent{parsed1, ""}}, echo)
@@ -467,7 +467,7 @@ func TestBadInputs(t *testing.T) {
 				continue
 			}
 
-			echo.setSource(e1.Self.Pid)
+			echo.setSource(e1.Self)
 			err = e1.handleIncomingTssMessage(echo)
 			a.ErrorIs(err, ErrInvalidSignature)
 			e1.HandleIncomingTssMessage(echo) // to ensure we go through some code path, nothing to check really.
@@ -488,16 +488,16 @@ func TestBadInputs(t *testing.T) {
 		err = e1.handleIncomingTssMessage(&IncomingMessage{})
 		a.ErrorIs(err, errNilSource)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self.Pid)})
+		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: e2.Self})
 		a.ErrorIs(err, errNeitherBroadcastNorUnicast)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{
-			Source:  partyIdToProto(e2.Self.Pid),
+			Source:  e2.Self,
 			Content: &tsscommv1.PropagatedMessage{}})
 		a.ErrorIs(err, errNeitherBroadcastNorUnicast)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{
-			Source: partyIdToProto(e2.Self.Pid),
+			Source: e2.Self,
 			Content: &tsscommv1.PropagatedMessage{
 				Message: &tsscommv1.PropagatedMessage_Echo{},
 			},
@@ -505,14 +505,14 @@ func TestBadInputs(t *testing.T) {
 		a.ErrorIs(err, ErrBroadcastIsNil)
 
 		err = e1.handleIncomingTssMessage(&IncomingMessage{
-			Source: partyIdToProto(e2.Self.Pid),
+			Source: e2.Self,
 			Content: &tsscommv1.PropagatedMessage{
 				Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{}},
 			},
 		})
 		a.ErrorIs(err, ErrSignedMessageIsNil)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self.Pid), Content: &tsscommv1.PropagatedMessage{
+		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: e2.Self, Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
 					Sender: uint32(e2.Self.Pid.Index),
@@ -521,7 +521,7 @@ func TestBadInputs(t *testing.T) {
 		})
 		a.ErrorIs(err, ErrNoContent)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self.Pid), Content: &tsscommv1.PropagatedMessage{
+		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: e2.Self, Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
 					Content: &tsscommv1.SignedMessage_TssContent{
@@ -534,7 +534,7 @@ func TestBadInputs(t *testing.T) {
 		})
 		a.ErrorIs(err, ErrNilPayload)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self.Pid), Content: &tsscommv1.PropagatedMessage{
+		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: e2.Self, Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
 					Content: &tsscommv1.SignedMessage_TssContent{
@@ -548,7 +548,7 @@ func TestBadInputs(t *testing.T) {
 		})
 		a.ErrorIs(err, errEmptySignature)
 
-		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: partyIdToProto(e2.Self.Pid), Content: &tsscommv1.PropagatedMessage{
+		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: e2.Self, Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
 					Content: &tsscommv1.SignedMessage_TssContent{
@@ -619,7 +619,7 @@ func TestBadInputs(t *testing.T) {
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: bts,
 				},
-			}, partyIdToProto(engine.Self.Pid))
+			})
 
 			a.ErrorContains(err, errNotVaaV1.Error())
 		})
@@ -633,7 +633,7 @@ func TestBadInputs(t *testing.T) {
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: bts,
 				},
-			}, partyIdToProto(engine.Self.Pid))
+			})
 
 			a.ErrorContains(err, "signature")
 		})
@@ -643,13 +643,13 @@ func TestBadInputs(t *testing.T) {
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: []byte("BadMarshal"),
 				},
-			}, partyIdToProto(engine.Self.Pid))
+			})
 
 			a.ErrorContains(err, "unmarshal")
 		})
 
 		t.Run("nil VAA", func(t *testing.T) {
-			err = engine.handleUnicastVaaV1(nil, partyIdToProto(engine.Self.Pid))
+			err = engine.handleUnicastVaaV1(nil)
 
 			a.ErrorContains(err, "nil")
 		})
@@ -661,7 +661,7 @@ func TestBadInputs(t *testing.T) {
 				Vaav1: &tsscommv1.VaaV1Info{
 					Marshaled: bts,
 				},
-			}, partyIdToProto(engine.Self.Pid))
+			})
 
 			a.ErrorContains(err, "guardianSet")
 		})
@@ -1780,18 +1780,18 @@ func TestMessagesWithBadRounds(t *testing.T) {
 	a := assert.New(t)
 	gs := load5GuardiansSetupForBroadcastChecks(a)
 	e1, e2 := gs[0], gs[1]
-	from := e1.Self.Pid
-	to := e2.Self.Pid
+	from := e1.Self
+	to := e2.Self
 
 	t.Run("Unicast", func(t *testing.T) {
 		msgDigest := party.Digest{1}
 		for _, rnd := range broadcastRounds {
-			parsed := generateFakeMessageWithRandomContent(from, to, rnd, msgDigest)
+			parsed := generateFakeMessageWithRandomContent(from.Pid, to.Pid, rnd, msgDigest)
 			bts, _, err := parsed.WireBytes()
 			a.NoError(err)
 
 			m := &IncomingMessage{
-				Source: partyIdToProto(from),
+				Source: from,
 				Content: &tsscommv1.PropagatedMessage{Message: &tsscommv1.PropagatedMessage_Unicast{
 					Unicast: &tsscommv1.Unicast{
 						Content: &tsscommv1.Unicast_Tss{
@@ -1808,19 +1808,19 @@ func TestMessagesWithBadRounds(t *testing.T) {
 	t.Run("Echo", func(t *testing.T) {
 		msgDigest := party.Digest{2}
 		for _, rnd := range unicastRounds {
-			parsed := generateFakeMessageWithRandomContent(from, to, rnd, msgDigest)
+			parsed := generateFakeMessageWithRandomContent(from.Pid, to.Pid, rnd, msgDigest)
 			bts, _, err := parsed.WireBytes()
 			a.NoError(err)
 
 			m := &IncomingMessage{
-				Source: partyIdToProto(from),
+				Source: from,
 				Content: &tsscommv1.PropagatedMessage{Message: &tsscommv1.PropagatedMessage_Echo{
 					Echo: &tsscommv1.Echo{
 						Message: &tsscommv1.SignedMessage{
 							Content: &tsscommv1.SignedMessage_TssContent{
 								TssContent: &tsscommv1.TssContent{Payload: bts},
 							},
-							Sender:    uint32(from.Index),
+							Sender:    uint32(from.CommunicationIndex),
 							Signature: nil,
 						},
 					},
@@ -1930,7 +1930,7 @@ func loadGuardians(numParticipants int, from string) ([]*Engine, error) {
 }
 
 type msgg struct {
-	Sender *tsscommv1.PartyId
+	Sender *Identity
 	Sendable
 }
 
@@ -2032,7 +2032,7 @@ func unicast(m Sendable, chns map[string]chan msgg, engine *Engine) {
 	for _, pid := range pids {
 		feedChn := chns[pid.Id]
 		feedChn <- msgg{
-			Sender:   partyIdToProto(engine.Self.Pid),
+			Sender:   engine.Self,
 			Sendable: m.cloneSelf(),
 		}
 	}
@@ -2041,7 +2041,7 @@ func unicast(m Sendable, chns map[string]chan msgg, engine *Engine) {
 func broadcast(chns map[string]chan msgg, engine *Engine, m Sendable) {
 	for _, feedChn := range chns {
 		feedChn <- msgg{
-			Sender:   partyIdToProto(engine.Self.Pid),
+			Sender:   engine.Self,
 			Sendable: m.cloneSelf(),
 		}
 	}
@@ -2078,7 +2078,7 @@ func TestSigCounter(t *testing.T) {
 		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
-			Source:  partyIdToProto(e1.Self.Pid),
+			Source:  e1.Self,
 			Content: msg.GetNetworkMessage(),
 		}))
 
@@ -2086,7 +2086,7 @@ func TestSigCounter(t *testing.T) {
 		msg = beginSigningAndGrabMessage(e1, tsks[1].Digest[:], cID)
 
 		a.ErrorContains(e1.handleIncomingTssMessage(&IncomingMessage{
-			Source:  partyIdToProto(e1.Self.Pid),
+			Source:  e1.Self,
 			Content: msg.GetNetworkMessage(),
 		}), "reached the maximum number of simultaneous signatures")
 	})
@@ -2106,7 +2106,7 @@ func TestSigCounter(t *testing.T) {
 		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		incoming := &IncomingMessage{
-			Source:  partyIdToProto(e1.Self.Pid),
+			Source:  e1.Self,
 			Content: msg.GetNetworkMessage(),
 		}
 
@@ -2144,7 +2144,7 @@ func TestSigCounter(t *testing.T) {
 		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		incoming := &IncomingMessage{
-			Source:  partyIdToProto(e1.Self.Pid),
+			Source:  e1.Self,
 			Content: msg.GetNetworkMessage(),
 		}
 
@@ -2183,12 +2183,12 @@ func TestSigCounter(t *testing.T) {
 		msg := beginSigningAndGrabMessage(e1, tsks[0].Digest[:], cID)
 
 		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
-			Source:  partyIdToProto(e1.Self.Pid),
+			Source:  e1.Self,
 			Content: msg.GetNetworkMessage(),
 		}))
 
 		a.NoError(e1.handleIncomingTssMessage(&IncomingMessage{
-			Source:  partyIdToProto(e1.Self.Pid),
+			Source:  e1.Self,
 			Content: beginSigningAndGrabMessage(e1, tsks[1].Digest[:], cID).GetNetworkMessage(),
 		}))
 
