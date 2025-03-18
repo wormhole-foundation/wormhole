@@ -217,4 +217,17 @@ contract TestGetters is TestUtils {
     {
         testEvmChainId(newEvmChainId, storageSlot);
     }
+
+    function testGuardianSetHash(uint32 guardianSetIndex, bytes32 newGuardianSetHash, bytes32 storageSlot)
+        public
+        unchangedStorage(address(getters), storageSlot)
+    {
+        bytes32 storageLocation = hashedLocation(guardianSetIndex, GUARDIANSETHASHES_STORAGE_INDEX);
+        vm.assume(storageSlot != storageLocation);
+
+        vm.store(address(getters), storageLocation, newGuardianSetHash);
+
+        assertEq(getters.getGuardianSetHash(guardianSetIndex), newGuardianSetHash);
+        assertEq(newGuardianSetHash, vm.load(address(getters), storageLocation));
+    }
 }
