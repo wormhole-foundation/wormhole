@@ -266,7 +266,7 @@ Disable the guardian detection of shim instructions. Enabling could be gated
 behind a feature flag if desired.
 
 [Anchor]: https://www.anchor-lang.com/
-[Anchor CPI event]: https://book.anchor-lang.com/anchor_in_depth/events.html#cpi-events
+[Anchor CPI event]: https://www.anchor-lang.com/docs/features/events#emit_cpi
 [guardian optimization]: https://github.com/wormhole-foundation/wormhole/blob/1dbe8459b96e182932d0dd5ae4b6bbce6f48cb09/node/pkg/watchers/solana/client.go#L563
 [maximum call depth of 4]: https://solana.com/docs/core/cpi#key-points
 [message digest]: https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0001_generic_message_passing.md#detailed-design

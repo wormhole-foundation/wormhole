@@ -52,5 +52,5 @@ binaries were then
 [agave-install]: https://docs.anza.xyz/cli/install#use-the-solana-install-tool
 [anchor directory]: anchor
 [Wormhole Integrator Example]: anchor/programs/wormhole-integrator-example/src/lib.rs
-[Wormhole Post Message Shim]: programs/wormhole-post-message-shim/README.md
-[Wormhole Verify VAA Shim]: programs/wormhole-verify-vaa-shim/README.md
+[Wormhole Post Message Shim]: programs/post-message/README.md
+[Wormhole Verify VAA Shim]: programs/verify-vaa/README.md
