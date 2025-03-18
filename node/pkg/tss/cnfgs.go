@@ -100,9 +100,12 @@ func (s *GuardianStorage) SetInnerFields() error {
 		s.Guardians.indexToIdendity[SenderIndex(i)] = s.Guardians.Identities[i]
 	}
 
-	if s.LeaderIdentity != nil {
-		s.isleader = bytes.Equal(s.Self.KeyPEM, s.LeaderIdentity)
+	if s.LeaderIdentity == nil {
+		// since the guardians are expected to be sorted already, the first guardian is the leader.
+		s.LeaderIdentity = s.Guardians.Identities[0].KeyPEM
 	}
+
+	s.isleader = bytes.Equal(s.Self.KeyPEM, s.LeaderIdentity)
 
 	return nil
 }
@@ -146,7 +149,7 @@ func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 		}
 
 		if id.Pid.Id == "" {
-			return fmt.Errorf("error guardian %v PartyID.Id is empty")
+			return fmt.Errorf("error guardian %v PartyID.Id is empty", i)
 		}
 
 		if _, ok := uniquePidIDs[id.Pid.Id]; ok {

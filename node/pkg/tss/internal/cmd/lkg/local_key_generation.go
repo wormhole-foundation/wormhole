@@ -7,11 +7,13 @@ package main
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path"
+	"sort"
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
@@ -66,22 +68,19 @@ type Identifier struct {
 }
 
 type dkgPlayer struct {
-	pid *tss.PartyID
-
 	whereToStore string
 
-	//generated from the secretKey.
+	// the identity of the player, tied to the x509 cert and its private key.
+	self *engine.Identity
+	ids  engine.Identities
 
-	// sorted according to theIdToPIDMapping.
-	peerCerts []engine.PEM
-	selfCert  []byte
+	selfCert []byte
 
 	// same for all guardians // generated here.
 	loadDistributionKey []byte
 
 	*tss.PeerContext
 	*tss.Parameters
-	idToPidMapping map[string]*tss.PartyID
 
 	localParty tss.Party
 
@@ -180,9 +179,10 @@ func mustFeedParty(p tss.Party, parsedMsg tss.ParsedMessage) {
 func simulateDKG(all []*dkgPlayer) {
 	done := 0
 
+	// Mapping to easily find the party a message is addressed to based on the key (unique).
 	keyToParty := map[string]tss.Party{}
 	for _, player := range all {
-		keyToParty[string(player.pid.GetKey())] = player.localParty
+		keyToParty[string(player.self.Pid.Key)] = player.localParty
 	}
 
 	guardians := make([]*engine.GuardianStorage, len(all))
@@ -277,88 +277,128 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 		return nil, err
 	}
 
-	partyIDS := make(tss.UnSortedPartyIDs, cnfg.NumParticipants)
-
-	mp := map[string]*GuardianSpecifics{}
-	for i, dt := range cnfg.GuardianSpecifics {
-		crt, err := internal.PemToCert(dt.Identifier.TlsX509)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(crt.DNSNames) == 0 {
-			return nil, fmt.Errorf("expected DNS names in the cert")
-		}
-
-		pk, ok := crt.PublicKey.(*ecdsa.PublicKey) // TODO
-		if !ok {
-			return nil, fmt.Errorf("expected ecdsa public key in certs")
-		}
-
-		bts, err := internal.PublicKeyToPem(pk)
-		if err != nil {
-			return nil, err
-		}
-
-		dnsName := crt.DNSNames[0]
-		if (dnsName == "" || dnsName == "localhost") && len(crt.DNSNames) > 1 {
-			dnsName = crt.DNSNames[1]
-		}
-
-		partyIDS[i] = &tss.PartyID{
-			MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
-				Id:      fmt.Sprintf("%s:%v", dnsName, engine.DefaultPort),
-				Moniker: "",
-				Key:     bts, // TODO this isn't the key but the full cert. this is a bug.
-			},
-			Index: -1, // not known until sorted
-		}
-
-		mp[string(bts)] = &cnfg.GuardianSpecifics[i]
+	unsortedIdentities, mp, err := cnfg.intoMaps()
+	if err != nil {
+		return nil, err
 	}
 
-	sortedPIDs := tss.SortPartyIDs(partyIDS)
-	idToPID := map[string]*tss.PartyID{}
-	for _, pid := range sortedPIDs {
-		idToPID[pid.Id] = pid
-	}
+	sortedIDS, sortedPids := sortIdentities(unsortedIdentities)
 
 	all := make([]*dkgPlayer, cnfg.NumParticipants)
-
-	peerCerts := make([]engine.PEM, cnfg.NumParticipants)
-
-	for _, pid := range sortedPIDs {
-
+	for _, id := range sortedIDS {
 		tmp := make([]byte, 32)
 		copy(tmp, loadBalancingKey)
 
-		peerContext := tss.NewPeerContext(sortedPIDs)
+		peerContext := tss.NewPeerContext(sortedPids)
 
-		gspecific := mp[string(pid.Key)]
-		peerCerts[pid.Index] = gspecific.Identifier.TlsX509
+		gspecific := mp[string(id.Pid.Key)]
 
-		all[pid.Index] = &dkgPlayer{
-			pid:                 pid,
+		all[id.CommunicationIndex] = &dkgPlayer{
+			self:                id,
 			whereToStore:        gspecific.WhereToSaveSecrets,
-			peerCerts:           peerCerts,
 			selfCert:            gspecific.Identifier.TlsX509,
 			loadDistributionKey: tmp,
 			PeerContext:         peerContext,
-			Parameters:          tss.NewParameters(tss.S256(), peerContext, pid, cnfg.NumParticipants, cnfg.WantedThreshold),
-			idToPidMapping:      idToPID,
+			Parameters:          tss.NewParameters(tss.S256(), peerContext, id.Pid, cnfg.NumParticipants, cnfg.WantedThreshold),
 			localParty:          nil,
 			out:                 make(<-chan tss.Message),
 			protocolEndOutput:   make(<-chan *keygen.LocalPartySaveData),
+			ids: engine.Identities{
+				Identities: sortedIDS,
+			},
 		}
 
-		all[pid.Index].setNewKeygenHandler()
+		all[id.CommunicationIndex].setNewKeygenHandler()
 	}
 
 	return all, nil
 }
 
+// sorts the identities based on the partyID key (as tss-lib expects the parties to be sorted).
+// then sets the communication index according to the sorted order.
+func sortIdentities(unsortedIdentities map[string]*engine.Identity) ([]*engine.Identity, tss.SortedPartyIDs) {
+	pids := make([]*tss.PartyID, 0, len(unsortedIdentities))
+	for _, p := range unsortedIdentities {
+		pids = append(pids, p.Pid)
+	}
+
+	sortedPids := tss.SortPartyIDs(pids)
+
+	sortedIDS := make([]*engine.Identity, len(sortedPids))
+	for i, pid := range sortedPids {
+		sortedIDS[i] = unsortedIdentities[string(pid.Key)]
+		sortedIDS[i].CommunicationIndex = engine.SenderIndex(i)
+	}
+
+	return sortedIDS, sortedPids
+}
+
+func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identity, keyToSpecifics map[string]*GuardianSpecifics, err error) {
+	unsortedIdentities = make(map[string]*engine.Identity, cnfg.NumParticipants)
+
+	keyToSpecifics = map[string]*GuardianSpecifics{}
+	for i, dt := range cnfg.GuardianSpecifics {
+		crt, err := internal.PemToCert(dt.Identifier.TlsX509)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if len(crt.DNSNames) == 0 {
+			return nil, nil, fmt.Errorf("expected DNS names in the cert")
+		}
+
+		pk, ok := crt.PublicKey.(*ecdsa.PublicKey) // TODO
+		if !ok {
+			return nil, nil, fmt.Errorf("expected ecdsa public key in certs")
+		}
+
+		bts, err := internal.PublicKeyToPem(pk)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		dnsName := extractDnsFromCert(crt)
+
+		unsortedIdentities[string(bts)] = &engine.Identity{
+			Pid: &tss.PartyID{
+				MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
+					Id:      dnsName,
+					Moniker: "", // not importent.
+					Key:     bts,
+				},
+				Index: -1, // not known until sorted
+			},
+			KeyPEM:             bts,
+			CertPem:            dt.Identifier.TlsX509,
+			Cert:               nil, // not stored, since we have the certPem.
+			CommunicationIndex: 0,   // unknown until sorted.
+			Hostname:           dnsName,
+			Port:               0, // undefined.
+		}
+
+		keyToSpecifics[string(bts)] = &cnfg.GuardianSpecifics[i]
+	}
+
+	return unsortedIdentities, keyToSpecifics, nil
+}
+
+func extractDnsFromCert(crt *x509.Certificate) string {
+	if len(crt.DNSNames) == 0 {
+		panic("expected DNS names in the certificate")
+	}
+
+	sort.Strings(crt.DNSNames)
+
+	dnsName := crt.DNSNames[0]
+	if dnsName == "" || dnsName == "localhost" && len(crt.DNSNames) < 1 {
+		panic("certificate should have at least one DNS name that is not localhost or empty")
+	}
+
+	return crt.DNSNames[1]
+}
+
 func (player *dkgPlayer) setNewKeygenHandler() {
-	n := len(player.peerCerts)
+	n := player.ids.Len()
 	out := make(chan tss.Message, n*n*2)               // ready for at least n^2 messages.
 	endOut := make(chan *keygen.LocalPartySaveData, 1) // ready for at least a single message.
 
@@ -374,15 +414,11 @@ func (player *dkgPlayer) handleKeygenEndMessage(m *keygen.LocalPartySaveData, gu
 	}
 
 	guardians[i] = &engine.GuardianStorage{
-		Self: player.pid,
-
-		Guardians: player.PeerContext.IDs(),
-
-		TlsX509:    engine.PEM(player.selfCert),
-		PrivateKey: nil, // each guardian should load this by themselves.
-
-		GuardianCerts: player.peerCerts,
-
+		Configurations:        engine.Configurations{}, // filled by the deployer.
+		Self:                  player.self,
+		TlsX509:               engine.PEM(player.selfCert),
+		PrivateKey:            nil, // each guardian should load this by themselves.
+		Guardians:             player.ids,
 		Threshold:             player.Threshold(),
 		SavedSecretParameters: m,
 		LoadDistributionKey:   player.loadDistributionKey,

@@ -494,14 +494,6 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		storage.maxSimultaneousSignatures = defaultMaxLiveSignatures
 	}
 
-	if storage.LeaderIdentity == nil {
-		leader, err := storage.getSortedFirst()
-		if err != nil {
-			return nil, fmt.Errorf("couldn't determine the leader: %w", err)
-		}
-		storage.LeaderIdentity = leader.Key
-	}
-
 	if bytes.Equal(storage.Self.CertPem, storage.LeaderIdentity) {
 		storage.isleader = true
 	}
@@ -581,15 +573,16 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	go t.ftTracker()
 
-	leaderPID, err := t.GuardianStorage.getSortedFirst()
-	if err != nil {
-		return fmt.Errorf("couldn't determine leader's ID: %w", err)
+	leaderIdentity, ok := t.Guardians.pemkeyToGuardian[string(t.LeaderIdentity)]
+	if !ok {
+		return fmt.Errorf("leader identity not found in guardian storage")
 	}
+
 	t.logger.Info(
 		"tss engine started",
 		zap.Any("configs", t.GuardianStorage.Configurations),
 		zap.Bool("hasGuardianSet", t.gst != nil),
-		zap.String("leaderID", leaderPID.Id),
+		zap.String("leaderID", leaderIdentity.Hostname),
 	)
 
 	return nil
