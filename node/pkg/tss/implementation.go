@@ -91,13 +91,39 @@ type Configurations struct {
 	LeaderIdentity PEM // The public key of the leader in PEM format.
 }
 
+type Identity struct {
+	Pid     *tss.PartyID // used for tss protocol.
+	KeyPEM  PEM
+	Key     *ecdsa.PublicKey `json:"-"` // ensuring this isn't stored in non-pem format.
+	CertPem PEM
+	Cert    *x509.Certificate `json:"-"` // ensuring this isn't stored in non-pem format.
+
+	CommunicationIndex SenderIndex // the number representing the guardian when passing messages.
+	Hostname           string
+	Port               int // the port the guardian is listening on. if 0 -> use the default port.
+}
+
+type Identities struct {
+	Identities []*Identity
+
+	// maps and slices to ensure quick lookups.
+	indexToIdendity  map[SenderIndex]*Identity
+	pemkeyToGuardian map[string]*Identity
+	peerCerts        []*x509.Certificate // avoid
+	partyIds         []*tss.PartyID
+}
+
+func (i Identities) Len() int {
+	return len(i.Identities)
+}
+
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
 // including its signing key, and the shared symmetric keys with other guardians.
 // should be loaded from a file.
 type GuardianStorage struct {
 	Configurations
 
-	Self *tss.PartyID
+	Self *Identity
 
 	// should be a certificate generated with SecretKey
 	TlsX509    PEM
@@ -106,12 +132,8 @@ type GuardianStorage struct {
 	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of PriavteKey.
 
 	// Stored sorted by Key. include Self.
-	Guardians      []*tss.PartyID
-	indexToPartyID map[senderIndex]*tss.PartyID
-
-	// guardianCert[i] should be the x509.Cert of guardians[i]. (uses p256, since golang x509 doesn't support secp256k1)
-	GuardianCerts  []PEM
-	guardiansCerts []*x509.Certificate
+	// Guardians []*tss.PartyID
+	Guardians Identities
 
 	// Assumes threshold = 2f+1, where f is the maximal expected number of faulty nodes.
 	Threshold int
@@ -123,8 +145,6 @@ type GuardianStorage struct {
 
 	// data structures to ensure quick lookups:
 	guardiansProtoIDs []*tsscommv1.PartyId
-	guardianToCert    map[string]*x509.Certificate
-	pemkeyToGuardian  map[string]*tss.PartyID
 
 	isleader bool
 }
@@ -150,18 +170,18 @@ func (t *Engine) ProducedOutputMessages() <-chan Sendable {
 	return t.messageOutChan
 }
 
-func (st *GuardianStorage) fetchPartyIdFromBytes(pk []byte) *tsscommv1.PartyId {
-	pid, ok := st.pemkeyToGuardian[string(pk)]
+func (st *GuardianStorage) fetchPartyIdFromBytes(pk []byte) *Identity {
+	pid, ok := st.Guardians.pemkeyToGuardian[string(pk)]
 	if !ok {
 		return nil
 	}
 
-	return partyIdToProto(pid)
+	return pid
 }
 
 // FetchPartyId implements ReliableTSS.
-func (st *GuardianStorage) FetchPartyId(cert *x509.Certificate) (*tsscommv1.PartyId, error) {
-	var pid *tsscommv1.PartyId
+func (st *GuardianStorage) FetchPartyId(cert *x509.Certificate) (*Identity, error) {
+	var id *Identity
 
 	switch key := cert.PublicKey.(type) {
 	case *ecdsa.PublicKey:
@@ -170,18 +190,18 @@ func (st *GuardianStorage) FetchPartyId(cert *x509.Certificate) (*tsscommv1.Part
 			return nil, err
 		}
 
-		pid = st.fetchPartyIdFromBytes(publicKeyPem)
+		id = st.fetchPartyIdFromBytes(publicKeyPem)
 	case []byte:
-		pid = st.fetchPartyIdFromBytes(key)
+		id = st.fetchPartyIdFromBytes(key)
 	default:
 		return nil, fmt.Errorf("unsupported public key type")
 	}
 
-	if pid == nil {
+	if id == nil {
 		return nil, fmt.Errorf("certificate owner is unknown")
 	}
 
-	return pid, nil
+	return id, nil
 }
 
 // GetCertificate implements ReliableTSS.
@@ -191,7 +211,7 @@ func (st *GuardianStorage) GetCertificate() *tls.Certificate {
 
 // GetPeers implements ReliableTSS.
 func (st *GuardianStorage) GetPeers() []*x509.Certificate {
-	return st.guardiansCerts
+	return st.Guardians.peerCerts
 }
 
 var (
@@ -254,7 +274,7 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 
 	for _, faulties := range sigPrepInfo.inactives.getFaultiesLists() {
 
-		if len(t.Guardians)-len(faulties) <= t.Threshold {
+		if t.Guardians.Len()-len(faulties) <= t.Threshold {
 			t.logger.Error(
 				"too many faulty guardians to start the signing protocol",
 				zap.String("digest", dgstStr),
@@ -401,7 +421,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 	}
 
 	sm := tsscommv1.SignedMessage{
-		Sender:    uint32(t.Self.Index),
+		Sender:    uint32(t.Self.CommunicationIndex),
 		Signature: []byte{},
 		Content: &tsscommv1.SignedMessage_Announcement{
 			Announcement: &tsscommv1.SawDigest{
@@ -413,7 +433,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 
 	tmp := serializeableMessage{&parsedAnnouncement{
 		SawDigest: sm.GetAnnouncement(),
-		issuer:    senderIndex(sm.Sender),
+		issuer:    SenderIndex(sm.Sender),
 	}}
 
 	flds := []zap.Field{zap.String("chainID", chainID.String()),
@@ -482,14 +502,14 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		storage.LeaderIdentity = leader.Key
 	}
 
-	if bytes.Equal(storage.Self.Key, storage.LeaderIdentity) {
+	if bytes.Equal(storage.Self.CertPem, storage.LeaderIdentity) {
 		storage.isleader = true
 	}
 
 	fpParams := &party.Parameters{
 		SavedSecrets:         storage.SavedSecretParameters,
-		PartyIDs:             storage.Guardians,
-		Self:                 storage.Self,
+		PartyIDs:             storage.Guardians.partyIds,
+		Self:                 storage.Self.Pid,
 		Threshold:            storage.Threshold,
 		WorkDir:              "", // set to empty since we don't support DKG/reshare protocol yet.
 		MaxSignerTTL:         storage.MaxSignerTTL,
@@ -502,7 +522,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	}
 
 	expectedMsgs := storage.maxSimultaneousSignatures *
-		(numBroadcastsPerSignature + numUnicastsRounds*len(storage.Guardians)) * 2 // times 2 to stay on the safe side.
+		(numBroadcastsPerSignature + numUnicastsRounds*storage.Guardians.Len()) * 2 // times 2 to stay on the safe side.
 	t := &Engine{
 		ctx: nil,
 
@@ -547,7 +567,7 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	t.ctx = ctx
 	t.logger = supervisor.Logger(ctx).
-		With(zap.String("ID", t.GuardianStorage.Self.Id)).
+		With(zap.String("ID", t.GuardianStorage.Self.Pid.Id)).
 		Named("tss")
 
 	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
@@ -785,7 +805,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 	if routing.IsBroadcast || len(routing.To) == 0 {
 		msgToSend := &tsscommv1.SignedMessage{
 			Content:   content,
-			Sender:    senderIndex(t.Self.Index).toProto(),
+			Sender:    SenderIndex(t.Self.CommunicationIndex).toProto(),
 			Signature: nil,
 		}
 
@@ -1038,7 +1058,7 @@ func (st *GuardianStorage) verifySignedMessage(uid uuid, msg *tsscommv1.SignedMe
 		return errEmptySignature
 	}
 
-	cert, err := st.fetchCertificate(senderIndex(msg.Sender))
+	cert, err := st.fetchCertificate(SenderIndex(msg.Sender))
 	if err != nil {
 		return err
 	}

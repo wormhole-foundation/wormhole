@@ -232,7 +232,7 @@ func (t *Engine) ftTracker() {
 		chainsWithNoSelfReport: make(map[vaa.ChainID]bool),
 	}
 
-	for _, pid := range t.GuardianStorage.Guardians {
+	for _, pid := range t.GuardianStorage.Guardians.partyIds {
 		strPid := strPartyId(partyIdToString(pid))
 		f.membersData[strPid] = &ftParty{
 			partyID:        pid,
@@ -386,13 +386,13 @@ func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
 		zap.Int("number of inactives on chain", numberInactive),
 	)
 
-	activeGuardiansByChain.WithLabelValues(chainID.String()).Set(float64(len(t.Guardians) - numberInactive))
+	activeGuardiansByChain.WithLabelValues(chainID.String()).Set(float64(t.Guardians.Len() - numberInactive))
 
 	// if the problem is about this guardian, then there is no reason to retry the sigs since it won't
 	// be part of the protocol.
 	// we do let this guardian know that it is faulty and it's time so it can collect correct data
 	// from signingInfo, which should be synchronised with the other guardians (if it attempts to sign later sigs).
-	if equalPartyIds(pid, t.Self) {
+	if equalPartyIds(pid, t.Self.Pid) {
 		return
 	}
 
@@ -613,13 +613,13 @@ func (t *Engine) reportProblem(chain vaa.ChainID) {
 			},
 		},
 
-		Sender:    uint32(t.Self.Index),
+		Sender:    uint32(t.Self.CommunicationIndex),
 		Signature: []byte{},
 	}
 
 	tmp := serializeableMessage{&parsedProblem{
 		Problem: sm.GetProblem(),
-		issuer:  senderIndex(sm.Sender),
+		issuer:  SenderIndex(sm.Sender),
 	}}
 
 	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), sm); err != nil {
@@ -701,7 +701,7 @@ func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
 		}
 	}
 
-	activeGuardiansByChain.WithLabelValues(alert.chain.String()).Set(float64(len(t.Guardians) - len(inactives.partyIDs)))
+	activeGuardiansByChain.WithLabelValues(alert.chain.String()).Set(float64(t.Guardians.Len() - len(inactives.partyIDs)))
 
 	if len(toSign) == 0 {
 		return

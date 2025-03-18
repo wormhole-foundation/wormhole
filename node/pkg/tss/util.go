@@ -390,7 +390,7 @@ func (st *GuardianStorage) validateTrackingIDForm(tid *common.TrackingID) error 
 	}
 
 	// checking that the byte array is the correct size
-	if len(tid.PartiesState) < (len(st.Guardians)+7)/8 {
+	if len(tid.PartiesState) < (st.Guardians.Len()+7)/8 {
 		return fmt.Errorf("trackingID partiesState is too short")
 	}
 
@@ -442,12 +442,12 @@ func trackingIdIntoSigKey(tid *common.TrackingID) sigKey {
 	return intoSigKey(dgst, extractChainIDFromTrackingID(tid))
 }
 
-type senderIndex uint32
+type SenderIndex uint32
 
-func (s senderIndex) intoBuffer(b io.Writer) {
+func (s SenderIndex) intoBuffer(b io.Writer) {
 	vaa.MustWrite(b, binary.BigEndian, s)
 }
 
-func (s senderIndex) toProto() uint32 {
+func (s SenderIndex) toProto() uint32 {
 	return uint32(s)
 }

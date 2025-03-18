@@ -73,7 +73,7 @@ func (s *deliverableMessage) getUUID(loadDistKey []byte) uuid {
 // serializeables:
 type parsedProblem struct {
 	*tsscommv1.Problem
-	issuer senderIndex
+	issuer SenderIndex
 }
 
 type tssMessageWrapper struct {
@@ -91,7 +91,7 @@ type parsedTssContent struct {
 
 type parsedAnnouncement struct {
 	*tsscommv1.SawDigest
-	issuer senderIndex
+	issuer SenderIndex
 }
 
 // broadcastable only struct (not deliverable or serializable):
@@ -280,7 +280,7 @@ func (t *Engine) updateState(s *broadcaststate, parsed broadcastMessage, unparse
 	unparsedSignedMessage := unparsedContent.toBroadcastMsg().Message
 	echoer := unparsedContent.GetSource()
 
-	pid := t.GuardianStorage.getPartyIdFromIndex(senderIndex(unparsedSignedMessage.Sender))
+	pid := t.GuardianStorage.getPartyIdFromIndex(SenderIndex(unparsedSignedMessage.Sender))
 	isMsgSrc := equalPartyIds(protoToPartyId(echoer), pid)
 
 	_, isEcho := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
@@ -333,7 +333,7 @@ func (t *Engine) broadcastInspection(parsed broadcastMessage, msg Incoming) (boo
 		return false, nil, err
 	}
 
-	if shouldBroadcast && msg.toBroadcastMsg().Message.Sender == uint32(t.Self.Index) {
+	if shouldBroadcast && msg.toBroadcastMsg().Message.Sender == uint32(t.Self.CommunicationIndex) {
 		shouldBroadcast = false // no need to echo if we're the original sender.
 	}
 
@@ -376,7 +376,7 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 
 	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
 	if _, ok := parsed.(deliverable); ok {
-		senderPid := t.GuardianStorage.getPartyIdFromIndex(senderIndex(unparsedSignedMessage.Sender))
+		senderPid := t.GuardianStorage.getPartyIdFromIndex(SenderIndex(unparsedSignedMessage.Sender))
 		if senderPid == nil {
 			return fmt.Errorf("sender %v is not a guardian", unparsedSignedMessage.Sender)
 		}

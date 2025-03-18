@@ -13,7 +13,7 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 		return nil, err
 	}
 
-	senderId := senderIndex(broadcastMsg.Message.Sender)
+	senderId := SenderIndex(broadcastMsg.Message.Sender)
 
 	if !t.GuardianStorage.contains(senderId) {
 		return nil, fmt.Errorf("%w: %v", ErrUnkownSender, senderId)

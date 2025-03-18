@@ -26,11 +26,11 @@ func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 		return fmt.Errorf("TlsPrivateKey is nil")
 	}
 
-	if len(s.Guardians) == 0 {
+	if len(s.Guardians.Identities) == 0 {
 		return fmt.Errorf("no guardians array given")
 	}
 
-	if s.Threshold > len(s.Guardians) {
+	if s.Threshold > len(s.Guardians.Identities) {
 		return fmt.Errorf("threshold is higher than the number of guardians")
 	}
 
@@ -62,7 +62,7 @@ func (s *GuardianStorage) SetInnerFields() error {
 
 	s.signingKey = signingKey
 
-	pk, err := internal.PemToPublicKey(s.Self.Key)
+	pk, err := internal.PemToPublicKey(s.Self.KeyPEM)
 	if err != nil {
 		return err
 	}
@@ -82,84 +82,96 @@ func (s *GuardianStorage) SetInnerFields() error {
 
 	s.tlsCert = &tlsCert
 
-	if len(s.GuardianCerts) != len(s.Guardians) {
-		return fmt.Errorf("number of guardians and guardiansCerts do not match")
-	}
-
-	s.indexToPartyID = map[senderIndex]*tss.PartyID{}
-	// Since the guardians are sorted by key, we can use their position as their index.
-	for i, g := range s.Guardians {
-		s.indexToPartyID[senderIndex(i)] = g
-	}
-
-	if err := s.parseCerts(); err != nil {
+	if err := s.fillAndValidateStoredIdentities(); err != nil {
 		return err
 	}
 
-	s.guardiansProtoIDs = make([]*tsscommv1.PartyId, len(s.Guardians))
-
-	for i, guardian := range s.Guardians {
-		s.guardiansProtoIDs[i] = partyIdToProto(guardian)
+	s.guardiansProtoIDs = make([]*tsscommv1.PartyId, s.Guardians.Len())
+	s.Guardians.peerCerts = make([]*x509.Certificate, s.Guardians.Len())
+	s.Guardians.partyIds = make([]*tss.PartyID, s.Guardians.Len())
+	s.Guardians.pemkeyToGuardian = make(map[string]*Identity)
+	s.Guardians.indexToIdendity = map[SenderIndex]*Identity{}
+	// Since the guardians are sorted by key, we can use their position as their index.
+	for i := range s.Guardians.Len() {
+		s.guardiansProtoIDs[i] = partyIdToProto(s.Guardians.Identities[i].Pid)
+		s.Guardians.peerCerts[i] = s.Guardians.Identities[i].Cert
+		s.Guardians.partyIds[i] = s.Guardians.Identities[i].Pid
+		s.Guardians.pemkeyToGuardian[string(s.Guardians.Identities[i].KeyPEM)] = s.Guardians.Identities[i]
+		s.Guardians.indexToIdendity[SenderIndex(i)] = s.Guardians.Identities[i]
 	}
 
-	s.guardianToCert = make(map[string]*x509.Certificate)
-
-	for i, guardian := range s.Guardians {
-		s.guardianToCert[partyIdToString(guardian)] = s.guardiansCerts[i]
-	}
-
-	s.isleader = bytes.Equal(s.Self.Key, s.LeaderIdentity)
-
-	return s.setCertToGuardian()
-}
-
-func (s *GuardianStorage) setCertToGuardian() error {
-	s.pemkeyToGuardian = make(map[string]*tss.PartyID)
-	for i, crt := range s.guardiansCerts {
-		var byteKey []byte
-
-		switch m := crt.PublicKey.(type) {
-		case *ecdsa.PublicKey:
-			bts, err := internal.PublicKeyToPem(m)
-			if err != nil {
-				return fmt.Errorf("error parsing guardian %v cert: %v", i, err)
-			}
-
-			byteKey = bts
-		case []byte:
-			byteKey = m
-		default:
-			return fmt.Errorf("error guardian %v cert stored with non-ecdsa publickey", i)
-		}
-
-		s.pemkeyToGuardian[string(byteKey)] = s.Guardians[i]
+	if s.LeaderIdentity != nil {
+		s.isleader = bytes.Equal(s.Self.KeyPEM, s.LeaderIdentity)
 	}
 
 	return nil
 }
 
-func (s *GuardianStorage) parseCerts() error {
-	s.guardiansCerts = make([]*x509.Certificate, len(s.Guardians))
-	for i, cert := range s.GuardianCerts {
-		c, err := internal.PemToCert(cert)
+// validates the stored Identity structs. Ensures that the cert and key are valid and match.
+// ensures no nil values are stored. Verifies that the tss-lib.PartyIDs are unique.
+func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
+	uniquePidIDs := make(map[string]struct{})
+	uniquePidKey := make(map[string]struct{})
+
+	for i, id := range s.Guardians.Identities {
+		if id == nil {
+			return fmt.Errorf("error guardian %v is nil", i)
+		}
+
+		c, err := internal.PemToCert(id.CertPem)
 		if err != nil {
 			return fmt.Errorf("error parsing guardian %v cert: %v", i, err)
 		}
 
-		if _, ok := c.PublicKey.(*ecdsa.PublicKey); !ok {
+		key, ok := c.PublicKey.(*ecdsa.PublicKey)
+		if !ok {
 			return fmt.Errorf("error guardian %v cert stored with non-ecdsa publickey", i)
 		}
 
-		s.guardiansCerts[i] = c
+		pem, err := internal.PublicKeyToPem(key)
+		if err != nil {
+			return fmt.Errorf("error converting guardian %v  cert's PK  to pem: %v", i, err)
+		}
+
+		if id.Pid == nil {
+			return fmt.Errorf("error guardian %v PartyID is nil", i)
+		}
+
+		if !bytes.Equal(id.Pid.Key, pem) {
+			return fmt.Errorf("error guardian %v cert's PK does not match the PartyID.Key stored", i)
+		}
+
+		if id.Hostname == "" {
+			return fmt.Errorf("error guardian %v hostname is empty", i)
+		}
+
+		if id.Pid.Id == "" {
+			return fmt.Errorf("error guardian %v PartyID.Id is empty")
+		}
+
+		if _, ok := uniquePidIDs[id.Pid.Id]; ok {
+			return fmt.Errorf("error guardian %v PartyID.Id is not unique", i)
+		}
+		uniquePidIDs[id.Pid.Id] = struct{}{}
+
+		if _, ok := uniquePidKey[string(id.Pid.Key)]; ok {
+			return fmt.Errorf("error guardian %v PartyID.Key is not unique", i)
+		}
+		uniquePidKey[string(id.Pid.Key)] = struct{}{}
+
+		// storing the cert and key in the identity struct.
+		id.Key = key
+		id.Cert = c
+		id.CommunicationIndex = SenderIndex(i)
 	}
 
 	return nil
 }
 
 func (s *GuardianStorage) getSortedFirst() (*tss.PartyID, error) {
-	guardians := make([]*tss.PartyID, len(s.Guardians))
-	for i, guardian := range s.Guardians {
-		pid, ok := proto.Clone(guardian.MessageWrapper_PartyID).(*tss.MessageWrapper_PartyID)
+	guardians := make([]*tss.PartyID, s.Guardians.Len())
+	for i := range s.Guardians.Len() {
+		pid, ok := proto.Clone(s.Guardians.partyIds[i].MessageWrapper_PartyID).(*tss.MessageWrapper_PartyID)
 		if !ok {
 			return nil, fmt.Errorf("error cloning guardian %v", i)
 		}
@@ -183,41 +195,38 @@ func (s *GuardianStorage) getSortedFirst() (*tss.PartyID, error) {
 
 var errInternalNoCert = errors.New("internal error. no certificate found")
 
-func (s *GuardianStorage) fetchCertificate(sender senderIndex) (*x509.Certificate, error) {
-	pid, ok := s.indexToPartyID[sender]
+func (s *GuardianStorage) fetchCertificate(sender SenderIndex) (*x509.Certificate, error) {
+	id, ok := s.Guardians.indexToIdendity[sender]
 	if !ok {
 		return nil, ErrUnkownSender
 	}
 
-	if cert, ok := s.guardianToCert[partyIdToString(pid)]; ok {
-		return cert, nil
-	}
-
-	return nil, errInternalNoCert
+	return id.Cert, nil
 }
 
-func (g *GuardianStorage) contains(sender senderIndex) bool {
-	_, ok := g.indexToPartyID[sender]
+func (g *GuardianStorage) contains(sender SenderIndex) bool {
+	_, ok := g.Guardians.indexToIdendity[sender]
 
 	return ok
 }
 
-func (s *GuardianStorage) getPartyIdFromIndex(senderId senderIndex) *tss.PartyID {
-	tmp, ok := s.indexToPartyID[senderId]
+func (s *GuardianStorage) getPartyIdFromIndex(senderId SenderIndex) *tss.PartyID {
+	id, ok := s.Guardians.indexToIdendity[senderId]
 	if !ok {
 		return nil
 	}
 
-	keyCpy := make([]byte, len(tmp.Key))
-	copy(keyCpy, tmp.Key)
+	keyCpy := make([]byte, len(id.Pid.Key))
+	copy(keyCpy, id.Pid.Key)
 
+	// return a copy, tss-lib might modify this object.
 	return &tss.PartyID{
 		MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
-			Id:      tmp.Id,
-			Moniker: tmp.Moniker,
+			Id:      id.Pid.Id,
+			Moniker: id.Pid.Moniker,
 			Key:     keyCpy,
 		},
 
-		Index: tmp.Index,
+		Index: id.Pid.Index,
 	}
 }

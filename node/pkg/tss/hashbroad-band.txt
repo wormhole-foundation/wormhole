@@ -1,0 +1,156 @@
+Has Hashed ECHOES:
+
+RESULTS :
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  127623    1046    0    0    0     0          0         0   127623    1046    0    0    0     0       0          0
+  ens4: 4520946115 8126734    0    0    0     0          0         0 3632974094 8045209    0    0    0     0       0          0
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  135411    1104    0    0    0     0          0         0   135411    1104    0    0    0     0       0          0
+  ens4: 5103934531 9225274    0    0    0     0          0         0 4114099243 9134788    0    0    0     0       0          0
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+
+=========================
+        SUMMARY:
+=========================
+
+Total Receive:
+on ens4:
+5103934531 - 4520946115 = 582988416 = 582.99MB throughout 5 minutes.
+
+Total Sent:
+4114099243 - 3632974094 = 481125149 = 481.13MB throughout 5 minutes.
+
+This doean't match 15.5Mb/s as the grafana graph states.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  265698    2128    0    0    0     0          0         0   265698    2128    0    0    0     0       0          0
+  ens4: 7145064775 12245865    0    0    0     0          0         0 5469797766 12087576    0    0    0     0       0          0
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  269031    2152    0    0    0     0          0         0   269031    2152    0    0    0     0       0          0
+  ens4: 7725258051 13285883    0    0    0     0          0         0 5953607172 13112128    0    0    0     0       0          0
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+
+
+
+
+///////////
+During that time:  [not very accurate]
+unicast:46.8 - 7.4
+echoes: 349 -54.6
+broadcasts:390 - 60.9
+total: 436 - 68.3 = 
+///////////
+
+Num sigs in these 5 minutes ~550.
+Total: 
+received: 7725258051 - 7145064775 = 580.19
+sent    : 5953607172 - 5469797766 = 483.81
+
+Seem close to my numbers, again and not to the 15.5Mb/s 
+
+
+
+
+
+
+|||||||||||||||||||||||||||||||||||
+Results for no ECHOS:
+|||||||||||||||||||||||||||||||||||
+
+
+
+
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  338291    2700    0    0    0     0          0         0   338291    2700    0    0    0     0       0          0
+  ens4: 9210461743 15651708    0    0    0     0          0         0 7036671573 15433258    0    0    0     0       0          0
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev^C
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+jonathan@t-gcp-threshsignnet-asia-01:~$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:  344351    2748    0    0    0     0          0         0   344351    2748    0    0    0     0       0          0
+  ens4: 9483924692 16016912    0    0    0     0          0         0 7189124114 15775499    0    0    0     0       0          0
+jonathan@t-gcp-threshsignnet-asia-01:~$ 
+
+
+
+
+
+
+
+
+NUM SIGS in these 5 minutes: ~542
+
+
+TOTAL: 
+receive: (9483924692 - 9210461743) = 273.46 Mb
+sent: (7189124114 - 7036671573) = 152.45MB
+
+avg mb/s:
+recv: 7.3mb/s 
+snt: 3.9xMb/s
+
+
+
+
+TOTAL FINDINGS: 
+
+We have like total sent *2  for the same amount of time. 
+So it is quite accurate.
+most of the bandwidth size are indeed the echoes, which sum to quite a lot. 
+(I can cut a nice chunk from it by transmiting just pk or just the hostname). [like 100bytes? from msg of 400 byte tops?]
+
+I'm not sure they state the bandwidth/s correctly?  but it does seem like 2x.
+
+
+What i assumes : 203.5MB 
+actual diff:  331 M
+
