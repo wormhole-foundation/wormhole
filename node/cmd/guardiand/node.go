@@ -213,6 +213,9 @@ var (
 	seiEvmRPC      *string
 	seiEvmContract *string
 
+	mezoRPC      *string
+	mezoContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -449,6 +452,9 @@ func init() {
 
 	seiEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	seiEvmContract = NodeCmd.Flags().String("seiEvmContract", "", "SeiEVM contract address")
+
+	mezoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mezoRPC", "Mezo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mezoContract = NodeCmd.Flags().String("mezoContract", "", "Mezo contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -845,6 +851,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, vaa.ChainIDHyperEVM)
 	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, vaa.ChainIDMonad)
 	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, vaa.ChainIDSeiEVM)
+	*mezoContract = checkEvmArgs(logger, *mezoRPC, *mezoContract, vaa.ChainIDMezo)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1009,6 +1016,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["hyperEvmRPC"] = *hyperEvmRPC
 	rpcMap["monadRPC"] = *monadRPC
 	rpcMap["movementRPC"] = *movementRPC
+	rpcMap["mezoRPC"] = *mezoRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1520,6 +1528,18 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDSeiEVM,
 			Rpc:              *seiEvmRPC,
 			Contract:         *seiEvmContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(mezoRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "mezo",
+			ChainID:          vaa.ChainIDMezo,
+			Rpc:              *mezoRPC,
+			Contract:         *mezoContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 

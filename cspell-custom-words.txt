@@ -106,6 +106,8 @@ localterra
 lockfiles
 merkle
 Metaplex
+mezo
+Mezo
 mindshare
 mlock
 moby
