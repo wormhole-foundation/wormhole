@@ -379,6 +379,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.Uint32("chainID", r.ChainId),
 						zap.String("txID", hex.EncodeToString(r.TxHash)),
 					)
+					continue
 				}
 				numObservations, err := w.handleReobservationRequest(
 					ctx,

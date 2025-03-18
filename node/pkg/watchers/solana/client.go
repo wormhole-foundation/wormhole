@@ -412,6 +412,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						zap.Uint32("chainID", m.ChainId),
 						zap.String("txID", hex.EncodeToString(m.TxHash)),
 					)
+					continue
 				}
 				numObservations, err := s.handleReobservationRequest(vaa.ChainID(m.ChainId), m.TxHash, s.rpcClient)
 				if err != nil {
