@@ -37,29 +37,68 @@ respond to a potentially fraudulent message, such as by dropping or delaying it.
 # Detailed Design
 
 The overview section described an abstract view of how the Token Bridge, core bridge, and Guardians interact. However,
-different blockchain environments operate heterogeneously. For example, the EVM provides reliable logs in the form
+different blockchain environments operate heterogeneously. For example, the EVM provides strict logs in the form
 of message receipts that can easily be verified. In contrast, Sui and Solana do not provide the same degree of introspection
 on historical account states. As a result, the Transfer Verifier must be implemented in an ad-hoc way using the state
 and tooling available to particular chains. RPC providers for different blockchains may prune state aggressively which
 provides another limitation on the degree of confidence.
 
 ## Types of Implementations
-Broadly, the Transfer Verifier for a chain can be thought of as "reliable" or "heuristic" based on whether or not
-historical account data is easily accessible. For "reliable" implementations, the Guardian could drop
+Broadly, the Transfer Verifier for a chain can be thought of as "strict" or "heuristic" based on whether or not
+historical account data is easily accessible. For "strict" implementations, the Guardian could drop
 the message publication completely as it is guaranteed to be fraudulent. For "heuristic" implementations, the Guardian
 could choose to delay the transfer, allowing time for the transaction to be manually triaged.
 
 ## General Process
 
-Transfer Verifier
 - Connect to the chain (using a WebSocket subscription, or else by polling)
 - Monitor the Core Contract for Message Publications
 - Filter the Message Publications for Token Transfers
 - Examine Token Bridge activity, ensuring that at least as many funds were transferred into the Token Bridge as are encoded in the Core Bridge's message
 - If the above is not true, log an error
 
-Guardian
-- If the Transfer Verifier reports an error, block the Message Publication if the implementation is "reliable", otherwise delay.
+### Responding to suspicious messages
+If the Transfer Verifier reports an error the Guardian should block the Message
+Publication if the implementation is "strict". If the implementation is
+"heuristic", the message should be delayed. This will allow some time for core
+contributors to analyze the message and associated logs for potential bugs or
+malicious activity.
+
+In order to handle messages flexibly, they can be tagged with a "verification state". 
+This state will be embedded in to the message itself to allow 
+for different parts of the message publicaton process within the node to handle messages in specific ways. For example,
+an `Anomalous` message originating from Sui could be treated in a different way than one coming from Solana. As chains
+are developed, they may introduce other tools or logging artifacts that result in a Transfer Verifier implementation to
+become more or less strict.
+
+Some example "verification states" are:
+- Not verified
+- Not applicable
+- Verified
+- Anomalous
+- Rejected
+
+Messages can have a `NotVerified` state initially and should be eventually be marked as one of the other states.
+
+Messages marked as `NotApplicable` should be processed normally. This state will be used for messages that are not Token Transfers,
+as only Token Transfers are process by the Transfer Verifier.
+
+A `Verified` message is in a "known good" state and should be processed normally.
+
+Both `Anomalous` and `Rejected` represent potentially dangerous states. `Anomalous` should be used for "heuristic"
+Transfer Verifier implementations and `Rejected` should be used for "strict" implementations. `Rejected` messages
+must be dropped and must not result in a VAA creation for the message. `Anomalous` messages can be delayed, though
+other potential responses may be appropriate depending on the reliability of the Transfer Verifier implementation
+and how likely `Anomalous` messages are to occur in practice.
+
+### Sequencing with the Governor and the Accountant
+
+Assuming both are enabled, the processor first sends a message to the Governor and then to the Accountant once the
+message is release by the Governor.
+
+Checks relating to the Transfer Verifier should occur before the checks to the Governor or the Accountant. If a message
+is `Rejected` or `Anomalous`, it should be dropped or delayed before it is included in the Governor or Accountant.
+This prevents a scenario where a `Rejected` message might still consume outgoing Governor capacity, for example.
 
 ## Implementations
 
@@ -69,7 +108,7 @@ The initial implementations were tested for Ethereum and Sui.
 
 The EVM provides a Receipt containing detailed logs for all of the contracts that were interacted with during the transactions.
 The Receipt can be parsed and filtered to isolate Token Bridge and Core Bridge activity and the details are precise. For these
-reasons the Ethereum implementation can be considered "reliable". If the Transfer Verifier is enabled, the Guardians will not
+reasons the Ethereum implementation can be considered "strict". If the Transfer Verifier is enabled, the Guardians will not
 publish Message Publications in violation of the invariants checked by the Transfer Verifier.
 
 For EVM implementations, the contents of the [LogMessagePublished event](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/ethereum/contracts/Implementation.sol#L12-L26)
@@ -83,7 +122,8 @@ There are a number of complications that arise when querying historical account 
 
 TODO: add details from Sui
 
-# Rollout Considerations
+
+# Deployment Considerations
 
 Because the Transfer Verifier will be integrated with the Watcher code, bugs in its implementations could lead to messages
 being missed. For this reason, the changes to the watcher code must be minimal, well-tested, and reversible. It should
@@ -92,9 +132,29 @@ new release.
 
 The Transfer Verifier should be implemented in a standalone package and distributed with a CLI tool that allows users
 to verify its accuracy. This would allow for isolated testing and development outside of the context of critical Guardian code.
-It should be possible to run the standalone tool for long periods of time to ensure that the mechanism is reliable and does
+It should be possible to run the standalone tool for long periods of time to ensure that the mechanism is strict and does
 not produce false positives.
 
 # Security Considerations
 
-TODO
+## Interactions with the Governor
+
+The idea of delaying unusual transfers overlaps to some extent with the Governor's delay mechanism. It is tempting to
+leverage this existing mechanism, e.g. by adding a suspicious transfer to the Governor's pending list. 
+
+There are some complexities to consider if this route is chosen, outlined below.
+
+### Multiple Delays
+If a Transfer Verifier result causes a message to be delayed, this should be considered against other delays that may
+be introduced. For example, a suspicious message on a governed chain with a notional value beyond the Governor's "big
+transaction limit" may result in a message being delayed twice.
+
+### Flow Cancel can release transfers early
+
+The Flow Cancel mechanism can result in the "daily limit" of the Governor being reduced under specific conditions.
+(See Governor whitepaper for more details). If suspicious transfers are queued alongside regular transfers, and Flow
+Cancel is enabled, the suspicious transfers may become released early.
+
+It should be noted that this only affects small transfers, as Flow Cancel does not affect transfers over the big
+transfer limit.
+
