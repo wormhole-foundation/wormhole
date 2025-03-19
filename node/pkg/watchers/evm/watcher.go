@@ -425,7 +425,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					return nil
 				}
 
-				w.postMessage(logger, ev, blockTime)
+				w.postMessage(ctx, ev, blockTime)
 			}
 		}
 	})
@@ -771,7 +771,11 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 }
 
 // postMessage creates a message object from a log event and adds it to the pending list for processing.
-func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
+func (w *Watcher) postMessage(
+	parentCtx context.Context,
+	ev *ethabi.AbiLogMessagePublished,
+	blockTime uint64,
+) {
 	msg := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
 		Timestamp:        time.Unix(int64(blockTime), 0),
@@ -786,7 +790,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
 	if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-		logger.Info("found new message publication transaction, publishing it immediately",
+		w.logger.Info("found new message publication transaction, publishing it immediately",
 			zap.String("msgId", msg.MessageIDString()),
 			zap.String("txHash", msg.TxIDString()),
 			zap.Uint64("blockNum", ev.Raw.BlockNumber),
@@ -797,12 +801,12 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 		)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
-		pubErr := w.verifyAndPublish(msg, ctx, ev.Raw.TxHash, nil)
+		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, nil)
 		if pubErr != nil {
-			logger.Error("could not publish message: transfer verification failed",
+			w.logger.Error("could not publish message: transfer verification failed",
 				zap.String("msgId", msg.MessageIDString()),
 				zap.String("txHash", msg.TxIDString()),
 				zap.Error(pubErr),
@@ -813,7 +817,7 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 		return
 	}
 
-	logger.Info("found new message publication transaction",
+	w.logger.Info("found new message publication transaction",
 		zap.String("msgId", msg.MessageIDString()),
 		zap.String("txHash", msg.TxIDString()),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
@@ -879,7 +883,6 @@ func (w *Watcher) verifyAndPublish(
 		if err != nil {
 			return err
 		}
-
 		msg = &verifiedMsg
 	}
 
@@ -926,7 +929,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 					zap.Int("retries", retries),
 				)
 
-				w.postMessage(logger, ev, blockTime)
+				w.postMessage(ctx, ev, blockTime)
 				return
 			}
 
