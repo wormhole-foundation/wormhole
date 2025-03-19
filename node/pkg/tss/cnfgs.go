@@ -9,12 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 
-	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/xlabs/tss-lib/v2/tss"
-	"google.golang.org/protobuf/proto"
 )
 
 func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
@@ -86,14 +83,12 @@ func (s *GuardianStorage) SetInnerFields() error {
 		return err
 	}
 
-	s.guardiansProtoIDs = make([]*tsscommv1.PartyId, s.Guardians.Len())
 	s.Guardians.peerCerts = make([]*x509.Certificate, s.Guardians.Len())
 	s.Guardians.partyIds = make([]*tss.PartyID, s.Guardians.Len())
 	s.Guardians.pemkeyToGuardian = make(map[string]*Identity)
 	s.Guardians.indexToIdendity = map[SenderIndex]*Identity{}
 	// Since the guardians are sorted by key, we can use their position as their index.
 	for i := range s.Guardians.Len() {
-		s.guardiansProtoIDs[i] = partyIdToProto(s.Guardians.Identities[i].Pid)
 		s.Guardians.peerCerts[i] = s.Guardians.Identities[i].Cert
 		s.Guardians.partyIds[i] = s.Guardians.Identities[i].Pid
 		s.Guardians.pemkeyToGuardian[string(s.Guardians.Identities[i].KeyPEM)] = s.Guardians.Identities[i]
@@ -121,14 +116,9 @@ func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 			return fmt.Errorf("error guardian %v is nil", i)
 		}
 
-		c, err := internal.PemToCert(id.CertPem)
+		c, key, err := extractCertAndKeyFromPem(id.CertPem)
 		if err != nil {
-			return fmt.Errorf("error parsing guardian %v cert: %v", i, err)
-		}
-
-		key, ok := c.PublicKey.(*ecdsa.PublicKey)
-		if !ok {
-			return fmt.Errorf("error guardian %v cert stored with non-ecdsa publickey", i)
+			return fmt.Errorf("error parsing guardian %v: %w", i, err)
 		}
 
 		pem, err := internal.PublicKeyToPem(key)
@@ -165,35 +155,25 @@ func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 		// storing the cert and key in the identity struct.
 		id.Key = key
 		id.Cert = c
+
 		id.CommunicationIndex = SenderIndex(i)
 	}
 
 	return nil
 }
 
-func (s *GuardianStorage) getSortedFirst() (*tss.PartyID, error) {
-	guardians := make([]*tss.PartyID, s.Guardians.Len())
-	for i := range s.Guardians.Len() {
-		pid, ok := proto.Clone(s.Guardians.partyIds[i].MessageWrapper_PartyID).(*tss.MessageWrapper_PartyID)
-		if !ok {
-			return nil, fmt.Errorf("error cloning guardian %v", i)
-		}
-
-		guardians[i] = &tss.PartyID{
-			MessageWrapper_PartyID: pid,
-			// Index:                  i,
-		}
+func extractCertAndKeyFromPem(pem PEM) (*x509.Certificate, *ecdsa.PublicKey, error) {
+	c, err := internal.PemToCert(pem)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	slices.SortFunc(guardians, func(a, b *tss.PartyID) int {
-		return bytes.Compare(a.Key, b.Key)
-	})
-
-	for i, g := range guardians {
-		g.Index = i
+	key, ok := c.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, nil, fmt.Errorf("cert stored with non-ecdsa publickey")
 	}
 
-	return guardians[0], nil
+	return c, key, nil
 }
 
 var errInternalNoCert = errors.New("internal error. no certificate found")
@@ -219,17 +199,5 @@ func (s *GuardianStorage) getPartyIdFromIndex(senderId SenderIndex) *tss.PartyID
 		return nil
 	}
 
-	keyCpy := make([]byte, len(id.Pid.Key))
-	copy(keyCpy, id.Pid.Key)
-
-	// return a copy, tss-lib might modify this object.
-	return &tss.PartyID{
-		MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
-			Id:      id.Pid.Id,
-			Moniker: id.Pid.Moniker,
-			Key:     keyCpy,
-		},
-
-		Index: id.Pid.Index,
-	}
+	return id.getPidCopy()
 }

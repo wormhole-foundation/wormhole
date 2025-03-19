@@ -10,12 +10,12 @@ import (
 // and implements the `Sendable` interface.
 type Echo struct {
 	Echo       *tsscommv1.Echo
-	Recipients []*tsscommv1.PartyId
+	Recipients []*Identity
 }
 
 type Unicast struct {
 	Unicast     *tsscommv1.Unicast
-	Receipients []*tsscommv1.PartyId
+	Receipients []*Identity
 }
 
 type IncomingMessage struct {
@@ -87,12 +87,12 @@ func (i *IncomingMessage) GetSource() *Identity {
 	return i.Source
 }
 
-func newEcho(msg *tsscommv1.SignedMessage, recipients []*tsscommv1.PartyId) *Echo {
+func newEcho(msg *tsscommv1.SignedMessage, recipients []*Identity) *Echo {
 	return &Echo{Echo: &tsscommv1.Echo{Message: msg}, Recipients: recipients}
 }
 
 // GetDestinations implements Sendable.
-func (e *Echo) GetDestinations() []*tsscommv1.PartyId {
+func (e *Echo) GetDestinations() []*Identity {
 	return e.Recipients
 }
 
@@ -116,7 +116,7 @@ func (e *Unicast) IsBroadcast() bool {
 }
 
 // GetDestination implements Sendable.
-func (u *Unicast) GetDestinations() []*tsscommv1.PartyId {
+func (u *Unicast) GetDestinations() []*Identity {
 	return u.Receipients
 }
 
@@ -130,9 +130,9 @@ func (u *Unicast) GetNetworkMessage() *tsscommv1.PropagatedMessage {
 }
 
 func (u *Unicast) cloneSelf() Sendable {
-	clns := make([]*tsscommv1.PartyId, 0, len(u.Receipients))
-	for _, pid := range u.Receipients {
-		clns = append(clns, proto.Clone(pid).(*tsscommv1.PartyId))
+	clns := make([]*Identity, 0, len(u.Receipients))
+	for _, id := range u.Receipients {
+		clns = append(clns, id.Copy())
 	}
 
 	return &Unicast{

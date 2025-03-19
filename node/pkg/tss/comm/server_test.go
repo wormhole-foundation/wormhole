@@ -30,8 +30,9 @@ const workingServerSock = "127.0.0.1:5933"
 const workingServerName = "127.0.0.1"
 const workingServerPort = 5933
 
-var workingServerAsMessageRecipient = []*tsscommv1.PartyId{&tsscommv1.PartyId{
-	Id: workingServerSock,
+var workingServerAsMessageRecipient = []*tss.Identity{&tss.Identity{
+	Hostname: workingServerName,
+	Port:     workingServerPort,
 }}
 
 type mockTssMessageHandler struct {
@@ -122,7 +123,7 @@ func TestTLSConnectAndRedial(t *testing.T) {
 		peersToConnectTo: []*x509.Certificate{serverCert}, // will ask to fetch each peer (and return the below peerId)
 		peerId: &tss.Identity{
 			Cert:     serverCert,
-			Hostname: workingServerSock,
+			Hostname: workingServerName,
 			Port:     workingServerPort,
 		},
 	})
@@ -172,8 +173,8 @@ func TestRelentlessReconnections(t *testing.T) {
 		peersToConnectTo: []*x509.Certificate{serverCert}, // will ask to fetch each peer (and return the below peerId)
 		peerId: &tss.Identity{
 			Cert:     serverCert,
-			Hostname: workingServerSock,
-			Port:     0,
+			Hostname: workingServerName,
+			Port:     workingServerPort,
 		},
 	})
 	a.NoError(err)
@@ -710,7 +711,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	streamReceiverEngine := en[0]
 	senderEngine := en[1]
 
-	streamReceiverPath := "localhost:5930"
+	streamReceiverPath := "localhost"
 
 	// ensuring when a message arrives, the server idetntifies the source according to
 	// the tls key, then returns the tss.PartyID according to what is
@@ -730,7 +731,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	for _, v := range senderEngine.Guardians.Identities {
 		if bytes.Equal(v.KeyPEM, streamReceiverEngine.Self.KeyPEM) {
 			v.Hostname = streamReceiverPath // ensuring the server connects
-
+			v.Port = 5930
 			continue
 		}
 
@@ -749,7 +750,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	ListenerWrapper := listenerServer.(*server)
 	ListenerWrapper.ctx = ctx
 
-	l, err := net.Listen("tcp", streamReceiverPath)
+	l, err := net.Listen("tcp", streamReceiverPath+":5930")
 	a.NoError(err)
 	defer l.Close()
 
@@ -775,16 +776,23 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	//should set up connection with the stream r
 
 	msgChan <- &tss.Echo{
-		Echo:       &tsscommv1.Echo{},
-		Recipients: []*tsscommv1.PartyId{&tsscommv1.PartyId{Id: streamReceiverPath}},
+		Echo: &tsscommv1.Echo{},
+		Recipients: []*tss.Identity{
+			{
+				CommunicationIndex: 0,
+				Hostname:           streamReceiverPath,
+				Port:               5930,
+			},
+		},
 	}
 
 	select {
 	case <-ctx.Done():
 		t.FailNow()
 	case incoming := <-incomingDataChan:
-		// ensuring the incoming message has the correct ID without any port.
-		a.Equal(expectedText, incoming.GetSource().Pid.Id)
+		// ensuring the incoming message has the hostname i've eddited (proof we are matching the TLS cert,
+		//  with the correct identity, even if things like hostname change)
+		a.Equal(expectedText, incoming.GetSource().Hostname)
 		return
 	}
 }

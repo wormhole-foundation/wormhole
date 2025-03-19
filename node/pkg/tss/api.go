@@ -21,7 +21,7 @@ type message interface {
 
 type Sendable interface {
 	message
-	GetDestinations() []*tsscommv1.PartyId
+	GetDestinations() []*Identity
 
 	cloneSelf() Sendable // deep copy to avoid race condition in tests (ensuring no one shares the same sendable).
 }

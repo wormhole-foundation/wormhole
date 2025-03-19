@@ -911,7 +911,7 @@ func TestNoFaultsFlow(t *testing.T) {
 	})
 
 	t.Run("19 signers", func(t *testing.T) {
-		t.SkipNow()
+		t.SkipNow() // No tss19 engines available at the moment.
 		a := assert.New(t)
 		engines, err := loadGuardians(19, "tss19")
 		a.NoError(err)
@@ -1119,7 +1119,6 @@ func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
 // }
 
 func TestFT(t *testing.T) {
-
 	t.Skip("Skipping these test until we decide about anouncing mechanism.")
 
 	t.Run("avoid report problem if in config", func(t *testing.T) {
@@ -1440,6 +1439,7 @@ func TestFT(t *testing.T) {
 	t.Run("cant recover after f faults", func(t *testing.T) {
 		a := assert.New(t)
 
+		t.SkipNow() // No tss7 currently.
 		supctx := testutils.MakeSupervisorContext(context.Background())
 		ctx, cancel := context.WithTimeout(supctx, time.Second*20)
 		defer cancel()
@@ -1486,7 +1486,7 @@ func TestFT(t *testing.T) {
 
 	t.Run("3 sig f faults", func(t *testing.T) {
 		a := assert.New(t)
-
+		t.SkipNow() // No tss7 available
 		supctx := testutils.MakeSupervisorContext(context.Background())
 		ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
 		defer cancel()
@@ -2029,8 +2029,8 @@ func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int)
 
 func unicast(m Sendable, chns map[string]chan msgg, engine *Engine) {
 	pids := m.GetDestinations()
-	for _, pid := range pids {
-		feedChn := chns[pid.Id]
+	for _, id := range pids {
+		feedChn := chns[id.Pid.Id]
 		feedChn <- msgg{
 			Sender:   engine.Self,
 			Sendable: m.cloneSelf(),

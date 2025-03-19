@@ -123,7 +123,7 @@ func (s *server) forceDialIfNotConnected() {
 
 func (s *server) send(msg tss.Sendable) {
 	for _, recipient := range msg.GetDestinations() {
-		hostname := recipient.Id
+		hostname := recipient.NetworkName()
 
 		conn, ok := s.connections[hostname]
 		if !ok {
@@ -132,7 +132,8 @@ func (s *server) send(msg tss.Sendable) {
 				immediately: false,
 			})
 
-			s.logger.Warn(
+			// This spams the logs, but it's useful for debugging.
+			s.logger.Debug(
 				"Couldn't send message to peer. No connection found.",
 				zap.String("hostname", hostname),
 			)
@@ -234,7 +235,12 @@ func addDefaultPortIfMissing(addr string) (string, error) {
 }
 
 func (s *server) dial(hostname string) error {
-	crt, ok := s.peerToCert[hostname]
+	host, _, err := net.SplitHostPort(hostname)
+	if err != nil {
+		return fmt.Errorf("couldn't split hostname: %w", err)
+	}
+
+	crt, ok := s.peerToCert[host]
 	if !ok {
 		return fmt.Errorf("no cert found for peer %s", hostname)
 	}

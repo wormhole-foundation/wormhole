@@ -70,7 +70,7 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 				},
 			},
 		},
-		Receipients: t.guardiansProtoIDs, // sending to all guardians.
+		Receipients: t.Guardians.Identities, // sending to all guardians.
 	}
 
 	select {

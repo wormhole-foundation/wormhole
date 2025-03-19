@@ -102,10 +102,38 @@ type Identity struct {
 
 	CommunicationIndex SenderIndex // the number representing the guardian when passing messages.
 	Hostname           string
-	Port               int // the port the guardian is listening on. if 0 -> use the default port.
+	Port               int    // the port the guardian is listening on. if 0 -> use the default port.
+	networkname        string // the combination of the two.
+}
+
+func (id *Identity) Copy() *Identity {
+	keypem := make([]byte, len(id.KeyPEM))
+	copy(keypem, id.KeyPEM)
+
+	certPem := make([]byte, len(id.CertPem))
+	copy(certPem, id.CertPem)
+
+	c, k, _ := extractCertAndKeyFromPem(certPem)
+	cpy := &Identity{
+		Pid:                id.getPidCopy(),
+		KeyPEM:             keypem,
+		CertPem:            certPem,
+		CommunicationIndex: id.CommunicationIndex,
+		Hostname:           id.Hostname,
+		Port:               id.Port,
+		Key:                k,
+		Cert:               c,
+		networkname:        id.networkname,
+	}
+
+	return cpy
 }
 
 func (id *Identity) NetworkName() string {
+	if id.networkname != "" {
+		return id.networkname
+	}
+
 	var port string
 	if id.Port == 0 {
 		port = DefaultPort
@@ -113,7 +141,9 @@ func (id *Identity) NetworkName() string {
 		port = strconv.Itoa(id.Port)
 	}
 
-	return net.JoinHostPort(id.Hostname, port)
+	id.networkname = net.JoinHostPort(id.Hostname, port)
+
+	return id.networkname
 }
 
 func (id *Identity) getPidCopy() *tss.PartyID {
@@ -171,9 +201,6 @@ type GuardianStorage struct {
 	SavedSecretParameters *keygen.LocalPartySaveData
 
 	LoadDistributionKey []byte
-
-	// data structures to ensure quick lookups:
-	guardiansProtoIDs []*tsscommv1.PartyId
 
 	isleader bool
 }
@@ -477,7 +504,7 @@ func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsist
 	}
 
 	select {
-	case t.messageOutChan <- newEcho(&sm, t.guardiansProtoIDs):
+	case t.messageOutChan <- newEcho(&sm, t.Guardians.Identities):
 	default:
 		t.logger.Error(
 			"couldn't anounce to others about new tss digest, network output channel buffer is full",
@@ -837,11 +864,11 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 			return nil, err
 		}
 
-		sendable = newEcho(msgToSend, t.guardiansProtoIDs)
+		sendable = newEcho(msgToSend, t.Guardians.Identities)
 	} else {
-		indices := make([]*tsscommv1.PartyId, 0, len(routing.To))
+		recipients := make([]*Identity, 0, len(routing.To))
 		for _, pId := range routing.To {
-			indices = append(indices, partyIdToProto(pId))
+			recipients = append(recipients, t.Guardians.pemkeyToGuardian[string(pId.Key)])
 		}
 
 		sendable = &Unicast{
@@ -850,7 +877,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 					Tss: content.TssContent,
 				},
 			},
-			Receipients: indices,
+			Receipients: recipients,
 		}
 	}
 
@@ -917,7 +944,7 @@ func (t *Engine) sendEchoOut(parsed broadcastMessage, m Incoming) {
 	}
 
 	select {
-	case t.messageOutChan <- newEcho(content, t.guardiansProtoIDs):
+	case t.messageOutChan <- newEcho(content, t.Guardians.Identities):
 	default:
 		t.logger.Warn("couldn't echo the message, network output channel buffer is full")
 	}
