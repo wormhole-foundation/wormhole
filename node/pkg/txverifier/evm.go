@@ -49,11 +49,7 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	tv.pruneCache()
 
 	if Cmp(txHash, ZERO_ADDRESS) == 0 {
-		tv.logger.Error("txHash is the zero address")
-		return false
-	}
-	if len(txHash) == 0 {
-		tv.logger.Error("txHash has zero length")
+		tv.logger.Error("txHash is all zeroes")
 		return false
 	}
 
