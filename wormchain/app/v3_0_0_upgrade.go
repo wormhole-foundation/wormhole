@@ -13,6 +13,7 @@ import (
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	feegrant "github.com/cosmos/cosmos-sdk/x/feegrant"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
@@ -33,6 +34,9 @@ var V3_0_0_Upgrade = Upgrade{
 		Added: []string{
 			crisistypes.ModuleName,    // add crisis module store
 			consensustypes.ModuleName, // add consensus module store
+		},
+		Deleted: []string{
+			feegrant.StoreKey,
 		},
 	},
 }
