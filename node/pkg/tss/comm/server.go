@@ -56,8 +56,9 @@ func (s *server) run() {
 	go s.sender()
 
 	for _, id := range s.peers {
+		hostname := id.NetworkName()
 		s.enqueueRedialRequest(redialRequest{
-			hostname:    id.NetworkName(),
+			hostname:    hostname,
 			immediately: false,
 		})
 	}
@@ -235,12 +236,7 @@ func addDefaultPortIfMissing(addr string) (string, error) {
 }
 
 func (s *server) dial(hostname string) error {
-	host, _, err := net.SplitHostPort(hostname)
-	if err != nil {
-		return fmt.Errorf("couldn't split hostname: %w", err)
-	}
-
-	crt, ok := s.peerToCert[host]
+	crt, ok := s.peerToCert[hostname]
 	if !ok {
 		return fmt.Errorf("no cert found for peer %s", hostname)
 	}

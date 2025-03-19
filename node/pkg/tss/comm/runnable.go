@@ -32,7 +32,7 @@ func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableM
 			return nil, err
 		}
 
-		peerToCert[partyIds[i].Hostname] = peer
+		peerToCert[partyIds[i].NetworkName()] = peer
 	}
 
 	return &server{

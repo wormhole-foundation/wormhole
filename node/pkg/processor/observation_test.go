@@ -8,6 +8,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	observedLogger := zap.New(observedZapCore)
 
 	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-	processor := Processor{}
+	processor := Processor{thresholdSigner: &tss.Engine{}} // added a thresholdSigner to avoid nil pointer
 	processor.logger = observedLogger
 
 	processor.handleInboundSignedVAAWithQuorum(signedVAAWithQuorum)
@@ -107,7 +108,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			observedLogger := zap.New(observedZapCore)
 
 			signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-			processor := Processor{}
+			processor := Processor{thresholdSigner: &tss.Engine{}} // added a thresholdSigner to avoid nil pointer
 			processor.gs = &guardianSet
 			processor.logger = observedLogger
 

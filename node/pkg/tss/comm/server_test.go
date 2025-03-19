@@ -796,3 +796,77 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 		return
 	}
 }
+
+// uses the reliable messenger to send messages, but mocks the ProducedOutputMessages
+type mockProduceOutputMessages struct {
+	mockJustHandleIncomingMessage
+	fakeDataToSendChan chan tss.Sendable
+}
+
+func (m *mockProduceOutputMessages) ProducedOutputMessages() <-chan tss.Sendable {
+	return m.fakeDataToSendChan
+}
+
+func TestConnectingToServers(t *testing.T) {
+	t.SkipNow() // Manual test, help inspect connections via logs.
+	a := require.New(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
+	defer cancel()
+	ctx = testutils.MakeSupervisorContext(ctx)
+
+	en, err := _loadGuardians(5)
+	a.NoError(err)
+	// ============
+	incomingMsgChn := make([]chan tss.Incoming, len(en))
+	channelForGeneratedMessages := make(chan tss.Sendable)
+	// setting up servers
+	srvrs := make([]*server, 5)
+	for i, e := range en {
+		incomingMsgChn[i] = make(chan tss.Incoming)
+		e.GuardianStorage.Self.Hostname = "localhost"
+		e.GuardianStorage.Self.Port = 5930 + i
+		for j, id := range e.Guardians.Identities {
+			id.Hostname = "localhost"
+			id.Port = 5930 + j
+		}
+
+		e.Start(ctx)
+		s, err := NewServer(e.GuardianStorage.Self.NetworkName(), supervisor.Logger(ctx), &mockProduceOutputMessages{
+			mockJustHandleIncomingMessage: mockJustHandleIncomingMessage{
+				ReliableMessenger: e,
+				receivedData:      incomingMsgChn[i],
+			},
+
+			fakeDataToSendChan: channelForGeneratedMessages,
+		})
+		a.NoError(err)
+
+		srvrs[i] = s.(*server)
+
+	}
+
+	for _, s := range srvrs {
+		go s.Run(ctx)
+	}
+
+	// ============
+	time.Sleep(time.Second * 2)
+	channelForGeneratedMessages <- &tss.Echo{
+		Recipients: en[0].Guardians.Identities,
+		Echo:       &tsscommv1.Echo{},
+	}
+	time.Sleep(time.Second * 2)
+
+	for _, chn := range incomingMsgChn {
+		select {
+		case <-chn:
+		case <-ctx.Done():
+			t.FailNow()
+		}
+	}
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+
+	return
+}

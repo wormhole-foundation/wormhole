@@ -163,10 +163,10 @@ func mockGuardianSetToGuardianAddrList(t testing.TB, gs []*mockGuardian) []eth_c
 }
 
 func overridePortOfTss(gs []*mockGuardian) {
-	idToPort := map[string]string{}
+	idToPort := map[string]int{}
 	for _, g := range gs {
 		cnfg := g.config
-		idToPort[g.tssEngine.(*tss.Engine).GuardianStorage.Self.Id] = fmt.Sprintf("localhost:%d", cnfg.tssNetworkPort)
+		idToPort[g.tssEngine.(*tss.Engine).GuardianStorage.Self.Pid.Id] = int(cnfg.tssNetworkPort)
 	}
 
 	// go to each guardian and change the ID of everyone including self.
@@ -174,12 +174,15 @@ func overridePortOfTss(gs []*mockGuardian) {
 
 	for _, g := range gs {
 		en := g.tssEngine.(*tss.Engine)
-		en.Self.Id = idToPort[en.Self.Id]
-		for _, pid := range en.Guardians {
-			if _, ok := idToPort[pid.Id]; !ok {
+		en.Self.Port = idToPort[en.Self.Pid.Id]
+		en.Self.Hostname = "localhost"
+
+		for _, id := range en.Guardians.Identities {
+			if _, ok := idToPort[id.Pid.Id]; !ok {
 				continue
 			}
-			pid.Id = idToPort[pid.Id]
+			id.Hostname = "localhost"
+			id.Port = idToPort[id.Pid.Id]
 		}
 	}
 
