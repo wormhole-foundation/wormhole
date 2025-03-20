@@ -620,8 +620,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.String("txHash", txHash.String()),
 								zap.Error(pubErr),
 							)
+						} else {
+							ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 						}
-						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					}
 				}
 
@@ -811,9 +812,9 @@ func (w *Watcher) postMessage(
 				zap.String("txHash", msg.TxIDString()),
 				zap.Error(pubErr),
 			)
+		} else {
+			ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 		}
-
-		ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 		return
 	}
 
