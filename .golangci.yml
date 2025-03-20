@@ -15,14 +15,15 @@ linters:
     - typecheck
     - unused
 
-  # additional linters
-    - gosec
+    # additional linters
     - forcetypeassert
+    - gosec
+    - loggercheck
     # - contextcheck # disabled in CI for now because fixes to findings need additional work
     - noctx
     # - unconvert # disable because extra conversion typically don't hurt but can make code more clear
-    - unparam
     - prealloc
+    - unparam
 issues:
   exclude-rules:
     - path: pkg/supervisor/supervisor_testhelpers.go
