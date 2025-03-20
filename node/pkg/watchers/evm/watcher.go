@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
@@ -620,8 +621,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.String("txHash", txHash.String()),
 								zap.Error(pubErr),
 							)
-						} else {
-							ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 						}
 					}
 				}
@@ -812,8 +811,6 @@ func (w *Watcher) postMessage(
 				zap.String("txHash", msg.TxIDString()),
 				zap.Error(pubErr),
 			)
-		} else {
-			ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 		}
 		return
 	}
@@ -888,6 +885,10 @@ func (w *Watcher) verifyAndPublish(
 	}
 
 	w.msgC <- msg
+	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(w.chainID.String(), "std").Inc()
+	}
 	return nil
 
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/gagliardetto/solana-go"
 	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
@@ -1062,6 +1063,9 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
+	if isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(s.chainID.String(), "std").Inc()
+	}
 
 	if logger.Level().Enabled(s.msgObservedLogLevel) {
 		logger.Log(s.msgObservedLogLevel, "message observed",

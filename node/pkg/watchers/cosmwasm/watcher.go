@@ -12,6 +12,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -303,6 +304,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					msg.IsReobservation = true
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
+					watchers.ReobservationsByChain.WithLabelValues(networkName, "std").Inc()
 				}
 			}
 		}
