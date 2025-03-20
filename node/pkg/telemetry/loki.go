@@ -209,7 +209,7 @@ func logWriter(ctx context.Context, logger *zap.Logger, localC chan api.Entry, w
 
 			// Write to Loki in a blocking manner unless we are signaled to shutdown.
 			select {
-			case c.Chan() <- entry:
+			case c.Chan() <- entry: //nolint:channelcheck // We want to block on the Loki client.
 				pendingEntry = nil
 			case <-ctx.Done():
 				// Time to shutdown. We probably failed to write this message, save it so we can try to flush it.
@@ -240,7 +240,7 @@ func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *
 
 	if pendingEntry != nil {
 		select {
-		case c.Chan() <- *pendingEntry:
+		case c.Chan() <- *pendingEntry: //nolint:channelcheck // We want to block on the Loki client. The timeout will interrupt us.
 		case <-timeout.Done():
 			// If we timeout, we didn't write the pending one, so count that as remaining.
 			return (1 + len(localC)), errors.New("timeout writing pending entry")
@@ -250,7 +250,7 @@ func flushLogsWithTimeout(localC chan api.Entry, c client.Client, pendingEntry *
 	for len(localC) > 0 {
 		select {
 		case entry := <-localC:
-			c.Chan() <- entry
+			c.Chan() <- entry //nolint:channelcheck // We want to block on the Loki client. The timeout will interrupt us.
 		case <-timeout.Done():
 			// If we timeout, we didn't write the current one, so count that as remaining.
 			return (1 + len(localC)), errors.New("timeout flushing buffered entry")
@@ -282,7 +282,7 @@ func stopClientWithTimeout(c client.Client) error {
 	stopExitedC := make(chan struct{}, 1)
 	go func(c client.Client) {
 		c.StopNow()
-		stopExitedC <- struct{}{}
+		stopExitedC <- struct{}{} //nolint:channelcheck // We only do a single write.
 	}(c)
 
 	// Wait for the go routine to exit or the timer to expire. Using `time.After` since this is a one shot and we don't have the context.
