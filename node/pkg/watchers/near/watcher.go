@@ -334,7 +334,7 @@ func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, d
 				select {
 				case <-ctx.Done():
 					return nil
-				case e.transactionProcessingQueue <- job:
+				case e.transactionProcessingQueue <- job: //nolint:channelcheck // Only blocking this go routine.
 				}
 			}
 			return nil
