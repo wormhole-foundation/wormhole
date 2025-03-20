@@ -7,6 +7,7 @@ linters:
   enable:
   # default linters
     - errcheck
+    - gocritic
     - gosimple
     - govet
     - ineffassign
@@ -32,3 +33,14 @@ issues:
     - path: pkg/txverifier/sui_test.go
 
       text: "G101: Potential hardcoded credentials"
+linters-settings:
+  gocritic:
+    # https://go-critic.com/overview
+      disable-all: true 
+      enabled-checks:
+      - argOrder
+      - badCall
+      - badCond
+      - badLock
+      - badSorting
+      - dupArg
