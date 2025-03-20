@@ -106,7 +106,7 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 					errCount++
 					b.logger.Error("batch polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 					if errCount > 3 {
-						errC <- fmt.Errorf("polling encountered too many errors: %w", err) // nolint:channelcheck // The watcher will exit anyway
+						errC <- fmt.Errorf("polling encountered too many errors: %w", err) //nolint:channelcheck // The watcher will exit anyway
 						return nil
 					}
 				} else if errCount != 0 {

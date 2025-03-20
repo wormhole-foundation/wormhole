@@ -254,7 +254,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	// tell everyone about it
 	job.hasWormholeMsg = true
 
-	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED // nolint:channelcheck // Only pauses this watcher
+	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED //nolint:channelcheck // Only pauses this watcher
 
 	logger.Info("message observed",
 		zap.String("log_msg_type", "wormhole_event_success"),
