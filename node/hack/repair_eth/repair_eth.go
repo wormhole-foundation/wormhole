@@ -51,6 +51,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDBlast:      "https://api.blastscan.io",
 	vaa.ChainIDXLayer:     "", // TODO: Does X Layer have an etherscan API endpoint?
 	vaa.ChainIDBerachain:  "https://api.berascan.com/",
+	vaa.ChainIDSeiEVM:     "", // TODO: Does SeiEVM have an etherscan API endpoint?
 	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",
 	vaa.ChainIDWorldchain: "https://api.worldscan.org",
 	vaa.ChainIDInk:        "", // TODO: Does Ink have an etherscan API endpoint?
@@ -77,6 +78,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDBlast:      strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
 	vaa.ChainIDXLayer:     strings.ToLower("0x194B123c5E96B9b2E49763619985790Dc241CAC0"),
 	vaa.ChainIDBerachain:  strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
+	vaa.ChainIDSeiEVM:     strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
 	vaa.ChainIDUnichain:   strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
 	vaa.ChainIDWorldchain: strings.ToLower("0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"),
 	vaa.ChainIDInk:        strings.ToLower("0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"),
