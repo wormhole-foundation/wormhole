@@ -57,4 +57,3 @@ linters-settings:
       # performance lints
       - indexAlloc
       # style lints
-      - importShadow
