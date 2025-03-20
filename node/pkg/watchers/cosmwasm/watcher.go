@@ -216,7 +216,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				blocksBody, err := io.ReadAll(resp.Body)
 				if err != nil {
 					logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
-					errC <- err // nolint:channelcheck // The watcher will exit anyway
+					errC <- err //nolint:channelcheck // The watcher will exit anyway
 					resp.Body.Close()
 					continue
 				}
@@ -326,7 +326,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 					connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
 					logger.Error("error reading channel", zap.String("network", networkName), zap.Error(err))
-					errC <- err // nolint:channelcheck // The watcher will exit anyway
+					errC <- err //nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 
