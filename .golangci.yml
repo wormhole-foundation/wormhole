@@ -38,9 +38,22 @@ linters-settings:
     # https://go-critic.com/overview
       disable-all: true 
       enabled-checks:
+      # diagnostic lints
       - argOrder
       - badCall
       - badCond
       - badLock
       - badSorting
+      - caseOrder
       - dupArg
+      - dupBranchBody
+      - dupCase
+      - dupSubExpr
+      - mapKey
+      - truncateCmp
+      - uncheckedInlineErr
+      - weakCond
+      # performance lints
+      - indexAlloc
+      # style lints
+      - importShadow
