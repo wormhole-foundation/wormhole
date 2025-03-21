@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -90,6 +91,11 @@ type (
 		HexDigest() string
 		AddSignature(key *ecdsa.PrivateKey, index uint8)
 		GetEmitterChain() ChainID
+	}
+
+	// number is a constraint for generic functions that can safely convert integer types to a ChainID (uint16).
+	number interface {
+		~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
 	}
 )
 
@@ -266,6 +272,51 @@ func (c ChainID) String() string {
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
+}
+
+// ChainIDFromNumber converts an unsigned integer into a ChainID. This function only determines whether the input is valid
+// with respect to its type; it does not check whether the ChainID is actually registered or used anywhere.
+// This function can be used to validate ChainID values that are deserialized from protobuf messages. (As protobuf
+// does not support the uint16 type, ChainIDs are usually encoded as uint32.)
+// https://protobuf.dev/reference/protobuf/proto3-spec/#fields
+// Returns an error if the argument would overflow uint16.
+func ChainIDFromNumber[N number](n N) (ChainID, error) {
+	if n < 0 {
+		return ChainIDUnset, fmt.Errorf("chainID cannot be negative but got %d", n)
+	}
+	switch any(n).(type) {
+	case int8, uint8, int16, uint16:
+		// Because these values have been checked to be non-negative, we can return early with a simple conversion.
+		return ChainID(n), nil
+
+	}
+	// Use intermediate uint64 to safely handle conversion and allow comparison with MaxUint16.
+	// This is safe to do because the negative case is already handled.
+	val := uint64(n)
+	if val > uint64(math.MaxUint16) {
+		return ChainIDUnset, fmt.Errorf("chainID must be less than or equal to %d but got %d", math.MaxUint16, n)
+	}
+	return ChainID(n), nil
+
+}
+
+// KnownChainIDFromNumber converts an unsigned integer into a known ChainID. It is a wrapper function for ChainIDFromNumber
+// that also checks whether the ChainID corresponds to a real, configured chain.
+func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
+	id, err := ChainIDFromNumber(n)
+	if err != nil {
+		return ChainIDUnset, err
+	}
+
+	// NOTE: slice.Contains is not used here because some SDK integrators (e.g. wormchain, maybe others) use old versions of Go.
+	for _, known := range GetAllNetworkIDs() {
+		if id == known {
+			return id, nil
+		}
+	}
+
+	return ChainIDUnset, fmt.Errorf("no known ChainID for input %d", n)
+
 }
 
 func ChainIDFromString(s string) (ChainID, error) {
