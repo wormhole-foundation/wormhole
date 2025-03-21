@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -319,6 +320,28 @@ func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
 
 }
 
+// StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
+// The argument can be either a numeric string representation of a number or a known chain name such as "solana".
+// Inputs of unknown ChainIDs, including 0, will result in an error.
+func StringToKnownChainID(s string) (ChainID, error) {
+
+	// Try to convert from chain name first, and return early if it's found.
+	id, err := ChainIDFromString(s)
+	if err == nil {
+		return id, nil
+	}
+
+	// Ensure that the string can be parsed into a uint16 in order to avoid overflow issues when converting
+	// to ChainID (which is a uint16).
+	u16, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return ChainIDUnset, err
+	}
+
+	return KnownChainIDFromNumber(u16)
+}
+
+// ChainIDFromString converts from a chain's full name (e.g. "solana") to its corresponding ChainID.
 func ChainIDFromString(s string) (ChainID, error) {
 	s = strings.ToLower(s)
 
