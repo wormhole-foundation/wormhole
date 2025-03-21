@@ -275,6 +275,18 @@ func (p *Processor) Run(ctx context.Context) error {
 			)
 			p.gst.Set(p.gs)
 		case k := <-p.msgC:
+
+			switch k.VerificationState() {
+			case common.Rejected:
+				// Drop messages marked as Rejected.
+				p.logger.Error(
+					"dropping message",
+					zap.String("msgID", k.MessageIDString()),
+					zap.String("verificationState", k.VerificationState().String()),
+				)
+				continue
+			}
+
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
 					continue
