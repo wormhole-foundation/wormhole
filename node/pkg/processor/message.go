@@ -33,12 +33,25 @@ var (
 // handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
 // event may be received multiple times and must be handled in an idempotent fashion.
 func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublication) {
+
 	if p.gs == nil {
 		p.logger.Warn("dropping observation since we haven't initialized our guardian set yet",
 			zap.String("message_id", k.MessageIDString()),
 			zap.Uint32("nonce", k.Nonce),
 			zap.String("txID", k.TxIDString()),
 			zap.Time("timestamp", k.Timestamp),
+		)
+		return
+	}
+
+	// SECURITY defense-in-depth: Ensure that messages marked as Rejected do not
+	// become VAAs. This should already be prevented in the main runnable loop.
+	if k.VerificationState() == common.Rejected {
+		// Drop messages marked as Rejected.
+		p.logger.Error(
+			"dropping message",
+			zap.String("msgID", k.MessageIDString()),
+			zap.String("verificationState", k.VerificationState().String()),
 		)
 		return
 	}
@@ -61,6 +74,8 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 			Sequence:         k.Sequence,
 			ConsistencyLevel: k.ConsistencyLevel,
 		},
+		// NOTE: Unreliable is always false when the message has been loaded from the BadgerDB.
+		// See documentation for [common.MessagePublication].
 		Unreliable:    k.Unreliable,
 		Reobservation: k.IsReobservation,
 	}
@@ -89,6 +104,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 			zap.String("signature", hex.EncodeToString(signature)),
 			zap.Bool("shouldPublishImmediately", shouldPublishImmediately),
 			zap.Bool("isReobservation", k.IsReobservation),
+			zap.String("verificationState", k.VerificationState().String()),
 		)
 	}
 
