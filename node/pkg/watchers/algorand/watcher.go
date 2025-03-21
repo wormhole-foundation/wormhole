@@ -17,6 +17,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -169,6 +170,9 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 		}
 
 		algorandMessagesConfirmed.Inc()
+		if isReobservation {
+			watchers.ReobservationsByChain.WithLabelValues("algorand", "std").Inc()
+		}
 
 		logger.Info("message observed",
 			zap.Time("timestamp", observation.Timestamp),

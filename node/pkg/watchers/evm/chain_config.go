@@ -90,7 +90,7 @@ var (
 		vaa.ChainIDLinea: {Finalized: true, Safe: false, EvmChainID: 59144, PublicRPC: "https://rpc.linea.build"},
 
 		vaa.ChainIDBerachain: {Finalized: true, Safe: true, EvmChainID: 80094, PublicRPC: "https://berachain-rpc.publicnode.com"},
-		// vaa.ChainIDSeiEVM:     Not in Mainnet yet.
+		vaa.ChainIDSeiEVM:    {Finalized: true, Safe: true, EvmChainID: 1329, PublicRPC: "https://evm-rpc.sei-apis.com"},
 		// vaa.ChainIDEclipse:    Not supported in the guardian.
 		// vaa.ChainIDBOB:        Not supported in the guardian.
 		vaa.ChainIDSnaxchain:  {Finalized: true, Safe: true, EvmChainID: 2192, PublicRPC: "https://mainnet.snaxchain.io"},

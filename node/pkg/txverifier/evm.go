@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/ethereum/go-ethereum/common"
 	geth "github.com/ethereum/go-ethereum/core/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -32,7 +31,7 @@ const (
 
 // ProcessEvent processes a LogMessagePublished event, and is either called
 // from a watcher or from the transfer verifier standalone process. It fetches
-// the full transaction receipt associated with the log, and parses all
+// the full transaction receipt associated with the txHash, and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
 // transfers and token deposits into the token bridge as inbound transfers. It then
 // verifies that the sum of the inbound transfers is at least as much as the sum of
@@ -41,7 +40,7 @@ const (
 // If the return value is false, it implies that something serious has gone wrong.
 func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	ctx context.Context,
-	vLog *ethabi.AbiLogMessagePublished,
+	txHash common.Hash,
 	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
 	receipt *geth.Receipt,
 ) bool {
@@ -49,31 +48,26 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	// Use this opportunity to prune old transaction information from the cache.
 	tv.pruneCache()
 
+	if Cmp(txHash, ZERO_ADDRESS) == 0 {
+		tv.logger.Error("txHash is all zeroes")
+		return false
+	}
+
 	tv.logger.Debug("detected LogMessagePublished event",
-		zap.String("txHash", vLog.Raw.TxHash.String()))
+		zap.String("txHash", txHash.String()))
 
 	// Caching: record used/inspected tx hash.
-	if _, exists := tv.processedTransactions[vLog.Raw.TxHash]; exists {
+	if _, exists := tv.processedTransactions[txHash]; exists {
 		tv.logger.Debug("skip: transaction hash already processed",
-			zap.String("txHash", vLog.Raw.TxHash.String()))
+			zap.String("txHash", txHash.String()))
 		return true
 	}
 
-	// This check also occurs when processing a receipt but skipping here avoids unnecessary
-	// processing.
-	if cmp(vLog.Sender, tv.Addresses.TokenBridgeAddr) != 0 {
-		tv.logger.Debug("skip: sender is not token bridge",
-			zap.String("txHash", vLog.Raw.TxHash.String()),
-			zap.String("sender", vLog.Sender.String()),
-			zap.String("tokenBridge", tv.Addresses.TokenBridgeAddr.String()))
-		return true
-	}
-
+	// Get the full transaction receipt for this txHash if it was not provided as an argument.
 	if receipt == nil {
 		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
-		// Get the full transaction receipt for this log if it was not provided as an argument.
 		var txReceiptErr error
-		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, vLog.Raw.TxHash)
+		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
 		if txReceiptErr != nil {
 			tv.logger.Warn("could not find core bridge receipt", zap.Error(txReceiptErr))
 			return true
@@ -82,7 +76,7 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 
 	// Caching: record a new lastBlockNumber.
 	tv.lastBlockNumber = receipt.BlockNumber.Uint64()
-	tv.processedTransactions[vLog.Raw.TxHash] = receipt
+	tv.processedTransactions[txHash] = receipt
 
 	// Parse raw transaction receipt into high-level struct containing transfer details.
 	transferReceipt, parseErr := tv.ParseReceipt(receipt)
@@ -130,13 +124,13 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 		// transfer verifier is monitoring is broken.
 		tv.logger.Error("error when processing receipt. can't continue processing",
 			zap.Error(processErr),
-			zap.String("txHash", vLog.Raw.TxHash.String()))
+			zap.String("txHash", txHash.String()))
 		return false
 	}
 
 	// Update statistics
 	if summary.logsProcessed == 0 {
-		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", vLog.Raw.TxHash.Hex()))
+		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
 		return true
 	}
 
@@ -267,7 +261,7 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 	}
 
 	// Asset is wrapped but not in wrappedAsset map for the Token Bridge.
-	if cmp(unwrapped, ZERO_ADDRESS) == 0 {
+	if Cmp(unwrapped, ZERO_ADDRESS) == 0 {
 		return 0, ZERO_ADDRESS, errors.New("asset is wrapped but unwrapping gave the zero address. this is an unusual asset or there is a bug in the program")
 	}
 
@@ -665,7 +659,7 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 			return newDetails, unwrapErr
 		}
 
-		if cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
+		if Cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
 			// If the unwrap function returns the zero address, that means
 			// it has no knowledge of this token. In this case set the
 			// OriginAddress to OriginAddressRaw rather than to the zero
@@ -674,11 +668,11 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 			//
 			// This case can occur if a token is transferred when the wrapped asset hasn't been set-up yet.
 			// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#setup-of-wrapped-assets
-			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program. .",
+			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.",
 				zap.String("originAddressRaw", details.OriginAddress.String()),
 				zap.String("tokenChain", details.TokenChain.String()),
 			)
-			return newDetails, errors.New("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program")
+			return newDetails, errors.New("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.")
 		} else {
 			originAddress = unwrappedAddress
 		}

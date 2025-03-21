@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/mr-tron/base58"
@@ -244,6 +245,10 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		Payload:          pl,
 		ConsistencyLevel: 0,
 		IsReobservation:  job.isReobservation,
+	}
+
+	if job.isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues("near", "std").Inc()
 	}
 
 	// tell everyone about it

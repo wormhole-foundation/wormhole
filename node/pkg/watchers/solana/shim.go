@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/near/borsh-go"
@@ -365,6 +366,9 @@ func (s *SolanaWatcher) shimProcessRest(
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
+	if isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(s.chainID.String(), "shim").Inc()
+	}
 
 	if logger.Level().Enabled(s.msgObservedLogLevel) {
 		logger.Log(s.msgObservedLogLevel, "message observed from shim",

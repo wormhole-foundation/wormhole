@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1121,6 +1122,63 @@ func TestUnmarshalBody(t *testing.T) {
 			require.Equal(t, testCase.err, err)
 			if err == nil {
 				assert.Equal(t, testCase.expectedVAA, body)
+			}
+		})
+	}
+}
+
+func TestChainIDFromNumber(t *testing.T) {
+	// Define test case struct that works with any Number type
+	type testCase[N number] struct {
+		name      string
+		input     N
+		expected  ChainID
+		wantErr   bool
+		errMsg    string
+		wantKnown bool
+	}
+	// Using the int64 type here because it can be representative of the error conditions (overflow, negative)
+	// NOTE: more test cases could be added with different concrete types.
+	tests := []testCase[int64]{
+		{
+			name:      "valid",
+			input:     int64(1),
+			expected:  ChainIDSolana,
+			wantErr:   false,
+			wantKnown: true,
+		},
+		{
+			name:      "valid but unknown",
+			input:     int64(math.MaxUint16),
+			expected:  ChainID(math.MaxUint16),
+			wantErr:   false,
+			wantKnown: false,
+		},
+		{
+			name:      "overflow",
+			input:     math.MaxUint16 + 1,
+			expected:  ChainIDUnset,
+			wantErr:   true,
+			wantKnown: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := ChainIDFromNumber(testCase.input)
+			require.Equal(t, testCase.expected, got)
+			if testCase.wantErr {
+				require.ErrorContains(t, err, testCase.errMsg)
+				require.Equal(t, ChainIDUnset, got)
+			}
+
+			got, err = KnownChainIDFromNumber(testCase.input)
+			if testCase.wantKnown {
+				require.NoError(t, err)
+				require.Equal(t, testCase.expected, got)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, ChainIDUnset, got)
 			}
 		})
 	}

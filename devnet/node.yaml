@@ -146,6 +146,7 @@ spec:
             - --ccqEnabled=true
             - --ccqAllowedRequesters=beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe,25021A4FCAf61F2EADC8202D3833Df48B2Fa0D54
             - --ccqAllowedPeers=12D3KooWSnju8zhywCYVi2JwTqky1sySPnmtYLsHHzc4WerMnDQH,12D3KooWM6WqedfR6ehtTd1y6rJu3ZUrEkTjcJJnJZYesjd89zj8
+            # - --transferVerifierEnabledChainIDs=2
             # - --logLevel=debug
           securityContext:
             capabilities:

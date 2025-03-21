@@ -18,6 +18,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -673,6 +674,9 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 
 	ce.msgC <- evt.Msg
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
+	if evt.Msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()
+	}
 	return nil
 }
 

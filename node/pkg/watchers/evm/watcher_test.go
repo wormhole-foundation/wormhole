@@ -1,15 +1,23 @@
 package evm
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
+	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 )
 
 func TestMsgIdFromLogEvent(t *testing.T) {
@@ -49,4 +57,154 @@ func Test_canRetryGetBlockTime(t *testing.T) {
 	assert.True(t, canRetryGetBlockTime(errors.New("Unknown block")))
 	assert.True(t, canRetryGetBlockTime(errors.New("cannot query unfinalized data")))
 	assert.False(t, canRetryGetBlockTime(errors.New("Hello, World!")))
+}
+
+// TestVerifyAndPublish checks the operation of the verifyAndPublish method of the watcher in
+// scenarios where the Transfer Verifier is disabled and when it's enabled. It covers much of
+// the behaviour of the verify() function.
+func TestVerifyAndPublish(t *testing.T) {
+
+	msgC := make(chan *common.MessagePublication, 1)
+	w := NewWatcherForTest(t, msgC)
+
+	// Contents of the message don't matter for the sake of these tests.
+	msg := common.MessagePublication{}
+	ctx := context.TODO()
+
+	// Check preconditions for the Transfer Verifier disabled case.
+	require.Equal(t, 0, len(w.msgC))
+	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
+	require.Nil(t, w.txVerifier)
+
+	// Check nil message
+	err := w.verifyAndPublish(nil, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "message publication cannot be nil")
+	require.Equal(t, common.NotVerified.String(), msg.VerificationState().String())
+
+	// Check transfer verifier not enabled case. The message should be published normally.
+	msg = common.MessagePublication{}
+	require.Nil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg := <-msgC
+	require.NotNil(t, publishedMsg)
+	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
+
+	tbAddr, byteErr := vaa.BytesToAddress([]byte{0x01})
+	require.NoError(t, byteErr)
+
+	// Check scenario where transfer verifier is enabled on the watcher level but
+	// there is no Transfer Verifier instantiated. In this case, fail open and continue
+	// to process messages. This shouldn't be possible in practice as the constructor
+	// should return an error on startup if the Transfer Verifier can't be instantiated
+	// when txVerifierEnabled is true.
+	w.txVerifierEnabled = true
+	msg = common.MessagePublication{}
+	require.Nil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
+
+	// Check that message status is not changed if it didn't come from token bridge.
+	// The NotVerified status is used when Transfer Verification is not enabled.
+	msg = common.MessagePublication{}
+	require.Nil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotVerified.String(), publishedMsg.VerificationState().String())
+
+	// Check scenario where the message already has a verification status.
+	failMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
+	w.txVerifier = failMock
+	msg = common.MessagePublication{}
+	setErr := msg.SetVerificationState(common.Anomalous)
+	require.NoError(t, setErr)
+	require.NotNil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.ErrorContains(t, err, "MessagePublication already has a non-default verification state")
+	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Anomalous.String(), msg.VerificationState().String())
+
+	// Check case where Transfer Verifier finds a dangerous transaction. Note that this case does
+	// not return an error, but the published message should be marked as Rejected.
+	failMock = &MockTransferVerifier[ethclient.Client, connectors.Connector]{false}
+	w.txVerifier = failMock
+	require.NotNil(t, w.txVerifier)
+	msg = common.MessagePublication{
+		EmitterAddress: tbAddr,
+	}
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.NotNil(t, publishedMsg)
+	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Rejected.String(), publishedMsg.VerificationState().String())
+
+	// Check that message status is not changed if it didn't come from token bridge.
+	// The NotApplicable status is used when Transfer Verification is enabled.
+	msg = common.MessagePublication{}
+	require.NotNil(t, w.txVerifier)
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.Nil(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.Equal(t, common.NotApplicable.String(), publishedMsg.VerificationState().String())
+
+	// Check happy path where txverifier is enabled, initialized, and the message is from the token bridge.
+	successMock := &MockTransferVerifier[ethclient.Client, connectors.Connector]{true}
+	w.txVerifier = successMock
+	require.NotNil(t, w.txVerifier)
+	msg = common.MessagePublication{
+		EmitterAddress: tbAddr,
+	}
+
+	err = w.verifyAndPublish(&msg, ctx, eth_common.Hash{}, &types.Receipt{})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(msgC))
+	publishedMsg = <-msgC
+	require.NotNil(t, publishedMsg)
+	require.Equal(t, 0, len(msgC))
+	require.Equal(t, common.Valid.String(), publishedMsg.VerificationState().String())
+}
+
+// Helper function to set up a test Ethereum Watcher
+func NewWatcherForTest(t *testing.T, msgC chan<- *common.MessagePublication) *Watcher {
+	t.Helper()
+	logger := zap.NewNop()
+
+	w := &Watcher{
+		// this is implicit but added here for clarity
+		txVerifierEnabled: false,
+		msgC:              msgC,
+		logger:            logger,
+	}
+
+	return w
+}
+
+type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
+	success bool
+}
+
+// Mock ProcessEvent function that simulates the evaluation made by the Transfer Verifier.
+func (m *MockTransferVerifier[E, C]) ProcessEvent(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt) bool {
+	return m.success
+}
+func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {
+	return &txverifier.TVAddresses{
+		TokenBridgeAddr: eth_common.BytesToAddress([]byte{0x01}),
+	}
 }
