@@ -135,7 +135,7 @@ func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, t 
 		copy(signature[:], sig)
 
 		v.Signatures = append(v.Signatures, &vaa.Signature{
-			Index:     uint8(i),
+			Index:     uint8(i), // #nosec G115 -- This conversion is safe based on the constants used
 			Signature: signature,
 		})
 

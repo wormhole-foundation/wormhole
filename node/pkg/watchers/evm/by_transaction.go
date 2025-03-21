@@ -77,7 +77,7 @@ func MessageEventsForTransaction(
 
 		message := &common.MessagePublication{
 			TxID:             ev.Raw.TxHash.Bytes(),
-			Timestamp:        time.Unix(int64(blockTime), 0),
+			Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 			Nonce:            ev.Nonce,
 			Sequence:         ev.Sequence,
 			EmitterChain:     chainId,

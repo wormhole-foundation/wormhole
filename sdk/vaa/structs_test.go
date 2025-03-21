@@ -785,7 +785,7 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 					for i, key_i := range keys {
 						for _, key_k := range tc.keyOrder {
 							if key_i == key_k {
-								keyIndex = append(keyIndex, uint8(i))
+								keyIndex = append(keyIndex, uint8(i)) // #nosec G115 -- We're using 6 keys in this test case
 							}
 						}
 					}
@@ -1010,7 +1010,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				return buf.Bytes()
 			},
 		},
@@ -1020,7 +1020,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				return buf.Bytes()
 			},
@@ -1031,7 +1031,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				MustWrite(buf, binary.BigEndian, ChainIDPythNet)
 				return buf.Bytes()
@@ -1043,7 +1043,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				MustWrite(buf, binary.BigEndian, ChainIDBSC)
 				buf.Write(addr[:])
@@ -1056,7 +1056,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				MustWrite(buf, binary.BigEndian, ChainIDBSC)
 				buf.Write(addr[:])
