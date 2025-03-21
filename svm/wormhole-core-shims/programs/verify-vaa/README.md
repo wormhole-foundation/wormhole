@@ -39,10 +39,14 @@ However, some integrations, such as [Solana World ID] use a different approach:
    verification is successful, it performs whatever action is needed and closes
    the signatures account, refunding the lamports.
 
+<!-- cspell:disable -->
+
 This approach does not require leaving any on-chain artifacts and is more cost
 effective. Part of the reason this is now possible in less instructions is due
 to the `secp256k1_recover` SVM syscall and ability to increase the compute unit
 budget.
+
+<!-- cspell:enable -->
 
 > 💡 This will also provide integrators the flexibility to post the VAA payload
 separately as well if needed for payloads that won’t fit into a transaction.
@@ -104,12 +108,15 @@ will refund the initial payer.
 
 ### Verify Hash Technical Details
 
+<!-- cspell:disable -->
+
 This instruction is intended to be invoked via CPI call. It verifies a digest
 against a GuardianSignatures account and a Wormhole Core Bridge program's
 guardian set. Prior to this call, and likely in a separate transaction,
 the post signatures instruction must be called to create the account.
 Immediately after calling the verify hash instruction, the close signatures
 instruction should be called to reclaim the lamports.
+
 
 A v1 VAA digest can be computed as follows:
 
@@ -129,6 +136,8 @@ let message_hash = [
 .concat();
 let digest = keccak::hash(message_hash.as_slice()).to_bytes();
 ```
+
+<!-- cspell:enable -->
 
 ### Close Signatures Technical Details
 

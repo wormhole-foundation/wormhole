@@ -14,7 +14,7 @@ The default network type is mainnet. There is no feature that defines mainnet.
 But if one of the following features are defined, program IDs and account
 addresses will not use the ones defined for mainnet.
 
-- `localnet`: Wormhole's Tilt devnet. Programs like the Worhole Core Bridge and
+- `localnet`: Wormhole's Tilt devnet. Programs like the Wormhole Core Bridge and
   its associated PDAs have addresses specific to this local development network.
 - `testnet`: Public devnet or testnet depending on the specific SVM network. For
   Solana specifically, this feature corresponds to the public Solana devnet.
