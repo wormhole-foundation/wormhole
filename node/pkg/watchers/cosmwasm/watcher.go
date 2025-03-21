@@ -214,7 +214,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				blocksBody, err := io.ReadAll(resp.Body)
 				if err != nil {
 					logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
-					errC <- err
+					errC <- err // nolint:channelcheck // The watcher will exit anyway
 					resp.Body.Close()
 					continue
 				}
@@ -302,7 +302,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
 					msg.IsReobservation = true
-					e.msgC <- msg
+					e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 					watchers.ReobservationsByChain.WithLabelValues(networkName, "std").Inc()
 				}
@@ -321,7 +321,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 					connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
 					logger.Error("error reading channel", zap.String("network", networkName), zap.Error(err))
-					errC <- err
+					errC <- err // nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 
@@ -343,7 +343,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {
-					e.msgC <- msg
+					e.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 
