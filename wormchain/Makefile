@@ -124,6 +124,11 @@ ictest-cw-wormhole: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestCWWormhole ./...
 .PHONY: ictest-cw-wormhole
 
+ictest-cw-shutdown-contracts: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestShutdown ./...
+.PHONY: ictest-cw-shutdown-contracts
+
 ictest-validator-hotswap: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...
 .PHONY: ictest-validator-hotswap
+
