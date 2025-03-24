@@ -19,7 +19,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
+	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+	ethBind "github.com/ethereum/go-ethereum/accounts/abi/bind"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethHexUtil "github.com/ethereum/go-ethereum/common/hexutil"
+	ethClient "github.com/ethereum/go-ethereum/ethclient"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -77,25 +82,40 @@ func verifyForEnv(env common.Environment, chainID vaa.ChainID) {
 			if entry.Entry.PublicRPC == "" {
 				fmt.Printf("Skipping %v %v because the rpc is null\n", env, entry.ChainID)
 			} else {
+				fmt.Printf("Verifying %v %v...\n", env, entry.ChainID)
+
+				fmt.Printf("   Verifying EVM chain ID for %v %v ", env, entry.ChainID)
 				evmChainID, err := evm.QueryEvmChainID(ctx, entry.Entry.PublicRPC)
 				if err != nil {
-					fmt.Printf("ERROR: Failed to query EVM chain ID for %v %v: %v\n", env, entry.ChainID, err)
+					fmt.Printf("\u2717\n   ERROR: Failed to query EVM chain ID for %v %v: %v\n", env, entry.ChainID, err)
 					os.Exit(1)
 				}
 
 				if evmChainID != entry.Entry.EvmChainID {
-					fmt.Printf("ERROR: EVM chain ID mismatch for %v %v: config: %v, actual: %v\n", env, entry.ChainID, entry.Entry.EvmChainID, evmChainID)
+					fmt.Printf("\u2717\n   ERROR: EVM chain ID mismatch for %v %v: config: %v, actual: %v\n", env, entry.ChainID, entry.Entry.EvmChainID, evmChainID)
 					os.Exit(1)
 				}
 
-				fmt.Printf("EVM chain ID match for %v %v: value: %v\n", env, entry.ChainID, evmChainID)
+				fmt.Printf("\u2713\n")
 
 				if entry.Entry.Finalized || entry.Entry.Safe {
+					fmt.Printf("   Verifying finality values for %v %v ", env, entry.ChainID)
 					err := verifyFinality(ctx, entry.Entry.PublicRPC, entry.Entry.Finalized, entry.Entry.Safe)
 					if err != nil {
-						fmt.Printf("ERROR: failed to verify finality values for %v %v: %v\n", env, entry.ChainID, err)
+						fmt.Printf("\u2717\n   ERROR: failed to verify finality values for %v %v: %v\n", env, entry.ChainID, err)
 						os.Exit(1)
 					}
+					fmt.Println("\u2713")
+				}
+
+				if entry.Entry.ContractAddr != "" {
+					fmt.Printf("   Verifying contract address for %v %v ", env, entry.ChainID)
+					err := verifyContractAddr(ctx, entry.Entry.PublicRPC, entry.Entry.ContractAddr)
+					if err != nil {
+						fmt.Printf("\u2717\n   ERROR: failed to verify contract for %v %v: %v\n", env, entry.ChainID, err)
+						os.Exit(1)
+					}
+					fmt.Println("\u2713")
 				}
 			}
 		}
@@ -112,7 +132,7 @@ func verifyFinality(ctx context.Context, url string, finalized, safe bool) error
 	}
 
 	type Marshaller struct {
-		Number *eth_hexutil.Big
+		Number *ethHexUtil.Big
 	}
 	var m Marshaller
 
@@ -128,6 +148,30 @@ func verifyFinality(ctx context.Context, url string, finalized, safe bool) error
 		if err != nil || m.Number == nil {
 			return fmt.Errorf("safe not supported by the node when it should be")
 		}
+	}
+
+	return nil
+}
+
+func verifyContractAddr(ctx context.Context, url string, contractAddr string) error {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	rawClient, err := ethRpc.DialContext(timeout, url)
+	if err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+
+	client := ethClient.NewClient(rawClient)
+
+	caller, err := ethAbi.NewAbiCaller(ethCommon.BytesToAddress(ethCommon.HexToAddress(contractAddr).Bytes()), client)
+	if err != nil {
+		return fmt.Errorf("failed to create abi caller: %w", err)
+	}
+
+	_, err = caller.GetCurrentGuardianSetIndex(&ethBind.CallOpts{Context: timeout})
+	if err != nil {
+		return err
 	}
 
 	return nil
