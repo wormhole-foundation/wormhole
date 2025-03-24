@@ -78,6 +78,48 @@ func (e ErrInputSize) Error() string {
 	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgLenMin, e.got)
 }
 
+// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
+// the fields plus length information for fields with variable lengths (TxID and Payload).
+const (
+	minMarshaledMsgSize = 1 + // TxID length (uint8)
+		4 + // Timestamp (uint32)
+		4 + // Nonce (uint32)
+		8 + // Sequence (uint64)
+		1 + // ConsistencyLevel (uint8)
+		2 + // EmitterChain (uint16)
+		32 + // EmitterAddress (32 bytes)
+		1 + // IsReobservation (bool)
+		1 + // Unreliable (bool)
+		1 + // verificationState (uint8)
+		2 // Payload length (uint16)
+
+	// Deprecated: represents the minimum message length for a marshaled message publication
+	// before the Unreliable and verificationState fields were added.
+	// Use [minMarshaledMsgSize] instead.
+	minMsgLength = 88
+)
+
+var (
+	ErrBinaryWrite    = errors.New("failed to write binary data")
+	ErrInvalidTxID    = errors.New("field TxID too long")
+	ErrInvalidPayload = errors.New("field payload too long")
+
+	ErrDataTooShort        = errors.New("data too short")
+	ErrTxIDTooShort        = errors.New("data too short for TxID")
+	ErrTimestampTooShort   = errors.New("data too short for timestamp")
+	ErrNonceTooShort       = errors.New("data too short for nonce")
+	ErrSequenceTooShort    = errors.New("data too short for sequence")
+	ErrConsistencyTooShort = errors.New("data too short for consistency level")
+	ErrChainTooShort       = errors.New("data too short for emitter chain")
+	ErrAddressTooShort     = errors.New("data too short for emitter address")
+	ErrReobsTooShort       = errors.New("data too short for IsReobservation")
+	ErrUnreliableTooShort  = errors.New("data too short for Unreliable")
+	ErrVerStateTooShort    = errors.New("data too short for verification state")
+	ErrPayloadLenTooShort  = errors.New("data too short for payload length")
+	ErrPayloadTooShort     = errors.New("data too short for payload")
+	ErrUnexpectedEndOfRead = errors.New("data position after unmarshal does not match data length")
+)
+
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
 // Consequently, its status should be set to `NotVerified` or `NotApplicable` for all messages that aren't token transfers.
