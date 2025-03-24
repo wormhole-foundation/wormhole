@@ -77,6 +77,8 @@ var (
 	configDir     = flag.String("configDir", ".", "Directory where nodeKey and signerKey are loaded from (default is .)")
 	listenOnly    = flag.Bool("listenOnly", false, "Only listen for responses, don't publish anything (default is false)")
 	targetPeerId  = flag.String("targetPeerId", "", "Only process responses from this peer ID (default is everything)")
+	rpcApiKey     = flag.String("rpcApiKey", "", "API key for RPC provider (required for Ankr)")
+	rpcUrl        = flag.String("rpcUrl", "", "Full RPC URL including API key if needed (overrides rpcApiKey)")
 )
 
 func main() {
@@ -220,12 +222,29 @@ func main() {
 		}
 
 		// Fetch the latest block number
-		//url := "https://localhost:8545"
-		url := "https://rpc.ankr.com/eth"
+		var url string
+
+		// First check environment variable (for use with Docker)
+		if envUrl := os.Getenv("ETH_RPC_URL"); envUrl != "" {
+			url = envUrl
+			logger.Info("Using RPC URL from environment variable", zap.String("url", url))
+		} else if *rpcUrl != "" {
+			// If a full RPC URL is provided via flag, use it directly
+			url = *rpcUrl
+		} else if *rpcApiKey != "" {
+			// If only API key is provided via flag, use it with Ankr
+			url = fmt.Sprintf("https://rpc.ankr.com/eth/%s", *rpcApiKey)
+		} else {
+			// Fallback to public node
+			url = "https://ethereum.publicnode.com"
+			logger.Info("No RPC URL or API key provided, using public endpoint", zap.String("url", url))
+		}
+
 		logger.Info("Querying for latest block height", zap.String("url", url))
 		blockNum, err := utils.FetchLatestBlockNumberFromUrl(ctx, url)
 		if err != nil {
-			logger.Fatal("Failed to fetch latest block number", zap.Error(err))
+			logger.Error("Failed to fetch latest block number", zap.Error(err))
+			logger.Fatal("Please provide a valid RPC URL with --rpcUrl or API key with --rpcApiKey, or set ETH_RPC_URL environment variable")
 		}
 
 		logger.Info("latest block", zap.String("num", blockNum.String()), zap.String("encoded", hexutil.EncodeBig(blockNum)))

@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  # Listen-only mode
+  ccqlistener-listen:
+    build:
+      context: ../../../../../
+      dockerfile: node/hack/query/ccqlistener/Dockerfile
+      target: build
+    volumes:
+      - ./config:/app/cfg
+    command: /ccqlistener --env mainnet --listenOnly --configDir /app/cfg
+    restart: unless-stopped
+
+  # Query mode (requires key setup)
+  ccqlistener-query:
+    build:
+      context: ../../../../../
+      dockerfile: node/hack/query/ccqlistener/Dockerfile
+      target: build
+    volumes:
+      - ./config:/app/cfg
+    # Note: For best results, provide an API key or full RPC URL
+    # Use the run-ccq.sh script: ./run-ccq.sh query YOUR_API_KEY
+    # Or with URL: ./run-ccq.sh query https://ethereum.publicnode.com
+    command: /ccqlistener --env mainnet --configDir /app/cfg --rpcUrl https://ethereum.publicnode.com
+    restart: unless-stopped
+    
+  # Generate signing key with guardiand format
+  generate-key:
+    build:
+      context: .
+      dockerfile: generate-key.Dockerfile
+    volumes:
+      - ./config:/app/keys
+    # Use this as one-off command:
+    # docker-compose run --rm generate-key 

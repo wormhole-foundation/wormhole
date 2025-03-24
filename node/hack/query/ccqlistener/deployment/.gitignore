@@ -1,0 +1,7 @@
+# Ignore generated key files
+config/ccqlistener.signerKey
+config/ccqlistener.nodeKey
+
+# Keep the config directory
+!config/
+!config/.gitkeep 
