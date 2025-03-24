@@ -245,6 +245,7 @@ func (p *PendingTransfer) Marshal() ([]byte, error) {
 
 	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 
+	// TODO: Refactor to use [common.MessagePublication.UnmarshalBinary].
 	b, err := p.Msg.Marshal()
 	if err != nil {
 		return buf.Bytes(), fmt.Errorf("failed to marshal pending transfer: %w", err)
@@ -274,11 +275,8 @@ func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error)
 	}
 
 	var msg *common.MessagePublication
-	if isOld {
-		msg, err = common.UnmarshalOldMessagePublicationWithTxHash(buf)
-	} else {
-		msg, err = common.UnmarshalMessagePublication(buf)
-	}
+	// TODO: Refactor to use [common.MessagePublication.UnmarshalBinary].
+	msg, err = common.UnmarshalMessagePublication(buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal pending transfer msg, isOld: %t: %w", isOld, err)
 	}
@@ -300,8 +298,8 @@ const transferLen = len(transfer)
 const oldPending = "GOV:PENDING3:"
 const oldPendingLen = len(oldPending)
 
-const pending = "GOV:PENDING4:"
-const pendingLen = len(pending)
+const delayed = "GOV:PENDING4:"
+const pendingLen = len(delayed)
 
 const minMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
 
@@ -314,7 +312,7 @@ func oldTransferMsgID(t *Transfer) []byte {
 }
 
 func PendingMsgID(k *common.MessagePublication) []byte {
-	return []byte(fmt.Sprintf("%v%v", pending, k.MessageIDString()))
+	return []byte(fmt.Sprintf("%v%v", delayed, k.MessageIDString()))
 }
 
 func oldPendingMsgID(k *common.MessagePublication) []byte {
@@ -330,7 +328,7 @@ func isOldTransfer(keyBytes []byte) bool {
 }
 
 func IsPendingMsg(keyBytes []byte) bool {
-	return (len(keyBytes) >= pendingLen+minMsgIdLen) && (string(keyBytes[0:pendingLen]) == pending)
+	return (len(keyBytes) >= pendingLen+minMsgIdLen) && (string(keyBytes[0:pendingLen]) == delayed)
 }
 
 func isOldPendingMsg(keyBytes []byte) bool {
