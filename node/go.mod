@@ -381,3 +381,5 @@ replace github.com/CosmWasm/wasmd v0.30.0 => github.com/wormhole-foundation/wasm
 replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole
 
 replace github.com/certusone/wormhole/node/pkg/txverifier => ./pkg/txverifier
+replace github.com/certusone/wormhole/node/pkg/notary => ./pkg/notary
+replace github.com/certusone/wormhole/node/pkg/db => ./pkg/db
