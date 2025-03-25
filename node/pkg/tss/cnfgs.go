@@ -134,11 +134,11 @@ func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 			return fmt.Errorf("error guardian %v cert's PK does not match the PartyID.Key stored", i)
 		}
 
-		if id.Hostname == "" {
+		if len(id.Hostname) == 0 {
 			return fmt.Errorf("error guardian %v hostname is empty", i)
 		}
 
-		if id.Pid.Id == "" {
+		if len(id.Pid.Id) == 0 {
 			return fmt.Errorf("error guardian %v PartyID.Id is empty", i)
 		}
 
