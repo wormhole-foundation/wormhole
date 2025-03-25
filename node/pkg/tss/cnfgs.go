@@ -85,14 +85,14 @@ func (s *GuardianStorage) SetInnerFields() error {
 
 	s.Guardians.peerCerts = make([]*x509.Certificate, s.Guardians.Len())
 	s.Guardians.partyIds = make([]*tss.PartyID, s.Guardians.Len())
-	s.Guardians.pemkeyToGuardian = make(map[string]*Identity)
-	s.Guardians.indexToIdendity = map[SenderIndex]*Identity{}
+	s.Guardians.pemkeyToGuardian = make(map[string]int)
+	s.Guardians.indexToIdendity = make(map[SenderIndex]int)
 	// Since the guardians are sorted by key, we can use their position as their index.
 	for i := range s.Guardians.Len() {
 		s.Guardians.peerCerts[i] = s.Guardians.Identities[i].Cert
 		s.Guardians.partyIds[i] = s.Guardians.Identities[i].Pid
-		s.Guardians.pemkeyToGuardian[string(s.Guardians.Identities[i].KeyPEM)] = s.Guardians.Identities[i]
-		s.Guardians.indexToIdendity[SenderIndex(i)] = s.Guardians.Identities[i]
+		s.Guardians.pemkeyToGuardian[string(s.Guardians.Identities[i].KeyPEM)] = i
+		s.Guardians.indexToIdendity[SenderIndex(i)] = i
 	}
 
 	if s.LeaderIdentity == nil {
@@ -180,12 +180,12 @@ func extractCertAndKeyFromPem(pem PEM) (*x509.Certificate, *ecdsa.PublicKey, err
 var errInternalNoCert = errors.New("internal error. no certificate found")
 
 func (s *GuardianStorage) fetchCertificate(sender SenderIndex) (*x509.Certificate, error) {
-	id, ok := s.Guardians.indexToIdendity[sender]
+	pos, ok := s.Guardians.indexToIdendity[sender]
 	if !ok {
 		return nil, ErrUnkownSender
 	}
 
-	return id.Cert, nil
+	return s.Guardians.Identities[pos].Cert, nil
 }
 
 func (g *GuardianStorage) contains(sender SenderIndex) bool {
@@ -195,10 +195,10 @@ func (g *GuardianStorage) contains(sender SenderIndex) bool {
 }
 
 func (s *GuardianStorage) getPartyIdFromIndex(senderId SenderIndex) *tss.PartyID {
-	id, ok := s.Guardians.indexToIdendity[senderId]
+	pos, ok := s.Guardians.indexToIdendity[senderId]
 	if !ok {
 		return nil
 	}
 
-	return id.getPidCopy()
+	return s.Guardians.Identities[pos].getPidCopy()
 }

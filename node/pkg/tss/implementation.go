@@ -164,8 +164,8 @@ type Identities struct {
 	Identities []*Identity
 
 	// maps and slices to ensure quick lookups.
-	indexToIdendity  map[SenderIndex]*Identity
-	pemkeyToGuardian map[string]*Identity
+	indexToIdendity  map[SenderIndex]int
+	pemkeyToGuardian map[string]int
 	peerCerts        []*x509.Certificate // avoid
 	partyIds         []*tss.PartyID
 }
@@ -225,12 +225,12 @@ func (t *Engine) ProducedOutputMessages() <-chan Sendable {
 }
 
 func (st *GuardianStorage) fetchPartyIdFromBytes(pk []byte) *Identity {
-	pid, ok := st.Guardians.pemkeyToGuardian[string(pk)]
+	pos, ok := st.Guardians.pemkeyToGuardian[string(pk)]
 	if !ok {
 		return nil
 	}
 
-	return pid
+	return st.Guardians.Identities[pos]
 }
 
 // FetchPartyId implements ReliableTSS.
@@ -627,10 +627,12 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	go t.ftTracker()
 
-	leaderIdentity, ok := t.Guardians.pemkeyToGuardian[string(t.LeaderIdentity)]
+	leaderIdentityPos, ok := t.Guardians.pemkeyToGuardian[string(t.LeaderIdentity)]
 	if !ok {
 		return fmt.Errorf("leader identity not found in guardian storage")
 	}
+
+	leaderIdentity := t.Guardians.Identities[leaderIdentityPos]
 
 	t.logger.Info(
 		"tss engine started",
@@ -866,7 +868,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 	} else {
 		recipients := make([]*Identity, 0, len(routing.To))
 		for _, pId := range routing.To {
-			recipients = append(recipients, t.Guardians.pemkeyToGuardian[string(pId.Key)])
+			recipients = append(recipients, t.GuardianStorage.fetchPartyIdFromBytes(pId.Key))
 		}
 
 		sendable = &Unicast{
