@@ -1025,12 +1025,12 @@ func (sar *SolanaAccountQueryResponse) UnmarshalFromReader(reader *bytes.Reader)
 			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
 		}
 
-		lenData := uint32(0)
-		if err := binary.Read(reader, binary.BigEndian, &lenData); err != nil {
+		dataLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &dataLen); err != nil {
 			return fmt.Errorf("failed to read data len: %w", err)
 		}
-		result.Data = make([]byte, lenData)
-		if n, err := reader.Read(result.Data[:]); err != nil || n != int(lenData) {
+		result.Data = make([]byte, dataLen)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(dataLen) {
 			return fmt.Errorf("failed to read data [%d]: %w", n, err)
 		}
 
