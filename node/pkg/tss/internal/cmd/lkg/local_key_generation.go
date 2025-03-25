@@ -389,12 +389,14 @@ func extractDnsFromCert(crt *x509.Certificate) string {
 
 	sort.Strings(crt.DNSNames)
 
-	dnsName := crt.DNSNames[0]
-	if dnsName == "" || dnsName == "localhost" && len(crt.DNSNames) < 1 {
-		panic("certificate should have at least one DNS name that is not localhost or empty")
+	dnsName := ""
+	for _, name := range crt.DNSNames {
+		if len(name) > 0 && name != "localhost" {
+			dnsName = name // using the first non localhost name.
+		}
 	}
 
-	return crt.DNSNames[1]
+	return dnsName
 }
 
 func (player *dkgPlayer) setNewKeygenHandler() {
