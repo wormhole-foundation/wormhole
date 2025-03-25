@@ -157,6 +157,7 @@ func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 		id.Cert = c
 
 		id.CommunicationIndex = SenderIndex(i)
+		id.setNetworkName()
 	}
 
 	return nil
