@@ -1032,17 +1032,17 @@ func (saq *SolanaAccountQueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes a Solana sol_account query from a byte array
 func (saq *SolanaAccountQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
-	len := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+	commmitmentLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &commmitmentLen); err != nil {
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
-	if len > SolanaMaxCommitmentLength {
+	if commmitmentLen > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
 	}
 
-	commitment := make([]byte, len)
-	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+	commitment := make([]byte, commmitmentLen)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(commmitmentLen) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
 	}
 	saq.Commitment = string(commitment)
@@ -1169,17 +1169,17 @@ func (spda *SolanaPdaQueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes a Solana sol_pda query from a byte array
 func (spda *SolanaPdaQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
-	len := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+	commitmentLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &commitmentLen); err != nil {
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
-	if len > SolanaMaxCommitmentLength {
+	if commitmentLen > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
 	}
 
-	commitment := make([]byte, len)
-	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+	commitment := make([]byte, commitmentLen)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(commitmentLen) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
 	}
 	spda.Commitment = string(commitment)

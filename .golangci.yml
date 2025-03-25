@@ -22,6 +22,7 @@ linters:
     # - unconvert # disable because extra conversion typically don't hurt but can make code more clear
     - unparam
     - prealloc
+    - predeclared
 issues:
   exclude-rules:
     - path: pkg/supervisor/supervisor_testhelpers.go

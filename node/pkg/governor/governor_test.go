@@ -46,8 +46,8 @@ func (gov *ChainGovernor) initConfigForTest(
 	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
 }
 
-func (gov *ChainGovernor) setDayLengthInMinutes(min int) {
-	gov.dayLengthInMinutes = min
+func (gov *ChainGovernor) setDayLengthInMinutes(minutes int) {
+	gov.dayLengthInMinutes = minutes
 }
 
 // Utility method: adds a new `chainEntry` to `gov`
