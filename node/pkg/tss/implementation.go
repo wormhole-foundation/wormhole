@@ -130,18 +130,22 @@ func (id *Identity) Copy() *Identity {
 }
 
 func (id *Identity) NetworkName() string {
-	return id.networkname
+	if id.networkname != "" {
+		return id.networkname
+	}
+
+	return id.portAndHostToNetName()
 }
 
-func (id *Identity) setNetworkName() {
+func (id *Identity) portAndHostToNetName() string {
 	var port string
-	if id.Port <= 0 || id.Port >= (1<<16) { // invalid port.
+	if id.Port <= 0 || id.Port > (1<<16) {
 		port = DefaultPort
 	} else {
 		port = strconv.Itoa(id.Port)
 	}
 
-	id.networkname = net.JoinHostPort(id.Hostname, port)
+	return net.JoinHostPort(id.Hostname, port)
 }
 
 func (id *Identity) getPidCopy() *tss.PartyID {

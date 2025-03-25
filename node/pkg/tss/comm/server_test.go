@@ -302,8 +302,11 @@ func TestNonBlockedBroadcast(t *testing.T) {
 			continue
 		}
 
-		v.Hostname = ""
+		v.Hostname = "..." // ensuring connection is not possible.
 	}
+
+	// ensuring the identity sets up correctly (after the above loop).
+	en[2].GuardianStorage.SetInnerFields()
 
 	msgChan := make(chan tss.Sendable)
 	srvr, err := NewServer("localhost:5930", supervisor.Logger(ctx), &tssMockJustForMessageGeneration{
@@ -651,12 +654,15 @@ func TestDialWithDefaultPort(t *testing.T) {
 	for _, v := range communicatingEngine.Guardians.Identities {
 		if bytes.Equal(v.KeyPEM, listenerEngine.Self.KeyPEM) {
 			v.Hostname = "localhost"
+			v.Port = 0
 
 			continue
 		}
 
-		v.Hostname = ""
+		v.Hostname = "..." // ensuring connection is not possible.
 	}
+
+	a.NoError(communicatingEngine.GuardianStorage.SetInnerFields())
 
 	msgChan := make(chan tss.Sendable)
 	communicator, err := NewServer("localhost:5930", supervisor.Logger(ctx), &tssMockJustForMessageGeneration{
@@ -672,8 +678,9 @@ func TestDialWithDefaultPort(t *testing.T) {
 	time.Sleep(time.Second)
 
 	for i := 0; i < 10; i++ {
+		tmp := communicatingEngine.Guardians.Identities
 		msgChan <- &tss.Echo{
-			Recipients: workingServerAsMessageRecipient,
+			Recipients: tmp,
 		}
 
 		select {
@@ -727,6 +734,8 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 		v.Pid.Id = ""
 	}
 
+	streamReceiverEngine.GuardianStorage.SetInnerFields()
+
 	// Setting the ID as they will be sent and used to connect to the other party.
 	for _, v := range senderEngine.Guardians.Identities {
 		if bytes.Equal(v.KeyPEM, streamReceiverEngine.Self.KeyPEM) {
@@ -735,8 +744,10 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 			continue
 		}
 
-		v.Hostname = ""
+		v.Hostname = "..." // ensuring connection is not possible.
 	}
+
+	senderEngine.GuardianStorage.SetInnerFields()
 
 	incomingDataChan := make(chan tss.Incoming)
 	listenerServer, err := NewServer(streamReceiverPath, supervisor.Logger(ctx),
@@ -831,6 +842,7 @@ func TestConnectingToServers(t *testing.T) {
 			id.Port = 5930 + j
 		}
 
+		e.GuardianStorage.SetInnerFields()
 		e.Start(ctx)
 		s, err := NewServer(e.GuardianStorage.Self.NetworkName(), supervisor.Logger(ctx), &mockProduceOutputMessages{
 			mockJustHandleIncomingMessage: mockJustHandleIncomingMessage{
