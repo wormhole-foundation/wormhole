@@ -38,6 +38,7 @@ func (p *Processor) broadcastSignature(
 	digest ethCommon.Hash,
 	signature []byte,
 	shouldPublishImmediately bool,
+	emitterChain vaa.ChainID,
 ) (ourObs *gossipv1.Observation, msg []byte) {
 	// Create the observation to either be submitted to the batch processor or published immediately.
 	ourObs = &gossipv1.Observation{
@@ -53,6 +54,10 @@ func (p *Processor) broadcastSignature(
 	} else {
 		p.postObservationToBatch(ourObs)
 		batchObservationsBroadcast.Inc()
+	}
+
+	if p.alternatePublisher != nil {
+		p.alternatePublisher.PublishObservation(emitterChain, ourObs)
 	}
 
 	return ourObs, msg

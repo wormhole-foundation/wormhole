@@ -17,6 +17,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
+	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
@@ -52,10 +53,11 @@ import (
 )
 
 var (
-	p2pNetworkID   *string
-	p2pPort        *uint
-	p2pBootstrap   *string
-	protectedPeers []string
+	p2pNetworkID         *string
+	p2pPort              *uint
+	p2pBootstrap         *string
+	protectedPeers       []string
+	additionalPublishers *[]string
 
 	nodeKeyPath *string
 
@@ -303,6 +305,7 @@ func init() {
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
 	NodeCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
+	additionalPublishers = NodeCmd.Flags().StringArray("additionalPublishEndpoint", []string{}, "defines an alternate publisher as label:url:delay:chains where delay and chains are optional")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -320,76 +323,76 @@ func init() {
 	fogoContract = NodeCmd.Flags().String("fogoContract", "", "Address of the Fogo program (required if fogoRpc is specified)")
 	fogoShimContract = NodeCmd.Flags().String("fogoShimContract", "", "Address of the Fogo shim program")
 
-	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	ethRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
 
-	bscRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "bscRPC", "Binance Smart Chain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	bscRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "bscRPC", "Binance Smart Chain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	bscContract = NodeCmd.Flags().String("bscContract", "", "Binance Smart Chain contract address")
 
-	polygonRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "polygonRPC", "Polygon RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	polygonRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "polygonRPC", "Polygon RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
 
-	avalancheRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "avalancheRPC", "Avalanche RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	avalancheRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "avalancheRPC", "Avalanche RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
 
-	oasisRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "oasisRPC", "Oasis RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	oasisRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "oasisRPC", "Oasis RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	oasisContract = NodeCmd.Flags().String("oasisContract", "", "Oasis contract address")
 
-	fantomRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "fantomRPC", "Fantom Websocket RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	fantomRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "fantomRPC", "Fantom Websocket RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	fantomContract = NodeCmd.Flags().String("fantomContract", "", "Fantom contract address")
 
-	karuraRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "karuraRPC", "Karura RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	karuraRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "karuraRPC", "Karura RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	karuraContract = NodeCmd.Flags().String("karuraContract", "", "Karura contract address")
 
-	acalaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "acalaRPC", "Acala RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	acalaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "acalaRPC", "Acala RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	acalaContract = NodeCmd.Flags().String("acalaContract", "", "Acala contract address")
 
-	klaytnRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "klaytnRPC", "Klaytn RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	klaytnRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "klaytnRPC", "Klaytn RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	klaytnContract = NodeCmd.Flags().String("klaytnContract", "", "Klaytn contract address")
 
-	celoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "celoRPC", "Celo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	celoRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "celoRPC", "Celo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	celoContract = NodeCmd.Flags().String("celoContract", "", "Celo contract address")
 
-	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	moonbeamRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
-	terraWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
-	terraLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terraLCD", "Path to LCD service root for http calls", "http://terra-terrad:1317", []string{"http", "https"})
+	terraWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "terraWS", "Path to terrad root for websocket connection", "ws://terra-terrad:26657/websocket", []string{"ws", "wss"})
+	terraLCD = common.RegisterFlagWithValidationOrFail(NodeCmd, "terraLCD", "Path to LCD service root for http calls", "http://terra-terrad:1317", []string{"http", "https"})
 	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
-	terra2WS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
-	terra2LCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
+	terra2WS = common.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
+	terra2LCD = common.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
 	terra2Contract = NodeCmd.Flags().String("terra2Contract", "", "Wormhole contract address on Terra 2 blockchain")
 
-	injectiveWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveWS", "Path to root for Injective websocket connection", "ws://injective:26657/websocket", []string{"ws", "wss"})
-	injectiveLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveLCD", "Path to LCD service root for Injective http calls", "http://injective:1317", []string{"http", "https"})
+	injectiveWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveWS", "Path to root for Injective websocket connection", "ws://injective:26657/websocket", []string{"ws", "wss"})
+	injectiveLCD = common.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveLCD", "Path to LCD service root for Injective http calls", "http://injective:1317", []string{"http", "https"})
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
 
-	xplaWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "xplaWS", "Path to root for XPLA websocket connection", "ws://xpla:26657/websocket", []string{"ws", "wss"})
-	xplaLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "xplaLCD", "Path to LCD service root for XPLA http calls", "http://xpla:1317", []string{"http", "https"})
+	xplaWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "xplaWS", "Path to root for XPLA websocket connection", "ws://xpla:26657/websocket", []string{"ws", "wss"})
+	xplaLCD = common.RegisterFlagWithValidationOrFail(NodeCmd, "xplaLCD", "Path to LCD service root for XPLA http calls", "http://xpla:1317", []string{"http", "https"})
 	xplaContract = NodeCmd.Flags().String("xplaContract", "", "Wormhole contract address on XPLA blockchain")
 
-	gatewayWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayWS", "Path to root for Gateway watcher websocket connection", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
-	gatewayLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayLCD", "Path to LCD service root for Gateway watcher http calls", "http://wormchain:1317", []string{"http", "https"})
+	gatewayWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayWS", "Path to root for Gateway watcher websocket connection", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
+	gatewayLCD = common.RegisterFlagWithValidationOrFail(NodeCmd, "gatewayLCD", "Path to LCD service root for Gateway watcher http calls", "http://wormchain:1317", []string{"http", "https"})
 	gatewayContract = NodeCmd.Flags().String("gatewayContract", "", "Wormhole contract address on Gateway blockchain")
 
-	algorandIndexerRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "algorandIndexerRPC", "Algorand Indexer RPC URL", "http://algorand:8980", []string{"http", "https"})
+	algorandIndexerRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "algorandIndexerRPC", "Algorand Indexer RPC URL", "http://algorand:8980", []string{"http", "https"})
 	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
-	algorandAlgodRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "algorandAlgodRPC", "Algorand Algod RPC URL", "http://algorand:4001", []string{"http", "https"})
+	algorandAlgodRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "algorandAlgodRPC", "Algorand Algod RPC URL", "http://algorand:4001", []string{"http", "https"})
 	algorandAlgodToken = NodeCmd.Flags().String("algorandAlgodToken", "", "Algorand Algod access token")
 	algorandAppID = NodeCmd.Flags().Uint64("algorandAppID", 0, "Algorand app id")
 
-	nearRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nearRPC", "Near RPC URL", "http://near:3030", []string{"http", "https"})
+	nearRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "nearRPC", "Near RPC URL", "http://near:3030", []string{"http", "https"})
 	nearContract = NodeCmd.Flags().String("nearContract", "", "Near contract")
 
-	wormchainURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "wormchainURL", "Wormhole-chain gRPC URL", "wormchain:9090", []string{""})
+	wormchainURL = common.RegisterFlagWithValidationOrFail(NodeCmd, "wormchainURL", "Wormhole-chain gRPC URL", "wormchain:9090", []string{""})
 
-	ibcWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "ibcWS", "Websocket used to listen to the IBC receiver smart contract on wormchain", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
-	ibcLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "ibcLCD", "Path to LCD service root for http calls", "http://wormchain:1317", []string{"http", "https"})
-	ibcBlockHeightURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "ibcBlockHeightURL", "Optional URL to query for the block height (generated from ibcWS if not specified)", "http://wormchain:1317", []string{"http", "https"})
+	ibcWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "ibcWS", "Websocket used to listen to the IBC receiver smart contract on wormchain", "ws://wormchain:26657/websocket", []string{"ws", "wss"})
+	ibcLCD = common.RegisterFlagWithValidationOrFail(NodeCmd, "ibcLCD", "Path to LCD service root for http calls", "http://wormchain:1317", []string{"http", "https"})
+	ibcBlockHeightURL = common.RegisterFlagWithValidationOrFail(NodeCmd, "ibcBlockHeightURL", "Optional URL to query for the block height (generated from ibcWS if not specified)", "http://wormchain:1317", []string{"http", "https"})
 	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
 
-	accountantWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "accountantWS", "Websocket used to listen to the accountant smart contract on wormchain", "http://wormchain:26657", []string{"http", "https"})
+	accountantWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "accountantWS", "Websocket used to listen to the accountant smart contract on wormchain", "http://wormchain:26657", []string{"http", "https"})
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
 	accountantKeyPath = NodeCmd.Flags().String("accountantKeyPath", "", "path to accountant private key for signing transactions")
 	accountantKeyPassPhrase = NodeCmd.Flags().String("accountantKeyPassPhrase", "", "pass phrase used to unarmor the accountant key file")
@@ -399,91 +402,91 @@ func init() {
 	accountantNttKeyPath = NodeCmd.Flags().String("accountantNttKeyPath", "", "path to NTT accountant private key for signing transactions")
 	accountantNttKeyPassPhrase = NodeCmd.Flags().String("accountantNttKeyPassPhrase", "", "pass phrase used to unarmor the NTT accountant key file")
 
-	aptosRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
+	aptosRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
 
-	movementRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "movementRPC", "Movement RPC URL", "", []string{"http", "https"})
+	movementRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "movementRPC", "Movement RPC URL", "", []string{"http", "https"})
 	movementAccount = NodeCmd.Flags().String("movementAccount", "", "movement account")
 	movementHandle = NodeCmd.Flags().String("movementHandle", "", "movement handle")
 
-	suiRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
+	suiRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "suiRPC", "Sui RPC URL", "http://sui:9000", []string{"http", "https"})
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
-	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
-	fogoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "fogoRPC", "Fogo RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
+	solanaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
+	fogoRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "fogoRPC", "Fogo RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
-	pythnetRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "pythnetRPC", "PythNet RPC URL (required)", "http://pythnet.rpcpool.com", []string{"http", "https"})
-	pythnetWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "pythnetWS", "PythNet WS URL", "wss://pythnet.rpcpool.com", []string{"ws", "wss"})
+	pythnetRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "pythnetRPC", "PythNet RPC URL (required)", "http://pythnet.rpcpool.com", []string{"http", "https"})
+	pythnetWS = common.RegisterFlagWithValidationOrFail(NodeCmd, "pythnetWS", "PythNet WS URL", "wss://pythnet.rpcpool.com", []string{"ws", "wss"})
 
-	arbitrumRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumRPC", "Arbitrum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	arbitrumRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumRPC", "Arbitrum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
 
-	sepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "sepoliaRPC", "Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	sepoliaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "sepoliaRPC", "Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	sepoliaContract = NodeCmd.Flags().String("sepoliaContract", "", "Sepolia contract address")
 
-	holeskyRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "holeskyRPC", "Holesky RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	holeskyRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "holeskyRPC", "Holesky RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	holeskyContract = NodeCmd.Flags().String("holeskyContract", "", "Holesky contract address")
 
-	optimismRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "optimismRPC", "Optimism RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	optimismRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "optimismRPC", "Optimism RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
 
-	scrollRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "scrollRPC", "Scroll RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	scrollRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "scrollRPC", "Scroll RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	scrollContract = NodeCmd.Flags().String("scrollContract", "", "Scroll contract address")
 
-	mantleRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mantleRPC", "Mantle RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mantleRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "mantleRPC", "Mantle RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
 
-	blastRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "blastRPC", "Blast RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	blastRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "blastRPC", "Blast RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	blastContract = NodeCmd.Flags().String("blastContract", "", "Blast contract address")
 
-	xlayerRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xlayerRPC", "XLayer RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	xlayerRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "xlayerRPC", "XLayer RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xlayerContract = NodeCmd.Flags().String("xlayerContract", "", "XLayer contract address")
 
-	lineaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "lineaRPC", "Linea RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	lineaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "lineaRPC", "Linea RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	lineaContract = NodeCmd.Flags().String("lineaContract", "", "Linea contract address")
 
-	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	berachainRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
 
-	snaxchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "snaxchainRPC", "Snaxchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	snaxchainRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "snaxchainRPC", "Snaxchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	snaxchainContract = NodeCmd.Flags().String("snaxchainContract", "", "Snaxchain contract address")
 
-	unichainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "unichainRPC", "Unichain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	unichainRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "unichainRPC", "Unichain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	unichainContract = NodeCmd.Flags().String("unichainContract", "", "Unichain contract address")
 
-	worldchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "worldchainRPC", "Worldchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	worldchainRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "worldchainRPC", "Worldchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	worldchainContract = NodeCmd.Flags().String("worldchainContract", "", "Worldchain contract address")
 
-	baseRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	baseRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "baseRPC", "Base RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
-	inkRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "inkRPC", "Ink RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	inkRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "inkRPC", "Ink RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	inkContract = NodeCmd.Flags().String("inkContract", "", "Ink contract address")
 
-	hyperEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "hyperEvmRPC", "HyperEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	hyperEvmRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "hyperEvmRPC", "HyperEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	hyperEvmContract = NodeCmd.Flags().String("hyperEvmContract", "", "HyperEVM contract address")
 
-	monadRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "monadRPC", "Monad RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	monadRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "monadRPC", "Monad RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	monadContract = NodeCmd.Flags().String("monadContract", "", "Monad contract address")
 
-	seiEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	seiEvmRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	seiEvmContract = NodeCmd.Flags().String("seiEvmContract", "", "SeiEVM contract address")
 
-	mezoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mezoRPC", "Mezo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mezoRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "mezoRPC", "Mezo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mezoContract = NodeCmd.Flags().String("mezoContract", "", "Mezo contract address")
 
-	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	arbitrumSepoliaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
-	baseSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "baseSepoliaRPC", "Base on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	baseSepoliaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "baseSepoliaRPC", "Base on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	baseSepoliaContract = NodeCmd.Flags().String("baseSepoliaContract", "", "Base on Sepolia contract address")
 
-	optimismSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "optimismSepoliaRPC", "Optimism on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	optimismSepoliaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "optimismSepoliaRPC", "Optimism on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	optimismSepoliaContract = NodeCmd.Flags().String("optimismSepoliaContract", "", "Optimism on Sepolia contract address")
 
-	polygonSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "polygonSepoliaRPC", "Polygon on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	polygonSepoliaRPC = common.RegisterFlagWithValidationOrFail(NodeCmd, "polygonSepoliaRPC", "Polygon on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	polygonSepoliaContract = NodeCmd.Flags().String("polygonSepoliaContract", "", "Polygon on Sepolia contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
@@ -1901,6 +1904,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		guardianSigner,
 	)
 
+	var guardianAddrAsBytes []byte
+	if len(*additionalPublishers) > 0 {
+		guardianAddrAsBytes = crypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
+	}
+
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
@@ -1912,6 +1920,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers,
 			*gossipAdvertiseAddress, ibc.GetFeatures, protectedPeers, ccqProtectedPeers, featureFlags),
 		node.GuardianOptionStatusServer(*statusAddr),
+		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID),
 	}
 

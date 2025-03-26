@@ -9,6 +9,7 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/accountant"
+	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -590,13 +591,34 @@ func GuardianOptionDatabase(db *db.Database) *GuardianOption {
 		}}
 }
 
+// GuardianOptionAlternatePublisher enables the alternate publisher if it is configured.
+func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *GuardianOption {
+	return &GuardianOption{
+		name: "alternate-publisher",
+
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+
+			var err error
+			g.alternatePublisher, err = altpub.NewAlternatePublisher(logger, guardianAddr, configs)
+			if err != nil {
+				return err
+			}
+
+			if g.alternatePublisher != nil {
+				g.runnables["alternate-publisher"] = g.alternatePublisher.Run
+			}
+
+			return nil
+		}}
+}
+
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: db, governor, accountant
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"db", "governor", "accountant", "gateway-relayer"},
+		dependencies: []string{"db", "governor", "accountant", "gateway-relayer", "alternate-publisher"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -616,6 +638,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.acctC.readC,
 				g.gatewayRelayer,
 				networkId,
+				g.alternatePublisher,
 			).Run
 
 			return nil
