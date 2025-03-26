@@ -10,6 +10,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -186,6 +187,65 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf.Write(msg.Payload)
 
 	return buf.Bytes(), nil
+}
+
+// Deprecated: UnmarshalOldMessagePublicationWithTxHash deserializes a MessagePublication from when the TxHash was a fixed size ethCommon.Hash.
+// This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
+func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication, error) {
+	if len(data) < minMsgLength {
+		return nil, errors.New("message is too short")
+	}
+
+	msg := &MessagePublication{}
+
+	reader := bytes.NewReader(data[:])
+
+	txHash := common.Hash{}
+	if n, err := reader.Read(txHash[:]); err != nil || n != HashLength {
+		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
+	}
+	msg.TxID = txHash.Bytes()
+
+	unixSeconds := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+		return nil, fmt.Errorf("failed to read timestamp: %w", err)
+	}
+	msg.Timestamp = time.Unix(int64(unixSeconds), 0)
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.Sequence); err != nil {
+		return nil, fmt.Errorf("failed to read sequence: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.ConsistencyLevel); err != nil {
+		return nil, fmt.Errorf("failed to read consistency level: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
+	}
+
+	emitterAddress := vaa.Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != AddressLength {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
+	}
+	msg.EmitterAddress = emitterAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &msg.IsReobservation); err != nil {
+		return nil, fmt.Errorf("failed to read isReobservation: %w", err)
+	}
+
+	payload := make([]byte, reader.Len())
+	n, err := reader.Read(payload)
+	if err != nil || n == 0 {
+		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
+	}
+	msg.Payload = payload[:n]
+
+	return msg, nil
 }
 
 // Implements the BinaryMarshaler interface for MessagePublication.
