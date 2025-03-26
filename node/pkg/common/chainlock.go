@@ -11,6 +11,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
