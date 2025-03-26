@@ -298,8 +298,6 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 
 //nolint:unparam // TODO: now is unused. This function and GetChainGovernorData can be combined.
 func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time) (transfers []*Transfer, pending []*PendingTransfer, err error) {
-	oldTransfers := []*Transfer{}
-	oldPendingToUpdate := []*PendingTransfer{}
 	err = d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10
@@ -323,14 +321,6 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 
 				pending = append(pending, p)
-			} else if isOldPendingMsg(key) {
-				p, err := UnmarshalPendingTransfer(val, true)
-				if err != nil {
-					return err
-				}
-
-				pending = append(pending, p)
-				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			} else if IsTransfer(key) {
 				v, err := UnmarshalTransfer(val)
 				if err != nil {
@@ -339,6 +329,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 
 				transfers = append(transfers, v)
 
+<<<<<<< HEAD
 			} else if isOldTransfer(key) {
 				// NOTE: This is intentionally the same as IsTransfer branch
 				// for the current upgrade but this branch is left here for convenience for future upgrades.
