@@ -266,6 +266,10 @@ func oldTransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldTransferPrefix, t.MsgID))
 }
 
+func oldTransferMsgID(t *Transfer) []byte {
+	return []byte(fmt.Sprintf("%v%v", oldTransfer, t.MsgID))
+}
+
 func PendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", pendingPrefix, k.MessageIDString()))
 }
@@ -273,6 +277,10 @@ func PendingMsgID(k *common.MessagePublication) []byte {
 // Used only to delete old pending transfers.
 func oldPendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldPendingPrefix, k.MessageIDString()))
+}
+
+func oldPendingMsgID(k *common.MessagePublication) []byte {
+	return []byte(fmt.Sprintf("%v%v", oldPending, k.MessageIDString()))
 }
 
 func IsTransfer(keyBytes []byte) bool {
@@ -283,12 +291,20 @@ func isOldTransfer(keyBytes []byte) bool {
 	return (len(keyBytes) >= oldTransferLen+common.MinMsgIdLen) && (string(keyBytes[0:oldTransferLen]) == oldTransferPrefix)
 }
 
+func isOldTransfer(keyBytes []byte) bool {
+	return (len(keyBytes) >= oldTransferLen+minMsgIdLen) && (string(keyBytes[0:oldTransferLen]) == oldTransfer)
+}
+
 func IsPendingMsg(keyBytes []byte) bool {
 	return (len(keyBytes) >= pendingLen+common.MinMsgIdLen) && (string(keyBytes[0:pendingLen]) == pendingPrefix)
 }
 
 func isOldPendingMsg(keyBytes []byte) bool {
 	return (len(keyBytes) >= oldPendingLen+common.MinMsgIdLen) && (string(keyBytes[0:oldPendingLen]) == oldPendingPrefix)
+}
+
+func isOldPendingMsg(keyBytes []byte) bool {
+	return (len(keyBytes) >= oldPendingLen+minMsgIdLen) && (string(keyBytes[0:oldPendingLen]) == oldPending)
 }
 
 // This is called by the chain governor on start up to reload status.
@@ -298,6 +314,8 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 
 //nolint:unparam // TODO: now is unused. This function and GetChainGovernorData can be combined.
 func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time) (transfers []*Transfer, pending []*PendingTransfer, err error) {
+	oldTransfers := []*Transfer{}
+	oldPendingToUpdate := []*PendingTransfer{}
 	err = d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10
@@ -321,6 +339,14 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				}
 
 				pending = append(pending, p)
+			} else if isOldPendingMsg(key) {
+				p, err := UnmarshalPendingTransfer(val, true)
+				if err != nil {
+					return err
+				}
+
+				pending = append(pending, p)
+				oldPendingToUpdate = append(oldPendingToUpdate, p)
 			} else if IsTransfer(key) {
 				v, err := UnmarshalTransfer(val)
 				if err != nil {
@@ -329,7 +355,6 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 
 				transfers = append(transfers, v)
 
-<<<<<<< HEAD
 			} else if isOldTransfer(key) {
 				// NOTE: This is intentionally the same as IsTransfer branch
 				// for the current upgrade but this branch is left here for convenience for future upgrades.
