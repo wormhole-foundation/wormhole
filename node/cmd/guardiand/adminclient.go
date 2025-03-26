@@ -23,8 +23,8 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/node"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -450,7 +450,7 @@ func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
 	}
 
 	url := args[2]
-	if valid := node.ValidateURL(url, []string{"http", "https"}); !valid {
+	if valid := common.ValidateURL(url, []string{"http", "https"}); !valid {
 		log.Fatalf(`invalid url, must be "http" or "https"`)
 	}
 
