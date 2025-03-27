@@ -59,12 +59,7 @@ type Engine struct {
 
 	sigCounter activeSigCounter
 
-	// used for fault-tolerance:
 	// informs a central tracker of the guardian's actions.
-	// used to ensure the guardian is in the loop, and which guardians are active and on which chain.
-	//
-	// If the guardian attempted to sign previously, but wasn't part of the comittee, on some cases might change this case and add this
-	// guardian to the committee.
 	ftCommandChan chan ftCommand
 
 	SignatureMetrics sync.Map
@@ -79,12 +74,7 @@ type Configurations struct {
 	maxSimultaneousSignatures int
 	// MaxSignerTTL is the maximum time a signature is allowed to be active.
 	// used to release resources.
-	MaxSignerTTL   time.Duration
-	DelayGraceTime time.Duration // the duration a guardian is allowed not to start the protocol for some digest (after f+1 of its peers did).
-
-	// not exported so it can't be changed.
-	guardianDownTime time.Duration // once a guardian is marked as faulty, this is the time it isn't allowed into the protocol.
-	maxJitter        time.Duration // jitter is used to reduce the chance guardians get back at the same time from DownTime.
+	MaxSignerTTL time.Duration
 
 	ChainsWithNoSelfReport []uint16
 
@@ -345,7 +335,6 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 	info, err = t.fp.AsyncRequestNewSignature(sigTask)
 
 	if err != nil {
-		// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
 		return err
 	}
 
@@ -362,7 +351,7 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 
 	scmd := signCommand{SigningInfo: info, passedToFP: true, signingMeta: mt, digestconsistancy: consistencyLvl}
 	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &scmd); err != nil {
-		t.logger.Error("couldn't inform the fault-tolerance tracker of the signature start",
+		t.logger.Error("couldn't inform the tracker of the signature start",
 			zap.Error(err),
 			zap.String("trackingID", info.TrackingID.ToString()),
 		)
@@ -431,7 +420,7 @@ func (t *Engine) prepareThenAnounceNewDigest(d party.Digest, chainID vaa.ChainID
 	}
 
 	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, sgCmd); err != nil {
-		return fmt.Errorf("couldn't inform the fault-tolerance tracker of the signature start: %w", err)
+		return fmt.Errorf("couldn't inform the tracker of the signature start: %w", err)
 	}
 
 	return nil
@@ -457,18 +446,6 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 
 	if storage.MaxSignerTTL == 0 {
 		storage.MaxSignerTTL = defaultMaxSignerTTL
-	}
-
-	if storage.DelayGraceTime == 0 {
-		storage.DelayGraceTime = defaultDelayGraceTime
-	}
-
-	if storage.guardianDownTime == 0 {
-		storage.guardianDownTime = defaultGuardianDownTime
-	}
-
-	if storage.maxJitter == 0 {
-		storage.maxJitter = defaultMaxDownTimeJitter
 	}
 
 	if storage.maxSimultaneousSignatures == 0 {
@@ -552,7 +529,7 @@ func (t *Engine) Start(ctx context.Context) error {
 	// closing the t.fp.start inside th listener
 	go t.fpListener()
 
-	go t.ftTracker()
+	go t.sigTracker()
 
 	leaderIdentityPos, ok := t.Guardians.pemkeyToGuardian[string(t.LeaderIdentity)]
 	if !ok {
@@ -641,7 +618,7 @@ func (t *Engine) handleFpSignature(sig *common.SignatureData) {
 	default:
 		// This is a warning, since the ftTracker will eventually clean the sigState matching the trackingID.
 		t.logger.Warn(
-			"couldn't inform the fault-tolerance tracker of the signature end",
+			"couldn't inform the tracker of the signature end",
 			zap.String("trackingId", sig.TrackingId.ToString()),
 		)
 	}
@@ -674,7 +651,7 @@ func (t *Engine) handleFpError(err *tss.Error) {
 	select {
 	case t.ftCommandChan <- &SigEndCommand{trackid}:
 	default:
-		t.logger.Error("couldn't inform the fault-tolerance tracker of signature end due to error",
+		t.logger.Error("couldn't inform the tracker of signature end due to error",
 			zap.Error(err),
 			zap.String("trackingId", trackid.ToString()),
 		)

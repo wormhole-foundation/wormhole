@@ -996,8 +996,6 @@ func TestNoFaultsFlow(t *testing.T) {
 		defer cancel()
 
 		for _, engine := range engines {
-			engine.DelayGraceTime = time.Second
-			engine.maxJitter = time.Nanosecond
 			a.NoError(engine.Start(ctx))
 		}
 
@@ -1153,8 +1151,6 @@ func TestFT(t *testing.T) {
 		fmt.Println("starting engines.")
 		for _, engine := range engines {
 			engine.Configurations.MaxSignerTTL = time.Second * 4
-			engine.Configurations.maxJitter = time.Nanosecond
-			engine.Configurations.DelayGraceTime = time.Second * 2
 			a.NoError(engine.Start(ctx))
 		}
 
@@ -1200,8 +1196,6 @@ func TestFT(t *testing.T) {
 		// As a result, the VAA was generated, but the VAAv2 was not (since the others in the committee didn't f+1 messages that started signing).
 		a := assert.New(t)
 
-		timeout := time.Minute / 2
-
 		supctx := testutils.MakeSupervisorContext(context.Background())
 		ctx, cancel := context.WithTimeout(supctx, time.Minute)
 		defer cancel()
@@ -1218,11 +1212,6 @@ func TestFT(t *testing.T) {
 
 		fmt.Println("starting engines.")
 		for _, engine := range engines {
-			// Ensuring the guardianDownTime is longer than the test's timeout.
-			engine.GuardianStorage.Configurations.guardianDownTime = timeout * 2
-			engine.GuardianStorage.maxJitter = time.Microsecond
-			// little grace time to ensure someone confess their issue.
-			engine.Configurations.DelayGraceTime = time.Second * 3
 			a.NoError(engine.Start(ctx))
 		}
 

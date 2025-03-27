@@ -13,16 +13,16 @@ import (
 // This file represents tracking mechanism for signatures, their trackingID, and who is currently working on them.
 // It provide the Engine with information, for instance whether if the guardian saw the digest already.
 //
-// ftCommand represents commands that reach the ftTracker.
-// to become ftCommand, the struct must implement the apply(*Engine, *ftTracker) method.
+// ftCommand represents commands that reach the sigTracker.
+// to become ftCommand, the struct must implement the apply(*Engine, *sigTracker) method.
 //
 // the commands include signCommand, prepareToSignCommand, and reportProblemCommand.
-//   - signCommand is used to inform the ftTracker that a guardian saw a digest, and what related information
+//   - signCommand is used to inform the sigTracker that a guardian saw a digest, and what related information
 //     it has about the digest.
 //   - prepareToSignCommand is used to know which guardians aren't to be used in the protocol for
 //     specific chainID.
 type ftCommand interface {
-	apply(*Engine, *ftTracker)
+	apply(*Engine, *sigTracker)
 }
 
 type trackidStr string
@@ -90,7 +90,7 @@ type ftParty struct {
 	ftChainContext map[vaa.ChainID]*ftChainContext
 }
 
-type ftTracker struct {
+type sigTracker struct {
 	ttlKeys []keyAndTTL
 
 	sigsState      map[sigKey]*signatureState
@@ -109,8 +109,8 @@ func newChainContext() *ftChainContext {
 }
 
 // a single threaded env, that inspects incoming signatures request, message deliveries etc.
-func (t *Engine) ftTracker() {
-	f := &ftTracker{
+func (t *Engine) sigTracker() {
+	f := &sigTracker{
 		sigsState:   make(map[sigKey]*signatureState),
 		membersData: make(map[strPartyId]*ftParty),
 
@@ -147,7 +147,7 @@ func (t *Engine) ftTracker() {
 	}
 }
 
-func (f *ftTracker) cleanup(t *Engine, maxttl time.Duration) {
+func (f *sigTracker) cleanup(t *Engine, maxttl time.Duration) {
 	now := time.Now()
 
 	toRemove := []sigKey{}
@@ -163,7 +163,7 @@ func (f *ftTracker) cleanup(t *Engine, maxttl time.Duration) {
 
 		f.ttlKeys = f.ttlKeys[diff:] // remove the first diff elements.
 
-		t.logger.Warn("ftTracker's limit reached, removing the oldest stored signature states", zap.Int("amount", diff))
+		t.logger.Warn("sigTracker's limit reached, removing the oldest stored signature states", zap.Int("amount", diff))
 	}
 
 	cutoff := 0
@@ -191,7 +191,7 @@ func (f *ftTracker) cleanup(t *Engine, maxttl time.Duration) {
 
 }
 
-func (f *ftTracker) remove(sigState *signatureState) {
+func (f *sigTracker) remove(sigState *signatureState) {
 	if sigState == nil {
 		return
 	}
@@ -212,7 +212,7 @@ func (f *ftTracker) remove(sigState *signatureState) {
 	delete(f.sigsState, key)
 }
 
-func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
+func (cmd *prepareToSignCommand) apply(t *Engine, f *sigTracker) {
 	if cmd.reply == nil {
 		t.logger.Error("reply channel is nil")
 
@@ -244,7 +244,7 @@ func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
 // This changes the signatureState and sets it as Seen/Started/Approved to sign.
 // As a result, once the alertHeap expires, it will not report a problem after
 // f+1 guardians started signing since this guardian started as well.
-func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
+func (cmd *signCommand) apply(t *Engine, f *sigTracker) {
 	tid := cmd.SigningInfo.TrackingID
 	if tid == nil {
 		t.logger.Error("signCommand: tracking id is nil")
@@ -302,7 +302,7 @@ func (cmd *signCommand) apply(t *Engine, f *ftTracker) {
 	}
 }
 
-func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
+func (cmd *SigEndCommand) apply(t *Engine, f *sigTracker) {
 	dgst := party.Digest{}
 	copy(dgst[:], cmd.Digest[:])
 
@@ -314,7 +314,7 @@ func (cmd *SigEndCommand) apply(t *Engine, f *ftTracker) {
 	}
 }
 
-func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alertTime time.Time) *signatureState {
+func (f *sigTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alertTime time.Time) *signatureState {
 	state := &signatureState{
 		chain:          chain,
 		digest:         digest,
