@@ -115,7 +115,7 @@ func serializeTSSMessage(msg tss.Message) []byte {
 	msgType := make([]byte, tssProtoMessageSize)
 	copy(msgType[:], tp[:])
 
-	d := make([]byte, 0, len(tssContentDomain)+int(trackingIDHexStrSize)+hostnameSize+pemKeySize)
+	d := make([]byte, 0, len(tssContentDomain)+trackingIDHexStrSize+hostnameSize+pemKeySize)
 
 	d = append(d, tssContentDomain...)
 	d = append(d, messageTrackingID[:]...)

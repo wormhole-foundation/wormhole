@@ -326,67 +326,48 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 		zap.Int("numMatchingTrackIDS", len(sigPrepInfo.alreadyStartedSigningTrackingIDs)),
 	)
 
-	dgstStr := fmt.Sprintf("%x", vaaDigest)
-
 	t.createSignatureMetrics(vaaDigest, chainID)
 
-	for _, faulties := range sigPrepInfo.inactives.getFaultiesLists() {
+	// TODO: Once we can map between the signers of VAAv1 and the TSS party, we can
+	// select a specific committee by stating that anyone who hasn’t signed VAAv1 is a faultier.
+	sigTask := makeSigningRequest(d, nil, chainID)
 
-		if t.Guardians.Len()-len(faulties) <= t.Threshold {
-			t.logger.Error(
-				"too many faulty guardians to start the signing protocol",
-				zap.String("digest", dgstStr),
-				zap.String("chainID", chainID.String()),
-				zap.Strings("faulties", getCommitteeIDs(faulties)),
-			)
+	info, err := t.fp.GetSigningInfo(sigTask)
+	if err != nil {
+		return fmt.Errorf("couldnt generate signing task: %w", err)
+	}
 
-			continue // not a failure of the method, so it should continue, instead of returning an error.
-		}
+	if sigPrepInfo.alreadyStartedSigningTrackingIDs[trackidStr(info.TrackingID.ToString())] {
+		return nil // skipping signing.
+	}
 
-		sigTask := makeSigningRequest(d, faulties, chainID)
+	// TODO: cosider not recomputing the info, and just used it from `t.fp.GetSigningInfo(sigTask)`
+	info, err = t.fp.AsyncRequestNewSignature(sigTask)
 
-		info, err := t.fp.GetSigningInfo(sigTask)
-		if err != nil {
-			return fmt.Errorf("couldnt generate signing task: %w", err)
-		}
+	if err != nil {
+		// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
+		return err
+	}
 
-		if sigPrepInfo.alreadyStartedSigningTrackingIDs[trackidStr(info.TrackingID.ToString())] {
-			continue
-		}
+	flds := []zap.Field{
+		zap.String("trackingID", info.TrackingID.ToString()),
+		zap.String("ChainID", chainID.String()),
+		zap.Any("committee", getCommitteeIDs(info.SigningCommittee)),
+	}
 
-		// TODO: cosider not recomputing the info, and just used it from `t.fp.GetSigningInfo(sigTask)`
-		info, err = t.fp.AsyncRequestNewSignature(sigTask)
+	t.logger.Info(
+		"guardian started signing protocol",
+		flds...,
+	)
 
-		if err != nil {
-			// note, we don't inform the fault-tolerance tracker of the error, so it can put this guardian in timeoout.
-			return err
-		}
-
-		flds := []zap.Field{
+	scmd := signCommand{SigningInfo: info, passedToFP: true, signingMeta: mt, digestconsistancy: consistencyLvl}
+	if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &scmd); err != nil {
+		t.logger.Error("couldn't inform the fault-tolerance tracker of the signature start",
+			zap.Error(err),
 			zap.String("trackingID", info.TrackingID.ToString()),
-			zap.String("ChainID", chainID.String()),
-			zap.Any("committee", getCommitteeIDs(info.SigningCommittee)),
-		}
-
-		if len(faulties) > 0 {
-			flds = append(flds, zap.Int("num-removed", len(faulties)))
-			flds = append(flds, zap.Any("removed-from-committee", getCommitteeIDs(faulties)))
-		}
-
-		t.logger.Info(
-			"guardian started signing protocol",
-			flds...,
 		)
 
-		scmd := signCommand{SigningInfo: info, passedToFP: true, signingMeta: mt, digestconsistancy: consistencyLvl}
-		if err := intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &scmd); err != nil {
-			t.logger.Error("couldn't inform the fault-tolerance tracker of the signature start",
-				zap.Error(err),
-				zap.String("trackingID", info.TrackingID.ToString()),
-			)
-
-			return err
-		}
+		return err
 	}
 
 	return nil
@@ -800,7 +781,7 @@ func (t *Engine) intoSendable(m tss.Message) (Sendable, error) {
 	if routing.IsBroadcast || len(routing.To) == 0 {
 		msgToSend := &tsscommv1.SignedMessage{
 			Content:   content,
-			Sender:    SenderIndex(t.Self.CommunicationIndex).toProto(),
+			Sender:    t.Self.CommunicationIndex.toProto(),
 			Signature: nil,
 		}
 

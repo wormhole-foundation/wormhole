@@ -32,13 +32,6 @@ var (
 		},
 	)
 
-	activeGuardiansByChain = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "wormhole_tss_active_guardians_by_chain",
-			Help: "Gauge showing the current number of active guardians by chain",
-		}, []string{"chain_name"}, //followed example from ccq
-	)
-
 	sigLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_tss_signature_latency",

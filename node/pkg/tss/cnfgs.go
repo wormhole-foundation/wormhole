@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -177,8 +176,6 @@ func extractCertAndKeyFromPem(pem PEM) (*x509.Certificate, *ecdsa.PublicKey, err
 	return c, key, nil
 }
 
-var errInternalNoCert = errors.New("internal error. no certificate found")
-
 func (s *GuardianStorage) fetchCertificate(sender SenderIndex) (*x509.Certificate, error) {
 	pos, ok := s.Guardians.indexToIdendity[sender]
 	if !ok {
@@ -188,8 +185,8 @@ func (s *GuardianStorage) fetchCertificate(sender SenderIndex) (*x509.Certificat
 	return s.Guardians.Identities[pos].Cert, nil
 }
 
-func (g *GuardianStorage) contains(sender SenderIndex) bool {
-	_, ok := g.Guardians.indexToIdendity[sender]
+func (s *GuardianStorage) contains(sender SenderIndex) bool {
+	_, ok := s.Guardians.indexToIdendity[sender]
 
 	return ok
 }

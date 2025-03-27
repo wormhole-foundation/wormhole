@@ -3,7 +3,6 @@ package tss
 import (
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/xlabs/tss-lib/v2/common"
 	"github.com/xlabs/tss-lib/v2/ecdsa/party"
@@ -11,32 +10,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// The code in this file improves the fault tolerance of the TSS Engine
-// such that honest-but-missing-current-blocks
-// failures do not cause the protocol to halt on a signature.
-// For instance, nodes that haven’t upgraded their binaries to match
-// the most recent code may not receive new blocks or transactions, and as a
-// result will refuse to participate in signing.
-//
-// While maintaining strict security guarantees, the fault tolerance mechanism
-// will only deal with the case where a guardian is behind the network.
-// That is, it relies on the guardian to report that it is behind the network.
-//
-// The guardian (Denote by G), that participates in the TSS protocol will see messages sent
-// to and from other guardians (due to it being a part in the Reliable Broadcast protocol).
-// As a result, G will witness the digests that other guardians started the signing protocol for.
-// In case G witnesses f+1 other guardians working on a digest that it hasn't seen yet, it will assume
-// it is behind the network, and will generate a problem report and broadcast it to the other guardians.
-// That is, seeing f+1 other guardians guarantees that at least one honest guardian saw the message,
-// and thus G can assume it is behind the network.
-//
-// TODO: Support crash-failures.
-//
-// FT Process: each guardian keeps track of the digest, signatures and trackingIDs it saw using the
-// ftTracker and its goroutine. The ftTracker receives ftCommands from the Engine and update its state
-// according to these commands. It will output a problem message to the other guardians if it detects
-// that it is behind the network.
-// below is the ftCommand interface and the commands that implement it.
+// This file represents tracking mechanism for signatures, their trackingID, and who is currently working on them.
+// It provide the Engine with information, for instance whether if the guardian saw the digest already.
 //
 // ftCommand represents commands that reach the ftTracker.
 // to become ftCommand, the struct must implement the apply(*Engine, *ftTracker) method.
@@ -46,8 +21,6 @@ import (
 //     it has about the digest.
 //   - prepareToSignCommand is used to know which guardians aren't to be used in the protocol for
 //     specific chainID.
-//   - reportProblemCommand is used to deliver a problem message from another
-//     guardian (after it was accepted by the reliable-broadcast protocol).
 type ftCommand interface {
 	apply(*Engine, *ftTracker)
 }
@@ -65,48 +38,7 @@ type SigEndCommand struct {
 	*common.TrackingID // either from error, or from success.
 }
 
-type inactives struct {
-	partyIDs []*tss.PartyID
-
-	downtimeEnding []*tss.PartyID
-}
-
-// getFaultiesLists returns a list of all relevant faulties lists.
-// will drop from faulties each guardian that is in the downtimeEnding list.
-// that is, generates a list of size (n choose n-1) + 1.
-func (i *inactives) getFaultiesLists() [][]*tss.PartyID {
-	listOfAllFaultiesLists := make([][]*tss.PartyID, 0, len(i.downtimeEnding)+1)
-	for _, v := range append([]*tss.PartyID{nil}, i.downtimeEnding...) {
-		listOfAllFaultiesLists = append(listOfAllFaultiesLists, i.getFaultiesWithout(v))
-	}
-
-	return listOfAllFaultiesLists
-}
-
-func (i *inactives) getFaultiesWithout(pid *tss.PartyID) []*tss.PartyID {
-	if pid == nil {
-		return i.partyIDs
-	}
-
-	if len(i.partyIDs) == 0 {
-		return i.partyIDs
-	}
-
-	faulties := make([]*tss.PartyID, 0, len(i.partyIDs)-1)
-
-	for _, p := range i.partyIDs {
-		if equalPartyIds(p, pid) {
-			continue
-		}
-
-		faulties = append(faulties, p)
-	}
-
-	return faulties
-}
-
 type sigPreparationInfo struct {
-	inactives                        inactives
 	alreadyStartedSigningTrackingIDs map[trackidStr]bool
 }
 
@@ -124,12 +56,6 @@ type tackingIDContext struct {
 }
 
 // the signatureState struct is used to keep track of a signature.
-// the same struct is held by two different data structures:
-//  1. a map so we can access and update the sigState easily.
-//  2. a timedHeap that orders the signatures by the time they should be checked.
-//     once the timedHeap timer expires we inspect the top (*sigState) and decide whether we should report
-//     a problem to the other guardians, increase the timeout for this signature and check again later, or
-//     drop the timer since we've seen the message.
 type signatureState struct {
 	chain vaa.ChainID // blockchain the message relates to (e.g. Ethereum, Solana, etc).
 
@@ -138,8 +64,6 @@ type signatureState struct {
 	approvedToSign bool
 
 	// each trackingId is a unique attempt to sign a message.
-	// Once one of the trackidStr saw f+1 guardians and we haven't seent the digest yet, we can assume
-	// we are behind the network and we should inform the others.
 	trackidContext map[trackidStr]*tackingIDContext
 
 	// consistansy states the level of finality floats over the digest.
@@ -147,25 +71,7 @@ type signatureState struct {
 	digestconsistancy uint8
 	isFromVaav1       bool
 
-	alertTime time.Time
-
 	beginTime time.Time // used to do cleanups.
-
-}
-
-// GetEndTime is in capital to support the HasTTl interface.
-func (s *signatureState) GetEndTime() time.Time {
-	return s.alertTime
-}
-
-type endDownTimeAlert struct {
-	partyID   *tss.PartyID
-	chain     vaa.ChainID
-	alertTime time.Time
-}
-
-func (e *endDownTimeAlert) GetEndTime() time.Time {
-	return e.alertTime
 }
 
 type keyAndTTL struct {
@@ -185,15 +91,12 @@ type ftParty struct {
 }
 
 type ftTracker struct {
-	ttlKeys        []keyAndTTL
-	sigAlerts      internal.Ttlheap[*signatureState]
-	sigsState      map[sigKey]*signatureState // TODO: sigState should include the chainID too, otherwise we might have two digest with  two differet chainIDs
+	ttlKeys []keyAndTTL
+
+	sigsState      map[sigKey]*signatureState
 	chainIdsToSigs map[vaa.ChainID]map[sigKey]*signatureState
 
-	// for starters, we assume any fault is on all chains.
-	membersData            map[strPartyId]*ftParty
-	downtimeAlerts         internal.Ttlheap[*endDownTimeAlert]
-	chainsWithNoSelfReport map[vaa.ChainID]bool
+	membersData map[strPartyId]*ftParty
 }
 
 func newChainContext() *ftChainContext {
@@ -208,14 +111,10 @@ func newChainContext() *ftChainContext {
 // a single threaded env, that inspects incoming signatures request, message deliveries etc.
 func (t *Engine) ftTracker() {
 	f := &ftTracker{
-		sigAlerts:      internal.NewTtlHeap[*signatureState](),
-		sigsState:      make(map[sigKey]*signatureState),
-		membersData:    make(map[strPartyId]*ftParty),
-		downtimeAlerts: internal.NewTtlHeap[*endDownTimeAlert](),
+		sigsState:   make(map[sigKey]*signatureState),
+		membersData: make(map[strPartyId]*ftParty),
 
 		chainIdsToSigs: map[vaa.ChainID]map[sigKey]*signatureState{},
-
-		chainsWithNoSelfReport: make(map[vaa.ChainID]bool),
 	}
 
 	for _, pid := range t.GuardianStorage.Guardians.partyIds {
@@ -224,10 +123,6 @@ func (t *Engine) ftTracker() {
 			partyID:        pid,
 			ftChainContext: map[vaa.ChainID]*ftChainContext{},
 		}
-	}
-
-	for _, cid := range t.GuardianStorage.Configurations.ChainsWithNoSelfReport {
-		f.chainsWithNoSelfReport[vaa.ChainID(cid)] = true
 	}
 
 	maxttl := t.GuardianStorage.maxSignerTTL()
@@ -425,7 +320,6 @@ func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alert
 		digest:         digest,
 		approvedToSign: false,
 		trackidContext: map[trackidStr]*tackingIDContext{},
-		alertTime:      alertTime,
 		beginTime:      time.Now(),
 	}
 
@@ -443,17 +337,4 @@ func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alert
 	f.ttlKeys = append(f.ttlKeys, keyAndTTL{key: sigkey, ttl: alertTime})
 
 	return state
-}
-
-// get the maximal amount of guardians that saw the digest and started signing.
-func (s *signatureState) maxGuardianVotes() int {
-	maxVotesSeen := 0
-
-	for _, tidData := range s.trackidContext {
-		if len(tidData.sawProtocolMessagesFrom) > maxVotesSeen {
-			maxVotesSeen = len(tidData.sawProtocolMessagesFrom)
-		}
-	}
-
-	return maxVotesSeen
 }

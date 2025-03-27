@@ -111,7 +111,7 @@ func (e *Echo) cloneSelf() Sendable {
 	return &Echo{Echo: proto.Clone(e.Echo).(*tsscommv1.Echo)}
 }
 
-func (e *Unicast) IsBroadcast() bool {
+func (u *Unicast) IsBroadcast() bool {
 	return false
 }
 
