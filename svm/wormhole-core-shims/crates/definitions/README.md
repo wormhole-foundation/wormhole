@@ -4,28 +4,33 @@ Definitions relating to Wormhole SVM programs. These definitions include finding
 PDA addresses (and corresponding bump seeds), various consts (like program IDs),
 and other things that define these program accounts and data.
 
-## Cargo Features
+The crate is parameterised over a set of program IDs (the Wormhole program, the
+post-vaa shim program, and the verify-vaa shim program). Since this crate may be
+used in many different scenarios, and many different SVM networks, we expose
+feature flags to control which program IDs are used to derive the other constants.
 
-There are features that define network types and specific SVM networks.
+For Solana, we have a hardcoded set of addresses for `mainnet`, `devnet` and a
+local testing environment. If the `solana` feature is specified, it will default
+to the mainnet addresses. Otherwise, the `testnet` flag provides the addresses
+for Solana Devnet, and the `localnet` flag provides the addresses for the local
+testing environment.
 
-### Network Types
+Alternatively, when using on another SVM chain (or on Solana, but against an
+independent Wormhole deployment) just specify the `from-env` feature flag (and
+don't specify Solana, even if the chain is Solana). In this case, the following
+4 environment variables are needed:
+- `CHAIN_ID`: the Wormhole ID of the chain deployed on. e.g. Solana is 1, Fogo is 51.
+- `BRIDGE_ADDRESS`: program ID of the Wormhole program
+- `POST_MESSAGE_SHIM_PROGRAM_ID`: program ID of the [../../programs/post-message/](post-message shim).
+- `VERIFY_VAA_SHIM_PROGRAM_ID`: program ID of the [../../programs/verify-vaa](verify-vaa shim).
 
-The default network type is mainnet. There is no feature that defines mainnet.
-But if one of the following features are defined, program IDs and account
-addresses will not use the ones defined for mainnet.
+The definitions crate can be compiled without either the `solana` or the
+`from-env` feature flags. In this case, it will not expose any addresses in the top-level crate, for example `crate::CORE_BRIDGE_FEE_COLLECTOR` won't be available. However, the predefined Solana addresses are still available via their qualified paths:
+e.g. `crate::solana::devnet::CORE_BRIDGE_FEE_COLLECTOR`.
 
-- `localnet`: Wormhole's Tilt devnet. Programs like the Wormhole Core Bridge and
-  its associated PDAs have addresses specific to this local development network.
-- `testnet`: Public devnet or testnet depending on the specific SVM network. For
-  Solana specifically, this feature corresponds to the public Solana devnet.
-
-### Specific Networks
-
-There are no default network features. These feature labels also exist as
-submodules in this crate. By defining a particular SVM network feature, the
-definitions found in this submodule are simply exported into the crate root.
-
-- `solana`
+A crate wishing to build on top of this crate should pass through the
+`from-env`, `solana`, `testnet`, and `devnet` flags, but may wish to specify
+`from-env` as the default.
 
 ### Other Features
 

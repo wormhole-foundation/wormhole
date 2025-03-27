@@ -13,7 +13,7 @@ version.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [features]
-default = []
+default = [ "from-env" ]
 no-entrypoint = []
 
 ### Network types
@@ -22,6 +22,8 @@ localnet = ["wormhole-svm-definitions/localnet"]
 
 ### Specific networks
 solana = ["wormhole-svm-definitions/solana"]
+
+from-env = ["wormhole-svm-definitions/from-env"]
 
 [dependencies]
 solana-program.workspace = true
