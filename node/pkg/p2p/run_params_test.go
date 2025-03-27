@@ -13,6 +13,7 @@ import (
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 const bootstrapPeers = "/dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWHHzSeKaY8xuZVzkLbKFfvNgPPeKhFBGrMbNzbm5akpqu"
@@ -212,6 +213,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	ccqAllowedPeers := "some allowed peers"
 	protectedPeers := []string{"peer1", "peer2", "peer3"}
 	ccqProtectedPeers := []string{"peerA", "peerB"}
+	txVerifierChains := []vaa.ChainID{vaa.ChainID(2)}
 
 	params, err := NewRunParams(
 		bootstrapPeers,
@@ -244,6 +246,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			protectedPeers,
 			ccqProtectedPeers,
 			[]string{}, // featureFlags
+			txVerifierChains,
 		),
 	)
 

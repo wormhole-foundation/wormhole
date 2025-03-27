@@ -55,6 +55,7 @@ func GuardianOptionP2P(
 	protectedPeers []string,
 	ccqProtectedPeers []string,
 	featureFlags []string,
+	txVerifierChains []vaa.ChainID,
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
@@ -113,6 +114,7 @@ func GuardianOptionP2P(
 					protectedPeers,
 					ccqProtectedPeers,
 					featureFlags,
+					txVerifierChains,
 				),
 				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
 				p2p.WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc),

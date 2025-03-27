@@ -569,6 +569,24 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								features = append(features, params.featureFlags...)
 							}
 
+							// Append transfer verifier feature information in the form
+							// "txverifier:ethereum,sui".
+							if len(params.txVerifierChains) > 0 {
+								chainNames := []string{}
+								for _, cid := range params.txVerifierChains {
+									chainNames = append(chainNames, cid.String())
+								}
+
+								features = append(
+									features,
+									fmt.Sprintf(
+										"txverifier:%s",
+										strings.Join(chainNames, ","),
+									),
+								)
+
+							}
+
 							heartbeat := &gossipv1.Heartbeat{
 								NodeName:      params.nodeName,
 								Counter:       ctr,
