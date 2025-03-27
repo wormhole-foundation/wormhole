@@ -129,10 +129,6 @@ func (p *parsedProblem) serialize() []byte {
 	return b.Bytes()
 }
 
-func (p *parsedProblem) deliver(t *Engine) error {
-	return intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &reportProblemCommand{*p})
-}
-
 // This function sets a message's sessionID. It is crucial for SECURITY to ensure no equivocation
 //
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
@@ -230,10 +226,6 @@ func (p *parsedAnnouncement) serialize() []byte {
 
 func (p *parsedAnnouncement) wrapError(err error) error {
 	return logableError{cause: fmt.Errorf("error with digest announcement from %v: %w", p.issuer, err)}
-}
-
-func (p *parsedAnnouncement) deliver(t *Engine) error {
-	return intoChannelOrDone[ftCommand](t.ctx, t.ftCommandChan, &newSeenDigestCommand{*p})
 }
 
 type broadcaststate struct {

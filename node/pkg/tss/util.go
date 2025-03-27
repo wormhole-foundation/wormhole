@@ -243,30 +243,6 @@ func validateHashEchoMessageCorrectForm(v *tsscommv1.SignedMessage_HashEcho) err
 	return nil
 }
 
-func validateProblemMessageCorrectForm(v *tsscommv1.SignedMessage_Problem) error {
-	if err := validateProblemCorrectForm(v.Problem); err != nil {
-		return err
-	}
-
-	if time.Since(v.Problem.IssuingTime.AsTime()).Abs() > maxHeartbeatInterval {
-		return fmt.Errorf("problem's timestamp is too old")
-	}
-
-	return nil
-}
-
-func validateAnouncementCorrectForm(v *tsscommv1.SignedMessage_Announcement) error {
-	if v.Announcement == nil {
-		return fmt.Errorf("announcement is nil")
-	}
-
-	if v.Announcement.Digest == nil {
-		return fmt.Errorf("announcement digest is nil")
-	}
-
-	return nil
-}
-
 func validateUnicastCorrectForm(m *tsscommv1.Unicast) error {
 	if m == nil {
 		return ErrNoContent

@@ -1,18 +1,14 @@
 package tss
 
 import (
-	"encoding/binary"
-	"fmt"
 	"time"
 
-	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/xlabs/tss-lib/v2/common"
 	"github.com/xlabs/tss-lib/v2/ecdsa/party"
 	"github.com/xlabs/tss-lib/v2/tss"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // The code in this file improves the fault tolerance of the TSS Engine
@@ -48,8 +44,6 @@ import (
 // the commands include signCommand, prepareToSignCommand, and reportProblemCommand.
 //   - signCommand is used to inform the ftTracker that a guardian saw a digest, and what related information
 //     it has about the digest.
-//   - newSeenDigestCommand is used to inform the ftTracker that a guardian saw a message and forwarded it
-//     to the fullParty (sent over network iff the consistancy level is good enough).
 //   - prepareToSignCommand is used to know which guardians aren't to be used in the protocol for
 //     specific chainID.
 //   - reportProblemCommand is used to deliver a problem message from another
@@ -69,14 +63,6 @@ type signCommand struct {
 
 type SigEndCommand struct {
 	*common.TrackingID // either from error, or from success.
-}
-
-type reportProblemCommand struct {
-	parsedProblem
-}
-
-type newSeenDigestCommand struct {
-	parsedAnnouncement
 }
 
 type inactives struct {
@@ -260,12 +246,6 @@ func (t *Engine) ftTracker() {
 				f.cleanup(t, maxttl)
 			}
 
-		case <-f.sigAlerts.WaitOnTimer():
-			f.inspectAlertHeapsTop(t)
-
-		case <-f.downtimeAlerts.WaitOnTimer():
-			f.inspectDowntimeAlertHeapsTop(t)
-
 		case <-ticker.C:
 			f.cleanup(t, maxttl)
 		}
@@ -337,79 +317,6 @@ func (f *ftTracker) remove(sigState *signatureState) {
 	delete(f.sigsState, key)
 }
 
-func (cmd *reportProblemCommand) deteministicJitter(maxjitter time.Duration) time.Duration {
-	bts := cmd.serialize()
-
-	jitterBytes := hash(bts)
-	nanoJitter := binary.BigEndian.Uint64(jitterBytes[:8])
-
-	return (time.Duration(nanoJitter).Abs() % maxjitter).Abs()
-}
-
-func (cmd *reportProblemCommand) apply(t *Engine, f *ftTracker) {
-	// the incoming command is assumed to be from a reliable-broadcast protocol and to be valid:
-	// not too old (less than maxHeartbeatInterval), signed by the correct party, etc.
-	pid := t.GuardianStorage.getPartyIdFromIndex(cmd.issuer)
-
-	m := f.membersData[strPartyId(partyIdToString(pid))]
-
-	jitter := cmd.deteministicJitter(t.GuardianStorage.maxJitter)
-
-	now := time.Now()
-	// Adds some deterministic jitter to the time to revive, so reportProblemCommand messages that arrive at the same time
-	// won't have the same revival time.
-	reviveTime := now.Add(t.GuardianStorage.guardianDownTime + jitter)
-
-	chainID := vaa.ChainID(cmd.ChainID)
-
-	chainData, ok := m.ftChainContext[chainID]
-	if !ok {
-		chainData = newChainContext()
-		m.ftChainContext[chainID] = chainData
-	}
-
-	// we update the revival time only if the revival time had passed
-	if now.After(chainData.timeToRevive) {
-		chainData.timeToRevive = reviveTime
-		f.downtimeAlerts.Enqueue(&endDownTimeAlert{
-			partyID:   pid,
-			chain:     chainID,
-			alertTime: reviveTime,
-		})
-	}
-
-	numberInactive := len(f.getIncatives(chainID).partyIDs)
-
-	t.logger.Info("received a problem message from guardian",
-		zap.String("problem issuer", pid.Id),
-		zap.String("chainID", vaa.ChainID(cmd.ChainID).String()),
-		zap.Int("number of inactives on chain", numberInactive),
-	)
-
-	activeGuardiansByChain.WithLabelValues(chainID.String()).Set(float64(t.Guardians.Len() - numberInactive))
-
-	// if the problem is about this guardian, then there is no reason to retry the sigs since it won't
-	// be part of the protocol.
-	// we do let this guardian know that it is faulty and it's time so it can collect correct data
-	// from signingInfo, which should be synchronised with the other guardians (if it attempts to sign later sigs).
-	if equalPartyIds(pid, t.Self.Pid) {
-		return
-	}
-
-	retryNow := chainData.liveSigsWaitingForThisParty
-	chainData.liveSigsWaitingForThisParty = map[sigKey]*signatureState{} // clear the live sigs.
-
-	go func() {
-		for _, sig := range retryNow {
-			mt := signingMeta{isRetry: true, isFromVaav1: sig.isFromVaav1}
-			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
-			if err := t.beginTSSSign(sig.digest[:], chainID, sig.digestconsistancy, mt); err != nil {
-				t.logger.Error("failed to retry a signature", zap.Error(err))
-			}
-		}
-	}()
-}
-
 func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
 	if cmd.reply == nil {
 		t.logger.Error("reply channel is nil")
@@ -418,7 +325,6 @@ func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
 	}
 
 	reply := sigPreparationInfo{
-		inactives:                        f.getIncatives(cmd.ChainID),
 		alreadyStartedSigningTrackingIDs: map[trackidStr]bool{},
 	}
 
@@ -438,33 +344,6 @@ func (cmd *prepareToSignCommand) apply(t *Engine, f *ftTracker) {
 	}
 
 	close(cmd.reply)
-}
-
-func (f *ftTracker) getIncatives(chainID vaa.ChainID) inactives {
-	reply := inactives{}
-
-	for _, m := range f.membersData {
-		chainData, ok := m.ftChainContext[chainID]
-		if !ok {
-			chainData = newChainContext()
-			m.ftChainContext[chainID] = chainData
-
-			continue // never seen before, so it's active.
-		}
-
-		diff := time.Until(chainData.timeToRevive)
-		//  |revive_time - now| < synchronsingInterval, then its time to revive comes soon.
-		if diff.Abs() < synchronsingInterval {
-			reply.downtimeEnding = append(reply.downtimeEnding, m.partyID)
-		}
-
-		// there is time to wait until the guardian is back, so it's inactive.
-		if diff > 0 {
-			reply.partyIDs = append(reply.partyIDs, m.partyID)
-		}
-	}
-
-	return reply
 }
 
 // This changes the signatureState and sets it as Seen/Started/Approved to sign.
@@ -565,77 +444,6 @@ func (f *ftTracker) setNewSigState(digest party.Digest, chain vaa.ChainID, alert
 
 	return state
 }
-func (f *ftTracker) inspectAlertHeapsTop(t *Engine) {
-	sigState := f.sigAlerts.Dequeue()
-
-	if sigState.approvedToSign {
-		return
-	}
-
-	if _, exists := f.sigsState[intoSigKey(sigState.digest, sigState.chain)]; !exists {
-		// sig is removed (either old, or finished signing), and we don't need to do anything.
-		return
-	}
-
-	// At least one honest guardian saw the message, but I didn't (I'm probablt behined the network).
-	if sigState.maxGuardianVotes() >= t.GuardianStorage.getMaxExpectedFaults()+1 {
-		zapflds := []zap.Field{
-			zap.String("digest", fmt.Sprintf("%x", sigState.digest)),
-			zap.String("chainID", sigState.chain.String()),
-			zap.Duration("Time since signature started", time.Since(sigState.beginTime)),
-			zap.Int("Number of guardians that saw the message", sigState.maxGuardianVotes()),
-		}
-
-		if f.chainsWithNoSelfReport[sigState.chain] {
-			t.logger.Info("missed a digest, but avoiding self reporting", zapflds...)
-
-			return
-		}
-
-		t.logger.Warn("missed a digest. f+1 attempted to sign it already, reporting issue", zapflds...)
-		t.reportProblem(sigState.chain)
-
-		return
-	}
-
-	// haven't seen the message, but not behind the network (yet).
-	// increasing timeout for this signature.
-	sigState.alertTime = time.Now().Add(t.DelayGraceTime / 2) // TODO: consider some logic on reducing the time.
-	f.sigAlerts.Enqueue(sigState)
-}
-
-func (t *Engine) reportProblem(chain vaa.ChainID) {
-	sm := &tsscommv1.SignedMessage{
-		Content: &tsscommv1.SignedMessage_Problem{
-			Problem: &tsscommv1.Problem{
-				ChainID:     uint32(chain),
-				IssuingTime: timestamppb.Now(),
-			},
-		},
-
-		Sender:    uint32(t.Self.CommunicationIndex),
-		Signature: []byte{},
-	}
-
-	tmp := serializeableMessage{&parsedProblem{
-		Problem: sm.GetProblem(),
-		issuer:  SenderIndex(sm.Sender),
-	}}
-
-	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), sm); err != nil {
-		t.logger.Error("failed to report a problem to the other guardians", zap.Error(err))
-
-		return
-	}
-
-	select {
-	case t.messageOutChan <- newEcho(sm, t.GuardianStorage.Guardians.Identities):
-	default:
-		t.logger.Warn("failed to report a problem, network channel buffer is full",
-			zap.String("chainID", chain.String()),
-		)
-	}
-}
 
 // get the maximal amount of guardians that saw the digest and started signing.
 func (s *signatureState) maxGuardianVotes() int {
@@ -648,115 +456,4 @@ func (s *signatureState) maxGuardianVotes() int {
 	}
 
 	return maxVotesSeen
-}
-
-func (f *ftTracker) inspectDowntimeAlertHeapsTop(t *Engine) {
-	alert := f.downtimeAlerts.Dequeue()
-	if alert == nil {
-		return
-	}
-
-	liveSigsInChain, ok := f.chainIdsToSigs[alert.chain]
-	if !ok {
-		return
-	}
-
-	// we don't have to change the revival time for this party, since it should be the same as the alert.
-	// instead we start collecting the signatures that should be retried.
-
-	inactives := f.getIncatives(alert.chain)
-
-	allReleveantFaulties := inactives.getFaultiesLists()
-
-	toSign := make(map[sigKey]*signatureState) // map to avoid duplicates.
-
-	for key, sigState := range liveSigsInChain {
-		if !sigState.approvedToSign {
-			continue // no need to retry this signature.
-		}
-
-		if _, ok := toSign[key]; ok {
-			continue
-		}
-
-		for _, faulties := range allReleveantFaulties {
-			// create signingTask and ask: am i one of the signers?
-			info, err := t.fp.GetSigningInfo(makeSigningRequest(sigState.digest, faulties, sigState.chain))
-			if err != nil {
-				t.logger.Error(
-					"couldn't retry signing digest",
-					zap.Error(err),
-					zap.String("digest", fmt.Sprintf("%x", sigState.digest)),
-					zap.String("chainID", sigState.chain.String()),
-					zap.Strings("faulties", getCommitteeIDs(faulties)),
-				)
-
-				continue
-			}
-
-			// this guardian is a signer once this server revives? if it is: retry the signature.
-			if info.IsSigner {
-				toSign[key] = sigState
-			}
-		}
-	}
-
-	activeGuardiansByChain.WithLabelValues(alert.chain.String()).Set(float64(t.Guardians.Len() - len(inactives.partyIDs)))
-
-	if len(toSign) == 0 {
-		return
-	}
-
-	t.logger.Info("guardian reviving, retrying signatures",
-		zap.Int("numsigs", len(toSign)),
-		zap.String("revived", alert.partyID.Id),
-		zap.String("chainID", alert.chain.String()),
-	)
-
-	// retry signatures...
-	go func() {
-		for _, sig := range toSign {
-			mt := signingMeta{isRetry: true, isFromVaav1: sig.isFromVaav1}
-			// since calling to beginTSSSign is with sigStates that were approved to sign, we know the consistency level is ok.
-			if err := t.beginTSSSign(sig.digest[:], sig.chain, sig.digestconsistancy, mt); err != nil {
-				t.logger.Error("failed to retry a signature", zap.Error(err))
-			}
-		}
-	}()
-}
-
-func (cmd *newSeenDigestCommand) apply(t *Engine, f *ftTracker) {
-	// newAnouncementDomain
-	dgst := party.Digest{}
-	copy(dgst[:], cmd.Digest[:])
-
-	chain := vaa.ChainID(cmd.ChainID)
-
-	state, ok := f.sigsState[intoSigKey(dgst, chain)]
-	if !ok {
-		alertTime := time.Now().Add(t.GuardianStorage.DelayGraceTime)
-		state = f.setNewSigState(dgst, chain, alertTime)
-
-		// Since this is a not a sign command, we add this to the alert heap.
-		f.sigAlerts.Enqueue(state)
-	}
-
-	// Generating the special trackingID, as an indicator for seeing the digest and chain.
-	tid := common.TrackingID{
-		Digest:       dgst[:],
-		PartiesState: nil,
-		AuxilaryData: chainIDToBytes(chain),
-	}
-
-	tidStr := trackidStr(tid.ToString())
-
-	tidData, ok := state.trackidContext[tidStr]
-	if !ok {
-		tidData = &tackingIDContext{sawProtocolMessagesFrom: map[strPartyId]bool{}}
-
-		state.trackidContext[tidStr] = tidData
-	}
-
-	pid := t.GuardianStorage.getPartyIdFromIndex(cmd.issuer)
-	tidData.sawProtocolMessagesFrom[strPartyId(partyIdToString(pid))] = true
 }

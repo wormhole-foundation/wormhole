@@ -20,26 +20,6 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 	}
 
 	switch v := broadcastMsg.Message.Content.(type) {
-	case *tsscommv1.SignedMessage_Problem:
-		if err := validateProblemMessageCorrectForm(v); err != nil {
-			return nil, err
-		}
-
-		return &deliverableMessage{&parsedProblem{
-			Problem: v.Problem,
-			issuer:  senderId,
-		}}, nil
-
-	case *tsscommv1.SignedMessage_Announcement:
-		if err := validateAnouncementCorrectForm(v); err != nil {
-			return nil, err
-		}
-
-		return &deliverableMessage{&parsedAnnouncement{
-			SawDigest: v.Announcement,
-			issuer:    senderId,
-		}}, nil
-
 	case *tsscommv1.SignedMessage_TssContent:
 		if err := validateContentCorrectForm(v.TssContent); err != nil {
 			return nil, err
