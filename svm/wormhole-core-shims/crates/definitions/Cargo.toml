@@ -23,6 +23,7 @@ localnet = []
 solana = []
 
 [dependencies]
+const-crypto = "0.3.0"
 borsh = { optional = true, workspace = true }
 cfg-if.workspace = true
 sha2-const-stable.workspace = true
