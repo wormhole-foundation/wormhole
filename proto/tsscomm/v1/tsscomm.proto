@@ -28,20 +28,6 @@ message TssContent{
   uint64 msg_serial_number = 2;
 }
 
-message Problem {
-  uint32 ChainID = 1;
-
-  // made to ensure this message is not reused.
-  google.protobuf.Timestamp IssuingTime = 3;
-}
-
-// used by guardians to state to others that they have seen some digest on some chain.
-// important for FT
-message SawDigest{
-  bytes Digest = 1;
-  uint32 ChainID = 2;
-}
-
 // SignedMessage is the content of a broadcast message. It may be echoed and as a result requires a signature.
 message SignedMessage {
   // Although we don’t anticipate more senders than 255 (which is equivalent to 1 byte),
@@ -52,8 +38,6 @@ message SignedMessage {
 
   oneof content {
     TssContent tss_content = 3;
-    Problem problem = 4;
-    SawDigest announcement = 5;
     HashEcho hashEcho = 6;
   };
 }

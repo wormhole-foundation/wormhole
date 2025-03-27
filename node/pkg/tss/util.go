@@ -267,18 +267,6 @@ func validateContentCorrectForm(m *tsscommv1.TssContent) error {
 	return nil
 }
 
-func validateProblemCorrectForm(p *tsscommv1.Problem) error {
-	if p == nil {
-		return ErrNoContent
-	}
-
-	if p.IssuingTime == nil {
-		return ErrMissingTimestamp
-	}
-
-	return nil
-}
-
 type signingRound string
 
 const (

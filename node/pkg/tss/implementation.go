@@ -453,65 +453,7 @@ func (t *Engine) prepareThenAnounceNewDigest(d party.Digest, chainID vaa.ChainID
 		return fmt.Errorf("couldn't inform the fault-tolerance tracker of the signature start: %w", err)
 	}
 
-	// at this point the TSS engine saw a valid digest to sign, it will anounce it to the others (if consistency levels allows it).
-	// TODO: Consider what to do with anouncement mechanism.
-	// t.anounceNewDigest(d[:], chainID, consistencyLvl)
-
 	return nil
-}
-
-func (t *Engine) anounceNewDigest(digest []byte, chainID vaa.ChainID, vaaConsistency uint8) {
-	switch chainID {
-	case vaa.ChainIDPythNet:
-		if vaaConsistency != pythnetFinalizedConsistencyLevel {
-			return
-		}
-	case vaa.ChainIDSolana:
-		if vaaConsistency != solanaFinalizedConsistencyLevel {
-			return
-		}
-	default:
-		// We are not reporting on consistency levels of instant.
-		// other levels are SAFE and FINALISED (which are relatively good)
-		if vaaConsistency == instantConsistencyLevel {
-			return
-		}
-	}
-
-	sm := tsscommv1.SignedMessage{
-		Sender:    uint32(t.Self.CommunicationIndex),
-		Signature: []byte{},
-		Content: &tsscommv1.SignedMessage_Announcement{
-			Announcement: &tsscommv1.SawDigest{
-				Digest:  digest,
-				ChainID: uint32(chainID),
-			},
-		},
-	}
-
-	tmp := serializeableMessage{&parsedAnnouncement{
-		SawDigest: sm.GetAnnouncement(),
-		issuer:    SenderIndex(sm.Sender),
-	}}
-
-	flds := []zap.Field{zap.String("chainID", chainID.String()),
-		zap.String("digest", fmt.Sprintf("%x", digest)),
-	}
-
-	if err := t.sign(tmp.getUUID(t.LoadDistributionKey), &sm); err != nil {
-		flds = append(flds, zap.Error(err))
-		t.logger.Error("couldn't sign a new announcement", flds...)
-
-		return
-	}
-
-	select {
-	case t.messageOutChan <- newEcho(&sm, t.Guardians.Identities):
-	default:
-		t.logger.Error(
-			"couldn't anounce to others about new tss digest, network output channel buffer is full",
-			flds...)
-	}
 }
 
 func makeSigningRequest(d party.Digest, faulties []*tss.PartyID, chainID vaa.ChainID) party.SigningTask {

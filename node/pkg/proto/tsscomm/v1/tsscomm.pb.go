@@ -10,7 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	_ "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 )
@@ -149,119 +149,6 @@ func (x *TssContent) GetMsgSerialNumber() uint64 {
 	return 0
 }
 
-type Problem struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ChainID uint32 `protobuf:"varint,1,opt,name=ChainID,proto3" json:"ChainID,omitempty"`
-	// made to ensure this message is not reused.
-	IssuingTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=IssuingTime,proto3" json:"IssuingTime,omitempty"`
-}
-
-func (x *Problem) Reset() {
-	*x = Problem{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *Problem) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Problem) ProtoMessage() {}
-
-func (x *Problem) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Problem.ProtoReflect.Descriptor instead.
-func (*Problem) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Problem) GetChainID() uint32 {
-	if x != nil {
-		return x.ChainID
-	}
-	return 0
-}
-
-func (x *Problem) GetIssuingTime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.IssuingTime
-	}
-	return nil
-}
-
-// used by guardians to state to others that they have seen some digest on some chain.
-// important for FT
-type SawDigest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Digest  []byte `protobuf:"bytes,1,opt,name=Digest,proto3" json:"Digest,omitempty"`
-	ChainID uint32 `protobuf:"varint,2,opt,name=ChainID,proto3" json:"ChainID,omitempty"`
-}
-
-func (x *SawDigest) Reset() {
-	*x = SawDigest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *SawDigest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SawDigest) ProtoMessage() {}
-
-func (x *SawDigest) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SawDigest.ProtoReflect.Descriptor instead.
-func (*SawDigest) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *SawDigest) GetDigest() []byte {
-	if x != nil {
-		return x.Digest
-	}
-	return nil
-}
-
-func (x *SawDigest) GetChainID() uint32 {
-	if x != nil {
-		return x.ChainID
-	}
-	return 0
-}
-
 // SignedMessage is the content of a broadcast message. It may be echoed and as a result requires a signature.
 type SignedMessage struct {
 	state         protoimpl.MessageState
@@ -276,8 +163,6 @@ type SignedMessage struct {
 	// Types that are assignable to Content:
 	//
 	//	*SignedMessage_TssContent
-	//	*SignedMessage_Problem
-	//	*SignedMessage_Announcement
 	//	*SignedMessage_HashEcho
 	Content isSignedMessage_Content `protobuf_oneof:"content"`
 }
@@ -285,7 +170,7 @@ type SignedMessage struct {
 func (x *SignedMessage) Reset() {
 	*x = SignedMessage{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[4]
+		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -298,7 +183,7 @@ func (x *SignedMessage) String() string {
 func (*SignedMessage) ProtoMessage() {}
 
 func (x *SignedMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[4]
+	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -311,7 +196,7 @@ func (x *SignedMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedMessage.ProtoReflect.Descriptor instead.
 func (*SignedMessage) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{4}
+	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SignedMessage) GetSender() uint32 {
@@ -342,20 +227,6 @@ func (x *SignedMessage) GetTssContent() *TssContent {
 	return nil
 }
 
-func (x *SignedMessage) GetProblem() *Problem {
-	if x, ok := x.GetContent().(*SignedMessage_Problem); ok {
-		return x.Problem
-	}
-	return nil
-}
-
-func (x *SignedMessage) GetAnnouncement() *SawDigest {
-	if x, ok := x.GetContent().(*SignedMessage_Announcement); ok {
-		return x.Announcement
-	}
-	return nil
-}
-
 func (x *SignedMessage) GetHashEcho() *HashEcho {
 	if x, ok := x.GetContent().(*SignedMessage_HashEcho); ok {
 		return x.HashEcho
@@ -371,23 +242,11 @@ type SignedMessage_TssContent struct {
 	TssContent *TssContent `protobuf:"bytes,3,opt,name=tss_content,json=tssContent,proto3,oneof"`
 }
 
-type SignedMessage_Problem struct {
-	Problem *Problem `protobuf:"bytes,4,opt,name=problem,proto3,oneof"`
-}
-
-type SignedMessage_Announcement struct {
-	Announcement *SawDigest `protobuf:"bytes,5,opt,name=announcement,proto3,oneof"`
-}
-
 type SignedMessage_HashEcho struct {
 	HashEcho *HashEcho `protobuf:"bytes,6,opt,name=hashEcho,proto3,oneof"`
 }
 
 func (*SignedMessage_TssContent) isSignedMessage_Content() {}
-
-func (*SignedMessage_Problem) isSignedMessage_Content() {}
-
-func (*SignedMessage_Announcement) isSignedMessage_Content() {}
 
 func (*SignedMessage_HashEcho) isSignedMessage_Content() {}
 
@@ -403,7 +262,7 @@ type HashEcho struct {
 func (x *HashEcho) Reset() {
 	*x = HashEcho{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[5]
+		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -416,7 +275,7 @@ func (x *HashEcho) String() string {
 func (*HashEcho) ProtoMessage() {}
 
 func (x *HashEcho) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[5]
+	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +288,7 @@ func (x *HashEcho) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HashEcho.ProtoReflect.Descriptor instead.
 func (*HashEcho) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{5}
+	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *HashEcho) GetSessionUuid() []byte {
@@ -458,7 +317,7 @@ type Echo struct {
 func (x *Echo) Reset() {
 	*x = Echo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[6]
+		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -471,7 +330,7 @@ func (x *Echo) String() string {
 func (*Echo) ProtoMessage() {}
 
 func (x *Echo) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[6]
+	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -484,7 +343,7 @@ func (x *Echo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Echo.ProtoReflect.Descriptor instead.
 func (*Echo) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{6}
+	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Echo) GetMessage() *SignedMessage {
@@ -505,7 +364,7 @@ type VaaV1Info struct {
 func (x *VaaV1Info) Reset() {
 	*x = VaaV1Info{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[7]
+		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -518,7 +377,7 @@ func (x *VaaV1Info) String() string {
 func (*VaaV1Info) ProtoMessage() {}
 
 func (x *VaaV1Info) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[7]
+	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -531,7 +390,7 @@ func (x *VaaV1Info) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VaaV1Info.ProtoReflect.Descriptor instead.
 func (*VaaV1Info) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{7}
+	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *VaaV1Info) GetMarshaled() []byte {
@@ -556,7 +415,7 @@ type Unicast struct {
 func (x *Unicast) Reset() {
 	*x = Unicast{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[8]
+		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -569,7 +428,7 @@ func (x *Unicast) String() string {
 func (*Unicast) ProtoMessage() {}
 
 func (x *Unicast) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[8]
+	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -582,7 +441,7 @@ func (x *Unicast) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unicast.ProtoReflect.Descriptor instead.
 func (*Unicast) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{8}
+	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{6}
 }
 
 func (m *Unicast) GetContent() isUnicast_Content {
@@ -639,7 +498,7 @@ type PropagatedMessage struct {
 func (x *PropagatedMessage) Reset() {
 	*x = PropagatedMessage{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[9]
+		mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -652,7 +511,7 @@ func (x *PropagatedMessage) String() string {
 func (*PropagatedMessage) ProtoMessage() {}
 
 func (x *PropagatedMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[9]
+	mi := &file_tsscomm_v1_tsscomm_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +524,7 @@ func (x *PropagatedMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PropagatedMessage.ProtoReflect.Descriptor instead.
 func (*PropagatedMessage) Descriptor() ([]byte, []int) {
-	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{9}
+	return file_tsscomm_v1_tsscomm_proto_rawDescGZIP(), []int{7}
 }
 
 func (m *PropagatedMessage) GetMessage() isPropagatedMessage_Message {
@@ -725,32 +584,15 @@ var file_tsscomm_v1_tsscomm_proto_rawDesc = []byte{
 	0x52, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x12, 0x2a, 0x0a, 0x11, 0x6d, 0x73, 0x67,
 	0x5f, 0x73, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x5f, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x04, 0x52, 0x0f, 0x6d, 0x73, 0x67, 0x53, 0x65, 0x72, 0x69, 0x61, 0x6c, 0x4e,
-	0x75, 0x6d, 0x62, 0x65, 0x72, 0x22, 0x61, 0x0a, 0x07, 0x50, 0x72, 0x6f, 0x62, 0x6c, 0x65, 0x6d,
-	0x12, 0x18, 0x0a, 0x07, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x0d, 0x52, 0x07, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x44, 0x12, 0x3c, 0x0a, 0x0b, 0x49, 0x73,
-	0x73, 0x75, 0x69, 0x6e, 0x67, 0x54, 0x69, 0x6d, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32,
-	0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
-	0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x0b, 0x49, 0x73, 0x73,
-	0x75, 0x69, 0x6e, 0x67, 0x54, 0x69, 0x6d, 0x65, 0x22, 0x3d, 0x0a, 0x09, 0x53, 0x61, 0x77, 0x44,
-	0x69, 0x67, 0x65, 0x73, 0x74, 0x12, 0x16, 0x0a, 0x06, 0x44, 0x69, 0x67, 0x65, 0x73, 0x74, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x44, 0x69, 0x67, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a,
-	0x07, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x44, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07,
-	0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x44, 0x22, 0xad, 0x02, 0x0a, 0x0d, 0x53, 0x69, 0x67, 0x6e,
-	0x65, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x65, 0x6e,
-	0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65,
-	0x72, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x12,
-	0x39, 0x0a, 0x0b, 0x74, 0x73, 0x73, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x18, 0x03,
-	0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x74, 0x73, 0x73, 0x63, 0x6f, 0x6d, 0x6d, 0x2e, 0x76,
-	0x31, 0x2e, 0x54, 0x73, 0x73, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x48, 0x00, 0x52, 0x0a,
-	0x74, 0x73, 0x73, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x12, 0x2f, 0x0a, 0x07, 0x70, 0x72,
-	0x6f, 0x62, 0x6c, 0x65, 0x6d, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e, 0x74, 0x73,
-	0x73, 0x63, 0x6f, 0x6d, 0x6d, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x72, 0x6f, 0x62, 0x6c, 0x65, 0x6d,
-	0x48, 0x00, 0x52, 0x07, 0x70, 0x72, 0x6f, 0x62, 0x6c, 0x65, 0x6d, 0x12, 0x3b, 0x0a, 0x0c, 0x61,
-	0x6e, 0x6e, 0x6f, 0x75, 0x6e, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x15, 0x2e, 0x74, 0x73, 0x73, 0x63, 0x6f, 0x6d, 0x6d, 0x2e, 0x76, 0x31, 0x2e, 0x53,
-	0x61, 0x77, 0x44, 0x69, 0x67, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x0c, 0x61, 0x6e, 0x6e, 0x6f,
-	0x75, 0x6e, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x12, 0x32, 0x0a, 0x08, 0x68, 0x61, 0x73, 0x68,
+	0x75, 0x6d, 0x62, 0x65, 0x72, 0x22, 0xbf, 0x01, 0x0a, 0x0d, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64,
+	0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65,
+	0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x12,
+	0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x12, 0x39, 0x0a,
+	0x0b, 0x74, 0x73, 0x73, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x16, 0x2e, 0x74, 0x73, 0x73, 0x63, 0x6f, 0x6d, 0x6d, 0x2e, 0x76, 0x31, 0x2e,
+	0x54, 0x73, 0x73, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x48, 0x00, 0x52, 0x0a, 0x74, 0x73,
+	0x73, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x12, 0x32, 0x0a, 0x08, 0x68, 0x61, 0x73, 0x68,
 	0x45, 0x63, 0x68, 0x6f, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x74, 0x73, 0x73,
 	0x63, 0x6f, 0x6d, 0x6d, 0x2e, 0x76, 0x31, 0x2e, 0x48, 0x61, 0x73, 0x68, 0x45, 0x63, 0x68, 0x6f,
 	0x48, 0x00, 0x52, 0x08, 0x68, 0x61, 0x73, 0x68, 0x45, 0x63, 0x68, 0x6f, 0x42, 0x09, 0x0a, 0x07,
@@ -806,39 +648,33 @@ func file_tsscomm_v1_tsscomm_proto_rawDescGZIP() []byte {
 	return file_tsscomm_v1_tsscomm_proto_rawDescData
 }
 
-var file_tsscomm_v1_tsscomm_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_tsscomm_v1_tsscomm_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_tsscomm_v1_tsscomm_proto_goTypes = []interface{}{
-	(*PartyId)(nil),               // 0: tsscomm.v1.PartyId
-	(*TssContent)(nil),            // 1: tsscomm.v1.TssContent
-	(*Problem)(nil),               // 2: tsscomm.v1.Problem
-	(*SawDigest)(nil),             // 3: tsscomm.v1.SawDigest
-	(*SignedMessage)(nil),         // 4: tsscomm.v1.SignedMessage
-	(*HashEcho)(nil),              // 5: tsscomm.v1.HashEcho
-	(*Echo)(nil),                  // 6: tsscomm.v1.Echo
-	(*VaaV1Info)(nil),             // 7: tsscomm.v1.VaaV1Info
-	(*Unicast)(nil),               // 8: tsscomm.v1.Unicast
-	(*PropagatedMessage)(nil),     // 9: tsscomm.v1.PropagatedMessage
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),         // 11: google.protobuf.Empty
+	(*PartyId)(nil),           // 0: tsscomm.v1.PartyId
+	(*TssContent)(nil),        // 1: tsscomm.v1.TssContent
+	(*SignedMessage)(nil),     // 2: tsscomm.v1.SignedMessage
+	(*HashEcho)(nil),          // 3: tsscomm.v1.HashEcho
+	(*Echo)(nil),              // 4: tsscomm.v1.Echo
+	(*VaaV1Info)(nil),         // 5: tsscomm.v1.VaaV1Info
+	(*Unicast)(nil),           // 6: tsscomm.v1.Unicast
+	(*PropagatedMessage)(nil), // 7: tsscomm.v1.PropagatedMessage
+	(*emptypb.Empty)(nil),     // 8: google.protobuf.Empty
 }
 var file_tsscomm_v1_tsscomm_proto_depIdxs = []int32{
-	10, // 0: tsscomm.v1.Problem.IssuingTime:type_name -> google.protobuf.Timestamp
-	1,  // 1: tsscomm.v1.SignedMessage.tss_content:type_name -> tsscomm.v1.TssContent
-	2,  // 2: tsscomm.v1.SignedMessage.problem:type_name -> tsscomm.v1.Problem
-	3,  // 3: tsscomm.v1.SignedMessage.announcement:type_name -> tsscomm.v1.SawDigest
-	5,  // 4: tsscomm.v1.SignedMessage.hashEcho:type_name -> tsscomm.v1.HashEcho
-	4,  // 5: tsscomm.v1.Echo.message:type_name -> tsscomm.v1.SignedMessage
-	1,  // 6: tsscomm.v1.Unicast.tss:type_name -> tsscomm.v1.TssContent
-	7,  // 7: tsscomm.v1.Unicast.vaav1:type_name -> tsscomm.v1.VaaV1Info
-	8,  // 8: tsscomm.v1.PropagatedMessage.Unicast:type_name -> tsscomm.v1.Unicast
-	6,  // 9: tsscomm.v1.PropagatedMessage.Echo:type_name -> tsscomm.v1.Echo
-	9,  // 10: tsscomm.v1.DirectLink.Send:input_type -> tsscomm.v1.PropagatedMessage
-	11, // 11: tsscomm.v1.DirectLink.Send:output_type -> google.protobuf.Empty
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	1, // 0: tsscomm.v1.SignedMessage.tss_content:type_name -> tsscomm.v1.TssContent
+	3, // 1: tsscomm.v1.SignedMessage.hashEcho:type_name -> tsscomm.v1.HashEcho
+	2, // 2: tsscomm.v1.Echo.message:type_name -> tsscomm.v1.SignedMessage
+	1, // 3: tsscomm.v1.Unicast.tss:type_name -> tsscomm.v1.TssContent
+	5, // 4: tsscomm.v1.Unicast.vaav1:type_name -> tsscomm.v1.VaaV1Info
+	6, // 5: tsscomm.v1.PropagatedMessage.Unicast:type_name -> tsscomm.v1.Unicast
+	4, // 6: tsscomm.v1.PropagatedMessage.Echo:type_name -> tsscomm.v1.Echo
+	7, // 7: tsscomm.v1.DirectLink.Send:input_type -> tsscomm.v1.PropagatedMessage
+	8, // 8: tsscomm.v1.DirectLink.Send:output_type -> google.protobuf.Empty
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_tsscomm_v1_tsscomm_proto_init() }
@@ -872,30 +708,6 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 			}
 		}
 		file_tsscomm_v1_tsscomm_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Problem); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SawDigest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SignedMessage); i {
 			case 0:
 				return &v.state
@@ -907,7 +719,7 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 				return nil
 			}
 		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_tsscomm_v1_tsscomm_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*HashEcho); i {
 			case 0:
 				return &v.state
@@ -919,7 +731,7 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 				return nil
 			}
 		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_tsscomm_v1_tsscomm_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Echo); i {
 			case 0:
 				return &v.state
@@ -931,7 +743,7 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 				return nil
 			}
 		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_tsscomm_v1_tsscomm_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*VaaV1Info); i {
 			case 0:
 				return &v.state
@@ -943,7 +755,7 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 				return nil
 			}
 		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_tsscomm_v1_tsscomm_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Unicast); i {
 			case 0:
 				return &v.state
@@ -955,7 +767,7 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 				return nil
 			}
 		}
-		file_tsscomm_v1_tsscomm_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_tsscomm_v1_tsscomm_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*PropagatedMessage); i {
 			case 0:
 				return &v.state
@@ -968,17 +780,15 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 			}
 		}
 	}
-	file_tsscomm_v1_tsscomm_proto_msgTypes[4].OneofWrappers = []interface{}{
+	file_tsscomm_v1_tsscomm_proto_msgTypes[2].OneofWrappers = []interface{}{
 		(*SignedMessage_TssContent)(nil),
-		(*SignedMessage_Problem)(nil),
-		(*SignedMessage_Announcement)(nil),
 		(*SignedMessage_HashEcho)(nil),
 	}
-	file_tsscomm_v1_tsscomm_proto_msgTypes[8].OneofWrappers = []interface{}{
+	file_tsscomm_v1_tsscomm_proto_msgTypes[6].OneofWrappers = []interface{}{
 		(*Unicast_Tss)(nil),
 		(*Unicast_Vaav1)(nil),
 	}
-	file_tsscomm_v1_tsscomm_proto_msgTypes[9].OneofWrappers = []interface{}{
+	file_tsscomm_v1_tsscomm_proto_msgTypes[7].OneofWrappers = []interface{}{
 		(*PropagatedMessage_Unicast)(nil),
 		(*PropagatedMessage_Echo)(nil),
 	}
@@ -988,7 +798,7 @@ func file_tsscomm_v1_tsscomm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_tsscomm_v1_tsscomm_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -12,18 +12,13 @@
 package tss
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
-	"unsafe"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/xlabs/tss-lib/v2/common"
-	"github.com/xlabs/tss-lib/v2/ecdsa/party"
 	"github.com/xlabs/tss-lib/v2/tss"
 )
 
@@ -70,12 +65,7 @@ func (s *deliverableMessage) getUUID(loadDistKey []byte) uuid {
 	return (&serializeableMessage{s}).getUUID(loadDistKey)
 }
 
-// serializeables:
-type parsedProblem struct {
-	*tsscommv1.Problem
-	issuer SenderIndex
-}
-
+// serializeables
 type tssMessageWrapper struct {
 	tss.Message
 }
@@ -89,11 +79,6 @@ type parsedTssContent struct {
 	signingRound
 }
 
-type parsedAnnouncement struct {
-	*tsscommv1.SawDigest
-	issuer SenderIndex
-}
-
 // broadcastable only struct (not deliverable or serializable):
 type parsedHashEcho struct {
 	*tsscommv1.HashEcho
@@ -104,29 +89,6 @@ func (p *parsedHashEcho) getUUID(loadDistKey []byte) uuid {
 	copy(uid[:], p.HashEcho.SessionUuid)
 
 	return uid
-}
-
-func (p *parsedProblem) serialize() []byte {
-	if p == nil {
-		return []byte(parsedProblemDomain)
-	}
-
-	unixtime := p.IssuingTime.AsTime().Unix()
-
-	capacity := len(parsedProblemDomain) +
-		senderIndexSize +
-		pemKeySize +
-		auxiliaryDataSize +
-		int(unsafe.Sizeof(unixtime))
-
-	b := bytes.NewBuffer(make([]byte, 0, capacity))
-
-	b.WriteString(parsedProblemDomain) // domain separation.
-	p.issuer.intoBuffer(b)
-	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
-	vaa.MustWrite(b, binary.BigEndian, unixtime)
-
-	return b.Bytes()
 }
 
 // This function sets a message's sessionID. It is crucial for SECURITY to ensure no equivocation
@@ -202,30 +164,6 @@ func (p *parsedTssContent) deliver(t *Engine) error {
 
 func (p *parsedTssContent) serialize() []byte {
 	return serializeTSSMessage(p.ParsedMessage)
-}
-
-func (p *parsedAnnouncement) serialize() []byte {
-	if p == nil {
-		return []byte(newAnouncementDomain)
-	}
-
-	capacity := len(newAnouncementDomain) +
-		(senderIndexSize) +
-		auxiliaryDataSize +
-		party.DigestSize
-
-	b := bytes.NewBuffer(make([]byte, 0, capacity))
-
-	b.WriteString(newAnouncementDomain) // domain separation.
-	p.issuer.intoBuffer(b)
-	b.Write(p.Digest[:])
-	vaa.MustWrite(b, binary.BigEndian, p.ChainID)
-
-	return b.Bytes()
-}
-
-func (p *parsedAnnouncement) wrapError(err error) error {
-	return logableError{cause: fmt.Errorf("error with digest announcement from %v: %w", p.issuer, err)}
 }
 
 type broadcaststate struct {
