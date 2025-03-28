@@ -624,7 +624,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						txHash := eth_common.Hash(pLock.message.TxID)
 						pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
 						if pubErr != nil {
-							logger.Error("could not publish message: transfer verification failed",
+							logger.Error("could not publish message",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", txHash.String()),
 								zap.Error(pubErr),
@@ -890,8 +890,16 @@ func (w *Watcher) verifyAndPublish(
 			return err
 		}
 		msg = &verifiedMsg
+		w.logger.Info(
+			"verified transfer",
+			msg.ZapFields()...,
+		)
 	}
 
+	w.logger.Info(
+		"publishing new message publication",
+		msg.ZapFields()...,
+	)
 	w.msgC <- msg
 	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 	if msg.IsReobservation {
