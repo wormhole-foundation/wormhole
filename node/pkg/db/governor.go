@@ -238,6 +238,7 @@ func (p *PendingTransfer) Marshal() ([]byte, error) {
 
 	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
 
+	// nolint: staticcheck // TODO: replace with new message marshal function.
 	b, err := p.Msg.Marshal()
 	if err != nil {
 		return buf.Bytes(), fmt.Errorf("failed to marshal pending transfer: %w", err)
@@ -268,8 +269,10 @@ func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error)
 
 	var msg *common.MessagePublication
 	if isOld {
+		// nolint: staticcheck // TODO: old messages are not used anymore.
 		msg, err = common.UnmarshalOldMessagePublicationWithTxHash(buf)
 	} else {
+		// nolint: staticcheck // TODO: replace with new message unmarshal function.
 		msg, err = common.UnmarshalMessagePublication(buf)
 	}
 	if err != nil {
