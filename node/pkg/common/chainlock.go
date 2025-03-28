@@ -321,12 +321,14 @@ func (msg *MessagePublication) CreateDigest() string {
 // TODO refactor the codebase to use this function instead of manually logging the message with inconsistent fields
 func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 	return append(fields,
-		zap.String("tx", msg.TxIDString()),
+		// MessageID contains EmitterChain, EmitterAddress, and Sequence
+		zap.String("msgID", string(msg.MessageID())),
+		zap.String("txID", msg.TxIDString()),
 		zap.Time("timestamp", msg.Timestamp),
 		zap.Uint32("nonce", msg.Nonce),
 		zap.Uint8("consistency", msg.ConsistencyLevel),
-		zap.String("message_id", string(msg.MessageID())),
 		zap.Bool("unreliable", msg.Unreliable),
+		zap.Bool("isReobservation", msg.IsReobservation),
 		zap.String("verificationState", msg.verificationState.String()),
 	)
 }
