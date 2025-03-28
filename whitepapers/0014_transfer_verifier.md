@@ -16,6 +16,8 @@ has a way to fraudulently emit message from the core bridge, the integrity of th
 
 # Non-Goals
 
+- Block, delay, or otherwise interfere with message processing. The Transfer Verifier reports whether a message looks
+  safe or not, but it does not take any other action.
 - Address any message publications or Token Bridge activity other than token transfers
 - Check cross-chain invariants. This mechanism only checks that pre-conditions are met on the sender side.
 
@@ -33,6 +35,10 @@ it would trick the Guardians into minting or unlocking funds on the destination 
 In order to mitigate this attack, the Transfer Verifier is designed to cross-reference core bridge messages against the Token Bridge's
 activity. If there is no Token Bridge activity that matches the core bridge message, the Guardians will have the ability to
 respond to a potentially fraudulent message, such as by dropping or delaying it.
+
+The Transfer Verifier will not drop or delay messages itself. Another part of the node can respond as it sees fit.
+For example, the processor could be extended to process messages differently based on the status a Transfer Verifier
+gives them.
 
 # Detailed Design
 
@@ -54,8 +60,9 @@ could choose to delay the transfer, allowing time for the transaction to be manu
 - Connect to the chain (using a WebSocket subscription, or else by polling)
 - Monitor the Core Contract for Message Publications
 - Filter the Message Publications for Token Transfers
-- Examine Token Bridge activity, ensuring that at least as many funds were transferred into the Token Bridge as are encoded in the Core Bridge's message
-- If the above is not true, log an error
+- Examine Token Bridge activity, ensuring that at least as many funds were
+transferred into the Token Bridge as are encoded in the Core Bridge's message
+- If the above is not true, report the Message Publication as having failed verification.
 
 ### Responding to suspicious messages
 If the Transfer Verifier reports an error the Guardian should block the Message
@@ -64,12 +71,13 @@ Publication if the implementation is "strict". If the implementation is
 contributors to analyze the message and associated logs for potential bugs or
 malicious activity.
 
-In order to handle messages flexibly, they can be tagged with a "verification state". 
-This state will be embedded in to the message itself to allow 
-for different parts of the message publication process within the node to handle messages in specific ways. For example,
-an `Anomalous` message originating from Sui could be treated in a different way than one coming from Solana. As chains
-are developed, they may introduce other tools or logging artifacts that result in a Transfer Verifier implementation to
-become more or less strict.
+In order to handle messages flexibly, they can be tagged with a "verification
+state". This state will be embedded in to the message itself to allow for
+different parts of the message publication process within the node to handle
+messages in specific ways. For example, an `Anomalous` message originating from
+Sui could be treated in a different way than one coming from Solana. As chains
+are developed, they may introduce other tools or logging artifacts that result
+in a Transfer Verifier implementation to become more or less strict.
 
 Some example "verification states" are:
 - Not verified
@@ -80,8 +88,9 @@ Some example "verification states" are:
 
 Messages can have a `NotVerified` state initially and should be eventually be marked as one of the other states.
 
-Messages marked as `NotApplicable` should be processed normally. This state will be used for messages that are not Token Transfers,
-as only Token Transfers are process by the Transfer Verifier.
+Messages marked as `NotApplicable` should be processed normally. This state
+will be used for messages that are not Token Transfers, as only Token Transfers
+are process by the Transfer Verifier.
 
 A `Verified` message is in a "known good" state and should be processed normally.
 
@@ -125,11 +134,13 @@ TODO: add details from Sui
 
 # Deployment Considerations
 
+## Modularity
 Because the Transfer Verifier will be integrated with the Watcher code, bugs in its implementations could lead to messages
 being missed. For this reason, the changes to the watcher code must be minimal, well-tested, and reversible. It should
 be possible to disable the Transfer Verifier entirely or on a per-chain basis by a Guardian without the need for a 
 new release.
 
+## Testing
 The Transfer Verifier should be implemented in a standalone package and distributed with a CLI tool that allows users
 to verify its accuracy. This would allow for isolated testing and development outside of the context of critical Guardian code.
 It should be possible to run the standalone tool for long periods of time to ensure that the mechanism is strict and does
