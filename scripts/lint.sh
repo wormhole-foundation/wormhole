@@ -68,12 +68,25 @@ lint(){
         printf "%s\n" "Require golangci-lint. You can run this command in a docker container instead with '-c' and not worry about it or install it: https://golangci-lint.run/usage/install/"
     fi
 
+    # Group the lint warnings together. If errexit is enabled, we will only see
+    # the results of the sdk lints if the node lints have no violations.
+    # It's more helpful to see all of the violations at once.
+    set +e
+
     # Do the actual linting!
-    cd "$ROOT"/node
+    cd "${ROOT}/node"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    node_lint_status=$?
 
     cd "${ROOT}/sdk"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+    sdk_lint_status=$?
+
+    # Restore errexit
+    set -e
+
+    # Return failure if either linting operation failed
+    [[ $node_lint_status -eq 0 && $sdk_lint_status -eq 0 ]]
 }
 
 DOCKER="false"
