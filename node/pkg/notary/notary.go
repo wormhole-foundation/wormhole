@@ -104,8 +104,8 @@ func NewNotary(
 		mutex:      sync.Mutex{},
 		database:   dbConn,
 		delayed:    common.NewPendingMessageQueue(),
-		ready:      []*common.MessagePublication{},
-		blackholed: []*common.MessagePublication{},
+		ready:      nil,
+		blackholed: nil,
 		env:        env,
 	}
 }
@@ -233,7 +233,6 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 
 	// Store in database.
 	dbErr := n.database.StoreDelayed(pMsg)
-
 	if dbErr != nil {
 		return dbErr
 	}
@@ -261,16 +260,26 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	return nil
 }
 
-// Delayed returns a copy of all delayed pending messages.
-func (n *Notary) Delayed() []*common.PendingMessage {
+// Delayed returns a slice containing a copy of all delayed pending messages.
+func (n *Notary) Delayed() (result []*common.PendingMessage) {
+
+	if n.delayed == nil {
+		return
+	}
+
+	if n.delayed.Len() == 0 {
+		return
+	}
+
 	// Create a deep copy of the delayed messages.
-	result := make([]*common.PendingMessage, n.delayed.Len())
+	result = make([]*common.PendingMessage, 0, n.delayed.Len())
 	for i, pendingMsg := range n.delayed.Iter() {
 		// Create a deep copy of each pending message.
 		copied := *pendingMsg // Copy the struct
 		result[i] = &copied
 	}
-	return result
+
+	return
 }
 
 // Ready returns a copy of all ready pending messages.
@@ -284,7 +293,7 @@ func (n *Notary) Blackholed() []*common.MessagePublication {
 }
 
 func deepCopy(slice []*common.MessagePublication) []*common.MessagePublication {
-	result := make([]*common.MessagePublication, len(slice))
+	result := make([]*common.MessagePublication, 0, len(slice))
 	for i, msg := range slice {
 		// Create a deep copy of each publication
 		copied := *msg // Copy the struct
@@ -298,27 +307,33 @@ func (n *Notary) loadFromDB() error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	res, err := n.database.LoadAll()
+	result, err := n.database.LoadAll()
 	if err != nil {
 		return err
 	}
 
-	if n.delayed.Len() > 0 || len(n.ready) > 0 {
+	// Avoid overwriting data by mistake.
+	if (len(n.ready) > 0) || (n.delayed != nil && n.delayed.Len() > 0) {
 		return ErrAlreadyInitialized
 	}
 
-	now := time.Now().Unix()
-	for entry := range slices.Values(res.Delayed) {
-		if entry.ReleaseTime.Unix() > now {
-			n.ready = append(n.ready, &entry.Msg)
+	var ready []*common.MessagePublication
+	delayed := common.NewPendingMessageQueue()
+	now := time.Now()
+
+	for entry := range slices.Values(result.Delayed) {
+		if entry.ReleaseTime.Before(now) {
+			ready = append(ready, &entry.Msg)
 			continue
 		}
 
 		// If a message isn't ready, it's delayed.
-		n.delayed.Push(entry)
+		delayed.Push(entry)
 	}
 
-	n.blackholed = res.Blackholed
+	n.blackholed = result.Blackholed
+	n.delayed = delayed
+	n.ready = ready
 
 	return nil
 }

@@ -13,9 +13,9 @@ import (
 )
 
 type NotaryDBInterface interface {
-	StoreBlackhole(p *common.PendingMessage) error
+	StoreBlackhole(m *common.MessagePublication) error
 	StorePending(p *common.PendingMessage) error
-	DeleteBlackhole(p *common.PendingMessage) error
+	DeleteBlackholed(m *common.MessagePublication) error
 	DeletePending(p *common.PendingMessage) error
 }
 
@@ -39,27 +39,43 @@ const (
 )
 
 var (
-	ErrUpdateErr    = errors.New("notary: could not store msg")
-	ErrMarshalErr   = errors.New("notary: could not marshal data")
-	ErrUnmarshalErr = errors.New("notary: could not unmarshal data")
-	ErrViewErr      = errors.New("notary: error when reading from database")
+	ErrMarshal   = errors.New("notary: marshal")
+	ErrUnmarshal = errors.New("notary: unmarshal")
 )
+
+// Operation represents a database operation type
+type Operation string
+
+const (
+	OpRead   Operation = "read"
+	OpUpdate Operation = "update"
+	OpDelete Operation = "delete"
+)
+
+type DBError struct {
+	Op  Operation
+	Key []byte
+	Err error
+}
+
+func (e *DBError) Unwrap() error {
+	return e.Err
+}
+
+func (e *DBError) Error() string {
+	return fmt.Sprintf("notary database: %s key: %x", e.Op, e.Key)
+}
 
 func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
 	b, marshalErr := p.MarshalBinary()
 
 	if marshalErr != nil {
-		return errors.Join(
-			ErrMarshalErr,
-			marshalErr,
-		)
+		return ErrMarshal
 	}
 
-	if updateErr := d.update(pendingKey(p), b); updateErr != nil {
-		return errors.Join(
-			ErrUpdateErr,
-			updateErr,
-		)
+	key := pendingKey(p)
+	if updateErr := d.update(key, b); updateErr != nil {
+		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
 
 	return nil
@@ -69,17 +85,12 @@ func (d *NotaryDB) StoreBlackhole(m *common.MessagePublication) error {
 	b, marshalErr := m.MarshalBinary()
 
 	if marshalErr != nil {
-		return errors.Join(
-			ErrMarshalErr,
-			marshalErr,
-		)
+		return ErrMarshal
 	}
 
-	if updateErr := d.update(blackholeKey(m), b); updateErr != nil {
-		return errors.Join(
-			ErrUpdateErr,
-			updateErr,
-		)
+	key := blackholeKey(m)
+	if updateErr := d.update(key, b); updateErr != nil {
+		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
 	return nil
 }
@@ -125,7 +136,7 @@ func (d *NotaryDB) LoadAll() (*DBLoadResult, error) {
 				unmarshalErr := msgPub.UnmarshalBinary(data)
 				if unmarshalErr != nil {
 					return errors.Join(
-						ErrUnmarshalErr,
+						ErrUnmarshal,
 						unmarshalErr,
 					)
 				}
@@ -135,13 +146,13 @@ func (d *NotaryDB) LoadAll() (*DBLoadResult, error) {
 				unmarshalErr := pMsg.UnmarshalBinary(data)
 				if unmarshalErr != nil {
 					return errors.Join(
-						ErrUnmarshalErr,
+						ErrUnmarshal,
 						unmarshalErr,
 					)
 				}
 				result.Delayed = append(result.Delayed, &pMsg)
 			default:
-				return errors.New("unknown data type")
+				return fmt.Errorf("unknown data type for key: %x", key)
 			}
 
 		}
@@ -149,10 +160,8 @@ func (d *NotaryDB) LoadAll() (*DBLoadResult, error) {
 	})
 
 	if viewErr != nil {
-		return nil, errors.Join(
-			ErrViewErr,
-			viewErr,
-		)
+		// No key provided here since the View function is iterating over every entry.
+		return nil, &DBError{Op: OpRead, Err: viewErr}
 	}
 
 	return &result, nil
@@ -179,7 +188,7 @@ func (d *NotaryDB) update(key []byte, data []byte) error {
 	})
 
 	if updateErr != nil {
-		return fmt.Errorf("failed to store data for key %s: %w", key, updateErr)
+		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
 
 	return nil
@@ -190,23 +199,23 @@ func (d *NotaryDB) deleteEntry(key []byte) error {
 		deleteErr := txn.Delete(key)
 		return deleteErr
 	}); updateErr != nil {
-		return fmt.Errorf("failed to delete entry with key %x: %w", key, updateErr)
+		return &DBError{Op: OpDelete, Key: key, Err: updateErr}
 	}
 
 	return nil
 }
 
-// pendingKey returns a unique prefix for pending message publications to be stored in the Notary's database.
+// pendingKey returns a unique prefix for pending messages to be stored in the Notary's database.
 func pendingKey(p *common.PendingMessage) []byte {
 	return key(delayedPrefix, p.Msg.MessageIDString())
 }
 
-// pendingKey returns a unique prefix for blackholed message publications to be stored in the Notary's database.
+// blackholeKey returns a unique prefix for blackholed message publications to be stored in the Notary's database.
 func blackholeKey(m *common.MessagePublication) []byte {
 	return key(blackholePrefix, m.MessageIDString())
 }
 
-// key returns a unique prefix for message publication to be stored in the Notary's database.
+// key returns a unique prefix for different data types stored in the Notary's database.
 func key(prefix string, msgID string) []byte {
 	return []byte(fmt.Sprintf("%v%v", prefix, msgID))
 }
