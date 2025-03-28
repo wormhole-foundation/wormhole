@@ -11,6 +11,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 type (
@@ -62,6 +63,7 @@ type (
 		ccqAllowedPeers        string
 		protectedPeers         []string
 		ccqProtectedPeers      []string
+		txVerifierChains       []vaa.ChainID
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -205,6 +207,7 @@ func WithGuardianOptions(
 	ccqAllowedPeers string,
 	protectedPeers []string,
 	ccqProtectedPeers []string,
+	txVerifierChains []vaa.ChainID,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
@@ -230,6 +233,7 @@ func WithGuardianOptions(
 		p.ccqAllowedPeers = ccqAllowedPeers
 		p.protectedPeers = protectedPeers
 		p.ccqProtectedPeers = ccqProtectedPeers
+		p.txVerifierChains = txVerifierChains
 		return nil
 	}
 }
