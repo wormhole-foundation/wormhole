@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -173,6 +174,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Wait for the response or timeout
+outer:
 	select {
 	case <-time.After(query.RequestTimeout + 5*time.Second):
 		maxMatchingResponses, outstandingResponses, quorum := pendingResponse.getStats()
@@ -201,9 +203,16 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 			return res.Signatures[i].Index < res.Signatures[j].Index
 		})
 		signatures := make([]string, 0, len(res.Signatures))
-		for _, s := range res.Signatures {
+		for _, sig := range res.Signatures {
+			if sig.Index > math.MaxUint8 {
+				s.logger.Error("Signature index out of bounds", zap.Int("sig.Index", sig.Index))
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
+				failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
+				break outer
+			}
 			// ECDSA signature + a byte for the index of the guardian in the guardian set
-			signature := fmt.Sprintf("%s%02x", s.Signature, uint8(s.Index))
+			signature := fmt.Sprintf("%s%02x", sig.Signature, uint8(sig.Index)) // #nosec G115 -- This is validated above
 			signatures = append(signatures, signature)
 		}
 		w.Header().Add("Content-Type", "application/json")
