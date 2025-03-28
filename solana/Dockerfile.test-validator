@@ -1,2 +1,4 @@
 FROM ghcr.io/wormholelabs-xyz/solana-test-validator:1.17.29@sha256:b1f85eed2d33a2bd0378204ab4d1e16537de35407cdcfeedbd021b31636618bc
+COPY tests/artifacts/wormhole_post_message_shim.so /opt/solana/deps/wormhole_post_message_shim.so
+COPY tests/artifacts/wormhole_integrator_example.so /opt/solana/deps/wormhole_integrator_example.so
 COPY --from=solana-contract /opt/solana/deps/ /opt/solana/deps/

@@ -1,0 +1,34 @@
+[workspace]
+members = [
+    "crates/*",
+    "programs/*"
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/wormhole-foundation/wormhole"
+rust-version = "1.75"
+version = "0.1.0"
+
+[workspace.dependencies]
+base64 = "0.22.1"
+borsh = "1.5"
+cfg-if = "1.0"
+sha2-const-stable = "0.1.0"
+solana-program = ">=1.18,<=2"
+solana-program-test = ">=1.18,<=2"
+solana-sdk = ">=1.18,<=2"
+wormhole-svm-definitions = { path = "crates/definitions" }
+wormhole-svm-shim = { path = "crates/shim" }
+
+[profile.release]
+overflow-checks = false
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1

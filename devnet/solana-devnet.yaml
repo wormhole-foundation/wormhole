@@ -56,6 +56,12 @@ spec:
             - --bpf-program
             - Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK
             - /opt/solana/deps/wormhole_migration.so
+            - --bpf-program
+            - EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX
+            - /opt/solana/deps/wormhole_post_message_shim.so
+            - --bpf-program
+            - AEwubmehHNvkMXoH2C5MgDSemZgQ3HUSYpeaF3UrNZdQ
+            - /opt/solana/deps/wormhole_integrator_example.so
             # - --log
             - -q
           ports:
