@@ -17,7 +17,8 @@ tools/node_modules: tools/package-lock.json
 .PHONY: test
 ## Run unit tests
 test:
-	cargo test --workspace --locked
+	cargo test --workspace --locked --exclude 'shutdown-*'
+	cargo test -p 'shutdown-*' --no-default-features --locked
 
 
 .PHONY: clean
