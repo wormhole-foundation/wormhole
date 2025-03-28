@@ -361,7 +361,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return nil
 			case <-t.C:
 				if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
-					errC <- fmt.Errorf("failed to request guardian set: %v", err)
+					errC <- fmt.Errorf("failed to request guardian set: %v", err) // nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 			}
@@ -410,7 +410,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return nil
 			case err := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing message publication subscription: %w", err)
+				errC <- fmt.Errorf("error while processing message publication subscription: %w", err) // nolint:channelcheck // The watcher will exit anyway
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
@@ -422,7 +422,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
+					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err) // nolint:channelcheck // The watcher will exit anyway
 					return nil
 				}
 
@@ -450,7 +450,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case err := <-headerSubscription.Err():
 				logger.Error("error while processing header subscription", zap.Error(err))
 				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing header subscription: %w", err)
+				errC <- fmt.Errorf("error while processing header subscription: %w", err) // nolint:channelcheck // The watcher will exit anyway
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-headSink:
@@ -675,7 +675,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	w.currentGuardianSet = &idx
 
 	if w.setC != nil {
-		w.setC <- common.NewGuardianSet(gs.Keys, idx)
+		w.setC <- common.NewGuardianSet(gs.Keys, idx) //nolint:channelcheck // Will only block the guardian set update routine
 	}
 
 	return nil
@@ -884,7 +884,7 @@ func (w *Watcher) verifyAndPublish(
 		msg = &verifiedMsg
 	}
 
-	w.msgC <- msg
+	w.msgC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 	if msg.IsReobservation {
 		watchers.ReobservationsByChain.WithLabelValues(w.chainID.String(), "std").Inc()
@@ -938,7 +938,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 			ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
 			if !canRetryGetBlockTime(err) {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
+				errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w", ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err) // nolint:channelcheck // The watcher will exit anyway
 				return
 			}
 			if retries >= MaxRetries {
