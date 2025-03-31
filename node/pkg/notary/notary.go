@@ -72,7 +72,7 @@ type Notary struct {
 	// mutex guards database operations.
 	mutex sync.Mutex
 	// database persists information about delayed and black-holed messages.
-	database db.NotaryDB
+	database db.NotaryDBInterface
 
 	// Define slices to manage delayed and black-holed message publications.
 	//
@@ -95,7 +95,7 @@ type Notary struct {
 func NewNotary(
 	ctx context.Context,
 	logger *zap.Logger,
-	dbConn db.NotaryDB,
+	dbConn db.NotaryDBInterface,
 	env common.Environment,
 ) *Notary {
 	return &Notary{
@@ -166,7 +166,7 @@ func (n *Notary) ProcessReadyMessages() {
 
 		n.ready = append(n.ready, &pMsg.Msg)
 
-		n.database.DeletePending(pMsg)
+		n.database.DeleteDelayed(pMsg)
 	}
 }
 
