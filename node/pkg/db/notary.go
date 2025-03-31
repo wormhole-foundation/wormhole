@@ -14,9 +14,10 @@ import (
 
 type NotaryDBInterface interface {
 	StoreBlackhole(m *common.MessagePublication) error
-	StorePending(p *common.PendingMessage) error
+	StoreDelayed(p *common.PendingMessage) error
 	DeleteBlackholed(m *common.MessagePublication) error
-	DeletePending(p *common.PendingMessage) error
+	DeleteDelayed(p *common.PendingMessage) error
+	LoadAll() (DBLoadResult, error)
 }
 
 type NotaryDB struct {
@@ -25,7 +26,7 @@ type NotaryDB struct {
 
 // Define prefixes used to isolate different message publications stored in the database.
 const (
-	delayedPrefix   = "NOTARY:PENDING:V1:"
+	delayedPrefix   = "NOTARY:DELAYED:V1:"
 	blackholePrefix = "NOTARY:BLACKHOLE:V1:"
 )
 
@@ -216,6 +217,6 @@ func blackholeKey(m *common.MessagePublication) []byte {
 }
 
 // key returns a unique prefix for different data types stored in the Notary's database.
-func key(prefix string, msgID string) []byte {
-	return []byte(fmt.Sprintf("%v%v", prefix, msgID))
+func key(prefix string, msgID string) (key []byte) {
+	return fmt.Appendf(key, "%v%v", prefix, msgID)
 }
