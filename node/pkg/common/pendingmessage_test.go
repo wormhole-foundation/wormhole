@@ -95,7 +95,7 @@ func TestPendingMessage_RoundTripMarshal(t *testing.T) {
 // in a slice of strictly ascending values.
 func consumeHeapAndAssertOrdering(t *testing.T, q *common.PendingMessageQueue) []*common.PendingMessage {
 	require.True(t, q.Len() > 0, "programming error: can't process empty queue")
-	
+
 	res := make([]*common.PendingMessage, 0, q.Len())
 
 	// Pop all entries from the heap. Ensure that the element on top of the heap
