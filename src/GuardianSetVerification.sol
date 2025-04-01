@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "./ExtStore.sol";
-import {ICoreBridge, GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
+import {IWormhole} from "wormhole-sdk/interfaces/IWormhole.sol";
 import {eagerOr} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
@@ -17,7 +17,7 @@ contract GuardianSetVerification is ExtStore {
   using VaaLib for bytes;
   using UncheckedIndexing for address[];
 
-  ICoreBridge private immutable _coreBridge;
+  IWormhole private immutable _coreBridge;
 
   // Guardian set expiration time is stored in an array mapped from index to expiration time
   uint32[] private _guardianSetExpirationTime;
@@ -26,7 +26,7 @@ contract GuardianSetVerification is ExtStore {
     address coreBridge,
     uint pullLimit
   ) {
-    _coreBridge = ICoreBridge(coreBridge);
+    _coreBridge = IWormhole(coreBridge);
     pullGuardianSets(pullLimit);
   }
 
@@ -159,7 +159,7 @@ contract GuardianSetVerification is ExtStore {
     uint32 expirationTime
   ) {
     // Get the guardian set from the core bridge
-    GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
+    IWormhole.GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
 
     // Convert the guardian set to a byte array
     // Result is stored in `data`
