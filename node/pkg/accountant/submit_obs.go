@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -88,7 +89,11 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 		return fmt.Errorf("failed to get guardian index for %s", tag)
 	}
 
-	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag)
+	if guardianIndex > math.MaxUint32 {
+		return fmt.Errorf("guardian index greater than max uint32 %v", guardianIndex)
+	}
+
+	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag) // #nosec G115 -- This is checked above
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
 }
@@ -309,7 +314,7 @@ func SubmitObservationsToContract(
 	for idx, msg := range msgs {
 		obs[idx] = Observation{
 			TxHash:           msg.TxID,
-			Timestamp:        uint32(msg.Timestamp.Unix()),
+			Timestamp:        uint32(msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
 			EmitterAddress:   msg.EmitterAddress,

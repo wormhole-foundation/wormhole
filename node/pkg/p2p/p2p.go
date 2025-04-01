@@ -525,7 +525,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							defer DefaultRegistry.mu.Unlock()
 							networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 							for _, v := range DefaultRegistry.networkStats {
-								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
 								networks = append(networks, v)
 							}

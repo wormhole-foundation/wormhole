@@ -292,7 +292,7 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 
 	batch := make([]rpc.BatchElem, numBlocks)
 	results := make([]BatchResult, numBlocks)
-	for idx := 0; idx < int(numBlocks); idx++ {
+	for idx := uint64(0); idx < numBlocks; idx++ {
 		batch[idx] = rpc.BatchElem{
 			Method: "eth_getBlockByNumber",
 			Args: []interface{}{

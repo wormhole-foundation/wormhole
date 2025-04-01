@@ -243,7 +243,7 @@ func (w *SolanaWatcher) ccqBaseHandleSolanaAccountQueryRequest(
 	w.ccqLogger.Info(fmt.Sprintf("account read for %s query succeeded", tag),
 		zap.String("requestId", requestId),
 		zap.Uint64("slotNumber", info.Context.Slot),
-		zap.Uint64("blockTime", uint64(*block.BlockTime)),
+		zap.Uint64("blockTime", uint64(*block.BlockTime)), // #nosec G115 -- This conversion is safe indefinitely
 		zap.String("blockHash", hex.EncodeToString(block.Blockhash[:])),
 		zap.Uint64("blockHeight", *block.BlockHeight),
 		zap.Int("numFastRetries", numFastRetries),
@@ -291,7 +291,7 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(
 	}
 
 	// Estimate how far in the future the requested slot is, using our estimated slot time.
-	futureSlotEstimate := time.Duration(req.MinContextSlot-currentSlot) * CCQ_ESTIMATED_SLOT_TIME
+	futureSlotEstimate := time.Duration(req.MinContextSlot-currentSlot) * CCQ_ESTIMATED_SLOT_TIME // #nosec G115 -- This conversion is safe indefinitely
 
 	// If the requested slot is definitively more than the retry interval, use the regular retry mechanism.
 	if futureSlotEstimate > query.RetryInterval*2 {
