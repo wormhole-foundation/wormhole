@@ -56,6 +56,20 @@ const (
 	// Blackhole means a message should be permanently blocked from being processed.
 	Blackhole
 )
+
+func (v Verdict) String() string {
+	switch v {
+	case Approve:
+		return "Approve"
+	case Delay:
+		return "Delay"
+	case Blackhole:
+		return "Blackhole"
+	default:
+		return "Unknown"
+	}
+}
+
 const (
 	// How long a message should be held in the pending list before being processed.
 	defaultDelay = time.Hour * 24
@@ -72,7 +86,7 @@ type Notary struct {
 	// mutex guards database operations.
 	mutex sync.Mutex
 	// database persists information about delayed and black-holed messages.
-	database db.NotaryDBInterface
+	database *db.NotaryDB
 
 	// Define slices to manage delayed and black-holed message publications.
 	//
@@ -95,14 +109,15 @@ type Notary struct {
 func NewNotary(
 	ctx context.Context,
 	logger *zap.Logger,
-	dbConn db.NotaryDBInterface,
+	guardianDB *db.Database,
 	env common.Environment,
 ) *Notary {
 	return &Notary{
-		ctx:        ctx,
-		logger:     logger,
-		mutex:      sync.Mutex{},
-		database:   dbConn,
+		ctx:    ctx,
+		logger: logger,
+		mutex:  sync.Mutex{},
+		// Get the underlying database connection from the Guardian.
+		database:   db.NewNotaryDB(guardianDB.Conn()),
 		delayed:    common.NewPendingMessageQueue(),
 		ready:      nil,
 		blackholed: nil,
@@ -111,18 +126,21 @@ func NewNotary(
 }
 
 func (n *Notary) Run(ctx context.Context) error {
-	n.logger.Info("starting notary")
-
 	if n.env != common.GoTest {
+		n.logger.Info("loading notary data from database")
 		if err := n.loadFromDB(); err != nil {
 			return err
 		}
 	}
 
+	n.logger.Info("notary ready")
+
 	return nil
 }
 
-func (n *Notary) ProcessMsg(msg *common.MessagePublication) (Verdict, error) {
+func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
+
+	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
 	// Only token transfers are currently supported.
 	if !vaa.IsTransfer(msg.Payload) {
@@ -135,14 +153,19 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (Verdict, error) {
 		// desirable to log a warning if a [common.NotVerified] message is handled here, with
 		// the idea that messages handled by the Notary must already have a non-default
 		// status.
-		return Approve, nil
+		v = Approve
 	case common.Anomalous:
-		err := n.delay(msg, defaultDelay)
-		return Delay, err
+		err = n.delay(msg, defaultDelay)
+		v = Delay
 	case common.Rejected:
-		err := n.blackhole(msg)
-		return Blackhole, err
+		err = n.blackhole(msg)
+		v = Blackhole
 	}
+
+	n.logger.Debug("notary result",
+		msg.ZapFields(zap.String("verdict", v.String()))...,
+	)
+	return
 }
 
 // ProcessReadyMessages moves messages from the delayed queue to the ready queue if they are ready to
@@ -240,6 +263,8 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 	// Store in in-memory slice.
 	n.delayed.Push(pMsg)
 
+	n.logger.Info("notary: delayed message", msg.ZapFields()...)
+
 	return nil
 }
 
@@ -256,6 +281,8 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 
 	// Store in in-memory slice.
 	n.blackholed = append(n.blackholed, msg)
+
+	n.logger.Info("notary: blackholed message", msg.ZapFields()...)
 
 	return nil
 }
@@ -311,29 +338,54 @@ func (n *Notary) loadFromDB() error {
 	if err != nil {
 		return err
 	}
+	if result == nil {
+		// TODO replace with better error
+		return errors.New("nil result from database")
+	}
+
+	n.logger.Info(
+		"loaded notary data from database",
+		zap.Int("delayedMsgs", len(result.Delayed)),
+		zap.Int("blackholedMsgs", len(result.Blackholed)),
+	)
 
 	// Avoid overwriting data by mistake.
 	if (len(n.ready) > 0) || (n.delayed != nil && n.delayed.Len() > 0) {
 		return ErrAlreadyInitialized
 	}
 
-	var ready []*common.MessagePublication
-	delayed := common.NewPendingMessageQueue()
-	now := time.Now()
+	var (
+		ready      []*common.MessagePublication
+		delayed    = common.NewPendingMessageQueue()
+		blackholed = make([]*common.MessagePublication, 0)
+		now        = time.Now()
+	)
 
-	for entry := range slices.Values(result.Delayed) {
-		if entry.ReleaseTime.Before(now) {
-			ready = append(ready, &entry.Msg)
-			continue
+	if len(result.Delayed) > 0 {
+		for entry := range slices.Values(result.Delayed) {
+			if entry.ReleaseTime.Before(now) {
+				ready = append(ready, &entry.Msg)
+				continue
+			}
+
+			// If a message isn't ready, it's delayed.
+			delayed.Push(entry)
 		}
-
-		// If a message isn't ready, it's delayed.
-		delayed.Push(entry)
 	}
 
-	n.blackholed = result.Blackholed
+	if len(result.Blackholed) > 0 {
+		blackholed = result.Blackholed
+	}
+
+	n.blackholed = blackholed
 	n.delayed = delayed
 	n.ready = ready
+	n.logger.Info(
+		"initialized notary",
+		zap.Int("delayedMsgs", n.delayed.Len()),
+		zap.Int("blackholedMsgs", len(n.blackholed)),
+		zap.Int("readyMsgs", len(n.ready)),
+	)
 
 	return nil
 }
