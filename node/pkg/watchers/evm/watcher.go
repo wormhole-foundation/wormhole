@@ -890,13 +890,13 @@ func (w *Watcher) verifyAndPublish(
 			return err
 		}
 		msg = &verifiedMsg
-		w.logger.Info(
+		w.logger.Debug(
 			"verified transfer",
 			msg.ZapFields()...,
 		)
 	}
 
-	w.logger.Info(
+	w.logger.Debug(
 		"publishing new message publication",
 		msg.ZapFields()...,
 	)
