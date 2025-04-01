@@ -20,8 +20,17 @@ type NotaryDBInterface interface {
 	LoadAll() (DBLoadResult, error)
 }
 
+// NotaryDB is a wrapper struct for a database connection.
+// Its main purpose is to provide some separation from the Notary's functionality
+// and the general functioning of db.Database
 type NotaryDB struct {
 	db *badger.DB
+}
+
+func NewNotaryDB(dbConn *badger.DB) *NotaryDB {
+	return &NotaryDB{
+		db: dbConn,
+	}
 }
 
 // Define prefixes used to isolate different message publications stored in the database.
@@ -74,7 +83,7 @@ func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
 		return ErrMarshal
 	}
 
-	key := pendingKey(p)
+	key := delayedKey(p)
 	if updateErr := d.update(key, b); updateErr != nil {
 		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
@@ -96,8 +105,8 @@ func (d *NotaryDB) StoreBlackhole(m *common.MessagePublication) error {
 	return nil
 }
 
-func (d *NotaryDB) DeletePending(p *common.PendingMessage) error {
-	return d.deleteEntry(pendingKey(p))
+func (d *NotaryDB) DeleteDelayed(p *common.PendingMessage) error {
+	return d.deleteEntry(delayedKey(p))
 }
 
 func (d *NotaryDB) DeleteBlackholed(m *common.MessagePublication) error {
@@ -115,8 +124,8 @@ const (
 
 func (d *NotaryDB) LoadAll() (*DBLoadResult, error) {
 	result := DBLoadResult{
-		Delayed:    make([]*common.PendingMessage, defaultResultCapacity),
-		Blackholed: make([]*common.MessagePublication, defaultResultCapacity),
+		Delayed:    make([]*common.PendingMessage, 0, defaultResultCapacity),
+		Blackholed: make([]*common.MessagePublication, 0, defaultResultCapacity),
 	}
 	viewErr := d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -206,8 +215,8 @@ func (d *NotaryDB) deleteEntry(key []byte) error {
 	return nil
 }
 
-// pendingKey returns a unique prefix for pending messages to be stored in the Notary's database.
-func pendingKey(p *common.PendingMessage) []byte {
+// delayedKey returns a unique prefix for pending messages to be stored in the Notary's database.
+func delayedKey(p *common.PendingMessage) []byte {
 	return key(delayedPrefix, p.Msg.MessageIDString())
 }
 

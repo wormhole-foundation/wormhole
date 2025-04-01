@@ -290,17 +290,22 @@ func (p *Processor) Run(ctx context.Context) error {
 			)
 			p.gst.Set(p.gs)
 		case k := <-p.msgC:
+
+			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
+
 			// Notary: check whether a message is well-formed.
 			// Send messages to the Notary first. If messages are not approved, they should not continue
 			// to the Governor or the Accountant.
 			if p.notary != nil {
+				p.logger.Debug("processor: sending message to notary for evaluation", k.ZapFields()...)
+
 				// NOTE: Always returns Approve for messages that are not token transfers.
 				verdict, err := p.notary.ProcessMsg(k)
 				if err != nil {
 					// Errors should only occur if there is an issue with database interaction.
 					// TODO: do we want the notary to return an error to the processor?
 					return errors.Join(
-						fmt.Errorf("notary: failed to process message `%s`", k.MessageIDString()),
+						fmt.Errorf("processor: notary failed to process message `%s`", k.MessageIDString()),
 						err,
 					)
 				}

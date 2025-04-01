@@ -31,7 +31,6 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 	// Compare with [PendingTransfer.Marshal].
 	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
 
-
 	b, err := p.Msg.MarshalBinary()
 	if err != nil {
 		return buf.Bytes(), fmt.Errorf("failed to marshal pending message: %w", err)
