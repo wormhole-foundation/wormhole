@@ -1685,10 +1685,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(suiRPC) {
 		wc := &sui.WatcherConfig{
-			NetworkID:        "sui",
-			ChainID:          vaa.ChainIDSui,
-			Rpc:              *suiRPC,
-			SuiMoveEventType: *suiMoveEventType,
+			NetworkID:         "sui",
+			ChainID:           vaa.ChainIDSui,
+			Rpc:               *suiRPC,
+			SuiMoveEventType:  *suiMoveEventType,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSui),
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
