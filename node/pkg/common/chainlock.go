@@ -11,7 +11,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -87,10 +86,9 @@ const MaxSafeInputSize = 128 * 1024 * 1024 // 128MB (arbitrary)
 var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
 
 var (
-	ErrBinaryWrite    = errors.New("failed to write binary data")
-	ErrInvalidTxID    = errors.New("field TxID too long")
-	ErrInvalidPayload = errors.New("field payload too long")
-
+	ErrBinaryWrite         = errors.New("failed to write binary data")
+	ErrInvalidTxID         = errors.New("field TxID too long")
+	ErrInvalidPayload      = errors.New("field payload too long")
 	ErrDataTooShort        = errors.New("data too short")
 	ErrTxIDTooShort        = errors.New("data too short for TxID")
 	ErrTimestampTooShort   = errors.New("data too short for timestamp")
