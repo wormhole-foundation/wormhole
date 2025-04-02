@@ -150,7 +150,7 @@ spec:
             - --ccqAllowedPeers=12D3KooWSnju8zhywCYVi2JwTqky1sySPnmtYLsHHzc4WerMnDQH,12D3KooWM6WqedfR6ehtTd1y6rJu3ZUrEkTjcJJnJZYesjd89zj8
             - --transferVerifierEnabledChainIDs=2
             - --notaryEnabled=true
-            # - --logLevel=debug
+            - --logLevel=warn
           securityContext:
             capabilities:
               add:
