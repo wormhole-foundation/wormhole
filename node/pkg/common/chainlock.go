@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
+<<<<<<< HEAD
 const (
 	// TxIDLenMin is the minimum length of a txID.
 	TxIDLenMin = 32
@@ -82,8 +83,16 @@ func (e ErrInputSize) Error() string {
 // The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 // the fields plus length information for fields with variable lengths (TxID and Payload).
 const (
+	HashLength    = 32
+	AddressLength = 32
+
+	// TODO: is this big enough?
+	MaxPayloadSize = math.MaxUint16
+
+	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
+	// the fields plus length information for fields with variable lengths (TxID and Payload).
 	minMarshaledMsgSize = 1 + // TxID length (uint8)
-		4 + // Timestamp (uint32)
+		8 + // Timestamp (int64)
 		4 + // Nonce (uint32)
 		8 + // Sequence (uint64)
 		1 + // ConsistencyLevel (uint8)
@@ -101,10 +110,9 @@ const (
 )
 
 var (
-	ErrBinaryWrite    = errors.New("failed to write binary data")
-	ErrInvalidTxID    = errors.New("field TxID too long")
-	ErrInvalidPayload = errors.New("field payload too long")
-
+	ErrBinaryWrite         = errors.New("failed to write binary data")
+	ErrInvalidTxID         = errors.New("field TxID too long")
+	ErrInvalidPayload      = errors.New("field payload too long")
 	ErrDataTooShort        = errors.New("data too short")
 	ErrTxIDTooShort        = errors.New("data too short for TxID")
 	ErrTimestampTooShort   = errors.New("data too short for timestamp")
