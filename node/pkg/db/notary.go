@@ -17,7 +17,7 @@ type NotaryDBInterface interface {
 	StoreDelayed(p *common.PendingMessage) error
 	DeleteBlackholed(m *common.MessagePublication) error
 	DeleteDelayed(p *common.PendingMessage) error
-	LoadAll() (DBLoadResult, error)
+	LoadAll() (*NotaryLoadResult, error)
 }
 
 // NotaryDB is a wrapper struct for a database connection.
@@ -113,7 +113,7 @@ func (d *NotaryDB) DeleteBlackholed(m *common.MessagePublication) error {
 	return d.deleteEntry(blackholeKey(m))
 }
 
-type DBLoadResult struct {
+type NotaryLoadResult struct {
 	Delayed    []*common.PendingMessage
 	Blackholed []*common.MessagePublication
 }
@@ -122,8 +122,8 @@ const (
 	defaultResultCapacity = 10
 )
 
-func (d *NotaryDB) LoadAll() (*DBLoadResult, error) {
-	result := DBLoadResult{
+func (d *NotaryDB) LoadAll() (*NotaryLoadResult, error) {
+	result := NotaryLoadResult{
 		Delayed:    make([]*common.PendingMessage, 0, defaultResultCapacity),
 		Blackholed: make([]*common.MessagePublication, 0, defaultResultCapacity),
 	}
