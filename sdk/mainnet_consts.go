@@ -10,7 +10,7 @@ import (
 // PublicRPCEndpoints is a list of known public RPC endpoints for mainnet, operated by
 // Wormhole guardian nodes.
 //
-// This list is duplicated a couple times across the codebase - make to to update all copies!
+// This list is duplicated a couple times across the codebase - make to update all copies!
 var PublicRPCEndpoints = []string{
 	"https://wormhole-v2-mainnet-api.mcf.rocks",
 	"https://wormhole-v2-mainnet-api.chainlayer.network",
