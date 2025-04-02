@@ -117,6 +117,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 	// Create main configuration for Transfer Verification
 	transferVerifier, err := txverifier.NewTransferVerifier(
+		ctx,
 		evmConnector,
 		&txverifier.TVAddresses{
 			CoreBridgeAddr:    common.HexToAddress(*evmCoreContract),

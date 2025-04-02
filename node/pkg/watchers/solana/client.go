@@ -424,6 +424,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					)
 					continue
 				}
+
+				//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
 				numObservations, err := s.handleReobservationRequest(vaa.ChainID(m.ChainId), m.TxHash, s.rpcClient)
 				if err != nil {
 					logger.Error("failed to process observation request",
