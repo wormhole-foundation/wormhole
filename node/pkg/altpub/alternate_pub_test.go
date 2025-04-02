@@ -81,7 +81,8 @@ func TestParseEndpoint(t *testing.T) {
 		{label: "With_delay_and_one_chain_name", input: "test;http://localhost:3333;200us;solana", delayUs: 200, chains: []vaa.ChainID{vaa.ChainIDSolana}},
 		{label: "With_delay_and_two_chain_numbers", input: "test;http://localhost:3333;500ms;1,2", delayUs: 500000, chains: []vaa.ChainID{vaa.ChainIDSolana, vaa.ChainIDEthereum}},
 		{label: "With_delay_and_chain_number_and_name", input: "test;http://localhost:3333;500ms;1,ethereum", delayUs: 500000, chains: []vaa.ChainID{vaa.ChainIDSolana, vaa.ChainIDEthereum}},
-		{label: "With_no_delay_and_one_chain", input: "test;http://localhost:3333;0;1", chains: []vaa.ChainID{vaa.ChainIDSolana}},
+		{label: "With_zero_delay_and_one_chain", input: "test;http://localhost:3333;0;1", chains: []vaa.ChainID{vaa.ChainIDSolana}},
+		{label: "With_no_delay_and_one_chain", input: "test;http://localhost:3333;;1", chains: []vaa.ChainID{vaa.ChainIDSolana}},
 		{label: "With_no_delay_and_except_one_chain", input: "test;http://localhost:3333;0;-pythnet", chains: []vaa.ChainID{vaa.ChainIDPythNet}, exceptFor: true},
 		{label: "With_no_delay_and_except_two_chains", input: "test;http://localhost:3333;0;-pythnet,1", chains: []vaa.ChainID{vaa.ChainIDSolana, vaa.ChainIDPythNet}, exceptFor: true},
 
