@@ -631,8 +631,8 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
-		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor"},
+		// governor, accountant, and notary may be set to nil, but that choice needs to be made before the processor is configured
+		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor", "notary"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -650,6 +650,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.gov,
 				g.acct,
 				g.acctC.readC,
+				g.notary,
 				g.gatewayRelayer,
 				networkId,
 				g.alternatePublisher,
