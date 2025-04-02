@@ -47,3 +47,14 @@ var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]string{
 	// WETH deployed by the Tilt devnet configuration.
 	vaa.ChainIDEthereum: "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
 }
+
+// KnownDevnetCoreContracts is a map of known core contract addresses used during development.
+var KnownDevnetCoreContracts = map[vaa.ChainID]string{
+	vaa.ChainIDSui: "5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0",
+}
+
+// KnownDevnetTokenBridgeContracts is a map of known token bridge contract addresses. In some cases,
+// there might be a difference between the emitter address and the token bridge contract (such as for Sui).
+var KnownDevnetTokenBridgeContracts = map[vaa.ChainID]string{
+	vaa.ChainIDSui: "a6a3da85bbe05da5bfd953708d56f1a3a023e7fb58e5a824a3d4de3791e8f690",
+}

@@ -1,6 +1,7 @@
 package txverifier
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,10 +13,11 @@ import (
 const SUI_CHAIN_ID = 21
 
 // The SuiApi interface defines the functions that are required to interact with the Sui RPC.
+// TODO: add context
 type SuiApiInterface interface {
-	QueryEvents(filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
-	GetTransactionBlock(txDigest string) (SuiGetTransactionBlockResponse, error)
-	TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
+	QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
+	GetTransactionBlock(ctx context.Context, txDigest string) (SuiGetTransactionBlockResponse, error)
+	TryMultiGetPastObjects(ctx context.Context, objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
 }
 
 // This struct defines the standard properties that get returned from the RPC.
@@ -140,16 +142,11 @@ func (r SuiTryMultiGetPastObjectsResponse) GetBalanceDiff() (*big.Int, error) {
 		return big.NewInt(0), fmt.Errorf("incorrect number of results received")
 	}
 
-	// Determine if the asset is wrapped or native
+	// Determine if the asset is wrapped or native. It's only necessary to check if one asset
+	// is wrapped, since `TryMultiGetPastObjects` queries only a single object ID.
 	isWrapped, err := r.Result[0].IsWrapped()
 	if err != nil {
 		return big.NewInt(0), fmt.Errorf("error in checking if object is wrapped: %w", err)
-	}
-
-	// TODO: Should we check that the other asset is also wrapped?
-	newBalance, err := r.Result[0].GetVersionBalance(isWrapped)
-	if err != nil {
-		return big.NewInt(0), fmt.Errorf("error in getting new balance: %w", err)
 	}
 
 	oldBalance, err := r.Result[1].GetVersionBalance(isWrapped)
@@ -157,7 +154,13 @@ func (r SuiTryMultiGetPastObjectsResponse) GetBalanceDiff() (*big.Int, error) {
 		return big.NewInt(0), fmt.Errorf("error in getting old balance: %w", err)
 	}
 
+	newBalance, err := r.Result[0].GetVersionBalance(isWrapped)
+	if err != nil {
+		return big.NewInt(0), fmt.Errorf("error in getting new balance: %w", err)
+	}
+
 	difference := newBalance.Sub(newBalance, oldBalance)
+
 	// If the asset is wrapped, it means that the balance was burned, so the difference should be negative.
 	if isWrapped {
 		difference = difference.Mul(difference, big.NewInt(-1))
