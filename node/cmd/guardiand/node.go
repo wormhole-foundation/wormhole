@@ -643,6 +643,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Override the default go-log config, which uses a magic environment variable.
+	logger.Info("setting level for all loggers", zap.String("level", logger.Level().String()))
 	ipfslog.SetAllLoggers(lvl)
 
 	if viper.ConfigFileUsed() != "" {

@@ -229,6 +229,7 @@ func NewProcessor(
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
+	notary *notary.Notary,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
@@ -253,6 +254,7 @@ func NewProcessor(
 		governor:       g,
 		acct:           acct,
 		acctReadC:      acctReadC,
+		notary:         notary,
 		pythnetVaas:    make(map[string]PythNetVaaEntry),
 		gatewayRelayer: gatewayRelayer,
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
@@ -278,6 +280,12 @@ func (p *Processor) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			if p.notary != nil {
+				err := p.notary.Shutdown()
+				if err != nil {
+					p.logger.Error("could not shutdown notary. messages may not be persisted", zap.Error(err))
+				}
+			}
 			if p.acct != nil {
 				p.acct.Close()
 			}
@@ -303,7 +311,9 @@ func (p *Processor) Run(ctx context.Context) error {
 				verdict, err := p.notary.ProcessMsg(k)
 				if err != nil {
 					// Errors should only occur if there is an issue with database interaction.
-					// TODO: do we want the notary to return an error to the processor?
+					// TODO: do we want the notary to return an error to the processor? It will
+					// trigger a restart. This method follows what the accountant does when it
+					// cannot process a message.
 					return errors.Join(
 						fmt.Errorf("processor: notary failed to process message `%s`", k.MessageIDString()),
 						err,
@@ -312,8 +322,14 @@ func (p *Processor) Run(ctx context.Context) error {
 
 				switch verdict {
 				case notary.Blackhole, notary.Delay:
-					// Delayed messages are adding to a separate queue and processed elsewhere.
-					// Black-holed messages should not be processed.
+					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					if verdict == notary.Blackhole {
+						// Black-holed messages should not be processed.
+						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					} else {
+						// Delayed messages are adding to a separate queue and processed elsewhere.
+						p.logger.Error("message will not be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					}
 					continue
 				case notary.Approve:
 					// no-op: process normally
