@@ -1,0 +1,8 @@
+keystore:
+  File: /.sui/sui_config/sui.keystore
+envs:
+  - alias: sui-devnet
+    rpc: "http://sui:9000"
+    ws: ~
+active_env: sui-devnet
+active_address: "0xed867315e3f7c83ae82e6d5858b6a6cc57c291fd84f7509646ebc8162169cf96"
