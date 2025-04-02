@@ -216,7 +216,7 @@ func NewEthWatcher(
 func (w *Watcher) tokenBridge() eth_common.Address {
 	var tb []byte
 	switch w.env {
-	case common.UnsafeDevNet:
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 		tb = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
 	case common.TestNet:
 		tb = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
@@ -229,7 +229,7 @@ func (w *Watcher) tokenBridge() eth_common.Address {
 func (w *Watcher) wrappedNative() eth_common.Address {
 	var wnative string
 	switch w.env {
-	case common.UnsafeDevNet:
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 		wnative = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
 	case common.TestNet:
 		wnative = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
@@ -309,6 +309,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 			var tvErr error
 			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
+				ctx,
 				w.ethConn,
 				&txverifier.TVAddresses{
 					CoreBridgeAddr:    w.contract,

@@ -128,9 +128,9 @@ type TransferVerifier[E evmClient, C connector] struct {
 	nativeChainCache map[string]vaa.ChainID
 }
 
-func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
+func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
 	// Retrieve the chainId from the connector.
-	chainIdFromClient, err := connector.Client().ChainID(context.Background())
+	chainIdFromClient, err := connector.Client().ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
