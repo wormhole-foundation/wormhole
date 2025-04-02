@@ -58,10 +58,11 @@ issues:
     - path: pkg/txverifier/sui_test.go
       text: "G101: Potential hardcoded credentials"
 
-    - path: "^pkg/governor/generated_mainnet_tokens\\.go$"
+    - path: ".*generated_mainnet_tokens\\.go$"
       text: ".*" # This matches any text in the file
       linters:
-        - misspell # This excludes all linters for this file
+        - misspell
+        - dupword
     - path: node/hack/
       linters:
         - godox
