@@ -1,6 +1,7 @@
 package txverifier
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,16 +19,12 @@ const (
 	SuiUsdcAddress      = "5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf"
 )
 
-// func initGlobals() {
-// 	suiEventType = fmt.Sprintf("%s::%s::%s", *suiCoreContract, suiModule, suiEventName)
-// }
-
-func newTestSuiTransferVerifier() *SuiTransferVerifier {
+func newTestSuiTransferVerifier(connection SuiApiInterface) *SuiTransferVerifier {
 	suiCoreContract := "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a"
 	suiTokenBridgeContract := "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d"
 	suiTokenBridgeEmitter := "0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5"
 
-	return NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeContract)
+	return NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeContract, connection)
 }
 
 type MockSuiApiConnection struct {
@@ -61,11 +58,15 @@ func (mock *MockSuiApiConnection) SetObjectsResponse(ObjectResponse SuiTryMultiG
 	mock.ObjectsResponses = append(mock.ObjectsResponses, ObjectResponse)
 }
 
-func (mock *MockSuiApiConnection) QueryEvents(filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error) {
+func (mock *MockSuiApiConnection) ClearObjectResponses() {
+	mock.ObjectsResponses = []SuiTryMultiGetPastObjectsResponse{}
+}
+
+func (mock *MockSuiApiConnection) QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error) {
 	return SuiQueryEventsResponse{}, nil
 }
 
-func (mock *MockSuiApiConnection) GetTransactionBlock(txDigest string) (SuiGetTransactionBlockResponse, error) {
+func (mock *MockSuiApiConnection) GetTransactionBlock(ctx context.Context, txDigest string) (SuiGetTransactionBlockResponse, error) {
 
 	objectChanges := []ObjectChange{}
 
@@ -87,7 +88,7 @@ func (mock *MockSuiApiConnection) GetTransactionBlock(txDigest string) (SuiGetTr
 
 	return SuiGetTransactionBlockResponse{Result: SuiGetTransactionBlockResult{Events: mock.Events, ObjectChanges: objectChanges}}, nil
 }
-func (mock *MockSuiApiConnection) TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error) {
+func (mock *MockSuiApiConnection) TryMultiGetPastObjects(ctx context.Context, objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error) {
 
 	for _, response := range mock.ObjectsResponses {
 		keyIn := fmt.Sprintf("%s-%s-%s", objectId, version, previousVersion)
@@ -119,7 +120,8 @@ func TestNewSuiApiConnection(t *testing.T) {
 }
 
 func TestProcessEvents(t *testing.T) {
-	suiTxVerifier := newTestSuiTransferVerifier()
+	connection := NewMockSuiApiConnection([]SuiEvent{})
+	suiTxVerifier := newTestSuiTransferVerifier(connection)
 
 	arbitraryEventType := "arbitrary::EventType"
 	arbitraryEmitter := "0x3117"
@@ -278,7 +280,8 @@ func TestProcessEvents(t *testing.T) {
 }
 
 func TestProcessObjectUpdates(t *testing.T) {
-	suiTxVerifier := newTestSuiTransferVerifier()
+	suiTxVerifier := newTestSuiTransferVerifier(nil)
+	ctx := context.TODO()
 
 	logger := zap.NewNop() // zap.Must(zap.NewDevelopment())
 
@@ -676,6 +679,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			connection := NewMockSuiApiConnection([]SuiEvent{})
+			suiTxVerifier.suiApiConnection = connection
 
 			assert.Equal(t, len(tt.objectChanges), len(tt.resultList))
 
@@ -691,16 +695,15 @@ func TestProcessObjectUpdates(t *testing.T) {
 			}
 
 			// Run function and check results
-			transferredIntoBridge, numEventsProcessed := suiTxVerifier.processObjectUpdates(tt.objectChanges, connection, logger)
+			transferredIntoBridge, numEventsProcessed := suiTxVerifier.processObjectUpdates(ctx, tt.objectChanges, logger)
 			assert.Equal(t, tt.expectedResult, transferredIntoBridge)
 			assert.Equal(t, tt.expectedCount, numEventsProcessed)
 		})
 	}
 }
 
-// TODO
 func TestProcessDigest(t *testing.T) {
-	suiTxVerifier := newTestSuiTransferVerifier()
+	suiTxVerifier := newTestSuiTransferVerifier(nil)
 
 	// Constants used throughout the tests
 	normalObjectNativeType := "0x2::dynamic_field::Field<0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::token_registry::Key<0x2::sui::SUI>, 0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d::native_asset::NativeAsset<0x2::sui::SUI>>"
@@ -940,9 +943,10 @@ func TestProcessDigest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			ctx := context.TODO()
 			assert.Equal(t, len(tt.objectChanges), len(tt.resultList))
 			connection := NewMockSuiApiConnection(tt.suiEvents) // Set events for connection
+			suiTxVerifier.suiApiConnection = connection
 
 			// Add Object Response data for Sui connections
 			for index := 0; index < len(tt.objectChanges); index++ {
@@ -954,7 +958,7 @@ func TestProcessDigest(t *testing.T) {
 				connection.SetObjectsResponse(responseObject)
 			}
 
-			numProcessed, err := suiTxVerifier.ProcessDigest("HASH", connection, logger)
+			numProcessed, err := suiTxVerifier.ProcessDigest(ctx, "HASH", logger)
 
 			assert.Equal(t, true, tt.expectedError == "" && err == nil || err != nil && err.Error() == tt.expectedError)
 			assert.Equal(t, tt.expectedCount, numProcessed)

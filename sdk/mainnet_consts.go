@@ -191,3 +191,14 @@ var KnownWrappedNativeAddress = map[vaa.ChainID]string{
 	// WETH
 	vaa.ChainIDEthereum: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
 }
+
+// KnownMainnetCoreContracts is a map of known core contract addresses.
+var KnownMainnetCoreContracts = map[vaa.ChainID]string{
+	vaa.ChainIDSui: "5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a",
+}
+
+// KnownMainnetTokenBridgeContracts is a map of known token bridge contract addresses. In some cases,
+// there might be a difference between the emitter address and the token bridge contract (such as for Sui).
+var KnownMainnetTokenBridgeContracts = map[vaa.ChainID]string{
+	vaa.ChainIDSui: "26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d",
+}
