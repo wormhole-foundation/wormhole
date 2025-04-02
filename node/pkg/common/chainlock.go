@@ -15,14 +15,17 @@ import (
 	"go.uber.org/zap"
 )
 
-const HashLength = 32
-const AddressLength = 32
-
-// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
-// the fields plus length information for fields with variable lengths (TxID and Payload).
 const (
+	HashLength    = 32
+	AddressLength = 32
+
+	// TODO: is this big enough?
+	MaxPayloadSize = math.MaxUint16
+
+	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
+	// the fields plus length information for fields with variable lengths (TxID and Payload).
 	minMarshaledMsgSize = 1 + // TxID length (uint8)
-		4 + // Timestamp (uint32)
+		8 + // Timestamp (int64)
 		4 + // Nonce (uint32)
 		8 + // Sequence (uint64)
 		1 + // ConsistencyLevel (uint8)
@@ -40,10 +43,9 @@ const (
 )
 
 var (
-	ErrBinaryWrite    = errors.New("failed to write binary data")
-	ErrInvalidTxID    = errors.New("field TxID too long")
-	ErrInvalidPayload = errors.New("field payload too long")
-
+	ErrBinaryWrite         = errors.New("failed to write binary data")
+	ErrInvalidTxID         = errors.New("field TxID too long")
+	ErrInvalidPayload      = errors.New("field payload too long")
 	ErrDataTooShort        = errors.New("data too short")
 	ErrTxIDTooShort        = errors.New("data too short for TxID")
 	ErrTimestampTooShort   = errors.New("data too short for timestamp")
@@ -258,36 +260,24 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	}
 
 	payloadLen := len(msg.Payload)
-	// TODO: does this value make sense? Is it big enough?
-	if payloadLen > math.MaxUint16 {
+	if payloadLen > MaxPayloadSize {
 		return nil, ErrInvalidPayload
 	}
 
 	// Set up for serialization
-	be := binary.BigEndian
-	bufSize := 8 + // uint8	(TxID length)
-		txIDLen + //	(TxID)
-		4 + // uint32	(Timestamp)
-		4 + // uint32	(Nonce)
-		8 + // uint64	(Sequence)
-		1 + // uint8	(ConsistencyLevel)
-		2 + // uint16	(EmitterChain)
-		32 + // vaa.Address	(EmitterAddress)
-		1 + // bool		(IsReobservation)
-		1 + // bool		(Unreliable)
-		1 + // uint8	(verificationState)
-		8 + // uint8	(payload length)
-		payloadLen // (payloadkj
-
-	buf := make([]byte, 0, bufSize)
+	var (
+		be      = binary.BigEndian
+		bufSize = minMarshaledMsgSize + txIDLen + payloadLen
+		buf     = make([]byte, 0, bufSize)
+	)
 
 	// TxID (and length)
 	buf = append(buf, uint8(txIDLen))
 	buf = append(buf, msg.TxID...)
 
 	// Timestamp
-	tsBytes := make([]byte, 4)
-	be.PutUint32(tsBytes, uint32(msg.Timestamp.Unix()))
+	tsBytes := make([]byte, 8)
+	be.PutUint64(tsBytes, uint64(msg.Timestamp.Unix()))
 	buf = append(buf, tsBytes...)
 
 	// Nonce
@@ -433,9 +423,10 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	pos += int(txIDLen)
 
 	// Timestamp
-	timestamp := be.Uint32(data[pos : pos+4])
+	timestamp := be.Uint64(data[pos : pos+8])
+	// Nanoseconds are not serialized
 	msg.Timestamp = time.Unix(int64(timestamp), 0)
-	pos += 4
+	pos += 8
 
 	// Nonce
 	msg.Nonce = be.Uint32(data[pos : pos+4])
