@@ -86,7 +86,7 @@ type Notary struct {
 	// mutex guards database operations.
 	mutex sync.Mutex
 	// database persists information about delayed and black-holed messages.
-	database *db.NotaryDB
+	database db.NotaryDBInterface
 
 	// Define slices to manage delayed and black-holed message publications.
 	//
@@ -148,18 +148,18 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	}
 
 	switch msg.VerificationState() {
-	default:
-		// NOTE: All other statuses are simply approved for now. In the future, it may be
-		// desirable to log a warning if a [common.NotVerified] message is handled here, with
-		// the idea that messages handled by the Notary must already have a non-default
-		// status.
-		v = Approve
 	case common.Anomalous:
 		err = n.delay(msg, defaultDelay)
 		v = Delay
 	case common.Rejected:
 		err = n.blackhole(msg)
 		v = Blackhole
+	default:
+		// NOTE: All other statuses are simply approved for now. In the future, it may be
+		// desirable to log a warning if a [common.NotVerified] message is handled here, with
+		// the idea that messages handled by the Notary must already have a non-default
+		// status.
+		v = Approve
 	}
 
 	n.logger.Debug("notary result",
@@ -220,8 +220,7 @@ func (n *Notary) Shutdown() error {
 	// Save ready messages back to the pending database. Store them with release time
 	// equal to the current time so that they are marked ready on restart.
 	now := time.Now()
-	for _, msg := range n.ready {
-
+	for msg := range slices.Values(n.ready) {
 		pMsg := &common.PendingMessage{
 			Msg:         *msg,
 			ReleaseTime: now,
