@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tx-verifier-sui
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      # required, as the guardian cannot run as root
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: tx-verifier-sui
+          image: tx-verifier-sui
+          command:
+            - /bin/bash
+            - -c
+            - "bash /tx-verifier-sui-runner.sh"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/tmp/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
