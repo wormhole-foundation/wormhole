@@ -35,7 +35,10 @@ The fields are defined as follows:
 - **delay**, if specified (or non-zero) is the time the guardian should delay in order to batch observations. Zero / not set means publish immediately.
 - **chains**, if specified, is a comma-separated list of emitter chain IDs or names for which observations should be forwarded. If not set, all chains will be published.
 
-The **label** and **url** fields are required, but the **delay** and **chains** are optional. If **chains** is specified, **delay** is required and you may use a value of "0" to publish immediately.
+The **label** and **url** fields are required, but the **delay** and **chains** are optional.
+
+If **chains** is specified, **delay** is required but you may leave it blank or specify "0" to publish immediately. It is valid to specify the **delay** without the **chains**,
+meaning there are only three fields (without a final semicolon).
 
 The **delay** is specified as a `time.Duration`. Please see [here](https://pkg.go.dev/time#ParseDuration) for a description of how to specify it.
 

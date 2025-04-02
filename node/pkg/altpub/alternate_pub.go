@@ -274,7 +274,7 @@ func parseEndpoint(config string) (*Endpoint, error) {
 	}
 
 	delay := time.Duration(0)
-	if len(fields) > 2 {
+	if len(fields) > 2 && len(fields[2]) != 0 {
 		var err error
 		delay, err = time.ParseDuration(fields[2])
 		if err != nil {
@@ -333,7 +333,7 @@ func (ap *AlternatePublisher) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to create http client: %w", err)
 	}
 
-	ap.startHttpWorkers(ctx, client, errC, NumWorkersPerEndpoint*len(ap.endpoints))
+	ap.startHttpWorkers(ctx, client, errC)
 
 	for _, ep := range ap.endpoints {
 		ap.logger.Info("Enabling endpoint", zap.String("endpoint", ep.label), zap.String("url", ep.baseUrl), zap.Stringer("delay", ep.delay), zap.Stringer("enabledChains", ep.enabledChains))
@@ -356,35 +356,37 @@ func (ap *AlternatePublisher) Run(ctx context.Context) error {
 func (ap *AlternatePublisher) PublishObservation(emitterChain vaa.ChainID, obs *gossipv1.Observation) {
 	var data []byte
 	for _, ep := range ap.endpoints {
-		if ep.shouldPublish(emitterChain) {
-			if ep.delay == 0 {
-				// We are publishing immediately, build the HTTP request and post it directly to the HTTP worker pool.
-				if data == nil {
-					batch := gossipv1.SignedObservationBatch{
-						Addr:         ap.guardianAddr,
-						Observations: []*gossipv1.Observation{obs},
-					}
+		if !ep.shouldPublish(emitterChain) {
+			continue
+		}
 
-					var err error
-					data, err = proto.Marshal((&batch))
-					if err != nil {
-						panic("failed to marshal batch")
-					}
+		if ep.delay == 0 {
+			// We are publishing immediately, build the HTTP request and post it directly to the HTTP worker pool.
+			if data == nil {
+				batch := gossipv1.SignedObservationBatch{
+					Addr:         ap.guardianAddr,
+					Observations: []*gossipv1.Observation{obs},
 				}
 
-				req := &HttpRequest{start: time.Now(), ep: ep, url: ep.signedObservationUrl, data: data}
-				select {
-				case ap.httpWorkerChan <- req:
-				default:
-					obsvDropped.WithLabelValues(ep.label).Inc()
+				var err error
+				data, err = proto.Marshal((&batch))
+				if err != nil {
+					panic("failed to marshal batch")
 				}
-			} else {
-				// We are batching, post it to the endpoint batching worker.
-				select {
-				case ep.obsvBatchChan <- obs:
-				default:
-					obsvDropped.WithLabelValues(ep.label).Inc()
-				}
+			}
+
+			req := &HttpRequest{start: time.Now(), ep: ep, url: ep.signedObservationUrl, data: data}
+			select {
+			case ap.httpWorkerChan <- req:
+			default:
+				obsvDropped.WithLabelValues(ep.label).Inc()
+			}
+		} else {
+			// We are batching, post it to the endpoint batching worker.
+			select {
+			case ep.obsvBatchChan <- obs:
+			default:
+				obsvDropped.WithLabelValues(ep.label).Inc()
 			}
 		}
 	}
@@ -409,7 +411,8 @@ func (ap *AlternatePublisher) createClient() (*http.Client, error) {
 }
 
 // startHttpWorkers starts all of the workers in the HTTP worker pool.
-func (ap *AlternatePublisher) startHttpWorkers(ctx context.Context, client *http.Client, errC chan error, numWorkers int) {
+func (ap *AlternatePublisher) startHttpWorkers(ctx context.Context, client *http.Client, errC chan error) {
+	numWorkers := NumWorkersPerEndpoint * len(ap.endpoints)
 	for count := range numWorkers {
 		worker := &HttpWorker{ap, client, count}
 		common.RunWithScissors(ctx, errC, "alt_pub_worker", worker.httpWorker)
@@ -422,14 +425,20 @@ func (w *HttpWorker) httpWorker(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case req := <-w.ap.httpWorkerChan:
-			w.ap.httpPost(ctx, w.client, req)
+		case req, ok := <-w.ap.httpWorkerChan:
+			if !ok {
+				return fmt.Errorf("httpWorker failed to read request because the channel has been closed")
+			}
+			if err := w.ap.httpPost(ctx, w.client, req); err != nil {
+				// These errors are not fatal, so just log it an continue.
+				w.ap.logger.Error("failed to post http request", zap.String("endpoint", req.ep.label), zap.Error(err))
+			}
 		}
 	}
 }
 
 // httpPost actually posts an HTTP request and waits for the response. It pegs metrics based on the results.
-func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client, req *HttpRequest) {
+func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client, req *HttpRequest) error {
 	channelDelay.WithLabelValues(req.ep.label).Observe(float64(time.Since(req.start).Microseconds()))
 
 	// Create the HTTP POST request using our context so it can be interrupted.
@@ -437,22 +446,20 @@ func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client,
 	// Note that we make a copy of the payload because `bytes.NewBuffer` takes ownership of the data, and the same data might be in multiple requests.
 	r, err := http.NewRequestWithContext(ctx, "POST", req.url, bytes.NewBuffer(bytes.Clone(req.data)))
 	if err != nil {
-		ap.logger.Error("Failed to create post request", zap.Error(err))
 		requestFailed.WithLabelValues(req.ep.label, "create_failed").Inc()
-		return
+		return fmt.Errorf("create failed: %w", err)
 	}
 	r.Header.Add("Content-Type", "application/octet-stream")
 
 	start := time.Now()
 	resp, err := client.Do(r)
 	if err != nil {
-		ap.logger.Error("Failed to post request", zap.Error(err))
 		if strings.Contains(err.Error(), "connection refused") {
 			requestFailed.WithLabelValues(req.ep.label, "connection_refused").Inc()
 		} else {
 			requestFailed.WithLabelValues(req.ep.label, "post_failed").Inc()
 		}
-		return
+		return fmt.Errorf("post failed: %w", err)
 	}
 	stop := time.Now()
 	resp.Body.Close()
@@ -467,8 +474,10 @@ func (ap *AlternatePublisher) httpPost(ctx context.Context, client *http.Client,
 			reason = fmt.Sprintf("status_code_%d", resp.StatusCode)
 		}
 		requestFailed.WithLabelValues(req.ep.label, reason).Inc()
-		ap.logger.Error("Failed to post request", zap.String("endpoint", req.ep.label), zap.Int("statusCode", resp.StatusCode), zap.String("statusText", reason))
+		return fmt.Errorf("unexpected status code: %d (%s)", resp.StatusCode, reason)
 	}
+
+	return nil
 }
 
 // createUrls is a helper for the endpoint that formats the URLs for each request type.
