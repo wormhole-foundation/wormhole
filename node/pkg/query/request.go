@@ -635,7 +635,7 @@ func (ecd *EthCallQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
-		//nolint:dupword
+		//nolint:dupword // Data should be repeated in this context. This is the same for the other six in this file.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
