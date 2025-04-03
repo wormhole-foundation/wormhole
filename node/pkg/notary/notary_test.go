@@ -1,16 +1,18 @@
 package notary
 
 import (
+	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 )
 
 type MockNotaryDB struct{}
@@ -133,6 +135,162 @@ func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
 			verdict, err := n.ProcessMsg(msg)
 			require.NoError(t, err)
 			require.Equal(t, Approve, verdict)
+		})
+	}
+}
+
+func TestNotary_ProcessReadyMessages(t *testing.T) {
+
+	msg := makeNewMsgPub(t)
+	tests := []struct {
+		name               string                   // description of this test case
+		delayed            []*common.PendingMessage // initial messages in delayed queue
+		expectedDelayCount int
+		expectedReadyCount int
+	}{
+		{
+			"no messages ready",
+			[]*common.PendingMessage{
+				{
+					ReleaseTime: time.Now().Add(time.Hour),
+					Msg:         *msg,
+				},
+			},
+			1,
+			0,
+		},
+		{
+			"some messages ready",
+			[]*common.PendingMessage{
+				{
+					ReleaseTime: time.Now().Add(-2 * time.Hour),
+					Msg:         *msg,
+				},
+				{
+					ReleaseTime: time.Now().Add(time.Hour),
+					Msg:         *msg,
+				},
+				{
+					ReleaseTime: time.Now().Add(-time.Hour),
+					Msg:         *msg,
+				},
+				{
+					ReleaseTime: time.Now().Add(2 * time.Hour),
+					Msg:         *msg,
+				},
+			},
+			2,
+			2,
+		},
+		{
+			"all messages ready",
+			[]*common.PendingMessage{
+				{
+					ReleaseTime: time.Now().Add(-2 * time.Hour),
+					Msg:         *msg,
+				},
+				{
+					ReleaseTime: time.Now().Add(-1 * time.Hour),
+					Msg:         *msg,
+				},
+			},
+			0,
+			2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.ready = make([]*common.MessagePublication, 0, len(tt.delayed))
+			n.delayed = common.NewPendingMessageQueue()
+
+			for pMsg := range slices.Values(tt.delayed) {
+				require.NotNil(t, pMsg)
+				n.delayed.Push(pMsg)
+			}
+			require.Equal(t, len(tt.delayed), n.delayed.Len())
+			require.Equal(t, int(0), len(n.ready))
+
+			n.ProcessReadyMessages()
+			require.Equal(t, tt.expectedReadyCount, len(n.ready), "ready length does not match")
+			require.Equal(t, tt.expectedDelayCount, n.delayed.Len(), "delayed length does not match")
+		})
+	}
+}
+
+func TestNotary_Getters(t *testing.T) {
+	var (
+		msg1 = makeNewMsgPub(t)
+		msg2 = *msg1
+		msg3 = *msg1
+	)
+	// Make messages trivially different
+	msg2.Sequence = 12345
+	msg3.EmitterChain = vaa.ChainIDAvalanche
+
+	tests := []struct {
+		name       string                       // description of this test case
+		delayed    []*common.PendingMessage     // initial messages in delayed queue
+		ready      []*common.MessagePublication // initial messages in delayed queue
+		blackholed []*common.MessagePublication // initial messages in delayed queue
+	}{
+		{
+			"one of each",
+			[]*common.PendingMessage{
+				{
+					ReleaseTime: time.Now().Add(time.Hour),
+					Msg:         *msg1,
+				},
+			},
+			[]*common.MessagePublication{
+				&msg2,
+			},
+			[]*common.MessagePublication{
+				&msg3,
+			},
+		},
+		{
+			"two delayed, zero ready, one blackholed",
+			[]*common.PendingMessage{
+				{
+					ReleaseTime: time.Now().Add(time.Hour),
+					Msg:         *msg1,
+				},
+				{
+					ReleaseTime: time.Now().Add(time.Hour),
+					Msg:         msg2,
+				},
+			},
+			nil,
+			[]*common.MessagePublication{
+				&msg3,
+			},
+		},
+		{
+			"all zero",
+			nil,
+			nil,
+			nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.ready = tt.ready
+			n.blackholed = tt.blackholed
+			n.delayed = common.NewPendingMessageQueue()
+
+			for pMsg := range slices.Values(tt.delayed) {
+				require.NotNil(t, pMsg)
+				n.delayed.Push(pMsg)
+			}
+			require.Equal(t, len(tt.delayed), n.delayed.Len())
+
+			require.Equal(t, tt.delayed, n.Delayed(), "delayed getter does not match")
+			require.Equal(t, tt.ready, n.Ready(), "ready getter does not match")
+			require.Equal(t, tt.blackholed, n.Blackholed(), "blackhole getter does not match")
 		})
 	}
 }
