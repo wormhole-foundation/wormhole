@@ -175,6 +175,11 @@ func (n *Notary) ProcessReadyMessages() {
 		return // Avoid nil pointer dereference
 	}
 
+	n.logger.Debug(
+		"notary: begin process ready message",
+		zap.Int("readyCount", len(n.ready)),
+		zap.Int("delayedCount", n.delayed.Len()),
+	)
 	now := time.Now()
 	for n.delayed.Len() != 0 {
 		next := n.delayed.Peek()
@@ -182,15 +187,29 @@ func (n *Notary) ProcessReadyMessages() {
 			break // No more messages to process or next message not ready
 		}
 
+		// Pop reduces the length of n.delayed
 		pMsg := n.delayed.Pop()
 		if pMsg == nil {
+			n.logger.Error("nil message after pop")
 			continue // Skip if Pop returns nil (shouldn't happen if Peek worked)
 		}
 
 		n.ready = append(n.ready, &pMsg.Msg)
 
-		n.database.DeleteDelayed(pMsg)
+		err := n.database.DeleteDelayed(pMsg)
+		if err != nil {
+			n.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
+			continue
+		}
 	}
+
+	n.logger.Debug(
+		"notary: finish process ready message",
+		zap.Int("readyCount", len(n.ready)),
+		zap.Int("delayedCount", n.delayed.Len()),
+	)
+
+	return
 }
 
 // Releases a message publication held by the Notary and deletes it from the database.
@@ -219,7 +238,13 @@ func (n *Notary) Shutdown() error {
 
 	// Save ready messages back to the pending database. Store them with release time
 	// equal to the current time so that they are marked ready on restart.
-	now := time.Now()
+	var (
+		now = time.Now()
+		// if multiple errors occur, collect them with errors.Join and return all
+		// of them at the end.
+		errs error
+	)
+
 	for msg := range slices.Values(n.ready) {
 		pMsg := &common.PendingMessage{
 			Msg:         *msg,
@@ -227,18 +252,20 @@ func (n *Notary) Shutdown() error {
 		}
 		err := n.database.StoreDelayed(pMsg)
 		if err != nil {
-			return err
+			err = errors.Join(errs, err)
+			continue
 		}
 	}
 
 	for _, pMsg := range n.delayed.Iter() {
 		err := n.database.StoreDelayed(pMsg)
 		if err != nil {
-			return err
+			err = errors.Join(errs, err)
+			continue
 		}
 	}
 
-	return nil
+	return errs
 }
 
 // delay stores a MessagePublication in the database and populated its in-memory
@@ -253,18 +280,18 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 		ReleaseTime: time.Now().Add(dur),
 	}
 
+	// Store in in-memory slice. This should happen even if a database error occurs.
+	n.delayed.Push(pMsg)
+
 	// Store in database.
 	dbErr := n.database.StoreDelayed(pMsg)
 	if dbErr != nil {
 		return dbErr
 	}
 
-	// Store in in-memory slice.
-	n.delayed.Push(pMsg)
-
 	n.logger.Info("notary: delayed message", msg.ZapFields()...)
 
-	return nil
+	return dbErr
 }
 
 // Acquires the mutex lock and unlocks when complete.
@@ -272,14 +299,14 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	// Store in datbase..
+	// Store in in-memory slice. This should happen even if a database error occurs.
+	n.blackholed = append(n.blackholed, msg)
+
+	// Store in database.
 	dbErr := n.database.StoreBlackhole(msg)
 	if dbErr != nil {
 		return dbErr
 	}
-
-	// Store in in-memory slice.
-	n.blackholed = append(n.blackholed, msg)
 
 	n.logger.Info("notary: blackholed message", msg.ZapFields()...)
 
@@ -288,17 +315,15 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 
 // Delayed returns a slice containing a copy of all delayed pending messages.
 func (n *Notary) Delayed() (result []*common.PendingMessage) {
-
 	if n.delayed == nil {
 		return
 	}
-
 	if n.delayed.Len() == 0 {
 		return
 	}
 
 	// Create a deep copy of the delayed messages.
-	result = make([]*common.PendingMessage, 0, n.delayed.Len())
+	result = make([]*common.PendingMessage, n.delayed.Len())
 	for i, pendingMsg := range n.delayed.Iter() {
 		// Create a deep copy of each pending message.
 		copied := *pendingMsg // Copy the struct
@@ -319,7 +344,10 @@ func (n *Notary) Blackholed() []*common.MessagePublication {
 }
 
 func deepCopy(slice []*common.MessagePublication) []*common.MessagePublication {
-	result := make([]*common.MessagePublication, 0, len(slice))
+	if len(slice) == 0 {
+		return nil
+	}
+	result := make([]*common.MessagePublication, len(slice))
 	for i, msg := range slice {
 		// Create a deep copy of each publication
 		copied := *msg // Copy the struct
@@ -356,7 +384,7 @@ func (n *Notary) loadFromDB() error {
 	var (
 		ready      []*common.MessagePublication
 		delayed    = common.NewPendingMessageQueue()
-		blackholed = make([]*common.MessagePublication, 0)
+		blackholed = make([]*common.MessagePublication, len(result.Blackholed))
 		now        = time.Now()
 	)
 
