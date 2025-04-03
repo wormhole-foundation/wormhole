@@ -11,6 +11,19 @@ The following are provided for example purposes only
 
 - [Wormhole Integrator Example]
 
+## Verifiable Build
+
+The build commands require that [solana-verify] is installed on your machine. An
+example of how to build for Solana mainnet:
+
+```sh
+NETWORK=mainnet SVM=solana make build-artifacts
+```
+
+This example command will result compiled verifiable programs in the
+*artifacts-mainnet* directory. This command will not run if this directory
+already exists.
+
 ## Tests
 
 To perform unit, doc and integration tests, run:
@@ -51,6 +64,7 @@ binaries were then
 [../../solana/tests/artifacts]: ../../solana/tests/artifacts
 [agave-install]: https://docs.anza.xyz/cli/install#use-the-solana-install-tool
 [anchor directory]: anchor
+[solana-verify]: https://solana.com/developers/guides/advanced/verified-builds
 [Wormhole Integrator Example]: anchor/programs/wormhole-integrator-example/src/lib.rs
 [Wormhole Post Message Shim]: programs/post-message/README.md
 [Wormhole Verify VAA Shim]: programs/verify-vaa/README.md
