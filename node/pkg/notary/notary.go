@@ -208,8 +208,6 @@ func (n *Notary) ProcessReadyMessages() {
 		zap.Int("readyCount", len(n.ready)),
 		zap.Int("delayedCount", n.delayed.Len()),
 	)
-
-	return
 }
 
 // Releases a message publication held by the Notary and deletes it from the database.
@@ -242,7 +240,7 @@ func (n *Notary) Shutdown() error {
 		now = time.Now()
 		// if multiple errors occur, collect them with errors.Join and return all
 		// of them at the end.
-		errs error
+		allErrs error
 	)
 
 	for msg := range slices.Values(n.ready) {
@@ -252,7 +250,7 @@ func (n *Notary) Shutdown() error {
 		}
 		err := n.database.StoreDelayed(pMsg)
 		if err != nil {
-			err = errors.Join(errs, err)
+			allErrs = errors.Join(allErrs, err)
 			continue
 		}
 	}
@@ -260,12 +258,12 @@ func (n *Notary) Shutdown() error {
 	for _, pMsg := range n.delayed.Iter() {
 		err := n.database.StoreDelayed(pMsg)
 		if err != nil {
-			err = errors.Join(errs, err)
+			allErrs = errors.Join(allErrs, err)
 			continue
 		}
 	}
 
-	return errs
+	return allErrs
 }
 
 // delay stores a MessagePublication in the database and populated its in-memory
