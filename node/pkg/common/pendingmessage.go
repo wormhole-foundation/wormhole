@@ -29,14 +29,15 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	// Compare with [PendingTransfer.Marshal].
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+	// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	vaa.MustWrite(buf, binary.BigEndian, uint64(p.ReleaseTime.Unix()))
 
-	b, err := p.Msg.MarshalBinary()
+	bz, err := p.Msg.MarshalBinary()
 	if err != nil {
-		return buf.Bytes(), fmt.Errorf("failed to marshal pending message: %w", err)
+		return buf.Bytes(), fmt.Errorf("marshal pending message: %w", err)
 	}
 
-	vaa.MustWrite(buf, binary.BigEndian, b)
+	vaa.MustWrite(buf, binary.BigEndian, bz)
 
 	return buf.Bytes(), nil
 }
@@ -50,14 +51,15 @@ func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 
 	// Compare with [UnmarshalPendingTransfer].
 	p.ReleaseTime = time.Unix(
-		int64(binary.BigEndian.Uint32(data[0:4])),
+		// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+		int64(binary.BigEndian.Uint64(data[0:8])),
 		0,
 	)
 
-	err := p.Msg.UnmarshalBinary(data[4:])
+	err := p.Msg.UnmarshalBinary(data[8:])
 
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal pending transfer msg: %w", err)
+		return fmt.Errorf("unmarshal pending message: %w", err)
 	}
 
 	return nil
@@ -167,7 +169,8 @@ func (q *PendingMessageQueue) Peek() *PendingMessage {
 	if q.heap.Len() == 0 {
 		return nil
 	}
-	last := *q.heap[q.heap.Len()-1]
+	// container/heap stores the "next" element at the first offset.
+	last := *q.heap[0]
 	return &last
 }
 

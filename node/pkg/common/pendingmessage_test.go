@@ -169,3 +169,27 @@ func TestPendingMessage_HeapInvariants(t *testing.T) {
 	require.True(t, &msg1 == res[0])
 	assertSliceOrdering(t, res)
 }
+
+func TestPendingMessageQueue_Peek(t *testing.T) {
+	q := common.NewPendingMessageQueue()
+
+	msg1 := *makeTestPendingMessage(t)
+	msg2 := msg1
+	msg3 := msg1
+
+	// Modify release times, in ascending (past-to-future) order: msg1 < msg2 < msg3
+	msg2.ReleaseTime = msg1.ReleaseTime.Add(time.Hour)
+	msg3.ReleaseTime = msg1.ReleaseTime.Add(time.Hour * 2)
+
+	require.True(t, msg1.ReleaseTime.Before(msg2.ReleaseTime))
+	require.True(t, msg2.ReleaseTime.Before(msg3.ReleaseTime))
+
+	// Push elements in an arbitrary order.
+	// Assert that Peek() returns msg1 because it is the smallest.
+	q.Push(&msg2)
+	q.Push(&msg3)
+	q.Push(&msg1)
+	require.Equal(t, 3, q.Len())
+	require.Equal(t, &msg1, q.Peek())
+
+}
