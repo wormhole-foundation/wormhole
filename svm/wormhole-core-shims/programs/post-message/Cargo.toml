@@ -1,0 +1,33 @@
+[package]
+name = "wormhole-post-message-shim"
+description = "Created with Anchor"
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = []
+no-entrypoint = []
+
+### Network types
+testnet = ["wormhole-svm-definitions/testnet"]
+localnet = ["wormhole-svm-definitions/localnet"]
+
+### Specific networks
+solana = ["wormhole-svm-definitions/solana"]
+
+[dependencies]
+solana-program.workspace = true
+wormhole-svm-definitions.workspace = true
+wormhole-svm-shim.workspace = true
+
+[dev-dependencies]
+solana-program-test.workspace = true
+solana-sdk.workspace = true

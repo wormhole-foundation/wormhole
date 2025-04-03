@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"time"
 
@@ -115,7 +116,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != e.chainID {
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
 				panic("invalid chain ID")
 			}
 
@@ -244,10 +248,16 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			blockHeight := pHealth.Get("block_height")
 
+			if blockHeight.Uint() > math.MaxInt64 {
+				logger.Error("Block height not a valid uint64: ", zap.Uint64("blockHeight", blockHeight.Uint()))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				continue
+			}
+
 			if blockHeight.Exists() {
 				currentAptosHeight.WithLabelValues(e.networkID).Set(float64(blockHeight.Uint()))
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(blockHeight.Uint()),
+					Height:          int64(blockHeight.Uint()), // #nosec G115 -- This is validated above
 					ContractAddress: e.aptosAccount,
 				})
 
@@ -324,15 +334,25 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		return
 	}
 
+	if nonce.Uint() > math.MaxUint32 {
+		logger.Error("nonce is larger than expected MaxUint32")
+		return
+	}
+
+	if consistencyLevel.Uint() > math.MaxUint8 {
+		logger.Error("consistency level is larger than expected MaxUint8")
+		return
+	}
+
 	observation := &common.MessagePublication{
 		TxID:             txHash.Bytes(),
-		Timestamp:        time.Unix(int64(ts.Uint()), 0),
-		Nonce:            uint32(nonce.Uint()), // uint32
+		Timestamp:        time.Unix(int64(ts.Uint()), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Nonce:            uint32(nonce.Uint()),           // #nosec G115 -- This is validated above
 		Sequence:         sequence.Uint(),
 		EmitterChain:     e.chainID,
 		EmitterAddress:   a,
 		Payload:          pl,
-		ConsistencyLevel: uint8(consistencyLevel.Uint()),
+		ConsistencyLevel: uint8(consistencyLevel.Uint()), // #nosec G115 -- This is validated above
 		IsReobservation:  isReobservation,
 	}
 

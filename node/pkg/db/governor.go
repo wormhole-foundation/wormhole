@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -65,17 +66,23 @@ type Transfer struct {
 func (t *Transfer) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(t.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(t.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, t.Value)
 	vaa.MustWrite(buf, binary.BigEndian, t.OriginChain)
 	buf.Write(t.OriginAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, t.EmitterChain)
 	buf.Write(t.EmitterAddress[:])
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID)))
+	if len(t.MsgID) > math.MaxUint16 {
+		return nil, fmt.Errorf("failed to marshal MsgID, length too long: %d", len(t.MsgID))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID))) // #nosec G115 -- This is checked above
 	if len(t.MsgID) > 0 {
 		buf.Write([]byte(t.MsgID))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash)))
+	if len(t.Hash) > math.MaxUint16 {
+		return nil, fmt.Errorf("failed to marshal Hash, length too long: %d", len(t.Hash))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash))) // #nosec G115 -- This is checked above
 	if len(t.Hash) > 0 {
 		buf.Write([]byte(t.Hash))
 	}
@@ -236,7 +243,7 @@ type PendingTransfer struct {
 func (p *PendingTransfer) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 
 	b, err := p.Msg.Marshal()
 	if err != nil {
@@ -429,9 +436,13 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 
 // This is called by the chain governor to persist a pending transfer.
 func (d *Database) StoreTransfer(t *Transfer) error {
-	b, _ := t.Marshal()
+	b, err := t.Marshal()
 
-	err := d.db.Update(func(txn *badger.Txn) error {
+	if err != nil {
+		return err
+	}
+
+	err = d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(TransferMsgID(t), b); err != nil {
 			return err
 		}

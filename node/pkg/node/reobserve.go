@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/hex"
+	"math"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -42,6 +43,13 @@ func handleReobservationRequests(
 				}
 			}
 		case req := <-obsvReqC:
+			if req.ChainId > math.MaxUint16 {
+				logger.Error("chain id is larger than MaxUint16",
+					zap.Uint32("chain_id", req.ChainId),
+				)
+				continue
+			}
+
 			r := cachedRequest{
 				chainId: vaa.ChainID(req.ChainId),
 				txHash:  hex.EncodeToString(req.TxHash),

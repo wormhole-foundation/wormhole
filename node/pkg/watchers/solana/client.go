@@ -5,11 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -405,6 +407,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					return err
 				}
 			case m := <-s.obsvReqC:
+				if m.ChainId > math.MaxUint16 {
+					logger.Error("chain id for observation request is not a valid uint16",
+						zap.Uint32("chainID", m.ChainId),
+						zap.String("txID", hex.EncodeToString(m.TxHash)),
+					)
+					continue
+				}
 				numObservations, err := s.handleReobservationRequest(vaa.ChainID(m.ChainId), m.TxHash, s.rpcClient)
 				if err != nil {
 					logger.Error("failed to process observation request",
@@ -440,7 +449,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
 				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(slot),
+					Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
 					ContractAddress: contractAddr,
 				})
 
@@ -654,10 +663,10 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			programIndex = uint16(n)
+			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if s.shimEnabled && key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}

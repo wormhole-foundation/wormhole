@@ -72,7 +72,8 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 	startingBlockHeight := queriedBlock.Header.Height
 
 	for i := 0; i < nearBlockchainMaxGaps; i++ {
-		blockHeightToQuery := startingBlockHeight + uint64(2+i) // we start at height+2 because NEAR consensus takes at least two blocks to reach finality.
+		// we start at height+2 because NEAR consensus takes at least two blocks to reach finality.
+		blockHeightToQuery := startingBlockHeight + uint64(2+i) // #nosec G115 -- nearBlockchainMaxGaps is 5
 		block, err := f.nearAPI.GetBlockByHeight(ctx, blockHeightToQuery)
 		if err != nil {
 			break
