@@ -277,6 +277,7 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 
 	// Timestamp
 	tsBytes := make([]byte, 8)
+	// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
 	be.PutUint64(tsBytes, uint64(msg.Timestamp.Unix()))
 	buf = append(buf, tsBytes...)
 
@@ -425,6 +426,7 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Timestamp
 	timestamp := be.Uint64(data[pos : pos+8])
 	// Nanoseconds are not serialized
+	// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
 	msg.Timestamp = time.Unix(int64(timestamp), 0)
 	pos += 8
 
