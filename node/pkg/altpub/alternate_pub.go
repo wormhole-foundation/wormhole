@@ -60,6 +60,9 @@ type (
 
 		// httpWorkerChan is the channel used to post requests to the HTTP worker pool.
 		httpWorkerChan chan *HttpRequest
+
+		// status is the static string returned by GetFeatures. It gets published in the p2p heartbeats.
+		status string
 	}
 
 	// Endpoint defines a single endpoint to which we should publish.
@@ -225,6 +228,7 @@ func NewAlternatePublisher(logger *zap.Logger, guardianAddr []byte, configs []st
 	// Validate the endpoint parameters and create endpoint objects.
 	endpoints := make([]*Endpoint, len(configs))
 	labels := map[string]struct{}{}
+	status := ""
 	for idx, config := range configs {
 		ep, err := parseEndpoint(config)
 		if err != nil {
@@ -237,6 +241,11 @@ func NewAlternatePublisher(logger *zap.Logger, guardianAddr []byte, configs []st
 
 		labels[ep.label] = struct{}{}
 		endpoints[idx] = ep
+
+		if status != "" {
+			status += "|"
+		}
+		status += ep.label
 	}
 
 	if len(endpoints) == 0 {
@@ -249,6 +258,7 @@ func NewAlternatePublisher(logger *zap.Logger, guardianAddr []byte, configs []st
 		guardianAddr:   guardianAddr,
 		endpoints:      endpoints,
 		httpWorkerChan: make(chan *HttpRequest, PubChanSize),
+		status:         "altpub:" + status,
 	}, nil
 }
 
@@ -320,6 +330,12 @@ func parseEndpoint(config string) (*Endpoint, error) {
 	// Format our topic URLs and add the endpoint to the list.
 	ep.createUrls()
 	return ep, nil
+}
+
+// GetFeatures returns the status string to be published in P2P heartbeats. For now, it just returns a static string
+// listing the enabled endpoints, but in the future, it might return the actual status of each endpoint or something.
+func (ap *AlternatePublisher) GetFeatures() string {
+	return ap.status
 }
 
 // Run is the runnable for the alternate publisher. It creates the various workers and then waits for shutdown.

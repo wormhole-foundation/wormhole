@@ -166,6 +166,31 @@ func TestNewAlternatePublisher(t *testing.T) {
 	assert.Equal(t, PubChanSize, cap(ap.httpWorkerChan))
 }
 
+func TestGetFeatures(t *testing.T) {
+	logger := zap.NewNop()
+	guardianAddr, err := hex.DecodeString("13947Bd48b18E53fdAeEe77F3473391aC727C638")
+	require.NoError(t, err)
+	require.Equal(t, ethCommon.AddressLength, len(guardianAddr))
+
+	// One endpoint.
+	ap, err := NewAlternatePublisher(logger, guardianAddr, []string{"pyth;http://localhost:3333"})
+	require.NoError(t, err)
+	require.NotNil(t, ap)
+	assert.Equal(t, "altpub:pyth", ap.GetFeatures())
+
+	// Two endpoints.
+	ap, err = NewAlternatePublisher(logger, guardianAddr, []string{"pyth;http://localhost:3333", "wormholescan;http://localhost:3334"})
+	require.NoError(t, err)
+	require.NotNil(t, ap)
+	assert.Equal(t, "altpub:pyth|wormholescan", ap.GetFeatures())
+
+	// Three endpoints.
+	ap, err = NewAlternatePublisher(logger, guardianAddr, []string{"pyth;http://localhost:3333", "wormholescan;http://localhost:3334", "joe_integrator;http://localhost:3335"})
+	require.NoError(t, err)
+	require.NotNil(t, ap)
+	assert.Equal(t, "altpub:pyth|wormholescan|joe_integrator", ap.GetFeatures())
+}
+
 func TestShouldPublish(t *testing.T) {
 	ep := &Endpoint{
 		label:   "test",

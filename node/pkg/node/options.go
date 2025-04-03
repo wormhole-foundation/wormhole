@@ -78,6 +78,11 @@ func GuardianOptionP2P(
 			// Add the gossip advertisement address
 			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
+			var alternatePublisherFeaturesFunc func() string
+			if g.alternatePublisher != nil {
+				alternatePublisherFeaturesFunc = g.alternatePublisher.GetFeatures
+			}
+
 			params, err := p2p.NewRunParams(
 				bootstrapPeers,
 				networkId,
@@ -111,6 +116,7 @@ func GuardianOptionP2P(
 					featureFlags,
 				),
 				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
+				p2p.WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc),
 			)
 			if err != nil {
 				return err
