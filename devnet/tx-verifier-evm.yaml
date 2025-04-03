@@ -34,3 +34,4 @@ spec:
                 - "/tmp/success"
             initialDelaySeconds: 5
             periodSeconds: 5
+            failureThreshold: 5
