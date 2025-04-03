@@ -33,12 +33,10 @@ overflow-checks = true
 
 [workspace.dependencies.serde_wormhole]
 version = "0.1.0"
-path = "../sdk/rust/serde_wormhole"
 
 [workspace.dependencies.wormhole-sdk]
 package = "wormhole-vaas-serde"
 version = "0.1.0"
-path = "../sdk/rust/vaas-serde"
 
 [patch.crates-io]
 accountant = { path = "packages/accountant" }
