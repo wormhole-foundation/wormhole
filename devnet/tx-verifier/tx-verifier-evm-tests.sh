@@ -183,7 +183,7 @@ echo "Calling publishMessage() with transferTokensWithPayload() payload as ${TOK
 cast send --unlocked \
    --rpc-url "${RPC}" \
    --json \
-   --gas-limit 10000000 \
+   --gas-limit 90000000 \
    --priority-gas-price 1 \
    --from "${TOKEN_BRIDGE_CONTRACT}" \
    --value "0" \
