@@ -51,7 +51,7 @@ func makeNewMsgPub(t *testing.T) *common.MessagePublication {
 	return msg
 }
 
-func TestNotary_ProcessMessage(t *testing.T) {
+func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
 	n := makeTestNotary(t)
 
 	tests := map[string]struct {
@@ -100,6 +100,79 @@ func TestNotary_ProcessMessage(t *testing.T) {
 				verdict,
 				fmt.Sprintf("verificationState=%s", msg.VerificationState().String()),
 			)
+		})
+	}
+}
+func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
+
+	type expectedSizes struct {
+		delayed    int
+		blackholed int
+	}
+	tests := map[string]struct {
+		verificationState common.VerificationState
+		expectedSizes
+	}{
+		"Valid has no effect": {
+			common.Valid,
+			expectedSizes{},
+		},
+		"NotVerified has no effect": {
+			common.NotVerified,
+			expectedSizes{},
+		},
+		"NotApplicable has no effect": {
+			common.NotApplicable,
+			expectedSizes{},
+		},
+		"Anomalous gets delayed": {
+			common.Anomalous,
+			expectedSizes{
+				delayed:    1,
+				blackholed: 0,
+			},
+		},
+		"Rejected gets blackholed": {
+			common.Rejected,
+			expectedSizes{
+				delayed:    0,
+				blackholed: 1,
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Set-up
+			var (
+				n   = makeTestNotary(t)
+				msg = makeNewMsgPub(t)
+				err = msg.SetVerificationState(test.verificationState)
+			)
+			if test.verificationState != common.NotVerified {
+				// SetVerificationState fails if the old status is equal to the new one.
+				require.NoError(t, err)
+			}
+			require.Equal(t, test.verificationState, msg.VerificationState())
+			require.True(t, vaa.IsTransfer(msg.Payload))
+
+			// Ensure that the collections are properly updated.
+			_, err = n.ProcessMsg(msg)
+			require.NoError(t, err)
+			require.Equal(
+				t,
+				test.expectedSizes.delayed,
+				n.delayed.Len(),
+				fmt.Sprintf("delayed count did not match. verificationState %s", msg.VerificationState().String()),
+			)
+			require.Equal(
+				t,
+				test.expectedSizes.blackholed,
+				len(n.blackholed),
+				fmt.Sprintf("blackholed count did not match. verificationState %s", msg.VerificationState().String()),
+			)
+			require.Zero(t, len(n.ready))
+
 		})
 	}
 }
