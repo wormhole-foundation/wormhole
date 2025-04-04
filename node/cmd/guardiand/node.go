@@ -289,6 +289,8 @@ var (
 	// Global variable used to store enabled Chain IDs for Transfer Verification. Contents are parsed from
 	// transferVerifierEnabledChainIDs.
 	txVerifierChains []vaa.ChainID
+
+	notaryEnabled *bool
 )
 
 func init() {
@@ -520,6 +522,8 @@ func init() {
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
 
 	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
+
+	notaryEnabled = NodeCmd.Flags().Bool("notaryEnabled", false, "Run the notary")
 }
 
 var (
@@ -639,6 +643,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Override the default go-log config, which uses a magic environment variable.
+	logger.Info("setting level for all loggers", zap.String("level", logger.Level().String()))
 	ipfslog.SetAllLoggers(lvl)
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
@@ -1850,6 +1855,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
+		node.GuardianOptionNotary(*notaryEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
