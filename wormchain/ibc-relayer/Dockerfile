@@ -13,7 +13,7 @@ RUN tar xzf c30b8d9e0ba6b45f8a576f768cad0777de545cb3.tar.gz
 WORKDIR relayer-c30b8d9e0ba6b45f8a576f768cad0777de545cb3
 RUN make install
 
-COPY ./wormchain/ibc-relayer/chains /chains
+COPY chains /chains
 
 RUN rly config init
 RUN rly chains add-dir /chains
