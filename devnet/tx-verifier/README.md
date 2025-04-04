@@ -8,7 +8,7 @@ The Transfer Verifier tests involve interacting with the local Ethereum devnet d
 
 The basic idea is as follows:
 * Interact with the local Ethereum testnet. This should already have important pieces such as the Token Bridge and Core Bridge deployed.
-* Use `cast` from the foundry toolset to simulate malicious interactions with the Token Bridge.
+* Use `cast` from the foundry tool set to simulate malicious interactions with the Token Bridge.
 * Transfer Verifier detects the malicious messages and emits errors about what went wrong.
 * The error messages are logged to a file
 * A "monitor" script is used to detect the expected error message, waiting until the file is written to
