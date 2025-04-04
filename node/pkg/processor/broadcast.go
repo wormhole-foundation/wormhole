@@ -7,6 +7,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -34,7 +35,7 @@ var (
 // broadcastSignature broadcasts the observation for something we observed locally.
 func (p *Processor) broadcastSignature(
 	messageID string,
-	txhash []byte,
+	k *common.MessagePublication,
 	digest ethCommon.Hash,
 	signature []byte,
 	shouldPublishImmediately bool,
@@ -43,7 +44,7 @@ func (p *Processor) broadcastSignature(
 	ourObs = &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
-		TxHash:    txhash,
+		TxHash:    k.TxID,
 		MessageId: messageID,
 	}
 
@@ -53,6 +54,10 @@ func (p *Processor) broadcastSignature(
 	} else {
 		p.postObservationToBatch(ourObs)
 		batchObservationsBroadcast.Inc()
+	}
+
+	if p.alternatePublisher != nil {
+		p.alternatePublisher.PublishObservation(k.EmitterChain, ourObs)
 	}
 
 	return ourObs, msg

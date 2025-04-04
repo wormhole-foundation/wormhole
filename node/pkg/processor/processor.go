@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
@@ -130,6 +131,8 @@ type Processor struct {
 
 	db *db.Database
 
+	alternatePublisher *altpub.AlternatePublisher
+
 	// Runtime state
 
 	// gs is the currently valid guardian set
@@ -218,6 +221,7 @@ func NewProcessor(
 	acctReadC <-chan *common.MessagePublication,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
+	alternatePublisher *altpub.AlternatePublisher,
 ) *Processor {
 
 	return &Processor{
@@ -231,6 +235,7 @@ func NewProcessor(
 		guardianSigner:         guardianSigner,
 		gst:                    gst,
 		db:                     db,
+		alternatePublisher:     alternatePublisher,
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
