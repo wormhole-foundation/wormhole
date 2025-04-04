@@ -153,7 +153,7 @@ func runP2P(
 	}
 
 	// Fetch the initial current guardian set
-	guardianSet, err := FetchCurrentGuardianSet(ethRpcUrl, ethCoreAddr)
+	guardianSet, err := FetchCurrentGuardianSet(ctx, ethRpcUrl, ethCoreAddr)
 	if err != nil {
 		logger.Fatal("Failed to fetch current guardian set", zap.Error(err))
 	}

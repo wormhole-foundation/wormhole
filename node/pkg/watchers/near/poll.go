@@ -83,7 +83,7 @@ func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, 
 
 	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)
 	if err != nil {
-		// We can supress this error because this is equivalent to saying that we haven't found any blocks since.
+		// We can suppress this error because this is equivalent to saying that we haven't found any blocks since.
 		return startHeight, nil
 	}
 

@@ -5,14 +5,40 @@ linters:
   # Enable specific linter
   # https://golangci-lint.run/usage/linters/#enabled-by-default-linters
   enable:
-  # default linters
+    # Returned errors are always checked
     - errcheck
     - gosimple
+    # Report suspicious design patterns
     - govet
+    # Assignment to an existing variable is not used
     - ineffassign
+    # Validate common mistakes in Golang, such as invalid time.Parse format, invalid regular expression, etc.
     - staticcheck
     - typecheck
+    # Unused constants, variables, functions and types
     - unused
+    # Check for simple misspellings of words. 
+    - misspell
+    # Duplicate word usage, such as 'and and' in a comment.
+    - dupword
+    # Overwriting predeclared Golang names such as 'len' and 'min'.
+    - predeclared
+    # Type assertion and comparison validation on errors. https://github.com/polyfloyd/go-errorlint
+    - errorlint
+    # Ensure that the body is closed on HTTP and websocket conns
+    - bodyclose
+    # Enum and maps used on switch statements are exhaustive
+    - exhaustive
+    # Malicious unicode characters that change the meaning are not in the source code.
+    - bidichk
+    # - godox
+    - exhaustruct
+    - contextcheck
+    - gocritic
+    # revive
+    # exhauststruct - required to initialize
+    # nil pointer exception checks...
+    # 
 
   # additional linters
     - gosec
@@ -30,5 +56,74 @@ issues:
         - unused
     # This file contains hard-coded Sui core contract addresses that are marked as hardcoded credentials.
     - path: pkg/txverifier/sui_test.go
-
       text: "G101: Potential hardcoded credentials"
+
+    - path: ".*generated_mainnet_tokens\\.go$"
+      text: ".*" # This matches any text in the file
+      linters:
+        - misspell
+        - dupword
+    - path: node/hack/
+      linters:
+        - godox
+
+    # Exclude all test files from a exhaustruct
+    - path: _test\.go
+      linters:
+        - exhaustruct
+        - contextcheck
+    - path: '(?i).*mock.*' # Don't match mocks for exhaustruct
+      linters:
+        - exhaustruct
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
+linters-settings:
+  errorlint:
+    errorf: false 
+
+  exhaustive:
+    # Program elements to check for exhaustiveness.
+    # Default: [ switch ]
+    check:
+      - switch
+      - map
+    ignore-enum-types: "vaa.ChainID" # This type is used all over and doesn't need to be exhaustive
+    #default-signifies-exhaustive: true
+
+  exhaustruct:
+    # List of regular expressions to match struct packages and their names.
+    # Regular expressions must match complete canonical struct package/name/structname.
+    # If this list is empty, all structs are tested.
+    # Default: []
+    include:
+      - './+governor.tokenConfigEntry$'
+      - './_common.MessagePublication$'
+    # List of regular expressions to exclude struct packages and their names from checks.
+    # Regular expressions must match complete canonical struct package/name/structname.
+    # Default: []
+    exclude:
+      - '.+/cobra\.Command$'
+      - '.+/http\.Client$'
+      - '.+/prometheus.+'
+  gocritic:
+    disable-all: true
+    # disabled-checks:
+    #   - exitAfterDefer
+    #   - assignOp
+    #   - ifElseChain
+    #   - elseif
+    enabled-checks: 
+      - badCall
+      - badRegexp
+      - builtinShadowDecl
+      - dupCase
+      - externalErrorReassign
+      - sloppyReassign
+      - offBy1
+      - truncateCmp
+      - regexpPattern
+      - builtinShadow
+      - importShadow
+      - newDeref

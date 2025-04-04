@@ -429,7 +429,7 @@ func main() {
 			log.Fatalf("Range exhausted - %d logs found", len(logs))
 		}
 
-		var min, max uint64
+		var minimum, maximum uint64
 		for _, l := range logs {
 			if eth_common.HexToHash(l.Topics[0]) != tokenLockupTopic {
 				continue
@@ -447,11 +447,11 @@ func main() {
 				seq = m[0].(uint64)
 			}
 
-			if seq < min || min == 0 {
-				min = seq
+			if seq < minimum || minimum == 0 {
+				minimum = seq
 			}
-			if seq > max {
-				max = seq
+			if seq > maximum {
+				maximum = seq
 			}
 
 			emitter := eth_common.HexToAddress(l.Topics[1])
@@ -498,6 +498,7 @@ func main() {
 				if err != nil {
 					log.Fatalf("verify: %v", err)
 				}
+				defer resp.Body.Close()
 
 				if resp.StatusCode != http.StatusOK {
 					log.Printf("status %d, retrying", resp.StatusCode)
@@ -510,7 +511,7 @@ func main() {
 			}
 		}
 
-		log.Printf("Seq: %d - %d", min, max)
+		log.Printf("Seq: %d - %d", minimum, maximum)
 
 		var total int
 		for em, entries := range missingMessages {

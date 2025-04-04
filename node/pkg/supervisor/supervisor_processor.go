@@ -182,6 +182,7 @@ func (s *supervisor) processDied(r *processorRequestDied) {
 	}
 
 	// Simple case: the context was canceled and the returned error is the context error.
+	//nolint:errorlint // Unwrapping of error handled above
 	if err := ctx.Err(); err != nil && perr == err {
 		// Mark the node as canceled successfully.
 		n.state = nodeStateCanceled
@@ -313,6 +314,10 @@ func (s *supervisor) processGC() {
 			curReady = true
 		case nodeStateDead:
 			curReady = true
+		case nodeStateHealthy:
+			curReady = false
+		case nodeStateNew:
+			curReady = false
 		}
 
 		// Note down that we have an opinion on this node, and note that opinion down.
