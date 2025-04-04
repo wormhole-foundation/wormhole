@@ -127,7 +127,7 @@ echo "Funding token bridge using the user's balance"
 cast send --unlocked \
    --rpc-url "${RPC}" \
    --from $ANVIL_USER \
-   --value 900000000000000 \
+   --value "100ether" \
    ${TOKEN_BRIDGE_CONTRACT}
 echo ""
 echo "End impersonating ${ANVIL_USER}"
