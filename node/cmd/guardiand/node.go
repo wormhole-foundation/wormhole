@@ -879,10 +879,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("--solanaShimContract may only be specified if --solanaContract is specified")
 	}
 
-	if *solanaShimContract != "" && env == common.MainNet {
-		logger.Fatal("--solanaShimContract is not currently supported in mainnet")
-	}
-
 	if !argsConsistent([]string{*pythnetContract, *pythnetRPC, *pythnetWS}) {
 		logger.Fatal("Either --pythnetContract, --pythnetRPC and --pythnetWS must all be set or all unset")
 	}
