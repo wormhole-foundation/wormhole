@@ -677,7 +677,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 					// Send to local observation request queue (the loopback message is ignored)
 					if params.obsvReqRecvC != nil {
-						params.obsvReqRecvC <- msg
+						common.WriteToChannelWithoutBlocking(params.obsvReqRecvC, msg, "obs_req_internal")
 					}
 
 					if controlPubsubTopic == nil {
@@ -702,7 +702,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := controlSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on control topic: %w", err)
+						errC <- fmt.Errorf("failed to receive pubsub message on control topic: %w", err) // nolint:channelcheck // The runnable will exit anyway
 						return
 					}
 
@@ -837,11 +837,11 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorConfig:
 						if params.signedGovCfgRecvC != nil {
-							params.signedGovCfgRecvC <- m.SignedChainGovernorConfig
+							common.WriteToChannelWithoutBlocking(params.signedGovCfgRecvC, m.SignedChainGovernorConfig, "gov_config_gossip_internal")
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorStatus:
 						if params.signedGovStatusRecvC != nil {
-							params.signedGovStatusRecvC <- m.SignedChainGovernorStatus
+							common.WriteToChannelWithoutBlocking(params.signedGovStatusRecvC, m.SignedChainGovernorStatus, "gov_status_gossip_internal")
 						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
@@ -860,7 +860,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := attestationSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on attestation topic: %w", err)
+						errC <- fmt.Errorf("failed to receive pubsub message on attestation topic: %w", err) // nolint:channelcheck // The runnable will exit anyway
 						return
 					}
 
@@ -918,7 +918,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := vaaSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on vaa topic: %w", err)
+						errC <- fmt.Errorf("failed to receive pubsub message on vaa topic: %w", err) // nolint:channelcheck // The runnable will exit anyway
 						return
 					}
 
