@@ -1726,7 +1726,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 
 		if *solanaShimContract != "" {
-			featureFlags = append(featureFlags, "solshim")
+			featureFlags = append(featureFlags, fmt.Sprintf("solshim:%s", *solanaShimContract))
 		}
 	}
 
