@@ -62,6 +62,7 @@ type (
 		ccqAllowedPeers        string
 		protectedPeers         []string
 		ccqProtectedPeers      []string
+		featureFlags           []string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -205,6 +206,7 @@ func WithGuardianOptions(
 	ccqAllowedPeers string,
 	protectedPeers []string,
 	ccqProtectedPeers []string,
+	featureFlags []string,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
@@ -230,6 +232,7 @@ func WithGuardianOptions(
 		p.ccqAllowedPeers = ccqAllowedPeers
 		p.protectedPeers = protectedPeers
 		p.ccqProtectedPeers = ccqProtectedPeers
+		p.featureFlags = featureFlags
 		return nil
 	}
 }

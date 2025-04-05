@@ -200,6 +200,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			"",         // query allowed peers),
 			[]string{}, // protected peers
 			[]string{}, // ccq protected peers
+			[]string{}, // featureFlags
 		))
 	require.NoError(t, err)
 

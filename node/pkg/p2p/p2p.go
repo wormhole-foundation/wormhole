@@ -559,6 +559,9 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							if params.ccqEnabled {
 								features = append(features, "ccq")
 							}
+							if len(params.featureFlags) != 0 {
+								features = append(features, params.featureFlags...)
+							}
 
 							heartbeat := &gossipv1.Heartbeat{
 								NodeName:      params.nodeName,
