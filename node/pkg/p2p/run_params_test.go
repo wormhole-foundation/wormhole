@@ -243,6 +243,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			ccqAllowedPeers,
 			protectedPeers,
 			ccqProtectedPeers,
+			[]string{}, // featureFlags
 		),
 	)
 

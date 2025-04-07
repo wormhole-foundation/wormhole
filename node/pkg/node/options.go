@@ -54,6 +54,7 @@ func GuardianOptionP2P(
 	ibcFeaturesFunc func() string,
 	protectedPeers []string,
 	ccqProtectedPeers []string,
+	featureFlags []string,
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
@@ -106,6 +107,7 @@ func GuardianOptionP2P(
 					ccqAllowedPeers,
 					protectedPeers,
 					ccqProtectedPeers,
+					featureFlags,
 				),
 				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
 			)
