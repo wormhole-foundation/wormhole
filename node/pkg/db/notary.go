@@ -10,6 +10,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/dgraph-io/badger/v3"
+	"go.uber.org/zap"
 )
 
 type NotaryDBInterface interface {
@@ -17,7 +18,7 @@ type NotaryDBInterface interface {
 	StoreDelayed(p *common.PendingMessage) error
 	DeleteBlackholed(m *common.MessagePublication) error
 	DeleteDelayed(p *common.PendingMessage) error
-	LoadAll() (*NotaryLoadResult, error)
+	LoadAll(logger *zap.Logger) (*NotaryLoadResult, error)
 }
 
 // NotaryDB is a wrapper struct for a database connection.
@@ -35,7 +36,7 @@ func NewNotaryDB(dbConn *badger.DB) *NotaryDB {
 
 // Define prefixes used to isolate different message publications stored in the database.
 const (
-	delayedPrefix   = "NOTARY:DELAYED:V1:"
+	delayedPrefix   = "NOTARY:DELAY:V1:"
 	blackholePrefix = "NOTARY:BLACKHOLE:V1:"
 )
 
@@ -83,7 +84,7 @@ func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
 		return ErrMarshal
 	}
 
-	key := delayedKey(p)
+	key := delayKey(p)
 	if updateErr := d.update(key, b); updateErr != nil {
 		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
@@ -106,7 +107,7 @@ func (d *NotaryDB) StoreBlackhole(m *common.MessagePublication) error {
 }
 
 func (d *NotaryDB) DeleteDelayed(p *common.PendingMessage) error {
-	return d.deleteEntry(delayedKey(p))
+	return d.deleteEntry(delayKey(p))
 }
 
 func (d *NotaryDB) DeleteBlackholed(m *common.MessagePublication) error {
@@ -118,11 +119,9 @@ type NotaryLoadResult struct {
 	Blackholed []*common.MessagePublication
 }
 
-const (
-	defaultResultCapacity = 10
-)
-
-func (d *NotaryDB) LoadAll() (*NotaryLoadResult, error) {
+// LoadAll retrieves all keys from the database.
+func (d *NotaryDB) LoadAll(logger *zap.Logger) (*NotaryLoadResult, error) {
+	const defaultResultCapacity = 10
 	result := NotaryLoadResult{
 		Delayed:    make([]*common.PendingMessage, 0, defaultResultCapacity),
 		Blackholed: make([]*common.MessagePublication, 0, defaultResultCapacity),
@@ -162,7 +161,10 @@ func (d *NotaryDB) LoadAll() (*NotaryLoadResult, error) {
 				}
 				result.Delayed = append(result.Delayed, &pMsg)
 			default:
-				return fmt.Errorf("unknown data type for key: %x", key)
+				// The key-value store is shared across other modules and message types (e.g. Governor, Accountant).
+				// If another key is discovered, just ignore it.
+				logger.Debug("notary: load database ignoring unknown key type", zap.String("key", string(key)))
+				continue
 			}
 
 		}
@@ -215,8 +217,8 @@ func (d *NotaryDB) deleteEntry(key []byte) error {
 	return nil
 }
 
-// delayedKey returns a unique prefix for pending messages to be stored in the Notary's database.
-func delayedKey(p *common.PendingMessage) []byte {
+// delayKey returns a unique prefix for pending messages to be stored in the Notary's database.
+func delayKey(p *common.PendingMessage) []byte {
 	return key(delayedPrefix, p.Msg.MessageIDString())
 }
 
