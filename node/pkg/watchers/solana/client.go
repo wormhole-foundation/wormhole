@@ -144,6 +144,12 @@ const (
 
 	// SolanaSignatureLen is the expected length of a signature. As of v1.12.0, solana-go does not have a const for this.
 	SolanaSignatureLen = 64
+
+	// DefaultPollDelay is the polling interval used for any chains that don't have an override.
+	DefaultPollDelay = time.Second * 1
+
+	// FogoPollDelay is the polling interval for Fogo. It has a very short block time so we want to poll more frequently.
+	FogoPollDelay = time.Millisecond * 200
 )
 
 var (
@@ -271,15 +277,15 @@ func NewSolanaWatcher(
 	}
 }
 
-func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocket.Conn) {
+func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (*websocket.Conn, error) {
 	logger := supervisor.Logger(ctx)
 
-	logger.Info("Solana watcher connecting to WS node ", zap.String("url", *s.wsUrl))
+	logger.Info(fmt.Sprintf("%s watcher connecting to WS node ", s.chainID.String()), zap.String("url", *s.wsUrl))
 
 	ws, _, err := websocket.Dial(ctx, *s.wsUrl, nil)
 
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	s.subId = uuid.New().String()
@@ -293,9 +299,9 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 
 	if err := ws.Write(ctx, websocket.MessageText, []byte(p)); err != nil {
 		logger.Error(fmt.Sprintf("write: %s", err.Error()))
-		return err, nil
+		return nil, err
 	}
-	return nil, ws
+	return ws, nil
 }
 
 func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
@@ -305,7 +311,7 @@ func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	err, ws := s.SetupSubscription(ctx)
+	ws, err := s.SetupSubscription(ctx)
 	if err != nil {
 		return err
 	}
@@ -365,16 +371,20 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		wsUrl = *s.wsUrl
 	}
 
+	pollInterval := DefaultPollDelay
+	if s.chainID == vaa.ChainIDFogo {
+		pollInterval = FogoPollDelay
+	}
+
 	logger.Info("Starting watcher",
-		zap.String("watcher_name", "solana"),
+		zap.String("watcher_name", s.chainID.String()),
 		zap.String("rpcUrl", s.rpcUrl),
 		zap.String("wsUrl", wsUrl),
 		zap.String("contract", contractAddr),
 		zap.String("rawContract", s.rawContract),
 		zap.String("shimContract", s.shimContractStr),
+		zap.Duration("pollInterval", pollInterval),
 	)
-
-	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
 
 	s.shimSetup()
 
@@ -391,7 +401,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	}
 
 	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
-		timer := time.NewTicker(time.Second * 1)
+		timer := time.NewTicker(pollInterval)
 		defer timer.Stop()
 
 		for {

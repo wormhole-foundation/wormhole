@@ -431,7 +431,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				watcherName := string(wc.GetNetworkID()) + "_watch"
 				logger.Debug("Setting up watcher: " + watcherName)
 
-				if wc.GetNetworkID() != "solana-confirmed" { // TODO this should not be a special case, see comment in common/readiness.go
+				if wc.GetNetworkID() != "solana-confirmed" && wc.GetNetworkID() != "fogo-confirmed" { // TODO this should not be a special case, see comment in common/readiness.go
 					common.MustRegisterReadinessSyncing(wc.GetChainID())
 					chainObsvReqC[wc.GetChainID()] = make(chan *gossipv1.ObservationRequest, observationRequestPerChainBufferSize)
 					g.chainQueryReqC[wc.GetChainID()] = make(chan *query.PerChainQueryInternal, query.QueryRequestBufferSize)
