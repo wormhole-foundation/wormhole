@@ -22,7 +22,9 @@ build: solana-install
 		echo "Error: SVM must be defined" >&2; \
 		exit 1; \
 	fi
-	cargo build-sbf --features "$(BUILD_FEATURES)"
+	solana-verify build -- --features "$(BUILD_FEATURES)"
+	solana-verify get-executable-hash target/deploy/wormhole_post_message_shim.so
+	solana-verify get-executable-hash target/deploy/wormhole_verify_vaa_shim.so
 
 artifacts-$(NETWORK):
 	@if [ ! -d "$@" ]; then \
