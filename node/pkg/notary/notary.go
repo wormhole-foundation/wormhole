@@ -128,7 +128,7 @@ func NewNotary(
 func (n *Notary) Run(ctx context.Context) error {
 	if n.env != common.GoTest {
 		n.logger.Info("loading notary data from database")
-		if err := n.loadFromDB(); err != nil {
+		if err := n.loadFromDB(n.logger); err != nil {
 			return err
 		}
 	}
@@ -360,16 +360,23 @@ func deepCopy(slice []*common.MessagePublication) []*common.MessagePublication {
 }
 
 // loadFromDB reads all the database entries.
-func (n *Notary) loadFromDB() error {
+func (n *Notary) loadFromDB(logger *zap.Logger) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	result, err := n.database.LoadAll()
+	result, err := n.database.LoadAll(logger)
 	if err != nil {
+		n.logger.Error(
+			"notary: load all call returned error",
+			zap.Error(err),
+		)
 		return err
 	}
 	if result == nil {
 		// TODO replace with better error
+		n.logger.Error(
+			"notary: load all call produced nil result",
+		)
 		return errors.New("nil result from database")
 	}
 

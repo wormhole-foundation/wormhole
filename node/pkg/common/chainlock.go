@@ -87,10 +87,10 @@ var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
 
 var (
 	ErrBinaryWrite         = errors.New("failed to write binary data")
-	ErrInvalidTxID         = errors.New("field TxID too long")
+	ErrTxIDTooLong         = errors.New("field TxID too long")
+	ErrTxIDTooShort        = errors.New("field TxID too short")
 	ErrInvalidPayload      = errors.New("field payload too long")
 	ErrDataTooShort        = errors.New("data too short")
-	ErrTxIDTooShort        = errors.New("data too short for TxID")
 	ErrTimestampTooShort   = errors.New("data too short for timestamp")
 	ErrNonceTooShort       = errors.New("data too short for nonce")
 	ErrSequenceTooShort    = errors.New("data too short for sequence")

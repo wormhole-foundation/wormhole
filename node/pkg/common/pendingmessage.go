@@ -33,7 +33,7 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 
 	bz, err := p.Msg.MarshalBinary()
 	if err != nil {
-		return buf.Bytes(), fmt.Errorf("marshal pending message: %w", err)
+		return nil, fmt.Errorf("marshal pending message: %w", err)
 	}
 
 	vaa.MustWrite(buf, binary.BigEndian, bz)
