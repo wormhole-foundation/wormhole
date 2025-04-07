@@ -31,12 +31,29 @@ func TestStoreAndReloadData(t *testing.T) {
 	require.NoError(t, blackholeErr)
 
 	// Retrieve both messages and ensure they're equal to what was stored.
-	res, loadErr := nDB.LoadAll()
+	res, loadErr := nDB.LoadAll(zap.NewNop())
 	require.NoError(t, loadErr)
 	require.Equal(t, 1, len(res.Delayed))
 	require.Equal(t, 1, len(res.Blackholed))
 	require.Equal(t, pendingMsg, res.Delayed[0])
 	require.Equal(t, &msg2, res.Blackholed[0])
+}
+
+func TestKeysForStoredMessagesV1(t *testing.T) {
+	msg1 := makeNewMsgPub(t)
+	pMsg := makeNewPendingMsg(t, msg1)
+
+	require.Equal(
+		t,
+		[]byte("NOTARY:DELAY:V1:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+		delayKey(pMsg),
+	)
+
+	require.Equal(
+		t,
+		[]byte("NOTARY:BLACKHOLE:V1:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+		blackholeKey(msg1),
+	)
 }
 
 // nowSeconds is a helper function that returns time.Now() with the nanoseconds truncated.
