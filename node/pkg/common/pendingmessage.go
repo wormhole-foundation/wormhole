@@ -5,7 +5,6 @@ import (
 	"cmp"
 	"container/heap"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -45,8 +44,8 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary implements BinaryUnmarshaler for [PendingMessage].
 func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 
-	if len(data) < minMsgLength {
-		return errors.New("msg too small")
+	if len(data) < minMarshaledMsgSize {
+		return ErrDataTooShort
 	}
 
 	// Compare with [UnmarshalPendingTransfer].
@@ -208,16 +207,3 @@ func (q *PendingMessageQueue) Iter() func(yield func(index int, value *PendingMe
 		}
 	}
 }
-
-// TODO convert below to unit tests
-// This example inserts several ints into an IntHeap, checks the minimum,
-// and removes them in order of priority.
-// func main() {
-// 	h := &PendingMessageHeap{2, 1, 5}
-// 	heap.Init(h)
-// 	heap.Push(h, 3)
-// 	fmt.Printf("minimum: %d\n", (*h)[0])
-// 	for h.Len() > 0 {
-// 		fmt.Printf("%d ", heap.Pop(h))
-// 	}
-// }
