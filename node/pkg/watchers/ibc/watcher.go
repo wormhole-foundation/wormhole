@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -439,7 +441,10 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 		case <-ctx.Done():
 			return nil
 		case r := <-ce.obsvReqC:
-			if vaa.ChainID(r.ChainId) != ce.chainID {
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != ce.chainID {
 				panic("invalid chain ID")
 			}
 
@@ -548,7 +553,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.EmitterChain = vaa.ChainID(unumber)
+	evt.Msg.EmitterChain = vaa.ChainID(unumber) // #nosec G115 -- Already range checked by `GetAsUint`
 
 	str, err = attributes.GetAsString("message.sender")
 	if err != nil {
@@ -563,7 +568,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.Nonce = uint32(unumber)
+	evt.Msg.Nonce = uint32(unumber) // #nosec G115 -- This conversion is safe based on GetAsUint usage above
 
 	unumber, err = attributes.GetAsUint("message.sequence", 64)
 	if err != nil {
@@ -673,6 +678,9 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 
 	ce.msgC <- evt.Msg
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
+	if evt.Msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()
+	}
 	return nil
 }
 

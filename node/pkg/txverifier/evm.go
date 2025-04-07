@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/ethereum/go-ethereum/common"
 	geth "github.com/ethereum/go-ethereum/core/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -32,7 +31,7 @@ const (
 
 // ProcessEvent processes a LogMessagePublished event, and is either called
 // from a watcher or from the transfer verifier standalone process. It fetches
-// the full transaction receipt associated with the log, and parses all
+// the full transaction receipt associated with the txHash, and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
 // transfers and token deposits into the token bridge as inbound transfers. It then
 // verifies that the sum of the inbound transfers is at least as much as the sum of
@@ -41,7 +40,7 @@ const (
 // If the return value is false, it implies that something serious has gone wrong.
 func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	ctx context.Context,
-	vLog *ethabi.AbiLogMessagePublished,
+	txHash common.Hash,
 	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
 	receipt *geth.Receipt,
 ) bool {
@@ -49,31 +48,26 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	// Use this opportunity to prune old transaction information from the cache.
 	tv.pruneCache()
 
+	if Cmp(txHash, ZERO_ADDRESS) == 0 {
+		tv.logger.Error("txHash is all zeroes")
+		return false
+	}
+
 	tv.logger.Debug("detected LogMessagePublished event",
-		zap.String("txHash", vLog.Raw.TxHash.String()))
+		zap.String("txHash", txHash.String()))
 
 	// Caching: record used/inspected tx hash.
-	if _, exists := tv.processedTransactions[vLog.Raw.TxHash]; exists {
+	if _, exists := tv.processedTransactions[txHash]; exists {
 		tv.logger.Debug("skip: transaction hash already processed",
-			zap.String("txHash", vLog.Raw.TxHash.String()))
+			zap.String("txHash", txHash.String()))
 		return true
 	}
 
-	// This check also occurs when processing a receipt but skipping here avoids unnecessary
-	// processing.
-	if cmp(vLog.Sender, tv.Addresses.TokenBridgeAddr) != 0 {
-		tv.logger.Debug("skip: sender is not token bridge",
-			zap.String("txHash", vLog.Raw.TxHash.String()),
-			zap.String("sender", vLog.Sender.String()),
-			zap.String("tokenBridge", tv.Addresses.TokenBridgeAddr.String()))
-		return true
-	}
-
+	// Get the full transaction receipt for this txHash if it was not provided as an argument.
 	if receipt == nil {
 		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
-		// Get the full transaction receipt for this log if it was not provided as an argument.
 		var txReceiptErr error
-		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, vLog.Raw.TxHash)
+		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
 		if txReceiptErr != nil {
 			tv.logger.Warn("could not find core bridge receipt", zap.Error(txReceiptErr))
 			return true
@@ -82,15 +76,31 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 
 	// Caching: record a new lastBlockNumber.
 	tv.lastBlockNumber = receipt.BlockNumber.Uint64()
-	tv.processedTransactions[vLog.Raw.TxHash] = receipt
+	tv.processedTransactions[txHash] = receipt
 
 	// Parse raw transaction receipt into high-level struct containing transfer details.
 	transferReceipt, parseErr := tv.ParseReceipt(receipt)
-	if parseErr != nil || transferReceipt == nil {
-		tv.logger.Warn("error when parsing receipt. skipping validation",
-			zap.String("receipt hash", receipt.TxHash.String()),
-			zap.Error(parseErr))
+	if transferReceipt == nil {
+		if parseErr != nil {
+			tv.logger.Warn("error when parsing receipt. skipping validation",
+				zap.String("receipt hash", receipt.TxHash.String()),
+				zap.Error(parseErr))
+		} else {
+			tv.logger.Debug("parsed receipt did not contain any LogMessagePublished events",
+				zap.String("receipt hash", receipt.TxHash.String()))
+		}
+		// Return true regardless of parsing errors. False is reserved
+		// for confirmed bad scenarios (arbitrary message
+		// publications), not parsing errors or irrelevant receipts.
 		return true
+	} else {
+		// ParseReceipt is expected to return a nil TransferReceipt when there is an error,
+		// but this error handling is included in case of a programming error.
+		if parseErr != nil {
+			tv.logger.Warn("ParseReceipt encountered an error but returned a non-nil TransferReceipt. This is likely a programming error. Skipping validation",
+				zap.String("receipt hash", receipt.TxHash.String()),
+				zap.Error(parseErr))
+		}
 	}
 
 	// Add wormhole-specific data to the receipt by making
@@ -114,13 +124,13 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 		// transfer verifier is monitoring is broken.
 		tv.logger.Error("error when processing receipt. can't continue processing",
 			zap.Error(processErr),
-			zap.String("txHash", vLog.Raw.TxHash.String()))
+			zap.String("txHash", txHash.String()))
 		return false
 	}
 
 	// Update statistics
 	if summary.logsProcessed == 0 {
-		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", vLog.Raw.TxHash.Hex()))
+		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
 		return true
 	}
 
@@ -155,6 +165,18 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 	receipt *TransferReceipt,
 ) (updateErr error) {
+
+	if receipt == nil {
+		return errors.New("UpdateReceiptDetails was called with a nil Transfer Receipt")
+	}
+
+	invalidErr := receipt.Validate()
+	if invalidErr != nil {
+		return errors.Join(
+			errors.New("ProcessReceipt was called with an invalid Transfer Receipt:"),
+			invalidErr,
+		)
+	}
 
 	tv.logger.Debug(
 		"updating details for receipt",
@@ -195,7 +217,7 @@ func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 	// Populate the native asset information and token decimals for assets
 	// recorded in LogMessagePublished events for this receipt.
 	tv.logger.Debug("populating native data for LogMessagePublished assets")
-	for _, message := range *receipt.MessagePublicatons {
+	for _, message := range *receipt.MessagePublications {
 		newDetails, logFetchErr := tv.fetchLogMessageDetails(message.TransferDetails)
 		if logFetchErr != nil {
 			// The unwrapped address and the denormalized amount are necessary for checking
@@ -239,7 +261,7 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 	}
 
 	// Asset is wrapped but not in wrappedAsset map for the Token Bridge.
-	if cmp(unwrapped, ZERO_ADDRESS) == 0 {
+	if Cmp(unwrapped, ZERO_ADDRESS) == 0 {
 		return 0, ZERO_ADDRESS, errors.New("asset is wrapped but unwrapping gave the zero address. this is an unusual asset or there is a bug in the program")
 	}
 
@@ -262,25 +284,27 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 // Verification. Any other events will be discarded.
 // This function is not responsible for checking that the values for the
 // various fields are relevant, only that they are well-formed.
+//
+// This function should return a nil TransferReceipt when an error is encountered.
 func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	receipt *geth.Receipt,
 ) (*TransferReceipt, error) {
 	// Sanity checks. Shouldn't be necessary but no harm
 	if receipt == nil {
-		return &TransferReceipt{}, errors.New("receipt parameter is nil")
+		return nil, errors.New("receipt parameter is nil")
 	}
 	if receipt.Status != 1 {
-		return &TransferReceipt{}, errors.New("non-success transaction status")
+		return nil, errors.New("non-success transaction status")
 	}
 	if len(receipt.Logs) == 0 {
-		return &TransferReceipt{}, errors.New("no logs in receipt")
+		return nil, errors.New("no logs in receipt")
 	}
 
 	var deposits []*NativeDeposit
 	var transfers []*ERC20Transfer
 	var messagePublications []*LogMessagePublished
 
-	// Aggregate all errors without returning early
+	// This variable is used to aggregate multiple errors.
 	var receiptErr error
 
 	for _, log := range receipt.Logs {
@@ -300,6 +324,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 			tv.logger.Debug("adding deposit", zap.String("deposit", deposit.String()))
 			deposits = append(deposits, deposit)
 		case common.HexToHash(EVENTHASH_ERC20_TRANSFER):
+
 			transfer, transferErr := ERC20TransferFromLog(log, tv.chainIds.wormholeChainId)
 
 			if transferErr != nil {
@@ -311,11 +336,22 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 				continue
 			}
 
+			// Log when the zero address is used in non-obvious ways.
+			if transfer.From == ZERO_ADDRESS {
+				tv.logger.Info("transfer's From field is the zero address. This is likely a mint operation",
+					zap.String("txHash", log.TxHash.String()),
+				)
+			}
+			if transfer.To == ZERO_ADDRESS {
+				tv.logger.Info("transfer's To field is the zero address. This is likely a burn operation",
+					zap.String("txHash", log.TxHash.String()),
+				)
+			}
+
 			tv.logger.Debug("adding transfer", zap.String("transfer", transfer.String()))
 			transfers = append(transfers, transfer)
 		case common.HexToHash(EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED):
 			if len(log.Data) == 0 {
-				// tv.logger.Error("receipt data has length 0")
 				receiptErr = errors.Join(receiptErr, errors.New("receipt data has length 0"))
 				continue
 			}
@@ -362,6 +398,12 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 				continue
 			}
 
+			if transferDetails == nil {
+				tv.logger.Debug("skip: parsed successfully but no relevant transfer found",
+					zap.String("txhash", log.TxHash.String()))
+				continue
+			}
+
 			// If everything went well, append the message publication
 			messagePublications = append(messagePublications, &LogMessagePublished{
 				EventEmitter:    log.Address,
@@ -373,17 +415,24 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	}
 
 	if len(messagePublications) == 0 {
-		receiptErr = errors.Join(receiptErr, errors.New("parsed receipts but received no LogMessagePublished events"))
+		if receiptErr == nil {
+			// There are no valid message publications, but also no recorded errors.
+			// This occurs when the core bridge emits a LogMessagePublished event but it is not sent by
+			// the Token Bridge. In this case, just return nil for both values.
+			return nil, nil
+		}
+		// If other errors occurred, also mention that there were no valid LogMessagePublished events.
+		receiptErr = errors.Join(receiptErr, errors.New("parsed receipt but received no LogMessagePublished events"))
 	}
 
 	if receiptErr != nil {
-		return &TransferReceipt{}, receiptErr
+		return nil, receiptErr
 	}
 
 	return &TransferReceipt{
-			Deposits:           &deposits,
-			Transfers:          &transfers,
-			MessagePublicatons: &messagePublications},
+			Deposits:            &deposits,
+			Transfers:           &transfers,
+			MessagePublications: &messagePublications},
 		nil
 }
 
@@ -412,17 +461,26 @@ func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 	receipt *TransferReceipt,
 ) (summary *ReceiptSummary, err error) {
 
+	// Sanity checks.
+	if receipt == nil {
+		return summary, errors.New("got nil transfer receipt")
+	}
+
+	invalidErr := receipt.Validate()
+	if invalidErr != nil {
+		return nil, errors.Join(
+			errors.New("ProcessReceipt was called with an invalid Transfer Receipt:"),
+			invalidErr,
+		)
+	}
+
 	tv.logger.Debug("beginning to process receipt",
 		zap.String("receipt", receipt.String()),
 	)
 
 	summary = NewReceiptSummary()
 
-	// Sanity checks.
-	if receipt == nil {
-		return summary, errors.New("got nil transfer receipt")
-	}
-	if len(*receipt.MessagePublicatons) == 0 {
+	if len(*receipt.MessagePublications) == 0 {
 		return summary, errors.New("no message publications in receipt")
 	}
 
@@ -483,7 +541,7 @@ func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 	}
 
 	// Process LogMessagePublished events.
-	for _, message := range *receipt.MessagePublicatons {
+	for _, message := range *receipt.MessagePublications {
 		td := message.TransferDetails
 
 		validateErr := validate[*LogMessagePublished](message)
@@ -552,17 +610,15 @@ func parseLogMessagePublishedPayload(
 	// Corresponds to LogMessagePublished.Payload as returned by the ABI parsing operation in the ethConnector.
 	data []byte,
 ) (*TransferDetails, error) {
-	// This method is already called by DecodeTransferPayloadHdr but the
-	// error message is unclear. Doing a manual check here lets us return a
-	// more helpful error message.
+	// If the payload type is neither Transfer nor Transfer With Payload, just return.
 	if !vaa.IsTransfer(data) {
-		return nil, errors.New("payload is not a transfer type. no need to process")
+		return nil, nil
 	}
 
 	// Note: vaa.DecodeTransferPayloadHdr performs validation on data, e.g. length checks.
 	hdr, err := vaa.DecodeTransferPayloadHdr(data)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(errors.New("could not parse LogMessagePublished payload:"), err)
 	}
 	return &TransferDetails{
 		PayloadType:      VAAPayloadType(hdr.Type),
@@ -603,7 +659,7 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 			return newDetails, unwrapErr
 		}
 
-		if cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
+		if Cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
 			// If the unwrap function returns the zero address, that means
 			// it has no knowledge of this token. In this case set the
 			// OriginAddress to OriginAddressRaw rather than to the zero
@@ -612,11 +668,11 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 			//
 			// This case can occur if a token is transferred when the wrapped asset hasn't been set-up yet.
 			// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#setup-of-wrapped-assets
-			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program. .",
+			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.",
 				zap.String("originAddressRaw", details.OriginAddress.String()),
 				zap.String("tokenChain", details.TokenChain.String()),
 			)
-			return newDetails, errors.New("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program")
+			return newDetails, errors.New("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.")
 		} else {
 			originAddress = unwrappedAddress
 		}

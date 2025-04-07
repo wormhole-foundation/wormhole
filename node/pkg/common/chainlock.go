@@ -18,6 +18,41 @@ import (
 const HashLength = 32
 const AddressLength = 32
 
+// The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
+// While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
+// Consequently, its status should be set to `NotVerified` or `NotApplicable` for all messages that aren't token transfers.
+type VerificationState uint8
+
+const (
+	// The default state for a message. This can be used before verification occurs. If no verification is required, `NotApplicable` should be used instead.
+	NotVerified VerificationState = iota
+	// Represents a "known bad" status where a Message has been validated and the result indicates an erroneous or invalid message. The message should be discarded.
+	Rejected
+	// Represents an unusual state after validation, neither confirmed to be good or bad.
+	Anomalous
+	// Represents a "known good" status where a Message has been validated and the result is good. The message should be processed normally.
+	Valid
+	// Indicates that no verification is necessary.
+	NotApplicable
+)
+
+func (v VerificationState) String() string {
+	switch v {
+	case NotVerified:
+		return "NotVerified"
+	case Valid:
+		return "Valid"
+	case Anomalous:
+		return "Anomalous"
+	case Rejected:
+		return "Rejected"
+	case NotApplicable:
+		return "NotApplicable"
+	default:
+		return ""
+	}
+}
+
 type MessagePublication struct {
 	TxID      []byte
 	Timestamp time.Time
@@ -32,7 +67,21 @@ type MessagePublication struct {
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
+	// This field is not marshalled/serialized.
 	Unreliable bool
+
+	// The `VerificationState` is the result of applying transfer
+	// verification to the transaction associated with the
+	// `MessagePublication`. While this could likely be extended to
+	// additional security controls in the future, it is only used for
+	// `txverifier` at present. Consequently, its status should be set to
+	// `NotVerified` or `NotApplicable` for all messages that aren't token
+	// transfers.
+	// This field is intentionally private so that it must be
+	// updated using the setter, which performs verification on the new
+	// state.
+	// This field is not marshalled/serialized.
+	verificationState VerificationState
 }
 
 func (msg *MessagePublication) TxIDString() string {
@@ -47,6 +96,29 @@ func (msg *MessagePublication) MessageIDString() string {
 	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
 }
 
+func (msg *MessagePublication) VerificationState() VerificationState {
+	return msg.verificationState
+}
+
+// SetVerificationState is the setter for verificationState. Returns an error if called in a way that likely indicates a programming mistake.
+// This includes cases where:
+// - an existing state would be overwritten by the NotVerified state
+// - the argument is equal to the existing value
+func (msg *MessagePublication) SetVerificationState(s VerificationState) error {
+	// Avoid rewriting an existing state with the default value. There shouldn't be a reason to overwrite an existing verification,
+	// and if it happens it's probably a bug.
+	if s == NotVerified && msg.verificationState != NotVerified {
+		return fmt.Errorf("SetVerificationState: refusing to overwrite existing VerificationState %s to NotVerified state", s)
+
+	}
+	// Not a problem per se but likely indicates a programming error.
+	if s == msg.verificationState {
+		return fmt.Errorf("SetVerificationState: called with value %s but Message Publication already has this value", s)
+	}
+	msg.verificationState = s
+	return nil
+}
+
 const minMsgLength = 88 // Marshalled length with empty payload
 
 func (msg *MessagePublication) Marshal() ([]byte, error) {
@@ -55,16 +127,18 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	if len(msg.TxID) > math.MaxUint8 {
 		return nil, errors.New("TxID too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.TxID))) // #nosec G115 -- This is validated above
 	buf.Write(msg.TxID)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
 	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
 	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
 	vaa.MustWrite(buf, binary.BigEndian, msg.EmitterChain)
 	buf.Write(msg.EmitterAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, msg.IsReobservation)
+	// Unreliable and verificationState are not marshalled because they are not used in the Governor code,
+	// which is currently the only place in the node where marshalling this struct is done.
 	buf.Write(msg.Payload)
 
 	return buf.Bytes(), nil
@@ -181,6 +255,9 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 		return nil, fmt.Errorf("failed to read isReobservation: %w", err)
 	}
 
+	// Unreliable and verificationState are not unmarshalled because they are not used in the Governor code,
+	// which is currently the only place in the node where unmarshalling this struct is done.
+
 	payload := make([]byte, reader.Len())
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
@@ -250,5 +327,6 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.Uint8("consistency", msg.ConsistencyLevel),
 		zap.String("message_id", string(msg.MessageID())),
 		zap.Bool("unreliable", msg.Unreliable),
+		zap.String("verificationState", msg.verificationState.String()),
 	)
 }

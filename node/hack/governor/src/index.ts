@@ -46,6 +46,7 @@ const expectedUSDDepeggs = [
   "13-000000000000000000000000754288077d0ff82af7a5317c7cb8c444d421d103-oUSDC", // Orbit bridge Klatyn USDC, depegged since December 2023
   "13-000000000000000000000000cee8faf64bb97a73bb51e115aa89c17ffa8dd167-oUSDT", // Orbit bridge Klatyn USDT, depegged since December 2023
   "16-000000000000000000000000ffffffff52c56a9257bb97f4b2b6f7b2d624ecda-xcaUSD", // Acala USD being converted to aSEED, dead token
+  "1-689ac099ef657e5d3b7efaf1e36ab8b897e2746232d8a9261b3e49b35c1dead4-xUSD", // Synthetic USD is inactive and deactivated
 ]
 
 const axios = require("axios");
@@ -203,7 +204,7 @@ axios
               
               // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
               if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
-                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.symbol)
+                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
                 continue; 
               }
             }
@@ -215,14 +216,14 @@ axios
                 var uniqueIdentifier = chain + "-" + wormholeAddr + "-" + data.Symbol;
                 // Skip tokens that are not expected to be pegged to $1
                 if (!expectedUSDDepeggs.includes(uniqueIdentifier)) {
-                  depeggedUSDStablecoins.push(uniqueIdentifier + " = " + data.TokenPrice);
+                  depeggedUSDStablecoins.push(uniqueIdentifier + " = " + data.TokenPrice + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")");
                 }
               }
             }
 
             // This is a new token
             if (existingTokenPrices[chain] == undefined || existingTokenPrices[chain][wormholeAddr] == undefined) {
-              addedTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol);
+              addedTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")");
             }
             // This is an existing token
             else {
@@ -234,7 +235,8 @@ axios
                   token: chain + "-" + wormholeAddr + "-" + data.Symbol,
                   previousPrice: previousPrice,
                   newPrice: data.TokenPrice,
-                  percentageChange: "-" + (100 - (data.TokenPrice / previousPrice) * 100).toFixed(1).toString()
+                  percentageChange: "-" + (100 - (data.TokenPrice / previousPrice) * 100).toFixed(1).toString(),
+                  url: "https://www.coingecko.com/en/coins/" + data.CoinGeckoId
                 });
               }
 
@@ -274,7 +276,7 @@ axios
 
             // We add in the "=" character to ensure an undefined symbol
             // does not mess up the removed tokens logic
-            newTokenKeys[chain + "-" + wormholeAddr] = "=" + data.Symbol;
+            newTokenKeys[chain + "-" + wormholeAddr] = ["=" + data.Symbol, data.CoinGeckoId];
             newTokensCount += 1;
           }
         }
@@ -291,8 +293,8 @@ axios
       }
       // The token symbol has changed
       // We take a substring of the symbol to cut the "=" character we added above
-      else if (tokenParts[0] + "-" + tokenParts[1] + "-" + newTokenSymbol.substring(1) != token) {
-        changedSymbols.push(token + "->" + newTokenSymbol.substring(1));
+      else if (tokenParts[0] + "-" + tokenParts[1] + "-" + newTokenSymbol[0].substring(1) != token) {
+        changedSymbols.push(token + "->" + newTokenSymbol[0].substring(1) + " (https://www.coingecko.com/en/coins/" + newTokenSymbol[1] + ")");
       }
     }
 

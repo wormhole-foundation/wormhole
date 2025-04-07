@@ -47,6 +47,6 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	setC chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, error) {
-	return MockL1Finalizer{}, NewWatcherRunnable(msgC, obsvReqC, setC, wc), nil
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+	return MockL1Finalizer{}, NewWatcherRunnable(msgC, obsvReqC, setC, wc), nil, nil
 }

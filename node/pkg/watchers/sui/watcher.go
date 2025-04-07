@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
@@ -264,7 +266,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 	observation := &common.MessagePublication{
 		TxID:             txHashEthFormat.Bytes(),
 		Timestamp:        time.Unix(ts, 0),
-		Nonce:            uint32(*fields.Nonce),
+		Nonce:            uint32(*fields.Nonce), // #nosec G115 -- Nonce is 32 bits on chain
 		Sequence:         seq,
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,
@@ -274,6 +276,9 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 	}
 
 	suiMessagesConfirmed.Inc()
+	if isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues("sui", "std").Inc()
+	}
 
 	logger.Info("message observed",
 		zap.String("txHash", observation.TxIDString()),
@@ -387,7 +392,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 				logger.Error("sui_fetch_obvs_req context done")
 				return ctx.Err()
 			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
+				// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+				// and only writes to the channel for this chain id.
+				// If either of the below cases are true, something has gone wrong
+				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDSui {
 					panic("invalid chain ID")
 				}
 

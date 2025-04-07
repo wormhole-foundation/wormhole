@@ -3,7 +3,10 @@ package txverifier
 import (
 	"encoding/json"
 	"math/big"
+	"reflect"
 	"testing"
+
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func TestExtractFromJsonPath(t *testing.T) {
@@ -216,6 +219,63 @@ func TestDenormalize(t *testing.T) {
 				)
 			}
 
+		})
+	}
+}
+
+func TestValidateChains(t *testing.T) {
+	type args struct {
+		input []uint
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []vaa.ChainID
+		wantErr bool
+	}{
+		{
+			name: "invalid chainId",
+			args: args{
+				input: []uint{65535},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "unsupported chainId",
+			args: args{
+				input: []uint{22},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "empty input",
+			args: args{
+				input: []uint{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "happy path",
+			args: args{
+				input: []uint{2},
+			},
+			want:    []vaa.ChainID{vaa.ChainIDEthereum},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateChains(tt.args.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateChains() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ValidateChains() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

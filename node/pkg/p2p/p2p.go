@@ -335,6 +335,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 		}()
 
+		if len(params.protectedPeers) != 0 {
+			for _, peerId := range params.protectedPeers {
+				logger.Info("protecting peer", zap.String("peerId", peerId))
+				params.components.ConnMgr.Protect(peer.ID(peerId), "configured")
+			}
+		}
+
 		nodeIdBytes, err := h.ID().Marshal()
 		if err != nil {
 			panic(err)
@@ -462,7 +469,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, params.ccqProtectedPeers, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
@@ -518,7 +525,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							defer DefaultRegistry.mu.Unlock()
 							networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 							for _, v := range DefaultRegistry.networkStats {
-								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
 								networks = append(networks, v)
 							}

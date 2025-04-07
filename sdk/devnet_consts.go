@@ -41,3 +41,9 @@ var KnownDevnetAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDEthereum, Addr: "000000000000000000000000cc680d088586c09c3e0e099a676fa4b6e42467b4"},
 	{ChainId: vaa.ChainIDBSC, Addr: "000000000000000000000000cc680d088586c09c3e0e099a676fa4b6e42467b4"},
 }
+
+// KnownDevnetWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum
+var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]string{
+	// WETH deployed by the Tilt devnet configuration.
+	vaa.ChainIDEthereum: "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
+}

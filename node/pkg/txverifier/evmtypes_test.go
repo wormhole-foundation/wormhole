@@ -666,20 +666,20 @@ func TestCmp(t *testing.T) {
 	// in that format.
 
 	// Test identity
-	assert.Zero(t, cmp(ZERO_ADDRESS, ZERO_ADDRESS))
-	assert.Zero(t, cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS))
+	assert.Zero(t, Cmp(ZERO_ADDRESS, ZERO_ADDRESS))
+	assert.Zero(t, Cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS))
 
 	// Test mixed types
-	assert.Zero(t, cmp(ZERO_ADDRESS, ZERO_ADDRESS_VAA))
-	assert.Zero(t, cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS_VAA))
+	assert.Zero(t, Cmp(ZERO_ADDRESS, ZERO_ADDRESS_VAA))
+	assert.Zero(t, Cmp(ZERO_ADDRESS_VAA, ZERO_ADDRESS_VAA))
 
 	vaaAddr, err := vaa.BytesToAddress([]byte{0x01})
 	require.NoError(t, err)
-	assert.Zero(t, cmp(vaaAddr, common.BytesToAddress([]byte{0x01})))
+	assert.Zero(t, Cmp(vaaAddr, common.BytesToAddress([]byte{0x01})))
 
 	vaaAddr, err = vaa.BytesToAddress([]byte{0xff, 0x02})
 	require.NoError(t, err)
-	assert.Zero(t, cmp(common.BytesToAddress([]byte{0xff, 0x02}), vaaAddr))
+	assert.Zero(t, Cmp(common.BytesToAddress([]byte{0xff, 0x02}), vaaAddr))
 }
 
 func TestVAAFromAddr(t *testing.T) {
@@ -830,7 +830,7 @@ func TestParseERC20TransferFrom(t *testing.T) {
 	invalidTests := map[string]struct {
 		log types.Log
 	}{
-		"invalid transfer: From is zero address": {
+		"invalid transfer: From and To are both equal to the zero address": {
 			log: types.Log{
 				Address: usdcAddr,
 				Topics: []common.Hash{
@@ -838,7 +838,7 @@ func TestParseERC20TransferFrom(t *testing.T) {
 					// From
 					common.HexToHash(ZERO_ADDRESS.String()),
 					// To
-					common.HexToHash(tokenBridgeAddr.String()),
+					common.HexToHash(ZERO_ADDRESS.String()),
 				},
 				TxHash: common.BytesToHash([]byte{0x01}),
 				Data:   common.LeftPadBytes(big.NewInt(100).Bytes(), EVM_WORD_LENGTH),

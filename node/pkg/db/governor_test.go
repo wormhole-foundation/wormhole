@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"testing"
@@ -566,7 +567,7 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 
 	b := marshalOldMessagePublication(&p.Msg)
 
@@ -586,7 +587,7 @@ func marshalOldMessagePublication(msg *common.MessagePublication) []byte {
 	buf := new(bytes.Buffer)
 
 	buf.Write(msg.TxID[:])
-	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
 	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
 	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
@@ -796,29 +797,39 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	assert.Equal(t, pending2.Msg, pendings2[1].Msg)
 }
 
-func marshalOldTransfer(xfer *Transfer) []byte {
+func marshalOldTransfer(xfer *Transfer) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, xfer.Value)
 	vaa.MustWrite(buf, binary.BigEndian, xfer.OriginChain)
 	buf.Write(xfer.OriginAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, xfer.EmitterChain)
 	buf.Write(xfer.EmitterAddress[:])
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.MsgID)))
+	if len(xfer.MsgID) > math.MaxUint16 {
+		return nil, fmt.Errorf("failed to marshal MsgID, length too long: %d", len(xfer.MsgID))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.MsgID))) // #nosec G115 -- This conversion is checked above
 	if len(xfer.MsgID) > 0 {
 		buf.Write([]byte(xfer.MsgID))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.Hash)))
+	if len(xfer.Hash) > math.MaxUint16 {
+		return nil, fmt.Errorf("failed to marshal Hash, length too long: %d", len(xfer.Hash))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.Hash))) // #nosec G115 -- This conversion is checked above
 	if len(xfer.Hash) > 0 {
 		buf.Write([]byte(xfer.Hash))
 	}
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 func (d *Database) storeOldTransfer(xfer *Transfer) error {
 	key := []byte(fmt.Sprintf("%v%v", oldTransfer, xfer.MsgID))
-	b := marshalOldTransfer(xfer)
+	b, err := marshalOldTransfer(xfer)
+
+	if err != nil {
+		return err
+	}
 
 	return d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(key, b); err != nil {
@@ -847,7 +858,8 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 		Hash:  "Hash1",
 	}
 
-	bytes := marshalOldTransfer(xfer1)
+	bytes, err := marshalOldTransfer(xfer1)
+	require.NoError(t, err)
 
 	xfer2, err := unmarshalOldTransfer(bytes)
 	require.NoError(t, err)

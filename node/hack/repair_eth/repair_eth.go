@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -47,33 +50,14 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDOptimism:   "https://api-optimistic.etherscan.io",
 	vaa.ChainIDBase:       "https://api.basescan.org",
 	vaa.ChainIDScroll:     "https://api.scrollscan.com",
-	vaa.ChainIDMantle:     "", // TODO: Does Mantle have an etherscan equivalent API endpoint?
+	vaa.ChainIDMantle:     "https://api.mantlescan.xyz/",
 	vaa.ChainIDBlast:      "https://api.blastscan.io",
 	vaa.ChainIDXLayer:     "", // TODO: Does X Layer have an etherscan API endpoint?
+	vaa.ChainIDBerachain:  "https://api.berascan.com/",
+	vaa.ChainIDSeiEVM:     "", // TODO: Does SeiEVM have an etherscan API endpoint?
+	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",
 	vaa.ChainIDWorldchain: "https://api.worldscan.org",
-}
-
-var coreContractMap = map[vaa.ChainID]string{
-	vaa.ChainIDEthereum:   "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
-	vaa.ChainIDBSC:        "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
-	vaa.ChainIDAvalanche:  "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c",
-	vaa.ChainIDPolygon:    "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
-	vaa.ChainIDOasis:      "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
-	vaa.ChainIDAurora:     "0xa321448d90d4e5b0a732867c18ea198e75cac48e",
-	vaa.ChainIDFantom:     strings.ToLower("0x126783A6Cb203a3E35344528B26ca3a0489a1485"),
-	vaa.ChainIDKarura:     strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
-	vaa.ChainIDAcala:      strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
-	vaa.ChainIDKlaytn:     strings.ToLower("0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"),
-	vaa.ChainIDCelo:       strings.ToLower("0xa321448d90d4e5b0A732867c18eA198e75CAC48E"),
-	vaa.ChainIDMoonbeam:   strings.ToLower("0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"),
-	vaa.ChainIDArbitrum:   strings.ToLower("0xa5f208e072434bC67592E4C49C1B991BA79BCA46"),
-	vaa.ChainIDOptimism:   strings.ToLower("0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"),
-	vaa.ChainIDBase:       strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
-	vaa.ChainIDScroll:     strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
-	vaa.ChainIDMantle:     strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
-	vaa.ChainIDBlast:      strings.ToLower("0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"),
-	vaa.ChainIDXLayer:     strings.ToLower("0x194B123c5E96B9b2E49763619985790Dc241CAC0"),
-	vaa.ChainIDWorldchain: strings.ToLower("0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"),
+	vaa.ChainIDInk:        "", // TODO: Does Ink have an etherscan API endpoint?
 }
 
 var (
@@ -277,8 +261,8 @@ func main() {
 		log.Fatalf("Unsupported chain: %v", err)
 	}
 
-	coreContract, ok := coreContractMap[chainID]
-	if !ok {
+	coreContract, err := evm.GetContractAddrString(common.MainNet, chainID)
+	if err != nil {
 		panic("no core contract")
 	}
 	ctx := context.Background()
@@ -397,12 +381,18 @@ func main() {
 
 		var from, to string
 		if lastHeight == 0 {
-			from = strconv.Itoa(int(currentHeight - step))
+			if currentHeight-step > math.MaxInt {
+				log.Fatalf("from block overflowed: %v", currentHeight-step)
+			}
+			from = strconv.Itoa(int(currentHeight - step)) // #nosec G115 -- This is checked above
 			to = "latest"
 			lastHeight = currentHeight
 		} else {
-			from = strconv.Itoa(int(lastHeight - step))
-			to = strconv.Itoa(int(lastHeight))
+			if lastHeight > math.MaxInt {
+				log.Fatalf("from block overflowed: %v", lastHeight)
+			}
+			from = strconv.Itoa(int(lastHeight - step)) // #nosec G115 -- If the above is safe, this is safe too
+			to = strconv.Itoa(int(lastHeight))          // #nosec G115 -- This is checked above
 		}
 		lastHeight -= step
 
