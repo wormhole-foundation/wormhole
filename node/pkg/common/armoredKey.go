@@ -8,7 +8,7 @@ import (
 	"os"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"golang.org/x/crypto/openpgp/armor" //nolint
+	"golang.org/x/crypto/openpgp/armor" //nolint // Package is deprecated but we need it in the codebase still.
 	"google.golang.org/protobuf/proto"
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"

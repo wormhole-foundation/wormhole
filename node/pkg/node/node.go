@@ -247,7 +247,7 @@ type channelPair[T any] struct {
 	writeC chan<- T
 }
 
-func makeChannelPair[T any](cap int) channelPair[T] {
-	out := make(chan T, cap)
+func makeChannelPair[T any](capacity int) channelPair[T] {
+	out := make(chan T, capacity)
 	return channelPair[T]{out, out}
 }

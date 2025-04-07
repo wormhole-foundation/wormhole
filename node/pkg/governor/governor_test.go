@@ -46,8 +46,8 @@ func (gov *ChainGovernor) initConfigForTest(
 	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
 }
 
-func (gov *ChainGovernor) setDayLengthInMinutes(min int) {
-	gov.dayLengthInMinutes = min
+func (gov *ChainGovernor) setDayLengthInMinutes(minimum int) {
+	gov.dayLengthInMinutes = minimum
 }
 
 // Utility method: adds a new `chainEntry` to `gov`
@@ -3326,7 +3326,7 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 		),
 	}
 
-	// Post the two big transfers and and verify they get enqueued.
+	// Post the two big transfers and verify they get enqueued.
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	canPost, err := gov.ProcessMsgForTime(&msg1, now)
 	require.NoError(t, err)

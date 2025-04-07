@@ -1025,12 +1025,12 @@ func (sar *SolanaAccountQueryResponse) UnmarshalFromReader(reader *bytes.Reader)
 			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
 		}
 
-		len := uint32(0)
-		if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+		length := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 			return fmt.Errorf("failed to read data len: %w", err)
 		}
-		result.Data = make([]byte, len)
-		if n, err := reader.Read(result.Data[:]); err != nil || n != int(len) {
+		result.Data = make([]byte, length)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(length) {
 			return fmt.Errorf("failed to read data [%d]: %w", n, err)
 		}
 
@@ -1182,12 +1182,12 @@ func (sar *SolanaPdaQueryResponse) UnmarshalFromReader(reader *bytes.Reader) err
 			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
 		}
 
-		len := uint32(0)
-		if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+		length := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 			return fmt.Errorf("failed to read data len: %w", err)
 		}
-		result.Data = make([]byte, len)
-		if n, err := reader.Read(result.Data[:]); err != nil || n != int(len) {
+		result.Data = make([]byte, length)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(length) {
 			return fmt.Errorf("failed to read data [%d]: %w", n, err)
 		}
 
