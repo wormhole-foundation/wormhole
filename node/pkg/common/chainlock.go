@@ -88,6 +88,8 @@ const (
 
 	// TODO: is this big enough?
 	MaxPayloadSize = math.MaxUint16
+	MinTxIdSize    = 1
+	MaxTxIdSize    = math.MaxUint8
 
 	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
@@ -111,10 +113,10 @@ const (
 
 var (
 	ErrBinaryWrite         = errors.New("failed to write binary data")
-	ErrInvalidTxID         = errors.New("field TxID too long")
+	ErrTxIDTooLong         = errors.New("field TxID too long")
+	ErrTxIDTooShort        = errors.New("field TxID too short")
 	ErrInvalidPayload      = errors.New("field payload too long")
 	ErrDataTooShort        = errors.New("data too short")
-	ErrTxIDTooShort        = errors.New("data too short for TxID")
 	ErrTimestampTooShort   = errors.New("data too short for timestamp")
 	ErrNonceTooShort       = errors.New("data too short for nonce")
 	ErrSequenceTooShort    = errors.New("data too short for sequence")
