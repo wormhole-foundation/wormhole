@@ -273,9 +273,14 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
+	// Remove nanoseconds from time.Now(). They are not serialized in the binary
+	// representation. If we don't truncate nanoseconds here, then testing
+	// message equality before and after loading to the database will fail.
+	release := time.Unix(time.Now().Unix(), 0)
+
 	pMsg := &common.PendingMessage{
 		Msg:         *msg,
-		ReleaseTime: time.Now().Add(dur),
+		ReleaseTime: release.Add(dur),
 	}
 
 	// Store in in-memory slice. This should happen even if a database error occurs.

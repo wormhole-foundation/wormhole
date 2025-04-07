@@ -73,7 +73,7 @@ func (e *DBError) Unwrap() error {
 }
 
 func (e *DBError) Error() string {
-	return fmt.Sprintf("notary database: %s key: %x", e.Op, e.Key)
+	return fmt.Sprintf("notary database: %s key: %x error: %v", e.Op, e.Key, e.Err)
 }
 
 func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
