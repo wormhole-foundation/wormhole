@@ -124,7 +124,11 @@ func (s *SuiTransferVerifier) processObjectUpdates(ctx context.Context, objectCh
 		// Get the previous version of the object.
 		resp, err := s.suiApiConnection.TryMultiGetPastObjects(ctx, objectChange.ObjectId, objectChange.Version, objectChange.PreviousVersion)
 		if err != nil {
-			logger.Error("Error in getting past objects", zap.Error(err))
+			logger.Error("Error in getting past objects",
+				zap.String("objectId", objectChange.ObjectId),
+				zap.String("currentVersion", objectChange.Version),
+				zap.String("previousVersion", objectChange.PreviousVersion),
+				zap.Error(err))
 			continue
 		}
 
@@ -184,6 +188,8 @@ func (s *SuiTransferVerifier) ProcessDigestFlagOnly(ctx context.Context, digest 
 }
 
 func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, logger *zap.Logger) (uint, error) {
+	logger.Info("processing digest", zap.String("txDigest", digest))
+
 	// Get the transaction block
 	txBlock, err := s.suiApiConnection.GetTransactionBlock(ctx, digest)
 
