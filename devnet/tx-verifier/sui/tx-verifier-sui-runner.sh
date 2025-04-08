@@ -206,11 +206,13 @@ res=`mint_and_transfer_unsafe_imbalanced $treasury_cap_10 $coin_package_id::coin
 sleep 1
 
 # testcase 3 - do a token bridge transfer where the token is not deposited at all
-resp=`transfer_without_deposit_unsafe $treasury_cap_10 $coin_package_id::coin_10::COIN_10 200_0000000000`
-sleep 5
+res=`transfer_without_deposit_unsafe $treasury_cap_10 $coin_package_id::coin_10::COIN_10 200_0000000000`
+sleep 10
 
 # There should be two of each test - one for pre-start and one for post-start.
 echo "[*] verifying that tests succeeded"
+
+cat /tmp/error.log
 
 if [ $(cat /tmp/error.log | grep "requested amount out is larger than amount in" | wc -l) -ne 2 ]; then
     echo " [-] amount out > amount in test failed"
