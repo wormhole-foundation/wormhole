@@ -1,23 +1,15 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
 FROM const-gen AS const-export
-FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:nightly-55bf41564f605cae3ca4c95ac5d468b1f14447f9@sha256:8c15d322da81a6deaf827222e173f3f81c653136a3518d5eeb41250a0f2e17ea as foundry
-FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
-
-# npm wants to clone random Git repositories - lovely.
-# RUN apk add git python make build-base
-# RUN apk update && apk add bash
-RUN apt-get update && apt-get -y install \
-  git python make curl netcat vim
-
-RUN npm i typescript -g
-RUN apt-get -y install jq
+FROM ghcr.io/wormholelabs-xyz/foundry:nightly-55bf41564f605cae3ca4c95ac5d468b1f14447f9@sha256:50ffe8f3ba79274eaab85ce65e769e3d66b1c680f5a9acb9c25a393c4daeeeeb as foundry
+FROM node:19.6.1-slim@sha256:e684615bdfb71cb676b3d0dfcc538c416f7254697d8f9639bd87255062fd1681
 
 COPY --from=foundry /usr/local/bin/anvil /bin/anvil
 COPY --from=foundry /usr/local/bin/forge /bin/forge
 
+RUN apt-get update && apt-get -y install git python3 build-essential curl netcat vim jq
+
 # Run as user, otherwise, npx explodes.
 USER 1000
-
 
 RUN mkdir -p /home/node/app
 RUN mkdir -p /home/node/.npm

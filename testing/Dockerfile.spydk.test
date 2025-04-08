@@ -1,7 +1,7 @@
-FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
+FROM node:19.6.1-slim@sha256:e684615bdfb71cb676b3d0dfcc538c416f7254697d8f9639bd87255062fd1681
 
 RUN apt-get update && apt-get -y install \
-  git python3 make curl netcat
+  git python3 make curl netcat g++
 
 RUN mkdir -p /app
 WORKDIR /app
