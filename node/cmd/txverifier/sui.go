@@ -18,6 +18,7 @@ import (
 
 const (
 	INITIAL_EVENT_FETCH_LIMIT = 25
+	EVENT_QUERY_INTERVAL      = 2 * time.Second
 )
 
 // CLI args
@@ -155,7 +156,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	}
 
 	// Ticker for live processing
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(EVENT_QUERY_INTERVAL)
 	defer ticker.Stop()
 
 	for {
