@@ -56,8 +56,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
 	// Setup logging
-	// lvl, err := ipfslog.LevelFromString(*logLevel)
-	lvl, err := ipfslog.LevelFromString("info")
+	lvl, err := ipfslog.LevelFromString(*logLevel)
 	if err != nil {
 		fmt.Println("Invalid log level")
 		os.Exit(1)

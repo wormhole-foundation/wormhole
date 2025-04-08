@@ -191,7 +191,7 @@ echo "[*] starting the sui transfer verifier"
     --suiCoreContract "${core_bridge_package_id}" \
     --suiTokenBridgeContract "${token_bridge_package_id}" \
     --suiTokenBridgeEmitter "${token_bridge_emitter_cap}" \
-    --logLevel=info \
+    --logLevel=debug \
     --suiProcessInitialEvents=true \
     2> /tmp/error.log &
 
