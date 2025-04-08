@@ -206,7 +206,7 @@ func NewWatcher(
 			suiTokenBridgeAddress = sdk.KnownTestnetTokenBridgeContracts[vaa.ChainIDSui]
 			suiTokenBridgeEmitter = string(sdk.KnownTestnetTokenbridgeEmitters[vaa.ChainIDSui])
 
-		case common.UnsafeDevNet:
+		case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 			suiCoreBridgeAddress = sdk.KnownDevnetCoreContracts[vaa.ChainIDSui]
 			suiTokenBridgeAddress = sdk.KnownDevnetTokenBridgeContracts[vaa.ChainIDSui]
 			suiTokenBridgeEmitter = string(sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDSui])

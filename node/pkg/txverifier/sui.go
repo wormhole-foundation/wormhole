@@ -116,8 +116,17 @@ func (s *SuiTransferVerifier) processObjectUpdates(ctx context.Context, objectCh
 	transferredIntoBridge = make(map[string]*big.Int)
 
 	for _, objectChange := range objectChanges {
-		// Check that the type information is correct.
+		// Check that the type information is correct. Doing it here means it's not necessary to do it
+		// again, even in the case where `GetObject` is used for a single object instead of getting past
+		// objects.
 		if !objectChange.ValidateTypeInformation(s.suiTokenBridgeContract) {
+			continue
+		}
+
+		if objectChange.PreviousVersion == "" {
+			logger.Warn("No previous version of asset available",
+				zap.String("objectId", objectChange.ObjectId),
+				zap.String("currentVersion", objectChange.Version))
 			continue
 		}
 
@@ -188,7 +197,7 @@ func (s *SuiTransferVerifier) ProcessDigestFlagOnly(ctx context.Context, digest 
 }
 
 func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, logger *zap.Logger) (uint, error) {
-	logger.Info("processing digest", zap.String("txDigest", digest))
+	logger.Debug("Processing digest", zap.String("txDigest", digest))
 
 	// Get the transaction block
 	txBlock, err := s.suiApiConnection.GetTransactionBlock(ctx, digest)
@@ -200,6 +209,11 @@ func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, 
 
 	// process all events, indicating funds that are leaving the chain
 	requestedOutOfBridge, numEventsProcessed := s.processEvents(txBlock.Result.Events, logger)
+
+	if numEventsProcessed == 0 {
+		// No valid events were identified, so the digest does not require further processing.
+		return 0, nil
+	}
 
 	// process all object changes, indicating funds that are entering the chain
 	transferredIntoBridge, numChangesProcessed := s.processObjectUpdates(ctx, txBlock.Result.ObjectChanges, logger)
@@ -231,7 +245,7 @@ func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, 
 			zap.String("amountIn", amountIn.String()))
 	}
 
-	logger.Info("Digest processed", zap.String("txDigest", digest), zap.Uint("numEventsProcessed", numEventsProcessed), zap.Uint("numChangesProcessed", numChangesProcessed))
+	logger.Debug("Digest processed", zap.String("txDigest", digest), zap.Uint("numEventsProcessed", numEventsProcessed), zap.Uint("numChangesProcessed", numChangesProcessed))
 
 	return numEventsProcessed, nil
 }
