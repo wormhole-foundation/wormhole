@@ -297,7 +297,7 @@ var (
 	txVerifierChains []vaa.ChainID
 
 	// featureFlags are additional static flags that should be published in P2P heartbeats.
-	featureFlags []string
+	featureFlags  []string
 	notaryEnabled *bool
 )
 
