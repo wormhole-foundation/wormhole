@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -502,7 +501,8 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 			}
 
-			go handleReobservationRequests(ctx, clock.New(), logger, g.obsvReqC.readC, chainObsvReqC)
+			clock := &CacheClock{}
+			go handleReobservationRequests(ctx, clock, logger, g.obsvReqC.readC, chainObsvReqC)
 
 			return nil
 		}}
