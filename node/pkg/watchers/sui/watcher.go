@@ -321,7 +321,9 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 	err = e.verifyAndPublish(ctx, observation, *body.ID.TxDigest, logger)
 
 	if err != nil {
-		logger.Error("Message publication error", zap.String("TxDigest", *body.ID.TxDigest))
+		logger.Error("Message publication error",
+			zap.String("TxDigest", *body.ID.TxDigest),
+			zap.Error(err))
 	}
 
 	return nil

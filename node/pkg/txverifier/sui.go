@@ -1,9 +1,5 @@
 package txverifier
 
-// TODOs:
-//	* balances on Sui are stored as u64's. Consider using uint64 instead of big.Int
-//  * replace errors with error.join() like EVM
-
 import (
 	"context"
 	"encoding/json"
@@ -223,19 +219,25 @@ func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, 
 
 		if _, exists := transferredIntoBridge[key]; !exists {
 			// This implies that a token leaving the bridge was never deposited into it.
-			logger.Error("token bridge transfer requested for tokens that were never deposited",
-				zap.String("tokenAddress", keyParts[0]))
+			errMsg := "token bridge transfer requested for tokens that were never deposited"
 
-			return 0, errors.New("transfer-out request for tokens that were never deposited")
+			logger.Error(errMsg, zap.String("tokenAddress", keyParts[0]))
+
+			return 0, errors.New(errMsg)
 		}
 
 		amountIn := transferredIntoBridge[key]
 
 		if amountOut.Cmp(amountIn) > 0 {
 			// Implies that more tokens are being requested out of the bridge than were deposited into it.
-			logger.Error("token bridge transfer requested for an amount larger than what was deposited",
-				zap.String("tokenAddress", keyParts[0]), zap.String("amountOut", amountOut.String()), zap.String("amountIn", amountIn.String()))
-			return 0, errors.New("requested amount out is larger than amount in")
+			errMsg := "token bridge transfer requested for an amount larger than what was deposited"
+
+			logger.Error(errMsg,
+				zap.String("tokenAddress", keyParts[0]),
+				zap.String("amountOut", amountOut.String()),
+				zap.String("amountIn", amountIn.String()))
+
+			return 0, errors.New(errMsg)
 		}
 
 		logger.Info("bridge request processed",
@@ -254,7 +256,6 @@ type SuiApiResponse interface {
 	GetError() error
 }
 
-// TODO: add context
 func suiApiRequest[T SuiApiResponse](ctx context.Context, rpc string, method string, params string) (T, error) {
 	var defaultT T
 

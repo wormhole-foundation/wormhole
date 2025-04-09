@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	INITIAL_EVENT_FETCH_LIMIT = 25
-	EVENT_QUERY_INTERVAL      = 2 * time.Second
+	InitialEventFetchLimit = 25
+	EventQueryInterval     = 2 * time.Second
 )
 
 // CLI args
@@ -117,7 +117,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	eventFilter := suiTransferVerifier.GetEventFilter()
 
 	// Initial event fetching
-	resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", INITIAL_EVENT_FETCH_LIMIT, true)
+	resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", InitialEventFetchLimit, true)
 	if err != nil {
 		logger.Fatal("Error in querying initial events", zap.Error(err))
 	}
@@ -155,7 +155,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	}
 
 	// Ticker for live processing
-	ticker := time.NewTicker(EVENT_QUERY_INTERVAL)
+	ticker := time.NewTicker(EventQueryInterval)
 	defer ticker.Stop()
 
 	for {

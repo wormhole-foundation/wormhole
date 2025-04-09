@@ -12,7 +12,7 @@ import (
 
 type WatcherConfig struct {
 	NetworkID         watchers.NetworkID // human readable name
-	ChainID           vaa.ChainID        // ChainID
+	ChainID           vaa.ChainID
 	Rpc               string
 	SuiMoveEventType  string
 	TxVerifierEnabled bool

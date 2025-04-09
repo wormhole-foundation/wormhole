@@ -30,6 +30,7 @@ The transfer verifier integration tests for Sui also involve interacting with th
 
 * The Sui transfer verifier container is set up such that it can build and deploy a fresh core and token bridge to the Sui node.
 * The token bridge's `transfer_tokens` module is modified by the Sui runner script to include two unsafe functions that bypass important security checks.
+* The CI tests rely on the `worm` cli for deployment, and the `sui` cli for interacting with the node.
 
 Similar to EVM, the errors are logged to a file and subsequently read to determine whether or not the malicious actions were detected.
 
