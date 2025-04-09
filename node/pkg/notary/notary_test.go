@@ -21,7 +21,7 @@ func (md MockNotaryDB) StoreBlackhole(m *common.MessagePublication) error   { re
 func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
 func (md MockNotaryDB) DeleteBlackholed(m *common.MessagePublication) error { return nil }
 func (md MockNotaryDB) DeleteDelayed(p *common.PendingMessage) error        { return nil }
-func (md MockNotaryDB) LoadAll() (*db.NotaryLoadResult, error)              { return nil, nil }
+func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) { return nil, nil }
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
