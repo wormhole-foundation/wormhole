@@ -134,7 +134,7 @@ func (s *supervisor) processSchedule(r *processorRequestSchedule) {
 		if !s.propagatePanic {
 			defer func() {
 				if rec := recover(); rec != nil {
-					s.pReq <- &processorRequest{
+					s.pReq <- &processorRequest{ //nolint:channelcheck // Will only block this go routine
 						died: &processorRequestDied{
 							dn:  r.dn,
 							err: fmt.Errorf("panic: %v, stacktrace: %s", rec, string(debug.Stack())),
@@ -146,7 +146,7 @@ func (s *supervisor) processSchedule(r *processorRequestSchedule) {
 
 		res := n.runnable(n.ctx)
 
-		s.pReq <- &processorRequest{
+		s.pReq <- &processorRequest{ //nolint:channelcheck // Will only block this go routine
 			died: &processorRequestDied{
 				dn:  r.dn,
 				err: res,
@@ -387,7 +387,7 @@ func (s *supervisor) processGC() {
 		// Reschedule node runnable to run after backoff.
 		go func(n *node, bo time.Duration) {
 			time.Sleep(bo)
-			s.pReq <- &processorRequest{
+			s.pReq <- &processorRequest{ //nolint:channelcheck // Will only block this go routine
 				schedule: &processorRequestSchedule{dn: n.dn()},
 			}
 		}(n, bo)

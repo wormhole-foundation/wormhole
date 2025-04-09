@@ -81,6 +81,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -628,7 +629,7 @@ func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartb
 		panic(err)
 	}
 
-	sendC <- b
+	common.WriteToChannelWithoutBlocking(sendC, b, "gov_config_gossip_out")
 }
 
 func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
@@ -713,5 +714,5 @@ func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartb
 		panic(err)
 	}
 
-	sendC <- b
+	common.WriteToChannelWithoutBlocking(sendC, b, "gov_status_gossip_out")
 }
