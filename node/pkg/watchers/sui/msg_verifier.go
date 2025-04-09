@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
@@ -31,9 +32,9 @@ func (e *Watcher) verify(
 
 	var verificationState common.VerificationState
 
-	// If the emitter address of the message does not match the token bridge emitter,
-	// mark the message's verification state as NotApplicable.
-	if localMsg.EmitterAddress.String() != e.suiTxVerifier.GetTokenBridgeEmitter() {
+	// If the payload does not represent a transfer, or if the emitter address of the message does
+	// not match the token bridge emitter, mark the message's verification state as NotApplicable.
+	if !vaa.IsTransfer(msg.Payload) || localMsg.EmitterAddress.String() != e.suiTxVerifier.GetTokenBridgeEmitter() {
 		verificationState = common.NotApplicable
 	} else {
 		// Validate the transfers in the transaction block associated with the
