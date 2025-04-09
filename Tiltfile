@@ -994,7 +994,7 @@ if aptos:
         labels = ["aptos"],
         trigger_mode = trigger_mode,
     )
-    
+
 def build_query_server_yaml():
     qs_yaml = read_yaml_stream("devnet/query-server.yaml")
 
