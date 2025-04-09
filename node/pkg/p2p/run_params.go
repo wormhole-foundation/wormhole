@@ -42,27 +42,28 @@ type (
 		disableHeartbeatVerify bool
 
 		// The following options are guardian specific. Set with `WithGuardianOptions`.
-		nodeName               string
-		guardianSigner         guardiansigner.GuardianSigner
-		gossipControlSendC     chan []byte
-		gossipAttestationSendC chan []byte
-		gossipVaaSendC         chan []byte
-		obsvReqSendC           <-chan *gossipv1.ObservationRequest
-		acct                   *accountant.Accountant
-		gov                    *governor.ChainGovernor
-		components             *Components
-		ibcFeaturesFunc        func() string
-		processorFeaturesFunc  func() string
-		gatewayRelayerEnabled  bool
-		ccqEnabled             bool
-		signedQueryReqC        chan<- *gossipv1.SignedQueryRequest
-		queryResponseReadC     <-chan *query.QueryResponsePublication
-		ccqBootstrapPeers      string
-		ccqPort                uint
-		ccqAllowedPeers        string
-		protectedPeers         []string
-		ccqProtectedPeers      []string
-		featureFlags           []string
+		nodeName                       string
+		guardianSigner                 guardiansigner.GuardianSigner
+		gossipControlSendC             chan []byte
+		gossipAttestationSendC         chan []byte
+		gossipVaaSendC                 chan []byte
+		obsvReqSendC                   <-chan *gossipv1.ObservationRequest
+		acct                           *accountant.Accountant
+		gov                            *governor.ChainGovernor
+		components                     *Components
+		ibcFeaturesFunc                func() string
+		processorFeaturesFunc          func() string
+		alternatePublisherFeaturesFunc func() string
+		gatewayRelayerEnabled          bool
+		ccqEnabled                     bool
+		signedQueryReqC                chan<- *gossipv1.SignedQueryRequest
+		queryResponseReadC             <-chan *query.QueryResponsePublication
+		ccqBootstrapPeers              string
+		ccqPort                        uint
+		ccqAllowedPeers                string
+		protectedPeers                 []string
+		ccqProtectedPeers              []string
+		featureFlags                   []string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -113,6 +114,14 @@ func WithComponents(components *Components) RunOpt {
 func WithProcessorFeaturesFunc(processorFeaturesFunc func() string) RunOpt {
 	return func(p *RunParams) error {
 		p.processorFeaturesFunc = processorFeaturesFunc
+		return nil
+	}
+}
+
+// WithAlternatePublisherFeaturesFunc is used to set the alternate publisher features function.
+func WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc func() string) RunOpt {
+	return func(p *RunParams) error {
+		p.alternatePublisherFeaturesFunc = alternatePublisherFeaturesFunc
 		return nil
 	}
 }

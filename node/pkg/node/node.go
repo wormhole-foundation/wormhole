@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
+	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -64,13 +65,14 @@ type G struct {
 	guardianSigner guardiansigner.GuardianSigner
 
 	// components
-	db              *db.Database
-	gst             *common.GuardianSetState
-	acct            *accountant.Accountant
-	gov             *governor.ChainGovernor
-	gatewayRelayer  *gwrelayer.GatewayRelayer
-	queryHandler    *query.QueryHandler
-	publicrpcServer *grpc.Server
+	db                 *db.Database
+	gst                *common.GuardianSetState
+	acct               *accountant.Accountant
+	gov                *governor.ChainGovernor
+	gatewayRelayer     *gwrelayer.GatewayRelayer
+	queryHandler       *query.QueryHandler
+	publicrpcServer    *grpc.Server
+	alternatePublisher *altpub.AlternatePublisher
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
