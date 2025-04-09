@@ -4,7 +4,6 @@ FROM guardiand-image as base
 FROM cli-gen AS cli-export
 FROM const-gen AS const-export
 FROM sui-node AS sui-node-base
-# FROM ghcr.io/wormhole-foundation/sui:1.19.1-mainnet@sha256:97e2e62d43262883b7a5bed5c9a9dd83d766a00a9476473eb275948fb53d376e AS sui
 
 COPY --from=const-export .env .env
 COPY --from=cli-export clients/js /cli
