@@ -87,7 +87,7 @@ type G struct {
 	gst                *common.GuardianSetState
 	acct               *accountant.Accountant
 	gov                *governor.ChainGovernor
-	notary          *notary.Notary
+	notary             *notary.Notary
 	gatewayRelayer     *gwrelayer.GatewayRelayer
 	queryHandler       *query.QueryHandler
 	publicrpcServer    *grpc.Server
