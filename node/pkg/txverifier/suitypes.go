@@ -8,12 +8,11 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-const SUI_CHAIN_ID = 21
-
 // The SuiApi interface defines the functions that are required to interact with the Sui RPC.
-// TODO: add context
 type SuiApiInterface interface {
 	QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
 	GetTransactionBlock(ctx context.Context, txDigest string) (SuiGetTransactionBlockResponse, error)
@@ -200,7 +199,7 @@ func (r SuiTryMultiGetPastObjectsResponse) GetTokenAddress() (string, error) {
 	return tokenAddress0, nil
 }
 
-func (r SuiTryMultiGetPastObjectsResponse) GetTokenChain() (uint16, error) {
+func (r SuiTryMultiGetPastObjectsResponse) GetTokenChain() (vaa.ChainID, error) {
 	chain0, err0 := r.Result[0].GetTokenChain()
 	chain1, err1 := r.Result[1].GetTokenChain()
 
@@ -369,7 +368,7 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenAddress() (tokenAddress string,
 
 // Get the token's chain ID. This will be the chain ID of the network the token
 // originated from.
-func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (uint16, error) {
+func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (vaa.ChainID, error) {
 
 	wrapped, err := r.IsWrapped()
 
@@ -378,7 +377,7 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (uint16, error) {
 	}
 
 	if !wrapped {
-		return SUI_CHAIN_ID, nil
+		return vaa.ChainIDSui, nil
 	}
 
 	path := "content.fields.value.fields.info.fields.token_chain"
@@ -389,7 +388,7 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (uint16, error) {
 		return 0, fmt.Errorf("error in extracting chain: %w", err)
 	}
 
-	return uint16(chain), nil
+	return vaa.ChainID(chain), nil
 }
 
 func (r SuiTryMultiGetPastObjectsResult) GetObjectId() (string, error) {
