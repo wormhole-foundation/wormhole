@@ -34,6 +34,7 @@ The fields are defined as follows:
 - **url** is the http server endpoint to which the guardian should connect and publish.
 - **delay**, if specified (or non-zero) is the time the guardian should delay in order to batch observations. Zero / not set means publish immediately.
 - **chains**, if specified, is a comma-separated list of emitter chain IDs or names for which observations should be forwarded. If not set, all chains will be published.
+  For supported values, please see the definition of `ChainID` [here](../../../sdk/vaa/structs.go).
 
 The **label** and **url** fields are required, but the **delay** and **chains** are optional.
 

@@ -17,7 +17,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
-	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
@@ -305,7 +304,7 @@ func init() {
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
 	NodeCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
-	additionalPublishers = NodeCmd.Flags().StringArray("additionalPublishEndpoint", []string{}, "defines an alternate publisher as label:url:delay:chains where delay and chains are optional")
+	additionalPublishers = NodeCmd.Flags().StringArray("additionalPublishEndpoint", []string{}, "defines an alternate publisher as label;url;delay;chains where delay and chains are optional")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -1906,7 +1905,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	var guardianAddrAsBytes []byte
 	if len(*additionalPublishers) > 0 {
-		guardianAddrAsBytes = crypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
+		guardianAddrAsBytes = ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
 	}
 
 	guardianOptions := []*node.GuardianOption{
