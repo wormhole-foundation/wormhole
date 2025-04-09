@@ -214,12 +214,12 @@ echo "[*] verifying that tests succeeded"
 
 cat /tmp/error.log
 
-if [ $(cat /tmp/error.log | grep "requested amount out is larger than amount in" | wc -l) -ne 2 ]; then
+if [ $(cat /tmp/error.log | grep "token bridge transfer requested for an amount larger than what was deposited" | wc -l) -ne 4 ]; then
     echo " [-] amount out > amount in test failed"
     exit 1
 fi
 
-if [ $(cat /tmp/error.log | grep "transfer-out request for tokens that were never deposited" | wc -l) -ne 2 ]; then
+if [ $(cat /tmp/error.log | grep "token bridge transfer requested for tokens that were never deposited" | wc -l) -ne 4 ]; then
     echo " [-] amount in == 0 test failed"
     exit 1
 fi
