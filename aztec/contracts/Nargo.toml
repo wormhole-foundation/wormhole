@@ -1,0 +1,10 @@
+[package]
+name = "aztec"
+compiler_version = ">=0.25.0"
+type = "contract"
+
+[dependencies]
+aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="v0.81.0", directory="noir-projects/aztec-nr/aztec" }
+uint_note = { git = "https://github.com/AztecProtocol/aztec-packages/", tag = "v0.81.0" , directory="noir-projects/aztec-nr/uint-note" }
+token = { git = "https://github.com/AztecProtocol/aztec-packages/", tag = "v0.81.0" , directory="noir-projects/noir-contracts/contracts/token_contract" }
+router = { git = "https://github.com/AztecProtocol/aztec-packages/", tag = "v0.81.0" , directory="noir-projects/noir-contracts/contracts/router_contract" }

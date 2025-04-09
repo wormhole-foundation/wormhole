@@ -59,6 +59,7 @@ config.define_bool("near", False, "Enable Near component")
 config.define_bool("sui", False, "Enable Sui component")
 config.define_bool("btc", False, "Enable BTC component")
 config.define_bool("aptos", False, "Enable Aptos component")
+config.define_bool("aztec", False, "Enable Aztec component")
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
@@ -85,6 +86,7 @@ ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
+aztec = cfg.get("aztec", ci)
 sui = cfg.get("sui", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
@@ -226,6 +228,14 @@ def build_node_yaml():
                     "de0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
                     "--aptosHandle",
                     "0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017::state::WormholeMessageHandle",
+                ]
+
+            if aztec:
+                container["command"] += [
+                    "--aztecRPC",
+                    "",
+                    "--aztecContract",
+                    "de0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
                 ]
 
             if sui:
@@ -381,6 +391,8 @@ if algorand:
     guardian_resource_deps = guardian_resource_deps + ["algorand"]
 if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
+if aztec:
+    guardian_resource_deps = guardian_resource_deps + ["aztec"]
 if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["wormchain", "wormchain-deploy"]
 if sui:
@@ -982,7 +994,7 @@ if aptos:
         labels = ["aptos"],
         trigger_mode = trigger_mode,
     )
-
+    
 def build_query_server_yaml():
     qs_yaml = read_yaml_stream("devnet/query-server.yaml")
 
