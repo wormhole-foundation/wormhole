@@ -31,6 +31,10 @@ generate: dirs
 	rm -rf node/pkg/proto
 	tools/bin/buf generate
 
+.PHONY: lint
+lint:
+	bash scripts/lint.sh lint
+
 .PHONY: node
 ## Build guardiand binary
 node: $(BIN)/guardiand
