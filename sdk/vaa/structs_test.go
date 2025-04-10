@@ -552,12 +552,12 @@ func TestVerifySignatures(t *testing.T) {
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
+			result:     false},
 		{label: "NoSignerOne",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{1},
-			result:     true},
+			result:     false},
 		{label: "SingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
@@ -684,9 +684,8 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 		indexPair []uint8
 	}
 
-	// Known good cases where we should have a verified result for
+	// Known good cases where we should have a verified result.
 	allows := []allow{
-		{keyPair: []*ecdsa.PrivateKey{}, indexPair: []uint8{}},
 		{keyPair: []*ecdsa.PrivateKey{privKey1}, indexPair: []uint8{0}},
 		{keyPair: []*ecdsa.PrivateKey{privKey2}, indexPair: []uint8{1}},
 		{keyPair: []*ecdsa.PrivateKey{privKey3}, indexPair: []uint8{2}},
@@ -776,10 +775,10 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 				vaa.AddSignature(key, tc.indexOrder[i])
 			}
 
-			/* Fuzz Debugging
-			 * Tell us what keys and indexes were used (for debug when/if we have a failure case)
-			 */
-			if vaa.VerifySignatures(tc.addrs) != tc.result {
+			// Fuzz Debugging
+			// Tell us what keys and indexes were used (for debug when/if we have a failure case).
+			actual := vaa.VerifySignatures(tc.addrs)
+			if actual != tc.result {
 				if len(tc.keyOrder) == 0 {
 					t.Logf("Key Order %v\n", tc.keyOrder)
 				} else {
@@ -797,7 +796,7 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 
 			}
 
-			assert.Equal(t, tc.result, vaa.VerifySignatures(tc.addrs))
+			assert.Equal(t, tc.result, actual)
 		})
 	}
 }
