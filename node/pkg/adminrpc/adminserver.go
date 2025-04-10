@@ -361,7 +361,7 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 
 // wormchainInstantiateContract converts a nodev1.WormchainInstantiateContract to its canonical VAA representation
 // Returns an error if the data is invalid
-func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	instantiationParams_hash := vaa.CreateInstatiateCosmwasmContractHash(req.CodeId, req.Label, []byte(req.InstantiationMsg))
 
 	body, err := vaa.BodyWormchainInstantiateContract{
@@ -377,7 +377,7 @@ func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, time
 }
 
 // wormchainMigrateContract converts a nodev1.WormchainMigrateContract to its canonical VAA representation
-func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	instantiationParams_hash := vaa.CreateMigrateCosmwasmContractHash(req.CodeId, req.Contract, []byte(req.InstantiationMsg))
 
 	body, err := vaa.BodyWormchainMigrateContract{
@@ -398,7 +398,7 @@ func wormchainWasmInstantiateAllowlist(
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+) (*vaa.VAA, error) {
 	decodedAddr, err := sdktypes.GetFromBech32(req.Contract, "wormhole")
 	if err != nil {
 		return nil, err
@@ -435,7 +435,7 @@ func gatewayScheduleUpgrade(
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+) (*vaa.VAA, error) {
 
 	body, err := vaa.BodyGatewayScheduleUpgrade{
 		Name:   req.Name,
@@ -455,7 +455,7 @@ func gatewayCancelUpgrade(
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+) (*vaa.VAA, error) {
 
 	body, err := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
 

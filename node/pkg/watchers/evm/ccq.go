@@ -713,7 +713,9 @@ func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([
 }
 
 // ccqVerifyBlockResult does basic verification on the results of the block query.
-func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.BlockMarshaller) error { //nolint:unparam
+//
+//nolint:unparam // Reports "always receives nil" but this is the intention.
+func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.BlockMarshaller) error {
 	if blockError != nil {
 		return blockError
 	}

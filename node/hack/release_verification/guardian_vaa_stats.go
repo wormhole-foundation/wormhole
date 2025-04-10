@@ -30,7 +30,9 @@ func getValidatorIndexForChain(chainId vaa.ChainID, onlyafter time.Time) (map[ui
 	method := "GET"
 
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, nil) //nolint
+
+	//nolint:noctx // TODO: this function should use a context.
+	req, err := http.NewRequest(method, url, nil)
 
 	if err != nil {
 		return nil, err
