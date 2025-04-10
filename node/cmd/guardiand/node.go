@@ -962,6 +962,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	
 	if !argsConsistent([]string{*aztecRPC, *aztecContract}) {
 		logger.Fatal("Either --aztecRPC and --aztecContract must all be set or all unset")
+	}
 	
 		// NOTE: If this flag isn't set, or the list is empty, Transfer Verifier should not be enabled.
 	if len(*transferVerifierEnabledChainIDs) != 0 {
