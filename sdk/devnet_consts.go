@@ -4,6 +4,10 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+// DevnetEthereumCoreBridgeAddr is the EVM core bridge contract address matching the mnemonic phrase
+// used in the devnet set-up environment. See also docs/devnet.md
+var DevnetEthereumCoreBridgeAddr = "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+
 // KnownDevnetEmitters is a list of known emitters used during development.
 var KnownDevnetEmitters = buildKnownEmitters(knownDevnetTokenbridgeEmitters, knownDevnetNFTBridgeEmitters)
 
