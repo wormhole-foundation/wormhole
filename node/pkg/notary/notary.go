@@ -154,7 +154,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	case common.Rejected:
 		err = n.blackhole(msg)
 		v = Blackhole
-	default:
+	case common.NotVerified, common.NotApplicable, common.Valid:
 		// NOTE: All other statuses are simply approved for now. In the future, it may be
 		// desirable to log a warning if a [common.NotVerified] message is handled here, with
 		// the idea that messages handled by the Notary must already have a non-default

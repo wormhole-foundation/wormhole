@@ -160,6 +160,8 @@ func (d *NotaryDB) LoadAll(logger *zap.Logger) (*NotaryLoadResult, error) {
 					)
 				}
 				result.Delayed = append(result.Delayed, &pMsg)
+			case Unknown:
+				// Should only occur in case of an error.
 			default:
 				// The key-value store is shared across other modules and message types (e.g. Governor, Accountant).
 				// If another key is discovered, just ignore it.
