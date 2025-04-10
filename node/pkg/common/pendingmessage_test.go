@@ -36,8 +36,8 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 		input common.MessagePublication
 		err   error
 	}
-	longPayload := bytes.NewBuffer(make([]byte, math.MaxUint16+1, math.MaxUint16+1))
-	longTxID := bytes.NewBuffer(make([]byte, math.MaxUint8+1, math.MaxUint8+1))
+	longPayload := bytes.NewBuffer(make([]byte, math.MaxUint16+1))
+	longTxID := bytes.NewBuffer(make([]byte, math.MaxUint8+1))
 	emitter, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
