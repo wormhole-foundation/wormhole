@@ -7,6 +7,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: wormhole-foundation/generic-relayer
@@ -15,7 +18,6 @@ jobs:
   build-and-push-relayer-image:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       packages: write
 
     steps:

@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+
+permissions:
+  contents: read
+
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:
