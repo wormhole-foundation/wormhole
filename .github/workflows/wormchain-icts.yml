@@ -8,9 +8,7 @@ on:
     branches:
       - "main"
 
-permissions:
-  contents: read
-  packages: write
+permissions: write-all
 
 env:
   GO_VERSION: 1.21
@@ -35,10 +33,10 @@ jobs:
           cache-dependency-path: wormchain/interchaintest/go.sum
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
 
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           file: wormchain/Dockerfile.ict
