@@ -19,8 +19,8 @@ type PendingMessage struct {
 	Msg         MessagePublication
 }
 
-func (this PendingMessage) Compare(that PendingMessage) int {
-	return cmp.Compare(this.ReleaseTime.Unix(), that.ReleaseTime.Unix())
+func (p PendingMessage) Compare(other PendingMessage) int {
+	return cmp.Compare(p.ReleaseTime.Unix(), other.ReleaseTime.Unix())
 }
 
 // MarshalBinary implements BinaryMarshaler for [PendingMessage].
