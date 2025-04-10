@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: aztec-sandbox
+  name: aztec-sandbox
+spec:
+  ports:
+    - name: rpc
+      port: 8090
+      targetPort: 8090
+  selector:
+    app: aztec-sandbox
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: aztec-sandbox
+  name: aztec-sandbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aztec-sandbox
+  serviceName: aztec-sandbox
+  template:
+    metadata:
+      labels:
+        app: aztec-sandbox
+    spec:
+      containers:
+        - name: aztec-sandbox
+          image: aztecprotocol/aztec:0.82.2
+          command: ["bash"]
+          args:
+            - -c
+            - "anvil --host 0.0.0.0 --silent & node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --sandbox"
+          env:
+            - name: LOG_LEVEL
+              value: "info"
+            - name: ETHEREUM_HOSTS
+              value: "http://0.0.0.0:8545"
+            - name: L1_CHAIN_ID
+              value: "31337"
+            - name: ARCHIVER_POLLING_INTERVAL_MS
+              value: "50"
+            - name: P2P_BLOCK_CHECK_INTERVAL_MS
+              value: "50"
+            - name: SEQ_TX_POLLING_INTERVAL_MS
+              value: "50"
+            - name: WS_BLOCK_CHECK_INTERVAL_MS
+              value: "50"
+            - name: ARCHIVER_VIEM_POLLING_INTERVAL_MS
+              value: "500"
+            - name: PXE_PORT
+              value: "8090"
+            - name: PORT
+              value: "8090"
+            - name: AZTEC_PORT
+              value: "8090"
+            - name: TEST_ACCOUNTS
+              value: "true"
+            - name: P2P_BOOTSTRAP
+              value: "1"
+          ports:
+            - containerPort: 8090
+              name: node
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: node
+---
+

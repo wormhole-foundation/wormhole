@@ -161,7 +161,7 @@ def command_with_dlv(argv):
     ] + argv[1:]
 
 def generate_bootstrap_peers(num_guardians, port_num):
-    # Improve the chances of the guardians discovering each other in tilt by making them all bootstrap peers. 
+    # Improve the chances of the guardians discovering each other in tilt by making them all bootstrap peers.
     # The devnet guardian uses deterministic P2P peer IDs based on the guardian index. The peer IDs here
     # were generated using `DeterministicP2PPrivKeyByIndex` in `node/pkg/devnet/deterministic_p2p_key.go`.
     peer_ids = [
@@ -183,7 +183,7 @@ def generate_bootstrap_peers(num_guardians, port_num):
         "12D3KooW9yvKfP5HgVaLnNaxWywo3pLAEypk7wjUcpgKwLznk5gQ",
         "12D3KooWRuYVGEsecrJJhZsSoKf1UNdBVYKFCmFLNj9ucZiSQCYj",
         "12D3KooWGEcD5sW5osB6LajkHGqiGc3W8eKfYwnJVVqfujkpLWX2",
-        "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY" 
+        "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY"
     ]
     bootstrap = ""
     for idx in range(num_guardians):
@@ -218,7 +218,7 @@ def build_node_yaml():
                     bootstrapPeers,
                     "--ccqP2pBootstrap",
                     ccqBootstrapPeers,
-                ]            
+                ]
 
             if aptos:
                 container["command"] += [
@@ -233,7 +233,7 @@ def build_node_yaml():
             if aztec:
                 container["command"] += [
                     "--aztecRPC",
-                    "",
+                    "http://aztec-sandbox:8090",
                     "--aztecContract",
                     "de0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017",
                 ]
@@ -392,7 +392,7 @@ if algorand:
 if aptos:
     guardian_resource_deps = guardian_resource_deps + ["aptos"]
 if aztec:
-    guardian_resource_deps = guardian_resource_deps + ["aztec"]
+    guardian_resource_deps = guardian_resource_deps + ["aztec-sandbox"]
 if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["wormchain", "wormchain-deploy"]
 if sui:
@@ -670,7 +670,7 @@ if ci_tests:
                     "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
                     "MAX_WORKERS", max_workers))
     )
-    
+
     # separate resources to parallelize docker builds
     k8s_resource(
         "sdk-ci-tests",
@@ -992,6 +992,17 @@ if aptos:
             port_forward(8081, name = "Faucet [:8081]", host = webHost),
         ],
         labels = ["aptos"],
+        trigger_mode = trigger_mode,
+    )
+
+if aztec:
+    k8s_yaml_with_ns("devnet/aztec-devnet.yaml")
+    k8s_resource(
+        "aztec-sandbox",
+        port_forwards = [
+            port_forward(8090, name = "RPC [:8090]", host = webHost)
+        ],
+        labels = ["aztec-sandbox"],
         trigger_mode = trigger_mode,
     )
 
