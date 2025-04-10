@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   GO_VERSION: 1.21
@@ -24,6 +23,8 @@ concurrency:
 jobs:
   build-docker:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
