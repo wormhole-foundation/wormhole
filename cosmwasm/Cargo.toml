@@ -31,6 +31,9 @@ panic = 'abort'
 incremental = false
 overflow-checks = true
 
+[workspace.package]
+shutdown-core-bridge-cosmwasm = { path = "contracts/shutdown-wormhole", default-features = false}
+
 [workspace.dependencies.serde_wormhole]
 version = "0.1.0"
 
