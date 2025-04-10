@@ -36,9 +36,8 @@ var (
 )
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
-// The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 //
-//nolint:errcheck
+//nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 func init() {
 	evmRpc = TransferVerifierCmdEvm.Flags().String("rpcUrl", "ws://localhost:8546", "RPC url")
 	evmCoreContract = TransferVerifierCmdEvm.Flags().String("coreContract", "", "core bridge address")

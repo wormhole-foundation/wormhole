@@ -942,7 +942,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
@@ -1181,13 +1181,13 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
 	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
 	require.NoError(t, err)
-	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31" //nolint:gosec
+	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
 
 	// Add chain entries to `gov`
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 10000, 0)
@@ -1716,7 +1716,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
@@ -2634,7 +2634,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16"
 	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
 	require.NoError(t, err)
 
