@@ -10,7 +10,7 @@ import (
 )
 
 type Finalizer struct {
-	// internal cache of which blocks have been finalized, mapping blockHack => blockTimestamp.
+	// internal cache of which blocks have been finalized, mapping blockHash => blockTimestamp.
 	// The timestamp is persisted because we'll need it again later.
 	// thread-safe
 	finalizedBlocksCache *lru.Cache
@@ -38,7 +38,8 @@ func (f Finalizer) isFinalizedCached(logger *zap.Logger, blockHash string) (near
 	}
 
 	if b, ok := f.finalizedBlocksCache.Get(blockHash); ok {
-		blockHeader := b.(nearapi.BlockHeader) //nolint:forcetypeassert
+		//nolint:forcetypeassert // The cache must only hold valid block hashes.
+		blockHeader := b.(nearapi.BlockHeader)
 		// SECURITY In blocks < 74473147 message timestamps were computed differently and we don't want to re-observe these messages
 		if !f.mainnet || blockHeader.Height > 74473147 {
 			return blockHeader, true
@@ -113,7 +114,8 @@ func (f Finalizer) setFinalized(blockHeader nearapi.BlockHeader) {
 	f.finalizedBlocksCache.Add(blockHeader.Hash, blockHeader)
 }
 
-func (f Finalizer) setFinalizedHash(logger *zap.Logger, ctx context.Context, blockHash string) error { //nolint Ignore unused function for now; might come in handy later
+//nolint:unused // Ignore unused function for now; might come in handy later
+func (f Finalizer) setFinalizedHash(logger *zap.Logger, ctx context.Context, blockHash string) error {
 	logger.Debug("setFinalizedHash()", zap.String("blockHash", blockHash))
 	// SECURITY defense-in-depth: don't cache obviously corrupted data.
 	if nearapi.IsWellFormedHash(blockHash) != nil {

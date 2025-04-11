@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"golang.org/x/crypto/openpgp/armor" // nolint
+	"golang.org/x/crypto/openpgp/armor" //nolint:staticcheck // Package is deprecated but we need it in the codebase still.
 )
 
 // FileSigner is a signer that loads a guardian key from a file. The URI is expected to be
