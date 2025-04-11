@@ -1,0 +1,209 @@
+package common
+
+import (
+	"bytes"
+	"cmp"
+	"container/heap"
+	"encoding/binary"
+	"fmt"
+	"slices"
+	"time"
+
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
+
+// PendingMessage is a wrapper type around a [MessagePublication] that includes the time for which it
+// should be released.
+type PendingMessage struct {
+	ReleaseTime time.Time
+	Msg         MessagePublication
+}
+
+func (p PendingMessage) Compare(other PendingMessage) int {
+	return cmp.Compare(p.ReleaseTime.Unix(), other.ReleaseTime.Unix())
+}
+
+// MarshalBinary implements BinaryMarshaler for [PendingMessage].
+func (p *PendingMessage) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Compare with [PendingTransfer.Marshal].
+	// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	vaa.MustWrite(buf, binary.BigEndian, uint64(p.ReleaseTime.Unix()))
+
+	bz, err := p.Msg.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("marshal pending message: %w", err)
+	}
+
+	vaa.MustWrite(buf, binary.BigEndian, bz)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements BinaryUnmarshaler for [PendingMessage].
+func (p *PendingMessage) UnmarshalBinary(data []byte) error {
+
+	if len(data) < minMarshaledMsgSize {
+		return ErrDataTooShort
+	}
+
+	// Compare with [UnmarshalPendingTransfer].
+	p.ReleaseTime = time.Unix(
+		// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+		int64(binary.BigEndian.Uint64(data[0:8])),
+		0,
+	)
+
+	err := p.Msg.UnmarshalBinary(data[8:])
+
+	if err != nil {
+		return fmt.Errorf("unmarshal pending message: %w", err)
+	}
+
+	return nil
+}
+
+// A pendingMessageHeap is a min-heap of [PendingMessage] and uses the heap interface
+// by implementing the methods below.
+// As a result:
+// - The heap is always sorted by timestamp.
+// - the oldest (smallest) timestamp is always the last element.
+// This allows us to pop from the heap in order to get the oldest timestamp. If
+// that value greater than whatever time threshold we specify, we know that
+// there are no other messages that need to be released because their
+// timestamps must be greater. This should allow for constant-time lookups when
+// looking for messages to release.
+//
+// SECURITY:  Only the functions labelled Safe should be called directly. The other
+// functions must be public to satisfy the heap interface but do not perform
+// safety checks.
+// This follows the recommendations for using heap: heap.Pop() and heap.Push()
+// should be used rather than calling the below functions directly, and the
+// Safe functions do this.
+// See: https://pkg.go.dev/container/heap#Interface
+type pendingMessageHeap []*PendingMessage
+
+func (h pendingMessageHeap) Len() int {
+	return len(h)
+}
+func (h pendingMessageHeap) Less(i, j int) bool {
+	return h[i].ReleaseTime.Before(h[j].ReleaseTime)
+}
+func (h pendingMessageHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+// Push dangerously pushes a value to the heap. Use [pendingMessageHeap.SafePush] instead.
+func (h *pendingMessageHeap) Push(x any) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	item, ok := x.(*PendingMessage)
+	if !ok {
+		panic("PendingMessageHeap: cannot push non-*PendingMessage")
+	}
+
+	// Null check
+	if item == nil {
+		panic("PendingMessageHeap: cannot push nil *PendingMessage")
+	}
+
+	*h = append(*h, item)
+}
+
+// Pops dangerously pops a value from the heap. Use [pendingMessageHeap.SafePop] instead.
+func (h *pendingMessageHeap) Pop() any {
+	old := *h
+	n := len(old)
+	if n == 0 {
+		panic("PendingMessageHeap: cannot Pop from empty heap")
+	}
+	last := old[n-1]
+	*h = old[0 : n-1]
+	return last
+}
+
+// PendingMessageQueue is a min-heap that sorts [PendingMessage] in descending order of Timestamp.
+type PendingMessageQueue struct {
+	// pendingMessageHeap exposes dangerous APIs as a necessary consequence of implementing [heap.Interface].
+	// Wrap it and expose only a safe API.
+	heap pendingMessageHeap
+}
+
+func NewPendingMessageQueue() *PendingMessageQueue {
+	q := &PendingMessageQueue{heap: pendingMessageHeap{}}
+	heap.Init(&q.heap)
+	return q
+}
+
+// Push adds an element to the heap. If msg is nil, nothing is added.
+// Returns nil if the heap is empty or if the value is not a *[PendingMessage].
+func (q *PendingMessageQueue) Push(msg *PendingMessage) {
+	if msg == nil {
+		return
+	}
+	heap.Push(&q.heap, msg)
+}
+
+// Pop removes the last element from the heap and returns its value.
+// Returns nil if the heap is empty or if the value is not a *[PendingMessage].
+func (q *PendingMessageQueue) Pop() *PendingMessage {
+	if q.heap.Len() == 0 {
+		return nil
+	}
+
+	last, ok := heap.Pop(&q.heap).(*PendingMessage)
+	if !ok {
+		return nil
+	}
+
+	return last
+}
+
+func (q *PendingMessageQueue) Len() int {
+	return q.heap.Len()
+}
+
+func (q *PendingMessageQueue) Peek() *PendingMessage {
+	if q.heap.Len() == 0 {
+		return nil
+	}
+	// container/heap stores the "next" element at the first offset.
+	last := *q.heap[0]
+	return &last
+}
+
+// Contains determines whether the queue contains a [MessagePublication] (not a [PendingMessage]).
+func (q *PendingMessageQueue) Contains(pMsg *PendingMessage) bool {
+	if pMsg == nil {
+		return false
+	}
+	return slices.Contains(q.heap, pMsg)
+}
+
+// Contains determines whether the queue contains a [MessagePublication] (not a [PendingMessage]).
+func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublication) bool {
+	if msgPub == nil {
+		return false
+	}
+	return slices.ContainsFunc(q.heap, func(pMsg *PendingMessage) bool {
+		return pMsg.Msg.TxIDString() == msgPub.TxIDString()
+	})
+}
+
+// RangeElements provides a way to iterate over the queue. Because queue is a
+// min-heap, the last item that can be accessed via Pop will have the earliest timestamp.
+func (q *PendingMessageQueue) Iter() func(yield func(index int, value *PendingMessage) bool) {
+	// implements the range-over function pattern.
+	return func(yield func(index int, value *PendingMessage) bool) {
+		if q == nil {
+			return // Safely handle nil pointers
+		}
+
+		for i, v := range q.heap {
+			if !yield(i, v) {
+				break
+			}
+		}
+	}
+}
