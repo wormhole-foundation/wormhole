@@ -2944,37 +2944,37 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	assert.Equal(t, uint64(0), valuePending)
 }
 
-func TestPipeType(t *testing.T) {
+func TestCorridorType(t *testing.T) {
 	// Check basic validity functions and ensure ordering doesn't matter.
-	pipeEthSui := pipe{vaa.ChainIDEthereum, vaa.ChainIDSui}
-	pipeSuiEth := pipe{vaa.ChainIDSui, vaa.ChainIDEthereum}
-	assert.True(t, pipeEthSui.valid())
-	assert.True(t, pipeSuiEth.valid())
-	assert.True(t, pipeEthSui.equals(&pipeSuiEth))
-	assert.True(t, pipeSuiEth.equals(&pipeEthSui))
+	CorridorEthSui := corridor{vaa.ChainIDEthereum, vaa.ChainIDSui}
+	CorridorSuiEth := corridor{vaa.ChainIDSui, vaa.ChainIDEthereum}
+	assert.True(t, CorridorEthSui.valid())
+	assert.True(t, CorridorSuiEth.valid())
+	assert.True(t, CorridorEthSui.equals(&CorridorSuiEth))
+	assert.True(t, CorridorSuiEth.equals(&CorridorEthSui))
 
-	// The two ends of a pipe must be different.
-	pipeInvalid := pipe{vaa.ChainIDEvmos, vaa.ChainIDEvmos}
-	assert.False(t, pipeInvalid.valid())
+	// The two ends of a Corridor must be different.
+	CorridorInvalid := corridor{vaa.ChainIDEvmos, vaa.ChainIDEvmos}
+	assert.False(t, CorridorInvalid.valid())
 
 	// Check the case for ChainIDUnset in both positions.
-	unset := pipe{vaa.ChainIDEthereum, vaa.ChainIDUnset}
+	unset := corridor{vaa.ChainIDEthereum, vaa.ChainIDUnset}
 	assert.False(t, unset.valid())
-	unset = pipe{vaa.ChainIDUnset, vaa.ChainIDSolana}
+	unset = corridor{vaa.ChainIDUnset, vaa.ChainIDSolana}
 	assert.False(t, unset.valid())
 
-	// Invalid pipes are never equal to anything, even to itself. The idea here is to make invalid states
+	// Invalid Corridors are never equal to anything, even to itself. The idea here is to make invalid states
 	// unrepresentable/unusable by the program.
-	assert.False(t, pipeInvalid.equals(&pipeInvalid))
+	assert.False(t, CorridorInvalid.equals(&CorridorInvalid))
 }
 
-func TestFlowCancelDependsOnPipes(t *testing.T) {
+func TestFlowCancelDependsOnCorridors(t *testing.T) {
 
 	var flowCancelTokenOriginAddress vaa.Address
 	flowCancelTokenOriginAddress, err := vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
-	flowCancelPipe := pipe{vaa.ChainIDEthereum, vaa.ChainIDSui}
+	flowCancelCorridor := corridor{vaa.ChainIDEthereum, vaa.ChainIDSui}
 
 	ctx := context.Background()
 	assert.NotNil(t, ctx)
@@ -2985,10 +2985,10 @@ func TestFlowCancelDependsOnPipes(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	// No pipes should be configured when flow cancel is disabled
+	// No Corridors should be configured when flow cancel is disabled
 	assert.False(t, gov.IsFlowCancelEnabled())
-	assert.Zero(t, len(gov.flowCancelPipes))
-	assert.False(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+	assert.Zero(t, len(gov.flowCancelCorridors))
+	assert.False(t, gov.corridorCanFlowCancel(&flowCancelCorridor))
 
 	// Try to add a flow cancel transfer when flow cancel is disabled
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
@@ -3006,26 +3006,26 @@ func TestFlowCancelDependsOnPipes(t *testing.T) {
 	assert.False(t, added)
 	require.NoError(t, err)
 
-	// Enable flow cancelling but delete the pipes. Adding a flow cancel transfer should fail.
+	// Enable flow cancelling but delete the Corridors. Adding a flow cancel transfer should fail.
 	gov = NewChainGovernor(zap.NewNop(), &database, common.GoTest, true, "")
-	gov.flowCancelPipes = []pipe{}
+	gov.flowCancelCorridors = []corridor{}
 	assert.True(t, gov.IsFlowCancelEnabled())
-	assert.False(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+	assert.False(t, gov.corridorCanFlowCancel(&flowCancelCorridor))
 	added, err = gov.tryAddFlowCancelTransfer(flowCancelTransfer)
 	assert.False(t, added)
 	require.NoError(t, err)
 
-	// Reset. This time disable flow cancel but add a pipe. This shouldn't ever happen in practice, but even
+	// Reset. This time disable flow cancel but add a Corridor. This shouldn't ever happen in practice, but even
 	// if it does adding a flow cancel transfer should fail.
 	gov = NewChainGovernor(zap.NewNop(), &database, common.GoTest, false, "")
 	assert.False(t, gov.IsFlowCancelEnabled())
 	err = gov.Run(ctx)
 	require.NoError(t, err)
-	assert.Zero(t, len(gov.flowCancelPipes))
-	gov.flowCancelPipes = []pipe{flowCancelPipe}
-	assert.Equal(t, 1, len(gov.flowCancelPipes))
+	assert.Zero(t, len(gov.flowCancelCorridors))
+	gov.flowCancelCorridors = []corridor{flowCancelCorridor}
+	assert.Equal(t, 1, len(gov.flowCancelCorridors))
 	assert.False(t, gov.IsFlowCancelEnabled())
-	assert.False(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+	assert.False(t, gov.corridorCanFlowCancel(&flowCancelCorridor))
 	added, err = gov.tryAddFlowCancelTransfer(flowCancelTransfer)
 	assert.False(t, added)
 	require.NoError(t, err)
@@ -3034,13 +3034,13 @@ func TestFlowCancelDependsOnPipes(t *testing.T) {
 	gov = NewChainGovernor(zap.NewNop(), &database, common.GoTest, true, "")
 	assert.True(t, gov.IsFlowCancelEnabled())
 
-	// Run should set up the flow cancel pipes (Eth-Sui by default)
+	// Run should set up the flow cancel Corridors (Eth-Sui by default)
 	err = gov.Run(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(gov.flowCancelPipes))
+	assert.Equal(t, 1, len(gov.flowCancelCorridors))
 	assert.NotZero(t, len(gov.tokens))
 	assert.NotZero(t, len(gov.chains))
-	assert.True(t, gov.pipeCanFlowCancel(&flowCancelPipe))
+	assert.True(t, gov.corridorCanFlowCancel(&flowCancelCorridor))
 
 	// Manually add a flow cancel asset
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)

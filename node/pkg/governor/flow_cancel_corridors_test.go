@@ -7,9 +7,9 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func TestFlowCancelPipesMainnetDeployment(t *testing.T) {
+func TestFlowCancelCorridorsMainnetDeployment(t *testing.T) {
 
-	tests := map[string][]pipe{
+	tests := map[string][]corridor{
 		"expected mainnet values": {
 			{
 				vaa.ChainIDEthereum,
@@ -19,9 +19,9 @@ func TestFlowCancelPipesMainnetDeployment(t *testing.T) {
 	}
 	for name, expected := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := FlowCancelPipes()
+			got := FlowCancelCorridors()
 			// Basic validity check.
-			require.True(t, Valid(got))
+			require.True(t, ValidateCorridors(got))
 
 			// Check that values are what we expected.
 			require.Equal(t, 1, len(got))
@@ -30,15 +30,15 @@ func TestFlowCancelPipesMainnetDeployment(t *testing.T) {
 	}
 }
 
-func TestValid(t *testing.T) {
+func TestValidateCorridors(t *testing.T) {
 	tests := []struct {
 		name string
-		args []pipe
+		args []corridor
 		want bool
 	}{
 		{
 			name: "error: duplicate pipes",
-			args: []pipe{
+			args: []corridor{
 				{
 					first:  vaa.ChainIDEthereum,
 					second: vaa.ChainIDSolana,
@@ -52,7 +52,7 @@ func TestValid(t *testing.T) {
 		},
 		{
 			name: "error: duplicate pipes, different order",
-			args: []pipe{
+			args: []corridor{
 				{
 					first:  vaa.ChainIDEthereum,
 					second: vaa.ChainIDSolana,
@@ -66,7 +66,7 @@ func TestValid(t *testing.T) {
 		},
 		{
 			name: "error: invalid pipe (ends are the same)",
-			args: []pipe{
+			args: []corridor{
 				{
 					first:  vaa.ChainIDEthereum,
 					second: vaa.ChainIDEthereum,
@@ -76,7 +76,7 @@ func TestValid(t *testing.T) {
 		},
 		{
 			name: "error: invalid pipe (unset)",
-			args: []pipe{
+			args: []corridor{
 				{
 					first:  vaa.ChainIDEthereum,
 					second: vaa.ChainIDUnset,
@@ -86,7 +86,7 @@ func TestValid(t *testing.T) {
 		},
 		{
 			name: "happy path",
-			args: []pipe{
+			args: []corridor{
 				{
 					first:  vaa.ChainIDEthereum,
 					second: vaa.ChainIDSui,
@@ -101,7 +101,7 @@ func TestValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Valid(tt.args); got != tt.want {
+			if got := ValidateCorridors(tt.args); got != tt.want {
 				require.Equal(t, tt.want, got, "want %v got %v value %v", tt.want, got, tt.args)
 			}
 		})

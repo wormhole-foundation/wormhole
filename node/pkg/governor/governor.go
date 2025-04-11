@@ -121,24 +121,24 @@ type (
 	}
 
 	// Represents a pair of Governed chains. Ordering is arbitrary.
-	pipe struct {
+	corridor struct {
 		first  vaa.ChainID
 		second vaa.ChainID
 	}
 )
 
-// valid checks whether a pipe is valid. A pipe is invalid if both chain IDs are equal.
-func (p *pipe) valid() bool {
+// valid checks whether a corridor is valid. A corridor is invalid if both chain IDs are equal.
+func (p *corridor) valid() bool {
 	return p.first != p.second && p.first != vaa.ChainIDUnset && p.second != vaa.ChainIDUnset
 }
 
 // equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
-// pipe's elements doesn't matter. It also makes it easier to check whether two chains are 'connected' by a pipe
+// corridor's elements doesn't matter. It also makes it easier to check whether two chains are 'connected' by a corridor
 // without needing to sort or manipulate the elements.
-func (p *pipe) equals(p2 *pipe) bool {
+func (p *corridor) equals(p2 *corridor) bool {
 	if !p.valid() || !p2.valid() {
-		// We want to make invalid pipes unusable, so make them fail the equality check.
-		// This is a protective measure in case a developer tries to do some logic on invalid pipes
+		// We want to make invalid corridors unusable, so make them fail the equality check.
+		// This is a protective measure in case a developer tries to do some logic on invalid corridors
 		// and forgets to check valid() first.
 		return false
 	}
@@ -165,7 +165,7 @@ func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, er
 
 // addFlowCancelTransfer appends a transfer to a ChainEntry's transfers property.
 // SECURITY: The calling code is responsible for ensuring that the asset within the transfer is a flow-cancelling asset.
-// SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching flow cancel pipe.
+// SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching flow cancel corridor.
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
 // - the Value must be negative (in order to ultimately reduce the Governor usage of the target chain)
@@ -238,8 +238,8 @@ type ChainGovernor struct {
 	flowCancelEnabled     bool
 	coinGeckoApiKey       string
 	// Pairs of chains for which flow canceling is enabled. Note that an asset may be flow canceling even if
-	// it was minted on a chain that is not configured to be an 'end' of any of the pipes.
-	flowCancelPipes []pipe
+	// it was minted on a chain that is not configured to be an 'end' of any of the corridors.
+	flowCancelCorridors []corridor
 }
 
 func NewChainGovernor(
@@ -294,23 +294,23 @@ func (gov *ChainGovernor) initConfig() error {
 	configChains := chainList()
 	configTokens := tokenList()
 	flowCancelTokens := []tokenConfigEntry{}
-	flowCancelPipes := []pipe{}
+	flowCancelCorridors := []corridor{}
 
 	if gov.env == common.UnsafeDevNet {
-		configTokens, flowCancelTokens, configChains, flowCancelPipes = gov.initDevnetConfig()
+		configTokens, flowCancelTokens, configChains, flowCancelCorridors = gov.initDevnetConfig()
 	} else if gov.env == common.TestNet {
-		configTokens, flowCancelTokens, configChains, flowCancelPipes = gov.initTestnetConfig()
+		configTokens, flowCancelTokens, configChains, flowCancelCorridors = gov.initTestnetConfig()
 	} else {
 		// mainnet, unit tests, or accountant-mock
 		if gov.flowCancelEnabled {
 			flowCancelTokens = FlowCancelTokenList()
-			flowCancelPipes = FlowCancelPipes()
+			flowCancelCorridors = FlowCancelCorridors()
 		}
 	}
 
 	// We're done with this value for the rest of this function, so write it to the governor struct now
 	if gov.flowCancelEnabled {
-		gov.flowCancelPipes = flowCancelPipes
+		gov.flowCancelCorridors = flowCancelCorridors
 	}
 
 	for _, ct := range configTokens {
@@ -660,7 +660,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	if gov.flowCancelEnabled {
 		_, err = gov.tryAddFlowCancelTransfer(&transfer)
 		if err != nil {
-			// Don't interrupt the the control flow when a flow cancel fails. Instead, fail open and allow
+			// Don't interrupt the control flow when a flow cancel fails. Instead, fail open and allow
 			// the transfers to be processed normally. The only consequence is that the outbound limit
 			// for the emitter won't be reduced.
 			gov.logger.Warn("Error when attempting to add a flow cancel transfer",
@@ -673,15 +673,15 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	return true, nil
 }
 
-// pipeCanFlowCancel checks whether the pipe passed as an argument is present in the list of flow-cancel enabled
-// pipes. This method returns false for all values if flow canceling is disabled.
-func (gov *ChainGovernor) pipeCanFlowCancel(pipe *pipe) bool {
+// corridorCanFlowCancel checks whether the corridor passed as an argument is present in the list of flow-cancel enabled
+// corridors. This method returns false for all values if flow canceling is disabled.
+func (gov *ChainGovernor) corridorCanFlowCancel(corridor *corridor) bool {
 	if !gov.flowCancelEnabled {
 		return false
 	}
-	for _, configuredPipe := range gov.flowCancelPipes {
-		// Note that equals() also checks that both pipes are valid.
-		if pipe.equals(&configuredPipe) {
+	for _, configuredcorridor := range gov.flowCancelCorridors {
+		// Note that equals() also checks that both corridors are valid.
+		if corridor.equals(&configuredcorridor) {
 			return true
 		}
 	}
@@ -966,7 +966,7 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 }
 
 // tryAddFlowCancelTransfer adds an inverse transfer to the destination chain entry. This occurs only if the transfer's asset
-// is allow-listed, and if the source and destination chain are connected via an enabled "pipe" (allow-list of chain ID pairs).
+// is allow-listed, and if the source and destination chain are connected via an enabled "corridor" (allow-list of chain ID pairs).
 // A return value of false means that the transfer will not do flow cancelling, i.e. it will not reduce the destination chain's
 // Governor usage.
 func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, error) {
@@ -976,10 +976,10 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	target := transfer.dbTransfer.TargetChain
 	emitter := transfer.dbTransfer.EmitterChain
 
-	pipe := &pipe{emitter, target}
+	corridor := &corridor{emitter, target}
 
 	// Check whether the source and destination chain are in the allow-list for flow cancelling.
-	if !gov.pipeCanFlowCancel(pipe) {
+	if !gov.corridorCanFlowCancel(corridor) {
 		return false, nil
 	}
 

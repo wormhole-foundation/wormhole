@@ -6,7 +6,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []tokenConfigEntry, []chainConfigEntry, []pipe) {
+func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []tokenConfigEntry, []chainConfigEntry, []corridor) {
 	gov.logger.Info("setting up devnet config")
 
 	gov.dayLengthInMinutes = 5
@@ -18,7 +18,7 @@ func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []tokenConfigE
 	}
 
 	flowCancelTokens := []tokenConfigEntry{}
-	flowCancelPipes := []pipe{}
+	flowCancelCorridors := []corridor{}
 	if gov.flowCancelEnabled {
 		flowCancelTokens = []tokenConfigEntry{
 			{chain: 1, addr: "3b442cb3912157f13a933d0134282d032b5ffecd01a2dbf1b7790608df002ea7", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 1.001}, // Addr: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU, Notional: 6780118.197035182
@@ -30,5 +30,5 @@ func (gov *ChainGovernor) initDevnetConfig() ([]tokenConfigEntry, []tokenConfigE
 		{emitterChainID: vaa.ChainIDEthereum, dailyLimit: 100000},
 	}
 
-	return tokens, flowCancelTokens, chains, flowCancelPipes
+	return tokens, flowCancelTokens, chains, flowCancelCorridors
 }
