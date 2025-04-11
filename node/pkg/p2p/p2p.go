@@ -487,6 +487,19 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}()
 		}
 
+		var txVerifierFeatureString string
+		if len(params.txVerifierChains) > 0 {
+			// Format the feature string once here, and reference later in the loop.
+			chainNames := make([]string, 0, len(params.txVerifierChains))
+			for _, cid := range params.txVerifierChains {
+				chainNames = append(chainNames, cid.String())
+			}
+
+			// Append transfer verifier feature information in the form
+			// "txverifier:ethereum|sui".
+			txVerifierFeatureString = fmt.Sprintf("txverifier:%s", strings.Join(chainNames, "|"))
+		}
+
 		// Periodically run guardian state set cleanup.
 		go func() {
 			ticker := time.NewTicker(15 * time.Second)
@@ -567,6 +580,10 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 							if len(params.featureFlags) != 0 {
 								features = append(features, params.featureFlags...)
+							}
+
+							if len(params.txVerifierChains) > 0 {
+								features = append(features, txVerifierFeatureString)
 							}
 
 							heartbeat := &gossipv1.Heartbeat{
