@@ -57,12 +57,12 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/random"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
@@ -276,8 +276,12 @@ const (
 )
 
 func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequest {
+	nonce, err := random.Uint32()
+	if err != nil {
+		panic(err)
+	}
 	queryRequest := &query.QueryRequest{
-		Nonce: rand.Uint32(),
+		Nonce: nonce,
 		PerChainQueries: []*query.PerChainQueryRequest{
 			{
 				ChainId: 2,
