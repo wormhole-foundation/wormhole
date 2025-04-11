@@ -20,6 +20,7 @@ linters:
     - gosec
     - govet
     - ineffassign
+    - loggercheck
     # Check for simple misspellings of words. 
     - misspell
     - noctx
@@ -62,18 +63,31 @@ linters:
     #   - ifElseChain
     #   - elseif
       enabled-checks:
+        - argOrder
         - badCall
+        - badCond
+        - badLock
         - badRegexp
-        - builtinShadowDecl
-        - dupCase
-        - externalErrorReassign
-        - sloppyReassign
-        - offBy1
-        - truncateCmp
-        - regexpPattern
+        - badSorting
         - builtinShadow
+        - builtinShadowDecl
+        - caseOrder
+        - dupArg
+        - dupBranchBody
+        - dupCase
+        - dupSubExpr
+        - externalErrorReassign
         - importShadow
+        - mapKey
         - newDeref
+        - offBy1
+        - regexpPattern
+        - sloppyReassign
+        - truncateCmp
+        - uncheckedInlineErr
+        - weakCond
+      # performance lints
+        - indexAlloc
     staticcheck:
       checks:
         # All of these lints should eventually be added.
