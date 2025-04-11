@@ -100,6 +100,10 @@
 /node/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
 /sdk/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
 
+## Notary
+
+/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## Hacks / Tools
 
 /node/hack/ @panoel @evan-gray
