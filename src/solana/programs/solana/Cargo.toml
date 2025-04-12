@@ -1,0 +1,23 @@
+[package]
+name = "verification_v2"
+version = "0.1.0"
+description = "Wormhole threshold signature verification program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "verification_v2"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = "0.31.0"
+byteorder = "1.5.0"
+libsecp256k1 = "0.7.2"
+wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git" }
