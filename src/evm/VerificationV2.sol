@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {RawDispatcher} from "wormhole-sdk/RawDispatcher.sol";
+import {CHAIN_ID_SOLANA} from "wormhole-sdk/constants/Chains.sol";
 import {ThresholdVerification} from "./ThresholdVerification.sol";
 import {GuardianSetVerification} from "./GuardianSetVerification.sol";
 
@@ -18,6 +19,9 @@ uint8 constant OP_THRESHOLD_GET_CURRENT = 0x21;
 uint8 constant OP_THRESHOLD_GET = 0x22;
 uint8 constant OP_GUARDIAN_SET_GET_CURRENT = 0x23;
 uint8 constant OP_GUARDIAN_SET_GET = 0x24;
+
+// Emitter address for the VerificationV2 contract
+bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
 
 // Module ID for the VerificationV2 contract, ASCII "TSS"
 bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
@@ -34,6 +38,9 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
   error InvalidModule(bytes32 module);
   error InvalidAction(uint8 action);
   error InvalidValue();
+
+  error InvalidGovernanceChainId();
+  error InvalidGovernanceAddress();
 
   constructor(
     address coreV1,
@@ -60,21 +67,23 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
   }
 
   function _decodeThresholdKeyUpdatePayload(bytes memory payload) internal pure returns (
-    bytes32 module,
-    uint8 action,
     uint32 newThresholdIndex,
     address newThresholdAddr,
     uint32 expirationDelaySeconds,
     bytes32[] memory shards
   ) {
+    // Decode and verify the module and action
     uint offset = 0;
+    
+    bytes32 module;
     (module, offset) = payload.asBytes32MemUnchecked(offset);
-    (action, offset) = payload.asUint8MemUnchecked(offset);
-
-    // Verify the module and action
     if (module != MODULE_VERIFICATION_V2) revert InvalidModule(module);
+
+    uint8 action;
+    (action, offset) = payload.asUint8MemUnchecked(offset);
     if (action != ACTION_APPEND_THRESHOLD_KEY) revert InvalidAction(action);
 
+    // Decode the message body
     (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
     (newThresholdAddr, offset) = payload.asAddressMemUnchecked(offset);
     (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
@@ -104,17 +113,19 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
         (
           ,
           ,
-          ,
-          ,
+          uint16 emitterChainId,
+          bytes32 emitterAddress,
           ,
           ,
           bytes calldata payload
         ) = _decodeAndVerifyVaa(encodedVaa);
+
+        // Verify the emitter
+        if (emitterChainId != CHAIN_ID_SOLANA) revert InvalidGovernanceChainId();
+        if (emitterAddress != GOVERNANCE_ADDRESS) revert InvalidGovernanceAddress();
         
         // Decode the payload
         (
-          ,
-          ,
           uint32 newThresholdIndex,
           address newThresholdAddr,
           uint32 expirationDelaySeconds,
