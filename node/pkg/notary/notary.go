@@ -48,9 +48,10 @@ type (
 )
 
 const (
+	Unknown Verdict = iota
 	// Approve means a message should be processed normally. All messages that are not Token Transfers
 	// must always be Approve, as the Notary does not support other messasge types.
-	Approve Verdict = iota
+	Approve
 	// Approved means a message should be temporarily delayed so that it can be manually inspected.
 	Delay
 	// Blackhole means a message should be permanently blocked from being processed.
@@ -65,6 +66,8 @@ func (v Verdict) String() string {
 		return "Delay"
 	case Blackhole:
 		return "Blackhole"
+	case Unknown:
+		return "Unknown"
 	default:
 		return "Unknown"
 	}
@@ -72,7 +75,7 @@ func (v Verdict) String() string {
 
 const (
 	// How long a message should be held in the pending list before being processed.
-	defaultDelay = time.Hour * 24
+	DelayFor = time.Hour * 24
 )
 
 var (
@@ -80,31 +83,37 @@ var (
 	ErrAlreadyInitialized = errors.New("notary: message queues already initialized during database load")
 )
 
-type Notary struct {
-	ctx    context.Context
-	logger *zap.Logger
-	// mutex guards database operations.
-	mutex sync.Mutex
-	// database persists information about delayed and black-holed messages.
-	database db.NotaryDBInterface
+type (
+	// A set corresponding to message publications. The elements of the set must be the results of
+	// the function [common.MessagePublication.VAAHashUnchecked].
+	msgPubSet struct {
+		elements map[string]struct{}
+	}
 
-	// Define slices to manage delayed and black-holed message publications.
-	//
-	// These fields are private so that this package is responsible for managing its own
-	// state.
-	//
-	// In particular, the following invariants must hold:
-	// - When a message is released, it must be deleted from the database.
+	Notary struct {
+		ctx    context.Context
+		logger *zap.Logger
+		// mutex guards database operations.
+		mutex sync.Mutex
+		// database persists information about delayed and black-holed messages.
+		database db.NotaryDBInterface
 
-	delayed *common.PendingMessageQueue
-	// ready contains message publications that have been delayed but are now ready to release.
-	ready []*common.MessagePublication
-	// All of the messages that have been black-holed due to being rejected by the Transfer Verifier.
-	blackholed []*common.MessagePublication
+		// Define slices to manage delayed and black-holed message publications.
+		//
+		// These fields are private so that this package is responsible for managing its own
+		// state.
+		//
+		// In particular, the following invariants must hold:
+		// - When a message is released, it must be deleted from the database.
 
-	// env reports whether the guardian is running in production or a test environment.
-	env common.Environment
-}
+		delayed *common.PendingMessageQueue
+		// All of the messages that have been black-holed due to being rejected by the Transfer Verifier.
+		blackholed *msgPubSet
+
+		// env reports whether the guardian is running in production or a test environment.
+		env common.Environment
+	}
+)
 
 func NewNotary(
 	ctx context.Context,
@@ -119,7 +128,6 @@ func NewNotary(
 		// Get the underlying database connection from the Guardian.
 		database:   db.NewNotaryDB(guardianDB.Conn()),
 		delayed:    common.NewPendingMessageQueue(),
-		ready:      nil,
 		blackholed: nil,
 		env:        env,
 	}
@@ -147,9 +155,19 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		return Approve, nil
 	}
 
+	// Return early if the message has already been blackholed. This is important in case a message
+	// is reobserved or otherwise processed here more than once. An Anomalous message that becomes
+	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
+	if n.blackholed.Contains(msg.VAAHash()) {
+		n.logger.Warn("notary: got message publication that is already blackholed",
+			msg.ZapFields(zap.String("verdict", v.String()))...,
+		)
+		return Blackhole, nil
+	}
+
 	switch msg.VerificationState() {
 	case common.Anomalous:
-		err = n.delay(msg, defaultDelay)
+		err = n.delay(msg, DelayFor)
 		v = Delay
 	case common.Rejected:
 		err = n.blackhole(msg)
@@ -168,19 +186,25 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	return
 }
 
-// ProcessReadyMessages moves messages from the delayed queue to the ready queue if they are ready to
-// be released.
-func (n *Notary) ProcessReadyMessages() {
+// ReleaseReadyMessages removes messages from the database and the delayed queue if they are ready to
+// be released. Returns the messages that are ready to be published.
+func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 	if n == nil || n.delayed == nil {
-		return // Avoid nil pointer dereference
+		return nil
 	}
 
 	n.logger.Debug(
 		"notary: begin process ready message",
-		zap.Int("readyCount", len(n.ready)),
 		zap.Int("delayedCount", n.delayed.Len()),
 	)
-	now := time.Now()
+	var (
+		readyMsgs = make([]*common.MessagePublication, 0, n.delayed.Len())
+		now       = time.Now()
+	)
+
+	// Pop elements from the queue until the release time is after the current time.
+	// If errors occur, continue instead of returning early so that other messages
+	// can still be processed.
 	for n.delayed.Len() != 0 {
 		next := n.delayed.Peek()
 		if next == nil || next.ReleaseTime.After(now) {
@@ -194,8 +218,10 @@ func (n *Notary) ProcessReadyMessages() {
 			continue // Skip if Pop returns nil (shouldn't happen if Peek worked)
 		}
 
-		n.ready = append(n.ready, &pMsg.Msg)
+		// Append return value.
+		readyMsgs = append(readyMsgs, &pMsg.Msg)
 
+		// Update database.
 		err := n.database.DeleteDelayed(pMsg)
 		if err != nil {
 			n.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
@@ -205,68 +231,14 @@ func (n *Notary) ProcessReadyMessages() {
 
 	n.logger.Debug(
 		"notary: finish process ready message",
-		zap.Int("readyCount", len(n.ready)),
+		zap.Int("readyCount", len(readyMsgs)),
 		zap.Int("delayedCount", n.delayed.Len()),
 	)
+
+	return readyMsgs
 }
 
-// Releases a message publication held by the Notary and deletes it from the database.
-func (n *Notary) Release(msg *common.MessagePublication) error {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
-
-	if found := slices.Contains(n.ready, msg); !found {
-		return errors.Join(
-			ErrCannotRelease,
-			errors.New("target message publication is not in the list of ready messages"),
-		)
-	}
-
-	n.ready = slices.DeleteFunc(n.ready, func(element *common.MessagePublication) bool {
-		return element == msg
-	})
-
-	return nil
-}
-
-// Shutdown stores pending messages to the database.
-func (n *Notary) Shutdown() error {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
-
-	// Save ready messages back to the pending database. Store them with release time
-	// equal to the current time so that they are marked ready on restart.
-	var (
-		now = time.Now()
-		// if multiple errors occur, collect them with errors.Join and return all
-		// of them at the end.
-		allErrs error
-	)
-
-	for msg := range slices.Values(n.ready) {
-		pMsg := &common.PendingMessage{
-			Msg:         *msg,
-			ReleaseTime: now,
-		}
-		err := n.database.StoreDelayed(pMsg)
-		if err != nil {
-			allErrs = errors.Join(allErrs, err)
-			continue
-		}
-	}
-
-	for _, pMsg := range n.delayed.Iter() {
-		err := n.database.StoreDelayed(pMsg)
-		if err != nil {
-			allErrs = errors.Join(allErrs, err)
-			continue
-		}
-	}
-
-	return allErrs
-}
-
-// delay stores a MessagePublication in the database and populated its in-memory
+// delay stores a MessagePublication in the database and populates its in-memory
 // representation in the Notary.
 // Acquires the mutex lock and unlocks when complete.
 func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error {
@@ -297,13 +269,14 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 	return dbErr
 }
 
-// Acquires the mutex lock and unlocks when complete.
+// blackhole adds a message publication to the blackholed in-memory set and stores it in the database.
+// Acquires the mutex and unlocks when complete.
 func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
 	// Store in in-memory slice. This should happen even if a database error occurs.
-	n.blackholed = append(n.blackholed, msg)
+	n.blackholed.Add(msg.VAAHash())
 
 	// Store in database.
 	dbErr := n.database.StoreBlackhole(msg)
@@ -316,47 +289,51 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	return nil
 }
 
-// Delayed returns a slice containing a copy of all delayed pending messages.
-func (n *Notary) Delayed() (result []*common.PendingMessage) {
-	if n.delayed == nil {
-		return
-	}
-	if n.delayed.Len() == 0 {
-		return
-	}
-
-	// Create a deep copy of the delayed messages.
-	result = make([]*common.PendingMessage, n.delayed.Len())
-	for i, pendingMsg := range n.delayed.Iter() {
-		// Create a deep copy of each pending message.
-		copied := *pendingMsg // Copy the struct
-		result[i] = &copied
+// Blackhole adds a message to the blackholed list. Removes the message from the delayed list and database, if present.
+// Acquires the mutex and unlocks when complete.
+func (n *Notary) Blackhole(msg *common.MessagePublication) error {
+	err := n.removeDelayed(msg)
+	if err != nil {
+		return err
 	}
 
-	return
+	err = n.blackhole(msg)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// Ready returns a copy of all ready pending messages.
-func (n *Notary) Ready() []*common.MessagePublication {
-	return deepCopy(n.ready)
+// Acquires the mutex and unlocks when complete.
+func (n *Notary) IsBlackholed(msg *common.MessagePublication) bool {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+	return n.blackholed.Contains(msg.VAAHash())
 }
 
-// Blackholed returns a copy of all black-holed message publications.
-func (n *Notary) Blackholed() []*common.MessagePublication {
-	return deepCopy(n.blackholed)
+// Acquires the mutex and unlocks when complete.
+func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+	return n.delayed.ContainsMessagePublication(msg)
 }
 
-func deepCopy(slice []*common.MessagePublication) []*common.MessagePublication {
-	if len(slice) == 0 {
-		return nil
+func (n *Notary) removeDelayed(msg *common.MessagePublication) error {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+	removed, err := n.delayed.RemoveItem(msg)
+	if err != nil {
+		return err
 	}
-	result := make([]*common.MessagePublication, len(slice))
-	for i, msg := range slice {
-		// Create a deep copy of each publication
-		copied := *msg // Copy the struct
-		result[i] = &copied
+
+	if removed != nil {
+		err := n.database.DeleteDelayed(removed)
+		if err != nil {
+			return err
+		}
 	}
-	return result
+	return nil
 }
 
 // loadFromDB reads all the database entries.
@@ -373,7 +350,6 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 		return err
 	}
 	if result == nil {
-		// TODO replace with better error
 		n.logger.Error(
 			"notary: load all call produced nil result",
 		)
@@ -387,42 +363,70 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 	)
 
 	// Avoid overwriting data by mistake.
-	if (len(n.ready) > 0) || (n.delayed != nil && n.delayed.Len() > 0) {
+	if n.delayed != nil && n.delayed.Len() > 0 {
 		return ErrAlreadyInitialized
 	}
 
 	var (
-		ready      []*common.MessagePublication
 		delayed    = common.NewPendingMessageQueue()
-		blackholed = make([]*common.MessagePublication, len(result.Blackholed))
-		now        = time.Now()
+		blackholed = NewSet()
 	)
 
 	if len(result.Delayed) > 0 {
 		for entry := range slices.Values(result.Delayed) {
-			if entry.ReleaseTime.Before(now) {
-				ready = append(ready, &entry.Msg)
-				continue
-			}
-
-			// If a message isn't ready, it's delayed.
 			delayed.Push(entry)
 		}
 	}
 
 	if len(result.Blackholed) > 0 {
-		blackholed = result.Blackholed
+		for result := range slices.Values(result.Blackholed) {
+			blackholed.Add(result.VAAHash())
+		}
 	}
 
 	n.blackholed = blackholed
 	n.delayed = delayed
-	n.ready = ready
 	n.logger.Info(
 		"initialized notary",
 		zap.Int("delayedMsgs", n.delayed.Len()),
-		zap.Int("blackholedMsgs", len(n.blackholed)),
-		zap.Int("readyMsgs", len(n.ready)),
+		zap.Int("blackholedMsgs", n.blackholed.Len()),
 	)
 
 	return nil
+}
+
+// NewSet creates and initializes a new Set
+func NewSet() *msgPubSet {
+	return &msgPubSet{
+		elements: make(map[string]struct{}),
+	}
+}
+
+func (s *msgPubSet) Len() int {
+	return len(s.elements)
+}
+
+// Add adds an element to the set
+func (s *msgPubSet) Add(element string) {
+	if s == nil {
+		return // Protect against nil receiver
+	}
+	s.elements[element] = struct{}{}
+}
+
+// Contains checks if an element is in the set
+func (s *msgPubSet) Contains(element string) bool {
+	if s == nil {
+		return false // Protect against nil receiver
+	}
+	_, exists := s.elements[element]
+	return exists
+}
+
+// Remove removes an element from the set
+func (s *msgPubSet) Remove(element string) {
+	if s == nil {
+		return // Protect against nil receiver
+	}
+	delete(s.elements, element)
 }
