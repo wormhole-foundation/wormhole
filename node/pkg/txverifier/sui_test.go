@@ -794,7 +794,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "requested amount out is larger than amount in",
+			expectedError: "token bridge transfer requested for an amount larger than what was deposited",
 			expectedCount: 0,
 		},
 		{
@@ -810,7 +810,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "transfer-out request for tokens that were never deposited",
+			expectedError: "token bridge transfer requested for tokens that were never deposited",
 			expectedCount: 0,
 		},
 		{
@@ -858,7 +858,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "transfer-out request for tokens that were never deposited",
+			expectedError: "token bridge transfer requested for tokens that were never deposited",
 			expectedCount: 0,
 		},
 		{
@@ -936,7 +936,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "requested amount out is larger than amount in",
+			expectedError: "token bridge transfer requested for an amount larger than what was deposited",
 			expectedCount: 0,
 		},
 	}

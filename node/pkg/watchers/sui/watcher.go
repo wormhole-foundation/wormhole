@@ -173,6 +173,11 @@ var (
 			Name: "wormhole_sui_current_height",
 			Help: "Current Sui block height",
 		})
+	suiTransferVerifierFailures = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_sui_txverifier_failures",
+			Help: "Total number of messages that failed transfer verification",
+		})
 )
 
 // NewWatcher creates a new Sui appid watcher
@@ -321,6 +326,7 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 	err = e.verifyAndPublish(ctx, observation, *body.ID.TxDigest, logger)
 
 	if err != nil {
+		suiTransferVerifierFailures.Inc()
 		logger.Error("Message publication error",
 			zap.String("TxDigest", *body.ID.TxDigest),
 			zap.Error(err))
