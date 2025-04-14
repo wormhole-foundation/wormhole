@@ -257,7 +257,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	var result map[string]interface{}
 
 	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
-	//nolint:gosec // the URL is hard-coded to the CoinGecko API. See [createCoinGeckoQuery].
+	// #nosec G107 // the URL is hard-coded to the CoinGecko API. See [createCoinGeckoQuery].
 	response, err := http.Get(query) //nolint:noctx // TODO: a context should be added here.
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
