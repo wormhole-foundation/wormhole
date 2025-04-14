@@ -5,21 +5,21 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/txverifier"
+	tv_utils "github.com/certusone/wormhole/node/pkg/txverifier"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // verify evaluates a MessagePublication using the Transfer Verifier.
 // On success, this function returns a copy of the MessagePublication with its verificationState set to the result of
 // the transfer verifier's evaluation.
 // On error, it returns an empty MessagePublication struct.
-func verify(
+func (w *Watcher) verify(
 	ctx context.Context,
 	msg *common.MessagePublication,
 	txHash eth_common.Hash,
 	receipt *types.Receipt,
-	txVerifier txverifier.TransferVerifierInterface,
 ) (common.MessagePublication, error) {
 
 	if msg == nil {
@@ -30,25 +30,31 @@ func verify(
 		return common.MessagePublication{}, fmt.Errorf("MessagePublication already has a non-default verification state")
 	}
 
-	if txVerifier == nil {
+	if !vaa.IsTransfer(msg.Payload) {
+		return common.MessagePublication{}, fmt.Errorf("MessagePublication is not a token transfer")
+
+	}
+
+	if w.txVerifier == nil {
 		return common.MessagePublication{}, fmt.Errorf("transfer verifier is nil")
 	}
 
-	// Create a local copy of the MessagePublication.
-	localMsg := msg
-
-	var verificationState common.VerificationState
+	var (
+		// Create a local copy of the MessagePublication.
+		localMsg          = *msg
+		verificationState common.VerificationState
+	)
 
 	// Only involve the transfer verifier for core messages sent
 	// from the token bridge. This check is also done in the
 	// transfer verifier package, but this helps us skip useless
 	// computation.
-	if txverifier.Cmp(localMsg.EmitterAddress, txVerifier.Addrs().TokenBridgeAddr) != 0 {
+	if tv_utils.Cmp(localMsg.EmitterAddress, w.txVerifier.Addrs().TokenBridgeAddr) != 0 {
 		verificationState = common.NotApplicable
 	} else {
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 		// to protect against fraudulent message emissions.
-		valid := txVerifier.ProcessEvent(ctx, txHash, receipt)
+		valid := w.txVerifier.ProcessEvent(ctx, txHash, receipt)
 		if valid {
 			verificationState = common.Valid
 		} else {
@@ -63,5 +69,5 @@ func verify(
 		return common.MessagePublication{}, fmt.Errorf("%s %w", errMsg, updateErr)
 	}
 
-	return *localMsg, nil
+	return localMsg, nil
 }
