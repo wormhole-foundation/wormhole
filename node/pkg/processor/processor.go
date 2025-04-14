@@ -280,12 +280,6 @@ func (p *Processor) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			if p.notary != nil {
-				err := p.notary.Shutdown()
-				if err != nil {
-					p.logger.Error("could not shutdown notary. messages may not be persisted", zap.Error(err))
-				}
-			}
 			if p.acct != nil {
 				p.acct.Close()
 			}
@@ -328,9 +322,11 @@ func (p *Processor) Run(ctx context.Context) error {
 						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 					} else {
 						// Delayed messages are adding to a separate queue and processed elsewhere.
-						p.logger.Error("message will not be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+						p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 					}
 					continue
+				case notary.Unknown:
+					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 				case notary.Approve:
 					// no-op: process normally
 				}
@@ -377,16 +373,16 @@ func (p *Processor) Run(ctx context.Context) error {
 			// As each of the Notary, Governor, and Accountant can be enabled separately, each must
 			// be processed in a modular way.
 			// When more than one of these features are enabled, messages should be processed
-			// in serial in the following order: Notary -> Governor -> Accountant.
+			// in serial in the order Notary -> Governor -> Accountant.
 			// NOTE: The Accountant can signal to a channel that it is ready to publish a message via
 			// writing to acctReadC so it is not handled separately here.
 
 			if p.notary != nil {
-				p.notary.ProcessReadyMessages()
+				readyMsgs := p.notary.ReleaseReadyMessages()
 
 				// Iterate over all ready messages. Hand-off to the Governor or the Accountant
 				// if they're enabled. If not, publish.
-				for msg := range slices.Values(p.notary.Ready()) {
+				for msg := range slices.Values(readyMsgs) {
 					// TODO: Much of this is duplicated from the msgC branch. It might be a good
 					// idea to refactor how we handle combinations of Notary, Governor, and Accountant being
 					// enabled.
