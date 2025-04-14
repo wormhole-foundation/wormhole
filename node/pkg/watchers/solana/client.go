@@ -819,7 +819,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.C
 				zap.String("watcher commitment", string(s.commitment)),
 			)
 		}
-		return true, nil
+		return false, nil
 	}
 
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
