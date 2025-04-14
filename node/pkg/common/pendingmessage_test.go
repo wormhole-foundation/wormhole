@@ -160,6 +160,52 @@ func TestPendingMessageQueue_Peek(t *testing.T) {
 
 }
 
+func TestPendingMessageQueue_RemoveItem(t *testing.T) {
+	msgInQueue := makeTestPendingMessage(t).Msg
+	msgNotInQueue := makeTestPendingMessage(t).Msg
+	msgNotInQueue.TxID = []byte{0xff}
+
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		target *common.MessagePublication
+		want   *common.PendingMessage
+	}{
+		{
+			"successful removal",
+			&msgInQueue,
+			&common.PendingMessage{Msg: msgInQueue},
+		},
+		{
+			"remove an item that is not in the queue",
+			&msgNotInQueue,
+			nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			q := common.NewPendingMessageQueue()
+
+			q.Push(&common.PendingMessage{Msg: msgInQueue})
+
+			got, gotErr := q.RemoveItem(tt.target)
+			require.NoError(t, gotErr)
+
+			if tt.want != nil {
+				require.NotNil(t, got)
+				require.Equal(t, 0, q.Len())
+				// The RemoveItem function relies on comparing TxIDs.
+				require.Equal(t, tt.want.Msg.TxID, got.Msg.TxID)
+			} else {
+				require.Nil(t, got)
+				require.Equal(t, 1, q.Len(), "item should not have been removed from queue")
+			}
+
+		})
+	}
+}
+
 func assertSliceOrdering(t *testing.T, s []*common.PendingMessage) {
 	for i := range len(s) - 1 {
 		require.True(t, s[i].ReleaseTime.Before(s[i+1].ReleaseTime))

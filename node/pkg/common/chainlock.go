@@ -550,3 +550,11 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.String("verificationState", msg.verificationState.String()),
 	)
 }
+
+// VAAHash returns a hash corresponding to the fields of the Message Publication that are ultimately
+// encoded in a VAA. This is a helper function used to uniquely identify a Message Publication.
+func (msg *MessagePublication) VAAHash() string {
+	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
+	digest := v.SigningDigest()
+	return hex.EncodeToString(digest.Bytes())
+}
