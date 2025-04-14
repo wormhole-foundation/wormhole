@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"container/heap"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -138,11 +139,11 @@ func NewPendingMessageQueue() *PendingMessageQueue {
 
 // Push adds an element to the heap. If msg is nil, nothing is added.
 // Returns nil if the heap is empty or if the value is not a *[PendingMessage].
-func (q *PendingMessageQueue) Push(msg *PendingMessage) {
-	if msg == nil {
+func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
+	if pMsg == nil {
 		return
 	}
-	heap.Push(&q.heap, msg)
+	heap.Push(&q.heap, pMsg)
 }
 
 // Pop removes the last element from the heap and returns its value.
@@ -173,7 +174,33 @@ func (q *PendingMessageQueue) Peek() *PendingMessage {
 	return &last
 }
 
-// Contains determines whether the queue contains a [MessagePublication] (not a [PendingMessage]).
+// RemoveItem removes target MessagePublication from the heap. Returns the element that was removed or nil
+// if the item was not found. No error is returned if the item was not found.
+func (q *PendingMessageQueue) RemoveItem(target *MessagePublication) (*PendingMessage, error) {
+	if target == nil {
+		return nil, errors.New("pendingmessage: nil argument for RemoveItem")
+	}
+	if len(target.TxID) == 0 {
+		return nil, errors.New("pendingmessage: argument has empty TxID")
+	}
+
+	var removed *PendingMessage
+	for i, item := range q.heap {
+		// Assumption: TxIDs are unique across MessagePublications.
+		if bytes.Equal(item.Msg.TxID, target.TxID) {
+			pMsg, ok := heap.Remove(&q.heap, i).(*PendingMessage)
+			if !ok {
+				return nil, errors.New("pendingmessage: item removed from heap is not PendingMessage")
+			}
+			removed = pMsg
+			break
+		}
+	}
+
+	return removed, nil
+}
+
+// Contains determines whether the queue contains a [PendingMessage].
 func (q *PendingMessageQueue) Contains(pMsg *PendingMessage) bool {
 	if pMsg == nil {
 		return false
@@ -181,7 +208,7 @@ func (q *PendingMessageQueue) Contains(pMsg *PendingMessage) bool {
 	return slices.Contains(q.heap, pMsg)
 }
 
-// Contains determines whether the queue contains a [MessagePublication] (not a [PendingMessage]).
+// ContainsMessagePublication determines whether the queue contains a [MessagePublication] (not a [PendingMessage]).
 func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublication) bool {
 	if msgPub == nil {
 		return false
