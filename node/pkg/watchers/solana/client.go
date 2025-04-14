@@ -1172,6 +1172,8 @@ func isPossibleWormholeMessage(whLogPrefix string, logMessages []string) bool {
 					return true
 				}
 			}
+			// There are no sequence logs anywhere below this, so we can quit looking.
+			return false
 		}
 	}
 	return false
