@@ -879,7 +879,16 @@ func verifySignature(vaa_digest []byte, signature *Signature, address common.Add
 
 // Digest should be the output of SigningMsg(data).Bytes()
 // Should not be public as other message types should be verified using a message prefix.
+// Returns false when the signatures or addresses are empty.
 func verifySignatures(vaa_digest []byte, signatures []*Signature, addresses []common.Address) bool {
+
+	// An empty set is neither valid nor invalid, it's just specified incorrectly.
+	// To help with backward-compatibility, return false instead of changing the function
+	// signature to return an error.
+	if len(signatures) == 0 || len(addresses) == 0 {
+		return false
+	}
+
 	if len(addresses) < len(signatures) {
 		return false
 	}
@@ -937,6 +946,10 @@ func VerifyMessageSignature(prefix []byte, messageBody []byte, signatures *Signa
 
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
+// Returns false when the signatures or addresses are empty.
+//
+// WARNING: This function is not sufficient for validating a VAA as it does not consider
+// signature quorum. [VAA.Verify] should be used instead.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	return verifySignatures(v.SigningDigest().Bytes(), v.Signatures, addresses)
 }
