@@ -248,6 +248,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 	}
 
+	// nolint:bodyclose // Misses the close below
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
@@ -777,7 +778,12 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 			return nil, fmt.Errorf("channel map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(entry), string(body))
 		}
 
-		channelIdBytes, err := base64.StdEncoding.DecodeString(entry[0].(string))
+		channelIdString, ok := entry[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("error converting channelIdBytes to string")
+		}
+
+		channelIdBytes, err := base64.StdEncoding.DecodeString(channelIdString)
 		if err != nil {
 			return nil, fmt.Errorf("channel ID for entry %d is invalid base64: %s, err: %s", idx, entry[0], err)
 		}

@@ -635,9 +635,11 @@ func (ecd *EthCallQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
+		//nolint:dupword // Data should be repeated in this context. This is the same for the other six in this file.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
+		//nolint:dupword
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -797,9 +799,11 @@ func (ecd *EthCallByTimestampQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
+		//nolint:dupword
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
+		//nolint:dupword
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -959,9 +963,12 @@ func (ecd *EthCallWithFinalityQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
+
+		//nolint:dupword
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
+		//nolint:dupword
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -1032,17 +1039,17 @@ func (saq *SolanaAccountQueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes a Solana sol_account query from a byte array
 func (saq *SolanaAccountQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
-	len := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+	length := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
-	if len > SolanaMaxCommitmentLength {
+	if length > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
 	}
 
-	commitment := make([]byte, len)
-	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+	commitment := make([]byte, length)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(length) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
 	}
 	saq.Commitment = string(commitment)
@@ -1169,17 +1176,17 @@ func (spda *SolanaPdaQueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes a Solana sol_pda query from a byte array
 func (spda *SolanaPdaQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
-	len := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+	length := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
-	if len > SolanaMaxCommitmentLength {
+	if length > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
 	}
 
-	commitment := make([]byte, len)
-	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+	commitment := make([]byte, length)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(length) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
 	}
 	spda.Commitment = string(commitment)

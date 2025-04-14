@@ -196,6 +196,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
+			GuardianOptionAlternatePublisher([]byte{}, []string{}),
 			GuardianOptionProcessor(networkID),
 		}
 
@@ -260,7 +261,7 @@ func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, g
 // WARNING: Currently, there is only a global registry for all prometheus metrics, leading to all guardian nodes writing to the same one.
 //
 //	As long as this is the case, you probably don't want to use this function.
-func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, min int) {
+func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, minimum int) {
 	t.Helper()
 	metricBytes := []byte(metric)
 	requests := make([]*http.Request, len(gs))
@@ -299,7 +300,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 					if bytes.HasPrefix(line, metricBytes) {
 						res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
 						assert.NoError(t, err)
-						if res >= min {
+						if res >= minimum {
 							return true
 						}
 					}

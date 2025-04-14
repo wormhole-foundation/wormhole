@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/accountant"
+	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -77,6 +77,11 @@ func GuardianOptionP2P(
 			// Add the gossip advertisement address
 			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
+			var alternatePublisherFeaturesFunc func() string
+			if g.alternatePublisher != nil {
+				alternatePublisherFeaturesFunc = g.alternatePublisher.GetFeatures
+			}
+
 			params, err := p2p.NewRunParams(
 				bootstrapPeers,
 				networkId,
@@ -110,6 +115,7 @@ func GuardianOptionP2P(
 					featureFlags,
 				),
 				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
+				p2p.WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc),
 			)
 			if err != nil {
 				return err
@@ -311,7 +317,8 @@ func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 					logger.Info("status server listening", zap.String("status_addr", statusAddr))
 
 					<-ctx.Done()
-					if err := server.Shutdown(context.Background()); err != nil { // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+					//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+					if err := server.Shutdown(context.Background()); err != nil {
 						logger := supervisor.Logger(ctx)
 						logger.Error("error while shutting down status server: ", zap.Error(err))
 					}
@@ -494,7 +501,8 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 			}
 
-			go handleReobservationRequests(ctx, clock.New(), logger, g.obsvReqC.readC, chainObsvReqC)
+			clock := &CacheClock{}
+			go handleReobservationRequests(ctx, clock, logger, g.obsvReqC.readC, chainObsvReqC)
 
 			return nil
 		}}
@@ -507,6 +515,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 		name:         "admin-service",
 		dependencies: []string{"governor", "db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			//nolint:contextcheck // Independent service that should not be affected by other services
 			adminService, err := adminServiceRunnable(
 				logger,
 				socketPath,
@@ -539,11 +548,11 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 		dependencies: []string{"db", "governor"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			// local public grpc service socket
+			//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
 				return fmt.Errorf("failed to create publicrpc service: %w", err)
 			}
-
 			g.runnables["publicrpcsocket"] = publicrpcUnixService
 			g.publicrpcServer = publicrpcServer
 			return nil
@@ -588,13 +597,34 @@ func GuardianOptionDatabase(db *db.Database) *GuardianOption {
 		}}
 }
 
+// GuardianOptionAlternatePublisher enables the alternate publisher if it is configured.
+func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *GuardianOption {
+	return &GuardianOption{
+		name: "alternate-publisher",
+
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+
+			var err error
+			g.alternatePublisher, err = altpub.NewAlternatePublisher(logger, guardianAddr, configs)
+			if err != nil {
+				return err
+			}
+
+			if g.alternatePublisher != nil {
+				g.runnables["alternate-publisher"] = g.alternatePublisher.Run
+			}
+
+			return nil
+		}}
+}
+
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: db, governor, accountant
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"db", "governor", "accountant", "gateway-relayer"},
+		dependencies: []string{"db", "governor", "accountant", "gateway-relayer", "alternate-publisher"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -614,6 +644,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.acctC.readC,
 				g.gatewayRelayer,
 				networkId,
+				g.alternatePublisher,
 			).Run
 
 			return nil

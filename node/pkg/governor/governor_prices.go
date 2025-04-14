@@ -134,7 +134,7 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	}
 }
 
-// queryCoinGecko sends a series of of one or more queries to the CoinGecko server to get the latest prices. It can
+// queryCoinGecko sends a series of one or more queries to the CoinGecko server to get the latest prices. It can
 // return an error, but that is only used by the tool that validates the query. In the actual governor,
 // it just logs the error and we will try again next interval. If an error happens, any tokens that have
 // not been updated will be assigned their pre-configured price.

@@ -216,7 +216,7 @@ func NewEthWatcher(
 func (w *Watcher) tokenBridge() eth_common.Address {
 	var tb []byte
 	switch w.env {
-	case common.UnsafeDevNet:
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 		tb = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
 	case common.TestNet:
 		tb = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
@@ -229,7 +229,7 @@ func (w *Watcher) tokenBridge() eth_common.Address {
 func (w *Watcher) wrappedNative() eth_common.Address {
 	var wnative string
 	switch w.env {
-	case common.UnsafeDevNet:
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 		wnative = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
 	case common.TestNet:
 		wnative = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
@@ -309,6 +309,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 			var tvErr error
 			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
+				ctx,
 				w.ethConn,
 				&txverifier.TVAddresses{
 					CoreBridgeAddr:    w.contract,
@@ -528,7 +529,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						// Check multiple possible error cases - the node seems to return a
 						// "not found" error most of the time, but it could conceivably also
 						// return a nil tx or rpc.ErrNoResult.
-						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
+						if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", pLock.message.TxIDString()),
@@ -623,7 +624,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						txHash := eth_common.Hash(pLock.message.TxID)
 						pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
 						if pubErr != nil {
-							logger.Error("could not publish message: transfer verification failed",
+							logger.Error("could not publish message",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", txHash.String()),
 								zap.Error(pubErr),
@@ -889,8 +890,16 @@ func (w *Watcher) verifyAndPublish(
 			return err
 		}
 		msg = &verifiedMsg
+		w.logger.Debug(
+			"verified transfer",
+			msg.ZapFields()...,
+		)
 	}
 
+	w.logger.Debug(
+		"publishing new message publication",
+		msg.ZapFields()...,
+	)
 	w.msgC <- msg
 	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 	if msg.IsReobservation {

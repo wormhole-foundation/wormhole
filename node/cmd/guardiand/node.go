@@ -52,10 +52,11 @@ import (
 )
 
 var (
-	p2pNetworkID   *string
-	p2pPort        *uint
-	p2pBootstrap   *string
-	protectedPeers []string
+	p2pNetworkID         *string
+	p2pPort              *uint
+	p2pBootstrap         *string
+	protectedPeers       []string
+	additionalPublishers *[]string
 
 	nodeKeyPath *string
 
@@ -303,6 +304,7 @@ func init() {
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
 	NodeCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
+	additionalPublishers = NodeCmd.Flags().StringArray("additionalPublishEndpoint", []string{}, "defines an alternate publisher as label;url;delay;chains where delay and chains are optional")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -1901,6 +1903,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		guardianSigner,
 	)
 
+	var guardianAddrAsBytes []byte
+	if len(*additionalPublishers) > 0 {
+		guardianAddrAsBytes = ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
+	}
+
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
@@ -1912,6 +1919,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers,
 			*gossipAdvertiseAddress, ibc.GetFeatures, protectedPeers, ccqProtectedPeers, featureFlags),
 		node.GuardianOptionStatusServer(*statusAddr),
+		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID),
 	}
 

@@ -537,6 +537,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 									features = append(features, flag)
 								}
 							}
+							if params.alternatePublisherFeaturesFunc != nil {
+								flag := params.alternatePublisherFeaturesFunc()
+								if flag != "" {
+									features = append(features, flag)
+								}
+							}
 							if params.gov != nil {
 								if params.gov.IsFlowCancelEnabled() {
 									features = append(features, "governor:fc")

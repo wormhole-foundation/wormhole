@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+
+permissions:
+  contents: read
+
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:
@@ -293,7 +297,7 @@ jobs:
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.63.4
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.0.2
       - name: Run linters
         run: make generate && golangci-lint --version && ./scripts/lint.sh -g lint
       - name: Ensure generated proto matches

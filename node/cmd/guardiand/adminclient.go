@@ -23,8 +23,8 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/node"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
@@ -450,7 +450,7 @@ func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
 	}
 
 	url := args[2]
-	if valid := node.ValidateURL(url, []string{"http", "https"}); !valid {
+	if valid := common.ValidateURL(url, []string{"http", "https"}); !valid {
 		log.Fatalf(`invalid url, must be "http" or "https"`)
 	}
 
@@ -776,7 +776,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	for {
 		row, err := oldVAAReader.Read()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			log.Fatalf("failed to parse VAA CSV: %v", err)
@@ -812,7 +812,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	newVAAWriter.Flush()
 }
 
-// This exposes keccak256 as a command line utility, mostly for validating goverance messages
+// This exposes keccak256 as a command line utility, mostly for validating governance messages
 // that use this hash.  There isn't any common utility that computes this since this is nonstandard outside of evm.
 // It is used similar to other hashing utilities, e.g. `cat <file> | guardiand admin keccak256`.
 func runKeccak256Hash(cmd *cobra.Command, args []string) {
