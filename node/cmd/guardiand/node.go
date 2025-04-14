@@ -28,7 +28,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
@@ -1969,7 +1968,7 @@ func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr string, chainID v
 			}
 		} else {
 			if contractAddr == "" {
-				contractAddr = gethcommon.HexToAddress(sdk.DevnetEthereumCoreBridgeAddr).Hex()
+				contractAddr = sdk.KnownDevnetCoreContracts[vaa.ChainIDEthereum]
 			}
 		}
 	}

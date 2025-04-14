@@ -4,10 +4,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-// DevnetEthereumCoreBridgeAddr is the EVM core bridge contract address matching the mnemonic phrase
-// used in the devnet set-up environment. See also docs/devnet.md
-var DevnetEthereumCoreBridgeAddr = "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
-
 // KnownDevnetEmitters is a list of known emitters used during development.
 var KnownDevnetEmitters = buildKnownEmitters(knownDevnetTokenbridgeEmitters, knownDevnetNFTBridgeEmitters)
 
@@ -50,4 +46,10 @@ var KnownDevnetAutomaticRelayerEmitters = []struct {
 var KnownDevnetWrappedNativeAddresses = map[vaa.ChainID]string{
 	// WETH deployed by the Tilt devnet configuration.
 	vaa.ChainIDEthereum: "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
+}
+
+// KnownDevnetCoreContracts is a map of known core contract addresses used during development.
+var KnownDevnetCoreContracts = map[vaa.ChainID]string{
+	vaa.ChainIDSui:      "5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0",
+	vaa.ChainIDEthereum: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
 }
