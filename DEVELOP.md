@@ -5,6 +5,7 @@
 The following dependencies are required for local development:
 
 - [Go](https://golang.org/dl/) >= 1.23.3 (latest minor release is recommended)
+    - [golangci-lint](https://golangci-lint.run/welcome/install/#install-from-sources) >= 2.0.0
 - [Tilt](http://tilt.dev/) >= 0.20.8
 - Any of the local Kubernetes clusters supported by Tilt.
   We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >=
@@ -37,7 +38,10 @@ Launch the devnet:
 
     tilt up
 
-By default this runs a network consisting of one guardian, two anvil (Eth) chains, a Solana test validator, an Algorand sandbox, and LocalTerra for both Terra Classic and Terra 2. If you want to work on non-consensus parts of the code, running with a single guardian is easiest since you won't have to wait for k8s to restart all pods. See the usage guide below for arguments to customize the tilt network.
+By default this runs a network with all optional chains disabled. If you want
+to work on non-consensus parts of the code, running with a single guardian is
+easiest since you won't have to wait for k8s to restart all pods. See the usage
+guide below for arguments to customize the tilt network.
 
 ## Usage
 
@@ -57,10 +61,6 @@ Adjust number of nodes in running cluster: (this is only useful if you want to t
 of nodes diverges from the guardian set - otherwise, `tilt down --delete-namespaces` and restart the cluster)
 
     tilt args -- --num=2
-
-Run without all optional networks:
-
-    tilt up -- --algorand=false --evm2=false --solana=false --terra_classic=false --terra2=false
 
 Tear down cluster:
 

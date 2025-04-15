@@ -60,6 +60,7 @@ frontends
 funder
 gogoproto
 goimports
+golangci
 gossipv
 guardiand
 GUARDIAND
