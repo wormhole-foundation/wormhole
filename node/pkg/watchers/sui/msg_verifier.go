@@ -28,7 +28,7 @@ func (e *Watcher) verify(
 		return common.MessagePublication{}, fmt.Errorf("transfer verifier is nil")
 	}
 
-	localMsg := msg
+	localMsg := *msg
 
 	var verificationState common.VerificationState
 
@@ -55,5 +55,5 @@ func (e *Watcher) verify(
 		return common.MessagePublication{}, fmt.Errorf("%s %w", errMsg, updateErr)
 	}
 
-	return *localMsg, nil
+	return localMsg, nil
 }
