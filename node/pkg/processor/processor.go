@@ -3,7 +3,9 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -28,7 +31,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var GovInterval = time.Minute
+var PollInterval = time.Minute
 var CleanupInterval = time.Second * 30
 
 type (
@@ -149,6 +152,7 @@ type Processor struct {
 	governor       *governor.ChainGovernor
 	acct           *accountant.Accountant
 	acctReadC      <-chan *common.MessagePublication
+	notary         *notary.Notary
 	pythnetVaas    map[string]PythNetVaaEntry
 	gatewayRelayer *gwrelayer.GatewayRelayer
 	updateVAALock  sync.Mutex
@@ -219,6 +223,7 @@ func NewProcessor(
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
+	notary *notary.Notary,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
@@ -243,6 +248,7 @@ func NewProcessor(
 		governor:       g,
 		acct:           acct,
 		acctReadC:      acctReadC,
+		notary:         notary,
 		pythnetVaas:    make(map[string]PythNetVaaEntry),
 		gatewayRelayer: gatewayRelayer,
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
@@ -263,7 +269,7 @@ func (p *Processor) Run(ctx context.Context) error {
 	cleanup := time.NewTicker(CleanupInterval)
 
 	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
-	govTimer := time.NewTimer(GovInterval)
+	pollTimer := time.NewTimer(PollInterval)
 
 	for {
 		select {
@@ -280,17 +286,63 @@ func (p *Processor) Run(ctx context.Context) error {
 			)
 			p.gst.Set(p.gs)
 		case k := <-p.msgC:
+
+			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
+
+			// Notary: check whether a message is well-formed.
+			// Send messages to the Notary first. If messages are not approved, they should not continue
+			// to the Governor or the Accountant.
+			if p.notary != nil {
+				p.logger.Debug("processor: sending message to notary for evaluation", k.ZapFields()...)
+
+				// NOTE: Always returns Approve for messages that are not token transfers.
+				verdict, err := p.notary.ProcessMsg(k)
+				if err != nil {
+					// Errors should only occur if there is an issue with database interaction.
+					// TODO: do we want the notary to return an error to the processor? It will
+					// trigger a restart. This method follows what the accountant does when it
+					// cannot process a message.
+					return errors.Join(
+						fmt.Errorf("processor: notary failed to process message `%s`", k.MessageIDString()),
+						err,
+					)
+				}
+
+				switch verdict {
+				case notary.Blackhole, notary.Delay:
+					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					if verdict == notary.Blackhole {
+						// Black-holed messages should not be processed.
+						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					} else {
+						// Delayed messages are adding to a separate queue and processed elsewhere.
+						p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+					}
+					// We're done processing the message.
+					continue
+				case notary.Unknown:
+					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
+				case notary.Approve:
+					// no-op: process normally
+				}
+			}
+
+			// Governor: check if a message is ready to be published.
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
+					// We're done processing the message.
 					continue
 				}
 			}
+
+			// Accountant: check if a message is ready to be published (i.e. if it has enough observations).
 			if p.acct != nil {
 				shouldPub, err := p.acct.SubmitObservation(k)
 				if err != nil {
-					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
+					return fmt.Errorf("accountant: failed to process message `%s`: %w", k.MessageIDString(), err)
 				}
 				if !shouldPub {
+					// We're done processing the message.
 					continue
 				}
 			}
@@ -312,7 +364,50 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleInboundSignedVAAWithQuorum(m)
 		case <-cleanup.C:
 			p.handleCleanup(ctx)
-		case <-govTimer.C:
+		case <-pollTimer.C:
+			// Poll the pending lists for messages that can be released. Both the Notary and the Governor
+			// can delay messages.
+			// As each of the Notary, Governor, and Accountant can be enabled separately, each must
+			// be processed in a modular way.
+			// When more than one of these features are enabled, messages should be processed
+			// in serial in the order Notary -> Governor -> Accountant.
+			// NOTE: The Accountant can signal to a channel that it is ready to publish a message via
+			// writing to acctReadC so it is not handled separately here.
+
+			if p.notary != nil {
+				readyMsgs := p.notary.ReleaseReadyMessages()
+
+				// Iterate over all ready messages. Hand-off to the Governor or the Accountant
+				// if they're enabled. If not, publish.
+				for msg := range slices.Values(readyMsgs) {
+					// TODO: Much of this is duplicated from the msgC branch. It might be a good
+					// idea to refactor how we handle combinations of Notary, Governor, and Accountant being
+					// enabled.
+
+					// Hand-off to governor
+					if p.governor != nil {
+						if !p.governor.ProcessMsg(msg) {
+							continue
+						}
+					}
+
+					// Hand-off to accountant. If we get here, both the Notary and the Governor
+					// have signalled that the message is OK to publish.
+					if p.acct != nil {
+						shouldPub, err := p.acct.SubmitObservation(msg)
+						if err != nil {
+							return fmt.Errorf("accountant: failed to process message `%s`: %w", msg.MessageIDString(), err)
+						}
+						if !shouldPub {
+							continue
+						}
+					}
+
+					// Notary, Governor, and Accountant have all approved.
+					p.handleMessage(ctx, msg)
+				}
+			}
+
 			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
@@ -339,8 +434,9 @@ func (p *Processor) Run(ctx context.Context) error {
 					}
 				}
 			}
-			if (p.governor != nil) || (p.acct != nil) {
-				govTimer.Reset(GovInterval)
+
+			if (p.notary != nil) || (p.governor != nil) || (p.acct != nil) {
+				pollTimer.Reset(PollInterval)
 			}
 		}
 	}

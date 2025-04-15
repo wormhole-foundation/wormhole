@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -248,6 +249,22 @@ func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGe
 				g.gov = governor.NewChainGovernor(logger, g.db, g.env, flowCancelEnabled, coinGeckoApiKey)
 			} else {
 				logger.Info("chain governor is disabled")
+			}
+			return nil
+		}}
+}
+
+// GuardianOptionNotary enables or disables the Notary.
+// Dependencies: db
+func GuardianOptionNotary(notaryEnabled bool) *GuardianOption {
+	return &GuardianOption{
+		name:         "notary",
+		dependencies: []string{"db"},
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			if notaryEnabled {
+				g.notary = notary.NewNotary(ctx, logger, g.db, g.env)
+			} else {
+				logger.Info("notary is disabled")
 			}
 			return nil
 		}}
@@ -623,8 +640,8 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
-		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"db", "governor", "accountant", "gateway-relayer", "alternate-publisher"},
+		// governor, accountant, and notary may be set to nil, but that choice needs to be made before the processor is configured
+		dependencies: []string{"db", "governor", "accountant", "notary", "gateway-relayer", "alternate-publisher"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -642,6 +659,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.gov,
 				g.acct,
 				g.acctC.readC,
+				g.notary,
 				g.gatewayRelayer,
 				networkId,
 				g.alternatePublisher,
