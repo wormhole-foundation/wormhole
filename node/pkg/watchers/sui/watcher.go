@@ -363,14 +363,7 @@ func (e *Watcher) verifyAndPublish(
 	}
 
 	logger.Info("message observed",
-		zap.String("txHash", msg.TxIDString()),
-		zap.Time("timestamp", msg.Timestamp),
-		zap.Uint32("nonce", msg.Nonce),
-		zap.Uint64("sequence", msg.Sequence),
-		zap.Stringer("emitter_chain", msg.EmitterChain),
-		zap.Stringer("emitter_address", msg.EmitterAddress),
-		zap.Binary("payload", msg.Payload),
-		zap.Uint8("consistencyLevel", msg.ConsistencyLevel),
+		msg.ZapFields()...,
 	)
 
 	return nil
