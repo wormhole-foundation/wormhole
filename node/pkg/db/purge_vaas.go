@@ -12,6 +12,7 @@ import (
 // that are older than the specified time. If the logOnly flag is specified, it does not delete anything,
 // just counts up what it would have deleted.
 
+//nolint:unparam // Reports string return value as unused. Seems to be a false positive.
 func (d *Database) PurgeVaas(prefix VAAID, oldestTime time.Time, logOnly bool) (string, error) {
 	if prefix.Sequence != 0 {
 		return "", fmt.Errorf("may not specify a sequence number on the prefix")

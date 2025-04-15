@@ -40,13 +40,14 @@ func (wc *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
 	wc.l1Finalizer = l1finalizer
 }
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (wc *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	_ <-chan *query.PerChainQueryInternal,
 	_ chan<- *query.PerChainQueryResponseInternal,
 	setC chan<- *common.GuardianSet,
-	env common.Environment,
+	_ common.Environment,
 ) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 	return MockL1Finalizer{}, NewWatcherRunnable(msgC, obsvReqC, setC, wc), nil, nil
 }

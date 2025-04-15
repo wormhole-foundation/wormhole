@@ -16,6 +16,11 @@ type LoggingMap struct {
 	loggingMap  map[string]time.Time
 }
 
+const (
+	expireAfter     = 2 * time.Minute
+	cleanupInterval = 1 * time.Minute
+)
+
 // NewLoggingMap creates the map used to track requests for which we should log responses.
 func NewLoggingMap() *LoggingMap {
 	return &LoggingMap{
@@ -23,10 +28,10 @@ func NewLoggingMap() *LoggingMap {
 	}
 }
 
-// Start starts a go routine to clean up requests that have been in the map for two minutes.
-func (lm *LoggingMap) Start(ctx context.Context, logger *zap.Logger, errC chan error) {
+// Start starts a go routine to clean up the loggingMap.
+func (lm *LoggingMap) Start(ctx context.Context, _ *zap.Logger, errC chan error) {
 	common.RunWithScissors(ctx, errC, "logging_cleanup", func(ctx context.Context) error {
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(cleanupInterval)
 		defer ticker.Stop()
 
 		for {
@@ -34,14 +39,14 @@ func (lm *LoggingMap) Start(ctx context.Context, logger *zap.Logger, errC chan e
 			case <-ctx.Done():
 				return nil
 			case <-ticker.C:
-				lm.CleanUp(logger)
+				lm.CleanUp()
 			}
 		}
 	})
 }
 
-// CleanUp iterates over the map and removes all entries that are more than two minutes old.
-func (lm *LoggingMap) CleanUp(logger *zap.Logger) {
+// CleanUp iterates over the map and removes all entries that are expired.
+func (lm *LoggingMap) CleanUp() {
 	lm.loggingLock.Lock()
 	defer lm.loggingLock.Unlock()
 	for requestId, cleanUpTime := range lm.loggingMap {
@@ -51,11 +56,11 @@ func (lm *LoggingMap) CleanUp(logger *zap.Logger) {
 	}
 }
 
-// AddRequest adds a request to the map, giving it an expiration time two minutes into the future.
+// AddRequest adds a request to the map, giving it an expiration time.
 func (lm *LoggingMap) AddRequest(requestSignature string) {
 	lm.loggingLock.Lock()
 	defer lm.loggingLock.Unlock()
-	lm.loggingMap[requestSignature] = time.Now().Add(2 * time.Minute)
+	lm.loggingMap[requestSignature] = time.Now().Add(expireAfter)
 }
 
 // ShouldLogResponse returns true if the request is in the map.
