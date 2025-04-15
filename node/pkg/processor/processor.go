@@ -324,6 +324,7 @@ func (p *Processor) Run(ctx context.Context) error {
 						// Delayed messages are adding to a separate queue and processed elsewhere.
 						p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 					}
+					// We're done processing the message.
 					continue
 				case notary.Unknown:
 					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
@@ -335,6 +336,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			// Governor: check if a message is ready to be published.
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
+					// We're done processing the message.
 					continue
 				}
 			}
@@ -346,6 +348,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					return fmt.Errorf("accountant: failed to process message `%s`: %w", k.MessageIDString(), err)
 				}
 				if !shouldPub {
+					// We're done processing the message.
 					continue
 				}
 			}

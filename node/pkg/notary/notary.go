@@ -75,7 +75,9 @@ func (v Verdict) String() string {
 
 const (
 	// How long a message should be held in the pending list before being processed.
-	DelayFor = time.Hour * 24
+	// The value should be long enough to allow for manual review and classification
+	// by the Guardians.
+	DelayFor = time.Hour * 24 * 4
 )
 
 var (
