@@ -67,6 +67,7 @@ jobs:
           # - "ictest-ibc-receiver"
           - "ictest-validator-hotswap"
           - "ictest-cw-wormhole"
+          - "ictest-cw-shutdown-contracts"
       fail-fast: false
 
     steps:
