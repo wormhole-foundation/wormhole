@@ -38,7 +38,7 @@ type GuardianOption struct {
 }
 
 // GuardianOptionP2P configures p2p networking.
-// Dependencies: Accountant, Governor
+// Dependencies: See below.
 func GuardianOptionP2P(
 	p2pKey libp2p_crypto.PrivKey,
 	networkId string,
@@ -58,7 +58,7 @@ func GuardianOptionP2P(
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
-		dependencies: []string{"accountant", "governor", "gateway-relayer"},
+		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "query"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
@@ -621,12 +621,12 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 }
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
-// Dependencies: db, governor, accountant
+// Dependencies: See below.
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"db", "governor", "accountant", "gateway-relayer", "alternate-publisher"},
+		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -654,6 +654,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 }
 
 // getStaticFeatureFlags creates the list of feature flags that do not change after initialization and adds them to the ones passed in.
+// Note: Any objects referenced here should be listed as dependencies in `GuardianOptionP2P`.
 func getStaticFeatureFlags(g *G, featureFlags []string) []string {
 	if g.gov != nil {
 		flag := "gov"

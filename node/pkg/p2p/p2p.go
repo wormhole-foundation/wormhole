@@ -532,7 +532,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								networks = append(networks, v)
 							}
 
-							features := params.featureFlags
+							features := make([]string, len(params.featureFlags))
+							copy(features, params.featureFlags)
 							if len(params.featureFlagFuncs) != 0 {
 								for _, f := range params.featureFlagFuncs {
 									flag := f()
