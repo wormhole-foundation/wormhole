@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"testing"
 	"time"
 
@@ -92,7 +93,6 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 }
 
 func TestPendingMessage_HeapInvariants(t *testing.T) {
-	q := common.NewPendingMessageQueue()
 
 	msg1 := *makeTestPendingMessage(t)
 	msg2 := msg1
@@ -102,38 +102,76 @@ func TestPendingMessage_HeapInvariants(t *testing.T) {
 	msg2.ReleaseTime = msg1.ReleaseTime.Add(time.Hour)
 	msg3.ReleaseTime = msg1.ReleaseTime.Add(time.Hour * 2)
 
+	// Give unique TxIDs
+	msg1.Msg.TxID = []byte{0x01}
+	msg2.Msg.TxID = []byte{0x02}
+	msg3.Msg.TxID = []byte{0x03}
+
 	require.True(t, msg1.ReleaseTime.Before(msg2.ReleaseTime))
 	require.True(t, msg2.ReleaseTime.Before(msg3.ReleaseTime))
+
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		order []*common.PendingMessage
+	}{
+		{
+			"ascending order",
+			[]*common.PendingMessage{&msg1, &msg2, &msg3},
+		},
+		{
+			"mixed order A",
+			[]*common.PendingMessage{&msg2, &msg3, &msg1},
+		},
+		{
+			"mixed order B",
+			[]*common.PendingMessage{&msg3, &msg1, &msg2},
+		},
+	}
 
 	// Try different variations of adding messages to the heap.
 	// After each variation, the first element returned should be equal
 	// to the smallest/oldest message publication, which is msg1.
-	q.Push(&msg1)
-	q.Push(&msg2)
-	q.Push(&msg3)
-	require.Equal(t, 3, q.Len())
-	res := consumeHeapAndAssertOrdering(t, q)
-	require.Equal(t, 0, q.Len())
-	require.True(t, &msg1 == res[0])
-	assertSliceOrdering(t, res)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			q := common.NewPendingMessageQueue()
+			for pMsg := range slices.Values(tt.order) {
+				q.Push(pMsg)
+			}
+			require.Equal(t, len(tt.order), q.Len())
 
-	q.Push(&msg3)
-	q.Push(&msg1)
-	q.Push(&msg2)
-	require.Equal(t, 3, q.Len())
-	res = consumeHeapAndAssertOrdering(t, q)
-	require.Equal(t, 0, q.Len())
-	require.True(t, &msg1 == res[0])
-	assertSliceOrdering(t, res)
+			res := consumeHeapAndAssertOrdering(t, q)
+			require.Equal(t, 0, q.Len())
+			require.True(t, &msg1 == res[0])
+			assertSliceOrdering(t, res)
+		})
+	}
 
-	q.Push(&msg2)
-	q.Push(&msg3)
-	q.Push(&msg1)
-	require.Equal(t, 3, q.Len())
-	res = consumeHeapAndAssertOrdering(t, q)
-	require.Equal(t, 0, q.Len())
-	require.True(t, &msg1 == res[0])
-	assertSliceOrdering(t, res)
+	// Ensure that calling RemoveItem doesn't change the ordering.
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			q := common.NewPendingMessageQueue()
+			for pMsg := range slices.Values(tt.order) {
+				q.Push(pMsg)
+			}
+			require.Equal(t, len(tt.order), q.Len())
+
+			removed, err := q.RemoveItem(&msg2.Msg)
+			require.NoError(t, err)
+			require.NotNil(t, removed)
+			require.Equal(t, &msg2, removed)
+
+			require.Equal(t, len(tt.order)-1, q.Len())
+
+			res := consumeHeapAndAssertOrdering(t, q)
+			require.Equal(t, 0, q.Len())
+			require.True(t, &msg1 == res[0])
+			assertSliceOrdering(t, res)
+		})
+	}
+
 }
 
 func TestPendingMessageQueue_Peek(t *testing.T) {
