@@ -87,6 +87,9 @@ type (
 		shimEnabled                   bool
 		shimPostMessageDiscriminator  []byte
 		shimMessageEventDiscriminator []byte
+
+		// PollForTx indicates if we should poll for transactions using `getSignaturesForAddress`.
+		PollForTx bool
 	}
 
 	EventSubscriptionError struct {
@@ -147,9 +150,6 @@ const (
 
 	// DefaultPollDelay is the polling interval used for any chains that don't have an override.
 	DefaultPollDelay = time.Second * 1
-
-	// FogoPollDelay is the polling interval for Fogo. It has a very short block time so we want to poll more frequently.
-	FogoPollDelay = time.Millisecond * 200
 )
 
 var (
@@ -250,6 +250,7 @@ func NewSolanaWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	shimContractStr string,
 	shimContractAddr solana.PublicKey,
+	pollForTx bool,
 ) *SolanaWatcher {
 	msgObservedLogLevel := zapcore.InfoLevel
 	if chainID == vaa.ChainIDPythNet {
@@ -274,6 +275,7 @@ func NewSolanaWatcher(
 		ccqConfig:           query.GetPerChainConfig(chainID),
 		shimContractStr:     shimContractStr,
 		shimContractAddr:    shimContractAddr,
+		PollForTx:           pollForTx,
 	}
 }
 
@@ -364,9 +366,6 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	}
 
 	pollInterval := DefaultPollDelay
-	if s.chainID == vaa.ChainIDFogo {
-		pollInterval = FogoPollDelay
-	}
 
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", s.chainID.String()),
@@ -376,6 +375,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		zap.String("rawContract", s.rawContract),
 		zap.String("shimContract", s.shimContractStr),
 		zap.Duration("pollInterval", pollInterval),
+		zap.Bool("pollForTx", s.PollForTx),
 	)
 
 	s.shimSetup()
@@ -470,13 +470,24 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							zap.Duration("took", time.Since(start)))
 					}
 
-					// Requesting each slot
-					for slot := rangeStart; slot <= rangeEnd; slot++ {
-						_slot := slot
-						common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
-							s.retryFetchBlock(ctx, logger, _slot, 0, false)
-							return nil
-						})
+					if s.PollForTx {
+						//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
+						err = s.processTransactionsForSlots(rangeStart, rangeEnd)
+						if err != nil {
+							p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
+							solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "tx_for_acct").Inc()
+							s.errC <- err
+							return err
+						}
+					} else {
+						// Requesting each slot
+						for slot := rangeStart; slot <= rangeEnd; slot++ {
+							_slot := slot
+							common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
+								s.retryFetchBlock(ctx, logger, _slot, 0, false)
+								return nil
+							})
+						}
 					}
 				} else {
 					if logger.Level().Enabled(zapcore.DebugLevel) {
@@ -488,6 +499,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 			}
 		}
 	})
+
+	// TODO: If we end up not needing this, delete it.
+	// common.RunWithScissors(ctx, s.errC, "SolanaTxProcessor", s.transactionProcessor)
 
 	if s.commitment == rpc.CommitmentType("finalized") && s.ccqConfig.QueriesSupported() {
 		s.ccqStart(ctx)
@@ -831,15 +845,15 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.C
 	}
 
 	common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-		s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation)
+		s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, 0, isReobservation, signature)
 		return nil
 	})
 
 	return true, nil
 }
 
-func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool) {
-	_, retryable := s.fetchMessageAccount(ctx, rpcClient, acc, slot, isReobservation)
+func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, retry uint, isReobservation bool, signature solana.Signature) {
+	_, retryable := s.fetchMessageAccount(ctx, rpcClient, acc, slot, isReobservation, signature)
 
 	if retryable {
 		if retry >= maxRetries {
@@ -858,13 +872,13 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient 
 			zap.Uint("retry", retry))
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
-			s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation)
+			s.retryFetchMessageAccount(ctx, rpcClient, acc, slot, retry+1, isReobservation, signature)
 			return nil
 		})
 	}
 }
 
-func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool) (numObservations uint32, retryable bool) {
+func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.Client, acc solana.PublicKey, slot uint64, isReobservation bool, signature solana.Signature) (numObservations uint32, retryable bool) {
 	// Fetching account
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
@@ -911,7 +925,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 			zap.Binary("data", data))
 	}
 
-	return s.processMessageAccount(s.logger, data, acc, isReobservation), false
+	return s.processMessageAccount(s.logger, data, acc, isReobservation, signature), false
 }
 
 func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte, isReobservation bool) error {
@@ -964,7 +978,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	switch string(data[:3]) {
 	case accountPrefixReliable, accountPrefixUnreliable:
 		acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
-		s.processMessageAccount(logger, data, acc, isReobservation)
+		s.processMessageAccount(logger, data, acc, isReobservation, solana.Signature{})
 	default:
 		break
 	}
@@ -972,7 +986,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	return nil
 }
 
-func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey, isReobservation bool) (numObservations uint32) {
+func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey, isReobservation bool, signature solana.Signature) (numObservations uint32) {
 	proposal, err := ParseMessagePublicationAccount(data)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
@@ -1069,6 +1083,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	if logger.Level().Enabled(s.msgObservedLogLevel) {
 		logger.Log(s.msgObservedLogLevel, "message observed",
 			zap.Stringer("account", acc),
+			zap.Stringer("signature", signature),
 			zap.Time("timestamp", observation.Timestamp),
 			zap.Uint32("nonce", observation.Nonce),
 			zap.Uint64("sequence", observation.Sequence),
