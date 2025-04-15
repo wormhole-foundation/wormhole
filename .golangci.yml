@@ -24,6 +24,8 @@ linters:
     # Check for simple misspellings of words. 
     - misspell
     - noctx
+    # Require explanations for nolint comments
+    - nolintlint
     - prealloc
     # Overwriting predeclared Golang names such as 'len' and 'min'.
     - predeclared
@@ -88,6 +90,19 @@ linters:
         - weakCond
       # performance lints
         - indexAlloc
+    nolintlint:
+      # Disable to ensure that all nolint directives actually have an effect.
+      # Default: false
+      allow-unused: false
+      # Exclude following linters from requiring an explanation.
+      # Default: []
+      allow-no-explanation: [dupWord]
+      # Enable to require an explanation of nonzero length after each nolint directive.
+      # Default: false
+      require-explanation: true
+      # Enable to require nolint directives to mention the specific linter being suppressed.
+      # Default: false
+      require-specific: true
     staticcheck:
       checks:
         # All of these lints should eventually be added.
@@ -117,9 +132,12 @@ linters:
       - linters:
           - godox
         path: node/hack/
+      # Ignore test files for these tools.
       - linters:
           - contextcheck
+          - dupWord
           - exhaustruct
+          - nolintlint
         path: _test\.go
       - linters:
           - exhaustruct

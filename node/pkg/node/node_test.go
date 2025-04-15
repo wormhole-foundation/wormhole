@@ -366,7 +366,8 @@ type testCase struct {
 }
 
 func randomTime() time.Time {
-	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // nolint // convert time to unix and back to match what is done during serialization/de-serialization
+	// #nosec G404 we don't need cryptographic randomness here.
+	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
 var someMsgSequenceCounter uint64 = 0

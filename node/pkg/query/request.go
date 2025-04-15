@@ -635,11 +635,11 @@ func (ecd *EthCallQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
-		//nolint:dupword // Data should be repeated in this context. This is the same for the other six in this file.
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
-		//nolint:dupword
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -799,11 +799,11 @@ func (ecd *EthCallByTimestampQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
-		//nolint:dupword
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
-		//nolint:dupword
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -964,11 +964,11 @@ func (ecd *EthCallWithFinalityQueryRequest) Validate() error {
 			return fmt.Errorf("invalid length for To contract")
 		}
 
-		//nolint:dupword
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
-		//nolint:dupword
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}

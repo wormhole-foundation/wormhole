@@ -36,9 +36,8 @@ var TransferVerifierCmdSui = &cobra.Command{
 }
 
 // CLI parameters
-// The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 //
-//nolint:errcheck
+//nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 func init() {
 	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui RPC url")
 	suiCoreContract = TransferVerifierCmdSui.Flags().String("suiCoreContract", "", "Sui core contract address")
