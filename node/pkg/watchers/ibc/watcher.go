@@ -165,16 +165,9 @@ func NewWatcher(
 		}
 
 		chainMap[ce.chainID] = ce
-
-		if feats == "" {
-			feats = "ibc:"
-		} else {
-			feats += "|"
-		}
-		feats += ce.chainID.String()
 	}
 
-	setFeatures(feats)
+	setFeatures("ibc")
 
 	return &Watcher{
 		wsUrl:                 wsUrl,
@@ -429,7 +422,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 			}
 
 			readiness.SetReady(common.ReadinessIBCSyncing)
-			setFeatures(w.baseFeatures + ":" + abciInfo.Result.Response.Version)
+			setFeatures("ibc:" + abciInfo.Result.Response.Version)
 		}
 	}
 }

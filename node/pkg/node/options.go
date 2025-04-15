@@ -51,7 +51,7 @@ func GuardianOptionP2P(
 	ccqPort uint,
 	ccqAllowedPeers string,
 	gossipAdvertiseAddress string,
-	ibcFeaturesFunc func() string,
+	ibcEnabled bool,
 	protectedPeers []string,
 	ccqProtectedPeers []string,
 	featureFlags []string,
@@ -77,9 +77,14 @@ func GuardianOptionP2P(
 			// Add the gossip advertisement address
 			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
-			var alternatePublisherFeaturesFunc func() string
-			if g.alternatePublisher != nil {
-				alternatePublisherFeaturesFunc = g.alternatePublisher.GetFeatures
+			// Get the static feature flags and add them to what was passed in.
+			featureFlags = getStaticFeatureFlags(g, featureFlags)
+
+			// Create the list of dynamic feature flag functions.
+			featureFlagFuncs := []func() string{}
+			if ibcEnabled {
+				// IBC has a dynamic feature flag because it reports the Wormchain version.
+				featureFlagFuncs = append(featureFlagFuncs, ibc.GetFeatures)
 			}
 
 			params, err := p2p.NewRunParams(
@@ -102,9 +107,7 @@ func GuardianOptionP2P(
 					g.gov,
 					disableHeartbeatVerify,
 					components,
-					ibcFeaturesFunc,
-					(g.gatewayRelayer != nil), // gatewayRelayerEnabled,
-					(g.queryHandler != nil),   // ccqEnabled,
+					(g.queryHandler != nil), // ccqEnabled,
 					g.signedQueryReqC.writeC,
 					g.queryResponsePublicationC.readC,
 					ccqBootstrapPeers,
@@ -113,9 +116,8 @@ func GuardianOptionP2P(
 					protectedPeers,
 					ccqProtectedPeers,
 					featureFlags,
+					featureFlagFuncs,
 				),
-				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
-				p2p.WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc),
 			)
 			if err != nil {
 				return err
@@ -649,4 +651,33 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 
 			return nil
 		}}
+}
+
+// getStaticFeatureFlags creates the list of feature flags that do not change after initialization and adds them to the ones passed in.
+func getStaticFeatureFlags(g *G, featureFlags []string) []string {
+	if g.gov != nil {
+		flag := "gov"
+		if g.gov.IsFlowCancelEnabled() {
+			flag = "gov:fc"
+		}
+		featureFlags = append(featureFlags, flag)
+	}
+
+	if g.acct != nil {
+		featureFlags = append(featureFlags, g.acct.FeatureString())
+	}
+
+	if g.queryHandler != nil {
+		featureFlags = append(featureFlags, "ccq")
+	}
+
+	if g.gatewayRelayer != nil {
+		featureFlags = append(featureFlags, "gwrelayer")
+	}
+
+	if g.alternatePublisher != nil {
+		featureFlags = append(featureFlags, g.alternatePublisher.GetFeatures())
+	}
+
+	return featureFlags
 }
