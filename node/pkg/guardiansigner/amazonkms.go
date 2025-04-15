@@ -75,7 +75,7 @@ type AmazonKms struct {
 // client is created with the region.
 // NOTE: The public key is retrieved during signer creation, and stored as a property of the
 // signer. This is because the public key is not expected to change during runtime.
-func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string) (*AmazonKms, error) {
+func NewAmazonKmsSigner(ctx context.Context, keyPath string) (*AmazonKms, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, KMS_TIMEOUT)
 	defer cancel()
 

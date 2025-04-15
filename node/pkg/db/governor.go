@@ -342,6 +342,7 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 	return d.GetChainGovernorDataForTime(logger, time.Now())
 }
 
+//nolint:unparam // TODO: now is unused. This function and GetChainGovernorData can be combined.
 func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time) (transfers []*Transfer, pending []*PendingTransfer, err error) {
 	oldTransfers := []*Transfer{}
 	oldPendingToUpdate := []*PendingTransfer{}
