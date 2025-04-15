@@ -65,7 +65,7 @@ func (wc *WatcherConfig) Create(
 		obsvReqC = nil
 	}
 
-	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr)
+	watcher := NewSolanaWatcher(wc.Rpc, wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr)
 
 	var reobserver interfaces.Reobserver
 	if wc.Commitment == solana_rpc.CommitmentFinalized {
