@@ -164,7 +164,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			logger.Info("Context cancelled")
 		case <-ticker.C:
 			// Fetch new events
-			resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", 25, true)
+			resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", InitialEventFetchLimit, true)
 			if err != nil {
 				logger.Error("Error in querying new events", zap.Error(err))
 				continue
