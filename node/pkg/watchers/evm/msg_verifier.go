@@ -30,11 +30,6 @@ func (w *Watcher) verify(
 		return common.MessagePublication{}, fmt.Errorf("MessagePublication already has a non-default verification state")
 	}
 
-	if !vaa.IsTransfer(msg.Payload) {
-		return common.MessagePublication{}, fmt.Errorf("MessagePublication is not a token transfer")
-
-	}
-
 	if w.txVerifier == nil {
 		return common.MessagePublication{}, fmt.Errorf("transfer verifier is nil")
 	}
@@ -45,11 +40,12 @@ func (w *Watcher) verify(
 		verificationState common.VerificationState
 	)
 
-	// Only involve the transfer verifier for core messages sent
+	// Only involve the transfer verifier for token transfer messages sent
 	// from the token bridge. This check is also done in the
 	// transfer verifier package, but this helps us skip useless
 	// computation.
-	if tv_utils.Cmp(localMsg.EmitterAddress, w.txVerifier.Addrs().TokenBridgeAddr) != 0 {
+	if tv_utils.Cmp(localMsg.EmitterAddress, w.txVerifier.Addrs().TokenBridgeAddr) != 0 ||
+		!vaa.IsTransfer(msg.Payload) {
 		verificationState = common.NotApplicable
 	} else {
 		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
