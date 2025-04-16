@@ -7,13 +7,14 @@ package solana
 // range that involved the Wormhole core contract. It then reads each of those transactions and uses the standard
 // transaction processing code to observe any messages found in those transactions.
 
-// TODO: Get rid of "TEST:" log messages.
+// NOTE: Keeping the lines that start with '//s.logger.Info("TEST:' for future testing.
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"github.com/gagliardetto/solana-go"
@@ -31,11 +32,11 @@ const (
 	NumGetBlockRetries = 25
 )
 
-/* TODO: Delete this code if we end up not needing it.
 // transactionProcessor is the entry point of the runnable that periodically queries for new Wormhole observations.
 // It uses the standard `DefaultPollDelay`, although the timing will vary based on query delays. Each interval, it gets
-// the latest slot. It uses that slot and one plus the latest slot of the previous interval to determine a range of slots.
-// It then invokes the function that queries for Wormhole transactions in slots in that range.
+// the latest slot seen by the main watcher. It uses that slot and one plus the latest slot of the previous interval to
+// determine a range of slots. It then invokes the function that queries for Wormhole transactions for a range of slots.
+// Note: This is a separate runnable so that query delays don't impact the standard block height reporting.
 func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 	timer := time.NewTicker(DefaultPollDelay)
 	defer timer.Stop()
@@ -48,44 +49,43 @@ func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-timer.C:
-			if newestSlot, err := s.processLatestTransactions(ctx, oldestSlot); err != nil {
+			//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
+			newestSlot, err := s.processLatestTransactions(oldestSlot)
+			if err != nil {
 				s.logger.Error("failed to get transactions", zap.Error(err))
 				s.errC <- err
 				return err
-			} else {
-				oldestSlot = newestSlot
 			}
+			oldestSlot = newestSlot
 		}
 	}
 }
 
-// processLatestTransactions gets the latest slot and then invokes the function that queries for Wormhole transactions in slots in the specified range.
-func (s *SolanaWatcher) processLatestTransactions(ctx context.Context, oldestSlot uint64) (uint64, error) {
-	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-	newestSlot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
-	cancel()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get latest slot: %w", err)
+// processLatestTransactions gets the latest slot and then invokes the function that queries for Wormhole transactions for a range of slots.
+func (s *SolanaWatcher) processLatestTransactions(oldestSlot uint64) (uint64, error) {
+	newestSlot := atomic.LoadUint64(&s.lastSlot)
+	if newestSlot == 0 {
+		s.logger.Info("not getting transactions, waiting for initial slot")
+		return 0, nil
 	}
 
 	if oldestSlot == 0 {
 		// This is the startup scenario.
 		oldestSlot = newestSlot - 1
 	} else if oldestSlot == newestSlot {
-		s.logger.Debug("not getting transactions, slot number has not advanced", zap.Uint64("slotNum", oldestSlot))
+		//s.logger.Info("TEST: not getting transactions, slot number has not advanced", zap.Uint64("slotNum", oldestSlot))
 		return oldestSlot, nil
 	} else {
 		oldestSlot++
 	}
 
-	err = s.processTransactionsForSlots(oldestSlot, newestSlot)
+	err := s.processTransactionsForSlots(oldestSlot, newestSlot)
 	if err != nil {
 		return 0, err
 	}
 
 	return newestSlot, nil
 }
-*/
 
 // processTransactionsForSlots queries for the transactions for a range of slots and processes any core events.
 func (s *SolanaWatcher) processTransactionsForSlots(oldestSlot uint64, newestSlot uint64) error {
@@ -115,15 +115,10 @@ func (s *SolanaWatcher) processTransactionsForSlots(oldestSlot uint64, newestSlo
 		return fmt.Errorf("failed to get toSig: %w", err)
 	}
 
-	s.logger.Info("TEST: got blocks",
-		zap.Uint64("oldestSlot", oldestSlot),
-		zap.Uint64("newestSlot", newestSlot),
-		zap.Stringer("fromSig", fromSig),
-		zap.Stringer("toSig", toSig),
-	)
+	//s.logger.Info("TEST: got blocks", zap.Uint64("oldestSlot", oldestSlot), zap.Uint64("newestSlot", newestSlot), zap.Stringer("fromSig", fromSig), zap.Stringer("toSig", toSig))
 
 	if err := s.queryAndProcessTransactions(fromSig, toSig); err != nil {
-		return fmt.Errorf("failed to query transactions for sigs: %w", err)
+		return fmt.Errorf("failed to query and process transactions for sigs: %w", err)
 	}
 	return nil
 }
@@ -164,8 +159,6 @@ func getLastSignature(block *rpc.GetBlockResult) (solana.Signature, error) {
 // If it is false, we increment it. This process continues until we find a valid block or the number of
 // retries is exhausted.
 func (s *SolanaWatcher) findNextValidBlock(slot uint64, decrement bool, retries int) (*rpc.GetBlockResult, error) {
-	// identify block range by fetching signatures of the first and last transactions
-	// getSignaturesForAddress walks backwards so fromSignature occurs after toSignature
 	if retries == 0 {
 		return nil, errors.New("no block found after exhausting retries")
 	}
@@ -223,9 +216,9 @@ func updateSlot(slot uint64, decrement bool) uint64 {
 }
 
 // queryAndProcessTransactions takes a range of signatures and queries for all transactions involving
-// the core contract and processes them. Note that query being used goes in reverse, so `fromSig` is after `toSig`.
-// For each transaction involving the core, it performs the standard processing to observe a message. It creates
-// a separate go routine for each transaction involving the core contract.
+// the core contract in that range and processes them. Note that query being used goes in reverse, so
+// `fromSig` is after `toSig`. For each transaction involving the core, it performs the standard processing
+// to observe a message. It creates a separate go routine for each transaction involving the core contract.
 func (s *SolanaWatcher) queryAndProcessTransactions(fromSig solana.Signature, toSig solana.Signature) error {
 	transactions, err := s.getTransactionSignatures(fromSig, toSig)
 	if err != nil {
@@ -236,7 +229,8 @@ func (s *SolanaWatcher) queryAndProcessTransactions(fromSig solana.Signature, to
 		return nil
 	}
 
-	s.logger.Info("TEST: found transactions", zap.Int("numItems", len(transactions)), zap.Any("out", transactions))
+	//s.logger.Info("TEST: found transactions", zap.Int("numItems", len(transactions)), zap.Any("out", transactions))
+
 	for _, tx := range transactions {
 		go s.processTransactionWithRetry(tx.Signature)
 	}
@@ -244,7 +238,7 @@ func (s *SolanaWatcher) queryAndProcessTransactions(fromSig solana.Signature, to
 	return nil
 }
 
-// getTransactionSignatures uses the `getSignaturesForAddress` RPC call to query all transactions involving the core contract
+// getTransactionSignatures uses the `getSignaturesForAddress` RPC call to query for all transactions involving the core contract
 // between the two specified signatures (where `fromSig` occurs after `toSig`). Since the API call might not hold all transactions
 // (which is very unlikely, since the max is 1000), it handles pagination. After building the set of transactions, it reverses them
 // so they are returned in chronological order.
