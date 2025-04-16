@@ -17,8 +17,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/gagliardetto/solana-go"
-	"gopkg.in/godo.v2/watcher/fswatch"
 )
 
 type (
@@ -96,7 +96,7 @@ type (
 		env      common.Environment
 		permMap  PermissionsMap
 		fileName string
-		watcher  *fswatch.Watcher
+		watcher  *fsnotify.Watcher
 	}
 )
 
@@ -114,26 +114,37 @@ func NewPermissions(fileName string, env common.Environment) (*Permissions, erro
 }
 
 // StartWatcher creates an fswatcher to watch for updates to the permissions file and reload it when it changes.
-func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, errC chan error) {
+func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, errC chan error) error {
 	logger = logger.With(zap.String("component", "perms"))
-	perms.watcher = fswatch.NewWatcher(perms.fileName)
-	fsChan := perms.watcher.Start()
+	permWatcher, createErr := fsnotify.NewWatcher()
+	if createErr != nil {
+		return createErr
+	}
+	addErr := permWatcher.Add(perms.fileName)
+	if addErr != nil {
+		return addErr
+	}
+	perms.watcher = permWatcher
 
 	common.RunWithScissors(ctx, errC, "perm_file_watcher", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
-			case notif := <-fsChan:
-				if notif.Path != perms.fileName {
-					return fmt.Errorf("permissions watcher received an update for an unexpected file: %s", notif.Path)
+			case event := <-perms.watcher.Events:
+				if event.Name != perms.fileName {
+					return fmt.Errorf("permissions watcher received an update for an unexpected file: %s", event.Name)
 				}
 
-				logger.Info("the permissions file has been updated", zap.String("fileName", notif.Path), zap.Int("event", int(notif.Event)))
-				perms.Reload(logger)
+				if event.Has(fsnotify.Write) {
+					logger.Info("the permissions file has been updated", zap.String("fileName", event.Name), zap.Uint32("event", uint32(event.Op)))
+					perms.Reload(logger)
+				}
 			}
 		}
 	})
+
+	return nil
 }
 
 // Reload reloads the permissions file.
@@ -155,7 +166,7 @@ func (perms *Permissions) Reload(logger *zap.Logger) {
 // StopWatcher stops the permissions file watcher.
 func (perms *Permissions) StopWatcher() {
 	if perms.watcher != nil {
-		perms.watcher.Stop()
+		perms.watcher.Close()
 	}
 }
 
