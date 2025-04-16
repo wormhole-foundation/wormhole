@@ -276,6 +276,9 @@ type (
 	}
 )
 
+// However, this would be a breaking change for integrators that use this function
+//
+//nolint:unparam // TODO: The error is always nil here. This function should not return and error
 func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -291,6 +294,9 @@ func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// However, this would be a breaking change for integrators that use this function
+//
+//nolint:unparam // TODO: The error is always nil here. This function should not return and error
 func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -450,6 +456,9 @@ func (r BodyGatewayScheduleUpgrade) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
 }
 
+// However, this would be a breaking change for integrators that use this function
+//
+//nolint:unparam // TODO: The error is always nil here. This function should not return and error
 func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) error {
 	r.Name = string(bz[0 : len(bz)-8])
 	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
