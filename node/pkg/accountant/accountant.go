@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -77,7 +77,7 @@ type (
 type Accountant struct {
 	ctx                  context.Context
 	logger               *zap.Logger
-	db                   db.AccountantDB
+	db                   guardianDB.AccountantDB
 	obsvReqWriteC        chan<- *gossipv1.ObservationRequest
 	contract             string
 	wsUrl                string
@@ -112,7 +112,7 @@ func (acct *Accountant) baseEnabled() bool {
 func NewAccountant(
 	ctx context.Context,
 	logger *zap.Logger,
-	db db.AccountantDB,
+	db guardianDB.AccountantDB,
 	obsvReqWriteC chan<- *gossipv1.ObservationRequest,
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface

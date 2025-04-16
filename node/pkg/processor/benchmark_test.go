@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -42,7 +42,7 @@ there were  100000  handle message calls, taking an average time of  28.704µs
 func BenchmarkHandleObservation(b *testing.B) {
 	const NumObservations = 100000
 	ctx := context.Background()
-	db := db.OpenDb(nil, nil)
+	db := guardianDB.OpenDb(nil, nil)
 	defer db.Close()
 	p, pd := createProcessorForTest(b, NumObservations, ctx, db)
 	require.NotNil(b, p)
@@ -100,7 +100,7 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 	defer pprof.StopCPUProfile()
 
 	ctx := context.Background()
-	db := db.OpenDb(nil, nil)
+	db := guardianDB.OpenDb(nil, nil)
 	defer db.Close()
 	p, pd := createProcessorForTest(b, NumObservations, ctx, db)
 	require.NotNil(b, p)
@@ -131,7 +131,7 @@ func (pd *ProcessorData) messageID(seqNum uint64) string {
 }
 
 // createProcessorForTest creates a processor for benchmarking. It assumes we are index zero in the guardian set.
-func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *db.Database) (*Processor, *ProcessorData) {
+func createProcessorForTest(b *testing.B, numVAAs int, ctx context.Context, db *guardianDB.Database) (*Processor, *ProcessorData) {
 	b.Helper()
 	logger := zap.NewNop()
 

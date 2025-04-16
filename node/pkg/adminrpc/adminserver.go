@@ -26,7 +26,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/exp/slices"
 
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -55,7 +55,7 @@ var (
 
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
-	db              *db.Database
+	db              *guardianDB.Database
 	injectC         chan<- *common.MessagePublication
 	obsvReqSendC    chan<- *gossipv1.ObservationRequest
 	logger          *zap.Logger
@@ -70,12 +70,12 @@ type nodePrivilegedService struct {
 }
 
 func NewPrivService(
-	db *db.Database,
+	db *guardianDB.Database,
 	injectC chan<- *common.MessagePublication,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	logger *zap.Logger,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
-	governor *governor.ChainGovernor,
+	gov *governor.ChainGovernor,
 	evmConnector connectors.Connector,
 	guardianSigner guardiansigner.GuardianSigner,
 	guardianAddress ethcommon.Address,
@@ -89,7 +89,7 @@ func NewPrivService(
 		obsvReqSendC:    obsvReqSendC,
 		logger:          logger,
 		signedInC:       signedInC,
-		governor:        governor,
+		governor:        gov,
 		evmConnector:    evmConnector,
 		guardianSigner:  guardianSigner,
 		guardianAddress: guardianAddress,
@@ -933,7 +933,7 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	emitterAddress := vaa.Address{}
 	copy(emitterAddress[:], b)
 
-	ids, first, last, err := s.db.FindEmitterSequenceGap(db.VAAID{
+	ids, first, last, err := s.db.FindEmitterSequenceGap(guardianDB.VAAID{
 		EmitterChain:   vaa.ChainID(req.EmitterChain),
 		EmitterAddress: emitterAddress,
 	})
@@ -1080,7 +1080,7 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Conte
 }
 
 func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev1.PurgePythNetVaasRequest) (*nodev1.PurgePythNetVaasResponse, error) {
-	prefix := db.VAAID{EmitterChain: vaa.ChainIDPythNet}
+	prefix := guardianDB.VAAID{EmitterChain: vaa.ChainIDPythNet}
 	oldestTime := time.Now().Add(-time.Hour * 24 * time.Duration(req.DaysOld)) // #nosec G115 -- This conversion is safe indefinitely
 	resp, err := s.db.PurgeVaas(prefix, oldestTime, req.LogOnly)
 	if err != nil {
@@ -1315,7 +1315,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			errCounter++
 			continue
 		}
-		vaaKey := db.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence} // #nosec G115 -- This chainId conversion is verified above
+		vaaKey := guardianDB.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence} // #nosec G115 -- This chainId conversion is verified above
 		hasVaa, err := s.db.HasVAA(vaaKey)
 		if err != nil || hasVaa {
 			errMsgs += fmt.Sprintf("\nerror checking for VAA %s", missingVAA.VaaKey)

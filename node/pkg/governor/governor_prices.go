@@ -22,7 +22,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
@@ -319,7 +319,7 @@ func (te tokenEntry) updatePrice() {
 func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.MainNet, true, "")
 
 	if err := gov.initConfig(); err != nil {

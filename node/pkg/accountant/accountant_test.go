@@ -19,7 +19,7 @@ import (
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -100,7 +100,7 @@ func newAccountantForTest(
 	acctWriteC chan<- *common.MessagePublication,
 	wormchainConn *MockAccountantWormchainConn,
 ) *Accountant {
-	var db db.MockAccountantDB
+	var db guardianDB.MockAccountantDB
 
 	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
 	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(pk)

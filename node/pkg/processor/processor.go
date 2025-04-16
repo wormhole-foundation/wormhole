@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/altpub"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -129,7 +129,7 @@ type Processor struct {
 
 	logger *zap.Logger
 
-	db *db.Database
+	db *guardianDB.Database
 
 	alternatePublisher *altpub.AlternatePublisher
 
@@ -206,7 +206,7 @@ const batchObsvPubChanSize = p2p.MaxObservationBatchSize * 5
 
 func NewProcessor(
 	ctx context.Context,
-	db *db.Database,
+	db *guardianDB.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
 	gossipAttestationSendC chan<- []byte,
@@ -360,7 +360,7 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) {
 }
 
 // haveSignedVAA returns true if we already have a VAA for the given VAAID
-func (p *Processor) haveSignedVAA(id db.VAAID) bool {
+func (p *Processor) haveSignedVAA(id guardianDB.VAAID) bool {
 	if id.EmitterChain == vaa.ChainIDPythNet {
 		if p.pythnetVaas == nil {
 			return false

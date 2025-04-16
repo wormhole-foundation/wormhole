@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -94,14 +94,14 @@ type (
 		token  *tokenEntry // Store a reference to the token so we can get the current price to compute the value each interval.
 		amount *big.Int
 		hash   string
-		dbData db.PendingTransfer // This info gets persisted in the DB.
+		dbData guardianDB.PendingTransfer // This info gets persisted in the DB.
 	}
 
 	// Used in flow cancel calculations. Wraps a database Transfer. Also contains a signed amount field in order to
 	// hold negative values. This field will be used in flow cancel calculations to reduce the Governor usage for a
 	// supported token.
 	transfer struct {
-		dbTransfer *db.Transfer
+		dbTransfer *guardianDB.Transfer
 		value      int64
 	}
 
@@ -122,7 +122,7 @@ type (
 
 // newTransferFromDbTransfer performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
 // This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
-func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error) {
+func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, err error) {
 	if dbTransfer.Value > math.MaxInt64 {
 		return tx, fmt.Errorf("value for db.Transfer exceeds MaxInt64: %d", dbTransfer.Value)
 	}
@@ -159,7 +159,7 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 // addFlowCancelTransferFromDbTransfer converts a dbTransfer to a transfer and adds it to the
 // Chain Entry.
 // Validation of transfer data is performed by other methods: see addFlowCancelTransfer, newTransferFromDbTransfer.
-func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *db.Transfer) error {
+func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) error {
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db                  db.GovernorDB // protected by `mutex`
+	db                  guardianDB.GovernorDB // protected by `mutex`
 	logger              *zap.Logger
 	mutex               sync.Mutex
 	tokens              map[tokenKey]*tokenEntry    // protected by `mutex`
@@ -206,7 +206,7 @@ type ChainGovernor struct {
 
 func NewChainGovernor(
 	logger *zap.Logger,
-	db db.GovernorDB,
+	db guardianDB.GovernorDB,
 	env common.Environment,
 	flowCancelEnabled bool,
 	coinGeckoApiKey string,
@@ -544,7 +544,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	}
 
 	if enqueueIt {
-		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
+		dbData := guardianDB.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
 			gov.logger.Error("failed to store pending vaa",
@@ -573,7 +573,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.String("txID", msg.TxIDString()),
 	)
 
-	dbTransfer := db.Transfer{
+	dbTransfer := guardianDB.Transfer{
 		Timestamp:      now,
 		Value:          value,
 		OriginChain:    token.token.chain,
@@ -818,7 +818,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 					if countsTowardsTransfers {
-						dbTransfer := db.Transfer{Timestamp: now,
+						dbTransfer := guardianDB.Transfer{Timestamp: now,
 							Value:          value,
 							OriginChain:    pe.token.token.chain,
 							OriginAddress:  pe.token.token.addr,

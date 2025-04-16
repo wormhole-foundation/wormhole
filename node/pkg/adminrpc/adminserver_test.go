@@ -327,10 +327,10 @@ func Test_adminCommands(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, 1, len(msg.Messages))
 			govMsg := msg.Messages[0]
-			vaa, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
+			govVAA, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
 			if tst.errText == "" {
 				require.NoError(t, err)
-				verifyGovernanceVAA(t, vaa, govMsg.Sequence, govMsg.Nonce)
+				verifyGovernanceVAA(t, govVAA, govMsg.Sequence, govMsg.Nonce)
 			} else {
 				require.ErrorContains(t, err, tst.errText)
 			}
