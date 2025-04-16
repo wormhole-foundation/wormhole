@@ -8,6 +8,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"encoding/base64"
@@ -385,6 +386,10 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	useWs := false
 	if s.wsUrl != "" {
+		if s.PollForTx {
+			// This would definitely be a program bug, so panic is appropriate.
+			panic(fmt.Sprintf("invalid config in %s watcher, cannot have both useWS and pollForTx", s.chainID.String()))
+		}
 		useWs = true
 		err := s.setupWebSocket(ctx)
 		if err != nil {
@@ -395,6 +400,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
 		timer := time.NewTicker(pollInterval)
 		defer timer.Stop()
+		useStdPolling := (!s.PollForTx) && (!useWs)
 
 		for {
 			select {
@@ -446,10 +452,6 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					return err
 				}
 
-				lastSlot := s.lastSlot
-				if lastSlot == 0 {
-					lastSlot = slot - 1
-				}
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
 				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
@@ -457,51 +459,37 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					ContractAddress: contractAddr,
 				})
 
-				if !useWs {
+				if logger.Level().Enabled(zapcore.DebugLevel) {
+					logger.Debug("fetched current Solana height", zap.Uint64("slot", slot))
+				}
+
+				if useStdPolling {
+					lastSlot := atomic.LoadUint64(&s.lastSlot)
+					if lastSlot == 0 {
+						lastSlot = slot - 1
+					}
+
 					rangeStart := lastSlot + 1
 					rangeEnd := slot
 
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("fetched current Solana height",
-							zap.Uint64("slot", slot),
-							zap.Uint64("lastSlot", lastSlot),
-							zap.Uint64("pendingSlots", slot-lastSlot),
-							zap.Uint64("from", rangeStart), zap.Uint64("to", rangeEnd),
-							zap.Duration("took", time.Since(start)))
-					}
-
-					if s.PollForTx {
-						//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
-						err = s.processTransactionsForSlots(rangeStart, rangeEnd)
-						if err != nil {
-							p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-							solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "tx_for_acct").Inc()
-							s.errC <- err
-							return err
-						}
-					} else {
-						// Requesting each slot
-						for slot := rangeStart; slot <= rangeEnd; slot++ {
-							_slot := slot
-							common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
-								s.retryFetchBlock(ctx, logger, _slot, 0, false)
-								return nil
-							})
-						}
-					}
-				} else {
-					if logger.Level().Enabled(zapcore.DebugLevel) {
-						logger.Debug("fetched current Solana height", zap.Uint64("slot", slot))
+					// Requesting each slot
+					for slot := rangeStart; slot <= rangeEnd; slot++ {
+						_slot := slot
+						common.RunWithScissors(ctx, s.errC, "SolanaWatcherSlotFetcher", func(ctx context.Context) error {
+							s.retryFetchBlock(ctx, logger, _slot, 0, false)
+							return nil
+						})
 					}
 				}
 
-				s.lastSlot = slot
+				atomic.StoreUint64(&s.lastSlot, slot)
 			}
 		}
 	})
 
-	// TODO: If we end up not needing this, delete it.
-	// common.RunWithScissors(ctx, s.errC, "SolanaTxProcessor", s.transactionProcessor)
+	if s.PollForTx {
+		common.RunWithScissors(ctx, s.errC, "SolanaTxProcessor", s.transactionProcessor)
+	}
 
 	if s.commitment == rpc.CommitmentType("finalized") && s.ccqConfig.QueriesSupported() {
 		s.ccqStart(ctx)
