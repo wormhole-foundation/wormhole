@@ -30,7 +30,7 @@ const (
 // The FileSigner is a signer that reads a guardian key from a file (signerKeyPath). The key is
 // expected to be armored with an OpenPGP armor block, and the key itself is expected to be a
 // protobuf-encoded GuardianKey message.
-func NewFileSigner(ctx context.Context, unsafeDevMode bool, signerKeyPath string) (*FileSigner, error) {
+func NewFileSigner(_ context.Context, unsafeDevMode bool, signerKeyPath string) (*FileSigner, error) {
 	fileSigner := &FileSigner{
 		keyPath: signerKeyPath,
 	}

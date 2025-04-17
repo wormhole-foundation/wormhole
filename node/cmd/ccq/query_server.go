@@ -246,10 +246,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			"product":   "ccq_server",
 		}
 
-		err := RunPrometheusScraper(ctx, logger, info)
-		if err != nil {
-			logger.Fatal("Failed to start prometheus scraper", zap.Error(err))
-		}
+		RunPrometheusScraper(ctx, logger, info)
 	}
 
 	// Handle SIGTERM

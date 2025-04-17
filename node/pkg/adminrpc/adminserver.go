@@ -1056,7 +1056,7 @@ func (s *nodePrivilegedService) ChainGovernorReleasePendingVAA(ctx context.Conte
 	}, nil
 }
 
-func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Context, req *nodev1.ChainGovernorResetReleaseTimerRequest) (*nodev1.ChainGovernorResetReleaseTimerResponse, error) {
+func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(_ context.Context, req *nodev1.ChainGovernorResetReleaseTimerRequest) (*nodev1.ChainGovernorResetReleaseTimerResponse, error) {
 	if s.governor == nil {
 		return nil, fmt.Errorf("chain governor is not enabled")
 	}

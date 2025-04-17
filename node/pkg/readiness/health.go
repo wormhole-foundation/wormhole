@@ -46,7 +46,7 @@ func SetReady(component Component) {
 // Handler returns a net/http handler for the readiness check. It returns 200 OK if all components are ready,
 // or 412 Precondition Failed otherwise. For operator convenience, a list of components and their states
 // is returned as plain text (not meant for machine consumption!).
-func Handler(w http.ResponseWriter, r *http.Request) {
+func Handler(w http.ResponseWriter, _ *http.Request) {
 	ready := true
 
 	resp := new(bytes.Buffer)

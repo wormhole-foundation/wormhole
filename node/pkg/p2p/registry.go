@@ -43,7 +43,7 @@ func (r *registry) SetNetworkStats(chain vaa.ChainID, data *gossipv1.Heartbeat_N
 func (r *registry) AddErrorCount(chain vaa.ChainID, delta uint64) {
 	r.errorCounterMu.Lock()
 	defer r.errorCounterMu.Unlock()
-	r.errorCounters[chain] += 1
+	r.errorCounters[chain] += delta
 }
 
 func (r *registry) GetErrorCount(chain vaa.ChainID) uint64 {

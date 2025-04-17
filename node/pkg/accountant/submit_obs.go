@@ -190,6 +190,7 @@ func (k TransferKey) String() string {
 	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
 }
 
+//nolint:unparam // error is always nil but is required to satisfy the custom JSON marshal interface.
 func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 	var result string
 	if sb == nil {

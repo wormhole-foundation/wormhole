@@ -35,7 +35,7 @@ func getUniqueVAA(seqNo uint64) vaa.VAA {
 }
 
 func TestMarshalSignedObservationBatch(t *testing.T) {
-	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(0))
+	gk := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(0))
 	require.NotNil(t, gk)
 
 	NumObservations := uint64(p2p.MaxObservationBatchSize)
