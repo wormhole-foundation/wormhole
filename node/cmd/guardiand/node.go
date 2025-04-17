@@ -45,6 +45,7 @@ import (
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
@@ -1967,7 +1968,7 @@ func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr string, chainID v
 			}
 		} else {
 			if contractAddr == "" {
-				contractAddr = devnet.GanacheWormholeContractAddress.Hex()
+				contractAddr = sdk.KnownDevnetCoreContracts[vaa.ChainIDEthereum]
 			}
 		}
 	}
