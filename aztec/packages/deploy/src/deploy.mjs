@@ -8,7 +8,7 @@ import { writeFileSync } from 'fs';
 
 const WormholeJsonContractArtifact = loadContractArtifact(WormholeJson);
 
-const { PXE_URL = 'http://localhost:8080' } = process.env;
+const { PXE_URL = 'http://localhost:8090' } = process.env;
 
 async function main() {
   const pxe = createPXEClient(PXE_URL);

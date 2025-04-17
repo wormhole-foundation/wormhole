@@ -959,12 +959,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if !*chainGovernorEnabled && *coinGeckoApiKey != "" {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
-	
+
 	if !argsConsistent([]string{*aztecRPC, *aztecContract}) {
 		logger.Fatal("Either --aztecRPC and --aztecContract must all be set or all unset")
 	}
-	
-		// NOTE: If this flag isn't set, or the list is empty, Transfer Verifier should not be enabled.
+
+	// NOTE: If this flag isn't set, or the list is empty, Transfer Verifier should not be enabled.
 	if len(*transferVerifierEnabledChainIDs) != 0 {
 		var parseErr error
 		// NOTE: avoid shadowing txVerifierChains here. It should refer to the global variable.
