@@ -201,8 +201,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	gov := &governor.ChainGovernor{}
 	disableHeartbeatVerify := false
 	components := &Components{}
-	ibcFeaturesFunc := func() string { return "Hello, World!" }
-	gatewayRelayerEnabled := true
 
 	ccqEnabled := true
 	signedQueryReqC := make(chan<- *gossipv1.SignedQueryRequest, 42)
@@ -233,8 +231,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			gov,
 			disableHeartbeatVerify,
 			components,
-			ibcFeaturesFunc,
-			gatewayRelayerEnabled,
 			ccqEnabled,
 			signedQueryReqC,
 			queryResponseReadC,
@@ -243,7 +239,8 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			ccqAllowedPeers,
 			protectedPeers,
 			ccqProtectedPeers,
-			[]string{}, // featureFlags
+			[]string{},        // featureFlags
+			[]func() string{}, // featureFlagFuncs
 		),
 	)
 
@@ -259,8 +256,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	assert.Equal(t, acct, params.acct)
 	assert.Equal(t, gov, params.gov)
 	assert.Equal(t, components, params.components)
-	assert.NotNil(t, params.ibcFeaturesFunc) // Can't compare function pointers, so just verify it's set.
-	assert.True(t, params.gatewayRelayerEnabled)
 	assert.True(t, params.ccqEnabled)
 	assert.Equal(t, signedQueryReqC, params.signedQueryReqC)
 	assert.Equal(t, queryResponseReadC, params.queryResponseReadC)

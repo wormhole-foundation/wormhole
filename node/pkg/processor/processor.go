@@ -447,8 +447,3 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 		}
 	}
 }
-
-// GetFeatures returns the processor feature string that can be published in heartbeat messages.
-func GetFeatures() string {
-	return ""
-}
