@@ -256,9 +256,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "arrayref"
@@ -823,9 +823,9 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
-version = "0.2.171"
+version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
+checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libsecp256k1"
@@ -1139,9 +1139,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.94"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
+checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
 dependencies = [
  "unicode-ident",
 ]
@@ -1527,9 +1527,9 @@ dependencies = [
 
 [[package]]
 name = "solana-curve25519"
-version = "2.2.8"
+version = "2.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d9499a822cd1acdac4fcec1acb500819f84b2f83042d6ae0d19cc45b32747f9"
+checksum = "4c7794a2cbb70f6ea1026b37c9a9418f4dc89de9abeb502afb01d1bac0978fdd"
 dependencies = [
  "bytemuck",
  "bytemuck_derive",
@@ -1952,9 +1952,9 @@ dependencies = [
 
 [[package]]
 name = "solana-pubkey"
-version = "2.2.1"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40db1ff5a0f8aea2c158d78ab5f2cf897848964251d1df42fef78efd3c85b863"
+checksum = "cad77cf9f30b971a1eec48dde6a863dcac60ba005a34dfde23736afa5c7ac667"
 dependencies = [
  "borsh 0.10.4",
  "borsh 1.5.7",
@@ -2246,9 +2246,9 @@ dependencies = [
 
 [[package]]
 name = "solana-vote-interface"
-version = "2.2.3"
+version = "2.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b630547b7f12ee742e1c5069951fedba0fe5cbd4786f6342a779384e2b11f71"
+checksum = "78f039b0788337bedc6c5450d2f237718f938defb5ce0e0ad8ef507e78dcd370"
 dependencies = [
  "bincode",
  "num-derive 0.4.2",
@@ -2270,9 +2270,9 @@ dependencies = [
 
 [[package]]
 name = "solana-zk-sdk"
-version = "2.2.8"
+version = "2.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a891726b0eedc02be46f0cfd2685cafdd7a8ce9d9663f4f7cbd9c883d792896c"
+checksum = "b1cbd4a3f7dbd027fcd55bb5ecbe980c52fff099dc83b74a3555ae2a724885fb"
 dependencies = [
  "aes-gcm-siv",
  "base64 0.22.1",
@@ -2960,7 +2960,7 @@ dependencies = [
 [[package]]
 name = "wormhole-anchor-sdk"
 version = "0.31.0"
-source = "git+https://github.com/wormhole-foundation/wormhole-scaffolding.git#d2670240ce2dabe2d6505887bebfa030546e22ec"
+source = "git+https://github.com/wormhole-foundation/wormhole-scaffolding.git#3be80a92579b108b5d6fffe234c6e18322e2c3b6"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

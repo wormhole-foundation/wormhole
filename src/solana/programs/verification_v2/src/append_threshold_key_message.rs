@@ -3,8 +3,8 @@ use std::io::{Cursor, Read};
 use anchor_lang::prelude::*;
 
 pub struct AppendThresholdKeyMessage {
-	pub guardian_set_index: u32,
-	pub guardian_set_key: [u8; 20],
+	pub tss_index: u32,
+	pub tss_key: [u8; 20],
 	pub expiration_delay_seconds: u32,
 }
 
@@ -30,9 +30,9 @@ impl AppendThresholdKeyMessage {
 		let mut module = [0; 32];
 		cursor.read_exact(&mut module)?;
 		let action = cursor.read_u8()?;
-		let guardian_set_index = cursor.read_u32::<BigEndian>()?;
-		let mut guardian_set_key = [0u8; 20];
-		cursor.read_exact(&mut guardian_set_key)?;
+		let tss_index = cursor.read_u32::<BigEndian>()?;
+		let mut tss_key = [0u8; 20];
+		cursor.read_exact(&mut tss_key)?;
 		let expiration_delay_seconds = cursor.read_u32::<BigEndian>()?;
 
 		// Validate the module and action
@@ -46,8 +46,8 @@ impl AppendThresholdKeyMessage {
 
 		Ok(
 			Self {
-				guardian_set_index,
-				guardian_set_key,
+				tss_index,
+				tss_key,
 				expiration_delay_seconds,
 			}
 		)

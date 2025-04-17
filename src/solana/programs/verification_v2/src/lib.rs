@@ -13,7 +13,7 @@ use libsecp256k1::{Message, RecoveryId, Signature, recover};
 
 use wormhole_anchor_sdk::wormhole::program::Wormhole;
 use wormhole_anchor_sdk::wormhole::constants::CHAIN_ID_SOLANA;
-use wormhole_anchor_sdk::wormhole::{SEED_PREFIX_POSTED_VAA, PostedVaaData};
+use wormhole_anchor_sdk::wormhole::{PostedVaaData};
 
 use vaa::VAA;
 use append_threshold_key_message::AppendThresholdKeyMessage;
@@ -21,18 +21,14 @@ use append_threshold_key_message::AppendThresholdKeyMessage;
 const GOVERNANCE_ADDRESS: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4];
 
 #[derive(Accounts)]
-#[instruction(new_index: u32, vaa_hash: [u8; 32])]
 pub struct AppendThresholdKey<'info> {
   #[account(mut)]
   pub payer: Signer<'info>,
 
   #[account(
-    seeds = [
-      SEED_PREFIX_POSTED_VAA,
-      &vaa_hash
-    ],
-    bump,
-    seeds::program = wormhole_program.key
+    owner = wormhole_program.key(),
+    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
+              && vaa.meta.emitter_address == GOVERNANCE_ADDRESS,
   )]
   pub vaa: Account<'info, PostedVaaData>,
 
@@ -40,14 +36,12 @@ pub struct AppendThresholdKey<'info> {
     init,
     payer = payer,
     space = 8 + ThresholdKey::INIT_SPACE,
-    seeds = [b"threshold_key", new_index.to_be_bytes().as_ref()],
-    bump,
   )]
   pub new_threshold_key: Account<'info, ThresholdKey>,
 
   #[account(
-    seeds = [b"threshold_key", &((new_index - 1).to_be_bytes())],
-    bump,
+    mut,
+    constraint = old_threshold_key.expiration_timestamp == 0,
   )]
   pub old_threshold_key: Option<Account<'info, ThresholdKey>>,
 
@@ -59,8 +53,7 @@ pub struct AppendThresholdKey<'info> {
 #[instruction(vaa: Vec<u8>)]
 pub struct VerifyVaa<'info> {
   #[account(
-    seeds = [b"threshold_key", VAA::get_seed_bytes(&vaa)],
-    bump,
+    constraint = threshold_key.is_unexpired(),
   )]
   pub threshold_key: Account<'info, ThresholdKey>,
 }
@@ -68,10 +61,15 @@ pub struct VerifyVaa<'info> {
 #[account]
 #[derive(InitSpace)]
 pub struct ThresholdKey {
-  pub bump: u8,
-  pub index: u32, // TODO: Is this needed?
+  pub index: u32,
   pub key: [u8; 20],
-  pub expiration: u64,
+  pub expiration_timestamp: u64,
+}
+
+impl ThresholdKey {
+  pub fn is_unexpired(&self) -> bool {
+    self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
+  }
 }
 
 #[error_code]
@@ -84,10 +82,6 @@ pub enum VAAError {
   GuardianSetExpired,
   #[msg("Invalid signature")]
   InvalidSignature,
-  #[msg("Invalid governance chain ID")]
-  InvalidGovernanceChainId,
-  #[msg("Invalid governance address")]
-  InvalidGovernanceAddress,
 }
 
 #[error_code]
@@ -106,50 +100,25 @@ pub enum AppendThresholdKeyError {
 pub mod verification_v2 {
   use super::*;
 
-  // TODO: Get the new index from the VAA?
-  pub fn append_threshold_key(ctx: Context<AppendThresholdKey>, new_index: u32, _vaa_hash: [u8; 32]) -> Result<()> {
-    // Validate the VAA metadata
-    let vaa = &ctx.accounts.vaa;
-    if vaa.meta.emitter_chain != CHAIN_ID_SOLANA {
-      return Err(AppendThresholdKeyError::InvalidGovernanceChainId.into());
-    }
+  pub fn append_threshold_key(ctx: Context<AppendThresholdKey>) -> Result<()> {
+    // Decode the VAA payload
+    let message = AppendThresholdKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
 
-    if vaa.meta.emitter_address != GOVERNANCE_ADDRESS {
-      return Err(AppendThresholdKeyError::InvalidGovernanceAddress.into());
-    }
-
-    // Decode the message
-    let message = AppendThresholdKeyMessage::deserialize(&vaa.payload)?;
-
-    // Check the index matches the VAA index
-    if new_index != message.guardian_set_index {
+    // Validate the message index
+    let expected_index = ctx.accounts.old_threshold_key.as_ref().map_or(0, |key| key.index + 1);
+    if message.tss_index != expected_index {
       return Err(AppendThresholdKeyError::IndexMismatch.into());
     }
 
-    // Validate the old threshold key
-    if new_index == 0 {
-      if ctx.accounts.old_threshold_key.is_some() {
-        return Err(AppendThresholdKeyError::InvalidOldThresholdKey.into());
-      }
-    } else {
-      if let Some(old_threshold_key) = &ctx.accounts.old_threshold_key {
-        if old_threshold_key.index != new_index - 1 {
-          return Err(AppendThresholdKeyError::InvalidOldThresholdKey.into());
-        }
-      } else {
-        return Err(AppendThresholdKeyError::InvalidOldThresholdKey.into());
-      }
-    }
-
     // Set the new threshold key
-    ctx.accounts.new_threshold_key.index = new_index;
-    ctx.accounts.new_threshold_key.key = message.guardian_set_key;
-    ctx.accounts.new_threshold_key.expiration = 0;
+    ctx.accounts.new_threshold_key.index = message.tss_index;
+    ctx.accounts.new_threshold_key.key = message.tss_key;
+    ctx.accounts.new_threshold_key.expiration_timestamp = 0;
 
-    // Set the old threshold key
+    // Set the old threshold key expiration timestamp
     if let Some(ref mut old_threshold_key) = &mut ctx.accounts.old_threshold_key {
       let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
-      old_threshold_key.expiration = current_timestamp + message.expiration_delay_seconds as u64;
+      old_threshold_key.expiration_timestamp = current_timestamp + message.expiration_delay_seconds as u64;
     }
 
     Ok(())
@@ -157,7 +126,7 @@ pub mod verification_v2 {
 
   pub fn verify_vaa(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<VAA> {
     // Decode the VAA
-    let (vaa, double_hash) = VAA::deserialize(&raw_vaa)?;
+    let (vaa, vaa_hash) = VAA::deserialize(&raw_vaa)?;
 
     // Check if the VAA version is valid
     if vaa.version != 2 {
@@ -166,17 +135,12 @@ pub mod verification_v2 {
 
     // Check if the threshold key index matches the VAA index
     let threshold_key = &mut ctx.accounts.threshold_key;
-    if threshold_key.index != vaa.guardian_set_index {
+    if threshold_key.index != vaa.tss_index {
       return Err(VAAError::InvalidIndex.into());
     }
 
-    // Check if the threshold key has expired
-    if threshold_key.expiration != 0 && threshold_key.expiration < Clock::get().unwrap().unix_timestamp as u64 {
-      return Err(VAAError::GuardianSetExpired.into());
-    }
-
     // Verify the VAA signature
-    let message = Message::parse(&double_hash);
+    let message = Message::parse(&vaa_hash);
     let signature = Signature::parse_standard(&vaa.signature).map_err(|_| VAAError::InvalidSignature)?;
     let recovery_id = RecoveryId::parse(vaa.recovery_id).map_err(|_| VAAError::InvalidSignature)?;
     let recovered_key = recover(&message, &signature, &recovery_id).map_err(|_| VAAError::InvalidSignature)?;

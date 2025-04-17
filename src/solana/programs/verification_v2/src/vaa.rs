@@ -6,7 +6,7 @@ use anchor_lang::solana_program::keccak::hash;
 pub struct VAA {
   // Header
   pub version: u8,
-  pub guardian_set_index: u32,
+  pub tss_index: u32,
   pub signature: [u8; 64],
 	pub recovery_id: u8,
 
@@ -21,22 +21,11 @@ pub struct VAA {
 }
 
 impl VAA {
-	pub const HEADER_SIZE: usize = 1 + 4 + 64 + 1;
-	pub const BODY_SIZE: usize = 8 + 8 + 2 + 32 + 8 + 1;
-	pub const PAYLOAD_OFFSET: usize = Self::HEADER_SIZE + Self::BODY_SIZE;
-
-	pub fn get_seed_bytes(encoded_vaa: &[u8]) -> &[u8] {
-		// Extract the index from the encoded VAA
-		const INDEX_OFFSET: usize = 1;
-		const INDEX_SIZE: usize = (u32::BITS / u8::BITS) as usize;
-		&encoded_vaa[INDEX_OFFSET..INDEX_OFFSET + INDEX_SIZE]
-	}
-
 	pub fn serialize(&self, data: &mut [u8]) -> Result<()> {
 		let mut cursor = Cursor::new(data);
 
 		cursor.write_u8(self.version)?;
-		cursor.write_u32::<BigEndian>(self.guardian_set_index)?;
+		cursor.write_u32::<BigEndian>(self.tss_index)?;
 		cursor.write_all(&self.signature)?;
 		cursor.write_u8(self.recovery_id)?;
 		cursor.write_u64::<BigEndian>(self.timestamp)?;
@@ -54,7 +43,7 @@ impl VAA {
 		let mut cursor = Cursor::new(data);
 
 		let version = cursor.read_u8()?;
-		let guardian_set_index = cursor.read_u32::<BigEndian>()?;
+		let tss_index = cursor.read_u32::<BigEndian>()?;
 		let mut signature = [0; 64];
 		cursor.read_exact(&mut signature)?;
 		let recovery_id = cursor.read_u8()?;
@@ -72,13 +61,13 @@ impl VAA {
 		let mut payload = Vec::new();
 		cursor.read_to_end(&mut payload)?;
 
-		let double_hash = hash(&hash(&data[body_start..]).to_bytes()).to_bytes();
+		let hash = hash(&data[body_start..]).to_bytes();
 
 		Ok(
 			(
 				Self {
 					version,
-					guardian_set_index,
+					tss_index,
 					signature,
 					recovery_id,
 					timestamp,
@@ -89,7 +78,7 @@ impl VAA {
 					consistency_level,
 					payload,
 				},
-				double_hash,
+				hash,
 			)
 		)
 	}
