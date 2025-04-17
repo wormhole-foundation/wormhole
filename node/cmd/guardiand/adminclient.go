@@ -31,7 +31,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/spf13/cobra"
-	"github.com/status-im/keycard-go/hexutils"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -303,7 +302,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	}
 
 	for _, digest := range resp.Digests {
-		log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(digest))
+		log.Printf("VAA successfully injected with digest %x", digest)
 	}
 }
 
