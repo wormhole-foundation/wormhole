@@ -49,10 +49,10 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 		Hash:           "Hash1",
 	}
 
-	bytes, err := xfer1.Marshal()
+	xfer1Bytes, err := xfer1.Marshal()
 	require.NoError(t, err)
 
-	xfer2, err := UnmarshalTransfer(bytes)
+	xfer2, err := UnmarshalTransfer(xfer1Bytes)
 	require.NoError(t, err)
 
 	assert.Equal(t, xfer1, xfer2)
@@ -300,10 +300,10 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 		Msg:         msg,
 	}
 
-	bytes, err := pending1.Marshal()
+	pending1Bytes, err := pending1.Marshal()
 	require.NoError(t, err)
 
-	pending2, err := UnmarshalPendingTransfer(bytes, false)
+	pending2, err := UnmarshalPendingTransfer(pending1Bytes, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, pending1, pending2)
@@ -428,10 +428,10 @@ func TestMarshalUnmarshalNoMsgIdOrHash(t *testing.T) {
 		// Don't set MsgID or Hash, should handle empty slices.
 	}
 
-	bytes, err := xfer1.Marshal()
+	xfer1Bytes, err := xfer1.Marshal()
 	require.NoError(t, err)
 
-	xfer2, err := UnmarshalTransfer(bytes)
+	xfer2, err := UnmarshalTransfer(xfer1Bytes)
 	require.NoError(t, err)
 	require.Equal(t, xfer1, xfer2)
 }
@@ -461,60 +461,60 @@ func TestUnmarshalTransferFailures(t *testing.T) {
 		Hash:           "Hash1",
 	}
 
-	bytes, err := xfer1.Marshal()
+	xfer1Bytes, err := xfer1.Marshal()
 	require.NoError(t, err)
 
 	// First make sure regular unmarshal works.
-	xfer2, err := UnmarshalTransfer(bytes)
+	xfer2, err := UnmarshalTransfer(xfer1Bytes)
 	require.NoError(t, err)
 	require.Equal(t, xfer1, xfer2)
 
 	// Truncate the timestamp.
-	_, err = UnmarshalTransfer(bytes[0 : 4-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4-1])
 	assert.ErrorContains(t, err, "failed to read timestamp: ")
 
 	// Truncate the value.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8-1])
 	assert.ErrorContains(t, err, "failed to read value: ")
 
 	// Truncate the origin chain.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2-1])
 	assert.ErrorContains(t, err, "failed to read origin chain id: ")
 
 	// Truncate the origin address.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32-1])
 	assert.ErrorContains(t, err, "failed to read origin address")
 
 	// Truncate the emitter chain.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2-1])
 	assert.ErrorContains(t, err, "failed to read emitter chain id: ")
 
 	// Truncate the emitter address.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32-1])
 	assert.ErrorContains(t, err, "failed to read emitter address")
 
 	// Truncate the message ID length.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32+2-1])
 	assert.ErrorContains(t, err, "failed to read msgID length: ")
 
 	// Truncate the message ID data.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+3])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32+2+3])
 	assert.ErrorContains(t, err, "failed to read msg id")
 
 	// Truncate the hash length.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32+2+82+2-1])
 	assert.ErrorContains(t, err, "failed to read hash length: ")
 
 	// Truncate the hash data.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+3])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32+2+82+2+3])
 	assert.ErrorContains(t, err, "failed to read hash")
 
 	// Truncate the target chain.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+5+2-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32+2+82+2+5+2-1])
 	assert.ErrorContains(t, err, "failed to read target chain id: ")
 
 	// Truncate the target address.
-	_, err = UnmarshalTransfer(bytes[0 : 4+8+2+32+2+32+2+82+2+5+2+32-1])
+	_, err = UnmarshalTransfer(xfer1Bytes[0 : 4+8+2+32+2+32+2+82+2+5+2+32-1])
 	assert.ErrorContains(t, err, "failed to read target address")
 }
 
@@ -541,26 +541,26 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 		Msg:         msg,
 	}
 
-	bytes, err := pending1.Marshal()
+	pending1Bytes, err := pending1.Marshal()
 	require.NoError(t, err)
 
 	// First make sure regular unmarshal works.
-	pending2, err := UnmarshalPendingTransfer(bytes, false)
+	pending2, err := UnmarshalPendingTransfer(pending1Bytes, false)
 	require.NoError(t, err)
 	assert.Equal(t, pending1, pending2)
 
 	// Truncate the release time.
-	_, err = UnmarshalPendingTransfer(bytes[0:4-1], false)
+	_, err = UnmarshalPendingTransfer(pending1Bytes[0:4-1], false)
 	assert.ErrorContains(t, err, "failed to read pending transfer release time: ")
 
 	// The remainder is the marshaled message publication as a single buffer.
 
 	// Truncate the entire serialized message.
-	_, err = UnmarshalPendingTransfer(bytes[0:4], false)
+	_, err = UnmarshalPendingTransfer(pending1Bytes[0:4], false)
 	assert.ErrorContains(t, err, "failed to read pending transfer msg")
 
 	// Truncate some of the serialized message.
-	_, err = UnmarshalPendingTransfer(bytes[0:len(bytes)-10], false)
+	_, err = UnmarshalPendingTransfer(pending1Bytes[0:len(pending1Bytes)-10], false)
 	assert.ErrorContains(t, err, "failed to unmarshal pending transfer msg")
 }
 
@@ -858,10 +858,10 @@ func TestDeserializeOfOldTransfer(t *testing.T) {
 		Hash:  "Hash1",
 	}
 
-	bytes, err := marshalOldTransfer(xfer1)
+	xfer1Bytes, err := marshalOldTransfer(xfer1)
 	require.NoError(t, err)
 
-	xfer2, err := unmarshalOldTransfer(bytes)
+	xfer2, err := unmarshalOldTransfer(xfer1Bytes)
 	require.NoError(t, err)
 
 	assert.Equal(t, xfer1, xfer2)

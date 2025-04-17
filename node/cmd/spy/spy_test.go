@@ -32,7 +32,7 @@ var govEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 func getVAA(chainID vaa.ChainID, emitterAddr vaa.Address) *vaa.VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 
-	vaa := &vaa.VAA{
+	return &vaa.VAA{
 		Version:          vaa.SupportedVAAVersion,
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
@@ -44,8 +44,6 @@ func getVAA(chainID vaa.ChainID, emitterAddr vaa.Address) *vaa.VAA {
 		EmitterAddress:   emitterAddr,
 		Payload:          payload,
 	}
-
-	return vaa
 }
 
 // wait for the server to establish a client subscription before returning.

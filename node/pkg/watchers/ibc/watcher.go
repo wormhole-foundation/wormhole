@@ -327,11 +327,11 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 			}
 
 			// Received a message from the blockchain.
-			json := string(message)
+			jsonStr := string(message)
 
-			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+			txHashRaw := gjson.Get(jsonStr, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
-				w.logger.Warn("message does not have tx hash", zap.String("payload", json))
+				w.logger.Warn("message does not have tx hash", zap.String("payload", jsonStr))
 				continue
 			}
 			txHash, err := vaa.StringToHash(txHashRaw.String())
@@ -340,9 +340,9 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 				continue
 			}
 
-			events := gjson.Get(json, "result.data.value.TxResult.result.events")
+			events := gjson.Get(jsonStr, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
-				w.logger.Warn("message has no events", zap.String("payload", json))
+				w.logger.Warn("message has no events", zap.String("payload", jsonStr))
 				continue
 			}
 
@@ -374,11 +374,11 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 
 // convertWsUrlToHttpUrl takes a string like "ws://wormchain:26657/websocket" and converts it to "http://wormchain:26657". This is
 // used to query for the abci_info. That query doesn't work on the LCD. We have to do it on the websocket port, using an http URL.
-func convertWsUrlToHttpUrl(url string) string {
-	url = strings.TrimPrefix(url, "ws://")
-	url = strings.TrimPrefix(url, "wss://")
-	url = strings.TrimSuffix(url, "/websocket")
-	return "http://" + url
+func convertWsUrlToHttpUrl(URL string) string {
+	URL = strings.TrimPrefix(URL, "ws://")
+	URL = strings.TrimPrefix(URL, "wss://")
+	URL = strings.TrimSuffix(URL, "/websocket")
+	return "http://" + URL
 }
 
 // handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.

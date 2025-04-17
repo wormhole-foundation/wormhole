@@ -29,7 +29,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -1100,7 +1100,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	ipfslog.SetPrimaryCore(logger.Core())
 
 	// Database
-	db := db.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
+	db := guardianDB.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
 	defer db.Close()
 
 	wormchainId := "wormchain"
@@ -1948,21 +1948,21 @@ func runNode(cmd *cobra.Command, args []string) {
 	logger.Info("root context cancelled, exiting...")
 }
 
-func shouldStart(rpc *string) bool {
-	return *rpc != "" && *rpc != "none"
+func shouldStart(rpcURL *string) bool {
+	return *rpcURL != "" && *rpcURL != "none"
 }
 
 // checkEvmArgs verifies that the RPC and contract address parameters for an EVM chain make sense, given the environment.
 // If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
-func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr string, chainID vaa.ChainID) string {
+func checkEvmArgs(logger *zap.Logger, rpcURL string, contractAddr string, chainID vaa.ChainID) string {
 	if env != common.UnsafeDevNet {
 		// In mainnet / testnet, if either parameter is specified, they must both be specified.
-		if (rpc == "") != (contractAddr == "") {
+		if (rpcURL == "") != (contractAddr == "") {
 			logger.Fatal(fmt.Sprintf("Both contract and RPC for chain %s must be set or both unset", chainID.String()))
 		}
 	} else {
 		// In devnet, if RPC is set but contract is not set, use the deterministic one for tilt.
-		if rpc == "" {
+		if rpcURL == "" {
 			if contractAddr != "" {
 				logger.Fatal(fmt.Sprintf("If RPC is not set for chain %s, contract must not be set", chainID.String()))
 			}

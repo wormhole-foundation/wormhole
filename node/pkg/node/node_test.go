@@ -23,7 +23,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/processor"
@@ -82,7 +82,7 @@ type mockGuardian struct {
 	guardianAddr     eth_common.Address
 	ready            bool
 	config           *guardianConfig
-	db               *db.Database
+	db               *guardianDB.Database
 }
 
 type guardianConfig struct {
@@ -148,7 +148,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		defer ctxCancel()
 
 		// setup db
-		db := db.OpenDb(nil, nil)
+		db := guardianDB.OpenDb(nil, nil)
 		defer db.Close()
 		gs[mockGuardianIndex].db = db
 
@@ -457,14 +457,14 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 }
 
 func makeObsDb(tc []testCase) mock.ObservationDb {
-	db := make(map[eth_common.Hash]*common.MessagePublication)
+	obsDB := make(map[eth_common.Hash]*common.MessagePublication)
 	for _, t := range tc {
 		if t.unavailableInReobservation {
 			continue
 		}
-		db[eth_common.BytesToHash(t.msg.TxID)] = t.msg
+		obsDB[eth_common.BytesToHash(t.msg.TxID)] = t.msg
 	}
-	return db
+	return obsDB
 }
 
 // waitForStatusServer queries the /readyz and /metrics endpoints at `statusAddr` every 100ms until they are online.

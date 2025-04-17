@@ -965,8 +965,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							default:
 								if params.components.WarnChannelOverflow {
 									var hexStr string
-									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-										hexStr = vaa.HexDigest()
+									if signedVAA, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+										hexStr = signedVAA.HexDigest()
 									}
 									logger.Warn("Ignoring SignedVaaWithQuorum because signedIncomingVaaRecvC full", zap.String("hash", hexStr))
 								}

@@ -10,7 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -428,10 +428,10 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}(chainQueryResponseC[chainId], chainId)
 			}
 
-			watchers := make(map[watchers.NetworkID]interfaces.L1Finalizer)
+			configuredWatchers := make(map[watchers.NetworkID]interfaces.L1Finalizer)
 
 			for _, wc := range watcherConfigs {
-				if _, ok := watchers[wc.GetNetworkID()]; ok {
+				if _, ok := configuredWatchers[wc.GetNetworkID()]; ok {
 					return fmt.Errorf("NetworkID already configured: %s", string(wc.GetNetworkID()))
 				}
 
@@ -445,7 +445,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 
 				if wc.RequiredL1Finalizer() != "" {
-					l1watcher, ok := watchers[wc.RequiredL1Finalizer()]
+					l1watcher, ok := configuredWatchers[wc.RequiredL1Finalizer()]
 					if !ok || l1watcher == nil {
 						logger.Fatal("L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs. The L1 must be configured before this one.",
 							zap.String("ChainID", wc.GetChainID().String()),
@@ -461,7 +461,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 
 				g.runnablesWithScissors[watcherName] = runnable
-				watchers[wc.GetNetworkID()] = l1finalizer
+				configuredWatchers[wc.GetNetworkID()] = l1finalizer
 
 				if reobserver != nil {
 					g.reobservers[wc.GetChainID()] = reobserver
@@ -588,7 +588,7 @@ func GuardianOptionPublicWeb(listenAddr string, publicGRPCSocketPath string, tls
 
 // GuardianOptionDatabase configures the main database to be used for this guardian node.
 // Dependencies: none
-func GuardianOptionDatabase(db *db.Database) *GuardianOption {
+func GuardianOptionDatabase(db *guardianDB.Database) *GuardianOption {
 	return &GuardianOption{
 		name: "db",
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {

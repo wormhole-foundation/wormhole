@@ -20,7 +20,7 @@ func getUniqueVAA(seqNo uint64) vaa.VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
-	vaa := vaa.VAA{
+	return vaa.VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
@@ -32,8 +32,6 @@ func getUniqueVAA(seqNo uint64) vaa.VAA {
 		EmitterAddress:   governanceEmitter,
 		Payload:          payload,
 	}
-
-	return vaa
 }
 
 func TestMarshalSignedObservationBatch(t *testing.T) {
@@ -44,8 +42,8 @@ func TestMarshalSignedObservationBatch(t *testing.T) {
 	observations := make([]*gossipv1.Observation, 0, NumObservations)
 	txHash := []byte("0123456789012345678901234567890123456789012345678901234567890123") // 64 bytes, the size of a Solana signature.
 	for seqNo := uint64(1); seqNo <= NumObservations; seqNo++ {
-		vaa := getUniqueVAA(seqNo)
-		digest := vaa.SigningDigest()
+		uniqueVAA := getUniqueVAA(seqNo)
+		digest := uniqueVAA.SigningDigest()
 		sig, err := crypto.Sign(digest.Bytes(), gk)
 		require.NoError(t, err)
 
@@ -53,7 +51,7 @@ func TestMarshalSignedObservationBatch(t *testing.T) {
 			Hash:      digest.Bytes(),
 			Signature: sig,
 			TxHash:    txHash,
-			MessageId: vaa.MessageID(),
+			MessageId: uniqueVAA.MessageID(),
 		})
 	}
 

@@ -206,14 +206,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses(logger)
-	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap, *gossipAdvertiseAddress, protectedPeers)
+	p2pSub, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap, *gossipAdvertiseAddress, protectedPeers)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
+		s := NewHTTPServer(*listenAddr, p2pSub.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
@@ -303,14 +303,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	permissions.StopWatcher()
 
 	// Shutdown p2p. Without this the same host won't properly discover peers until some timeout
-	p2p.sub.Cancel()
-	if err := p2p.topic_req.Close(); err != nil {
+	p2pSub.sub.Cancel()
+	if err := p2pSub.topic_req.Close(); err != nil {
 		logger.Error("Error closing the request topic", zap.Error(err))
 	}
-	if err := p2p.topic_resp.Close(); err != nil {
+	if err := p2pSub.topic_resp.Close(); err != nil {
 		logger.Error("Error closing the response topic", zap.Error(err))
 	}
-	if err := p2p.host.Close(); err != nil {
+	if err := p2pSub.host.Close(); err != nil {
 		logger.Error("Error closing the host", zap.Error(err))
 	}
 }

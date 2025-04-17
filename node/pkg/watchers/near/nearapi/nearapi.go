@@ -151,11 +151,11 @@ func (n NearApiImpl) GetFinalBlock(ctx context.Context) (Block, error) {
 // getChunk gets a chunk from the NEAR RPC API: https://docs.near.org/api/rpc/block-chunk#chunk-details
 func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunkHeader.Hash)
-	bytes, err := n.nearRPC.Query(ctx, s)
+	resBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Chunk{}, err
 	}
-	newChunk, err := NewChunkFromBytes(bytes)
+	newChunk, err := NewChunkFromBytes(resBytes)
 	if err != nil {
 		return Chunk{}, err
 	}
