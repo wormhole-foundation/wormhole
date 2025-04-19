@@ -8,10 +8,12 @@ import {RawDispatcher} from "wormhole-sdk/RawDispatcher.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-sdk/constants/Chains.sol";
 import {ThresholdVerification} from "./ThresholdVerification.sol";
 import {GuardianSetVerification} from "./GuardianSetVerification.sol";
+import {GuardianRegistryVerification} from "./GuardianRegistryVerification.sol";
 
 // Raw dispatch operation IDs for exec
 uint8 constant OP_GOVERNANCE = 0x00;
 uint8 constant OP_PULL_GUARDIAN_SETS = 0x01;
+uint8 constant OP_REGISTER_TLS_KEY = 0x02;
 
 // Raw dispatch operation IDs for get
 uint8 constant OP_VERIFY = 0x20;
@@ -19,6 +21,7 @@ uint8 constant OP_THRESHOLD_GET_CURRENT = 0x21;
 uint8 constant OP_THRESHOLD_GET = 0x22;
 uint8 constant OP_GUARDIAN_SET_GET_CURRENT = 0x23;
 uint8 constant OP_GUARDIAN_SET_GET = 0x24;
+uint8 constant OP_GUARDIAN_TLS_GET = 0x25;
 
 // Emitter address for the VerificationV2 contract
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
@@ -29,7 +32,9 @@ bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000
 // Action ID for appending a threshold key
 uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
 
-contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVerification {
+contract VerificationV2 is 
+  RawDispatcher, ThresholdVerification, GuardianSetVerification, GuardianRegistryVerification
+{
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using {BytesParsing.checkLength} for uint;
@@ -42,10 +47,13 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
   error InvalidGovernanceChainId();
   error InvalidGovernanceAddress();
 
-  constructor(
-    address coreV1,
-    uint pullLimit
-  ) ThresholdVerification() GuardianSetVerification(coreV1, pullLimit) {}
+  error GuardianSetIsNotCurrent();
+
+  constructor(address coreV1, uint pullLimit) 
+    ThresholdVerification()
+    GuardianSetVerification(coreV1, pullLimit)
+    GuardianRegistryVerification() 
+  {}
 
   function _decodeAndVerifyVaa(bytes calldata encodedVaa) internal view returns (
     uint32  timestamp,
@@ -139,7 +147,29 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
         (limit, offset) = data.asUint32CdUnchecked(offset);
 
         pullGuardianSets(limit);
+      } else if (op == OP_REGISTER_TLS_KEY) {
+        uint32 guardianSetIndex;
+        (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
+        uint32 expirationTime;
+        (expirationTime, offset) = data.asUint32CdUnchecked(offset);
+        bytes32 tlsKey;
+        (tlsKey, offset) = data.asBytes32CdUnchecked(offset);
+        uint8 guardianIndex; bytes32 r; bytes32 s; uint8 v;
+        (guardianIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
+        // We only allow registrations for the current guardian set
+        (uint32 currentSetIndex, address[] memory guardianAddrs) = this.getCurrentGuardianSetInfo();
+        if (guardianSetIndex != currentSetIndex) revert GuardianSetIsNotCurrent();
+        verifyRegisterTLSKey(
+          guardianAddrs,
+          guardianSetIndex,
+          expirationTime,
+          tlsKey,
+          guardianIndex,
+          r, s, v
+        );
+        registerTLSKey(guardianSetIndex, guardianIndex, tlsKey, guardianAddrs.length);
       }
+      // TODO: Isn't this missing an else revert?
     }
 
     // Verify the data has been consumed
@@ -197,7 +227,15 @@ contract VerificationV2 is RawDispatcher, ThresholdVerification, GuardianSetVeri
         (index, offset) = data.asUint32CdUnchecked(offset);
         (uint32 expirationTime, address[] memory guardianSetAddrs) = getGuardianSetInfo(index);
         result = abi.encodePacked(result, expirationTime, guardianSetAddrs);
+      } else if (op == OP_GUARDIAN_TLS_GET) {
+        uint32 guardianSetIndex;
+        (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
+        uint8 guardianIndex;
+        (guardianIndex, offset) = data.asUint8CdUnchecked(offset);
+        bytes32[] memory tlsKeys = getTLSKeys(guardianSetIndex);
+        result = abi.encodePacked(result, tlsKeys);
       }
+      // TODO: Isn't this missing an else revert?
     }
 
     // Verify the data has been consumed
