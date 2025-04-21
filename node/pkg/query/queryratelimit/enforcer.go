@@ -38,7 +38,7 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 	defer e.mu.Unlock()
 	e.enforcementCount++
 	// TODO(elee): we can probably tune these variable better, if memory consumption or cpu usage of the ratelimiter ever becomes an issue
-	if e.enforcementCount > 1024 {
+	if e.enforcementCount%1024 == 0 {
 		e.enforcementCount = 0
 		e.secondLimits.Cleanup(ctx, time.Now(), 1*time.Hour)
 		e.minuteLimits.Cleanup(ctx, time.Now(), 1*time.Hour)
