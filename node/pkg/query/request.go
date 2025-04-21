@@ -17,14 +17,22 @@ import (
 	solana "github.com/gagliardetto/solana-go"
 )
 
-// MSG_VERSION is the current version of the CCQ message protocol.
-const MSG_VERSION uint8 = 1
+const (
+	// MSG_VERSION is the current version of the CCQ message protocol.
+	MSG_VERSION uint8 = 1
+	// MSG_VERSION_V2 adds delegation support with StakerAddress field
+	MSG_VERSION_V2 uint8 = 2
+)
 
 // QueryRequest defines a cross chain query request to be submitted to the guardians.
 // It is the payload of the SignedQueryRequest gossip message.
 type QueryRequest struct {
 	Nonce           uint32
 	PerChainQueries []*PerChainQueryRequest
+	// StakerAddress is an optional 20-byte Ethereum address specifying the staker for delegated queries.
+	// If empty, the signer (recovered from signature) is assumed to be the staker (self-staking).
+	// If provided, the signer must be authorized by this staker address in the staking contract.
+	StakerAddress []byte
 }
 
 // PerChainQueryRequest represents a query request for a single chain.
@@ -257,8 +265,23 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, MSG_VERSION)        // version
+	// Use v2 format if StakerAddress is present, otherwise use v1 for backward compatibility
+	version := MSG_VERSION
+	if len(queryRequest.StakerAddress) > 0 {
+		version = MSG_VERSION_V2
+	}
+
+	vaa.MustWrite(buf, binary.BigEndian, version)            // version
 	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
+
+	// Write staker address only in v2 messages (delegation support)
+	if version == MSG_VERSION_V2 {
+		stakerLen := uint8(len(queryRequest.StakerAddress))
+		vaa.MustWrite(buf, binary.BigEndian, stakerLen) // #nosec G115 -- `StakerAddress` length checked in `Validate`
+		if stakerLen > 0 {
+			buf.Write(queryRequest.StakerAddress)
+		}
+	}
 
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries))) // #nosec G115 -- `PerChainQueries` length checked in `Validate`
 	for _, perChainQuery := range queryRequest.PerChainQueries {
@@ -285,12 +308,30 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 		return fmt.Errorf("failed to read message version: %w", err)
 	}
 
-	if version != MSG_VERSION {
+	// Support both v1 (no delegation) and v2 (with delegation) formats
+	if version != MSG_VERSION && version != MSG_VERSION_V2 {
 		return fmt.Errorf("unsupported message version: %d", version)
 	}
 
 	if err := binary.Read(reader, binary.BigEndian, &queryRequest.Nonce); err != nil {
 		return fmt.Errorf("failed to read request nonce: %w", err)
+	}
+
+	// Read optional staker address only in v2 messages (delegation support)
+	if version == MSG_VERSION_V2 {
+		var stakerLen uint8
+		if err := binary.Read(reader, binary.BigEndian, &stakerLen); err != nil {
+			return fmt.Errorf("failed to read staker address length: %w", err)
+		}
+		if stakerLen > 0 {
+			if stakerLen != 20 {
+				return fmt.Errorf("invalid staker address length: expected 20, got %d", stakerLen)
+			}
+			queryRequest.StakerAddress = make([]byte, stakerLen)
+			if n, err := reader.Read(queryRequest.StakerAddress); err != nil || n != int(stakerLen) {
+				return fmt.Errorf("failed to read staker address [%d]: %w", n, err)
+			}
+		}
 	}
 
 	numPerChainQueries := uint8(0)
@@ -321,6 +362,14 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 // Validate does basic validation on a received query request.
 func (queryRequest *QueryRequest) Validate() error {
 	// Nothing to validate on the Nonce.
+
+	// Validate staker address if provided (for delegation support)
+	if len(queryRequest.StakerAddress) > 0 {
+		if len(queryRequest.StakerAddress) != 20 {
+			return fmt.Errorf("staker address must be 20 bytes, got %d", len(queryRequest.StakerAddress))
+		}
+	}
+
 	if len(queryRequest.PerChainQueries) <= 0 {
 		return fmt.Errorf("request does not contain any per chain queries")
 	}
@@ -340,6 +389,12 @@ func (left *QueryRequest) Equal(right *QueryRequest) bool {
 	if left.Nonce != right.Nonce {
 		return false
 	}
+
+	// Compare staker addresses (for delegation support)
+	if !bytes.Equal(left.StakerAddress, right.StakerAddress) {
+		return false
+	}
+
 	if len(left.PerChainQueries) != len(right.PerChainQueries) {
 		return false
 	}

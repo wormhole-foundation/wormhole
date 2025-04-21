@@ -15,6 +15,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query/queryratelimit"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -45,6 +46,79 @@ var (
 
 	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC, vaa.ChainIDArbitrum}
 )
+
+// parseAllowedRequesters parses a comma-separated list of allowed requesters for testing
+func parseAllowedRequesters(allowedRequesters string) (map[ethCommon.Address]struct{}, error) {
+	if allowedRequesters == "" {
+		return nil, fmt.Errorf("allowedRequesters cannot be empty")
+	}
+
+	var nullAddr ethCommon.Address
+	result := make(map[ethCommon.Address]struct{})
+	for _, str := range strings.Split(allowedRequesters, ",") {
+		str = strings.TrimSpace(str)
+		if str == "" {
+			continue
+		}
+		addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(strings.TrimPrefix(str, "0x")))
+		if addr == nullAddr {
+			return nil, fmt.Errorf("invalid address: %s", str)
+		}
+		result[addr] = struct{}{}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no valid addresses found")
+	}
+
+	return result, nil
+}
+
+// createTestRateLimitComponents creates mock rate limiting components for tests
+func createTestRateLimitComponents(allowedRequesters map[ethCommon.Address]struct{}) (*queryratelimit.Enforcer, *queryratelimit.PolicyProvider, error) {
+	enforcer := queryratelimit.NewEnforcer()
+
+	// Create a policy provider that uses the allowed requesters map
+	policyProvider, err := queryratelimit.NewPolicyProvider(
+		queryratelimit.WithPolicyProviderFetcher(func(ctx context.Context, signerAddr, stakerAddr ethCommon.Address) (*queryratelimit.Policy, error) {
+			_, ok := allowedRequesters[stakerAddr]
+			if !ok {
+				return &queryratelimit.Policy{}, nil
+			}
+			return &queryratelimit.Policy{
+				Limits: queryratelimit.Limits{
+					Types: map[uint8]queryratelimit.Rule{
+						uint8(EthCallQueryRequestType): {
+							MaxPerMinute: 15 * 60,
+							MaxPerSecond: 15,
+						},
+						uint8(EthCallByTimestampQueryRequestType): {
+							MaxPerMinute: 15 * 60,
+							MaxPerSecond: 15,
+						},
+						uint8(EthCallWithFinalityQueryRequestType): {
+							MaxPerMinute: 15 * 60,
+							MaxPerSecond: 15,
+						},
+						uint8(SolanaAccountQueryRequestType): {
+							MaxPerMinute: 15 * 60,
+							MaxPerSecond: 15,
+						},
+						uint8(SolanaPdaQueryRequestType): {
+							MaxPerMinute: 15 * 60,
+							MaxPerSecond: 15,
+						},
+					},
+				},
+			}, nil
+		}),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return enforcer, policyProvider, nil
+}
 
 // createPerChainQueryForEthCall creates a per chain query for an eth_call for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCall(
@@ -415,9 +489,6 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	require.NoError(t, err)
 	require.NotNil(t, md.sk)
 
-	ccqAllowedRequestersList, err := parseAllowedRequesters(testSigner)
-	require.NoError(t, err)
-
 	// Inbound observation requests from the p2p service (for all chains)
 	md.signedQueryReqReadC, md.signedQueryReqWriteC = makeChannelPair[*gossipv1.SignedQueryRequest](SignedQueryRequestChannelSize)
 
@@ -436,7 +507,7 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	md.resetState()
 
 	go func() {
-		err := handleQueryRequestsImpl(ctx, logger, md.signedQueryReqReadC, md.chainQueryReqC, ccqAllowedRequestersList,
+		err := handleQueryRequestsImpl(ctx, logger, md.signedQueryReqReadC, md.chainQueryReqC,
 			md.queryResponseReadC, md.queryResponsePublicationWriteC, common.GoTest, requestTimeoutForTest, retryIntervalForTest, auditIntervalForTest)
 		assert.NoError(t, err)
 	}()
@@ -455,6 +526,8 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 					md.incrementRequestsPerChainAlreadyLocked(chainId)
 					if md.shouldIgnoreAlreadyLocked(chainId) {
 						logger.Info("watcher ignoring query", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx))
+					} else if pcqr.RequestIdx >= len(md.expectedResults) {
+						logger.Error("unexpected query reached watcher", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("expectedResultsLen", len(md.expectedResults)))
 					} else {
 						results := md.expectedResults[pcqr.RequestIdx].Response
 						status := md.getStatusAlreadyLocked(chainId)
@@ -817,4 +890,362 @@ func TestPerChainConfigValid(t *testing.T) {
 			assert.Equal(t, "", fmt.Sprintf(`perChainConfig for "%s" has an invalid NumWorkers: %d`, chainID.String(), config.NumWorkers))
 		}
 	}
+}
+
+// ============================================================================
+
+// ============================================================================
+// Delegation Tests
+// ============================================================================
+
+// TestQueryRequestMarshalUnmarshalWithStakerAddress tests that delegation info is properly serialized
+func TestQueryRequestMarshalUnmarshalWithStakerAddress(t *testing.T) {
+	stakerAddr := ethCommon.HexToAddress("0x1234567890123456789012345678901234567890")
+
+	queryRequest := &QueryRequest{
+		Nonce:         12345,
+		StakerAddress: stakerAddr.Bytes(),
+		PerChainQueries: []*PerChainQueryRequest{
+			createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		},
+	}
+
+	// Marshal
+	bytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+	require.NotEmpty(t, bytes)
+
+	// Should use v2 format
+	require.Equal(t, MSG_VERSION_V2, bytes[0], "Should use v2 format when StakerAddress is present")
+
+	// Unmarshal
+	var unmarshaled QueryRequest
+	err = unmarshaled.Unmarshal(bytes)
+	require.NoError(t, err)
+
+	// Verify
+	assert.Equal(t, queryRequest.Nonce, unmarshaled.Nonce)
+	assert.Equal(t, queryRequest.StakerAddress, unmarshaled.StakerAddress)
+	assert.Equal(t, len(queryRequest.PerChainQueries), len(unmarshaled.PerChainQueries))
+}
+
+// TestQueryRequestMarshalWithoutStakerAddressUsesV1 tests backward compatibility
+func TestQueryRequestMarshalWithoutStakerAddressUsesV1(t *testing.T) {
+	queryRequest := &QueryRequest{
+		Nonce: 12345,
+		PerChainQueries: []*PerChainQueryRequest{
+			createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		},
+	}
+
+	// Marshal
+	bytes, err := queryRequest.Marshal()
+	require.NoError(t, err)
+
+	// Should use v1 format (backward compatible)
+	require.Equal(t, MSG_VERSION, bytes[0], "Should use v1 format when StakerAddress is empty")
+
+	// Unmarshal
+	var unmarshaled QueryRequest
+	err = unmarshaled.Unmarshal(bytes)
+	require.NoError(t, err)
+
+	// Verify
+	assert.Equal(t, queryRequest.Nonce, unmarshaled.Nonce)
+	assert.Empty(t, unmarshaled.StakerAddress, "V1 messages should not have StakerAddress")
+}
+
+// TestQueryRequestValidationWithInvalidStakerAddress tests validation
+func TestQueryRequestValidationWithInvalidStakerAddress(t *testing.T) {
+	tests := []struct {
+		name          string
+		stakerAddress []byte
+		shouldFail    bool
+	}{
+		{
+			name:          "valid 20 byte address",
+			stakerAddress: make([]byte, 20),
+			shouldFail:    false,
+		},
+		{
+			name:          "empty address (self-staking)",
+			stakerAddress: []byte{},
+			shouldFail:    false,
+		},
+		{
+			name:          "nil address (self-staking)",
+			stakerAddress: nil,
+			shouldFail:    false,
+		},
+		{
+			name:          "invalid length - too short",
+			stakerAddress: make([]byte, 19),
+			shouldFail:    true,
+		},
+		{
+			name:          "invalid length - too long",
+			stakerAddress: make([]byte, 21),
+			shouldFail:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queryRequest := &QueryRequest{
+				Nonce:         12345,
+				StakerAddress: tt.stakerAddress,
+				PerChainQueries: []*PerChainQueryRequest{
+					createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+				},
+			}
+
+			err := queryRequest.Validate()
+			if tt.shouldFail {
+				assert.Error(t, err, "Validation should fail for invalid staker address length")
+			} else {
+				assert.NoError(t, err, "Validation should pass for valid staker address")
+			}
+		})
+	}
+}
+
+// TestQueryRequestEqualWithStakerAddress tests equality comparison with staker addresses
+func TestQueryRequestEqualWithStakerAddress(t *testing.T) {
+	stakerAddr1 := ethCommon.HexToAddress("0x1234567890123456789012345678901234567890")
+	stakerAddr2 := ethCommon.HexToAddress("0x0987654321098765432109876543210987654321")
+
+	q1 := &QueryRequest{
+		Nonce:         12345,
+		StakerAddress: stakerAddr1.Bytes(),
+		PerChainQueries: []*PerChainQueryRequest{
+			createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		},
+	}
+
+	q2 := &QueryRequest{
+		Nonce:         12345,
+		StakerAddress: stakerAddr1.Bytes(),
+		PerChainQueries: []*PerChainQueryRequest{
+			createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		},
+	}
+
+	q3 := &QueryRequest{
+		Nonce:         12345,
+		StakerAddress: stakerAddr2.Bytes(), // Different staker
+		PerChainQueries: []*PerChainQueryRequest{
+			createPerChainQueryForEthCall(t, vaa.ChainIDPolygon, "0x28d9630", 2),
+		},
+	}
+
+	assert.True(t, q1.Equal(q2), "Requests with same staker should be equal")
+	assert.False(t, q1.Equal(q3), "Requests with different stakers should not be equal")
+}
+
+// TestRateLimitingUsesStakerAddress tests that rate limits are keyed by staker, not signer
+func TestRateLimitingUsesStakerAddress(t *testing.T) {
+	ctx := context.Background()
+
+	stakerAddr := ethCommon.HexToAddress("0x1234567890123456789012345678901234567890")
+	signerKey, err := ethCrypto.GenerateKey()
+	require.NoError(t, err)
+	signerAddr := ethCrypto.PubkeyToAddress(signerKey.PublicKey)
+
+	enforcer := queryratelimit.NewEnforcer()
+	policyProvider, err := queryratelimit.NewPolicyProvider(
+		queryratelimit.WithPolicyProviderFetcher(func(ctx context.Context, signer, staker ethCommon.Address) (*queryratelimit.Policy, error) {
+			assert.Equal(t, signerAddr, signer, "Signer address should match")
+			assert.Equal(t, stakerAddr, staker, "Staker address should match")
+
+			return &queryratelimit.Policy{
+				Limits: queryratelimit.Limits{
+					Types: map[uint8]queryratelimit.Rule{
+						uint8(EthCallQueryRequestType): {
+							MaxPerMinute: 1, // Only 1 query per minute
+							MaxPerSecond: 0,
+						},
+					},
+				},
+			}, nil
+		}),
+	)
+	require.NoError(t, err)
+
+	action := &queryratelimit.Action{
+		Key: stakerAddr,
+		Types: map[uint8]int{
+			uint8(EthCallQueryRequestType): 1,
+		},
+	}
+
+	policy, err := policyProvider.GetPolicy(ctx, signerAddr, stakerAddr)
+	require.NoError(t, err)
+
+	result, err := enforcer.EnforcePolicy(ctx, policy, action)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed, "First request should be allowed")
+
+	result, err = enforcer.EnforcePolicy(ctx, policy, action)
+	require.NoError(t, err)
+	assert.False(t, result.Allowed, "Second request should be denied due to rate limit")
+	assert.Contains(t, result.ExceededTypes, uint8(EthCallQueryRequestType), "Should indicate which query type exceeded limit")
+}
+
+// TestUnauthorizedDelegation tests that a signer cannot delegate using a staker they're not authorized by
+func TestUnauthorizedDelegation(t *testing.T) {
+	ctx := context.Background()
+
+	// Create three addresses for testing authorization scenarios
+	unauthorizedSignerKey, err := ethCrypto.GenerateKey()
+	require.NoError(t, err)
+	unauthorizedSignerAddr := ethCrypto.PubkeyToAddress(unauthorizedSignerKey.PublicKey)
+
+	stakerAddr := ethCommon.HexToAddress("0x1230000000000000000000000000000000000456")
+
+	authorizedSignerKey, err := ethCrypto.GenerateKey()
+	require.NoError(t, err)
+	authorizedSignerAddr := ethCrypto.PubkeyToAddress(authorizedSignerKey.PublicKey)
+
+	// Authorization map: tracks which signers are authorized by which stakers
+	authorizations := map[ethCommon.Address]map[ethCommon.Address]bool{
+		stakerAddr: {
+			authorizedSignerAddr: true, // This signer is authorized
+			// unauthorizedSignerAddr is NOT in this map
+		},
+	}
+
+	// Stakers with valid stake
+	stakersWithStake := map[ethCommon.Address]bool{
+		stakerAddr: true,
+	}
+
+	// Create policy provider that checks authorization
+	enforcer := queryratelimit.NewEnforcer()
+	policyProvider, err := queryratelimit.NewPolicyProvider(
+		queryratelimit.WithPolicyProviderFetcher(func(ctx context.Context, signer, staker ethCommon.Address) (*queryratelimit.Policy, error) {
+			// Check if staker has stake
+			if !stakersWithStake[staker] {
+				// No stake = return empty policy
+				return &queryratelimit.Policy{}, nil
+			}
+
+			// Check authorization: for self-staking, signer == staker is always authorized
+			authorized := (signer == staker)
+			if !authorized {
+				// For delegation, check if signer is authorized by staker
+				if signers, exists := authorizations[staker]; exists {
+					authorized = signers[signer]
+				}
+			}
+
+			if !authorized {
+				// Unauthorized = return empty policy (no limits = access denied)
+				return &queryratelimit.Policy{}, nil
+			}
+
+			// Authorized = return valid policy with limits
+			return &queryratelimit.Policy{
+				Limits: queryratelimit.Limits{
+					Types: map[uint8]queryratelimit.Rule{
+						uint8(EthCallQueryRequestType): {
+							MaxPerMinute: 60,
+							MaxPerSecond: 1,
+						},
+					},
+				},
+			}, nil
+		}),
+	)
+	require.NoError(t, err)
+
+	// Test 1: Unauthorized signer tries to use staker's quota (should fail)
+	unauthorizedPolicy, err := policyProvider.GetPolicy(ctx, unauthorizedSignerAddr, stakerAddr)
+	require.NoError(t, err)
+	assert.Empty(t, unauthorizedPolicy.Limits.Types, "Unauthorized signer should get empty policy")
+
+	// Test 2: Authorized signer uses staker's quota (should succeed)
+	authorizedPolicy, err := policyProvider.GetPolicy(ctx, authorizedSignerAddr, stakerAddr)
+	require.NoError(t, err)
+	assert.NotEmpty(t, authorizedPolicy.Limits.Types, "Authorized signer should get valid policy")
+
+	// Test 3: Verify authorized signer can actually consume the quota
+	action := &queryratelimit.Action{
+		Key:  stakerAddr, // Rate limit keyed by staker
+		Time: time.Now(),
+		Types: map[uint8]int{
+			uint8(EthCallQueryRequestType): 1,
+		},
+	}
+	result, err := enforcer.EnforcePolicy(ctx, authorizedPolicy, action)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed, "Authorized request should be allowed")
+
+	// Test 4: Unauthorized signer cannot consume quota (empty policy)
+	unauthorizedAction := &queryratelimit.Action{
+		Key:  stakerAddr,
+		Time: time.Now(),
+		Types: map[uint8]int{
+			uint8(EthCallQueryRequestType): 1,
+		},
+	}
+	unauthorizedResult, err := enforcer.EnforcePolicy(ctx, unauthorizedPolicy, unauthorizedAction)
+	require.NoError(t, err)
+	assert.False(t, unauthorizedResult.Allowed, "Unauthorized request should be denied")
+
+	// Test 5: Self-staking always works (signer == staker)
+	selfStakingPolicy, err := policyProvider.GetPolicy(ctx, stakerAddr, stakerAddr)
+	require.NoError(t, err)
+	assert.NotEmpty(t, selfStakingPolicy.Limits.Types, "Self-staking should always be authorized")
+}
+
+// ============================================================================
+// Signature Format Tests (EIP-191 prefixed signatures)
+// ============================================================================
+
+// TestRecoverPrefixedSigner tests that EIP-191 prefixed signatures are correctly recovered
+func TestRecoverPrefixedSigner(t *testing.T) {
+	sk, err := ethCrypto.GenerateKey()
+	require.NoError(t, err)
+	expectedAddr := ethCrypto.PubkeyToAddress(sk.PublicKey)
+
+	// Create a test message and compute digest
+	message := []byte("test query request bytes")
+	digest := QueryRequestDigest(common.UnsafeDevNet, message)
+
+	t.Run("prefixed signature recovery succeeds", func(t *testing.T) {
+		// Sign with EIP-191 prefix (what personal_sign does)
+		prefixedHash := ethCrypto.Keccak256(
+			[]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(digest.Bytes()))),
+			digest.Bytes(),
+		)
+		sig, err := ethCrypto.Sign(prefixedHash, sk)
+		require.NoError(t, err)
+
+		// Recover using RecoverPrefixedSigner
+		recovered, err := RecoverPrefixedSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, recovered)
+	})
+
+	t.Run("raw signature recovery still works", func(t *testing.T) {
+		// Sign with raw ECDSA (no prefix)
+		sig, err := ethCrypto.Sign(digest.Bytes(), sk)
+		require.NoError(t, err)
+
+		// Recover using RecoverQueryRequestSigner
+		recovered, err := RecoverQueryRequestSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.Equal(t, expectedAddr, recovered)
+	})
+
+	t.Run("wrong recovery method returns different address", func(t *testing.T) {
+		// Sign with raw ECDSA
+		sig, err := ethCrypto.Sign(digest.Bytes(), sk)
+		require.NoError(t, err)
+
+		// Try to recover as prefixed - should get wrong address
+		recovered, err := RecoverPrefixedSigner(digest.Bytes(), sig)
+		require.NoError(t, err)
+		assert.NotEqual(t, expectedAddr, recovered, "Wrong recovery method should produce different address")
+	})
 }

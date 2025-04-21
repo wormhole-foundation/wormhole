@@ -66,4 +66,19 @@ var (
 			Help:    "Time from time spent in the watcher per query in ms by chain",
 			Buckets: []float64{1.0, 5.0, 10.0, 100.0, 250.0, 500.0, 1000.0, 5000.0, 10000.0, 30000.0},
 		}, []string{"chain_name"})
+
+	// Delegation metrics
+	delegatedQueriesReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_guardian_delegated_queries_total",
+			Help: "Total number of delegated query requests received (signer != staker)",
+		})
+
+	selfStakingQueriesReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_guardian_self_staking_queries_total",
+			Help: "Total number of self-staking query requests received (signer == staker)",
+		})
+
+	// Additional staking metrics are defined in querystaking/pools.go
 )

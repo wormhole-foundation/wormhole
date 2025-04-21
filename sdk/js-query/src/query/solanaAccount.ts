@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import base58 from "bs58";
+import * as base58 from "bs58";
 import { BinaryWriter } from "./BinaryWriter";
 import { ChainQueryType, ChainSpecificQuery } from "./request";
 import { bigIntWithDef, coalesceUint8Array } from "./utils";
@@ -49,7 +49,7 @@ export class SolanaAccountQueryRequest implements ChainSpecificQuery {
   serialize(): Uint8Array {
     const writer = new BinaryWriter()
       .writeUint32(this.commitment.length)
-      .writeUint8Array(Buffer.from(this.commitment))
+      .writeUint8Array(Buffer.from(this.commitment) as any)
       .writeUint64(this.minContextSlot)
       .writeUint64(this.dataSliceOffset)
       .writeUint64(this.dataSliceLength)
@@ -61,7 +61,7 @@ export class SolanaAccountQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): SolanaAccountQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 
@@ -144,7 +144,7 @@ export class SolanaAccountQueryResponse implements ChainSpecificResponse {
   }
 
   static from(bytes: string | Uint8Array): SolanaAccountQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 

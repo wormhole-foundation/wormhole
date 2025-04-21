@@ -2,7 +2,7 @@ import { keccak256 } from "@ethersproject/keccak256";
 import { Buffer } from "buffer";
 import { BinaryWriter } from "./BinaryWriter";
 import { Network } from "./consts";
-import { coalesceUint8Array, hexToUint8Array } from "./utils";
+import { coalesceUint8Array, hexToUint8Array, uint8ArrayToHex } from "./utils";
 import { BinaryReader } from "./BinaryReader";
 import { EthCallQueryRequest } from "./ethCall";
 import { EthCallByTimestampQueryRequest } from "./ethCallByTimestamp";
@@ -28,19 +28,36 @@ export function getPrefix(network: Network) {
 }
 
 const REQUEST_VERSION = 1;
+const REQUEST_VERSION_V2 = 2;
 
 export class QueryRequest {
   constructor(
     public nonce: number,
     public requests: PerChainQueryRequest[] = [],
-    public version: number = REQUEST_VERSION
+    public version: number = REQUEST_VERSION,
+    public stakerAddress?: string // Optional 20-byte Ethereum address for delegation (v2 only)
   ) {}
 
   serialize(): Uint8Array {
+    // Use v2 format if stakerAddress is present, otherwise use v1 for backward compatibility
+    const useV2 = this.stakerAddress !== undefined && this.stakerAddress.length > 0;
+    const version = useV2 ? REQUEST_VERSION_V2 : REQUEST_VERSION;
+
     const writer = new BinaryWriter()
-      .writeUint8(this.version)
-      .writeUint32(this.nonce)
-      .writeUint8(this.requests.length);
+      .writeUint8(version)
+      .writeUint32(this.nonce);
+
+    // Write staker address only in v2 messages (delegation support)
+    if (useV2 && this.stakerAddress) {
+      const stakerBytes = hexToUint8Array(this.stakerAddress);
+      if (stakerBytes.length !== 20) {
+        throw new Error(`Staker address must be 20 bytes, got ${stakerBytes.length}`);
+      }
+      writer.writeUint8(stakerBytes.length);
+      writer.writeUint8Array(stakerBytes);
+    }
+
+    writer.writeUint8(this.requests.length);
     this.requests.forEach((request) =>
       writer.writeUint8Array(request.serialize())
     );
@@ -49,22 +66,36 @@ export class QueryRequest {
 
   static digest(network: Network, bytes: Uint8Array): Uint8Array {
     const prefix = getPrefix(network);
-    const data = Buffer.concat([Buffer.from(prefix), bytes]);
+    const data = Buffer.concat([Buffer.from(prefix), Buffer.from(bytes)] as any);
     return hexToUint8Array(keccak256(data).slice(2));
   }
 
   static from(bytes: string | Uint8Array): QueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 
   static fromReader(reader: BinaryReader): QueryRequest {
     const version = reader.readUint8();
-    if (version != REQUEST_VERSION) {
+    if (version !== REQUEST_VERSION && version !== REQUEST_VERSION_V2) {
       throw new Error(`Unsupported message version: ${version}`);
     }
     const nonce = reader.readUint32();
-    const queryRequest = new QueryRequest(nonce);
+
+    // Read optional staker address only in v2 messages (delegation support)
+    let stakerAddress: string | undefined = undefined;
+    if (version === REQUEST_VERSION_V2) {
+      const stakerLen = reader.readUint8();
+      if (stakerLen > 0) {
+        if (stakerLen !== 20) {
+          throw new Error(`Invalid staker address length: expected 20, got ${stakerLen}`);
+        }
+        const stakerBytes = reader.readUint8Array(stakerLen);
+        stakerAddress = uint8ArrayToHex(stakerBytes);
+      }
+    }
+
+    const queryRequest = new QueryRequest(nonce, [], version, stakerAddress);
     const numPerChainQueries = reader.readUint8();
     for (let idx = 0; idx < numPerChainQueries; idx++) {
       queryRequest.requests.push(PerChainQueryRequest.fromReader(reader));
@@ -88,7 +119,7 @@ export class PerChainQueryRequest {
   }
 
   static from(bytes: string | Uint8Array): PerChainQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 

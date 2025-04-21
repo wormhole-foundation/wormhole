@@ -30,9 +30,9 @@ export class EthCallByTimestampQueryRequest implements ChainSpecificQuery {
     const writer = new BinaryWriter()
       .writeUint64(this.targetTimestamp)
       .writeUint32(this.targetBlockHint.length)
-      .writeUint8Array(Buffer.from(this.targetBlockHint))
+      .writeUint8Array(Buffer.from(this.targetBlockHint) as any)
       .writeUint32(this.followingBlockHint.length)
-      .writeUint8Array(Buffer.from(this.followingBlockHint))
+      .writeUint8Array(Buffer.from(this.followingBlockHint) as any)
       .writeUint8(this.callData.length);
     this.callData.forEach(({ to, data }) => {
       const dataArray = hexToUint8Array(data);
@@ -45,7 +45,7 @@ export class EthCallByTimestampQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): EthCallByTimestampQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 
@@ -124,7 +124,7 @@ export class EthCallByTimestampQueryResponse implements ChainSpecificResponse {
   }
 
   static from(bytes: string | Uint8Array): EthCallByTimestampQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 

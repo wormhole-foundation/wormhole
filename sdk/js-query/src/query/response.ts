@@ -44,13 +44,13 @@ export class QueryResponse {
         Buffer.concat([
           Buffer.from(QUERY_RESPONSE_PREFIX),
           hexToUint8Array(keccak256(bytes)),
-        ])
+        ] as any)
       )
     );
   }
 
   static from(bytes: string | Uint8Array): QueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 
@@ -96,7 +96,7 @@ export class PerChainQueryResponse {
   }
 
   static from(bytes: string | Uint8Array): PerChainQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 

@@ -38,7 +38,7 @@ COPY --from=const-export --chown=node:node .env.0x .env
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   --mount=type=cache,uid=1000,gid=1000,target=node_modules \
-  npm ci && \
+  npm ci --loglevel=error && \
   cp -R node_modules node_modules_cache
 
 
@@ -64,7 +64,7 @@ COPY --from=const-export --chown=node:node .env.0x .env
 
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   --mount=type=cache,uid=1000,gid=1000,target=node_modules \
-  npm ci && \
+  npm ci --loglevel=error && \
   cp -R node_modules node_modules_cache
 
 RUN rm -rf node_modules && mv node_modules_cache node_modules

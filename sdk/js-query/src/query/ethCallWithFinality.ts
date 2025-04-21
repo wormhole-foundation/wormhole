@@ -30,9 +30,9 @@ export class EthCallWithFinalityQueryRequest implements ChainSpecificQuery {
   serialize(): Uint8Array {
     const writer = new BinaryWriter()
       .writeUint32(this.blockId.length)
-      .writeUint8Array(Buffer.from(this.blockId))
+      .writeUint8Array(Buffer.from(this.blockId) as any)
       .writeUint32(this.finality.length)
-      .writeUint8Array(Buffer.from(this.finality))
+      .writeUint8Array(Buffer.from(this.finality) as any)
       .writeUint8(this.callData.length);
     this.callData.forEach(({ to, data }) => {
       const dataArray = hexToUint8Array(data);
@@ -45,7 +45,7 @@ export class EthCallWithFinalityQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): EthCallWithFinalityQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 
@@ -75,7 +75,7 @@ export class EthCallWithFinalityQueryResponse extends EthCallQueryResponse {
   }
 
   static from(bytes: string | Uint8Array): EthCallWithFinalityQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
     return this.fromReader(reader);
   }
 
