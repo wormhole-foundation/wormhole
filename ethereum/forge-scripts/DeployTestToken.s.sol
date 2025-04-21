@@ -65,8 +65,8 @@ contract DeployTestToken is Script {
         );
         console.log("Token deployed at: ", address(token));
 
-        // mint 1000 units
-        token.mint(accounts[0], 1_000_000_000_000_000_000_000);
+        // mint 100,000,000 units for account 0 (deployer) to support repeated local test runs
+        token.mint(accounts[0], 100_000_000_000_000_000_000_000_000);
 
         ERC721PresetMinterPauserAutoId nft = new ERC721PresetMinterPauserAutoId(
             unicode"Not an APE🐒",
@@ -87,6 +87,9 @@ contract DeployTestToken is Script {
             token.mint(accounts[i], 1_000_000_000_000_000_000_000);
         }
 
+        // Mint 55,000 tokens to accounts[11] for higher rate limit testing
+        token.mint(accounts[11], 55_000_000_000_000_000_000_000);
+
         ERC20PresetMinterPauser accountantToken = new ERC20PresetMinterPauser(
             "Accountant Test Token",
             "GA"
@@ -100,7 +103,7 @@ contract DeployTestToken is Script {
         // mint 1000 units
         accountantToken.mint(accounts[9], 1_000_000_000_000_000_000_000);
 
-        for(uint16 i=0; i<11; i++) {
+        for(uint16 i=0; i<12; i++) {
             // Give the accounts enough eth to send transactions
             vm.deal(accounts[i], 1e18);
         }

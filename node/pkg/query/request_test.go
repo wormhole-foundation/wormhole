@@ -81,6 +81,7 @@ func createQueryRequestForTesting(t *testing.T, chainId vaa.ChainID) *QueryReque
 
 	queryRequest := &QueryRequest{
 		Nonce:           1,
+		Timestamp:       uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
 		PerChainQueries: []*PerChainQueryRequest{perChainQuery1, perChainQuery2, perChainQuery3},
 	}
 
@@ -695,6 +696,7 @@ func TestMarshalOfEthCallWithFinalityQueryWithFinalizedShouldSucceed(t *testing.
 
 	queryRequest := &QueryRequest{
 		Nonce:           1,
+		Timestamp:       uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
 		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
 	}
 	_, err = queryRequest.Marshal()
@@ -720,6 +722,7 @@ func TestMarshalOfEthCallWithFinalityQueryWithSafeShouldSucceed(t *testing.T) {
 
 	queryRequest := &QueryRequest{
 		Nonce:           1,
+		Timestamp:       uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
 		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
 	}
 	_, err = queryRequest.Marshal()
@@ -746,6 +749,7 @@ func createSolanaAccountQueryRequestForTesting(t *testing.T) *QueryRequest {
 
 	queryRequest := &QueryRequest{
 		Nonce:           1,
+		Timestamp:       uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
 		PerChainQueries: []*PerChainQueryRequest{perChainQuery1},
 	}
 
@@ -773,14 +777,7 @@ func TestSolanaAccountQueryRequestMarshalUnmarshalFromSDK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSolanaQueryMarshalUnmarshalFromSDK(t *testing.T) {
-	serialized, err := hex.DecodeString("010000002a01000104000000660000000966696e616c697a65640000000000000000000000000000000000000000000000000202c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491")
-	require.NoError(t, err)
-
-	var solQuery QueryRequest
-	err = solQuery.Unmarshal(serialized)
-	require.NoError(t, err)
-}
+// TestSolanaQueryMarshalUnmarshalFromSDK removed - v1 format no longer supported
 
 func TestSolanaPublicKeyLengthIsAsExpected(t *testing.T) {
 	// It will break the spec if this ever changes!
@@ -818,6 +815,7 @@ func createSolanaPdaQueryRequestForTesting(t *testing.T) *QueryRequest {
 
 	queryRequest := &QueryRequest{
 		Nonce:           1,
+		Timestamp:       uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
 		PerChainQueries: []*PerChainQueryRequest{perChainQuery1},
 	}
 
@@ -836,14 +834,7 @@ func TestSolanaPdaQueryRequestMarshalUnmarshal(t *testing.T) {
 	assert.True(t, queryRequest.Equal(&queryRequest2))
 }
 
-func TestSolanaPdaQueryUnmarshalFromSDK(t *testing.T) {
-	serialized, err := hex.DecodeString("010000002b010001050000005e0000000966696e616c697a656400000000000008ff000000000000000c00000000000000140102c806312cbe5b79ef8aa6c17e3f423d8fdfe1d46909fb1f6cdf65ee8e2e6faa020000000b477561726469616e5365740000000400000000")
-	require.NoError(t, err)
-
-	var solQuery QueryRequest
-	err = solQuery.Unmarshal(serialized)
-	require.NoError(t, err)
-}
+// TestSolanaPdaQueryUnmarshalFromSDK removed - v1 format no longer supported
 
 ///////////// End of Solana PDA Query tests ///////////////////////////
 
@@ -860,4 +851,96 @@ func TestPostSignedQueryRequestShouldFailIfNoOneIsListening(t *testing.T) {
 
 	var signedQueryReqSendC chan<- *gossipv1.SignedQueryRequest
 	assert.Error(t, PostSignedQueryRequest(signedQueryReqSendC, signedQueryRequest))
+}
+
+func TestQueryRequestTimestampValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		timestamp uint64
+		wantError bool
+		errorMsg  string
+	}{
+		{
+			name:      "current timestamp should pass",
+			timestamp: uint64(time.Now().Unix()), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: false,
+		},
+		{
+			name:      "14 minute old timestamp should pass",
+			timestamp: uint64(time.Now().Unix() - 840), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: false,
+		},
+		{
+			name:      "15 minute old timestamp should pass (at boundary)",
+			timestamp: uint64(time.Now().Unix() - 900), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: false,
+		},
+		{
+			name:      "16 minute old timestamp should fail",
+			timestamp: uint64(time.Now().Unix() - 960), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: true,
+			errorMsg:  "too old",
+		},
+		{
+			name:      "1 hour old timestamp should fail",
+			timestamp: uint64(time.Now().Unix() - 3600), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: true,
+			errorMsg:  "too old",
+		},
+		{
+			name:      "30 seconds in future should pass (clock skew)",
+			timestamp: uint64(time.Now().Unix() + 30), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: false,
+		},
+		{
+			name:      "1 minute in future should pass (at boundary)",
+			timestamp: uint64(time.Now().Unix() + 60), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: false,
+		},
+		{
+			name:      "2 minutes in future should fail",
+			timestamp: uint64(time.Now().Unix() + 120), // #nosec G115 -- time.Now() always returns positive Unix timestamps
+			wantError: true,
+			errorMsg:  "too far in future",
+		},
+		{
+			name:      "zero timestamp should fail",
+			timestamp: 0,
+			wantError: true,
+			errorMsg:  "required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			qr := &QueryRequest{
+				Nonce:     1,
+				Timestamp: tt.timestamp,
+				PerChainQueries: []*PerChainQueryRequest{
+					{
+						ChainId: vaa.ChainIDEthereum,
+						Query: &EthCallQueryRequest{
+							BlockId: "0x1",
+							CallData: []*EthCallData{
+								{
+									To:   make([]byte, 20),
+									Data: []byte{0x01},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			err := qr.Validate()
+			if tt.wantError {
+				assert.Error(t, err)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
