@@ -20,9 +20,9 @@ The proxy is not particularly resource intensive, so should run successfully on 
 
 ## Configuring the Proxy Server
 
-There are two main parts to configuring the proxy server. The first is setting up the command line arguments,
-which generally will not change after initial setup. The second part of the configuration is the permissions file,
-which will change as the requirements of integrators change.
+The proxy server is configured using command line arguments. The main configuration involves setting up
+staking-based rate limiting, which uses on-chain staking information to determine access and rate limits
+for query requests.
 
 ### Proxy Server Command Line Arguments
 
@@ -32,11 +32,13 @@ The following is a sample command line for running the proxy server in mainnet.
 wormhole $build/bin/guardiand query-server \
       --env "mainnet" \
       --nodeKey /home/ccq/data/ccq_server.nodeKey \
-      --permFile "/home/ccq/data/ccq_server.perms.json" \
       --signerKey "/home/ccq/data/ccq_server.signerKey" \
       --listenAddr "[::]:8080" \
       --ethRPC https://eth.drpc.org \
       --ethContract "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B" \
+      --stakingPoolAddresses "0xPoolAddress1,0xPoolAddress2,0xPoolAddress3" \
+      --ipfsGateway "https://ipfs.io" \
+      --policyCacheDuration 300 \
       --logLevel=info \
       --telemetryLokiURL $LOKI_URL \
       --telemetryNodeName "Mainnet CCQ server 1" \
@@ -46,15 +48,24 @@ wormhole $build/bin/guardiand query-server \
 - The `env` can be mainnet, testnet or devnet.
 - The `nodeKey` should point to the file containing the P2P key. The first time the proxy runs, if the
   file does not exist, it will be created. You can look in the proxy server logs to get the generated key.
-- The `permFile` is the JSON permissions file, which is documented below.
-- The `signerKey` should point to an armored file containing a key that will be used to sign requests received
-  from integrators who are configured to support auto signing and opt not to sign a request. Please see below
-  for how to generate this file.
+- The `signerKey` should point to an armored file containing a key that will be used to sign the server's
+  responses. Please see below for how to generate this file.
 - The `listenAddr` specifies the port on which the proxy listens for REST requests.
 - The `ethRPC` and `ethContract` are used to read the wormhole guardian set on start up. The address
   above is for mainnet. If you are running in testnet, you should point to Holesky and use `0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a`.
   (You can confirm these addresses [here](https://docs.wormhole.com/wormhole/reference/constants#contract-addresses).)
   Note that using a public endpoint should be fine, since the proxy only does a single read of the guardian set.
+- The `stakingPoolAddresses` specifies a comma-separated list of staking pool contract addresses
+  (e.g., "0xAddress1,0xAddress2,0xAddress3"). When provided, the proxy queries these pools directly
+  for staking policies. **This is the preferred method for connecting to staking pools.** Either this
+  parameter or `ccqFactoryAddress` must be provided to enable staking-based rate limiting.
+- The `ccqFactoryAddress` specifies the address of the CCQ staking factory contract for factory-based
+  pool discovery. This is an alternative to `stakingPoolAddresses` and should not be used together with it.
+  **Note:** This only works with staking factory contracts deployed prior to commit
+  [185e68f2](https://github.com/wormhole-foundation/queries-staking/commit/185e68f2295bda505b6eb427c59ff209c3555bd8).
+  For newer deployments, you must use `stakingPoolAddresses`.
+- The `ipfsGateway` specifies the IPFS gateway URL for fetching conversion tables (default: "https://ipfs.io").
+- The `policyCacheDuration` specifies how long (in seconds) to cache staking policies (default: 300 = 5 minutes).
 - The `telemetryLokiURL`, `telemetryNodeName` and `promRemoteURL` are used for telemetry purposes and
   the values will be provided by Wormhole Foundation personnel if appropriate.
 
@@ -84,138 +95,71 @@ configurations:
 
 Please work with foundation personnel to get your proxy server added to the guardian configurations.
 
-### Permissions Configuration
+### Staking-Based Rate Limiting
 
-The file specified by the `permFile` parameter contains JSON that defines the set of allowed queries users, along with the
-sets of requests they are allowed to make.
+The proxy server uses a staking-based rate limiting system to control access to CCQ queries. Instead of
+API keys and permissions files, access and rate limits are determined by on-chain staking.
 
-#### File Format
+#### How It Works
 
-The simplest file would look something like this
+1. **Staking Requirement**: Users must have staked tokens in the CCQ staking factory contract to access the service.
+2. **Rate Limits from Stake**: The amount of stake determines the rate limits for different query types.
+3. **Signature-Based Authentication**: All requests must be signed by the user's wallet to prove ownership.
+4. **Delegation Support**: Users can delegate their rate limits to other addresses by including a `StakerAddress`
+   field in their query requests.
 
-```json
-{
-  "allowAnythingSupported": false,
-  "defaultRateLimit": 0.5,
-  "defaultBurstSize": 1,
-  "permissions": [
-    {
-      "userName": "Monitor",
-      "apiKey": "insert_generated_api_key_here",
-      "allowUnsigned": true,
-      "allowedCalls": [
-        {
-          "ethCall": {
-            "note:": "Name of WETH on Ethereum",
-            "chain": 2,
-            "contractAddress": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-            "call": "0x06fdde03"
-          }
-        }
-      ]
-    }
-  ]
-}
-```
+#### Request Authentication
 
-This creates a single user called "Monitor", who will use the specified API key (more on API keys below).
-This user is allowed to submit unsigned requests (which will be signed using the configured signing key).
+Requests must be signed using ECDSA signatures. The proxy server supports two signature formats via the
+`X-Signature-Format` header:
 
-This sample user is only allowed to make a single `ethCall` request on Ethereum (Wormhole chain ID 2),
-which allows them to call the `name` method on the contract that resides at `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`.
-The `call` parameter is the first four bytes of the hash of the ABI encoded function call to be allowed.
+- `raw` (default): Standard ECDSA signature (for backend/CLI usage)
+- `eip191`: EIP-191 prefixed signature (for browser wallet integration via `personal_sign`)
 
-A given user can have any number of allowed calls (at least one), but they can only make calls that are configured here.
+#### Query Request Format
 
-#### Supported Call Types
-
-The proxy server supports all of the query types supported by the Wormhole Queries protocol. For details on those calls,
-please see the [Wormhole Queries Whitepaper](../whitepapers/0013_ccq.md).
-
-The following are the EVM call types, all of which require the `chain`, `contractAddress` and `call` arguments.
-
-- `ethCall`
-- `ethCallByTimestamp`
-- `ethCallWithFinality`
-
-The following are the Solana call types. Both require the `chain` parameter plus the extra parameter listed below.
-
-- `solAccount`, requires the `account` parameter.
-- `solPDA`, requires the `programAddress` parameter.
-
-The Solana account and and program address can be expressed as either a 32 byte hex string starting with "0x" or as a base 58 value.
-
-#### Wild Card Contract Addresses
-
-For the eth calls, the `contractAddress` field may be set to `"*"` which means the specified call type and call may be made to any
-contract address on the specified chain.
-
-#### Creating New API Keys
-
-Each user must have an API key. These keys only have meaning to the proxy server. They are not passed to the guardians.
-The proxy requires that a key be present in each query request, and that the specified key exists in the permissions file.
-Beyond that, the API keys have no special meaning. They can be generated using a site like [this](https://www.uuidgenerator.net/version4).
-
-#### Updating the Permissions File
-
-The proxy server monitors the permissions file for changes. Whenever a change is detected, it reads the file, validates it, and if
-it passes validation, switches to the new version. Care should be taken when editing the file while the proxy server is running, because
-as soon as you save the file, the changes will be picked up (whether they are logically complete or not).
-
-#### The `allowAnything` flag
-
-The `allowAnything` flag may only be specified for a user if you are running in testnet and the `allowAnythingSupported` flag in the
-permissions file is set to true.
-
-If this flag is specified for a user, then that user may make any call on any supported chain, without restriction.
-If this flag is specified, then `allowedCalls` must not be specified.
+Clients send JSON requests to the proxy server:
 
 ```json
 {
-  "permissions": [
-    {
-      "userName": "Monitor",
-      "apiKey": "insert_generated_api_key_here",
-      "allowUnsigned": true,
-      "allowedAnything": true
-    }
-  ]
+  "bytes": "hex_encoded_query_request",
+  "signature": "hex_encoded_signature"
 }
 ```
 
-### Rate Limiting
+The query request bytes should include:
+- The query details (chain, contract, method, etc.)
+- Optional `StakerAddress` field (20 bytes) for delegation scenarios
 
-The query proxy server supports rate limiting by specifying two parameters. The rate limit, which is a floating point value, and the burst size,
-which is an int. See [here](https://pkg.go.dev/golang.org/x/time/rate#Limiter) for a description of how the rate limiter works.
+#### Rate Limiting Behavior
 
-Note that if the rate limits are not specified, or the rate is set to zero, rate limiting will be disabled, allowing unlimited queries per second. The burst size only has meaning if the rate limit is specified. It defaults to one, and zero is not a valid value.
+When staking-based rate limiting is enabled (either `--stakingPoolAddresses` or `--ccqFactoryAddress` is provided):
 
-The rate limits may be specified at either of two levels.
+1. The proxy verifies the signature to recover the signer's address
+2. If a `StakerAddress` is provided, the proxy checks if the signer is authorized to use that staker's limits
+3. The proxy fetches the staking policy from the configured pools (with caching)
+   - If `--stakingPoolAddresses` is used (preferred), pools are queried directly
+   - If `--ccqFactoryAddress` is used, pools are discovered via the factory contract
+4. Rate limits are enforced based on query types in the staking policy
+5. Requests exceeding rate limits receive a `429 Too Many Requests` response
 
-First, you may specify global defaults for rate limiting by specifying the `defaultRateLimit` and `defaultBurstSize` parameters
-in the permissions file. If these parameters are specified, they apply to all users for which per-user parameters are not specified.
-This means that each of these users will be allowed that many queries per second.
+You must provide either `--stakingPoolAddresses` (preferred) or `--ccqFactoryAddress` to enable staking-based
+rate limiting.
 
-Second, you may override the global defaults for a given user by specifying `rateLimit` and `burstSize` for that user. Also note that
-you can disable rate limits for a given user (overriding the default) by setting their `rateLimit` to zero.
+#### Supported Query Types
 
-### Validating Permissions File Changes
+The proxy server supports all query types defined in the Wormhole Queries protocol:
 
-The query server automatically detects changes to the permissions file and attempts to reload them. If there are errors in the updated
-file, the server rejects the update and continues running on the old version. However, if the file is not fixed, those errors will prevent
-the server from coming up on the next restart. You can avoid this problem by verifying any file updates before attempting to reload.
+**EVM Queries:**
+- `ethCall` - Query contract state at current block
+- `ethCallByTimestamp` - Query contract state at a specific timestamp
+- `ethCallWithFinality` - Query contract state with finality guarantees
 
-To do this, you can copy the permissions file to some other file, make your changes to the copy, and then do the following:
+**Solana Queries:**
+- `solAccount` - Query Solana account data
+- `solPDA` - Query Solana Program Derived Address
 
-```sh
-$ guardiand query-server --env mainnet --verifyPermissions --permFile new.permissions.file.json
-```
-
-where the `--env` flag should be either `mainnet` or `testnet` and `new.permissions.file.json` is the path to the updated file.
-If the updated file is good, the program will exit immediately with no output and an exit code of zero. If the file contains
-errors, the first error will be printed, and the exit code will be one.
-
-Once you are satisfied with your updates, you can copy the updated file to the official location.
+For details on these query types, see the [Wormhole Queries Whitepaper](../whitepapers/0013_ccq.md).
 
 ## Telemetry
 
@@ -249,22 +193,25 @@ which will cause the proxy server to periodically check its connectivity to the 
 
 If the proxy server determines that a request is invalid, it does the following:
 
-- Logs an error message using the user name (not the API Key).
+- Logs an error message with the signer address (and staker address if applicable).
 - Increments the appropriate Prometheus metric.
-- Sends a failure response to the user.
+- Sends a failure response to the client.
 
 Note that if the proxy server thinks a request is valid, but the guardians do not, the guardians silently drop the request, so it will look
 like a timeout. This is to avoid a denial of service attack on the guardians. This can happen if the proxy server is not properly permissioned
 on the guardians.
 
-### Logging Request Detail.
+### Request Logging
 
-If a given integrator is reporting problems with their queries, you may find it useful to add the following to their permissions config
-(at the same level as the API Key, etc).
+The proxy server logs all incoming requests with the signer address (and staker address if delegation is used).
+At the `info` log level, you'll see logs like:
 
-```json
-"logResponses": true,
+```
+received request from client userId=signer:0x1234... requestId=abcd...
 ```
 
-This will cause the proxy server to log every response received for that user, along with the number of responses and how many are
-still needed to meet quorum.
+Or for delegated requests:
+
+```
+received request from client userId=delegated:0x5678...->staker:0x1234... requestId=abcd...
+```

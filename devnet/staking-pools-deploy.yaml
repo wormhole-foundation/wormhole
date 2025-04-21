@@ -1,0 +1,75 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: staking-pools-deploy
+  name: staking-pools-deploy
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: staking-pools-deploy
+    spec:
+      restartPolicy: Never
+      volumes:
+        - name: rate-limits
+          configMap:
+            name: ccq-rate-limits
+            items:
+              - key: ccq-rate-limits.json
+                path: ccq-rate-limits.json
+      containers:
+        - name: staking-pools-deploy
+          image: staking-pools-deploy
+          volumeMounts:
+            - name: rate-limits
+              mountPath: /home/node/app/queries-staking/ccq-rate-limits.json
+              subPath: ccq-rate-limits.json
+              readOnly: true
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Waiting for eth-devnet initialization to complete..."
+              until nc -z eth-devnet 2000; do
+                echo "Waiting for eth-devnet contracts..."
+                sleep 2
+              done
+
+              echo "eth-devnet ready, waiting 5 seconds for full stabilization..."
+              sleep 5
+
+              echo "Deploying staking pools..."
+              cd /home/node/app/queries-staking
+              ./deploy_all_pools.sh
+
+              # echo "Distributing test tokens to testing accounts..."
+              # ./distribute_test_tokens.sh
+
+              echo "Mining additional blocks to ensure state consistency..."
+              cast rpc anvil_mine 5 --rpc-url http://eth-devnet:8545 || echo "Block mining skipped (not anvil)"
+
+              echo "Final stabilization delay..."
+              sleep 3
+
+              touch /home/node/app/success
+              echo "Deployment complete!"
+          env:
+            - name: ETH_RPC_URL
+              value: "http://eth-devnet:8545"
+            - name: RPC_URL
+              value: "http://eth-devnet:8545"
+            - name: IPFS_GATEWAY
+              value: "http://kubo:8080/ipfs/"
+            - name: RATE_LIMITS_FILE
+              value: "/home/node/app/queries-staking/ccq-rate-limits.json"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/home/node/app/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
