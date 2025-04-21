@@ -41,7 +41,7 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 	// TODO(elee): we can probably tune these variable better, if memory consumption or cpu usage of the ratelimiter ever becomes an issue
 	if e.enforcementCount%1024 == 0 {
 		e.enforcementCount = 0
-		e.secondLimits.Cleanup(ctx, time.Now(), 1*time.Hour)
+		e.secondLimits.Cleanup(ctx, time.Now(), 5*time.Minute)
 		e.minuteLimits.Cleanup(ctx, time.Now(), 1*time.Hour)
 	}
 	out := &EnforcementResponse{
