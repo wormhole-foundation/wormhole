@@ -51,6 +51,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.45.11
 	github.com/go-kit/kit v0.12.0
 	github.com/golang/snappy v0.0.4
+	github.com/google/btree v1.1.2
 	github.com/google/uuid v1.6.0
 	github.com/grafana/dskit v0.0.0-20230201083518-528d8a7d52f2
 	github.com/grafana/loki v1.6.2-0.20230721141808-0d81144cfee8
@@ -58,7 +59,6 @@ require (
 	github.com/holiman/uint256 v1.2.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.60.0
-	github.com/tidwall/btree v1.7.0
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
@@ -165,7 +165,6 @@ require (
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v1.12.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
