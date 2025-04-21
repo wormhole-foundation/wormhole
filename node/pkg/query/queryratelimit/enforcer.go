@@ -2,6 +2,7 @@ package queryratelimit
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -47,24 +48,25 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 		Allowed:       true,
 		ExceededTypes: []uint8{},
 	}
-	for network, amount := range action.Types {
+	for queryType, amount := range action.Types {
 		if amount == 0 {
 			continue
 		}
-		limitForNetwork, ok := policy.Limits.Types[network]
+		limitForQueryType, ok := policy.Limits.Types[queryType]
 		if !ok {
 			out.Allowed = false
-			out.ExceededTypes = append(out.ExceededTypes, network)
+			out.ExceededTypes = append(out.ExceededTypes, queryType)
 			continue
 		}
-		thisSecond, err := e.secondLimits.IncrKey(ctx, action.Key.String(), amount, action.Time)
+		fullKey := strconv.Itoa(int(queryType)) + ":" + action.Key.String()
+		thisSecond, err := e.secondLimits.IncrKey(ctx, fullKey, amount, action.Time)
 		if err != nil {
 			// on failure to contact the rate limiter, we just error
 			return nil, err
 		}
-		if thisSecond > limitForNetwork.MaxPerSecond {
+		if thisSecond > limitForQueryType.MaxPerSecond {
 			out.Allowed = false
-			out.ExceededTypes = append(out.ExceededTypes, network)
+			out.ExceededTypes = append(out.ExceededTypes, queryType)
 			continue
 		}
 	}
