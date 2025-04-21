@@ -7,9 +7,9 @@ import (
 )
 
 type Action struct {
-	Time     time.Time      `json:"time"`
-	Key      common.Address `json:"key"`
-	Networks map[string]int `json:"networks"`
+	Time  time.Time      `json:"time"`
+	Key   common.Address `json:"key"`
+	Types map[uint8]int  `json:"networks"`
 }
 
 type Policy struct {
@@ -17,7 +17,7 @@ type Policy struct {
 }
 
 type Limits struct {
-	Networks map[string]Rule `json:"networks"`
+	Types map[uint8]Rule `json:"types"`
 }
 
 type Rule struct {

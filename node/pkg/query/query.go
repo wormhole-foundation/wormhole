@@ -104,50 +104,49 @@ type (
 	PerChainConfig struct {
 		TimestampCacheSupported bool
 		NumWorkers              int
-		VmType                  string
 	}
 )
 
 // perChainConfig provides static config info for each chain. If a chain is not listed here, then it does not support queries.
 // Every chain listed here must have at least one worker specified.
 var perChainConfig = map[vaa.ChainID]PerChainConfig{
-	vaa.ChainIDSolana:          {VmType: "solana", NumWorkers: 10, TimestampCacheSupported: false},
-	vaa.ChainIDEthereum:        {VmType: "evm", NumWorkers: 5, TimestampCacheSupported: true},
-	vaa.ChainIDBSC:             {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDPolygon:         {VmType: "evm", NumWorkers: 5, TimestampCacheSupported: true},
-	vaa.ChainIDAvalanche:       {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDOasis:           {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDAurora:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDFantom:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDKarura:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDAcala:           {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDKlaytn:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDCelo:            {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDMoonbeam:        {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDArbitrum:        {VmType: "evm", NumWorkers: 5, TimestampCacheSupported: true},
-	vaa.ChainIDOptimism:        {VmType: "evm", NumWorkers: 5, TimestampCacheSupported: true},
-	vaa.ChainIDBase:            {VmType: "evm", NumWorkers: 5, TimestampCacheSupported: true},
-	vaa.ChainIDScroll:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDMantle:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDBlast:           {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDXLayer:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDLinea:           {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDBerachain:       {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDSnaxchain:       {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDUnichain:        {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDWorldchain:      {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDInk:             {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDSepolia:         {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDHolesky:         {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDArbitrumSepolia: {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDBaseSepolia:     {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDOptimismSepolia: {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDPolygonSepolia:  {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDHyperEVM:        {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDMonad:           {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDSeiEVM:          {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDMezo:            {VmType: "evm", NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDFogo:            {VmType: "evm", NumWorkers: 10, TimestampCacheSupported: true},
+	vaa.ChainIDSolana:          {NumWorkers: 10, TimestampCacheSupported: false},
+	vaa.ChainIDEthereum:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDBSC:             {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDPolygon:         {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDAvalanche:       {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDOasis:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDAurora:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDFantom:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDKarura:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDAcala:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDKlaytn:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDCelo:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMoonbeam:        {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArbitrum:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDOptimism:        {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDBase:            {NumWorkers: 5, TimestampCacheSupported: true},
+	vaa.ChainIDScroll:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMantle:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDBlast:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDXLayer:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDLinea:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDBerachain:       {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDSnaxchain:       {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDUnichain:        {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDWorldchain:      {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDInk:             {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDSepolia:         {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDHolesky:         {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDArbitrumSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDBaseSepolia:     {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDOptimismSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDPolygonSepolia:  {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDHyperEVM:        {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMonad:           {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDSeiEVM:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMezo:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDFogo:            {NumWorkers: 10, TimestampCacheSupported: true},
 }
 
 // GetPerChainConfig returns the config for the specified chain. If the chain is not configured it returns an empty struct,
@@ -268,7 +267,7 @@ func handleQueryRequestsImpl(
 				invalidQueryRequestReceived.WithLabelValues("failed_to_get_rate_limit_policy").Inc()
 			}
 
-			if len(policy.Limits.Networks) == 0 {
+			if len(policy.Limits.Types) == 0 {
 				qLogger.Debug("requestor has no limits / invalid requestor", zap.String("requestID", requestID))
 				invalidQueryRequestReceived.WithLabelValues("invalid_requestor").Inc()
 				continue
@@ -292,9 +291,9 @@ func handleQueryRequestsImpl(
 			// the signer signed this! so they should be punished for sending bad requests.
 			// if they send a chain that is not supported, we will just drop it for now, but mayvbe we should rate limit them for the valid ones they sent. are we that evil ?
 			action := &queryratelimit.Action{
-				Key:      signerAddress,
-				Time:     time.Now(),
-				Networks: make(map[string]int),
+				Key:   signerAddress,
+				Time:  time.Now(),
+				Types: make(map[uint8]int),
 			}
 			if ok := func() bool {
 				for _, pcq := range queryRequest.PerChainQueries {
@@ -305,7 +304,7 @@ func handleQueryRequestsImpl(
 						invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()
 						return false
 					}
-					action.Networks[config.VmType] += 1
+					action.Types[uint8(pcq.Query.Type())] += 1
 				}
 				return true
 			}(); !ok {
@@ -319,7 +318,7 @@ func handleQueryRequestsImpl(
 				continue
 			}
 			if !limitResult.Allowed {
-				qLogger.Warn("rate limit exceeded", zap.String("requestID", requestID), zap.Any("networks", limitResult.ExceededNetworks))
+				qLogger.Warn("rate limit exceeded", zap.String("requestID", requestID), zap.Any("types", limitResult.ExceededTypes))
 				invalidQueryRequestReceived.WithLabelValues("rate_limit_exceeded").Inc()
 				continue
 			}

@@ -169,12 +169,16 @@ func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *Guar
 					}
 					return &queryratelimit.Policy{
 						Limits: queryratelimit.Limits{
-							Networks: map[string]queryratelimit.Rule{
-								"evm": {
+							Types: map[uint8]queryratelimit.Rule{
+								uint8(query.EthCallQueryRequestType): {
 									MaxPerMinute: 15 * 60,
 									MaxPerSecond: 15,
 								},
-								"solana": {
+								uint8(query.SolanaAccountQueryRequestType): {
+									MaxPerMinute: 15 * 60,
+									MaxPerSecond: 15,
+								},
+								uint8(query.SolanaPdaQueryRequestType): {
 									MaxPerMinute: 15 * 60,
 									MaxPerSecond: 15,
 								},

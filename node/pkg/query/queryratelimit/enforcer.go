@@ -29,8 +29,8 @@ func NewEnforcer() *Enforcer {
 }
 
 type EnforcementResponse struct {
-	Allowed          bool
-	ExceededNetworks []string
+	Allowed       bool    `json:"allowed"`
+	ExceededTypes []uint8 `json:"exceeded_types"`
 }
 
 func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Action) (*EnforcementResponse, error) {
@@ -44,17 +44,17 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 		e.minuteLimits.Cleanup(ctx, time.Now(), 1*time.Hour)
 	}
 	out := &EnforcementResponse{
-		Allowed:          true,
-		ExceededNetworks: []string{},
+		Allowed:       true,
+		ExceededTypes: []uint8{},
 	}
-	for network, amount := range action.Networks {
+	for network, amount := range action.Types {
 		if amount == 0 {
 			continue
 		}
-		limitForNetwork, ok := policy.Limits.Networks[network]
+		limitForNetwork, ok := policy.Limits.Types[network]
 		if !ok {
 			out.Allowed = false
-			out.ExceededNetworks = append(out.ExceededNetworks, network)
+			out.ExceededTypes = append(out.ExceededTypes, network)
 			continue
 		}
 		thisSecond, err := e.secondLimits.IncrKey(ctx, action.Key.String(), amount, action.Time)
@@ -64,7 +64,7 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 		}
 		if thisSecond > limitForNetwork.MaxPerSecond {
 			out.Allowed = false
-			out.ExceededNetworks = append(out.ExceededNetworks, network)
+			out.ExceededTypes = append(out.ExceededTypes, network)
 			continue
 		}
 	}
