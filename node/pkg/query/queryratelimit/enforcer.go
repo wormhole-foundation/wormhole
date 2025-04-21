@@ -69,6 +69,15 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 			out.ExceededTypes = append(out.ExceededTypes, queryType)
 			continue
 		}
+		thisMinute, err := e.minuteLimits.IncrKey(ctx, fullKey, amount, action.Time)
+		if err != nil {
+			// on failure to contact the rate limiter, we just error
+			return nil, err
+		}
+		if thisMinute > limitForQueryType.MaxPerMinute {
+			out.Allowed = false
+			out.ExceededTypes = append(out.ExceededTypes, queryType)
+		}
 	}
 	return out, nil
 }
