@@ -79,7 +79,6 @@ type Action struct {
 }
 
 type Policy struct {
-	Bucket string `json:"bucket"`
 	Limits Limits `json:"limits"`
 }
 
