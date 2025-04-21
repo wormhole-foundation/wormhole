@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	lru "github.com/hashicorp/golang-lru/v2"
+	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 )
@@ -19,7 +19,7 @@ type PolicyProvider struct {
 	parentContext context.Context
 	logger        *zap.Logger
 
-	cache *lru.Cache[common.Address, withExpiry[*Policy]]
+	cache *lru.Cache
 
 	sf singleflight.Group
 }
@@ -38,7 +38,7 @@ func WithPolicyProviderFetcher(fetcher func(ctx context.Context, key common.Addr
 	}
 }
 
-func WithPolicyProviderCache(cache *lru.Cache[common.Address, withExpiry[*Policy]]) PolicyProviderOption {
+func WithPolicyProviderCache(cache *lru.Cache) PolicyProviderOption {
 	return func(p *PolicyProvider) {
 		p.cache = cache
 	}
@@ -76,7 +76,7 @@ func NewPolicyProvider(ops ...PolicyProviderOption) (*PolicyProvider, error) {
 		op(o)
 	}
 	if o.cache == nil {
-		lru, err := lru.New[common.Address, withExpiry[*Policy]](1024)
+		lru, err := lru.New(1024)
 		if err != nil {
 			return nil, err
 		}
@@ -90,8 +90,9 @@ func NewPolicyProvider(ops ...PolicyProviderOption) (*PolicyProvider, error) {
 }
 
 func (r *PolicyProvider) GetPolicy(ctx context.Context, key common.Address) (*Policy, error) {
-	val, hit := r.cache.Get(key)
+	ival, hit := r.cache.Get(key)
 	if hit {
+		val := ival.(withExpiry[*Policy])
 		if time.Now().After(val.expiresAt) {
 			r.cache.Remove(key)
 		}
@@ -119,7 +120,7 @@ func (r *PolicyProvider) fetchAndFill(ctx context.Context, key common.Address) (
 		}
 		r.cache.Add(key, withExpiry[*Policy]{
 			v:         policy,
-			expiresAt: time.Now().Add(time.Duration(policy.Limits.Evm.MaxPerMinute) * time.Minute),
+			expiresAt: time.Now().Add(r.cacheDuration),
 		})
 		return policy, nil
 	})
