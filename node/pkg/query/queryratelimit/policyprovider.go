@@ -14,6 +14,7 @@ import (
 // TODO(elee): this should really be an interface where the seprate parts are split out, ala, one for fetching, one for ttl cache.
 type PolicyProvider struct {
 	fetcher       func(ctx context.Context, key common.Address) (*Policy, error)
+	fetchTimeout  time.Duration
 	cacheDuration time.Duration
 	optimistic    bool
 	parentContext context.Context
@@ -61,12 +62,18 @@ func WithPolicyProviderParentContext(ctx context.Context) PolicyProviderOption {
 		p.parentContext = ctx
 	}
 }
+func WithPolicyProviderFetchTimeout(timeout time.Duration) PolicyProviderOption {
+	return func(p *PolicyProvider) {
+		p.fetchTimeout = timeout
+	}
+}
 
 var ErrNewPolicyProvider = fmt.Errorf("new rate limit policy provider")
 
 func NewPolicyProvider(ops ...PolicyProviderOption) (*PolicyProvider, error) {
 	o := &PolicyProvider{
 		cacheDuration: time.Minute * 5,
+		fetchTimeout:  time.Second * 5,
 		parentContext: context.Background(),
 	}
 	for _, op := range ops {
@@ -98,7 +105,7 @@ func (r *PolicyProvider) GetPolicy(ctx context.Context, key common.Address) (*Po
 		}
 		if r.optimistic {
 			go func() {
-				ctx, cn := context.WithTimeout(r.parentContext, time.Second*5)
+				ctx, cn := context.WithTimeout(r.parentContext, r.fetchTimeout)
 				defer cn()
 				if _, err := r.fetchAndFill(ctx, key); err != nil {
 					if r.logger != nil {
