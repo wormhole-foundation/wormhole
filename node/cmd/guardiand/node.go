@@ -966,6 +966,13 @@ func runNode(cmd *cobra.Command, args []string) {
 		if parseErr != nil {
 			logger.Fatal("transferVerifierEnabledChainIDs input is invalid", zap.Error(parseErr))
 		}
+
+		// Format the feature string in the form "txverifier:ethereum|sui" and append it to the feature flags.
+		chainNames := make([]string, 0, len(txVerifierChains))
+		for _, cid := range txVerifierChains {
+			chainNames = append(chainNames, cid.String())
+		}
+		featureFlags = append(featureFlags, fmt.Sprintf("txverifier:%s", strings.Join(chainNames, "|")))
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -1212,7 +1219,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
 		}
-
 	}
 	usingPromRemoteWrite := *promRemoteURL != ""
 	if usingPromRemoteWrite {
@@ -1917,11 +1923,28 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers,
-			*gossipAdvertiseAddress, ibc.GetFeatures, protectedPeers, ccqProtectedPeers, featureFlags),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID),
+
+		// Keep this last so that all of its dependencies are met.
+		node.GuardianOptionP2P(
+			p2pKey,
+			*p2pNetworkID,
+			*p2pBootstrap,
+			*nodeName,
+			*subscribeToVAAs,
+			*disableHeartbeatVerify,
+			*p2pPort,
+			*ccqP2pBootstrap,
+			*ccqP2pPort,
+			*ccqAllowedPeers,
+			*gossipAdvertiseAddress,
+			ibcWatcherConfig != nil,
+			protectedPeers,
+			ccqProtectedPeers,
+			featureFlags,
+		),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {

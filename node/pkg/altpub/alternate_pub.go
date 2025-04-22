@@ -334,6 +334,7 @@ func parseEndpoint(config string) (*Endpoint, error) {
 
 // GetFeatures returns the status string to be published in P2P heartbeats. For now, it just returns a static string
 // listing the enabled endpoints, but in the future, it might return the actual status of each endpoint or something.
+// NOTE: `node.getStaticFeatureFlags` assumes that this does not change after initialization.
 func (ap *AlternatePublisher) GetFeatures() string {
 	return ap.status
 }

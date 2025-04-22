@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -503,6 +504,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
+			slices.Sort(params.featureFlags)
 			go func() {
 				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx))
 
@@ -530,43 +532,16 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								networks = append(networks, v)
 							}
 
-							features := make([]string, 0)
-							if params.processorFeaturesFunc != nil {
-								flag := params.processorFeaturesFunc()
-								if flag != "" {
-									features = append(features, flag)
+							features := make([]string, len(params.featureFlags))
+							copy(features, params.featureFlags)
+							if len(params.featureFlagFuncs) != 0 {
+								for _, f := range params.featureFlagFuncs {
+									flag := f()
+									if flag != "" {
+										features = append(features, flag)
+									}
 								}
-							}
-							if params.alternatePublisherFeaturesFunc != nil {
-								flag := params.alternatePublisherFeaturesFunc()
-								if flag != "" {
-									features = append(features, flag)
-								}
-							}
-							if params.gov != nil {
-								if params.gov.IsFlowCancelEnabled() {
-									features = append(features, "governor:fc")
-								} else {
-									features = append(features, "governor")
-								}
-							}
-							if params.acct != nil {
-								features = append(features, params.acct.FeatureString())
-							}
-							if params.ibcFeaturesFunc != nil {
-								ibcFlags := params.ibcFeaturesFunc()
-								if ibcFlags != "" {
-									features = append(features, ibcFlags)
-								}
-							}
-							if params.gatewayRelayerEnabled {
-								features = append(features, "gwrelayer")
-							}
-							if params.ccqEnabled {
-								features = append(features, "ccq")
-							}
-							if len(params.featureFlags) != 0 {
-								features = append(features, params.featureFlags...)
+								slices.Sort(features)
 							}
 
 							heartbeat := &gossipv1.Heartbeat{
