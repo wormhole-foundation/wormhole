@@ -26,4 +26,5 @@ idl-build = [
 anchor-lang = "0.31.1"
 byteorder = "1.5.0"
 libsecp256k1 = "0.7.2"
-wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false, features = ["idl-build"] }
+# wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false }
+wormhole-anchor-sdk = { git = "https://github.com/XLabs/wormhole-scaffolding.git", rev = "c008cf26c2449b914911a19ecbf8630fd9b4f5b5", default-features = false }
