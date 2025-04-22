@@ -315,7 +315,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	var receiptErr error
 
 	for _, log := range receipt.Logs {
-		// Nil dereference check.
+		// Bounds check.
 		if len(log.Topics) == 0 {
 			tv.logger.Info(
 				"skipping log: no indexed topics",
