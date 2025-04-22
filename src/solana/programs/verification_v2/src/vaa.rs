@@ -11,8 +11,8 @@ pub struct VAA {
 	pub recovery_id: u8,
 
   // Body
-  pub timestamp: u64,
-  pub nonce: u64,
+  pub timestamp: u32,
+  pub nonce: u32,
   pub emitter_chain_id: u16,
   pub emitter_address: [u8; 32],
   pub sequence: u64,
@@ -28,8 +28,8 @@ impl VAA {
 		cursor.write_u32::<BigEndian>(self.tss_index)?;
 		cursor.write_all(&self.signature)?;
 		cursor.write_u8(self.recovery_id)?;
-		cursor.write_u64::<BigEndian>(self.timestamp)?;
-		cursor.write_u64::<BigEndian>(self.nonce)?;
+		cursor.write_u32::<BigEndian>(self.timestamp)?;
+		cursor.write_u32::<BigEndian>(self.nonce)?;
 		cursor.write_u16::<BigEndian>(self.emitter_chain_id)?;
 		cursor.write_all(&self.emitter_address)?;
 		cursor.write_u64::<BigEndian>(self.sequence)?;
@@ -50,8 +50,8 @@ impl VAA {
 
 		let body_start = cursor.position() as usize;
 		
-		let timestamp = cursor.read_u64::<BigEndian>()?;
-		let nonce = cursor.read_u64::<BigEndian>()?;
+		let timestamp = cursor.read_u32::<BigEndian>()?;
+		let nonce = cursor.read_u32::<BigEndian>()?;
 		let emitter_chain_id = cursor.read_u16::<BigEndian>()?;
 		let mut emitter_address = [0; 32];
 		cursor.read_exact(&mut emitter_address)?;

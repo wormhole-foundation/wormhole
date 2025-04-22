@@ -61,9 +61,9 @@ contract ThresholdVerification {
       (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
       if (version != 2) revert VaaLib.InvalidVersion(version);
 
-      // Decode the guardian set index
-      uint32 guardianSetIndex;
-      (guardianSetIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
+      // Decode the TSS key index
+      uint32 tssIndex;
+      (tssIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
 
       // Get the current threshold info
       ( uint32 currentThresholdIndex,
@@ -72,10 +72,10 @@ contract ThresholdVerification {
 
       // Get the threshold address
       address thresholdAddr;
-      if (guardianSetIndex != currentThresholdIndex) {
+      if (tssIndex != currentThresholdIndex) {
         // If the guardian set index is not the current threshold index,
         // we need to get the past threshold info and validate that it is not expired
-        (uint32 expirationTime, address addr) = this.getPastThresholdInfo(guardianSetIndex);
+        (uint32 expirationTime, address addr) = this.getPastThresholdInfo(tssIndex);
         if (expirationTime < block.timestamp) revert GuardianSetExpired();
         thresholdAddr = addr;
       } else {

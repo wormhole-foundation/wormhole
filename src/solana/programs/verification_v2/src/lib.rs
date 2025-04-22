@@ -20,15 +20,41 @@ use append_threshold_key_message::AppendThresholdKeyMessage;
 
 const GOVERNANCE_ADDRESS: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4];
 
+#[error_code]
+pub enum VAAError {
+  #[msg("Invalid VAA version")]
+  InvalidVersion,
+  #[msg("Invalid VAA index")]
+  InvalidIndex,
+  #[msg("TSS key expired")]
+  TSSKeyExpired,
+  #[msg("Invalid signature")]
+  InvalidSignature,
+}
+
+#[error_code]
+pub enum AppendThresholdKeyError {
+  #[msg("Invalid VAA")]
+  InvalidVAA,
+  #[msg("Invalid governance chain ID")]
+  InvalidGovernanceChainId,
+  #[msg("Invalid governance address")]
+  InvalidGovernanceAddress,
+  #[msg("Index mismatch")]
+  IndexMismatch,
+  #[msg("Invalid old threshold key")]
+  InvalidOldThresholdKey,
+}
+
 #[derive(Accounts)]
 pub struct AppendThresholdKey<'info> {
   #[account(mut)]
   pub payer: Signer<'info>,
 
   #[account(
-    owner = wormhole_program.key(),
-    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
-              && vaa.meta.emitter_address == GOVERNANCE_ADDRESS,
+    owner = wormhole_program.key() @ AppendThresholdKeyError::InvalidVAA,
+    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA @ AppendThresholdKeyError::InvalidGovernanceChainId,
+    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS @ AppendThresholdKeyError::InvalidGovernanceAddress,
   )]
   pub vaa: Account<'info, PostedVaaData>,
 
@@ -41,7 +67,7 @@ pub struct AppendThresholdKey<'info> {
 
   #[account(
     mut,
-    constraint = old_threshold_key.expiration_timestamp == 0,
+    constraint = old_threshold_key.expiration_timestamp == 0 @ AppendThresholdKeyError::InvalidOldThresholdKey,
   )]
   pub old_threshold_key: Option<Account<'info, ThresholdKey>>,
 
@@ -50,10 +76,9 @@ pub struct AppendThresholdKey<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(vaa: Vec<u8>)]
 pub struct VerifyVaa<'info> {
   #[account(
-    constraint = threshold_key.is_unexpired(),
+    constraint = threshold_key.is_unexpired() @ VAAError::TSSKeyExpired,
   )]
   pub threshold_key: Account<'info, ThresholdKey>,
 }
@@ -70,30 +95,11 @@ impl ThresholdKey {
   pub fn is_unexpired(&self) -> bool {
     self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
   }
-}
 
-#[error_code]
-pub enum VAAError {
-  #[msg("Invalid VAA version")]
-  InvalidVersion,
-  #[msg("Invalid VAA index")]
-  InvalidIndex,
-  #[msg("Guardian set expired")]
-  GuardianSetExpired,
-  #[msg("Invalid signature")]
-  InvalidSignature,
-}
-
-#[error_code]
-pub enum AppendThresholdKeyError {
-  #[msg("Invalid governance chain ID")]
-  InvalidGovernanceChainId,
-  #[msg("Invalid governance address")]
-  InvalidGovernanceAddress,
-  #[msg("Index mismatch")]
-  IndexMismatch,
-  #[msg("Invalid old threshold key")]
-  InvalidOldThresholdKey,
+  pub fn update_expiration_timestamp(&mut self, new_expiration_timestamp: u64) {
+    let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
+    self.expiration_timestamp = current_timestamp + new_expiration_timestamp;
+  }
 }
 
 #[program]
@@ -117,8 +123,7 @@ pub mod verification_v2 {
 
     // Set the old threshold key expiration timestamp
     if let Some(ref mut old_threshold_key) = &mut ctx.accounts.old_threshold_key {
-      let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
-      old_threshold_key.expiration_timestamp = current_timestamp + message.expiration_delay_seconds as u64;
+      old_threshold_key.update_expiration_timestamp(message.expiration_delay_seconds as u64);
     }
 
     Ok(())

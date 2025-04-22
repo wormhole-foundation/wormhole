@@ -9,15 +9,21 @@ crate-type = ["cdylib", "lib"]
 name = "verification_v2"
 
 [features]
-default = []
+default = ["mainnet"]
+mainnet = ["wormhole-anchor-sdk/mainnet"]
+testnet = ["wormhole-anchor-sdk/solana-devnet"]
+devnet = ["wormhole-anchor-sdk/tilt-devnet"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = [
+	"anchor-lang/idl-build",
+	"wormhole-anchor-sdk/idl-build",
+]
 
 [dependencies]
-anchor-lang = "0.31.0"
+anchor-lang = "0.31.1"
 byteorder = "1.5.0"
 libsecp256k1 = "0.7.2"
-wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git" }
+wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false, features = ["idl-build"] }
