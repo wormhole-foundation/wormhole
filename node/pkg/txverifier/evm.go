@@ -289,10 +289,17 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	receipt *geth.Receipt,
 ) (*TransferReceipt, error) {
-	// Sanity checks. Shouldn't be necessary but no harm
+
+	// Sanity checks.
 	if receipt == nil {
 		return nil, errors.New("receipt parameter is nil")
 	}
+
+	tv.logger.Debug(
+		"begin processing receipt",
+		zap.String("txHash", receipt.TxHash.String()),
+	)
+
 	if receipt.Status != 1 {
 		return nil, errors.New("non-success transaction status")
 	}
@@ -308,6 +315,15 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	var receiptErr error
 
 	for _, log := range receipt.Logs {
+		// Nil dereference check.
+		if len(log.Topics) == 0 {
+			tv.logger.Info(
+				"skipping log: no indexed topics",
+				zap.String("txHash", log.TxHash.String()),
+			)
+			continue
+		}
+
 		switch log.Topics[0] {
 		case common.HexToHash(EVENTHASH_WETH_DEPOSIT):
 			deposit, depositErr := DepositFromLog(log, tv.chainIds.wormholeChainId)
