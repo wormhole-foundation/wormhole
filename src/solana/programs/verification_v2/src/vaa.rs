@@ -3,6 +3,7 @@ use std::io::{Cursor, Read, Write};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::keccak::hash;
 
+#[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct VAA {
   // Header
   pub version: u8,
