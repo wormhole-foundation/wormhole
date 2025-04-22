@@ -23,9 +23,6 @@ type (
 		gst            *common.GuardianSetState
 		rootCtxCancel  context.CancelFunc
 
-		// obsvRecvC is optional and can be set with `WithSignedObservationListener`.
-		obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]
-
 		// batchObsvRecvC is optional and can be set with `WithSignedObservationBatchListener`.
 		batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
@@ -45,24 +42,28 @@ type (
 		disableHeartbeatVerify bool
 
 		// The following options are guardian specific. Set with `WithGuardianOptions`.
-		nodeName               string
-		guardianSigner         guardiansigner.GuardianSigner
-		gossipControlSendC     chan []byte
-		gossipAttestationSendC chan []byte
-		gossipVaaSendC         chan []byte
-		obsvReqSendC           <-chan *gossipv1.ObservationRequest
-		acct                   *accountant.Accountant
-		gov                    *governor.ChainGovernor
-		components             *Components
-		ibcFeaturesFunc        func() string
-		processorFeaturesFunc  func() string
-		gatewayRelayerEnabled  bool
-		ccqEnabled             bool
-		signedQueryReqC        chan<- *gossipv1.SignedQueryRequest
-		queryResponseReadC     <-chan *query.QueryResponsePublication
-		ccqBootstrapPeers      string
-		ccqPort                uint
-		ccqAllowedPeers        string
+		nodeName                       string
+		guardianSigner                 guardiansigner.GuardianSigner
+		gossipControlSendC             chan []byte
+		gossipAttestationSendC         chan []byte
+		gossipVaaSendC                 chan []byte
+		obsvReqSendC                   <-chan *gossipv1.ObservationRequest
+		acct                           *accountant.Accountant
+		gov                            *governor.ChainGovernor
+		components                     *Components
+		ibcFeaturesFunc                func() string
+		processorFeaturesFunc          func() string
+		alternatePublisherFeaturesFunc func() string
+		gatewayRelayerEnabled          bool
+		ccqEnabled                     bool
+		signedQueryReqC                chan<- *gossipv1.SignedQueryRequest
+		queryResponseReadC             <-chan *query.QueryResponsePublication
+		ccqBootstrapPeers              string
+		ccqPort                        uint
+		ccqAllowedPeers                string
+		protectedPeers                 []string
+		ccqProtectedPeers              []string
+		featureFlags                   []string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -117,10 +118,10 @@ func WithProcessorFeaturesFunc(processorFeaturesFunc func() string) RunOpt {
 	}
 }
 
-// WithSignedObservationListener is used to set the channel to receive `SignedObservation` messages.
-func WithSignedObservationListener(obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]) RunOpt {
+// WithAlternatePublisherFeaturesFunc is used to set the alternate publisher features function.
+func WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc func() string) RunOpt {
 	return func(p *RunParams) error {
-		p.obsvRecvC = obsvRecvC
+		p.alternatePublisherFeaturesFunc = alternatePublisherFeaturesFunc
 		return nil
 	}
 }
@@ -173,11 +174,26 @@ func WithDisableHeartbeatVerify(disableHeartbeatVerify bool) RunOpt {
 	}
 }
 
+// WithProtectedPeers is used to set the protected peers.
+func WithProtectedPeers(protectedPeers []string) RunOpt {
+	return func(p *RunParams) error {
+		p.protectedPeers = protectedPeers
+		return nil
+	}
+}
+
+// WithCcqProtectedPeers is used to set the protected peers for CCQ.
+func WithCcqProtectedPeers(ccqProtectedPeers []string) RunOpt {
+	return func(p *RunParams) error {
+		p.ccqProtectedPeers = ccqProtectedPeers
+		return nil
+	}
+}
+
 // WithGuardianOptions is used to set options that are only meaningful to the guardian.
 func WithGuardianOptions(
 	nodeName string,
 	guardianSigner guardiansigner.GuardianSigner,
-	obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedIncomingVaaRecvC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqRecvC chan<- *gossipv1.ObservationRequest,
@@ -197,11 +213,13 @@ func WithGuardianOptions(
 	ccqBootstrapPeers string,
 	ccqPort uint,
 	ccqAllowedPeers string,
+	protectedPeers []string,
+	ccqProtectedPeers []string,
+	featureFlags []string,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
 		p.guardianSigner = guardianSigner
-		p.obsvRecvC = obsvRecvC
 		p.batchObsvRecvC = batchObsvRecvC
 		p.signedIncomingVaaRecvC = signedIncomingVaaRecvC
 		p.obsvReqRecvC = obsvReqRecvC
@@ -221,6 +239,9 @@ func WithGuardianOptions(
 		p.ccqBootstrapPeers = ccqBootstrapPeers
 		p.ccqPort = ccqPort
 		p.ccqAllowedPeers = ccqAllowedPeers
+		p.protectedPeers = protectedPeers
+		p.ccqProtectedPeers = ccqProtectedPeers
+		p.featureFlags = featureFlags
 		return nil
 	}
 }

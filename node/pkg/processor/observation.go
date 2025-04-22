@@ -1,9 +1,9 @@
-//nolint:unparam // this will be refactored in https://github.com/wormhole-foundation/wormhole/pull/1953
 package processor
 
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
@@ -49,6 +49,11 @@ var (
 func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common.Address) []*vaa.Signature {
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 	var sigs []*vaa.Signature
+
+	if len(gsKeys) > math.MaxUint8 {
+		panic(fmt.Sprintf("guardian set too large: %d", len(gsKeys)))
+	}
+
 	for i, a := range gsKeys {
 		sig, ok := signatures[a]
 
@@ -59,7 +64,7 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 			}
 
 			sigs = append(sigs, &vaa.Signature{
-				Index:     uint8(i),
+				Index:     uint8(i), // #nosec G115 -- This is validated above
 				Signature: bs,
 			})
 		}
@@ -73,18 +78,6 @@ func (p *Processor) handleBatchObservation(m *node_common.MsgWithTimeStamp[gossi
 		p.handleSingleObservation(m.Msg.Addr, obs)
 	}
 	batchObservationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-}
-
-// handleObservation processes a remote VAA observation.
-func (p *Processor) handleObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservation]) {
-	obs := gossipv1.Observation{
-		Hash:      m.Msg.Hash,
-		Signature: m.Msg.Signature,
-		TxHash:    m.Msg.TxHash,
-		MessageId: m.Msg.MessageId,
-	}
-	p.handleSingleObservation(m.Msg.Addr, &obs)
-	observationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 }
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum, and assembles and submits a valid VAA if possible.
@@ -197,7 +190,7 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 		return
 	}
 
-	// Hooray! Now, we have verified all fields on SignedObservation and know that it includes
+	// Hooray! Now, we have verified all fields on the observation and know that it includes
 	// a valid signature by an active guardian. We still don't fully trust them, as they may be
 	// byzantine, but now we know who we're dealing with.
 

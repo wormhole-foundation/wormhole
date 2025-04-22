@@ -32,6 +32,7 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 36, addr: "000000000000000000000000870a8f46b62b8bdeda4c02530c1750cddf2ed32e", symbol: "USDC+", coinGeckoId: "usdc-plus-overnight", decimals: 18, price: 1.00},
 		{chain: 36, addr: "00000000000000000000000042e12d42b3d6c4a74a88a61063856756ea2db357", symbol: "ORBIT", coinGeckoId: "orbit-protocol", decimals: 18, price: 0.3074},
 		// SCROLL (tokens over $50,000 24h volume)
+		{chain: 34, addr: "0000000000000000000000005300000000000000000000000000000000000004", symbol: "WETH", coinGeckoId: "bridged-wrapped-ether-scroll", decimals: 18, price: 1905.44},
 		{chain: 34, addr: "0000000000000000000000000018d96c579121a94307249d47f053e2d687b5e7", symbol: "MVX", coinGeckoId: "metavault-trade", decimals: 18, price: 2.06},
 		{chain: 34, addr: "00000000000000000000000047c337bd5b9344a6f3d6f58c474d9d8cd419d8ca", symbol: "DACKIE", coinGeckoId: "dackieswap", decimals: 18, price: 0.00655},
 		{chain: 34, addr: "000000000000000000000000f55bec9cafdbe8730f096aa55dad6d22d44099df", symbol: "USDT", coinGeckoId: "bridged-tether-scroll", decimals: 6, price: 1.00},
@@ -58,6 +59,16 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 35, addr: "000000000000000000000000cDA86A272531e8640cD7F1a92c01839911B90bb0", symbol: "METH", coinGeckoId: "mantle-staked-ether", decimals: 18, price: 3934.06},
 		{chain: 35, addr: "000000000000000000000000deaddeaddeaddeaddeaddeaddeaddeaddead1111", symbol: "WETH", coinGeckoId: "wrapped-ether-mantle-bridge", decimals: 18, price: 3825.65},
 		{chain: 35, addr: "000000000000000000000000371c7ec6d8039ff7933a2aa28eb827ffe1f52f07", symbol: "JOE", coinGeckoId: "joe", decimals: 18, price: 0.4911},
+		// BERACHAIN (non-bridged tokens over $1,000,000 24h volume)
+		{chain: 39, addr: "0000000000000000000000006969696969696969696969696969696969696969", symbol: "WBERA", coinGeckoId: "wrapped-bera", decimals: 18, price: 6.62},
+		{chain: 39, addr: "000000000000000000000000fcbd14dc51f0a4d49d5e53c2e0950e0bc26d0dce", symbol: "HONEY", coinGeckoId: "honey-3", decimals: 18, price: 0.9985},
+		{chain: 39, addr: "0000000000000000000000006fc6545d5cde268d5c7f1e476d444f39c995120d", symbol: "BERAETH", coinGeckoId: "berachain-staked-eth", decimals: 18, price: 2713.26},
+		{chain: 39, addr: "00000000000000000000000036e9fe653e673fda3857dbe5afbc884af8a316a2", symbol: "BERAFI", coinGeckoId: "berafi", decimals: 18, price: 0.00117},
+		// UNICHAIN (tokens over $1,000,000 24h volume)
+		{chain: 44, addr: "000000000000000000000000078D782b760474a361dDA0AF3839290b0EF57AD6", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 1.00},
+		{chain: 44, addr: "0000000000000000000000004200000000000000000000000000000000000006", symbol: "WETH", coinGeckoId: "unichain-bridged-weth-unichain", decimals: 18, price: 2722.24},
+		{chain: 44, addr: "0000000000000000000000008f187aA05619a017077f5308904739877ce9eA21", symbol: "UNI", coinGeckoId: "uniswap", decimals: 18, price: 9.43},
+		{chain: 44, addr: "00000000000000000000000020CAb320A855b39F724131C69424240519573f81", symbol: "DAI", coinGeckoId: "dai", decimals: 18, price: 1.0},
 		// WORLDCHAIN (tokens over $50,000 24h volume)
 		{chain: 45, addr: "0000000000000000000000002cFc85d8E48F8EAB294be644d9E25C3030863003", symbol: "WLD", coinGeckoId: "worldcoin-wld", decimals: 18, price: 2.47},
 		{chain: 45, addr: "00000000000000000000000003C7054BCB39f7b2e5B2c7AcB37583e32D70Cfa3", symbol: "WBTC", coinGeckoId: "bridged-wrapped-bitcoin-worldchain", decimals: 8, price: 86683.84},

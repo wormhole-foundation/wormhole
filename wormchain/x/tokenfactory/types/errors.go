@@ -20,4 +20,5 @@ var (
 	ErrCreatorTooLong           = sdkerrors.Register(ModuleName, 9, fmt.Sprintf("creator too long, max length is %d bytes", MaxCreatorLength))
 	ErrDenomDoesNotExist        = sdkerrors.Register(ModuleName, 10, "denom does not exist")
 	ErrCapabilityNotEnabled     = sdkerrors.Register(ModuleName, 11, "this capability is not enabled on chain")
+	ErrMintAmountTooLarge       = sdkerrors.Register(ModuleName, 12, "mint amount exceeds capacity")
 )

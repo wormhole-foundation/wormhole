@@ -127,6 +127,57 @@ func TestRunParamsWithDisableHeartbeatVerify(t *testing.T) {
 	assert.True(t, params.disableHeartbeatVerify)
 }
 
+func TestRunParamsWithProtectedPeers(t *testing.T) {
+	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
+	require.NoError(t, err)
+	gst := common.NewGuardianSetState(nil)
+	_, rootCtxCancel := context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
+	protectedPeers := []string{"peer1", "peer2", "peer3"}
+	params, err := NewRunParams(
+		bootstrapPeers,
+		networkId,
+		priv,
+		gst,
+		rootCtxCancel,
+		WithProtectedPeers(protectedPeers),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, params)
+
+	require.Equal(t, len(protectedPeers), len(params.protectedPeers))
+	assert.Equal(t, protectedPeers[0], params.protectedPeers[0])
+	assert.Equal(t, protectedPeers[1], params.protectedPeers[1])
+	assert.Equal(t, protectedPeers[2], params.protectedPeers[2])
+}
+
+func TestRunParamsWithCcqProtectedPeers(t *testing.T) {
+	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
+	require.NoError(t, err)
+	gst := common.NewGuardianSetState(nil)
+	_, rootCtxCancel := context.WithCancel(context.Background())
+	defer rootCtxCancel()
+
+	ccqProtectedPeers := []string{"peerA", "peerB"}
+	params, err := NewRunParams(
+		bootstrapPeers,
+		networkId,
+		priv,
+		gst,
+		rootCtxCancel,
+		WithCcqProtectedPeers(ccqProtectedPeers),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, params)
+
+	require.Equal(t, len(ccqProtectedPeers), len(params.ccqProtectedPeers))
+	assert.Equal(t, ccqProtectedPeers[0], params.ccqProtectedPeers[0])
+	assert.Equal(t, ccqProtectedPeers[1], params.ccqProtectedPeers[1])
+}
+
 func TestRunParamsWithGuardianOptions(t *testing.T) {
 	priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 	require.NoError(t, err)
@@ -138,7 +189,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, guardianSigner)
 
-	obsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation], 42)
 	batchObsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 42)
 	signedInC := make(chan<- *gossipv1.SignedVAAWithQuorum, 42)
 	obsvReqC := make(chan<- *gossipv1.ObservationRequest, 42)
@@ -160,6 +210,8 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	ccqBootstrapPeers := "some bootstrap string"
 	ccqPort := uint(4242)
 	ccqAllowedPeers := "some allowed peers"
+	protectedPeers := []string{"peer1", "peer2", "peer3"}
+	ccqProtectedPeers := []string{"peerA", "peerB"}
 
 	params, err := NewRunParams(
 		bootstrapPeers,
@@ -170,7 +222,6 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 		WithGuardianOptions(
 			nodeName,
 			guardianSigner,
-			obsvC,
 			batchObsvC,
 			signedInC,
 			obsvReqC,
@@ -190,13 +241,16 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			ccqBootstrapPeers,
 			ccqPort,
 			ccqAllowedPeers,
+
+			protectedPeers,
+			ccqProtectedPeers,
+			[]string{}, // featureFlags
 		),
 	)
 
 	require.NoError(t, err)
 	require.NotNil(t, params)
 	assert.Equal(t, nodeName, params.nodeName)
-	assert.Equal(t, obsvC, params.obsvRecvC)
 	assert.Equal(t, signedInC, params.signedIncomingVaaRecvC)
 	assert.Equal(t, obsvReqC, params.obsvReqRecvC)
 	assert.Equal(t, gossipControlSendC, params.gossipControlSendC)
@@ -214,4 +268,13 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	assert.Equal(t, ccqBootstrapPeers, params.ccqBootstrapPeers)
 	assert.Equal(t, ccqPort, params.ccqPort)
 	assert.Equal(t, ccqAllowedPeers, params.ccqAllowedPeers)
+
+	require.Equal(t, len(protectedPeers), len(params.protectedPeers))
+	assert.Equal(t, protectedPeers[0], params.protectedPeers[0])
+	assert.Equal(t, protectedPeers[1], params.protectedPeers[1])
+	assert.Equal(t, protectedPeers[2], params.protectedPeers[2])
+
+	require.Equal(t, len(ccqProtectedPeers), len(params.ccqProtectedPeers))
+	assert.Equal(t, ccqProtectedPeers[0], params.ccqProtectedPeers[0])
+	assert.Equal(t, ccqProtectedPeers[1], params.ccqProtectedPeers[1])
 }

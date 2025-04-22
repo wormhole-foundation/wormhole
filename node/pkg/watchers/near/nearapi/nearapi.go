@@ -50,7 +50,9 @@ type (
 
 func NewHttpNearRpc(nearRPC string) HttpNearRpc {
 	// Customize the Transport to have larger connection pool (default is only 2 per host)
-	t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert
+
+	//nolint:forcetypeassert // This should always succeed, and the function is only called on start-up.
+	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxConnsPerHost = nearRPCConcurrentConnections
 	t.MaxIdleConnsPerHost = nearRPCConcurrentConnections
 	var httpClient = &http.Client{
@@ -149,11 +151,11 @@ func (n NearApiImpl) GetFinalBlock(ctx context.Context) (Block, error) {
 // getChunk gets a chunk from the NEAR RPC API: https://docs.near.org/api/rpc/block-chunk#chunk-details
 func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunkHeader.Hash)
-	bytes, err := n.nearRPC.Query(ctx, s)
+	resBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Chunk{}, err
 	}
-	newChunk, err := NewChunkFromBytes(bytes)
+	newChunk, err := NewChunkFromBytes(resBytes)
 	if err != nil {
 		return Chunk{}, err
 	}

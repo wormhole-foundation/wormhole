@@ -48,7 +48,7 @@ func BenchmarkWrappedSigner(innerSigner GuardianSigner) *BenchmarkSigner {
 	guardianSignerSigningErrorCount = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name:        "wormhole_guardian_signer_signing_error_count",
-			Help:        "Total number of errors that ocurred during Guardian signing requests",
+			Help:        "Total number of errors that occurred during Guardian signing requests",
 			ConstLabels: prometheus.Labels{"signer_type": signerType},
 		})
 
@@ -63,7 +63,7 @@ func BenchmarkWrappedSigner(innerSigner GuardianSigner) *BenchmarkSigner {
 	guardianSignerVerifyErrorCount = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name:        "wormhole_guardian_signer_verify_error_count",
-			Help:        "Total number of errors that ocurred during Guardian signature verification requests",
+			Help:        "Total number of errors that occurred during Guardian signature verification requests",
 			ConstLabels: prometheus.Labels{"signer_type": signerType},
 		})
 
@@ -77,11 +77,11 @@ func (b *BenchmarkSigner) Sign(ctx context.Context, hash []byte) ([]byte, error)
 	sig, err := b.innerSigner.Sign(ctx, hash)
 	duration := time.Since(start)
 
-	// If an error occured, increment the error counter
+	// If an error occurred, increment the error counter
 	if err != nil {
 		guardianSignerSigningErrorCount.Inc()
 	} else {
-		// Add Observation to histogram only if no errors occured
+		// Add Observation to histogram only if no errors occurred
 		guardianSignerSigningLatency.Observe(float64(duration.Microseconds()))
 	}
 
@@ -99,11 +99,11 @@ func (b *BenchmarkSigner) Verify(ctx context.Context, sig []byte, hash []byte) (
 	valid, err := b.innerSigner.Verify(ctx, sig, hash)
 	duration := time.Since(start)
 
-	// If an error occured, increment the error counter
+	// If an error occurred, increment the error counter
 	if err != nil {
 		guardianSignerVerifyErrorCount.Inc()
 	} else {
-		// Add observation to histogram only if no errors occured
+		// Add observation to histogram only if no errors occurred
 		guardianSignerVerifyLatency.Observe(float64(duration.Microseconds()))
 	}
 

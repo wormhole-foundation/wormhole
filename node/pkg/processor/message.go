@@ -96,7 +96,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	}
 
 	// Broadcast the signature.
-	ourObs, msg := p.broadcastSignature(v.MessageID(), k.TxID, digest, signature, shouldPublishImmediately)
+	ourObs, msg := p.broadcastSignature(v.MessageID(), k, digest, signature, shouldPublishImmediately)
 
 	// Indicate that we observed this one.
 	observationsReceivedTotal.Inc()

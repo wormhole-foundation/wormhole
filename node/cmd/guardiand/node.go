@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -29,7 +30,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -41,9 +42,11 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	promremotew "github.com/certusone/wormhole/node/pkg/telemetry/prom_remote_write"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
@@ -51,9 +54,11 @@ import (
 )
 
 var (
-	p2pNetworkID *string
-	p2pPort      *uint
-	p2pBootstrap *string
+	p2pNetworkID         *string
+	p2pPort              *uint
+	p2pBootstrap         *string
+	protectedPeers       []string
+	additionalPublishers *[]string
 
 	nodeKeyPath *string
 
@@ -66,7 +71,6 @@ var (
 
 	guardianKeyPath   *string
 	guardianSignerUri *string
-	solanaContract    *string
 
 	tssSecretsPath       *string
 	tssNetworkSocketPath *string
@@ -161,7 +165,13 @@ var (
 	suiRPC           *string
 	suiMoveEventType *string
 
-	solanaRPC *string
+	solanaRPC          *string
+	solanaContract     *string
+	solanaShimContract *string
+
+	fogoRPC          *string
+	fogoContract     *string
+	fogoShimContract *string
 
 	pythnetContract *string
 	pythnetRPC      *string
@@ -206,9 +216,6 @@ var (
 	monadRPC      *string
 	monadContract *string
 
-	monadDevnetRPC      *string
-	monadDevnetContract *string
-
 	inkRPC      *string
 	inkContract *string
 
@@ -217,6 +224,9 @@ var (
 
 	seiEvmRPC      *string
 	seiEvmContract *string
+
+	mezoRPC      *string
+	mezoContract *string
 
 	sepoliaRPC      *string
 	sepoliaContract *string
@@ -268,6 +278,7 @@ var (
 	ccqAllowedRequesters *string
 	ccqP2pPort           *uint
 	ccqP2pBootstrap      *string
+	ccqProtectedPeers    []string
 	ccqAllowedPeers      *string
 	ccqBackfillCache     *bool
 
@@ -282,12 +293,23 @@ var (
 	env common.Environment
 
 	subscribeToVAAs *bool
+
+	// A list of chain IDs that should enable the Transfer Verifier. If empty, Transfer Verifier will not be enabled.
+	transferVerifierEnabledChainIDs *[]uint
+	// Global variable used to store enabled Chain IDs for Transfer Verification. Contents are parsed from
+	// transferVerifierEnabledChainIDs.
+	txVerifierChains []vaa.ChainID
+
+	// featureFlags are additional static flags that should be published in P2P heartbeats.
+	featureFlags []string
 )
 
 func init() {
 	p2pNetworkID = NodeCmd.Flags().String("network", "", "P2P network identifier (optional, overrides default for environment)")
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
+	NodeCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
+	additionalPublishers = NodeCmd.Flags().StringArray("additionalPublishEndpoint", []string{}, "defines an alternate publisher as label;url;delay;chains where delay and chains are optional")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -300,7 +322,10 @@ func init() {
 
 	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key")
 	guardianSignerUri = NodeCmd.Flags().String("guardianSignerUri", "", "Guardian signer URI")
-	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
+	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required if solanaRpc is specified)")
+	solanaShimContract = NodeCmd.Flags().String("solanaShimContract", "", "Address of the Solana shim program")
+	fogoContract = NodeCmd.Flags().String("fogoContract", "", "Address of the Fogo program (required if fogoRpc is specified)")
+	fogoShimContract = NodeCmd.Flags().String("fogoShimContract", "", "Address of the Fogo shim program")
 
 	tssSecretsPath = NodeCmd.Flags().String("tssSecret", "", "Path to guardian tss secrets (required)")
 	tssNetworkSocketPath = NodeCmd.Flags().String("tssNetworkPort", "[::]:8998", "Listen address for TSS server")
@@ -396,6 +421,7 @@ func init() {
 	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "Sui move event type for publish_message")
 
 	solanaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "solanaRPC", "Solana RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
+	fogoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "fogoRPC", "Fogo RPC URL (required)", "http://solana-devnet:8899", []string{"http", "https"})
 
 	pythnetContract = NodeCmd.Flags().String("pythnetContract", "", "Address of the PythNet program (required)")
 	pythnetRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "pythnetRPC", "PythNet RPC URL (required)", "http://pythnet.rpcpool.com", []string{"http", "https"})
@@ -455,6 +481,9 @@ func init() {
 	seiEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "seiEvmRPC", "SeiEVM RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	seiEvmContract = NodeCmd.Flags().String("seiEvmContract", "", "SeiEVM contract address")
 
+	mezoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mezoRPC", "Mezo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mezoContract = NodeCmd.Flags().String("mezoContract", "", "Mezo contract address")
+
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
@@ -466,9 +495,6 @@ func init() {
 
 	polygonSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "polygonSepoliaRPC", "Polygon on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	polygonSepoliaContract = NodeCmd.Flags().String("polygonSepoliaContract", "", "Polygon on Sepolia contract address")
-
-	monadDevnetRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "monadDevnetRPC", "Monad Devnet RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	monadDevnetContract = NodeCmd.Flags().String("monadDevnetContract", "", "Monad Devnet contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 	publicRpcLogDetailStr = NodeCmd.Flags().String("publicRpcLogDetail", "full", "The detail with which public RPC requests shall be logged (none=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
@@ -502,6 +528,7 @@ func init() {
 	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
 	ccqP2pPort = NodeCmd.Flags().Uint("ccqP2pPort", 8996, "CCQ P2P UDP listener port")
 	ccqP2pBootstrap = NodeCmd.Flags().String("ccqP2pBootstrap", "", "CCQ P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
+	NodeCmd.Flags().StringSliceVarP(&ccqProtectedPeers, "ccqProtectedPeers", "", []string{}, "")
 	ccqAllowedPeers = NodeCmd.Flags().String("ccqAllowedPeers", "", "CCQ allowed P2P peers (comma-separated)")
 	ccqBackfillCache = NodeCmd.Flags().Bool("ccqBackfillCache", true, "Should EVM chains backfill CCQ timestamp cache on startup")
 	gossipAdvertiseAddress = NodeCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on Guardian and CCQ p2p (use if behind a NAT or running in k8s)")
@@ -511,6 +538,8 @@ func init() {
 	gatewayRelayerKeyPassPhrase = NodeCmd.Flags().String("gatewayRelayerKeyPassPhrase", "", "Pass phrase used to unarmor the gateway relayer key file")
 
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
+
+	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 }
 
 var (
@@ -677,7 +706,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Verify flags
 
-	if *nodeName == "" {
+	if *nodeName == "" && env == common.MainNet {
 		logger.Fatal("Please specify --nodeName")
 	}
 	if *nodeKeyPath == "" && env != common.UnsafeDevNet { // In devnet mode, keys are deterministically generated.
@@ -787,6 +816,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please specify --telemetryLokiURL or set --disableTelemetry=false")
 		}
 
+		if *nodeName == "" {
+			logger.Fatal("If telemetry is enabled, --nodeName must be set")
+		}
+
 		// Get libp2p peer ID from private key
 		pk := p2pKey.GetPublic()
 		peerID, err := peer.IDFromPublicKey(pk)
@@ -821,45 +854,57 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate the args for all the EVM chains. The last flag indicates if the chain is allowed in mainnet.
-	*ethContract = checkEvmArgs(logger, *ethRPC, *ethContract, "eth", true)
-	*bscContract = checkEvmArgs(logger, *bscRPC, *bscContract, "bsc", true)
-	*polygonContract = checkEvmArgs(logger, *polygonRPC, *polygonContract, "polygon", true)
-	*avalancheContract = checkEvmArgs(logger, *avalancheRPC, *avalancheContract, "avalanche", true)
-	*oasisContract = checkEvmArgs(logger, *oasisRPC, *oasisContract, "oasis", true)
-	*fantomContract = checkEvmArgs(logger, *fantomRPC, *fantomContract, "fantom", true)
-	*karuraContract = checkEvmArgs(logger, *karuraRPC, *karuraContract, "karura", true)
-	*acalaContract = checkEvmArgs(logger, *acalaRPC, *acalaContract, "acala", true)
-	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, "klaytn", true)
-	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, "celo", true)
-	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, "moonbeam", true)
-	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, "arbitrum", true)
-	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, "optimism", true)
-	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, "base", true)
-	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, "scroll", true)
-	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, "mantle", true)
-	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, "blast", true)
-	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, "xlayer", true)
-	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, "linea", true)
-	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, "berachain", false)
-	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, "snaxchain", true)
-	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, "unichain", false)
-	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, "worldchain", true)
-	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, "ink", false)
-	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, "hyperEvm", false)
-	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, "monad", false)
-	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, "seiEvm", false)
+	*ethContract = checkEvmArgs(logger, *ethRPC, *ethContract, vaa.ChainIDEthereum)
+	*bscContract = checkEvmArgs(logger, *bscRPC, *bscContract, vaa.ChainIDBSC)
+	*polygonContract = checkEvmArgs(logger, *polygonRPC, *polygonContract, vaa.ChainIDPolygon)
+	*avalancheContract = checkEvmArgs(logger, *avalancheRPC, *avalancheContract, vaa.ChainIDAvalanche)
+	*oasisContract = checkEvmArgs(logger, *oasisRPC, *oasisContract, vaa.ChainIDOasis)
+	*fantomContract = checkEvmArgs(logger, *fantomRPC, *fantomContract, vaa.ChainIDFantom)
+	*karuraContract = checkEvmArgs(logger, *karuraRPC, *karuraContract, vaa.ChainIDKarura)
+	*acalaContract = checkEvmArgs(logger, *acalaRPC, *acalaContract, vaa.ChainIDAcala)
+	*klaytnContract = checkEvmArgs(logger, *klaytnRPC, *klaytnContract, vaa.ChainIDKlaytn)
+	*celoContract = checkEvmArgs(logger, *celoRPC, *celoContract, vaa.ChainIDCelo)
+	*moonbeamContract = checkEvmArgs(logger, *moonbeamRPC, *moonbeamContract, vaa.ChainIDMoonbeam)
+	*arbitrumContract = checkEvmArgs(logger, *arbitrumRPC, *arbitrumContract, vaa.ChainIDArbitrum)
+	*optimismContract = checkEvmArgs(logger, *optimismRPC, *optimismContract, vaa.ChainIDOptimism)
+	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
+	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, vaa.ChainIDScroll)
+	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, vaa.ChainIDMantle)
+	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, vaa.ChainIDBlast)
+	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, vaa.ChainIDXLayer)
+	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, vaa.ChainIDLinea)
+	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, vaa.ChainIDBerachain)
+	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, vaa.ChainIDSnaxchain)
+	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, vaa.ChainIDUnichain)
+	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, vaa.ChainIDWorldchain)
+	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, vaa.ChainIDInk)
+	*hyperEvmContract = checkEvmArgs(logger, *hyperEvmRPC, *hyperEvmContract, vaa.ChainIDHyperEVM)
+	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, vaa.ChainIDMonad)
+	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, vaa.ChainIDSeiEVM)
+	*mezoContract = checkEvmArgs(logger, *mezoRPC, *mezoContract, vaa.ChainIDMezo)
 
 	// These chains will only ever be testnet / devnet.
-	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, "sepolia", false)
-	*arbitrumSepoliaContract = checkEvmArgs(logger, *arbitrumSepoliaRPC, *arbitrumSepoliaContract, "arbitrumSepolia", false)
-	*baseSepoliaContract = checkEvmArgs(logger, *baseSepoliaRPC, *baseSepoliaContract, "baseSepolia", false)
-	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, "optimismSepolia", false)
-	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, "holesky", false)
-	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, "polygonSepolia", false)
-	*monadDevnetContract = checkEvmArgs(logger, *monadDevnetRPC, *monadDevnetContract, "monadDevnet", false)
+	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
+	*arbitrumSepoliaContract = checkEvmArgs(logger, *arbitrumSepoliaRPC, *arbitrumSepoliaContract, vaa.ChainIDArbitrumSepolia)
+	*baseSepoliaContract = checkEvmArgs(logger, *baseSepoliaRPC, *baseSepoliaContract, vaa.ChainIDBaseSepolia)
+	*optimismSepoliaContract = checkEvmArgs(logger, *optimismSepoliaRPC, *optimismSepoliaContract, vaa.ChainIDOptimismSepolia)
+	*holeskyContract = checkEvmArgs(logger, *holeskyRPC, *holeskyContract, vaa.ChainIDHolesky)
+	*polygonSepoliaContract = checkEvmArgs(logger, *polygonSepoliaRPC, *polygonSepoliaContract, vaa.ChainIDPolygonSepolia)
 
 	if !argsConsistent([]string{*solanaContract, *solanaRPC}) {
 		logger.Fatal("Both --solanaContract and --solanaRPC must be set or both unset")
+	}
+
+	if *solanaShimContract != "" && *solanaContract == "" {
+		logger.Fatal("--solanaShimContract may only be specified if --solanaContract is specified")
+	}
+
+	if !argsConsistent([]string{*fogoContract, *fogoRPC}) {
+		logger.Fatal("Both --fogoContract and --fogoRPC must be set or both unset")
+	}
+
+	if *fogoShimContract != "" && *fogoContract == "" {
+		logger.Fatal("--fogoShimContract may only be specified if --fogoContract is specified")
 	}
 
 	if !argsConsistent([]string{*pythnetContract, *pythnetRPC, *pythnetWS}) {
@@ -918,6 +963,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
 
+	// NOTE: If this flag isn't set, or the list is empty, Transfer Verifier should not be enabled.
+	if len(*transferVerifierEnabledChainIDs) != 0 {
+		var parseErr error
+		// NOTE: avoid shadowing txVerifierChains here. It should refer to the global variable.
+		txVerifierChains, parseErr = txverifier.ValidateChains(*transferVerifierEnabledChainIDs)
+
+		logger.Debug("validated txVerifierChains", zap.Any("chains", txVerifierChains))
+		if parseErr != nil {
+			logger.Fatal("transferVerifierEnabledChainIDs input is invalid", zap.Error(parseErr))
+		}
+	}
+
 	var publicRpcLogDetail common.GrpcLogDetail
 	switch *publicRpcLogDetailStr {
 	case "none":
@@ -956,6 +1013,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// NOTE: Please keep these in numerical order by chain ID.
 	rpcMap := make(map[string]string)
 	rpcMap["solanaRPC"] = *solanaRPC
+	rpcMap["fogoRPC"] = *fogoRPC
 	rpcMap["ethRPC"] = *ethRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
@@ -1005,6 +1063,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["hyperEvmRPC"] = *hyperEvmRPC
 	rpcMap["monadRPC"] = *monadRPC
 	rpcMap["movementRPC"] = *movementRPC
+	rpcMap["mezoRPC"] = *mezoRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1022,7 +1081,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["optimismSepoliaRPC"] = *optimismSepoliaRPC
 		rpcMap["holeskyRPC"] = *holeskyRPC
 		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
-		rpcMap["monadDevnetRPC"] = *monadDevnetRPC
 	}
 
 	// Other, non-chain specific parameters go here.
@@ -1049,7 +1107,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	ipfslog.SetPrimaryCore(logger.Core())
 
 	// Database
-	db := db.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
+	db := guardianDB.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
 	defer db.Close()
 
 	wormchainId := "wormchain"
@@ -1205,6 +1263,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:               *ethContract,
 			GuardianSetUpdateChain: true,
 			CcqBackfillCache:       *ccqBackfillCache,
+			TxVerifierEnabled:      slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1212,11 +1271,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(bscRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "bsc",
-			ChainID:          vaa.ChainIDBSC,
-			Rpc:              *bscRPC,
-			Contract:         *bscContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "bsc",
+			ChainID:           vaa.ChainIDBSC,
+			Rpc:               *bscRPC,
+			Contract:          *bscContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBSC),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1224,11 +1284,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(polygonRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "polygon",
-			ChainID:          vaa.ChainIDPolygon,
-			Rpc:              *polygonRPC,
-			Contract:         *polygonContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "polygon",
+			ChainID:           vaa.ChainIDPolygon,
+			Rpc:               *polygonRPC,
+			Contract:          *polygonContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDPolygon),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1236,11 +1297,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(avalancheRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "avalanche",
-			ChainID:          vaa.ChainIDAvalanche,
-			Rpc:              *avalancheRPC,
-			Contract:         *avalancheContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "avalanche",
+			ChainID:           vaa.ChainIDAvalanche,
+			Rpc:               *avalancheRPC,
+			Contract:          *avalancheContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDAvalanche),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1248,11 +1310,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(oasisRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "oasis",
-			ChainID:          vaa.ChainIDOasis,
-			Rpc:              *oasisRPC,
-			Contract:         *oasisContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "oasis",
+			ChainID:           vaa.ChainIDOasis,
+			Rpc:               *oasisRPC,
+			Contract:          *oasisContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDOasis),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1260,11 +1323,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(fantomRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "fantom",
-			ChainID:          vaa.ChainIDFantom,
-			Rpc:              *fantomRPC,
-			Contract:         *fantomContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "fantom",
+			ChainID:           vaa.ChainIDFantom,
+			Rpc:               *fantomRPC,
+			Contract:          *fantomContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDFantom),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1272,11 +1336,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(karuraRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "karura",
-			ChainID:          vaa.ChainIDKarura,
-			Rpc:              *karuraRPC,
-			Contract:         *karuraContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "karura",
+			ChainID:           vaa.ChainIDKarura,
+			Rpc:               *karuraRPC,
+			Contract:          *karuraContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDKarura),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1284,11 +1349,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(acalaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "acala",
-			ChainID:          vaa.ChainIDAcala,
-			Rpc:              *acalaRPC,
-			Contract:         *acalaContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "acala",
+			ChainID:           vaa.ChainIDAcala,
+			Rpc:               *acalaRPC,
+			Contract:          *acalaContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDAcala),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1296,11 +1362,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(klaytnRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "klaytn",
-			ChainID:          vaa.ChainIDKlaytn,
-			Rpc:              *klaytnRPC,
-			Contract:         *klaytnContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "klaytn",
+			ChainID:           vaa.ChainIDKlaytn,
+			Rpc:               *klaytnRPC,
+			Contract:          *klaytnContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDKlaytn),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1308,11 +1375,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(celoRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "celo",
-			ChainID:          vaa.ChainIDCelo,
-			Rpc:              *celoRPC,
-			Contract:         *celoContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "celo",
+			ChainID:           vaa.ChainIDCelo,
+			Rpc:               *celoRPC,
+			Contract:          *celoContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDCelo),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1320,11 +1388,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(moonbeamRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "moonbeam",
-			ChainID:          vaa.ChainIDMoonbeam,
-			Rpc:              *moonbeamRPC,
-			Contract:         *moonbeamContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "moonbeam",
+			ChainID:           vaa.ChainIDMoonbeam,
+			Rpc:               *moonbeamRPC,
+			Contract:          *moonbeamContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMoonbeam),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1337,6 +1406,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:                 *arbitrumRPC,
 			Contract:            *arbitrumContract,
 			L1FinalizerRequired: "eth",
+			TxVerifierEnabled:   slices.Contains(txVerifierChains, vaa.ChainIDArbitrum),
 			CcqBackfillCache:    *ccqBackfillCache,
 		}
 
@@ -1345,11 +1415,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(optimismRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "optimism",
-			ChainID:          vaa.ChainIDOptimism,
-			Rpc:              *optimismRPC,
-			Contract:         *optimismContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "optimism",
+			ChainID:           vaa.ChainIDOptimism,
+			Rpc:               *optimismRPC,
+			Contract:          *optimismContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDOptimism),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1357,11 +1428,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(baseRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "base",
-			ChainID:          vaa.ChainIDBase,
-			Rpc:              *baseRPC,
-			Contract:         *baseContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "base",
+			ChainID:           vaa.ChainIDBase,
+			Rpc:               *baseRPC,
+			Contract:          *baseContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBase),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1369,11 +1441,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(scrollRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "scroll",
-			ChainID:          vaa.ChainIDScroll,
-			Rpc:              *scrollRPC,
-			Contract:         *scrollContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "scroll",
+			ChainID:           vaa.ChainIDScroll,
+			Rpc:               *scrollRPC,
+			Contract:          *scrollContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDScroll),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1381,11 +1454,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(mantleRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "mantle",
-			ChainID:          vaa.ChainIDMantle,
-			Rpc:              *mantleRPC,
-			Contract:         *mantleContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "mantle",
+			ChainID:           vaa.ChainIDMantle,
+			Rpc:               *mantleRPC,
+			Contract:          *mantleContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMantle),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1393,11 +1467,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(blastRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "blast",
-			ChainID:          vaa.ChainIDBlast,
-			Rpc:              *blastRPC,
-			Contract:         *blastContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "blast",
+			ChainID:           vaa.ChainIDBlast,
+			Rpc:               *blastRPC,
+			Contract:          *blastContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBlast),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1405,11 +1480,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(xlayerRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "xlayer",
-			ChainID:          vaa.ChainIDXLayer,
-			Rpc:              *xlayerRPC,
-			Contract:         *xlayerContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "xlayer",
+			ChainID:           vaa.ChainIDXLayer,
+			Rpc:               *xlayerRPC,
+			Contract:          *xlayerContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDXLayer),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1417,11 +1493,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(lineaRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "linea",
-			ChainID:          vaa.ChainIDLinea,
-			Rpc:              *lineaRPC,
-			Contract:         *lineaContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "linea",
+			ChainID:           vaa.ChainIDLinea,
+			Rpc:               *lineaRPC,
+			Contract:          *lineaContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDLinea),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1429,11 +1506,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(berachainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "berachain",
-			ChainID:          vaa.ChainIDBerachain,
-			Rpc:              *berachainRPC,
-			Contract:         *berachainContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "berachain",
+			ChainID:           vaa.ChainIDBerachain,
+			Rpc:               *berachainRPC,
+			Contract:          *berachainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBerachain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1441,11 +1519,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(snaxchainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "snaxchain",
-			ChainID:          vaa.ChainIDSnaxchain,
-			Rpc:              *snaxchainRPC,
-			Contract:         *snaxchainContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "snaxchain",
+			ChainID:           vaa.ChainIDSnaxchain,
+			Rpc:               *snaxchainRPC,
+			Contract:          *snaxchainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSnaxchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1453,11 +1532,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(unichainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "unichain",
-			ChainID:          vaa.ChainIDUnichain,
-			Rpc:              *unichainRPC,
-			Contract:         *unichainContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "unichain",
+			ChainID:           vaa.ChainIDUnichain,
+			Rpc:               *unichainRPC,
+			Contract:          *unichainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDUnichain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1465,11 +1545,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(worldchainRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "worldchain",
-			ChainID:          vaa.ChainIDWorldchain,
-			Rpc:              *worldchainRPC,
-			Contract:         *worldchainContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "worldchain",
+			ChainID:           vaa.ChainIDWorldchain,
+			Rpc:               *worldchainRPC,
+			Contract:          *worldchainContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDWorldchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1477,11 +1558,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(inkRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "ink",
-			ChainID:          vaa.ChainIDInk,
-			Rpc:              *inkRPC,
-			Contract:         *inkContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "ink",
+			ChainID:           vaa.ChainIDInk,
+			Rpc:               *inkRPC,
+			Contract:          *inkContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDInk),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1489,11 +1571,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(hyperEvmRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "hyperevm",
-			ChainID:          vaa.ChainIDHyperEVM,
-			Rpc:              *hyperEvmRPC,
-			Contract:         *hyperEvmContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "hyperevm",
+			ChainID:           vaa.ChainIDHyperEVM,
+			Rpc:               *hyperEvmRPC,
+			Contract:          *hyperEvmContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDHyperEVM),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1501,11 +1584,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(monadRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "monad",
-			ChainID:          vaa.ChainIDMonad,
-			Rpc:              *monadRPC,
-			Contract:         *monadContract,
-			CcqBackfillCache: *ccqBackfillCache,
+			NetworkID:         "monad",
+			ChainID:           vaa.ChainIDMonad,
+			Rpc:               *monadRPC,
+			Contract:          *monadContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDMonad),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1513,10 +1597,23 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(seiEvmRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "seievm",
-			ChainID:          vaa.ChainIDSeiEVM,
-			Rpc:              *seiEvmRPC,
-			Contract:         *seiEvmContract,
+			NetworkID:         "seievm",
+			ChainID:           vaa.ChainIDSeiEVM,
+			Rpc:               *seiEvmRPC,
+			Contract:          *seiEvmContract,
+			CcqBackfillCache:  *ccqBackfillCache,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSeiEVM),
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(mezoRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "mezo",
+			ChainID:          vaa.ChainIDMezo,
+			Rpc:              *mezoRPC,
+			Contract:         *mezoContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 
@@ -1634,6 +1731,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:           *solanaRPC,
 			Websocket:     "",
 			Contract:      *solanaContract,
+			ShimContract:  *solanaShimContract,
 			ReceiveObsReq: false,
 			Commitment:    rpc.CommitmentConfirmed,
 		}
@@ -1647,10 +1745,48 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:           *solanaRPC,
 			Websocket:     "",
 			Contract:      *solanaContract,
+			ShimContract:  *solanaShimContract,
 			ReceiveObsReq: true,
 			Commitment:    rpc.CommitmentFinalized,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
+
+		if *solanaShimContract != "" {
+			featureFlags = append(featureFlags, fmt.Sprintf("solshim:%s", *solanaShimContract))
+		}
+	}
+
+	if shouldStart(fogoRPC) {
+		// confirmed watcher
+		wc := &solana.WatcherConfig{
+			NetworkID:     "fogo-confirmed",
+			ChainID:       vaa.ChainIDFogo,
+			Rpc:           *fogoRPC,
+			Websocket:     "",
+			Contract:      *fogoContract,
+			ShimContract:  *fogoShimContract,
+			ReceiveObsReq: false,
+			Commitment:    rpc.CommitmentConfirmed,
+		}
+
+		watcherConfigs = append(watcherConfigs, wc)
+
+		// finalized watcher
+		wc = &solana.WatcherConfig{
+			NetworkID:     "fogo-finalized",
+			ChainID:       vaa.ChainIDFogo,
+			Rpc:           *fogoRPC,
+			Websocket:     "",
+			Contract:      *fogoContract,
+			ShimContract:  *fogoShimContract,
+			ReceiveObsReq: true,
+			Commitment:    rpc.CommitmentFinalized,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+
+		if *fogoShimContract != "" {
+			featureFlags = append(featureFlags, fmt.Sprintf("fogoshim:%s", *fogoShimContract))
+		}
 	}
 
 	if shouldStart(pythnetRPC) {
@@ -1682,11 +1818,12 @@ func runNode(cmd *cobra.Command, args []string) {
 	if env == common.TestNet || env == common.UnsafeDevNet {
 		if shouldStart(sepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "sepolia",
-				ChainID:          vaa.ChainIDSepolia,
-				Rpc:              *sepoliaRPC,
-				Contract:         *sepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
+				NetworkID:         "sepolia",
+				ChainID:           vaa.ChainIDSepolia,
+				Rpc:               *sepoliaRPC,
+				Contract:          *sepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1694,11 +1831,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(holeskyRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "holesky",
-				ChainID:          vaa.ChainIDHolesky,
-				Rpc:              *holeskyRPC,
-				Contract:         *holeskyContract,
-				CcqBackfillCache: *ccqBackfillCache,
+				NetworkID:         "holesky",
+				ChainID:           vaa.ChainIDHolesky,
+				Rpc:               *holeskyRPC,
+				Contract:          *holeskyContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDHolesky),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1706,11 +1844,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(arbitrumSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "arbitrum_sepolia",
-				ChainID:          vaa.ChainIDArbitrumSepolia,
-				Rpc:              *arbitrumSepoliaRPC,
-				Contract:         *arbitrumSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
+				NetworkID:         "arbitrum_sepolia",
+				ChainID:           vaa.ChainIDArbitrumSepolia,
+				Rpc:               *arbitrumSepoliaRPC,
+				Contract:          *arbitrumSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDArbitrumSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1718,11 +1857,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(baseSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "base_sepolia",
-				ChainID:          vaa.ChainIDBaseSepolia,
-				Rpc:              *baseSepoliaRPC,
-				Contract:         *baseSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
+				NetworkID:         "base_sepolia",
+				ChainID:           vaa.ChainIDBaseSepolia,
+				Rpc:               *baseSepoliaRPC,
+				Contract:          *baseSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBaseSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1730,11 +1870,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(optimismSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "optimism_sepolia",
-				ChainID:          vaa.ChainIDOptimismSepolia,
-				Rpc:              *optimismSepoliaRPC,
-				Contract:         *optimismSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
+				NetworkID:         "optimism_sepolia",
+				ChainID:           vaa.ChainIDOptimismSepolia,
+				Rpc:               *optimismSepoliaRPC,
+				Contract:          *optimismSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDOptimismSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
@@ -1742,27 +1883,17 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(polygonSepoliaRPC) {
 			wc := &evm.WatcherConfig{
-				NetworkID:        "polygon_sepolia",
-				ChainID:          vaa.ChainIDPolygonSepolia,
-				Rpc:              *polygonSepoliaRPC,
-				Contract:         *polygonSepoliaContract,
-				CcqBackfillCache: *ccqBackfillCache,
+				NetworkID:         "polygon_sepolia",
+				ChainID:           vaa.ChainIDPolygonSepolia,
+				Rpc:               *polygonSepoliaRPC,
+				Contract:          *polygonSepoliaContract,
+				CcqBackfillCache:  *ccqBackfillCache,
+				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDPolygonSepolia),
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)
 		}
 
-		if shouldStart(monadDevnetRPC) {
-			wc := &evm.WatcherConfig{
-				NetworkID:        "monad_devnet",
-				ChainID:          vaa.ChainIDMonadDevnet,
-				Rpc:              *monadDevnetRPC,
-				Contract:         *monadDevnetContract,
-				CcqBackfillCache: *ccqBackfillCache,
-			}
-
-			watcherConfigs = append(watcherConfigs, wc)
-		}
 	}
 
 	var ibcWatcherConfig *node.IbcWatcherConfig = nil
@@ -1792,6 +1923,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		reliableTss,
 	)
 
+	var guardianAddrAsBytes []byte
+	if len(*additionalPublishers) > 0 {
+		guardianAddrAsBytes = ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
+	}
+
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
@@ -1800,8 +1936,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers, *gossipAdvertiseAddress, ibc.GetFeatures),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers,
+			*gossipAdvertiseAddress, ibc.GetFeatures, protectedPeers, ccqProtectedPeers, featureFlags),
 		node.GuardianOptionStatusServer(*statusAddr),
+		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID),
 		node.GuardianOptionTSSNetwork(*tssNetworkSocketPath),
 	}
@@ -1830,32 +1968,33 @@ func runNode(cmd *cobra.Command, args []string) {
 	logger.Info("root context cancelled, exiting...")
 }
 
-func shouldStart(rpc *string) bool {
-	return *rpc != "" && *rpc != "none"
+func shouldStart(rpcURL *string) bool {
+	return *rpcURL != "" && *rpcURL != "none"
 }
 
 // checkEvmArgs verifies that the RPC and contract address parameters for an EVM chain make sense, given the environment.
 // If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
-func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr, chainLabel string, mainnetSupported bool) string {
+func checkEvmArgs(logger *zap.Logger, rpcURL string, contractAddr string, chainID vaa.ChainID) string {
 	if env != common.UnsafeDevNet {
 		// In mainnet / testnet, if either parameter is specified, they must both be specified.
-		if (rpc == "") != (contractAddr == "") {
-			logger.Fatal(fmt.Sprintf("Both --%sContract and --%sRPC must be set or both unset", chainLabel, chainLabel))
+		if (rpcURL == "") != (contractAddr == "") {
+			logger.Fatal(fmt.Sprintf("Both contract and RPC for chain %s must be set or both unset", chainID.String()))
 		}
 	} else {
 		// In devnet, if RPC is set but contract is not set, use the deterministic one for tilt.
-		if rpc == "" {
+		if rpcURL == "" {
 			if contractAddr != "" {
-				logger.Fatal(fmt.Sprintf("If --%sRPC is not set, --%sContract must not be set", chainLabel, chainLabel))
+				logger.Fatal(fmt.Sprintf("If RPC is not set for chain %s, contract must not be set", chainID.String()))
 			}
 		} else {
 			if contractAddr == "" {
-				contractAddr = devnet.GanacheWormholeContractAddress.Hex()
+				contractAddr = sdk.KnownDevnetCoreContracts[vaa.ChainIDEthereum]
 			}
 		}
 	}
+	mainnetSupported := evm.SupportedInMainnet(chainID)
 	if contractAddr != "" && !mainnetSupported && env == common.MainNet {
-		logger.Fatal(fmt.Sprintf("Chain %s not supported in mainnet", chainLabel))
+		logger.Fatal(fmt.Sprintf("Chain %s is not supported in mainnet", chainID.String()))
 	}
 	return contractAddr
 }

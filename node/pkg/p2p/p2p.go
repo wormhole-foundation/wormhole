@@ -335,6 +335,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 		}()
 
+		if len(params.protectedPeers) != 0 {
+			for _, peerId := range params.protectedPeers {
+				logger.Info("protecting peer", zap.String("peerId", peerId))
+				params.components.ConnMgr.Protect(peer.ID(peerId), "configured")
+			}
+		}
+
 		nodeIdBytes, err := h.ID().Marshal()
 		if err != nil {
 			panic(err)
@@ -393,7 +400,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the attestation channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipAttestationSendC != nil || params.obsvRecvC != nil || params.batchObsvRecvC != nil {
+		if params.gossipAttestationSendC != nil || params.batchObsvRecvC != nil {
 			attestationTopic := fmt.Sprintf("%s/%s", params.networkID, "attestation")
 			logger.Info("joining the attestation topic", zap.String("topic", attestationTopic))
 			attestationPubsubTopic, err = ps.Join(attestationTopic)
@@ -407,7 +414,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvRecvC != nil || params.batchObsvRecvC != nil {
+			if params.batchObsvRecvC != nil {
 				logger.Info("subscribing to the attestation topic", zap.String("topic", attestationTopic))
 				attestationSubscription, err = attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -462,7 +469,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, params.ccqProtectedPeers, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
@@ -518,7 +525,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							defer DefaultRegistry.mu.Unlock()
 							networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 							for _, v := range DefaultRegistry.networkStats {
-								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
 								networks = append(networks, v)
 							}
@@ -526,6 +533,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							features := make([]string, 0)
 							if params.processorFeaturesFunc != nil {
 								flag := params.processorFeaturesFunc()
+								if flag != "" {
+									features = append(features, flag)
+								}
+							}
+							if params.alternatePublisherFeaturesFunc != nil {
+								flag := params.alternatePublisherFeaturesFunc()
 								if flag != "" {
 									features = append(features, flag)
 								}
@@ -551,6 +564,9 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							}
 							if params.ccqEnabled {
 								features = append(features, "ccq")
+							}
+							if len(params.featureFlags) != 0 {
+								features = append(features, params.featureFlags...)
 							}
 
 							heartbeat := &gossipv1.Heartbeat{
@@ -883,17 +899,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					switch m := msg.Message.(type) {
-					case *gossipv1.GossipMessage_SignedObservation:
-						if params.obsvRecvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvRecvC); err == nil {
-								p2pMessagesReceived.WithLabelValues("observation").Inc()
-							} else {
-								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservation.Addr)))
-								}
-								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
-							}
-						}
 					case *gossipv1.GossipMessage_SignedObservationBatch:
 						if params.batchObsvRecvC != nil {
 							if err := common.PostMsgWithTimestamp(m.SignedObservationBatch, params.batchObsvRecvC); err == nil {
@@ -960,8 +965,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							default:
 								if params.components.WarnChannelOverflow {
 									var hexStr string
-									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-										hexStr = vaa.HexDigest()
+									if signedVAA, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+										hexStr = signedVAA.HexDigest()
 									}
 									logger.Warn("Ignoring SignedVaaWithQuorum because signedIncomingVaaRecvC full", zap.String("hash", hexStr))
 								}

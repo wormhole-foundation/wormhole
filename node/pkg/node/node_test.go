@@ -23,7 +23,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/internal/testutils"
@@ -85,8 +85,9 @@ type mockGuardian struct {
 	guardianAddr     eth_common.Address
 	ready            bool
 	config           *guardianConfig
-	db               *db.Database
-	tssEngine        tss.ReliableTSS
+
+	db        *guardianDB.Database
+	tssEngine tss.ReliableTSS
 }
 
 type guardianConfig struct {
@@ -144,8 +145,9 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			MockSetC:         make(chan *common.GuardianSet),
 			guardianSigner:   guardianSigner,
 			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
-			config:           createGuardianConfig(t, testId, uint(i)),
-			tssEngine:        reliableTss,
+
+			config:    createGuardianConfig(t, testId, uint(i)), // #nosec G115 -- Guardian set will never be that large
+			tssEngine: reliableTss,
 		}
 	}
 
@@ -200,7 +202,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		defer ctxCancel()
 
 		// setup db
-		db := db.OpenDb(nil, nil)
+		db := guardianDB.OpenDb(nil, nil)
 		defer db.Close()
 		gs[mockGuardianIndex].db = db
 
@@ -242,12 +244,13 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true, false, ""),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }),
+			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }, []string{}, []string{}, []string{}),
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
+			GuardianOptionAlternatePublisher([]byte{}, []string{}),
 			GuardianOptionProcessor(networkID),
 			GuardianOptionTSSNetwork(fmt.Sprintf("[::]:%d", cfg.tssNetworkPort)),
 		}
@@ -314,7 +317,7 @@ func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, g
 // WARNING: Currently, there is only a global registry for all prometheus metrics, leading to all guardian nodes writing to the same one.
 //
 //	As long as this is the case, you probably don't want to use this function.
-func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, min int) {
+func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, minimum int) {
 	t.Helper()
 	metricBytes := []byte(metric)
 	requests := make([]*http.Request, len(gs))
@@ -353,7 +356,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 					if bytes.HasPrefix(line, metricBytes) {
 						res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
 						assert.NoError(t, err)
-						if res >= min {
+						if res >= minimum {
 							return true
 						}
 					}
@@ -424,7 +427,8 @@ type testCase struct {
 }
 
 func randomTime() time.Time {
-	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // nolint // convert time to unix and back to match what is done during serialization/de-serialization
+	// #nosec G404 we don't need cryptographic randomness here.
+	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
 var someMsgSequenceCounter uint64 = 0
@@ -488,7 +492,7 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 		amount = 1_000_000_000_000
 	}
 
-	tokenAddrStr := "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001" // nolint:gosec // wrapped-SOL
+	tokenAddrStr := "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001" // #nosec G101 -- Address for testing
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"                          // whatever
 	payloadBytes := buildMockTransferPayloadBytes(
 		vaa.ChainIDSolana,
@@ -514,14 +518,14 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 }
 
 func makeObsDb(tc []testCase) mock.ObservationDb {
-	db := make(map[eth_common.Hash]*common.MessagePublication)
+	obsDB := make(map[eth_common.Hash]*common.MessagePublication)
 	for _, t := range tc {
 		if t.unavailableInReobservation {
 			continue
 		}
-		db[eth_common.BytesToHash(t.msg.TxID)] = t.msg
+		obsDB[eth_common.BytesToHash(t.msg.TxID)] = t.msg
 	}
-	return db
+	return obsDB
 }
 
 // waitForStatusServer queries the /readyz and /metrics endpoints at `statusAddr` every 100ms until they are online.
@@ -719,7 +723,8 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int, inf
 
 		// run the guardians
 		for i := 0; i < numGuardians; i++ {
-			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb, informOnNewVAAs)
+			gRun := mockGuardianRunnable(t, gs, uint(i), obsDb, informOnNewVAAs) // #nosec G115 -- Guardian set will never be that large
+
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 			if i == 0 && numGuardians > 1 {
 				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -825,7 +830,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int, inf
 					_, err := adminCs[j].InjectGovernanceVAA(queryCtx, &nodev1.InjectGovernanceVAARequest{
 						CurrentSetIndex: guardianSetIndex,
 						Messages:        []*nodev1.GovernanceMessage{testCase.govMsg},
-						Timestamp:       uint32(testCase.msg.Timestamp.Unix()),
+						Timestamp:       uint32(testCase.msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 					})
 					queryCancel()
 					assert.NoError(t, err)
@@ -947,7 +952,7 @@ type testCaseGuardianConfig struct {
 	err  string
 }
 
-// TestWatcherConfigs tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
+// TestWatcherConfigs tries to instantiate a guardian with various invalid []watchers.WatcherConfig and asserts that it errors
 func TestWatcherConfigs(t *testing.T) {
 	tc := []testCaseGuardianConfig{
 		{
@@ -1257,7 +1262,7 @@ func BenchmarkConsensus(b *testing.B) {
 	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
 }
 
-func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
+func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages uint64, maxPendingObs int) {
 	const vaaCheckGuardianIndex = 1 // we will query this Guardian for VAAs.
 
 	t.Run(name, func(t *testing.B) {
@@ -1282,7 +1287,8 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 
 			// run the guardians
 			for i := 0; i < numGuardians; i++ {
-				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb, false)
+				gRun := mockGuardianRunnable(t, gs, uint(i), obsDb, false) // #nosec G115 -- This conversion is safe based on the constant used above
+
 				err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
 				if i == 0 && numGuardians > 1 {
 					time.Sleep(time.Second) // give the bootstrap guardian some time to start up
@@ -1342,7 +1348,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 
 			go func() {
 				// feed observations to nodes
-				for i := 0; i < numMessages; i++ {
+				for i := uint64(0); i < numMessages; i++ {
 					select {
 					case <-ctx.Done():
 						return
@@ -1357,7 +1363,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			}()
 
 			// check that the VAAs were generated
-			for i := 0; i < numMessages; i++ {
+			for i := uint64(0); i < numMessages; i++ {
 				msgId := &publicrpcv1.MessageID{
 					EmitterChain:   publicrpcv1.ChainID(someMsgEmitterChain),
 					EmitterAddress: someMsgEmitter.String(),
@@ -1379,7 +1385,8 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 			logger.Info("Tests completed.")
 			t.StopTimer()
 			logsize := setupLogsCapture.Reset()
-			logsize = logsize / uint64(numMessages) / uint64(numGuardians) // normalize
+			// normalize
+			logsize = logsize / uint64(numMessages) / uint64(numGuardians) // #nosec G115 -- These conversions are safe based on the constants used above
 			logger.Warn("benchmarkConsensus: logsize report", zap.Uint64("logbytes_per_msg", logsize))
 			supervisor.Signal(ctx, supervisor.SignalDone)
 			rootCtxCancel()

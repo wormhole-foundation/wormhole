@@ -9,7 +9,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -18,6 +18,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"go.uber.org/zap"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -30,13 +31,14 @@ func adminServiceRunnable(
 	injectC chan<- *common.MessagePublication,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	db *db.Database,
+	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
 	guardianSigner guardiansigner.GuardianSigner,
 	ethRpc *string,
 	ethContract *string,
 	rpcMap map[string]string,
+	reobservers interfaces.Reobservers,
 ) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
@@ -92,6 +94,7 @@ func adminServiceRunnable(
 		guardianSigner,
 		ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		rpcMap,
+		reobservers,
 	)
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)

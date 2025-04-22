@@ -140,10 +140,11 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDBaseSepolia:     {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDOptimismSepolia: {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDPolygonSepolia:  {NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDMonadDevnet:     {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDHyperEVM:        {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDMonad:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDSeiEVM:          {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMezo:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDFogo:            {NumWorkers: 10, TimestampCacheSupported: true},
 }
 
 // GetPerChainConfig returns the config for the specified chain. If the chain is not configured it returns an empty struct,

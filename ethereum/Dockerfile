@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
 FROM const-gen AS const-export
-FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:nightly-55bf41564f605cae3ca4c95ac5d468b1f14447f9@sha256:8c15d322da81a6deaf827222e173f3f81c653136a3518d5eeb41250a0f2e17ea as foundry
+FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:v1.0.0@sha256:d12a373ec950de170d5461014ef9320ba0fb6e0db6f87835999d0fcf3820370e as foundry
 FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
 
 # npm wants to clone random Git repositories - lovely.

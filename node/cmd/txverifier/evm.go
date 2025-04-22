@@ -36,9 +36,8 @@ var (
 )
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
-// The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 //
-//nolint:errcheck
+//nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 func init() {
 	evmRpc = TransferVerifierCmdEvm.Flags().String("rpcUrl", "ws://localhost:8546", "RPC url")
 	evmCoreContract = TransferVerifierCmdEvm.Flags().String("coreContract", "", "core bridge address")
@@ -117,6 +116,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 	// Create main configuration for Transfer Verification
 	transferVerifier, err := txverifier.NewTransferVerifier(
+		ctx,
 		evmConnector,
 		&txverifier.TVAddresses{
 			CoreBridgeAddr:    common.HexToAddress(*evmCoreContract),
@@ -151,7 +151,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 		// Process observed LogMessagePublished events
 		case vLog := <-sub.Events():
-			transferVerifier.ProcessEvent(ctx, vLog, nil)
+			transferVerifier.ProcessEvent(ctx, vLog.Raw.TxHash, nil)
 		}
 	}
 }

@@ -3,10 +3,12 @@ package publicrpc
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"math"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -19,14 +21,14 @@ import (
 type PublicrpcServer struct {
 	publicrpcv1.UnsafePublicRPCServiceServer
 	logger *zap.Logger
-	db     *db.Database
+	db     *guardianDB.Database
 	gst    *common.GuardianSetState
 	gov    *governor.ChainGovernor
 }
 
 func NewPublicrpcServer(
 	logger *zap.Logger,
-	db *db.Database,
+	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
 ) *PublicrpcServer {
@@ -68,7 +70,11 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
 
-	chainID := vaa.ChainID(req.MessageId.EmitterChain.Number())
+	if req.MessageId.GetEmitterChain() > math.MaxUint16 {
+		return nil, status.Error(codes.InvalidArgument, "emitter chain id must be no greater than 16 bits")
+	}
+
+	chainID := vaa.ChainID(req.MessageId.GetEmitterChain()) // #nosec G115 -- This conversion is checked above
 
 	// This interface is not supported for PythNet messages because those VAAs are not stored in the database.
 	if chainID == vaa.ChainIDPythNet {
@@ -96,7 +102,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	addr := vaa.Address{}
 	copy(addr[:], address)
 
-	b, err := s.db.GetSignedVAABytes(db.VAAID{
+	b, err := s.db.GetSignedVAABytes(guardianDB.VAAID{
 		EmitterChain:   chainID,
 		EmitterAddress: addr,
 		Sequence:       req.MessageId.Sequence,
@@ -104,7 +110,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	})
 
 	if err != nil {
-		if err == db.ErrVAANotFound {
+		if errors.Is(err, guardianDB.ErrVAANotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		s.logger.Error("failed to fetch VAA", zap.Error(err), zap.Any("request", req))

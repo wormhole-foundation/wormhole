@@ -19,14 +19,14 @@ type externalLoggerMock struct {
 	eventCounter *atomic.Int64
 }
 
-func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, level zapcore.Level) {
+func (logger *externalLoggerMock) log(timestamp time.Time, message json.RawMessage, level zapcore.Level) {
 	if logger.eventCounter != nil {
 		logger.eventCounter.Add(1)
 	}
 
 	// do the following to make sure that the conversion into a loki log entry works
 	entry := logproto.Entry{
-		Timestamp: time,
+		Timestamp: timestamp,
 		Line:      string(message),
 	}
 	_, err := entry.Marshal()
@@ -35,8 +35,7 @@ func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, l
 	}
 
 }
-func (logger *externalLoggerMock) close() error {
-	return nil
+func (logger *externalLoggerMock) close() {
 }
 
 func TestTelemetryWithPrivate(t *testing.T) {

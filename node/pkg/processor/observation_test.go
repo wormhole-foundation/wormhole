@@ -21,7 +21,7 @@ func getVAA() vaa.VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = vaa.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
-	vaa := vaa.VAA{
+	return vaa.VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
@@ -33,13 +33,11 @@ func getVAA() vaa.VAA {
 		EmitterAddress:   governanceEmitter,
 		Payload:          payload,
 	}
-
-	return vaa
 }
 
 func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
-	vaa := getVAA()
-	marshalVAA, _ := vaa.Marshal()
+	testVAA := getVAA()
+	marshalVAA, _ := testVAA.Marshal()
 
 	// Stub out the minimum to get processor to dance
 	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
@@ -85,7 +83,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.label, func(t *testing.T) {
-			vaa := getVAA()
+			testVAA := getVAA()
 
 			// Define a GuardianSet from test addrs
 			guardianSet := common.GuardianSet{
@@ -95,10 +93,10 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 
 			// Sign with the keys at the proper index
 			for i, key := range tc.keyOrder {
-				vaa.AddSignature(key, tc.indexOrder[i])
+				testVAA.AddSignature(key, tc.indexOrder[i])
 			}
 
-			marshalVAA, err := vaa.Marshal()
+			marshalVAA, err := testVAA.Marshal()
 			if err != nil {
 				panic(err)
 			}

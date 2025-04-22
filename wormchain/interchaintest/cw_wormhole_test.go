@@ -28,7 +28,7 @@ func createSingleNodeCluster(t *testing.T, wormchainVersion string, guardians gu
 	numFullNodes := 0
 
 	wormchainConfig.Images[0].Version = wormchainVersion
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, true)
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, numWormchainVals, true)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{

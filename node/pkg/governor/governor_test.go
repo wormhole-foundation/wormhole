@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -46,8 +46,8 @@ func (gov *ChainGovernor) initConfigForTest(
 	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
 }
 
-func (gov *ChainGovernor) setDayLengthInMinutes(min int) {
-	gov.dayLengthInMinutes = min
+func (gov *ChainGovernor) setDayLengthInMinutes(minimum int) {
+	gov.dayLengthInMinutes = minimum
 }
 
 // Utility method: adds a new `chainEntry` to `gov`
@@ -212,13 +212,13 @@ func TestSumAllFromToday(t *testing.T) {
 	var transfers []transfer
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer := &db.Transfer{Value: 125000, Timestamp: transferTime}
+	dbTransfer := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime}
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer)
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, uint64(125000), uint64(sum))
+	assert.Equal(t, uint64(125000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
 	assert.Equal(t, 1, len(updatedTransfers))
 }
 
@@ -258,12 +258,12 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the destination chain must be the same as the emitter chain
-	outgoingDbTransfer := &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
+	outgoingDbTransfer := &guardianDB.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
 	outgoingTransfer, err := newTransferFromDbTransfer(outgoingDbTransfer)
 	require.NoError(t, err)
 
 	// Flow cancelling transfer
-	incomingDbTransfer := &db.Transfer{
+	incomingDbTransfer := &guardianDB.Transfer{
 		OriginChain:   originChain,
 		OriginAddress: originAddress,
 		TargetChain:   vaa.ChainID(emitterChainId), // emitter
@@ -301,7 +301,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 func TestFlowCancelFeatureFlag(t *testing.T) {
 
 	ctx := context.Background()
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(zap.NewNop(), &db, common.GoTest, true, "")
 
 	// Trigger the evaluation of the flow cancelling config
@@ -384,12 +384,12 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	// - Transfer from emitter: we only care about Value
 	// - Transfer that flow cancels: Transfer must be a valid entry from FlowCancelTokenList()  (based on origin chain and origin address)
 	//				 and the destination chain must be the same as the emitter chain
-	emitterDbTransfer := &db.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
+	emitterDbTransfer := &guardianDB.Transfer{Value: emitterTransferValue, Timestamp: transferTime}
 	emitterTransfer, err := newTransferFromDbTransfer(emitterDbTransfer)
 	require.NoError(t, err)
 	transfers_from_emitter = append(transfers_from_emitter, emitterTransfer)
 
-	flowCancelDbTransfer := &db.Transfer{
+	flowCancelDbTransfer := &guardianDB.Transfer{
 		OriginChain:   originChain,
 		OriginAddress: originAddress,
 		TargetChain:   vaa.ChainID(emitterChainId), // emitter
@@ -445,7 +445,7 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 
 	// Create a lot of transfers. Their total value should exceed `emitterLimit`
 	for i := 0; i < 25; i++ {
-		transfer, err := newTransferFromDbTransfer(&db.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
+		transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{Value: emitterTransferValue, Timestamp: transferTime})
 		require.NoError(t, err)
 		transfers_from_emitter = append(
 			transfers_from_emitter,
@@ -470,7 +470,7 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 
 	usage, err := gov.TrimAndSumValueForChain(emitter, now.Add(-time.Hour*24))
 	require.NoError(t, err)
-	assert.Equal(t, emitterTransferValue*uint64(expectedNumTransfers), usage)
+	assert.Equal(t, emitterTransferValue*uint64(expectedNumTransfers), usage) // #nosec G115 -- If this overflowed the test would fail anyway
 }
 
 func TestTrimAndSumValueOverflowErrors(t *testing.T) {
@@ -488,9 +488,9 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 
 	emitterChainId := vaa.ChainIDSolana
 
-	transfer, err := newTransferFromDbTransfer(&db.Transfer{Value: math.MaxInt64, Timestamp: transferTime})
+	transfer, err := newTransferFromDbTransfer(&guardianDB.Transfer{Value: math.MaxInt64, Timestamp: transferTime})
 	require.NoError(t, err)
-	transfer2, err := newTransferFromDbTransfer(&db.Transfer{Value: 1, Timestamp: transferTime})
+	transfer2, err := newTransferFromDbTransfer(&guardianDB.Transfer{Value: 1, Timestamp: transferTime})
 	require.NoError(t, err)
 	transfers_from_emitter = append(transfers_from_emitter, transfer, transfer2)
 
@@ -517,7 +517,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	gov.chains[emitter.emitterChainId] = emitter
 
 	// Now test underflow
-	transfer3 := &db.Transfer{Value: math.MaxInt64, Timestamp: transferTime, TargetChain: vaa.ChainIDSolana}
+	transfer3 := &guardianDB.Transfer{Value: math.MaxInt64, Timestamp: transferTime, TargetChain: vaa.ChainIDSolana}
 
 	ce := gov.chains[emitter.emitterChainId]
 	err = ce.addFlowCancelTransferFromDbTransfer(transfer3)
@@ -547,7 +547,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	// The first transfer should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:59am (CST)")
 	require.NoError(t, err)
-	dbTransfer := &db.Transfer{Value: 125000, Timestamp: transferTime1}
+	dbTransfer := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime1}
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer)
@@ -555,7 +555,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	// But the second should not.
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer = &db.Transfer{Value: 225000, Timestamp: transferTime2}
+	dbTransfer = &guardianDB.Transfer{Value: 225000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -564,7 +564,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(updatedTransfers))
-	assert.Equal(t, uint64(225000), uint64(sum))
+	assert.Equal(t, uint64(225000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
 }
 
 func TestTrimSeveralTransfers(t *testing.T) {
@@ -581,14 +581,14 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	// The first two transfers should be expired.
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 10:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer1 := &db.Transfer{Value: 125000, Timestamp: transferTime1}
+	dbTransfer1 := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime1}
 	transfer1, err := newTransferFromDbTransfer(dbTransfer1)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer1)
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer2 := &db.Transfer{Value: 135000, Timestamp: transferTime2}
+	dbTransfer2 := &guardianDB.Transfer{Value: 135000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -596,21 +596,21 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	// But the next three should not.
 	transferTime3, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 1:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer3 := &db.Transfer{Value: 145000, Timestamp: transferTime3}
+	dbTransfer3 := &guardianDB.Transfer{Value: 145000, Timestamp: transferTime3}
 	transfer3, err := newTransferFromDbTransfer(dbTransfer3)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer3)
 
 	transferTime4, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer4 := &db.Transfer{Value: 155000, Timestamp: transferTime4}
+	dbTransfer4 := &guardianDB.Transfer{Value: 155000, Timestamp: transferTime4}
 	transfer4, err := newTransferFromDbTransfer(dbTransfer4)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer4)
 
 	transferTime5, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 2:00pm (CST)")
 	require.NoError(t, err)
-	dbTransfer5 := &db.Transfer{Value: 165000, Timestamp: transferTime5}
+	dbTransfer5 := &guardianDB.Transfer{Value: 165000, Timestamp: transferTime5}
 	transfer5, err := newTransferFromDbTransfer(dbTransfer5)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer5)
@@ -620,7 +620,7 @@ func TestTrimSeveralTransfers(t *testing.T) {
 	sum, updatedTransfers, err := gov.TrimAndSumValue(transfers, now.Add(-time.Hour*24))
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(updatedTransfers))
-	assert.Equal(t, uint64(465000), uint64(sum))
+	assert.Equal(t, uint64(465000), uint64(sum)) // #nosec G115 -- If this overflowed the test would fail anyway
 }
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
@@ -636,14 +636,14 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 
 	transferTime1, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer1 := &db.Transfer{Value: 125000, Timestamp: transferTime1}
+	dbTransfer1 := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime1}
 	transfer1, err := newTransferFromDbTransfer(dbTransfer1)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer1)
 
 	transferTime2, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "May 31, 2022 at 11:45am (CST)")
 	require.NoError(t, err)
-	dbTransfer2 := &db.Transfer{Value: 125000, Timestamp: transferTime2}
+	dbTransfer2 := &guardianDB.Transfer{Value: 125000, Timestamp: transferTime2}
 	transfer2, err := newTransferFromDbTransfer(dbTransfer2)
 	require.NoError(t, err)
 	transfers = append(transfers, transfer2)
@@ -665,7 +665,7 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 		return nil, fmt.Errorf("ctx is nil")
 	}
 
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	err := gov.Run(ctx)
@@ -942,7 +942,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
@@ -1181,13 +1181,13 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
 	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
 	require.NoError(t, err)
-	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31" //nolint:gosec
+	recipientSui := "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
 
 	// Add chain entries to `gov`
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 10000, 0)
@@ -1716,7 +1716,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	tokenBridgeAddrStrEthereum := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
 	require.NoError(t, err)
-	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8" //nolint:gosec
+	recipientEthereum := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
 
 	// Data for Sui
 	tokenBridgeAddrStrSui := "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
@@ -2182,7 +2182,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	gov.env = common.TestNet
@@ -2192,7 +2192,7 @@ func TestMainnetConfigIsValid(t *testing.T) {
 
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	gov.env = common.TestNet
@@ -2246,7 +2246,7 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	msg.MessageIDString()
 
 	// check that the enqueued vaa's release date is now + 1 day
-	expectedReleaseTime := uint32(now.Add(24 * time.Hour).Unix())
+	expectedReleaseTime := uint32(now.Add(24 * time.Hour).Unix()) // #nosec G115 -- This conversion is safe until year 2106
 	enqueuedVaas := gov.GetEnqueuedVAAs()
 	assert.Equal(t, len(enqueuedVaas), 1)
 	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
@@ -2258,7 +2258,7 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	// check that the enqueued vaa's release date is now + 5 days
 	enqueuedVaas = gov.GetEnqueuedVAAs()
 	assert.Equal(t, len(enqueuedVaas), 1)
-	expectedReleaseTime = uint32(now.Add(5 * 24 * time.Hour).Unix())
+	expectedReleaseTime = uint32(now.Add(5 * 24 * time.Hour).Unix()) // #nosec G115 -- This conversion is safe until year 2106
 	assert.Equal(t, enqueuedVaas[0].ReleaseTime, expectedReleaseTime)
 
 }
@@ -2634,7 +2634,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, gov)
 
-	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
+	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16"
 	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
 	require.NoError(t, err)
 
@@ -2654,9 +2654,9 @@ func TestDontReloadDuplicates(t *testing.T) {
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 
-	var xfers []*db.Transfer
+	var xfers []*guardianDB.Transfer
 
-	xfer1 := &db.Transfer{
+	xfer1 := &guardianDB.Transfer{
 		Timestamp:      startTime.Add(time.Minute * 5),
 		Value:          uint64(1000),
 		OriginChain:    vaa.ChainIDEthereum,
@@ -2668,7 +2668,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	}
 	xfers = append(xfers, xfer1)
 
-	xfer2 := &db.Transfer{
+	xfer2 := &guardianDB.Transfer{
 		Timestamp:      startTime.Add(time.Minute * 5),
 		Value:          uint64(2000),
 		OriginChain:    vaa.ChainIDEthereum,
@@ -2693,8 +2693,8 @@ func TestDontReloadDuplicates(t *testing.T) {
 		1.25,
 	)
 
-	var pendings []*db.PendingTransfer
-	pending1 := &db.PendingTransfer{
+	var pendings []*guardianDB.PendingTransfer
+	pending1 := &guardianDB.PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 24),
 		Msg: common.MessagePublication{
 			TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -2709,7 +2709,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	}
 	pendings = append(pendings, pending1)
 
-	pending2 := &db.PendingTransfer{
+	pending2 := &guardianDB.PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 24),
 		Msg: common.MessagePublication{
 			TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
@@ -2803,7 +2803,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	require.NoError(t, err)
 
 	// This transfer should exhaust the dailyLimit for the emitter chain
-	xfer1 := &db.Transfer{
+	xfer1 := &guardianDB.Transfer{
 		Timestamp:      transferTime.Add(-10),
 		Value:          uint64(10000),
 		OriginChain:    vaa.ChainIDSolana,
@@ -2817,7 +2817,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	}
 
 	// This incoming transfer should free up some of the space on the previous emitter chain
-	xfer2 := &db.Transfer{
+	xfer2 := &guardianDB.Transfer{
 		Timestamp:      transferTime.Add(-9),
 		Value:          uint64(2000),
 		OriginChain:    vaa.ChainIDSolana,
@@ -2832,7 +2832,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	// Send another transfer out from the original emitter chain so that we "exceed the daily limit" if flow
 	// cancel is not applied
-	xfer3 := &db.Transfer{
+	xfer3 := &guardianDB.Transfer{
 		Timestamp:      transferTime.Add(-8),
 		Value:          uint64(50),
 		OriginChain:    vaa.ChainIDSolana,
@@ -2905,7 +2905,8 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	governorUsageEth, err = gov.TrimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, uint64(8000), governorUsageEth)
-	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 2000) // Remaining capacity
+	// Remaining capacity
+	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 2000) // #nosec G115 -- If this overflowed the test would fail
 	require.NoError(t, err)
 	governorUsageSui, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Zero(t, governorUsageSui)
@@ -2928,7 +2929,8 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 
 	governorUsageEth, err = gov.TrimAndSumValueForChain(chainEntryEth, time.Unix(int64(transferTime.Unix()-1000), 0))
 	assert.Equal(t, uint64(8050), governorUsageEth)
-	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 1950) // Remaining capacity
+	// Remaining capacity
+	assert.Equal(t, int(chainEntryEth.dailyLimit-governorUsageEth), 1950) // #nosec G115 -- If this overflowed the test would fail
 	require.NoError(t, err)
 	governorUsageSui, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
 	require.NoError(t, err)
@@ -3324,7 +3326,7 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 		),
 	}
 
-	// Post the two big transfers and and verify they get enqueued.
+	// Post the two big transfers and verify they get enqueued.
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	canPost, err := gov.ProcessMsgForTime(&msg1, now)
 	require.NoError(t, err)

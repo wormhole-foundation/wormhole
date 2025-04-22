@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tx-verifier-evm
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      # required, as the guardian cannot run as root
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: tx-verifier-evm
+          image: tx-verifier-evm
+          env:
+            - name: ERROR_PATTERN
+              value: "invalid receipt: no deposits and no transfers"
+            - name: ERROR_LOG_PATH
+              value: "/tmp/error.log"
+            - name: RPC_URL
+              value: "ws://eth-devnet:8545"
+          command:
+            - /bin/bash
+            - -c
+            - "bash /tx-verifier-evm-runner.sh"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/tmp/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 5

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -62,6 +64,7 @@ func init() {
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
 	DumpRPCs.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
+	ReobserveWithEndpoint.Flags().AddFlagSet(pf)
 	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorDropPendingVAACmd.Flags().AddFlagSet(pf)
@@ -84,6 +87,7 @@ func init() {
 	AdminCmd.AddCommand(DumpVAAByMessageID)
 	AdminCmd.AddCommand(DumpRPCs)
 	AdminCmd.AddCommand(SendObservationRequest)
+	AdminCmd.AddCommand(ReobserveWithEndpoint)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
@@ -134,6 +138,13 @@ var SendObservationRequest = &cobra.Command{
 	Short: "Broadcast an observation request for the given chain ID and chain-specific tx_hash",
 	Run:   runSendObservationRequest,
 	Args:  cobra.ExactArgs(2),
+}
+
+var ReobserveWithEndpoint = &cobra.Command{
+	Use:   "reobserve-with-endpoint [CHAIN_ID|CHAIN_NAME] [TX_HASH_HEX] [CUSTOM_URL]",
+	Short: "Performs a local reobservation for the given chain ID and chain-specific tx_hash using the specified endpoint",
+	Run:   runReobserveWithEndpoint,
+	Args:  cobra.ExactArgs(3),
 }
 
 var ClientChainGovernorStatusCmd = &cobra.Command{
@@ -301,6 +312,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
+
 	emitterAddress := args[1]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -312,8 +324,12 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
+	if chainID > math.MaxUint16 {
+		log.Fatalf("chain ID is not a valid 16 bit unsigned integer: %v", err)
+	}
+
 	msg := nodev1.FindMissingMessagesRequest{
-		EmitterChain:   uint32(chainID),
+		EmitterChain:   uint32(chainID), // #nosec G115 -- This conversion is checked above
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
 		BackfillNodes:  sdk.PublicRPCEndpoints,
@@ -342,6 +358,9 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	chainID, err := strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
+	}
+	if chainID > math.MaxUint16 {
+		log.Fatalf("chain id must not exceed the max uint16: %v", chainID)
 	}
 	emitterAddress := parts[1]
 	seq, err := strconv.ParseUint(parts[2], 10, 64)
@@ -412,6 +431,51 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	})
 	if err != nil {
 		log.Fatalf("failed to send observation request: %v", err)
+	}
+}
+
+func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
+	chainID, err := parseChainID(args[0])
+	if err != nil {
+		log.Fatalf("invalid chain ID: %v", err)
+	}
+
+	// Support tx with or without leading 0x.
+	txHash, err := hex.DecodeString(strings.TrimPrefix(args[1], "0x"))
+	if err != nil {
+		txHash, err = base58.Decode(args[1])
+		if err != nil {
+			log.Fatalf("invalid transaction hash (neither hex nor base58): %v", err)
+		}
+	}
+
+	url := args[2]
+	if valid := common.ValidateURL(url, []string{"http", "https"}); !valid {
+		log.Fatalf(`invalid url, must be "http" or "https"`)
+	}
+
+	// Allow extra time since the watcher can block on the reobservation.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	resp, err := c.ReobserveWithEndpoint(ctx, &nodev1.ReobserveWithEndpointRequest{
+		ChainId: uint32(chainID),
+		TxHash:  txHash,
+		Url:     url,
+	})
+	if err != nil {
+		log.Fatalf("failed to send observation request with endpoint: %v", err)
+	}
+	if resp.NumObservations == 0 {
+		fmt.Println("Did not reobserve anything")
+	} else {
+		fmt.Println("Reobserved", resp.NumObservations, "messages")
 	}
 }
 
@@ -560,11 +624,11 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	if len(args) > 1 {
 		numDaysArg, err := strconv.Atoi(args[1])
 
-		if err != nil {
+		if numDaysArg > math.MaxUint32 || err != nil {
 			log.Fatalf("invalid num_days: %v", err)
 		}
 
-		numDays = uint32(numDaysArg)
+		numDays = uint32(numDaysArg) // #nosec G115 -- This is validated above
 	}
 
 	msg := nodev1.ChainGovernorResetReleaseTimerRequest{
@@ -712,7 +776,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	for {
 		row, err := oldVAAReader.Read()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			log.Fatalf("failed to parse VAA CSV: %v", err)
@@ -748,7 +812,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	newVAAWriter.Flush()
 }
 
-// This exposes keccak256 as a command line utility, mostly for validating goverance messages
+// This exposes keccak256 as a command line utility, mostly for validating governance messages
 // that use this hash.  There isn't any common utility that computes this since this is nonstandard outside of evm.
 // It is used similar to other hashing utilities, e.g. `cat <file> | guardiand admin keccak256`.
 func runKeccak256Hash(cmd *cobra.Command, args []string) {

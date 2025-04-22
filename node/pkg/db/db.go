@@ -183,7 +183,7 @@ func (d *Database) HasVAA(id VAAID) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
-	if err == badger.ErrKeyNotFound {
+	if errors.Is(err, badger.ErrKeyNotFound) {
 		return false, nil
 	}
 	return false, err
@@ -202,7 +202,7 @@ func (d *Database) GetSignedVAABytes(id VAAID) (b []byte, err error) {
 		}
 		return nil
 	}); err != nil {
-		if err == badger.ErrKeyNotFound {
+		if errors.Is(err, badger.ErrKeyNotFound) {
 			return nil, ErrVAANotFound
 		}
 		return nil, err

@@ -9,6 +9,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"math"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
@@ -31,7 +32,11 @@ func main() {
 		log.Fatal("No transaction specified")
 	}
 
-	chainID := vaa.ChainID(*flagChainID)
+	if *flagChainID > math.MaxUint16 {
+		log.Fatalf("chain id is not a valid uint16: %d", *flagChainID)
+	}
+
+	chainID := vaa.ChainID(*flagChainID) // #nosec G115 -- This is validated above
 
 	ctx := context.Background()
 
@@ -46,7 +51,7 @@ func main() {
 
 	transactionHash := ethCommon.HexToHash(*flagTx)
 
-	block, msgs, err := evm.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
+	_, block, msgs, err := evm.MessageEventsForTransaction(ctx, ethIntf, contractAddr, chainID, transactionHash)
 	if err != nil {
 		log.Fatal(err)
 	}

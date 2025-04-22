@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -156,6 +158,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
+	//nolint:bodyclose // The close is down below. The linter misses it.
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
@@ -242,7 +245,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-e.obsvReqC:
-				if vaa.ChainID(r.ChainId) != e.chainID {
+				// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+				// and only writes to the channel for this chain id.
+				// If either of the below cases are true, something has gone wrong
+				if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
 					panic("invalid chain ID")
 				}
 
@@ -303,6 +309,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					msg.IsReobservation = true
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
+					watchers.ReobservationsByChain.WithLabelValues(networkName, "std").Inc()
 				}
 			}
 		}

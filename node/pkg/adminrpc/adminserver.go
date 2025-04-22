@@ -20,12 +20,13 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/holiman/uint256"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/exp/slices"
 
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -54,7 +55,7 @@ var (
 
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
-	db              *db.Database
+	db              *guardianDB.Database
 	injectC         chan<- *common.MessagePublication
 	obsvReqSendC    chan<- *gossipv1.ObservationRequest
 	logger          *zap.Logger
@@ -65,19 +66,21 @@ type nodePrivilegedService struct {
 	guardianSigner  guardiansigner.GuardianSigner
 	guardianAddress ethcommon.Address
 	rpcMap          map[string]string
+	reobservers     interfaces.Reobservers
 }
 
 func NewPrivService(
-	db *db.Database,
+	db *guardianDB.Database,
 	injectC chan<- *common.MessagePublication,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	logger *zap.Logger,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
-	governor *governor.ChainGovernor,
+	gov *governor.ChainGovernor,
 	evmConnector connectors.Connector,
 	guardianSigner guardiansigner.GuardianSigner,
 	guardianAddress ethcommon.Address,
 	rpcMap map[string]string,
+	reobservers interfaces.Reobservers,
 
 ) *nodePrivilegedService {
 	return &nodePrivilegedService{
@@ -86,11 +89,12 @@ func NewPrivService(
 		obsvReqSendC:    obsvReqSendC,
 		logger:          logger,
 		signedInC:       signedInC,
-		governor:        governor,
+		governor:        gov,
 		evmConnector:    evmConnector,
 		guardianSigner:  guardianSigner,
 		guardianAddress: guardianAddress,
 		rpcMap:          rpcMap,
+		reobservers:     reobservers,
 	}
 }
 
@@ -281,7 +285,7 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 		ChainId:      vaa.ChainID(req.ChainId),
 		TokenChain:   vaa.ChainID(req.TokenChain),
 		TokenAddress: tokenAdress,
-		Kind:         uint8(req.Kind),
+		Kind:         uint8(req.Kind), // #nosec G115 -- The `ModificationKind` enum only has 3 values
 		Amount:       amount,
 		Reason:       req.Reason,
 	}.Serialize()
@@ -357,7 +361,7 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 
 // wormchainInstantiateContract converts a nodev1.WormchainInstantiateContract to its canonical VAA representation
 // Returns an error if the data is invalid
-func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	instantiationParams_hash := vaa.CreateInstatiateCosmwasmContractHash(req.CodeId, req.Label, []byte(req.InstantiationMsg))
 
 	body, err := vaa.BodyWormchainInstantiateContract{
@@ -373,7 +377,7 @@ func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, time
 }
 
 // wormchainMigrateContract converts a nodev1.WormchainMigrateContract to its canonical VAA representation
-func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	instantiationParams_hash := vaa.CreateMigrateCosmwasmContractHash(req.CodeId, req.Contract, []byte(req.InstantiationMsg))
 
 	body, err := vaa.BodyWormchainMigrateContract{
@@ -394,7 +398,7 @@ func wormchainWasmInstantiateAllowlist(
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+) (*vaa.VAA, error) {
 	decodedAddr, err := sdktypes.GetFromBech32(req.Contract, "wormhole")
 	if err != nil {
 		return nil, err
@@ -431,7 +435,7 @@ func gatewayScheduleUpgrade(
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+) (*vaa.VAA, error) {
 
 	body, err := vaa.BodyGatewayScheduleUpgrade{
 		Name:   req.Name,
@@ -451,7 +455,7 @@ func gatewayCancelUpgrade(
 	guardianSetIndex uint32,
 	nonce uint32,
 	sequence uint64,
-) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+) (*vaa.VAA, error) {
 
 	body, err := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
 
@@ -667,6 +671,9 @@ func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ABI encoded call: %w", err)
 	}
+	if evmCall.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", evmCall.ChainId)
+	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceEvm{
 		ChainID:            vaa.ChainID(evmCall.ChainId),
@@ -698,6 +705,9 @@ func solanaCallToVaa(solanaCall *nodev1.SolanaCall, timestamp time.Time, guardia
 	instruction, err := hex.DecodeString(solanaCall.EncodedInstruction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode instruction: %w", err)
+	}
+	if solanaCall.ChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("chain id exceeds max uint16: %v", solanaCall.ChainId)
 	}
 
 	body, err := vaa.BodyGeneralPurposeGovernanceSolana{
@@ -917,10 +927,13 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid emitter address encoding: %v", err)
 	}
+	if req.EmitterChain > math.MaxUint16 {
+		return nil, status.Errorf(codes.InvalidArgument, "chain id exceeds max uint16: %v", req.EmitterChain)
+	}
 	emitterAddress := vaa.Address{}
 	copy(emitterAddress[:], b)
 
-	ids, first, last, err := s.db.FindEmitterSequenceGap(db.VAAID{
+	ids, first, last, err := s.db.FindEmitterSequenceGap(guardianDB.VAAID{
 		EmitterChain:   vaa.ChainID(req.EmitterChain),
 		EmitterAddress: emitterAddress,
 	})
@@ -960,6 +973,24 @@ func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req 
 
 	s.logger.Info("sent observation request", zap.Any("request", req.ObservationRequest))
 	return &nodev1.SendObservationRequestResponse{}, nil
+}
+
+func (s *nodePrivilegedService) ReobserveWithEndpoint(ctx context.Context, req *nodev1.ReobserveWithEndpointRequest) (*nodev1.ReobserveWithEndpointResponse, error) {
+	if req.ChainId > math.MaxUint16 {
+		return nil, status.Errorf(codes.Internal, "chain %d is not a valid uint16", req.ChainId)
+	}
+
+	watcher := s.reobservers[vaa.ChainID(req.ChainId)]
+	if watcher == nil {
+		return nil, status.Errorf(codes.Internal, "chain %d does not support reobservation by endpoint", req.ChainId)
+	}
+
+	numObservations, err := watcher.Reobserve(ctx, vaa.ChainID(req.ChainId), req.TxHash, req.Url)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "reobservation failed: %v", err)
+	}
+
+	return &nodev1.ReobserveWithEndpointResponse{NumObservations: numObservations}, nil
 }
 
 func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *nodev1.ChainGovernorStatusRequest) (*nodev1.ChainGovernorStatusResponse, error) {
@@ -1049,8 +1080,8 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Conte
 }
 
 func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev1.PurgePythNetVaasRequest) (*nodev1.PurgePythNetVaasResponse, error) {
-	prefix := db.VAAID{EmitterChain: vaa.ChainIDPythNet}
-	oldestTime := time.Now().Add(-time.Hour * 24 * time.Duration(req.DaysOld))
+	prefix := guardianDB.VAAID{EmitterChain: vaa.ChainIDPythNet}
+	oldestTime := time.Now().Add(-time.Hour * 24 * time.Duration(req.DaysOld)) // #nosec G115 -- This conversion is safe indefinitely
 	resp, err := s.db.PurgeVaas(prefix, oldestTime, req.LogOnly)
 	if err != nil {
 		return nil, err
@@ -1152,7 +1183,7 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 			continue
 		}
 		newVAA.Signatures = append(newVAA.Signatures, &vaa.Signature{
-			Index:     uint8(newIndex),
+			Index:     uint8(newIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
 			Signature: sig.Signature,
 		})
 	}
@@ -1172,7 +1203,7 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 	copy(signature[:], sig)
 
 	newVAA.Signatures = append(v.Signatures, &vaa.Signature{
-		Index:     uint8(localGuardianIndex),
+		Index:     uint8(localGuardianIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
 		Signature: signature,
 	})
 
@@ -1229,6 +1260,8 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 		return nil, err
 	}
 
+	defer results.Body.Close()
+
 	// Collect the results
 	resBody, err := io.ReadAll(results.Body)
 	if err != nil {
@@ -1271,13 +1304,18 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			errCounter++
 			continue
 		}
+		if chainID > math.MaxUint16 {
+			errMsgs += fmt.Sprintf("\nchainID [%d] not a valid uint16", chainID)
+			errCounter++
+			continue
+		}
 		sequence, err := strconv.ParseUint(splits[2], 10, 64)
 		if err != nil {
 			errMsgs += fmt.Sprintf("\nerror converting sequence %s to uint64", splits[2])
 			errCounter++
 			continue
 		}
-		vaaKey := db.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence}
+		vaaKey := guardianDB.VAAID{EmitterChain: vaa.ChainID(chainID), EmitterAddress: vaa.Address([]byte(splits[1])), Sequence: sequence} // #nosec G115 -- This chainId conversion is verified above
 		hasVaa, err := s.db.HasVAA(vaaKey)
 		if err != nil || hasVaa {
 			errMsgs += fmt.Sprintf("\nerror checking for VAA %s", missingVAA.VaaKey)
@@ -1285,7 +1323,12 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 			continue
 		}
 		var obsvReq gossipv1.ObservationRequest
-		obsvReq.ChainId = uint32(missingVAA.Chain)
+		if missingVAA.Chain > math.MaxUint16 {
+			errMsgs += fmt.Sprintf("\nmissing VAA chainID [%d] not a valid uint16", missingVAA.Chain)
+			errCounter++
+			continue
+		}
+		obsvReq.ChainId = uint32(missingVAA.Chain) // #nosec G115 -- This conversion is checked above
 		obsvReq.TxHash, err = hex.DecodeString(strings.TrimPrefix(missingVAA.Txhash, "0x"))
 		if err != nil {
 			obsvReq.TxHash, err = base58.Decode(missingVAA.Txhash)

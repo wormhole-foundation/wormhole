@@ -20,6 +20,7 @@ type WatcherConfig struct {
 	L1FinalizerRequired    watchers.NetworkID // (optional)
 	l1Finalizer            interfaces.L1Finalizer
 	CcqBackfillCache       bool
+	TxVerifierEnabled      bool
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -45,7 +46,7 @@ func (wc *WatcherConfig) Create(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	setC chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, error) {
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 
 	// only actually use the guardian set channel if wc.GuardianSetUpdateChain == true
 	var setWriteC chan<- *common.GuardianSet = nil
@@ -53,7 +54,20 @@ func (wc *WatcherConfig) Create(
 		setWriteC = setC
 	}
 
-	watcher := NewEthWatcher(wc.Rpc, eth_common.HexToAddress(wc.Contract), string(wc.NetworkID), wc.ChainID, msgC, setWriteC, obsvReqC, queryReqC, queryResponseC, env, wc.CcqBackfillCache)
+	watcher := NewEthWatcher(
+		wc.Rpc,
+		eth_common.HexToAddress(wc.Contract),
+		string(wc.NetworkID),
+		wc.ChainID,
+		msgC,
+		setWriteC,
+		obsvReqC,
+		queryReqC,
+		queryResponseC,
+		env,
+		wc.CcqBackfillCache,
+		wc.TxVerifierEnabled,
+	)
 	watcher.SetL1Finalizer(wc.l1Finalizer)
-	return watcher, watcher.Run, nil
+	return watcher, watcher.Run, watcher, nil
 }

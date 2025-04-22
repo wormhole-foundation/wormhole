@@ -34,7 +34,6 @@ func createExecuteGovernanceVaaPayload(k *keeper.Keeper, ctx sdk.Context, num_gu
 func TestExecuteGovernanceVAA(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
 	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
-	_ = privateKeys
 	k.SetConfig(ctx, types.Config{
 		GovernanceEmitter:     vaa.GovernanceEmitter[:],
 		GovernanceChain:       uint32(vaa.GovernanceChain),

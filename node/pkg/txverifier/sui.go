@@ -205,7 +205,6 @@ func (s *SuiTransferVerifier) ProcessDigest(digest string, suiApiConnection SuiA
 			zap.String("amountIn", amountIn.String()))
 	}
 
-	//nolint:gosec
 	logger.Info("Digest processed", zap.String("txDigest", digest), zap.Uint("numEventsProcessed", numEventsProcessed), zap.Uint("numChangesProcessed", numChangesProcessed))
 
 	return numEventsProcessed, nil
@@ -221,7 +220,7 @@ func suiApiRequest[T SuiApiResponse](rpc string, method string, params string) (
 	// Create the request
 	requestBody := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "%s", "params": %s}`, method, params)
 
-	//nolint:noctx
+	//nolint:noctx // TODO: this function should use a context
 	req, err := http.NewRequest("POST", rpc, strings.NewReader(requestBody))
 	if err != nil {
 		return defaultT, fmt.Errorf("cannot create request: %w", err)

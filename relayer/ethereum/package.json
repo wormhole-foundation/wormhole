@@ -19,8 +19,11 @@
     "@certusone/wormhole-sdk": "^0.9.11",
     "@typechain/ethers-v5": "^10.2.0",
     "dotenv": "^10.0.0",
-    "elliptic": "^6.5.2",
+    "elliptic": "^6.6.1",
     "js-sha3": "^0.8.0",
     "typechain": "^8.1.1"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

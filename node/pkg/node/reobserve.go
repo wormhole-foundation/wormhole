@@ -3,18 +3,39 @@ package node
 import (
 	"context"
 	"encoding/hex"
+	"math"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
+const (
+	CachePurgeInterval = 7 * time.Minute
+	CacheFor           = 11 * time.Minute
+)
+
+type Clock interface {
+	Now() time.Time
+	NewTicker(d time.Duration) *time.Ticker
+}
+
+// CacheClock is a wrapper for some of the standard library's time functions.
+// It exists to allow for dependency injection while testing [handleReobservationRequests].
+type CacheClock struct{}
+
+func (c *CacheClock) Now() time.Time {
+	return time.Now()
+}
+func (c *CacheClock) NewTicker(d time.Duration) *time.Ticker {
+	return time.NewTicker(d)
+}
+
 // Multiplex observation requests to the appropriate chain
 func handleReobservationRequests(
 	ctx context.Context,
-	clock clock.Clock,
+	clock Clock,
 	logger *zap.Logger,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	chainObsvReqC map[vaa.ChainID]chan *gossipv1.ObservationRequest,
@@ -29,7 +50,7 @@ func handleReobservationRequests(
 	}
 
 	cache := make(map[cachedRequest]time.Time)
-	ticker := clock.Ticker(7 * time.Minute)
+	ticker := clock.NewTicker(CachePurgeInterval)
 	for {
 		select {
 		case <-ctx.Done():
@@ -37,11 +58,18 @@ func handleReobservationRequests(
 		case <-ticker.C:
 			now := clock.Now()
 			for r, t := range cache {
-				if now.Sub(t) > 11*time.Minute {
+				if now.Sub(t) > CacheFor {
 					delete(cache, r)
 				}
 			}
 		case req := <-obsvReqC:
+			if req.ChainId > math.MaxUint16 {
+				logger.Error("chain id is larger than MaxUint16",
+					zap.Uint32("chain_id", req.ChainId),
+				)
+				continue
+			}
+
 			r := cachedRequest{
 				chainId: vaa.ChainID(req.ChainId),
 				txHash:  hex.EncodeToString(req.TxHash),

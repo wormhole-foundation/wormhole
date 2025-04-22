@@ -6,7 +6,7 @@ option go_package = "github.com/certusone/wormhole/node/pkg/proto/gossip/v1;goss
 
 message GossipMessage {
   oneof message {
-    SignedObservation signed_observation = 2;
+    // SignedObservation signed_observation = 2;
     SignedHeartbeat signed_heartbeat = 3;
     SignedVAAWithQuorum signed_vaa_with_quorum = 4;
     SignedObservationRequest signed_observation_request = 5;
@@ -70,34 +70,6 @@ message Heartbeat {
 
   // (Optional) libp2p address of this node.
   bytes p2p_node_id = 9;
-}
-
-// A SignedObservation is a signed statement by a given guardian node
-// that they observed a given event.
-//
-// Observations always result from an external, final event being observed.
-// Examples are emitted messages in finalized blocks on a block or guardian set changes
-// injected by node operators after reaching off-chain consensus.
-//
-// The event is uniquely identified by its hashed (tx_hash, nonce, values...) tuple.
-//
-// Other nodes will verify the signature. Once any node has observed a quorum of
-// guardians submitting valid signatures for a given hash, they can be assembled into a VAA.
-//
-// Messages without valid signature are dropped unceremoniously.
-message SignedObservation {
-  // Guardian pubkey as truncated eth address.
-  bytes addr = 1;
-  // The observation's deterministic, unique hash.
-  bytes hash = 2;
-  // ECSDA signature of the hash using the node's guardian key.
-  bytes signature = 3;
-  // Transaction hash this observation was made from.
-  // Optional, included for observability.
-  bytes tx_hash = 4;
-  // Message ID (chain/emitter/seq) for this observation.
-  // Optional, included for observability.
-  string message_id = 5;
 }
 
 // A SignedVAAWithQuorum message is sent by nodes whenever one of the VAAs they observed

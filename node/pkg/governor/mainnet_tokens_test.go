@@ -42,9 +42,12 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 	ignoredChains := map[vaa.ChainID]bool{
 		// TODO: Remove this once we have governed tokens for Snax.
 		vaa.ChainIDSnaxchain: true,
-
 		// Wormchain is an abstraction over IBC-connected chains so no assets are "native" to it
 		vaa.ChainIDWormchain: true,
+		// TODO: Remove this once we have governed tokens for Ink.
+		vaa.ChainIDInk: true,
+		// TODO: Remove this once we have governed tokens for SeiEVM.
+		vaa.ChainIDSeiEVM: true,
 	}
 	if len(ignoredChains) > 0 {
 		ignoredOutput := []string{}

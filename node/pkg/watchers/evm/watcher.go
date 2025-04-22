@@ -2,13 +2,17 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
@@ -22,12 +26,16 @@ import (
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -77,18 +85,20 @@ var (
 
 type (
 	Watcher struct {
-		// Ethereum RPC url
+		// EVM RPC url.
 		url string
-		// Address of the Eth contract
+		// Address of the EVM contract
 		contract eth_common.Address
-		// Human-readable name of the Eth network, for logging and monitoring.
+		// Human-readable name of the EVM network, for logging and monitoring.
 		networkName string
 		// Readiness component
 		readinessSync readiness.Component
-		// VAA ChainID of the network we're connecting to.
+		// VAA ChainID of the network monitored by this watcher.
 		chainID vaa.ChainID
 
-		// Channel to send new messages to.
+		// Channel for sending new MesssagePublications. Messages should not be sent
+		// to this channel directly. Instead, they should be wrapped by
+		// a call to `verifyAndPublish()`.
 		msgC chan<- *common.MessagePublication
 
 		// Channel to send guardian set changes to.
@@ -122,6 +132,7 @@ type (
 		// Interface to the chain specific ethereum library.
 		ethConn connectors.Connector
 		env     common.Environment
+		logger  *zap.Logger
 
 		latestBlockNumber          uint64
 		latestSafeBlockNumber      uint64
@@ -135,6 +146,10 @@ type (
 		ccqBatchSize       int64
 		ccqBackfillCache   bool
 		ccqLogger          *zap.Logger
+		// Whether the Transfer Verifier should be initialized for this watcher.
+		txVerifierEnabled bool
+		// Transfer Verifier instance. If nil, transfer verification is disabled.
+		txVerifier txverifier.TransferVerifierInterface
 	}
 
 	pendingKey struct {
@@ -150,8 +165,15 @@ type (
 	}
 )
 
-// MaxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned.
-const MaxWaitConfirmations = 60
+const (
+	// MaxWaitConfirmations is the maximum number of confirmations to wait before declaring a transaction abandoned.
+	MaxWaitConfirmations = 60
+
+	// pruneHeightDelta is the block height difference between the latest block and the oldest block to keep in memory.
+	// It is used as a parameter for the Transfer Verifier.
+	// Value is arbitrary and can be adjusted if it helps performance.
+	PruneHeightDelta = uint64(20)
+)
 
 func NewEthWatcher(
 	url string,
@@ -165,7 +187,10 @@ func NewEthWatcher(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	env common.Environment,
 	ccqBackfillCache bool,
+	txVerifierEnabled bool,
 ) *Watcher {
+	// Note: the watcher's txVerifier field is not set here because it requires a Connector as an argument.
+	// Instead, it will be populated in `Run()`.
 	return &Watcher{
 		url:                url,
 		contract:           contract,
@@ -183,12 +208,41 @@ func NewEthWatcher(
 		ccqMaxBlockNumber:  big.NewInt(0).SetUint64(math.MaxUint64),
 		ccqBackfillCache:   ccqBackfillCache,
 		ccqBackfillChannel: make(chan *ccqBackfillRequest, 50),
+		// Signals that a transfer Verifier should be instantiated in Run()
+		txVerifierEnabled: txVerifierEnabled,
 	}
+}
+
+func (w *Watcher) tokenBridge() eth_common.Address {
+	var tb []byte
+	switch w.env {
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
+		tb = sdk.KnownDevnetTokenbridgeEmitters[w.chainID]
+	case common.TestNet:
+		tb = sdk.KnownTestnetTokenbridgeEmitters[w.chainID]
+	case common.MainNet:
+		tb = sdk.KnownTokenbridgeEmitters[w.chainID]
+	}
+	return eth_common.BytesToAddress(tb)
+}
+
+func (w *Watcher) wrappedNative() eth_common.Address {
+	var wnative string
+	switch w.env {
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
+		wnative = sdk.KnownDevnetWrappedNativeAddresses[w.chainID]
+	case common.TestNet:
+		wnative = sdk.KnownTestnetWrappedNativeAddresses[w.chainID]
+	case common.MainNet:
+		wnative = sdk.KnownWrappedNativeAddress[w.chainID]
+	}
+	return eth_common.HexToAddress(wnative)
 }
 
 func (w *Watcher) Run(parentCtx context.Context) error {
 	var err error
 	logger := supervisor.Logger(parentCtx)
+	w.logger = logger
 	w.ccqLogger = logger.With(zap.String("component", "ccqevm"))
 
 	logger.Info("Starting watcher",
@@ -198,6 +252,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		zap.String("networkName", w.networkName),
 		zap.String("chainID", w.chainID.String()),
 		zap.String("env", string(w.env)),
+		zap.Bool("txVerifier", w.txVerifierEnabled),
 	)
 
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
@@ -211,41 +266,67 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		ContractAddress: w.contract.Hex(),
 	})
 
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	finalizedPollingSupported, safePollingSupported, err := w.getFinality(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to determine finality: %w", err)
+	// Verify that we are connecting to the correct chain.
+	if err := w.verifyEvmChainID(ctx, logger, w.url); err != nil {
+		return fmt.Errorf("failed to verify evm chain id: %w", err)
 	}
 
-	if finalizedPollingSupported {
-		if safePollingSupported {
-			logger.Info("polling for finalized and safe blocks")
+	// Connect to the node using the appropriate type of connector.
+	{
+		var finalizedPollingSupported, safePollingSupported bool
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		w.ethConn, finalizedPollingSupported, safePollingSupported, err = w.createConnector(timeout, w.url)
+		cancel()
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf(`failed to create connection to url "%s": %w`, w.url, err)
+		}
+
+		// Log the connector details for troubleshooting purposes.
+		if finalizedPollingSupported {
+			if safePollingSupported {
+				w.logger.Info("polling for finalized and safe blocks")
+			} else {
+				w.logger.Info("polling for finalized blocks, will generate safe blocks")
+			}
 		} else {
-			logger.Info("polling for finalized blocks, will generate safe blocks")
+			w.logger.Info("assuming instant finality")
 		}
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn = connectors.NewBatchPollConnector(ctx, logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
-	} else {
-		// Everything else is instant finality.
-		logger.Info("assuming instant finality")
-		baseConnector, err := connectors.NewEthereumBaseConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewInstantFinalityConnector(baseConnector, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("failed to connect to instant finality chain: %w", err)
+
+		// Initialize a Transfer Verifier
+		if w.txVerifierEnabled {
+
+			// This shouldn't happen as Transfer Verification can
+			// only be enabled by passing at least one chainID as a
+			// CLI flag to guardiand, but this prevents the code
+			// from erroneously setting up a Transfer Verifier or
+			// else continuing in state where txVerifierEnabled is
+			// true but the actual Transfer Verifier is nil.
+			if !slices.Contains(txverifier.SupportedChains(), w.chainID) {
+				return errors.New("watcher attempted to create Transfer Verifier but this chainId is not supported")
+			}
+
+			var tvErr error
+			w.txVerifier, tvErr = txverifier.NewTransferVerifier(
+				ctx,
+				w.ethConn,
+				&txverifier.TVAddresses{
+					CoreBridgeAddr:    w.contract,
+					TokenBridgeAddr:   w.tokenBridge(),
+					WrappedNativeAddr: w.wrappedNative(),
+				},
+				PruneHeightDelta,
+				logger,
+			)
+			if tvErr != nil {
+				return fmt.Errorf("failed to create Transfer Verifier instance: %w", tvErr)
+			}
+			logger.Info("initialized Transfer Verifier",
+				zap.String("watcher_name", "evm"),
+				zap.String("url", w.url),
+				zap.String("contract", w.contract.String()),
+			)
 		}
 	}
 
@@ -294,110 +375,34 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case r := <-w.obsvReqC:
-				// This can't happen unless there is a programming error - the caller
-				// is expected to send us only requests for our chainID.
-				if vaa.ChainID(r.ChainId) != w.chainID {
-					panic("invalid chain ID")
-				}
-
-				tx := eth_common.BytesToHash(r.TxHash)
-				logger.Info("received observation request", zap.String("tx_hash", tx.Hex()))
-
-				// SECURITY: Load the block number before requesting the transaction to avoid a
-				// race condition where requesting the tx succeeds and is then dropped due to a fork,
-				// but blockNumberU had already advanced beyond the required threshold.
-				//
-				// In the primary watcher flow, this is of no concern since we assume the node
-				// always sends the head before it sends the logs (implicit synchronization
-				// by relying on the same websocket connection).
-				blockNumberU := atomic.LoadUint64(&w.latestFinalizedBlockNumber)
-				safeBlockNumberU := atomic.LoadUint64(&w.latestSafeBlockNumber)
-
-				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-				blockNumber, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, tx)
-				cancel()
-
-				if err != nil {
-					logger.Error("failed to process observation request", zap.String("tx_hash", tx.Hex()), zap.Error(err))
+				if r.ChainId > math.MaxUint16 {
+					logger.Error("chain id for observation request is not a valid uint16",
+						zap.Uint32("chainID", r.ChainId),
+						zap.String("txID", hex.EncodeToString(r.TxHash)),
+					)
 					continue
 				}
-
-				for _, msg := range msgs {
-					msg.IsReobservation = true
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-						logger.Info("re-observed message publication transaction, publishing it immediately",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.String("txHash", msg.TxIDString()),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-						)
-						w.msgC <- msg
-						continue
-					}
-
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe {
-						if safeBlockNumberU == 0 {
-							logger.Error("no safe block number available, ignoring observation request",
-								zap.String("msgId", msg.MessageIDString()),
-								zap.String("txHash", msg.TxIDString()),
-							)
-							continue
-						}
-
-						if blockNumber <= safeBlockNumberU {
-							logger.Info("re-observed message publication transaction",
-								zap.String("msgId", msg.MessageIDString()),
-								zap.String("txHash", msg.TxIDString()),
-								zap.Uint64("current_safe_block", safeBlockNumberU),
-								zap.Uint64("observed_block", blockNumber),
-							)
-							w.msgC <- msg
-						} else {
-							logger.Info("ignoring re-observed message publication transaction",
-								zap.String("msgId", msg.MessageIDString()),
-								zap.String("txHash", msg.TxIDString()),
-								zap.Uint64("current_safe_block", safeBlockNumberU),
-								zap.Uint64("observed_block", blockNumber),
-							)
-						}
-
-						continue
-					}
-
-					if blockNumberU == 0 {
-						logger.Error("no block number available, ignoring observation request",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.String("txHash", msg.TxIDString()),
-						)
-						continue
-					}
-
-					// SECURITY: In the recovery flow, we already know which transaction to
-					// observe, and we can assume that it has reached the expected finality
-					// level a long time ago. Therefore, the logic is much simpler than the
-					// primary watcher, which has to wait for finality.
-					//
-					// Instead, we can simply check if the transaction's block number is in
-					// the past by more than the expected confirmation number.
-					//
-					// Ensure that the current block number is larger than the message observation's block number.
-					if blockNumber <= blockNumberU {
-						logger.Info("re-observed message publication transaction",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.String("txHash", msg.TxIDString()),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-						)
-						w.msgC <- msg
-					} else {
-						logger.Info("ignoring re-observed message publication transaction",
-							zap.String("msgId", msg.MessageIDString()),
-							zap.String("txHash", msg.TxIDString()),
-							zap.Uint64("current_block", blockNumberU),
-							zap.Uint64("observed_block", blockNumber),
-						)
-					}
+				numObservations, err := w.handleReobservationRequest(
+					ctx,
+					vaa.ChainID(r.ChainId),
+					r.TxHash,
+					w.ethConn,
+					atomic.LoadUint64(&w.latestFinalizedBlockNumber),
+					atomic.LoadUint64(&w.latestSafeBlockNumber),
+				)
+				if err != nil {
+					logger.Error("failed to process observation request",
+						zap.Uint32("chainID", r.ChainId),
+						zap.String("txID", hex.EncodeToString(r.TxHash)),
+						zap.Error(err),
+					)
 				}
+
+				logger.Info("reobserved transactions",
+					zap.Uint32("chainID", r.ChainId),
+					zap.String("txID", hex.EncodeToString(r.TxHash)),
+					zap.Uint32("numObservations", numObservations),
+				)
 			}
 		}
 	})
@@ -429,7 +434,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					return nil
 				}
 
-				w.postMessage(logger, ev, blockTime)
+				w.postMessage(ctx, ev, blockTime)
 			}
 		}
 	})
@@ -481,7 +486,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if ev.Finality == connectors.Latest {
 					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.Height = int64(blockNumberU)
+					stats.Height = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 					w.updateNetworkStats(&stats)
 					w.ccqAddLatestBlock(ev)
 					continue
@@ -492,11 +497,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				if ev.Finality == connectors.Safe {
 					atomic.StoreUint64(&w.latestSafeBlockNumber, blockNumberU)
 					currentEthSafeHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.SafeHeight = int64(blockNumberU)
+					stats.SafeHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				} else {
 					atomic.StoreUint64(&w.latestFinalizedBlockNumber, blockNumberU)
 					currentEthFinalizedHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
-					stats.FinalizedHeight = int64(blockNumberU)
+					stats.FinalizedHeight = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
 				}
 				w.updateNetworkStats(&stats)
 
@@ -524,7 +529,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						// Check multiple possible error cases - the node seems to return a
 						// "not found" error most of the time, but it could conceivably also
 						// return a nil tx or rpc.ErrNoResult.
-						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
+						if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", pLock.message.TxIDString()),
@@ -614,8 +619,17 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("current_blockHash", currentHash),
 						)
 						delete(w.pending, key)
-						w.msgC <- pLock.message
-						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+
+						// Note that `tx` here is actually a receipt
+						txHash := eth_common.Hash(pLock.message.TxID)
+						pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
+						if pubErr != nil {
+							logger.Error("could not publish message",
+								zap.String("msgId", pLock.message.MessageIDString()),
+								zap.String("txHash", txHash.String()),
+								zap.Error(pubErr),
+							)
+						}
 					}
 				}
 
@@ -693,74 +707,9 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC
 // to make sure the node actually supports the expected values, and returns an error if it doesn't. Note that we do not support using safe mode but not finalized mode.
 func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
-	finalized := false
-	safe := false
-
-	// Tilt supports polling for both finalized and safe.
-	if w.env == common.UnsafeDevNet {
-		finalized = true
-		safe = true
-
-		// The following chains support polling for both finalized and safe.
-	} else if w.chainID == vaa.ChainIDAcala ||
-		w.chainID == vaa.ChainIDArbitrum ||
-		w.chainID == vaa.ChainIDArbitrumSepolia ||
-		w.chainID == vaa.ChainIDBase ||
-		w.chainID == vaa.ChainIDBaseSepolia ||
-		w.chainID == vaa.ChainIDBlast ||
-		w.chainID == vaa.ChainIDBSC ||
-		w.chainID == vaa.ChainIDEthereum ||
-		w.chainID == vaa.ChainIDHolesky ||
-		w.chainID == vaa.ChainIDHyperEVM ||
-		w.chainID == vaa.ChainIDInk ||
-		w.chainID == vaa.ChainIDKarura ||
-		w.chainID == vaa.ChainIDMantle ||
-		w.chainID == vaa.ChainIDMonad ||
-		w.chainID == vaa.ChainIDMonadDevnet ||
-		w.chainID == vaa.ChainIDMoonbeam ||
-		w.chainID == vaa.ChainIDOptimism ||
-		w.chainID == vaa.ChainIDOptimismSepolia ||
-		w.chainID == vaa.ChainIDSeiEVM ||
-		w.chainID == vaa.ChainIDSepolia ||
-		w.chainID == vaa.ChainIDSnaxchain ||
-		w.chainID == vaa.ChainIDUnichain ||
-		w.chainID == vaa.ChainIDWorldchain ||
-		w.chainID == vaa.ChainIDXLayer {
-		finalized = true
-		safe = true
-
-	} else if w.chainID == vaa.ChainIDCelo {
-		// TODO: Celo testnet now supports finalized and safe. As of January 2025, mainnet doesn't yet support safe. Once Celo mainnet cuts over, Celo can
-		// be added to the list above. That change won't be super urgent since we'll just continue to publish safe as finalized, which is not a huge deal.
-		finalized = true
-		safe = w.env != common.MainNet
-
-		// Polygon now supports polling for finalized but not safe.
-		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
-	} else if w.chainID == vaa.ChainIDPolygon ||
-		w.chainID == vaa.ChainIDPolygonSepolia {
-		finalized = true
-
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-	} else if w.chainID == vaa.ChainIDScroll {
-		finalized = true
-
-		// As of 9/06/2024 Linea supports polling for finalized but not safe.
-	} else if w.chainID == vaa.ChainIDLinea {
-		finalized = true
-
-		// The following chains support instant finality.
-	} else if w.chainID == vaa.ChainIDAvalanche ||
-		w.chainID == vaa.ChainIDBerachain || // Berachain supports instant finality: https://docs.berachain.com/faq/
-		w.chainID == vaa.ChainIDOasis ||
-		w.chainID == vaa.ChainIDAurora ||
-		w.chainID == vaa.ChainIDFantom ||
-		w.chainID == vaa.ChainIDKlaytn {
-		return false, false, nil
-
-		// Anything else is undefined / not supported.
-	} else {
-		return false, false, fmt.Errorf("unsupported chain: %s", w.chainID.String())
+	finalized, safe, err := GetFinality(w.env, w.chainID)
+	if err != nil {
+		return false, false, fmt.Errorf("failed to get finality for %s chain %v: %v", w.env, w.chainID, err)
 	}
 
 	// If finalized / safe should be supported, read the RPC to make sure they actually are.
@@ -830,10 +779,14 @@ func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (
 }
 
 // postMessage creates a message object from a log event and adds it to the pending list for processing.
-func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublished, blockTime uint64) {
-	message := &common.MessagePublication{
+func (w *Watcher) postMessage(
+	parentCtx context.Context,
+	ev *ethabi.AbiLogMessagePublished,
+	blockTime uint64,
+) {
+	msg := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
-		Timestamp:        time.Unix(int64(blockTime), 0),
+		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
 		EmitterChain:     w.chainID,
@@ -844,10 +797,10 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 
 	ethMessagesObserved.WithLabelValues(w.networkName).Inc()
 
-	if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-		logger.Info("found new message publication transaction, publishing it immediately",
-			zap.String("msgId", message.MessageIDString()),
-			zap.String("txHash", message.TxIDString()),
+	if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+		w.logger.Info("found new message publication transaction, publishing it immediately",
+			zap.String("msgId", msg.MessageIDString()),
+			zap.String("txHash", msg.TxIDString()),
 			zap.Uint64("blockNum", ev.Raw.BlockNumber),
 			zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 			zap.Stringer("blockHash", ev.Raw.BlockHash),
@@ -856,14 +809,23 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 		)
 
-		w.msgC <- message
-		ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+		verifyCtx, cancel := context.WithCancel(parentCtx)
+		defer cancel()
+
+		pubErr := w.verifyAndPublish(msg, verifyCtx, ev.Raw.TxHash, nil)
+		if pubErr != nil {
+			w.logger.Error("could not publish message: transfer verification failed",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.String("txHash", msg.TxIDString()),
+				zap.Error(pubErr),
+			)
+		}
 		return
 	}
 
-	logger.Info("found new message publication transaction",
-		zap.String("msgId", message.MessageIDString()),
-		zap.String("txHash", message.TxIDString()),
+	w.logger.Info("found new message publication transaction",
+		zap.String("msgId", msg.MessageIDString()),
+		zap.String("txHash", msg.TxIDString()),
 		zap.Uint64("blockNum", ev.Raw.BlockNumber),
 		zap.Uint64("latestFinalizedBlock", atomic.LoadUint64(&w.latestFinalizedBlockNumber)),
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
@@ -873,15 +835,15 @@ func (w *Watcher) postMessage(logger *zap.Logger, ev *ethabi.AbiLogMessagePublis
 	)
 
 	key := pendingKey{
-		TxHash:         eth_common.BytesToHash(message.TxID),
+		TxHash:         eth_common.BytesToHash(msg.TxID),
 		BlockHash:      ev.Raw.BlockHash,
-		EmitterAddress: message.EmitterAddress,
-		Sequence:       message.Sequence,
+		EmitterAddress: msg.EmitterAddress,
+		Sequence:       msg.Sequence,
 	}
 
 	w.pendingMu.Lock()
 	w.pending[key] = &pendingMessage{
-		message: message,
+		message: msg,
 		height:  ev.Raw.BlockNumber,
 	}
 	w.pendingMu.Unlock()
@@ -898,6 +860,53 @@ var blockNotFoundErrors = map[string]struct{}{
 func canRetryGetBlockTime(err error) bool {
 	_, exists := blockNotFoundErrors[err.Error()]
 	return exists
+}
+
+// verifyAndPublish validates a MessagePublication to ensure that it's safe. If so, it broadcasts the message. This function
+// should be the only location where the watcher's msgC channel is written to.
+// Modifies the verificationState field of the message as a side-effect.
+// Even if an invalid Transfer is detected, the message will still be published. It is the responsibility of the calling code to handle
+// a status of Rejected.
+// Note that the result of verification is not returned by this function, but can be accessed directly via the reference to message.
+func (w *Watcher) verifyAndPublish(
+	// Must be non-nil and have verificationState equal to NotVerified.
+	msg *common.MessagePublication,
+	ctx context.Context,
+	// TODO: in practice it might be possible to read the txHash from the MessagePublication and so this argument might be redundant
+	txHash eth_common.Hash,
+	// This argument is only used when Transfer Verifier is enabled. If nil, transfer verifier will fetch the receipt.
+	// Otherwise, the receipt in the calling context can be passed here to save on RPC requests and parsing.
+	receipt *gethTypes.Receipt,
+) error {
+
+	if msg == nil {
+		return errors.New("verifyAndPublish: message publication cannot be nil")
+	}
+
+	if w.txVerifier != nil {
+		verifiedMsg, err := verify(ctx, msg, txHash, receipt, w.txVerifier)
+
+		if err != nil {
+			return err
+		}
+		msg = &verifiedMsg
+		w.logger.Debug(
+			"verified transfer",
+			msg.ZapFields()...,
+		)
+	}
+
+	w.logger.Debug(
+		"publishing new message publication",
+		msg.ZapFields()...,
+	)
+	w.msgC <- msg
+	ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+	if msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(w.chainID.String(), "std").Inc()
+	}
+	return nil
+
 }
 
 // waitForBlockTime is a go routine that repeatedly attempts to read the block time for a single log event. It is used when the initial attempt to read
@@ -938,7 +947,7 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 					zap.Int("retries", retries),
 				)
 
-				w.postMessage(logger, ev, blockTime)
+				w.postMessage(ctx, ev, blockTime)
 				return
 			}
 
@@ -972,4 +981,27 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
 func msgIdFromLogEvent(chainID vaa.ChainID, ev *ethabi.AbiLogMessagePublished) string {
 	return fmt.Sprintf("%v/%v/%v", uint16(chainID), PadAddress(ev.Sender), ev.Sequence)
+}
+
+// createConnector determines the type of connector needed for a chain and creates the appropriate one.
+func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn connectors.Connector, finalizedPollingSupported, safePollingSupported bool, err error) {
+	finalizedPollingSupported, safePollingSupported, err = w.getFinality(ctx)
+	if err != nil {
+		err = fmt.Errorf("failed to determine finality: %w", err)
+		return
+	}
+
+	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.logger)
+	if err != nil {
+		err = fmt.Errorf("dialing eth client failed: %w", err)
+		return
+	}
+
+	// We support two types of pollers, the batch poller and the instant finality poller. Instantiate the right one.
+	if finalizedPollingSupported {
+		ethConn = connectors.NewBatchPollConnector(ctx, w.logger, baseConnector, safePollingSupported, 1000*time.Millisecond)
+	} else {
+		ethConn = connectors.NewInstantFinalityConnector(baseConnector, w.logger)
+	}
+	return
 }

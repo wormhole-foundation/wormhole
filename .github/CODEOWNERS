@@ -1,6 +1,6 @@
 # Default
 
-* @evan-gray
+* @evan-gray @djb15
 
 # Chains
 
@@ -52,6 +52,10 @@
 
 /node/cmd/ @bruce-riley @panoel @evan-gray
 
+## Transfer Verifier standalone tool
+
+/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## DB
 
 /node/pkg/db/ @bruce-riley @evan-gray @panoel
@@ -62,7 +66,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @claudijd @SEJeff @djb15 @johnsaigle
+/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Gateway Relayer
 
@@ -84,6 +88,10 @@
 
 /node/pkg/supervisor/ @bruce-riley @evan-gray @panoel
 
+## Transfer Verifier
+
+/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## Watchers
 
 /node/pkg/watchers @evan-gray @bruce-riley @panoel
@@ -91,7 +99,7 @@
 ## Hacks / Tools
 
 /node/hack/ @bruce-riley @panoel @evan-gray
-/node/hack/governor @claudijd @SEJeff @djb15 @johnsaigle
+/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Documentation
 
