@@ -15,7 +15,8 @@ import (
 // Constants
 const (
 	MAX_DECIMALS = 8
-	KEY_FORMAT   = "%s-%d"
+	// A pair of origin address and origin chain to identify assets moving in and out of the bridge.
+	KEY_FORMAT = "%s-%d"
 )
 
 // Extracts the value at the given path from the JSON object, and casts it to
