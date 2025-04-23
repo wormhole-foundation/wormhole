@@ -47,6 +47,8 @@ var (
 	ERC20_DECIMALS_SIGNATURE = []byte("\x31\x3c\xe5\x67")
 	// chainId() => 0x9a8a0592
 	WRAPPED_ERC20_CHAIN_ID_SIGNATURE = []byte("\x9a\x8a\x05\x92")
+	// nativeContract() => 0x3d6c043b
+	WRAPPED_ERC20_NATIVE_CONTRACT_SIGNATURE = []byte("\x3d\x6c\x04\x3b")
 )
 
 // Fixed addresses
@@ -112,20 +114,20 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// The block height difference between the latest block and the oldest block to keep in memory.
 	pruneHeightDelta uint64
 
-	// Holds previously-recorded decimals (uint8) for token addresses
-	// (common.Address) that have been observed.
-	decimalsCache map[common.Address]uint8
-
-	// Records whether an asset is wrapped but does not store the native data
+	// Cached calls to `isWrapped()` on the token bridge.
 	isWrappedCache map[string]bool
 
-	// Maps the 32-byte token addresses received via LogMessagePublished
-	// events to their unwrapped 20-byte addresses. This mapping is also
-	// used for non-wrapped token addresses.
+	// Cached calls to `wrappedAsset()` on the token bridge.
 	wrappedCache map[string]common.Address
 
-	// Native chain cache for wrapped assets.
-	nativeChainCache map[string]vaa.ChainID
+	// Cached calls to `chainId()` for wrapped asset contracts.
+	chainIdCache map[string]vaa.ChainID
+
+	// Cached calls to `nativeContract()` for wrapped asset contracts.
+	nativeContractCache map[string]vaa.Address
+
+	// Cached calls to `decimals()` for token contracts (both wrapped and native).
+	decimalsCache map[common.Address]uint8
 }
 
 func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
@@ -158,10 +160,11 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		processedTransactions: make(map[common.Hash]*types.Receipt),
 		lastBlockNumber:       0,
 		pruneHeightDelta:      pruneHeightDelta,
-		decimalsCache:         make(map[common.Address]uint8),
 		isWrappedCache:        make(map[string]bool),
 		wrappedCache:          make(map[string]common.Address),
-		nativeChainCache:      make(map[string]vaa.ChainID),
+		chainIdCache:          make(map[string]vaa.ChainID),
+		nativeContractCache:   make(map[string]vaa.Address),
+		decimalsCache:         make(map[common.Address]uint8),
 	}, nil
 }
 
@@ -366,7 +369,9 @@ func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (destinat
 type ERC20Transfer struct {
 	// The address of the token. Also equivalent to the Emitter of the event.
 	TokenAddress common.Address
-	// The native chain of the token (where it was minted)
+	// The origin address of the token. (The "unwrapped" address.)
+	OriginAddr vaa.Address
+	// The origin chain of the token (where it was minted).
 	TokenChain vaa.ChainID
 	From       common.Address
 	To         common.Address
@@ -399,7 +404,7 @@ func (t *ERC20Transfer) OriginChain() vaa.ChainID {
 }
 
 func (t *ERC20Transfer) OriginAddress() vaa.Address {
-	return VAAAddrFrom(t.TokenAddress)
+	return t.OriginAddr
 }
 
 func (t *ERC20Transfer) String() string {
@@ -467,7 +472,6 @@ func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (from comm
 }
 
 // Abstraction over a LogMessagePublished event emitted by the core bridge.
-// TODO add String() method
 type LogMessagePublished struct {
 	// Which contract emitted the event.
 	EventEmitter common.Address
@@ -510,7 +514,7 @@ func (l *LogMessagePublished) TransferAmount() (amount *big.Int) {
 
 func (l *LogMessagePublished) OriginAddress() (origin vaa.Address) {
 	if l.TransferDetails != nil {
-		origin = VAAAddrFrom(l.TransferDetails.OriginAddress)
+		origin = l.TransferDetails.OriginAddress
 	}
 	return
 }
@@ -658,19 +662,21 @@ type TransferDetails struct {
 	AmountRaw *big.Int
 	// Original wormhole chain ID where the token was minted.
 	TokenChain vaa.ChainID
-	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge.
-	OriginAddress common.Address
-	// Raw token address parsed from the payload. May be wrapped.
-	OriginAddressRaw []byte
+	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge
+	// for assets minted on a chain other than the one being monitored by the Transfer Verifier.
+	OriginAddress vaa.Address
+	// Raw token address parsed from the Transfer payload. OriginAddress should be used instead of this field
+	// when comparing assets.
+	OriginAddressRaw vaa.Address
 	// Not necessarily an EVM address, so vaa.Address is used instead
 	TargetAddress vaa.Address
 }
 
 func (td *TransferDetails) String() string {
 	return fmt.Sprintf(
-		"PayloadType: %d OriginAddressRaw(hex-encoded): %s TokenChain: %d OriginAddress: %s TargetAddress: %s AmountRaw: %s Amount: %s",
+		"PayloadType: %d OriginAddressRaw: %s TokenChain: %d OriginAddress: %s TargetAddress: %s AmountRaw: %s Amount: %s",
 		td.PayloadType,
-		fmt.Sprintf("%x", td.OriginAddressRaw),
+		td.OriginAddressRaw.String(),
 		td.TokenChain,
 		td.OriginAddress.String(),
 		td.TargetAddress.String(),
@@ -679,16 +685,18 @@ func (td *TransferDetails) String() string {
 	)
 }
 
-// unwrapIfWrapped returns the "unwrapped" address for a token a.k.a. the OriginAddress
-// of the token's original minting contract.
-func (tv *TransferVerifier[ethClient, connector]) unwrapIfWrapped(
-	tokenAddress []byte,
+// wrappedAddr returns the "wrapped" EVM address for a token specified by its 32-byte address and chain ID.
+func (tv *TransferVerifier[ethClient, connector]) wrappedAddr(
+	addrBytes vaa.Address,
 	tokenChain vaa.ChainID,
-) (unwrappedTokenAddress common.Address, err error) {
+) (common.Address, error) {
+	if tokenChain == tv.chainIds.wormholeChainId {
+		return ZERO_ADDRESS, errors.New("wrappedAddr query issued for token chain equal to the one being monitored")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
 
-	tokenAddressAsKey := hex.EncodeToString(tokenAddress)
+	tokenAddressAsKey := hex.EncodeToString(addrBytes.Bytes())
 
 	// If the token address already exists in the wrappedCache mapping the
 	// cached value can be returned.
@@ -703,7 +711,7 @@ func (tv *TransferVerifier[ethClient, connector]) unwrapIfWrapped(
 	copy(calldata, TOKEN_BRIDGE_WRAPPED_ASSET_SIGNATURE)
 	// Add the uint16 tokenChain as the last two bytes in the first argument
 	binary.BigEndian.PutUint16(calldata[4+30:], uint16(tokenChain))
-	copy(calldata[4+EVM_WORD_LENGTH:], common.LeftPadBytes(tokenAddress, EVM_WORD_LENGTH))
+	copy(calldata[4+EVM_WORD_LENGTH:], addrBytes[:])
 
 	ethCallMsg := ethereum.CallMsg{
 		To:   &tv.Addresses.TokenBridgeAddr,
@@ -712,51 +720,52 @@ func (tv *TransferVerifier[ethClient, connector]) unwrapIfWrapped(
 	tv.logger.Debug("calling wrappedAsset",
 		zap.Uint16("tokenChain", uint16(tokenChain)),
 		zap.String("tokenChainString", tokenChain.String()),
-		zap.String("tokenAddress", fmt.Sprintf("%x", tokenAddress)),
+		zap.String("tokenAddress", fmt.Sprintf("%x", addrBytes)),
 		zap.String("callData", fmt.Sprintf("%x", calldata)))
 
 	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
 	if err != nil {
 		// This strictly handles the error case. The contract call will
 		// return the zero address for assets not in its map.
-		return common.Address{}, fmt.Errorf("failed to get mapping for token %s", tokenAddressAsKey)
+		return ZERO_ADDRESS, fmt.Errorf("failed to get mapping for token %s", tokenAddressAsKey)
 	}
 
-	tokenAddressNative := common.BytesToAddress(result)
-	tv.wrappedCache[tokenAddressAsKey] = tokenAddressNative
+	wrappedAddr := common.BytesToAddress(result)
+	tv.wrappedCache[tokenAddressAsKey] = wrappedAddr
 
 	tv.logger.Debug("got wrappedAsset result",
-		zap.String("tokenAddressNative", fmt.Sprintf("%x", tokenAddressNative)))
+		zap.String("wrappedAddress", fmt.Sprintf("%x", wrappedAddr)))
 
-	if Cmp(tokenAddressNative, ZERO_ADDRESS) == 0 {
+	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
 		tv.logger.Info("got zero address for wrappedAsset result. this asset is probably not registered correctly",
-			zap.String("queried tokenAddress", fmt.Sprintf("%x", tokenAddress)),
+			zap.String("queried tokenAddress", fmt.Sprintf("%x", addrBytes)),
 			zap.Uint16("queried tokenChain", uint16(tokenChain)),
 			zap.String("tokenChain name", tokenChain.String()),
 		)
 	}
 
-	return tokenAddressNative, nil
+	return wrappedAddr, nil
 }
 
 // chainId() calls the chainId() function on the contract at the supplied address. To get the chain ID being monitored
 // by the Transfer Verifier, use the field TransferVerifier.chain.
+// The argument must be a wrapped address.
 func (tv *TransferVerifier[ethClient, Connector]) chainId(
-	addr common.Address,
+	wrappedAddr common.Address,
 ) (vaa.ChainID, error) {
 
-	if Cmp(addr, ZERO_ADDRESS) == 0 {
-		return 0, errors.New("got zero address as parameter for chainId() call")
+	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
+		return vaa.ChainIDUnset, errors.New("got zero address as parameter for chainId() call")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
 
-	tokenAddressAsKey := addr.Hex()
+	tokenAddressAsKey := wrappedAddr.Hex()
 
 	// If the token address already exists in the wrappedCache mapping the
 	// cached value can be returned.
-	if chainId, exists := tv.nativeChainCache[tokenAddressAsKey]; exists {
-		tv.logger.Debug("wrapped asset found in native chain cache, returning")
+	if chainId, exists := tv.chainIdCache[tokenAddressAsKey]; exists {
+		tv.logger.Debug("using cached chain ID", zap.String("tokenAddress", wrappedAddr.String()), zap.String("chainID", chainId.String()))
 		return chainId, nil
 	}
 
@@ -766,30 +775,99 @@ func (tv *TransferVerifier[ethClient, Connector]) chainId(
 	copy(calldata, WRAPPED_ERC20_CHAIN_ID_SIGNATURE)
 
 	ethCallMsg := ethereum.CallMsg{
-		To:   &addr,
+		To:   &wrappedAddr,
 		Data: calldata,
 	}
 
-	tv.logger.Debug("calling chainId()", zap.String("tokenAddress", addr.String()))
+	tv.logger.Debug("calling chainId()", zap.String("tokenAddress", wrappedAddr.String()))
 
 	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
 
 	if err != nil {
-		// TODO add more checks here
-		return 0, err
+		return vaa.ChainIDUnset, err
 	}
 	if len(result) < EVM_WORD_LENGTH {
 		tv.logger.Warn("result for chainId has insufficient length",
 			zap.Int("length", len(result)),
 			zap.String("result", fmt.Sprintf("%x", result)))
-		return 0, errors.New("result for chainId has insufficient length")
+		return vaa.ChainIDUnset, errors.New("result for chainId has insufficient length")
 	}
 
-	chainID := vaa.ChainID(binary.BigEndian.Uint16(result))
+	chainID, parseErr := vaa.ChainIDFromNumber(new(big.Int).SetBytes(result).Uint64())
+	if parseErr != nil {
+		return vaa.ChainIDUnset, parseErr
+	}
 
-	tv.nativeChainCache[tokenAddressAsKey] = chainID
+	tv.chainIdCache[tokenAddressAsKey] = chainID
 
 	return chainID, nil
+}
+
+// nativeContract calls the nativeContract() function on the contract at the supplied address.
+// Returns the origin address of the asset (32 bytes).
+// The argument must be a wrapped address.
+func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
+	wrappedAddr common.Address,
+) (vaa.Address, error) {
+
+	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
+		return ZERO_ADDRESS_VAA, errors.New("got zero address as parameter for chainId() call")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
+	defer cancel()
+
+	tokenAddressAsKey := wrappedAddr.Hex()
+
+	// If the token address already exists in the wrappedCache mapping the
+	// cached value can be returned.
+	if originAddr, exists := tv.nativeContractCache[tokenAddressAsKey]; exists {
+		tv.logger.Debug("using cached origin address", zap.String("tokenAddress", wrappedAddr.String()), zap.String("chainID", originAddr.String()))
+		return originAddr, nil
+	}
+
+	// prepare eth_call data, 4-byte signature
+	calldata := make([]byte, 4)
+
+	copy(calldata, WRAPPED_ERC20_NATIVE_CONTRACT_SIGNATURE)
+
+	ethCallMsg := ethereum.CallMsg{
+		To:   &wrappedAddr,
+		Data: calldata,
+	}
+
+	tv.logger.Debug("calling nativeContract()", zap.String("tokenAddress", wrappedAddr.String()))
+
+	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
+
+	if err != nil {
+		return ZERO_ADDRESS_VAA, err
+	}
+	if len(result) < EVM_WORD_LENGTH {
+		msg := "result for nativeContract() has insufficient length"
+		tv.logger.Warn(msg,
+			zap.Int("len", len(result)),
+			zap.String("result", fmt.Sprintf("%x", result)))
+		return ZERO_ADDRESS_VAA, errors.New(msg)
+	}
+
+	if bytes.Equal(result, ZERO_ADDRESS.Bytes()) {
+		msg := "nativeContract() returned the zero address"
+		tv.logger.Warn(msg,
+			zap.Int("len", len(result)),
+			zap.String("result", fmt.Sprintf("%x", result)))
+
+		return ZERO_ADDRESS_VAA, errors.New(msg)
+	}
+
+	originAddr, convertErr := vaa.BytesToAddress(result)
+	if convertErr != nil {
+		return ZERO_ADDRESS_VAA, convertErr
+	}
+
+	// Insert into cache.
+	tv.nativeContractCache[tokenAddressAsKey] = originAddr
+
+	return originAddr, nil
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
@@ -823,7 +901,6 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 	result, err := tv.client.CallContract(ctx, evmCallMsg, nil)
 
 	if err != nil {
-		// TODO add more info here
 		tv.logger.Warn("isWrappedAsset() call error", zap.Error(err))
 		return false, err
 	}
@@ -960,10 +1037,9 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
 
-		// TODO is this valid for assets that return the zero address from unwrap?
-		// if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-		// 	return errors.New("origin cannot be zero")
-		// }
+		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+			return &InvalidLogError{Msg: "origin cannot be zero"}
+		}
 
 		// The following values are not exposed by the interface, so check them directly here.
 		if log.TransferDetails == nil {
@@ -973,13 +1049,9 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "target address cannot be zero"}
 		}
 
-		if len(log.TransferDetails.OriginAddressRaw) == 0 {
-			return &InvalidLogError{Msg: "origin address raw cannot be empty"}
+		if bytes.Equal(log.TransferDetails.OriginAddressRaw.Bytes(), ZERO_ADDRESS_VAA.Bytes()) {
+			return &InvalidLogError{Msg: "origin address raw cannot be zero"}
 		}
-
-		// if bytes.Compare(log.TransferDetails.OriginAddressRaw, ZERO_ADDRESS_VAA.Bytes()) == 0 {
-		// 	return &InvalidLogError{Msg: "origin address raw cannot be zero"}
-		// }
 
 		if log.TransferDetails.AmountRaw == nil {
 			return &InvalidLogError{Msg: "amountRaw cannot be nil"}
