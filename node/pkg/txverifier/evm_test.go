@@ -22,14 +22,22 @@ import (
 	ipfslog "github.com/ipfs/go-log/v2"
 )
 
-// Important addresses for testing. Arbitrary, but Ethereum mainnet values used here
+// Important addresses for testing. Arbitrary, but Ethereum mainnet values used here.
 var (
 	coreBridgeAddr  = common.HexToAddress("0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B")
 	tokenBridgeAddr = common.HexToAddress("0x3ee18B2214AFF97000D974cf647E7C347E8fa585")
-	nativeAddr      = common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") // weth
-	usdcAddr        = common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-	eoaAddrGeth     = common.HexToAddress("0xbeefcafe")
-	eoaAddrVAA, _   = vaa.BytesToAddress([]byte{0xbe, 0xef, 0xca, 0xfe})
+
+	// WETH
+	nativeAddrGeth   = common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+	nativeAddrVAA, _ = vaa.BytesToAddress(nativeAddrGeth.Bytes())
+
+	// USDC
+	usdcAddrGeth   = common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+	usdcAddrVAA, _ = vaa.BytesToAddress(usdcAddrGeth.Bytes())
+
+	// EOA account representing a transaction sender.
+	eoaAddrGeth   = common.HexToAddress("0xbeefcafe")
+	eoaAddrVAA, _ = vaa.BytesToAddress([]byte{0xbe, 0xef, 0xca, 0xfe})
 )
 
 type mockConnections struct {
@@ -78,7 +86,7 @@ func setup() *mockConnections {
 		Addresses: &TVAddresses{
 			CoreBridgeAddr:    coreBridgeAddr,
 			TokenBridgeAddr:   tokenBridgeAddr,
-			WrappedNativeAddr: nativeAddr,
+			WrappedNativeAddr: nativeAddrGeth,
 		},
 		chainIds:     &chainIds{evmChainId: 1, wormholeChainId: vaa.ChainIDEthereum},
 		evmConnector: &mockConnector{},
@@ -99,7 +107,7 @@ func setup() *mockConnections {
 var (
 	// A valid transfer log for an ERC20 transfer event.
 	transferLog = &types.Log{
-		Address: usdcAddr,
+		Address: usdcAddrGeth,
 		Topics: []common.Hash{
 			// Transfer(address,address,uint256)
 			common.HexToHash(EVENTHASH_ERC20_TRANSFER),
@@ -163,7 +171,7 @@ func TestParseReceiptHappyPath(t *testing.T) {
 					{
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
-						TokenAddress: usdcAddr,
+						TokenAddress: usdcAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
 						Amount:       big.NewInt(1),
 					},
@@ -174,7 +182,7 @@ func TestParseReceiptHappyPath(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: common.LeftPadBytes(usdcAddr.Bytes(), EVM_WORD_LENGTH),
+							OriginAddressRaw: usdcAddrVAA,
 							TokenChain:       2, // Wormhole ethereum chain ID
 							AmountRaw:        big.NewInt(1),
 							TargetAddress:    eoaAddrVAA,
@@ -218,7 +226,7 @@ func TestParseReceiptHappyPath(t *testing.T) {
 				assert.Zero(t, expectedMessages[0].TransferDetails.AmountRaw.Cmp(ret.TransferDetails.AmountRaw))
 
 				// Amount and OriginAddress are not populated by ParseReceipt
-				assert.Equal(t, common.BytesToAddress([]byte{0x00}), ret.TransferDetails.OriginAddress)
+				assert.Equal(t, vaa.Address{}, ret.TransferDetails.OriginAddress)
 				assert.Nil(t, ret.TransferDetails.Amount)
 			}
 
@@ -457,7 +465,7 @@ func TestProcessReceipt(t *testing.T) {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{
 					{
-						TokenAddress: nativeAddr,
+						TokenAddress: nativeAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
 						Receiver:     tokenBridgeAddr,
 						Amount:       big.NewInt(123),
@@ -470,8 +478,8 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddr.Bytes(),
-							OriginAddress:    nativeAddr,
+							OriginAddressRaw: nativeAddrVAA,
+							OriginAddress:    nativeAddrVAA,
 							TargetAddress:    eoaAddrVAA,
 							TokenChain:       2,
 							AmountRaw:        big.NewInt(123),
@@ -488,7 +496,7 @@ func TestProcessReceipt(t *testing.T) {
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
 					{
-						TokenAddress: usdcAddr,
+						TokenAddress: usdcAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
@@ -501,8 +509,8 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: usdcAddr.Bytes(),
-							OriginAddress:    usdcAddr,
+							OriginAddressRaw: usdcAddrVAA,
+							OriginAddress:    usdcAddrVAA,
 							TokenChain:       2,
 							TargetAddress:    eoaAddrVAA,
 							AmountRaw:        big.NewInt(456),
@@ -518,7 +526,7 @@ func TestProcessReceipt(t *testing.T) {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{
 					{
-						TokenAddress: nativeAddr,
+						TokenAddress: nativeAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
 						Receiver:     tokenBridgeAddr,
 						Amount:       big.NewInt(999),
@@ -531,9 +539,9 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddr.Bytes(),
+							OriginAddressRaw: nativeAddrVAA,
 							TokenChain:       2,
-							OriginAddress:    nativeAddr,
+							OriginAddress:    nativeAddrVAA,
 							TargetAddress:    eoaAddrVAA,
 							AmountRaw:        big.NewInt(321),
 							Amount:           big.NewInt(321),
@@ -549,7 +557,7 @@ func TestProcessReceipt(t *testing.T) {
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
 					{
-						TokenAddress: usdcAddr,
+						TokenAddress: usdcAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
@@ -562,8 +570,8 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: usdcAddr.Bytes(),
-							OriginAddress:    usdcAddr,
+							OriginAddressRaw: usdcAddrVAA,
+							OriginAddress:    usdcAddrVAA,
 							TargetAddress:    eoaAddrVAA,
 							TokenChain:       2,
 							AmountRaw:        big.NewInt(321),
@@ -579,7 +587,7 @@ func TestProcessReceipt(t *testing.T) {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{
 					{
-						TokenAddress: nativeAddr,
+						TokenAddress: nativeAddrGeth,
 						TokenChain:   NATIVE_CHAIN_ID,
 						Receiver:     tokenBridgeAddr,
 						Amount:       big.NewInt(10),
@@ -592,8 +600,8 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddr.Bytes(),
-							OriginAddress:    nativeAddr,
+							OriginAddressRaw: nativeAddrVAA,
+							OriginAddress:    nativeAddrVAA,
 							TargetAddress:    eoaAddrVAA,
 							TokenChain:       vaa.ChainIDEthereum,
 							AmountRaw:        big.NewInt(11),
@@ -610,7 +618,7 @@ func TestProcessReceipt(t *testing.T) {
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
 					{
-						TokenAddress: usdcAddr,
+						TokenAddress: usdcAddrGeth,
 						TokenChain:   NATIVE_CHAIN_ID,
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
@@ -623,8 +631,8 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddr.Bytes(),
-							OriginAddress:    nativeAddr,
+							OriginAddressRaw: nativeAddrVAA,
+							OriginAddress:    nativeAddrVAA,
 							TargetAddress:    eoaAddrVAA,
 							TokenChain:       2,
 							AmountRaw:        big.NewInt(2),
@@ -641,7 +649,7 @@ func TestProcessReceipt(t *testing.T) {
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
 					{
-						TokenAddress: usdcAddr,
+						TokenAddress: usdcAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
@@ -654,8 +662,8 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddr.Bytes(),
-							OriginAddress:    nativeAddr,
+							OriginAddressRaw: nativeAddrVAA,
+							OriginAddress:    nativeAddrVAA,
 							TargetAddress:    eoaAddrVAA,
 							TokenChain:       2,
 							AmountRaw:        big.NewInt(2),
@@ -813,11 +821,11 @@ func transferTokensPayload(payloadAmount *big.Int) (data []byte) {
 
 	payloadType := []byte{0x01} // transferTokens, not padded
 	amount := common.LeftPadBytes(payloadAmount.Bytes(), 32)
-	tokenAddress := common.LeftPadBytes(usdcAddr.Bytes(), 32)
+	tokenAddress := usdcAddrVAA.Bytes()
 	tokenChain := common.LeftPadBytes([]byte{0x02}, 2) // Eth wormhole chain ID, uint16
 	to := common.LeftPadBytes([]byte{0xbe, 0xef, 0xca, 0xfe}, 32)
 	toChain := common.LeftPadBytes([]byte{0x01}, 2) // Eth wormhole chain ID, uint16
-	fee := common.LeftPadBytes([]byte{0x00}, 32)    // Solana wormhole chain ID, uint16
+	fee := common.LeftPadBytes([]byte{0x00}, 32)
 	data = append(data, payloadType...)
 	data = append(data, amount...)
 	data = append(data, tokenAddress...)

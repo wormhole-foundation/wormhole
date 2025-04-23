@@ -19,18 +19,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// // Global variables for caching RPC responses.
-// var (
-
-// )
-
 const (
 	// Seconds to wait before trying to reconnect to the core contract event subscription.
 	RECONNECT_DELAY = 5 * time.Second
 )
 
-// ProcessEvent processes a LogMessagePublished event, and is either called
-// from a watcher or from the transfer verifier standalone process. It fetches
+// TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
+var (
+	ErrNotTransfer = errors.New("payload is not a token transfer")
+)
+
+// ProcessEvent processes a LogMessagePublished event. It fetches
 // the full transaction receipt associated with the txHash, and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
 // transfers and token deposits into the token bridge as inbound transfers. It then
@@ -49,7 +48,7 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	tv.pruneCache()
 
 	if Cmp(txHash, ZERO_ADDRESS) == 0 {
-		tv.logger.Error("txHash is all zeroes")
+		tv.logger.Error("txHash is the zero address")
 		return false
 	}
 
@@ -155,17 +154,21 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 // Do additional processing on the raw data that has been parsed. This
 // consists of checking whether assets are wrapped for both ERC20
 // Transfer logs and LogMessagePublished events. If so, unwrap the
-// assets and fetch information about the native chain, native address,
-// and token decimals. All of this information is required to determine
+// assets and fetch information about the origin chain, origin address,
+// and token decimals.
+//
+// All of this information is required to determine
 // whether the amounts deposited into the token bridge match the amount
-// that was requested out. This is done separately from parsing step so
+// that was requested out.
+//
+// This is done separately from parsing step so
 // that RPC calls are done independently of parsing code, which
 // facilitates testing.
-// Updates the receipt parameter directly.
+//
+// Updates the receipt argument directly.
 func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 	receipt *TransferReceipt,
-) (updateErr error) {
-
+) error {
 	if receipt == nil {
 		return errors.New("UpdateReceiptDetails was called with a nil Transfer Receipt")
 	}
@@ -183,96 +186,138 @@ func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 		zap.String("receiptRaw", receipt.String()),
 	)
 
-	// Populate details for all transfers in this receipt.
-	tv.logger.Debug("populating native data for ERC20 Transfers")
-	for _, transfer := range *receipt.Transfers {
-		// The native address is returned here, but it is ignored. The goal here is only to correct
-		// the native chain ID so that it can be compared against the destination asset in the
-		// LogMessagePublished payload.
-		nativeChainID, _, fetchErr := tv.fetchNativeInfo(transfer.TokenAddress, transfer.TokenChain)
-		if fetchErr != nil {
-			// It's somewhat common for transfers to be made across the bridge for assets
-			// that are not properly registered. In this case, calls to isWrappedAsset() on
-			// the Token Bridge will return true but the calls to wrappedAsset() will return
-			// the zero address. In this case it's impossible to determine the decimals and
-			// therefore there is no way to compare the amount transferred or burned with
-			// the LogMessagePublished payload. In this case, we can't process this receipt.
-
-			return errors.Join(errors.New("error when fetching native info for ERC20 Transfer. Can't continue to process this receipt"), fetchErr)
+	// Populate the origin chain ID and address fields for ERC20 transfers so that they can be compared against the destination asset in the
+	// LogMessagePublished payload.
+	tv.logger.Debug("populating origin chain ID for ERC20 Transfers")
+	for i, transfer := range *receipt.Transfers {
+		tv.logger.Debug("processing transfer", zap.Int("index", i))
+		isWrapped, isWrappedErr := tv.isWrappedAsset(transfer.TokenAddress)
+		if isWrappedErr != nil {
+			return errors.Join(errors.New("isWrapped: Can't get isWrappedAsset result for token. Can't continue to process this receipt"), isWrappedErr)
 		}
 
-		// Update ChainID if this is a wrapped asset
-		if nativeChainID != 0 {
-			tv.logger.Debug("updating chain ID for Token with its native chain ID",
-				zap.String("tokenAddr", transfer.TokenChain.String()),
-				zap.Uint16("new chainID", uint16(nativeChainID)),
-				zap.String("chain name", nativeChainID.String()))
-			transfer.TokenChain = nativeChainID
+		if !isWrapped {
+			tv.logger.Debug("token is native (not wrapped)")
+			transfer.OriginAddr = VAAAddrFrom(transfer.TokenAddress)
+			transfer.TokenChain = tv.chainIds.wormholeChainId
 			continue
 		}
 
-		tv.logger.Debug("token is native. no info updated")
+		queryAddr := transfer.TokenAddress
+
+		// Update ChainID
+		originChain, fetchErr := tv.chainId(queryAddr)
+		if fetchErr != nil {
+			return errors.Join(errors.New("chainId: Can't get chainId for token. Can't continue to process this receipt"), fetchErr)
+		}
+		if originChain == vaa.ChainIDUnset {
+			return errors.Join(errors.New("chainId: chainId for token is unset after query. Can't continue to process this receipt"))
+		}
+
+		tv.logger.Debug("updating chain ID for Token with its origin chain ID",
+			zap.String("tokenAddr", transfer.TokenAddress.String()),
+			zap.Uint16("new chainID", uint16(originChain)),
+			zap.String("chain name", originChain.String()))
+
+		transfer.TokenChain = originChain
+
+		// Find the origin address by querying the wrapped asset address.
+		nativeAddr, err := tv.nativeContract(queryAddr)
+		if err != nil {
+			return errors.Join(errors.New("chainId: chainId for token is unset after query. Can't continue to process this receipt"))
+		}
+
+		tv.logger.Debug("got origin address",
+			zap.String("originAddress", nativeAddr.String()),
+		)
+
+		transfer.OriginAddr = nativeAddr
+		tv.logger.Debug("updated origin address for Transfer",
+			zap.String("tokenAddr", transfer.TokenAddress.String()),
+			zap.String("originAddr", transfer.OriginAddress().String()),
+		)
 	}
 
-	// Populate the native asset information and token decimals for assets
-	// recorded in LogMessagePublished events for this receipt.
+	// Populate Amount and OriginAddress based on raw byte info.
+	// The unwrapped address and the denormalized amount are necessary for checking
+	// that the amount matches.
 	tv.logger.Debug("populating native data for LogMessagePublished assets")
-	for _, message := range *receipt.MessagePublications {
+	for i, message := range *receipt.MessagePublications {
+		tv.logger.Debug("processing message publication", zap.Int("index", i))
 		newDetails, logFetchErr := tv.fetchLogMessageDetails(message.TransferDetails)
 		if logFetchErr != nil {
-			// The unwrapped address and the denormalized amount are necessary for checking
-			// that the amount matches.
 			return errors.Join(errors.New("error when populating wormhole details. cannot verify receipt"), logFetchErr)
+		}
+		if newDetails == nil {
+			errMsg := "fetchLogMessageDetails returned nil but did not return error. cannot continue"
+			tv.logger.Error(errMsg, zap.String("message", message.String()))
+			return errors.New(errMsg)
 		}
 		message.TransferDetails = newDetails
 	}
 
 	tv.logger.Debug(
-		"new details for receipt",
+		"finished updating receipt details",
 		zap.String("receipt", receipt.String()),
 	)
 
-	tv.logger.Debug("finished updating receipt details")
 	return nil
 }
 
 // fetchNativeInfo queries the token bridge about whether the token address is wrapped, and if so, returns the native chain
-// and address where the token was minted.
-func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
-	tokenAddr common.Address,
-	tokenChain vaa.ChainID,
-) (nativeChain vaa.ChainID, nativeAddr common.Address, err error) {
-	tv.logger.Debug("checking if ERC20 asset is wrapped")
-
-	wrapped, isWrappedErr := tv.isWrappedAsset(tokenAddr)
-	if isWrappedErr != nil {
-		return 0, ZERO_ADDRESS, errors.Join(errors.New("could not check if asset was wrapped"), isWrappedErr)
-	}
-
-	if !wrapped {
-		tv.logger.Debug("asset is native (not wrapped)", zap.String("tokenAddr", tokenAddr.String()))
-		return 0, ZERO_ADDRESS, nil
-	}
-
-	// Unwrap the asset
-	unwrapped, unwrapErr := tv.unwrapIfWrapped(tokenAddr.Bytes(), tokenChain)
-	if unwrapErr != nil {
-		return 0, ZERO_ADDRESS, errors.Join(errors.New("error when unwrapping asset"), unwrapErr)
-	}
-
-	// Asset is wrapped but not in wrappedAsset map for the Token Bridge.
-	if Cmp(unwrapped, ZERO_ADDRESS) == 0 {
-		return 0, ZERO_ADDRESS, errors.New("asset is wrapped but unwrapping gave the zero address. this is an unusual asset or there is a bug in the program")
-	}
-
-	// Get the native chain ID
-	nativeChain, chainIdErr := tv.chainId(unwrapped)
-	if chainIdErr != nil {
-		return 0, ZERO_ADDRESS, errors.Join(errors.New("error when fetching chain ID"), chainIdErr)
-	}
-
-	return nativeChain, nativeAddr, nil
-}
+// and address where the token was minted. This is done using the `wrappedAsset()` function of the Token Bridge,
+// which requires the token address and token chain as arguments. These correspond to the 'meta' field built
+// from the initial attestation of the token.
+//
+// If the address is native (not wrapped), returns zero values and no error.
+// func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
+// 	tokenAddr common.Address,
+// 	tokenChain vaa.ChainID,
+// ) (vaa.ChainID, vaa.Address, error) {
+// 	tv.logger.Debug("checking if ERC20 asset is wrapped")
+//
+// 	isWrapped, isWrappedErr := tv.isWrappedAsset(tokenAddr)
+// 	if isWrappedErr != nil {
+// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("could not check if asset was wrapped"), isWrappedErr)
+// 	}
+//
+// 	// If the asset is native (not wrapped), no further info is needed.
+// 	// TODO: sentinel error?
+// 	if !isWrapped {
+// 		tv.logger.Debug("asset is native (not wrapped)", zap.String("tokenAddr", tokenAddr.String()))
+// 		return 0, ZERO_ADDRESS_VAA, nil
+// 	}
+//
+// 	// Fetch the address of the wrapped token contract.
+// 	queryAddr, convertErr := vaa.BytesToAddress(tokenAddr[:])
+// 	if convertErr != nil {
+// 		return 0, ZERO_ADDRESS_VAA, errors.New("could not convert bytes to VAA address")
+// 	}
+//
+// 	wrappedArr, unwrapErr := tv.wrappedAddr(queryAddr, tokenChain)
+// 	if unwrapErr != nil {
+// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("error when unwrapping asset"), unwrapErr)
+// 	}
+//
+// 	// Asset is wrapped but not in wrappedAsset map for the Token Bridge.
+// 	if Cmp(wrappedArr, ZERO_ADDRESS) == 0 {
+// 		return 0, ZERO_ADDRESS_VAA, errors.New("asset is wrapped but unwrapping gave the zero address. this is an unusual asset or there is a bug in the program")
+// 	}
+//
+// 	// Get the native chain ID
+// 	originChain, chainIdErr := tv.chainId(tokenAddr)
+// 	if chainIdErr != nil {
+// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("error when fetching chain ID"), chainIdErr)
+// 	}
+//
+// 	// Get the native address
+// 	originAddr, chainIdErr := tv.nativeContract(tokenAddr)
+// 	if chainIdErr != nil {
+// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("error when fetching the native contract (origin address)"), chainIdErr)
+// 	}
+//
+// 	return originChain, originAddr, nil
+// }
 
 // ParseReceipt converts a go-ethereum receipt struct into a TransferReceipt.
 // It makes use of the ethConnector to parse information from the logs within
@@ -285,7 +330,7 @@ func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
 // This function is not responsible for checking that the values for the
 // various fields are relevant, only that they are well-formed.
 //
-// This function should return a nil TransferReceipt when an error is encountered.
+// This function should return a nil TransferReceipt when an error occurs.
 func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	receipt *geth.Receipt,
 ) (*TransferReceipt, error) {
@@ -379,6 +424,14 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 				continue
 			}
 
+			// This check is required. Payload parsing will fail if performed on a message emitted from another contract or sent
+			// by a contract other than the token bridge
+			if log.Address != tv.Addresses.CoreBridgeAddr {
+				tv.logger.Debug("skip: LogMessagePublished not emitted from the core bridge",
+					zap.String("emitter", log.Address.String()))
+				continue
+			}
+
 			// If there is no payload, then there's no point in further processing.
 			// This should never happen.
 			if len(logMessagePublished.Payload) == 0 {
@@ -391,11 +444,20 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 				continue
 			}
 
-			// This check is required. Payload parsing will fail if performed on a message emitted from another contract or sent
-			// by a contract other than the token bridge
-			if log.Address != tv.Addresses.CoreBridgeAddr {
-				tv.logger.Debug("skip: LogMessagePublished not emitted from the core bridge",
-					zap.String("emitter", log.Address.String()))
+			// Only token transfers are relevant (not attestations or any other payload type).
+			if !vaa.IsTransfer(logMessagePublished.Payload) {
+				tv.logger.Info("skip: LogMessagePublished is not a token transfer",
+					zap.String("txHash", log.TxHash.String()),
+				)
+				continue
+			}
+
+			// Bounds check.
+			if len(log.Topics) < 2 {
+				tv.logger.Warn("skip: LogMessagePublished has less than 2 topics",
+					zap.String("txhash", log.TxHash.String()),
+				)
+				receiptErr = errors.Join(receiptErr, errors.New("not enough topics"))
 				continue
 			}
 
@@ -521,7 +583,7 @@ func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 			continue
 		}
 		if key == "" {
-			return summary, errors.New("couldn't get key")
+			return summary, errors.New("couldn't get key for deposit")
 		}
 
 		upsert(&summary.in, key, deposit.TransferAmount())
@@ -540,18 +602,18 @@ func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 
 		key, relevant := relevant[*ERC20Transfer](transfer, tv.Addresses)
 		if !relevant {
-			tv.logger.Debug("skipping irrelevant transfer",
+			tv.logger.Debug("skip: transfer's destination is not the token bridge",
 				zap.String("emitter", transfer.Emitter().String()),
 				zap.String("erc20Transfer", transfer.String()))
 			continue
 		}
 		if key == "" {
-			return summary, errors.New("couldn't get key")
+			return summary, errors.New("couldn't get key for transfer")
 		}
 
 		upsert(&summary.in, key, transfer.TransferAmount())
 
-		tv.logger.Debug("a transfer into the token bridge was recorded",
+		tv.logger.Debug("identified ERC20 transfer to the token bridge",
 			zap.String("tokenAddress", transfer.TokenAddress.String()),
 			zap.String("amount", transfer.Amount.String()))
 	}
@@ -626,9 +688,8 @@ func parseLogMessagePublishedPayload(
 	// Corresponds to LogMessagePublished.Payload as returned by the ABI parsing operation in the ethConnector.
 	data []byte,
 ) (*TransferDetails, error) {
-	// If the payload type is neither Transfer nor Transfer With Payload, just return.
 	if !vaa.IsTransfer(data) {
-		return nil, nil
+		return nil, ErrNotTransfer
 	}
 
 	// Note: vaa.DecodeTransferPayloadHdr performs validation on data, e.g. length checks.
@@ -639,43 +700,56 @@ func parseLogMessagePublishedPayload(
 	return &TransferDetails{
 		PayloadType:      VAAPayloadType(hdr.Type),
 		AmountRaw:        hdr.Amount,
-		OriginAddressRaw: hdr.OriginAddress.Bytes(),
+		OriginAddressRaw: hdr.OriginAddress,
 		TokenChain:       vaa.ChainID(hdr.OriginChain),
 		TargetAddress:    hdr.TargetAddress,
 		// these fields are populated by RPC calls later
 		Amount:        nil,
-		OriginAddress: common.Address{},
+		OriginAddress: vaa.Address{},
 	}, nil
 }
 
 // fetchLogMessageDetails makes requests to the token bridge and token contract to get detailed, wormhole-specific information about
 // the transfer details parsed from a LogMessagePublished event.
-func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details *TransferDetails) (newDetails *TransferDetails, decimalErr error) {
-	// This function adds information to a TransferDetails struct, filling out its uninitialized fields.
-	// It populates the following fields:
-	// - Amount: populate the Amount field by denormalizing details.AmountRaw.
-	// - OriginAddress: use the wormhole ChainID and OriginAddressRaw to determine whether the token is wrapped.
-
-	// If the token was minted on the chain monitored by this program, set its OriginAddress equal to OriginAddressRaw.
-	var originAddress common.Address
+// Returns nil on error.
+func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details *TransferDetails) (*TransferDetails, error) {
+	// Populate the Amount, OriginAddress, and token decimals for assets
+	// recorded in LogMessagePublished events for this receipt.
+	// The Amount and OriginAddress are encoded as raw bytes in the log but they need to be processed in
+	// order to verify transfers:
+	// - AmountRaw must be (de)normalized according to its decimals
+	// - OriginAddressRaw use the wormhole chain ID and address to determine whether the token is wrapped.
+	var (
+		originAddress vaa.Address
+		newDetails    = *details
+		decimals      uint8
+		// The token address that will be queried for decimal information.
+		queryAddr common.Address
+	)
+	// At this point, details.TokenChain should be set to the chain ID in the token transfer's payload header.
+	// TODO: I'm not sure that this is correct. The address should be validated either way.
 	if details.TokenChain == tv.chainIds.wormholeChainId {
-		// The token was minted on this chain.
-		originAddress = common.BytesToAddress(details.OriginAddressRaw)
+		// The token was minted on this chain. The origin addresses bytes can be converted
+		// directly into an EVM address.
 		tv.logger.Debug("token is native. no need to unwrap",
 			zap.String("originAddressRaw", fmt.Sprintf("%x", details.OriginAddressRaw)),
 		)
+
+		originAddress = details.OriginAddressRaw
+		queryAddr = common.BytesToAddress(originAddress[:])
 	} else {
-		// The token was minted on a foreign chain. Unwrap it.
-		tv.logger.Debug("unwrapping",
-			zap.String("originAddressRaw", fmt.Sprintf("%x", details.OriginAddressRaw)),
+		// The token was minted on a foreign chain.
+		tv.logger.Debug("fetching origin address for wrapped asset",
+			zap.String("transferDetails", details.String()),
 		)
-		// If the token was minted on another chain, try to unwrap it.
-		unwrappedAddress, unwrapErr := tv.unwrapIfWrapped(details.OriginAddressRaw, details.TokenChain)
-		if unwrapErr != nil {
-			return newDetails, unwrapErr
+
+		// If the token was minted on another chain, fetch its wrapped contract address.
+		wrappedAddr, wrappedErr := tv.wrappedAddr(details.OriginAddressRaw, details.TokenChain)
+		if wrappedErr != nil {
+			return nil, wrappedErr
 		}
 
-		if Cmp(unwrappedAddress, ZERO_ADDRESS) == 0 {
+		if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
 			// If the unwrap function returns the zero address, that means
 			// it has no knowledge of this token. In this case set the
 			// OriginAddress to OriginAddressRaw rather than to the zero
@@ -684,29 +758,36 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 			//
 			// This case can occur if a token is transferred when the wrapped asset hasn't been set-up yet.
 			// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#setup-of-wrapped-assets
-			tv.logger.Warn("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.",
-				zap.String("originAddressRaw", details.OriginAddress.String()),
-				zap.String("tokenChain", details.TokenChain.String()),
+			tv.logger.Warn("wrappedAsset call for returned the zero address. Either token has not been registered or there is a bug in the program.",
+				zap.String("transferDetails", details.String()),
 			)
-			return newDetails, errors.New("unwrap call for foreign asset returned the zero address, either token has not been registered or there is a bug in the program")
-		} else {
-			originAddress = unwrappedAddress
+			return nil, errors.New("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.")
 		}
+
+		queryAddr = wrappedAddr
+
+		// Find the origin address by querying the wrapped asset address.
+		nativeAddr, err := tv.nativeContract(queryAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		originAddress = nativeAddr
+		tv.logger.Debug("got origin address",
+			zap.String("originAddress", originAddress.String()),
+		)
 	}
 
 	// Fetch the token's decimals and update TransferDetails with the denormalized amount.
-	// This must be done on the unwrapped address.
-	decimals, decimalErr := tv.getDecimals(originAddress)
+	decimals, decimalErr := tv.getDecimals(queryAddr)
 	if decimalErr != nil {
-		return newDetails, decimalErr
+		return nil, decimalErr
 	}
 
 	denormalized := denormalize(details.AmountRaw, decimals)
-
-	newDetails = details
 	newDetails.OriginAddress = originAddress
 	newDetails.Amount = denormalized
-	return newDetails, nil
+	return &newDetails, nil
 }
 
 // upsert inserts a new key and value into a map or update the value if the key already exists.
