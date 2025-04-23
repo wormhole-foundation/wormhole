@@ -10,3 +10,4 @@ out.log
 broadcast
 dist
 ts-types
+ts-build

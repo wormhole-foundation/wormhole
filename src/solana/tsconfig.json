@@ -6,8 +6,11 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "es2022",
+    "outDir": "ts-build",
     "strict": true,
+    "composite": true,
     "skipLibCheck": true,
     "esModuleInterop": true
-  }
+  },
+  "include": ["tests", "target/types"]
 }
