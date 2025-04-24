@@ -4,123 +4,66 @@ pragma solidity ^0.8.0;
 
 import "wormhole-sdk/libraries/BytesParsing.sol";
 import "wormhole-sdk/libraries/VaaLib.sol";
-import "./WormholeVerifier.sol";
+import "./ThresholdVerificationState.sol";
 
-contract ThresholdVerification {
+// Emitter address for the VerificationV2 contract
+bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
+
+// Module ID for the VerificationV2 contract, ASCII "TSS"
+bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
+
+// Action ID for appending a threshold key
+uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
+
+uint constant VAA_V2_HEADER_SIZE = 1 + 4 + 32 + 32 + 1;
+
+contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
+  using {BytesParsing.checkLength} for uint;
 
-  error InvalidVaa(bytes encodedVaa);
-  error InvalidSignatureCount(uint8 count);
-  error InvalidGuardianSet();
-  error GuardianSetExpired();
-
-  // Current threshold info is stord in a single slot
-  // Format:
-  //   index (32 bits)
-  //   address (160 bits)
-  // TODO: Extract this into its own functions
-  uint256 private _currentThresholdInfo;
-
-  // Past threshold info is stored in an array
-  // Format:
-  //   expiration time (32 bits)
-  //   address (160 bits)
-  uint256[] private _pastThresholdInfo;
-  
-  bytes32[][] private _shards;
-
-  // Get the current threshold signature info
-  function getCurrentThresholdInfo() public view returns (uint32 index, address addr) {
-    return _decodeThresholdInfo(_currentThresholdInfo);
-  }
-
-  // Get the past threshold signature info
-  function getPastThresholdInfo(uint32 index) public view returns (
-    uint32 expirationTime,
-    address addr
-  ) {
-    if (index >= _pastThresholdInfo.length) revert InvalidIndex();
-    return _decodeThresholdInfo(_pastThresholdInfo[index]);
-  }
+  error ThresholdKeyExpired();
+  error ThresholdSignatureVerificationFailed();
+  error InvalidModule(bytes32 module);
+  error InvalidAction(uint8 action);
 
   // Verify a threshold signature VAA
-  function verifyThresholdVAA(bytes calldata encodedVaa) public view returns (
-    uint32  timestamp,
-    uint32  nonce,
-    uint16  emitterChainId,
-    bytes32 emitterAddress,
-    uint64  sequence,
-    uint8   consistencyLevel,
-    bytes calldata payload
-  ) {
+  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint payloadOffset) {
     unchecked {
-      // Check the VAA version
+      // Decode the VAA header
       uint offset = 0;
       uint8 version;
-      (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
-      if (version != 2) revert VaaLib.InvalidVersion(version);
-
-      // Decode the TSS key index
       uint32 tssIndex;
-      (tssIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
-
-      // Get the current threshold info
-      ( uint32 currentThresholdIndex,
-        address currentThresholdAddr
-      ) = this.getCurrentThresholdInfo();
-
-      // Get the threshold address
-      address thresholdAddr;
-      if (tssIndex != currentThresholdIndex) {
-        // If the guardian set index is not the current threshold index,
-        // we need to get the past threshold info and validate that it is not expired
-        (uint32 expirationTime, address addr) = this.getPastThresholdInfo(tssIndex);
-        if (expirationTime < block.timestamp) revert GuardianSetExpired();
-        thresholdAddr = addr;
-      } else {
-        // If the guardian set index is the current threshold index,
-        // we can use the current threshold info
-        thresholdAddr = currentThresholdAddr;
-      }
-
-      // Decode the guardian signature
       bytes32 r; bytes32 s; uint8 v;
+
+      (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
+      (tssIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (r, s, v, offset) = _decodeThresholdSignatureCdUnchecked(encodedVaa, offset);
 
-      // Verify the threshold signature
-      bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
-      if (ecrecover(vaaHash, v, r, s) != thresholdAddr) revert VerificationFailed();
+      // Validate and return the VAA body
+      require(version == 2, VaaLib.InvalidVersion(version));
 
-      // Decode the VAA body and return it
-      return encodedVaa.decodeVaaBodyCd(offset);
+      (address thresholdAddr, uint32 expirationTime) = _getThresholdInfo(tssIndex);
+      require(expirationTime > block.timestamp, ThresholdKeyExpired());
+
+      bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
+      require(ecrecover(vaaHash, v, r, s) == thresholdAddr, ThresholdSignatureVerificationFailed());
+
+      return offset;
     }
   }
 
-  function _appendThresholdKey(
-    uint32 newIndex,
-    address newAddr,
-    uint32 expirationDelaySeconds,
-    bytes32[] memory shards
-  ) internal {
-    unchecked {
-      // Verify the new address is not the zero address
-      if (newAddr == address(0)) revert InvalidGuardianSet();
-
-      // Get the current threshold info and verify the new index is sequential
-      (uint32 index, address currentAddr) = this.getCurrentThresholdInfo();
-      if (newIndex != index + 1) revert InvalidIndex();
-
-      // Store the current threshold info in past threshold info
-      uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-      _pastThresholdInfo.push(_encodeThresholdInfo(expirationTime, currentAddr));
-
-      // Update the current threshold info
-      _currentThresholdInfo = _encodeThresholdInfo(newIndex, newAddr);
-
-      // Store the shards
-      _shards.push(shards);
-    }
+  function _verifyAndDecodeThresholdVaa(bytes calldata encodedVaa) internal view returns (
+    uint32 timestamp,
+    uint32 nonce,
+    uint16 emitterChainId,
+    bytes32 emitterAddress,
+    uint64 sequence,
+    uint8 consistencyLevel,
+    bytes calldata payload
+  ) {
+    uint payloadOffset = _verifyThresholdVaaHeader(encodedVaa);
+    return encodedVaa.decodeVaaBodyCd(payloadOffset);
   }
 
   function _decodeThresholdSignatureCdUnchecked(
@@ -134,14 +77,28 @@ contract ThresholdVerification {
     return (r, s, v, offset);
   }
 
-  function _decodeThresholdInfo(uint256 info) internal pure returns (uint32 index, address addr) {
-    return (
-      uint32(info),
-      address(uint160(info >> 32))
-    );
-  }
+  // TODO: Fix this to use calldata
+  function _decodeThresholdKeyUpdatePayload(bytes calldata payload) internal pure returns (
+    uint32 newThresholdIndex,
+    address newThresholdAddr,
+    uint32 expirationDelaySeconds,
+    bytes calldata shards
+  ) {
+    // Decode the payload
+    uint offset = 0;
+    uint8 action;
+    bytes32 module;
 
-  function _encodeThresholdInfo(uint32 index, address addr) internal pure returns (uint256 info) {
-    return (uint256(uint160(addr)) << 32) | uint256(index);
+    (module, offset) = payload.asBytes32MemUnchecked(offset);
+    (action, offset) = payload.asUint8MemUnchecked(offset);
+    (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
+    (newThresholdAddr, offset) = payload.asAddressMemUnchecked(offset);
+    (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
+    (shards, offset) = payload.sliceUint16PrefixedCdUnchecked(offset);
+    payload.length.checkLength(offset);
+
+    // Verify the module and action
+    require(module == MODULE_VERIFICATION_V2, InvalidModule(module));
+    require(action == ACTION_APPEND_THRESHOLD_KEY, InvalidAction(action));
   }
 }
