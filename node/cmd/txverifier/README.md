@@ -7,7 +7,13 @@ modify the package code at `node/pkg/txverifier/` and run this tool to test the 
 
 ### Ethereum
 
-Ensure that you have a valid API key connected with a **WebSockets** URL. 
+_Ensure that you have a valid API key connected with a **WebSockets** URL._
+
+#### Testing script
+
+The script at `scripts/transfer-verifier-localnet.sh` runs the transfer verifier against mainnet.
+
+#### Manual testing
 
 The following command runs the Transfer Verifier against mainnet.
 
@@ -23,3 +29,11 @@ The following command runs the Transfer Verifier against mainnet.
 
 To test against a forked local network, change the RPC URL to anvil's default (also used by the Tilt network), and update
 the contract addresses.
+
+##### Testing a single receipt
+
+A single receipt can be evaluated by adding the `--hash` flag and passing an Ethereum receipt hash.
+This is the easiest way to get insight into how the algorithm works and to verify expected results.
+
+Example hashes:
+- `0xa3e0bdf8896a0e1f1552eaa346a914d655a4f94a94739c4ffe86a941a47ec7a8` -- transfer of a wrapped asset
