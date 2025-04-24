@@ -33,6 +33,8 @@ var (
 	wrappedNativeContract *string
 	// Height difference between pruning windows (in blocks).
 	pruneHeightDelta *uint64
+	// Receipt hash to analyze.
+	hash *string
 )
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
@@ -44,6 +46,8 @@ func init() {
 	evmTokenBridgeContract = TransferVerifierCmdEvm.Flags().String("tokenContract", "", "token bridge")
 	wrappedNativeContract = TransferVerifierCmdEvm.Flags().String("wrappedNativeContract", "", "wrapped native address (e.g. WETH on Ethereum)")
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
+	// Allows testing the tool on a single receipt.
+	hash = TransferVerifierCmdEvm.Flags().String("hash", "", "A receipt hash to evaluate. The tool will exit after processing the receipt.")
 
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
 	TransferVerifierCmd.MarkFlagRequired("coreContract")
@@ -129,6 +133,14 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 	if err != nil {
 		logger.Fatal("could not create new transfer verifier", zap.Error(err))
+	}
+
+	// Single-shot mode: process a single receipt hash.
+	if len(*hash) > 0 {
+		receiptHash := common.HexToHash(*hash)
+		result := transferVerifier.ProcessEvent(ctx, receiptHash, nil)
+		logger.Info("ProcessEvent result", zap.Bool("valid", result))
+		os.Exit(0)
 	}
 
 	// Set-up for main processing loop
