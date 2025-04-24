@@ -11,15 +11,18 @@ has a way to fraudulently emit message from the core bridge, the integrity of th
 
 # Goals
 
-- Provide another layer of defense for token transfers
-- Allow for a flexible response in the Guardian when suspicious activity is detected
+- Detect and respond to a compromise of the Core Bridge pertaining to publishing arbitrary token transfer messages.
+- Provide another layer of defense for token transfers.
+- Allow for a flexible response in the Guardian when suspicious activity is detected.
 
 # Non-Goals
 
 - Block, delay, or otherwise interfere with message processing. The Transfer Verifier reports whether a message looks
   safe or not, but it does not take any other action.
-- Address any message publications or Token Bridge activity other than token transfers
+- Address any message publications or Token Bridge activity other than token transfers.
 - Check cross-chain invariants. This mechanism only checks that pre-conditions are met on the sender side.
+- Protect against RPC compromises. (The Transfer Verifier relies on reliable RPC information.)
+- Protect against a compromise of the Token Bridge. (The Transfer Verifier checks for a potential _Core Bridge_ issue by querying the Token Bridge.)
 
 # Overview
 
