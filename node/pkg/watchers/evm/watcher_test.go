@@ -200,7 +200,7 @@ type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
 }
 
 // Mock ProcessEvent function that simulates the evaluation made by the Transfer Verifier.
-func (m *MockTransferVerifier[E, C]) ProcessEvent(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt) bool {
+func (m *MockTransferVerifier[E, C]) ProcessEvent(_ context.Context, _ eth_common.Hash, _ *types.Receipt) bool {
 	return m.success
 }
 func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {

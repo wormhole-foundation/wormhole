@@ -105,6 +105,7 @@ const (
 	ConsistencyLevelSafe               = uint8(201)
 )
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -128,6 +129,7 @@ func (a Address) Bytes() []byte {
 	return a[:]
 }
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (a SignatureData) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -736,6 +738,9 @@ const (
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2, etc
+// parameter. This function should probably be reworked as a method of the VAA type.
+//
+//nolint:unparam // TODO: The argument data is not used here. Instead data is read from the VAA
 func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {

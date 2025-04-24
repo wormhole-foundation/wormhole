@@ -1129,7 +1129,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 	b.Run("eth_crypto (secp256k1)", func(b *testing.B) {
 
-		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(eth_crypto.S256(), 0)
+		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(0)
 
 		b.Run("sign", func(b *testing.B) {
 			msgs := signingMsgs(b.N)

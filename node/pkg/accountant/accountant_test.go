@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -102,7 +101,7 @@ func newAccountantForTest(
 ) *Accountant {
 	var db guardianDB.MockAccountantDB
 
-	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(0))
 	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(pk)
 	require.NoError(t, err)
 
