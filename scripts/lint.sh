@@ -77,7 +77,7 @@ lint(){
     # Restore errexit
     set -e
 
-    # Return failure if either linting operation failed
+    # Exit if either linting operation failed
     [[ $node_lint_status -eq 0 && $sdk_lint_status -eq 0 ]] || exit 1
 }
 
