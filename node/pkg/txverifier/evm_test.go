@@ -151,7 +151,6 @@ func TestParseReceiptHappyPath(t *testing.T) {
 	mocks := setup()
 	defer mocks.ctxCancel()
 
-	// t.Parallel() // marks TLog as capable of running in parallel with other tests
 	tests := map[string]struct {
 		receipt  *types.Receipt
 		expected *TransferReceipt
@@ -759,14 +758,26 @@ func TestTransferReceiptValidate(t *testing.T) {
 
 func TestNoPanics(t *testing.T) {
 	mocks := setup()
+	defer mocks.ctxCancel()
+
 	require.NotPanics(t, func() {
 		_, err := mocks.transferVerifier.ProcessReceipt(nil)
 		require.Error(t, err, "ProcessReceipt must return an error on nil input")
 	}, "ProcessReceipt should handle nil without panicking")
+
 	require.NotPanics(t, func() {
 		err := mocks.transferVerifier.UpdateReceiptDetails(nil)
 		require.Error(t, err, "UpdateReceiptDetails must return an error on nil input")
 	}, "UpdateReceiptDetails should handle nil without panicking")
+
+	// Regression check: ensure that a log with no indexed topics does not panic.
+	receipt := *validTransferReceipt
+	receipt.Logs[0].Topics = []common.Hash{}
+	require.NotPanics(t, func() {
+		parsed, err := mocks.transferVerifier.ParseReceipt(&receipt)
+		require.NotNil(t, parsed)
+		require.NoError(t, err)
+	}, "UpdateReceiptDetails must not panic when a log with no topics is present")
 }
 
 func receiptData(payloadAmount *big.Int) (data []byte) {
