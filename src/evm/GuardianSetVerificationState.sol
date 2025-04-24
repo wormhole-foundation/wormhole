@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IWormhole} from "wormhole-sdk/interfaces/IWormhole.sol";
+import {ICoreBridge, GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import {UncheckedIndexing} from "wormhole-sdk/libraries/UncheckedIndexing.sol";
 import {ExtStore} from "./ExtStore.sol";
 
@@ -12,16 +12,16 @@ contract GuardianSetVerificationState is ExtStore {
   error InvalidGuardianSetIndex();
 
 	// Core bridge instance
-  IWormhole private immutable _coreBridge;
+  ICoreBridge private immutable _coreBridge;
 
   // Guardian set expiration time is stored in an array mapped from index to expiration time
   uint32[] private _guardianSetExpirationTime;
 
   constructor(
     address coreBridge,
-    uint32 pullLimit
+    uint256 pullLimit
   ) {
-    _coreBridge = IWormhole(coreBridge);
+    _coreBridge = ICoreBridge(coreBridge);
     _pullGuardianSets(pullLimit);
   }
 
@@ -52,7 +52,7 @@ contract GuardianSetVerificationState is ExtStore {
     }
   }
 
-  function _pullGuardianSets(uint limit) internal {
+  function _pullGuardianSets(uint256 limit) internal {
     unchecked {
       // Get the guardian set lengths for the bridge and the local contract
       uint currentGuardianSetLength = _coreBridge.getCurrentGuardianSetIndex() + 1;
@@ -88,7 +88,7 @@ contract GuardianSetVerificationState is ExtStore {
     uint32 expirationTime
   ) {
     // Get the guardian set from the core bridge
-    IWormhole.GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
+    GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
     expirationTime = guardians.expirationTime;
 
     // Convert the guardian set to a byte array

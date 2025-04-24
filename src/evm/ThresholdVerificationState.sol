@@ -3,8 +3,16 @@
 pragma solidity ^0.8.0;
 
 contract ThresholdVerificationState {
+  uint256 constant SHARD_INFO_SIZE = 32 + 32;
+
 	error InvalidThresholdKeyIndex();
 	error InvalidThresholdKeyAddress();
+
+  // TODO: Add the registry data here
+  struct ShardInfo {
+    bytes32 shard;
+    bytes32 tlsKey; // TODO: Replace the mapping in the guardian registry with this
+  }
 
 	// Current threshold info is stored in a single slot
   // Format:
@@ -18,7 +26,7 @@ contract ThresholdVerificationState {
   //   address (160 bits)
   uint256[] private _pastThresholdInfo;
   
-  bytes32[][] private _shards;
+  ShardInfo[][] private _shards;
 	
   function _decodeThresholdInfo(uint256 info) private pure returns (address addr, uint32 index) {
     return (address(uint160(info >> 32)), uint32(info & 0xFFFFFFFF));
@@ -51,7 +59,7 @@ contract ThresholdVerificationState {
     uint32 newIndex,
     address newAddr,
     uint32 expirationDelaySeconds,
-    bytes32[] calldata shards
+    ShardInfo[] memory shards
   ) internal {
     unchecked {
       // Verify the new address is not the zero address
@@ -69,7 +77,7 @@ contract ThresholdVerificationState {
       // Update the current threshold info
       _currentThresholdInfo = _encodeThresholdInfo(newAddr, newIndex);
 
-      // Store the shards
+      // Push the shards
       _shards.push(shards);
     }
   }

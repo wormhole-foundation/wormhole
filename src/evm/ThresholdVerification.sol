@@ -6,9 +6,6 @@ import "wormhole-sdk/libraries/BytesParsing.sol";
 import "wormhole-sdk/libraries/VaaLib.sol";
 import "./ThresholdVerificationState.sol";
 
-// Emitter address for the VerificationV2 contract
-bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
-
 // Module ID for the VerificationV2 contract, ASCII "TSS"
 bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
 
@@ -28,7 +25,7 @@ contract ThresholdVerification is ThresholdVerificationState {
   error InvalidAction(uint8 action);
 
   // Verify a threshold signature VAA
-  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint payloadOffset) {
+  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
       // Decode the VAA header
       uint offset = 0;
@@ -70,35 +67,53 @@ contract ThresholdVerification is ThresholdVerificationState {
     bytes calldata encodedVaa,
     uint offset
   ) internal pure returns (bytes32 r, bytes32 s, uint8 v, uint nextOffset) {
-    (r, offset) = encodedVaa.asBytes32CdUnchecked(offset);
-    (s, offset) = encodedVaa.asBytes32CdUnchecked(offset);
-    (v, offset) = encodedVaa.asUint8CdUnchecked(offset);
-    v += VaaLib.SIGNATURE_RECOVERY_MAGIC;
-    return (r, s, v, offset);
+    unchecked {
+      (r, offset) = encodedVaa.asBytes32CdUnchecked(offset);
+      (s, offset) = encodedVaa.asBytes32CdUnchecked(offset);
+      (v, offset) = encodedVaa.asUint8CdUnchecked(offset);
+      v += VaaLib.SIGNATURE_RECOVERY_MAGIC;
+      return (r, s, v, offset);
+    }
   }
 
-  // TODO: Fix this to use calldata
   function _decodeThresholdKeyUpdatePayload(bytes calldata payload) internal pure returns (
     uint32 newThresholdIndex,
     address newThresholdAddr,
     uint32 expirationDelaySeconds,
-    bytes calldata shards
+    ShardInfo[] memory shards
   ) {
-    // Decode the payload
-    uint offset = 0;
-    uint8 action;
-    bytes32 module;
+    unchecked {
+      // Decode the payload
+      uint offset = 0;
+      uint8 action;
+      bytes32 module;
+      uint shardCount;
 
-    (module, offset) = payload.asBytes32MemUnchecked(offset);
-    (action, offset) = payload.asUint8MemUnchecked(offset);
-    (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
-    (newThresholdAddr, offset) = payload.asAddressMemUnchecked(offset);
-    (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
-    (shards, offset) = payload.sliceUint16PrefixedCdUnchecked(offset);
-    payload.length.checkLength(offset);
+      (module, offset) = payload.asBytes32MemUnchecked(offset);
+      (action, offset) = payload.asUint8MemUnchecked(offset);
+      (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
+      (newThresholdAddr, offset) = payload.asAddressMemUnchecked(offset);
+      (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
+      (shardCount, offset) = payload.asUint8MemUnchecked(offset); // TODO: We should probably pass this in and get it from the guardian set to ensure the mapping is correct
 
-    // Verify the module and action
-    require(module == MODULE_VERIFICATION_V2, InvalidModule(module));
-    require(action == ACTION_APPEND_THRESHOLD_KEY, InvalidAction(action));
+      // Decode shards
+      shards = new ShardInfo[](shardCount);
+      for (uint i = 0; i < shardCount; i++) {
+        (shards[i], offset) = _decodeShardInfo(payload, offset);
+      }
+
+      // Validate the length of the payload
+      payload.length.checkLength(offset);
+
+      // Verify the module and action
+      require(module == MODULE_VERIFICATION_V2, InvalidModule(module));
+      require(action == ACTION_APPEND_THRESHOLD_KEY, InvalidAction(action));
+    }
+  }
+
+  function _decodeShardInfo(bytes calldata data, uint256 offset) internal pure returns (ShardInfo memory shardInfo, uint256 nextOffset) {
+    (shardInfo.shard, offset) = data.asBytes32CdUnchecked(offset);
+    (shardInfo.tlsKey, offset) = data.asBytes32CdUnchecked(offset);
+    return (shardInfo, offset);
   }
 }

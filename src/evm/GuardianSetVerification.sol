@@ -14,22 +14,30 @@ contract GuardianSetVerification is GuardianSetVerificationState {
   using VaaLib for bytes;
   using UncheckedIndexing for address[];
 
+  error QuorumNotMet();
+  error GuardianSetSignatureVerificationFailed();
+
   constructor(
     address coreBridge,
-    uint32 pullLimit
+    uint256 pullLimit
   ) GuardianSetVerificationState(coreBridge, pullLimit) {}
 
-  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (uint payloadOffset) {
+  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
       uint offset = 0;
+      uint8 version;
       uint32 guardianSetIndex;
       uint signatureCount;
 
+      (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
       (guardianSetIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (signatureCount, offset) = encodedVaa.asUint8CdUnchecked(offset);
 
+      // Validate the version
+      require(version == 1, VaaLib.InvalidVersion(version));
+
       // Get the guardian set and the number of guardians
-      (, address[] memory guardians) = this.getGuardianSetInfo(guardianSetIndex);
+      (, address[] memory guardians) = _getGuardianSetInfo(guardianSetIndex);
 
       // Get the number of signatures
       // NOTE: Optimization puts guardianCount on stack thus avoids mloads
@@ -39,10 +47,10 @@ contract GuardianSetVerification is GuardianSetVerificationState {
       // NOTE: This works for empty guardian sets, because the quorum when there
       // are no guardians is 1
       uint quorumCount = CoreBridgeLib.minSigsForQuorum(guardianCount);
-      require(signatureCount >= quorumCount, VerificationFailed());
+      require(signatureCount >= quorumCount, QuorumNotMet());
 
       // Calculate envelope offset and VAA hash
-      uint envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
+      envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
       bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(envelopeOffset);
 
       // Verify the signatures
@@ -78,13 +86,11 @@ contract GuardianSetVerification is GuardianSetVerificationState {
         );
         
         // Verify the signature
-        require(!failed, VerificationFailed());
+        require(!failed, GuardianSetSignatureVerificationFailed());
 
         prevGuardianIndex = guardianIndex;
         isFirstSignature = false;
       }
-
-      return offset;
     }
   }
 
