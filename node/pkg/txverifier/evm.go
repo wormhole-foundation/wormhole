@@ -317,7 +317,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	for _, log := range receipt.Logs {
 		// Bounds check.
 		if len(log.Topics) == 0 {
-			tv.logger.Info(
+			tv.logger.Debug(
 				"skipping log: no indexed topics",
 				zap.String("txHash", log.TxHash.String()),
 			)
