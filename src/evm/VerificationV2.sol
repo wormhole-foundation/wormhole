@@ -118,7 +118,7 @@ contract VerificationV2 is
         uint32 limit;
         (limit, offset) = data.asUint32CdUnchecked(offset);
 
-        pullGuardianSets(limit);
+        _pullGuardianSets(limit);
       } else if (op == OP_REGISTER_TLS_KEY) {
         // Decode the payload
         uint32 guardianSetIndex;

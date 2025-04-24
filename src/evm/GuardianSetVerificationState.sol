@@ -51,6 +51,37 @@ contract GuardianSetVerificationState is ExtStore {
       (, guardianAddrs) = _getGuardianSetInfo(index);
     }
   }
+
+  function _pullGuardianSets(uint limit) internal {
+    unchecked {
+      // Get the guardian set lengths for the bridge and the local contract
+      uint currentGuardianSetLength = _coreBridge.getCurrentGuardianSetIndex() + 1;
+      uint oldGuardianSetLength = _guardianSetExpirationTime.length;
+
+      // If we have already pulled all the guardian sets, return
+      if (currentGuardianSetLength == oldGuardianSetLength) return;
+
+      // Check if we need to update the current guardian set
+      if (oldGuardianSetLength > 0) {
+        // Pull and write the current guardian set expiration time
+        uint updateIndex = oldGuardianSetLength - 1;
+        (, uint32 expirationTime) = _pullGuardianSet(uint32(updateIndex));
+        _guardianSetExpirationTime[updateIndex] = expirationTime;
+      }
+
+      // Calculate the upper bound of the guardian sets to pull
+      uint upper = (limit == 0 || currentGuardianSetLength - oldGuardianSetLength < limit)
+        ? currentGuardianSetLength : oldGuardianSetLength + limit;
+
+      // Pull and append the guardian sets
+      for (uint i = oldGuardianSetLength; i < upper; ++i) {
+        // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
+        (bytes memory data, uint32 expirationTime) = _pullGuardianSet(uint32(i));
+        _guardianSetExpirationTime.push(expirationTime);
+        _extWrite(data);
+      }
+    }
+  }
 	
   function _pullGuardianSet(uint32 index) private view returns (
     bytes memory data,
