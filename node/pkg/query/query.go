@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query/queryratelimit"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -44,20 +44,22 @@ const (
 func NewQueryHandler(
 	logger *zap.Logger,
 	env common.Environment,
-	allowedRequestorsStr string,
+	limitEnforcer *queryratelimit.Enforcer,
+	limitPolicyProvider *queryratelimit.PolicyProvider,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
 	chainQueryReqC map[vaa.ChainID]chan *PerChainQueryInternal,
 	queryResponseReadC <-chan *PerChainQueryResponseInternal,
 	queryResponseWriteC chan<- *QueryResponsePublication,
 ) *QueryHandler {
 	return &QueryHandler{
-		logger:               logger.With(zap.String("component", "ccq")),
-		env:                  env,
-		allowedRequestorsStr: allowedRequestorsStr,
-		signedQueryReqC:      signedQueryReqC,
-		chainQueryReqC:       chainQueryReqC,
-		queryResponseReadC:   queryResponseReadC,
-		queryResponseWriteC:  queryResponseWriteC,
+		logger:              logger.With(zap.String("component", "ccq")),
+		env:                 env,
+		limitEnforcer:       limitEnforcer,
+		limitPolicyProvider: limitPolicyProvider,
+		signedQueryReqC:     signedQueryReqC,
+		chainQueryReqC:      chainQueryReqC,
+		queryResponseReadC:  queryResponseReadC,
+		queryResponseWriteC: queryResponseWriteC,
 	}
 }
 
@@ -69,14 +71,14 @@ type (
 
 	// QueryHandler defines the cross chain query handler.
 	QueryHandler struct {
-		logger               *zap.Logger
-		env                  common.Environment
-		allowedRequestorsStr string
-		signedQueryReqC      <-chan *gossipv1.SignedQueryRequest
-		chainQueryReqC       map[vaa.ChainID]chan *PerChainQueryInternal
-		queryResponseReadC   <-chan *PerChainQueryResponseInternal
-		queryResponseWriteC  chan<- *QueryResponsePublication
-		allowedRequestors    map[ethCommon.Address]struct{}
+		logger              *zap.Logger
+		env                 common.Environment
+		limitEnforcer       *queryratelimit.Enforcer
+		limitPolicyProvider *queryratelimit.PolicyProvider
+		signedQueryReqC     <-chan *gossipv1.SignedQueryRequest
+		chainQueryReqC      map[vaa.ChainID]chan *PerChainQueryInternal
+		queryResponseReadC  <-chan *PerChainQueryResponseInternal
+		queryResponseWriteC chan<- *QueryResponsePublication
 	}
 
 	// pendingQuery is the cache entry for a given query.
@@ -163,33 +165,38 @@ func (config PerChainConfig) QueriesSupported() bool {
 
 // Start initializes the query handler and starts the runnable.
 func (qh *QueryHandler) Start(ctx context.Context) error {
-	qh.logger.Debug("entering Start", zap.String("enforceFlag", qh.allowedRequestorsStr))
-
-	var err error
-	qh.allowedRequestors, err = parseAllowedRequesters(qh.allowedRequestorsStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse allowed requesters: %w", err)
-	}
-
+	qh.logger.Debug("entering Start")
 	if err := supervisor.Run(ctx, "query_handler", common.WrapWithScissors(qh.handleQueryRequests, "query_handler")); err != nil {
 		return fmt.Errorf("failed to start query handler routine: %w", err)
 	}
-
 	return nil
 }
 
 // handleQueryRequests multiplexes observation requests to the appropriate chain
 func (qh *QueryHandler) handleQueryRequests(ctx context.Context) error {
-	return handleQueryRequestsImpl(ctx, qh.logger, qh.signedQueryReqC, qh.chainQueryReqC, qh.allowedRequestors, qh.queryResponseReadC, qh.queryResponseWriteC, qh.env, RequestTimeout, RetryInterval, AuditInterval)
+	return handleQueryRequestsImpl(
+		ctx,
+		qh.logger,
+		qh.limitEnforcer,
+		qh.limitPolicyProvider,
+		qh.signedQueryReqC,
+		qh.chainQueryReqC,
+		qh.queryResponseReadC,
+		qh.queryResponseWriteC,
+		qh.env,
+		RequestTimeout,
+		RetryInterval,
+		AuditInterval)
 }
 
 // handleQueryRequestsImpl allows instantiating the handler in the test environment with shorter timeout and retry parameters.
 func handleQueryRequestsImpl(
 	ctx context.Context,
 	logger *zap.Logger,
+	limitEnforcer *queryratelimit.Enforcer,
+	limitPolicyProvider *queryratelimit.PolicyProvider,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
 	chainQueryReqC map[vaa.ChainID]chan *PerChainQueryInternal,
-	allowedRequestors map[ethCommon.Address]struct{},
 	queryResponseReadC <-chan *PerChainQueryResponseInternal,
 	queryResponseWriteC chan<- *QueryResponsePublication,
 	env common.Environment,
@@ -198,7 +205,7 @@ func handleQueryRequestsImpl(
 	auditIntervalImpl time.Duration,
 ) error {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
-	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors), zap.String("env", string(env)))
+	qLogger.Info("cross chain queries are enabled", zap.String("env", string(env)))
 
 	pendingQueries := make(map[string]*pendingQuery) // Key is requestID.
 
@@ -252,8 +259,16 @@ func handleQueryRequestsImpl(
 
 			signerAddress := ethCommon.BytesToAddress(ethCrypto.Keccak256(signerBytes[1:])[12:])
 
-			if _, exists := allowedRequestors[signerAddress]; !exists {
-				qLogger.Debug("invalid requestor", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID))
+			// get a rate limit policy for this requestor
+			// if they dont have one, they will receive one with no networks, and so will fail any reasonable enforcement action
+			policy, err := limitPolicyProvider.GetPolicy(ctx, signerAddress)
+			if err != nil {
+				qLogger.Error("failed to get rate limit policy", zap.String("requestID", requestID), zap.Error(err))
+				invalidQueryRequestReceived.WithLabelValues("failed_to_get_rate_limit_policy").Inc()
+			}
+
+			if len(policy.Limits.Types) == 0 {
+				qLogger.Debug("requestor has no limits / invalid requestor", zap.String("requestID", requestID))
 				invalidQueryRequestReceived.WithLabelValues("invalid_requestor").Inc()
 				continue
 			}
@@ -272,6 +287,41 @@ func handleQueryRequestsImpl(
 				invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
 				continue
 			}
+			// enforce the rate limit as soon as we have validated unmarshaled, even if it is invalid.
+			// the signer signed this! so they should be punished for sending bad requests.
+			// if they send a chain that is not supported, we will just drop it for now, but mayvbe we should rate limit them for the valid ones they sent. are we that evil ?
+			action := &queryratelimit.Action{
+				Key:   signerAddress,
+				Time:  time.Now(),
+				Types: make(map[uint8]int),
+			}
+			if ok := func() bool {
+				for _, pcq := range queryRequest.PerChainQueries {
+					chainID := vaa.ChainID(pcq.ChainId)
+					config := GetPerChainConfig(chainID)
+					if config.NumWorkers <= 0 {
+						qLogger.Debug("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
+						invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()
+						return false
+					}
+					action.Types[uint8(pcq.Query.Type())] += 1
+				}
+				return true
+			}(); !ok {
+				continue
+			}
+			// perform the actual enforcement
+			limitResult, err := limitEnforcer.EnforcePolicy(ctx, policy, action)
+			if err != nil {
+				qLogger.Error("failed to enforce rate limit", zap.String("requestID", requestID), zap.Error(err))
+				invalidQueryRequestReceived.WithLabelValues("failed_to_enforce_rate_limit").Inc()
+				continue
+			}
+			if !limitResult.Allowed {
+				qLogger.Warn("rate limit exceeded", zap.String("requestID", requestID), zap.Any("types", limitResult.ExceededTypes))
+				invalidQueryRequestReceived.WithLabelValues("rate_limit_exceeded").Inc()
+				continue
+			}
 
 			if err := queryRequest.Validate(); err != nil {
 				qLogger.Error("received invalid message", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
@@ -280,39 +330,37 @@ func handleQueryRequestsImpl(
 			}
 
 			// Build the set of per chain queries and placeholders for the per chain responses.
-			errorFound := false
 			queries := []*perChainQuery{}
 			responses := make([]*PerChainQueryResponseInternal, len(queryRequest.PerChainQueries))
 			receiveTime := time.Now()
 
-			for requestIdx, pcq := range queryRequest.PerChainQueries {
-				chainID := vaa.ChainID(pcq.ChainId)
-				if _, exists := supportedChains[chainID]; !exists {
-					qLogger.Debug("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
-					invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()
-					errorFound = true
-					break
+			if errorFound := func() bool {
+				for requestIdx, pcq := range queryRequest.PerChainQueries {
+					chainID := vaa.ChainID(pcq.ChainId)
+					if _, exists := supportedChains[chainID]; !exists {
+						qLogger.Debug("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
+						invalidQueryRequestReceived.WithLabelValues("chain_does_not_support_ccq").Inc()
+						return true
+					}
+
+					channel, channelExists := chainQueryReqC[chainID]
+					if !channelExists {
+						qLogger.Debug("unknown chain ID for query request, dropping it", zap.String("requestID", requestID), zap.Stringer("chain_id", chainID))
+						invalidQueryRequestReceived.WithLabelValues("failed_to_look_up_channel").Inc()
+						return true
+					}
+
+					queries = append(queries, &perChainQuery{
+						req: &PerChainQueryInternal{
+							RequestID:  requestID,
+							RequestIdx: requestIdx,
+							Request:    pcq,
+						},
+						channel: channel,
+					})
 				}
-
-				channel, channelExists := chainQueryReqC[chainID]
-				if !channelExists {
-					qLogger.Debug("unknown chain ID for query request, dropping it", zap.String("requestID", requestID), zap.Stringer("chain_id", chainID))
-					invalidQueryRequestReceived.WithLabelValues("failed_to_look_up_channel").Inc()
-					errorFound = true
-					break
-				}
-
-				queries = append(queries, &perChainQuery{
-					req: &PerChainQueryInternal{
-						RequestID:  requestID,
-						RequestIdx: requestIdx,
-						Request:    pcq,
-					},
-					channel: channel,
-				})
-			}
-
-			if errorFound {
+				return false
+			}(); errorFound {
 				continue
 			}
 
@@ -448,29 +496,6 @@ func handleQueryRequestsImpl(
 			}
 		}
 	}
-}
-
-// parseAllowedRequesters parses a comma separated list of allowed requesters into a map to be used for look ups.
-func parseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]struct{}, error) {
-	if ccqAllowedRequesters == "" {
-		return nil, fmt.Errorf("if cross chain query is enabled `--ccqAllowedRequesters` must be specified")
-	}
-
-	var nullAddr ethCommon.Address
-	result := make(map[ethCommon.Address]struct{})
-	for _, str := range strings.Split(ccqAllowedRequesters, ",") {
-		addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(strings.TrimPrefix(str, "0x")))
-		if addr == nullAddr {
-			return nil, fmt.Errorf("invalid value in `--ccqAllowedRequesters`: `%s`", str)
-		}
-		result[addr] = struct{}{}
-	}
-
-	if len(result) <= 0 {
-		return nil, fmt.Errorf("no allowed requestors specified, ccqAllowedRequesters: `%s`", ccqAllowedRequesters)
-	}
-
-	return result, nil
 }
 
 // ccqForwardToWatcher submits a query request to the appropriate watcher. It updates the request object if the write succeeds.

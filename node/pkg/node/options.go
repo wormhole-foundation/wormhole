@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -17,12 +18,14 @@ import (
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/query/queryratelimit"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -141,10 +144,60 @@ func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *Guar
 				return nil
 			}
 
+			enforcer := queryratelimit.NewEnforcer()
+			if allowedRequesters == "" {
+				return fmt.Errorf("if cross chain query is enabled `--ccqAllowedRequesters` must be specified")
+			}
+			var nullAddr ethCommon.Address
+			result := make(map[ethCommon.Address]struct{})
+			for _, str := range strings.Split(allowedRequesters, ",") {
+				addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(strings.TrimPrefix(str, "0x")))
+				if addr == nullAddr {
+					return fmt.Errorf("invalid value in `--ccqAllowedRequesters`: `%s`", str)
+				}
+				result[addr] = struct{}{}
+			}
+			if len(result) <= 0 {
+				return fmt.Errorf("no allowed requestors specified, ccqAllowedRequesters: `%s`", allowedRequesters)
+			}
+
+			policyProvider, err := queryratelimit.NewPolicyProvider(
+				queryratelimit.WithPolicyProviderLogger(logger),
+				queryratelimit.WithPolicyProviderCacheDuration(24*time.Hour),
+				queryratelimit.WithPolicyProviderFetcher(func(ctx context.Context, key ethCommon.Address) (*queryratelimit.Policy, error) {
+					_, ok := result[key]
+					if !ok {
+						return &queryratelimit.Policy{}, nil
+					}
+					return &queryratelimit.Policy{
+						Limits: queryratelimit.Limits{
+							Types: map[uint8]queryratelimit.Rule{
+								uint8(query.EthCallQueryRequestType): {
+									MaxPerMinute: 15 * 60,
+									MaxPerSecond: 15,
+								},
+								uint8(query.SolanaAccountQueryRequestType): {
+									MaxPerMinute: 15 * 60,
+									MaxPerSecond: 15,
+								},
+								uint8(query.SolanaPdaQueryRequestType): {
+									MaxPerMinute: 15 * 60,
+									MaxPerSecond: 15,
+								},
+							},
+						},
+					}, nil
+				}),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to create rate limit policy provider: %w", err)
+			}
+
 			g.queryHandler = query.NewQueryHandler(
 				logger,
 				g.env,
-				allowedRequesters,
+				enforcer,
+				policyProvider,
 				g.signedQueryReqC.readC,
 				g.chainQueryReqC,
 				g.queryResponseC.readC,
