@@ -2978,7 +2978,7 @@ func TestFlowCancelDependsOnCorridors(t *testing.T) {
 
 	ctx := context.Background()
 	assert.NotNil(t, ctx)
-	var database db.MockGovernorDB
+	var database guardianDB.MockGovernorDB
 	gov := NewChainGovernor(zap.NewNop(), &database, common.GoTest, false, "")
 
 	err = gov.Run(ctx)
@@ -2993,7 +2993,7 @@ func TestFlowCancelDependsOnCorridors(t *testing.T) {
 	// Try to add a flow cancel transfer when flow cancel is disabled
 	transferTime, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 11:00am (CST)")
 	require.NoError(t, err)
-	dbTransfer := &db.Transfer{
+	dbTransfer := &guardianDB.Transfer{
 		Value:         125000,
 		Timestamp:     transferTime,
 		OriginAddress: flowCancelTokenOriginAddress,

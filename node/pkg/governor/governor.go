@@ -103,7 +103,7 @@ type (
 	transfer struct {
 		dbTransfer *guardianDB.Transfer
 		// Corresponds to dbTransfers.Value field, but may be negative
-		value      int64
+		value int64
 	}
 
 	// Payload of the map of chains being monitored. Contains transfer data for both emitted and received transfers.
