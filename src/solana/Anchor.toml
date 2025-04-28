@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-solana = "CTyCJvaLgY18BTTY3M1ga1SmY5fuT3Jyu3j7s332Z3oz"
+verification_v2 = "CTyCJvaLgY18BTTY3M1ga1SmY5fuT3Jyu3j7s332Z3oz"
 
 [registry]
 url = "https://api.apr.dev"
