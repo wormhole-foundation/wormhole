@@ -2,8 +2,6 @@ package txverifier
 
 // TODOs
 //	add comments at the top of this file
-//	fix up contexts where it makes sense
-//	fix issue where cross-chain transfers show an invariant violation because of they cannot be found in the wrapped asset map
 
 import (
 	"context"
@@ -264,60 +262,6 @@ func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 	return nil
 }
 
-// fetchNativeInfo queries the token bridge about whether the token address is wrapped, and if so, returns the native chain
-// and address where the token was minted. This is done using the `wrappedAsset()` function of the Token Bridge,
-// which requires the token address and token chain as arguments. These correspond to the 'meta' field built
-// from the initial attestation of the token.
-//
-// If the address is native (not wrapped), returns zero values and no error.
-// func (tv *TransferVerifier[ethClient, Connector]) fetchNativeInfo(
-// 	tokenAddr common.Address,
-// 	tokenChain vaa.ChainID,
-// ) (vaa.ChainID, vaa.Address, error) {
-// 	tv.logger.Debug("checking if ERC20 asset is wrapped")
-//
-// 	isWrapped, isWrappedErr := tv.isWrappedAsset(tokenAddr)
-// 	if isWrappedErr != nil {
-// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("could not check if asset was wrapped"), isWrappedErr)
-// 	}
-//
-// 	// If the asset is native (not wrapped), no further info is needed.
-// 	// TODO: sentinel error?
-// 	if !isWrapped {
-// 		tv.logger.Debug("asset is native (not wrapped)", zap.String("tokenAddr", tokenAddr.String()))
-// 		return 0, ZERO_ADDRESS_VAA, nil
-// 	}
-//
-// 	// Fetch the address of the wrapped token contract.
-// 	queryAddr, convertErr := vaa.BytesToAddress(tokenAddr[:])
-// 	if convertErr != nil {
-// 		return 0, ZERO_ADDRESS_VAA, errors.New("could not convert bytes to VAA address")
-// 	}
-//
-// 	wrappedArr, unwrapErr := tv.wrappedAddr(queryAddr, tokenChain)
-// 	if unwrapErr != nil {
-// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("error when unwrapping asset"), unwrapErr)
-// 	}
-//
-// 	// Asset is wrapped but not in wrappedAsset map for the Token Bridge.
-// 	if Cmp(wrappedArr, ZERO_ADDRESS) == 0 {
-// 		return 0, ZERO_ADDRESS_VAA, errors.New("asset is wrapped but unwrapping gave the zero address. this is an unusual asset or there is a bug in the program")
-// 	}
-//
-// 	// Get the native chain ID
-// 	originChain, chainIdErr := tv.chainId(tokenAddr)
-// 	if chainIdErr != nil {
-// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("error when fetching chain ID"), chainIdErr)
-// 	}
-//
-// 	// Get the native address
-// 	originAddr, chainIdErr := tv.nativeContract(tokenAddr)
-// 	if chainIdErr != nil {
-// 		return 0, ZERO_ADDRESS_VAA, errors.Join(errors.New("error when fetching the native contract (origin address)"), chainIdErr)
-// 	}
-//
-// 	return originChain, originAddr, nil
-// }
 
 // ParseReceipt converts a go-ethereum receipt struct into a TransferReceipt.
 // It makes use of the ethConnector to parse information from the logs within
