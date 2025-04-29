@@ -501,6 +501,7 @@ func TestProcessReceipt(t *testing.T) {
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
 						Amount:       big.NewInt(456),
+						OriginAddr:   usdcAddrVAA,
 					},
 				},
 				MessagePublications: &[]*LogMessagePublished{
@@ -562,6 +563,7 @@ func TestProcessReceipt(t *testing.T) {
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
 						Amount:       big.NewInt(999),
+						OriginAddr:   usdcAddrVAA,
 					},
 				},
 				MessagePublications: &[]*LogMessagePublished{
@@ -623,6 +625,7 @@ func TestProcessReceipt(t *testing.T) {
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
 						Amount:       big.NewInt(1),
+						OriginAddr:   usdcAddrVAA,
 					},
 				},
 				MessagePublications: &[]*LogMessagePublished{
@@ -654,6 +657,7 @@ func TestProcessReceipt(t *testing.T) {
 						From:         eoaAddrGeth,
 						To:           tokenBridgeAddr,
 						Amount:       big.NewInt(2),
+						OriginAddr:   usdcAddrVAA,
 					},
 				},
 				MessagePublications: &[]*LogMessagePublished{
