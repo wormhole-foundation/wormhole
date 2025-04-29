@@ -76,17 +76,18 @@ func TestRelevantDeposit(t *testing.T) {
 		input    ERC20Transfer
 		expected result
 	}{
-		"relevant, transfer": {
+		"relevant transfer": {
 			input: ERC20Transfer{
 				TokenAddress: nativeAddrGeth,
 				TokenChain:   NATIVE_CHAIN_ID,
 				From:         eoaAddrGeth,
 				To:           tokenBridgeAddr,
 				Amount:       big.NewInt(500),
+				OriginAddr:   nativeAddrVAA,
 			},
 			expected: result{"000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2-2", true},
 		},
-		"irrelevant, transfer destination is not token bridge": {
+		"irrelevant transfer: destination is not token bridge": {
 			input: ERC20Transfer{
 				TokenAddress: nativeAddrGeth,
 				TokenChain:   NATIVE_CHAIN_ID,
@@ -102,7 +103,7 @@ func TestRelevantDeposit(t *testing.T) {
 		input    LogMessagePublished
 		expected result
 	}{
-		"relevant, LogMessagePublished": {
+		"relevant LogMessagePublished": {
 			input: LogMessagePublished{
 				EventEmitter: coreBridgeAddr,
 				MsgSender:    tokenBridgeAddr,
@@ -118,7 +119,7 @@ func TestRelevantDeposit(t *testing.T) {
 			},
 			expected: result{"000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2-2", true},
 		},
-		"irrelevant, LogMessagePublished has a sender not equal to token bridge": {
+		"irrelevant LogMessagePublished: sender not equal to token bridge": {
 			input: LogMessagePublished{
 				EventEmitter: coreBridgeAddr,
 				MsgSender:    eoaAddrGeth,
@@ -134,7 +135,7 @@ func TestRelevantDeposit(t *testing.T) {
 			},
 			expected: result{"", false},
 		},
-		"irrelevant, LogMessagePublished not emitted by core bridge": {
+		"irrelevant LogMessagePublished: not emitted by core bridge": {
 			input: LogMessagePublished{
 				EventEmitter: tokenBridgeAddr,
 				MsgSender:    tokenBridgeAddr,
@@ -150,7 +151,7 @@ func TestRelevantDeposit(t *testing.T) {
 			},
 			expected: result{"", false},
 		},
-		"irrelevant, LogMessagePublished does not have a PayloadType corresponding to a Transfer": {
+		"irrelevant LogMessagePublished: does not have a PayloadType corresponding to a Transfer": {
 			input: LogMessagePublished{
 				EventEmitter: coreBridgeAddr,
 				MsgSender:    tokenBridgeAddr,
@@ -375,6 +376,7 @@ func TestValidateERC20Transfer(t *testing.T) {
 				To:           tokenBridgeAddr,
 				From:         eoaAddrGeth,
 				Amount:       big.NewInt(100),
+				OriginAddr:   usdcAddrVAA,
 			},
 		},
 		"valid: zero-value for From (possible Transfer event from non-ERC20 contract)": {
@@ -384,6 +386,7 @@ func TestValidateERC20Transfer(t *testing.T) {
 				From:         ZERO_ADDRESS,
 				To:           tokenBridgeAddr,
 				Amount:       big.NewInt(1),
+				OriginAddr:   usdcAddrVAA,
 			},
 		},
 		"valid: zero-value for To (burning funds)": {
@@ -393,6 +396,7 @@ func TestValidateERC20Transfer(t *testing.T) {
 				From:         tokenBridgeAddr,
 				To:           ZERO_ADDRESS,
 				Amount:       big.NewInt(1),
+				OriginAddr:   usdcAddrVAA,
 			},
 		},
 	}
