@@ -262,7 +262,6 @@ func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 	return nil
 }
 
-
 // ParseReceipt converts a go-ethereum receipt struct into a TransferReceipt.
 // It makes use of the ethConnector to parse information from the logs within
 // the receipt. This function is mainly helpful to isolate the parsing code
