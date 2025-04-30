@@ -10,13 +10,13 @@
     "@certusone/wormhole-sdk": "^0.10.18",
     "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.2",
-    "@noble/secp256k1": "^2.2.3",
-    "chai-as-promised": "^8.0.1",
-    "diff": "^7.0.0"
+    "@noble/secp256k1": "^2.2.3"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
     "@types/chai": "^4.3.0",
+    "chai-as-promised": "^8.0.1",
+    "diff": "^7.0.0",
     "@types/chai-as-promised": "^8.0.2",
     "@types/mocha": "^10.0.10",
     "chai": "^4.5.0",

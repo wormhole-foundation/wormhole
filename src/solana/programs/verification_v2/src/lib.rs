@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-declare_id!("CTyCJvaLgY18BTTY3M1ga1SmY5fuT3Jyu3j7s332Z3oz");
+declare_id!("GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6");
 
 mod vaa;
 mod append_threshold_key_message;

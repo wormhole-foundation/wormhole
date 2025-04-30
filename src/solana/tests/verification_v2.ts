@@ -1,5 +1,4 @@
-import * as fs from "fs"
-import * as toml from "toml"
+import assert from "assert"
 
 import * as anchor from "@coral-xyz/anchor"
 import { PublicKey } from "@solana/web3.js"
@@ -11,7 +10,6 @@ import * as coreV1 from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { sign } from "@noble/secp256k1"
 import { keccak_256 } from "@noble/hashes/sha3"
 
-import { assert, expect } from "chai"
 import { boilerPlateReduction } from "./testing_helpers.js"
 import { Program } from "@coral-xyz/anchor"
 import { CONTRACTS } from "@certusone/wormhole-sdk"
@@ -87,80 +85,52 @@ export const createAppendThresholdKeyMessage = (tssIndex: number, tssKey: Uint8A
   ])
 }
 
-describe("Verification V2", () => {
-  // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env())
+// ------------------------------------------------------------------------------------------------
 
-  const connection = anchor.getProvider().connection
-  const payer = anchor.getProvider().wallet?.payer
-  assert(payer, "Payer not found")
+// Configure the client to use the local cluster.
+anchor.setProvider(anchor.AnchorProvider.env())
 
-  const mockGuardians = new MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
+const connection = anchor.getProvider().connection
+const payer = anchor.getProvider().wallet?.payer
+assert(payer, "Payer not found")
 
-  const coreV2 = anchor.workspace.VerificationV2 as Program<VerificationV2>
+const mockGuardians = new MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
 
-  const {
-    requestAirdrop,
-    guardianSign,
-    postSignedMsgAsVaaOnSolana,
-    expectIxToSucceed,
-    expectIxToFailWithError,
-  } = boilerPlateReduction(connection, payer)
+const coreV2 = anchor.workspace.VerificationV2 as Program<VerificationV2>
 
-  it("Initializes wormhole program", async () => {
-    const guardianSetExpirationTime = 86400
-    const fee = 100n
-    const devnetGuardian = mockGuardians.getPublicKeys()[0]
-    const initialGuardians = [devnetGuardian]
-    const coreV1Address = new PublicKey(CONTRACTS.DEVNET.solana.core)
+const {
+  requestAirdrop,
+  guardianSign,
+  postSignedMsgAsVaaOnSolana,
+  expectIxToSucceed,
+  expectIxToFailWithError,
+} = boilerPlateReduction(connection, payer)
 
-    await expectIxToSucceed(
-      coreV1.createInitializeInstruction(
-        coreV1Address,
-        payer.publicKey,
-        guardianSetExpirationTime,
-        fee,
-        initialGuardians,
-      )
-    )
+const guardianSetExpirationTime = 86400
+const fee = 100n
+const devnetGuardian = mockGuardians.getPublicKeys()[0]
+const initialGuardians = [devnetGuardian]
+const coreV1Address = new PublicKey('worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth')
 
-    const accounts = await connection.getProgramAccounts(coreV1Address)
-    expect(accounts).has.length(2)
+await expectIxToSucceed(
+  coreV1.createInitializeInstruction(
+    coreV1Address,
+    payer.publicKey,
+    guardianSetExpirationTime,
+    fee,
+    initialGuardians,
+  )
+)
 
-    const info = await coreV1.getWormholeBridgeData(connection, coreV1Address)
-    expect(info.guardianSetIndex).equals(0)
-    expect(info.config.guardianSetExpirationTime).equals(guardianSetExpirationTime)
-    expect(info.config.fee).equals(fee)
+const accounts = await connection.getProgramAccounts(coreV1Address)
+assert(accounts.length === 2, "Expected 2 accounts")
 
-    const guardianSet = await coreV1.getGuardianSet(connection, coreV1Address, info.guardianSetIndex)
-    expect(guardianSet.index).equals(0)
-    expect(guardianSet.keys).has.length(1)
-    expect(devnetGuardian).deep.equal(guardianSet.keys[0])
-  })
+const info = await coreV1.getWormholeBridgeData(connection, coreV1Address)
+assert(info.guardianSetIndex === 0, "Expected guardian set index to be 0")
+assert(info.config.guardianSetExpirationTime === guardianSetExpirationTime, "Expected guardian set expiration time to be 86400")
+assert(info.config.fee === fee, "Expected fee to be 100")
 
-  it("Add initial TSS key", async () => {
-  })
-
-  it("Verifies VAAv2", async () => {
-
-  })
-
-  it("Add new TSS key", async () => {
-
-  })
-
-  it("Verifies VAA with new TSS key", async () => {
-
-  })
-
-  it("Invalidates TSS key after timeout", async () => {
-
-  })
-
-  it("Does not verify VAA with invalid TSS key", async () => {
-
-  })
-
-  it("Does not verify VAA with invalid signature", async () => {
-  })
-})
+const guardianSet = await coreV1.getGuardianSet(connection, coreV1Address, info.guardianSetIndex)
+assert(guardianSet.index === 0, "Expected guardian set index to be 0")
+assert(guardianSet.keys.length === 1, "Expected guardian set keys to have length 1")
+assert(devnetGuardian.equals(guardianSet.keys[0]), "Expected guardian set keys to be the devnet guardian")

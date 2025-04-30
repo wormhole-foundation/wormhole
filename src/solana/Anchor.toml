@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-verification_v2 = "CTyCJvaLgY18BTTY3M1ga1SmY5fuT3Jyu3j7s332Z3oz"
+verification_v2 = "GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,3 +16,13 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run mocha -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = false
+
+[[test.genesis]]
+name = "wormhole"
+address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+program = "imports/wormhole.so"
