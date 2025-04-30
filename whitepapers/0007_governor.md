@@ -38,9 +38,14 @@ If a Guardian decides to enable this feature:
 ## High-Level Design
 
 ### Delay Decision Logic
+
 *Configuration*:
 * For each chain, a _single-transaction-threshold_ and a *24h-threshold* denominated in a base currency (U.S. Dollar) is specified in [mainnet_chains.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/mainnet_chains.go).
 * A list of prominent tokens is specified in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). Tokens that are not on this list are not being tracked by the Governor. This list is opt-in in order to prevent thinly-traded tokens with unreliable price feeds to count towards the thresholds.
+
+* A list of allow-listed assets for flow canceling is configured in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go).
+
+* A list of allow-listed chain ID pairs for flow canceling is configured in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_corridors.go).
 
 Governor divides token-based transactions into two categories: small transactions, and large transactions.
 
@@ -49,8 +54,24 @@ Governor divides token-based transactions into two categories: small transaction
 
 #### Headroom Calculations
 
-The headroom for a given chain is the sum of the notional USD value of all transfers of governed tokens emitted from that chain within a 24 hour sliding window.
-Inbound transfers of certain tokens can also decrease this sum, a process we refer to as Flow Canceling. The tokens are listed in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go). An inbound transfer of these tokens to chain will reduce that chain's outbound limit: effectively the net-flow is zero. This allows for a relaxing of the Governor's rate-limiting as it accounts for the net flow of these assets rather than calculating only the outbound value.
+The headroom for a given chain is the sum of the notional USD value of all
+transfers of governed tokens emitted from that chain within a 24 hour sliding
+window. Inbound transfers of certain tokens can also decrease this sum, a
+process we refer to as Flow Canceling. The tokens are listed in
+
+This is sometimes referred to as the "daily limit", though it uses a sliding window rather than discrete calendar days.
+
+#### Flow Canceling
+
+Guardians can optionally enable "flow canceling". This feature allows incoming transfers to reduce the current
+"daily limit" (sum of the USD value of all small transactions within the past 24 hours). This creates additional headroom,
+allowing a greater volume of notional value to leave the chain without being delayed.
+
+The general idea is to allow certain transfers to offset the consumption of an outgoing "budget" that the Governor records.
+A flow cancel transfer is akin to a credit transferred into the Governor which is measured against the total debits
+of the day, 'paying off the debt', and allowing for further consumption.
+
+
 
 ### Asset pricing
 
@@ -74,7 +95,12 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
 
 ## Detailed Design
 
-The Governor is implemented as an additional package that defines (1) a `ChainGovernor` object, (2) `mainnet_tokens.go`, a single map of tokens that will be monitored, (3) `mainnet_chains.go`, a map of chains governed by the chain governor, and (4) `flow_cancel_tokens.go`, a map of tokens that can reduce the Governor's rate limit.
+The Governor is implemented as an additional package that defines 
+1. a `ChainGovernor` object
+2. `mainnet_tokens.go`, a single map of tokens that
+3. `mainnet_chains.go`, a map of chains governed by the chain governor
+4. `flow_cancel_tokens.go`, a map of tokens that can reduce a chain's calculated aggregate flow.
+5. `flow_cancel_corridors.go`, a list of chain ID pairs which allow flow canceling between those two chains
 
 The `mainnet_tokens.go` maps a list of tokens with the maximum price between a hard-coded token floor price and the latest price read from CoinGecko.
 
@@ -107,6 +133,46 @@ In this design, there are three mechanisms for enqueued messages to be published
 - Messages will be automatically released after a maximum time limit (this time limit can be adjusted through governance and is currently set to 24 hours).
   - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window._
 
+## Flow Canceling
+
+### Flow Canceling assets and Corridors
+Only certain assets transferred between certain chains can flow cancel. This works using two allow-lists:
+* The Flow Cancel token list
+* The Flow Cancel corridors list. A corridor is a pair of two chains.
+
+### Criteria for flow canceling
+An incoming transfer to a chain can flow cancel if all of the following conditions are met:
+* The transfer is not a big transfer
+* The asset is allow-listed in the file [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go).
+* The source (emitter) chain and the destination (target) chain are connected by a corridor.
+* The flow cancel feature is enabled by a Guardian on start.
+
+### Effects
+
+When a flow cancel occurs, the "daily limit" of the destination chain is reduced by the USD value of the incoming transfer.
+This additional headroom may allow previously queued transfers to be released if they fit within the new daily limit constraint.
+
+It is important to note that big transfers are not affected by flow canceling and will remain queued.
+
+### Examples
+
+Flow canceling is enabled and the Governor is configured as follows:
+* Flow canceling assets: USDC minted on Ethereum
+* Flow canceling corridors: Ethereum <-> Sui
+
+Transfers:
+* **Transfer 1**: Emitter=Ethereum, Target=Solana, Asset=USDC (Eth)
+* **Transfer 2**: Emitter=Ethereum, Target=Sui, Asset=DAI (Eth)
+* **Transfer 3**: Emitter=Ethereum, Target=Sui, Asset=USDC (Solana)
+* **Transfer 4**: Emitter=Solana, Target=Base, Asset=USDC (Eth)
+* **Transfer 5**: Emitter=Sui, Target=Ethereum, Asset=USDC (Eth)
+
+Only **Transfer 5** will flow cancel here, reducing the calculated limit on Ethereum.
+
+* Transfer 1 fails because there is no Ethereum-Solana corridor
+* Transfer 2 fails because DAI is not a flow canceling asset
+* Transfer 3 fails because only USDC minted on Ethereum is enabled
+* Transfer 4 fails because there is no corridor between Solana and Base
 
 ## Operational Considerations
 ### Extending the release time to have more time to investigate
