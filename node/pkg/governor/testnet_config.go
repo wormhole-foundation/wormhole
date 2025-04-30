@@ -6,7 +6,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []tokenConfigEntry, []chainConfigEntry) {
+func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []tokenConfigEntry, []chainConfigEntry, []corridor) {
 	gov.logger.Info("setting up testnet config")
 
 	tokens := []tokenConfigEntry{
@@ -15,10 +15,14 @@ func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []tokenConfig
 	}
 
 	flowCancelTokens := []tokenConfigEntry{}
+	flowCancelCorridors := []corridor{}
 
 	if gov.flowCancelEnabled {
 		flowCancelTokens = []tokenConfigEntry{
 			{chain: 1, addr: "3b442cb3912157f13a933d0134282d032b5ffecd01a2dbf1b7790608df002ea7", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 1.001}, // Addr: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU, Notional: 6780118.197035182
+		}
+		flowCancelCorridors = []corridor{
+			{first: vaa.ChainIDEthereum, second: vaa.ChainIDSui},
 		}
 	}
 
@@ -28,5 +32,5 @@ func (gov *ChainGovernor) initTestnetConfig() ([]tokenConfigEntry, []tokenConfig
 		{emitterChainID: vaa.ChainIDFantom, dailyLimit: 1000000},
 	}
 
-	return tokens, flowCancelTokens, chains
+	return tokens, flowCancelTokens, chains, flowCancelCorridors
 }
