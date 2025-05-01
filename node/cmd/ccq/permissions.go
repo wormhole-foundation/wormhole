@@ -145,7 +145,7 @@ func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, 
 				// a Write event, where Vim actually deletes the file and recreates it on save.
 				//
 				// NOTE: A `touch` command issues only a `Chmod` event,
-				// so it will trigger this branch.
+				// so it will not trigger this branch.
 				if event.Name == perms.fileName && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
 					logger.Info("the permissions file has been updated", zap.String("fileName", event.Name), zap.String("event", event.String()))
 					perms.Reload(logger)
