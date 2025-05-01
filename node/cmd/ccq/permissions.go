@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strings"
 	"sync"
 
@@ -120,24 +121,33 @@ func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, 
 	if createErr != nil {
 		return createErr
 	}
-	addErr := permWatcher.Add(perms.fileName)
+
+	// fsnotify requires watching the parent directory rather than the file.
+	watchDir := path.Dir(perms.fileName)
+	addErr := permWatcher.Add(watchDir)
 	if addErr != nil {
 		return addErr
 	}
 	perms.watcher = permWatcher
+	logger.Warn("Starting permissions watcher", zap.String("dir", watchDir))
 
 	common.RunWithScissors(ctx, errC, "perm_file_watcher", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
+				logger.Info("got context done")
 				return nil
 			case event := <-perms.watcher.Events:
-				if event.Name != perms.fileName {
-					return fmt.Errorf("permissions watcher received an update for an unexpected file: %s", event.Name)
-				}
+				logger.Debug("got permissions watcher event", zap.String("event", event.String()))
 
-				if event.Has(fsnotify.Write) {
-					logger.Info("the permissions file has been updated", zap.String("fileName", event.Name), zap.Uint32("event", uint32(event.Op)))
+				// Look for modifications to the permissions file. Which event is triggered
+				// depends on how the file was modified: something like nano will issue
+				// a Write event, where Vim actually deletes the file and recreates it on save.
+				//
+				// NOTE: A `touch` command issues only a `Chmod` event,
+				// so it will trigger this branch.
+				if event.Name == perms.fileName && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
+					logger.Info("the permissions file has been updated", zap.String("fileName", event.Name), zap.String("event", event.String()))
 					perms.Reload(logger)
 				}
 			}
