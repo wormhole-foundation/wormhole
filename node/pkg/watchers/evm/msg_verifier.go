@@ -2,7 +2,6 @@ package evm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -68,10 +67,6 @@ func state(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt, 
 
 	// The receipt couldn't be processed properly for some reason.
 	if err != nil {
-		if errors.Is(err, txverifier.ErrNoMsgsFromTokenBridge) {
-			return common.NotApplicable
-		}
-
 		return common.CouldNotVerify
 	}
 
