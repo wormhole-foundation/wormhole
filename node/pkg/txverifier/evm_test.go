@@ -756,7 +756,7 @@ func TestTransferReceiptValidate(t *testing.T) {
 				Transfers:           &[]*ERC20Transfer{},
 				MessagePublications: &[]*LogMessagePublished{},
 			},
-			"parsed receipt has no Message Publications",
+			ErrNoMsgsFromTokenBridge.Error(),
 		},
 	}
 

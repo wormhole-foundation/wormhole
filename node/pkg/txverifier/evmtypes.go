@@ -39,7 +39,7 @@ const (
 
 // Errors
 var (
-	ErrChainIDNotSupported = errors.New("chain ID is not supported.")
+	ErrChainIDNotSupported = errors.New("chain ID is not supported")
 )
 
 // Function signatures
@@ -575,7 +575,7 @@ func (r *TransferReceipt) Validate() (err error) {
 		return errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
 	}
 	if len(*r.MessagePublications) == 0 {
-		return errors.Join(err, errors.New("parsed receipt has no Message Publications"))
+		return errors.Join(err, ErrNoMsgsFromTokenBridge)
 	}
 
 	return
