@@ -63,7 +63,7 @@ func verify(
 func state(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt, tv txverifier.TransferVerifierInterface) common.VerificationState {
 	// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 	// to protect against fraudulent message emissions.
-	valid, err := tv.ProcessEvent(ctx, txHash, receipt)
+	valid, err := tv.TransferIsValid(ctx, txHash, receipt)
 
 	// The receipt couldn't be processed properly for some reason.
 	if err != nil {
