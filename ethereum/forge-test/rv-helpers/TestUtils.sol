@@ -19,6 +19,7 @@ bytes32 constant CONSUMEDGOVACTIONS_STORAGE_INDEX = bytes32(uint256(5));
 bytes32 constant INITIALIZEDIMPLEMENTATIONS_STORAGE_INDEX = bytes32(uint256(6));
 bytes32 constant MESSAGEFEE_STORAGE_INDEX = bytes32(uint256(7));
 bytes32 constant EVMCHAINID_STORAGE_INDEX = bytes32(uint256(8));
+bytes32 constant GUARDIANSETHASHES_STORAGE_INDEX = bytes32(uint256(9));
 
 uint256 constant SECP256K1_CURVE_ORDER =
     115792089237316195423570985008687907852837564279074904382605163141518161494337;
@@ -33,6 +34,12 @@ contract TestUtils is Test, KEVMCheats {
 
     // Returns the index hash of the storage slot of a map at location `index` and the key `_key`.
     function hashedLocation(bytes32 _key, bytes32 _index) public pure returns(bytes32) {
+        // returns `keccak(#buf(32,_key) +Bytes #buf(32, index))
+        return keccak256(abi.encode(_key, _index));
+    }
+
+    // Returns the index hash of the storage slot of a map at location `index` and the key `_key`.
+    function hashedLocation(uint256 _key, bytes32 _index) public pure returns(bytes32) {
         // returns `keccak(#buf(32,_key) +Bytes #buf(32, index))
         return keccak256(abi.encode(_key, _index));
     }
