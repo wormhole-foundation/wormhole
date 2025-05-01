@@ -47,29 +47,37 @@ If a Guardian decides to enable this feature:
 
 * A list of allow-listed chain ID pairs for flow canceling is configured in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_corridors.go).
 
-Governor divides token-based transactions into two categories: small transactions, and large transactions.
+The Governor divides token-based transactions into two categories: small transactions and large transactions.
 
 - **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any 24h sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the 24h sliding window. A transaction either fits or is delayed, they are not artificially split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the 24h threshold.
 - **Large Transactions:** Transactions larger than the single-transaction threshold of the chain where the transfer is originating from are considered large transactions.  All large transactions have an imposed 24h finality delay before Wormhole Guardians sign them. These transactions do not affect the 24h threshold counter.
 
 #### Headroom Calculations
 
-The headroom for a given chain is the sum of the notional USD value of all
-transfers of governed tokens emitted from that chain within a 24 hour sliding
-window. Inbound transfers of certain tokens can also decrease this sum, a
-process we refer to as Flow Canceling. The tokens are listed in
+Each chain has a configured limit, denoted in USD, that determines the maximum
+value of transfers that can be emitted within a 24 hour period. . This is
+sometimes referred to as the "daily limit", though it uses a 24-hour sliding
+window rather than discrete calendar days. When the sum exceeds the limit,
+transfer will be queued.
 
-This is sometimes referred to as the "daily limit", though it uses a sliding window rather than discrete calendar days.
+The headroom for a chain is the amount left over after subtracting the current
+sum of small transfers from the chain's daily limit.
+
+Inbound transfers of certain tokens can also decrease this sum, a
+process we refer to as Flow Canceling.
 
 #### Flow Canceling
 
-Guardians can optionally enable "flow canceling". This feature allows incoming transfers to reduce the current
-"daily limit" (sum of the USD value of all small transactions within the past 24 hours). This creates additional headroom,
-allowing a greater volume of notional value to leave the chain without being delayed.
+Guardians can optionally enable "flow canceling". This feature allows incoming
+transfers to reduce the current "daily limit" (sum of the USD value of all
+small transactions within the past 24 hours). This creates additional headroom,
+allowing a greater volume of notional value to leave the chain without being
+delayed.
 
-The general idea is to allow certain transfers to offset the consumption of an outgoing "budget" that the Governor records.
-A flow cancel transfer is akin to a credit transferred into the Governor which is measured against the total debits
-of the day, 'paying off the debt', and allowing for further consumption.
+The general idea is to allow certain transfers to offset the consumption of an
+outgoing "budget" that the Governor records. A flow cancel transfer is akin to
+a credit transferred into the Governor which is measured against the total
+debits of the day, 'paying off the debt', and allowing for further consumption.
 
 
 
@@ -137,8 +145,8 @@ In this design, there are three mechanisms for enqueued messages to be published
 
 ### Flow Canceling assets and Corridors
 Only certain assets transferred between certain chains can flow cancel. This works using two allow-lists:
-* The Flow Cancel token list
-* The Flow Cancel corridors list. A corridor is a pair of two chains.
+* The Flow Cancel token list.
+* The Flow Cancel corridors list. A corridor is a pair of chain IDs.
 
 ### Criteria for flow canceling
 An incoming transfer to a chain can flow cancel if all of the following conditions are met:
