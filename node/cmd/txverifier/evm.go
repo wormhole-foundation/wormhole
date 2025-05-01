@@ -138,7 +138,11 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	// Single-shot mode: process a single receipt hash.
 	if len(*hash) > 0 {
 		receiptHash := common.HexToHash(*hash)
-		result := transferVerifier.ProcessEvent(ctx, receiptHash, nil)
+		result, err := transferVerifier.ProcessEvent(ctx, receiptHash, nil)
+		if err != nil {
+			logger.Error("could not verify transfer", zap.Error(err))
+			os.Exit(1)
+		}
 		logger.Info("ProcessEvent result", zap.Bool("valid", result))
 		os.Exit(0)
 	}
@@ -163,7 +167,11 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 		// Process observed LogMessagePublished events
 		case vLog := <-sub.Events():
-			transferVerifier.ProcessEvent(ctx, vLog.Raw.TxHash, nil)
+			result, err := transferVerifier.ProcessEvent(ctx, vLog.Raw.TxHash, nil)
+			if err != nil {
+				logger.Warn("error when processing event", zap.Error(err), zap.Bool("result", result), zap.String("txHash", vLog.Raw.TxHash.String()))
+			}
+			logger.Debug("done processing", zap.Bool("result", result), zap.String("txHash", vLog.Raw.TxHash.String()))
 		}
 	}
 }

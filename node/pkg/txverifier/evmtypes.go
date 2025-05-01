@@ -37,6 +37,11 @@ const (
 	EVENTHASH_WETH_DEPOSIT = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
 )
 
+// Errors
+var (
+	ErrChainIDNotSupported = errors.New("chain ID is not supported.")
+)
+
 // Function signatures
 var (
 	// wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) => 0x1ff1e286
@@ -88,12 +93,20 @@ type chainIds struct {
 }
 
 type TransferVerifierInterface interface {
-	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) bool
+	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) (bool, error)
 	Addrs() *TVAddresses
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) Addrs() *TVAddresses {
 	return tv.Addresses
+}
+
+type evaluation struct {
+	// The go-ethereum receipt.
+	Receipt *types.Receipt
+	// Whether the transfer verifier determined this receipt safe or not
+	Result bool
+	Err    error
 }
 
 // TransferVerifier contains configuration values for verifying transfers.
@@ -108,7 +121,7 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// Corresponds to an ethClient from go-ethereum
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
-	processedTransactions map[common.Hash]*types.Receipt
+	evaluations map[common.Hash]*evaluation
 	// The latest transaction block number, used to determine the size of historic receipts to keep in memory.
 	lastBlockNumber uint64
 	// The block height difference between the latest block and the oldest block to keep in memory.
@@ -148,23 +161,27 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		return nil, fmt.Errorf("could not get Wormhole chain ID from EVM chain ID: %w", unregisteredErr)
 	}
 
+	if !IsSupported(wormholeChainId) {
+		return nil, ErrChainIDNotSupported
+	}
+
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
 		Addresses: tvAddrs,
 		chainIds: &chainIds{
 			evmChainId:      evmChainId,
 			wormholeChainId: wormholeChainId,
 		},
-		logger:                *logger,
-		evmConnector:          connector,
-		client:                connector.Client(),
-		processedTransactions: make(map[common.Hash]*types.Receipt),
-		lastBlockNumber:       0,
-		pruneHeightDelta:      pruneHeightDelta,
-		isWrappedCache:        make(map[string]bool),
-		wrappedCache:          make(map[string]common.Address),
-		chainIdCache:          make(map[string]vaa.ChainID),
-		nativeContractCache:   make(map[string]vaa.Address),
-		decimalsCache:         make(map[common.Address]uint8),
+		logger:              *logger,
+		evmConnector:        connector,
+		client:              connector.Client(),
+		evaluations:         make(map[common.Hash]*evaluation),
+		lastBlockNumber:     0,
+		pruneHeightDelta:    pruneHeightDelta,
+		isWrappedCache:      make(map[string]bool),
+		wrappedCache:        make(map[string]common.Address),
+		chainIdCache:        make(map[string]vaa.ChainID),
+		nativeContractCache: make(map[string]vaa.Address),
+		decimalsCache:       make(map[common.Address]uint8),
 	}, nil
 }
 
@@ -1125,7 +1142,7 @@ func TryWormholeChainIdFromNative(evmChainId uint64) (wormholeChainID vaa.ChainI
 	// Add additional cases below to support more EVM chains.
 	// Note: it might be better for this function to be moved into the SDK in case other codebases need similar functionality.
 	switch evmChainId {
-	// Special carve out for anvil-based testing. This chain ID  1337 anvil's default.
+	// Special carve out for anvil-based testing. ChainID 1337 is anvil's default.
 	// In this case, report the native chain ID as the mainnet chain ID for the purposes of testing.
 	case 1, 1337:
 		wormholeChainID = vaa.ChainIDEthereum

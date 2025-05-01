@@ -114,6 +114,10 @@ func SupportedChains() []vaa.ChainID {
 	}
 }
 
+func IsSupported(cid vaa.ChainID) bool {
+	return slices.Contains(SupportedChains(), cid)
+}
+
 // ValidateChains validates that a slice of uints correspond to chain IDs with a Transfer Verifier implementation.
 // Returns a slice of the input values converted into valid, known ChainIDs.
 // Returns nil when an error occurs.

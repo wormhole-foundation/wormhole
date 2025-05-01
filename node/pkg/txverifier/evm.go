@@ -24,8 +24,22 @@ const (
 
 // TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
 var (
-	ErrNotTransfer = errors.New("payload is not a token transfer")
+	ErrNotTransfer            = errors.New("payload is not a token transfer")
+	ErrTxHashIsZeroAddr       = errors.New("txHash is the zero address")
+	ErrReceiptHasNoMsgPub     = errors.New("receipt has no LogMessagePublished events")
+	ErrNoMsgsFromTokenBridge  = errors.New("no messages published from Token Bridge")
+	ErrParsedReceiptIsNil     = errors.New("nil receipt after parsing")
+	ErrInvalidReceiptArgument = errors.New("invalid TransferReceipt argument")
 )
+
+func (tv *TransferVerifier[ethClient, Connector]) addToCache(
+	txHash common.Hash,
+	evaluation *evaluation,
+) {
+	if _, exists := tv.evaluations[txHash]; !exists {
+		tv.evaluations[txHash] = evaluation
+	}
+}
 
 // ProcessEvent processes a LogMessagePublished event. It fetches
 // the full transaction receipt associated with the txHash, and parses all
@@ -40,24 +54,24 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	txHash common.Hash,
 	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
 	receipt *geth.Receipt,
-) bool {
+) (bool, error) {
 
-	// Use this opportunity to prune old transaction information from the cache.
+	// Prune old transaction information from the cache.
 	tv.pruneCache()
 
 	if Cmp(txHash, ZERO_ADDRESS) == 0 {
 		tv.logger.Error("txHash is the zero address")
-		return false
+		return false, ErrTxHashIsZeroAddr
 	}
 
 	tv.logger.Debug("detected LogMessagePublished event",
 		zap.String("txHash", txHash.String()))
 
 	// Caching: record used/inspected tx hash.
-	if _, exists := tv.processedTransactions[txHash]; exists {
+	if eval, exists := tv.evaluations[txHash]; exists {
 		tv.logger.Debug("skip: transaction hash already processed",
 			zap.String("txHash", txHash.String()))
-		return true
+		return eval.Result, eval.Err
 	}
 
 	// Get the full transaction receipt for this txHash if it was not provided as an argument.
@@ -65,39 +79,41 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 		tv.logger.Debug("receipt was not passed as an argument. fetching it using the connector")
 		var txReceiptErr error
 		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
+
 		if txReceiptErr != nil {
-			tv.logger.Warn("could not find core bridge receipt", zap.Error(txReceiptErr))
-			return true
+			tv.addToCache(txHash, &evaluation{receipt, false, txReceiptErr})
+			return false, txReceiptErr
 		}
 	}
 
-	// Caching: record a new lastBlockNumber.
-	tv.lastBlockNumber = receipt.BlockNumber.Uint64()
-	tv.processedTransactions[txHash] = receipt
+	eval := evaluation{Receipt: receipt}
+
+	// Caching: record a new lastBlockNumber and add the receipt to the cache.
+	if receipt.BlockNumber != nil {
+		tv.lastBlockNumber = receipt.BlockNumber.Uint64()
+	}
 
 	// Parse raw transaction receipt into high-level struct containing transfer details.
 	transferReceipt, parseErr := tv.ParseReceipt(receipt)
+
+	if parseErr != nil {
+		eval.Err = parseErr
+		tv.addToCache(txHash, &eval)
+		return false, parseErr
+	}
+
+	// ParseReceipt should only return nil when there is also an error, so we don't expect to get here.
 	if transferReceipt == nil {
-		if parseErr != nil {
-			tv.logger.Warn("error when parsing receipt. skipping validation",
-				zap.String("receipt hash", receipt.TxHash.String()),
-				zap.Error(parseErr))
-		} else {
-			tv.logger.Debug("parsed receipt did not contain any LogMessagePublished events",
-				zap.String("receipt hash", receipt.TxHash.String()))
-		}
-		// Return true regardless of parsing errors. False is reserved
-		// for confirmed bad scenarios (arbitrary message
-		// publications), not parsing errors or irrelevant receipts.
-		return true
-	} else {
-		// ParseReceipt is expected to return a nil TransferReceipt when there is an error,
-		// but this error handling is included in case of a programming error.
-		if parseErr != nil {
-			tv.logger.Warn("ParseReceipt encountered an error but returned a non-nil TransferReceipt. This is likely a programming error. Skipping validation",
-				zap.String("receipt hash", receipt.TxHash.String()),
-				zap.Error(parseErr))
-		}
+		eval.Err = ErrParsedReceiptIsNil
+		tv.addToCache(txHash, &eval)
+		return false, ErrParsedReceiptIsNil
+	}
+
+	// Invalid receipt: no message publications
+	if len(*transferReceipt.MessagePublications) == 0 {
+		eval.Err = ErrNoMsgsFromTokenBridge
+		tv.addToCache(txHash, &eval)
+		return false, ErrNoMsgsFromTokenBridge
 	}
 
 	// Add wormhole-specific data to the receipt by making
@@ -105,10 +121,9 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	// such as a token's native address and its decimals.
 	updateErr := tv.UpdateReceiptDetails(transferReceipt)
 	if updateErr != nil {
-		tv.logger.Warn("error when fetching receipt details from the token bridge. can't continue processing",
-			zap.String("receipt hash", receipt.TxHash.String()),
-			zap.Error(updateErr))
-		return true
+		eval.Err = updateErr
+		tv.addToCache(txHash, &eval)
+		return false, updateErr
 	}
 
 	// Ensure that the amount coming in is at least as much as the amount requested out.
@@ -116,37 +131,45 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 	tv.logger.Debug("finished processing receipt", zap.String("summary", summary.String()))
 
 	if processErr != nil {
-		// This represents a serious error. Normal, valid transactions should return an
-		// error here. If this error is returned, it means that the core invariant that
-		// transfer verifier is monitoring is broken.
-		tv.logger.Error("error when processing receipt. can't continue processing",
-			zap.Error(processErr),
-			zap.String("txHash", txHash.String()))
-		return false
+		// This represents an invariant violation in token transfers.
+		eval.Err = processErr
+		tv.addToCache(txHash, &eval)
+		return false, processErr
 	}
 
 	// Update statistics
 	if summary.logsProcessed == 0 {
 		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
-		return true
 	}
 
-	return true
+	eval.Err = nil
+	eval.Result = true
+	tv.addToCache(txHash, &eval)
+	return true, nil
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 	// Prune the cache of processed receipts
 	numPrunedReceipts := int(0)
+
 	// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
-	for hash, receipt := range tv.processedTransactions {
-		if receipt.BlockNumber.Uint64() < tv.lastBlockNumber-tv.pruneHeightDelta {
-			numPrunedReceipts++
-			delete(tv.processedTransactions, hash)
+	for hash, eval := range tv.evaluations {
+		if eval.Receipt != nil {
+			if eval.Receipt.BlockNumber.Uint64() < tv.lastBlockNumber-tv.pruneHeightDelta {
+				numPrunedReceipts++
+				delete(tv.evaluations, hash)
+			}
+		} else {
+			// NOTE: Kind of sloppy to delete these right away, but we shouldn't be caching
+			// many nil receipts anyway.
+			delete(tv.evaluations, hash)
 		}
 	}
 
 	tv.logger.Debug("pruned cached transaction receipts",
 		zap.Int("numPrunedReceipts", numPrunedReceipts))
+
+	// TODO: The other caches should be pruned here too.
 }
 
 // Do additional processing on the raw data that has been parsed. This
@@ -273,7 +296,7 @@ func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 // This function is not responsible for checking that the values for the
 // various fields are relevant, only that they are well-formed.
 //
-// This function should return a nil TransferReceipt when an error occurs.
+// This function must return nil TransferReceipt when an error occurs.
 func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	receipt *geth.Receipt,
 ) (*TransferReceipt, error) {
@@ -436,14 +459,7 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 	}
 
 	if len(messagePublications) == 0 {
-		if receiptErr == nil {
-			// There are no valid message publications, but also no recorded errors.
-			// This occurs when the core bridge emits a LogMessagePublished event but it is not sent by
-			// the Token Bridge. In this case, just return nil for both values.
-			return nil, nil
-		}
-		// If other errors occurred, also mention that there were no valid LogMessagePublished events.
-		receiptErr = errors.Join(receiptErr, errors.New("parsed receipt but received no LogMessagePublished events"))
+		receiptErr = errors.Join(receiptErr, ErrNoMsgsFromTokenBridge)
 	}
 
 	if receiptErr != nil {
@@ -476,8 +492,6 @@ func (i InvariantError) Error() string {
 // An error should be returned if a deposit or transfer in the receipt is missing
 // crucial information, or else if the sum of the funds in are less than
 // the funds out.
-// When modifying this code, be cautious not to return errors unless something
-// is really wrong.
 func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 	receipt *TransferReceipt,
 ) (summary *ReceiptSummary, err error) {
