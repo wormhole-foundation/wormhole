@@ -51,16 +51,19 @@ func (tv *TransferVerifier[ethClient, Connector]) addToCache(
 	}
 }
 
-// ProcessEvent processes a token transfer receipt based on a LogMessagePublished event. It fetches
+// TransferIsValid processes a token transfer receipt based on a LogMessagePublished event. It fetches
 // the full transaction receipt associated with the txHash, and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
 // transfers and token deposits into the token bridge as inbound transfers. It then
 // verifies that the sum of the inbound transfers is at least as much as the sum of
 // the outbound transfers.
 //
-// If the return value is true, it implies that the token transfer's receipt is valid.
-// If the return value is false, it implies that a token transfer invariant has been violated.
-func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
+// Return values:
+//
+//	true:  the token transfer's receipt is valid.
+//	false and nil: the token transfer has violated an invariant and is unsafe.
+//	false and err: the receipt could not be properly processed or is not a token transfer.
+func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	ctx context.Context,
 	txHash common.Hash,
 	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
@@ -152,6 +155,7 @@ func (tv *TransferVerifier[ethClient, Connector]) ProcessEvent(
 		}
 
 		// This represents an invariant violation in token transfers.
+		tv.logger.Error("invariant violation", zap.Error(processErr), zap.String("receipt summary", summary.String()))
 		return false, nil
 	}
 
@@ -628,12 +632,9 @@ func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 	var err error
 	for key, amountOut := range summary.out {
 		if amountIn, exists := summary.in[key]; !exists {
-			tv.logger.Error("transfer-out request for tokens that were never deposited",
-				zap.String("key", key))
 			err = &InvariantError{Msg: "transfer-out request for tokens that were never deposited"}
 		} else {
 			if amountOut.Cmp(amountIn) == 1 {
-				tv.logger.Error("requested amount out is larger than amount in")
 				err = &InvariantError{Msg: "requested amount out is larger than amount in"}
 			}
 
@@ -693,7 +694,7 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 	// The Amount and OriginAddress are encoded as raw bytes in the log but they need to be processed in
 	// order to verify transfers:
 	// - AmountRaw must be (de)normalized according to its decimals
-	// - OriginAddressRaw use the wormhole chain ID and address to determine whether the token is wrapped.
+	// - OriginAddressRaw uses the wormhole chain ID and address to determine whether the token is wrapped.
 	var (
 		originAddress vaa.Address
 		newDetails    = *details
@@ -702,17 +703,7 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 		queryAddr common.Address
 	)
 	// At this point, details.TokenChain should be set to the chain ID in the token transfer's payload header.
-	// TODO: I'm not sure that this is correct. The address should be validated either way.
-	if details.TokenChain == tv.chainIds.wormholeChainId {
-		// The token was minted on this chain. The origin addresses bytes can be converted
-		// directly into an EVM address.
-		tv.logger.Debug("token is native. no need to unwrap",
-			zap.String("originAddressRaw", fmt.Sprintf("%x", details.OriginAddressRaw)),
-		)
-
-		originAddress = details.OriginAddressRaw
-		queryAddr = common.BytesToAddress(originAddress[:])
-	} else {
+	if details.TokenChain != tv.chainIds.wormholeChainId {
 		// The token was minted on a foreign chain.
 		tv.logger.Debug("fetching origin address for wrapped asset",
 			zap.String("transferDetails", details.String()),
