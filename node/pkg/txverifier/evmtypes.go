@@ -93,7 +93,7 @@ type chainIds struct {
 }
 
 type TransferVerifierInterface interface {
-	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) (bool, error)
+	TransferIsValid(ctx context.Context, txHash common.Hash, receipt *types.Receipt) (bool, error)
 	Addrs() *TVAddresses
 }
 
