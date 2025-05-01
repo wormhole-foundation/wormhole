@@ -192,3 +192,29 @@ Guardian operators can use the `ChainGovernorDropPendingVAA` admin RPC or `gover
 ## Potential Improvements
 
 Right now, adding more governed emitters requires modifying guardian code. In the future, it would be ideal to be able to dynamically add new contracts for guardian nodes to observe.
+
+## Security Considerations
+
+### Flow Canceling could weaken Governor protections during an exploit
+
+Enabling Flow Canceling allows more funds to exit a chain when compared with 
+running the Chain Governor without this feature enabled. In the
+context of an exploit of one of the core contracts or the RPC,
+an attacker may be able to craft a series of flow-canceling
+transfers that subvert the Governor limits.
+
+This motivates the design decision to make flow cancel functionality
+optional. If malicious activity is detected, Guardians can toggle
+the CLI flag and restart the node software in order to quickly
+disable the feature.
+
+When evaluating whether to enable flow canceling, consider:
+- Is this corridor experiencing chronic congestion?
+- Could the congestion be addressed by modifying the daily limit or big transaction limit?
+- Is the chain and its watcher considered stable?
+- Does historical transfer data show that a small number of assets represent most of the congestion?
+
+All of the above should be taken into account so that flow canceling is enabled
+for a minimal set of assets and corridors. This should mitigate some the risk
+involved with increasing the volume allowed by the Governor.
+
