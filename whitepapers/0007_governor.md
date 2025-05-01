@@ -55,7 +55,7 @@ The Governor divides token-based transactions into two categories: small transac
 #### Headroom Calculations
 
 Each chain has a configured limit, denoted in USD, that determines the maximum
-value of transfers that can be emitted within a 24 hour period. . This is
+value of transfers that can be emitted within a 24 hour period. This is
 sometimes referred to as the "daily limit", though it uses a 24-hour sliding
 window rather than discrete calendar days. When the sum exceeds the limit,
 transfer will be queued.
