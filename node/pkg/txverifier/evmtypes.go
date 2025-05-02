@@ -971,9 +971,6 @@ func validate[L TransferLog](tLog TransferLog) error {
 		// (e.g. UniswapV2) and may have a valid reason to set this
 		// field to zero.
 
-		// TODO ensure that, if the Token is wrapped, that its tokenchain is not equal to NATIVE_CHAIN_ID.
-		// at this point, this should've been updated
-
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "transfer emitter is not equal to its token address"}
 		}
