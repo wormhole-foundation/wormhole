@@ -169,12 +169,14 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 		case vLog := <-sub.Events():
 			valid, err := transferVerifier.TransferIsValid(ctx, vLog.Raw.TxHash, nil)
 			if err != nil {
-				logger.Debug("error when processing event",
+				logger.Debug("could not validate",
 					zap.Error(err),
 					zap.Bool("result", valid),
 					zap.String("txHash", vLog.Raw.TxHash.String()))
+				continue
 			}
 			if !valid {
+				// False + nil means that an invariant was violated
 				logger.Error("token transfer is invalid",
 					zap.String("txHash", vLog.Raw.TxHash.String()))
 			}
