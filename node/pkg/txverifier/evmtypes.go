@@ -564,17 +564,22 @@ type TransferReceipt struct {
 // As as result, this function should only be used near the end of parsing and processing
 // when all the logs have been parsed and used to populate the TransferReceipt instance.
 func (r *TransferReceipt) Validate() (err error) {
+	if r == nil {
+		return ErrInvalidReceiptArgument
+	}
 	if r.Deposits == nil {
-		return errors.Join(err, errors.New("parsed receipt's Deposits field is nil"))
+		err = errors.Join(err, errors.New("parsed receipt's Deposits field is nil"))
 	}
 	if r.Transfers == nil {
-		return errors.Join(err, errors.New("parsed receipt's Transfers field is nil"))
+		err = errors.Join(err, errors.New("parsed receipt's Transfers field is nil"))
 	}
 	if r.MessagePublications == nil {
-		return errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
+		err = errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
+		// Can't do the next check because it would be a nil deref.
+		return
 	}
 	if len(*r.MessagePublications) == 0 {
-		return errors.Join(err, ErrNoMsgsFromTokenBridge)
+		err = errors.Join(err, ErrNoMsgsFromTokenBridge)
 	}
 
 	return
@@ -1001,7 +1006,8 @@ func validate[L TransferLog](tLog TransferLog) error {
 		}
 
 		if log.TransferDetails.PayloadType != TransferTokens && log.TransferDetails.PayloadType != TransferTokensWithPayload {
-			return &InvalidLogError{Msg: "payload type is not a transfer type"}
+
+			return &InvalidLogError{Msg: ErrNotTransfer.Error()}
 		}
 	default:
 		return &InvalidLogError{Msg: "invalid transfer log type: unknown"}
