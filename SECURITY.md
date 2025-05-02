@@ -19,7 +19,7 @@ The Wormhole project engages 3rd party firms to conduct independent security aud
 
 As these 3rd party audits are completed and issues are sufficiently addressed, we make those audit reports public.
 Many audits can be found in the [audits/](./audits) directory and the [wormhole-audits](https://github.com/wormhole-foundation/wormhole-audits) repository. 
-Additional project-specific audit reports can be found in the `audits/` directory in those projects' repositories (e.g. [audit reports for Native Token Transfers](https://github.com/wormhole-foundation/native-token-transfers/tree/main/audits)).
+Project-specific audit reports can also be found in the `audits/` directory in those projects' repositories (e.g. [audit reports for Native Token Transfers](https://github.com/wormhole-foundation/native-token-transfers/tree/main/audits)).
 
 ## Bug Bounty Program
 
