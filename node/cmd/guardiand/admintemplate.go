@@ -1128,29 +1128,29 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 }
 
 func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
-		chainID, err := parseChainID(*coreBridgeSetMessageFeeChainId)
-		if err != nil {
-			log.Fatal(err)
-		}
-		messageFee, err := strconv.ParseUint(*coreBridgeSetMessageFeeMessageFee, 10, 64)
-		if err != nil {
-			log.Fatal(err)
-		}
+	chainID, err := parseChainID(*coreBridgeSetMessageFeeChainId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	messageFee, err := strconv.ParseUint(*coreBridgeSetMessageFeeMessageFee, 10, 64)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		seq, nonce := randSeqNonce()
+	seq, nonce := randSeqNonce()
 
-		m := &nodev1.InjectGovernanceVAARequest{
-			CurrentSetIndex: uint32(*templateGuardianIndex),
-			Messages: []*nodev1.GovernanceMessage{
-				{
-					Sequence: seq,
-					Nonce:    nonce,
-					Payload: &nodev1.GovernanceMessage_CoreBridgeSetMessageFee{
-						CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
-							ChainId:   uint32(chainID),
-							MessageFee: uint64(messageFee),
-						},
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_CoreBridgeSetMessageFee{
+					CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
+						ChainId:    uint32(chainID),
+						MessageFee: uint64(messageFee),
 					},
+				},
 			},
 		},
 	}
