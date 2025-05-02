@@ -7,8 +7,6 @@ package txverifier
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -394,7 +392,7 @@ type ERC20Transfer struct {
 	From       common.Address
 	To         common.Address
 	// The Amount transferred. Set to the normalized amount after processing.
-	Amount     *big.Int
+	Amount *big.Int
 }
 
 func (t *ERC20Transfer) TransferAmount() *big.Int {
@@ -460,9 +458,9 @@ func ERC20TransferFromLog(
 
 	transfer = &ERC20Transfer{
 		TokenAddress: log.Address,
-		From:       from,
-		To:         to,
-		Amount:     amount,
+		From:         from,
+		To:           to,
+		Amount:       amount,
 		// Initially, set Token's chain to the chain being monitored. This will be updated by making an RPC call later.
 		TokenChain: chainId,
 	}
@@ -674,88 +672,26 @@ const (
 // https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#api--database-schema
 type TransferDetails struct {
 	PayloadType VAAPayloadType
-	// Denormalized amount, accounting for decimal differences between contracts and chains
+	// Normalized amount
 	Amount *big.Int
-	// Amount as sent in the raw payload
-	AmountRaw *big.Int
 	// Original wormhole chain ID where the token was minted.
 	TokenChain vaa.ChainID
 	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge
 	// for assets minted on a chain other than the one being monitored by the Transfer Verifier.
 	OriginAddress vaa.Address
-	// Raw token address parsed from the Transfer payload. OriginAddress should be used instead of this field
-	// when comparing assets.
-	OriginAddressRaw vaa.Address
 	// Not necessarily an EVM address, so vaa.Address is used instead
 	TargetAddress vaa.Address
 }
 
 func (td *TransferDetails) String() string {
 	return fmt.Sprintf(
-		"PayloadType: %d OriginAddressRaw: %s TokenChain: %d OriginAddress: %s TargetAddress: %s AmountRaw: %s Amount: %s",
+		"PayloadType: %d TokenChain: %d OriginAddress: %s TargetAddress: %s Amount: %s",
 		td.PayloadType,
-		td.OriginAddressRaw.String(),
 		td.TokenChain,
 		td.OriginAddress.String(),
 		td.TargetAddress.String(),
-		td.AmountRaw.String(),
 		td.Amount.String(),
 	)
-}
-
-// wrappedAddr returns the "wrapped" EVM address for a token specified by its 32-byte address and chain ID.
-// NOTE: Assets like WETH exist, where they are wrapped assets but exist on the same chain as their Origin Chain.
-// As a result, this function should be called even when the tokenChain argument is equal to the chain ID being
-// monitored by the Transfer Verifier.
-func (tv *TransferVerifier[ethClient, connector]) wrappedAddr(
-	addrBytes vaa.Address,
-	tokenChain vaa.ChainID,
-) (common.Address, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
-	defer cancel()
-
-	tokenAddressAsKey := hex.EncodeToString(addrBytes.Bytes())
-
-	// If the token address already exists in the wrappedCache mapping the
-	// cached value can be returned.
-	if addr, exists := tv.wrappedCache[tokenAddressAsKey]; exists {
-		tv.logger.Debug("wrapped asset found in cache, returning")
-		return addr, nil
-	}
-
-	// prepare eth_call data, 4-byte signature + 2x 32 byte arguments
-	calldata := make([]byte, 4+EVM_WORD_LENGTH+EVM_WORD_LENGTH)
-
-	copy(calldata, TOKEN_BRIDGE_WRAPPED_ASSET_SIGNATURE)
-	// Add the uint16 tokenChain as the last two bytes in the first argument
-	binary.BigEndian.PutUint16(calldata[4+30:], uint16(tokenChain))
-	copy(calldata[4+EVM_WORD_LENGTH:], addrBytes[:])
-
-	ethCallMsg := ethereum.CallMsg{
-		To:   &tv.Addresses.TokenBridgeAddr,
-		Data: calldata,
-	}
-	tv.logger.Debug("calling wrappedAsset",
-		zap.Uint16("tokenChain", uint16(tokenChain)),
-		zap.String("tokenChainString", tokenChain.String()),
-		zap.String("tokenAddress", fmt.Sprintf("%x", addrBytes)),
-		zap.String("callData", fmt.Sprintf("%x", calldata)))
-
-	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
-	if err != nil {
-		// This strictly handles the error case. The contract call will
-		// return the zero address for assets not in its map.
-		return ZERO_ADDRESS, fmt.Errorf("failed to get mapping for token %s", tokenAddressAsKey)
-	}
-
-	wrappedAddr := common.BytesToAddress(result)
-	tv.wrappedCache[tokenAddressAsKey] = wrappedAddr
-
-	tv.logger.Debug("got wrappedAsset result",
-		zap.String("wrappedAddress", fmt.Sprintf("%x", wrappedAddr)))
-
-	return wrappedAddr, nil
 }
 
 // chainId() calls the chainId() function on the contract at the supplied address. To get the chain ID being monitored
@@ -1060,16 +996,10 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "target address cannot be zero"}
 		}
 
-		if bytes.Equal(log.TransferDetails.OriginAddressRaw.Bytes(), ZERO_ADDRESS_VAA.Bytes()) {
-			return &InvalidLogError{Msg: "origin address raw cannot be zero"}
+		if log.TransferDetails.Amount.Sign() == -1 {
+			return &InvalidLogError{Msg: "amount cannot be negative"}
 		}
 
-		if log.TransferDetails.AmountRaw == nil {
-			return &InvalidLogError{Msg: "amountRaw cannot be nil"}
-		}
-		if log.TransferDetails.AmountRaw.Sign() == -1 {
-			return &InvalidLogError{Msg: "amountRaw cannot be negative"}
-		}
 		if log.TransferDetails.PayloadType != TransferTokens && log.TransferDetails.PayloadType != TransferTokensWithPayload {
 			return &InvalidLogError{Msg: "payload type is not a transfer type"}
 		}
@@ -1086,7 +1016,7 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 ) (decimals uint8, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
-	
+
 	if Cmp(tokenAddress, ZERO_ADDRESS) == 0 {
 		return 0, errors.New("getDecimals() argument cannot be the zero address")
 	}

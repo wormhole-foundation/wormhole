@@ -181,11 +181,9 @@ func TestParseReceiptHappyPath(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: usdcAddrVAA,
-							TokenChain:       2, // Wormhole ethereum chain ID
-							AmountRaw:        big.NewInt(1),
-							TargetAddress:    eoaAddrVAA,
+							PayloadType:   TransferTokens,
+							TokenChain:    2, // Wormhole ethereum chain ID
+							TargetAddress: eoaAddrVAA,
 							// Amount and OriginAddress are not populated by ParseReceipt
 							Amount:        big.NewInt(1),
 							OriginAddress: usdcAddrVAA,
@@ -221,15 +219,14 @@ func TestParseReceiptHappyPath(t *testing.T) {
 				assert.Equal(t, ret.EventEmitter, expectedMessages[0].EventEmitter)
 				assert.Equal(t, ret.TransferDetails, expectedMessages[0].TransferDetails)
 
-				t.Logf("Expected AmountRaw: %s", expectedMessages[0].TransferDetails.AmountRaw.String())
-				t.Logf("Actual AmountRaw: %s", ret.TransferDetails.AmountRaw.String())
-				assert.Zero(t, expectedMessages[0].TransferDetails.AmountRaw.Cmp(ret.TransferDetails.AmountRaw))
+				t.Logf("Expected Amount: %s", expectedMessages[0].TransferDetails.Amount.String())
+				t.Logf("Actual Amount: %s", ret.TransferDetails.Amount.String())
+				assert.Zero(t, expectedMessages[0].TransferDetails.Amount.Cmp(ret.TransferDetails.Amount))
 
 				// Amount and OriginAddress are not populated by ParseReceipt
 				// assert.Equal(t, vaa.Address{}, ret.TransferDetails.OriginAddress)
 				// assert.Nil(t, ret.TransferDetails.Amount)
 			}
-
 		})
 	}
 }
@@ -477,13 +474,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddrVAA,
-							OriginAddress:    nativeAddrVAA,
-							TargetAddress:    eoaAddrVAA,
-							TokenChain:       2,
-							AmountRaw:        big.NewInt(123),
-							Amount:           big.NewInt(123),
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(123),
 						},
 					},
 				},
@@ -509,13 +504,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: usdcAddrVAA,
-							OriginAddress:    usdcAddrVAA,
-							TokenChain:       2,
-							TargetAddress:    eoaAddrVAA,
-							AmountRaw:        big.NewInt(456),
-							Amount:           big.NewInt(456),
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TokenChain:    2,
+							TargetAddress: eoaAddrVAA,
+							Amount:        big.NewInt(456),
 						},
 					},
 				},
@@ -539,13 +532,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddrVAA,
-							TokenChain:       2,
-							OriginAddress:    nativeAddrVAA,
-							TargetAddress:    eoaAddrVAA,
-							AmountRaw:        big.NewInt(321),
-							Amount:           big.NewInt(321),
+							PayloadType:   TransferTokens,
+							TokenChain:    2,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							Amount:        big.NewInt(321),
 						},
 					},
 				},
@@ -571,13 +562,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: usdcAddrVAA,
-							OriginAddress:    usdcAddrVAA,
-							TargetAddress:    eoaAddrVAA,
-							TokenChain:       2,
-							AmountRaw:        big.NewInt(321),
-							Amount:           big.NewInt(321),
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(321),
 						},
 					},
 				},
@@ -601,13 +590,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddrVAA,
-							OriginAddress:    nativeAddrVAA,
-							TargetAddress:    eoaAddrVAA,
-							TokenChain:       vaa.ChainIDEthereum,
-							AmountRaw:        big.NewInt(11),
-							Amount:           big.NewInt(11),
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    vaa.ChainIDEthereum,
+							Amount:        big.NewInt(11),
 						},
 					},
 				},
@@ -633,13 +620,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddrVAA,
-							OriginAddress:    nativeAddrVAA,
-							TargetAddress:    eoaAddrVAA,
-							TokenChain:       2,
-							AmountRaw:        big.NewInt(2),
-							Amount:           big.NewInt(2),
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(2),
 						},
 					},
 				},
@@ -665,13 +650,11 @@ func TestProcessReceipt(t *testing.T) {
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
-							PayloadType:      TransferTokens,
-							OriginAddressRaw: nativeAddrVAA,
-							OriginAddress:    nativeAddrVAA,
-							TargetAddress:    eoaAddrVAA,
-							TokenChain:       2,
-							AmountRaw:        big.NewInt(2),
-							Amount:           big.NewInt(2),
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(2),
 						},
 					},
 				},

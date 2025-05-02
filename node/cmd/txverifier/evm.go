@@ -2,6 +2,7 @@ package txverifier
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -35,6 +36,8 @@ var (
 	pruneHeightDelta *uint64
 	// Receipt hash to analyze.
 	hash *string
+	// Perform sanity checks
+	sanity *bool
 )
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
@@ -48,11 +51,14 @@ func init() {
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 	// Allows testing the tool on a single receipt.
 	hash = TransferVerifierCmdEvm.Flags().String("hash", "", "A receipt hash to evaluate. The tool will exit after processing the receipt.")
+	sanity = TransferVerifierCmdEvm.Flags().Bool("sanity", false, "Sanity check: evalute a hard-coded set of receipts for testing. A fatal error is logged if the results don't match what was expected.")
 
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
 	TransferVerifierCmd.MarkFlagRequired("coreContract")
 	TransferVerifierCmd.MarkFlagRequired("tokenContract")
 	TransferVerifierCmd.MarkFlagRequired("wrappedNativeContract")
+
+	// TransferVerifierCmd.MarkFlagsMutuallyExclusive("hash", "sanity")
 }
 
 // Note: logger.Error should be reserved only for conditions that break the
@@ -135,7 +141,37 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 		logger.Fatal("could not create new transfer verifier", zap.Error(err))
 	}
 
-	// Single-shot mode: process a single receipt hash.
+	// Do sanity checks, then quit.
+	if *sanity {
+		// Ensure each check gives the correct result and error type.
+		// The (false, nil) case is not tested here because it requires a core bridge exploit; this can
+		// be tested using the integration tests in Tilt.
+		for i, check := range sanityChecks {
+			logger.Info(fmt.Sprintf("Running sanity check %d for txHash %s", i, check.txHash))
+			valid, err := transferVerifier.TransferIsValid(ctx, check.txHash, nil)
+			logger.Debug("done processing", zap.Bool("result", valid), zap.String("txHash", check.txHash.String()))
+
+			if err != nil {
+				logger.Debug("could not validate",
+					zap.Error(err),
+					zap.Bool("result", valid),
+					zap.String("txHash", check.txHash.String()))
+
+				if !errors.Is(err, check.err) {
+					logger.Fatal(fmt.Sprintf("Sanity check %d failed (wrong error) for txHash %s", i, check.txHash))
+				}
+			}
+
+			// Ensure that the right error type was returned
+			if valid != check.valid {
+				logger.Fatal(fmt.Sprintf("Sanity check %d failed (wrong result) for txHash %s", i, check.txHash))
+			}
+		}
+		logger.Info("Done sanity checks")
+		os.Exit(0)
+	}
+
+	// Single-shot mode: process a single receipt hash, then quit.
 	if len(*hash) > 0 {
 		receiptHash := common.HexToHash(*hash)
 		result, err := transferVerifier.TransferIsValid(ctx, receiptHash, nil)
@@ -183,4 +219,48 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 			logger.Debug("done processing", zap.Bool("result", valid), zap.String("txHash", vLog.Raw.TxHash.String()))
 		}
 	}
+}
+
+type sanityCheck struct {
+	txHash common.Hash
+	valid  bool
+	err    error
+}
+
+var sanityChecks = []sanityCheck{
+	// Message publication with wrapped asset
+
+	{
+		common.HexToHash(`0xa3e0bdf8896a0e1f1552eaa346a914d655a4f94a94739c4ffe86a941a47ec7a8`),
+		true,
+		nil,
+	},
+
+	// Message publication with a native deposit
+	{
+		common.HexToHash(`0x173a027bb960fa2e2e2275c66649264c1b961ffae0fbb4082efdf329a701979a`),
+		true,
+		nil,
+	},
+
+	// Many transfers, one event with no topics, and a LogMessagePublished event.
+	// Unrelated to the Token Bridge.
+	{
+		common.HexToHash(`0x27acebf817c3c244adb47cd3867620d9a30691c0587c4f484878fa896068b4d5`),
+		false,
+		txverifier.ErrNoMsgsFromTokenBridge,
+	},
+
+	//Mayan Swift transfer. Should be successfully parsed and ultimately skipped.
+	{
+		common.HexToHash(`0xdfa07c6910e3650faa999986c4e85a0160eb7039f3697e4143a4a737e4036edd`),
+		false,
+		txverifier.ErrNoMsgsFromTokenBridge,
+	},
+
+	{
+		common.HexToHash(`0xb6a993373786c962c864d57c77944b2c58056250e09fc6a15c87d473e5cfe206`),
+		true,
+		nil,
+	},
 }
