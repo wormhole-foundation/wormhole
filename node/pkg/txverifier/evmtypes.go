@@ -40,6 +40,7 @@ const (
 // Errors
 var (
 	ErrChainIDNotSupported = errors.New("chain ID is not supported")
+	ErrFailedToGetDecimals = errors.New("failed to get decimals for token. decimals() result has insufficient length")
 )
 
 // Function signatures
@@ -392,6 +393,7 @@ type ERC20Transfer struct {
 	TokenChain vaa.ChainID
 	From       common.Address
 	To         common.Address
+	// The Amount transferred. Set to the normalized amount after processing.
 	Amount     *big.Int
 }
 
@@ -438,8 +440,7 @@ func (t *ERC20Transfer) String() string {
 // ERC20TransferFromLog() creates an ERC20Transfer struct given a log and Wormhole chain ID.
 func ERC20TransferFromLog(
 	log *types.Log,
-	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID. In this context it's
-	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
+	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID.
 	chainId vaa.ChainID,
 ) (transfer *ERC20Transfer, err error) {
 	from, to, amount := parseERC20TransferEvent(log.Topics, log.Data)
@@ -459,11 +460,11 @@ func ERC20TransferFromLog(
 
 	transfer = &ERC20Transfer{
 		TokenAddress: log.Address,
-		// Initially, set Token's chain to the chain being monitored. This will be updated by making an RPC call later.
-		TokenChain: chainId,
 		From:       from,
 		To:         to,
 		Amount:     amount,
+		// Initially, set Token's chain to the chain being monitored. This will be updated by making an RPC call later.
+		TokenChain: chainId,
 	}
 	return
 }
@@ -703,13 +704,14 @@ func (td *TransferDetails) String() string {
 }
 
 // wrappedAddr returns the "wrapped" EVM address for a token specified by its 32-byte address and chain ID.
+// NOTE: Assets like WETH exist, where they are wrapped assets but exist on the same chain as their Origin Chain.
+// As a result, this function should be called even when the tokenChain argument is equal to the chain ID being
+// monitored by the Transfer Verifier.
 func (tv *TransferVerifier[ethClient, connector]) wrappedAddr(
 	addrBytes vaa.Address,
 	tokenChain vaa.ChainID,
 ) (common.Address, error) {
-	if tokenChain == tv.chainIds.wormholeChainId {
-		return ZERO_ADDRESS, errors.New("wrappedAddr query issued for token chain equal to the one being monitored")
-	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
 
@@ -752,14 +754,6 @@ func (tv *TransferVerifier[ethClient, connector]) wrappedAddr(
 
 	tv.logger.Debug("got wrappedAsset result",
 		zap.String("wrappedAddress", fmt.Sprintf("%x", wrappedAddr)))
-
-	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
-		tv.logger.Info("got zero address for wrappedAsset result. this asset is probably not registered correctly",
-			zap.String("queried tokenAddress", fmt.Sprintf("%x", addrBytes)),
-			zap.Uint16("queried tokenChain", uint16(tokenChain)),
-			zap.String("tokenChain name", tokenChain.String()),
-		)
-	}
 
 	return wrappedAddr, nil
 }
@@ -838,7 +832,7 @@ func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
 	// If the token address already exists in the wrappedCache mapping the
 	// cached value can be returned.
 	if originAddr, exists := tv.nativeContractCache[tokenAddressAsKey]; exists {
-		tv.logger.Debug("using cached origin address", zap.String("tokenAddress", wrappedAddr.String()), zap.String("chainID", originAddr.String()))
+		tv.logger.Debug("using cached origin address", zap.String("tokenAddress", wrappedAddr.String()), zap.String("originAddr", originAddr.String()))
 		return originAddr, nil
 	}
 
@@ -925,13 +919,13 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 		tv.logger.Warn("isWrappedAsset() result length is too small", zap.String("result", fmt.Sprintf("%x", result)))
 		return false, err
 	}
-	tv.logger.Debug("isWrappedAsset result", zap.String("result", fmt.Sprintf("%x", result)))
 
 	// The boolean result will be returned as a byte string with length
 	// equal to EVM_WORD_LENGTH. Grab the last byte.
 	wrapped := result[EVM_WORD_LENGTH-1] == 1
 
 	tv.isWrappedCache[tokenAddressAsKey] = wrapped
+	tv.logger.Debug("isWrappedAsset result", zap.Bool("isWrapped", wrapped), zap.String("result bytes", fmt.Sprintf("%x", result)))
 
 	return wrapped, nil
 }
@@ -1092,6 +1086,10 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 ) (decimals uint8, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
+	
+	if Cmp(tokenAddress, ZERO_ADDRESS) == 0 {
+		return 0, errors.New("getDecimals() argument cannot be the zero address")
+	}
 
 	// First check if this token's decimals is stored in cache
 	if _, exists := tv.decimalsCache[tokenAddress]; exists {
@@ -1116,10 +1114,10 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("failed to get decimals for token: decimals() result has insufficient length",
+		tv.logger.Warn(ErrFailedToGetDecimals.Error(),
 			zap.String("tokenAddress", tokenAddress.String()),
 			zap.ByteString("result", result))
-		return 0, err
+		return 0, ErrFailedToGetDecimals
 	}
 
 	// An ERC20 token's decimals should fit in a single byte. A call to `decimals()`
