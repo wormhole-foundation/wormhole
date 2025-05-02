@@ -142,14 +142,15 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		eval.Err = processErr
 		tv.addToCache(txHash, &eval)
 
+		// Check if the error type is an invariant error. If not, it's just a parsing error.
 		var invError *InvariantError
-		if !errors.Is(processErr, invError) {
-			// The receipt couldn't be parsed properly.
+		if !errors.As(processErr, &invError) {
 			return false, processErr
 		}
 
 		// This represents an invariant violation in token transfers.
 		tv.logger.Error("invariant violation", zap.Error(processErr), zap.String("receipt summary", summary.String()))
+		// The error is deliberately discarded in this case, but is logged above.
 		return false, nil
 	}
 
@@ -684,19 +685,21 @@ func (tv *TransferVerifier[evmClient, connector]) processReceipt(
 
 	tv.logger.Debug("done building receipt summary", zap.String("summary", summary.String()))
 
-	var err error
+	// Aggregate errors together in case there are multiple instances of invariants being broken
+	// in this receipt.
+	var invariantErrors error
 	for key, amountOut := range summary.out {
 		if amountIn, exists := summary.in[key]; !exists {
-			err = &InvariantError{Msg: "transfer-out request for tokens that were never deposited"}
+			invariantErrors = errors.Join(invariantErrors, &InvariantError{Msg: "transfer-out request for tokens that were never deposited"})
 		} else {
 			if amountOut.Cmp(amountIn) == 1 {
-				err = &InvariantError{Msg: "requested amount out is larger than amount in"}
+				invariantErrors = errors.Join(invariantErrors, &InvariantError{Msg: "requested amount out is larger than amount in"})
 			}
 
 			// Normally the amounts should be equal. This case indicates
 			// an unusual transfer or else a bug in the program.
 			if amountOut.Cmp(amountIn) == -1 {
-				tv.logger.Info("requested amount in is larger than amount out.",
+				tv.logger.Warn("requested amount in is larger than amount out.",
 					zap.String("key", key),
 					zap.String("amountIn", amountIn.String()),
 					zap.String("amountOut", amountOut.String()),
@@ -710,7 +713,7 @@ func (tv *TransferVerifier[evmClient, connector]) processReceipt(
 		}
 	}
 
-	return summary, err
+	return summary, invariantErrors
 }
 
 // parseLogMessagePublishedPayload parses the details of a transfer from a
