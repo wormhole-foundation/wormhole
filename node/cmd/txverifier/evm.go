@@ -40,6 +40,8 @@ var (
 	sanity *bool
 )
 
+var ErrInvariant = errors.New("invariant violation")
+
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
 //
 //nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
@@ -212,9 +214,14 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 				continue
 			}
 			if !valid {
-				// False + nil means that an invariant was violated
-				logger.Error("token transfer is invalid",
-					zap.String("txHash", vLog.Raw.TxHash.String()))
+				// False + nil means that an invariant was violated.
+				logger.Error(
+					// WARNING: This error string is used by the integration tests for detecting
+					// violations. If it is changed, the "error pattern" in the devnet files must
+					// be updated to match.
+					ErrInvariant.Error(),
+					zap.String("txHash", vLog.Raw.TxHash.String()),
+				)
 			}
 			logger.Debug("done processing", zap.Bool("result", valid), zap.String("txHash", vLog.Raw.TxHash.String()))
 		}
