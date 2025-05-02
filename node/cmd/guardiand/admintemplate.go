@@ -1140,7 +1140,7 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 	seq, nonce := randSeqNonce()
 
 	m := &nodev1.InjectGovernanceVAARequest{
-		CurrentSetIndex: uint32(*templateGuardianIndex),
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
 		Messages: []*nodev1.GovernanceMessage{
 			{
 				Sequence: seq,
