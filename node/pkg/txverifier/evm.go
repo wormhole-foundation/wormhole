@@ -590,7 +590,10 @@ func (tv *TransferVerifier[evmClient, connector]) processReceipt(
 	}
 
 	if len(*receipt.Deposits) == 0 && len(*receipt.Transfers) == 0 {
-		return nil, errors.New("invalid receipt: no deposits and no transfers")
+		// This should result in an invariant error below but this is helpful context.
+		tv.logger.Warn("receipt is a token transfer but has no deposits or transfers",
+			zap.String("receipt", receipt.String()),
+		)
 	}
 
 	// Process NativeDeposits
