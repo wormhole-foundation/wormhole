@@ -745,6 +745,7 @@ func TestTransferReceiptValidate(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			require.NotNil(t, test.transferReceipt)
 			err := test.transferReceipt.Validate()
 			require.ErrorContains(t, err, test.errMsg)
 		})
