@@ -124,6 +124,9 @@ message GovernanceMessage {
     // Generic governance
     EvmCall evm_call = 28;
     SolanaCall solana_call = 29;
+
+    // Set message fee
+    CoreBridgeSetMessageFee core_bridge_set_message_fee = 30;
   }
 }
 
@@ -461,4 +464,11 @@ message SolanaCall {
 
   // Encoded instruction data to be passed on to the governed contract (hex encoded)
   string encoded_instruction = 3;
+}
+
+message CoreBridgeSetMessageFee {
+  // ID of the chain of the core bridge contract where the message fee should be updated (uint16).
+  uint32 chain_id = 1;
+  // New message fee.
+  uint64 message_fee = 2;
 }
