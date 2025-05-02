@@ -35,5 +35,19 @@ the contract addresses.
 A single receipt can be evaluated by adding the `--hash` flag and passing an Ethereum receipt hash.
 This is the easiest way to get insight into how the algorithm works and to verify expected results.
 
-Example hashes:
-- `0xa3e0bdf8896a0e1f1552eaa346a914d655a4f94a94739c4ffe86a941a47ec7a8` -- transfer of a wrapped asset
+**Example hashes**:
+
+Message publication with wrapped asset
+- `0xa3e0bdf8896a0e1f1552eaa346a914d655a4f94a94739c4ffe86a941a47ec7a8`
+
+Message publication with a deposit
+- `0x173a027bb960fa2e2e2275c66649264c1b961ffae0fbb4082efdf329a701979a`
+
+Many transfers, one event with no topics, and a LogMessagePublished event. 
+Unrelated to the Token Bridge. Should be successfully parsed and ultimately skipped.
+- `0x27acebf817c3c244adb47cd3867620d9a30691c0587c4f484878fa896068b4d5`
+
+Mayan Swift transfer. Should be successfully parsed and ultimately skipped.
+- `0xdfa07c6910e3650faa999986c4e85a0160eb7039f3697e4143a4a737e4036edd`
+
+- `0xb6a993373786c962c864d57c77944b2c58056250e09fc6a15c87d473e5cfe206`
