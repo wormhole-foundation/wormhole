@@ -274,6 +274,12 @@ type (
 		// an abi encoded calldata doesn't include the target contract address)
 		Instruction []byte
 	}
+
+	// BodyCoreBridgeSetMessageFee is a governance message to set the message fee for the core bridge.
+	BodyCoreBridgeSetMessageFee struct {
+		ChainID    ChainID
+		MessageFee uint64
+	}
 )
 
 //nolint:unparam // TODO: The error is always nil here. This function should not return an error.
@@ -492,6 +498,13 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() ([]byte, erro
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
 	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
+}
+
+func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.ChainID)
+	MustWrite(payload, binary.BigEndian, r.MessageFee)
+	return serializeBridgeGovernanceVaa(CoreBridgeModuleStr, CoreBridgeSetMessageFee, r.ChainID, payload.Bytes())
 }
 
 func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
