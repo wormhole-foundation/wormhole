@@ -12,43 +12,14 @@ The following document describes various aspects of the Wormhole security progra
 - [Incident Response](#Incident-Response)
 - [Emergency Shutdown](#Emergency-Shutdown)
 - [Security Monitoring](#Security-Monitoring)
+
 ## 3rd Party Security Audits
 
 The Wormhole project engages 3rd party firms to conduct independent security audits of Wormhole. At any given time, multiple audit streams are likely in progress.
 
 As these 3rd party audits are completed and issues are sufficiently addressed, we make those audit reports public.
-
-- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Ethereum Contracts_
-- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Solana Contracts_
-- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Terra Contracts_
-- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Guardian_
-- **[January 2022 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-01-10_neodyme.pdf)**: _Solitaire_
-- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Ethereum Contracts_
-- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Solana Contracts_
-- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Terra Contracts_
-- **[July 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-07-01_kudelski.pdf)**: _Guardian_
-- **[August 2022 - Kudelski](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-08-16_kudelski.pdf)**: _Algorand Contracts_
-- **[September 2022 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Near_OtterSec.pdf)**: _NEAR Contracts_
-- **[September 2022 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _Solana Contracts_
-- **[September 2022 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2022-09.pdf)**: _CosmWasm Contracts_
-- **[October 2022 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_2022-10.pdf)**: _Aptos Contracts_
-- **[October 2022 - Hacken](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_dApp_NEAR_AuditReport_Hacken_2022-10-25.pdf)**: _NEAR Integration_
-- **[October 2022 - Coinspect](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2022-10_Coinspect_Wormhole_Algorand.pdf)**: _Algorand Contracts_
-- **[November 2022 - Zellic](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
-- **[February 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
-- **[March 2023 - CertiK](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-03-08_CertiK_Wormhole_EVM.pdf)**: _EVM Contracts_
-- **[April 2023 - Trail of Bits](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
-- **[April 2023 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
-- **[May 2023 - Runtime Verification](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2023-05_Runtime_Verification_Wormhole_EVM.pdf)**: _Formal Verification of EVM contracts_
-- **[January 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-10-cyfrin-thermae-v2.0.pdf)**: _Uniswap Liquidity Layer EVM Contracts_
-- **[January 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-01-ottersec-terra.pdf)**: _Terra Classic Contract Upgrades_
-- **[February 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-09-cyfrin-wormhole-evm-cctp-v2-1.pdf)**: _CCTP EVM Contracts_
-- **[March 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-11-cyfrin-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
-- **[March 2024 - Cantina](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-cantina-wormhole-evm-ntt.pdf)**: _NTT EVM Contracts_
-- **[March 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-03-28-ottersec-solana-ntt.pdf)**: _NTT Solana Contracts_
-- **[March 2024 - Neodyme](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-04-12-neodyme-solana-ntt.pdf)**: _NTT Solana Contracts_
-- **[July 2024 - Cyfrin](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-07-23-cyfrin-wormhole-evm-ntt-diff-v1.1.0.pdf)**: _NTT EVM v1.1.0_
-- **[August 2024 - OtterSec](https://github.com/wormhole-foundation/wormhole-audits/blob/main/2024-08-02-ottersec-solana-ntt-token-extensions.pdf)**: _NTT Solana Token Extensions_
+Many audits can be found in the [audits/](./audits) directory and the [wormhole-audits](https://github.com/wormhole-foundation/wormhole-audits) repository. 
+Project-specific audit reports can also be found in the `audits/` directory in those projects' repositories (e.g. [audit reports for Native Token Transfers](https://github.com/wormhole-foundation/native-token-transfers/tree/main/audits)).
 
 ## Bug Bounty Program
 
@@ -81,13 +52,14 @@ Consensus on Wormhole is achieved by two subset groups of Guardians (aka: valida
 There are 19 Guardians in the current Guardian Set, made up of some of the largest and most reputable staking providers in crypto.  This level of operational security diversity is a useful property in preventing wholesale compromise of the Guardian Set due to operational failures of a single or small number of organizations.
 
 The Guardian Set is expected to grow over time to further decentralize the Wormhole Guardian Set and the Wormhole network.
+
 ## White Hat Hacking
 
 The Wormhole project wants to lower the bar for White-hat hackers to find security bugs in Wormhole. Why? The easier this process, the more likely it will be for white-hats to find bugs in Wormhole and responsibly disclose them, helping to secure the network.
 
 Here's a list of strategies that are helpful for getting started on Wormhole:
 
-- Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/wormhole-foundation/wormhole/blob/main/CONTRIBUTING.md)) and see what is already being testing for.
+- Review the existing unit and integration testing (found in [CONTRIBUTING.md](https://github.com/wormhole-foundation/wormhole/blob/main/CONTRIBUTING.md)) and see what is already being tested.
   - Check out places where there might be missing test coverage entirely. This could be a ripe spot to look for something we missed.
   - Check out places where there are unit/integration tests, but they lack sufficient [negative test](https://en.wikipedia.org/wiki/Negative_testing) coverage.
 - Review different smart contract implementations (eg. Solana, EVM, CosmWasm, Move) and attempt to understand how and why they are different.
@@ -106,9 +78,9 @@ As the list of chains connected to Wormhole increases, so does the risk that a g
 
 Here are a few ways in which connected chains can maintain high security standards:
 
-For source code ensure relevant bits are:
+For source code, ensure relevant bits are:
 
-- All open source (required)
+- All open-source (required)
 - Audited by an independent third party with public audit reports
 - Included in a public bug bounty program. The bounty rewards should be sufficiently large to incentivize white-hat mindshare in finding security bugs and responsibly disclosing them
 - Version control systems contain adequate access controls and mandatory code review (e.g.: In github, use of branch protection and a minimum of one independent reviewer to merge code)

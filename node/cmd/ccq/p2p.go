@@ -115,7 +115,14 @@ func runP2P(
 	logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
 
 	// Wait for peers
+	logger.Info("Waiting for peers")
+	count := 0
 	for len(th_req.ListPeers()) < 1 {
+		count++
+		if count > 600 {
+			logger.Warn("Still waiting for peers")
+			count = 0
+		}
 		time.Sleep(time.Millisecond * 100)
 	}
 	logger.Info("Found peers", zap.Int("numPeers", len(th_req.ListPeers())))
