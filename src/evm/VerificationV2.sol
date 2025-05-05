@@ -22,7 +22,7 @@ uint8 constant OP_THRESHOLD_GET_CURRENT = 0x22;
 uint8 constant OP_THRESHOLD_GET = 0x23;
 uint8 constant OP_GUARDIAN_SET_GET_CURRENT = 0x24;
 uint8 constant OP_GUARDIAN_SET_GET = 0x25;
-uint8 constant OP_GUARDIAN_TLS_GET = 0x26;
+uint8 constant OP_GUARDIAN_SHARDS_GET = 0x26;
 
 // Emitter address for the VerificationV2 contract
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
@@ -130,7 +130,6 @@ contract VerificationV2 is
         bytes32 tlsKey;
         uint8 guardianIndex; bytes32 r; bytes32 s; uint8 v;
 
-        // TODO: EIP-712 signature
         (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
         (expirationTime, offset) = data.asUint32CdUnchecked(offset);
         (tlsKey, offset) = data.asBytes32CdUnchecked(offset);
@@ -149,7 +148,7 @@ contract VerificationV2 is
           r, s, v
         );
         
-        _registerTLSKey(guardianSetIndex, guardianIndex, tlsKey, guardianAddrs.length);
+        _registerTLSKey(guardianSetIndex, guardianIndex, tlsKey);
       } else {
         revert InvalidOperation(op);
       }
@@ -214,25 +213,26 @@ contract VerificationV2 is
         result = abi.encodePacked(result, thresholdAddr, expirationTime);
       } else if (op == OP_GUARDIAN_SET_GET_CURRENT) {
         (uint32 guardianSetIndex, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
-        
-        result = abi.encodePacked(result, guardianSetAddrs, guardianSetIndex);
+        uint8 guardianCount = uint8(guardianSetAddrs.length);
+
+        result = abi.encodePacked(result, guardianCount, guardianSetAddrs, guardianSetIndex);
       } else if (op == OP_GUARDIAN_SET_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
         
         (uint32 expirationTime, address[] memory guardianSetAddrs) = _getGuardianSetInfo(index);
+        uint8 guardianCount = uint8(guardianSetAddrs.length);
         
-        result = abi.encodePacked(result, guardianSetAddrs, expirationTime);
-      } else if (op == OP_GUARDIAN_TLS_GET) {
+        result = abi.encodePacked(result, guardianCount, guardianSetAddrs, expirationTime);
+      } else if (op == OP_GUARDIAN_SHARDS_GET) {
         uint32 guardianSetIndex;
-        (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
-        
         uint8 guardianIndex;
+        (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
         (guardianIndex, offset) = data.asUint8CdUnchecked(offset);
         
-        bytes32[] memory tlsKeys = _getTLSKeys(guardianSetIndex);
+        (uint shardCount, bytes32[] memory shards) = _getShardsRaw(guardianSetIndex);
         
-        result = abi.encodePacked(result, tlsKeys);
+        result = abi.encodePacked(result, uint8(shardCount), shards);
       } else {
         revert InvalidOperation(op);
       }
