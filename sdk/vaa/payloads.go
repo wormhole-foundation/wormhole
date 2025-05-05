@@ -75,7 +75,6 @@ var (
 	ActionCoreSetMessageFee  GovernanceAction = 3
 	ActionCoreTransferFees   GovernanceAction = 4
 	ActionCoreRecoverChainId GovernanceAction = 5
-	
 
 	// Wormchain cosmwasm/middleware governance actions
 	ActionStoreCode                      GovernanceAction = 1
