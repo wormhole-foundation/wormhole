@@ -1,6 +1,8 @@
 package aztec
 
 import (
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
@@ -10,36 +12,93 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-type WatcherConfig struct {
-	NetworkID watchers.NetworkID // human readable name
-	ChainID   vaa.ChainID        // ChainID
-	Rpc       string
-	Contract  string
+// Config holds all configuration for the Aztec watcher
+type Config struct {
+	// Chain identification
+	ChainID   vaa.ChainID
+	NetworkID string
+
+	// Connection details
+	RpcURL          string
+	ContractAddress string
+
+	// Processing parameters
+	StartBlock        int
+	PayloadInitialCap int
+
+	// Timeouts and intervals
+	RPCTimeout            time.Duration
+	LogProcessingInterval time.Duration
+	RequestTimeout        time.Duration
+
+	// Retry configuration
+	MaxRetries        int
+	InitialBackoff    time.Duration
+	BackoffMultiplier float64
 }
 
-func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
-	return wc.NetworkID
+// DefaultConfig returns a default configuration
+func DefaultConfig(chainID vaa.ChainID, networkID string, rpcURL, contractAddress string) Config {
+	return Config{
+		// Chain identification
+		ChainID:   chainID,
+		NetworkID: networkID,
+
+		// Connection details
+		RpcURL:          rpcURL,
+		ContractAddress: contractAddress,
+
+		// Processing parameters
+		StartBlock:        1,
+		PayloadInitialCap: 13,
+
+		// Timeouts and intervals
+		RPCTimeout:            30 * time.Second,
+		LogProcessingInterval: 10 * time.Second,
+		RequestTimeout:        10 * time.Second,
+
+		// Retry configuration
+		MaxRetries:        3,
+		InitialBackoff:    500 * time.Millisecond,
+		BackoffMultiplier: 1.5,
+	}
 }
 
-func (wc *WatcherConfig) GetChainID() vaa.ChainID {
-	return wc.ChainID
+// GetChainID implements the watchers.WatcherConfig interface
+func (c *WatcherConfig) GetChainID() vaa.ChainID {
+	return c.ChainID
 }
 
-func (wc *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
+// GetNetworkID implements the watchers.WatcherConfig interface
+func (c *WatcherConfig) GetNetworkID() watchers.NetworkID {
+	return c.NetworkID
+}
+
+// RequiredL1Finalizer implements the watchers.WatcherConfig interface
+// Return an empty network ID since Aztec handles its own L1/L2 finality checks
+func (c *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
 	return ""
 }
 
-func (wc *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
-	// empty
+// SetL1Finalizer implements the watchers.WatcherConfig interface
+// This is a no-op for Aztec since we use our own internal L1Verifier instead
+func (c *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
+	// No-op: we use our own internal L1Verifier/L1Finalizer
 }
 
-func (wc *WatcherConfig) Create(
+// Create implements the watchers.WatcherConfig interface with the updated signature
+func (c *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	_ <-chan *query.PerChainQueryInternal,
-	_ chan<- *query.PerChainQueryResponseInternal,
-	_ chan<- *common.GuardianSet,
+	queryReqC <-chan *query.PerChainQueryInternal,
+	queryRespC chan<- *query.PerChainQueryResponseInternal,
+	gst chan<- *common.GuardianSet,
 	env common.Environment,
 ) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
-	return nil, NewWatcher(wc.ChainID, wc.NetworkID, wc.Rpc, wc.Contract, msgC, obsvReqC).Run, nil, nil
+	// Create the runnable and L1Finalizer
+	l1Finalizer, runnable := NewWatcherFromConfig(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
+
+	// Return the L1Verifier as an L1Finalizer along with the runnable
+	// This makes it available to the framework if needed
+	return l1Finalizer, runnable, nil, nil
 }
