@@ -13,6 +13,7 @@ import (
 
 // CoreModule is the identifier of the Core module (which is used for governance messages)
 var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x43, 0x6f, 0x72, 0x65}
+var CoreModuleStr = string(CoreModule[:])
 
 // WasmdModule is the identifier of the Wormchain Wasmd module (which is used for governance messages)
 var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
@@ -74,6 +75,7 @@ var (
 	ActionCoreSetMessageFee  GovernanceAction = 3
 	ActionCoreTransferFees   GovernanceAction = 4
 	ActionCoreRecoverChainId GovernanceAction = 5
+	
 
 	// Wormchain cosmwasm/middleware governance actions
 	ActionStoreCode                      GovernanceAction = 1
@@ -504,7 +506,7 @@ func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.ChainID)
 	MustWrite(payload, binary.BigEndian, r.MessageFee)
-	return serializeBridgeGovernanceVaa(CoreBridgeModuleStr, CoreBridgeSetMessageFee, r.ChainID, payload.Bytes())
+	return serializeBridgeGovernanceVaa(CoreBridgeModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
 }
 
 func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
