@@ -505,7 +505,7 @@ func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.ChainID)
 	MustWrite(payload, binary.BigEndian, r.MessageFee)
-	return serializeBridgeGovernanceVaa(CoreBridgeModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
+	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
 }
 
 func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
