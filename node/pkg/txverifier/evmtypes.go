@@ -39,6 +39,9 @@ const (
 var (
 	ErrChainIDNotSupported = errors.New("chain ID is not supported")
 	ErrFailedToGetDecimals = errors.New("failed to get decimals for token. decimals() result has insufficient length")
+	// Some events look like transfers based on the method signature, but aren't (e.g. NFT ERC721 transfers.)
+	ErrTransferIsNotERC20  = errors.New("parsed Transfer event is not an ERC20 transfer")
+	ErrTransferBadDataSize = errors.New("wrong logdata size used for Transfer parsing")
 )
 
 // Function signatures
@@ -440,8 +443,11 @@ func ERC20TransferFromLog(
 	log *types.Log,
 	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID.
 	chainId vaa.ChainID,
-) (transfer *ERC20Transfer, err error) {
-	from, to, amount := parseERC20TransferEvent(log.Topics, log.Data)
+) (*ERC20Transfer, error) {
+	from, to, amount, err := parseERC20TransferEvent(log.Topics, log.Data)
+	if err != nil {
+		return nil, err
+	}
 
 	// NOTE: When minting tokens, some ERC20 implementations will emit a
 	// Transfer event that has the From field set to the zero address.
@@ -456,7 +462,7 @@ func ERC20TransferFromLog(
 		return nil, errors.New("could not parse ERC20 Transfer from log: nil Amount")
 	}
 
-	transfer = &ERC20Transfer{
+	transfer := &ERC20Transfer{
 		TokenAddress: log.Address,
 		From:         from,
 		To:           to,
@@ -464,7 +470,7 @@ func ERC20TransferFromLog(
 		// Initially, set Token's chain to the chain being monitored. This will be updated by making an RPC call later.
 		TokenChain: chainId,
 	}
-	return
+	return transfer, nil
 }
 
 // This function parses an ERC20 transfer event from a log topic and data.
@@ -472,19 +478,25 @@ func ERC20TransferFromLog(
 // and returns these values as common.Address and big.Int types.
 // - Error handling: The function checks if the log data and topic lengths are correct before attempting to parse them.
 // - Input validation: The function verifies that the input lengths match expected values, preventing potential attacks or errors.
-func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (from common.Address, to common.Address, amount *big.Int) {
+func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (common.Address, common.Address, *big.Int, error) {
 
 	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/6e224307b44bc4bd0cb60d408844e028cfa3e485/contracts/token/ERC20/IERC20.sol#L16
 	// event Transfer(address indexed from, address indexed to, uint256 value)
-	if len(logData) != EVM_WORD_LENGTH || len(logTopics) != TOPICS_COUNT_TRANSFER {
-		return common.Address{}, common.Address{}, nil
+	// Some other contracts like ERC721 (NFTs) have Transfer events too but a different number of topics
+	// We don't want to parse these.
+	if len(logTopics) != TOPICS_COUNT_TRANSFER {
+		return common.Address{}, common.Address{}, nil, ErrTransferIsNotERC20
 	}
 
-	from = common.BytesToAddress(logTopics[1][:])
-	to = common.BytesToAddress(logTopics[2][:])
-	amount = new(big.Int).SetBytes(logData[:])
+	if len(logData) != EVM_WORD_LENGTH {
+		return common.Address{}, common.Address{}, nil, ErrTransferBadDataSize
+	}
 
-	return
+	from := common.BytesToAddress(logTopics[1][:])
+	to := common.BytesToAddress(logTopics[2][:])
+	amount := new(big.Int).SetBytes(logData[:])
+
+	return from, to, amount, nil
 }
 
 // Abstraction over a LogMessagePublished event emitted by the core bridge.

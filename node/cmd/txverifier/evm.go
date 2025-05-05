@@ -234,9 +234,10 @@ type sanityCheck struct {
 	err    error
 }
 
+// A list of receipts that have revealed bugs during testing. These can be replayed while developing the
+// package to ensure that there are no regressions introduced when processing live data.
 var sanityChecks = []sanityCheck{
 	// Message publication with wrapped asset
-
 	{
 		common.HexToHash(`0xa3e0bdf8896a0e1f1552eaa346a914d655a4f94a94739c4ffe86a941a47ec7a8`),
 		true,
@@ -258,16 +259,30 @@ var sanityChecks = []sanityCheck{
 		txverifier.ErrNoMsgsFromTokenBridge,
 	},
 
-	//Mayan Swift transfer. Should be successfully parsed and ultimately skipped.
+	// Mayan Swift transfer. Should be successfully parsed and ultimately skipped.
 	{
 		common.HexToHash(`0xdfa07c6910e3650faa999986c4e85a0160eb7039f3697e4143a4a737e4036edd`),
 		false,
 		txverifier.ErrNoMsgsFromTokenBridge,
 	},
-
 	{
 		common.HexToHash(`0xb6a993373786c962c864d57c77944b2c58056250e09fc6a15c87d473e5cfe206`),
 		true,
+		nil,
+	},
+	// An NFT transfer. Ensures that ERC721 transfers are not interpreted as ERC20 transfers that the program should analyze.
+	{
+		common.HexToHash(`0x5550571b9e7cee04db0e93b75cd6df655d356e3a9913c392a075d5e50dda1f2c`),
+		false,
+		txverifier.ErrNoMsgsFromTokenBridge,
+	},
+	// This is a deflationary token, and in this case the amount out of the token bridge is greater than
+	// the amount transferred in. This occurs because the balanceOf() function implementation for this
+	// token is a ratio of supply rather than a fixed number that always increases after a transfer.
+	// As a result, this shows up as an invariant violation.
+	{
+		common.HexToHash(`0x3b592b8ecbfe2f1b650ebf08806d3309cab601794e2a1f0312c9ec230fca75bd`),
+		false,
 		nil,
 	},
 }

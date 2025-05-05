@@ -431,6 +431,16 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			transfer, transferErr := ERC20TransferFromLog(log, tv.chainIds.wormholeChainId)
 
 			if transferErr != nil {
+
+				// Just skip transfers that aren't from ERC20 contracts.
+				if errors.Is(transferErr, ErrTransferIsNotERC20) {
+					tv.logger.Debug(
+						fmt.Sprintf("skip: %s", ErrTransferIsNotERC20.Error()),
+						zap.String("txHash", log.TxHash.String()),
+					)
+					continue
+				}
+
 				tv.logger.Error("error when parsing ERC20 Transfer from log",
 					zap.Error(transferErr),
 					zap.String("txHash", log.TxHash.String()),
@@ -526,6 +536,8 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 					zap.String("txhash", log.TxHash.String()))
 				continue
 			}
+
+			tv.logger.Debug("parsed TransferDetails from LogMessagePublished", zap.String("transferDetails", transferDetails.String()))
 
 			// If everything went well, append the message publication
 			messagePublications = append(messagePublications, &LogMessagePublished{
@@ -692,7 +704,18 @@ func (tv *TransferVerifier[evmClient, connector]) processReceipt(
 		if amountIn, exists := summary.in[key]; !exists {
 			invariantErrors = errors.Join(invariantErrors, &InvariantError{Msg: "transfer-out request for tokens that were never deposited"})
 		} else {
+			// TODO: We may want to add an allow-list for fee-on-transfer and rebasing tokens, or else
+			// they will fail validation here. The reason is that the Core Bridge's amount out is a function
+			// of the Token Bridge calling `balanceOf()` when a token transfer occurs. If this method is implemented
+			// in a strange way in the token contract, the amount out may be greater than the amount sent in
+			// and hence break the invariant testing below.
 			if amountOut.Cmp(amountIn) == 1 {
+				tv.logger.Warn(
+					"requested amount out is larger than amount in for this token. It may be a deflationary or rebasing asset. Review is required.",
+					zap.String("key", key),
+					zap.String("amountIn", amountIn.String()),
+					zap.String("amountOut", amountOut.String()),
+				)
 				invariantErrors = errors.Join(invariantErrors, &InvariantError{Msg: "requested amount out is larger than amount in"})
 			}
 

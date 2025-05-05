@@ -342,6 +342,7 @@ func TestParseERC20TransferEvent(t *testing.T) {
 		topics   []common.Hash
 		data     []byte
 		expected *parsedValues
+		err      error
 	}{
 		"well-formed": {
 			topics: []common.Hash{
@@ -355,6 +356,7 @@ func TestParseERC20TransferEvent(t *testing.T) {
 				to:     tokenBridgeAddr,
 				amount: new(big.Int).SetBytes([]byte{0x01}),
 			},
+			err: nil,
 		},
 		"data too short": {
 			topics: []common.Hash{
@@ -365,6 +367,7 @@ func TestParseERC20TransferEvent(t *testing.T) {
 			// should be 32 bytes exactly
 			data:     []byte{0x01},
 			expected: &parsedValues{}, // everything nil for its type
+			err:      ErrTransferBadDataSize,
 		},
 		"wrong number of topics": {
 			// only 1 topic: should be 3
@@ -373,6 +376,7 @@ func TestParseERC20TransferEvent(t *testing.T) {
 			},
 			data:     common.LeftPadBytes([]byte{0x01}, 32),
 			expected: &parsedValues{}, // everything nil for its type
+			err:      ErrTransferIsNotERC20,
 		},
 	}
 
@@ -380,7 +384,8 @@ func TestParseERC20TransferEvent(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel() // marks each test case as capable of running in parallel with each other
 
-			from, to, amount := parseERC20TransferEvent(test.topics, test.data)
+			from, to, amount, err := parseERC20TransferEvent(test.topics, test.data)
+			require.Equal(t, err, test.err)
 			assert.Equal(t, test.expected.from, from)
 			assert.Equal(t, test.expected.to, to)
 			assert.Zero(t, amount.Cmp(test.expected.amount))
