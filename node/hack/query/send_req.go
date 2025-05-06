@@ -18,7 +18,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
-	"github.com/cometbft/cometbft/libs/rand"
+	"github.com/certusone/wormhole/node/pkg/random"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -143,8 +143,12 @@ func main() {
 			Accounts:        [][query.SolanaPublicKeyLength]byte{account1, account2},
 		}
 
+		nonce, err := random.Uint32()
+		if err != nil {
+			panic(err)
+		}
 		queryRequest := &query.QueryRequest{
-			Nonce: rand.Uint32(),
+			Nonce: nonce,
 			PerChainQueries: []*query.PerChainQueryRequest{
 				{
 					ChainId: 1,
@@ -174,8 +178,12 @@ func main() {
 			},
 		}
 
+		nonce, err := random.Uint32()
+		if err != nil {
+			panic(err)
+		}
 		queryRequest := &query.QueryRequest{
-			Nonce: rand.Uint32(),
+			Nonce: nonce,
 			PerChainQueries: []*query.PerChainQueryRequest{
 				{
 					ChainId: 1,
@@ -287,8 +295,12 @@ const (
 )
 
 func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequest {
+	nonce, err := random.Uint32()
+	if err != nil {
+		panic(err)
+	}
 	queryRequest := &query.QueryRequest{
-		Nonce: rand.Uint32(),
+		Nonce: nonce,
 		PerChainQueries: []*query.PerChainQueryRequest{
 			{
 				ChainId: 2,
@@ -308,8 +320,12 @@ func createQueryRequestWithMultipleRequests(callRequests []*query.EthCallQueryRe
 		})
 	}
 
+	nonce, err := random.Uint32()
+	if err != nil {
+		panic(err)
+	}
 	queryRequest := &query.QueryRequest{
-		Nonce:           rand.Uint32(),
+		Nonce:           nonce,
 		PerChainQueries: perChainQueries,
 	}
 	return queryRequest

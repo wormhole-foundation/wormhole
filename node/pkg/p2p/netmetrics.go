@@ -38,7 +38,7 @@ func collectNodeMetrics(addr common.Address, peerId peer.ID, hb *gossipv1.Heartb
 			continue
 		}
 
-		chain := vaa.ChainID(n.Id)
+		chain := vaa.ChainID(n.Id) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 
 		wormholeNetworkNodeHeight.WithLabelValues(
 			addr.Hex(), peerId.String(), hb.NodeName, chain.String()).Set(float64(n.Height))
@@ -60,9 +60,9 @@ var (
 )
 
 // sanitizeVersion cleans up the version string to prevent an attacker from executing a cardinality attack.
-func sanitizeVersion(version string, reference string) string {
+func sanitizeVersion(versionStr string, reference string) string {
 	// Match groups of reVersion
-	components := reVersion.FindStringSubmatch(version)
+	components := reVersion.FindStringSubmatch(versionStr)
 	referenceComponents := reVersion.FindStringSubmatch(reference)
 
 	// Compare components of the version string with the reference and ensure
@@ -80,7 +80,7 @@ func sanitizeVersion(version string, reference string) string {
 		}
 	}
 
-	v := reVersion.FindString(version)
+	v := reVersion.FindString(versionStr)
 	if v == "" {
 		return "other"
 	}

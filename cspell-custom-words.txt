@@ -52,12 +52,15 @@ ethcrypto
 ethersproject
 ETHRPC
 evmos
+fogo
+Fogo
 forgeable
 FQTs
 frontends
 funder
 gogoproto
 goimports
+golangci
 gossipv
 GUARDIAND
 guardiand
@@ -71,6 +74,7 @@ Holesky
 holesky
 horcrux
 ICCO
+idls
 incentivized
 incentivizing
 initialisation
@@ -102,6 +106,7 @@ lamports
 lastrun
 libp
 Linea
+localnet
 localterra
 lockfiles
 merkle

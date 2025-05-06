@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/near/borsh-go"
@@ -175,7 +176,8 @@ func (s *SolanaWatcher) shimProcessTopLevelInstruction(
 	alreadyProcessed ShimAlreadyProcessed,
 	isReobservation bool,
 ) (bool, error) {
-	topLevelIdx := uint16(topLevelIndex)
+	topLevelIdx := uint16(topLevelIndex) // #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many top level instructions.
+	// #nosec G115 -- The solana runtime max transaction size is 1232 bytes. So we'd never be able to have this many top level instructions.
 	if topLevelIdx >= uint16(len(tx.Message.Instructions)) {
 		return false, fmt.Errorf("topLevelIndex %d is greater than the total number of instructions in the tx message, %d", topLevelIdx, len(tx.Message.Instructions))
 	}
@@ -365,6 +367,9 @@ func (s *SolanaWatcher) shimProcessRest(
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
+	if isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(s.chainID.String(), "shim").Inc()
+	}
 
 	if logger.Level().Enabled(s.msgObservedLogLevel) {
 		logger.Log(s.msgObservedLogLevel, "message observed from shim",

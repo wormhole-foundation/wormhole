@@ -10,7 +10,7 @@ import (
 // PublicRPCEndpoints is a list of known public RPC endpoints for mainnet, operated by
 // Wormhole guardian nodes.
 //
-// This list is duplicated a couple times across the codebase - make to to update all copies!
+// This list is duplicated a couple times across the codebase - make sure to update all copies!
 var PublicRPCEndpoints = []string{
 	"https://wormhole-v2-mainnet-api.mcf.rocks",
 	"https://wormhole-v2-mainnet-api.chainlayer.network",
@@ -121,6 +121,7 @@ var knownTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDBlast:      "00000000000000000000000024850c6f61C438823F01B7A3BF2B89B72174Fa9d",
 	vaa.ChainIDXLayer:     "0000000000000000000000005537857664B0f9eFe38C9f320F75fEf23234D904",
 	vaa.ChainIDBerachain:  "0000000000000000000000003Ff72741fd67D6AD0668d93B41a09248F4700560",
+	vaa.ChainIDSeiEVM:     "0000000000000000000000003Ff72741fd67D6AD0668d93B41a09248F4700560",
 	vaa.ChainIDSnaxchain:  "0000000000000000000000008B94bfE456B48a6025b92E11Be393BAa86e68410",
 	vaa.ChainIDUnichain:   "0000000000000000000000003Ff72741fd67D6AD0668d93B41a09248F4700560",
 	vaa.ChainIDInjective:  "00000000000000000000000045dbea4617971d93188eda21530bc6503d153313",
@@ -194,4 +195,10 @@ var KnownAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDXLayer, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDSnaxchain, Addr: "00000000000000000000000027428DD2d3DD32A4D7f7C497eAaa23130d894911"},
 	{ChainId: vaa.ChainIDWorldchain, Addr: "0000000000000000000000001520cc9e779c56dab5866bebfb885c86840c33d3"},
+}
+
+// KnownWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum
+var KnownWrappedNativeAddress = map[vaa.ChainID]string{
+	// WETH
+	vaa.ChainIDEthereum: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
 }

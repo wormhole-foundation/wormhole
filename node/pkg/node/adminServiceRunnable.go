@@ -9,7 +9,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -31,7 +31,7 @@ func adminServiceRunnable(
 	injectC chan<- *common.MessagePublication,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	db *db.Database,
+	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
 	guardianSigner guardiansigner.GuardianSigner,

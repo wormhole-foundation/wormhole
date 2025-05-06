@@ -8,6 +8,7 @@ import (
 func nextRetryDuration(ctr uint) time.Duration {
 	m := 1 << ctr
 	wait := FirstRetryMinWait * time.Duration(m)
-	jitter := time.Duration(mathrand.Int63n(int64(wait))) // nolint:gosec
+	// #nosec G404 we don't need cryptographic randomness here.
+	jitter := time.Duration(mathrand.Int63n(int64(wait)))
 	return wait + jitter
 }

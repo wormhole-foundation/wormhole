@@ -57,7 +57,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
-	"github.com/cometbft/cometbft/libs/rand"
+	"github.com/certusone/wormhole/node/pkg/random"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -138,7 +138,7 @@ func main() {
 
 	// Manual p2p setup
 	components := p2p.DefaultComponents()
-	components.Port = uint(*p2pPort)
+	components.Port = uint(*p2pPort) // #nosec G115 -- TCP ports are 16 bit, so this conversion is safe
 	bootstrapPeers := *p2pBootstrap
 	networkID := *p2pNetworkID + "/ccq"
 
@@ -276,8 +276,12 @@ const (
 )
 
 func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequest {
+	nonce, err := random.Uint32()
+	if err != nil {
+		panic(err)
+	}
 	queryRequest := &query.QueryRequest{
-		Nonce: rand.Uint32(),
+		Nonce: nonce,
 		PerChainQueries: []*query.PerChainQueryRequest{
 			{
 				ChainId: 2,

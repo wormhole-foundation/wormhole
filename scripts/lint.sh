@@ -62,7 +62,7 @@ lint(){
 
     # Do the actual linting!
     cd "$ROOT"/node
-    golangci-lint run --timeout=10m --path-prefix=node $GOLANGCI_LINT_ARGS ./...
+    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
 
     cd "${ROOT}/sdk"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
@@ -89,7 +89,6 @@ while getopts 'cwdlgh' opt; do
         SELF_ARGS_WITHOUT_DOCKER+="-l "
         ;;
     g)
-        GOLANGCI_LINT_ARGS+="--out-format=github-actions "
         GITHUB_ACTION="true"
         SELF_ARGS_WITHOUT_DOCKER+="-g "
         ;;

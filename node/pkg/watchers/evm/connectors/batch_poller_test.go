@@ -148,7 +148,7 @@ func (e *mockConnectorForBatchPoller) setBlockNumbers(finalized, safe, latest ui
 	e.blockNumbers = []uint64{finalized, safe}
 	if latest != 0 {
 		e.headSink <- &ethTypes.Header{
-			Number: big.NewInt(int64(latest)),
+			Number: big.NewInt(int64(latest)), // #nosec G115 -- Hardcoded in tests so no risk of overflow
 			Time:   latest,
 		}
 	}
@@ -160,13 +160,13 @@ func (e *mockConnectorForBatchPoller) setBlockNumbersTwice(finalized1, safe1, la
 	e.blockNumbers = []uint64{finalized1, safe1, finalized2, safe2}
 	if latest1 != 0 {
 		e.headSink <- &ethTypes.Header{
-			Number: big.NewInt(int64(latest1)),
+			Number: big.NewInt(int64(latest1)), // #nosec G115 -- Hardcoded in tests so no risk of overflow
 			Time:   latest1,
 		}
 	}
 	if latest2 != 0 {
 		e.headSink <- &ethTypes.Header{
-			Number: big.NewInt(int64(latest2)),
+			Number: big.NewInt(int64(latest2)), // #nosec G115 -- Hardcoded in tests so no risk of overflow
 			Time:   latest2,
 		}
 	}

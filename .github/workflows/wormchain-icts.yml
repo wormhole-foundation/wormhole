@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   GO_VERSION: 1.23
@@ -24,6 +23,8 @@ concurrency:
 jobs:
   build-docker:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,6 +66,7 @@ jobs:
           - "ictest-ibc-client-update-vaa"
           - "ictest-cw-wormhole"
           - "ictest-validator-hotswap"
+          - "ictest-cw-shutdown-contracts"
       fail-fast: false
 
     steps:

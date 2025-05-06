@@ -206,14 +206,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Run p2p
 	pendingResponses := NewPendingResponses(logger)
-	p2p, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap, *gossipAdvertiseAddress, protectedPeers)
+	p2pSub, err := runP2P(ctx, priv, *p2pPort, networkID, *p2pBootstrap, *ethRPC, *ethContract, pendingResponses, logger, *monitorPeers, loggingMap, *gossipAdvertiseAddress, protectedPeers)
 	if err != nil {
 		logger.Fatal("Failed to start p2p", zap.Error(err))
 	}
 
 	// Start the HTTP server
 	go func() {
-		s := NewHTTPServer(*listenAddr, p2p.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
+		s := NewHTTPServer(*listenAddr, p2pSub.topic_req, permissions, signerKey, pendingResponses, logger, env, loggingMap)
 		logger.Sugar().Infof("Server listening on %s", *listenAddr)
 		err := s.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
@@ -246,10 +246,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 			"product":   "ccq_server",
 		}
 
-		err := RunPrometheusScraper(ctx, logger, info)
-		if err != nil {
-			logger.Fatal("Failed to start prometheus scraper", zap.Error(err))
-		}
+		RunPrometheusScraper(ctx, logger, info)
 	}
 
 	// Handle SIGTERM
@@ -260,9 +257,10 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 		if statServer != nil && *shutdownDelay1 != 0 {
 			logger.Info("Received sigterm. disabling health checks and pausing.")
 			statServer.disableHealth()
-			time.Sleep(time.Duration(*shutdownDelay1) * time.Second)
+			time.Sleep(time.Duration(*shutdownDelay1) * time.Second) // #nosec G115 -- Defaults to 25 seconds, overflowing is infeasible
 			numPending := 0
 			logger.Info("Waiting for any outstanding requests to complete before shutting down.")
+			// #nosec G115 -- Defaults to 65 seconds, overflowing is infeasible
 			for count := 0; count < int(*shutdownDelay2); count++ {
 				time.Sleep(time.Second)
 				numPending = pendingResponses.NumPending()
@@ -302,14 +300,14 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	permissions.StopWatcher()
 
 	// Shutdown p2p. Without this the same host won't properly discover peers until some timeout
-	p2p.sub.Cancel()
-	if err := p2p.topic_req.Close(); err != nil {
+	p2pSub.sub.Cancel()
+	if err := p2pSub.topic_req.Close(); err != nil {
 		logger.Error("Error closing the request topic", zap.Error(err))
 	}
-	if err := p2p.topic_resp.Close(); err != nil {
+	if err := p2pSub.topic_resp.Close(); err != nil {
 		logger.Error("Error closing the response topic", zap.Error(err))
 	}
-	if err := p2p.host.Close(); err != nil {
+	if err := p2pSub.host.Close(); err != nil {
 		logger.Error("Error closing the host", zap.Error(err))
 	}
 }

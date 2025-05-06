@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
@@ -17,6 +18,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -118,7 +120,7 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *
 	copy(a[:], at.Sender[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
 
 	obs = append(obs, algorandObservation{
-		nonce:          uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
+		nonce:          uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])), // #nosec G115 -- Nonce is 32 bits on chain
 		sequence:       binary.BigEndian.Uint64([]byte(ed.Logs[0])),
 		emitterAddress: a,
 		payload:        at.ApplicationArgs[1],
@@ -169,6 +171,9 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 		}
 
 		algorandMessagesConfirmed.Inc()
+		if isReobservation {
+			watchers.ReobservationsByChain.WithLabelValues("algorand", "std").Inc()
+		}
 
 		logger.Info("message observed",
 			zap.Time("timestamp", observation.Timestamp),
@@ -237,7 +242,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != vaa.ChainIDAlgorand {
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDAlgorand {
 				panic("invalid chain ID")
 			}
 
@@ -267,7 +275,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 		case <-timer.C:
-			status, err := algodClient.Status().Do(context.Background())
+			status, err := algodClient.Status().Do(ctx)
 			if err != nil {
 				logger.Error(fmt.Sprintf("algodClient.Status: %s", err.Error()))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -276,7 +284,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			if e.next_round <= status.LastRound {
 				for {
-					block, err := algodClient.Block(e.next_round).Do(context.Background())
+					block, err := algodClient.Block(e.next_round).Do(ctx)
 					if err != nil {
 						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
 						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -298,9 +306,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 			}
 
+			if status.LastRound > math.MaxInt64 {
+				logger.Error("Last round not a valid int64: ", zap.Uint64("lastRound", status.LastRound))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+				continue
+			}
+
 			currentAlgorandHeight.Set(float64(status.LastRound))
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
-				Height:          int64(status.LastRound),
+				Height:          int64(status.LastRound), // #nosec G115 -- This is validated above
 				ContractAddress: fmt.Sprintf("%d", e.appid),
 			})
 

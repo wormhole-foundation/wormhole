@@ -179,7 +179,7 @@ func (w *Watcher) ccqHandleEthCallQueryRequest(ctx context.Context, queryRequest
 	resp := query.EthCallQueryResponse{
 		BlockNumber: blockResult.Number.ToInt().Uint64(),
 		Hash:        blockResult.Hash,
-		Time:        time.Unix(int64(blockResult.Time), 0),
+		Time:        time.Unix(int64(blockResult.Time), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Results:     results,
 	}
 
@@ -478,10 +478,10 @@ func (w *Watcher) ccqHandleEthCallByTimestampQueryRequest(ctx context.Context, q
 	resp := query.EthCallByTimestampQueryResponse{
 		TargetBlockNumber:    targetBlockNum,
 		TargetBlockHash:      blockResult.Hash,
-		TargetBlockTime:      time.Unix(int64(blockResult.Time), 0),
+		TargetBlockTime:      time.Unix(int64(blockResult.Time), 0), // #nosec G115 -- This conversion is safe indefinitely
 		FollowingBlockNumber: followingBlockNum,
 		FollowingBlockHash:   nextBlockResult.Hash,
-		FollowingBlockTime:   time.Unix(int64(nextBlockResult.Time), 0),
+		FollowingBlockTime:   time.Unix(int64(nextBlockResult.Time), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Results:              results,
 	}
 
@@ -620,7 +620,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	resp := query.EthCallWithFinalityQueryResponse{
 		BlockNumber: blockNumber,
 		Hash:        blockResult.Hash,
-		Time:        time.Unix(int64(blockResult.Time), 0),
+		Time:        time.Unix(int64(blockResult.Time), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Results:     results,
 	}
 
@@ -713,7 +713,9 @@ func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([
 }
 
 // ccqVerifyBlockResult does basic verification on the results of the block query.
-func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.BlockMarshaller) error { //nolint:unparam
+//
+//nolint:unparam // Reports "always receives nil" but this is the intention.
+func (w *Watcher) ccqVerifyBlockResult(blockError error, blockResult connectors.BlockMarshaller) error {
 	if blockError != nil {
 		return blockError
 	}

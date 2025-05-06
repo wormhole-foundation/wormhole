@@ -22,7 +22,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
@@ -134,7 +134,7 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	}
 }
 
-// queryCoinGecko sends a series of of one or more queries to the CoinGecko server to get the latest prices. It can
+// queryCoinGecko sends a series of one or more queries to the CoinGecko server to get the latest prices. It can
 // return an error, but that is only used by the tool that validates the query. In the actual governor,
 // it just logs the error and we will try again next interval. If an error happens, any tokens that have
 // not been updated will be assigned their pre-configured price.
@@ -257,7 +257,8 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	var result map[string]interface{}
 
 	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
-	response, err := http.Get(query) //nolint:gosec,noctx
+	// #nosec G107 // the URL is hard-coded to the CoinGecko API. See [createCoinGeckoQuery].
+	response, err := http.Get(query) //nolint:noctx // TODO: a context should be added here.
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
 	}
@@ -318,7 +319,7 @@ func (te tokenEntry) updatePrice() {
 func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.MainNet, true, "")
 
 	if err := gov.initConfig(); err != nil {

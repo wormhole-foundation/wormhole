@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,6 +78,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "monad", output: ChainIDMonad},
 		{input: "movement", output: ChainIDMovement},
 		{input: "mezo", output: ChainIDMezo},
+		{input: "fogo", output: ChainIDFogo},
+		{input: "sonic", output: ChainIDSonic},
 		{input: "wormchain", output: ChainIDWormchain},
 		{input: "cosmoshub", output: ChainIDCosmoshub},
 		{input: "evmos", output: ChainIDEvmos},
@@ -143,6 +146,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Monad", output: ChainIDMonad},
 		{input: "Movement", output: ChainIDMovement},
 		{input: "Mezo", output: ChainIDMezo},
+		{input: "Fogo", output: ChainIDFogo},
+		{input: "Sonic", output: ChainIDSonic},
 		{input: "Wormchain", output: ChainIDWormchain},
 		{input: "Cosmoshub", output: ChainIDCosmoshub},
 		{input: "Evmos", output: ChainIDEvmos},
@@ -350,6 +355,9 @@ func TestChainId_String(t *testing.T) {
 		{input: 47, output: "hyperevm"},
 		{input: 48, output: "monad"},
 		{input: 49, output: "movement"},
+		{input: 50, output: "mezo"},
+		{input: 51, output: "fogo"},
+		{input: 52, output: "sonic"},
 		{input: 3104, output: "wormchain"},
 		{input: 4000, output: "cosmoshub"},
 		{input: 4001, output: "evmos"},
@@ -549,12 +557,12 @@ func TestVerifySignatures(t *testing.T) {
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
+			result:     false},
 		{label: "NoSignerOne",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{1},
-			result:     true},
+			result:     false},
 		{label: "SingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
@@ -681,9 +689,8 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 		indexPair []uint8
 	}
 
-	// Known good cases where we should have a verified result for
+	// Known good cases where we should have a verified result.
 	allows := []allow{
-		{keyPair: []*ecdsa.PrivateKey{}, indexPair: []uint8{}},
 		{keyPair: []*ecdsa.PrivateKey{privKey1}, indexPair: []uint8{0}},
 		{keyPair: []*ecdsa.PrivateKey{privKey2}, indexPair: []uint8{1}},
 		{keyPair: []*ecdsa.PrivateKey{privKey3}, indexPair: []uint8{2}},
@@ -773,10 +780,10 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 				vaa.AddSignature(key, tc.indexOrder[i])
 			}
 
-			/* Fuzz Debugging
-			 * Tell us what keys and indexes were used (for debug when/if we have a failure case)
-			 */
-			if vaa.VerifySignatures(tc.addrs) != tc.result {
+			// Fuzz Debugging
+			// Tell us what keys and indexes were used (for debug when/if we have a failure case).
+			actual := vaa.VerifySignatures(tc.addrs)
+			if actual != tc.result {
 				if len(tc.keyOrder) == 0 {
 					t.Logf("Key Order %v\n", tc.keyOrder)
 				} else {
@@ -784,7 +791,7 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 					for i, key_i := range keys {
 						for _, key_k := range tc.keyOrder {
 							if key_i == key_k {
-								keyIndex = append(keyIndex, uint8(i))
+								keyIndex = append(keyIndex, uint8(i)) // #nosec G115 -- We're using 6 keys in this test case
 							}
 						}
 					}
@@ -794,7 +801,7 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 
 			}
 
-			assert.Equal(t, tc.result, vaa.VerifySignatures(tc.addrs))
+			assert.Equal(t, tc.result, actual)
 		})
 	}
 }
@@ -1009,7 +1016,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				return buf.Bytes()
 			},
 		},
@@ -1019,7 +1026,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				return buf.Bytes()
 			},
@@ -1030,7 +1037,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				MustWrite(buf, binary.BigEndian, ChainIDPythNet)
 				return buf.Bytes()
@@ -1042,7 +1049,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				MustWrite(buf, binary.BigEndian, ChainIDBSC)
 				buf.Write(addr[:])
@@ -1055,7 +1062,7 @@ func TestUnmarshalBody(t *testing.T) {
 			vaa:  &VAA{},
 			dataFunc: func() []byte {
 				buf := new(bytes.Buffer)
-				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix()))
+				MustWrite(buf, binary.BigEndian, uint32(time.Now().Unix())) // #nosec G115 -- This conversion is safe until year 2106
 				MustWrite(buf, binary.BigEndian, uint32(123))
 				MustWrite(buf, binary.BigEndian, ChainIDBSC)
 				buf.Write(addr[:])
@@ -1122,6 +1129,145 @@ func TestUnmarshalBody(t *testing.T) {
 			if err == nil {
 				assert.Equal(t, testCase.expectedVAA, body)
 			}
+		})
+	}
+}
+
+func TestChainIDFromNumber(t *testing.T) {
+	// Define test case struct that works with any Number type
+	type testCase[N number] struct {
+		name      string
+		input     N
+		expected  ChainID
+		wantErr   bool
+		errMsg    string
+		wantKnown bool
+	}
+	// Using the int64 type here because it can be representative of the error conditions (overflow, negative)
+	// NOTE: more test cases could be added with different concrete types.
+	tests := []testCase[int64]{
+		{
+			name:      "valid",
+			input:     int64(1),
+			expected:  ChainIDSolana,
+			wantErr:   false,
+			wantKnown: true,
+		},
+		{
+			name:      "valid but unknown",
+			input:     int64(math.MaxUint16),
+			expected:  ChainID(math.MaxUint16),
+			wantErr:   false,
+			wantKnown: false,
+		},
+		{
+			name:      "overflow",
+			input:     math.MaxUint16 + 1,
+			expected:  ChainIDUnset,
+			wantErr:   true,
+			wantKnown: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := ChainIDFromNumber(testCase.input)
+			require.Equal(t, testCase.expected, got)
+			if testCase.wantErr {
+				require.ErrorContains(t, err, testCase.errMsg)
+				require.Equal(t, ChainIDUnset, got)
+			}
+
+			got, err = KnownChainIDFromNumber(testCase.input)
+			if testCase.wantKnown {
+				require.NoError(t, err)
+				require.Equal(t, testCase.expected, got)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, ChainIDUnset, got)
+			}
+		})
+	}
+}
+
+func TestStringToKnownChainID(t *testing.T) {
+
+	happy := []struct {
+		name     string
+		input    string
+		expected ChainID
+	}{
+		{
+			name:     "simple int 1",
+			input:    "1",
+			expected: ChainIDSolana,
+		},
+		{
+			name:     "simple int 2",
+			input:    "3104",
+			expected: ChainIDWormchain,
+		},
+		{
+			name:     "chain name 1",
+			input:    "solana",
+			expected: ChainIDSolana,
+		},
+	}
+	for _, tt := range happy {
+		// Avoid "loop variable capture".
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := StringToKnownChainID(tt.input)
+			require.Equal(t, tt.expected, actual)
+			require.NoError(t, err)
+		})
+	}
+
+	// Check error cases
+	sad := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "zero is not a valid ChainID",
+			input: "0",
+		},
+		{
+			name:  "negative value",
+			input: "-1",
+		},
+		{
+			name:  "NaN",
+			input: "garbage",
+		},
+		{
+			name:  "overflow",
+			input: "65536",
+		},
+		{
+			name:  "not a real chain",
+			input: "12345",
+		},
+		{
+			name:  "empty string",
+			input: "",
+		},
+		{
+			name:  "no hex inputs",
+			input: "0x10",
+		},
+	}
+	for _, tt := range sad {
+		// Avoid "loop variable capture".
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := StringToKnownChainID(tt.input)
+			require.Equal(t, ChainIDUnset, actual)
+			require.Error(t, err)
 		})
 	}
 }

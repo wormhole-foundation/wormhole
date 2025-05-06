@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -503,6 +504,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
+			slices.Sort(params.featureFlags)
 			go func() {
 				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx))
 
@@ -525,39 +527,21 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							defer DefaultRegistry.mu.Unlock()
 							networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 							for _, v := range DefaultRegistry.networkStats {
-								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
 								networks = append(networks, v)
 							}
 
-							features := make([]string, 0)
-							if params.processorFeaturesFunc != nil {
-								flag := params.processorFeaturesFunc()
-								if flag != "" {
-									features = append(features, flag)
+							features := make([]string, len(params.featureFlags))
+							copy(features, params.featureFlags)
+							if len(params.featureFlagFuncs) != 0 {
+								for _, f := range params.featureFlagFuncs {
+									flag := f()
+									if flag != "" {
+										features = append(features, flag)
+									}
 								}
-							}
-							if params.gov != nil {
-								if params.gov.IsFlowCancelEnabled() {
-									features = append(features, "governor:fc")
-								} else {
-									features = append(features, "governor")
-								}
-							}
-							if params.acct != nil {
-								features = append(features, params.acct.FeatureString())
-							}
-							if params.ibcFeaturesFunc != nil {
-								ibcFlags := params.ibcFeaturesFunc()
-								if ibcFlags != "" {
-									features = append(features, ibcFlags)
-								}
-							}
-							if params.gatewayRelayerEnabled {
-								features = append(features, "gwrelayer")
-							}
-							if params.ccqEnabled {
-								features = append(features, "ccq")
+								slices.Sort(features)
 							}
 
 							heartbeat := &gossipv1.Heartbeat{
@@ -956,8 +940,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							default:
 								if params.components.WarnChannelOverflow {
 									var hexStr string
-									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-										hexStr = vaa.HexDigest()
+									if signedVAA, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+										hexStr = signedVAA.HexDigest()
 									}
 									logger.Warn("Ignoring SignedVaaWithQuorum because signedIncomingVaaRecvC full", zap.String("hash", hexStr))
 								}

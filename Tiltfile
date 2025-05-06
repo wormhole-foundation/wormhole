@@ -253,6 +253,8 @@ def build_node_yaml():
                     "http://solana-devnet:8899",
                     "--solanaContract",
                     "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
+                    "--solanaShimContract",
+                    "EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX",
                 ]
 
             if pythnet:
@@ -472,7 +474,7 @@ if solana or pythnet:
         only = ["./proto", "./solana", "./clients"],
         dockerfile = "solana/Dockerfile.client",
         # Ignore target folders from local (non-container) development.
-        ignore = ["./solana/*/target"],
+        ignore = ["./solana/*/target", "./solana/tests"],
     )
 
     # solana smart contract
@@ -482,6 +484,7 @@ if solana or pythnet:
         context = "solana",
         dockerfile = "solana/Dockerfile",
         target = "builder",
+        ignore = ["./solana/*/target", "./solana/tests"],
         build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
 

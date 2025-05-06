@@ -2,9 +2,14 @@ package txverifier
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
+	"slices"
 	"strings"
+
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 // Constants
@@ -95,4 +100,52 @@ func denormalize(
 	}
 
 	return denormalizedAmount
+}
+
+// SupportedChains returns a slice of Wormhole Chain IDs that have a Transfer Verifier implementation.
+func SupportedChains() []vaa.ChainID {
+	return []vaa.ChainID{
+		// Mainnets
+		vaa.ChainIDEthereum,
+		// Testnets
+		vaa.ChainIDSepolia,
+		vaa.ChainIDHolesky,
+	}
+}
+
+// ValidateChains validates that a slice of uints correspond to chain IDs with a Transfer Verifier implementation.
+// Returns a slice of the input values converted into valid, known ChainIDs.
+// Returns nil when an error occurs.
+func ValidateChains(
+	// Uints to be validated. This type is selected because it can be used with Cobra's `UintSlice()` function.
+	input []uint,
+) ([]vaa.ChainID, error) {
+	if len(input) == 0 {
+		return nil, errors.New("no chain IDs provided for transfer verification")
+	}
+	knownChains := vaa.GetAllNetworkIDs()
+	supportedChains := SupportedChains()
+
+	// NOTE: Using a known capacity and counter here avoids unnecessary reallocations compared to using `append()`.
+	enabled := make([]vaa.ChainID, len(input))
+	i := uint8(0)
+	for _, chain := range input {
+		if chain > uint(math.MaxUint16) {
+			return nil, fmt.Errorf("uint %d exceeds MaxUint16", chain)
+		}
+		chainId := vaa.ChainID(chain)
+
+		if !slices.Contains(knownChains, chainId) {
+			return nil, fmt.Errorf("chainId %d is not a known Chain ID", chainId)
+		}
+
+		if !slices.Contains(supportedChains, chainId) {
+			return nil, fmt.Errorf("chainId %d does not have a Transfer Verifier implementation", chainId)
+		}
+
+		enabled[i] = chainId
+		i++
+	}
+
+	return enabled, nil
 }
