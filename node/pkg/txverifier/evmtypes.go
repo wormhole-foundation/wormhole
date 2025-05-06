@@ -775,7 +775,7 @@ func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
 ) (vaa.Address, error) {
 
 	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
-		return ZERO_ADDRESS_VAA, errors.New("got zero address as parameter for chainId() call")
+		return ZERO_ADDRESS_VAA, errors.New("got zero address as parameter for nativeContract() call")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()

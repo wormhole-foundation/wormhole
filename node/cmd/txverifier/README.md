@@ -17,7 +17,7 @@ The script at `scripts/transfer-verifier-localnet.sh` runs the transfer verifier
 
 This command provides a "sanity check" mode that runs the package against mainnet data using a hard-coded
 list of tx hashes and their expected return values. It checks that ruling of true/false matches what's
-expected, and ensures that the expected error code match.
+expected, and ensures that the expected error codes match.
 
 The code will log a fatal error and exit as soon as one of the sanity checks fail.
 
