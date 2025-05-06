@@ -15,20 +15,18 @@ contract GuardianRegistryVerification is EIP712Encoding {
   error RegistrationMessageExpired();
   error GuardianSignatureVerificationFailed();
 
-  function _verifyRegisterTLSKey(
+  function _verifyRegisterGuardian(
     address[] memory guardianAddrs,
-    uint32 guardianSetIndex,
+    uint32 guardianSet,
     uint32 expirationTime,
-    bytes32 tlsKey,
-    uint8 guardianIndex,
+    bytes32 id,
+    uint8 guardian,
     bytes32 r, bytes32 s, uint8 v
   ) internal view {
     require(expirationTime > block.timestamp, RegistrationMessageExpired());
-    bytes32 digest = getRegisterTLSDigest(guardianSetIndex, expirationTime, tlsKey);
-
+    bytes32 digest = getRegisterGuardianDigest(guardianSet, expirationTime, id);
     // Verify the signature
     address signatory = ecrecover(digest, v, r, s);
-    address guardian = guardianAddrs[guardianIndex];
-    require(signatory == guardian, GuardianSignatureVerificationFailed());
+    require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());
   }
 }

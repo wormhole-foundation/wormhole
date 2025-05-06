@@ -13,7 +13,7 @@ import {GuardianRegistryVerification} from "./GuardianRegistryVerification.sol";
 // Raw dispatch operation IDs for exec
 uint8 constant OP_GOVERNANCE = 0x00;
 uint8 constant OP_PULL_GUARDIAN_SETS = 0x01;
-uint8 constant OP_REGISTER_TLS_KEY = 0x02;
+uint8 constant OP_REGISTER_GUARDIAN = 0x02;
 
 // Raw dispatch operation IDs for get
 uint8 constant OP_VERIFY_AND_DECODE_VAA = 0x20;
@@ -123,32 +123,32 @@ contract VerificationV2 is
         (limit, offset) = data.asUint32CdUnchecked(offset);
 
         _pullGuardianSets(limit);
-      } else if (op == OP_REGISTER_TLS_KEY) {
+      } else if (op == OP_REGISTER_GUARDIAN) {
         // Decode the payload
-        uint32 guardianSetIndex;
+        uint32 guardianSet;
         uint32 expirationTime;
-        bytes32 tlsKey;
-        uint8 guardianIndex; bytes32 r; bytes32 s; uint8 v;
+        bytes32 guardianId;
+        uint8 guardian; bytes32 r; bytes32 s; uint8 v;
 
-        (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
+        (guardianSet, offset) = data.asUint32CdUnchecked(offset);
         (expirationTime, offset) = data.asUint32CdUnchecked(offset);
-        (tlsKey, offset) = data.asBytes32CdUnchecked(offset);
-        (guardianIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
+        (guardianId, offset) = data.asBytes32CdUnchecked(offset);
+        (guardian, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
         
         // We only allow registrations for the current guardian set
         (uint32 currentSetIndex, address[] memory guardianAddrs) = _getCurrentGuardianSetInfo();
-        require(guardianSetIndex == currentSetIndex, GuardianSetIsNotCurrent());
+        require(guardianSet == currentSetIndex, GuardianSetIsNotCurrent());
         
-        _verifyRegisterTLSKey(
+        _verifyRegisterGuardian(
           guardianAddrs,
-          guardianSetIndex,
+          guardianSet,
           expirationTime,
-          tlsKey,
-          guardianIndex,
+          guardianId,
+          guardian,
           r, s, v
         );
         
-        _registerTLSKey(guardianSetIndex, guardianIndex, tlsKey);
+        _registerGuardian(guardianSet, guardian, guardianId);
       } else {
         revert InvalidOperation(op);
       }
@@ -212,10 +212,10 @@ contract VerificationV2 is
         
         result = abi.encodePacked(result, thresholdAddr, expirationTime);
       } else if (op == OP_GUARDIAN_SET_GET_CURRENT) {
-        (uint32 guardianSetIndex, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
+        (uint32 guardianSet, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
         uint8 guardianCount = uint8(guardianSetAddrs.length);
 
-        result = abi.encodePacked(result, guardianCount, guardianSetAddrs, guardianSetIndex);
+        result = abi.encodePacked(result, guardianCount, guardianSetAddrs, guardianSet);
       } else if (op == OP_GUARDIAN_SET_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
@@ -225,12 +225,12 @@ contract VerificationV2 is
         
         result = abi.encodePacked(result, guardianCount, guardianSetAddrs, expirationTime);
       } else if (op == OP_GUARDIAN_SHARDS_GET) {
-        uint32 guardianSetIndex;
-        uint8 guardianIndex;
-        (guardianSetIndex, offset) = data.asUint32CdUnchecked(offset);
-        (guardianIndex, offset) = data.asUint8CdUnchecked(offset);
+        uint32 guardianSet;
+        uint8 guardian;
+        (guardianSet, offset) = data.asUint32CdUnchecked(offset);
+        (guardian, offset) = data.asUint8CdUnchecked(offset);
         
-        (uint shardCount, bytes32[] memory shards) = _getShardsRaw(guardianSetIndex);
+        (uint shardCount, bytes32[] memory shards) = _getShardsRaw(guardianSet);
         
         result = abi.encodePacked(result, uint8(shardCount), shards);
       } else {

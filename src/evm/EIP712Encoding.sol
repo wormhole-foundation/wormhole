@@ -14,8 +14,8 @@ contract EIP712Encoding {
   bytes32 constant EIP712_NAME_HASH = keccak256("Wormhole VerificationV2");
   bytes32 constant EIP712_VERSION_HASH = keccak256("1");
 
-  bytes32 constant TLS_TYPE_HASH = keccak256(
-    "TLSKeyRegister(uint32 guardianSetIndex,uint32 expirationTime,bytes32 tlsKey)"
+  bytes32 constant REGISTER_TYPE_HASH = keccak256(
+    "GuardianRegister(uint32 guardianSet,uint32 expirationTime,bytes32 id)"
   );
 
   bytes32 private _domainSeparator;
@@ -36,21 +36,21 @@ contract EIP712Encoding {
     ));
   }
 
-  function getRegisterTLSKeyHash(
-    uint32 guardianSetIndex, uint32 expirationTime, bytes32 tlsKey
+  function getRegisterGuardianHash(
+    uint32 guardianSet, uint32 expirationTime, bytes32 id
   ) internal pure returns (bytes32) {
     return keccak256(abi.encode(
-      TLS_TYPE_HASH,
-      guardianSetIndex,
+      REGISTER_TYPE_HASH,
+      guardianSet,
       expirationTime,
-      tlsKey
+      id
     ));
   }
 
-  function getRegisterTLSDigest(
-    uint32 guardianSetIndex, uint32 expirationTime, bytes32 tlsKey
+  function getRegisterGuardianDigest(
+    uint32 guardianSet, uint32 expirationTime, bytes32 id
   ) internal view returns (bytes32) {
-    bytes32 tlsHash = getRegisterTLSKeyHash(guardianSetIndex, expirationTime, tlsKey);
-    return keccak256(abi.encodePacked("\x19\x01", _domainSeparator, tlsHash));
+    bytes32 idHash = getRegisterGuardianHash(guardianSet, expirationTime, id);
+    return keccak256(abi.encodePacked("\x19\x01", _domainSeparator, idHash));
   }
 }

@@ -10,7 +10,7 @@ contract ThresholdVerificationState {
 
   struct ShardInfo {
     bytes32 shard;
-    bytes32 tlsKey;
+    bytes32 id;
   }
 
 	// Current threshold info is stored in a single slot
@@ -81,14 +81,14 @@ contract ThresholdVerificationState {
     }
   }
 
-  function _getShards(uint32 guardianSetIndex) internal view returns (ShardInfo[] memory shards) {
-    return _shards[guardianSetIndex];
+  function _getShards(uint32 guardianSet) internal view returns (ShardInfo[] memory shards) {
+    return _shards[guardianSet];
   }
 
   function _getShardsRaw(
-    uint32 guardianSetIndex
+    uint32 guardianSet
   ) internal view returns (uint shardCount, bytes32[] memory rawShards) {
-    ShardInfo[] memory shards = _getShards(guardianSetIndex);
+    ShardInfo[] memory shards = _getShards(guardianSet);
     shardCount = shards.length;
     assembly {
       rawShards := shards
@@ -96,12 +96,7 @@ contract ThresholdVerificationState {
     }
   }
 
-  function _registerTLSKey(
-    uint32 guardianSetIndex,
-    uint8 guardianIndex,
-    bytes32 tlsKey
-  ) internal {
-    _shards[guardianSetIndex][guardianIndex].tlsKey = tlsKey;
+  function _registerGuardian(uint32 guardianSet, uint8 guardian, bytes32 id) internal {
+    _shards[guardianSet][guardian].id = id;
   }
-
 }

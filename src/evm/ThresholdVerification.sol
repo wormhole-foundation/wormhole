@@ -113,7 +113,7 @@ contract ThresholdVerification is ThresholdVerificationState {
 
   function _decodeShardInfo(bytes calldata data, uint256 offset) internal pure returns (ShardInfo memory shardInfo, uint256 nextOffset) {
     (shardInfo.shard, offset) = data.asBytes32CdUnchecked(offset);
-    (shardInfo.tlsKey, offset) = data.asBytes32CdUnchecked(offset);
+    (shardInfo.id, offset) = data.asBytes32CdUnchecked(offset);
     return (shardInfo, offset);
   }
 }

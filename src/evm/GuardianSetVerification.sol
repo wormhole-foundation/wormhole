@@ -26,18 +26,18 @@ contract GuardianSetVerification is GuardianSetVerificationState {
     unchecked {
       uint offset = 0;
       uint8 version;
-      uint32 guardianSetIndex;
+      uint32 guardianSet;
       uint signatureCount;
 
       (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
-      (guardianSetIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
+      (guardianSet, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (signatureCount, offset) = encodedVaa.asUint8CdUnchecked(offset);
 
       // Validate the version
       require(version == 1, VaaLib.InvalidVersion(version));
 
       // Get the guardian set and the number of guardians
-      (, address[] memory guardians) = _getGuardianSetInfo(guardianSetIndex);
+      (, address[] memory guardians) = _getGuardianSetInfo(guardianSet);
 
       // Get the number of signatures
       // NOTE: Optimization puts guardianCount on stack thus avoids mloads
@@ -56,16 +56,16 @@ contract GuardianSetVerification is GuardianSetVerificationState {
       // Verify the signatures
       // NOTE: Optimization instead of always checking i == 0
       bool isFirstSignature = true;
-      uint prevGuardianIndex;
+      uint prevGuardian;
       
       for (uint i = 0; i < signatureCount; ++i) {
         // Decode the guardian index, r, s, and v
-        uint guardianIndex; bytes32 r; bytes32 s; uint8 v;
-        (guardianIndex, r, s, v, offset) = encodedVaa.decodeGuardianSignatureCdUnchecked(offset);
+        uint guardian; bytes32 r; bytes32 s; uint8 v;
+        (guardian, r, s, v, offset) = encodedVaa.decodeGuardianSignatureCdUnchecked(offset);
 
         // Verify the signature
         address signatory = ecrecover(vaaHash, v, r, s);
-        address guardian = guardians.readUnchecked(guardianIndex);
+        address guardianAddress = guardians.readUnchecked(guardian);
 
         // Check that:
         // * the guardian indicies are in strictly ascending order (only after the first signature)
@@ -79,16 +79,16 @@ contract GuardianSetVerification is GuardianSetVerificationState {
         //   [can never be the zero address](https://github.com/wormhole-foundation/wormhole/blob/1dbe8459b96e182932d0dd5ae4b6bbce6f48cb09/ethereum/contracts/Setters.sol#L20)
         bool failed = eagerOr(
           eagerOr(
-            !eagerOr(isFirstSignature, guardianIndex > prevGuardianIndex),
-            guardianIndex >= guardianCount
+            !eagerOr(isFirstSignature, guardian > prevGuardian),
+            guardian >= guardianCount
           ),
-          signatory != guardian
+          signatory != guardianAddress
         );
         
         // Verify the signature
         require(!failed, GuardianSetSignatureVerificationFailed());
 
-        prevGuardianIndex = guardianIndex;
+        prevGuardian = guardian;
         isFirstSignature = false;
       }
     }
