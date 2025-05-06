@@ -271,7 +271,7 @@ func (tv *TransferVerifier[ethClient, Connector]) updateReceiptDetails(
 			originAddr = VAAAddrFrom(transfer.TokenAddress)
 			originChain = tv.chainIds.wormholeChainId
 		} else {
-			queryAddr := transfer.TokenAddress
+			queryAddr = transfer.TokenAddress
 
 			// Update ChainID
 			var fetchErr error
@@ -286,7 +286,7 @@ func (tv *TransferVerifier[ethClient, Connector]) updateReceiptDetails(
 			// Find the origin address by querying the wrapped asset address.
 			nativeAddr, err := tv.nativeContract(queryAddr)
 			if err != nil {
-				return errors.Join(errors.New("chainId: chainId for token is unset after query. Can't continue to process this receipt"))
+				return err
 			}
 
 			tv.logger.Debug("got origin address from nativeContract() call",

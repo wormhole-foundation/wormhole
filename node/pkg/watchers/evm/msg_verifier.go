@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/txverifier"
+	evm_verifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -19,7 +19,7 @@ func verify(
 	msg *common.MessagePublication,
 	txHash eth_common.Hash,
 	receipt *types.Receipt,
-	txVerifier txverifier.TransferVerifierInterface,
+	verifier evm_verifier.TransferVerifierInterface,
 ) (common.MessagePublication, error) {
 
 	if msg == nil {
@@ -30,7 +30,7 @@ func verify(
 		return common.MessagePublication{}, fmt.Errorf("MessagePublication already has a non-default verification state")
 	}
 
-	if txVerifier == nil {
+	if verifier == nil {
 		return common.MessagePublication{}, fmt.Errorf("transfer verifier is nil")
 	}
 
@@ -43,10 +43,10 @@ func verify(
 	// from the token bridge. This check is also done in the
 	// transfer verifier package, but this helps us skip useless
 	// computation.
-	if txverifier.Cmp(localMsg.EmitterAddress, txVerifier.Addrs().TokenBridgeAddr) != 0 {
+	if evm_verifier.Cmp(localMsg.EmitterAddress, verifier.Addrs().TokenBridgeAddr) != 0 {
 		newState = common.NotApplicable
 	} else {
-		newState = state(ctx, txHash, receipt, txVerifier)
+		newState = state(ctx, txHash, receipt, verifier)
 	}
 
 	// Update the state of the message.
@@ -60,7 +60,7 @@ func verify(
 }
 
 // state returns a verification state based on the results of querying the Transfer Verifier.
-func state(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt, tv txverifier.TransferVerifierInterface) common.VerificationState {
+func state(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt, tv evm_verifier.TransferVerifierInterface) common.VerificationState {
 	// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
 	// to protect against fraudulent message emissions.
 	valid, err := tv.TransferIsValid(ctx, txHash, receipt)

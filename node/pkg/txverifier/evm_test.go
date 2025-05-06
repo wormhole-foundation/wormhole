@@ -222,10 +222,6 @@ func TestParseReceiptHappyPath(t *testing.T) {
 				t.Logf("Expected Amount: %s", expectedMessages[0].TransferDetails.Amount.String())
 				t.Logf("Actual Amount: %s", ret.TransferDetails.Amount.String())
 				assert.Zero(t, expectedMessages[0].TransferDetails.Amount.Cmp(ret.TransferDetails.Amount))
-
-				// Amount and OriginAddress are not populated by ParseReceipt
-				// assert.Equal(t, vaa.Address{}, ret.TransferDetails.OriginAddress)
-				// assert.Nil(t, ret.TransferDetails.Amount)
 			}
 		})
 	}
@@ -626,7 +622,7 @@ func TestProcessReceipt(t *testing.T) {
 						MsgSender:    tokenBridgeAddr,
 						TransferDetails: &TransferDetails{
 							PayloadType:   TransferTokens,
-							OriginAddress: nativeAddrVAA,
+							OriginAddress: usdcAddrVAA,
 							TargetAddress: eoaAddrVAA,
 							TokenChain:    2,
 							Amount:        big.NewInt(2),
