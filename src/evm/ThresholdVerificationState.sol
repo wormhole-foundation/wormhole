@@ -8,10 +8,9 @@ contract ThresholdVerificationState {
 	error InvalidThresholdKeyIndex();
 	error InvalidThresholdKeyAddress();
 
-  // TODO: Add the registry data here
   struct ShardInfo {
     bytes32 shard;
-    bytes32 tlsKey; // TODO: Replace the mapping in the guardian registry with this
+    bytes32 id;
   }
 
 	// Current threshold info is stored in a single slot
@@ -80,5 +79,24 @@ contract ThresholdVerificationState {
       // Push the shards
       _shards.push(shards);
     }
+  }
+
+  function _getShards(uint32 guardianSet) internal view returns (ShardInfo[] memory shards) {
+    return _shards[guardianSet];
+  }
+
+  function _getShardsRaw(
+    uint32 guardianSet
+  ) internal view returns (uint shardCount, bytes32[] memory rawShards) {
+    ShardInfo[] memory shards = _getShards(guardianSet);
+    shardCount = shards.length;
+    assembly {
+      rawShards := shards
+      mstore(rawShards, mul(shardCount, 2))
+    }
+  }
+
+  function _registerGuardian(uint32 guardianSet, uint8 guardian, bytes32 id) internal {
+    _shards[guardianSet][guardian].id = id;
   }
 }
