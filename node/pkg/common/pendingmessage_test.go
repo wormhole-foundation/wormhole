@@ -21,10 +21,10 @@ func TestPendingMessage_RoundTripMarshal(t *testing.T) {
 	orig := makeTestPendingMessage(t)
 	var loaded common.PendingMessage
 
-	bytes, writeErr := orig.MarshalBinary()
+	bz, writeErr := orig.MarshalBinary()
 	require.NoError(t, writeErr)
 
-	readErr := loaded.UnmarshalBinary(bytes)
+	readErr := loaded.UnmarshalBinary(bz)
 	require.NoError(t, readErr)
 
 	require.Equal(t, *orig, loaded)
@@ -83,10 +83,10 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 				Msg:         tc.input,
 			}
 
-			bytes, writeErr := pMsg.MarshalBinary()
+			bz, writeErr := pMsg.MarshalBinary()
 			require.Error(t, writeErr)
 			require.True(t, errors.Is(writeErr, tc.err), fmt.Sprintf("got wrong error type: %v", writeErr))
-			require.Nil(t, bytes)
+			require.Nil(t, bz)
 		})
 	}
 
@@ -281,20 +281,20 @@ func consumeHeapAndAssertOrdering(t *testing.T, q *common.PendingMessageQueue) [
 }
 
 func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
-	bytes := make([]byte, 101)
-	bytes[0] = payload.Type
+	bz := make([]byte, 101)
+	bz[0] = payload.Type
 
 	amtBytes := payload.Amount.Bytes()
 	if len(amtBytes) > 32 {
 		panic("amount will not fit in 32 bytes!")
 	}
-	copy(bytes[33-len(amtBytes):33], amtBytes)
+	copy(bz[33-len(amtBytes):33], amtBytes)
 
-	copy(bytes[33:65], payload.OriginAddress.Bytes())
-	binary.BigEndian.PutUint16(bytes[65:67], uint16(payload.OriginChain))
-	copy(bytes[67:99], payload.TargetAddress.Bytes())
-	binary.BigEndian.PutUint16(bytes[99:101], uint16(payload.TargetChain))
-	return bytes
+	copy(bz[33:65], payload.OriginAddress.Bytes())
+	binary.BigEndian.PutUint16(bz[65:67], uint16(payload.OriginChain))
+	copy(bz[67:99], payload.TargetAddress.Bytes())
+	binary.BigEndian.PutUint16(bz[99:101], uint16(payload.TargetChain))
+	return bz
 }
 
 // helper function that returns a valid PendingMessage.

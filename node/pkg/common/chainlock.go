@@ -458,9 +458,15 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 
 	// Timestamp
 	timestamp := be.Uint64(data[pos : pos+8])
+<<<<<<< HEAD
 	// Nanoseconds are not serialized as they are not used in Wormhole, so set them to zero.
 	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
 	mp.Timestamp = time.Unix(int64(timestamp), 0)
+=======
+	// Nanoseconds are not serialized
+	//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	msg.Timestamp = time.Unix(int64(timestamp), 0)
+>>>>>>> b7b28d535 (fix lint errors)
 	pos += 8
 
 	// Nonce

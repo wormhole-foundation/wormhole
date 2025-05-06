@@ -29,7 +29,7 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	// Compare with [PendingTransfer.Marshal].
-	// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
 	vaa.MustWrite(buf, binary.BigEndian, uint64(p.ReleaseTime.Unix()))
 
 	bz, err := p.Msg.MarshalBinary()
@@ -51,7 +51,7 @@ func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 
 	// Compare with [UnmarshalPendingTransfer].
 	p.ReleaseTime = time.Unix(
-		// nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+		//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
 		int64(binary.BigEndian.Uint64(data[0:8])),
 		0,
 	)

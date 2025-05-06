@@ -135,7 +135,7 @@ func NewNotary(
 	}
 }
 
-func (n *Notary) Run(ctx context.Context) error {
+func (n *Notary) Run() error {
 	if n.env != common.GoTest {
 		n.logger.Info("loading notary data from database")
 		if err := n.loadFromDB(n.logger); err != nil {
