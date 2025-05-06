@@ -239,7 +239,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 
 		if g.notary != nil {
 			logger.Info("starting notary")
-			if err := g.notary.Run(ctx); err != nil {
+			if err := g.notary.Run(); err != nil {
 				logger.Fatal("failed to create notary", zap.Error(err))
 			}
 		}
