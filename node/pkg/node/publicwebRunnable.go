@@ -57,7 +57,7 @@ func publicwebServiceRunnable(
 	tlsCacheDir string,
 ) supervisor.Runnable {
 	return func(ctx context.Context) error {
-		//nolint: staticcheck
+		//nolint: staticcheck continue to use deprecated grpc dial
 		conn, err := grpc.DialContext(
 			ctx,
 			fmt.Sprintf("unix:///%s", upstreamAddr),

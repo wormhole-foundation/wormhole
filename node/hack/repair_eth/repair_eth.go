@@ -90,7 +90,7 @@ func usesBlockscout(chainId vaa.ChainID) bool {
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
-	//nolint: staticcheck
+	//nolint: staticcheck continue to use deprecated grpc dial
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
