@@ -100,8 +100,8 @@ func TestShutdownTokenBridge(t *testing.T) {
 	// Setup chain and contract
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := createChains(t, *guardians)
-	ctx, r, eRep, _ := buildInterchain(t, chains)
+	chains := CreateLocalChain(t, *guardians)
+	_, ctx, r, eRep, _, _ := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
