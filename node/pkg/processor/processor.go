@@ -13,7 +13,7 @@ import (
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/notary"
+	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -152,7 +152,7 @@ type Processor struct {
 	governor       *governor.ChainGovernor
 	acct           *accountant.Accountant
 	acctReadC      <-chan *common.MessagePublication
-	notary         *notary.Notary
+	notary         *guardianNotary.Notary
 	pythnetVaas    map[string]PythNetVaaEntry
 	gatewayRelayer *gwrelayer.GatewayRelayer
 	updateVAALock  sync.Mutex
@@ -229,7 +229,7 @@ func NewProcessor(
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
-	notary *notary.Notary,
+	notary *guardianNotary.Notary,
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
@@ -315,9 +315,9 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 
 				switch verdict {
-				case notary.Blackhole, notary.Delay:
+				case guardianNotary.Blackhole, guardianNotary.Delay:
 					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
-					if verdict == notary.Blackhole {
+					if verdict == guardianNotary.Blackhole {
 						// Black-holed messages should not be processed.
 						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 					} else {
@@ -326,9 +326,9 @@ func (p *Processor) Run(ctx context.Context) error {
 					}
 					// We're done processing the message.
 					continue
-				case notary.Unknown:
+				case guardianNotary.Unknown:
 					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
-				case notary.Approve:
+				case guardianNotary.Approve:
 					// no-op: process normally
 				}
 			}
