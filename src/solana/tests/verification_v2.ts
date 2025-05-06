@@ -1,18 +1,22 @@
 import assert from "assert"
 
 import * as anchor from "@coral-xyz/anchor"
-import { PublicKey } from "@solana/web3.js"
+import { Keypair, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js"
 import { VerificationV2 } from "../target/types/verification_v2.js"
 
 import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock"
 import * as coreV1 from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
-import { sign } from "@noble/secp256k1"
+import { getPublicKey, sign } from "@noble/secp256k1"
 import { keccak_256 } from "@noble/hashes/sha3"
 
-import { boilerPlateReduction } from "./testing_helpers.js"
+import { boilerPlateReduction, findPda } from "./testing_helpers.js"
 import { Program } from "@coral-xyz/anchor"
-import { CONTRACTS } from "@certusone/wormhole-sdk"
+import { randomBytes } from "@noble/hashes/utils"
+import { createPostSignedVaaTransactions } from "@certusone/wormhole-sdk/lib/cjs/solana/sendAndConfirmPostVaa.js"
+import { parseVaa } from "@certusone/wormhole-sdk"
+import { createPostVaaInstructionSolana } from "@certusone/wormhole-sdk/lib/cjs/solana/index.js"
+import { deriveGuardianSetKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole"
 
 const encodeU16BE = (value: number) => [value >> 8, value & 0xFF]
 
@@ -94,43 +98,88 @@ const connection = anchor.getProvider().connection
 const payer = anchor.getProvider().wallet?.payer
 assert(payer, "Payer not found")
 
-const mockGuardians = new MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
-
-const coreV2 = anchor.workspace.VerificationV2 as Program<VerificationV2>
-
 const {
   requestAirdrop,
   guardianSign,
   postSignedMsgAsVaaOnSolana,
   expectIxToSucceed,
   expectIxToFailWithError,
+  signAndPost,
 } = boilerPlateReduction(connection, payer)
 
-const guardianSetExpirationTime = 86400
-const fee = 100n
-const devnetGuardian = mockGuardians.getPublicKeys()[0]
-const initialGuardians = [devnetGuardian]
 const coreV1Address = new PublicKey('worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth')
+const mockGuardians = new MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
+const guardianSetExpirationTime = 86400
 
-await expectIxToSucceed(
-  coreV1.createInitializeInstruction(
+{
+  const fee = 100n
+  const devnetGuardian = mockGuardians.getPublicKeys()[0]
+  const initialGuardians = [devnetGuardian]
+
+  await expectIxToSucceed(
+    coreV1.createInitializeInstruction(
+      coreV1Address,
+      payer.publicKey,
+      guardianSetExpirationTime,
+      fee,
+      initialGuardians,
+    )
+  )
+
+  const accounts = await connection.getProgramAccounts(coreV1Address)
+  assert(accounts.length === 2, "Expected 2 accounts")
+
+  const info = await coreV1.getWormholeBridgeData(connection, coreV1Address)
+  assert(info.guardianSetIndex === 0, "Expected guardian set index to be 0")
+  assert(info.config.guardianSetExpirationTime === guardianSetExpirationTime, "Expected guardian set expiration time to be 86400")
+  assert(info.config.fee === fee, "Expected fee to be 100")
+
+  const guardianSet = await coreV1.getGuardianSet(connection, coreV1Address, info.guardianSetIndex)
+  assert(guardianSet.index === 0, "Expected guardian set index to be 0")
+  assert(guardianSet.keys.length === 1, "Expected guardian set keys to have length 1")
+  assert(devnetGuardian.equals(guardianSet.keys[0]), "Expected guardian set keys to be the devnet guardian")
+}
+
+const coreV2 = anchor.workspace.VerificationV2 as Program<VerificationV2>
+
+const guardianPrivateKey = randomBytes(32)
+const guardianPublicKey = keccak_256(getPublicKey(guardianPrivateKey)).slice(12)
+
+{
+  const message = createAppendThresholdKeyMessage(
+    0,
+    guardianPublicKey,
+    guardianSetExpirationTime,
+  )
+
+  const signedVaa = await guardianSign(Buffer.from(message))
+
+  const signatureSet = Keypair.generate()
+
+  const verifySignaturesInstructions = await coreV1.createVerifySignaturesInstructions(
+    connection,
     coreV1Address,
     payer.publicKey,
-    guardianSetExpirationTime,
-    fee,
-    initialGuardians,
+    signedVaa,
+    signatureSet.publicKey,
   )
-)
 
-const accounts = await connection.getProgramAccounts(coreV1Address)
-assert(accounts.length === 2, "Expected 2 accounts")
+  for (let i = 0; i < verifySignaturesInstructions.length; i += 2) {
+    const tx = new Transaction().add(...verifySignaturesInstructions.slice(i, i + 2))
+    tx.feePayer = payer.publicKey
+    const txSig = await connection.sendTransaction(tx, [payer, signatureSet])
+    assert(txSig, "Expected tx to succeed")
+  }
 
-const info = await coreV1.getWormholeBridgeData(connection, coreV1Address)
-assert(info.guardianSetIndex === 0, "Expected guardian set index to be 0")
-assert(info.config.guardianSetExpirationTime === guardianSetExpirationTime, "Expected guardian set expiration time to be 86400")
-assert(info.config.fee === fee, "Expected fee to be 100")
+  const postVaaInstruction = createPostVaaInstructionSolana(
+    coreV1Address,
+    payer.publicKey,
+    signedVaa,
+    signatureSet.publicKey,
+  )
 
-const guardianSet = await coreV1.getGuardianSet(connection, coreV1Address, info.guardianSetIndex)
-assert(guardianSet.index === 0, "Expected guardian set index to be 0")
-assert(guardianSet.keys.length === 1, "Expected guardian set keys to have length 1")
-assert(devnetGuardian.equals(guardianSet.keys[0]), "Expected guardian set keys to be the devnet guardian")
+  const postVaaTx = new Transaction().add(postVaaInstruction)
+  postVaaTx.feePayer = payer.publicKey
+  const postVaaSig = await connection.sendTransaction(postVaaTx, [payer])
+  assert(postVaaSig, "Expected postVaa tx to succeed")
+}

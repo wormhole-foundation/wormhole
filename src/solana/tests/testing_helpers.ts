@@ -1,12 +1,6 @@
-
-
-import * as fs from "fs"
-import * as toml from "toml"
-
 import { Connection, LAMPORTS_PER_SOL, PublicKey, Signer, Transaction, TransactionInstruction, ComputeBudgetProgram, sendAndConfirmTransaction } from "@solana/web3.js"
 import { NodeWallet, postVaaSolana, signSendAndConfirmTransaction } from "@certusone/wormhole-sdk/lib/cjs/solana"
 import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock"
-import { CONTRACTS } from "@certusone/wormhole-sdk";
 
 import { expect, use as chaiUse } from "chai"
 import chaiAsPromised from "chai-as-promised"
@@ -48,9 +42,8 @@ export const boilerPlateReduction = (connection: Connection, defaultSigner: Sign
   const guardianSign = (message: Buffer) =>
     MOCK_GUARDIANS.addSignatures(message, [0])
 
-  const postSignedMsgAsVaaOnSolana = async (signedMsg: Buffer, payer?: Signer) => {
+  const postSignedMsgAsVaaOnSolana = async (coreV1: PublicKey, signedMsg: Buffer, payer?: Signer) => {
     const wallet = payerToWallet(payer);
-    const coreV1 = new PublicKey(CONTRACTS.DEVNET.solana.core);
     await postVaaSolana(
       connection,
       wallet.signTransaction,
@@ -130,6 +123,12 @@ export const boilerPlateReduction = (connection: Connection, defaultSigner: Sign
     )).to.be.fulfilled;
   }
 
+  const signAndPost = async (coreV1: PublicKey, message: Buffer, payer?: Signer) => {
+    const signedMsg = guardianSign(message);
+    await postSignedMsgAsVaaOnSolana(coreV1, signedMsg, payer);
+    return signedMsg;
+  };
+
   return {
     requestAirdrop,
     guardianSign,
@@ -138,5 +137,23 @@ export const boilerPlateReduction = (connection: Connection, defaultSigner: Sign
     expectIxToSucceed,
     expectIxToFailWithError,
     expectTxToSucceed,
+    signAndPost,
+  };
+}
+
+export function findPda(programId: PublicKey, seeds: Array<string | Uint8Array>) {
+  const [address, bump] = PublicKey.findProgramAddressSync(
+    seeds.map((seed) => {
+      if (typeof seed === 'string') {
+        return Buffer.from(seed);
+      } else {
+        return seed;
+      }
+    }),
+    programId,
+  );
+  return {
+    address,
+    bump,
   };
 }
