@@ -107,6 +107,7 @@ func SupportedChains() []vaa.ChainID {
 	return []vaa.ChainID{
 		// Mainnets
 		vaa.ChainIDEthereum,
+		vaa.ChainIDSui,
 		// Testnets
 		vaa.ChainIDSepolia,
 		vaa.ChainIDHolesky,
