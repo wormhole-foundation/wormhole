@@ -742,7 +742,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 				}
 
 				s := fmt.Sprintf("unix:///%s", gs[i].config.adminSocket)
-				//nolint: staticcheck continue to use deprecated grpc dial
+				//nolint:staticcheck // continue to use deprecated grpc dial
 				conn, err := grpc.DialContext(ctx, s, grpc.WithTransportCredentials(insecure.NewCredentials()))
 				require.NoError(t, err)
 				defer conn.Close()
@@ -786,7 +786,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 
 		// check that the VAAs were generated
 		logger.Info("Connecting to publicrpc...")
-		//nolint: staticcheck continue to use deprecated grpc dial
+		//nolint:staticcheck // continue to use deprecated grpc dial
 		conn, err := grpc.DialContext(ctx, gs[vaaCheckGuardianIndex].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		require.NoError(t, err)
 
@@ -1234,7 +1234,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 				time.Sleep(time.Microsecond * 100)
 			}
 			// now that it's online, connect to publicrpc of guardian-0
-			//nolint: staticcheck continue to use deprecated grpc dial
+			//nolint:staticcheck // continue to use deprecated grpc dial
 			conn, err := grpc.DialContext(ctx, gs[vaaCheckGuardianIndex].config.publicRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer conn.Close()
