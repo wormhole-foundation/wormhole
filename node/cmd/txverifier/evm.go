@@ -58,9 +58,10 @@ func init() {
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
 	TransferVerifierCmd.MarkFlagRequired("coreContract")
 	TransferVerifierCmd.MarkFlagRequired("tokenContract")
-	TransferVerifierCmd.MarkFlagRequired("wrappedNativeContract")
 
-	// TransferVerifierCmd.MarkFlagsMutuallyExclusive("hash", "sanity")
+	// EVM-only configuration
+	TransferVerifierCmdEvm.MarkFlagRequired("wrappedNativeContract")
+	TransferVerifierCmdEvm.MarkFlagsMutuallyExclusive("hash", "sanity")
 }
 
 // Note: logger.Error should be reserved only for conditions that break the
@@ -265,6 +266,7 @@ var sanityChecks = []sanityCheck{
 		false,
 		txverifier.ErrNoMsgsFromTokenBridge,
 	},
+	// Token Transfer with Payload of a wrapped asset.
 	{
 		common.HexToHash(`0xb6a993373786c962c864d57c77944b2c58056250e09fc6a15c87d473e5cfe206`),
 		true,
