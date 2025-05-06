@@ -429,14 +429,15 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-// Needed for cosmosv0.5.6ased chains.  See
-// https://github.com/cosmos/cosmos-sdk/issues/10925 for more details.
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/certusone/wormhole/node/pkg/txverifier => ./pkg/txverifier
 	github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.47.12-wormhole-1
-
+	// Needed for cosmosv0.5.6ased chains.  See
+	// https://github.com/cosmos/cosmos-sdk/issues/10925 for more details.
 	github.com/cosmos/gogoproto => github.com/cosmos/gogoproto v1.7.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+
 	github.com/wormhole-foundation/wormchain => ../wormchain
+	github.com/wormhole-foundation/wormhole/sdk => ../sdk
 )

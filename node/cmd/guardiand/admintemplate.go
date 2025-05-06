@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil/bech32"
-	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	"github.com/mr-tron/base58"
