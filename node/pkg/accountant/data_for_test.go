@@ -5216,7 +5216,7 @@ func createTxRespForCommitted() []byte {
     "txhash": "673097FB69A0E78C8B542C5F9BD826BB7C55FAE9560972DE6B075612E2CCB0A5",
     "codespace": "",
     "code": 0,
-    "data": "0AD2010A242F636F736D7761736D2E7761736D2E76312E4D736745786563757465436F6E747261637412A9010AA6015B7B226B6579223A7B22656D69747465725F636861696E223A322C22656D69747465725F61646472657373223A2230303030303030303030303030303030303030303030303030323930666231363732303861663435356262313337373830313633623762376139613130633136222C2273657175656E6365223A313638333133363234347D2C22737461747573223A7B2274797065223A22636F6D6D6974746564227D7D5D",
+    "data": "12d2010a242f636f736d7761736d2e7761736d2e76312e4d736745786563757465436f6e747261637412a9010aa6015b7b226b6579223a7b22656d69747465725f636861696e223a322c22656d69747465725f61646472657373223a2230303030303030303030303030303030303030303030303030323930666231363732303861663435356262313337373830313633623762376139613130633136222c2273657175656e6365223a313638333133363234347d2c22737461747573223a7b2274797065223a22636f6d6d6974746564227d7d5d12d2010a242f636f736d7761736d2e7761736d2e76312e4d736745786563757465436f6e747261637412a9010aa6015b7b226b6579223a7b22656d69747465725f636861696e223a322c22656d69747465725f61646472657373223a2230303030303030303030303030303030303030303030303030323930666231363732303861663435356262313337373830313633623762376139613130633136222c2273657175656e6365223a313638333133363234347d2c22737461747573223a7b2274797065223a22636f6d6d6974746564227d7d5d",
     "raw_log": "[{\"events\":[{\"type\":\"execute\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"/cosmwasm.wasm.v1.MsgExecuteContract\"},{\"key\":\"module\",\"value\":\"wasm\"},{\"key\":\"sender\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"action\",\"value\":\"submit_observations\"},{\"key\":\"owner\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm-Observation\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"tx_hash\",\"value\":\"\\\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\\\"\"},{\"key\":\"timestamp\",\"value\":\"1683136244\"},{\"key\":\"nonce\",\"value\":\"0\"},{\"key\":\"emitter_chain\",\"value\":\"2\"},{\"key\":\"emitter_address\",\"value\":\"\\\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\\\"\"},{\"key\":\"sequence\",\"value\":\"1683136244\"},{\"key\":\"consistency_level\",\"value\":\"15\"},{\"key\":\"payload\",\"value\":\"\\\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\\\"\"}]}]}]",
     "logs": [
       {
@@ -5298,10 +5298,10 @@ func createTxRespForCommitted() []byte {
       {
         "type": "tx",
         "attributes": [
-          { "key": "ZmVl", "value": null, "index": true },
+          { "key": "fee", "value": null, "index": true },
           {
-            "key": "ZmVlX3BheWVy",
-            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=",
+            "key": "fee_payer",
+            "value": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
             "index": true
           }
         ]
@@ -5310,8 +5310,8 @@ func createTxRespForCommitted() []byte {
         "type": "tx",
         "attributes": [
           {
-            "key": "YWNjX3NlcQ==",
-            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHEvMjU=",
+            "key": "acc_seq",
+            "value": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
             "index": true
           }
         ]
@@ -5320,8 +5320,8 @@ func createTxRespForCommitted() []byte {
         "type": "tx",
         "attributes": [
           {
-            "key": "c2lnbmF0dXJl",
-            "value": "R09qWUJ2RVVTclY0THQydWt3NURwRXU3Rlo1RURCMzRZUmdwYkhQYitmMEFKSjNFZ3RFZEJRaGV1dHdZVk90eU1VWUlpSkVpZytDeFV0WG8xemI1WEE9PQ==",
+            "key": "signature",
+            "value": "GOjYBvEUSrV4Lt2ukw5DpEu7FZ5EDB34YRgpbHPb+f0AJJ3EgtEdBQheutwYVOtyMUYIiJEig+CxUtXo1zb5XA==",
             "index": true
           }
         ]
@@ -5330,8 +5330,8 @@ func createTxRespForCommitted() []byte {
         "type": "message",
         "attributes": [
           {
-            "key": "YWN0aW9u",
-            "value": "L2Nvc213YXNtLndhc20udjEuTXNnRXhlY3V0ZUNvbnRyYWN0",
+            "key": "action",
+            "value": "/cosmwasm.wasm.v1.MsgExecuteContract",
             "index": true
           }
         ]
@@ -5339,10 +5339,10 @@ func createTxRespForCommitted() []byte {
       {
         "type": "message",
         "attributes": [
-          { "key": "bW9kdWxl", "value": "d2FzbQ==", "index": true },
+          { "key": "module", "value": "wasm", "index": true },
           {
-            "key": "c2VuZGVy",
-            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=",
+            "key": "sender",
+            "value": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
             "index": true
           }
         ]
@@ -5351,8 +5351,8 @@ func createTxRespForCommitted() []byte {
         "type": "execute",
         "attributes": [
           {
-            "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
-            "value": "d29ybWhvbGUxNGhqMnRhdnE4ZnBlc2R3eHhjdTQ0cnR5M2hoOTB2aHVqcnZjbXN0bDR6cjN0eG1mdnc5c3JyZzQ2NQ==",
+            "key": "_contract_address",
+            "value": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
             "index": true
           }
         ]
@@ -5361,18 +5361,18 @@ func createTxRespForCommitted() []byte {
         "type": "wasm",
         "attributes": [
           {
-            "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
-            "value": "d29ybWhvbGUxNGhqMnRhdnE4ZnBlc2R3eHhjdTQ0cnR5M2hoOTB2aHVqcnZjbXN0bDR6cjN0eG1mdnc5c3JyZzQ2NQ==",
+            "key": "_contract_address",
+            "value": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
             "index": true
           },
           {
-            "key": "YWN0aW9u",
-            "value": "c3VibWl0X29ic2VydmF0aW9ucw==",
+            "key": "action",
+            "value": "submit_observations",
             "index": true
           },
           {
-            "key": "b3duZXI=",
-            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=",
+            "key": "owner",
+            "value": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
             "index": true
           }
         ]
@@ -5381,28 +5381,28 @@ func createTxRespForCommitted() []byte {
         "type": "wasm-Observation",
         "attributes": [
           {
-            "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
-            "value": "d29ybWhvbGUxNGhqMnRhdnE4ZnBlc2R3eHhjdTQ0cnR5M2hoOTB2aHVqcnZjbXN0bDR6cjN0eG1mdnc5c3JyZzQ2NQ==",
+            "key": "_contract_address",
+            "value": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
             "index": true
           },
           {
-            "key": "dHhfaGFzaA==",
-            "value": "Imd1b2xOc1hSWnhnd3kwa1NENVJIbmpTMVJaYW8zVGFmdkNabVpucDJYMHM9Ig==",
+            "key": "tx_hash",
+            "value": "\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\"",
             "index": true
           },
-          { "key": "dGltZXN0YW1w", "value": "MTY4MzEzNjI0NA==", "index": true },
-          { "key": "bm9uY2U=", "value": "MA==", "index": true },
-          { "key": "ZW1pdHRlcl9jaGFpbg==", "value": "Mg==", "index": true },
+          { "key": "timestamp", "value": "1683136244", "index": true },
+          { "key": "nonce", "value": "0", "index": true },
+          { "key": "emitter_chain", "value": "2", "index": true },
           {
-            "key": "ZW1pdHRlcl9hZGRyZXNz",
-            "value": "IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAyOTBmYjE2NzIwOGFmNDU1YmIxMzc3ODAxNjNiN2I3YTlhMTBjMTYi",
+            "key": "emitter_address",
+            "value": "\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\"",
             "index": true
           },
-          { "key": "c2VxdWVuY2U=", "value": "MTY4MzEzNjI0NA==", "index": true },
-          { "key": "Y29uc2lzdGVuY3lfbGV2ZWw=", "value": "MTU=", "index": true },
+          { "key": "sequence", "value": "1683136244", "index": true },
+          { "key": "consistency_level", "value": "15", "index": true },
           {
-            "key": "cGF5bG9hZA==",
-            "value": "IkFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEzZ3RyT25aQUFBQUFBQUFBQUFBQUFBQUFBQUxZdm12d3VxZE9DcEJ3Rm1lY3JwR1E2QTNRb0FBZ0FBQUFBQUFBQUFBQUFBQU1FSUlKZy9NMFZzNTc2em9FYjFxRCtqVHdKOURDQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9PSI=",
+            "key": "payload",
+            "value": "\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"",
             "index": true
           }
         ]

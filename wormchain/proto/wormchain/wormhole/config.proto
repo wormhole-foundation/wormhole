@@ -1,0 +1,11 @@
+syntax = "proto3";
+package wormchain.wormhole;
+
+option go_package = "github.com/wormhole-foundation/wormchain/x/wormhole/types";
+
+message Config {
+  uint64 guardian_set_expiration = 1;
+  bytes governance_emitter = 2;
+  uint32 governance_chain = 3;
+  uint32 chain_id = 4;
+}

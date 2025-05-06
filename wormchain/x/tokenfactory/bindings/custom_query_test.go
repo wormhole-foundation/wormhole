@@ -5,31 +5,32 @@ import (
 	"fmt"
 	"testing"
 
+	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 	"github.com/stretchr/testify/require"
 
-	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/wormhole-foundation/wormchain/app"
 	bindings "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings/types"
 )
 
+// Capability disabled
 /*func TestQueryFullDenom(t *testing.T) {
 	actor := RandomAccountAddress()
-	tokenz, ctx := SetupCustomApp(t, actor)
+	wormchain, ctx := SetupCustomApp(t, actor)
 
-	reflect := instantiateReflectContract(t, ctx, tokenz, actor)
+	reflect := instantiateReflectContract(t, ctx, wormchain, actor)
 	require.NotEmpty(t, reflect)
 
 	// query full denom
-	query := bindings.TokenQuery{
+	query := bindings.TokenFactoryQuery{
 		FullDenom: &bindings.FullDenom{
 			CreatorAddr: reflect.String(),
 			Subdenom:    "ustart",
 		},
 	}
 	resp := bindings.FullDenomResponse{}
-	queryCustom(t, ctx, tokenz, reflect, query, &resp)
+	queryCustom(t, ctx, wormchain, reflect, query, &resp)
 
 	expected := fmt.Sprintf("factory/%s/ustart", reflect.String())
 	require.EqualValues(t, expected, resp.Denom)
@@ -47,13 +48,10 @@ type ChainResponse struct {
 	Data []byte `json:"data"`
 }
 
-func queryCustom(t *testing.T, ctx sdk.Context, tokenz *app.App, contract sdk.AccAddress, request bindings.TokenQuery, response interface{}) {
-	wrapped := bindings.TokenFactoryQuery{
-		Token: &request,
-	}
-	msgBz, err := json.Marshal(wrapped)
+func queryCustom(t *testing.T, ctx sdk.Context, wormchain *app.App, contract sdk.AccAddress, request bindings.TokenFactoryQuery, response interface{}) {
+	msgBz, err := json.Marshal(request)
 	require.NoError(t, err)
-	fmt.Println(string(msgBz))
+	fmt.Println("queryCustom1", string(msgBz))
 
 	query := ReflectQuery{
 		Chain: &ChainRequest{
@@ -62,9 +60,9 @@ func queryCustom(t *testing.T, ctx sdk.Context, tokenz *app.App, contract sdk.Ac
 	}
 	queryBz, err := json.Marshal(query)
 	require.NoError(t, err)
-	fmt.Println(string(queryBz))
+	fmt.Println("queryCustom2", string(queryBz))
 
-	resBz, err := tokenz.GetWasmKeeper().QuerySmart(ctx, contract, queryBz)
+	resBz, err := wormchain.GetWasmKeeper().QuerySmart(ctx, contract, queryBz)
 	require.NoError(t, err)
 	var resp ChainResponse
 	err = json.Unmarshal(resBz, &resp)

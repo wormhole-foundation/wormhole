@@ -436,13 +436,13 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 
-	if len(msg.Data) == 0 {
-		return nil, fmt.Errorf("data field is empty")
-	}
-
 	var execContractResp wasmdtypes.MsgExecuteContractResponse
-	if err := execContractResp.Unmarshal(msg.Data[0].Data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse: %w", err)
+	if len(msg.MsgResponses) > 0 {
+		if err := execContractResp.Unmarshal(msg.MsgResponses[0].Value); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ExecuteContractResponse from msg.MsgResponses: %w", err)
+		}
+	} else {
+		return nil, fmt.Errorf("msg responses array is empty")
 	}
 
 	var responses ObservationResponses
