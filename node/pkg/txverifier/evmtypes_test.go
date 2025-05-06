@@ -94,6 +94,7 @@ func TestRelevantDeposit(t *testing.T) {
 				From:         eoaAddrGeth,
 				To:           eoaAddrGeth,
 				Amount:       big.NewInt(500),
+				OriginAddr:   nativeAddrVAA,
 			},
 			expected: result{"", false},
 		},

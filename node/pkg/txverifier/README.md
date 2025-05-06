@@ -25,7 +25,7 @@ Because the Ethereum implementation is (hopefully) generalizable to other EVM-ch
 For each implementation, the code is divided into separate files. The core logic is contained in the main file
 and the supporting structs and utility methods are defined in a separate file. The hope here is that this makes the
 overall algorithm easier to reason about: a developer new to the program can focus on the main file and high-level
-concepts rather and avoid low-level details.
+concepts and avoid low-level details.
 
 ### Main file -- Core Algorithm
 
