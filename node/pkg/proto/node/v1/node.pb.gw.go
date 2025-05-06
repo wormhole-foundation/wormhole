@@ -784,7 +784,6 @@ func RegisterNodePrivilegedServiceHandlerServer(ctx context.Context, mux *runtim
 // RegisterNodePrivilegedServiceHandlerFromEndpoint is same as RegisterNodePrivilegedServiceHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
 func RegisterNodePrivilegedServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
-	//nolint:staticcheck // continue to use deprecated grpc dial
 	conn, err := grpc.Dial(endpoint, opts...)
 	if err != nil {
 		return err
