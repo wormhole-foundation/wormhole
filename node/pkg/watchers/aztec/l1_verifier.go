@@ -56,13 +56,9 @@ func NewAztecFinalityVerifier(
 // GetLatestFinalizedBlockNumber implements the interfaces.L1Finalizer interface
 func (v *aztecFinalityVerifier) GetLatestFinalizedBlockNumber() uint64 {
 	// Check the cache first
-	v.finalizedBlockCacheMu.RLock()
-	if v.finalizedBlockCache != nil && time.Since(v.finalizedBlockCacheTime) < v.finalizedBlockCacheTTL {
-		blockNum := v.finalizedBlockCache.Number
-		defer v.finalizedBlockCacheMu.RUnlock()
-		return uint64(blockNum)
+	if block, found := v.getFromCache(); found {
+		return uint64(block.Number)
 	}
-	defer v.finalizedBlockCacheMu.RUnlock()
 
 	// If no cache, fetch the latest finalized block
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -77,24 +73,40 @@ func (v *aztecFinalityVerifier) GetLatestFinalizedBlockNumber() uint64 {
 	return uint64(block.Number)
 }
 
+// Helper function to safely get from the finalized block cache
+func (v *aztecFinalityVerifier) getFromCache() (*FinalizedBlock, bool) {
+	v.finalizedBlockCacheMu.RLock()
+	defer v.finalizedBlockCacheMu.RUnlock()
+
+	if v.finalizedBlockCache != nil && time.Since(v.finalizedBlockCacheTime) < v.finalizedBlockCacheTTL {
+		return v.finalizedBlockCache, true
+	}
+
+	return nil, false // Cache miss or expired
+}
+
+// Helper function to safely update the finalized block cache
+func (v *aztecFinalityVerifier) updateCache(block *FinalizedBlock) {
+	v.finalizedBlockCacheMu.Lock()
+	defer v.finalizedBlockCacheMu.Unlock()
+
+	v.finalizedBlockCache = block
+	v.finalizedBlockCacheTime = time.Now()
+}
+
 // GetFinalizedBlock gets the latest finalized block from Aztec
 func (v *aztecFinalityVerifier) GetFinalizedBlock(ctx context.Context) (*FinalizedBlock, error) {
 	// Check cache first
-	v.finalizedBlockCacheMu.RLock()
-	if v.finalizedBlockCache != nil && time.Since(v.finalizedBlockCacheTime) < v.finalizedBlockCacheTTL {
-		block := v.finalizedBlockCache
-		defer v.finalizedBlockCacheMu.RUnlock()
+	if block, found := v.getFromCache(); found {
 		v.logger.Debug("Using cached finalized block",
 			zap.Int("number", block.Number),
 			zap.String("hash", block.Hash))
 		return block, nil
 	}
-	defer v.finalizedBlockCacheMu.RUnlock()
 
 	// Cache miss, fetch from network
-	var l2Tips L2Tips
 	v.logger.Debug("Fetching L2 tips")
-
+	var l2Tips L2Tips
 	err := v.rpcClient.CallContext(ctx, &l2Tips, "node_getL2Tips")
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch L2 tips: %v", err)
@@ -107,10 +119,7 @@ func (v *aztecFinalityVerifier) GetFinalizedBlock(ctx context.Context) (*Finaliz
 	}
 
 	// Update the cache
-	v.finalizedBlockCacheMu.Lock()
-	v.finalizedBlockCache = block
-	v.finalizedBlockCacheTime = time.Now()
-	v.finalizedBlockCacheMu.Unlock()
+	v.updateCache(block)
 
 	v.logger.Info("Updated finalized block",
 		zap.Int("number", block.Number))
