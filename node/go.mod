@@ -61,6 +61,7 @@ require (
 	github.com/holiman/uint256 v1.2.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.60.0
+	github.com/test-go/testify v1.1.4
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
