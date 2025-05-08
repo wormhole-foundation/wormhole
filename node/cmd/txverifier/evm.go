@@ -170,7 +170,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 				logger.Fatal(fmt.Sprintf("Sanity check %d failed (wrong result) for txHash %s", i, check.txHash))
 			}
 		}
-		logger.Info("Done sanity checks")
+		logger.Info("Sanity checks successful. Exiting.")
 		os.Exit(0)
 	}
 
@@ -286,5 +286,12 @@ var sanityChecks = []sanityCheck{
 		common.HexToHash(`0x3b592b8ecbfe2f1b650ebf08806d3309cab601794e2a1f0312c9ec230fca75bd`),
 		false,
 		nil,
+	},
+	// Receipt contains an unusual Deposit event with too much data. Ultimately it
+	// has no message from the token bridge.
+	{
+		common.HexToHash(`0xdd372c2e4f3626f62ed0199ba84458dfe64fa594fd7bcea3a503b29c2ec2fa2c`),
+		false,
+		txverifier.ErrNoMsgsFromTokenBridge,
 	},
 }
