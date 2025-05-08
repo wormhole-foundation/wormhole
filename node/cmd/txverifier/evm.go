@@ -53,7 +53,7 @@ func init() {
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 	// Allows testing the tool on a single receipt.
 	hash = TransferVerifierCmdEvm.Flags().String("hash", "", "A receipt hash to evaluate. The tool will exit after processing the receipt.")
-	sanity = TransferVerifierCmdEvm.Flags().Bool("sanity", false, "Sanity check: evalute a hard-coded set of receipts for testing. A fatal error is logged if the results don't match what was expected.")
+	sanity = TransferVerifierCmdEvm.Flags().Bool("sanity", false, "Sanity check: evaluate a hard-coded set of receipts for testing. A fatal error is logged if the results don't match what was expected.")
 
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
 	TransferVerifierCmd.MarkFlagRequired("coreContract")
