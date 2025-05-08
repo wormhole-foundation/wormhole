@@ -363,7 +363,7 @@ func TestParseERC20TransferEvent(t *testing.T) {
 			// should be 32 bytes exactly
 			data:     []byte{0x01},
 			expected: &parsedValues{}, // everything nil for its type
-			err:      ErrTransferBadDataSize,
+			err:      ErrEventWrongDataSize,
 		},
 		"wrong number of topics": {
 			// only 1 topic: should be 3
@@ -394,8 +394,9 @@ func TestParseWNativeDepositEvent(t *testing.T) {
 		type parsedValues struct {
 			destination common.Address
 			amount      *big.Int
+			err         error
 		}
-		t.Parallel() // marks TLog as capable of running in parallel with other tests
+		t.Parallel()
 
 		wethDepositHash := common.HexToHash(EVENTHASH_WETH_DEPOSIT)
 		tests := map[string]struct {
@@ -412,6 +413,7 @@ func TestParseWNativeDepositEvent(t *testing.T) {
 				expected: &parsedValues{
 					destination: tokenBridgeAddr,
 					amount:      new(big.Int).SetBytes([]byte{0x01}),
+					err:         nil,
 				},
 			},
 			"data too short": {
@@ -420,26 +422,36 @@ func TestParseWNativeDepositEvent(t *testing.T) {
 					tokenBridgeAddr.Hash(),
 				},
 				// should be 32 bytes exactly
-				data:     []byte{0x01},
-				expected: &parsedValues{}, // everything nil for its type
+				data: []byte{0x01},
+				expected: &parsedValues{
+					destination: common.Address{},
+					amount:      nil,
+					err:         ErrEventWrongDataSize,
+				},
 			},
 			"wrong number of topics": {
 				// only 1 topic: should be 2
 				topics: []common.Hash{
 					wethDepositHash,
 				},
-				data:     common.LeftPadBytes([]byte{0x01}, 32),
-				expected: &parsedValues{}, // everything nil for its type
+				data: common.LeftPadBytes([]byte{0x01}, 32),
+				expected: &parsedValues{
+					destination: common.Address{},
+					amount:      nil,
+					err:         ErrDepositWrongNumberOfTopics,
+				},
 			},
 		}
 
 		for name, test := range tests {
 			t.Run(name, func(t *testing.T) {
-				t.Parallel() // marks each test case as capable of running in parallel with each other
+				t.Parallel()
 
-				destination, amount := parseWNativeDepositEvent(test.topics, test.data)
-				assert.Equal(t, test.expected.destination, destination)
-				assert.Zero(t, amount.Cmp(test.expected.amount))
+				destination, amount, err := parseWNativeDepositEvent(test.topics, test.data)
+				require.Equal(t, test.expected.destination, destination)
+				require.Equal(t, test.expected.amount, amount)
+				require.Equal(t, test.expected.err, err)
+				require.Zero(t, amount.Cmp(test.expected.amount))
 			})
 		}
 	}
