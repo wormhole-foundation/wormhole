@@ -37,11 +37,12 @@ const (
 
 // Errors
 var (
-	ErrChainIDNotSupported = errors.New("chain ID is not supported")
-	ErrFailedToGetDecimals = errors.New("failed to get decimals for token. decimals() result has insufficient length")
+	ErrChainIDNotSupported        = errors.New("chain ID is not supported")
+	ErrDepositWrongNumberOfTopics = errors.New("parsed Deposit event has wrong number of topics")
+	ErrFailedToGetDecimals        = errors.New("failed to get decimals for token. decimals() result has insufficient length")
 	// Some events look like transfers based on the method signature, but aren't (e.g. NFT ERC721 transfers.)
-	ErrTransferIsNotERC20  = errors.New("parsed Transfer event is not an ERC20 transfer")
-	ErrTransferBadDataSize = errors.New("wrong logdata size used for Transfer parsing")
+	ErrTransferIsNotERC20 = errors.New("parsed Transfer event is not an ERC20 transfer")
+	ErrEventWrongDataSize = errors.New("unexpected data size from event")
 )
 
 // Function signatures
@@ -354,10 +355,9 @@ func DepositFromLog(
 	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
 	chainId vaa.ChainID,
 ) (deposit *NativeDeposit, err error) {
-	dest, amount := parseWNativeDepositEvent(log.Topics, log.Data)
-
-	if amount == nil {
-		return deposit, errors.New("could not parse Deposit from log")
+	dest, amount, err := parseWNativeDepositEvent(log.Topics, log.Data)
+	if err != nil {
+		return nil, err
 	}
 
 	deposit = &NativeDeposit{
@@ -370,18 +370,22 @@ func DepositFromLog(
 }
 
 // parseWNativeDepositEvent parses an event for a deposit of a wrapped version of the chain's native asset, i.e. WETH for Ethereum.
-func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (destination common.Address, amount *big.Int) {
+func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (common.Address, *big.Int, error) {
+
+	if len(logData) != EVM_WORD_LENGTH {
+		return common.Address{}, nil, ErrEventWrongDataSize
+	}
 
 	// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#code#L29
 	// event  Deposit(address indexed dst, uint wad);
-	if len(logData) != EVM_WORD_LENGTH || len(logTopics) != TOPICS_COUNT_DEPOSIT {
-		return common.Address{}, nil
+	if len(logTopics) != TOPICS_COUNT_DEPOSIT {
+		return common.Address{}, nil, ErrDepositWrongNumberOfTopics
 	}
 
-	destination = common.BytesToAddress(logTopics[1][:])
-	amount = new(big.Int).SetBytes(logData[:])
+	destination := common.BytesToAddress(logTopics[1][:])
+	amount := new(big.Int).SetBytes(logData[:])
 
-	return destination, amount
+	return destination, amount, nil
 }
 
 // Abstraction over an ERC20 Transfer event.
@@ -480,16 +484,16 @@ func ERC20TransferFromLog(
 // - Input validation: The function verifies that the input lengths match expected values, preventing potential attacks or errors.
 func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (common.Address, common.Address, *big.Int, error) {
 
+	if len(logData) != EVM_WORD_LENGTH {
+		return common.Address{}, common.Address{}, nil, ErrEventWrongDataSize
+	}
+
 	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/6e224307b44bc4bd0cb60d408844e028cfa3e485/contracts/token/ERC20/IERC20.sol#L16
 	// event Transfer(address indexed from, address indexed to, uint256 value)
 	// Some other contracts like ERC721 (NFTs) have Transfer events too but a different number of topics
 	// We don't want to parse these.
 	if len(logTopics) != TOPICS_COUNT_TRANSFER {
 		return common.Address{}, common.Address{}, nil, ErrTransferIsNotERC20
-	}
-
-	if len(logData) != EVM_WORD_LENGTH {
-		return common.Address{}, common.Address{}, nil, ErrTransferBadDataSize
 	}
 
 	from := common.BytesToAddress(logTopics[1][:])
