@@ -41,8 +41,9 @@ var (
 	ErrDepositWrongNumberOfTopics = errors.New("parsed Deposit event has wrong number of topics")
 	ErrFailedToGetDecimals        = errors.New("failed to get decimals for token. decimals() result has insufficient length")
 	// Some events look like transfers based on the method signature, but aren't (e.g. NFT ERC721 transfers.)
-	ErrTransferIsNotERC20 = errors.New("parsed Transfer event is not an ERC20 transfer")
-	ErrEventWrongDataSize = errors.New("unexpected data size from event")
+	ErrTransferIsNotERC20          = errors.New("parsed Transfer event is not an ERC20 transfer")
+	ErrEventWrongDataSize          = errors.New("unexpected data size from event")
+	ErrWrappedAssetResultBadLength = errors.New("isWrappedAsset() result has insufficient length")
 )
 
 // Function signatures
@@ -873,8 +874,8 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 		return false, err
 	}
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("isWrappedAsset() result length is too small", zap.String("result", fmt.Sprintf("%x", result)))
-		return false, err
+		tv.logger.Warn(ErrWrappedAssetResultBadLength.Error(), zap.String("result", fmt.Sprintf("%x", result)))
+		return false, ErrWrappedAssetResultBadLength
 	}
 
 	// The boolean result will be returned as a byte string with length
