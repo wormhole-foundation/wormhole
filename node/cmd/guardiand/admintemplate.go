@@ -77,6 +77,9 @@ var governanceTargetAddress *string
 var governanceTargetChain *string
 var governanceCallData *string
 
+var coreBridgeSetMessageFeeChainId *string
+var coreBridgeSetMessageFeeMessageFee *uint64
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -203,6 +206,13 @@ func init() {
 	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(accountantModifyBalanceFlagSet)
 	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientAccountantModifyBalanceCmd)
+
+	// flags for the core-bridge-set-message-fee command
+	coreBridgeSetMessageFeeFlagSet := pflag.NewFlagSet("core-bridge-set-message-fee", pflag.ExitOnError)
+	coreBridgeSetMessageFeeChainId = coreBridgeSetMessageFeeFlagSet.String("chain-id", "", "Chain ID")
+	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.Uint64("message-fee", 0, "New message fee")
+	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
+	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
 
 	// flags for general-purpose governance call command
 	generalPurposeGovernanceFlagSet := pflag.NewFlagSet("general-purpose-governance", pflag.ExitOnError)
@@ -341,6 +351,12 @@ var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
 	Use:   "wormhole-relayer-set-default-delivery-provider",
 	Short: "Generate a 'set default delivery provider' template for specified chain and address",
 	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
+}
+
+var AdminClientCoreBridgeSetMessageFeeCmd = &cobra.Command{
+	Use:   "core-bridge-set-message-fee",
+	Short: "Generate a 'set message fee' template for specified chain and address",
+	Run:   runCoreBridgeSetMessageFeeTemplate,
 }
 
 var AdminClientGeneralPurposeGovernanceEvmCallCmd = &cobra.Command{
@@ -1098,6 +1114,37 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
 						ChainId:                           uint32(chainID),
 						NewDefaultDeliveryProviderAddress: address,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
+	chainID, err := parseChainID(*coreBridgeSetMessageFeeChainId)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seq, nonce := randSeqNonce()
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_CoreBridgeSetMessageFee{
+					CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
+						ChainId:    uint32(chainID),
+						MessageFee: *coreBridgeSetMessageFeeMessageFee,
 					},
 				},
 			},
