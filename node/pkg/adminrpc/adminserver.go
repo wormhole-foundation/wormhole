@@ -664,12 +664,13 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 }
 
 func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.ChainId > math.MaxUint16 {
-		return nil, errors.New("invalid target_chain_id")
+	chainId, err := vaa.KnownChainIDFromNumber[uint32](req.ChainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert chain id: %w", err)
 	}
 
 	body, err := vaa.BodyCoreBridgeSetMessageFee{
-		ChainID:    vaa.ChainID(req.ChainId),
+		ChainID:    chainId,
 		MessageFee: uint64(req.MessageFee),
 	}.Serialize()
 	if err != nil {

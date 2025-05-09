@@ -78,7 +78,7 @@ var governanceTargetChain *string
 var governanceCallData *string
 
 var coreBridgeSetMessageFeeChainId *string
-var coreBridgeSetMessageFeeMessageFee *string
+var coreBridgeSetMessageFeeMessageFee *uint64
 
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
@@ -210,7 +210,7 @@ func init() {
 	// flags for the core-bridge-set-message-fee command
 	coreBridgeSetMessageFeeFlagSet := pflag.NewFlagSet("core-bridge-set-message-fee", pflag.ExitOnError)
 	coreBridgeSetMessageFeeChainId = coreBridgeSetMessageFeeFlagSet.String("chain-id", "", "Chain ID")
-	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.String("message-fee", "", "New message fee")
+	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.Uint64("message-fee", 0, "New message fee")
 	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
 	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
 
@@ -1132,10 +1132,6 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	messageFee, err := strconv.ParseUint(*coreBridgeSetMessageFeeMessageFee, 10, 64)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	seq, nonce := randSeqNonce()
 
@@ -1148,7 +1144,7 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 				Payload: &nodev1.GovernanceMessage_CoreBridgeSetMessageFee{
 					CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
 						ChainId:    uint32(chainID),
-						MessageFee: uint64(messageFee),
+						MessageFee: *coreBridgeSetMessageFeeMessageFee,
 					},
 				},
 			},
