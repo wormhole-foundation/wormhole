@@ -226,7 +226,6 @@ func init() {
 	// solana call command
 	AdminClientGeneralPurposeGovernanceSolanaCallCmd.Flags().AddFlagSet(generalPurposeGovernanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSolanaCallCmd)
-
 }
 
 var TemplateCmd = &cobra.Command{
