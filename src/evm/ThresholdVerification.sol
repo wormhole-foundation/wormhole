@@ -6,18 +6,20 @@ import "wormhole-sdk/libraries/BytesParsing.sol";
 import "wormhole-sdk/libraries/VaaLib.sol";
 import "./ThresholdVerificationState.sol";
 
-// Module ID for the VerificationV2 contract, ASCII "TSS"
-bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
-
-// Action ID for appending a threshold key
-uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
-
-uint constant VAA_V2_HEADER_SIZE = 1 + 4 + 32 + 32 + 1;
-
 contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using {BytesParsing.checkLength} for uint;
+
+
+  // Module ID for the VerificationV2 contract, ASCII "TSS"
+  bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
+
+  // Action ID for appending a threshold key
+  uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
+
+  // Curve order for secp256k1
+  uint256 constant public Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
 
   error ThresholdKeyExpired();
   error ThresholdSignatureVerificationFailed();
@@ -31,20 +33,39 @@ contract ThresholdVerification is ThresholdVerificationState {
       uint offset = 0;
       uint8 version;
       uint32 tssIndex;
-      bytes32 r; bytes32 s; uint8 v;
+      address r; uint256 s;
 
       (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
       (tssIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
-      (r, s, v, offset) = _decodeThresholdSignatureCdUnchecked(encodedVaa, offset);
+      (r, s, offset) = _decodeThresholdSignatureCdUnchecked(encodedVaa, offset);
 
-      // Validate and return the VAA body
+      // Validate the VAA version
       require(version == 2, VaaLib.InvalidVersion(version));
 
-      (address thresholdAddr, uint32 expirationTime) = _getThresholdInfo(tssIndex);
+      // Validate the threshold key expiration time
+      (uint256 pubkey, uint32 expirationTime) = _getThresholdInfo(tssIndex);
       require(expirationTime > block.timestamp, ThresholdKeyExpired());
 
+      // Get the message hash
       bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
-      require(ecrecover(vaaHash, v, r, s) == thresholdAddr, ThresholdSignatureVerificationFailed());
+
+      // Extract the parity and public key
+      uint8 parity = (pubkey & 1) != 0 ? 28 : 27;
+      uint256 px = pubkey >> 1;
+
+      // Validate the threshold signature
+      bytes32 e = keccak256(abi.encodePacked(r, pubkey, vaaHash));
+      bytes32 sp = bytes32(Q - mulmod(s, px, Q));
+      bytes32 ep = bytes32(Q - mulmod(uint256(e), px, Q));
+      require(sp != 0, ThresholdSignatureVerificationFailed());
+
+      // the ecrecover precompile implementation checks that the `r` and `s`
+      // inputs are non-zero (in this case, `px` and `ep`), thus we don't need to
+      // check if they're zero.
+      address R = ecrecover(sp, parity, bytes32(px), ep);
+      require(R != address(0), ThresholdSignatureVerificationFailed());
+      bytes32 expected = keccak256(abi.encodePacked(R, pubkey, vaaHash));
+      require(e == expected, ThresholdSignatureVerificationFailed());
 
       return offset;
     }
@@ -66,19 +87,17 @@ contract ThresholdVerification is ThresholdVerificationState {
   function _decodeThresholdSignatureCdUnchecked(
     bytes calldata encodedVaa,
     uint offset
-  ) internal pure returns (bytes32 r, bytes32 s, uint8 v, uint nextOffset) {
+  ) internal pure returns (address r, uint256 s, uint nextOffset) {
     unchecked {
-      (r, offset) = encodedVaa.asBytes32CdUnchecked(offset);
-      (s, offset) = encodedVaa.asBytes32CdUnchecked(offset);
-      (v, offset) = encodedVaa.asUint8CdUnchecked(offset);
-      v += VaaLib.SIGNATURE_RECOVERY_MAGIC;
-      return (r, s, v, offset);
+      (r, offset) = encodedVaa.asAddressCdUnchecked(offset);
+      (s, offset) = encodedVaa.asUint256CdUnchecked(offset);
+      return (r, s, offset);
     }
   }
 
   function _decodeThresholdKeyUpdatePayload(bytes calldata payload) internal pure returns (
     uint32 newThresholdIndex,
-    address newThresholdAddr,
+    uint256 newThresholdAddr,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
   ) {
@@ -92,7 +111,7 @@ contract ThresholdVerification is ThresholdVerificationState {
       (module, offset) = payload.asBytes32MemUnchecked(offset);
       (action, offset) = payload.asUint8MemUnchecked(offset);
       (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
-      (newThresholdAddr, offset) = payload.asAddressMemUnchecked(offset);
+      (newThresholdAddr, offset) = payload.asUint256MemUnchecked(offset);
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
       (shardCount, offset) = payload.asUint8MemUnchecked(offset); // TODO: We should probably pass this in and get it from the guardian set to ensure the mapping is correct
 

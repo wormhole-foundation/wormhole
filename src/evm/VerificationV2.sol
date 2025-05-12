@@ -79,7 +79,7 @@ contract VerificationV2 is
   }
 
   function _exec(bytes calldata data) internal override returns (bytes memory) {
-    if (msg.value != 0) revert InvalidValue();
+    require(msg.value == 0, InvalidValue());
 
     uint offset = 0;
     while (offset < data.length) {
@@ -111,7 +111,7 @@ contract VerificationV2 is
         // Decode the payload
         (
           uint32 newThresholdIndex,
-          address newThresholdAddr,
+          uint256 newThresholdAddr,
           uint32 expirationDelaySeconds,
           ShardInfo[] memory shards
         ) = _decodeThresholdKeyUpdatePayload(payload);
@@ -201,14 +201,14 @@ contract VerificationV2 is
         // Verify the VAA
         _verifyVaa(encodedVaa);
       } else if (op == OP_THRESHOLD_GET_CURRENT) {
-        (address thresholdAddr, uint32 thresholdIndex) = _getCurrentThresholdInfo();
+        (uint256 thresholdAddr, uint32 thresholdIndex) = _getCurrentThresholdInfo();
 
         result = abi.encodePacked(result, thresholdAddr, thresholdIndex);
       } else if (op == OP_THRESHOLD_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
         
-        (address thresholdAddr, uint32 expirationTime) = _getPastThresholdInfo(index);
+        (uint256 thresholdAddr, uint32 expirationTime) = _getThresholdInfo(index);
         
         result = abi.encodePacked(result, thresholdAddr, expirationTime);
       } else if (op == OP_GUARDIAN_SET_GET_CURRENT) {

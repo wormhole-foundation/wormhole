@@ -3,86 +3,80 @@
 pragma solidity ^0.8.0;
 
 contract ThresholdVerificationState {
-  uint256 constant SHARD_INFO_SIZE = 32 + 32;
-
 	error InvalidThresholdKeyIndex();
 	error InvalidThresholdKeyAddress();
+	error InvalidGuardianIndex();
 
   struct ShardInfo {
     bytes32 shard;
     bytes32 id;
   }
 
-	// Current threshold info is stored in a single slot
-  // Format:
-  //   index (32 bits)
-  //   address (160 bits)
-  uint256 private _currentThresholdInfo;
-
-  // Past threshold info is stored in an array
-  // Format:
-  //   expiration time (32 bits)
-  //   address (160 bits)
-  uint256[] private _pastThresholdInfo;
-  
-  ShardInfo[][] private _shards;
-	
-  function _decodeThresholdInfo(uint256 info) private pure returns (address addr, uint32 index) {
-    return (address(uint160(info >> 32)), uint32(info & 0xFFFFFFFF));
-  }
-
-  function _encodeThresholdInfo(address addr, uint32 index) private pure returns (uint256) {
-    return (uint256(uint160(addr)) << 32) | uint256(index);
-  }
+  // Threshold data is stored in a single array with stride 2:
+  //   pubkey (32 bytes)
+  //   expiration time (4 bytes)
+  //   shard base (5 bytes)
+  //   shard count (1 byte)
+  uint256[] private _thresholdData;
+  bytes32[] private _shardData;
 
   // Get the current threshold signature info
-  function _getCurrentThresholdInfo() internal view returns (address addr, uint32 index) {
-    return _decodeThresholdInfo(_currentThresholdInfo);
+  function _getCurrentThresholdInfo() internal view returns (uint256 pubkey, uint32 index) {
+    unchecked {
+      uint256 length = _thresholdData.length;
+      // NOTE: We assume that at least one threshold key has been set
+      pubkey = _thresholdData[length - 2];
+      index = uint32(length >> 1);
+    }
   }
 
-  // Get the past threshold signature info
-  function _getPastThresholdInfo(uint32 index) internal view returns (
-    address addr,
-    uint32 expirationTime
-  ) {
-    require(index < _pastThresholdInfo.length, InvalidThresholdKeyIndex());
-    return _decodeThresholdInfo(_pastThresholdInfo[index]);
-  }
-
-  function _getThresholdInfo(uint32 index) internal view returns (address thresholdAddr, uint32 expirationTime) {
-    (address currentAddr, uint32 currentIndex) = _getCurrentThresholdInfo();
-    return index == currentIndex ? (currentAddr, 0) : _getPastThresholdInfo(index);
+  function _getThresholdInfo(uint32 index) internal view returns (uint256 pubkey, uint32 expirationTime) {
+    uint256 offset = index << 1;
+    require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
+    pubkey = _thresholdData[offset];
+    expirationTime = _thresholdDataExpirationTime(_thresholdData[offset + 1]);
   }
 	
   function _appendThresholdKey(
     uint32 newIndex,
-    address newAddr,
+    uint256 pubkey,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
   ) internal {
     unchecked {
       // Verify the new address is not the zero address
       // This prevents errors from ecrecover returning the zero address
-      require(newAddr != address(0), InvalidThresholdKeyAddress());
+      require(pubkey != 0, InvalidThresholdKeyAddress());
 
       // Get the current threshold info and verify the new index is sequential
-      (address currentAddr, uint32 index) = _getCurrentThresholdInfo();
+      (, uint32 index) = _getCurrentThresholdInfo();
       require(newIndex == index + 1, InvalidThresholdKeyIndex());
 
       // Store the expiration time and current threshold address in past threshold info
       uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-      _pastThresholdInfo.push(_encodeThresholdInfo(currentAddr, expirationTime));
+      _setThresholdDataExpirationTime(index, expirationTime);
 
-      // Update the current threshold info
-      _currentThresholdInfo = _encodeThresholdInfo(newAddr, newIndex);
-
-      // Push the shards
-      _shards.push(shards);
+      // Store the new threshold info
+      _thresholdData.push(pubkey);
+      _thresholdData.push(_createThresholdData(uint8(shards.length), uint40(_shardData.length)));
     }
   }
 
-  function _getShards(uint32 guardianSet) internal view returns (ShardInfo[] memory shards) {
-    return _shards[guardianSet];
+  function _getShards(uint32 guardianSet) internal view returns (ShardInfo[] memory) {
+    unchecked {
+      uint256 offset = guardianSet << 1;
+      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
+      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(_thresholdData[offset + 1]);
+      
+      ShardInfo[] memory shards = new ShardInfo[](shardCount);
+      uint256 ptr = shardBase;
+      for (uint256 i = 0; i < shardCount; i++) {
+        shards[i].shard = _shardData[ptr++];
+        shards[i].id = _shardData[ptr++];
+      }
+
+      return shards;
+    }
   }
 
   function _getShardsRaw(
@@ -90,13 +84,42 @@ contract ThresholdVerificationState {
   ) internal view returns (uint shardCount, bytes32[] memory rawShards) {
     ShardInfo[] memory shards = _getShards(guardianSet);
     shardCount = shards.length;
-    assembly {
+    assembly ("memory-safe") {
       rawShards := shards
       mstore(rawShards, mul(shardCount, 2))
     }
   }
 
   function _registerGuardian(uint32 guardianSet, uint8 guardian, bytes32 id) internal {
-    _shards[guardianSet][guardian].id = id;
+    unchecked {
+      uint256 offset = guardianSet << 1;
+      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
+      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(_thresholdData[offset + 1]);
+      require(guardian < shardCount, InvalidGuardianIndex());
+      _shardData[shardBase + (guardian << 1)] = id;
+    }
+  }
+
+  function _createThresholdData(uint8 shardCount, uint40 shardBase) internal pure returns (uint256) {
+    return (shardCount << 32) | (shardBase << 40);
+  }
+
+  function _thresholdDataExpirationTime(uint256 data) internal pure returns (uint32) {
+    unchecked {
+      return uint32(data & 0xFFFFFFFF);
+    }
+  }
+
+  function _thresholdDataShardSlice(uint256 data) internal pure returns (uint8 shardCount, uint40 shardBase) {
+    unchecked {
+      shardCount = uint8((data >> 32) & 0xFF);
+      shardBase = uint40(data >> 40);
+    }
+  }
+
+  function _setThresholdDataExpirationTime(uint32 index, uint32 expirationTime) internal {
+    unchecked {
+      _thresholdData[index << 1] |= expirationTime;
+    }
   }
 }
