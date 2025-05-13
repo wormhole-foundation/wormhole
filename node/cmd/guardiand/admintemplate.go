@@ -228,6 +228,7 @@ func init() {
 	TemplateCmd.AddCommand(AdminClientGeneralPurposeGovernanceSolanaCallCmd)
 }
 
+
 var TemplateCmd = &cobra.Command{
 	Use:   "template",
 	Short: "Guardian governance VAA template commands ",
