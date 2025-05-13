@@ -15,6 +15,13 @@ sed -i -e 's@export ALGOD_URL=""@export ALGOD_URL="https://github.com/algorand/g
        -e 's/export INDEXER_ENABLE_ALL_PARAMETERS="false"/export INDEXER_ENABLE_ALL_PARAMETERS="true"/'  _sandbox/config.dev
 
 cd _sandbox
+
+# NOTE: This is a workaround for a bug. It's already fixed in `d8e60ed1a6203f02d3b4702e2e2eefdb7f246f92` in the sandbox
+# repository, but we're not ready to upgrade. This allows docker to work in the meantime.
+# These lines can be removed when we update the commit hash.
+sed -i -e 's/docker compose help/docker compose --help/' ./sandbox
+sed -i -e 's/-eq 16/-eq 0/' ./sandbox
+
 ./sandbox clean
 ./sandbox up -v dev
 cd ..
