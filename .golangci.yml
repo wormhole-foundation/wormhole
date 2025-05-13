@@ -36,6 +36,7 @@ linters:
     # Overwriting predeclared Golang names such as 'len' and 'min'.
     - predeclared
     # Validate common mistakes in Golang, such as invalid time.Parse format, invalid regular expression, etc.
+    - recvcheck
     - staticcheck
     - unparam
     # Unused constants, variables, functions and types
