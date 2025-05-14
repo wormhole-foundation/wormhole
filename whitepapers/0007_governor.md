@@ -58,7 +58,7 @@ Each chain has a configured limit, denoted in USD, that determines the maximum
 value of transfers that can be emitted within a 24 hour period. This is
 sometimes referred to as the "daily limit", though it uses a 24-hour sliding
 window rather than discrete calendar days. When the sum exceeds the limit,
-transfer will be queued.
+any new small transfers the exceed the limit will be queued.
 
 The headroom for a chain is the amount left over after subtracting the current
 sum of small transfers from the chain's daily limit.
@@ -105,7 +105,7 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
 
 The Governor is implemented as an additional package that defines 
 1. a `ChainGovernor` object
-2. `mainnet_tokens.go`, a single map of tokens that
+2. `mainnet_tokens.go`, a single map of tokens that will be monitored
 3. `mainnet_chains.go`, a map of chains governed by the chain governor
 4. `flow_cancel_tokens.go`, a map of tokens that can reduce a chain's calculated aggregate flow.
 5. `flow_cancel_corridors.go`, a list of chain ID pairs which allow flow canceling between those two chains
