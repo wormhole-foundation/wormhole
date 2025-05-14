@@ -154,6 +154,9 @@ An incoming transfer to a chain can flow cancel if all of the following conditio
 * The asset is allow-listed in the file [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go).
 * The source (emitter) chain and the destination (target) chain are connected by a corridor.
 * The flow cancel feature is enabled by a Guardian on start.
+* The message publication containing the transfer data is not a reobservation.
+  * Reobservations could be very old and not reflect current transfer patterns.
+  * This slightly limits the effectiveness of flow cancel but makes the system much simpler to reason about.
 
 ### Effects
 
