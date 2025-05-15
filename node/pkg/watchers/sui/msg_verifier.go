@@ -34,7 +34,7 @@ func (e *Watcher) verify(
 
 	// If the payload does not represent a transfer, or if the emitter address of the message does
 	// not match the token bridge emitter, mark the message's verification state as NotApplicable.
-	if !vaa.IsTransfer(msg.Payload) || localMsg.EmitterAddress.String() != e.suiTxVerifier.GetTokenBridgeEmitter() {
+	if !vaa.IsTransfer(msg.Payload) || "0x"+localMsg.EmitterAddress.String() != e.suiTxVerifier.GetTokenBridgeEmitter() {
 		verificationState = common.NotApplicable
 	} else {
 		// Validate the transfers in the transaction block associated with the
