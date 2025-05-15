@@ -241,7 +241,9 @@ func TestVerifyAndPublish_Samples(t *testing.T) {
 
 	// This test uses mainnet values, since the samples come from mainnet transactions
 	suiCoreContract := "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a"
+	//nolint:gosec
 	suiTokenBridgeEmitter := "0xccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5"
+	//nolint:gosec
 	suiTokenBridgeContract := "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d"
 	transactionModule := "publish_message"
 	eventType := fmt.Sprintf("%s::%s::WormholeMessage", suiCoreContract, transactionModule)
@@ -270,12 +272,12 @@ func TestVerifyAndPublish_Samples(t *testing.T) {
 		t.Run(sample.description, func(t *testing.T) {
 			// Set sample data in mock api
 			var transactionBlockResponse txverifier.SuiGetTransactionBlockResponse
-			json.Unmarshal(sample.transactionBlock, &transactionBlockResponse)
+			_ = json.Unmarshal(sample.transactionBlock, &transactionBlockResponse)
 
 			mockApiConnection.SetTransactionBlock(sample.txDigest, transactionBlockResponse)
 
 			var pastObjects txverifier.SuiTryMultiGetPastObjectsResponse
-			json.Unmarshal(sample.pastObjects, &pastObjects)
+			_ = json.Unmarshal(sample.pastObjects, &pastObjects)
 
 			objectId, _ := pastObjects.GetObjectId()
 			version, _ := pastObjects.Result[0].GetVersion()
@@ -284,7 +286,7 @@ func TestVerifyAndPublish_Samples(t *testing.T) {
 			mockApiConnection.SetPastObjects(objectId, version, previousVersion, pastObjects)
 
 			// call verify and publish
-			testWatcher.verifyAndPublish(testCtx, &sample.messagePublication, sample.txDigest, testLogger)
+			_ = testWatcher.verifyAndPublish(testCtx, &sample.messagePublication, sample.txDigest, testLogger)
 
 			newMessagePublication := <-msgChan
 			require.Equal(t, sample.expectedState, newMessagePublication.VerificationState())
