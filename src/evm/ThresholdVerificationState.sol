@@ -31,10 +31,12 @@ contract ThresholdVerificationState {
   }
 
   function _getThresholdInfo(uint32 index) internal view returns (uint256 pubkey, uint32 expirationTime) {
-    uint256 offset = index << 1;
-    require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
-    pubkey = _thresholdData[offset];
-    expirationTime = _thresholdDataExpirationTime(_thresholdData[offset + 1]);
+    unchecked {
+      uint256 offset = index << 1;
+      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
+      pubkey = _thresholdData[offset];
+      expirationTime = _thresholdDataExpirationTime(_thresholdData[offset + 1]);
+    }
   }
 	
   function _appendThresholdKey(
@@ -46,6 +48,8 @@ contract ThresholdVerificationState {
     unchecked {
       // Verify the new address is not the zero address
       // This prevents errors from ecrecover returning the zero address
+      // NOTE: This is actually already checked in ecrecover, but there's no harm in preventing that case here
+      // NOTE: The pubkey is also known to be <= HALF_Q, based on the decoding in _decodeThresholdKeyUpdatePayload
       require(pubkey != 0, InvalidThresholdKeyAddress());
 
       // Get the current threshold info and verify the new index is sequential

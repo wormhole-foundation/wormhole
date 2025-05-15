@@ -20,6 +20,7 @@ contract ThresholdVerification is ThresholdVerificationState {
 
   // Curve order for secp256k1
   uint256 constant public Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+  uint256 constant public HALF_Q = Q >> 1;
 
   error ThresholdKeyExpired();
   error ThresholdSignatureVerificationFailed();
@@ -42,30 +43,34 @@ contract ThresholdVerification is ThresholdVerificationState {
       // Validate the VAA version
       require(version == 2, VaaLib.InvalidVersion(version));
 
+      // Validate the threshold signature
+      // NOTE: The first condition prevents signature malleability from multiple representations for ℤ/Qℤ elements
+      require(s < Q, ThresholdSignatureVerificationFailed());
+      require(r != address(0), ThresholdSignatureVerificationFailed());
+      require(s != 0, ThresholdSignatureVerificationFailed());
+
       // Validate the threshold key expiration time
       (uint256 pubkey, uint32 expirationTime) = _getThresholdInfo(tssIndex);
       require(expirationTime > block.timestamp, ThresholdKeyExpired());
 
-      // Get the message hash
+      // Get the message hash and public key data
       bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
+      (uint256 px, bool parity) = _decodePubkey(pubkey);
 
-      // Extract the parity and public key
-      uint8 parity = (pubkey & 1) != 0 ? 28 : 27;
-      uint256 px = pubkey >> 1;
+      // Calculate the challenge value
+      uint256 e = uint256(keccak256(abi.encodePacked(px, parity, vaaHash, r)));
 
-      // Validate the threshold signature
-      bytes32 e = keccak256(abi.encodePacked(r, pubkey, vaaHash));
-      bytes32 sp = bytes32(Q - mulmod(s, px, Q));
-      bytes32 ep = bytes32(Q - mulmod(uint256(e), px, Q));
+      // Calculate the recovery inputs, ensuring that sp(the unchecked input for ecrecover) is non-zero
+      bytes32 sp = bytes32(Q - mulmod(px, s, Q));
+      bytes32 ep = bytes32(mulmod(e, px, Q));
       require(sp != 0, ThresholdSignatureVerificationFailed());
 
-      // the ecrecover precompile implementation checks that the `r` and `s`
+      // The ecrecover precompile implementation checks that the `r` and `s`
       // inputs are non-zero (in this case, `px` and `ep`), thus we don't need to
-      // check if they're zero.
-      address R = ecrecover(sp, parity, bytes32(px), ep);
-      require(R != address(0), ThresholdSignatureVerificationFailed());
-      bytes32 expected = keccak256(abi.encodePacked(R, pubkey, vaaHash));
-      require(e == expected, ThresholdSignatureVerificationFailed());
+      // check if they're zero. We additionally know that px is non-zero because
+      // it's checked in the _appendThresholdKey function.
+      address recovered = ecrecover(sp, parity ? 28 : 27, bytes32(px), ep);
+      require(r == recovered, ThresholdSignatureVerificationFailed());
 
       return offset;
     }
@@ -97,7 +102,7 @@ contract ThresholdVerification is ThresholdVerificationState {
 
   function _decodeThresholdKeyUpdatePayload(bytes calldata payload) internal pure returns (
     uint32 newThresholdIndex,
-    uint256 newThresholdAddr,
+    uint256 newThresholdPubkey,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
   ) {
@@ -111,9 +116,13 @@ contract ThresholdVerification is ThresholdVerificationState {
       (module, offset) = payload.asBytes32MemUnchecked(offset);
       (action, offset) = payload.asUint8MemUnchecked(offset);
       (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
-      (newThresholdAddr, offset) = payload.asUint256MemUnchecked(offset);
+      (newThresholdPubkey, offset) = payload.asUint256MemUnchecked(offset);
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
       (shardCount, offset) = payload.asUint8MemUnchecked(offset); // TODO: We should probably pass this in and get it from the guardian set to ensure the mapping is correct
+
+      // Validate the threshold key is less than HALF_Q
+      (uint256 px,) = _decodePubkey(newThresholdPubkey);
+      require(px <= HALF_Q, InvalidThresholdKeyAddress());
 
       // Decode shards
       shards = new ShardInfo[](shardCount);
@@ -134,5 +143,10 @@ contract ThresholdVerification is ThresholdVerificationState {
     (shardInfo.shard, offset) = data.asBytes32CdUnchecked(offset);
     (shardInfo.id, offset) = data.asBytes32CdUnchecked(offset);
     return (shardInfo, offset);
+  }
+
+  function _decodePubkey(uint256 pubkey) internal pure returns (uint256 px, bool parity) {
+    parity = (pubkey & 1) != 0;
+    px = pubkey >> 1;
   }
 }
