@@ -95,6 +95,10 @@ func NewMsgID(in string) (msgID, error) {
 func extractFromJsonPath[T any](data json.RawMessage, path string) (T, error) {
 	var defaultT T
 
+	if data == nil {
+		return defaultT, fmt.Errorf("supplied JSON data is nil")
+	}
+
 	var obj map[string]interface{}
 	err := json.Unmarshal(data, &obj)
 	if err != nil {
