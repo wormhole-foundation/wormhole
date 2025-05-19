@@ -2,13 +2,13 @@
 
 ## Objective
 
-Sign different kinds of messages within the Wormhole ecosystem for the purpose of attestation and guardian identification.
+Sign payloads within the Wormhole ecosystem for the purpose of attestation and guardian identification.
 
 ## Background
 
 In order for guardians to attest to on-chain events or prove their identities when communicating among each other, digital signatures are required. On-chain smart contracts and guardians hold registries of public keys of trusted guardian nodes that are permitted to perform certain actions within the guardian ecosystem. Without this system, it would not be possible to distinguish legitimate behavior from malicious.
 
-The guardian signer is responsible for providing signatures, and supports different mechanisms for [producing signatures](../docs/guardian_signer.md).
+The guardian signer is responsible for signing payloads, and can be configured to do so using different [signing technologies](../docs/guardian_signer.md).
 
 ## Overview
 

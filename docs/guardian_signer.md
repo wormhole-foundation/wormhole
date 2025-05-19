@@ -1,8 +1,8 @@
 # Guardian Signer
 
-The guardian signer is responsible for signing various operations within the Wormhole ecosystem, such as observations (which results in the creation of VAAs) and gossip messages on the peer-to-peer network (see the [whitepaper](../whitepapers/0009_guardian_key.md)). Historically, the guardian only supported signing using a private key on disk. However, the guardian now allows developers to easily add alternative signing mechanisms through the `GuardianSigner` interface introduced in [PR #4120](https://github.com/wormhole-foundation/wormhole/pull/4120).
+The guardian signer is responsible for signing various payloads within the Wormhole ecosystem, such as observations (which results in the creation of VAAs) and gossip messages on the peer-to-peer network (see the [whitepaper](../whitepapers/0009_guardian_signer.md)). Historically, the guardian only supported signing using a private key on disk. However, the guardian now allows developers to easily add alternative signing mechanisms through the `GuardianSigner` interface introduced in [PR #4120](https://github.com/wormhole-foundation/wormhole/pull/4120).
 
-The guardian node supports the following signing mechanisms:
+The guardian node currently supports the following signing mechanisms:
 * File-based signer - Load a private key from disk, and use it for signing operations.
 * Amazon Web Services KMS - Use AWS' KMS for signing operations.
 
