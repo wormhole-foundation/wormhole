@@ -22,7 +22,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
 
     /**
-     * @dev Upgrades a contract via Governance VAA/VM
+     * @notice Submits a contract upgrade via Governance VAA/VM.
+     * @dev Only callable if not on a fork. Upgrades the implementation to a new contract.
+     * @param _vm The encoded Governance VAA/VM.
      */
     function submitContractUpgrade(bytes memory _vm) public {
         require(!isFork(), "invalid fork");
@@ -49,7 +51,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     }
 
     /**
-     * @dev Sets a `messageFee` via Governance VAA/VM
+     * @notice Sets the message fee via Governance VAA/VM.
+     * @dev Updates the message fee for the contract.
+     * @param _vm The encoded Governance VAA/VM.
      */
     function submitSetMessageFee(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -74,7 +78,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     }
 
     /**
-     * @dev Deploys a new `guardianSet` via Governance VAA/VM
+     * @notice Deploys a new GuardianSet via Governance VAA/VM.
+     * @dev Adds a new GuardianSet and updates the index.
+     * @param _vm The encoded Governance VAA/VM.
      */
     function submitNewGuardianSet(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -112,7 +118,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     }
 
     /**
-     * @dev Submits transfer fees to the recipient via Governance VAA/VM
+     * @notice Submits transfer fees to the recipient via Governance VAA/VM.
+     * @dev Transfers the specified amount to the recipient address.
+     * @param _vm The encoded Governance VAA/VM.
      */
     function submitTransferFees(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -141,8 +149,10 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     }
 
     /**
-    * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
-    */
+     * @notice Updates the chainId and evmChainId on a forked chain via Governance VAA/VM.
+     * @dev Only callable on a fork. Updates the chain IDs.
+     * @param _vm The encoded Governance VAA/VM.
+     */
     function submitRecoverChainId(bytes memory _vm) public {
         require(isFork(), "not a fork");
 
