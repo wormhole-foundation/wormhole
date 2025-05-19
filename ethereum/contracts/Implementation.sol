@@ -11,7 +11,14 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 contract Implementation is Governance {
     event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);
 
-    // Publish a message to be attested by the Wormhole network
+    /**
+     * @notice Publishes a message to be attested by the Wormhole network.
+     * @dev Emits a LogMessagePublished event. Requires a fee equal to messageFee().
+     * @param nonce A user-supplied nonce for replay protection.
+     * @param payload The message payload to publish.
+     * @param consistencyLevel The desired consistency level for the message.
+     * @return sequence The sequence number of the published message.
+     */
     function publishMessage(
         uint32 nonce,
         bytes memory payload,
@@ -30,6 +37,11 @@ contract Implementation is Governance {
         setNextSequence(emitter, sequence + 1);
     }
 
+    /**
+     * @notice Initializes the contract after an upgrade.
+     * @dev This function must be called after an upgrade to set the EVM chain ID if not already set.
+     * Can only be called once per implementation.
+     */
     function initialize() initializer public virtual {
         // this function needs to be exposed for an upgrade to pass
         if (evmChainId() == 0) {
@@ -61,6 +73,9 @@ contract Implementation is Governance {
         }
     }
 
+    /**
+     * @dev Modifier to ensure the contract is only initialized once per implementation.
+     */
     modifier initializer() {
         address implementation = ERC1967Upgrade._getImplementation();
 
@@ -74,7 +89,13 @@ contract Implementation is Governance {
         _;
     }
 
+    /**
+     * @notice Fallback function. Always reverts as this contract does not support fallback calls.
+     */
     fallback() external payable {revert("unsupported");}
 
+    /**
+     * @notice Receive function. Always reverts as this contract does not accept assets.
+     */
     receive() external payable {revert("the Wormhole contract does not accept assets");}
 }
