@@ -218,14 +218,14 @@ const Mainnet = {
     chain_id: 2192,
   },
   Seievm: {
-    rpc: undefined,
-    key: undefined,
-    chain_id: undefined,
+    rpc: "https://evm-rpc.sei-apis.com",
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 1329,
   },
   Sepolia: {
-    rpc: undefined,
+    rpc: "",
     key: undefined,
-    chain_id: undefined,
+    chain_id: 1392,
   },
   Holesky: {
     rpc: undefined,

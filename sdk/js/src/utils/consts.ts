@@ -347,8 +347,8 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   seievm: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D",
+    token_bridge: "0x3Ff72741fd67D6AD0668d93B41a09248F4700560",
     nft_bridge: undefined,
   },
   snaxchain: {
