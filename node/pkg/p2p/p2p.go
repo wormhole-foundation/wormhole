@@ -1005,7 +1005,7 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *commo
 
 	digest := heartbeatDigest(s.Heartbeat)
 
-	// SECURITY: see whitepapers/0009_guardian_key.md
+	// SECURITY: see whitepapers/0009_guardian_signer.md
 	if len(heartbeatMessagePrefix)+len(s.Heartbeat) < 34 {
 		return nil, fmt.Errorf("invalid message: too short")
 	}
@@ -1063,7 +1063,7 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 		pk = gs.Keys[idx]
 	}
 
-	// SECURITY: see whitepapers/0009_guardian_key.md
+	// SECURITY: see whitepapers/0009_guardian_signer.md
 	if len(signedObservationRequestPrefix)+len(s.ObservationRequest) < 34 {
 		return nil, fmt.Errorf("invalid observation request: too short")
 	}
