@@ -8,6 +8,9 @@ on:
     tags:
       - 'evm-*'
 
+permissions:
+  contents: read
+
 jobs:
   publish-artifacts:
     runs-on: ubuntu-latest

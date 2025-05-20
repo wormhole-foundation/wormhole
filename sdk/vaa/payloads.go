@@ -276,6 +276,7 @@ type (
 	}
 )
 
+//nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -291,6 +292,7 @@ func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+//nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -302,7 +304,7 @@ func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, uint16(0))
 
 	MustWrite(buf, binary.BigEndian, b.NewIndex)
-	MustWrite(buf, binary.BigEndian, uint8(len(b.Keys)))
+	MustWrite(buf, binary.BigEndian, uint8(len(b.Keys))) // #nosec G115 -- There will never be 256 guardians
 	for _, k := range b.Keys {
 		buf.Write(k[:])
 	}
@@ -450,6 +452,7 @@ func (r BodyGatewayScheduleUpgrade) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
 }
 
+//nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) error {
 	r.Name = string(bz[0 : len(bz)-8])
 	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
@@ -500,7 +503,7 @@ func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {
 	if len(r.Payload) > math.MaxUint16 {
 		return nil, fmt.Errorf("payload too long; expected at most %d bytes", math.MaxUint16)
 	}
-	MustWrite(payload, binary.BigEndian, uint16(len(r.Payload)))
+	MustWrite(payload, binary.BigEndian, uint16(len(r.Payload))) // #nosec G115 -- This is checked above
 	payload.Write(r.Payload)
 	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceEvmAction, r.ChainID, payload.Bytes())
 }

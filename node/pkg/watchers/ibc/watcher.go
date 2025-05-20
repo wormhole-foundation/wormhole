@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -163,16 +165,9 @@ func NewWatcher(
 		}
 
 		chainMap[ce.chainID] = ce
-
-		if feats == "" {
-			feats = "ibc:"
-		} else {
-			feats += "|"
-		}
-		feats += ce.chainID.String()
 	}
 
-	setFeatures(feats)
+	setFeatures("ibc")
 
 	return &Watcher{
 		wsUrl:                 wsUrl,
@@ -246,6 +241,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 	}
 
+	//nolint:bodyclose // Misses the close below
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
@@ -324,11 +320,11 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 			}
 
 			// Received a message from the blockchain.
-			json := string(message)
+			jsonStr := string(message)
 
-			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+			txHashRaw := gjson.Get(jsonStr, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
-				w.logger.Warn("message does not have tx hash", zap.String("payload", json))
+				w.logger.Warn("message does not have tx hash", zap.String("payload", jsonStr))
 				continue
 			}
 			txHash, err := vaa.StringToHash(txHashRaw.String())
@@ -337,9 +333,9 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 				continue
 			}
 
-			events := gjson.Get(json, "result.data.value.TxResult.result.events")
+			events := gjson.Get(jsonStr, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
-				w.logger.Warn("message has no events", zap.String("payload", json))
+				w.logger.Warn("message has no events", zap.String("payload", jsonStr))
 				continue
 			}
 
@@ -371,11 +367,11 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 
 // convertWsUrlToHttpUrl takes a string like "ws://wormchain:26657/websocket" and converts it to "http://wormchain:26657". This is
 // used to query for the abci_info. That query doesn't work on the LCD. We have to do it on the websocket port, using an http URL.
-func convertWsUrlToHttpUrl(url string) string {
-	url = strings.TrimPrefix(url, "ws://")
-	url = strings.TrimPrefix(url, "wss://")
-	url = strings.TrimSuffix(url, "/websocket")
-	return "http://" + url
+func convertWsUrlToHttpUrl(URL string) string {
+	URL = strings.TrimPrefix(URL, "ws://")
+	URL = strings.TrimPrefix(URL, "wss://")
+	URL = strings.TrimSuffix(URL, "/websocket")
+	return "http://" + URL
 }
 
 // handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
@@ -426,7 +422,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 			}
 
 			readiness.SetReady(common.ReadinessIBCSyncing)
-			setFeatures(w.baseFeatures + ":" + abciInfo.Result.Response.Version)
+			setFeatures("ibc:" + abciInfo.Result.Response.Version)
 		}
 	}
 }
@@ -439,7 +435,10 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 		case <-ctx.Done():
 			return nil
 		case r := <-ce.obsvReqC:
-			if vaa.ChainID(r.ChainId) != ce.chainID {
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != ce.chainID {
 				panic("invalid chain ID")
 			}
 
@@ -548,7 +547,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.EmitterChain = vaa.ChainID(unumber)
+	evt.Msg.EmitterChain = vaa.ChainID(unumber) // #nosec G115 -- Already range checked by `GetAsUint`
 
 	str, err = attributes.GetAsString("message.sender")
 	if err != nil {
@@ -563,7 +562,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Msg.Nonce = uint32(unumber)
+	evt.Msg.Nonce = uint32(unumber) // #nosec G115 -- This conversion is safe based on GetAsUint usage above
 
 	unumber, err = attributes.GetAsUint("message.sequence", 64)
 	if err != nil {
@@ -673,6 +672,9 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 
 	ce.msgC <- evt.Msg
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
+	if evt.Msg.IsReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()
+	}
 	return nil
 }
 
@@ -769,7 +771,12 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 			return nil, fmt.Errorf("channel map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(entry), string(body))
 		}
 
-		channelIdBytes, err := base64.StdEncoding.DecodeString(entry[0].(string))
+		channelIdString, ok := entry[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("error converting channelIdBytes to string")
+		}
+
+		channelIdBytes, err := base64.StdEncoding.DecodeString(channelIdString)
 		if err != nil {
 			return nil, fmt.Errorf("channel ID for entry %d is invalid base64: %s, err: %s", idx, entry[0], err)
 		}

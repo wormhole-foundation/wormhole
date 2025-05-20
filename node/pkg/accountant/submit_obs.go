@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -88,7 +89,11 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 		return fmt.Errorf("failed to get guardian index for %s", tag)
 	}
 
-	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag)
+	if guardianIndex > math.MaxUint32 {
+		return fmt.Errorf("guardian index greater than max uint32 %v", guardianIndex)
+	}
+
+	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag) // #nosec G115 -- This is checked above
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
 }
@@ -185,6 +190,7 @@ func (k TransferKey) String() string {
 	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
 }
 
+//nolint:unparam // error is always nil but is required to satisfy the custom JSON marshal interface.
 func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 	var result string
 	if sb == nil {
@@ -309,7 +315,7 @@ func SubmitObservationsToContract(
 	for idx, msg := range msgs {
 		obs[idx] = Observation{
 			TxHash:           msg.TxID,
-			Timestamp:        uint32(msg.Timestamp.Unix()),
+			Timestamp:        uint32(msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
 			EmitterAddress:   msg.EmitterAddress,

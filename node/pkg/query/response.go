@@ -201,12 +201,12 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	if len(msg.Request.QueryRequest) > math.MaxUint32 {
 		return nil, fmt.Errorf("request too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Request.QueryRequest)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Request.QueryRequest))) // #nosec G115 -- This is validated above
 
 	buf.Write(msg.Request.QueryRequest)
 
 	// Per chain responses
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.PerChainResponses)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.PerChainResponses))) // #nosec G115 -- This is validated in `Validate`
 	for idx := range msg.PerChainResponses {
 		pcrBuf, err := msg.PerChainResponses[idx].Marshal()
 		if err != nil {
@@ -392,7 +392,7 @@ func (perChainResponse *PerChainQueryResponse) Marshal() ([]byte, error) {
 	if len(respBuf) > math.MaxUint32 {
 		return nil, fmt.Errorf("response is too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(respBuf)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(respBuf))) // #nosec G115 -- This is validated above
 	buf.Write(respBuf)
 	return buf.Bytes(), nil
 }
@@ -564,9 +564,9 @@ func (ecr *EthCallQueryResponse) Marshal() ([]byte, error) {
 	buf.Write(ecr.Hash[:])
 	vaa.MustWrite(buf, binary.BigEndian, ecr.Time.UnixMicro())
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results))) // #nosec G115 -- This is validated in `Validate`
 	for idx := range ecr.Results {
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx])))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx]))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(ecr.Results[idx])
 	}
 
@@ -690,9 +690,9 @@ func (ecr *EthCallByTimestampQueryResponse) Marshal() ([]byte, error) {
 	buf.Write(ecr.FollowingBlockHash[:])
 	vaa.MustWrite(buf, binary.BigEndian, ecr.FollowingBlockTime.UnixMicro())
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results))) // #nosec G115 -- This is validated in `Validate`
 	for idx := range ecr.Results {
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx])))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx]))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(ecr.Results[idx])
 	}
 
@@ -844,9 +844,9 @@ func (ecr *EthCallWithFinalityQueryResponse) Marshal() ([]byte, error) {
 	buf.Write(ecr.Hash[:])
 	vaa.MustWrite(buf, binary.BigEndian, ecr.Time.UnixMicro())
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results))) // #nosec G115 -- This is validated in `Validate`
 	for idx := range ecr.Results {
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx])))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx]))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(ecr.Results[idx])
 	}
 
@@ -966,14 +966,14 @@ func (sar *SolanaAccountQueryResponse) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, sar.BlockTime.UnixMicro())
 	buf.Write(sar.BlockHash[:])
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results))) // #nosec G115 -- This is validated in `Validate`
 	for _, res := range sar.Results {
 		vaa.MustWrite(buf, binary.BigEndian, res.Lamports)
 		vaa.MustWrite(buf, binary.BigEndian, res.RentEpoch)
 		vaa.MustWrite(buf, binary.BigEndian, res.Executable)
 		buf.Write(res.Owner[:])
 
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(res.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(res.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(res.Data)
 	}
 
@@ -1025,12 +1025,12 @@ func (sar *SolanaAccountQueryResponse) UnmarshalFromReader(reader *bytes.Reader)
 			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
 		}
 
-		len := uint32(0)
-		if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+		length := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 			return fmt.Errorf("failed to read data len: %w", err)
 		}
-		result.Data = make([]byte, len)
-		if n, err := reader.Read(result.Data[:]); err != nil || n != int(len) {
+		result.Data = make([]byte, length)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(length) {
 			return fmt.Errorf("failed to read data [%d]: %w", n, err)
 		}
 
@@ -1113,7 +1113,7 @@ func (sar *SolanaPdaQueryResponse) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, sar.BlockTime.UnixMicro())
 	buf.Write(sar.BlockHash[:])
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(sar.Results))) // #nosec G115 -- This is validated in `Validate`
 	for _, res := range sar.Results {
 		buf.Write(res.Account[:])
 		vaa.MustWrite(buf, binary.BigEndian, res.Bump)
@@ -1122,7 +1122,7 @@ func (sar *SolanaPdaQueryResponse) Marshal() ([]byte, error) {
 		vaa.MustWrite(buf, binary.BigEndian, res.Executable)
 		buf.Write(res.Owner[:])
 
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(res.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(res.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(res.Data)
 	}
 
@@ -1182,12 +1182,12 @@ func (sar *SolanaPdaQueryResponse) UnmarshalFromReader(reader *bytes.Reader) err
 			return fmt.Errorf("failed to read owner [%d]: %w", n, err)
 		}
 
-		len := uint32(0)
-		if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+		length := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 			return fmt.Errorf("failed to read data len: %w", err)
 		}
-		result.Data = make([]byte, len)
-		if n, err := reader.Read(result.Data[:]); err != nil || n != int(len) {
+		result.Data = make([]byte, length)
+		if n, err := reader.Read(result.Data[:]); err != nil || n != int(length) {
 			return fmt.Errorf("failed to read data [%d]: %w", n, err)
 		}
 

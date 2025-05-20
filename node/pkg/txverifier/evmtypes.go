@@ -85,6 +85,15 @@ type chainIds struct {
 	wormholeChainId vaa.ChainID
 }
 
+type TransferVerifierInterface interface {
+	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) bool
+	Addrs() *TVAddresses
+}
+
+func (tv *TransferVerifier[ethClient, Connector]) Addrs() *TVAddresses {
+	return tv.Addresses
+}
+
 // TransferVerifier contains configuration values for verifying transfers.
 type TransferVerifier[E evmClient, C connector] struct {
 	Addresses *TVAddresses
@@ -119,9 +128,9 @@ type TransferVerifier[E evmClient, C connector] struct {
 	nativeChainCache map[string]vaa.ChainID
 }
 
-func NewTransferVerifier(connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
+func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
 	// Retrieve the chainId from the connector.
-	chainIdFromClient, err := connector.Client().ChainID(context.Background())
+	chainIdFromClient, err := connector.Client().ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
@@ -719,7 +728,7 @@ func (tv *TransferVerifier[ethClient, connector]) unwrapIfWrapped(
 	tv.logger.Debug("got wrappedAsset result",
 		zap.String("tokenAddressNative", fmt.Sprintf("%x", tokenAddressNative)))
 
-	if cmp(tokenAddressNative, ZERO_ADDRESS) == 0 {
+	if Cmp(tokenAddressNative, ZERO_ADDRESS) == 0 {
 		tv.logger.Info("got zero address for wrappedAsset result. this asset is probably not registered correctly",
 			zap.String("queried tokenAddress", fmt.Sprintf("%x", tokenAddress)),
 			zap.Uint16("queried tokenChain", uint16(tokenChain)),
@@ -736,7 +745,7 @@ func (tv *TransferVerifier[ethClient, Connector]) chainId(
 	addr common.Address,
 ) (vaa.ChainID, error) {
 
-	if cmp(addr, ZERO_ADDRESS) == 0 {
+	if Cmp(addr, ZERO_ADDRESS) == 0 {
 		return 0, errors.New("got zero address as parameter for chainId() call")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
@@ -839,29 +848,29 @@ func relevant[L TransferLog](tLog TransferLog, tv *TVAddresses) (key string, rel
 	switch log := tLog.(type) {
 	case *NativeDeposit:
 		// Skip native deposit events emitted by contracts other than the configured wrapped native address.
-		if cmp(log.Emitter(), tv.WrappedNativeAddr) != 0 {
+		if Cmp(log.Emitter(), tv.WrappedNativeAddr) != 0 {
 			return
 		}
 
 		// We only care about deposits into the token bridge.
-		if cmp(log.Destination(), tv.TokenBridgeAddr) != 0 {
+		if Cmp(log.Destination(), tv.TokenBridgeAddr) != 0 {
 			return
 		}
 
 	case *ERC20Transfer:
 		// We only care about transfers sent to the token bridge.
-		if cmp(log.Destination(), tv.TokenBridgeAddr) != 0 {
+		if Cmp(log.Destination(), tv.TokenBridgeAddr) != 0 {
 			return
 		}
 
 	case *LogMessagePublished:
 		// This check is already done elsewhere but it's important.
-		if cmp(log.Emitter(), tv.CoreBridgeAddr) != 0 {
+		if Cmp(log.Emitter(), tv.CoreBridgeAddr) != 0 {
 			return
 		}
 
 		// Only consider LogMessagePublished events with msg.sender equal to the Token Bridge
-		if cmp(log.Sender(), tv.TokenBridgeAddr) != 0 {
+		if Cmp(log.Sender(), tv.TokenBridgeAddr) != 0 {
 			return
 		}
 
@@ -891,7 +900,7 @@ func (i InvalidLogError) Error() string {
 func validate[L TransferLog](tLog TransferLog) error {
 
 	// Generic validation for all TransferLogs
-	if cmp(tLog.Emitter(), ZERO_ADDRESS) == 0 {
+	if Cmp(tLog.Emitter(), ZERO_ADDRESS) == 0 {
 		return &InvalidLogError{Msg: "emitter is the zero address"}
 	}
 
@@ -910,16 +919,16 @@ func validate[L TransferLog](tLog TransferLog) error {
 	switch log := tLog.(type) {
 	case *NativeDeposit:
 		// Deposit does not actually have a sender, so it should always be equal to the zero address.
-		if cmp(log.Sender(), ZERO_ADDRESS_VAA) != 0 {
+		if Cmp(log.Sender(), ZERO_ADDRESS_VAA) != 0 {
 			return &InvalidLogError{Msg: "sender address for Deposit must be 0"}
 		}
-		if cmp(log.Emitter(), log.TokenAddress) != 0 {
+		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "deposit emitter is not equal to its token address"}
 		}
-		if cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
+		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
-		if cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "originAddress is the zero address"}
 		}
 	case *ERC20Transfer:
@@ -936,23 +945,23 @@ func validate[L TransferLog](tLog TransferLog) error {
 		// TODO ensure that, if the Token is wrapped, that its tokenchain is not equal to NATIVE_CHAIN_ID.
 		// at this point, this should've been updated
 
-		if cmp(log.Emitter(), log.TokenAddress) != 0 {
+		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "transfer emitter is not equal to its token address"}
 		}
-		if cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "originAddress is the zero address"}
 		}
 	case *LogMessagePublished:
 		// LogMessagePublished cannot have a sender with a 0 address
-		if cmp(log.Sender(), ZERO_ADDRESS_VAA) == 0 {
+		if Cmp(log.Sender(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "sender cannot be zero"}
 		}
-		if cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
+		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
 
 		// TODO is this valid for assets that return the zero address from unwrap?
-		// if cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		// if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
 		// 	return errors.New("origin cannot be zero")
 		// }
 
@@ -960,7 +969,7 @@ func validate[L TransferLog](tLog TransferLog) error {
 		if log.TransferDetails == nil {
 			return &InvalidLogError{Msg: "TransferDetails cannot be nil"}
 		}
-		if cmp(log.TransferDetails.TargetAddress, ZERO_ADDRESS_VAA) == 0 {
+		if Cmp(log.TransferDetails.TargetAddress, ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "target address cannot be zero"}
 		}
 
@@ -1018,7 +1027,7 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("failed to get decimals for token: result has insufficient length",
+		tv.logger.Warn("failed to get decimals for token: decimals() result has insufficient length",
 			zap.String("tokenAddress", tokenAddress.String()),
 			zap.ByteString("result", result))
 		return 0, err
@@ -1073,7 +1082,7 @@ type Bytes interface {
 }
 
 // Utility method for comparing common.Address and vaa.Address at the byte level.
-func cmp[some Bytes, other Bytes](a some, b other) int {
+func Cmp[some Bytes, other Bytes](a some, b other) int {
 
 	// Compare bytes, prepending 0s to ensure that both values are of EVM_WORD_LENGTH.
 	return bytes.Compare(

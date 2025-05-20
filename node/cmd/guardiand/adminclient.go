@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -22,15 +23,14 @@ import (
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/node"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/spf13/cobra"
-	"github.com/status-im/keycard-go/hexutils"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -302,7 +302,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	}
 
 	for _, digest := range resp.Digests {
-		log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(digest))
+		log.Printf("VAA successfully injected with digest %x", digest)
 	}
 }
 
@@ -311,6 +311,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
+
 	emitterAddress := args[1]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -322,8 +323,12 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 	}
 	defer conn.Close()
 
+	if chainID > math.MaxUint16 {
+		log.Fatalf("chain ID is not a valid 16 bit unsigned integer: %v", err)
+	}
+
 	msg := nodev1.FindMissingMessagesRequest{
-		EmitterChain:   uint32(chainID),
+		EmitterChain:   uint32(chainID), // #nosec G115 -- This conversion is checked above
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
 		BackfillNodes:  sdk.PublicRPCEndpoints,
@@ -352,6 +357,9 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 	chainID, err := strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
+	}
+	if chainID > math.MaxUint16 {
+		log.Fatalf("chain id must not exceed the max uint16: %v", chainID)
 	}
 	emitterAddress := parts[1]
 	seq, err := strconv.ParseUint(parts[2], 10, 64)
@@ -441,7 +449,7 @@ func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
 	}
 
 	url := args[2]
-	if valid := node.ValidateURL(url, []string{"http", "https"}); !valid {
+	if valid := common.ValidateURL(url, []string{"http", "https"}); !valid {
 		log.Fatalf(`invalid url, must be "http" or "https"`)
 	}
 
@@ -615,11 +623,11 @@ func runChainGovernorResetReleaseTimer(cmd *cobra.Command, args []string) {
 	if len(args) > 1 {
 		numDaysArg, err := strconv.Atoi(args[1])
 
-		if err != nil {
+		if numDaysArg > math.MaxUint32 || err != nil {
 			log.Fatalf("invalid num_days: %v", err)
 		}
 
-		numDays = uint32(numDaysArg)
+		numDays = uint32(numDaysArg) // #nosec G115 -- This is validated above
 	}
 
 	msg := nodev1.ChainGovernorResetReleaseTimerRequest{
@@ -767,7 +775,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	for {
 		row, err := oldVAAReader.Read()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			log.Fatalf("failed to parse VAA CSV: %v", err)
@@ -803,7 +811,7 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 	newVAAWriter.Flush()
 }
 
-// This exposes keccak256 as a command line utility, mostly for validating goverance messages
+// This exposes keccak256 as a command line utility, mostly for validating governance messages
 // that use this hash.  There isn't any common utility that computes this since this is nonstandard outside of evm.
 // It is used similar to other hashing utilities, e.g. `cat <file> | guardiand admin keccak256`.
 func runKeccak256Hash(cmd *cobra.Command, args []string) {

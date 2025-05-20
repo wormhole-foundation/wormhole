@@ -1,9 +1,9 @@
-//nolint:unparam // this will be refactored in https://github.com/wormhole-foundation/wormhole/pull/1953
 package processor
 
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"time"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
@@ -49,6 +49,11 @@ var (
 func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common.Address) []*vaa.Signature {
 	// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 	var sigs []*vaa.Signature
+
+	if len(gsKeys) > math.MaxUint8 {
+		panic(fmt.Sprintf("guardian set too large: %d", len(gsKeys)))
+	}
+
 	for i, a := range gsKeys {
 		sig, ok := signatures[a]
 
@@ -59,7 +64,7 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 			}
 
 			sigs = append(sigs, &vaa.Signature{
-				Index:     uint8(i),
+				Index:     uint8(i), // #nosec G115 -- This is validated above
 				Signature: bs,
 			})
 		}

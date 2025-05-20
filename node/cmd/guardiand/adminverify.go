@@ -8,7 +8,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
-	"github.com/status-im/keycard-go/hexutils"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
@@ -55,6 +54,6 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 
 		log.Printf("Serialized: %v", hex.EncodeToString(b))
 
-		log.Printf("VAA with digest %s: %+v", hexutils.BytesToHex(digest), spew.Sdump(v))
+		log.Printf("VAA with digest %x: %+v", digest, spew.Sdump(v))
 	}
 }
