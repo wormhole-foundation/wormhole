@@ -58,7 +58,7 @@ Each chain has a configured limit, denoted in USD, that determines the maximum
 value of transfers that can be emitted within a 24 hour period. This is
 sometimes referred to as the "daily limit", though it uses a 24-hour sliding
 window rather than discrete calendar days. When the sum exceeds the limit,
-any new small transfers the exceed the limit will be queued.
+any new small transfers that exceed the limit will be queued.
 
 The headroom for a chain is the amount left over after subtracting the current
 sum of small transfers from the chain's daily limit.
