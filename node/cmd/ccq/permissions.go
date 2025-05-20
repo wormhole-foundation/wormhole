@@ -129,7 +129,7 @@ func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, 
 		return addErr
 	}
 	perms.watcher = permWatcher
-	logger.Warn("Starting permissions watcher", zap.String("dir", watchDir))
+	logger.Info("Starting permissions watcher", zap.String("dir", watchDir))
 
 	common.RunWithScissors(ctx, errC, "perm_file_watcher", func(ctx context.Context) error {
 		for {
