@@ -2,9 +2,11 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
 use anchor_lang::prelude::*;
 
+use crate::threshold_key::ThresholdKey;
+
 pub struct AppendThresholdKeyMessage {
 	pub tss_index: u32,
-	pub tss_key: [u8; 20],
+	pub tss_key: ThresholdKey,
 	pub expiration_delay_seconds: u32,
 }
 
@@ -31,8 +33,7 @@ impl AppendThresholdKeyMessage {
 		cursor.read_exact(&mut module)?;
 		let action = cursor.read_u8()?;
 		let tss_index = cursor.read_u32::<BigEndian>()?;
-		let mut tss_key = [0u8; 20];
-		cursor.read_exact(&mut tss_key)?;
+		let tss_key = ThresholdKey::deserialize_reader(&mut cursor)?;
 		let expiration_delay_seconds = cursor.read_u32::<BigEndian>()?;
 
 		// Validate the module and action

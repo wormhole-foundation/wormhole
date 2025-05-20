@@ -122,6 +122,7 @@ contract ThresholdVerification is ThresholdVerificationState {
 
       // Validate the threshold key is less than HALF_Q
       (uint256 px,) = _decodePubkey(newThresholdPubkey);
+      require(px != 0, InvalidThresholdKeyAddress());
       require(px <= HALF_Q, InvalidThresholdKeyAddress());
 
       // Decode shards
