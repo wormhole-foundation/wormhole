@@ -37,6 +37,8 @@ var V3_0_0_Upgrade = Upgrade{
 		},
 		Deleted: []string{
 			feegrant.StoreKey,
+			// Vesting Module was also removed, but since it is not a standalone module
+			// with it's own Store Key, we don't need to delete it.
 		},
 	},
 }

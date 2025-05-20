@@ -2,7 +2,6 @@
 /* eslint-disable */
 import Long from "long";
 import _m0 from "protobufjs/minimal";
-import { GuardianSet } from "./guardian";
 
 export const protobufPackage = "wormchain.wormhole";
 
@@ -146,26 +145,6 @@ export interface MsgExecuteGatewayGovernanceVaa {
   signer: string;
   /** vaa must be governance msg with valid module, action, and payload */
   vaa: Uint8Array;
-}
-
-/** GuardianSetUpdateProposal defines a guardian set update governance proposal */
-export interface MsgGuardianSetUpdateProposal {
-  /** authority is the address that controls the module (defaults to x/gov unless overwritten). */
-  authority: string;
-  newGuardianSet: GuardianSet | undefined;
-}
-
-/**
- * GovernanceWormholeMessageProposal defines a governance proposal to emit a
- * generic message in the governance message format.
- */
-export interface MsgGovernanceWormholeMessageProposal {
-  /** authority is the address that controls the module (defaults to x/gov unless overwritten). */
-  authority: string;
-  action: number;
-  module: Uint8Array;
-  targetChain: number;
-  payload: Uint8Array;
 }
 
 function createBaseEmptyResponse(): EmptyResponse {
@@ -1246,156 +1225,6 @@ export const MsgExecuteGatewayGovernanceVaa = {
   },
 };
 
-function createBaseMsgGuardianSetUpdateProposal(): MsgGuardianSetUpdateProposal {
-  return { authority: "", newGuardianSet: undefined };
-}
-
-export const MsgGuardianSetUpdateProposal = {
-  encode(message: MsgGuardianSetUpdateProposal, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.authority !== "") {
-      writer.uint32(10).string(message.authority);
-    }
-    if (message.newGuardianSet !== undefined) {
-      GuardianSet.encode(message.newGuardianSet, writer.uint32(18).fork()).ldelim();
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgGuardianSetUpdateProposal {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgGuardianSetUpdateProposal();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.authority = reader.string();
-          break;
-        case 2:
-          message.newGuardianSet = GuardianSet.decode(reader, reader.uint32());
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MsgGuardianSetUpdateProposal {
-    return {
-      authority: isSet(object.authority) ? String(object.authority) : "",
-      newGuardianSet: isSet(object.newGuardianSet) ? GuardianSet.fromJSON(object.newGuardianSet) : undefined,
-    };
-  },
-
-  toJSON(message: MsgGuardianSetUpdateProposal): unknown {
-    const obj: any = {};
-    message.authority !== undefined && (obj.authority = message.authority);
-    message.newGuardianSet !== undefined
-      && (obj.newGuardianSet = message.newGuardianSet ? GuardianSet.toJSON(message.newGuardianSet) : undefined);
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<MsgGuardianSetUpdateProposal>, I>>(object: I): MsgGuardianSetUpdateProposal {
-    const message = createBaseMsgGuardianSetUpdateProposal();
-    message.authority = object.authority ?? "";
-    message.newGuardianSet = (object.newGuardianSet !== undefined && object.newGuardianSet !== null)
-      ? GuardianSet.fromPartial(object.newGuardianSet)
-      : undefined;
-    return message;
-  },
-};
-
-function createBaseMsgGovernanceWormholeMessageProposal(): MsgGovernanceWormholeMessageProposal {
-  return { authority: "", action: 0, module: new Uint8Array(), targetChain: 0, payload: new Uint8Array() };
-}
-
-export const MsgGovernanceWormholeMessageProposal = {
-  encode(message: MsgGovernanceWormholeMessageProposal, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.authority !== "") {
-      writer.uint32(10).string(message.authority);
-    }
-    if (message.action !== 0) {
-      writer.uint32(16).uint32(message.action);
-    }
-    if (message.module.length !== 0) {
-      writer.uint32(26).bytes(message.module);
-    }
-    if (message.targetChain !== 0) {
-      writer.uint32(32).uint32(message.targetChain);
-    }
-    if (message.payload.length !== 0) {
-      writer.uint32(42).bytes(message.payload);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): MsgGovernanceWormholeMessageProposal {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMsgGovernanceWormholeMessageProposal();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.authority = reader.string();
-          break;
-        case 2:
-          message.action = reader.uint32();
-          break;
-        case 3:
-          message.module = reader.bytes();
-          break;
-        case 4:
-          message.targetChain = reader.uint32();
-          break;
-        case 5:
-          message.payload = reader.bytes();
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MsgGovernanceWormholeMessageProposal {
-    return {
-      authority: isSet(object.authority) ? String(object.authority) : "",
-      action: isSet(object.action) ? Number(object.action) : 0,
-      module: isSet(object.module) ? bytesFromBase64(object.module) : new Uint8Array(),
-      targetChain: isSet(object.targetChain) ? Number(object.targetChain) : 0,
-      payload: isSet(object.payload) ? bytesFromBase64(object.payload) : new Uint8Array(),
-    };
-  },
-
-  toJSON(message: MsgGovernanceWormholeMessageProposal): unknown {
-    const obj: any = {};
-    message.authority !== undefined && (obj.authority = message.authority);
-    message.action !== undefined && (obj.action = Math.round(message.action));
-    message.module !== undefined
-      && (obj.module = base64FromBytes(message.module !== undefined ? message.module : new Uint8Array()));
-    message.targetChain !== undefined && (obj.targetChain = Math.round(message.targetChain));
-    message.payload !== undefined
-      && (obj.payload = base64FromBytes(message.payload !== undefined ? message.payload : new Uint8Array()));
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<MsgGovernanceWormholeMessageProposal>, I>>(
-    object: I,
-  ): MsgGovernanceWormholeMessageProposal {
-    const message = createBaseMsgGovernanceWormholeMessageProposal();
-    message.authority = object.authority ?? "";
-    message.action = object.action ?? 0;
-    message.module = object.module ?? new Uint8Array();
-    message.targetChain = object.targetChain ?? 0;
-    message.payload = object.payload ?? new Uint8Array();
-    return message;
-  },
-};
-
 /** Msg defines the Msg service. */
 export interface Msg {
   ExecuteGovernanceVAA(request: MsgExecuteGovernanceVAA): Promise<MsgExecuteGovernanceVAAResponse>;
@@ -1412,10 +1241,6 @@ export interface Msg {
   ): Promise<MsgWasmInstantiateAllowlistResponse>;
   MigrateContract(request: MsgMigrateContract): Promise<MsgMigrateContractResponse>;
   ExecuteGatewayGovernanceVaa(request: MsgExecuteGatewayGovernanceVaa): Promise<EmptyResponse>;
-  /** GuardianSetUpdateProposal processes a proposal to update the guardian set */
-  GuardianSetUpdateProposal(request: MsgGuardianSetUpdateProposal): Promise<EmptyResponse>;
-  /** GovernanceWormholeMessageProposal processes a proposal to emit a generic message */
-  GovernanceWormholeMessageProposal(request: MsgGovernanceWormholeMessageProposal): Promise<EmptyResponse>;
 }
 
 export class MsgClientImpl implements Msg {
@@ -1432,8 +1257,6 @@ export class MsgClientImpl implements Msg {
     this.DeleteWasmInstantiateAllowlist = this.DeleteWasmInstantiateAllowlist.bind(this);
     this.MigrateContract = this.MigrateContract.bind(this);
     this.ExecuteGatewayGovernanceVaa = this.ExecuteGatewayGovernanceVaa.bind(this);
-    this.GuardianSetUpdateProposal = this.GuardianSetUpdateProposal.bind(this);
-    this.GovernanceWormholeMessageProposal = this.GovernanceWormholeMessageProposal.bind(this);
   }
   ExecuteGovernanceVAA(request: MsgExecuteGovernanceVAA): Promise<MsgExecuteGovernanceVAAResponse> {
     const data = MsgExecuteGovernanceVAA.encode(request).finish();
@@ -1494,18 +1317,6 @@ export class MsgClientImpl implements Msg {
   ExecuteGatewayGovernanceVaa(request: MsgExecuteGatewayGovernanceVaa): Promise<EmptyResponse> {
     const data = MsgExecuteGatewayGovernanceVaa.encode(request).finish();
     const promise = this.rpc.request("wormchain.wormhole.Msg", "ExecuteGatewayGovernanceVaa", data);
-    return promise.then((data) => EmptyResponse.decode(new _m0.Reader(data)));
-  }
-
-  GuardianSetUpdateProposal(request: MsgGuardianSetUpdateProposal): Promise<EmptyResponse> {
-    const data = MsgGuardianSetUpdateProposal.encode(request).finish();
-    const promise = this.rpc.request("wormchain.wormhole.Msg", "GuardianSetUpdateProposal", data);
-    return promise.then((data) => EmptyResponse.decode(new _m0.Reader(data)));
-  }
-
-  GovernanceWormholeMessageProposal(request: MsgGovernanceWormholeMessageProposal): Promise<EmptyResponse> {
-    const data = MsgGovernanceWormholeMessageProposal.encode(request).finish();
-    const promise = this.rpc.request("wormchain.wormhole.Msg", "GovernanceWormholeMessageProposal", data);
     return promise.then((data) => EmptyResponse.decode(new _m0.Reader(data)));
   }
 }

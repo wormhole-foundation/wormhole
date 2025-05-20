@@ -1,4 +1,5 @@
 //@ts-nocheck
+//@ts-nocheck
 import { GeneratedType } from "@cosmjs/proto-signing";
 import { MsgGrantAllowance } from "./types/cosmos/feegrant/v1beta1/tx";
 import { MsgRevokeAllowance } from "./types/cosmos/feegrant/v1beta1/tx";

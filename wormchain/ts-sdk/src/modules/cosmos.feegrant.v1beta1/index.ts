@@ -1,4 +1,5 @@
 //@ts-nocheck
+//@ts-nocheck
 import Module from './module';
 import { txClient, queryClient, registry } from './module';
 import { msgTypes } from './registry';

@@ -4,7 +4,6 @@ import { Api as baseApi } from "../modules/cosmos.base.tendermint.v1beta1/rest";
 import { Api as crisisApi } from "../modules/cosmos.crisis.v1beta1/rest";
 import { Api as distributionApi } from "../modules/cosmos.distribution.v1beta1/rest";
 import { Api as evidenceApi } from "../modules/cosmos.evidence.v1beta1/rest";
-import { Api as feegrantApi } from "../modules/cosmos.feegrant.v1beta1/rest";
 import { Api as govApi } from "../modules/cosmos.gov.v1beta1/rest";
 import { Api as mintApi } from "../modules/cosmos.mint.v1beta1/rest";
 import { Api as paramsApi } from "../modules/cosmos.params.v1beta1/rest";
@@ -12,7 +11,6 @@ import { Api as slashingApi } from "../modules/cosmos.slashing.v1beta1/rest";
 import { Api as stakingApi } from "../modules/cosmos.staking.v1beta1/rest";
 import { Api as txApi } from "../modules/cosmos.tx.v1beta1/rest";
 import { Api as upgradeApi } from "../modules/cosmos.upgrade.v1beta1/rest";
-import { Api as vestingApi } from "../modules/cosmos.vesting.v1beta1/rest";
 import { Api as wasmApi } from "../modules/cosmwasm.wasm.v1/rest";
 import { Api as coreApi } from "../modules/wormchain.wormhole/rest";
 
@@ -25,7 +23,6 @@ export type WormchainQueryClient = {
   crisis: crisisApi<any>;
   distribution: distributionApi<any>;
   evidence: evidenceApi<any>;
-  feegrant: feegrantApi<any>;
   gov: govApi<any>;
   mint: mintApi<any>;
   params: paramsApi<any>;
@@ -33,7 +30,6 @@ export type WormchainQueryClient = {
   staking: stakingApi<any>;
   tx: txApi<any>;
   upgrade: upgradeApi<any>;
-  vesting: vestingApi<any>;
   wasm: wasmApi<any>;
 };
 
@@ -54,7 +50,6 @@ export function getWormholeQueryClient(
   const crisis = new crisisApi({ baseURL: lcdAddress });
   const distribution = new distributionApi({ baseURL: lcdAddress });
   const evidence = new evidenceApi({ baseURL: lcdAddress });
-  const feegrant = new feegrantApi({ baseURL: lcdAddress });
   const gov = new govApi({ baseURL: lcdAddress });
   const mint = new mintApi({ baseURL: lcdAddress });
   const params = new paramsApi({ baseURL: lcdAddress });
@@ -62,7 +57,6 @@ export function getWormholeQueryClient(
   const staking = new stakingApi({ baseURL: lcdAddress });
   const tx = new txApi({ baseURL: lcdAddress });
   const upgrade = new upgradeApi({ baseURL: lcdAddress });
-  const vesting = new vestingApi({ baseURL: lcdAddress });
   const wasm = new wasmApi({ baseURL: lcdAddress });
 
   return {
@@ -73,7 +67,6 @@ export function getWormholeQueryClient(
     crisis,
     distribution,
     evidence,
-    feegrant,
     gov,
     mint,
     params,
@@ -81,7 +74,6 @@ export function getWormholeQueryClient(
     staking,
     tx,
     upgrade,
-    vesting,
     wasm,
   };
 }

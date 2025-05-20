@@ -1,4 +1,5 @@
 //@ts-nocheck
+//@ts-nocheck
 import { BasicAllowance } from "./types/cosmos/feegrant/v1beta1/feegrant"
 import { PeriodicAllowance } from "./types/cosmos/feegrant/v1beta1/feegrant"
 import { AllowedMsgAllowance } from "./types/cosmos/feegrant/v1beta1/feegrant"

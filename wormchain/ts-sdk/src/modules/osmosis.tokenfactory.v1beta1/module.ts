@@ -8,24 +8,18 @@ import { msgTypes } from './registry';
 import { IgniteClient } from "../client"
 import { MissingWalletError } from "../helpers"
 import { Api } from "./rest";
-import { MsgSetDenomMetadata } from "./types/osmosis/tokenfactory/v1beta1/tx";
 import { MsgCreateDenom } from "./types/osmosis/tokenfactory/v1beta1/tx";
 import { MsgBurn } from "./types/osmosis/tokenfactory/v1beta1/tx";
-import { MsgMint } from "./types/osmosis/tokenfactory/v1beta1/tx";
 import { MsgChangeAdmin } from "./types/osmosis/tokenfactory/v1beta1/tx";
 import { MsgForceTransfer } from "./types/osmosis/tokenfactory/v1beta1/tx";
+import { MsgMint } from "./types/osmosis/tokenfactory/v1beta1/tx";
+import { MsgSetDenomMetadata } from "./types/osmosis/tokenfactory/v1beta1/tx";
 
 import { DenomAuthorityMetadata as typeDenomAuthorityMetadata} from "./types"
 import { GenesisDenom as typeGenesisDenom} from "./types"
 import { Params as typeParams} from "./types"
 
-export { MsgSetDenomMetadata, MsgCreateDenom, MsgBurn, MsgMint, MsgChangeAdmin, MsgForceTransfer };
-
-type sendMsgSetDenomMetadataParams = {
-  value: MsgSetDenomMetadata,
-  fee?: StdFee,
-  memo?: string
-};
+export { MsgCreateDenom, MsgBurn, MsgChangeAdmin, MsgForceTransfer, MsgMint, MsgSetDenomMetadata };
 
 type sendMsgCreateDenomParams = {
   value: MsgCreateDenom,
@@ -35,12 +29,6 @@ type sendMsgCreateDenomParams = {
 
 type sendMsgBurnParams = {
   value: MsgBurn,
-  fee?: StdFee,
-  memo?: string
-};
-
-type sendMsgMintParams = {
-  value: MsgMint,
   fee?: StdFee,
   memo?: string
 };
@@ -57,10 +45,18 @@ type sendMsgForceTransferParams = {
   memo?: string
 };
 
-
-type msgSetDenomMetadataParams = {
-  value: MsgSetDenomMetadata,
+type sendMsgMintParams = {
+  value: MsgMint,
+  fee?: StdFee,
+  memo?: string
 };
+
+type sendMsgSetDenomMetadataParams = {
+  value: MsgSetDenomMetadata,
+  fee?: StdFee,
+  memo?: string
+};
+
 
 type msgCreateDenomParams = {
   value: MsgCreateDenom,
@@ -70,16 +66,20 @@ type msgBurnParams = {
   value: MsgBurn,
 };
 
-type msgMintParams = {
-  value: MsgMint,
-};
-
 type msgChangeAdminParams = {
   value: MsgChangeAdmin,
 };
 
 type msgForceTransferParams = {
   value: MsgForceTransfer,
+};
+
+type msgMintParams = {
+  value: MsgMint,
+};
+
+type msgSetDenomMetadataParams = {
+  value: MsgSetDenomMetadata,
 };
 
 
@@ -112,20 +112,6 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 
   return {
 		
-		async sendMsgSetDenomMetadata({ value, fee, memo }: sendMsgSetDenomMetadataParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgSetDenomMetadata: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgSetDenomMetadata({ value: MsgSetDenomMetadata.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgSetDenomMetadata: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
 		async sendMsgCreateDenom({ value, fee, memo }: sendMsgCreateDenomParams): Promise<DeliverTxResponse> {
 			if (!signer) {
 					throw new Error('TxClient:sendMsgCreateDenom: Unable to sign Tx. Signer is not present.')
@@ -151,20 +137,6 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
 				throw new Error('TxClient:sendMsgBurn: Could not broadcast Tx: '+ e.message)
-			}
-		},
-		
-		async sendMsgMint({ value, fee, memo }: sendMsgMintParams): Promise<DeliverTxResponse> {
-			if (!signer) {
-					throw new Error('TxClient:sendMsgMint: Unable to sign Tx. Signer is not present.')
-			}
-			try {			
-				const { address } = (await signer.getAccounts())[0]; 
-				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
-				let msg = this.msgMint({ value: MsgMint.fromPartial(value) })
-				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
-			} catch (e: any) {
-				throw new Error('TxClient:sendMsgMint: Could not broadcast Tx: '+ e.message)
 			}
 		},
 		
@@ -196,14 +168,34 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		
-		msgSetDenomMetadata({ value }: msgSetDenomMetadataParams): EncodeObject {
-			try {
-				return { typeUrl: "/osmosis.tokenfactory.v1beta1.MsgSetDenomMetadata", value: MsgSetDenomMetadata.fromPartial( value ) }  
+		async sendMsgMint({ value, fee, memo }: sendMsgMintParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgMint: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgMint({ value: MsgMint.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
 			} catch (e: any) {
-				throw new Error('TxClient:MsgSetDenomMetadata: Could not create message: ' + e.message)
+				throw new Error('TxClient:sendMsgMint: Could not broadcast Tx: '+ e.message)
 			}
 		},
+		
+		async sendMsgSetDenomMetadata({ value, fee, memo }: sendMsgSetDenomMetadataParams): Promise<DeliverTxResponse> {
+			if (!signer) {
+					throw new Error('TxClient:sendMsgSetDenomMetadata: Unable to sign Tx. Signer is not present.')
+			}
+			try {			
+				const { address } = (await signer.getAccounts())[0]; 
+				const signingClient = await SigningStargateClient.connectWithSigner(addr,signer,{registry, prefix});
+				let msg = this.msgSetDenomMetadata({ value: MsgSetDenomMetadata.fromPartial(value) })
+				return await signingClient.signAndBroadcast(address, [msg], fee ? fee : defaultFee, memo)
+			} catch (e: any) {
+				throw new Error('TxClient:sendMsgSetDenomMetadata: Could not broadcast Tx: '+ e.message)
+			}
+		},
+		
 		
 		msgCreateDenom({ value }: msgCreateDenomParams): EncodeObject {
 			try {
@@ -221,14 +213,6 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 			}
 		},
 		
-		msgMint({ value }: msgMintParams): EncodeObject {
-			try {
-				return { typeUrl: "/osmosis.tokenfactory.v1beta1.MsgMint", value: MsgMint.fromPartial( value ) }  
-			} catch (e: any) {
-				throw new Error('TxClient:MsgMint: Could not create message: ' + e.message)
-			}
-		},
-		
 		msgChangeAdmin({ value }: msgChangeAdminParams): EncodeObject {
 			try {
 				return { typeUrl: "/osmosis.tokenfactory.v1beta1.MsgChangeAdmin", value: MsgChangeAdmin.fromPartial( value ) }  
@@ -242,6 +226,22 @@ export const txClient = ({ signer, prefix, addr }: TxClientOptions = { addr: "ht
 				return { typeUrl: "/osmosis.tokenfactory.v1beta1.MsgForceTransfer", value: MsgForceTransfer.fromPartial( value ) }  
 			} catch (e: any) {
 				throw new Error('TxClient:MsgForceTransfer: Could not create message: ' + e.message)
+			}
+		},
+		
+		msgMint({ value }: msgMintParams): EncodeObject {
+			try {
+				return { typeUrl: "/osmosis.tokenfactory.v1beta1.MsgMint", value: MsgMint.fromPartial( value ) }  
+			} catch (e: any) {
+				throw new Error('TxClient:MsgMint: Could not create message: ' + e.message)
+			}
+		},
+		
+		msgSetDenomMetadata({ value }: msgSetDenomMetadataParams): EncodeObject {
+			try {
+				return { typeUrl: "/osmosis.tokenfactory.v1beta1.MsgSetDenomMetadata", value: MsgSetDenomMetadata.fromPartial( value ) }  
+			} catch (e: any) {
+				throw new Error('TxClient:MsgSetDenomMetadata: Could not create message: ' + e.message)
 			}
 		},
 		
