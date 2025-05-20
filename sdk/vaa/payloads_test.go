@@ -459,7 +459,7 @@ func TestBodyRecoverChainIdModuleTooLong(t *testing.T) {
 func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650300040004000000000000007b"
 	bodyCoreBridgeSetMessageFee := BodyCoreBridgeSetMessageFee{
-		ChainID:   4,
+		ChainID:    4,
 		MessageFee: uint64(123),
 	}
 	buf, err := bodyCoreBridgeSetMessageFee.Serialize()
