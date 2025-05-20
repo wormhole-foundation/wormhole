@@ -39,7 +39,7 @@ The Guardian picks up the messages approved from the integrity-checkers on Wormc
 
 ## Terminology
 
-* `Pre-Observation` - used to designate an observation being submitted to the integrity checker contract by a Wormhole Guardian. They are similar to observations, i.e. a Wormhole message signed by a single guardian, but can be distinguished by their prefix and signature format. They follow the same signature format as signed gossip messages described in [guardian key usage](0009_guardian_key.md) with a unique signature prefix.  Signed pre-observations therefore cannot be used like signed observations to create a VAA.
+* `Pre-Observation` - used to designate an observation being submitted to the integrity checker contract by a Wormhole Guardian. They are similar to observations, i.e. a Wormhole message signed by a single guardian, but can be distinguished by their prefix and signature format. They follow the same signature format as signed gossip messages described in [guardian signer usage](0009_guardian_signer.md) with a unique signature prefix.  Signed pre-observations therefore cannot be used like signed observations to create a VAA.
 * `Batching` - pre-observations accumulate over a configurable time period and are batch submitted to Wormchain. This both saves on gas costs and results in less computational overhead.
 * `Persistence` - the Guardian persists the status of pre-observations to the local database.
 * `Retry` - the Guardian periodically watches the Wormchain state and ensures that all local pre-observations have been submitted correctly. In case of an error, it retries the submission.

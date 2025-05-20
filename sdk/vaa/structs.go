@@ -862,7 +862,7 @@ func DeprecatedSigningDigest(bz []byte) common.Hash {
 func MessageSigningDigest(prefix []byte, data []byte) (common.Hash, error) {
 	if len(prefix) < 32 {
 		// Prefixes must be at least 32 bytes
-		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_key.md
+		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_signer.md
 		return common.Hash([32]byte{}), errors.New("prefix must be at least 32 bytes")
 	}
 	return crypto.Keccak256Hash(prefix[:], data), nil
