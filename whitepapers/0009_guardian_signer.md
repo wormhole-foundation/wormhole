@@ -2,19 +2,19 @@
 
 ## Objective
 
-Sign payloads within the Wormhole ecosystem for the purpose of attestation and guardian identification.
+Sign payloads within the Wormhole ecosystem for the purpose of attestation and Guardian identification.
 
 ## Background
 
-In order for guardians to attest to on-chain events or prove their identities when communicating among each other, digital signatures are required. On-chain smart contracts and guardians hold registries of public keys of trusted guardian nodes that are permitted to perform certain actions within the guardian ecosystem. Without this system, it would not be possible to distinguish legitimate behavior from malicious.
+In order for Guardians to attest to on-chain events or prove their identities when communicating among each other, digital signatures are required. On-chain smart contracts and Guardians hold registries of public keys of trusted Guardian nodes that are permitted to perform certain actions within the Guardian network. Without this system, it would not be possible to distinguish legitimate behavior from malicious.
 
-The guardian signer is responsible for signing payloads, and can be configured to do so using different [signing technologies](../docs/guardian_signer.md).
+The Guardian signer is responsible for signing payloads, and can be configured to do so using different [signing technologies](../docs/guardian_signer.md).
 
 ## Overview
 
-The guardian signer is used to sign numerous messages within the Wormhole ecosystem:
+The Guardian signer is used to sign numerous messages within the Wormhole ecosystem:
 
-* Gossip Messages - Messages that are sent between guardians, such as heartbeats, governor configs, governor status updates and observation requests.
+* Gossip Messages - Messages that are sent between Guardians, such as heartbeats, governor configs, governor status updates and observation requests.
 * On-Chain Observations - Events that occur on-chain that need to be attested to and delivered to different chains, bundled in VAAs (Version 1).
 * Guardian Identification - Wormchain account registration.
 * Accountant Observations - Sign observations relevant to token bridge and NTT. 
