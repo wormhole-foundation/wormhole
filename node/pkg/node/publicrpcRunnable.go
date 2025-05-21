@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) supervisor.Runnable {
+func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) supervisor.Runnable {
 	return func(ctx context.Context) error {
 		l, err := net.Listen("tcp", listenAddr)
 
@@ -27,6 +27,7 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRp
 		logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
 		rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
+		//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
 		grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
 
 		publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
@@ -40,7 +41,7 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRp
 	}
 }
 
-func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, *grpc.Server, error) {
+func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, *grpc.Server, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {

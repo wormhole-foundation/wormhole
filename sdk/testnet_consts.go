@@ -1,6 +1,8 @@
 package sdk
 
-import "github.com/wormhole-foundation/wormhole/sdk/vaa"
+import (
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
 
 // KnownTestnetEmitters is a list of known emitters on the various L1 testnets.
 var KnownTestnetEmitters = buildKnownEmitters(knownTestnetTokenbridgeEmitters, knownTestnetNFTBridgeEmitters)
@@ -47,6 +49,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDInk:             "000000000000000000000000376428e7f26D5867e69201b275553C45B09EE090",
 	vaa.ChainIDHyperEVM:        "0000000000000000000000004a8bc80Ed5a4067f1CCf107057b8270E0cC11A78",
 	vaa.ChainIDMonad:           "000000000000000000000000F323dcDe4d33efe83cf455F78F9F6cc656e6B659",
+	vaa.ChainIDMezo:            "000000000000000000000000A31aa3FDb7aF7Db93d18DDA4e19F811342EDF780",
 	vaa.ChainIDSepolia:         "000000000000000000000000DB5492265f6038831E89f495670FF909aDe94bd9",
 	vaa.ChainIDHolesky:         "00000000000000000000000076d093BbaE4529a342080546cAFEec4AcbA59EC6",
 	vaa.ChainIDArbitrumSepolia: "000000000000000000000000C7A204bDBFe983FCD8d8E61D02b475D4073fF97e",
@@ -101,4 +104,12 @@ var KnownTestnetAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDArbitrumSepolia, Addr: "0000000000000000000000007B1bD7a6b4E61c2a123AC6BC2cbfC614437D0470"},
 	{ChainId: vaa.ChainIDOptimismSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
 	{ChainId: vaa.ChainIDBaseSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
+}
+
+// KnownTestnetWrappedNativeAddresses is a list of addresses for deployments of wrapped native asssets (e.g. WETH) on various testnets.
+var KnownTestnetWrappedNativeAddresses = map[vaa.ChainID]string{
+	// WETH
+	vaa.ChainIDSepolia: "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
+	// WETH
+	vaa.ChainIDHolesky: "0xc8f93d9738e7Ad5f3aF8c548DB2f6B7F8082B5e8",
 }

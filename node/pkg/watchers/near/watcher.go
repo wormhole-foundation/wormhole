@@ -12,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/mr-tron/base58"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -149,6 +150,11 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
 
+			if highestFinalBlockHeightObserved > math.MaxInt64 {
+				logger.Error("failed to start NEAR block poll", zap.String("error_type", "startup_fail"), zap.String("log_msg_type", "startup_error"))
+				return fmt.Errorf("the latest finalised NEAR block heigh is not a valid int64: %d", highestFinalBlockHeightObserved)
+			}
+
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
 				Height:          int64(highestFinalBlockHeightObserved),
 				ContractAddress: e.wormholeAccount,
@@ -194,7 +200,10 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != vaa.ChainIDNear {
 				panic("invalid chain ID")
 			}
 

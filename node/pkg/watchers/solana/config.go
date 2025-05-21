@@ -46,7 +46,7 @@ func (wc *WatcherConfig) Create(
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
-	env common.Environment,
+	_ common.Environment,
 ) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 	solAddress, err := solana_types.PublicKeyFromBase58(wc.Contract)
 	if err != nil {
@@ -65,7 +65,7 @@ func (wc *WatcherConfig) Create(
 		obsvReqC = nil
 	}
 
-	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr)
+	watcher := NewSolanaWatcher(wc.Rpc, wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr)
 
 	var reobserver interfaces.Reobserver
 	if wc.Commitment == solana_rpc.CommitmentFinalized {

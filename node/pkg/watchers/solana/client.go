@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/gagliardetto/solana-go"
 	lookup "github.com/gagliardetto/solana-go/programs/address-lookup-table"
@@ -42,7 +44,7 @@ type (
 		contract    solana.PublicKey
 		rawContract string
 		rpcUrl      string
-		wsUrl       *string
+		wsUrl       string
 		commitment  rpc.CommitmentType
 		msgC        chan<- *common.MessagePublication
 		obsvReqC    <-chan *gossipv1.ObservationRequest
@@ -142,6 +144,12 @@ const (
 
 	// SolanaSignatureLen is the expected length of a signature. As of v1.12.0, solana-go does not have a const for this.
 	SolanaSignatureLen = 64
+
+	// DefaultPollDelay is the polling interval used for any chains that don't have an override.
+	DefaultPollDelay = time.Second * 1
+
+	// FogoPollDelay is the polling interval for Fogo. It has a very short block time so we want to poll more frequently.
+	FogoPollDelay = time.Millisecond * 200
 )
 
 var (
@@ -231,7 +239,7 @@ type PostMessageData struct {
 
 func NewSolanaWatcher(
 	rpcUrl string,
-	wsUrl *string,
+	wsUrl string,
 	contractAddress solana.PublicKey,
 	rawContract string,
 	msgC chan<- *common.MessagePublication,
@@ -269,15 +277,13 @@ func NewSolanaWatcher(
 	}
 }
 
-func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocket.Conn) {
-	logger := supervisor.Logger(ctx)
+func (s *SolanaWatcher) setupSubscription(ctx context.Context, logger *zap.Logger) (*websocket.Conn, error) {
+	logger.Info(fmt.Sprintf("%s watcher connecting to WS node ", s.chainID.String()), zap.String("url", s.wsUrl))
 
-	logger.Info("Solana watcher connecting to WS node ", zap.String("url", *s.wsUrl))
-
-	ws, _, err := websocket.Dial(ctx, *s.wsUrl, nil)
+	ws, _, err := websocket.Dial(ctx, s.wsUrl, nil)
 
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	s.subId = uuid.New().String()
@@ -290,20 +296,20 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 	logger.Info("Subscribing using", zap.String("filter", p))
 
 	if err := ws.Write(ctx, websocket.MessageText, []byte(p)); err != nil {
-		logger.Error(fmt.Sprintf("write: %s", err.Error()))
-		return err, nil
+		logger.Error("failed to send account web socket subscription", zap.Error(err))
+		return nil, err
 	}
-	return nil, ws
+	return ws, nil
 }
 
-func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
+func (s *SolanaWatcher) setupWebSocket(ctx context.Context) error {
 	if s.chainID != vaa.ChainIDPythNet {
 		panic("unsupported chain id")
 	}
 
 	logger := supervisor.Logger(ctx)
 
-	err, ws := s.SetupSubscription(ctx)
+	ws, err := s.setupSubscription(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -317,7 +323,7 @@ func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
 				return nil
 			default:
 				if msg, err := s.readWebSocketWithTimeout(ctx, ws); err != nil {
-					logger.Error(fmt.Sprintf("ReadMessage: '%s'", err.Error()))
+					logger.Error("failed to read from account web socket", zap.Error(err))
 					return err
 				} else {
 					s.pumpData <- msg
@@ -343,10 +349,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		ContractAddress: contractAddr,
 	})
 
+	s.ctx = ctx
+
 	// Don't overwrite these fields if they are already set. They will always be set on a watcher restart and don't need to be reinitialized.
-	if s.ctx == nil {
-		s.ctx = ctx
-	}
 	var logger *zap.Logger
 	if s.logger == nil {
 		logger = supervisor.Logger(ctx)
@@ -358,21 +363,20 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		s.ccqLogger = s.logger.With(zap.String("component", "ccqsol"))
 	}
 
-	wsUrl := ""
-	if s.wsUrl != nil {
-		wsUrl = *s.wsUrl
+	pollInterval := DefaultPollDelay
+	if s.chainID == vaa.ChainIDFogo {
+		pollInterval = FogoPollDelay
 	}
 
 	logger.Info("Starting watcher",
-		zap.String("watcher_name", "solana"),
+		zap.String("watcher_name", s.chainID.String()),
 		zap.String("rpcUrl", s.rpcUrl),
-		zap.String("wsUrl", wsUrl),
+		zap.String("wsUrl", s.wsUrl),
 		zap.String("contract", contractAddr),
 		zap.String("rawContract", s.rawContract),
 		zap.String("shimContract", s.shimContractStr),
+		zap.Duration("pollInterval", pollInterval),
 	)
-
-	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
 
 	s.shimSetup()
 
@@ -380,16 +384,16 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	s.pumpData = make(chan []byte)
 
 	useWs := false
-	if s.wsUrl != nil && *s.wsUrl != "" {
+	if s.wsUrl != "" {
 		useWs = true
-		err := s.SetupWebSocket(ctx)
+		err := s.setupWebSocket(ctx)
 		if err != nil {
 			return err
 		}
 	}
 
 	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
-		timer := time.NewTicker(time.Second * 1)
+		timer := time.NewTicker(pollInterval)
 		defer timer.Stop()
 
 		for {
@@ -405,17 +409,26 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					return err
 				}
 			case m := <-s.obsvReqC:
+				if m.ChainId > math.MaxUint16 {
+					logger.Error("chain id for observation request is not a valid uint16",
+						zap.Uint32("chainID", m.ChainId),
+						zap.String("txID", hex.EncodeToString(m.TxHash)),
+					)
+					continue
+				}
+
+				//nolint:contextcheck // Passed via the 's' object instead of as a parameter.
 				numObservations, err := s.handleReobservationRequest(vaa.ChainID(m.ChainId), m.TxHash, s.rpcClient)
 				if err != nil {
 					logger.Error("failed to process observation request",
 						zap.Uint32("chainID", m.ChainId),
-						zap.String("txID", hex.EncodeToString(m.TxHash)),
+						zap.String("identifier", base58.Encode(m.TxHash)),
 						zap.Error(err),
 					)
 				} else {
 					logger.Info("reobserved transactions",
 						zap.Uint32("chainID", m.ChainId),
-						zap.String("txID", hex.EncodeToString(m.TxHash)),
+						zap.String("identifier", base58.Encode(m.TxHash)),
 						zap.Uint32("numObservations", numObservations),
 					)
 				}
@@ -440,7 +453,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
 				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
-					Height:          int64(slot),
+					Height:          int64(slot), // #nosec G115 -- This conversion is safe indefinitely
 					ContractAddress: contractAddr,
 				})
 
@@ -450,7 +463,6 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 					if logger.Level().Enabled(zapcore.DebugLevel) {
 						logger.Debug("fetched current Solana height",
-							zap.String("commitment", string(s.commitment)),
 							zap.Uint64("slot", slot),
 							zap.Uint64("lastSlot", lastSlot),
 							zap.Uint64("pendingSlots", slot-lastSlot),
@@ -465,6 +477,10 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							s.retryFetchBlock(ctx, logger, _slot, 0, false)
 							return nil
 						})
+					}
+				} else {
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("fetched current Solana height", zap.Uint64("slot", slot))
 					}
 				}
 
@@ -492,7 +508,6 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 		if retry >= maxRetries {
 			logger.Error("max retries for block",
 				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)),
 				zap.Uint("retry", retry))
 			return
 		}
@@ -502,7 +517,6 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 		if logger.Level().Enabled(zapcore.DebugLevel) {
 			logger.Debug("retrying block",
 				zap.Uint64("slot", slot),
-				zap.String("commitment", string(s.commitment)),
 				zap.Uint("retry", retry))
 		}
 
@@ -517,7 +531,6 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	if logger.Level().Enabled(zapcore.DebugLevel) {
 		logger.Debug("requesting block",
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
 			zap.Uint("empty_retry", emptyRetry))
 	}
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
@@ -541,7 +554,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			if logger.Level().Enabled(zapcore.DebugLevel) {
 				logger.Debug("empty slot", zap.Uint64("slot", slot),
 					zap.Int("code", rpcErr.Code),
-					zap.String("commitment", string(s.commitment)))
+				)
 			}
 
 			// TODO(leo): clean this up once we know what's happening
@@ -564,8 +577,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			return true
 		} else {
 			if logger.Level().Enabled(zapcore.DebugLevel) {
-				logger.Debug("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)))
+				logger.Debug("failed to request block", zap.Error(err), zap.Uint64("slot", slot))
 			}
 			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
@@ -584,7 +596,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			zap.Uint64("slot", slot),
 			zap.Int("num_tx", len(out.Transactions)),
 			zap.Duration("took", time.Since(start)),
-			zap.String("commitment", string(s.commitment)))
+		)
 	}
 
 	s.updateLatestBlock(slot)
@@ -601,14 +613,9 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			continue
 		}
 
-		// If the logs don't contain the contract address, skip the transaction.
-		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]",
-		// Assumption: Transactions for the shim contract also contain the core contract address so this check is still valid.
-		var possiblyWormhole bool
-		for i := 0; i < len(txRpc.Meta.LogMessages) && !possiblyWormhole; i++ {
-			possiblyWormhole = strings.HasPrefix(txRpc.Meta.LogMessages[i], s.whLogPrefix)
-		}
-		if !possiblyWormhole {
+		// If the logs don't contain the contract address followed by a sequence number, skip the transaction.
+		// ex: "Program 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5 invoke [2]", "Program log: Sequence: 937184".
+		if !isPossibleWormholeMessage(s.whLogPrefix, txRpc.Meta.LogMessages) {
 			continue
 		}
 
@@ -630,7 +637,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		logger.Debug("skipped or unavailable block retrieved on retry attempt",
 			zap.Uint("empty_retry", emptyRetry),
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)))
+		)
 	}
 
 	return true
@@ -654,10 +661,10 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	var shimFound bool
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
-			programIndex = uint16(n)
+			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 		if s.shimEnabled && key.Equals(s.shimContractAddr) {
-			shimProgramIndex = uint16(n)
+			shimProgramIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 			shimFound = true
 		}
 	}
@@ -669,7 +676,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 		s.logger.Debug("found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)))
+		)
 	}
 
 	alreadyProcessed := ShimAlreadyProcessed{}
@@ -684,7 +691,6 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 					zap.Int("idx", i),
 					zap.Stringer("signature", signature),
 					zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)),
 					zap.Binary("data", inst.Data))
 			} else if found {
 				numObservations++
@@ -693,7 +699,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
-						zap.String("commitment", string(s.commitment)))
+					)
 				}
 			}
 		} else {
@@ -704,7 +710,6 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 					zap.Int("idx", i),
 					zap.Stringer("signature", signature),
 					zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)),
 					zap.Binary("data", inst.Data))
 			} else if found {
 				numObservations++
@@ -713,7 +718,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
-						zap.String("commitment", string(s.commitment)))
+					)
 				}
 			}
 		}
@@ -731,7 +736,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 							zap.Int("innerIdx", innerIdx),
 							zap.Stringer("signature", signature),
 							zap.Uint64("slot", slot),
-							zap.String("commitment", string(s.commitment)))
+						)
 					} else if found {
 						numObservations++
 						if s.logger.Level().Enabled(zapcore.DebugLevel) {
@@ -740,7 +745,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 								zap.Int("innerIdx", innerIdx),
 								zap.Stringer("signature", signature),
 								zap.Uint64("slot", slot),
-								zap.String("commitment", string(s.commitment)))
+							)
 						}
 					}
 				} else {
@@ -752,7 +757,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 							zap.Int("innerIdx", innerIdx),
 							zap.Stringer("signature", signature),
 							zap.Uint64("slot", slot),
-							zap.String("commitment", string(s.commitment)))
+						)
 					} else if found {
 						numObservations++
 						if s.logger.Level().Enabled(zapcore.DebugLevel) {
@@ -761,7 +766,7 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 								zap.Int("innerIdx", innerIdx),
 								zap.Stringer("signature", signature),
 								zap.Uint64("slot", slot),
-								zap.String("commitment", string(s.commitment)))
+							)
 						}
 					}
 				}
@@ -814,7 +819,7 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, rpcClient *rpc.C
 				zap.String("watcher commitment", string(s.commitment)),
 			)
 		}
-		return true, nil
+		return false, nil
 	}
 
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
@@ -841,7 +846,6 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient 
 			s.logger.Error("max retries for account",
 				zap.Uint64("slot", slot),
 				zap.Stringer("account", acc),
-				zap.String("commitment", string(s.commitment)),
 				zap.Uint("retry", retry))
 			return
 		}
@@ -851,7 +855,6 @@ func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, rpcClient 
 		s.logger.Info("retrying account",
 			zap.Uint64("slot", slot),
 			zap.Stringer("account", acc),
-			zap.String("commitment", string(s.commitment)),
 			zap.Uint("retry", retry))
 
 		common.RunWithScissors(ctx, s.errC, "retryFetchMessageAccount", func(ctx context.Context) error {
@@ -874,10 +877,9 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_account_info_error").Inc()
-		s.logger.Error("failed to request account",
+		s.logger.Warn("failed to request account",
 			zap.Error(err),
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc))
 		return 0, true
 	}
@@ -887,7 +889,6 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_owner_mismatch").Inc()
 		s.logger.Error("account has invalid owner",
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc),
 			zap.Stringer("unexpected_owner", info.Value.Owner))
 		return 0, false
@@ -899,7 +900,6 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "bad_account_data").Inc()
 		s.logger.Error("account is not a message account",
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc))
 		return 0, false
 	}
@@ -907,7 +907,6 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 	if s.logger.Level().Enabled(zapcore.DebugLevel) {
 		s.logger.Debug("found valid VAA account",
 			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
 			zap.Stringer("account", acc),
 			zap.Binary("data", data))
 	}
@@ -920,7 +919,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	var e EventSubscriptionError
 	err := json.Unmarshal(data, &e)
 	if err != nil {
-		logger.Error(*s.wsUrl, zap.Error(err))
+		logger.Error("failed to unmarshal account subscription error report", zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
@@ -932,7 +931,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	var res EventSubscriptionData
 	err = json.Unmarshal(data, &res)
 	if err != nil {
-		logger.Error(*s.wsUrl, zap.Error(err))
+		logger.Error("failed to unmarshal account subscription data", zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
@@ -946,12 +945,12 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	if value.Account.Owner != s.rawContract {
 		// We got a message for the wrong contract on the websocket... uncomfortable...
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "invalid_websocket_account").Inc()
-		return errors.New("Update for account with wrong owner")
+		return errors.New("update for account with wrong owner")
 	}
 
 	data, err = base64.StdEncoding.DecodeString(value.Account.Data[0])
 	if err != nil {
-		logger.Error(*s.wsUrl, zap.Error(err))
+		logger.Error("failed to decode account", zap.Any("account", string(value.Account.Data[0])), zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
@@ -1063,6 +1062,9 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	}
 
 	solanaMessagesConfirmed.WithLabelValues(s.networkName).Inc()
+	if isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(s.chainID.String(), "std").Inc()
+	}
 
 	if logger.Level().Enabled(s.msgObservedLogLevel) {
 		logger.Log(s.msgObservedLogLevel, "message observed",
@@ -1158,4 +1160,21 @@ func (s *SolanaWatcher) checkCommitment(commitment rpc.CommitmentType, isReobser
 		}
 	}
 	return true
+}
+
+// isPossibleWormholeMessage searches the logs on a transaction to see if it contains a Wormhole core PostMessage.
+// It looks for a log for the core contract, followed by one for the sequence number.
+func isPossibleWormholeMessage(whLogPrefix string, logMessages []string) bool {
+	for idx := 0; idx < len(logMessages); idx++ {
+		if strings.HasPrefix(logMessages[idx], whLogPrefix) {
+			for idx1 := idx + 1; idx1 < len(logMessages); idx1++ {
+				if strings.HasPrefix(logMessages[idx1], "Program log: Sequence:") {
+					return true
+				}
+			}
+			// There are no sequence logs anywhere below this, so we can quit looking.
+			return false
+		}
+	}
+	return false
 }

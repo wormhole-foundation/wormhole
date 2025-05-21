@@ -226,6 +226,8 @@ func main() {
 							log.Fatalf("verify: %v", err)
 						}
 
+						defer resp.Body.Close()
+
 						if resp.StatusCode != http.StatusOK {
 							log.Printf("status %d, retrying", resp.StatusCode)
 							time.Sleep(5 * time.Second)
@@ -262,7 +264,7 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 				log.Printf("failed to parse seq %s: %v", seq, err)
 				continue
 			}
-			return out, uint64(seqInt), nil
+			return out, uint64(seqInt), nil // #nosec G115 -- The sequence number cannot exceed a uint64
 		}
 	}
 	return nil, 0, nil
@@ -285,7 +287,7 @@ func process(out *rpc.GetTransactionResult) (*solana.PublicKey, error) {
 	var programIndex uint16
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(program) {
-			programIndex = uint16(n)
+			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
 		}
 	}
 	if programIndex == 0 {

@@ -53,7 +53,7 @@ func (s *statusServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
 }
 
-func RunPrometheusScraper(ctx context.Context, logger *zap.Logger, info promremotew.PromTelemetryInfo) error {
+func RunPrometheusScraper(ctx context.Context, logger *zap.Logger, info promremotew.PromTelemetryInfo) {
 	promLogger := logger.With(zap.String("component", "prometheus_scraper"))
 	errC := make(chan error)
 	common.StartRunnable(ctx, errC, false, "prometheus_scraper", func(ctx context.Context) error {
@@ -71,5 +71,4 @@ func RunPrometheusScraper(ctx context.Context, logger *zap.Logger, info promremo
 			}
 		}
 	})
-	return nil
 }

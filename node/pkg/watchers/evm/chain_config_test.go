@@ -1,13 +1,16 @@
 package evm
 
 import (
-	"fmt"
+	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
 )
 
 func TestSupportedInMainnet(t *testing.T) {
@@ -84,104 +87,66 @@ func TestGetFinality(t *testing.T) {
 	}
 }
 
-// TODO: Once this code is merged and verified to be stable, this test can be deleted.
-func TestFinalityValuesForMainnet(t *testing.T) {
-	testFinalityValuesForEnvironment(t, common.MainNet)
+func TestMainnetContractAddresses(t *testing.T) {
+	verifyContractAddresses(t, mainnetChainConfig)
+	verifyContractAddresses(t, testnetChainConfig)
 }
 
-// TODO: Once this code is merged and verified to be stable, this test can be deleted.
-func TestFinalityValuesForTestnet(t *testing.T) {
-	testFinalityValuesForEnvironment(t, common.TestNet)
-}
-
-// TODO: Once this code is merged and verified to be stable, this function can be deleted.
-func testFinalityValuesForEnvironment(t *testing.T, env common.Environment) {
+func verifyContractAddresses(t *testing.T, m EnvMap) {
 	t.Helper()
-	m, err := GetChainConfigMap(env)
-	require.NoError(t, err)
+	zeroAddr := ethCommon.HexToAddress("0x0")
+	for chainId, entry := range m {
+		t.Run(chainId.String(), func(t *testing.T) {
+			// It must be set.
+			require.NotEqual(t, "", entry.ContractAddr)
 
-	for chainID, entry := range m {
-		t.Run(chainID.String(), func(t *testing.T) {
-			instantFinality, finalized, safe, err := getFinalityForTest(env, chainID)
+			// Since `ethCommon.HexToAddress` never fails, make sure a regular hex conversion works.
+			_, err := hex.DecodeString(strings.TrimPrefix(entry.ContractAddr, "0x"))
 			require.NoError(t, err)
-			require.Equal(t, instantFinality, entry.InstantFinality)
-			// For instant finality, the values for finalized and safe are for documentation only, so we can't audit them.
-			if !instantFinality {
-				assert.Equal(t, finalized, entry.Finalized)
-				assert.Equal(t, safe, entry.Safe)
-			}
+
+			// Don't allow it to be empty / the zero address.
+			require.NotEqual(t, zeroAddr, ethCommon.HexToAddress(entry.ContractAddr))
 		})
 	}
 }
 
-// getFinalityForTest was lifted from the old `getFinality` watcher function so we could validate our config data.
-// TODO: Once this code is merged and verified to be stable, this function can be deleted so we don't have to maintain it.
-func getFinalityForTest(env common.Environment, chainID vaa.ChainID) (instantFinality bool, finalized bool, safe bool, err error) {
-	// Tilt supports polling for both finalized and safe.
-	if env == common.UnsafeDevNet {
-		finalized = true
-		safe = true
-
-		// The following chains support polling for both finalized and safe.
-	} else if chainID == vaa.ChainIDAcala ||
-		chainID == vaa.ChainIDArbitrum ||
-		chainID == vaa.ChainIDArbitrumSepolia ||
-		chainID == vaa.ChainIDBase ||
-		chainID == vaa.ChainIDBaseSepolia ||
-		chainID == vaa.ChainIDBerachain || // Berachain really isn't instant finality, despite what this doc says: https://docs.berachain.com/faq/
-		chainID == vaa.ChainIDBlast ||
-		chainID == vaa.ChainIDBSC ||
-		chainID == vaa.ChainIDEthereum ||
-		chainID == vaa.ChainIDHolesky ||
-		chainID == vaa.ChainIDHyperEVM ||
-		chainID == vaa.ChainIDInk ||
-		chainID == vaa.ChainIDKarura ||
-		chainID == vaa.ChainIDMantle ||
-		chainID == vaa.ChainIDMonad ||
-		chainID == vaa.ChainIDMoonbeam ||
-		chainID == vaa.ChainIDOptimism ||
-		chainID == vaa.ChainIDOptimismSepolia ||
-		chainID == vaa.ChainIDSeiEVM ||
-		chainID == vaa.ChainIDSepolia ||
-		chainID == vaa.ChainIDSnaxchain ||
-		chainID == vaa.ChainIDUnichain ||
-		chainID == vaa.ChainIDWorldchain ||
-		chainID == vaa.ChainIDXLayer {
-		finalized = true
-		safe = true
-
-	} else if chainID == vaa.ChainIDCelo {
-		// TODO: Celo testnet now supports finalized and safe. As of January 2025, mainnet doesn't yet support safe. Once Celo mainnet cuts over, Celo can
-		// be added to the list above. That change won't be super urgent since we'll just continue to publish safe as finalized, which is not a huge deal.
-		finalized = true
-		safe = env != common.MainNet
-
-		// Polygon now supports polling for finalized but not safe.
-		// https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
-	} else if chainID == vaa.ChainIDPolygon ||
-		chainID == vaa.ChainIDPolygonSepolia {
-		finalized = true
-
-		// As of 11/10/2023 Scroll supports polling for finalized but not safe.
-	} else if chainID == vaa.ChainIDScroll {
-		finalized = true
-
-		// As of 9/06/2024 Linea supports polling for finalized but not safe.
-	} else if chainID == vaa.ChainIDLinea {
-		finalized = true
-
-		// The following chains support instant finality.
-	} else if chainID == vaa.ChainIDAvalanche ||
-		chainID == vaa.ChainIDOasis ||
-		chainID == vaa.ChainIDAurora ||
-		chainID == vaa.ChainIDFantom ||
-		chainID == vaa.ChainIDKlaytn {
-		return true, false, false, nil
-
-		// Anything else is undefined / not supported.
-	} else {
-		return false, false, false, fmt.Errorf("unsupported chain: %s", chainID.String())
+func TestGetContractAddr(t *testing.T) {
+	type test struct {
+		env    common.Environment
+		input  vaa.ChainID
+		output string
+		err    error
 	}
 
-	return
+	// Note: Don't intend to list every chain here, just enough to verify `GetContractAddrString`.
+	tests := []test{
+		{env: common.MainNet, input: vaa.ChainIDUnset, err: ErrNotFound},
+		{env: common.MainNet, input: vaa.ChainIDSepolia, err: ErrNotFound},
+		{env: common.MainNet, input: vaa.ChainIDEthereum, output: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"},
+		{env: common.MainNet, input: vaa.ChainIDBSC, output: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"},
+		{env: common.TestNet, input: vaa.ChainIDUnset, err: ErrNotFound},
+		{env: common.TestNet, input: vaa.ChainIDSepolia, output: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
+		{env: common.TestNet, input: vaa.ChainIDEthereum, output: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
+		{env: common.GoTest, input: vaa.ChainIDEthereum, err: ErrInvalidEnv},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.env)+"-"+tc.input.String(), func(t *testing.T) {
+			str, err := GetContractAddrString(tc.env, tc.input)
+			if tc.err != nil {
+				require.ErrorIs(t, tc.err, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.output, str)
+			}
+
+			addr, err := GetContractAddr(tc.env, tc.input)
+			if tc.err != nil {
+				assert.ErrorIs(t, tc.err, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, ethCommon.HexToAddress(tc.output), addr)
+			}
+		})
+	}
 }

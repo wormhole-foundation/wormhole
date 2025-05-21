@@ -6,6 +6,7 @@ algod
 Algorand
 algosdk
 alist
+amazonkms
 Aptos
 arbitrum
 authorisation
@@ -52,12 +53,15 @@ ethcrypto
 ethersproject
 ETHRPC
 evmos
+fogo
+Fogo
 forgeable
 FQTs
 frontends
 funder
 gogoproto
 goimports
+golangci
 gossipv
 guardiand
 GUARDIAND
@@ -71,6 +75,7 @@ holesky
 Holesky
 horcrux
 ICCO
+idls
 incentivized
 incentivizing
 initialisation
@@ -102,10 +107,13 @@ lamports
 lastrun
 libp
 Linea
+localnet
 localterra
 lockfiles
 merkle
 Metaplex
+mezo
+Mezo
 mindshare
 mlock
 moby
@@ -152,6 +160,7 @@ repoint
 rustup
 satoshi
 secp
+SECQ
 seda
 seievm
 Sepolia

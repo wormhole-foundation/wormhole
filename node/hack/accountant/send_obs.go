@@ -51,7 +51,7 @@ func main() {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
 
-	sequence := uint64(time.Now().Unix())
+	sequence := uint64(time.Now().Unix()) // #nosec G115 -- This is safe indefinitely
 	timestamp := time.Now()
 
 	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Submit should succeed") {
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// Don't increment the sequence number here.
-	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Already commited should succeed") {
+	if !testSubmit(ctx, logger, guardianSigner, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Already committed should succeed") {
 		return
 	}
 

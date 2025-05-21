@@ -260,7 +260,7 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, MSG_VERSION)        // version
 	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries))) // #nosec G115 -- `PerChainQueries` length checked in `Validate`
 	for _, perChainQuery := range queryRequest.PerChainQueries {
 		pcqBuf, err := perChainQuery.Marshal()
 		if err != nil {
@@ -375,7 +375,7 @@ func (perChainQuery *PerChainQueryRequest) Marshal() ([]byte, error) {
 	if len(queryBuf) > math.MaxUint32 {
 		return nil, fmt.Errorf("query too long")
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf))) // #nosec G115 -- This conversion is safe as it is checked above
 
 	buf.Write(queryBuf)
 	return buf.Bytes(), nil
@@ -552,13 +552,13 @@ func (ecd *EthCallQueryRequest) Marshal() ([]byte, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.BlockId))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData))) // #nosec G115 -- This is validated in `Validate`
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(callData.Data)
 	}
 	return buf.Bytes(), nil
@@ -635,9 +635,11 @@ func (ecd *EthCallQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -684,16 +686,16 @@ func (ecd *EthCallByTimestampQueryRequest) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	vaa.MustWrite(buf, binary.BigEndian, ecd.TargetTimestamp)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.TargetBlockIdHint)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.TargetBlockIdHint))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.TargetBlockIdHint))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.FollowingBlockIdHint)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.FollowingBlockIdHint))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.FollowingBlockIdHint))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData))) // #nosec G115 -- This is validated in `Validate`
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(callData.Data)
 	}
 	return buf.Bytes(), nil
@@ -797,9 +799,11 @@ func (ecd *EthCallByTimestampQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -850,16 +854,16 @@ func (ecd *EthCallWithFinalityQueryRequest) Marshal() ([]byte, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.BlockId))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.Finality)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.Finality))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(ecd.Finality))
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData))) // #nosec G115 -- This is validated in `Validate`
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data))) // #nosec G115 -- This is validated in `Validate`
 		buf.Write(callData.Data)
 	}
 	return buf.Bytes(), nil
@@ -959,9 +963,12 @@ func (ecd *EthCallWithFinalityQueryRequest) Validate() error {
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
+
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
+		//nolint:dupword // callData.Data is fine in the context of EVM.
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("call data data too long")
 		}
@@ -1010,14 +1017,14 @@ func (saq *SolanaAccountQueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(saq.Commitment)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(saq.Commitment))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(saq.Commitment))
 
 	vaa.MustWrite(buf, binary.BigEndian, saq.MinContextSlot)
 	vaa.MustWrite(buf, binary.BigEndian, saq.DataSliceOffset)
 	vaa.MustWrite(buf, binary.BigEndian, saq.DataSliceLength)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(saq.Accounts)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(saq.Accounts))) // #nosec G115 -- This is validated in `Validate`
 	for _, acct := range saq.Accounts {
 		buf.Write(acct[:])
 	}
@@ -1032,17 +1039,17 @@ func (saq *SolanaAccountQueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes a Solana sol_account query from a byte array
 func (saq *SolanaAccountQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
-	len := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+	length := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
-	if len > SolanaMaxCommitmentLength {
+	if length > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
 	}
 
-	commitment := make([]byte, len)
-	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+	commitment := make([]byte, length)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(length) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
 	}
 	saq.Commitment = string(commitment)
@@ -1142,19 +1149,19 @@ func (spda *SolanaPdaQueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(len(spda.Commitment)))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(spda.Commitment))) // #nosec G115 -- This is validated in `Validate`
 	buf.Write([]byte(spda.Commitment))
 
 	vaa.MustWrite(buf, binary.BigEndian, spda.MinContextSlot)
 	vaa.MustWrite(buf, binary.BigEndian, spda.DataSliceOffset)
 	vaa.MustWrite(buf, binary.BigEndian, spda.DataSliceLength)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(spda.PDAs)))
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(spda.PDAs))) // #nosec G115 -- This is validated in `Validate`
 	for _, pda := range spda.PDAs {
 		buf.Write(pda.ProgramAddress[:])
-		vaa.MustWrite(buf, binary.BigEndian, uint8(len(pda.Seeds)))
+		vaa.MustWrite(buf, binary.BigEndian, uint8(len(pda.Seeds))) // #nosec G115 -- This is validated in `Validate`
 		for _, seed := range pda.Seeds {
-			vaa.MustWrite(buf, binary.BigEndian, uint32(len(seed)))
+			vaa.MustWrite(buf, binary.BigEndian, uint32(len(seed))) // #nosec G115 -- This is validated in `Validate`
 			buf.Write(seed)
 		}
 	}
@@ -1169,17 +1176,17 @@ func (spda *SolanaPdaQueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes a Solana sol_pda query from a byte array
 func (spda *SolanaPdaQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
-	len := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &len); err != nil {
+	length := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &length); err != nil {
 		return fmt.Errorf("failed to read commitment len: %w", err)
 	}
 
-	if len > SolanaMaxCommitmentLength {
+	if length > SolanaMaxCommitmentLength {
 		return fmt.Errorf("commitment string is too long, may not be more than %d characters", SolanaMaxCommitmentLength)
 	}
 
-	commitment := make([]byte, len)
-	if n, err := reader.Read(commitment[:]); err != nil || n != int(len) {
+	commitment := make([]byte, length)
+	if n, err := reader.Read(commitment[:]); err != nil || n != int(length) {
 		return fmt.Errorf("failed to read commitment [%d]: %w", n, err)
 	}
 	spda.Commitment = string(commitment)

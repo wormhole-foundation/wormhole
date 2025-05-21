@@ -71,7 +71,7 @@ func returnFile(w http.ResponseWriter, fileName string) {
 	_, _ = w.Write(dat) // don't care about errors
 }
 
-func (s *ForwardingCachingServer) ProxyReq(logger *zap.Logger, req *http.Request) (*http.Request, error) {
+func (s *ForwardingCachingServer) ProxyReq(_ *zap.Logger, req *http.Request) (*http.Request, error) {
 	reqBody, err := io.ReadAll(req.Body)
 
 	if err != nil {

@@ -113,7 +113,7 @@ func TestWatermark(t *testing.T) {
 	var gs [4]*G
 	for i := range gs {
 		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
-		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)
+		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i) // #nosec G115 -- This is safe as the inputs are constants
 		gs[i].networkID = "/wormhole/localdev"
 
 		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
@@ -190,16 +190,16 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.gov,
 			g.disableHeartbeatVerify,
 			g.components,
-			nil,        //g.ibcFeaturesFunc,
-			false,      // gateway relayer enabled
-			false,      // ccqEnabled
-			nil,        // signed query request channel
-			nil,        // query response channel
-			"",         // query bootstrap peers
-			0,          // query port
-			"",         // query allowed peers),
-			[]string{}, // protected peers
-			[]string{}, // ccq protected peers
+			false,             // ccqEnabled
+			nil,               // signed query request channel
+			nil,               // query response channel
+			"",                // query bootstrap peers
+			0,                 // query port
+			"",                // query allowed peers),
+			[]string{},        // protected peers
+			[]string{},        // ccq protected peers
+			[]string{},        // featureFlags
+			[]func() string{}, // featureFlagFuncs
 		))
 	require.NoError(t, err)
 

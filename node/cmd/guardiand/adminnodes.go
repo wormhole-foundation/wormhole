@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -133,6 +134,8 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Monad", vaa.ChainIDMonad},
 		{"Movement", vaa.ChainIDMovement},
 		{"Wormchain", vaa.ChainIDWormchain},
+		{"Mezo", vaa.ChainIDMezo},
+		{"Fogo", vaa.ChainIDFogo},
 		// The IBC chains (4000 range) are not included here.
 		{"Sepolia", vaa.ChainIDSepolia},
 		{"ArbitrumSepolia", vaa.ChainIDArbitrumSepolia},
@@ -175,6 +178,9 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		truncAddrs := make(map[vaa.ChainID]string)
 		errors := map[vaa.ChainID]uint64{}
 		for _, n := range h.RawHeartbeat.Networks {
+			if n.Id > math.MaxUint16 {
+				log.Fatalf("heartbeat chain id is greater than MaxUint16: %v", n.Id)
+			}
 			heights[vaa.ChainID(n.Id)] = n.Height
 			errors[vaa.ChainID(n.Id)] = n.ErrorCount
 			if len(n.ContractAddress) >= 16 {

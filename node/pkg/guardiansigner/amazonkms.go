@@ -75,7 +75,7 @@ type AmazonKms struct {
 // client is created with the region.
 // NOTE: The public key is retrieved during signer creation, and stored as a property of the
 // signer. This is because the public key is not expected to change during runtime.
-func NewAmazonKmsSigner(ctx context.Context, unsafeDevMode bool, keyPath string) (*AmazonKms, error) {
+func NewAmazonKmsSigner(ctx context.Context, keyPath string) (*AmazonKms, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, KMS_TIMEOUT)
 	defer cancel()
 
@@ -163,7 +163,7 @@ func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, er
 		return nil, fmt.Errorf("Failed to decode signature: %w", err)
 	}
 
-	// if s is greater than secp256k1HalfN, we need to substract secp256k1N from it
+	// if s is greater than secp256k1HalfN, we need to subtract secp256k1N from it
 	sBigInt := new(big.Int).SetBytes(s)
 	if sBigInt.Cmp(secp256k1HalfN) > 0 {
 		s = new(big.Int).Sub(secp256k1N, sBigInt).Bytes()

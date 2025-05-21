@@ -81,3 +81,11 @@ guardiand admin governor-reset-release-timer "emitted_chain_ID/address/sequence_
 If the number of days is omitted, the command will reset the release timer to 24 hours from the current time. The number of days is capped to 7.
 
 **Warning:** *Resetting a VAA should only be used in the context of needing more time to confirm fraud that directly affects the security of the Wormhole network.  A super minority of Guardians are required to reset the timer for a given VAA.*
+
+### Flow Cancel
+
+The flow canceling extension of the Governor is disabled by default. Guardians can enable it by passing the following flag to the `guardiand` command when starting it up:
+
+```bash
+--governorFlowCancelEnabled=true
+```

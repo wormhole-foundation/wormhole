@@ -1,6 +1,6 @@
 //! A module for serializing/deserializing a `BString` as a fixed-width 32 byte array.
 
-use std::{convert::identity, fmt, iter::repeat};
+use std::{convert::identity, fmt, iter::repeat_n};
 
 use bstr::BString;
 use serde::{
@@ -23,7 +23,7 @@ where
     }
 
     let mut tup = serializer.serialize_tuple(32)?;
-    for e in repeat(&0u8).take(32 - l).chain(v) {
+    for e in repeat_n(&0u8, 32 - l).chain(v) {
         tup.serialize_element(e)?;
     }
 
