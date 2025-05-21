@@ -21,7 +21,8 @@ func TestObsvReqSendLimitEnforced(t *testing.T) {
 		// Filling the queue up should work.
 		for count := 1; count <= ObsvReqChannelSize; count++ {
 			req := &gossipv1.ObservationRequest{
-				ChainId: uint32(vaa.ChainIDSolana),
+				ChainId:   uint32(vaa.ChainIDSolana),
+				Timestamp: time.Now().UnixNano(),
 			}
 			err := PostObservationRequest(obsvReqSendC, req)
 			assert.Nil(t, err)
@@ -29,7 +30,8 @@ func TestObsvReqSendLimitEnforced(t *testing.T) {
 
 		// But one more write should fail.
 		req := &gossipv1.ObservationRequest{
-			ChainId: uint32(vaa.ChainIDSolana),
+			ChainId:   uint32(vaa.ChainIDSolana),
+			Timestamp: time.Now().UnixNano(),
 		}
 		err := PostObservationRequest(obsvReqSendC, req)
 		assert.ErrorIs(t, err, ErrChanFull)

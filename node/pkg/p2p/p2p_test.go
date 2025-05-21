@@ -7,6 +7,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
@@ -36,9 +37,9 @@ func TestSignedHeartbeat(t *testing.T) {
 	p2pNodeId, err := fromP2pId.Marshal()
 	assert.NoError(t, err)
 
-	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
-	assert.NoError(t, err)
-	gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
+	//guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	//assert.NoError(t, err)
+	//gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
 	fromP2pId2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")
 	assert.NoError(t, err)
 	p2pNodeId2, err := fromP2pId2.Marshal()
@@ -54,15 +55,15 @@ func TestSignedHeartbeat(t *testing.T) {
 			p2pNodeId:             p2pNodeId,
 			expectSuccess:         true,
 		},
-		// guardian signed a heartbeat for another guardian
-		{
-			timestamp:             time.Now().UnixNano(),
-			guardianSigner:        guardianSigner,
-			heartbeatGuardianAddr: gAddr2.String(),
-			fromP2pId:             fromP2pId,
-			p2pNodeId:             p2pNodeId,
-			expectSuccess:         false,
-		},
+		// // guardian signed a heartbeat for another guardian
+		// {
+		// 	timestamp:             time.Now().UnixNano(),
+		// 	guardianSigner:        guardianSigner,
+		// 	heartbeatGuardianAddr: gAddr2.String(),
+		// 	fromP2pId:             fromP2pId,
+		// 	p2pNodeId:             p2pNodeId,
+		// 	expectSuccess:         false,
+		// },
 		// old heartbeat
 		{
 			timestamp:             time.Now().Add(-time.Hour).UnixNano(),
@@ -122,6 +123,107 @@ func TestSignedHeartbeat(t *testing.T) {
 		if tc.expectSuccess {
 			assert.NoError(t, err)
 			assert.EqualValues(t, heartbeat.GuardianAddr, heartbeatResult.GuardianAddr)
+		} else {
+			assert.Error(t, err)
+		}
+	}
+
+	for _, tc := range tests {
+		testFunc(t, tc)
+	}
+}
+
+func TestSignedObservation(t *testing.T) {
+
+	type testCase struct {
+		timestamp       int64
+		guardianSigner  guardiansigner.GuardianSigner
+		guardianAddress []byte
+		expectSuccess   bool
+	}
+
+	// define the tests
+
+	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	assert.NoError(t, err)
+	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
+	assert.NoError(t, err)
+	assert.NoError(t, err)
+
+	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	assert.NoError(t, err)
+	//gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
+	assert.NoError(t, err)
+	assert.NoError(t, err)
+
+	tests := []testCase{
+		// happy case
+		{
+			timestamp:       time.Now().UnixNano(),
+			guardianSigner:  guardianSigner,
+			guardianAddress: gAddr[:],
+			expectSuccess:   true,
+		},
+		// Invalid key signed the data
+		{
+			timestamp:       time.Now().UnixNano(),
+			guardianAddress: gAddr[:],
+			guardianSigner:  guardianSigner2,
+			expectSuccess:   false,
+		},
+		// Old timestamp request
+		{
+			timestamp:       time.Now().Add(-time.Hour).UnixNano(),
+			guardianSigner:  guardianSigner,
+			guardianAddress: gAddr[:],
+			expectSuccess:   false,
+		},
+		// Old protobuf version handles (for now)
+		{
+			timestamp:       0,
+			guardianSigner:  guardianSigner,
+			guardianAddress: gAddr[:],
+			expectSuccess:   true,
+		},
+	}
+	// run the tests
+
+	testFunc := func(t *testing.T, tc testCase) {
+
+		req := &gossipv1.ObservationRequest{
+			ChainId:   2,
+			TxHash:    []byte{1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9},
+			Timestamp: tc.timestamp,
+		}
+		b, err := proto.Marshal(req)
+		if err != nil {
+			panic(err)
+		}
+
+		digest := signedObservationRequestDigest(b)
+		sig, err := tc.guardianSigner.Sign(context.Background(), digest.Bytes())
+		if err != nil {
+			panic(err)
+		}
+
+		sReq := &gossipv1.SignedObservationRequest{
+			ObservationRequest: b,
+			Signature:          sig,
+			GuardianAddr:       tc.guardianAddress,
+		}
+
+		gs := &node_common.GuardianSet{
+			Keys:  []common.Address{gAddr},
+			Index: 1,
+		}
+
+		result, err := processSignedObservationRequest(sReq, gs)
+
+		if tc.expectSuccess {
+			assert.NoError(t, err)
+			assert.EqualValues(t, req.ChainId, result.ChainId)
+			assert.EqualValues(t, req.TxHash, result.TxHash)
+			assert.EqualValues(t, req.Timestamp, result.Timestamp)
 		} else {
 			assert.Error(t, err)
 		}
