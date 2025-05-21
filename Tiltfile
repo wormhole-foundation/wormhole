@@ -253,6 +253,8 @@ def build_node_yaml():
                     "http://solana-devnet:8899",
                     "--solanaContract",
                     "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
+                    "--solanaShimContract",
+                    "EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX",
                 ]
 
             if pythnet:
@@ -472,7 +474,7 @@ if solana or pythnet:
         only = ["./proto", "./solana", "./clients"],
         dockerfile = "solana/Dockerfile.client",
         # Ignore target folders from local (non-container) development.
-        ignore = ["./solana/*/target"],
+        ignore = ["./solana/*/target", "./solana/tests"],
     )
 
     # solana smart contract
@@ -482,6 +484,7 @@ if solana or pythnet:
         context = "solana",
         dockerfile = "solana/Dockerfile",
         target = "builder",
+        ignore = ["./solana/*/target", "./solana/tests"],
         build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
 
@@ -604,6 +607,11 @@ if evm2:
     )
 
 
+# Note that ci_tests requires other resources in order to build properly:
+# - eth-devnet  -- required by: accountant_tests, ntt_accountant_tests, tx-verifier
+# - eth-devnet2 -- required by: accountant_tests, ntt_accountant_tests
+# - wormchain   -- required by: accountant_tests, ntt_accountant_tests
+# - solana      -- required by: spydk-ci-tests
 if ci_tests:
     docker_build(
         ref = "sdk-test-image",
@@ -635,6 +643,12 @@ if ci_tests:
             sync("./testing", "/app/testing"),
         ],
     )
+    docker_build(
+        ref = "tx-verifier-evm",
+        context = "./devnet/tx-verifier/",
+        dockerfile = "./devnet/tx-verifier/Dockerfile.tx-verifier-evm"
+    )
+    k8s_yaml_with_ns("devnet/tx-verifier-evm.yaml")
 
     k8s_yaml_with_ns(
         encode_yaml_stream(
@@ -644,7 +658,7 @@ if ci_tests:
                     "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
                     "MAX_WORKERS", max_workers))
     )
-
+    
     # separate resources to parallelize docker builds
     k8s_resource(
         "sdk-ci-tests",
@@ -675,6 +689,13 @@ if ci_tests:
         labels = ["ci"],
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
+    )
+    # launches Transfer Verifier binary and sets up monitoring script
+    k8s_resource(
+        "tx-verifier-evm",
+        labels = ["tx-verifier-evm"],
+        trigger_mode = trigger_mode,
+        resource_deps = ["eth-devnet"],
     )
 
 if terra_classic:

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -65,17 +66,23 @@ type Transfer struct {
 func (t *Transfer) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(t.Timestamp.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(t.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 	vaa.MustWrite(buf, binary.BigEndian, t.Value)
 	vaa.MustWrite(buf, binary.BigEndian, t.OriginChain)
 	buf.Write(t.OriginAddress[:])
 	vaa.MustWrite(buf, binary.BigEndian, t.EmitterChain)
 	buf.Write(t.EmitterAddress[:])
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID)))
+	if len(t.MsgID) > math.MaxUint16 {
+		return nil, fmt.Errorf("failed to marshal MsgID, length too long: %d", len(t.MsgID))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.MsgID))) // #nosec G115 -- This is checked above
 	if len(t.MsgID) > 0 {
 		buf.Write([]byte(t.MsgID))
 	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash)))
+	if len(t.Hash) > math.MaxUint16 {
+		return nil, fmt.Errorf("failed to marshal Hash, length too long: %d", len(t.Hash))
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint16(len(t.Hash))) // #nosec G115 -- This is checked above
 	if len(t.Hash) > 0 {
 		buf.Write([]byte(t.Hash))
 	}
@@ -236,7 +243,7 @@ type PendingTransfer struct {
 func (p *PendingTransfer) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix()))
+	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
 
 	b, err := p.Msg.Marshal()
 	if err != nil {
@@ -268,7 +275,7 @@ func UnmarshalPendingTransfer(data []byte, isOld bool) (*PendingTransfer, error)
 
 	var msg *common.MessagePublication
 	if isOld {
-		msg, err = common.UnmarshalOldMessagePublicationBeforeIsReobservation(buf)
+		msg, err = common.UnmarshalOldMessagePublicationWithTxHash(buf)
 	} else {
 		msg, err = common.UnmarshalMessagePublication(buf)
 	}
@@ -287,13 +294,13 @@ const transfer = "GOV:XFER3:"
 const transferLen = len(transfer)
 
 // Since we are changing the DB format of pending entries, we will use a new tag in the pending key field.
-// The first time we run this new release, any existing entries with the "GOV:PENDING2" tag will get converted
-// to the new format and given the "GOV:PENDING3" format. In a future release, the "GOV:PENDING2" code can be deleted.
+// The first time we run this new release, any existing entries with the old tag will get converted
+// to the new format and the new tag. In a future release, code for the old format can be deleted.
 
-const oldPending = "GOV:PENDING2:"
+const oldPending = "GOV:PENDING3:"
 const oldPendingLen = len(oldPending)
 
-const pending = "GOV:PENDING3:"
+const pending = "GOV:PENDING4:"
 const pendingLen = len(pending)
 
 const minMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
@@ -335,6 +342,7 @@ func (d *Database) GetChainGovernorData(logger *zap.Logger) (transfers []*Transf
 	return d.GetChainGovernorDataForTime(logger, time.Now())
 }
 
+//nolint:unparam // TODO: now is unused. This function and GetChainGovernorData can be combined.
 func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time) (transfers []*Transfer, pending []*PendingTransfer, err error) {
 	oldTransfers := []*Transfer{}
 	oldPendingToUpdate := []*PendingTransfer{}
@@ -429,9 +437,13 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 
 // This is called by the chain governor to persist a pending transfer.
 func (d *Database) StoreTransfer(t *Transfer) error {
-	b, _ := t.Marshal()
+	b, err := t.Marshal()
 
-	err := d.db.Update(func(txn *badger.Txn) error {
+	if err != nil {
+		return err
+	}
+
+	err = d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(TransferMsgID(t), b); err != nil {
 			return err
 		}

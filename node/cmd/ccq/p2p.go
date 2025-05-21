@@ -17,6 +17,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -52,6 +53,7 @@ func runP2P(
 	monitorPeers bool,
 	loggingMap *LoggingMap,
 	gossipAdvertiseAddress string,
+	protectedPeers []string,
 ) (*P2PSub, error) {
 	// p2p setup
 	components := p2p.DefaultComponents()
@@ -61,6 +63,12 @@ func runP2P(
 	h, err := p2p.NewHost(logger, ctx, networkID, bootstrapPeers, components, priv)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(protectedPeers) != 0 {
+		for _, peerId := range protectedPeers {
+			components.ConnMgr.Protect(peer.ID(peerId), "configured")
+		}
 	}
 
 	topic_req := fmt.Sprintf("%s/%s", networkID, "ccq_req")
@@ -107,7 +115,14 @@ func runP2P(
 	logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
 
 	// Wait for peers
+	logger.Info("Waiting for peers")
+	count := 0
 	for len(th_req.ListPeers()) < 1 {
+		count++
+		if count > 600 {
+			logger.Warn("Still waiting for peers")
+			count = 0
+		}
 		time.Sleep(time.Millisecond * 100)
 	}
 	logger.Info("Found peers", zap.Int("numPeers", len(th_req.ListPeers())))
@@ -145,7 +160,7 @@ func runP2P(
 	}
 
 	// Fetch the initial current guardian set
-	guardianSet, err := FetchCurrentGuardianSet(ethRpcUrl, ethCoreAddr)
+	guardianSet, err := FetchCurrentGuardianSet(ctx, ethRpcUrl, ethCoreAddr)
 	if err != nil {
 		logger.Fatal("Failed to fetch current guardian set", zap.Error(err))
 	}

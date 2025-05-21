@@ -56,6 +56,7 @@ type Connector interface {
 	TimeOfBlockByHash(ctx context.Context, hash common.Hash) (uint64, error)
 	ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error)
 	SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error)
+	GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error)
 	RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
 	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 	Client() *ethClient.Client

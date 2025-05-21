@@ -38,10 +38,10 @@ type (
 	}
 )
 
-// MAX_GAP_BATCH_SIZE specifies the maximum number of blocks to be requested at once when gap filling.
-const MAX_GAP_BATCH_SIZE uint64 = 5
+// MaxGapBatchSize specifies the maximum number of blocks to be requested at once when gap filling.
+const MaxGapBatchSize uint64 = 5
 
-func NewBatchPollConnector(ctx context.Context, logger *zap.Logger, baseConnector Connector, safeSupported bool, delay time.Duration) *BatchPollConnector {
+func NewBatchPollConnector(_ context.Context, logger *zap.Logger, baseConnector Connector, safeSupported bool, delay time.Duration) *BatchPollConnector {
 	// Create the batch data in the order we want to report them to the watcher. We always do finalized, but only do safe if requested.
 	batchData := []BatchEntry{
 		{tag: "finalized", finality: Finalized},
@@ -135,6 +135,32 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	return headerSubscription, nil
 }
 
+func (b *BatchPollConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
+	block, err := GetBlockByFinality(ctx, b.Connector, Latest)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get latest block: %w", err)
+	}
+	latest = block.Number.Uint64()
+
+	block, err = GetBlockByFinality(ctx, b.Connector, Finalized)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get finalized block: %w", err)
+	}
+	finalized = block.Number.Uint64()
+
+	if b.generateSafe {
+		safe = finalized
+	} else {
+		block, err = GetBlockByFinality(ctx, b.Connector, Safe)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("failed to get safe block: %w", err)
+		}
+		safe = block.Number.Uint64()
+	}
+
+	return
+}
+
 // pollBlocks polls for the latest blocks (finalized, safe and latest), compares them to the last ones, and publishes any new ones.
 // In the case of an error, it returns the last blocks that were passed in, otherwise it returns the new blocks.
 func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlock, prevBlocks Blocks) (Blocks, error) {
@@ -156,8 +182,8 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlo
 			lastPublishedBlock := prevBlocks[idx]
 			for blockNum < newBlockNum && !errorFound {
 				batchSize := newBlockNum - blockNum
-				if batchSize > MAX_GAP_BATCH_SIZE {
-					batchSize = MAX_GAP_BATCH_SIZE
+				if batchSize > MaxGapBatchSize {
+					batchSize = MaxGapBatchSize
 				}
 				gapBlocks, err := b.getBlockRange(ctx, b.logger, blockNum, batchSize, b.batchData[idx].finality)
 				if err != nil {
@@ -266,7 +292,7 @@ func (b *BatchPollConnector) getBlockRange(ctx context.Context, logger *zap.Logg
 
 	batch := make([]rpc.BatchElem, numBlocks)
 	results := make([]BatchResult, numBlocks)
-	for idx := 0; idx < int(numBlocks); idx++ {
+	for idx := uint64(0); idx < numBlocks; idx++ {
 		batch[idx] = rpc.BatchElem{
 			Method: "eth_getBlockByNumber",
 			Args: []interface{}{

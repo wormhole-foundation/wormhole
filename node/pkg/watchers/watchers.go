@@ -6,6 +6,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -25,5 +27,13 @@ type WatcherConfig interface {
 		queryResponseC chan<- *query.PerChainQueryResponseInternal,
 		setC chan<- *common.GuardianSet,
 		env common.Environment,
-	) (interfaces.L1Finalizer, supervisor.Runnable, error)
+	) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error)
 }
+
+var (
+	ReobservationsByChain = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_reobservations_by_chain",
+			Help: "Total number of reobservations completed by chain and observation type",
+		}, []string{"chain", "type"})
+)

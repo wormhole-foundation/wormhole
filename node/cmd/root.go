@@ -7,11 +7,11 @@ import (
 	"github.com/certusone/wormhole/node/cmd/ccq"
 	"github.com/certusone/wormhole/node/cmd/debug"
 	"github.com/certusone/wormhole/node/cmd/spy"
+	txverifier "github.com/certusone/wormhole/node/cmd/txverifier"
 	"github.com/certusone/wormhole/node/pkg/version"
 
 	"github.com/spf13/cobra"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 
 	"github.com/certusone/wormhole/node/cmd/guardiand"
@@ -49,6 +49,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.guardiand.yaml)")
 	rootCmd.AddCommand(guardiand.NodeCmd)
 	rootCmd.AddCommand(spy.SpyCmd)
+	rootCmd.AddCommand(txverifier.TransferVerifierCmd)
 	rootCmd.AddCommand(ccq.QueryServerCmd)
 	rootCmd.AddCommand(guardiand.KeygenCmd)
 	rootCmd.AddCommand(guardiand.AdminCmd)
@@ -64,7 +65,7 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := homedir.Dir()
+		home, err := os.UserHomeDir()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

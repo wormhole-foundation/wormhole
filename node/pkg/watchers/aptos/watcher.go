@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -25,6 +27,9 @@ import (
 type (
 	// Watcher is responsible for looking over Aptos blockchain and reporting new transactions to the wormhole contract
 	Watcher struct {
+		chainID   vaa.ChainID
+		networkID string
+
 		aptosRPC     string
 		aptosAccount string
 		aptosHandle  string
@@ -36,20 +41,23 @@ type (
 )
 
 var (
-	aptosMessagesConfirmed = promauto.NewCounter(
+	aptosMessagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_aptos_observations_confirmed_total",
-			Help: "Total number of verified Aptos observations found",
-		})
-	currentAptosHeight = promauto.NewGauge(
+			Help: "Total number of verified observations found for the chain",
+		}, []string{"chain_name"})
+
+	currentAptosHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "wormhole_aptos_current_height",
-			Help: "Current Aptos block height",
-		})
+			Help: "Current block height for the chain",
+		}, []string{"chain_name"})
 )
 
 // NewWatcher creates a new Aptos appid watcher
 func NewWatcher(
+	chainID vaa.ChainID,
+	networkID watchers.NetworkID,
 	aptosRPC string,
 	aptosAccount string,
 	aptosHandle string,
@@ -57,35 +65,41 @@ func NewWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
+		chainID:       chainID,
+		networkID:     string(networkID),
 		aptosRPC:      aptosRPC,
 		aptosAccount:  aptosAccount,
 		aptosHandle:   aptosHandle,
 		msgC:          msgC,
 		obsvReqC:      obsvReqC,
-		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDAptos),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
 	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
+	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.aptosAccount,
 	})
 
 	logger := supervisor.Logger(ctx)
 
 	logger.Info("Starting watcher",
-		zap.String("watcher_name", "aptos"),
-		zap.String("aptosRPC", e.aptosRPC),
-		zap.String("aptosAccount", e.aptosAccount),
-		zap.String("aptosHandle", e.aptosHandle),
+		zap.String("watcher_name", e.networkID),
+		zap.String("rpc", e.aptosRPC),
+		zap.String("account", e.aptosAccount),
+		zap.String("handle", e.aptosHandle),
 	)
-
-	logger.Info("Aptos watcher connecting to RPC node ", zap.String("url", e.aptosRPC))
 
 	// SECURITY: the API guarantees that we only get the events from the right
 	// contract
 	var eventsEndpoint = fmt.Sprintf(`%s/v1/accounts/%s/events/%s/event`, e.aptosRPC, e.aptosAccount, e.aptosHandle)
 	var aptosHealth = fmt.Sprintf(`%s/v1`, e.aptosRPC)
+
+	logger.Info("watcher connecting to RPC node ",
+		zap.String("url", e.aptosRPC),
+		zap.String("eventsQuery", eventsEndpoint),
+		zap.String("healthQuery", aptosHealth),
+	)
 
 	// the events have sequence numbers associated with them in the aptos API
 	// (NOTE: this is not the same as the wormhole sequence id). The event
@@ -103,7 +117,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != vaa.ChainIDAptos {
+			// node/pkg/node/reobserve.go already enforces the chain id is a valid uint16
+			// and only writes to the channel for this chain id.
+			// If either of the below cases are true, something has gone wrong
+			if r.ChainId > math.MaxUint16 || vaa.ChainID(r.ChainId) != e.chainID {
 				panic("invalid chain ID")
 			}
 
@@ -117,13 +134,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 			body, err := e.retrievePayload(s)
 			if err != nil {
 				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 			}
 
 			if !gjson.Valid(string(body)) {
 				logger.Error("InvalidJson: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				break
 
 			}
@@ -165,7 +182,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			eventsJson, err := e.retrievePayload(s)
 			if err != nil {
 				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 			}
 
@@ -178,7 +195,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			if !gjson.Valid(string(eventsJson)) {
 				logger.Error("InvalidJson: " + string(eventsJson))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 
 			}
@@ -193,27 +210,34 @@ func (e *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
+				eventSeq := eventSequence.Uint()
+				if nextSequence == 0 && eventSeq != 0 {
+					// Avoid publishing an old observation on startup. This does not block the first message on a new chain (when eventSeq would be zero).
+					nextSequence = eventSeq + 1
+					continue
+				}
+
 				// this is interesting in the last iteration, whereby we
 				// find the next sequence that comes after the array
-				nextSequence = eventSequence.Uint() + 1
+				nextSequence = eventSeq + 1
 
 				data := event.Get("data")
 				if !data.Exists() {
 					continue
 				}
-				e.observeData(logger, data, eventSequence.Uint(), false)
+				e.observeData(logger, data, eventSeq, false)
 			}
 
 			health, err := e.retrievePayload(aptosHealth)
 			if err != nil {
 				logger.Error("health", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 			}
 
 			if !gjson.Valid(string(health)) {
 				logger.Error("Invalid JSON in health response: " + string(health))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				continue
 
 			}
@@ -225,10 +249,16 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			blockHeight := pHealth.Get("block_height")
 
+			if blockHeight.Uint() > math.MaxInt64 {
+				logger.Error("Block height not a valid uint64: ", zap.Uint64("blockHeight", blockHeight.Uint()))
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				continue
+			}
+
 			if blockHeight.Exists() {
-				currentAptosHeight.Set(float64(blockHeight.Uint()))
-				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
-					Height:          int64(blockHeight.Uint()),
+				currentAptosHeight.WithLabelValues(e.networkID).Set(float64(blockHeight.Uint()))
+				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
+					Height:          int64(blockHeight.Uint()), // #nosec G115 -- This is validated above
 					ContractAddress: e.aptosAccount,
 				})
 
@@ -238,11 +268,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
+//nolint:noctx // TODO: this function should use a context. (Also this line flags nolintlint unless placed here.)
 func (e *Watcher) retrievePayload(s string) ([]byte, error) {
-	res, err := http.Get(s) // nolint
+	//nolint:gosec // the URL is hard-coded to the Aptos RPC endpoint.
+	res, err := http.Get(s)
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -304,22 +337,35 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		return
 	}
 
+	if nonce.Uint() > math.MaxUint32 {
+		logger.Error("nonce is larger than expected MaxUint32")
+		return
+	}
+
+	if consistencyLevel.Uint() > math.MaxUint8 {
+		logger.Error("consistency level is larger than expected MaxUint8")
+		return
+	}
+
 	observation := &common.MessagePublication{
-		TxHash:           txHash,
-		Timestamp:        time.Unix(int64(ts.Uint()), 0),
-		Nonce:            uint32(nonce.Uint()), // uint32
+		TxID:             txHash.Bytes(),
+		Timestamp:        time.Unix(int64(ts.Uint()), 0), // #nosec G115 -- This conversion is safe indefinitely
+		Nonce:            uint32(nonce.Uint()),           // #nosec G115 -- This is validated above
 		Sequence:         sequence.Uint(),
-		EmitterChain:     vaa.ChainIDAptos,
+		EmitterChain:     e.chainID,
 		EmitterAddress:   a,
 		Payload:          pl,
-		ConsistencyLevel: uint8(consistencyLevel.Uint()),
+		ConsistencyLevel: uint8(consistencyLevel.Uint()), // #nosec G115 -- This is validated above
 		IsReobservation:  isReobservation,
 	}
 
-	aptosMessagesConfirmed.Inc()
+	aptosMessagesConfirmed.WithLabelValues(e.networkID).Inc()
+	if isReobservation {
+		watchers.ReobservationsByChain.WithLabelValues(e.chainID.String(), "std").Inc()
+	}
 
 	logger.Info("message observed",
-		zap.Stringer("txHash", observation.TxHash),
+		zap.String("txHash", observation.TxIDString()),
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint32("nonce", observation.Nonce),
 		zap.Uint64("sequence", observation.Sequence),

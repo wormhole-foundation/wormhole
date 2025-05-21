@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -36,9 +37,10 @@ var (
 var (
 	envStr *string
 
-	p2pNetworkID *string
-	p2pPort      *uint
-	p2pBootstrap *string
+	p2pNetworkID   *string
+	p2pPort        *uint
+	p2pBootstrap   *string
+	protectedPeers []string
 
 	statusAddr *string
 
@@ -59,6 +61,7 @@ func init() {
 	p2pNetworkID = SpyCmd.Flags().String("network", "", "P2P network identifier (optional for testnet or mainnet, overrides default, required for devnet)")
 	p2pPort = SpyCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = SpyCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for testnet or mainnet, overrides default, required for devnet)")
+	SpyCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
 
 	statusAddr = SpyCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -187,8 +190,11 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 				if err != nil {
 					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
 				}
+				if t.EmitterFilter.GetChainId() > math.MaxUint16 {
+					return status.Error(codes.InvalidArgument, fmt.Sprintf("emitter chain id must be a valid 16 bit unsigned integer: %v", t.EmitterFilter.ChainId.Number()))
+				}
 				fi = append(fi, filterSignedVaa{
-					chainId:     vaa.ChainID(t.EmitterFilter.ChainId),
+					chainId:     vaa.ChainID(t.EmitterFilter.ChainId), // #nosec G115 -- This is validated above
 					emitterAddr: addr,
 				})
 			default:
@@ -396,6 +402,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 			rootCtxCancel,
 			p2p.WithSignedVAAListener(signedInC),
 			p2p.WithComponents(components),
+			p2p.WithProtectedPeers(protectedPeers),
 		)
 		if err != nil {
 			return err

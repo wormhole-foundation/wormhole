@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -88,7 +89,11 @@ func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.Me
 		return fmt.Errorf("failed to get guardian index for %s", tag)
 	}
 
-	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag)
+	if guardianIndex > math.MaxUint32 {
+		return fmt.Errorf("guardian index greater than max uint32 %v", guardianIndex)
+	}
+
+	acct.submitObservationsToContract(msgs, gs.Index, uint32(guardianIndex), wormchainConn, contract, prefix, tag) // #nosec G115 -- This is checked above
 	transfersSubmitted.Add(float64(len(msgs)))
 	return nil
 }
@@ -185,6 +190,7 @@ func (k TransferKey) String() string {
 	return fmt.Sprintf("%v/%v/%v", k.EmitterChain, hex.EncodeToString(k.EmitterAddress[:]), k.Sequence)
 }
 
+//nolint:unparam // error is always nil but is required to satisfy the custom JSON marshal interface.
 func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 	var result string
 	if sb == nil {
@@ -308,8 +314,8 @@ func SubmitObservationsToContract(
 	obs := make([]Observation, len(msgs))
 	for idx, msg := range msgs {
 		obs[idx] = Observation{
-			TxHash:           msg.TxHash.Bytes(),
-			Timestamp:        uint32(msg.Timestamp.Unix()),
+			TxHash:           msg.TxID,
+			Timestamp:        uint32(msg.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 			Nonce:            msg.Nonce,
 			EmitterChain:     uint16(msg.EmitterChain),
 			EmitterAddress:   msg.EmitterAddress,
@@ -321,7 +327,7 @@ func SubmitObservationsToContract(
 		logger.Debug("in SubmitObservationsToContract, encoding observation",
 			zap.String("contract", contract),
 			zap.Int("idx", idx),
-			zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
+			zap.String("txHash", msg.TxIDString()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
 			zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[idx].Timestamp),
 			zap.Uint32("nonce", msg.Nonce), zap.Uint32("encNonce", obs[idx].Nonce),
 			zap.Stringer("emitterChain", msg.EmitterChain), zap.Uint16("encEmitterChain", obs[idx].EmitterChain),

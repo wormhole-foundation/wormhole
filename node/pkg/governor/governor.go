@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -94,15 +94,16 @@ type (
 		token  *tokenEntry // Store a reference to the token so we can get the current price to compute the value each interval.
 		amount *big.Int
 		hash   string
-		dbData db.PendingTransfer // This info gets persisted in the DB.
+		dbData guardianDB.PendingTransfer // This info gets persisted in the DB.
 	}
 
 	// Used in flow cancel calculations. Wraps a database Transfer. Also contains a signed amount field in order to
 	// hold negative values. This field will be used in flow cancel calculations to reduce the Governor usage for a
 	// supported token.
 	transfer struct {
-		dbTransfer *db.Transfer
-		value      int64
+		dbTransfer *guardianDB.Transfer
+		// Corresponds to dbTransfers.Value field, but may be negative
+		value int64
 	}
 
 	// Payload of the map of chains being monitored. Contains transfer data for both emitted and received transfers.
@@ -118,11 +119,44 @@ type (
 		transfers []transfer
 		pending   []*pendingEntry
 	}
+
+	// Represents a pair of Governed chains. Ordering is arbitrary.
+	corridor struct {
+		first  vaa.ChainID
+		second vaa.ChainID
+	}
 )
 
-// newTransferFromDbTransfer performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
-// This should always be the case for normal operation as dbTransfer.Value represents the USD value of a transfer.
-func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error) {
+// valid checks whether a corridor is valid. A corridor is invalid if both chain IDs are equal.
+func (p *corridor) valid() bool {
+	return p.first != p.second && p.first != vaa.ChainIDUnset && p.second != vaa.ChainIDUnset
+}
+
+// equals checks whether two corrdidors are equal. This method exists to demonstrate that the ordering of the
+// corridor's elements doesn't matter. It also makes it easier to check whether two chains are 'connected' by a corridor
+// without needing to sort or manipulate the elements.
+func (p *corridor) equals(p2 *corridor) bool {
+	if !p.valid() || !p2.valid() {
+		// We want to make invalid corridors unusable, so make them fail the equality check.
+		// This is a protective measure in case a developer tries to do some logic on invalid corridors
+		// and forgets to check valid() first.
+		return false
+	}
+	if p.first == p2.first && p.second == p2.second {
+		return true
+	}
+	// Ordering doesn't matter
+	if p.first == p2.second && p2.first == p.second {
+		return true
+	}
+	return false
+}
+
+// newTransferFromDbTransfer converts a db.Transfer into a transfer. It
+// performs a bounds check on dbTransfer.Value to ensure it can fit into int64.
+// This should always be the case for normal operations as dbTransfer.Value
+// represents the USD value of a transfer, which should be less than the max int64 value.
+func newTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) (tx transfer, err error) {
 	if dbTransfer.Value > math.MaxInt64 {
 		return tx, fmt.Errorf("value for db.Transfer exceeds MaxInt64: %d", dbTransfer.Value)
 	}
@@ -131,9 +165,10 @@ func newTransferFromDbTransfer(dbTransfer *db.Transfer) (tx transfer, err error)
 
 // addFlowCancelTransfer appends a transfer to a ChainEntry's transfers property.
 // SECURITY: The calling code is responsible for ensuring that the asset within the transfer is a flow-cancelling asset.
+// SECURITY: The calling code is responsible for ensuring that the transfer's source and destination has a matching flow cancel corridor.
 // SECURITY: This method performs validation to ensure that the Flow Cancel transfer is valid. This is important to
 // ensure that the Governor usage cannot be lowered due to malicious or invalid transfers.
-// - the Value must be negative (in order to represent an incoming value)
+// - the Value must be negative (in order to ultimately reduce the Governor usage of the target chain)
 // - the TargetChain must match the chain ID of the Chain Entry
 func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	value := transfer.value
@@ -144,7 +179,7 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	if transfer.dbTransfer.Value > math.MaxInt64 {
 		return fmt.Errorf("value for transfer.dbTransfer exceeds MaxInt64: %d", transfer.dbTransfer.Value)
 	}
-	// Type conversion is safe here because of the MaxInt64 bounds check above
+	//#nosec G115: Type conversion is safe here because of the MaxInt64 bounds check above
 	if value != -int64(transfer.dbTransfer.Value) {
 		return fmt.Errorf("transfer is invalid: transfer.value %d must equal the inverse of transfer.dbTransfer.Value %d", value, transfer.dbTransfer.Value)
 	}
@@ -156,10 +191,10 @@ func (ce *chainEntry) addFlowCancelTransfer(transfer transfer) error {
 	return nil
 }
 
-// addFlowCancelTransferFromDbTransfer converts a dbTransfer to a transfer and adds it to the
-// Chain Entry.
+// addFlowCancelTransferFromDbTransfer is a wrapper for addFlowCancelTransfer that works with a `db.Transfer` argument
+// instead of a `transfer` argument.
 // Validation of transfer data is performed by other methods: see addFlowCancelTransfer, newTransferFromDbTransfer.
-func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *db.Transfer) error {
+func (ce *chainEntry) addFlowCancelTransferFromDbTransfer(dbTransfer *guardianDB.Transfer) error {
 	transfer, err := newTransferFromDbTransfer(dbTransfer)
 	if err != nil {
 		return err
@@ -182,7 +217,7 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db                  db.GovernorDB // protected by `mutex`
+	db                  guardianDB.GovernorDB // protected by `mutex`
 	logger              *zap.Logger
 	mutex               sync.Mutex
 	tokens              map[tokenKey]*tokenEntry    // protected by `mutex`
@@ -202,11 +237,14 @@ type ChainGovernor struct {
 	configPublishCounter  int64
 	flowCancelEnabled     bool
 	coinGeckoApiKey       string
+	// Pairs of chains for which flow canceling is enabled. Note that an asset may be flow canceling even if
+	// it was minted on a chain that is not configured to be an 'end' of any of the corridors.
+	flowCancelCorridors []corridor
 }
 
 func NewChainGovernor(
 	logger *zap.Logger,
-	db db.GovernorDB,
+	db guardianDB.GovernorDB,
 	env common.Environment,
 	flowCancelEnabled bool,
 	coinGeckoApiKey string,
@@ -256,16 +294,23 @@ func (gov *ChainGovernor) initConfig() error {
 	configChains := chainList()
 	configTokens := tokenList()
 	flowCancelTokens := []tokenConfigEntry{}
+	flowCancelCorridors := []corridor{}
 
 	if gov.env == common.UnsafeDevNet {
-		configTokens, flowCancelTokens, configChains = gov.initDevnetConfig()
+		configTokens, flowCancelTokens, configChains, flowCancelCorridors = gov.initDevnetConfig()
 	} else if gov.env == common.TestNet {
-		configTokens, flowCancelTokens, configChains = gov.initTestnetConfig()
+		configTokens, flowCancelTokens, configChains, flowCancelCorridors = gov.initTestnetConfig()
 	} else {
 		// mainnet, unit tests, or accountant-mock
 		if gov.flowCancelEnabled {
 			flowCancelTokens = FlowCancelTokenList()
+			flowCancelCorridors = FlowCancelCorridors()
 		}
+	}
+
+	// We're done with this value for the rest of this function, so write it to the governor struct now
+	if gov.flowCancelEnabled {
+		gov.flowCancelCorridors = flowCancelCorridors
 	}
 
 	for _, ct := range configTokens {
@@ -464,7 +509,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			gov.logger.Info("ignoring duplicate vaa because it is enqueued",
 				zap.String("msgID", msg.MessageIDString()),
 				zap.String("hash", hash),
-				zap.Stringer("txHash", msg.TxHash),
+				zap.String("txID", msg.TxIDString()),
 			)
 			return false, nil
 		}
@@ -472,7 +517,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Info("allowing duplicate vaa to be published again, but not adding it to the notional value",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 		return true, nil
 	}
@@ -484,7 +529,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("Error when attempting to trim and sum transfers",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Error(err),
 		)
 		return false, err
@@ -496,7 +541,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("failed to compute value of transfer",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Error(err),
 		)
 		return false, err
@@ -507,7 +552,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		gov.logger.Error("total value has overflowed",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
 		)
@@ -527,7 +572,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Stringer("releaseTime", releaseTime),
 			zap.Uint64("bigTransactionSize", emitterChainEntry.bigTransactionSize),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 	} else if newTotalValue > emitterChainEntry.dailyLimit {
 		enqueueIt = true
@@ -539,18 +584,18 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			zap.Stringer("releaseTime", releaseTime),
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
 	}
 
 	if enqueueIt {
-		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
+		dbData := guardianDB.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
 			gov.logger.Error("failed to store pending vaa",
 				zap.String("msgID", msg.MessageIDString()),
 				zap.String("hash", hash),
-				zap.Stringer("txHash", msg.TxHash),
+				zap.String("txID", msg.TxIDString()),
 				zap.Error(err),
 			)
 			return false, err
@@ -570,10 +615,10 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		zap.Uint64("newTotalValue", newTotalValue),
 		zap.String("msgID", msg.MessageIDString()),
 		zap.String("hash", hash),
-		zap.Stringer("txHash", msg.TxHash),
+		zap.String("txID", msg.TxIDString()),
 	)
 
-	dbTransfer := db.Transfer{
+	dbTransfer := guardianDB.Transfer{
 		Timestamp:      now,
 		Value:          value,
 		OriginChain:    token.token.chain,
@@ -586,18 +631,19 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		Hash:           hash,
 	}
 
+	// Check that the transfer is valid before writing to the database.
+	transfer, err := newTransferFromDbTransfer(&dbTransfer)
+	if err != nil {
+		return false, err
+	}
+
 	err = gov.db.StoreTransfer(&dbTransfer)
 	if err != nil {
 		gov.logger.Error("failed to store transfer",
 			zap.String("msgID", msg.MessageIDString()),
 			zap.String("hash", hash), zap.Error(err),
-			zap.Stringer("txHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 		)
-		return false, err
-	}
-
-	transfer, err := newTransferFromDbTransfer(&dbTransfer)
-	if err != nil {
 		return false, err
 	}
 
@@ -611,29 +657,35 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	// - This will cause the summed value of Sui to decrease.
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
-	// Add inverse transfer to destination chain entry if this asset can cancel flows.
-	key := tokenKey{chain: token.token.chain, addr: token.token.addr}
-
-	tokenEntry := gov.tokens[key]
-	if tokenEntry != nil {
-		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
-		if tokenEntry.flowCancels {
-			if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
-				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
-					return false, err
-				}
-			} else {
-				gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
-					zap.String("msgID", msg.MessageIDString()),
-					zap.String("hash", hash), zap.Error(err),
-					zap.Stringer("target chain", payload.TargetChain),
-				)
-			}
+	if gov.flowCancelEnabled {
+		_, err = gov.tryAddFlowCancelTransfer(&transfer)
+		if err != nil {
+			// Don't interrupt the control flow when a flow cancel fails. Instead, fail open and allow
+			// the transfers to be processed normally. The only consequence is that the outbound limit
+			// for the emitter won't be reduced.
+			gov.logger.Warn("Error when attempting to add a flow cancel transfer",
+				zap.Error(err),
+			)
 		}
 	}
 
 	gov.msgsSeen[hash] = transferComplete
 	return true, nil
+}
+
+// corridorCanFlowCancel checks whether the corridor passed as an argument is present in the list of flow-cancel enabled
+// corridors. This method returns false for all values if flow canceling is disabled.
+func (gov *ChainGovernor) corridorCanFlowCancel(corridor *corridor) bool {
+	if !gov.flowCancelEnabled {
+		return false
+	}
+	for _, configuredcorridor := range gov.flowCancelCorridors {
+		// Note that equals() also checks that both corridors are valid.
+		if corridor.equals(&configuredcorridor) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsGovernedMsg determines if the message applies to the governor. It grabs the lock.
@@ -818,7 +870,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 					if countsTowardsTransfers {
-						dbTransfer := db.Transfer{Timestamp: now,
+						dbTransfer := guardianDB.Transfer{Timestamp: now,
 							Value:          value,
 							OriginChain:    pe.token.token.chain,
 							OriginAddress:  pe.token.token.addr,
@@ -854,38 +906,27 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						ce.transfers = append(ce.transfers, transfer)
 
 						gov.msgsSeen[pe.hash] = transferComplete
-
-						// Add inverse transfer to destination chain entry if this asset can cancel flows.
-						key := tokenKey{chain: pe.token.token.chain, addr: pe.token.token.addr}
-						tokenEntry := gov.tokens[key]
-						if tokenEntry != nil {
-							// Mandatory check to ensure that the token should be able to reduce the Governor limit.
-							if tokenEntry.flowCancels {
-								if destinationChainEntry, ok := gov.chains[payload.TargetChain]; ok {
-
-									if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(&dbTransfer); err != nil {
-										gov.logger.Warn("could not add flow canceling transfer to destination chain",
-											zap.String("msgID", dbTransfer.MsgID),
-											zap.String("hash", pe.hash),
-											zap.Error(err),
-										)
-										// Process the next pending transfer
-										continue
-									}
-								} else {
-									gov.logger.Warn("tried to cancel flow but chain entry for target chain does not exist",
-										zap.String("msgID", dbTransfer.MsgID),
-										zap.String("hash", pe.hash), zap.Error(err),
-										zap.Stringer("target chain", payload.TargetChain),
-									)
-								}
+						if gov.flowCancelEnabled {
+							// The point here is to add a flow-cancelling transfer to the governor's pending queue if applicable.
+							// If the function returns (false, nil), just ignore it.
+							// Note that the inverse, flow-cancelling transfers are not stored in the database; they only
+							// exist in memory. When the Guardian is restarted, the flow cancelling transfers
+							// will be reconstructed manually.
+							_, err := gov.tryAddFlowCancelTransfer(&transfer)
+							if err != nil {
+								gov.logger.Error("Error when attempting to add a flow cancel transfer",
+									zap.Error(err),
+								)
 							}
 						}
+
 					} else {
 						delete(gov.msgsSeen, pe.hash)
 					}
 				}
 
+				// Cleanup step: remove the pending message from the database now that it has been processed.
+				// This must happen for all non-error (panic) scenarios.
 				if err := gov.db.DeletePendingMsg(&pe.dbData); err != nil {
 					gov.msgsToPublish = msgsToPublish
 					return nil, err
@@ -924,11 +965,72 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	return value, nil
 }
 
+// tryAddFlowCancelTransfer adds an inverse transfer to the destination chain entry. This occurs only if the transfer's asset
+// is allow-listed, and if the source and destination chain are connected via an enabled "corridor" (allow-list of chain ID pairs).
+// A return value of false means that the transfer will not do flow cancelling, i.e. it will not reduce the destination chain's
+// Governor usage.
+func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, error) {
+	originChain := transfer.dbTransfer.OriginChain
+	originAddr := transfer.dbTransfer.OriginAddress
+	hash := transfer.dbTransfer.Hash
+	target := transfer.dbTransfer.TargetChain
+	emitter := transfer.dbTransfer.EmitterChain
+
+	corridor := &corridor{emitter, target}
+
+	// Check whether the source and destination chain are in the allow-list for flow cancelling.
+	if !gov.corridorCanFlowCancel(corridor) {
+		return false, nil
+	}
+
+	key := tokenKey{originChain, originAddr}
+	tokenEntry := gov.tokens[key]
+	if tokenEntry == nil {
+		// Weird but not critical.
+		gov.logger.Warn("not adding flow cancel transfer because token is not governed",
+			zap.String("OriginChain", originChain.String()),
+			zap.String("tokenEntry", originAddr.String()),
+			zap.String("msgID", transfer.dbTransfer.MsgID),
+			zap.String("hash", hash),
+		)
+		return false, nil
+	}
+	if !tokenEntry.flowCancels {
+		// Nothing to do in this case
+		return false, nil
+	}
+
+	// Ensure destination exists
+	destinationChainEntry, ok := gov.chains[transfer.dbTransfer.TargetChain]
+	if !ok {
+		// Weird that TargetChain does not exist but not relevant for the flow cancel feature. We just
+		// fail closed here: do not add the flow cancelling transfer.
+		gov.logger.Warn("tried to cancel flow but there is no chain entry for the target chain",
+			zap.String("msgID", transfer.dbTransfer.MsgID),
+			zap.String("hash", hash),
+			zap.Stringer("target chain", transfer.dbTransfer.TargetChain),
+		)
+		return false, nil
+	}
+
+	// Add the 'inverse' transfer to the destination chain entry.
+	if err := destinationChainEntry.addFlowCancelTransfer(transfer.inverse()); err != nil {
+		gov.logger.Warn("could not add flow canceling transfer to destination chain",
+			zap.String("msgID", transfer.dbTransfer.MsgID),
+			zap.String("hash", transfer.dbTransfer.Hash),
+			zap.Error(err),
+		)
+		return false, err
+	}
+
+	return true, nil
+}
+
 // TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
-// The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling tokens
+// The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling transfers
 // into account. Therefore, this value should never be less than 0 and should never exceed the "Governor limit" for the chain.
 // As a side-effect, this function modifies the parameter `chainEntry`, updating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).

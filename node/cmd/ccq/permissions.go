@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strings"
 	"sync"
 
@@ -17,8 +18,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/gagliardetto/solana-go"
-	"gopkg.in/godo.v2/watcher/fswatch"
 )
 
 type (
@@ -96,7 +97,7 @@ type (
 		env      common.Environment
 		permMap  PermissionsMap
 		fileName string
-		watcher  *fswatch.Watcher
+		watcher  *fsnotify.Watcher
 	}
 )
 
@@ -114,26 +115,46 @@ func NewPermissions(fileName string, env common.Environment) (*Permissions, erro
 }
 
 // StartWatcher creates an fswatcher to watch for updates to the permissions file and reload it when it changes.
-func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, errC chan error) {
+func (perms *Permissions) StartWatcher(ctx context.Context, logger *zap.Logger, errC chan error) error {
 	logger = logger.With(zap.String("component", "perms"))
-	perms.watcher = fswatch.NewWatcher(perms.fileName)
-	fsChan := perms.watcher.Start()
+	permWatcher, createErr := fsnotify.NewWatcher()
+	if createErr != nil {
+		return createErr
+	}
+
+	// fsnotify requires watching the parent directory rather than the file.
+	watchDir := path.Dir(perms.fileName)
+	addErr := permWatcher.Add(watchDir)
+	if addErr != nil {
+		return addErr
+	}
+	perms.watcher = permWatcher
+	logger.Info("Starting permissions watcher", zap.String("dir", watchDir))
 
 	common.RunWithScissors(ctx, errC, "perm_file_watcher", func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
+				logger.Info("got context done")
 				return nil
-			case notif := <-fsChan:
-				if notif.Path != perms.fileName {
-					return fmt.Errorf("permissions watcher received an update for an unexpected file: %s", notif.Path)
-				}
+			case event := <-perms.watcher.Events:
+				logger.Debug("got permissions watcher event", zap.String("event", event.String()))
 
-				logger.Info("the permissions file has been updated", zap.String("fileName", notif.Path), zap.Int("event", int(notif.Event)))
-				perms.Reload(logger)
+				// Look for modifications to the permissions file. Which event is triggered
+				// depends on how the file was modified: something like nano will issue
+				// a Write event, where Vim actually deletes the file and recreates it on save.
+				//
+				// NOTE: A `touch` command issues only a `Chmod` event,
+				// so it will not trigger this branch.
+				if event.Name == perms.fileName && (event.Has(fsnotify.Write) || event.Has(fsnotify.Create)) {
+					logger.Info("the permissions file has been updated", zap.String("fileName", event.Name), zap.String("event", event.String()))
+					perms.Reload(logger)
+				}
 			}
 		}
 	})
+
+	return nil
 }
 
 // Reload reloads the permissions file.
@@ -155,7 +176,7 @@ func (perms *Permissions) Reload(logger *zap.Logger) {
 // StopWatcher stops the permissions file watcher.
 func (perms *Permissions) StopWatcher() {
 	if perms.watcher != nil {
-		perms.watcher.Stop()
+		perms.watcher.Close()
 	}
 }
 

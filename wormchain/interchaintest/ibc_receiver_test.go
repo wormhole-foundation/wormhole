@@ -34,7 +34,7 @@ func createChains(t *testing.T, wormchainVersion string, guardians guardians.Val
 	wormchainConfig.Images[0].Version = wormchainVersion
 
 	// Create chain factory with wormchain
-	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians)
+	wormchainConfig.ModifyGenesis = ModifyGenesis(votingPeriod, maxDepositPeriod, guardians, len(guardians.Vals), false)
 
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
 		{
@@ -338,7 +338,7 @@ func instantiateWormholeIbcContracts(t *testing.T, ctx context.Context,
 	guardians *guardians.ValSet) (helpers.ContractInfoResponse, helpers.ContractInfoResponse) {
 
 	// Instantiate the Wormchain core contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	wormchainCoreContractInfo := helpers.StoreAndInstantiateWormholeContract(t, ctx, wormchain, "faucet", "./contracts/wormhole_core.wasm", "wormhole_core", coreInstantiateMsg, guardians)
 
 	// Store wormhole-ibc-receiver contract on wormchain
@@ -354,7 +354,7 @@ func instantiateWormholeIbcContracts(t *testing.T, ctx context.Context,
 	require.NotEmpty(t, wormchainReceiverContractInfo.ContractInfo.IbcPortID, "wormchain (wormchain-ibc-receiver) contract port id is nil")
 
 	// Store and instantiate wormhole-ibc contract on osmosis
-	senderInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, guardians)
+	senderInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
 	senderCodeId, err := remoteChain.StoreContract(ctx, "faucet", "./contracts/wormhole_ibc.wasm")
 	require.NoError(t, err)
 	senderContractAddr, err := remoteChain.InstantiateContract(ctx, "faucet", senderCodeId, senderInstantiateMsg, true)

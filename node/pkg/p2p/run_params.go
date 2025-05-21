@@ -23,9 +23,6 @@ type (
 		gst            *common.GuardianSetState
 		rootCtxCancel  context.CancelFunc
 
-		// obsvRecvC is optional and can be set with `WithSignedObservationListener`.
-		obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]
-
 		// batchObsvRecvC is optional and can be set with `WithSignedObservationBatchListener`.
 		batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
@@ -54,15 +51,16 @@ type (
 		acct                   *accountant.Accountant
 		gov                    *governor.ChainGovernor
 		components             *Components
-		ibcFeaturesFunc        func() string
-		processorFeaturesFunc  func() string
-		gatewayRelayerEnabled  bool
 		ccqEnabled             bool
 		signedQueryReqC        chan<- *gossipv1.SignedQueryRequest
 		queryResponseReadC     <-chan *query.QueryResponsePublication
 		ccqBootstrapPeers      string
 		ccqPort                uint
 		ccqAllowedPeers        string
+		protectedPeers         []string
+		ccqProtectedPeers      []string
+		featureFlags           []string
+		featureFlagFuncs       []func() string
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -105,22 +103,6 @@ func NewRunParams(
 func WithComponents(components *Components) RunOpt {
 	return func(p *RunParams) error {
 		p.components = components
-		return nil
-	}
-}
-
-// WithProcessorFeaturesFunc is used to set the processor features function.
-func WithProcessorFeaturesFunc(processorFeaturesFunc func() string) RunOpt {
-	return func(p *RunParams) error {
-		p.processorFeaturesFunc = processorFeaturesFunc
-		return nil
-	}
-}
-
-// WithSignedObservationListener is used to set the channel to receive `SignedObservation` messages.
-func WithSignedObservationListener(obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation]) RunOpt {
-	return func(p *RunParams) error {
-		p.obsvRecvC = obsvRecvC
 		return nil
 	}
 }
@@ -173,11 +155,26 @@ func WithDisableHeartbeatVerify(disableHeartbeatVerify bool) RunOpt {
 	}
 }
 
+// WithProtectedPeers is used to set the protected peers.
+func WithProtectedPeers(protectedPeers []string) RunOpt {
+	return func(p *RunParams) error {
+		p.protectedPeers = protectedPeers
+		return nil
+	}
+}
+
+// WithCcqProtectedPeers is used to set the protected peers for CCQ.
+func WithCcqProtectedPeers(ccqProtectedPeers []string) RunOpt {
+	return func(p *RunParams) error {
+		p.ccqProtectedPeers = ccqProtectedPeers
+		return nil
+	}
+}
+
 // WithGuardianOptions is used to set options that are only meaningful to the guardian.
 func WithGuardianOptions(
 	nodeName string,
 	guardianSigner guardiansigner.GuardianSigner,
-	obsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedIncomingVaaRecvC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqRecvC chan<- *gossipv1.ObservationRequest,
@@ -189,19 +186,20 @@ func WithGuardianOptions(
 	gov *governor.ChainGovernor,
 	disableHeartbeatVerify bool,
 	components *Components,
-	ibcFeaturesFunc func() string,
-	gatewayRelayerEnabled bool,
 	ccqEnabled bool,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *query.QueryResponsePublication,
 	ccqBootstrapPeers string,
 	ccqPort uint,
 	ccqAllowedPeers string,
+	protectedPeers []string,
+	ccqProtectedPeers []string,
+	featureFlags []string,
+	featureFlagFuncs []func() string,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
 		p.guardianSigner = guardianSigner
-		p.obsvRecvC = obsvRecvC
 		p.batchObsvRecvC = batchObsvRecvC
 		p.signedIncomingVaaRecvC = signedIncomingVaaRecvC
 		p.obsvReqRecvC = obsvReqRecvC
@@ -213,14 +211,16 @@ func WithGuardianOptions(
 		p.gov = gov
 		p.disableHeartbeatVerify = disableHeartbeatVerify
 		p.components = components
-		p.ibcFeaturesFunc = ibcFeaturesFunc
-		p.gatewayRelayerEnabled = gatewayRelayerEnabled
 		p.ccqEnabled = ccqEnabled
 		p.signedQueryReqC = signedQueryReqC
 		p.queryResponseReadC = queryResponseReadC
 		p.ccqBootstrapPeers = ccqBootstrapPeers
 		p.ccqPort = ccqPort
 		p.ccqAllowedPeers = ccqAllowedPeers
+		p.protectedPeers = protectedPeers
+		p.ccqProtectedPeers = ccqProtectedPeers
+		p.featureFlags = featureFlags
+		p.featureFlagFuncs = featureFlagFuncs
 		return nil
 	}
 }

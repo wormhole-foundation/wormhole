@@ -74,7 +74,7 @@ func (e *EthereumBaseConnector) GetGuardianSet(ctx context.Context, index uint32
 	return e.caller.GetGuardianSet(&ethBind.CallOpts{Context: ctx}, index)
 }
 
-func (e *EthereumBaseConnector) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
+func (e *EthereumBaseConnector) WatchLogMessagePublished(ctx context.Context, _ chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	return e.filterer.WatchLogMessagePublished(&ethBind.WatchOpts{Context: timeout}, sink, nil)
@@ -98,6 +98,10 @@ func (e *EthereumBaseConnector) ParseLogMessagePublished(log ethTypes.Log) (*eth
 }
 
 func (e *EthereumBaseConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {
+	panic("not implemented")
+}
+
+func (e *EthereumBaseConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
 	panic("not implemented")
 }
 

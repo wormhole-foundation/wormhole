@@ -13,13 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -100,9 +99,9 @@ func newAccountantForTest(
 	acctWriteC chan<- *common.MessagePublication,
 	wormchainConn *MockAccountantWormchainConn,
 ) *Accountant {
-	var db db.MockAccountantDB
+	var db guardianDB.MockAccountantDB
 
-	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethCrypto.S256(), uint64(0))
+	pk := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(0))
 	guardianSigner, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(pk)
 	require.NoError(t, err)
 
@@ -137,13 +136,13 @@ func newAccountantForTest(
 	return acct
 }
 
-// Converts a string into a go-ethereum Hash object used as test input.
-func hashFromString(str string) ethCommon.Hash { //nolint:unparam
+// Converts a TxHash string into a byte array to be used as a TxID.
+func hashToTxID(str string) []byte {
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]
 	}
 
-	return ethCommon.HexToHash(str)
+	return ethCommon.HexToHash(str).Bytes()
 }
 
 // Note this method assumes 18 decimals for the amount.
@@ -188,7 +187,7 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 	var payload = []byte{1, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -216,7 +215,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	var payload = []byte{2, 97, 97, 97, 97, 97}
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -251,7 +250,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 	)
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -295,7 +294,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 	)
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1),
@@ -347,7 +346,7 @@ func TestForDeadlock(t *testing.T) {
 	)
 
 	msg := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1683136244),
@@ -374,7 +373,7 @@ func TestForDeadlock(t *testing.T) {
 	assert.Equal(t, 1, len(acct.msgChan))
 
 	msg2 := common.MessagePublication{
-		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
 		Sequence:         uint64(1683136244),

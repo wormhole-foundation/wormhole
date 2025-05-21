@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -335,6 +336,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}
 		}()
 
+		if len(params.protectedPeers) != 0 {
+			for _, peerId := range params.protectedPeers {
+				logger.Info("protecting peer", zap.String("peerId", peerId))
+				params.components.ConnMgr.Protect(peer.ID(peerId), "configured")
+			}
+		}
+
 		nodeIdBytes, err := h.ID().Marshal()
 		if err != nil {
 			panic(err)
@@ -393,7 +401,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// Set up the attestation channel. ////////////////////////////////////////////////////////////////////
-		if params.gossipAttestationSendC != nil || params.obsvRecvC != nil || params.batchObsvRecvC != nil {
+		if params.gossipAttestationSendC != nil || params.batchObsvRecvC != nil {
 			attestationTopic := fmt.Sprintf("%s/%s", params.networkID, "attestation")
 			logger.Info("joining the attestation topic", zap.String("topic", attestationTopic))
 			attestationPubsubTopic, err = ps.Join(attestationTopic)
@@ -407,7 +415,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvRecvC != nil || params.batchObsvRecvC != nil {
+			if params.batchObsvRecvC != nil {
 				logger.Info("subscribing to the attestation topic", zap.String("topic", attestationTopic))
 				attestationSubscription, err = attestationPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -462,7 +470,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		if params.ccqEnabled {
 			ccqErrC := make(chan error)
 			ccq := newCcqRunP2p(logger, params.ccqAllowedPeers, params.components)
-			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, ccqErrC); err != nil {
+			if err := ccq.run(ctx, params.priv, params.guardianSigner, params.networkID, params.ccqBootstrapPeers, params.ccqPort, params.signedQueryReqC, params.queryResponseReadC, params.ccqProtectedPeers, ccqErrC); err != nil {
 				return fmt.Errorf("failed to start p2p for CCQ: %w", err)
 			}
 			defer ccq.close()
@@ -496,6 +504,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
+			slices.Sort(params.featureFlags)
 			go func() {
 				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx))
 
@@ -518,39 +527,21 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							defer DefaultRegistry.mu.Unlock()
 							networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 							for _, v := range DefaultRegistry.networkStats {
-								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
 								networks = append(networks, v)
 							}
 
-							features := make([]string, 0)
-							if params.processorFeaturesFunc != nil {
-								flag := params.processorFeaturesFunc()
-								if flag != "" {
-									features = append(features, flag)
+							features := make([]string, len(params.featureFlags))
+							copy(features, params.featureFlags)
+							if len(params.featureFlagFuncs) != 0 {
+								for _, f := range params.featureFlagFuncs {
+									flag := f()
+									if flag != "" {
+										features = append(features, flag)
+									}
 								}
-							}
-							if params.gov != nil {
-								if params.gov.IsFlowCancelEnabled() {
-									features = append(features, "governor:fc")
-								} else {
-									features = append(features, "governor")
-								}
-							}
-							if params.acct != nil {
-								features = append(features, params.acct.FeatureString())
-							}
-							if params.ibcFeaturesFunc != nil {
-								ibcFlags := params.ibcFeaturesFunc()
-								if ibcFlags != "" {
-									features = append(features, ibcFlags)
-								}
-							}
-							if params.gatewayRelayerEnabled {
-								features = append(features, "gwrelayer")
-							}
-							if params.ccqEnabled {
-								features = append(features, "ccq")
+								slices.Sort(features)
 							}
 
 							heartbeat := &gossipv1.Heartbeat{
@@ -883,17 +874,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					switch m := msg.Message.(type) {
-					case *gossipv1.GossipMessage_SignedObservation:
-						if params.obsvRecvC != nil {
-							if err := common.PostMsgWithTimestamp(m.SignedObservation, params.obsvRecvC); err == nil {
-								p2pMessagesReceived.WithLabelValues("observation").Inc()
-							} else {
-								if params.components.WarnChannelOverflow {
-									logger.Warn("Ignoring SignedObservation because obsvRecvC is full", zap.String("addr", hex.EncodeToString(m.SignedObservation.Addr)))
-								}
-								p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
-							}
-						}
 					case *gossipv1.GossipMessage_SignedObservationBatch:
 						if params.batchObsvRecvC != nil {
 							if err := common.PostMsgWithTimestamp(m.SignedObservationBatch, params.batchObsvRecvC); err == nil {
@@ -960,8 +940,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							default:
 								if params.components.WarnChannelOverflow {
 									var hexStr string
-									if vaa, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
-										hexStr = vaa.HexDigest()
+									if signedVAA, err := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa); err == nil {
+										hexStr = signedVAA.HexDigest()
 									}
 									logger.Warn("Ignoring SignedVaaWithQuorum because signedIncomingVaaRecvC full", zap.String("hash", hexStr))
 								}
@@ -1025,7 +1005,7 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *commo
 
 	digest := heartbeatDigest(s.Heartbeat)
 
-	// SECURITY: see whitepapers/0009_guardian_key.md
+	// SECURITY: see whitepapers/0009_guardian_signer.md
 	if len(heartbeatMessagePrefix)+len(s.Heartbeat) < 34 {
 		return nil, fmt.Errorf("invalid message: too short")
 	}
@@ -1083,7 +1063,7 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 		pk = gs.Keys[idx]
 	}
 
-	// SECURITY: see whitepapers/0009_guardian_key.md
+	// SECURITY: see whitepapers/0009_guardian_signer.md
 	if len(signedObservationRequestPrefix)+len(s.ObservationRequest) < 34 {
 		return nil, fmt.Errorf("invalid observation request: too short")
 	}

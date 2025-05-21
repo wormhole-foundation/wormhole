@@ -72,6 +72,10 @@ func (m mockEVMConnector) SubscribeForBlocks(ctx context.Context, errC chan erro
 	panic("unimplemented")
 }
 
+func (e mockEVMConnector) GetLatest(ctx context.Context) (latest, finalized, safe uint64, err error) {
+	panic("unimplemented")
+}
+
 func (m mockEVMConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	panic("unimplemented")
 }
@@ -131,7 +135,7 @@ func generateMockVAA(gsIndex uint32, signers []guardiansigner.GuardianSigner, t 
 		copy(signature[:], sig)
 
 		v.Signatures = append(v.Signatures, &vaa.Signature{
-			Index:     uint8(i),
+			Index:     uint8(i), // #nosec G115 -- This conversion is safe based on the constants used
 			Signature: signature,
 		})
 
@@ -323,10 +327,10 @@ func Test_adminCommands(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, 1, len(msg.Messages))
 			govMsg := msg.Messages[0]
-			vaa, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
+			govVAA, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
 			if tst.errText == "" {
 				require.NoError(t, err)
-				verifyGovernanceVAA(t, vaa, govMsg.Sequence, govMsg.Nonce)
+				verifyGovernanceVAA(t, govVAA, govMsg.Sequence, govMsg.Nonce)
 			} else {
 				require.ErrorContains(t, err, tst.errText)
 			}

@@ -184,6 +184,7 @@ contract TestImplementation is TestUtils {
         );
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function testPublishMessage_Revert_OutOfFunds(
         bytes32 storageSlot,
         uint256 messageFee,

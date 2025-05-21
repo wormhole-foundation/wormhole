@@ -1,6 +1,6 @@
 # Default
 
-* @evan-gray
+* @evan-gray @djb15
 
 # Chains
 
@@ -40,21 +40,25 @@
 
 # Protobuf for node
 
-/proto/node/ @evan-gray @bruce-riley
+/proto/node/ @evan-gray @bruce-riley @panoel
 
 # Guardiand node
 
 ## Fallback
 
-/node/ @bruce-riley @evan-gray @SEJeff
+/node/ @bruce-riley @evan-gray @panoel @SEJeff
 
 ## Entrypoint / RPC
 
 /node/cmd/ @bruce-riley @panoel @evan-gray
 
+## Transfer Verifier standalone tool
+
+/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## DB
 
-/node/pkg/db/ @bruce-riley @panoel
+/node/pkg/db/ @bruce-riley @evan-gray @panoel
 
 ## Accountant
 
@@ -62,7 +66,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @claudijd @SEJeff @djb15 @johnsaigle
+/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Gateway Relayer
 
@@ -78,11 +82,15 @@
 
 ## Public RPC
 
-/node/pkg/publicrpc/ @bruce-riley @panoel
+/node/pkg/publicrpc/ @bruce-riley @evan-gray @panoel
 
 ## Supervisor Framework
 
-/node/pkg/supervisor/ @bruce-riley @evan-gray
+/node/pkg/supervisor/ @bruce-riley @evan-gray @panoel
+
+## Transfer Verifier
+
+/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Watchers
 
@@ -91,6 +99,7 @@
 ## Hacks / Tools
 
 /node/hack/ @bruce-riley @panoel @evan-gray
+/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Documentation
 

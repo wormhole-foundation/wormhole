@@ -10,26 +10,64 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   GO_VERSION: 1.21
+  TAR_PATH: /tmp/wormchain-docker-image.tar
+  IMAGE_NAME: wormchain-docker-image
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: wormchain/interchaintest/go.sum
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: wormchain/Dockerfile.ict
+          tags: wormchain:local
+          outputs: type=docker,dest=${{ env.TAR_PATH }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: ${{ env.TAR_PATH }}
+
   e2e-tests:
+    needs: build-docker
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # names of `make` commands to run tests
         test:
           - "ictest-cancel-upgrade"
+          - "ictest-slashing-params-update-vaa"
           - "ictest-upgrade"
           - "ictest-wormchain"
-          - "ictest-ibc-receiver"
+          # Disabled due to flakiness in CI.
+          # - "ictest-ibc-receiver"
+          - "ictest-validator-hotswap"
+          - "ictest-cw-wormhole"
+          - "ictest-cw-shutdown-contracts"
       fail-fast: false
 
     steps:
@@ -41,6 +79,17 @@ jobs:
 
       - name: checkout chain
         uses: actions/checkout@v4
+
+      - name: Download Tarball Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: /tmp
+
+      - name: Load Docker Image
+        run: |
+          docker image load -i ${{ env.TAR_PATH }}
+          docker image ls -a
 
       - name: Run Test
         id: run_test

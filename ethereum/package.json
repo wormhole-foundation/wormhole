@@ -12,5 +12,8 @@
   "dependencies": {
     "@typechain/ethers-v5": "^10.2.0",
     "typechain": "^8.1.1"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1"
   }
 }

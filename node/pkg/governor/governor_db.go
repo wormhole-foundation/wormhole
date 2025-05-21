@@ -67,7 +67,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if !exists {
 		gov.logger.Error("reloaded pending transfer for unsupported chain, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -81,7 +81,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if msg.EmitterAddress != ce.emitterAddr {
 		gov.logger.Error("reloaded pending transfer for unsupported emitter address, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -96,7 +96,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if err != nil {
 		gov.logger.Error("failed to parse payload for reloaded pending transfer, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -113,7 +113,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if !exists {
 		gov.logger.Error("reloaded pending transfer for unsupported token, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -131,7 +131,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	if _, alreadyExists := gov.msgsSeen[hash]; alreadyExists {
 		gov.logger.Error("not reloading pending transfer because it is a duplicate",
 			zap.String("MsgID", msg.MessageIDString()),
-			zap.Stringer("TxHash", msg.TxHash),
+			zap.String("txID", msg.TxIDString()),
 			zap.Stringer("Timestamp", msg.Timestamp),
 			zap.Uint32("Nonce", msg.Nonce),
 			zap.Uint64("Sequence", msg.Sequence),
@@ -146,7 +146,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 
 	gov.logger.Info("reloaded pending transfer",
 		zap.String("MsgID", msg.MessageIDString()),
-		zap.Stringer("TxHash", msg.TxHash),
+		zap.String("txID", msg.TxIDString()),
 		zap.Stringer("Timestamp", msg.Timestamp),
 		zap.Uint32("Nonce", msg.Nonce),
 		zap.Uint64("Sequence", msg.Sequence),
@@ -246,26 +246,10 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) error {
 	// Reload flow-cancel transfers for the TargetChain. This is important when the node restarts so that a corresponding,
 	// inverse transfer is added to the TargetChain. This is already done during the `ProcessMsgForTime` and
 	// `CheckPending` loops but those functions do not capture flow-cancelling when the node is restarted.
-	tokenEntry := gov.tokens[tk]
-	if tokenEntry != nil {
-		// Mandatory check to ensure that the token should be able to reduce the Governor limit.
-		if tokenEntry.flowCancels {
-			if destinationChainEntry, ok := gov.chains[xfer.TargetChain]; ok {
-				if err := destinationChainEntry.addFlowCancelTransferFromDbTransfer(xfer); err != nil {
-					gov.logger.Error("could not add flow canceling transfer to destination chain",
-						zap.String("msgID", xfer.MsgID),
-						zap.String("hash", xfer.Hash), zap.Error(err),
-					)
-					return err
-				}
-			} else {
-				gov.logger.Error("tried to cancel flow but chain entry for target chain does not exist",
-					zap.String("msgID", xfer.MsgID),
-					zap.Stringer("token chain", xfer.OriginChain),
-					zap.Stringer("token address", xfer.OriginAddress),
-					zap.Stringer("target chain", xfer.TargetChain),
-				)
-			}
+	if gov.flowCancelEnabled {
+		_, err := gov.tryAddFlowCancelTransfer(&transfer)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

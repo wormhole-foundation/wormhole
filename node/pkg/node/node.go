@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
+	"github.com/certusone/wormhole/node/pkg/altpub"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -13,6 +14,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
@@ -28,10 +30,6 @@ const (
 
 	// gossipVaaSendBufferSize configures the size of the gossip network send buffer
 	gossipVaaSendBufferSize = 5000
-
-	// inboundObservationBufferSize configures the size of the obsvC channel that contains observations from other Guardians.
-	// One observation takes roughly 0.1ms to process on one core, so the whole queue could be processed in 1s
-	inboundObservationBufferSize = 10000
 
 	// inboundBatchObservationBufferSize configures the size of the batchObsvC channel that contains batches of observations from other Guardians.
 	// Since a batch contains many observations, the guardians should not be publishing too many of these. With 19 guardians, we would expect 19 messages
@@ -67,25 +65,25 @@ type G struct {
 	guardianSigner guardiansigner.GuardianSigner
 
 	// components
-	db              *db.Database
-	gst             *common.GuardianSetState
-	acct            *accountant.Accountant
-	gov             *governor.ChainGovernor
-	gatewayRelayer  *gwrelayer.GatewayRelayer
-	queryHandler    *query.QueryHandler
-	publicrpcServer *grpc.Server
+	db                 *db.Database
+	gst                *common.GuardianSetState
+	acct               *accountant.Accountant
+	gov                *governor.ChainGovernor
+	gatewayRelayer     *gwrelayer.GatewayRelayer
+	queryHandler       *query.QueryHandler
+	publicrpcServer    *grpc.Server
+	alternatePublisher *altpub.AlternatePublisher
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
 	runnables             map[string]supervisor.Runnable
+	reobservers           interfaces.Reobservers
 
 	// various channels
 	// Outbound gossip message queues (need to be read/write because p2p needs read/write)
 	gossipControlSendC     chan []byte
 	gossipAttestationSendC chan []byte
 	gossipVaaSendC         chan []byte
-	// Inbound observations. This is read/write because the processor also writes to it as a fast-path when handling locally made observations.
-	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation]
 	// Inbound observation batches.
 	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
 	// Finalized guardian observations aggregated across all chains
@@ -127,7 +125,6 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
-	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
@@ -147,6 +144,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	// allocate maps
 	g.runnablesWithScissors = make(map[string]supervisor.Runnable)
 	g.runnables = make(map[string]supervisor.Runnable)
+	g.reobservers = make(interfaces.Reobservers)
 }
 
 // applyOptions applies `options` to the GuardianNode.
@@ -251,7 +249,7 @@ type channelPair[T any] struct {
 	writeC chan<- T
 }
 
-func makeChannelPair[T any](cap int) channelPair[T] {
-	out := make(chan T, cap)
+func makeChannelPair[T any](capacity int) channelPair[T] {
+	out := make(chan T, capacity)
 	return channelPair[T]{out, out}
 }

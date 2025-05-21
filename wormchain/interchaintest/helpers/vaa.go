@@ -1,8 +1,11 @@
 package helpers
 
 import (
+	"encoding/hex"
+	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
@@ -17,7 +20,7 @@ func signVaa(vaaToSign vaa.VAA, signers *guardians.ValSet) vaa.VAA {
 	return vaaToSign
 }
 
-func generateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.ChainID, emitterAddr vaa.Address, payload []byte) vaa.VAA {
+func GenerateVaa(index uint32, signers *guardians.ValSet, emitterChain vaa.ChainID, emitterAddr vaa.Address, payload []byte) vaa.VAA {
 	v := vaa.VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: index,
@@ -43,4 +46,24 @@ func GenerateGovernanceVaa(index uint32,
 
 	latestSequence = latestSequence + 1
 	return signVaa(*v, signers)
+}
+
+func GenerateEmptyVAA(
+	t *testing.T,
+	guardians *guardians.ValSet,
+	moduleStr string,
+	action vaa.GovernanceAction,
+	chainID vaa.ChainID,
+) string {
+
+	payloadBz, err := vaa.EmptyPayloadVaa(moduleStr, action, chainID)
+	require.NoError(t, err)
+	v := GenerateVaa(0, guardians, vaa.GovernanceChain, vaa.GovernanceEmitter, payloadBz)
+
+	v = signVaa(v, guardians)
+	vBz, err := v.Marshal()
+	require.NoError(t, err)
+	vHex := hex.EncodeToString(vBz)
+
+	return vHex
 }
