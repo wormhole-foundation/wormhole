@@ -15,8 +15,54 @@ import (
 	"go.uber.org/zap"
 )
 
-const HashLength = 32
-const AddressLength = 32
+const (
+	HashLength    = 32
+	AddressLength = 32
+
+	// TODO: is this big enough?
+	MaxPayloadSize = math.MaxUint16
+	MinTxIdSize    = 1
+	MaxTxIdSize    = math.MaxUint8
+
+	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
+	// the fields plus length information for fields with variable lengths (TxID and Payload).
+	minMarshaledMsgSize = 1 + // TxID length (uint8)
+		8 + // Timestamp (int64)
+		4 + // Nonce (uint32)
+		8 + // Sequence (uint64)
+		1 + // ConsistencyLevel (uint8)
+		2 + // EmitterChain (uint16)
+		32 + // EmitterAddress (32 bytes)
+		1 + // IsReobservation (bool)
+		1 + // Unreliable (bool)
+		1 + // verificationState (uint8)
+		2 // Payload length (uint16)
+
+	// Deprecated: represents the minimum message length for a marshaled message publication
+	// before the Unreliable and verificationState fields were added.
+	// Use [minMarshaledMsgSize] instead.
+	minMsgLength = 88
+)
+
+var (
+	ErrBinaryWrite         = errors.New("failed to write binary data")
+	ErrTxIDTooLong         = errors.New("field TxID too long")
+	ErrTxIDTooShort        = errors.New("field TxID too short")
+	ErrInvalidPayload      = errors.New("field payload too long")
+	ErrDataTooShort        = errors.New("data too short")
+	ErrTimestampTooShort   = errors.New("data too short for timestamp")
+	ErrNonceTooShort       = errors.New("data too short for nonce")
+	ErrSequenceTooShort    = errors.New("data too short for sequence")
+	ErrConsistencyTooShort = errors.New("data too short for consistency level")
+	ErrChainTooShort       = errors.New("data too short for emitter chain")
+	ErrAddressTooShort     = errors.New("data too short for emitter address")
+	ErrReobsTooShort       = errors.New("data too short for IsReobservation")
+	ErrUnreliableTooShort  = errors.New("data too short for Unreliable")
+	ErrVerStateTooShort    = errors.New("data too short for verification state")
+	ErrPayloadLenTooShort  = errors.New("data too short for payload length")
+	ErrPayloadTooShort     = errors.New("data too short for payload")
+	ErrUnexpectedEndOfRead = errors.New("data position after unmarshal does not match data length")
+)
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
@@ -67,7 +113,6 @@ type MessagePublication struct {
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
-	// This field is not marshalled/serialized.
 	Unreliable bool
 
 	// The `VerificationState` is the result of applying transfer
@@ -80,10 +125,10 @@ type MessagePublication struct {
 	// This field is intentionally private so that it must be
 	// updated using the setter, which performs verification on the new
 	// state.
-	// This field is not marshalled/serialized.
 	verificationState VerificationState
 }
 
+// TxIDString returns a hex-encoded representation of the TxID field, prefixed with '0x'.
 func (msg *MessagePublication) TxIDString() string {
 	return "0x" + hex.EncodeToString(msg.TxID)
 }
@@ -119,8 +164,8 @@ func (msg *MessagePublication) SetVerificationState(s VerificationState) error {
 	return nil
 }
 
-const minMsgLength = 88 // Marshalled length with empty payload
-
+// Deprecated: This function does not unmarshal the Unreliable or verificationState fields.
+// Use [MessagePublication.MarshalBinary] instead.
 func (msg *MessagePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -144,7 +189,7 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalOldMessagePublicationWithTxHash deserializes a MessagePublication from when the TxHash was a fixed size ethCommon.Hash.
+// Deprecated: UnmarshalOldMessagePublicationWithTxHash deserializes a MessagePublication from when the TxHash was a fixed size ethCommon.Hash.
 // This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
 func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication, error) {
 	if len(data) < minMsgLength {
@@ -203,7 +248,92 @@ func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication,
 	return msg, nil
 }
 
-// UnmarshalMessagePublication deserializes a MessagePublication
+// Implements the BinaryMarshaler interface for MessagePublication.
+func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
+
+	// Check preconditions
+	txIDLen := len(msg.TxID)
+	if txIDLen > MaxTxIdSize {
+		return nil, ErrTxIDTooLong
+	}
+
+	// TODO: What is the minimum value here 32 bytes?
+	if txIDLen < MinTxIdSize {
+		return nil, ErrTxIDTooShort
+	}
+
+	payloadLen := len(msg.Payload)
+	if payloadLen > MaxPayloadSize {
+		return nil, ErrInvalidPayload
+	}
+
+	// Set up for serialization
+	var (
+		be      = binary.BigEndian
+		bufSize = minMarshaledMsgSize + txIDLen + payloadLen
+		buf     = make([]byte, 0, bufSize)
+	)
+
+	// TxID (and length)
+	buf = append(buf, uint8(txIDLen))
+	buf = append(buf, msg.TxID...)
+
+	// Timestamp
+	tsBytes := make([]byte, 8)
+	//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	be.PutUint64(tsBytes, uint64(msg.Timestamp.Unix()))
+	buf = append(buf, tsBytes...)
+
+	// Nonce
+	nonceBytes := make([]byte, 4)
+	be.PutUint32(nonceBytes, msg.Nonce)
+	buf = append(buf, nonceBytes...)
+
+	// Sequence
+	seqBytes := make([]byte, 8)
+	be.PutUint64(seqBytes, msg.Sequence)
+	buf = append(buf, seqBytes...)
+
+	// ConsistencyLevel
+	buf = append(buf, msg.ConsistencyLevel)
+
+	// EmitterChain
+	chainBytes := make([]byte, 2)
+	be.PutUint16(chainBytes, uint16(msg.EmitterChain))
+	buf = append(buf, chainBytes...)
+
+	// EmitterAddress
+	buf = append(buf, msg.EmitterAddress.Bytes()...)
+
+	// IsReobservation
+	if msg.IsReobservation {
+		buf = append(buf, byte(1))
+	} else {
+		buf = append(buf, byte(0))
+	}
+
+	// Unreliable
+	if msg.Unreliable {
+		buf = append(buf, byte(1))
+	} else {
+		buf = append(buf, byte(0))
+	}
+
+	// verificationState
+	buf = append(buf, uint8(msg.verificationState))
+
+	// Payload (and length)
+	payloadLenBytes := make([]byte, 2)
+	be.PutUint16(payloadLenBytes, uint16(payloadLen))
+	buf = append(buf, payloadLenBytes...)
+	buf = append(buf, msg.Payload...)
+
+	return buf, nil
+}
+
+// Deprecated: UnmarshalMessagePublication deserializes a MessagePublication.
+// This function does not unmarshal the Unreliable or verificationState fields.
+// Use [MessagePublication.UnmarshalBinary] instead.
 func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	if len(data) < minMsgLength {
 		return nil, errors.New("message is too short")
@@ -266,6 +396,94 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	msg.Payload = payload[:n]
 
 	return msg, nil
+}
+
+// Implements the BinaryUnmarshaler interface for MessagePublication.
+func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
+	// Calculate minimum required length for the fixed portion
+	// (excluding variable-length fields: TxID and Payload)
+
+	// Initial check for minimum data length
+	if len(data) < minMarshaledMsgSize {
+		return ErrDataTooShort
+	}
+
+	// Set up deserialization
+	be := binary.BigEndian
+	pos := 0
+
+	// TxID length
+	txIDLen := uint8(data[pos])
+	pos++
+
+	// Check if we have enough data for TxID and the rest
+	if len(data) < minMarshaledMsgSize+int(txIDLen) {
+		return ErrTxIDTooShort
+	}
+
+	// Read TxID
+	msg.TxID = make([]byte, txIDLen)
+	copy(msg.TxID, data[pos:pos+int(txIDLen)])
+	pos += int(txIDLen)
+
+	// Timestamp
+	timestamp := be.Uint64(data[pos : pos+8])
+	// Nanoseconds are not serialized
+	//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	msg.Timestamp = time.Unix(int64(timestamp), 0)
+	pos += 8
+
+	// Nonce
+	msg.Nonce = be.Uint32(data[pos : pos+4])
+	pos += 4
+
+	// Sequence
+	msg.Sequence = be.Uint64(data[pos : pos+8])
+	pos += 8
+
+	// ConsistencyLevel
+	msg.ConsistencyLevel = data[pos]
+	pos++
+
+	// EmitterChain
+	msg.EmitterChain = vaa.ChainID(be.Uint16(data[pos : pos+2]))
+	pos += 2
+
+	// EmitterAddress
+	copy(msg.EmitterAddress[:], data[pos:pos+32])
+	pos += 32
+
+	// IsReobservation
+	msg.IsReobservation = data[pos] != 0
+	pos++
+
+	// Unreliable
+	msg.Unreliable = data[pos] != 0
+	pos++
+
+	// verificationState
+	msg.verificationState = VerificationState(data[pos])
+	pos++
+
+	// Payload length
+	payloadLen := uint16(be.Uint16(data[pos : pos+2]))
+	pos += 2
+
+	// Check if we have enough data for the payload
+	if len(data) < pos+int(payloadLen) {
+		return ErrPayloadTooShort
+	}
+
+	// Read payload
+	msg.Payload = make([]byte, payloadLen)
+	copy(msg.Payload, data[pos:pos+int(payloadLen)])
+
+	// Check that exactly the correct number of bytes was read.
+	if pos+int(payloadLen) != len(data) {
+		return ErrUnexpectedEndOfRead
+	}
+
+	return nil
 }
 
 // The standard json Marshal / Unmarshal of time.Time gets confused between local and UTC time.
@@ -331,4 +549,12 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.Bool("isReobservation", msg.IsReobservation),
 		zap.String("verificationState", msg.verificationState.String()),
 	)
+}
+
+// VAAHash returns a hash corresponding to the fields of the Message Publication that are ultimately
+// encoded in a VAA. This is a helper function used to uniquely identify a Message Publication.
+func (msg *MessagePublication) VAAHash() string {
+	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
+	digest := v.SigningDigest()
+	return hex.EncodeToString(digest.Bytes())
 }
