@@ -47,6 +47,7 @@ const expectedUSDDepeggs = [
   "13-000000000000000000000000cee8faf64bb97a73bb51e115aa89c17ffa8dd167-oUSDT", // Orbit bridge Klatyn USDT, depegged since December 2023
   "16-000000000000000000000000ffffffff52c56a9257bb97f4b2b6f7b2d624ecda-xcaUSD", // Acala USD being converted to aSEED, dead token
   "1-689ac099ef657e5d3b7efaf1e36ab8b897e2746232d8a9261b3e49b35c1dead4-xUSD", // Synthetic USD is inactive and deactivated
+  "16-000000000000000000000000818ec0a7fe18ff94269904fced6ae3dae6d6dc0b-USDC", // Multichain bridge USDC Moonbeam has no volume and thus the extended depeg is expected
 ]
 
 const axios = require("axios");
