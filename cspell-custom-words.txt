@@ -6,6 +6,7 @@ algod
 Algorand
 algosdk
 alist
+amazonkms
 Aptos
 arbitrum
 authorisation
@@ -161,6 +162,7 @@ repoint
 rustup
 satoshi
 secp
+SECQ
 seda
 seievm
 Sepolia

@@ -64,6 +64,12 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 39, addr: "000000000000000000000000fcbd14dc51f0a4d49d5e53c2e0950e0bc26d0dce", symbol: "HONEY", coinGeckoId: "honey-3", decimals: 18, price: 0.9985},
 		{chain: 39, addr: "0000000000000000000000006fc6545d5cde268d5c7f1e476d444f39c995120d", symbol: "BERAETH", coinGeckoId: "berachain-staked-eth", decimals: 18, price: 2713.26},
 		{chain: 39, addr: "00000000000000000000000036e9fe653e673fda3857dbe5afbc884af8a316a2", symbol: "BERAFI", coinGeckoId: "berafi", decimals: 18, price: 0.00117},
+		// SEIEVM (tokens over $500,000 24h volume)
+		{chain: 40, addr: "0000000000000000000000009151434b16b9763660705744891fA906F660EcC5", symbol: "USDT0", coinGeckoId: "usdt0", decimals: 6, price: 1.00},
+		{chain: 40, addr: "000000000000000000000000e30fedd158a2e3b13e9badaeabafc5516e95e8c7", symbol: "WSEI", coinGeckoId: "wrapped-sei", decimals: 18, price: 0.2236},
+		{chain: 40, addr: "0000000000000000000000003894085ef7ff0f0aedf52e2a2704928d1ec074f1", symbol: "USDC", coinGeckoId: "ibc-bridged-usdc", decimals: 6, price: 1.00},
+		{chain: 40, addr: "000000000000000000000000541fd749419ca806a8bc7da8ac23d346f2df8b77", symbol: "SOLVBTC", coinGeckoId: "solv-btc", decimals: 18, price: 106222},
+		{chain: 40, addr: "000000000000000000000000cc0966d8418d412c599a6421b760a847eb169a8c", symbol: "XSOLVBTC", coinGeckoId: "solv-protocol-solvbtc-bbn", decimals: 18, price: 105810},
 		// UNICHAIN (tokens over $1,000,000 24h volume)
 		{chain: 44, addr: "000000000000000000000000078D782b760474a361dDA0AF3839290b0EF57AD6", symbol: "USDC", coinGeckoId: "usd-coin", decimals: 6, price: 1.00},
 		{chain: 44, addr: "0000000000000000000000004200000000000000000000000000000000000006", symbol: "WETH", coinGeckoId: "unichain-bridged-weth-unichain", decimals: 18, price: 2722.24},
@@ -74,5 +80,10 @@ func manualTokenList() []tokenConfigEntry {
 		{chain: 45, addr: "00000000000000000000000003C7054BCB39f7b2e5B2c7AcB37583e32D70Cfa3", symbol: "WBTC", coinGeckoId: "bridged-wrapped-bitcoin-worldchain", decimals: 8, price: 86683.84},
 		{chain: 45, addr: "0000000000000000000000004200000000000000000000000000000000000006", symbol: "WETH", coinGeckoId: "wrapped-eth-world-chain", decimals: 18, price: 3311.13},
 		{chain: 45, addr: "00000000000000000000000079A02482A880bCE3F13e09Da970dC34db4CD24d1", symbol: "USDC.e", coinGeckoId: "bridged-usdc-world-chain", decimals: 6, price: 1.00},
+		// INK (tokens over $500,000 24h volume)
+		{chain: 46, addr: "0000000000000000000000000200c29006150606b650577bbe7b6248f58470c1", symbol: "USDT0", coinGeckoId: "usdt0", decimals: 6, price: 1.00},
+		{chain: 46, addr: "000000000000000000000000f1815bd50389c46847f0bda824ec8da914045d14", symbol: "USDC.E", coinGeckoId: "stargate-bridged-usdc-ink", decimals: 6, price: 1.00},
+		{chain: 46, addr: "000000000000000000000000ae4efbc7736f963982aacb17efa37fcbab924cb3", symbol: "SOLVBTC", coinGeckoId: "solv-btc", decimals: 18, price: 106222},
+		{chain: 46, addr: "000000000000000000000000c99f5c922dae05b6e2ff83463ce705ef7c91f077", symbol: "XSOLVBTC", coinGeckoId: "solv-protocol-solvbtc-bbn", decimals: 18, price: 105810},
 	}
 }
