@@ -421,6 +421,80 @@ func TestBodySlashingParamsUpdateDeserializeFailureTooLong(t *testing.T) {
 	require.ErrorContains(t, err, "incorrect payload length, should be 40, is 41")
 }
 
+func TestBodyUpdateIBCClientSerialize(t *testing.T) {
+	subjectClientId := "07-tendermint-0"
+	substituteClientId := "07-tendermint-1"
+
+	subjectBz := [64]byte{}
+	buf, err := LeftPadBytes(subjectClientId, 64)
+	require.NoError(t, err)
+	copy(subjectBz[:], buf.Bytes())
+
+	substituteBz := [64]byte{}
+	buf, err = LeftPadBytes(substituteClientId, 64)
+	require.NoError(t, err)
+	copy(substituteBz[:], buf.Bytes())
+
+	bodyUpdateIBCClient := BodyGatewayIBCClientUpdate{
+		SubjectClientId:    subjectBz,
+		SubstituteClientId: substituteBz,
+	}
+	serializedBody, err := bodyUpdateIBCClient.Serialize()
+	require.NoError(t, err)
+
+	expected := "00000000000000000000000000000000000000476174657761794d6f64756c65050c200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030372d74656e6465726d696e742d300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030372d74656e6465726d696e742d31"
+	assert.Equal(t, expected, hex.EncodeToString(serializedBody))
+}
+
+const BodyUpdateIBCClientBuf = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030372d74656e6465726d696e742d300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030372d74656e6465726d696e742d31"
+
+func TestBodyUpdateIBCClientDeserialize(t *testing.T) {
+	subjectClientId := "07-tendermint-0"
+	substituteClientId := "07-tendermint-1"
+
+	subjectBz := [64]byte{}
+	buf, err := LeftPadBytes(subjectClientId, 64)
+	require.NoError(t, err)
+	copy(subjectBz[:], buf.Bytes())
+
+	substituteBz := [64]byte{}
+	buf, err = LeftPadBytes(substituteClientId, 64)
+	require.NoError(t, err)
+	copy(substituteBz[:], buf.Bytes())
+
+	expected := BodyGatewayIBCClientUpdate{
+		SubjectClientId:    subjectBz,
+		SubstituteClientId: substituteBz,
+	}
+
+	var payloadBody BodyGatewayIBCClientUpdate
+	bz, err := hex.DecodeString(BodyUpdateIBCClientBuf)
+	require.NoError(t, err)
+	err = payloadBody.Deserialize(bz)
+	require.NoError(t, err)
+	assert.Equal(t, expected, payloadBody)
+	assert.Equal(t, subjectClientId, string(bytes.TrimLeft(payloadBody.SubjectClientId[:], "\x00")))
+	assert.Equal(t, substituteClientId, string(bytes.TrimLeft(payloadBody.SubstituteClientId[:], "\x00")))
+}
+
+func TestBodyUpdateIBCClientDeserializeFailureTooShort(t *testing.T) {
+	buf, err := hex.DecodeString(BodyUpdateIBCClientBuf[0 : len(BodyUpdateIBCClientBuf)-2])
+	require.NoError(t, err)
+
+	var actual BodyGatewayIBCClientUpdate
+	err = actual.Deserialize(buf)
+	require.ErrorContains(t, err, "incorrect payload length, should be 128, is 127")
+}
+
+func TestBodyUpdateIBCClientDeserializeFailureTooLong(t *testing.T) {
+	buf, err := hex.DecodeString(BodyUpdateIBCClientBuf + "00")
+	require.NoError(t, err)
+
+	var actual BodyGatewayIBCClientUpdate
+	err = actual.Deserialize(buf)
+	require.ErrorContains(t, err, "incorrect payload length, should be 128, is 129")
+}
+
 func TestBodyCoreRecoverChainIdSerialize(t *testing.T) {
 	expected := "00000000000000000000000000000000000000000000000000000000436f72650500000000000000000000000000000000000000000000000000000000000000010fa0"
 	BodyRecoverChainId := BodyRecoverChainId{

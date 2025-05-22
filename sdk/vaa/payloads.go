@@ -88,6 +88,7 @@ var (
 	ActionCancelUpgrade                 GovernanceAction = 2
 	ActionSetIbcComposabilityMwContract GovernanceAction = 3
 	ActionSlashingParamsUpdate          GovernanceAction = 4
+	ActionIBCClientUpdate               GovernanceAction = 5
 
 	// Accountant governance actions
 	ActionModifyBalance GovernanceAction = 1
@@ -219,6 +220,15 @@ type (
 		DowntimeJailDuration    uint64
 		SlashFractionDoubleSign uint64
 		SlashFractionDowntime   uint64
+	}
+
+	// BodyIBCClientUpdate is a governance message to update an expired IBC client on the Wormchain.
+	//
+	// The subject client is the client that has expired and needs to be updated.
+	// The substitute client is the client that will replace the subject client.
+	BodyGatewayIBCClientUpdate struct {
+		SubjectClientId    [64]byte
+		SubstituteClientId [64]byte
 	}
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
@@ -449,6 +459,29 @@ func (r *BodyGatewaySlashingParamsUpdate) Deserialize(bz []byte) error {
 	r.DowntimeJailDuration = binary.BigEndian.Uint64(bz[16:24])
 	r.SlashFractionDoubleSign = binary.BigEndian.Uint64(bz[24:32])
 	r.SlashFractionDowntime = binary.BigEndian.Uint64(bz[32:40])
+	return nil
+}
+
+func (b BodyGatewayIBCClientUpdate) Serialize() ([]byte, error) {
+	payload := new(bytes.Buffer)
+	payload.Write(b.SubjectClientId[:])
+	payload.Write(b.SubstituteClientId[:])
+	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionIBCClientUpdate, ChainIDWormchain, payload.Bytes())
+}
+
+func (r *BodyGatewayIBCClientUpdate) Deserialize(bz []byte) error {
+	if len(bz) != 128 {
+		return fmt.Errorf("incorrect payload length, should be 128, is %d", len(bz))
+	}
+
+	var subjectClientId [64]byte
+	copy(subjectClientId[:], bz[0:64])
+
+	var substituteClientId [64]byte
+	copy(substituteClientId[:], bz[64:128])
+
+	r.SubjectClientId = subjectClientId
+	r.SubstituteClientId = substituteClientId
 	return nil
 }
 

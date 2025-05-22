@@ -27,7 +27,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	cosmossdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 
 	"go.uber.org/zap"
 )
@@ -81,10 +81,10 @@ type (
 
 	// TransferData contains the detailed data returned for a committed transfer.
 	TransferData struct {
-		Amount         *cosmossdk.Int `json:"amount"`
-		TokenChain     uint16         `json:"token_chain"`
-		TokenAddress   vaa.Address    `json:"token_address"`
-		RecipientChain uint16         `json:"recipient_chain"`
+		Amount         *math.Int   `json:"amount"`
+		TokenChain     uint16      `json:"token_chain"`
+		TokenAddress   vaa.Address `json:"token_address"`
+		RecipientChain uint16      `json:"recipient_chain"`
 	}
 
 	// TransferStatusPending contains the data returned for a committed transfer.
