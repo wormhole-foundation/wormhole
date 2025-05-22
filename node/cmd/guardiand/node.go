@@ -1766,6 +1766,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			ShimContract:  *fogoShimContract,
 			ReceiveObsReq: false,
 			Commitment:    rpc.CommitmentConfirmed,
+			PollForTx:     true,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1780,6 +1781,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			ShimContract:  *fogoShimContract,
 			ReceiveObsReq: true,
 			Commitment:    rpc.CommitmentFinalized,
+			PollForTx:     true,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 
