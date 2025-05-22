@@ -141,6 +141,8 @@ func TestVerifyAndPublish(t *testing.T) {
 	w.txVerifier = failMock
 	require.NotNil(t, w.txVerifier)
 	msg = common.MessagePublication{
+		// required so that the message is classified as a token transfer
+		Payload:        []byte{0x01},
 		EmitterAddress: tbAddr,
 	}
 
@@ -168,6 +170,7 @@ func TestVerifyAndPublish(t *testing.T) {
 	w.txVerifier = successMock
 	require.NotNil(t, w.txVerifier)
 	msg = common.MessagePublication{
+		Payload:        []byte{0x01},
 		EmitterAddress: tbAddr,
 	}
 

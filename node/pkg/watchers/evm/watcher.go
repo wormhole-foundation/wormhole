@@ -884,7 +884,7 @@ func (w *Watcher) verifyAndPublish(
 	}
 
 	if w.txVerifier != nil {
-		verifiedMsg, err := verify(ctx, msg, txHash, receipt, w.txVerifier)
+		verifiedMsg, err := w.verify(ctx, msg, txHash, receipt)
 
 		if err != nil {
 			return err
