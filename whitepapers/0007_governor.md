@@ -45,7 +45,7 @@ If a Guardian decides to enable this feature:
 
 * A list of allow-listed assets for flow canceling is configured in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go).
 
-* A list of allow-listed chain ID pairs for flow canceling is configured in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_corridors.go).
+* A list of allow-listed chain ID pairs, or corridors, for flow canceling is configured in [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_corridors.go).
 
 The Governor divides token-based transactions into two categories: small transactions and large transactions.
 
@@ -64,7 +64,7 @@ The headroom for a chain is the amount left over after subtracting the current
 sum of small transfers from the chain's daily limit.
 
 Inbound transfers of certain tokens can also decrease this sum, a
-process we refer to as Flow Canceling.
+process referred to as Flow Canceling.
 
 #### Flow Canceling
 
@@ -87,7 +87,7 @@ Since the thresholds are denominated in the base currency, the Governor must kno
 1. **Hardcoded Floor Price**: This price is hard coded into the governor and is based on a fixed point in time (usually during a Wormhole Guardian release) which polls CoinGecko for a known set of known tokens that are governed.
 2. **Dynamic Price:** This price is dynamically polled from CoinGecko at 5-10min intervals.
 
-The token configurations are in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go) contains the token list of Flow Cancel tokens but does not include price information.
+The token configurations are in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go) contains the list of Flow Cancel tokens but does not include price information.
 
 If CoinGecko was to provide an erroneously low price for a token, the Governor errs on the side of safety by using the hardcoded floor price instead.
 
