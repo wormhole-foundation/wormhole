@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@aztec/accounts": "^0.81.0",
-    "@aztec/stdlib": "^0.81.0"
+    "@aztec/accounts": "^0.85.0",
+    "@aztec/stdlib": "^0.85.0"
   }
 }

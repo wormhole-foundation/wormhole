@@ -1,7 +1,9 @@
 [package]
-name = "aztec"
-compiler_version = ">=0.25.0"
+name = "wormhole_contracts"
 type = "contract"
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="v0.85.0", directory="noir-projects/aztec-nr/aztec" }
+keccak256 = { tag = "v0.1.0", git = "https://github.com/noir-lang/keccak256" }
+token = { git = "https://github.com/AztecProtocol/aztec-packages/", tag = "v0.85.0", directory = "noir-projects/noir-contracts/contracts/app/token_contract"}
+
