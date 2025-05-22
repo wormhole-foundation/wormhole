@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "wormhole-sdk/libraries/BytesParsing.sol";
+import {GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import "wormhole-sdk/libraries/VaaLib.sol";
 import "./ThresholdVerificationState.sol";
 
@@ -10,7 +11,6 @@ contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using {BytesParsing.checkLength} for uint;
-
 
   // Module ID for the VerificationV2 contract, ASCII "TSS"
   bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
@@ -27,6 +27,8 @@ contract ThresholdVerification is ThresholdVerificationState {
   error InvalidModule(bytes32 module);
   error InvalidAction(uint8 action);
 
+  constructor(uint256 initialIndex) ThresholdVerificationState(initialIndex) {}
+
   // Verify a threshold signature VAA
   function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
@@ -40,36 +42,32 @@ contract ThresholdVerification is ThresholdVerificationState {
       (tssIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (r, s, offset) = _decodeThresholdSignatureCdUnchecked(encodedVaa, offset);
 
-      // Validate the VAA version
+      // Validate the VAA version and threshold signature is in range
+      // NOTE: s < Q prevents signature malleability
+      // NOTE: Non-zero r prevents confusion with ecrecover failure
+      // NOTE: Non-zero check on s not needed, see the first argument of ecrecover
       require(version == 2, VaaLib.InvalidVersion(version));
+      require(s < Q && r != address(0), ThresholdSignatureVerificationFailed());
 
-      // Validate the threshold signature
-      // NOTE: The first condition prevents signature malleability from multiple representations for ℤ/Qℤ elements
-      require(s < Q, ThresholdSignatureVerificationFailed());
-      require(r != address(0), ThresholdSignatureVerificationFailed());
-      require(s != 0, ThresholdSignatureVerificationFailed());
-
-      // Validate the threshold key expiration time
+      // Load threshold key info and validate expiration time
       (uint256 pubkey, uint32 expirationTime) = _getThresholdInfo(tssIndex);
       require(expirationTime > block.timestamp, ThresholdKeyExpired());
 
-      // Get the message hash and public key data
+      // Calculate the challenge value
       bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
       (uint256 px, bool parity) = _decodePubkey(pubkey);
-
-      // Calculate the challenge value
       uint256 e = uint256(keccak256(abi.encodePacked(px, parity, vaaHash, r)));
 
-      // Calculate the recovery inputs, ensuring that sp(the unchecked input for ecrecover) is non-zero
-      bytes32 sp = bytes32(Q - mulmod(px, s, Q));
-      bytes32 ep = bytes32(mulmod(e, px, Q));
-      require(sp != 0, ThresholdSignatureVerificationFailed());
-
-      // The ecrecover precompile implementation checks that the `r` and `s`
-      // inputs are non-zero (in this case, `px` and `ep`), thus we don't need to
-      // check if they're zero. We additionally know that px is non-zero because
-      // it's checked in the _appendThresholdKey function.
-      address recovered = ecrecover(sp, parity ? 28 : 27, bytes32(px), ep);
+      // Verify the recovered address matches the threshold signature r
+      address recovered = ecrecover(
+        // NOTE: This is non-zero because for all k = px * s, Q > k % Q
+        //       Therefore, Q - k % Q is always positive
+        bytes32(Q - mulmod(px, s, Q)),
+        parity ? 28 : 27,
+        // NOTE: This is checked non-zero in _decodeThresholdKeyUpdatePayload
+        bytes32(px),
+        bytes32(mulmod(px, e, Q))
+      );
       require(r == recovered, ThresholdSignatureVerificationFailed());
 
       return offset;
@@ -100,8 +98,7 @@ contract ThresholdVerification is ThresholdVerificationState {
     }
   }
 
-  function _decodeThresholdKeyUpdatePayload(bytes calldata payload) internal pure returns (
-    uint32 newThresholdIndex,
+  function _decodeThresholdKeyUpdatePayload(bytes calldata payload, uint256 shardCount) internal pure returns (
     uint256 newThresholdPubkey,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
@@ -111,16 +108,13 @@ contract ThresholdVerification is ThresholdVerificationState {
       uint offset = 0;
       uint8 action;
       bytes32 module;
-      uint shardCount;
 
       (module, offset) = payload.asBytes32MemUnchecked(offset);
       (action, offset) = payload.asUint8MemUnchecked(offset);
-      (newThresholdIndex, offset) = payload.asUint32MemUnchecked(offset);
       (newThresholdPubkey, offset) = payload.asUint256MemUnchecked(offset);
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
-      (shardCount, offset) = payload.asUint8MemUnchecked(offset); // TODO: We should probably pass this in and get it from the guardian set to ensure the mapping is correct
 
-      // Validate the threshold key is less than HALF_Q
+      // Validate the threshold key is non-zero and less than HALF_Q
       (uint256 px,) = _decodePubkey(newThresholdPubkey);
       require(px != 0, InvalidThresholdKeyAddress());
       require(px <= HALF_Q, InvalidThresholdKeyAddress());

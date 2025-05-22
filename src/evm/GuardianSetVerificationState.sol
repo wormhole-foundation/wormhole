@@ -88,6 +88,8 @@ contract GuardianSetVerificationState is ExtStore {
     uint32 expirationTime
   ) {
     // Get the guardian set from the core bridge
+    // NOTE: The expiration time is copied from the core bridge,
+    //       so any invalid guardian set will already be invalidated
     GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
     expirationTime = guardians.expirationTime;
 

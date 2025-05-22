@@ -16,28 +16,32 @@ contract GuardianSetVerification is GuardianSetVerificationState {
 
   error QuorumNotMet();
   error GuardianSetSignatureVerificationFailed();
+  error GuardianSetExpired();
 
   constructor(
     address coreBridge,
     uint256 pullLimit
   ) GuardianSetVerificationState(coreBridge, pullLimit) {}
 
-  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
+  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset, uint32 guardianSetIndex, address[] memory guardians) {
     unchecked {
       uint offset = 0;
       uint8 version;
-      uint32 guardianSet;
       uint signatureCount;
 
       (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
-      (guardianSet, offset) = encodedVaa.asUint32CdUnchecked(offset);
+      (guardianSetIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (signatureCount, offset) = encodedVaa.asUint8CdUnchecked(offset);
 
       // Validate the version
       require(version == 1, VaaLib.InvalidVersion(version));
 
-      // Get the guardian set and the number of guardians
-      (, address[] memory guardians) = _getGuardianSetInfo(guardianSet);
+      // Get the guardian set and validate it's not expired
+      // FIXME: Do we want to do this expiration check? If we miss the expiration,
+      //        I'm not sure what happens.
+      uint32 expirationTime;
+      (expirationTime, guardians) = _getGuardianSetInfo(guardianSetIndex);
+      require(expirationTime > block.timestamp, GuardianSetExpired());
 
       // Get the number of signatures
       // NOTE: Optimization puts guardianCount on stack thus avoids mloads
@@ -102,9 +106,21 @@ contract GuardianSetVerification is GuardianSetVerificationState {
     bytes32 emitterAddress,
     uint64 sequence,
     uint8 consistencyLevel,
-    bytes calldata payload
+    bytes calldata payload,
+    uint32 guardianSetIndex,
+    address[] memory guardians
   ) {
-    uint payloadOffset = _verifyGuardianSetVaaHeader(encodedVaa);
-    return encodedVaa.decodeVaaBodyCd(payloadOffset);
+    uint payloadOffset;
+    (payloadOffset, guardianSetIndex, guardians) = _verifyGuardianSetVaaHeader(encodedVaa);
+  
+    (
+      timestamp,
+      nonce,
+      emitterChainId,
+      emitterAddress,
+      sequence,
+      consistencyLevel,
+      payload
+    ) = encodedVaa.decodeVaaBodyCd(payloadOffset);
   }
 }

@@ -12,27 +12,40 @@ contract ThresholdVerificationState {
     bytes32 id;
   }
 
+  uint256 private _thresholdDataInitialIndex;
+
+  constructor(uint256 initialIndex) {
+    _thresholdDataInitialIndex = initialIndex;
+  }
+
   // Threshold data is stored in a single array with stride 2:
   //   pubkey (32 bytes)
   //   expiration time (4 bytes)
   //   shard base (5 bytes)
   //   shard count (1 byte)
   uint256[] private _thresholdData;
+
+  // Shard data is stored as a single array with stride 2, grouped by guardian set
   bytes32[] private _shardData;
 
   // Get the current threshold signature info
   function _getCurrentThresholdInfo() internal view returns (uint256 pubkey, uint32 index) {
     unchecked {
       uint256 length = _thresholdData.length;
-      // NOTE: We assume that at least one threshold key has been set
-      pubkey = _thresholdData[length - 2];
-      index = uint32(length >> 1);
+      if (length == 0) {
+        pubkey = 0;
+        index = uint32(_thresholdDataInitialIndex);
+      } else {
+        pubkey = _thresholdData[length - 2];
+        index = uint32(length >> 1);
+      }
     }
   }
 
   function _getThresholdInfo(uint32 index) internal view returns (uint256 pubkey, uint32 expirationTime) {
     unchecked {
-      uint256 offset = index << 1;
+      // NOTE: The threshold data index is relative to the initial index
+      uint256 offset = (index - _thresholdDataInitialIndex) << 1;
       require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
       pubkey = _thresholdData[offset];
       expirationTime = _thresholdDataExpirationTime(_thresholdData[offset + 1]);
@@ -46,12 +59,6 @@ contract ThresholdVerificationState {
     ShardInfo[] memory shards
   ) internal {
     unchecked {
-      // Verify the new address is not the zero address
-      // This prevents errors from ecrecover returning the zero address
-      // NOTE: This is actually already checked in ecrecover, but there's no harm in preventing that case here
-      // NOTE: The pubkey is also known to be <= HALF_Q, based on the decoding in _decodeThresholdKeyUpdatePayload
-      require(pubkey != 0, InvalidThresholdKeyAddress());
-
       // Get the current threshold info and verify the new index is sequential
       (, uint32 index) = _getCurrentThresholdInfo();
       require(newIndex == index + 1, InvalidThresholdKeyIndex());
@@ -63,6 +70,12 @@ contract ThresholdVerificationState {
       // Store the new threshold info
       _thresholdData.push(pubkey);
       _thresholdData.push(_createThresholdData(uint8(shards.length), uint40(_shardData.length)));
+
+      // Store the shard data
+      for (uint256 i = 0; i < shards.length; i++) {
+        _shardData.push(shards[i].shard);
+        _shardData.push(shards[i].id);
+      }
     }
   }
 

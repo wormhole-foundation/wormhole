@@ -41,9 +41,9 @@ contract VerificationV2 is
 
   error GuardianSetIsNotCurrent();
 
-  // TODO: Consider how to initialize the contract, pulling in guardian sets and threshold keys
-  constructor(address coreV1, uint256 pullLimit) 
-    ThresholdVerification()
+  // FIXME: The initial TSS index should be the latest guardian set index, not passed in!
+  constructor(address coreV1, uint256 initialTSSIndex, uint256 pullLimit) 
+    ThresholdVerification(initialTSSIndex)
     GuardianSetVerification(coreV1, pullLimit)
     GuardianRegistryVerification() 
   {}
@@ -70,9 +70,9 @@ contract VerificationV2 is
   ) {
     (uint8 version, ) = data.asUint8CdUnchecked(0);
     if (version == 2) {
-      return _verifyAndDecodeThresholdVaa(data);
+      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = _verifyAndDecodeThresholdVaa(data);
     } else if (version == 1) {
-      return _verifyAndDecodeGuardianSetVaa(data);
+      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload,,) = _verifyAndDecodeGuardianSetVaa(data);
     } else {
       revert VaaLib.InvalidVersion(version);
     }
@@ -101,7 +101,9 @@ contract VerificationV2 is
           bytes32 emitterAddress,
           ,
           ,
-          bytes calldata payload
+          bytes calldata payload,
+          uint32 guardianSetIndex,
+          address[] memory guardians
         ) = _verifyAndDecodeGuardianSetVaa(encodedVaa);
 
         // Verify the emitter
@@ -110,14 +112,13 @@ contract VerificationV2 is
         
         // Decode the payload
         (
-          uint32 newThresholdIndex,
           uint256 newThresholdAddr,
           uint32 expirationDelaySeconds,
           ShardInfo[] memory shards
-        ) = _decodeThresholdKeyUpdatePayload(payload);
+        ) = _decodeThresholdKeyUpdatePayload(payload, guardians.length);
         
         // Append the threshold key
-        _appendThresholdKey(newThresholdIndex, newThresholdAddr, expirationDelaySeconds, shards);
+        _appendThresholdKey(guardianSetIndex, newThresholdAddr, expirationDelaySeconds, shards);
       } else if (op == OP_PULL_GUARDIAN_SETS) {
         uint32 limit;
         (limit, offset) = data.asUint32CdUnchecked(offset);
