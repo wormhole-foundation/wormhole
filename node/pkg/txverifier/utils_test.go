@@ -74,6 +74,14 @@ func TestExtractFromJsonPath(t *testing.T) {
 			wantErr:  true,
 			typ:      "string",
 		},
+		{
+			name:     "DataIsNil",
+			data:     nil,
+			path:     "test",
+			expected: nil,
+			wantErr:  true,
+			typ:      "string",
+		},
 	}
 
 	for _, tt := range testcases {
