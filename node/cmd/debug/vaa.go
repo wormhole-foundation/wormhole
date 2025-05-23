@@ -2,10 +2,10 @@ package debug
 
 import (
 	"encoding/hex"
+	"fmt"
 	"log"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -26,7 +26,12 @@ var decodeVaaCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 
-			spew.Dump(v)
+			debugStr, err := v.DebugString()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Printf("%s", debugStr)
 		}
 	},
 }
