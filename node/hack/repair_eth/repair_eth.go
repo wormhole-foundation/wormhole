@@ -58,6 +58,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",
 	vaa.ChainIDWorldchain: "https://api.worldscan.org",
 	vaa.ChainIDInk:        "", // TODO: Does Ink have an etherscan API endpoint?
+	vaa.ChainIDMezo:       "", // TODO: only known block explorer API for Mezo uses blockscout
 }
 
 var (

@@ -281,7 +281,12 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 
 	// Start watching for permissions file updates.
 	errC := make(chan error)
-	permissions.StartWatcher(ctx, logger, errC)
+	permWatcherErr := permissions.StartWatcher(ctx, logger, errC)
+	if permWatcherErr != nil {
+		// Cleanup p2p connection.
+		cancel()
+		logger.Fatal("Could not start permissions file watcher", zap.Error(err))
+	}
 
 	// Star logging cleanup process.
 	loggingMap.Start(ctx, logger, errC)

@@ -99,7 +99,7 @@ var (
 		vaa.ChainIDInk:        {Finalized: true, Safe: true, EvmChainID: 57073, PublicRPC: "https://rpc-qnd.inkonchain.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
 		// vaa.ChainIDHyperEVM:   Not in Mainnet yet.
 		// vaa.ChainIDMonad:      Not in Mainnet yet.
-		// vaa.ChainIDMezo:       Not in Mainnet yet.
+		vaa.ChainIDMezo: {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
