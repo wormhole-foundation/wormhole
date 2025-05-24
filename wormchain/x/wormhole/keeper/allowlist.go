@@ -8,7 +8,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 )
 
-// SetSequenceCounter set a specific sequenceCounter in the store from its index
+// SetValidatorAllowedAddress set a specific sequenceCounter in the store from its index
 func (k Keeper) SetValidatorAllowedAddress(ctx sdk.Context, address types.ValidatorAllowedAddress) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.ValidatorAllowlistKey))
 	b := k.cdc.MustMarshal(&address)
@@ -28,7 +28,7 @@ func (k Keeper) HasValidatorAllowedAddress(ctx sdk.Context, address string) bool
 	return store.Has([]byte(address))
 }
 
-// RemoveSequenceCounter removes a sequenceCounter from the store
+// RemoveValidatorAllowedAddress removes a sequenceCounter from the store
 func (k Keeper) RemoveValidatorAllowedAddress(ctx sdk.Context, address string) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.ValidatorAllowlistKey))
 	store.Delete([]byte(address))

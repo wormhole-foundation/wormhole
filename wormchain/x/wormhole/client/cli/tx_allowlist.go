@@ -12,7 +12,7 @@ import (
 
 var _ = strconv.Itoa(0)
 
-// StoreCodeCmd will upload code to be reused.
+// CmdCreateAllowedAddress will upload code to be reused.
 func CmdCreateAllowedAddress() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "create-allowed-address [wormchain-address] [human-readable-name-of-key]",
@@ -44,7 +44,7 @@ func CmdCreateAllowedAddress() *cobra.Command {
 	return cmd
 }
 
-// StoreCodeCmd will upload code to be reused.
+// CmdDeleteAllowedAddress will upload code to be reused.
 func CmdDeleteAllowedAddress() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "delete-allowed-address [wormchain-address]",
