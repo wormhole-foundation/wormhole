@@ -281,21 +281,23 @@ const makeVAA = (
 
 const submitVAA = async (vaa: VAA<Other>) => {
   const msg = client.wasm.msgExecuteContract({
-    sender: signer,
-    contract: NTT_GA_ADDRESS,
-    msg: toUtf8(
-      JSON.stringify({
-        submit_vaas: {
-          vaas: [
-            Buffer.from(
-              serialiseVAA(vaa as unknown as VAA<Payload>),
-              "hex"
-            ).toString("base64"),
-          ],
-        },
-      })
-    ),
-    funds: [],
+    value: {
+      sender: signer,
+      contract: NTT_GA_ADDRESS,
+      msg: toUtf8(
+        JSON.stringify({
+          submit_vaas: {
+            vaas: [
+              Buffer.from(
+                serialiseVAA(vaa as unknown as VAA<Payload>),
+                "hex"
+              ).toString("base64"),
+            ],
+          },
+        })
+      ),
+      funds: [],
+    },
   });
   const result = await client.signAndBroadcast(signer, [msg], {
     ...ZERO_FEE,
@@ -1023,11 +1025,11 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_events_received <=
-            beforeMetrics.global_accountant_events_received ||
+          beforeMetrics.global_accountant_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          beforeMetrics.global_accountant_transfer_vaas_submitted ||
           afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
       );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         HUB_CHAIN,
@@ -1059,16 +1061,18 @@ describe("NTT Global Accountant Tests", () => {
       // check replay protection
       {
         const msg = client.wasm.msgExecuteContract({
-          sender: signer,
-          contract: NTT_GA_ADDRESS,
-          msg: toUtf8(
-            JSON.stringify({
-              submit_vaas: {
-                vaas: [Buffer.from(signedVAA).toString("base64")],
-              },
-            })
-          ),
-          funds: [],
+          value: {
+            sender: signer,
+            contract: NTT_GA_ADDRESS,
+            msg: toUtf8(
+              JSON.stringify({
+                submit_vaas: {
+                  vaas: [Buffer.from(signedVAA).toString("base64")],
+                },
+              })
+            ),
+            funds: [],
+          },
         });
         const result = await client.signAndBroadcast(signer, [msg], {
           ...ZERO_FEE,
@@ -1098,11 +1102,11 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_error_events_received <=
-            beforeMetrics.global_accountant_error_events_received ||
+          beforeMetrics.global_accountant_error_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          beforeMetrics.global_accountant_transfer_vaas_submitted ||
           afterMetrics.global_accountant_total_balance_errors <=
-            beforeMetrics.global_accountant_total_balance_errors
+          beforeMetrics.global_accountant_total_balance_errors
       );
       // the transfer should fail, because there's an insufficient source balance
       if (VAA_SIGNERS.length > 1) {
@@ -1150,6 +1154,7 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
+
       // poll until the guardian(s) witness and sign the vaa
       await getSignedVAAWithRetry(
         GUARDIAN_RPCS,
@@ -1162,14 +1167,15 @@ describe("NTT Global Accountant Tests", () => {
         1000,
         30
       );
+
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_events_received <=
-            beforeMetrics.global_accountant_events_received ||
+          beforeMetrics.global_accountant_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          beforeMetrics.global_accountant_transfer_vaas_submitted ||
           afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
       );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         SPOKE_CHAIN_A,
@@ -1226,6 +1232,7 @@ describe("NTT Global Accountant Tests", () => {
         receipt,
         CONTRACTS.DEVNET.bsc.core
       );
+      
       // poll until the guardian(s) witness and sign the vaa
       await getSignedVAAWithRetry(
         GUARDIAN_RPCS,
@@ -1238,14 +1245,15 @@ describe("NTT Global Accountant Tests", () => {
         1000,
         30
       );
+      
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_events_received <=
-            beforeMetrics.global_accountant_events_received ||
+          beforeMetrics.global_accountant_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          beforeMetrics.global_accountant_transfer_vaas_submitted ||
           afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
       );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         SPOKE_CHAIN_A,
@@ -1297,9 +1305,9 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_error_events_received <=
-            beforeMetrics.global_accountant_error_events_received ||
+          beforeMetrics.global_accountant_error_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted
+          beforeMetrics.global_accountant_transfer_vaas_submitted
       );
       // the transfer should fail, because there's an insufficient source balance
       await expect(
@@ -1340,9 +1348,9 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_error_events_received <=
-            beforeMetrics.global_accountant_error_events_received ||
+          beforeMetrics.global_accountant_error_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted
+          beforeMetrics.global_accountant_transfer_vaas_submitted
       );
       // the transfer should fail, because there's an insufficient source balance
       await expect(
@@ -1383,9 +1391,9 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_error_events_received <=
-            beforeMetrics.global_accountant_error_events_received ||
+          beforeMetrics.global_accountant_error_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted
+          beforeMetrics.global_accountant_transfer_vaas_submitted
       );
       // the transfer should fail, because there's an insufficient source balance
       await expect(
@@ -1416,9 +1424,9 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_error_events_received <=
-            beforeMetrics.global_accountant_error_events_received ||
+          beforeMetrics.global_accountant_error_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted
+          beforeMetrics.global_accountant_transfer_vaas_submitted
       );
       // the transfer should fail, because there's an insufficient source balance
       await expect(
@@ -1450,11 +1458,11 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_error_events_received <=
-            beforeMetrics.global_accountant_error_events_received ||
+          beforeMetrics.global_accountant_error_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          beforeMetrics.global_accountant_transfer_vaas_submitted ||
           afterMetrics.global_accountant_total_balance_errors <=
-            beforeMetrics.global_accountant_total_balance_errors
+          beforeMetrics.global_accountant_total_balance_errors
       );
       // the transfer should fail, because there's an insufficient source balance
       if (VAA_SIGNERS.length > 1) {
@@ -1529,11 +1537,11 @@ describe("NTT Global Accountant Tests", () => {
       await waitForMetricsChange(
         (afterMetrics) =>
           afterMetrics.global_accountant_events_received <=
-            beforeMetrics.global_accountant_events_received ||
+          beforeMetrics.global_accountant_events_received ||
           afterMetrics.global_accountant_transfer_vaas_submitted <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted ||
+          beforeMetrics.global_accountant_transfer_vaas_submitted ||
           afterMetrics.global_accountant_transfer_vaas_submitted_and_approved <=
-            beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
+          beforeMetrics.global_accountant_transfer_vaas_submitted_and_approved
       );
       const transferStatus = await fetchGlobalAccountantTransferStatus(
         HUB_CHAIN,
@@ -1565,16 +1573,18 @@ describe("NTT Global Accountant Tests", () => {
       // check replay protection
       {
         const msg = client.wasm.msgExecuteContract({
-          sender: signer,
-          contract: NTT_GA_ADDRESS,
-          msg: toUtf8(
-            JSON.stringify({
-              submit_vaas: {
-                vaas: [Buffer.from(signedVAA).toString("base64")],
-              },
-            })
-          ),
-          funds: [],
+          value: {
+            sender: signer,
+            contract: NTT_GA_ADDRESS,
+            msg: toUtf8(
+              JSON.stringify({
+                submit_vaas: {
+                  vaas: [Buffer.from(signedVAA).toString("base64")],
+                },
+              })
+            ),
+            funds: [],
+          },
         });
         const result = await client.signAndBroadcast(signer, [msg], {
           ...ZERO_FEE,

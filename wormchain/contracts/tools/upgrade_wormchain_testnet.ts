@@ -128,9 +128,11 @@ async function main() {
       vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
       console.log("uploading", file);
       const msg = client.core.msgStoreCode({
-        signer,
-        wasm_byte_code: new Uint8Array(contract_bytes),
-        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+        value: {
+          signer,
+          wasmByteCode: new Uint8Array(contract_bytes),
+          vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+        }
       });
       const result = await client.signAndBroadcast(signer, [msg], {
         ...ZERO_FEE,
@@ -153,13 +155,13 @@ async function main() {
 
   // Migrate contracts.
 
-  async function migrate(code_id: number, migrate_msg: any, contract: string) {
+  async function migrate(codeId: number, migrate_msg: any, contract: string) {
     const migrateMsgBinary = toBinary(migrate_msg);
     const migrateMsgBytes = fromBase64(migrateMsgBinary);
 
     // see /sdk/vaa/governance.go
     const codeIdBuf = Buffer.alloc(8);
-    codeIdBuf.writeBigInt64BE(BigInt(code_id));
+    codeIdBuf.writeBigInt64BE(BigInt(codeId));
     const codeIdHash = keccak256(codeIdBuf);
     const codeIdContractHash = keccak256(
       Buffer.concat([
@@ -193,11 +195,13 @@ async function main() {
     // TODO: check for number of guardians in set and use the corresponding keys
     vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
     const msg = client.core.msgMigrateContract({
-      signer,
-      code_id,
-      contract,
-      msg: migrateMsgBytes,
-      vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      value: {
+        signer,
+        codeId,
+        contract,
+        msg: migrateMsgBytes,
+        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      }
     });
     const result = await client.signAndBroadcast(signer, [msg], {
       ...ZERO_FEE,
@@ -206,7 +210,7 @@ async function main() {
     console.log("contract migration msg: ", msg);
     console.log("contract migration result: ", result);
     console.log(
-      `migrated contract ${contract}, codeID: ${code_id}, txHash: ${result.transactionHash}`
+      `migrated contract ${contract}, codeID: ${codeId}, txHash: ${result.transactionHash}`
     );
   }
 

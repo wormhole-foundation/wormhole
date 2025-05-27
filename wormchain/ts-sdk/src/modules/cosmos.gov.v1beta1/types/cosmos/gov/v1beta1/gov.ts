@@ -1,11 +1,11 @@
 //@ts-nocheck
 /* eslint-disable */
-import { Timestamp } from "../../../google/protobuf/timestamp";
-import * as Long from "long";
-import { util, configure, Writer, Reader } from "protobufjs/minimal";
-import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import Long from "long";
+import _m0 from "protobufjs/minimal";
 import { Any } from "../../../google/protobuf/any";
 import { Duration } from "../../../google/protobuf/duration";
+import { Timestamp } from "../../../google/protobuf/timestamp";
+import { Coin } from "../../base/v1beta1/coin";
 
 export const protobufPackage = "cosmos.gov.v1beta1";
 
@@ -60,14 +60,15 @@ export function voteOptionToJSON(object: VoteOption): string {
       return "VOTE_OPTION_NO";
     case VoteOption.VOTE_OPTION_NO_WITH_VETO:
       return "VOTE_OPTION_NO_WITH_VETO";
+    case VoteOption.UNRECOGNIZED:
     default:
-      return "UNKNOWN";
+      return "UNRECOGNIZED";
   }
 }
 
 /** ProposalStatus enumerates the valid statuses of a proposal. */
 export enum ProposalStatus {
-  /** PROPOSAL_STATUS_UNSPECIFIED - PROPOSAL_STATUS_UNSPECIFIED defines the default propopsal status. */
+  /** PROPOSAL_STATUS_UNSPECIFIED - PROPOSAL_STATUS_UNSPECIFIED defines the default proposal status. */
   PROPOSAL_STATUS_UNSPECIFIED = 0,
   /**
    * PROPOSAL_STATUS_DEPOSIT_PERIOD - PROPOSAL_STATUS_DEPOSIT_PERIOD defines a proposal status during the deposit
@@ -138,8 +139,9 @@ export function proposalStatusToJSON(object: ProposalStatus): string {
       return "PROPOSAL_STATUS_REJECTED";
     case ProposalStatus.PROPOSAL_STATUS_FAILED:
       return "PROPOSAL_STATUS_FAILED";
+    case ProposalStatus.UNRECOGNIZED:
     default:
-      return "UNKNOWN";
+      return "UNRECOGNIZED";
   }
 }
 
@@ -149,7 +151,9 @@ export function proposalStatusToJSON(object: ProposalStatus): string {
  * Since: cosmos-sdk 0.43
  */
 export interface WeightedVoteOption {
+  /** option defines the valid vote options, it must not contain duplicate vote options. */
   option: VoteOption;
+  /** weight is the vote weight associated with the vote option. */
   weight: string;
 }
 
@@ -158,7 +162,9 @@ export interface WeightedVoteOption {
  * manually updated in case of approval.
  */
 export interface TextProposal {
+  /** title of the proposal. */
   title: string;
+  /** description associated with the proposal. */
   description: string;
 }
 
@@ -167,30 +173,60 @@ export interface TextProposal {
  * proposal.
  */
 export interface Deposit {
-  proposal_id: number;
+  /** proposal_id defines the unique id of the proposal. */
+  proposalId: number;
+  /** depositor defines the deposit addresses from the proposals. */
   depositor: string;
+  /** amount to be deposited by depositor. */
   amount: Coin[];
 }
 
 /** Proposal defines the core field members of a governance proposal. */
 export interface Proposal {
-  proposal_id: number;
-  content: Any | undefined;
+  /** proposal_id defines the unique id of the proposal. */
+  proposalId: number;
+  /** content is the proposal's content. */
+  content:
+    | Any
+    | undefined;
+  /** status defines the proposal status. */
   status: ProposalStatus;
-  final_tally_result: TallyResult | undefined;
-  submit_time: Date | undefined;
-  deposit_end_time: Date | undefined;
-  total_deposit: Coin[];
-  voting_start_time: Date | undefined;
-  voting_end_time: Date | undefined;
+  /**
+   * final_tally_result is the final tally result of the proposal. When
+   * querying a proposal via gRPC, this field is not populated until the
+   * proposal's voting period has ended.
+   */
+  finalTallyResult:
+    | TallyResult
+    | undefined;
+  /** submit_time is the time of proposal submission. */
+  submitTime:
+    | Date
+    | undefined;
+  /** deposit_end_time is the end time for deposition. */
+  depositEndTime:
+    | Date
+    | undefined;
+  /** total_deposit is the total deposit on the proposal. */
+  totalDeposit: Coin[];
+  /** voting_start_time is the starting time to vote on a proposal. */
+  votingStartTime:
+    | Date
+    | undefined;
+  /** voting_end_time is the end time of voting on a proposal. */
+  votingEndTime: Date | undefined;
 }
 
 /** TallyResult defines a standard tally for a governance proposal. */
 export interface TallyResult {
+  /** yes is the number of yes votes on a proposal. */
   yes: string;
+  /** abstain is the number of abstain votes on a proposal. */
   abstain: string;
+  /** no is the number of no votes on a proposal. */
   no: string;
-  no_with_veto: string;
+  /** no_with_veto is the number of no with veto votes on a proposal. */
+  noWithVeto: string;
 }
 
 /**
@@ -198,7 +234,9 @@ export interface TallyResult {
  * A Vote consists of a proposal ID, the voter, and the vote option.
  */
 export interface Vote {
-  proposal_id: number;
+  /** proposal_id defines the unique id of the proposal. */
+  proposalId: number;
+  /** voter is the voter address of the proposal. */
   voter: string;
   /**
    * Deprecated: Prefer to use `options` instead. This field is set in queries
@@ -208,50 +246,53 @@ export interface Vote {
    * @deprecated
    */
   option: VoteOption;
-  /** Since: cosmos-sdk 0.43 */
+  /**
+   * options is the weighted vote options.
+   *
+   * Since: cosmos-sdk 0.43
+   */
   options: WeightedVoteOption[];
 }
 
 /** DepositParams defines the params for deposits on governance proposals. */
 export interface DepositParams {
   /** Minimum deposit for a proposal to enter voting period. */
-  min_deposit: Coin[];
+  minDeposit: Coin[];
   /**
    * Maximum period for Atom holders to deposit on a proposal. Initial value: 2
-   *  months.
+   * months.
    */
-  max_deposit_period: Duration | undefined;
+  maxDepositPeriod: Duration | undefined;
 }
 
 /** VotingParams defines the params for voting on governance proposals. */
 export interface VotingParams {
-  /** Length of the voting period. */
-  voting_period: Duration | undefined;
+  /** Duration of the voting period. */
+  votingPeriod: Duration | undefined;
 }
 
 /** TallyParams defines the params for tallying votes on governance proposals. */
 export interface TallyParams {
   /**
    * Minimum percentage of total stake needed to vote for a result to be
-   *  considered valid.
+   * considered valid.
    */
   quorum: Uint8Array;
   /** Minimum proportion of Yes votes for proposal to pass. Default value: 0.5. */
   threshold: Uint8Array;
   /**
    * Minimum value of Veto votes to Total votes ratio for proposal to be
-   *  vetoed. Default value: 1/3.
+   * vetoed. Default value: 1/3.
    */
-  veto_threshold: Uint8Array;
+  vetoThreshold: Uint8Array;
 }
 
-const baseWeightedVoteOption: object = { option: 0, weight: "" };
+function createBaseWeightedVoteOption(): WeightedVoteOption {
+  return { option: 0, weight: "" };
+}
 
 export const WeightedVoteOption = {
-  encode(
-    message: WeightedVoteOption,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: WeightedVoteOption, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.option !== 0) {
       writer.uint32(8).int32(message.option);
     }
@@ -261,10 +302,10 @@ export const WeightedVoteOption = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): WeightedVoteOption {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): WeightedVoteOption {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseWeightedVoteOption } as WeightedVoteOption;
+    const message = createBaseWeightedVoteOption();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -283,48 +324,33 @@ export const WeightedVoteOption = {
   },
 
   fromJSON(object: any): WeightedVoteOption {
-    const message = { ...baseWeightedVoteOption } as WeightedVoteOption;
-    if (object.option !== undefined && object.option !== null) {
-      message.option = voteOptionFromJSON(object.option);
-    } else {
-      message.option = 0;
-    }
-    if (object.weight !== undefined && object.weight !== null) {
-      message.weight = String(object.weight);
-    } else {
-      message.weight = "";
-    }
-    return message;
+    return {
+      option: isSet(object.option) ? voteOptionFromJSON(object.option) : 0,
+      weight: isSet(object.weight) ? String(object.weight) : "",
+    };
   },
 
   toJSON(message: WeightedVoteOption): unknown {
     const obj: any = {};
-    message.option !== undefined &&
-      (obj.option = voteOptionToJSON(message.option));
+    message.option !== undefined && (obj.option = voteOptionToJSON(message.option));
     message.weight !== undefined && (obj.weight = message.weight);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<WeightedVoteOption>): WeightedVoteOption {
-    const message = { ...baseWeightedVoteOption } as WeightedVoteOption;
-    if (object.option !== undefined && object.option !== null) {
-      message.option = object.option;
-    } else {
-      message.option = 0;
-    }
-    if (object.weight !== undefined && object.weight !== null) {
-      message.weight = object.weight;
-    } else {
-      message.weight = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<WeightedVoteOption>, I>>(object: I): WeightedVoteOption {
+    const message = createBaseWeightedVoteOption();
+    message.option = object.option ?? 0;
+    message.weight = object.weight ?? "";
     return message;
   },
 };
 
-const baseTextProposal: object = { title: "", description: "" };
+function createBaseTextProposal(): TextProposal {
+  return { title: "", description: "" };
+}
 
 export const TextProposal = {
-  encode(message: TextProposal, writer: Writer = Writer.create()): Writer {
+  encode(message: TextProposal, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.title !== "") {
       writer.uint32(10).string(message.title);
     }
@@ -334,10 +360,10 @@ export const TextProposal = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): TextProposal {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): TextProposal {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseTextProposal } as TextProposal;
+    const message = createBaseTextProposal();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -356,50 +382,35 @@ export const TextProposal = {
   },
 
   fromJSON(object: any): TextProposal {
-    const message = { ...baseTextProposal } as TextProposal;
-    if (object.title !== undefined && object.title !== null) {
-      message.title = String(object.title);
-    } else {
-      message.title = "";
-    }
-    if (object.description !== undefined && object.description !== null) {
-      message.description = String(object.description);
-    } else {
-      message.description = "";
-    }
-    return message;
+    return {
+      title: isSet(object.title) ? String(object.title) : "",
+      description: isSet(object.description) ? String(object.description) : "",
+    };
   },
 
   toJSON(message: TextProposal): unknown {
     const obj: any = {};
     message.title !== undefined && (obj.title = message.title);
-    message.description !== undefined &&
-      (obj.description = message.description);
+    message.description !== undefined && (obj.description = message.description);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<TextProposal>): TextProposal {
-    const message = { ...baseTextProposal } as TextProposal;
-    if (object.title !== undefined && object.title !== null) {
-      message.title = object.title;
-    } else {
-      message.title = "";
-    }
-    if (object.description !== undefined && object.description !== null) {
-      message.description = object.description;
-    } else {
-      message.description = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<TextProposal>, I>>(object: I): TextProposal {
+    const message = createBaseTextProposal();
+    message.title = object.title ?? "";
+    message.description = object.description ?? "";
     return message;
   },
 };
 
-const baseDeposit: object = { proposal_id: 0, depositor: "" };
+function createBaseDeposit(): Deposit {
+  return { proposalId: 0, depositor: "", amount: [] };
+}
 
 export const Deposit = {
-  encode(message: Deposit, writer: Writer = Writer.create()): Writer {
-    if (message.proposal_id !== 0) {
-      writer.uint32(8).uint64(message.proposal_id);
+  encode(message: Deposit, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.proposalId !== 0) {
+      writer.uint32(8).uint64(message.proposalId);
     }
     if (message.depositor !== "") {
       writer.uint32(18).string(message.depositor);
@@ -410,16 +421,15 @@ export const Deposit = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): Deposit {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): Deposit {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseDeposit } as Deposit;
-    message.amount = [];
+    const message = createBaseDeposit();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.proposal_id = longToNumber(reader.uint64() as Long);
+          message.proposalId = longToNumber(reader.uint64() as Long);
           break;
         case 2:
           message.depositor = reader.string();
@@ -436,67 +446,52 @@ export const Deposit = {
   },
 
   fromJSON(object: any): Deposit {
-    const message = { ...baseDeposit } as Deposit;
-    message.amount = [];
-    if (object.proposal_id !== undefined && object.proposal_id !== null) {
-      message.proposal_id = Number(object.proposal_id);
-    } else {
-      message.proposal_id = 0;
-    }
-    if (object.depositor !== undefined && object.depositor !== null) {
-      message.depositor = String(object.depositor);
-    } else {
-      message.depositor = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      for (const e of object.amount) {
-        message.amount.push(Coin.fromJSON(e));
-      }
-    }
-    return message;
+    return {
+      proposalId: isSet(object.proposalId) ? Number(object.proposalId) : 0,
+      depositor: isSet(object.depositor) ? String(object.depositor) : "",
+      amount: Array.isArray(object?.amount) ? object.amount.map((e: any) => Coin.fromJSON(e)) : [],
+    };
   },
 
   toJSON(message: Deposit): unknown {
     const obj: any = {};
-    message.proposal_id !== undefined &&
-      (obj.proposal_id = message.proposal_id);
+    message.proposalId !== undefined && (obj.proposalId = Math.round(message.proposalId));
     message.depositor !== undefined && (obj.depositor = message.depositor);
     if (message.amount) {
-      obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined));
+      obj.amount = message.amount.map((e) => e ? Coin.toJSON(e) : undefined);
     } else {
       obj.amount = [];
     }
     return obj;
   },
 
-  fromPartial(object: DeepPartial<Deposit>): Deposit {
-    const message = { ...baseDeposit } as Deposit;
-    message.amount = [];
-    if (object.proposal_id !== undefined && object.proposal_id !== null) {
-      message.proposal_id = object.proposal_id;
-    } else {
-      message.proposal_id = 0;
-    }
-    if (object.depositor !== undefined && object.depositor !== null) {
-      message.depositor = object.depositor;
-    } else {
-      message.depositor = "";
-    }
-    if (object.amount !== undefined && object.amount !== null) {
-      for (const e of object.amount) {
-        message.amount.push(Coin.fromPartial(e));
-      }
-    }
+  fromPartial<I extends Exact<DeepPartial<Deposit>, I>>(object: I): Deposit {
+    const message = createBaseDeposit();
+    message.proposalId = object.proposalId ?? 0;
+    message.depositor = object.depositor ?? "";
+    message.amount = object.amount?.map((e) => Coin.fromPartial(e)) || [];
     return message;
   },
 };
 
-const baseProposal: object = { proposal_id: 0, status: 0 };
+function createBaseProposal(): Proposal {
+  return {
+    proposalId: 0,
+    content: undefined,
+    status: 0,
+    finalTallyResult: undefined,
+    submitTime: undefined,
+    depositEndTime: undefined,
+    totalDeposit: [],
+    votingStartTime: undefined,
+    votingEndTime: undefined,
+  };
+}
 
 export const Proposal = {
-  encode(message: Proposal, writer: Writer = Writer.create()): Writer {
-    if (message.proposal_id !== 0) {
-      writer.uint32(8).uint64(message.proposal_id);
+  encode(message: Proposal, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.proposalId !== 0) {
+      writer.uint32(8).uint64(message.proposalId);
     }
     if (message.content !== undefined) {
       Any.encode(message.content, writer.uint32(18).fork()).ldelim();
@@ -504,52 +499,36 @@ export const Proposal = {
     if (message.status !== 0) {
       writer.uint32(24).int32(message.status);
     }
-    if (message.final_tally_result !== undefined) {
-      TallyResult.encode(
-        message.final_tally_result,
-        writer.uint32(34).fork()
-      ).ldelim();
+    if (message.finalTallyResult !== undefined) {
+      TallyResult.encode(message.finalTallyResult, writer.uint32(34).fork()).ldelim();
     }
-    if (message.submit_time !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.submit_time),
-        writer.uint32(42).fork()
-      ).ldelim();
+    if (message.submitTime !== undefined) {
+      Timestamp.encode(toTimestamp(message.submitTime), writer.uint32(42).fork()).ldelim();
     }
-    if (message.deposit_end_time !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.deposit_end_time),
-        writer.uint32(50).fork()
-      ).ldelim();
+    if (message.depositEndTime !== undefined) {
+      Timestamp.encode(toTimestamp(message.depositEndTime), writer.uint32(50).fork()).ldelim();
     }
-    for (const v of message.total_deposit) {
+    for (const v of message.totalDeposit) {
       Coin.encode(v!, writer.uint32(58).fork()).ldelim();
     }
-    if (message.voting_start_time !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.voting_start_time),
-        writer.uint32(66).fork()
-      ).ldelim();
+    if (message.votingStartTime !== undefined) {
+      Timestamp.encode(toTimestamp(message.votingStartTime), writer.uint32(66).fork()).ldelim();
     }
-    if (message.voting_end_time !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.voting_end_time),
-        writer.uint32(74).fork()
-      ).ldelim();
+    if (message.votingEndTime !== undefined) {
+      Timestamp.encode(toTimestamp(message.votingEndTime), writer.uint32(74).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): Proposal {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): Proposal {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseProposal } as Proposal;
-    message.total_deposit = [];
+    const message = createBaseProposal();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.proposal_id = longToNumber(reader.uint64() as Long);
+          message.proposalId = longToNumber(reader.uint64() as Long);
           break;
         case 2:
           message.content = Any.decode(reader, reader.uint32());
@@ -558,33 +537,22 @@ export const Proposal = {
           message.status = reader.int32() as any;
           break;
         case 4:
-          message.final_tally_result = TallyResult.decode(
-            reader,
-            reader.uint32()
-          );
+          message.finalTallyResult = TallyResult.decode(reader, reader.uint32());
           break;
         case 5:
-          message.submit_time = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          );
+          message.submitTime = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           break;
         case 6:
-          message.deposit_end_time = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          );
+          message.depositEndTime = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           break;
         case 7:
-          message.total_deposit.push(Coin.decode(reader, reader.uint32()));
+          message.totalDeposit.push(Coin.decode(reader, reader.uint32()));
           break;
         case 8:
-          message.voting_start_time = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          );
+          message.votingStartTime = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           break;
         case 9:
-          message.voting_end_time = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          );
+          message.votingEndTime = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           break;
         default:
           reader.skipType(tag & 7);
@@ -595,187 +563,63 @@ export const Proposal = {
   },
 
   fromJSON(object: any): Proposal {
-    const message = { ...baseProposal } as Proposal;
-    message.total_deposit = [];
-    if (object.proposal_id !== undefined && object.proposal_id !== null) {
-      message.proposal_id = Number(object.proposal_id);
-    } else {
-      message.proposal_id = 0;
-    }
-    if (object.content !== undefined && object.content !== null) {
-      message.content = Any.fromJSON(object.content);
-    } else {
-      message.content = undefined;
-    }
-    if (object.status !== undefined && object.status !== null) {
-      message.status = proposalStatusFromJSON(object.status);
-    } else {
-      message.status = 0;
-    }
-    if (
-      object.final_tally_result !== undefined &&
-      object.final_tally_result !== null
-    ) {
-      message.final_tally_result = TallyResult.fromJSON(
-        object.final_tally_result
-      );
-    } else {
-      message.final_tally_result = undefined;
-    }
-    if (object.submit_time !== undefined && object.submit_time !== null) {
-      message.submit_time = fromJsonTimestamp(object.submit_time);
-    } else {
-      message.submit_time = undefined;
-    }
-    if (
-      object.deposit_end_time !== undefined &&
-      object.deposit_end_time !== null
-    ) {
-      message.deposit_end_time = fromJsonTimestamp(object.deposit_end_time);
-    } else {
-      message.deposit_end_time = undefined;
-    }
-    if (object.total_deposit !== undefined && object.total_deposit !== null) {
-      for (const e of object.total_deposit) {
-        message.total_deposit.push(Coin.fromJSON(e));
-      }
-    }
-    if (
-      object.voting_start_time !== undefined &&
-      object.voting_start_time !== null
-    ) {
-      message.voting_start_time = fromJsonTimestamp(object.voting_start_time);
-    } else {
-      message.voting_start_time = undefined;
-    }
-    if (
-      object.voting_end_time !== undefined &&
-      object.voting_end_time !== null
-    ) {
-      message.voting_end_time = fromJsonTimestamp(object.voting_end_time);
-    } else {
-      message.voting_end_time = undefined;
-    }
-    return message;
+    return {
+      proposalId: isSet(object.proposalId) ? Number(object.proposalId) : 0,
+      content: isSet(object.content) ? Any.fromJSON(object.content) : undefined,
+      status: isSet(object.status) ? proposalStatusFromJSON(object.status) : 0,
+      finalTallyResult: isSet(object.finalTallyResult) ? TallyResult.fromJSON(object.finalTallyResult) : undefined,
+      submitTime: isSet(object.submitTime) ? fromJsonTimestamp(object.submitTime) : undefined,
+      depositEndTime: isSet(object.depositEndTime) ? fromJsonTimestamp(object.depositEndTime) : undefined,
+      totalDeposit: Array.isArray(object?.totalDeposit) ? object.totalDeposit.map((e: any) => Coin.fromJSON(e)) : [],
+      votingStartTime: isSet(object.votingStartTime) ? fromJsonTimestamp(object.votingStartTime) : undefined,
+      votingEndTime: isSet(object.votingEndTime) ? fromJsonTimestamp(object.votingEndTime) : undefined,
+    };
   },
 
   toJSON(message: Proposal): unknown {
     const obj: any = {};
-    message.proposal_id !== undefined &&
-      (obj.proposal_id = message.proposal_id);
-    message.content !== undefined &&
-      (obj.content = message.content ? Any.toJSON(message.content) : undefined);
-    message.status !== undefined &&
-      (obj.status = proposalStatusToJSON(message.status));
-    message.final_tally_result !== undefined &&
-      (obj.final_tally_result = message.final_tally_result
-        ? TallyResult.toJSON(message.final_tally_result)
-        : undefined);
-    message.submit_time !== undefined &&
-      (obj.submit_time =
-        message.submit_time !== undefined
-          ? message.submit_time.toISOString()
-          : null);
-    message.deposit_end_time !== undefined &&
-      (obj.deposit_end_time =
-        message.deposit_end_time !== undefined
-          ? message.deposit_end_time.toISOString()
-          : null);
-    if (message.total_deposit) {
-      obj.total_deposit = message.total_deposit.map((e) =>
-        e ? Coin.toJSON(e) : undefined
-      );
+    message.proposalId !== undefined && (obj.proposalId = Math.round(message.proposalId));
+    message.content !== undefined && (obj.content = message.content ? Any.toJSON(message.content) : undefined);
+    message.status !== undefined && (obj.status = proposalStatusToJSON(message.status));
+    message.finalTallyResult !== undefined
+      && (obj.finalTallyResult = message.finalTallyResult ? TallyResult.toJSON(message.finalTallyResult) : undefined);
+    message.submitTime !== undefined && (obj.submitTime = message.submitTime.toISOString());
+    message.depositEndTime !== undefined && (obj.depositEndTime = message.depositEndTime.toISOString());
+    if (message.totalDeposit) {
+      obj.totalDeposit = message.totalDeposit.map((e) => e ? Coin.toJSON(e) : undefined);
     } else {
-      obj.total_deposit = [];
+      obj.totalDeposit = [];
     }
-    message.voting_start_time !== undefined &&
-      (obj.voting_start_time =
-        message.voting_start_time !== undefined
-          ? message.voting_start_time.toISOString()
-          : null);
-    message.voting_end_time !== undefined &&
-      (obj.voting_end_time =
-        message.voting_end_time !== undefined
-          ? message.voting_end_time.toISOString()
-          : null);
+    message.votingStartTime !== undefined && (obj.votingStartTime = message.votingStartTime.toISOString());
+    message.votingEndTime !== undefined && (obj.votingEndTime = message.votingEndTime.toISOString());
     return obj;
   },
 
-  fromPartial(object: DeepPartial<Proposal>): Proposal {
-    const message = { ...baseProposal } as Proposal;
-    message.total_deposit = [];
-    if (object.proposal_id !== undefined && object.proposal_id !== null) {
-      message.proposal_id = object.proposal_id;
-    } else {
-      message.proposal_id = 0;
-    }
-    if (object.content !== undefined && object.content !== null) {
-      message.content = Any.fromPartial(object.content);
-    } else {
-      message.content = undefined;
-    }
-    if (object.status !== undefined && object.status !== null) {
-      message.status = object.status;
-    } else {
-      message.status = 0;
-    }
-    if (
-      object.final_tally_result !== undefined &&
-      object.final_tally_result !== null
-    ) {
-      message.final_tally_result = TallyResult.fromPartial(
-        object.final_tally_result
-      );
-    } else {
-      message.final_tally_result = undefined;
-    }
-    if (object.submit_time !== undefined && object.submit_time !== null) {
-      message.submit_time = object.submit_time;
-    } else {
-      message.submit_time = undefined;
-    }
-    if (
-      object.deposit_end_time !== undefined &&
-      object.deposit_end_time !== null
-    ) {
-      message.deposit_end_time = object.deposit_end_time;
-    } else {
-      message.deposit_end_time = undefined;
-    }
-    if (object.total_deposit !== undefined && object.total_deposit !== null) {
-      for (const e of object.total_deposit) {
-        message.total_deposit.push(Coin.fromPartial(e));
-      }
-    }
-    if (
-      object.voting_start_time !== undefined &&
-      object.voting_start_time !== null
-    ) {
-      message.voting_start_time = object.voting_start_time;
-    } else {
-      message.voting_start_time = undefined;
-    }
-    if (
-      object.voting_end_time !== undefined &&
-      object.voting_end_time !== null
-    ) {
-      message.voting_end_time = object.voting_end_time;
-    } else {
-      message.voting_end_time = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<Proposal>, I>>(object: I): Proposal {
+    const message = createBaseProposal();
+    message.proposalId = object.proposalId ?? 0;
+    message.content = (object.content !== undefined && object.content !== null)
+      ? Any.fromPartial(object.content)
+      : undefined;
+    message.status = object.status ?? 0;
+    message.finalTallyResult = (object.finalTallyResult !== undefined && object.finalTallyResult !== null)
+      ? TallyResult.fromPartial(object.finalTallyResult)
+      : undefined;
+    message.submitTime = object.submitTime ?? undefined;
+    message.depositEndTime = object.depositEndTime ?? undefined;
+    message.totalDeposit = object.totalDeposit?.map((e) => Coin.fromPartial(e)) || [];
+    message.votingStartTime = object.votingStartTime ?? undefined;
+    message.votingEndTime = object.votingEndTime ?? undefined;
     return message;
   },
 };
 
-const baseTallyResult: object = {
-  yes: "",
-  abstain: "",
-  no: "",
-  no_with_veto: "",
-};
+function createBaseTallyResult(): TallyResult {
+  return { yes: "", abstain: "", no: "", noWithVeto: "" };
+}
 
 export const TallyResult = {
-  encode(message: TallyResult, writer: Writer = Writer.create()): Writer {
+  encode(message: TallyResult, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.yes !== "") {
       writer.uint32(10).string(message.yes);
     }
@@ -785,16 +629,16 @@ export const TallyResult = {
     if (message.no !== "") {
       writer.uint32(26).string(message.no);
     }
-    if (message.no_with_veto !== "") {
-      writer.uint32(34).string(message.no_with_veto);
+    if (message.noWithVeto !== "") {
+      writer.uint32(34).string(message.noWithVeto);
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): TallyResult {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): TallyResult {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseTallyResult } as TallyResult;
+    const message = createBaseTallyResult();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -808,7 +652,7 @@ export const TallyResult = {
           message.no = reader.string();
           break;
         case 4:
-          message.no_with_veto = reader.string();
+          message.noWithVeto = reader.string();
           break;
         default:
           reader.skipType(tag & 7);
@@ -819,28 +663,12 @@ export const TallyResult = {
   },
 
   fromJSON(object: any): TallyResult {
-    const message = { ...baseTallyResult } as TallyResult;
-    if (object.yes !== undefined && object.yes !== null) {
-      message.yes = String(object.yes);
-    } else {
-      message.yes = "";
-    }
-    if (object.abstain !== undefined && object.abstain !== null) {
-      message.abstain = String(object.abstain);
-    } else {
-      message.abstain = "";
-    }
-    if (object.no !== undefined && object.no !== null) {
-      message.no = String(object.no);
-    } else {
-      message.no = "";
-    }
-    if (object.no_with_veto !== undefined && object.no_with_veto !== null) {
-      message.no_with_veto = String(object.no_with_veto);
-    } else {
-      message.no_with_veto = "";
-    }
-    return message;
+    return {
+      yes: isSet(object.yes) ? String(object.yes) : "",
+      abstain: isSet(object.abstain) ? String(object.abstain) : "",
+      no: isSet(object.no) ? String(object.no) : "",
+      noWithVeto: isSet(object.noWithVeto) ? String(object.noWithVeto) : "",
+    };
   },
 
   toJSON(message: TallyResult): unknown {
@@ -848,43 +676,28 @@ export const TallyResult = {
     message.yes !== undefined && (obj.yes = message.yes);
     message.abstain !== undefined && (obj.abstain = message.abstain);
     message.no !== undefined && (obj.no = message.no);
-    message.no_with_veto !== undefined &&
-      (obj.no_with_veto = message.no_with_veto);
+    message.noWithVeto !== undefined && (obj.noWithVeto = message.noWithVeto);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<TallyResult>): TallyResult {
-    const message = { ...baseTallyResult } as TallyResult;
-    if (object.yes !== undefined && object.yes !== null) {
-      message.yes = object.yes;
-    } else {
-      message.yes = "";
-    }
-    if (object.abstain !== undefined && object.abstain !== null) {
-      message.abstain = object.abstain;
-    } else {
-      message.abstain = "";
-    }
-    if (object.no !== undefined && object.no !== null) {
-      message.no = object.no;
-    } else {
-      message.no = "";
-    }
-    if (object.no_with_veto !== undefined && object.no_with_veto !== null) {
-      message.no_with_veto = object.no_with_veto;
-    } else {
-      message.no_with_veto = "";
-    }
+  fromPartial<I extends Exact<DeepPartial<TallyResult>, I>>(object: I): TallyResult {
+    const message = createBaseTallyResult();
+    message.yes = object.yes ?? "";
+    message.abstain = object.abstain ?? "";
+    message.no = object.no ?? "";
+    message.noWithVeto = object.noWithVeto ?? "";
     return message;
   },
 };
 
-const baseVote: object = { proposal_id: 0, voter: "", option: 0 };
+function createBaseVote(): Vote {
+  return { proposalId: 0, voter: "", option: 0, options: [] };
+}
 
 export const Vote = {
-  encode(message: Vote, writer: Writer = Writer.create()): Writer {
-    if (message.proposal_id !== 0) {
-      writer.uint32(8).uint64(message.proposal_id);
+  encode(message: Vote, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.proposalId !== 0) {
+      writer.uint32(8).uint64(message.proposalId);
     }
     if (message.voter !== "") {
       writer.uint32(18).string(message.voter);
@@ -898,16 +711,15 @@ export const Vote = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): Vote {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): Vote {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseVote } as Vote;
-    message.options = [];
+    const message = createBaseVote();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.proposal_id = longToNumber(reader.uint64() as Long);
+          message.proposalId = longToNumber(reader.uint64() as Long);
           break;
         case 2:
           message.voter = reader.string();
@@ -916,9 +728,7 @@ export const Vote = {
           message.option = reader.int32() as any;
           break;
         case 4:
-          message.options.push(
-            WeightedVoteOption.decode(reader, reader.uint32())
-          );
+          message.options.push(WeightedVoteOption.decode(reader, reader.uint32()));
           break;
         default:
           reader.skipType(tag & 7);
@@ -929,104 +739,64 @@ export const Vote = {
   },
 
   fromJSON(object: any): Vote {
-    const message = { ...baseVote } as Vote;
-    message.options = [];
-    if (object.proposal_id !== undefined && object.proposal_id !== null) {
-      message.proposal_id = Number(object.proposal_id);
-    } else {
-      message.proposal_id = 0;
-    }
-    if (object.voter !== undefined && object.voter !== null) {
-      message.voter = String(object.voter);
-    } else {
-      message.voter = "";
-    }
-    if (object.option !== undefined && object.option !== null) {
-      message.option = voteOptionFromJSON(object.option);
-    } else {
-      message.option = 0;
-    }
-    if (object.options !== undefined && object.options !== null) {
-      for (const e of object.options) {
-        message.options.push(WeightedVoteOption.fromJSON(e));
-      }
-    }
-    return message;
+    return {
+      proposalId: isSet(object.proposalId) ? Number(object.proposalId) : 0,
+      voter: isSet(object.voter) ? String(object.voter) : "",
+      option: isSet(object.option) ? voteOptionFromJSON(object.option) : 0,
+      options: Array.isArray(object?.options) ? object.options.map((e: any) => WeightedVoteOption.fromJSON(e)) : [],
+    };
   },
 
   toJSON(message: Vote): unknown {
     const obj: any = {};
-    message.proposal_id !== undefined &&
-      (obj.proposal_id = message.proposal_id);
+    message.proposalId !== undefined && (obj.proposalId = Math.round(message.proposalId));
     message.voter !== undefined && (obj.voter = message.voter);
-    message.option !== undefined &&
-      (obj.option = voteOptionToJSON(message.option));
+    message.option !== undefined && (obj.option = voteOptionToJSON(message.option));
     if (message.options) {
-      obj.options = message.options.map((e) =>
-        e ? WeightedVoteOption.toJSON(e) : undefined
-      );
+      obj.options = message.options.map((e) => e ? WeightedVoteOption.toJSON(e) : undefined);
     } else {
       obj.options = [];
     }
     return obj;
   },
 
-  fromPartial(object: DeepPartial<Vote>): Vote {
-    const message = { ...baseVote } as Vote;
-    message.options = [];
-    if (object.proposal_id !== undefined && object.proposal_id !== null) {
-      message.proposal_id = object.proposal_id;
-    } else {
-      message.proposal_id = 0;
-    }
-    if (object.voter !== undefined && object.voter !== null) {
-      message.voter = object.voter;
-    } else {
-      message.voter = "";
-    }
-    if (object.option !== undefined && object.option !== null) {
-      message.option = object.option;
-    } else {
-      message.option = 0;
-    }
-    if (object.options !== undefined && object.options !== null) {
-      for (const e of object.options) {
-        message.options.push(WeightedVoteOption.fromPartial(e));
-      }
-    }
+  fromPartial<I extends Exact<DeepPartial<Vote>, I>>(object: I): Vote {
+    const message = createBaseVote();
+    message.proposalId = object.proposalId ?? 0;
+    message.voter = object.voter ?? "";
+    message.option = object.option ?? 0;
+    message.options = object.options?.map((e) => WeightedVoteOption.fromPartial(e)) || [];
     return message;
   },
 };
 
-const baseDepositParams: object = {};
+function createBaseDepositParams(): DepositParams {
+  return { minDeposit: [], maxDepositPeriod: undefined };
+}
 
 export const DepositParams = {
-  encode(message: DepositParams, writer: Writer = Writer.create()): Writer {
-    for (const v of message.min_deposit) {
+  encode(message: DepositParams, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.minDeposit) {
       Coin.encode(v!, writer.uint32(10).fork()).ldelim();
     }
-    if (message.max_deposit_period !== undefined) {
-      Duration.encode(
-        message.max_deposit_period,
-        writer.uint32(18).fork()
-      ).ldelim();
+    if (message.maxDepositPeriod !== undefined) {
+      Duration.encode(message.maxDepositPeriod, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): DepositParams {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): DepositParams {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseDepositParams } as DepositParams;
-    message.min_deposit = [];
+    const message = createBaseDepositParams();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.min_deposit.push(Coin.decode(reader, reader.uint32()));
+          message.minDeposit.push(Coin.decode(reader, reader.uint32()));
           break;
         case 2:
-          message.max_deposit_period = Duration.decode(reader, reader.uint32());
+          message.maxDepositPeriod = Duration.decode(reader, reader.uint32());
           break;
         default:
           reader.skipType(tag & 7);
@@ -1037,81 +807,55 @@ export const DepositParams = {
   },
 
   fromJSON(object: any): DepositParams {
-    const message = { ...baseDepositParams } as DepositParams;
-    message.min_deposit = [];
-    if (object.min_deposit !== undefined && object.min_deposit !== null) {
-      for (const e of object.min_deposit) {
-        message.min_deposit.push(Coin.fromJSON(e));
-      }
-    }
-    if (
-      object.max_deposit_period !== undefined &&
-      object.max_deposit_period !== null
-    ) {
-      message.max_deposit_period = Duration.fromJSON(object.max_deposit_period);
-    } else {
-      message.max_deposit_period = undefined;
-    }
-    return message;
+    return {
+      minDeposit: Array.isArray(object?.minDeposit) ? object.minDeposit.map((e: any) => Coin.fromJSON(e)) : [],
+      maxDepositPeriod: isSet(object.maxDepositPeriod) ? Duration.fromJSON(object.maxDepositPeriod) : undefined,
+    };
   },
 
   toJSON(message: DepositParams): unknown {
     const obj: any = {};
-    if (message.min_deposit) {
-      obj.min_deposit = message.min_deposit.map((e) =>
-        e ? Coin.toJSON(e) : undefined
-      );
+    if (message.minDeposit) {
+      obj.minDeposit = message.minDeposit.map((e) => e ? Coin.toJSON(e) : undefined);
     } else {
-      obj.min_deposit = [];
+      obj.minDeposit = [];
     }
-    message.max_deposit_period !== undefined &&
-      (obj.max_deposit_period = message.max_deposit_period
-        ? Duration.toJSON(message.max_deposit_period)
-        : undefined);
+    message.maxDepositPeriod !== undefined
+      && (obj.maxDepositPeriod = message.maxDepositPeriod ? Duration.toJSON(message.maxDepositPeriod) : undefined);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<DepositParams>): DepositParams {
-    const message = { ...baseDepositParams } as DepositParams;
-    message.min_deposit = [];
-    if (object.min_deposit !== undefined && object.min_deposit !== null) {
-      for (const e of object.min_deposit) {
-        message.min_deposit.push(Coin.fromPartial(e));
-      }
-    }
-    if (
-      object.max_deposit_period !== undefined &&
-      object.max_deposit_period !== null
-    ) {
-      message.max_deposit_period = Duration.fromPartial(
-        object.max_deposit_period
-      );
-    } else {
-      message.max_deposit_period = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<DepositParams>, I>>(object: I): DepositParams {
+    const message = createBaseDepositParams();
+    message.minDeposit = object.minDeposit?.map((e) => Coin.fromPartial(e)) || [];
+    message.maxDepositPeriod = (object.maxDepositPeriod !== undefined && object.maxDepositPeriod !== null)
+      ? Duration.fromPartial(object.maxDepositPeriod)
+      : undefined;
     return message;
   },
 };
 
-const baseVotingParams: object = {};
+function createBaseVotingParams(): VotingParams {
+  return { votingPeriod: undefined };
+}
 
 export const VotingParams = {
-  encode(message: VotingParams, writer: Writer = Writer.create()): Writer {
-    if (message.voting_period !== undefined) {
-      Duration.encode(message.voting_period, writer.uint32(10).fork()).ldelim();
+  encode(message: VotingParams, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.votingPeriod !== undefined) {
+      Duration.encode(message.votingPeriod, writer.uint32(10).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): VotingParams {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): VotingParams {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseVotingParams } as VotingParams;
+    const message = createBaseVotingParams();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.voting_period = Duration.decode(reader, reader.uint32());
+          message.votingPeriod = Duration.decode(reader, reader.uint32());
           break;
         default:
           reader.skipType(tag & 7);
@@ -1122,55 +866,47 @@ export const VotingParams = {
   },
 
   fromJSON(object: any): VotingParams {
-    const message = { ...baseVotingParams } as VotingParams;
-    if (object.voting_period !== undefined && object.voting_period !== null) {
-      message.voting_period = Duration.fromJSON(object.voting_period);
-    } else {
-      message.voting_period = undefined;
-    }
-    return message;
+    return { votingPeriod: isSet(object.votingPeriod) ? Duration.fromJSON(object.votingPeriod) : undefined };
   },
 
   toJSON(message: VotingParams): unknown {
     const obj: any = {};
-    message.voting_period !== undefined &&
-      (obj.voting_period = message.voting_period
-        ? Duration.toJSON(message.voting_period)
-        : undefined);
+    message.votingPeriod !== undefined
+      && (obj.votingPeriod = message.votingPeriod ? Duration.toJSON(message.votingPeriod) : undefined);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<VotingParams>): VotingParams {
-    const message = { ...baseVotingParams } as VotingParams;
-    if (object.voting_period !== undefined && object.voting_period !== null) {
-      message.voting_period = Duration.fromPartial(object.voting_period);
-    } else {
-      message.voting_period = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<VotingParams>, I>>(object: I): VotingParams {
+    const message = createBaseVotingParams();
+    message.votingPeriod = (object.votingPeriod !== undefined && object.votingPeriod !== null)
+      ? Duration.fromPartial(object.votingPeriod)
+      : undefined;
     return message;
   },
 };
 
-const baseTallyParams: object = {};
+function createBaseTallyParams(): TallyParams {
+  return { quorum: new Uint8Array(), threshold: new Uint8Array(), vetoThreshold: new Uint8Array() };
+}
 
 export const TallyParams = {
-  encode(message: TallyParams, writer: Writer = Writer.create()): Writer {
+  encode(message: TallyParams, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.quorum.length !== 0) {
       writer.uint32(10).bytes(message.quorum);
     }
     if (message.threshold.length !== 0) {
       writer.uint32(18).bytes(message.threshold);
     }
-    if (message.veto_threshold.length !== 0) {
-      writer.uint32(26).bytes(message.veto_threshold);
+    if (message.vetoThreshold.length !== 0) {
+      writer.uint32(26).bytes(message.vetoThreshold);
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): TallyParams {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): TallyParams {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseTallyParams } as TallyParams;
+    const message = createBaseTallyParams();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1181,7 +917,7 @@ export const TallyParams = {
           message.threshold = reader.bytes();
           break;
         case 3:
-          message.veto_threshold = reader.bytes();
+          message.vetoThreshold = reader.bytes();
           break;
         default:
           reader.skipType(tag & 7);
@@ -1192,102 +928,89 @@ export const TallyParams = {
   },
 
   fromJSON(object: any): TallyParams {
-    const message = { ...baseTallyParams } as TallyParams;
-    if (object.quorum !== undefined && object.quorum !== null) {
-      message.quorum = bytesFromBase64(object.quorum);
-    }
-    if (object.threshold !== undefined && object.threshold !== null) {
-      message.threshold = bytesFromBase64(object.threshold);
-    }
-    if (object.veto_threshold !== undefined && object.veto_threshold !== null) {
-      message.veto_threshold = bytesFromBase64(object.veto_threshold);
-    }
-    return message;
+    return {
+      quorum: isSet(object.quorum) ? bytesFromBase64(object.quorum) : new Uint8Array(),
+      threshold: isSet(object.threshold) ? bytesFromBase64(object.threshold) : new Uint8Array(),
+      vetoThreshold: isSet(object.vetoThreshold) ? bytesFromBase64(object.vetoThreshold) : new Uint8Array(),
+    };
   },
 
   toJSON(message: TallyParams): unknown {
     const obj: any = {};
-    message.quorum !== undefined &&
-      (obj.quorum = base64FromBytes(
-        message.quorum !== undefined ? message.quorum : new Uint8Array()
-      ));
-    message.threshold !== undefined &&
-      (obj.threshold = base64FromBytes(
-        message.threshold !== undefined ? message.threshold : new Uint8Array()
-      ));
-    message.veto_threshold !== undefined &&
-      (obj.veto_threshold = base64FromBytes(
-        message.veto_threshold !== undefined
-          ? message.veto_threshold
-          : new Uint8Array()
+    message.quorum !== undefined
+      && (obj.quorum = base64FromBytes(message.quorum !== undefined ? message.quorum : new Uint8Array()));
+    message.threshold !== undefined
+      && (obj.threshold = base64FromBytes(message.threshold !== undefined ? message.threshold : new Uint8Array()));
+    message.vetoThreshold !== undefined
+      && (obj.vetoThreshold = base64FromBytes(
+        message.vetoThreshold !== undefined ? message.vetoThreshold : new Uint8Array(),
       ));
     return obj;
   },
 
-  fromPartial(object: DeepPartial<TallyParams>): TallyParams {
-    const message = { ...baseTallyParams } as TallyParams;
-    if (object.quorum !== undefined && object.quorum !== null) {
-      message.quorum = object.quorum;
-    } else {
-      message.quorum = new Uint8Array();
-    }
-    if (object.threshold !== undefined && object.threshold !== null) {
-      message.threshold = object.threshold;
-    } else {
-      message.threshold = new Uint8Array();
-    }
-    if (object.veto_threshold !== undefined && object.veto_threshold !== null) {
-      message.veto_threshold = object.veto_threshold;
-    } else {
-      message.veto_threshold = new Uint8Array();
-    }
+  fromPartial<I extends Exact<DeepPartial<TallyParams>, I>>(object: I): TallyParams {
+    const message = createBaseTallyParams();
+    message.quorum = object.quorum ?? new Uint8Array();
+    message.threshold = object.threshold ?? new Uint8Array();
+    message.vetoThreshold = object.vetoThreshold ?? new Uint8Array();
     return message;
   },
 };
 
 declare var self: any | undefined;
 declare var window: any | undefined;
+declare var global: any | undefined;
 var globalThis: any = (() => {
-  if (typeof globalThis !== "undefined") return globalThis;
-  if (typeof self !== "undefined") return self;
-  if (typeof window !== "undefined") return window;
-  if (typeof global !== "undefined") return global;
+  if (typeof globalThis !== "undefined") {
+    return globalThis;
+  }
+  if (typeof self !== "undefined") {
+    return self;
+  }
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined") {
+    return global;
+  }
   throw "Unable to locate global object";
 })();
 
-const atob: (b64: string) => string =
-  globalThis.atob ||
-  ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; ++i) {
-    arr[i] = bin.charCodeAt(i);
+  if (globalThis.Buffer) {
+    return Uint8Array.from(globalThis.Buffer.from(b64, "base64"));
+  } else {
+    const bin = globalThis.atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
   }
-  return arr;
 }
 
-const btoa: (bin: string) => string =
-  globalThis.btoa ||
-  ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr: Uint8Array): string {
-  const bin: string[] = [];
-  for (let i = 0; i < arr.byteLength; ++i) {
-    bin.push(String.fromCharCode(arr[i]));
+  if (globalThis.Buffer) {
+    return globalThis.Buffer.from(arr).toString("base64");
+  } else {
+    const bin: string[] = [];
+    arr.forEach((byte) => {
+      bin.push(String.fromCharCode(byte));
+    });
+    return globalThis.btoa(bin.join(""));
   }
-  return btoa(bin.join(""));
 }
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {
   const seconds = date.getTime() / 1_000;
@@ -1318,7 +1041,11 @@ function longToNumber(long: Long): number {
   return long.toNumber();
 }
 
-if (util.Long !== Long) {
-  util.Long = Long as any;
-  configure();
+if (_m0.util.Long !== Long) {
+  _m0.util.Long = Long as any;
+  _m0.configure();
+}
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
 }
