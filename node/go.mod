@@ -429,6 +429,7 @@ require (
 
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	github.com/CosmWasm/wasmd => github.com/wormhole-foundation/wasmd v0.45.0-wormchain
 	github.com/certusone/wormhole/node/pkg/txverifier => ./pkg/txverifier
 	github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.47.12-wormhole-1
 	// Needed for cosmosv0.5.6ased chains.  See
