@@ -11,11 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
-	wasmdante "github.com/wormhole-foundation/wormchain/x/wormhole/ante"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func TestWasmdAnteDecorator(t *testing.T) {
+const (
+	MustUseWormholeModule = "must use x/wormhole"
+	MustBeAllowListed     = "signer must be current validator or allowlisted by current validator"
+)
+
+func TestWasmdMsgs(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
@@ -33,7 +37,7 @@ func TestWasmdAnteDecorator(t *testing.T) {
 	//
 	_, err := wormchain.StoreContract(ctx, "faucet", "./contracts/ibc_hooks.wasm")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), wasmdante.ErrNotSupported().Error())
+	require.Contains(t, err.Error(), MustUseWormholeModule)
 
 	// === PART #2 ===
 	// Store wormhole core contract via Wormhole (pass)
@@ -45,7 +49,7 @@ func TestWasmdAnteDecorator(t *testing.T) {
 	// Instantiate contract via wasm (fails)
 	_, err = wormchain.InstantiateContract(ctx, "faucet", coreContractCodeId, "{}", true)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), wasmdante.ErrNotSupported().Error())
+	require.Contains(t, err.Error(), MustUseWormholeModule)
 
 	// === PART #4 ===
 	// Instantiate contract via Wormhole (pass)
@@ -79,7 +83,7 @@ func TestWasmdAnteDecorator(t *testing.T) {
 	// Test misc wasm messages (all should fail)
 	_, err = wormchain.MigrateContract(ctx, "faucet", coreContractAddr, coreContractCodeId, "{}")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), wasmdante.ErrNotSupported().Error())
+	require.Contains(t, err.Error(), MustUseWormholeModule)
 
 	node := wormchain.FullNodes[0]
 
@@ -87,7 +91,7 @@ func TestWasmdAnteDecorator(t *testing.T) {
 	cmd := []string{"wasm", "clear-contract-admin", coreContractAddr}
 	_, err = node.ExecTx(ctx, user.KeyName(), cmd...)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), wasmdante.ErrNotSupported().Error())
+	require.Contains(t, err.Error(), MustBeAllowListed)
 
 	faucetBz, err := wormchain.GetAddress(ctx, "faucet")
 	require.NoError(t, err)
@@ -98,11 +102,11 @@ func TestWasmdAnteDecorator(t *testing.T) {
 	cmd = []string{"wasm", "set-contract-admin", coreContractAddr, faucetAddr}
 	_, err = node.ExecTx(ctx, user.KeyName(), cmd...)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), wasmdante.ErrNotSupported().Error())
+	require.Contains(t, err.Error(), MustBeAllowListed)
 
 	// Set contract label (fails)
 	cmd = []string{"wasm", "set-contract-label", coreContractAddr, "label"}
 	_, err = node.ExecTx(ctx, user.KeyName(), cmd...)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), wasmdante.ErrNotSupported().Error())
+	require.Contains(t, err.Error(), MustBeAllowListed)
 }

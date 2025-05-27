@@ -198,6 +198,7 @@ require (
 
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	github.com/CosmWasm/wasmd => github.com/wormhole-foundation/wasmd v0.45.0-wormchain
 	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.15
 	github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.47.12-wormhole-1
 
