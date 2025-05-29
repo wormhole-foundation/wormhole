@@ -11,7 +11,7 @@ contract GuardianSetVerificationState is ExtStore {
 
   error InvalidGuardianSetIndex();
 
-	// Core bridge instance
+  // Core bridge instance
   ICoreBridge private immutable _coreBridge;
 
   // Guardian set expiration time is stored in an array mapped from index to expiration time
@@ -34,7 +34,7 @@ contract GuardianSetVerificationState is ExtStore {
     }
   }
 
-	// Get the guardian addresses for a given guardian set index
+  // Get the guardian addresses for a given guardian set index
   function _getGuardianSetInfo(uint32 index) internal view returns (
     uint32 expirationTime,
     address[] memory guardianAddrs

@@ -76,7 +76,7 @@ contract GuardianSetVerification is GuardianSetVerificationState {
         address guardianAddress = guardians.readUnchecked(guardian);
 
         // Check that:
-        // * the guardian indicies are in strictly ascending order (only after the first signature)
+        // * the guardian indices are in strictly ascending order (only after the first signature)
         //     this is itself an optimization to efficiently prevent having the same guardian signature
         //     included twice
         // * that the guardian index is not out of bounds
