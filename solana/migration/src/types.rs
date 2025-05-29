@@ -12,6 +12,7 @@ use solitaire::{
     processors::seeded::{
         AccountOwner,
         Owned,
+        SingleOwned,
     },
 };
 use spl_token::state::{
@@ -29,6 +30,9 @@ impl Owned for PoolData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::This
     }
+}
+
+impl SingleOwned for PoolData {
 }
 
 pack_type!(SplMint, Mint, AccountOwner::Other(spl_token::id()));

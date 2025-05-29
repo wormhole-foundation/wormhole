@@ -25,16 +25,59 @@ pub trait AccountSize {
 pub enum AccountOwner {
     This,
     Other(Pubkey),
+    OneOf(Vec<Pubkey>),
     Any,
 }
 
+/// The ownership story:
+/// We (solitaire) require every account to have an owner specified for two reasons:
+/// 1. Security checks (i.e. solitaire checks that the account is owned by whoever we expect)
+/// 2. Account creation
+///
+/// Solitaire programs create many accounts, most of which are owned by the program itself.
+/// However, some accounts are owned by external programs. When performing security
+/// checks, the ownership is expressed as a constraint on the account, and this
+/// constraint may allow multiple potential owners.
+/// But when creating an account, we need to know exactly who the owner is.
+///
+/// An example of this is a token account, which, when checking its owner, we
+/// check that it's owned by _either_ the SPL token program, or the
+/// Token2022 program. However, when creating a token account, we need to
+/// know exactly which program is the expected owner.
+///
+/// To this end, we have two traits:
+/// - `SingleOwned` is for accounts that have a single owner
+/// - `MultiOwned` is for accounts that can have multiple potential owners
+///
+/// This stratification allows us then have two separate creation flows:
+/// `Creatable` for accounts with a single owner, and `CreatableWithOwner` for
+/// accounts whose owner is one of a set of owners. This way, assuming that only the
+/// appropriate trait is implemented for a type, the compiler statically
+/// guarantees that the appropriate creation flow is used (.create vs .create_with_owner).
 pub trait Owned {
     fn owner(&self) -> AccountOwner;
+}
 
+/// A trait for accounts that may have a single owner. Most accounts are like this.
+pub trait SingleOwned: Owned {
     fn owner_pubkey(&self, program_id: &Pubkey) -> Result<Pubkey> {
         match self.owner() {
             AccountOwner::This => Ok(*program_id),
             AccountOwner::Other(v) => Ok(v),
+            AccountOwner::OneOf(_) => Err(SolitaireError::AmbiguousOwner),
+            AccountOwner::Any => Err(SolitaireError::AmbiguousOwner),
+        }
+    }
+}
+
+/// A trait for accounts that may have multiple potential owners. This is the
+/// equivalent of an `InterfaceAccount` in anchor.
+pub trait MultiOwned: Owned {
+    fn owners_pubkeys(&self, program_id: &Pubkey) -> Result<Vec<Pubkey>> {
+        match self.owner() {
+            AccountOwner::This => Ok(vec![*program_id]),
+            AccountOwner::Other(v) => Ok(vec![v]),
+            AccountOwner::OneOf(v) => Ok(v),
             AccountOwner::Any => Err(SolitaireError::AmbiguousOwner),
         }
     }
@@ -46,6 +89,16 @@ impl<'a, T: Owned + Default, const IS_INITIALIZED: AccountState> Owned
     fn owner(&self) -> AccountOwner {
         self.1.owner()
     }
+}
+
+impl<'a, T: SingleOwned + Default, const IS_INITIALIZED: AccountState> SingleOwned
+    for Data<'a, T, IS_INITIALIZED>
+{
+}
+
+impl<'a, T: MultiOwned + Default, const IS_INITIALIZED: AccountState> MultiOwned
+    for Data<'a, T, IS_INITIALIZED>
+{
 }
 
 pub trait Seeded<I> {
@@ -105,6 +158,17 @@ pub trait Creatable<'a, I> {
     ) -> Result<()>;
 }
 
+pub trait CreatableWithOwner<'a, I> {
+    fn create_with_owner(
+        &'a self,
+        owner: &Pubkey,
+        accs: I,
+        ctx: &'a ExecutionContext,
+        payer: &'a Pubkey,
+        lamports: CreationLamports,
+    ) -> Result<()>;
+}
+
 impl<T: BorshSerialize + Owned + Default, const IS_INITIALIZED: AccountState> AccountSize
     for Data<'_, T, IS_INITIALIZED>
 {
@@ -113,7 +177,9 @@ impl<T: BorshSerialize + Owned + Default, const IS_INITIALIZED: AccountState> Ac
     }
 }
 
-impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatable<'a, K> for T {
+impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + SingleOwned> Creatable<'a, K>
+    for T
+{
     fn create(
         &'a self,
         accs: K,
@@ -134,6 +200,39 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
             lamports,
             size,
             &self.owner_pubkey(ctx.program_id)?,
+            SignedWithSeeds(&[seed_slice]),
+        )
+    }
+}
+
+impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + MultiOwned>
+    CreatableWithOwner<'a, K> for T
+{
+    fn create_with_owner(
+        &'a self,
+        owner: &Pubkey,
+        accs: K,
+        ctx: &'a ExecutionContext<'_, '_>,
+        payer: &'a Pubkey,
+        lamports: CreationLamports,
+    ) -> Result<()> {
+        if !self.owners_pubkeys(ctx.program_id)?.contains(owner) {
+            return Err(SolitaireError::InvalidOwner(*owner));
+        }
+
+        let seeds = T::bumped_seeds(accs, ctx.program_id);
+        let size = self.size();
+
+        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let seed_slice = s.as_slice();
+
+        create_account(
+            ctx,
+            self.info(),
+            payer,
+            lamports,
+            size,
+            owner,
             SignedWithSeeds(&[seed_slice]),
         )
     }

@@ -110,7 +110,7 @@ macro_rules! solitaire {
 }
 
 #[macro_export]
-macro_rules! pack_type {
+macro_rules! pack_type_impl {
     ($name:ident, $embed:ty, $owner:expr) => {
         #[repr(transparent)]
         pub struct $name(pub $embed);
@@ -155,6 +155,22 @@ macro_rules! pack_type {
             fn default() -> Self {
                 $name(<$embed>::default())
             }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! pack_type {
+    ($name:ident, $embed:ty, AccountOwner::OneOf($owner:expr)) => {
+        solitaire::pack_type_impl!($name, $embed, AccountOwner::OneOf($owner));
+
+        impl solitaire::processors::seeded::MultiOwned for $name {
+        }
+    };
+    ($name:ident, $embed:ty, $owner:expr) => {
+        solitaire::pack_type_impl!($name, $embed, $owner);
+
+        impl solitaire::processors::seeded::SingleOwned for $name {
         }
     };
 }
