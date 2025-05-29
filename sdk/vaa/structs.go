@@ -1214,66 +1214,6 @@ func BytesToHash(b []byte) (common.Hash, error) {
 	return hash, nil
 }
 
-// vaaJSON is a helper struct for JSON marshaling that provides proper field names
-// and handles special formatting requirements
-type vaaJSON struct {
-	Version          uint8        `json:"version"`
-	GuardianSetIndex uint32       `json:"guardian_set_index"`
-	Signatures       []*Signature `json:"signatures"`
-	Timestamp        string       `json:"timestamp"`
-	Nonce            uint32       `json:"nonce"`
-	Sequence         uint64       `json:"sequence"`
-	ConsistencyLevel uint8        `json:"consistency_level"`
-	EmitterChain     ChainID      `json:"emitter_chain"`
-	EmitterAddress   string       `json:"emitter_address"`
-	Payload          []byte       `json:"payload"`
-}
-
-// MarshalJSON implements the json.Marshaler interface for VAA.
-// NOTE: This is currently used only for debugging output. There is no UnmarshalJSON implementation.
-func (v *VAA) MarshalJSON() ([]byte, error) {
-	if v == nil {
-		return nil, errors.New("MarshalJSON called on nil VAA")
-	}
-
-	// Create the helper struct with properly formatted fields
-	vj := vaaJSON{
-		Version:          v.Version,
-		GuardianSetIndex: v.GuardianSetIndex,
-		Signatures:       v.Signatures, // Uses Signature's MarshalJSON
-		Timestamp:        v.Timestamp.Format(time.RFC3339Nano),
-		Nonce:            v.Nonce,
-		Sequence:         v.Sequence,
-		ConsistencyLevel: v.ConsistencyLevel,
-		EmitterChain:     v.EmitterChain,
-		EmitterAddress:   v.EmitterAddress.String(),
-		Payload:          v.Payload,
-	}
-
-	return json.Marshal(vj)
-}
-
-// signatureJSON is a helper struct for JSON marshaling of Signature
-type signatureJSON struct {
-	Index     uint8  `json:"index"`
-	Signature string `json:"signature"`
-}
-
-// MarshalJSON implements the json.Marshaler interface for Signature.
-// This ensures signatures are properly formatted in the VAA JSON output.
-func (s *Signature) MarshalJSON() ([]byte, error) {
-	if s == nil {
-		return nil, errors.New("MarshalJSON called on nil Signature")
-	}
-
-	sj := signatureJSON{
-		Index:     s.Index,
-		Signature: s.Signature.String(),
-	}
-
-	return json.Marshal(sj)
-}
-
 // DebugString returns a pretty-formatted JSON string representation of the VAA.
 func (v *VAA) DebugString() (string, error) {
 	jsonBytes, err := json.MarshalIndent(v, "", "  ")
