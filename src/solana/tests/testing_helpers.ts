@@ -1,144 +1,104 @@
-import { Connection, LAMPORTS_PER_SOL, PublicKey, Signer, Transaction, TransactionInstruction, ComputeBudgetProgram, sendAndConfirmTransaction } from "@solana/web3.js"
-import { NodeWallet, postVaaSolana, signSendAndConfirmTransaction } from "@certusone/wormhole-sdk/lib/cjs/solana"
-import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock"
-
-import { expect, use as chaiUse } from "chai"
-import chaiAsPromised from "chai-as-promised"
-chaiUse(chaiAsPromised)
+import {
+  Connection,
+  Finality,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  Signer,
+  Transaction,
+  TransactionInstruction,
+  sendAndConfirmTransaction,
+  Keypair,
+  TransactionSignature,
+  VersionedTransactionResponse
+} from "@solana/web3.js"
+import { mocks } from "@wormhole-foundation/sdk-definitions/testing"
+import { Contracts } from '@wormhole-foundation/sdk-definitions';
+import fs from "fs/promises"
+import fsSync from "fs"
+import * as toml from 'toml';
 
 // Copied from @wormhole-foundation/wormhole-scaffolding/solana/ts/helpers/utils.ts
 // TODO: There's probably some way to import this?
 
-export const MOCK_GUARDIANS = new MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
+export const MOCK_GUARDIANS = new mocks.MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
 
-class SendIxError extends Error {
-  logs: string;
+// class SendIxError extends Error {
+//   logs: string;
 
-  constructor(originalError: Error & { logs?: string[] }) {
-    //The newlines don't actually show up correctly in chai's assertion error, but at least
-    // we have all the information and can just replace '\n' with a newline manually to see
-    // what's happening without having to change the code.
-    const logs = originalError.logs?.join('\n') || "error had no logs";
-    super(originalError.message + "\nlogs:\n" + logs);
-    this.stack = originalError.stack;
-    this.logs = logs;
-  }
-}
+//   constructor(originalError: Error & { logs?: string[] }) {
+//     //The newlines don't actually show up correctly in chai's assertion error, but at least
+//     // we have all the information and can just replace '\n' with a newline manually to see
+//     // what's happening without having to change the code.
+//     const logs = originalError.logs?.join('\n') || "error had no logs";
+//     super(originalError.message + "\nlogs:\n" + logs);
+//     this.stack = originalError.stack;
+//     this.logs = logs;
+//   }
+// }
 
-export const boilerPlateReduction = (connection: Connection, defaultSigner: Signer) => {
-  // for signing wormhole messages
-  const defaultNodeWallet = NodeWallet.fromSecretKey(defaultSigner.secretKey);
+type Tuple<T, N extends number, R extends T[] = []> = R['length'] extends N
+  ? R
+  : Tuple<T, N, [T, ...R]>;
 
-  const payerToWallet = (payer?: Signer) =>
-    !payer || payer === defaultSigner
-    ? defaultNodeWallet
-    : NodeWallet.fromSecretKey(payer.secretKey);
-  
-  const requestAirdrop = async (account: PublicKey) =>
-    connection.confirmTransaction(
-      await connection.requestAirdrop(account, 1000 * LAMPORTS_PER_SOL)
-    );
-  
-  const guardianSign = (message: Buffer) =>
-    MOCK_GUARDIANS.addSignatures(message, [0])
+export class TestsHelper {
+  static readonly LOCALHOST = 'http://localhost:8899';
+  readonly connection: Connection;
+  readonly finality: Finality;
 
-  const postSignedMsgAsVaaOnSolana = async (coreV1: PublicKey, signedMsg: Buffer, payer?: Signer) => {
-    const wallet = payerToWallet(payer);
-    await postVaaSolana(
-      connection,
-      wallet.signTransaction,
-      coreV1,
-      wallet.key(),
-      signedMsg
-    );
-  }
+  /** Connections cache. */
+  private static readonly connections: Partial<Record<Finality, Connection>> = {};
 
-  const sendAndConfirmIx = async (
-    ix: TransactionInstruction | Promise<TransactionInstruction>,
-    signerOrSignersOrComputeUnits?: Signer | Signer[] | number,
-    computeUnits?: number,
-  ) => {
-    let [signers, units] = (() => {
-      if (!signerOrSignersOrComputeUnits)
-        return [[defaultSigner], computeUnits];
-
-      if (typeof signerOrSignersOrComputeUnits === "number") {
-        if(computeUnits !== undefined)
-          throw new Error("computeUnits can't be specified twice");
-        return [[defaultSigner], signerOrSignersOrComputeUnits];
-      }
-
-      return [
-        Array.isArray(signerOrSignersOrComputeUnits)
-          ? signerOrSignersOrComputeUnits
-          : [signerOrSignersOrComputeUnits],
-          computeUnits
-      ];
-    })();
-
-    const tx = new Transaction().add(await ix);
-    if (units)
-      tx.add(ComputeBudgetProgram.setComputeUnitLimit({units}));
-    try {
-      return await sendAndConfirmTransaction(connection, tx, signers);
+  constructor(finality: Finality = 'confirmed') {
+    if (TestsHelper.connections[finality] === undefined) {
+      TestsHelper.connections[finality] = new Connection(TestsHelper.LOCALHOST, finality);
     }
-    catch (error: any) {
-      throw new SendIxError(error);
-    }
-  }
-  
-  const expectIxToSucceed = async (
-    ix: TransactionInstruction | Promise<TransactionInstruction>,
-    signerOrSignersOrComputeUnits?: Signer | Signer[] | number,
-    computeUnits?: number,
-  ) =>
-    expect(sendAndConfirmIx(ix, signerOrSignersOrComputeUnits, computeUnits)).to.be.fulfilled;
-    
-  const expectIxToFailWithError = async (
-    ix: TransactionInstruction | Promise<TransactionInstruction>,
-    errorMessage: string,
-    signerOrSignersOrComputeUnits?: Signer | Signer[] | number,
-    computeUnits?: number,
-  ) => {
-    try {
-      await sendAndConfirmIx(ix, signerOrSignersOrComputeUnits, computeUnits);
-    } catch (error) {
-      expect((error as SendIxError).logs).includes(errorMessage);
-      return;
-    }
-    expect.fail("Expected transaction to fail");
+    this.connection = TestsHelper.connections[finality];
+    this.finality = finality;
   }
 
-  const expectTxToSucceed = async (
-    tx: Transaction | Promise<Transaction>,
-    payer?: Signer,
-  ) => {
-    const wallet = payerToWallet(payer);
-    return expect(
-      signSendAndConfirmTransaction(
-      connection,
-      wallet.key(),
-      wallet.signTransaction,
-      await tx,
-    )).to.be.fulfilled;
-  }
-
-  const signAndPost = async (coreV1: PublicKey, message: Buffer, payer?: Signer) => {
-    const signedMsg = guardianSign(message);
-    await postSignedMsgAsVaaOnSolana(coreV1, signedMsg, payer);
-    return signedMsg;
+  keypair = {
+    generate: (): Keypair => Keypair.generate(),
+    read: async (path: string): Promise<Keypair> =>
+      this.keypair.from(JSON.parse(await fs.readFile(path, { encoding: 'utf8' }))),
+    from: (bytes: number[]): Keypair => Keypair.fromSecretKey(Uint8Array.from(bytes)),
+    several: <N extends number>(amount: N): Tuple<Keypair, N> =>
+      Array.from({ length: amount }).map(Keypair.generate) as Tuple<Keypair, N>,
   };
 
-  return {
-    requestAirdrop,
-    guardianSign,
-    postSignedMsgAsVaaOnSolana,
-    sendAndConfirmIx,
-    expectIxToSucceed,
-    expectIxToFailWithError,
-    expectTxToSucceed,
-    signAndPost,
-  };
+  /** Waits that a transaction is confirmed. */
+  async confirm(signature: TransactionSignature) {
+    const latestBlockHash = await this.connection.getLatestBlockhash();
+
+    return this.connection.confirmTransaction({
+      signature,
+      blockhash: latestBlockHash.blockhash,
+      lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+    });
+  }
+
+  async sendAndConfirm(
+    ixs: TransactionInstruction | Transaction | TransactionInstruction[],
+    payer: Signer,
+    ...signers: Signer[]
+  ): Promise<TransactionSignature> {
+    return sendAndConfirm(this.connection, ixs, payer, ...signers);
+  }
+
+  async getTransaction(
+    signature: TransactionSignature | Promise<TransactionSignature>,
+  ): Promise<VersionedTransactionResponse | null> {
+    return this.connection.getTransaction(await signature, {
+      commitment: this.finality,
+      maxSupportedTransactionVersion: 1,
+    });
+  }
+
+  /** Requests airdrop to an account or several ones. */
+  async airdrop(to: PublicKey[]): Promise<void> {
+    await Promise.all(to.map(async (account) =>
+      this.confirm(await this.connection.requestAirdrop(account, 50 * LAMPORTS_PER_SOL))
+    ));
+  }
 }
 
 export function findPda(programId: PublicKey, seeds: Array<string | Uint8Array>) {
@@ -156,4 +116,48 @@ export function findPda(programId: PublicKey, seeds: Array<string | Uint8Array>)
     address,
     bump,
   };
+}
+
+export async function sendAndConfirm(
+  connection: Connection,
+  ixs: TransactionInstruction | Transaction | Array<TransactionInstruction>,
+  payer: Signer,
+  ...signers: Signer[]
+): Promise<TransactionSignature> {
+  const { value } = await connection.getLatestBlockhashAndContext();
+  const tx = new Transaction({
+    ...value,
+    feePayer: payer.publicKey,
+  }).add(...(Array.isArray(ixs) ? ixs : [ixs]));
+
+  return sendAndConfirmTransaction(connection, tx, [payer, ...signers], {});
+}
+
+/** Helper allowing to abstract over the Wormhole configuration (network and addresses) */
+export class WormholeContracts {
+  static Network = 'Devnet' as const;
+
+  private static core: PublicKey = PublicKey.default;
+
+  static get coreBridge(): PublicKey {
+    WormholeContracts.init();
+    return WormholeContracts.core;
+  }
+
+  static get addresses(): Contracts {
+    WormholeContracts.init();
+    return {
+      coreBridge: WormholeContracts.core.toString(),
+    };
+  }
+
+  private static init() {
+    if (WormholeContracts.core.equals(PublicKey.default)) {
+      const anchorCfg = toml.parse(fsSync.readFileSync('./Anchor.toml', 'utf-8'));
+
+      WormholeContracts.core = new PublicKey(
+        anchorCfg.test.genesis.find((cfg: any) => cfg.name == 'wormhole-core-v1').address,
+      );
+    }
+  }
 }

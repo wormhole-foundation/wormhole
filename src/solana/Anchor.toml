@@ -1,4 +1,6 @@
 [toolchain]
+anchor_version = "0.31.1"
+solana_version = "2.1.18"
 
 [features]
 resolution = true
@@ -15,7 +17,7 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run mocha -t 1000000 tests/**/*.ts"
+test = "npx mocha -t 1000000 tests/**/*.ts"
 
 [test]
 startup_wait = 5000
@@ -23,6 +25,6 @@ shutdown_wait = 2000
 upgradeable = false
 
 [[test.genesis]]
-name = "wormhole"
+name = "wormhole-core-v1"
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 program = "imports/wormhole.so"
