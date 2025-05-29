@@ -88,10 +88,8 @@ contract ThresholdVerificationState {
 
   function _getShards(uint32 guardianSet) internal view returns (ShardInfo[] memory) {
     unchecked {
-      uint256 offset = guardianSet << 1;
-      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
-      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(_thresholdData[offset + 1]);
-      
+      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(guardianSet);
+
       ShardInfo[] memory shards = new ShardInfo[](shardCount);
       uint256 ptr = shardBase;
       for (uint256 i = 0; i < shardCount; i++) {
@@ -116,9 +114,7 @@ contract ThresholdVerificationState {
 
   function _registerGuardian(uint32 guardianSet, uint8 guardian, bytes32 id) internal {
     unchecked {
-      uint256 offset = guardianSet << 1;
-      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
-      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(_thresholdData[offset + 1]);
+      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(guardianSet);
       require(guardian < shardCount, InvalidGuardianIndex());
       _shardData[shardBase + (guardian << 1)] = id;
     }
@@ -134,8 +130,12 @@ contract ThresholdVerificationState {
     }
   }
 
-  function _thresholdDataShardSlice(uint256 data) internal pure returns (uint8 shardCount, uint40 shardBase) {
+  function _thresholdDataShardSlice(uint32 guardianSet) internal view returns (uint8 shardCount, uint40 shardBase) {
     unchecked {
+      uint256 offset = guardianSet << 1;
+      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
+      uint256 data = _thresholdData[offset + 1]);
+
       shardCount = uint8((data >> 32) & 0xFF);
       shardBase = uint40(data >> 40);
     }
