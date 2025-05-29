@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -54,6 +53,10 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 
 		log.Printf("Serialized: %v", hex.EncodeToString(b))
 
-		log.Printf("VAA with digest %x: %+v", digest, spew.Sdump(v))
+		debugStr, err := v.DebugString()
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		log.Printf("VAA with digest %s: %+v\n", digest, debugStr)
 	}
 }

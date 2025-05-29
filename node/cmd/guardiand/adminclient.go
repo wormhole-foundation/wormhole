@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/davecgh/go-spew/spew"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
@@ -393,7 +392,11 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to decode VAA: %v", err)
 	}
 
-	log.Printf("VAA with digest %s: %+v\n", v.HexDigest(), spew.Sdump(v))
+	debugStr, err := v.DebugString()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Printf("VAA with digest %s: %+v\n", v.HexDigest(), debugStr)
 	fmt.Printf("Bytes:\n%s\n", hex.EncodeToString(resp.VaaBytes))
 }
 
