@@ -60,6 +60,9 @@ contract ThresholdVerificationState {
         // If there is threshold data, the new index must be sequential
         (, index) = _getCurrentThresholdInfo();
         require(newTSSIndex == index + 1, InvalidThresholdKeyIndex());
+
+        // Verify we have a matching guardian set
+        require(currentGuardianSetIndex >= index, InvalidThresholdKeyIndex());
       } else {
         // If there is no threshold data, the initial index must be the new index
         require(newTSSIndex == currentGuardianSetIndex, InvalidThresholdKeyIndex());
