@@ -271,8 +271,6 @@ func (tv *TransferVerifier[ethClient, Connector]) updateReceiptDetails(
 			originAddr = VAAAddrFrom(transfer.TokenAddress)
 			originChain = tv.chainIds.wormholeChainId
 		} else {
-			queryAddr = transfer.TokenAddress
-
 			// Update ChainID
 			var fetchErr error
 			originChain, fetchErr = tv.chainId(queryAddr)
@@ -327,24 +325,6 @@ func (tv *TransferVerifier[ethClient, Connector]) updateReceiptDetails(
 
 	// No processing required for LogMessagePublished. We are comparing against its origin address
 	// and Amount field (which is always normalized).
-
-	// Populate Amount and OriginAddress based on raw byte info.
-	// The unwrapped address and the denormalized amount are necessary for checking
-	// that the amount matches.
-	// tv.logger.Debug("populating native data for LogMessagePublished assets")
-	// for i, message := range *receipt.MessagePublications {
-	// 	tv.logger.Debug("processing message publication", zap.Int("index", i))
-	// 	newDetails, logFetchErr := tv.fetchLogMessageDetails(message.TransferDetails)
-	// 	if logFetchErr != nil {
-	// 		return errors.Join(errors.New("error when populating wormhole details. cannot verify receipt"), logFetchErr)
-	// 	}
-	// 	if newDetails == nil {
-	// 		errMsg := "fetchLogMessageDetails returned nil but did not return error. cannot continue"
-	// 		tv.logger.Error(errMsg, zap.String("message", message.String()))
-	// 		return errors.New(errMsg)
-	// 	}
-	// 	message.TransferDetails = newDetails
-	// }
 
 	tv.logger.Debug(
 		"finished updating receipt details",
@@ -478,11 +458,30 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 				continue
 			}
 
+			// Make sure the core bridge is the emitter of the event.
 			// This check is required. Payload parsing will fail if performed on a message emitted from another contract or sent
 			// by a contract other than the token bridge
 			if log.Address != tv.Addresses.CoreBridgeAddr {
 				tv.logger.Debug("skip: LogMessagePublished not emitted from the core bridge",
 					zap.String("emitter", log.Address.String()))
+				continue
+			}
+
+			// Bounds check.
+			if len(log.Topics) < 2 {
+				tv.logger.Warn("skip: LogMessagePublished has less than 2 topics",
+					zap.String("txhash", log.TxHash.String()),
+				)
+				receiptErr = errors.Join(receiptErr, errors.New("not enough topics"))
+				continue
+			}
+
+			// Make sure the token bridge is the sender.
+			if log.Topics[1] != tv.Addresses.TokenBridgeAddr.Hash() {
+				tv.logger.Debug("skip: LogMessagePublished with sender not equal to the token bridge",
+					zap.String("sender", log.Topics[1].String()),
+					zap.String("tokenBridgeAddr", tv.Addresses.TokenBridgeAddr.Hex()),
+				)
 				continue
 			}
 
@@ -503,23 +502,6 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 				tv.logger.Info("skip: LogMessagePublished is not a token transfer",
 					zap.String("txHash", log.TxHash.String()),
 					zap.String("payloadByte", fmt.Sprintf("%x", logMessagePublished.Payload[0])),
-				)
-				continue
-			}
-
-			// Bounds check.
-			if len(log.Topics) < 2 {
-				tv.logger.Warn("skip: LogMessagePublished has less than 2 topics",
-					zap.String("txhash", log.TxHash.String()),
-				)
-				receiptErr = errors.Join(receiptErr, errors.New("not enough topics"))
-				continue
-			}
-
-			if log.Topics[1] != tv.Addresses.TokenBridgeAddr.Hash() {
-				tv.logger.Debug("skip: LogMessagePublished with sender not equal to the token bridge",
-					zap.String("sender", log.Topics[1].String()),
-					zap.String("tokenBridgeAddr", tv.Addresses.TokenBridgeAddr.Hex()),
 				)
 				continue
 			}
