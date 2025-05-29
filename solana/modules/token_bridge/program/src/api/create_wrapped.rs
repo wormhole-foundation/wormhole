@@ -34,6 +34,7 @@ use solana_program::{
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
+        CreatableWithOwner,
         Seeded,
     },
     CreationLamports::Exempt,
@@ -130,9 +131,17 @@ pub fn create_accounts(
     accs: &mut CreateWrapped,
     _data: CreateWrappedData,
 ) -> Result<()> {
+    // wrapped accounts use legacy spl
+    let token_program = spl_token::id();
+
     // Create mint account
-    accs.mint
-        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
+    accs.mint.create_with_owner(
+        &token_program,
+        &((&*accs).into()),
+        ctx,
+        accs.payer.key,
+        Exempt,
+    )?;
 
     // Initialize mint
     let init_ix = spl_token::instruction::initialize_mint(
