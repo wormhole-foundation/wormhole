@@ -23,7 +23,11 @@ contract GuardianSetVerification is GuardianSetVerificationState {
     uint256 pullLimit
   ) GuardianSetVerificationState(coreBridge, pullLimit) {}
 
-  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset, uint32 guardianSetIndex, address[] memory guardians) {
+  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (
+    uint envelopeOffset,
+    uint32 guardianSetIndex,
+    address[] memory guardians
+  ) {
     unchecked {
       uint offset = 0;
       uint8 version;

@@ -42,8 +42,7 @@ contract VerificationV2 is
   error GuardianSetIsNotCurrent();
 
   // FIXME: The initial TSS index should be the latest guardian set index, not passed in!
-  constructor(address coreV1, uint256 initialTSSIndex, uint256 pullLimit) 
-    ThresholdVerification(initialTSSIndex)
+  constructor(address coreV1, uint256 pullLimit) 
     GuardianSetVerification(coreV1, pullLimit)
     GuardianRegistryVerification() 
   {}
@@ -112,13 +111,14 @@ contract VerificationV2 is
         
         // Decode the payload
         (
+          uint32 newTSSIndex,
           uint256 newThresholdAddr,
           uint32 expirationDelaySeconds,
           ShardInfo[] memory shards
         ) = _decodeThresholdKeyUpdatePayload(payload, guardians.length);
         
         // Append the threshold key
-        _appendThresholdKey(guardianSetIndex, newThresholdAddr, expirationDelaySeconds, shards);
+        _appendThresholdKey(guardianSetIndex, newTSSIndex, newThresholdAddr, expirationDelaySeconds, shards);
       } else if (op == OP_PULL_GUARDIAN_SETS) {
         uint32 limit;
         (limit, offset) = data.asUint32CdUnchecked(offset);

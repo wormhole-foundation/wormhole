@@ -6,17 +6,14 @@ contract ThresholdVerificationState {
 	error InvalidThresholdKeyIndex();
 	error InvalidThresholdKeyAddress();
 	error InvalidGuardianIndex();
+	error GuardianSetsNotComplete();
 
   struct ShardInfo {
     bytes32 shard;
     bytes32 id;
   }
 
-  uint256 private _thresholdDataInitialIndex;
-
-  constructor(uint256 initialIndex) {
-    _thresholdDataInitialIndex = initialIndex;
-  }
+  uint32 private _thresholdDataInitialIndex;
 
   // Threshold data is stored in a single array with stride 2:
   //   pubkey (32 bytes)
@@ -32,13 +29,8 @@ contract ThresholdVerificationState {
   function _getCurrentThresholdInfo() internal view returns (uint256 pubkey, uint32 index) {
     unchecked {
       uint256 length = _thresholdData.length;
-      if (length == 0) {
-        pubkey = 0;
-        index = uint32(_thresholdDataInitialIndex);
-      } else {
-        pubkey = _thresholdData[length - 2];
-        index = uint32(length >> 1);
-      }
+      pubkey = _thresholdData[length - 2];
+      index = uint32((length >> 1) + _thresholdDataInitialIndex);
     }
   }
 
@@ -53,15 +45,27 @@ contract ThresholdVerificationState {
   }
 	
   function _appendThresholdKey(
-    uint32 newIndex,
+    uint32 currentGuardianSetIndex,
+    uint32 newTSSIndex,
     uint256 pubkey,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
   ) internal {
     unchecked {
       // Get the current threshold info and verify the new index is sequential
-      (, uint32 index) = _getCurrentThresholdInfo();
-      require(newIndex == index + 1, InvalidThresholdKeyIndex());
+      // NOTE: We can't use _getCurrentThresholdInfo() directly here because
+      //       _thresholdData will be empty on the first append
+      uint32 index;
+      if (_thresholdData.length > 0) {
+        // If there is threshold data, the new index must be sequential
+        (, index) = _getCurrentThresholdInfo();
+        require(newTSSIndex == index + 1, InvalidThresholdKeyIndex());
+      } else {
+        // If there is no threshold data, the initial index must be the new index
+        require(newTSSIndex == currentGuardianSetIndex, InvalidThresholdKeyIndex());
+        index = currentGuardianSetIndex;
+        _thresholdDataInitialIndex = currentGuardianSetIndex;
+      }
 
       // Store the expiration time and current threshold address in past threshold info
       uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;

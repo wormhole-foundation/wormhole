@@ -25,8 +25,16 @@ contract GuardianSetVerificationState is ExtStore {
     _pullGuardianSets(pullLimit);
   }
 
-	// Get the guardian addresses for a given guardian set index using the ExtStore
-  // On an invalid index, the function will panic
+  // Get the current guardian set index and addresses
+  // NOTE: If no guardian sets have been pulled, the function will panic
+  function _getCurrentGuardianSetInfo() internal view returns (uint32 index, address[] memory guardianAddrs) {
+    unchecked {
+      index = uint32(_guardianSetExpirationTime.length - 1);
+      (, guardianAddrs) = _getGuardianSetInfo(index);
+    }
+  }
+
+	// Get the guardian addresses for a given guardian set index
   function _getGuardianSetInfo(uint32 index) internal view returns (
     uint32 expirationTime,
     address[] memory guardianAddrs
@@ -45,21 +53,15 @@ contract GuardianSetVerificationState is ExtStore {
     }
   }
 
-  function _getCurrentGuardianSetInfo() internal view returns (uint32 index, address[] memory guardianAddrs) {
-    unchecked {
-      index = uint32(_guardianSetExpirationTime.length - 1);
-      (, guardianAddrs) = _getGuardianSetInfo(index);
-    }
-  }
-
-  function _pullGuardianSets(uint256 limit) internal {
+  function _pullGuardianSets(uint256 limit) internal returns (bool isComplete, uint32 currentGuardianSetIndex) {
     unchecked {
       // Get the guardian set lengths for the bridge and the local contract
-      uint currentGuardianSetLength = _coreBridge.getCurrentGuardianSetIndex() + 1;
+      currentGuardianSetIndex = _coreBridge.getCurrentGuardianSetIndex();
+      uint32 currentGuardianSetLength = currentGuardianSetIndex + 1;
       uint oldGuardianSetLength = _guardianSetExpirationTime.length;
 
       // If we have already pulled all the guardian sets, return
-      if (currentGuardianSetLength == oldGuardianSetLength) return;
+      if (currentGuardianSetLength == oldGuardianSetLength) return (true, currentGuardianSetIndex);
 
       // Check if we need to update the current guardian set
       if (oldGuardianSetLength > 0) {
@@ -80,6 +82,8 @@ contract GuardianSetVerificationState is ExtStore {
         _guardianSetExpirationTime.push(expirationTime);
         _extWrite(data);
       }
+
+      return (_guardianSetExpirationTime.length == currentGuardianSetLength, currentGuardianSetIndex);
     }
   }
 	

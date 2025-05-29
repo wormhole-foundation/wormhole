@@ -25,6 +25,7 @@ contract GuardianRegistryVerification is EIP712Encoding {
   ) internal view {
     require(expirationTime > block.timestamp, RegistrationMessageExpired());
     bytes32 digest = getRegisterGuardianDigest(guardianSet, expirationTime, id);
+
     // Verify the signature
     address signatory = ecrecover(digest, v, r, s);
     require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());

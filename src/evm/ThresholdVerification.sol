@@ -27,8 +27,6 @@ contract ThresholdVerification is ThresholdVerificationState {
   error InvalidModule(bytes32 module);
   error InvalidAction(uint8 action);
 
-  constructor(uint256 initialIndex) ThresholdVerificationState(initialIndex) {}
-
   // Verify a threshold signature VAA
   function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
@@ -99,6 +97,7 @@ contract ThresholdVerification is ThresholdVerificationState {
   }
 
   function _decodeThresholdKeyUpdatePayload(bytes calldata payload, uint256 shardCount) internal pure returns (
+    uint32 newTSSIndex,
     uint256 newThresholdPubkey,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
@@ -109,8 +108,12 @@ contract ThresholdVerification is ThresholdVerificationState {
       uint8 action;
       bytes32 module;
 
+      // Headedr
       (module, offset) = payload.asBytes32MemUnchecked(offset);
       (action, offset) = payload.asUint8MemUnchecked(offset);
+
+      // Payload
+      (newTSSIndex, offset) = payload.asUint32MemUnchecked(offset);
       (newThresholdPubkey, offset) = payload.asUint256MemUnchecked(offset);
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
 
