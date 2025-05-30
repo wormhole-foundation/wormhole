@@ -28,12 +28,14 @@ const (
 	NotVerified VerificationState = iota
 	// Represents a "known bad" status where a Message has been validated and the result indicates an erroneous or invalid message. The message should be discarded.
 	Rejected
-	// Represents an unusual state after validation, neither confirmed to be good or bad.
+	// Represents a successful validation, neither confirmed to be good or bad, but unusual.
 	Anomalous
 	// Represents a "known good" status where a Message has been validated and the result is good. The message should be processed normally.
 	Valid
 	// Indicates that no verification is necessary.
 	NotApplicable
+	// The message could not complete the verification process.
+	CouldNotVerify
 )
 
 func (v VerificationState) String() string {
@@ -48,6 +50,8 @@ func (v VerificationState) String() string {
 		return "Rejected"
 	case NotApplicable:
 		return "NotApplicable"
+	case CouldNotVerify:
+		return "CouldNotVerify"
 	default:
 		return ""
 	}
