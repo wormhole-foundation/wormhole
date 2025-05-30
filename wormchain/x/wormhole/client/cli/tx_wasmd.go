@@ -44,7 +44,7 @@ func parseStoreCodeArgs(file string, sender sdk.AccAddress, vaa []byte) (types.M
 	}, nil
 }
 
-// StoreCodeCmd will upload code to be reused.
+// CmdStoreCode will upload code to be reused.
 func CmdStoreCode() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "store [wasm file] [vaa-hex]",
