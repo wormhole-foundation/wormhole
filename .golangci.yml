@@ -7,6 +7,7 @@ linters:
     # Ensure that the body is closed on HTTP and websocket conns
     - bodyclose
     - contextcheck
+    - depguard
     # Duplicate word usage, such as 'and and' in a comment.
     - dupword
     - errcheck
@@ -35,6 +36,65 @@ linters:
     # Unused constants, variables, functions and types
     - unused
   settings:
+    depguard:
+      # Rules to apply.
+      #
+      # Variables:
+      # - File Variables
+      #   Use an exclamation mark `!` to negate a variable.
+      #   Example: `!$test` matches any file that is not a go test file.
+      #
+      #   `$all` - matches all go files
+      #   `$test` - matches all go test files
+      #
+      # - Package Variables
+      #
+      #   `$gostd` - matches all of go's standard library (Pulled from `GOROOT`)
+      #
+      # Default (applies if no custom rules are defined): Only allow $gostd in all files.
+      rules:
+        # Name of a rule.
+        main:
+          # Defines package matching behavior. Available modes:
+          # - `original`: allowed if it doesn't match the deny list and either matches the allow list or the allow list is empty.
+          # - `strict`: allowed only if it matches the allow list and either doesn't match the deny list or the allow rule is more specific (longer) than the deny rule.
+          # - `lax`: allowed if it doesn't match the deny list or the allow rule is more specific (longer) than the deny rule.
+          # Default: "original"
+          list-mode: lax
+          # List of file globs that will match this list of settings to compare against.
+          # By default, if a path is relative, it is relative to the directory where the golangci-lint command is executed.
+          # The placeholder '${base-path}' is substituted with a path relative to the mode defined with `run.relative-path-mode`.
+          # The placeholder '${config-path}' is substituted with a path relative to the configuration file.
+          # Default: $all
+          # files:
+          #   - "!**/*_a _file.go"
+          # List of allowed packages.
+          # Entries can be a variable (starting with $), a string prefix, or an exact match (if ending with $).
+          # Default: []
+          # allow:
+          # List of packages that are not allowed.
+          # Entries can be a variable (starting with $), a string prefix, or an exact match (if ending with $).
+          # Default: []
+          deny:
+              # Debugging can be done without an external dependency.
+            - pkg: "github.com/davecgh/go-spew/spew"
+              desc: Use a custom formatter e.g. JSON
+
+              # Unmaintained.
+            - pkg: "github.com/benbjohnson/clock"
+              desc: deprecated
+
+              # Unnecessary for most use cases.
+            - pkg: "github.com/mitchellh/go-homedir"
+              desc: Use os.UserHomeDir()
+
+              # Unmaintained.
+            - pkg: "gopkg.in/godo.v2/watcher/fswatch"
+              desc: Use package fsnotify/fsnotify
+
+            - pkg: "github.com/pkg/errors"
+              desc: Should be replaced by standard lib errors package
+
     errorlint:
       errorf: false
     exhaustive:
