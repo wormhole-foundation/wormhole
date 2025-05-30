@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"os"
 	"os/signal"
 	"strings"
@@ -12,9 +13,9 @@ import (
 	"time"
 
 	spyv1 "github.com/certusone/wormhole/node/pkg/proto/spy/v1"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	vaaLib "github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -29,9 +30,7 @@ var logger *zap.Logger
 // Initialize global logger
 func initLogger() {
 	var err error
-
 	logger, err = zap.NewProduction()
-
 	if err != nil {
 		// Fallback to standard logger if zap fails
 		fmt.Printf("Failed to initialize zap logger: %v\n", err)
@@ -57,12 +56,12 @@ func NewConfigFromEnv() Config {
 	return Config{
 		SpyRPCHost:       getEnvOrDefault("SPY_RPC_HOST", "localhost:7072"),
 		SourceChainID:    uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 52)),
-		DestChainID:      uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 10004)),
+		DestChainID:      uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 10003)),
 		DestRPCURL:       getEnvOrDefault("DEST_RPC_URL", "http://localhost:8545"),
 		PrivateKey:       getEnvOrDefault("PRIVATE_KEY", "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"),
 		WormholeContract: getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
-		TargetContract:   getEnvOrDefault("TARGET_CONTRACT", "0x10fB2Ab116E2Eb3a8B5a1Ca912E05f63c3D969E4"),
-		EmitterAddress:   getEnvOrDefault("EMITTER_ADDRESS", "3078316233353838346638626139333731343139643030616532323864613966"),
+		TargetContract:   getEnvOrDefault("TARGET_CONTRACT", "0x94dFeceb91678ec912ef8f14c72721c102ed2Df7"),
+		EmitterAddress:   getEnvOrDefault("EMITTER_ADDRESS", "3078303064333539363131626333323265623562343433393936366530663763"),
 	}
 }
 
@@ -93,18 +92,15 @@ func NewSpyClient(endpoint string) (*SpyClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to spy: %v", err)
 	}
-	client.logger.Info("Connected to spy service successfully")
 
 	client.conn = conn
 	client.client = spyv1.NewSpyRPCServiceClient(conn)
-
 	return client, nil
 }
 
 // Close closes the connection to the spy service
 func (c *SpyClient) Close() {
 	if c.conn != nil {
-		c.logger.Info("Closing spy service connection")
 		c.conn.Close()
 	}
 }
@@ -176,7 +172,6 @@ func NewEVMClient(rpcURL, privateKeyHex string) (*EVMClient, error) {
 		return nil, fmt.Errorf("error casting public key to ECDSA")
 	}
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
-	client.logger.Info("Connected to EVM chain", zap.String("address", address.Hex()))
 
 	client.client = ethClient
 	client.privateKey = privateKey
@@ -190,55 +185,74 @@ func (c *EVMClient) GetAddress() common.Address {
 	return c.address
 }
 
-// callVerify calls the verify function on a Vault contract
-func (c *EVMClient) callVerify(ctx context.Context, targetContract string, vaaBytes []byte) (bool, error) {
+// sendVerifyTransaction sends a transaction to the verify function to process and store a VAA
+func (c *EVMClient) sendVerifyTransaction(ctx context.Context, targetContract string, vaaBytes []byte) (string, error) {
+	c.logger.Debug("Preparing transaction to verify VAA",
+		zap.Int("length", len(vaaBytes)))
+
+	// ABI for the verify function
 	const abiJSON = `[{
         "inputs": [{"internalType": "bytes", "name": "encodedVm", "type": "bytes"}],
         "name": "verify",
         "outputs": [],
-        "stateMutability": "view",
+        "stateMutability": "nonpayable",
         "type": "function"
     }]`
 
 	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
 	if err != nil {
-		return false, fmt.Errorf("ABI parse error: %v", err)
+		return "", fmt.Errorf("ABI parse error: %v", err)
 	}
 
+	// Pack the function call data
 	data, err := parsedABI.Pack("verify", vaaBytes)
 	if err != nil {
-		return false, fmt.Errorf("ABI pack error: %v", err)
+		return "", fmt.Errorf("ABI pack error: %v", err)
 	}
 
-	targetAddr := common.HexToAddress(targetContract)
-	msg := ethereum.CallMsg{
-		To:   &targetAddr,
-		Data: data,
-	}
-
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	// Make the call
-	_, err = c.client.CallContract(ctxWithTimeout, msg, nil)
+	// Get the latest nonce for our account
+	nonce, err := c.client.PendingNonceAt(ctx, c.address)
 	if err != nil {
-		// Check if it's a revert error
-		if revertErr, ok := err.(interface {
-			Error() string
-			ErrorData() []byte
-		}); ok {
-			revertData := revertErr.ErrorData()
-			reason, decodeErr := abi.UnpackRevert(revertData)
-			if decodeErr == nil {
-				c.logger.Debug("Contract reverted with reason", zap.String("reason", reason))
-				return false, fmt.Errorf("contract revert: %s", reason)
-			}
-		}
-		return false, fmt.Errorf("verification failed: %v", err)
+		return "", fmt.Errorf("failed to get nonce: %v", err)
 	}
 
-	// If we reach here, the verification succeeded (no error means it passed)
-	return true, nil
+	// Get the current gas price
+	gasPrice, err := c.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get gas price: %v", err)
+	}
+
+	// Create the transaction
+	targetAddr := common.HexToAddress(targetContract)
+	tx := types.NewTransaction(
+		nonce,
+		targetAddr,
+		big.NewInt(0), // No ETH being sent
+		3000000,       // Gas limit - adjust as needed
+		gasPrice,
+		data,
+	)
+
+	// Get the chain ID
+	chainID, err := c.client.NetworkID(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get chain ID: %v", err)
+	}
+
+	// Sign the transaction
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), c.privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign transaction: %v", err)
+	}
+
+	// Send the transaction
+	err = c.client.SendTransaction(ctx, signedTx)
+	if err != nil {
+		return "", fmt.Errorf("failed to send transaction: %v", err)
+	}
+
+	// Return the transaction hash
+	return signedTx.Hash().Hex(), nil
 }
 
 // Relayer coordinates processing VAAs from the spy service
@@ -256,8 +270,6 @@ func NewRelayer(config Config) (*Relayer, error) {
 		config: config,
 		logger: logger.With(zap.String("component", "Relayer")),
 	}
-
-	relayer.logger.Info("Initializing relayer")
 
 	// Connect to the spy service
 	spyClient, err := NewSpyClient(config.SpyRPCHost)
@@ -353,7 +365,6 @@ func (r *Relayer) Start(ctx context.Context) error {
 	}
 }
 
-// processVAA processes a received VAA
 func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 	// Check for context cancellation first
 	select {
@@ -364,8 +375,6 @@ func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 		// Continue processing
 	}
 
-	r.logger.Debug("Received VAA", zap.Int("bytes", len(vaaBytes)))
-
 	// Parse the VAA
 	wormholeVAA, err := vaaLib.Unmarshal(vaaBytes)
 	if err != nil {
@@ -373,7 +382,7 @@ func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 		return
 	}
 
-	// Create VAA data
+	// Create VAA data with essential information
 	vaaData := &VAAData{
 		VAA:        wormholeVAA,
 		RawBytes:   vaaBytes,
@@ -382,7 +391,7 @@ func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 		Sequence:   wormholeVAA.Sequence,
 	}
 
-	r.logger.Info("VAA info",
+	r.logger.Info("Processing VAA",
 		zap.Uint16("chain", vaaData.ChainID),
 		zap.Uint64("sequence", vaaData.Sequence),
 		zap.String("emitter", vaaData.EmitterHex))
@@ -405,30 +414,27 @@ func defaultVAAProcessor(r *Relayer, vaaData *VAAData) error {
 			zap.Uint64("sequence", vaaData.Sequence),
 			zap.Uint16("sourceChain", vaaData.ChainID))
 
-		// Verify the VAA
-		r.logger.Info("Verifying VAA", zap.Uint64("sequence", vaaData.Sequence))
-
-		isValid, err := r.evmClient.callVerify(ctx, r.config.TargetContract, vaaData.RawBytes)
+		// Send the transaction to verify and store the VAA on-chain
+		r.logger.Info("Sending verify transaction",
+			zap.Uint64("sequence", vaaData.Sequence))
+		txHash, err := r.evmClient.sendVerifyTransaction(ctx, r.config.TargetContract, vaaData.RawBytes)
 		if err != nil {
 			// Check if the context was cancelled or timed out
 			if ctx.Err() != nil {
-				r.logger.Warn("VAA verification cancelled or timed out", zap.Error(ctx.Err()))
-				return fmt.Errorf("verification interrupted: %v", ctx.Err())
+				r.logger.Warn("Transaction sending cancelled or timed out", zap.Error(ctx.Err()))
+				return fmt.Errorf("transaction interrupted: %v", ctx.Err())
 			}
 
-			r.logger.Error("Verification failed",
+			r.logger.Error("Failed to send verify transaction",
 				zap.Uint64("sequence", vaaData.Sequence),
 				zap.Error(err))
-			return fmt.Errorf("verification failed: %v", err)
+			return fmt.Errorf("transaction failed: %v", err)
 		}
 
-		if isValid {
-			r.logger.Info("VAA verification completed successfully",
-				zap.Uint64("sequence", vaaData.Sequence))
-		} else {
-			r.logger.Warn("VAA verification failed, not valid",
-				zap.Uint64("sequence", vaaData.Sequence))
-		}
+		r.logger.Info("Successfully sent verify transaction",
+			zap.Uint64("sequence", vaaData.Sequence),
+			zap.String("txHash", txHash))
+
 		return nil
 	}
 

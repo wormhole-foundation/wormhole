@@ -49,8 +49,6 @@ type observationMetrics struct {
 
 // NewObservationManager creates a new observation manager
 func NewObservationManager(networkID string, logger *zap.Logger) ObservationManager {
-	logger.Info("Creating new observation manager", zap.String("networkID", networkID))
-
 	// Initialize metrics if not already done
 	initMetrics()
 
@@ -58,8 +56,6 @@ func NewObservationManager(networkID string, logger *zap.Logger) ObservationMana
 	metrics := observationMetrics{
 		messagesConfirmed: messagesConfirmedMetric,
 	}
-
-	logger.Info("Observation manager created with metrics initialized")
 
 	return &observationManager{
 		networkID: networkID,
@@ -96,7 +92,7 @@ func (w *Watcher) processLog(ctx context.Context, extLog ExtendedPublicLog, bloc
 	}
 
 	// Create message payload
-	payload := w.createPayload(extLog.Log.Log[4:])
+	payload := w.createPayload(extLog.Log.Log)
 
 	// Create a unique ID for this observation
 	observationID := CreateObservationID(params.SenderAddress.String(), params.Sequence, extLog.ID.BlockNumber)
@@ -161,23 +157,42 @@ func (w *Watcher) parseLogParameters(logEntries []string) (LogParameters, error)
 	}, nil
 }
 
-// createPayload processes log entries into a byte payload
+// createPayload processes log entries that contain field elements into a byte payload
 func (w *Watcher) createPayload(logEntries []string) []byte {
 	payload := make([]byte, 0, w.config.PayloadInitialCap)
 
-	for _, entry := range logEntries {
+	// Skip the first 4 entries which are metadata (sender, sequence, nonce, consistency level)
+	for _, entry := range logEntries[5:] {
+		// Clean up the entry - remove Fr<> and 0x
+		entry = strings.TrimPrefix(entry, "Fr<")
+		entry = strings.TrimSuffix(entry, ">")
 		hexStr := strings.TrimPrefix(entry, "0x")
 
 		// Try to decode as hex
 		bytes, err := hex.DecodeString(hexStr)
 		if err != nil {
-			w.logger.Debug("Failed to decode hex", zap.String("entry", entry), zap.Error(err))
+			w.logger.Debug("Failed to decode hex", zap.Error(err))
 			continue
+		}
+
+		// Remove leading zeros
+		for len(bytes) > 0 && bytes[0] == 0 {
+			bytes = bytes[1:]
+		}
+
+		// Reverse the bytes to correct the order
+		for i, j := 0, len(bytes)-1; i < j; i, j = i+1, j-1 {
+			bytes[i], bytes[j] = bytes[j], bytes[i]
 		}
 
 		// Add to payload
 		payload = append(payload, bytes...)
 	}
+
+	// Log the final payload length and hex representation
+	w.logger.Debug("Payload created",
+		zap.Int("length", len(payload)),
+		zap.String("hex", hex.EncodeToString(payload)))
 
 	return payload
 }
