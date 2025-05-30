@@ -85,7 +85,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		receipt, txReceiptErr = tv.evmConnector.TransactionReceipt(ctx, txHash)
 
 		if txReceiptErr != nil {
-			tv.addToCache(txHash, &evaluation{receipt, false, txReceiptErr})
 			return false, txReceiptErr
 		}
 	}
@@ -102,21 +101,18 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 	if parseErr != nil {
 		eval.Err = parseErr
-		tv.addToCache(txHash, &eval)
 		return false, parseErr
 	}
 
 	// ParseReceipt should only return nil when there is also an error, so we don't expect to get here.
 	if transferReceipt == nil {
 		eval.Err = ErrParsedReceiptIsNil
-		tv.addToCache(txHash, &eval)
 		return false, ErrParsedReceiptIsNil
 	}
 
 	// Invalid receipt: no message publications
 	if len(*transferReceipt.MessagePublications) == 0 {
 		eval.Err = ErrNoMsgsFromTokenBridge
-		tv.addToCache(txHash, &eval)
 		return false, ErrNoMsgsFromTokenBridge
 	}
 
@@ -126,7 +122,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	updateErr := tv.updateReceiptDetails(transferReceipt)
 	if updateErr != nil {
 		eval.Err = updateErr
-		tv.addToCache(txHash, &eval)
 		return false, updateErr
 	}
 
@@ -140,7 +135,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 	if processErr != nil {
 		eval.Err = processErr
-		tv.addToCache(txHash, &eval)
 
 		// Check if the error type is an invariant error. If not, it's just a parsing error.
 		var invError *InvariantError
@@ -159,7 +153,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
 	}
 
-	// Cache results
+	// Cache successful results.
 	eval.Err = nil
 	eval.Result = true
 	tv.addToCache(txHash, &eval)
