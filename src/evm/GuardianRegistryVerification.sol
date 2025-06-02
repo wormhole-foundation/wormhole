@@ -28,6 +28,8 @@ contract GuardianRegistryVerification is EIP712Encoding {
     bytes32 digest = getRegisterGuardianDigest(guardianSet, expirationTime, id);
 
     // Verify the signature
+    // We're not doing replay protection with the signature itself so we don't care about
+    // verifying only canonical (low s) signatures.
     address signatory = ecrecover(digest, v, r, s);
     require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());
   }
