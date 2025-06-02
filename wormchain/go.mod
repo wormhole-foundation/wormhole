@@ -1,6 +1,6 @@
 module github.com/wormhole-foundation/wormchain
 
-go 1.23.0
+go 1.23.3
 
 require (
 	cosmossdk.io/api v0.3.1
