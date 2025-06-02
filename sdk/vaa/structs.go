@@ -6,6 +6,7 @@ import (
 	"encoding"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1211,4 +1212,14 @@ func BytesToHash(b []byte) (common.Hash, error) {
 
 	hash = common.BytesToHash(b)
 	return hash, nil
+}
+
+// DebugString returns a pretty-formatted JSON string representation of the VAA.
+func (v *VAA) DebugString() (string, error) {
+	jsonBytes, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal VAA to JSON for debugging: %w", err)
+	}
+
+	return string(jsonBytes), nil
 }
