@@ -8,11 +8,11 @@ import {RawDispatcher} from "wormhole-sdk/RawDispatcher.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-sdk/constants/Chains.sol";
 
 import {ThresholdVerification} from "./ThresholdVerification.sol";
-import {GuardianSetVerification} from "./GuardianSetVerification.sol";
+import {MultisigVerification} from "./MultisigVerification.sol";
 import {GuardianRegistryVerification} from "./GuardianRegistryVerification.sol";
 
 // Raw dispatch operation IDs for exec
-uint8 constant OP_GOVERNANCE = 0x00;
+uint8 constant OP_APPEND_THRESHOLD_KEY = 0x00;
 uint8 constant OP_PULL_GUARDIAN_SETS = 0x01;
 uint8 constant OP_REGISTER_GUARDIAN = 0x02;
 
@@ -29,7 +29,7 @@ uint8 constant OP_GUARDIAN_SHARDS_GET = 0x26;
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
 
 contract VerificationV2 is 
-  RawDispatcher, ThresholdVerification, GuardianSetVerification, GuardianRegistryVerification
+  RawDispatcher, ThresholdVerification, MultisigVerification, GuardianRegistryVerification
 {
   using BytesParsing for bytes;
   using VaaLib for bytes;
@@ -44,7 +44,7 @@ contract VerificationV2 is
 
   // FIXME: The initial TSS index should be the latest guardian set index, not passed in!
   constructor(address coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
-    GuardianSetVerification(coreV1, initGuardianSetIndex, pullLimit)
+    MultisigVerification(coreV1, initGuardianSetIndex, pullLimit)
     GuardianRegistryVerification()
   {}
 
@@ -53,7 +53,7 @@ contract VerificationV2 is
     if (version == 2) {
       _verifyThresholdVaaHeader(data);
     } else if (version == 1) {
-      _verifyGuardianSetVaaHeader(data);
+      _verifyMultisigVaaHeader(data);
     } else {
       revert VaaLib.InvalidVersion(version);
     }
@@ -72,7 +72,7 @@ contract VerificationV2 is
     if (version == 2) {
       (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = _verifyAndDecodeThresholdVaa(data);
     } else if (version == 1) {
-      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload,,) = _verifyAndDecodeGuardianSetVaa(data);
+      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload,,) = _verifyAndDecodeMultisigVaa(data);
     } else {
       revert VaaLib.InvalidVersion(version);
     }
@@ -86,7 +86,7 @@ contract VerificationV2 is
       uint8 op;
       (op, offset) = data.asUint8CdUnchecked(offset);
       
-      if (op == OP_GOVERNANCE) {
+      if (op == OP_APPEND_THRESHOLD_KEY) {
         // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
@@ -104,7 +104,7 @@ contract VerificationV2 is
           bytes calldata payload,
           uint32 guardianSetIndex,
           address[] memory guardians
-        ) = _verifyAndDecodeGuardianSetVaa(encodedVaa);
+        ) = _verifyAndDecodeMultisigVaa(encodedVaa);
 
         // Verify the emitter
         if (emitterChainId != CHAIN_ID_SOLANA) revert InvalidGovernanceChainId();

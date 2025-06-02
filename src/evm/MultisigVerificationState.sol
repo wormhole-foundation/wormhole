@@ -7,7 +7,7 @@ import {UncheckedIndexing} from "wormhole-sdk/libraries/UncheckedIndexing.sol";
 
 import {ExtStore} from "./ExtStore.sol";
 
-contract GuardianSetVerificationState is ExtStore {
+contract MultisigVerificationState is ExtStore {
   using UncheckedIndexing for address[];
 
   error InvalidGuardianSetIndex();

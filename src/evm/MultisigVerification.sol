@@ -8,24 +8,24 @@ import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {CoreBridgeLib} from "wormhole-sdk/libraries/CoreBridge.sol";
 import {UncheckedIndexing} from "wormhole-sdk/libraries/UncheckedIndexing.sol";
 
-import {GuardianSetVerificationState} from "./GuardianSetVerificationState.sol";
+import {MultisigVerificationState} from "./MultisigVerificationState.sol";
 
-contract GuardianSetVerification is GuardianSetVerificationState {
+contract MultisigVerification is MultisigVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using UncheckedIndexing for address[];
 
   error QuorumNotMet();
-  error GuardianSetSignatureVerificationFailed();
+  error MultisigSignatureVerificationFailed();
   error GuardianSetExpired();
 
   constructor(
     address coreBridge,
     uint256 initGuardianSetIndex,
     uint256 pullLimit
-  ) GuardianSetVerificationState(coreBridge, initGuardianSetIndex, pullLimit) {}
+  ) MultisigVerificationState(coreBridge, initGuardianSetIndex, pullLimit) {}
 
-  function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (
+  function _verifyMultisigVaaHeader(bytes calldata encodedVaa) internal view returns (
     uint envelopeOffset,
     uint32 guardianSetIndex,
     address[] memory guardians
@@ -93,7 +93,7 @@ contract GuardianSetVerification is GuardianSetVerificationState {
           signatory != guardianAddress
         );
         
-        require(!failed, GuardianSetSignatureVerificationFailed());
+        require(!failed, MultisigSignatureVerificationFailed());
 
         prevGuardian = guardian;
         isFirstSignature = false;
@@ -102,7 +102,7 @@ contract GuardianSetVerification is GuardianSetVerificationState {
   }
 
   // Verify a guardian set VAA
-  function _verifyAndDecodeGuardianSetVaa(bytes calldata encodedVaa) internal view returns (
+  function _verifyAndDecodeMultisigVaa(bytes calldata encodedVaa) internal view returns (
     uint32 timestamp,
     uint32 nonce,
     uint16 emitterChainId,
@@ -114,7 +114,7 @@ contract GuardianSetVerification is GuardianSetVerificationState {
     address[] memory guardians
   ) {
     uint payloadOffset;
-    (payloadOffset, guardianSetIndex, guardians) = _verifyGuardianSetVaaHeader(encodedVaa);
+    (payloadOffset, guardianSetIndex, guardians) = _verifyMultisigVaaHeader(encodedVaa);
   
     (
       timestamp,
