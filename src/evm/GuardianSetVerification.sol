@@ -41,8 +41,6 @@ contract GuardianSetVerification is GuardianSetVerificationState {
       require(version == 1, VaaLib.InvalidVersion(version));
 
       // Get the guardian set and validate it's not expired
-      // FIXME: Do we want to do this expiration check? If we miss the expiration,
-      //        I'm not sure what happens.
       uint32 expirationTime;
       (expirationTime, guardians) = _getGuardianSetInfo(guardianSetIndex);
       require(expirationTime > block.timestamp, GuardianSetExpired());
@@ -93,7 +91,6 @@ contract GuardianSetVerification is GuardianSetVerificationState {
           signatory != guardianAddress
         );
         
-        // Verify the signature
         require(!failed, GuardianSetSignatureVerificationFailed());
 
         prevGuardian = guardian;

@@ -60,9 +60,9 @@ impl ThresholdKeyAccount {
     self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
   }
 
-  pub fn update_expiration_timestamp(&mut self, new_expiration_timestamp: u64) {
+  pub fn update_expiration_timestamp(&mut self, time_lapse: u64) {
     let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
-    self.expiration_timestamp = current_timestamp + new_expiration_timestamp;
+    self.expiration_timestamp = current_timestamp + time_lapse;
   }
 }
 
@@ -143,11 +143,6 @@ pub mod verification_v2 {
     let threshold_key = &mut ctx.accounts.threshold_key;
     if threshold_key.index != vaa.header.tss_index {
       return Err(VAAError::InvalidIndex.into());
-    }
-
-    // Check that the threshold key is unexpired
-    if !threshold_key.is_unexpired() {
-      return Err(VAAError::TSSKeyExpired.into());
     }
 
     // Check that the signature is valid

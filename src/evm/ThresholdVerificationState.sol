@@ -43,7 +43,7 @@ contract ThresholdVerificationState {
       expirationTime = _thresholdDataExpirationTime(_thresholdData[offset + 1]);
     }
   }
-	
+
   function _appendThresholdKey(
     uint32 currentGuardianSetIndex,
     uint32 newTSSIndex,
