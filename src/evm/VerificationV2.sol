@@ -42,9 +42,9 @@ contract VerificationV2 is
   error GuardianSetIsNotCurrent();
 
   // FIXME: The initial TSS index should be the latest guardian set index, not passed in!
-  constructor(address coreV1, uint256 pullLimit) 
-    GuardianSetVerification(coreV1, pullLimit)
-    GuardianRegistryVerification() 
+  constructor(address coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
+    GuardianSetVerification(coreV1, initGuardianSetIndex, pullLimit)
+    GuardianRegistryVerification()
   {}
 
   function _verifyVaa(bytes calldata data) private view {

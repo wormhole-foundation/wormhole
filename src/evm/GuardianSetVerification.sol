@@ -20,8 +20,9 @@ contract GuardianSetVerification is GuardianSetVerificationState {
 
   constructor(
     address coreBridge,
+    uint256 initGuardianSetIndex,
     uint256 pullLimit
-  ) GuardianSetVerificationState(coreBridge, pullLimit) {}
+  ) GuardianSetVerificationState(coreBridge, initGuardianSetIndex, pullLimit) {}
 
   function _verifyGuardianSetVaaHeader(bytes calldata encodedVaa) internal view returns (
     uint envelopeOffset,

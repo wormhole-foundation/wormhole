@@ -19,9 +19,17 @@ contract GuardianSetVerificationState is ExtStore {
 
   constructor(
     address coreBridge,
+    uint256 initGuardianSetIndex,
     uint256 pullLimit
   ) {
     _coreBridge = ICoreBridge(coreBridge);
+
+    require(initGuardianSetIndex <= _coreBridge.getCurrentGuardianSetIndex());
+    // All previous guardian sets will have expiration timestamp 0
+    assembly ("memory-safe") {
+      sstore(_guardianSetExpirationTime.slot, initGuardianSetIndex)
+    }
+
     _pullGuardianSets(pullLimit);
   }
 
