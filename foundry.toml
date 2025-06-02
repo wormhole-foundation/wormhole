@@ -3,7 +3,7 @@ solc_version = "0.8.28"
 evm_version = "paris" # prevent use of PUSH0 opcode until it is widely supported
 optimizer = true
 via_ir = true
-extra_output = ["asm"]
+extra_output = ["asm", "metadata", "storageLayout", "evm.deployedBytecode.immutableReferences"]
 
 libs = [
     "lib",
@@ -11,7 +11,6 @@ libs = [
 
 remappings = [
     "forge-std/=lib/forge-std/src/",
-    "@openzeppelin/=lib/openzeppelin-contracts/",
     "wormhole-sdk/=lib/wormhole-solidity-sdk/src/",
     "core-bridge/=src/",
 ]
