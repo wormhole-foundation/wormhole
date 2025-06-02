@@ -134,7 +134,7 @@ contract ThresholdVerificationState {
     unchecked {
       uint256 offset = guardianSet << 1;
       require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
-      uint256 data = _thresholdData[offset + 1]);
+      uint256 data = _thresholdData[offset + 1];
 
       shardCount = uint8((data >> 32) & 0xFF);
       shardBase = uint40(data >> 40);
