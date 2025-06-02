@@ -243,6 +243,8 @@ func (c ChainID) String() string {
 		return "fogo"
 	case ChainIDSonic:
 		return "sonic"
+	case ChainIDConverge:
+		return "converge"
 	case ChainIDWormchain:
 		return "wormchain"
 	case ChainIDCosmoshub:
@@ -296,7 +298,6 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 	case int8, uint8, int16, uint16:
 		// Because these values have been checked to be non-negative, we can return early with a simple conversion.
 		return ChainID(n), nil
-
 	}
 	// Use intermediate uint64 to safely handle conversion and allow comparison with MaxUint16.
 	// This is safe to do because the negative case is already handled.
@@ -305,7 +306,6 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 		return ChainIDUnset, fmt.Errorf("chainID must be less than or equal to %d but got %d", math.MaxUint16, n)
 	}
 	return ChainID(n), nil
-
 }
 
 // KnownChainIDFromNumber converts an unsigned integer into a known ChainID. It is a wrapper function for ChainIDFromNumber
@@ -324,14 +324,12 @@ func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
 	}
 
 	return ChainIDUnset, fmt.Errorf("no known ChainID for input %d", n)
-
 }
 
 // StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
 // The argument can be either a numeric string representation of a number or a known chain name such as "solana".
 // Inputs of unknown ChainIDs, including 0, will result in an error.
 func StringToKnownChainID(s string) (ChainID, error) {
-
 	// Try to convert from chain name first, and return early if it's found.
 	id, err := ChainIDFromString(s)
 	if err == nil {
@@ -453,6 +451,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDFogo, nil
 	case "sonic":
 		return ChainIDSonic, nil
+	case "converge":
+		return ChainIDConverge, nil
 	case "wormchain":
 		return ChainIDWormchain, nil
 	case "cosmoshub":
@@ -621,7 +621,7 @@ const (
 	// NOTE: 27 belongs to a chain that was never deployed.
 	// ChainIDXpla is the ChainID of Xpla
 	ChainIDXpla ChainID = 28
-	//ChainIDBtc is the ChainID of Bitcoin
+	// ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
 	// ChainIDBase is the ChainID of Base
 	ChainIDBase ChainID = 30
@@ -669,9 +669,10 @@ const (
 	ChainIDFogo ChainID = 51
 	// ChainIDSonic is the ChainID of Sonic
 	ChainIDSonic ChainID = 52
-	//ChainIDWormchain is the ChainID of Wormchain
+	// ChainIDConverge is the ChainID of Converge
+	ChainIDConverge ChainID = 53
 
-	// Wormchain is in it's own range.
+	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
 
 	// The IBC chains start at 4000.
@@ -695,9 +696,9 @@ const (
 	ChainIDProvenance ChainID = 4008
 	// ChainIDNoble is the ChainID of Noble
 	ChainIDNoble ChainID = 4009
-	// ChainIDSepolia is the ChainID of Sepolia
 
 	// The Testnet only chains start at 10000.
+	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
 	ChainIDArbitrumSepolia ChainID = 10003
@@ -894,7 +895,6 @@ func verifySignature(vaa_digest []byte, signature *Signature, address common.Add
 // Should not be public as other message types should be verified using a message prefix.
 // Returns false when the signatures or addresses are empty.
 func verifySignatures(vaa_digest []byte, signatures []*Signature, addresses []common.Address) bool {
-
 	// An empty set is neither valid nor invalid, it's just specified incorrectly.
 	// To help with backward-compatibility, return false instead of changing the function
 	// signature to return an error.

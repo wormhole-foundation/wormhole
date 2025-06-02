@@ -144,6 +144,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDMonad:           {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDSeiEVM:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDMezo:            {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDConverge:        {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDFogo:            {NumWorkers: 10, TimestampCacheSupported: true},
 }
 
