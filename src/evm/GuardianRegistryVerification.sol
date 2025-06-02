@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {eagerOr} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
+
 import {EIP712Encoding} from "./EIP712Encoding.sol";
 import {ThresholdVerificationState} from "./ThresholdVerificationState.sol";
 

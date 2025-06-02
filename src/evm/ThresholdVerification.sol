@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "wormhole-sdk/libraries/BytesParsing.sol";
+import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
-import "wormhole-sdk/libraries/VaaLib.sol";
-import "./ThresholdVerificationState.sol";
+import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
+
+import {ThresholdVerificationState} from "./ThresholdVerificationState.sol";
 
 contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;

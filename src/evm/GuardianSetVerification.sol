@@ -7,7 +7,8 @@ import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {CoreBridgeLib} from "wormhole-sdk/libraries/CoreBridge.sol";
 import {UncheckedIndexing} from "wormhole-sdk/libraries/UncheckedIndexing.sol";
-import "./GuardianSetVerificationState.sol";
+
+import {GuardianSetVerificationState} from "./GuardianSetVerificationState.sol";
 
 contract GuardianSetVerification is GuardianSetVerificationState {
   using BytesParsing for bytes;

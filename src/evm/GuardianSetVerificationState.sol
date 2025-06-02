@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {ICoreBridge, GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import {UncheckedIndexing} from "wormhole-sdk/libraries/UncheckedIndexing.sol";
+
 import {ExtStore} from "./ExtStore.sol";
 
 contract GuardianSetVerificationState is ExtStore {
