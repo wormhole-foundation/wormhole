@@ -55,24 +55,23 @@ contract ThresholdVerificationState {
       // Get the current threshold info and verify the new index is sequential
       // NOTE: We can't use _getCurrentThresholdInfo() directly here because
       //       _thresholdData will be empty on the first append
-      uint32 index;
       if (_thresholdData.length > 0) {
+        uint32 index;
         // If there is threshold data, the new index must be sequential
         (, index) = _getCurrentThresholdInfo();
         require(newTSSIndex == index + 1, InvalidThresholdKeyIndex());
 
         // Verify we have a matching guardian set
         require(currentGuardianSetIndex >= newTSSIndex, InvalidThresholdKeyIndex());
+
+        // Store the expiration time and current threshold address in past threshold info
+        uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
+        _setThresholdDataExpirationTime(index, expirationTime);
       } else {
         // If there is no threshold data, the initial index must be the new index
         require(newTSSIndex == currentGuardianSetIndex, InvalidThresholdKeyIndex());
-        index = currentGuardianSetIndex;
         _thresholdDataInitialIndex = currentGuardianSetIndex;
       }
-
-      // Store the expiration time and current threshold address in past threshold info
-      uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-      _setThresholdDataExpirationTime(index, expirationTime);
 
       // Store the new threshold info
       _thresholdData.push(pubkey);
