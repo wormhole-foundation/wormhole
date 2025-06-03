@@ -50,7 +50,7 @@ contract VerificationV2 is
     MultisigVerification(coreV1, initGuardianSetIndex, pullLimit)
   {}
 
-  function _verifyVaa(bytes calldata data) private view {
+  function verifyVaa(bytes calldata data) public view {
     (uint8 version, ) = data.asUint8CdUnchecked(0);
     if (version == 2) {
       _verifyThresholdVaaHeader(data);
@@ -61,7 +61,7 @@ contract VerificationV2 is
     }
   }
 
-  function _verifyAndDecodeVaa(bytes calldata data) private view returns (
+  function verifyAndDecodeVaa(bytes calldata data) public view returns (
     uint32 timestamp,
     uint32 nonce,
     uint16 emitterChainId,
@@ -152,6 +152,8 @@ contract VerificationV2 is
         // We can't afford to check it there, so I'm skipping it here for now too
 
         // Verify the signature
+        // We're not doing replay protection with the signature itself so we don't care about
+        // verifying only canonical (low s) signatures.
         bytes32 digest = getRegisterGuardianDigest(guardianSetIndex, expirationTime, guardianId);
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());
@@ -189,7 +191,7 @@ contract VerificationV2 is
           uint64 sequence,
           uint8 consistencyLevel,
           bytes calldata payload
-        ) = _verifyAndDecodeVaa(encodedVaa);
+        ) = verifyAndDecodeVaa(encodedVaa);
 
         result = abi.encodePacked(
           result,
@@ -209,7 +211,7 @@ contract VerificationV2 is
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
         // Verify the VAA
-        _verifyVaa(encodedVaa);
+        verifyVaa(encodedVaa);
       } else if (op == OP_THRESHOLD_GET_CURRENT) {
         (ThresholdKeyInfo memory info, uint32 index) = _getCurrentThresholdInfo();
 
@@ -250,21 +252,5 @@ contract VerificationV2 is
     data.length.checkLength(offset);
 
     return result;
-  }
-
-  function verifyVaa(bytes calldata encodedVaa) public view {
-    _verifyVaa(encodedVaa);
-  }
-
-  function verifyAndDecodeVaa(bytes calldata encodedVaa) public view returns (
-    uint32 timestamp,
-    uint32 nonce,
-    uint16 emitterChainId,
-    bytes32 emitterAddress,
-    uint64 sequence,
-    uint8 consistencyLevel,
-    bytes calldata payload
-  ) {
-    return _verifyAndDecodeVaa(encodedVaa);
   }
 }
