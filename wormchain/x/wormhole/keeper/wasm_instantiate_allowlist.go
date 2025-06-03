@@ -21,7 +21,7 @@ func (k Keeper) HasWasmInstantiateAllowlist(ctx sdk.Context, contract string, co
 	return store.Has([]byte(contract + codeIdStr))
 }
 
-func (k Keeper) GetAllWasmInstiateAllowedAddresses(ctx sdk.Context) (list []types.WasmInstantiateAllowedContractCodeId) {
+func (k Keeper) GetAllWasmInstantiateAllowedAddresses(ctx sdk.Context) (list []types.WasmInstantiateAllowedContractCodeId) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WasmInstantiateAllowlistKey))
 	iterator := sdk.KVStorePrefixIterator(store, []byte{})
 

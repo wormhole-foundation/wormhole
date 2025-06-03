@@ -30,7 +30,7 @@ func TestWasmInstantiateAllowlist(t *testing.T) {
 	require.False(t, hasAddr)
 
 	// Get all allowed addresses
-	addrList := k.GetAllWasmInstiateAllowedAddresses(ctx)
+	addrList := k.GetAllWasmInstantiateAllowedAddresses(ctx)
 	require.Equal(t, 1, len(addrList))
 	require.Equal(t, entry.ContractAddress, addrList[0].ContractAddress)
 	require.Equal(t, entry.CodeId, addrList[0].CodeId)

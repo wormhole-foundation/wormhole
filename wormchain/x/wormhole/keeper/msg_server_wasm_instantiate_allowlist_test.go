@@ -73,7 +73,7 @@ func TestWasmAllowlistMsgServer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Query the allowlist
-	res := k.GetAllWasmInstiateAllowedAddresses(ctx)
+	res := k.GetAllWasmInstantiateAllowedAddresses(ctx)
 	require.Len(t, res, 1)
 	require.Equal(t, bech32ContractAddr, res[0].ContractAddress)
 	require.Equal(t, codeId, res[0].CodeId)
@@ -98,7 +98,7 @@ func TestWasmAllowlistMsgServer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Query the allowlist
-	res = k.GetAllWasmInstiateAllowedAddresses(ctx)
+	res = k.GetAllWasmInstantiateAllowedAddresses(ctx)
 	require.Len(t, res, 0)
 }
 
