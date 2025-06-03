@@ -25,15 +25,12 @@ contract MultisigVerification is MultisigVerificationState {
     uint256 pullLimit
   ) MultisigVerificationState(coreBridge, initGuardianSetIndex, pullLimit) {}
 
-  function _verifyMultisigVaaHeader(bytes calldata encodedVaa) internal view returns (
-    uint envelopeOffset,
-    uint32 guardianSetIndex,
-    address[] memory guardians
-  ) {
+  function _verifyMultisigVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
       uint offset = 0;
       uint8 version;
-      uint signatureCount;
+      uint32 guardianSetIndex;
+      uint8 signatureCount;
 
       (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
       (guardianSetIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
@@ -43,8 +40,7 @@ contract MultisigVerification is MultisigVerificationState {
       require(version == 1, VaaLib.InvalidVersion(version));
 
       // Get the guardian set and validate it's not expired
-      uint32 expirationTime;
-      (expirationTime, guardians) = _getGuardianSetInfo(guardianSetIndex);
+      (uint32 expirationTime, address[] memory guardians) = _getGuardianSetInfo(guardianSetIndex);
       require(expirationTime > block.timestamp, GuardianSetExpired());
 
       // Get the number of signatures
@@ -66,7 +62,7 @@ contract MultisigVerification is MultisigVerificationState {
       bool isFirstSignature = true;
       uint prevGuardian;
       
-      for (uint i = 0; i < signatureCount; ++i) {
+      for (uint i = 0; i < signatureCount; i++) {
         // Decode the guardian index, r, s, and v
         uint guardian; bytes32 r; bytes32 s; uint8 v;
         (guardian, r, s, v, offset) = encodedVaa.decodeGuardianSignatureCdUnchecked(offset);
@@ -109,21 +105,9 @@ contract MultisigVerification is MultisigVerificationState {
     bytes32 emitterAddress,
     uint64 sequence,
     uint8 consistencyLevel,
-    bytes calldata payload,
-    uint32 guardianSetIndex,
-    address[] memory guardians
+    bytes calldata payload
   ) {
-    uint payloadOffset;
-    (payloadOffset, guardianSetIndex, guardians) = _verifyMultisigVaaHeader(encodedVaa);
-  
-    (
-      timestamp,
-      nonce,
-      emitterChainId,
-      emitterAddress,
-      sequence,
-      consistencyLevel,
-      payload
-    ) = encodedVaa.decodeVaaBodyCd(payloadOffset);
+    uint payloadOffset = _verifyMultisigVaaHeader(encodedVaa);
+    return encodedVaa.decodeVaaBodyCd(payloadOffset);
   }
 }

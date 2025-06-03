@@ -6,10 +6,11 @@ import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {RawDispatcher} from "wormhole-sdk/RawDispatcher.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-sdk/constants/Chains.sol";
+import {GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 
 import {ThresholdVerification} from "./ThresholdVerification.sol";
 import {MultisigVerification} from "./MultisigVerification.sol";
-import {GuardianRegistryVerification} from "./GuardianRegistryVerification.sol";
+import {EIP712Encoding} from "./EIP712Encoding.sol";
 
 // Raw dispatch operation IDs for exec
 uint8 constant OP_APPEND_THRESHOLD_KEY = 0x00;
@@ -29,7 +30,7 @@ uint8 constant OP_GUARDIAN_SHARDS_GET = 0x26;
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
 
 contract VerificationV2 is 
-  RawDispatcher, ThresholdVerification, MultisigVerification, GuardianRegistryVerification
+  RawDispatcher, ThresholdVerification, MultisigVerification, EIP712Encoding
 {
   using BytesParsing for bytes;
   using VaaLib for bytes;
@@ -42,10 +43,11 @@ contract VerificationV2 is
 
   error GuardianSetIsNotCurrent();
 
-  // FIXME: The initial TSS index should be the latest guardian set index, not passed in!
+  error RegistrationMessageExpired();
+  error GuardianSignatureVerificationFailed();
+
   constructor(address coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
     MultisigVerification(coreV1, initGuardianSetIndex, pullLimit)
-    GuardianRegistryVerification()
   {}
 
   function _verifyVaa(bytes calldata data) private view {
@@ -72,7 +74,7 @@ contract VerificationV2 is
     if (version == 2) {
       (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = _verifyAndDecodeThresholdVaa(data);
     } else if (version == 1) {
-      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload,,) = _verifyAndDecodeMultisigVaa(data);
+      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = _verifyAndDecodeMultisigVaa(data);
     } else {
       revert VaaLib.InvalidVersion(version);
     }
@@ -92,8 +94,6 @@ contract VerificationV2 is
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
         // Decode and verify the VAA
-        // TODO: Might be better to have a custom function to do the decoding here
-        // so we don't drop so many fields
         (
           ,
           ,
@@ -101,14 +101,15 @@ contract VerificationV2 is
           bytes32 emitterAddress,
           ,
           ,
-          bytes calldata payload,
-          uint32 guardianSetIndex,
-          address[] memory guardians
+          bytes calldata payload
         ) = _verifyAndDecodeMultisigVaa(encodedVaa);
 
         // Verify the emitter
         if (emitterChainId != CHAIN_ID_SOLANA) revert InvalidGovernanceChainId();
         if (emitterAddress != GOVERNANCE_ADDRESS) revert InvalidGovernanceAddress();
+
+        // Get the guardian set
+        (uint32 guardianSetIndex, address[] memory guardians) = _getCurrentGuardianSetInfo();
         
         // Decode the payload
         (
@@ -127,30 +128,35 @@ contract VerificationV2 is
         _pullGuardianSets(limit);
       } else if (op == OP_REGISTER_GUARDIAN) {
         // Decode the payload
-        uint32 guardianSet;
+        uint32 thresholdKeyIndex;
         uint32 expirationTime;
         bytes32 guardianId;
         uint8 guardian; bytes32 r; bytes32 s; uint8 v;
 
-        (guardianSet, offset) = data.asUint32CdUnchecked(offset);
+        (thresholdKeyIndex, offset) = data.asUint32CdUnchecked(offset);
         (expirationTime, offset) = data.asUint32CdUnchecked(offset);
         (guardianId, offset) = data.asBytes32CdUnchecked(offset);
         (guardian, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
         
-        // We only allow registrations for the current guardian set
-        (uint32 currentSetIndex, address[] memory guardianAddrs) = _getCurrentGuardianSetInfo();
-        require(guardianSet == currentSetIndex, GuardianSetIsNotCurrent());
+        // We only allow registrations for the current threshold key
+        (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
+        require(thresholdKeyIndex == currentThresholdKeyIndex, GuardianSetIsNotCurrent());
+
+        // Verify the message is not expired
+        require(expirationTime > block.timestamp, RegistrationMessageExpired());
+
+        // Get the guardian set for the threshold key
+        uint32 guardianSetIndex = info.guardianSetIndex;
+        (, address[] memory guardianAddrs) = _getGuardianSetInfo(guardianSetIndex);
+        // TODO: Verify the guardian set is still valid? What about for the verification path?
+        // We can't afford to check it there, so I'm skipping it here for now too
+
+        // Verify the signature
+        bytes32 digest = getRegisterGuardianDigest(guardianSetIndex, expirationTime, guardianId);
+        address signatory = ecrecover(digest, v, r, s);
+        require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());
         
-        _verifyRegisterGuardian(
-          guardianAddrs,
-          guardianSet,
-          expirationTime,
-          guardianId,
-          guardian,
-          r, s, v
-        );
-        
-        _registerGuardian(guardianSet, guardian, guardianId);
+        _registerGuardian(guardianSetIndex, guardian, guardianId);
       } else {
         revert InvalidOperation(op);
       }
@@ -187,13 +193,15 @@ contract VerificationV2 is
 
         result = abi.encodePacked(
           result,
-          timestamp,
-          nonce,
-          emitterChainId,
-          emitterAddress,
-          sequence,
-          consistencyLevel,
-          payload
+          abi.encode(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            sequence,
+            consistencyLevel,
+            payload
+          )
         );
       } else if (op == OP_VERIFY_VAA) {
         // Read the VAA
@@ -203,38 +211,36 @@ contract VerificationV2 is
         // Verify the VAA
         _verifyVaa(encodedVaa);
       } else if (op == OP_THRESHOLD_GET_CURRENT) {
-        (uint256 thresholdAddr, uint32 thresholdIndex) = _getCurrentThresholdInfo();
+        (ThresholdKeyInfo memory info, uint32 index) = _getCurrentThresholdInfo();
 
-        result = abi.encodePacked(result, thresholdAddr, thresholdIndex);
+        result = abi.encodePacked(result, abi.encode(info.pubkey, index));
       } else if (op == OP_THRESHOLD_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
         
-        (uint256 thresholdAddr, uint32 expirationTime) = _getThresholdInfo(index);
+        ThresholdKeyInfo memory info = _getThresholdInfo(index);
         
-        result = abi.encodePacked(result, thresholdAddr, expirationTime);
+        result = abi.encodePacked(result, abi.encode(info.pubkey, info.expirationTime));
       } else if (op == OP_GUARDIAN_SET_GET_CURRENT) {
         (uint32 guardianSet, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
-        uint8 guardianCount = uint8(guardianSetAddrs.length);
 
-        result = abi.encodePacked(result, guardianCount, guardianSetAddrs, guardianSet);
+        result = abi.encodePacked(result, abi.encode(guardianSetAddrs, guardianSet));
       } else if (op == OP_GUARDIAN_SET_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
         
         (uint32 expirationTime, address[] memory guardianSetAddrs) = _getGuardianSetInfo(index);
-        uint8 guardianCount = uint8(guardianSetAddrs.length);
         
-        result = abi.encodePacked(result, guardianCount, guardianSetAddrs, expirationTime);
+        result = abi.encodePacked(result, abi.encode(guardianSetAddrs, expirationTime));
       } else if (op == OP_GUARDIAN_SHARDS_GET) {
         uint32 guardianSet;
         uint8 guardian;
         (guardianSet, offset) = data.asUint32CdUnchecked(offset);
         (guardian, offset) = data.asUint8CdUnchecked(offset);
         
-        (uint shardCount, bytes32[] memory shards) = _getShardsRaw(guardianSet);
+        ShardInfo[] memory shards = _getShards(guardianSet);
         
-        result = abi.encodePacked(result, uint8(shardCount), shards);
+        result = abi.encodePacked(result, abi.encode(shards));
       } else {
         revert InvalidOperation(op);
       }
@@ -246,11 +252,11 @@ contract VerificationV2 is
     return result;
   }
 
-  function verifyVaa(bytes calldata encodedVaa) internal view {
+  function verifyVaa(bytes calldata encodedVaa) public view {
     _verifyVaa(encodedVaa);
   }
 
-  function verifyAndDecodeVaa(bytes calldata encodedVaa) internal view returns (
+  function verifyAndDecodeVaa(bytes calldata encodedVaa) public view returns (
     uint32 timestamp,
     uint32 nonce,
     uint16 emitterChainId,

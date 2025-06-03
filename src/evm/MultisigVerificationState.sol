@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {ICoreBridge, GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
+import {eagerOr} from "wormhole-sdk/Utils.sol";
 import {UncheckedIndexing} from "wormhole-sdk/libraries/UncheckedIndexing.sol";
 
 import {ExtStore} from "./ExtStore.sol";
@@ -58,7 +59,7 @@ contract MultisigVerificationState is ExtStore {
     // NOTE: The `data` array is temporary and is invalid after this block
     assembly ("memory-safe") {
       guardianAddrs := data
-      mstore(guardianAddrs, div(mload(guardianAddrs), 32))
+      mstore(guardianAddrs, shr(5, mload(guardianAddrs)))
     }
   }
 
@@ -81,11 +82,11 @@ contract MultisigVerificationState is ExtStore {
       }
 
       // Calculate the upper bound of the guardian sets to pull
-      uint upper = (limit == 0 || currentGuardianSetLength - oldGuardianSetLength < limit)
+      uint upper = eagerOr(limit == 0, currentGuardianSetLength - oldGuardianSetLength < limit)
         ? currentGuardianSetLength : oldGuardianSetLength + limit;
 
       // Pull and append the guardian sets
-      for (uint i = oldGuardianSetLength; i < upper; ++i) {
+      for (uint i = oldGuardianSetLength; i < upper; i++) {
         // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
         (bytes memory data, uint32 expirationTime) = _pullGuardianSet(uint32(i));
         _guardianSetExpirationTime.push(expirationTime);
@@ -112,7 +113,7 @@ contract MultisigVerificationState is ExtStore {
     address[] memory keys = guardians.keys;
     assembly ("memory-safe") {
       data := keys
-      mstore(data, mul(mload(data), 32))
+      mstore(data, shl(5, mload(data)))
     }
   }
 }

@@ -7,7 +7,6 @@ import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 
 contract EIP712Encoding {
-
   bytes32 constant EIP712_DOMAIN_TYPE_HASH = keccak256(
       "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
   );

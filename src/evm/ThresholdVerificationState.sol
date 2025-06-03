@@ -13,137 +13,92 @@ contract ThresholdVerificationState {
     bytes32 id;
   }
 
-  uint32 private _thresholdDataInitialIndex;
+  struct ThresholdKeyInfo {
+    uint256 pubkey;
+    uint32 expirationTime;
+    uint8 shardCount;
+    uint40 shardBase;
+    uint32 guardianSetIndex;
+  }
 
-  // Threshold data is stored in a single array with stride 2:
-  //   pubkey (32 bytes)
-  //   expiration time (4 bytes)
-  //   shard base (5 bytes)
-  //   shard count (1 byte)
-  uint256[] private _thresholdData;
-
-  // Shard data is stored as a single array with stride 2, grouped by guardian set
-  bytes32[] private _shardData;
+  ThresholdKeyInfo[] private _thresholdKeyData;
+  ShardInfo[] private _shardData;
 
   // Get the current threshold signature info
-  function _getCurrentThresholdInfo() internal view returns (uint256 pubkey, uint32 index) {
+  // NOTE: This will panic if the threshold data is empty
+  function _getCurrentThresholdInfo() internal view returns (ThresholdKeyInfo memory info, uint32 index) {
     unchecked {
-      uint256 length = _thresholdData.length;
-      pubkey = _thresholdData[length - 2];
-      index = uint32((length >> 1) + _thresholdDataInitialIndex);
+      index = uint32(_thresholdKeyData.length - 1);
+      info = _thresholdKeyData[index];
     }
   }
 
-  function _getThresholdInfo(uint32 index) internal view returns (uint256 pubkey, uint32 expirationTime) {
+  // NOTE: This will panic if the guardian set index is out of bounds
+  function _getThresholdInfo(uint32 thresholdKeyIndex) internal view returns (ThresholdKeyInfo memory info) {
     unchecked {
-      // NOTE: The threshold data index is relative to the initial index
-      uint256 offset = (index - _thresholdDataInitialIndex) << 1;
-      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
-      pubkey = _thresholdData[offset];
-      expirationTime = _thresholdDataExpirationTime(_thresholdData[offset + 1]);
+      info = _thresholdKeyData[thresholdKeyIndex];
     }
   }
 
   function _appendThresholdKey(
     uint32 currentGuardianSetIndex,
-    uint32 newTSSIndex,
+    uint32 thresholdKeyIndex,
     uint256 pubkey,
     uint32 expirationDelaySeconds,
     ShardInfo[] memory shards
   ) internal {
     unchecked {
-      // Get the current threshold info and verify the new index is sequential
-      // NOTE: We can't use _getCurrentThresholdInfo() directly here because
-      //       _thresholdData will be empty on the first append
-      uint32 index;
-      if (_thresholdData.length > 0) {
-        // If there is threshold data, the new index must be sequential
-        (, index) = _getCurrentThresholdInfo();
-        require(newTSSIndex == index + 1, InvalidThresholdKeyIndex());
+      // Verify the new index is sequential
+      require(thresholdKeyIndex == _thresholdKeyData.length, InvalidThresholdKeyIndex());
 
-        // Verify we have a matching guardian set
-        require(currentGuardianSetIndex >= newTSSIndex, InvalidThresholdKeyIndex());
-      } else {
-        // If there is no threshold data, the initial index must be the new index
-        require(newTSSIndex == currentGuardianSetIndex, InvalidThresholdKeyIndex());
-        index = currentGuardianSetIndex;
-        _thresholdDataInitialIndex = currentGuardianSetIndex;
+      // If there is a previous threshold key that is now expired, store the expiration time
+      if (thresholdKeyIndex > 0) {
+        uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
+        _thresholdKeyData[thresholdKeyIndex - 1].expirationTime = expirationTime;
       }
 
-      // Store the expiration time and current threshold address in past threshold info
-      uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-      _setThresholdDataExpirationTime(index, expirationTime);
-
       // Store the new threshold info
-      _thresholdData.push(pubkey);
-      _thresholdData.push(_createThresholdData(uint8(shards.length), uint40(_shardData.length)));
+      _thresholdKeyData.push(ThresholdKeyInfo({
+        pubkey: pubkey,
+        expirationTime: 0,
+        shardCount: uint8(shards.length),
+        shardBase: uint40(_shardData.length),
+        guardianSetIndex: currentGuardianSetIndex
+      }));
 
       // Store the shard data
+      // TODO: Assembly block could be used here to save gas
       for (uint256 i = 0; i < shards.length; i++) {
-        _shardData.push(shards[i].shard);
-        _shardData.push(shards[i].id);
+        _shardData.push(shards[i]);
       }
     }
   }
 
-  function _getShards(uint32 guardianSet) internal view returns (ShardInfo[] memory) {
+  // NOTE: This will panic if the guardian set index is out of bounds
+  function _getShards(uint32 thresholdKeyIndex) internal view returns (ShardInfo[] memory) {
     unchecked {
-      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(guardianSet);
+      ThresholdKeyInfo memory info = _getThresholdInfo(thresholdKeyIndex);
+      uint8 shardCount = info.shardCount;
+      uint40 shardBase = info.shardBase;
 
       ShardInfo[] memory shards = new ShardInfo[](shardCount);
-      uint256 ptr = shardBase;
       for (uint256 i = 0; i < shardCount; i++) {
-        shards[i].shard = _shardData[ptr++];
-        shards[i].id = _shardData[ptr++];
+        shards[i] = _shardData[shardBase + i];
       }
 
       return shards;
     }
   }
 
-  function _getShardsRaw(
-    uint32 guardianSet
-  ) internal view returns (uint shardCount, bytes32[] memory rawShards) {
-    ShardInfo[] memory shards = _getShards(guardianSet);
-    shardCount = shards.length;
-    assembly ("memory-safe") {
-      rawShards := shards
-      mstore(rawShards, mul(shardCount, 2))
-    }
-  }
-
-  function _registerGuardian(uint32 guardianSet, uint8 guardian, bytes32 id) internal {
+  // NOTE: This will panic if the guardian set index is out of bounds
+  function _registerGuardian(uint32 thresholdKeyIndex, uint8 guardianIndex, bytes32 id) internal {
     unchecked {
-      (uint8 shardCount, uint40 shardBase) = _thresholdDataShardSlice(guardianSet);
-      require(guardian < shardCount, InvalidGuardianIndex());
-      _shardData[shardBase + (guardian << 1)] = id;
-    }
-  }
+      ThresholdKeyInfo memory info = _getThresholdInfo(thresholdKeyIndex);
+      uint8 shardCount = info.shardCount;
+      uint40 shardBase = info.shardBase;
 
-  function _createThresholdData(uint8 shardCount, uint40 shardBase) internal pure returns (uint256) {
-    return (shardCount << 32) | (shardBase << 40);
-  }
-
-  function _thresholdDataExpirationTime(uint256 data) internal pure returns (uint32) {
-    unchecked {
-      return uint32(data & 0xFFFFFFFF);
-    }
-  }
-
-  function _thresholdDataShardSlice(uint32 guardianSet) internal view returns (uint8 shardCount, uint40 shardBase) {
-    unchecked {
-      uint256 offset = guardianSet << 1;
-      require(offset < _thresholdData.length, InvalidThresholdKeyIndex());
-      uint256 data = _thresholdData[offset + 1];
-
-      shardCount = uint8((data >> 32) & 0xFF);
-      shardBase = uint40(data >> 40);
-    }
-  }
-
-  function _setThresholdDataExpirationTime(uint32 index, uint32 expirationTime) internal {
-    unchecked {
-      _thresholdData[index << 1] |= expirationTime;
+      require(guardianIndex < shardCount, InvalidGuardianIndex());
+      _shardData[shardBase + guardianIndex].id = id;
     }
   }
 }
