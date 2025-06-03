@@ -30,7 +30,7 @@ uint8 constant OP_GUARDIAN_SHARDS_GET = 0x26;
 // Emitter address for the VerificationV2 contract
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
 
-contract VerificationV2 is 
+contract VerificationV2 is
   RawDispatcher, ThresholdVerification, MultisigVerification, EIP712Encoding
 {
   using BytesParsing for bytes;
@@ -88,7 +88,7 @@ contract VerificationV2 is
     while (offset < data.length) {
       uint8 op;
       (op, offset) = data.asUint8CdUnchecked(offset);
-      
+
       if (op == OP_APPEND_THRESHOLD_KEY) {
         // Read the VAA
         bytes calldata encodedVaa;
@@ -111,7 +111,7 @@ contract VerificationV2 is
 
         // Get the guardian set
         (uint32 guardianSetIndex, address[] memory guardians) = _getCurrentGuardianSetInfo();
-        
+
         // Decode the payload
         (
           uint32 newTSSIndex,
@@ -119,7 +119,7 @@ contract VerificationV2 is
           uint32 expirationDelaySeconds,
           ShardInfo[] memory shards
         ) = _decodeThresholdKeyUpdatePayload(payload, guardians.length);
-        
+
         // Append the threshold key
         _appendThresholdKey(guardianSetIndex, newTSSIndex, newThresholdAddr, expirationDelaySeconds, shards);
       } else if (op == OP_PULL_GUARDIAN_SETS) {
@@ -138,7 +138,7 @@ contract VerificationV2 is
         (expirationTime, offset) = data.asUint32CdUnchecked(offset);
         (guardianId, offset) = data.asBytes32CdUnchecked(offset);
         (guardian, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
-        
+
         // We only allow registrations for the current threshold key
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
         require(thresholdKeyIndex == currentThresholdKeyIndex, GuardianSetIsNotCurrent());
@@ -158,7 +158,7 @@ contract VerificationV2 is
         bytes32 digest = getRegisterGuardianDigest(guardianSetIndex, expirationTime, guardianId);
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());
-        
+
         _registerGuardian(guardianSetIndex, guardian, guardianId);
       } else {
         revert InvalidOperation(op);
@@ -177,7 +177,7 @@ contract VerificationV2 is
     while (offset < data.length) {
       uint8 op;
       (op, offset) = data.asUint8CdUnchecked(offset);
-      
+
       if (op == OP_VERIFY_AND_DECODE_VAA) {
         // Read the VAA
         bytes calldata encodedVaa;
@@ -220,9 +220,9 @@ contract VerificationV2 is
       } else if (op == OP_THRESHOLD_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
-        
+
         ThresholdKeyInfo memory info = _getThresholdInfo(index);
-        
+
         result = abi.encodePacked(result, abi.encode(info.pubkey, info.expirationTime));
       } else if (op == OP_GUARDIAN_SET_GET_CURRENT) {
         (uint32 guardianSet, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
@@ -231,18 +231,16 @@ contract VerificationV2 is
       } else if (op == OP_GUARDIAN_SET_GET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
-        
+
         (uint32 expirationTime, address[] memory guardianSetAddrs) = _getGuardianSetInfo(index);
-        
+
         result = abi.encodePacked(result, abi.encode(guardianSetAddrs, expirationTime));
       } else if (op == OP_GUARDIAN_SHARDS_GET) {
         uint32 guardianSet;
-        uint8 guardian;
         (guardianSet, offset) = data.asUint32CdUnchecked(offset);
-        (guardian, offset) = data.asUint8CdUnchecked(offset);
-        
+
         ShardInfo[] memory shards = _getShards(guardianSet);
-        
+
         result = abi.encodePacked(result, abi.encode(shards));
       } else {
         revert InvalidOperation(op);
