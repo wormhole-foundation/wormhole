@@ -13,6 +13,17 @@ import (
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
+const (
+	// Gas Limit
+	DefaultGasLimit = 2000000
+
+	// BlockInclusionTimeout is the maximum time we wait for a transaction to be included in a block.
+	BlockInclusionTimeout = 13 * time.Second // 2 blocks at 6.5 seconds each
+
+	// ScanBlockInterval is the interval at which we check for a transaction to be included in a block.
+	ScanBlockInterval = 100 * time.Millisecond
+)
+
 func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (*sdktx.BroadcastTxResponse, error) {
 	// Lock to protect the wallet sequence number.
 	c.mutex.Lock()
@@ -36,7 +47,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	if err := builder.SetMsgs(msg); err != nil {
 		return nil, fmt.Errorf("failed to add message to builder: %w", err)
 	}
-	builder.SetGasLimit(2000000) // TODO: Maybe simulate and use the result
+	builder.SetGasLimit(DefaultGasLimit) // TODO: Maybe simulate and use the result
 
 	// The tx needs to be signed in 2 passes: first we populate the SignerInfo
 	// inside the TxBuilder and then sign the payload.
@@ -94,7 +105,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	}
 
 	// Wait for the tx to be included in a block (13 seconds for 2 blocks minimum)
-	res, err := waitForBlockInclusion(ctx, client, txResp.TxResponse.TxHash, 13*time.Second)
+	res, err := waitForBlockInclusion(ctx, client, txResp.TxResponse.TxHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for tx inclusion: %w", err)
 	} else {
@@ -106,20 +117,19 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 }
 
 // waitForBlockInclusion waits for the tx to be included in a block, or times out after a given duration.
-func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHash string, waitTimeout time.Duration) (*sdktx.GetTxResponse, error) {
-	exitAfter := time.After(waitTimeout)
+func waitForBlockInclusion(ctx context.Context, client sdktx.ServiceClient, txHash string) (*sdktx.GetTxResponse, error) {
+	blockInclusionTimeout := time.After(BlockInclusionTimeout)
 	for {
 		select {
-		// check if wait timeout is exceeded
-		case <-exitAfter:
-			return nil, fmt.Errorf("timed out after: %d; wait for tx %s to be included in a block", waitTimeout, txHash)
-		// check if in block every second
-		case <-time.After(100 * time.Millisecond):
+		// wait for a maximum of BlockInclusionTimeout
+		case <-blockInclusionTimeout:
+			return nil, fmt.Errorf("timed out after: %d; wait for tx %s to be included in a block", BlockInclusionTimeout, txHash)
+		// scan every ScanBlockInterval for the tx to be included in a block
+		case <-time.After(ScanBlockInterval):
 			res, err := client.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
 			if err == nil {
 				return res, nil
 			}
-		// check if context is done
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
