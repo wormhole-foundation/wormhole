@@ -1,6 +1,7 @@
 {
   "license": "ISC",
   "type": "module",
+  "private": true,
   "scripts": {
     "build": "tsc --build ./tsconfig.json",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
