@@ -36,14 +36,16 @@ clean-evm:
 	forge clean
 	rm -rf lib
 
+dependencies-solana-ts:
+	cd src/solana; npm ci
 
 build-solana:
 	cd src/solana; anchor build
 
-build-solana-ts:
+build-solana-ts: dependencies-solana-ts
 	npm run build --prefix src/solana
 
-test-solana:
+test-solana: build-solana-ts
 	cd src/solana; anchor test
 
 clean-solana:

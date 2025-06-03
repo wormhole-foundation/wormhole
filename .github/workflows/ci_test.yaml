@@ -1,0 +1,83 @@
+name: Run tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  solana-tests:
+    name: Run Solana SDK tests
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2500"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.15.0"
+          registry-url: "https://npm.pkg.github.com"
+          cache: "npm"
+          cache-dependency-path: |
+            ./src/solana/package-lock.json
+
+      - name: Set the rust toolchain version
+        run: |
+          rustup override set 1.86.0
+          rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
+      - name: Cache Rust packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/solana/target
+          key: ${{ runner.os }}-rust-1.86.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
+
+      # Taken from https://github.com/metaDAOproject/setup-anchor/blob/main/action.yml#L25-L40
+      # TODO: read Solana version from Anchor.toml
+      - name: Cache Solana CLI tools
+        id: cache-solana-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: solana-cli-${{ runner.os }}-build-2.1.18
+      - name: Install Solana CLI tools
+        if: ${{ steps.cache-solana-tools.outputs.cache-hit != 'true' }}
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.18/install)"
+        shell: bash
+      # TODO: read Anchor version from Anchor.toml
+      - name: Cache Anchor CLI tools
+        id: cache-anchor-tool
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/bin/anchor
+          key: anchor-cli-${{ runner.os }}-build-0.31.1
+      - name: Install Anchor
+        if: ${{ steps.cache-anchor-tool.outputs.cache-hit != 'true' }}
+        run: |
+          wget https://github.com/coral-xyz/anchor/releases/download/v0.31.1/anchor-0.31.1-x86_64-unknown-linux-gnu
+          chmod +x anchor-0.31.1-x86_64-unknown-linux-gnu
+          mkdir -p "$HOME/bin/anchor"
+          mv anchor-0.31.1-x86_64-unknown-linux-gnu "$HOME/bin/anchor/anchor"
+        shell: bash
+      - name: Update PATH
+        run: |
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          echo "$HOME/bin/anchor" >> $GITHUB_PATH
+        shell: bash
+      # We create the Solana CLI keypair to avoid errors and/or interactive keygen prompts
+      - name: Create keypair
+        run: solana-keygen new --no-bip39-passphrase
+        shell: bash
+      - name: Run Solana tests
+        run: make test-solana
