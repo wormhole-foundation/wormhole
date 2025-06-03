@@ -6,7 +6,7 @@
     "rpc-addr": "http://wormchain:26657",
     "account-prefix": "wormhole",
     "keyring-backend": "test",
-    "gas-adjustment": 1.2,
+    "gas-adjustment": 2.0,
     "gas-prices": "0.01utest",
     "debug": true,
     "timeout": "20s",

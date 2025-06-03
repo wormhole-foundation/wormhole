@@ -7,19 +7,19 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/strangelove-ventures/interchaintest/v4"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	"github.com/strangelove-ventures/interchaintest/v7"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormchain/interchaintest/helpers"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
 )
 
 // TestUpgradeTest upgrades from v2.18.1 -> v2.18.1.1 -> V2.23.0 and:
@@ -42,8 +42,14 @@ func TestUpgrade(t *testing.T) {
 	// Base setup
 	numVals := 3
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := CreateChains(t, "v2.18.1", *guardians)
-	ctx, r, eRep, client := BuildInterchain(t, chains)
+
+	chains := CreateChain(t, *guardians, ibc.DockerImage{
+		Repository: WormchainRemoteRepo,
+		Version:    "v2.24.3.2",
+		UidGid:     WormchainImage.UidGid,
+	})
+
+	_, ctx, r, eRep, client, _ := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
@@ -62,71 +68,56 @@ func TestUpgrade(t *testing.T) {
 	require.NoError(t, err)
 	wormToGaiaChannel := gaiaToWormChannel.Counterparty
 
-	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), wormchain, gaia, osmosis, osmosis)
+	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", math.NewInt(10_000_000_000), wormchain, gaia, osmosis, osmosis)
 	_ = users[0] // Wormchain user
 	gaiaUser := users[1]
 	osmoUser1 := users[2]
 	osmoUser2 := users[3]
 
-	// *************************************************************
-	// ********* Upgrade to new version of wormchain ***************
-	// *************************************************************
+	// ******************************************************************************************
+	// ********* Upgrade to new version of wormchain (non-state breaking upgrade) ***************
+	// ******************************************************************************************
 
-	blocksAfterUpgrade := uint64(5)
+	blocksAfterUpgrade := int64(5)
+
+	haltHeight, err := wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height before upgrade1")
+
+	err = wormchain.StopAllNodes(ctx)
+	require.NoError(t, err, "error stopping node(s)")
 
 	// upgrade version on all nodes
-	wormchain.UpgradeVersion(ctx, client, "v2.18.1.1")
+	wormchain.UpgradeVersion(ctx, client, WormchainRemoteRepo, "v2.24.9")
 
-	for i := 0; i < numVals; i++ {
-		haltHeight, err := wormchain.Height(ctx)
-		require.NoError(t, err)
-		fmt.Println("Halt height:", i, " : ", haltHeight)
+	err = wormchain.StartAllNodes(ctx)
+	require.NoError(t, err, "error starting upgraded node(s)")
 
-		// bring down nodes to prepare for upgrade
-		err = wormchain.StopANode(ctx, i)
-		require.NoError(t, err, "error stopping node(s)")
+	timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*20)
+	defer timeoutCtxCancel()
 
-		// start all nodes back up.
-		// validators reach consensus on first block after upgrade height
-		// and chain block production resumes.
-		err = wormchain.StartANode(ctx, i)
-		require.NoError(t, err, "error starting upgraded node(s)")
+	err = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
+	require.NoError(t, err, "chain did not produce blocks after upgrade1")
 
-		// Restart the fullnode with the last validator
-		if i+1 == numVals {
-			err = wormchain.StopANode(ctx, i+1)
-			require.NoError(t, err, "error stopping node(s)")
-			err = wormchain.StartANode(ctx, i+1)
-			require.NoError(t, err, "error starting upgraded node(s)")
-		}
+	height, err := wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height after upgrade1")
+	fmt.Println("Checked height: ", height)
 
-		timeoutCtx, timeoutCtxCancel := context.WithTimeout(ctx, time.Second*45)
-		defer timeoutCtxCancel()
-
-		err = testutil.WaitForBlocks(timeoutCtx, int(blocksAfterUpgrade), wormchain)
-		require.NoError(t, err, "chain did not produce blocks after upgrade1")
-
-		height, err := wormchain.Height(ctx)
-		require.NoError(t, err, "error fetching height after upgrade")
-		fmt.Println("Checked height: ", height)
-
-		require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade")
-	}
+	require.GreaterOrEqual(t, height, haltHeight+blocksAfterUpgrade, "height did not increment enough after upgrade1")
 
 	fmt.Println("***** PASS upgrade #1 **********")
 
 	// --------------------------------------------------------------------------------------
 	// upgrade version on all nodes
-	blocksAfterUpgrade = uint64(10)
+	blocksAfterUpgrade = int64(10)
 
-	height, err := wormchain.Height(ctx)
-	require.NoError(t, err, "error fetching height before upgrade")
+	height, err = wormchain.Height(ctx)
+	require.NoError(t, err, "error fetching height before upgrade2")
 	fmt.Println("Height at sending schedule upgrade: ", height)
 
-	haltHeight := height + blocksAfterUpgrade
-	fmt.Println("Height for scheduled upgrade: ", haltHeight)
+	haltHeight = height + blocksAfterUpgrade
+	fmt.Println("Height for scheduled upgrade2: ", haltHeight)
 
-	helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v2.23.0", haltHeight, guardians)
+	helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v3.0.0", uint64(haltHeight), guardians)
 
 	timeoutCtx3, timeoutCtxCancel3 := context.WithTimeout(ctx, time.Second*45)
 	defer timeoutCtxCancel3()
@@ -145,7 +136,7 @@ func TestUpgrade(t *testing.T) {
 	require.NoError(t, err, "error stopping node(s)")
 
 	// upgrade version on all nodes
-	wormchain.UpgradeVersion(ctx, client, "v2.23.0")
+	wormchain.UpgradeVersion(ctx, client, WormchainLocalRepo, WormchainLocalVersion)
 
 	// start all nodes back up.
 	// validators reach consensus on first block after upgrade height
@@ -170,11 +161,11 @@ func TestUpgrade(t *testing.T) {
 	// ******************* Continue with test **********************
 	// *************************************************************
 
-	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/ibc_hooks.wasm")
+	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName(), "./contracts/ibc_hooks.wasm")
 	require.NoError(t, err)
 	fmt.Println("IBC hooks code id: ", ibcHooksCodeId)
 
-	ibcHooksContractAddr, err := osmosis.InstantiateContract(ctx, osmoUser1.KeyName, ibcHooksCodeId, "{}", true)
+	ibcHooksContractAddr, err := osmosis.InstantiateContract(ctx, osmoUser1.KeyName(), ibcHooksCodeId, "{}", true)
 	require.NoError(t, err)
 	fmt.Println("IBC hooks contract addr: ", ibcHooksContractAddr)
 
@@ -186,7 +177,7 @@ func TestUpgrade(t *testing.T) {
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, vaa.ChainIDWormchain, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 
@@ -199,7 +190,7 @@ func TestUpgrade(t *testing.T) {
 	fmt.Println("Token bridge contract code id: ", tbContractCodeId)
 
 	// Instantiate token bridge contract
-	tbInstantiateMsg := helpers.TbContractInstantiateMsg(t, wormchainConfig, coreContractAddr, wrappedAssetCodeId)
+	tbInstantiateMsg := helpers.TbContractInstantiateMsg(t, WormchainConfig, coreContractAddr, wrappedAssetCodeId)
 	tbContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", tbContractCodeId, "token_bridge", tbInstantiateMsg, guardians)
 	fmt.Println("Token bridge contract address: ", tbContractAddr)
 
@@ -237,16 +228,16 @@ func TestUpgrade(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create and process a simple ibc payload3: Transfers 10.000_018 of asset1 from external chain through wormchain to gaia user
-	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
+	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, GaiaChainID, gaiaUser.FormattedAddress(), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
-	payload3 := helpers.CreatePayload3(wormchain.Config(), uint64(AmountExternalToGaiaUser1), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
+	payload3 := helpers.CreatePayload3(wormchain.Config(), AmountExternalToGaiaUser1.Uint64(), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 	require.NoError(t, err)
 
 	// Create and process a simple ibc payload3: Transfers 1.000_001 of asset1 from external chain through wormchain to osmo user1
-	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
-	payload3 = helpers.CreatePayload3(wormchain.Config(), uint64(AmountExternalToOsmoUser1), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
+	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.FormattedAddress(), 0, 1)
+	payload3 = helpers.CreatePayload3(wormchain.Config(), AmountExternalToOsmoUser1.Uint64(), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 	require.NoError(t, err)
@@ -254,9 +245,9 @@ func TestUpgrade(t *testing.T) {
 	// Create and process a contract controlled ibc payload3
 	// Transfers 1.000_002 of asset1 from external chain through wormchain to ibc hooks contract addr
 	// IBC hooks is used to route the contract controlled payload to a test contract which forwards tokens to osmo user2
-	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
 	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
-	payload3 = helpers.CreatePayload3(wormchain.Config(), uint64(AmountExternalToOsmoUser2), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
+	payload3 = helpers.CreatePayload3(wormchain.Config(), AmountExternalToOsmoUser2.Uint64(), Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 	require.NoError(t, err)
@@ -284,7 +275,7 @@ func TestUpgrade(t *testing.T) {
 	osmoIbcAsset1Denom := transfertypes.ParseDenomTrace(osmoAsset1Denom).IBCDenom()
 
 	// Verify Gaia user 1 has expected asset 1 balance
-	gaiaUser1Asset1BalanceTemp, err := gaia.GetBalance(ctx, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), gaiaIbcAsset1Denom)
+	gaiaUser1Asset1BalanceTemp, err := gaia.GetBalance(ctx, gaiaUser.FormattedAddress(), gaiaIbcAsset1Denom)
 	require.NoError(t, err)
 	fmt.Println("Gaia user asset1 coins: ", gaiaUser1Asset1BalanceTemp)
 
@@ -293,7 +284,7 @@ func TestUpgrade(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify Gaia user 1 has expected asset 1 balance
-	gaiaUser1Asset1BalanceTemp, err = gaia.GetBalance(ctx, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), gaiaIbcAsset1Denom)
+	gaiaUser1Asset1BalanceTemp, err = gaia.GetBalance(ctx, gaiaUser.FormattedAddress(), gaiaIbcAsset1Denom)
 	require.NoError(t, err)
 	fmt.Println("Gaia user asset1 coins: ", gaiaUser1Asset1BalanceTemp)
 
@@ -303,9 +294,9 @@ func TestUpgrade(t *testing.T) {
 	transfer := ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
-		Amount:  int64(AmountGaiaUser1ToExternalSimple),
+		Amount:  AmountGaiaUser1ToExternalSimple,
 	}
-	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: simpleMemo})
+	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName(), transfer, ibc.TransferOptions{Memo: simpleMemo})
 	require.NoError(t, err)
 
 	// wait for transfer to ack
@@ -318,9 +309,9 @@ func TestUpgrade(t *testing.T) {
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
-		Amount:  int64(AmountGaiaUser1ToExternalCC),
+		Amount:  AmountGaiaUser1ToExternalCC,
 	}
-	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: ccIbcHooksMsg})
+	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName(), transfer, ibc.TransferOptions{Memo: ccIbcHooksMsg})
 	require.NoError(t, err)
 
 	// wait for transfer to ack
@@ -329,13 +320,13 @@ func TestUpgrade(t *testing.T) {
 
 	// **************  Cosmos->Cosmos: Simple payload (wormhole-mw + PFM)  ****************
 	// Send 1.000_005 asset 1 from gaia user 1 to osmo user 1
-	simplePfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransfer(t, OsmoChainID, []byte(osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix)), 0, 1)
+	simplePfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransfer(t, OsmoChainID, []byte(osmoUser1.FormattedAddress()), 0, 1)
 	transfer = ibc.WalletAmount{
 		Address: wormchainFaucetAddr,
 		Denom:   gaiaIbcAsset1Denom,
-		Amount:  int64(AmountGaiaUser1ToOsmoUser1),
+		Amount:  AmountGaiaUser1ToOsmoUser1,
 	}
-	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{
+	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName(), transfer, ibc.TransferOptions{
 		Timeout: &ibc.IBCTimeout{
 			NanoSeconds: 30_000_000_000,
 		},
@@ -349,14 +340,14 @@ func TestUpgrade(t *testing.T) {
 
 	// **************  Cosmos->Cosmos: Contract controlled payload (wormhole-mw + PFM)  ****************
 	// Send 1.000_006 asset 1 from gaia user 1 to osmo user 2
-	ccPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	ccPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
 	ccPfmMsg := helpers.CreateIbcComposabilityMwMemoGatewayTransferWithPayload(t, OsmoChainID, []byte(ibcHooksContractAddr), ccPayload, 1)
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom:   gaiaIbcAsset1Denom,
-		Amount:  int64(AmountGaiaUser1ToOsmoUser2),
+		Amount:  AmountGaiaUser1ToOsmoUser2,
 	}
-	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{
+	_, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName(), transfer, ibc.TransferOptions{
 		Timeout: &ibc.IBCTimeout{
 			NanoSeconds: 30_000_000_000,
 		},
@@ -369,22 +360,22 @@ func TestUpgrade(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify Gaia user 1 has expected asset 1 balance
-	gaiaUser1Asset1Balance, err := gaia.GetBalance(ctx, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), gaiaIbcAsset1Denom)
+	gaiaUser1Asset1Balance, err := gaia.GetBalance(ctx, gaiaUser.FormattedAddress(), gaiaIbcAsset1Denom)
 	require.NoError(t, err)
-	expectedGaiaUser1Amount := AmountExternalToGaiaUser1 - AmountGaiaUser1ToExternalCC - AmountGaiaUser1ToExternalSimple - AmountGaiaUser1ToOsmoUser1 - AmountGaiaUser1ToOsmoUser2
-	require.Equal(t, int64(expectedGaiaUser1Amount), gaiaUser1Asset1Balance)
+	expectedGaiaUser1Amount := AmountExternalToGaiaUser1.Sub(AmountGaiaUser1ToExternalCC).Sub(AmountGaiaUser1ToExternalSimple).Sub(AmountGaiaUser1ToOsmoUser1).Sub(AmountGaiaUser1ToOsmoUser2)
+	require.Equal(t, expectedGaiaUser1Amount.Int64(), gaiaUser1Asset1Balance.Int64())
 	fmt.Println("Gaia user asset1 coins: ", gaiaUser1Asset1Balance)
 
 	// Verify osmo user 1 has expected asset 1 balance
-	osmoUser1Asset1Balance, err := osmosis.GetBalance(ctx, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), osmoIbcAsset1Denom)
+	osmoUser1Asset1Balance, err := osmosis.GetBalance(ctx, osmoUser1.FormattedAddress(), osmoIbcAsset1Denom)
 	require.NoError(t, err)
-	require.Equal(t, int64(AmountExternalToOsmoUser1+AmountGaiaUser1ToOsmoUser1), osmoUser1Asset1Balance)
+	require.Equal(t, AmountExternalToOsmoUser1.Add(AmountGaiaUser1ToOsmoUser1).Int64(), osmoUser1Asset1Balance.Int64())
 	fmt.Println("Osmo user1 asset1 coins: ", osmoUser1Asset1Balance)
 
 	// Verify osmo user 2 has expected asset 1 balance
-	osmoUser2Asset1Balance, err := osmosis.GetBalance(ctx, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix), osmoIbcAsset1Denom)
+	osmoUser2Asset1Balance, err := osmosis.GetBalance(ctx, osmoUser2.FormattedAddress(), osmoIbcAsset1Denom)
 	require.NoError(t, err)
-	require.Equal(t, int64(AmountExternalToOsmoUser2+AmountGaiaUser1ToOsmoUser2), osmoUser2Asset1Balance)
+	require.Equal(t, AmountExternalToOsmoUser2.Add(AmountGaiaUser1ToOsmoUser2).Int64(), osmoUser2Asset1Balance.Int64())
 	fmt.Println("Osmo user2 asset1 coins: ", osmoUser2Asset1Balance)
 
 	// Verify asset 1 cw20 contract has expected final total supply
@@ -394,6 +385,6 @@ func TestUpgrade(t *testing.T) {
 	fmt.Println("Asset1 supply: ", cw20QueryRsp.Data.TotalSupply)
 	totalSupply, err := strconv.ParseUint(cw20QueryRsp.Data.TotalSupply, 10, 64)
 	require.NoError(t, err)
-	expectedTotalSupply := AmountExternalToGaiaUser1 + AmountExternalToOsmoUser1 + AmountExternalToOsmoUser2 - AmountGaiaUser1ToExternalSimple - AmountGaiaUser1ToExternalCC
-	require.Equal(t, uint64(expectedTotalSupply), totalSupply)
+	expectedTotalSupply := AmountExternalToGaiaUser1.Add(AmountExternalToOsmoUser1).Add(AmountExternalToOsmoUser2).Sub(AmountGaiaUser1ToExternalSimple).Sub(AmountGaiaUser1ToExternalCC)
+	require.Equal(t, expectedTotalSupply.Uint64(), totalSupply)
 }
