@@ -26,55 +26,57 @@ contract ThresholdVerification is ThresholdVerificationState {
 
   error ThresholdKeyExpired();
   error ThresholdSignatureVerificationFailed();
-  error InvalidModule(bytes32 module);
-  error InvalidAction(uint8 action);
+  error InvalidModule();
+  error InvalidAction();
 
-  // Verify a threshold signature VAA
+  // Verify a threshold signature V2 VAA
+  // NOTE: This function does not validate the VAA version is V2!
   function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
       // Decode the VAA header
-      uint offset = 0;
-      uint8 version;
+      uint offset = 1;
       uint32 tssIndex;
       address r; uint256 s;
 
-      (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
       (tssIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (r, offset) = encodedVaa.asAddressCdUnchecked(offset);
       (s, offset) = encodedVaa.asUint256CdUnchecked(offset);
 
-      // Validate the VAA version and threshold signature is in range
-      // NOTE: s < Q prevents signature malleability
-      // NOTE: Non-zero r prevents confusion with ecrecover failure
-      // NOTE: Non-zero check on s not needed, see the first argument of ecrecover
-      require(version == 2, VaaLib.InvalidVersion(version));
-      require(eagerAnd(s < Q, r != address(0)), ThresholdSignatureVerificationFailed());
-
       // Load threshold key info and validate expiration time
       ThresholdKeyInfo memory info = _getThresholdInfo(tssIndex);
-      require(eagerOr(info.expirationTime == 0, info.expirationTime > block.timestamp), ThresholdKeyExpired());
 
       // Calculate the challenge value
       bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
       (uint256 px, uint8 parity) = _decodePubkey(info.pubkey);
       uint256 e = uint256(keccak256(abi.encodePacked(px, parity, vaaHash, r)));
 
-      // Verify the recovered address matches the threshold signature r
+      // Calculate the recovered address
       address recovered = ecrecover(
         // NOTE: This is non-zero because for all k = px * s, Q > k % Q
         //       Therefore, Q - k % Q is always positive
         bytes32(Q - mulmod(px, s, Q)),
         parity,
-        // NOTE: This is checked non-zero in _decodeThresholdKeyUpdatePayload
+        // NOTE: This is range checked in _decodeThresholdKeyUpdatePayload
         bytes32(px),
         bytes32(mulmod(px, e, Q))
       );
-      require(r == recovered, ThresholdSignatureVerificationFailed());
+
+      // Verify that none of the preconditions were violated
+      // NOTE: s < Q prevents signature malleability
+      // NOTE: Non-zero r prevents confusion with ecrecover failure
+      // NOTE: Non-zero check on s not needed, see the first argument of ecrecover
+      bool validSignature = eagerAnd(r != address(0), s < Q);
+      bool validExpiration = eagerOr(info.expirationTime == 0, info.expirationTime > block.timestamp);
+      bool validRecovered = r == recovered;
+      
+      require(eagerAnd(validSignature, eagerAnd(validExpiration, validRecovered)), ThresholdSignatureVerificationFailed());
 
       return offset;
     }
   }
 
+  // Verify and decode a threshold signature V2 VAA
+  // NOTE: This function does not validate the VAA version is V2!
   function _verifyAndDecodeThresholdVaa(bytes calldata encodedVaa) internal view returns (
     uint32 timestamp,
     uint32 nonce,
@@ -88,6 +90,7 @@ contract ThresholdVerification is ThresholdVerificationState {
     return encodedVaa.decodeVaaBodyCd(payloadOffset);
   }
 
+  // Decode a threshold key update payload, given the number of shards(which is the same as the number of guardians for the current guardian set)
   function _decodeThresholdKeyUpdatePayload(bytes calldata payload, uint256 shardCount) internal pure returns (
     uint32 newTSSIndex,
     uint256 newThresholdPubkey,
@@ -97,8 +100,8 @@ contract ThresholdVerification is ThresholdVerificationState {
     unchecked {
       // Decode the payload
       uint offset = 0;
-      uint8 action;
       bytes32 module;
+      uint8 action;
 
       // Headedr
       (module, offset) = payload.asBytes32MemUnchecked(offset);
@@ -110,13 +113,12 @@ contract ThresholdVerification is ThresholdVerificationState {
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
       
       // Verify the module and action
-      require(module == MODULE_VERIFICATION_V2, InvalidModule(module));
-      require(action == ACTION_APPEND_THRESHOLD_KEY, InvalidAction(action));
+      require(module == MODULE_VERIFICATION_V2, InvalidModule());
+      require(action == ACTION_APPEND_THRESHOLD_KEY, InvalidAction());
 
       // Validate the threshold key is non-zero and less than HALF_Q
       (uint256 px,) = _decodePubkey(newThresholdPubkey);
-      require(px != 0, InvalidThresholdKeyAddress());
-      require(px <= HALF_Q, InvalidThresholdKeyAddress());
+      require(eagerAnd(px != 0, px <= HALF_Q), InvalidThresholdKeyAddress());
 
       // Decode shards
       shards = new ShardInfo[](shardCount);

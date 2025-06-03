@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {eagerAnd} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {RawDispatcher} from "wormhole-sdk/RawDispatcher.sol";
@@ -38,7 +39,7 @@ contract VerificationV2 is
 
   error InvalidValue();
   error InvalidOperation(uint8 op);
-  error InvalidGovernanceChainId();
+  error InvalidGovernanceChain();
   error InvalidGovernanceAddress();
 
   error GuardianSetIsNotCurrent();
@@ -105,8 +106,8 @@ contract VerificationV2 is
         ) = _verifyAndDecodeMultisigVaa(encodedVaa);
 
         // Verify the emitter
-        if (emitterChainId != CHAIN_ID_SOLANA) revert InvalidGovernanceChainId();
-        if (emitterAddress != GOVERNANCE_ADDRESS) revert InvalidGovernanceAddress();
+        require(emitterChainId == CHAIN_ID_SOLANA, InvalidGovernanceChain());
+        require(emitterAddress == GOVERNANCE_ADDRESS, InvalidGovernanceAddress());
 
         // Get the guardian set
         (uint32 guardianSetIndex, address[] memory guardians) = _getCurrentGuardianSetInfo();
