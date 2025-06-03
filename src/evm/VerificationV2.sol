@@ -236,12 +236,10 @@ contract VerificationV2 is
         result = abi.encodePacked(result, abi.encode(guardianSetAddrs, expirationTime));
       } else if (op == OP_GUARDIAN_SHARDS_GET) {
         uint32 guardianSet;
-        uint8 guardian;
         (guardianSet, offset) = data.asUint32CdUnchecked(offset);
-        (guardian, offset) = data.asUint8CdUnchecked(offset);
-        
+
         ShardInfo[] memory shards = _getShards(guardianSet);
-        
+
         result = abi.encodePacked(result, abi.encode(shards));
       } else {
         revert InvalidOperation(op);
