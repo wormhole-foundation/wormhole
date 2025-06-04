@@ -7,18 +7,18 @@ import {GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {eagerAnd, eagerOr} from "wormhole-sdk/Utils.sol";
 
-import {ThresholdVerificationState} from "./ThresholdVerificationState.sol";
+import {ThresholdVerificationState, ShardInfo} from "./ThresholdVerificationState.sol";
+
+// Module ID for the VerificationV2 contract, ASCII "TSS"
+bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
+
+// Action ID for appending a threshold key
+uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
 
 contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using {BytesParsing.checkLength} for uint;
-
-  // Module ID for the VerificationV2 contract, ASCII "TSS"
-  bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000000000000000000000000000000000545353);
-
-  // Action ID for appending a threshold key
-  uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
 
   // Curve order for secp256k1
   uint256 constant internal Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;

@@ -6,21 +6,61 @@ import {eagerOr} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 
-contract EIP712Encoding {
+bytes32 constant REGISTER_TYPE_HASH = keccak256(
+  "GuardianRegister(uint32 guardianSet,uint32 expirationTime,bytes32 id)"
+);
+
+interface IERC5267 {
+  function eip712Domain() external view returns (
+    bytes1 fields,
+    string memory name,
+    string memory version,
+    uint256 chainId,
+    address verifyingContract,
+    bytes32 salt,
+    uint256[] memory extensions
+  );
+}
+
+contract EIP712Encoding is IERC5267 {
   bytes32 constant EIP712_DOMAIN_TYPE_HASH = keccak256(
-      "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
   );
-  bytes32 constant EIP712_NAME_HASH = keccak256("Wormhole VerificationV2");
-  bytes32 constant EIP712_VERSION_HASH = keccak256("1");
+  
+  string constant EIP712_NAME = "Wormhole VerificationV2";
+  string constant EIP712_VERSION = "1";
 
-  bytes32 constant REGISTER_TYPE_HASH = keccak256(
-    "GuardianRegister(uint32 guardianSet,uint32 expirationTime,bytes32 id)"
-  );
+  bytes32 constant EIP712_NAME_HASH = keccak256(bytes(EIP712_NAME));
+  bytes32 constant EIP712_VERSION_HASH = keccak256(bytes(EIP712_VERSION));
 
-  bytes32 private _domainSeparator;
+  bytes32 private immutable _domainSeparator;
 
   constructor () {
     _domainSeparator = getDomainSeparator(block.chainid, address(this));
+  }
+
+  function eip712Domain() external view returns (
+    bytes1 fields,
+    string memory name,
+    string memory version,
+    uint256 chainId,
+    address verifyingContract,
+    bytes32 salt,
+    uint256[] memory extensions
+  ) {
+    return (
+      bytes1(0x0F),
+      EIP712_NAME,
+      EIP712_VERSION,
+      block.chainid,
+      address(this),
+      bytes32(0),
+      new uint256[](0)
+    );
+  }
+
+  function DOMAIN_SEPARATOR() external view returns (bytes32) {
+    return _domainSeparator;
   }
 
   function getDomainSeparator(

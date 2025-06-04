@@ -20,11 +20,11 @@ contract MultisigVerificationState is ExtStore {
   uint32[] private _guardianSetExpirationTime;
 
   constructor(
-    address coreBridge,
+    ICoreBridge coreBridge,
     uint256 initGuardianSetIndex,
     uint256 pullLimit
   ) {
-    _coreBridge = ICoreBridge(coreBridge);
+    _coreBridge = coreBridge;
 
     require(initGuardianSetIndex <= _coreBridge.getCurrentGuardianSetIndex());
     // All previous guardian sets will have expiration timestamp 0

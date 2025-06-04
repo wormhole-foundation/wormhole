@@ -2,16 +2,16 @@
 
 pragma solidity ^0.8.0;
 
+struct ShardInfo {
+  bytes32 shard;
+  bytes32 id;
+}
+
 contract ThresholdVerificationState {
 	error InvalidThresholdKeyIndex();
 	error InvalidThresholdKeyAddress();
 	error InvalidGuardianIndex();
 	error GuardianSetsNotComplete();
-
-  struct ShardInfo {
-    bytes32 shard;
-    bytes32 id;
-  }
 
   struct ThresholdKeyInfo {
     uint256 pubkey;
