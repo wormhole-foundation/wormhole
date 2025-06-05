@@ -125,6 +125,19 @@ library VerificationHelper {
 		);
 	}
 
+	function decodeVerifyAndDecodeVaa(bytes memory result, uint256 offset) public pure returns (
+    uint32 timestamp,
+    uint32 nonce,
+    uint16 emitterChainId,
+    bytes32 emitterAddress,
+    uint64 sequence,
+    uint8 consistencyLevel,
+    bytes memory payload
+  ) {
+		(timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = abi.decode(result, (uint32, uint32, uint16, bytes32, uint64, uint8, bytes));
+		// TODO: What should the offset be?
+	}
+
 	function verifyVaa(bytes calldata encodedVaa) public pure returns (bytes memory) {
 		return abi.encodePacked(
 			OP_VERIFY_VAA,
@@ -212,7 +225,7 @@ contract VerificationV2Test is Test {
 	bytes private invalidVaaV1 = hex"01234567";
 
 	// V2 test data
-	uint256 private constant thresholdKey1 = 0x37182cc534992e99fb3f82a11035ecf7b03dc398dcef8fed66202644bebd1604;
+	uint256 private constant thresholdKey1 = 0x1cafae803bf91a2e5494162625d34fda2f69db7c1f3589938647bc2abd4a0a0f << 1;
 
 	ShardInfo[] private thresholdShards1 = [
 		ShardInfo({
@@ -275,6 +288,21 @@ contract VerificationV2Test is Test {
 		);
 	}
 
+	function createVaaV2(
+		uint32 guardianSetIndex,
+		address r,
+		uint256 s,
+		bytes memory envelope
+	) public pure returns (bytes memory) {
+		return abi.encodePacked(
+			// Header
+			uint8(2), // version
+			guardianSetIndex, // guardian set index
+			r,
+			s,
+			envelope
+		);
+	}
 	function createVaaEnvelope(
 		uint32 timestamp,
 		uint32 nonce,
@@ -431,25 +459,80 @@ contract VerificationV2Test is Test {
 	function test_verifyVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-		// TODO: Add test
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		bytes memory payload = new bytes(49);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+		bytes memory vaa = createVaaV2(0, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyVaa(vaa);
+
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, true);
+		assertEq(result.length, 0);
 	}
 
 	function testRevert_verifyVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-		// TODO: Add test
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		bytes memory payload = new bytes(50);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+		bytes memory vaa = createVaaV2(0, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyVaa(vaa);
+
+		vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
 	}
 
 	function test_veifyAndDecodeVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-		// TODO: Add test
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		bytes memory payload = new bytes(49);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+		bytes memory vaa = createVaaV2(0, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyAndDecodeVaa(vaa);
+
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, true);
+
+		(
+			uint32 timestamp,
+			uint32 nonce,
+			uint16 emitterChainId,
+			bytes32 emitterAddress,
+			uint64 sequence,
+			uint8 consistencyLevel,
+			bytes memory decodedPayload
+		) = VerificationHelper.decodeVerifyAndDecodeVaa(result, 0);
+
+		assertEq(timestamp, 0);
+		assertEq(nonce, 0);
+		assertEq(emitterChainId, 0);
+		assertEq(emitterAddress, 0);
+		assertEq(sequence, 0);
+		assertEq(consistencyLevel, 0);
+		assertEq(decodedPayload.length, 49);
 	}
 
 	function testRevert_veifyAndDecodeVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-		// TODO: Add test
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		bytes memory payload = new bytes(50);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+		bytes memory vaa = createVaaV2(0, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyAndDecodeVaa(vaa);
+
+		vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
 	}
 
 	// Shard update codepaths

@@ -46,9 +46,10 @@ contract ThresholdVerification is ThresholdVerificationState {
       ThresholdKeyInfo memory info = _getThresholdInfo(tssIndex);
 
       // Calculate the challenge value
-      bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
+      // TODO: Verify that this is consistent with the guardian server code
+      bytes32 vaaHash = encodedVaa.calcVaaSingleHashCd(offset);
       (uint256 px, uint8 parity) = _decodePubkey(info.pubkey);
-      uint256 e = uint256(keccak256(abi.encodePacked(px, parity, vaaHash, r)));
+      uint256 e = uint256(keccak256(abi.encodePacked(px, parity == 28, vaaHash, r)));
 
       // Calculate the recovered address
       address recovered = ecrecover(
