@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {eagerOr} from "wormhole-sdk/Utils.sol";
 import {ICoreBridge} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";

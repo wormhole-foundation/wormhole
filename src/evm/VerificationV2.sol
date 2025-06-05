@@ -155,7 +155,7 @@ contract VerificationV2 is
         // Verify the signature
         // We're not doing replay protection with the signature itself so we don't care about
         // verifying only canonical (low s) signatures.
-        bytes32 digest = getRegisterGuardianDigest(guardianSetIndex, expirationTime, guardianId);
+        bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, expirationTime, guardianId);
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardianIndex], GuardianSignatureVerificationFailed());
 
