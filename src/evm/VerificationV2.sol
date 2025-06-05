@@ -2,13 +2,14 @@
 
 pragma solidity ^0.8.0;
 
+import {eagerAnd} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {RawDispatcher} from "wormhole-sdk/RawDispatcher.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-sdk/constants/Chains.sol";
-import {GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
+import {ICoreBridge, GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 
-import {ThresholdVerification} from "./ThresholdVerification.sol";
+import {ThresholdVerification, ShardInfo} from "./ThresholdVerification.sol";
 import {MultisigVerification} from "./MultisigVerification.sol";
 import {EIP712Encoding} from "./EIP712Encoding.sol";
 
@@ -38,7 +39,7 @@ contract VerificationV2 is
 
   error InvalidValue();
   error InvalidOperation(uint8 op);
-  error InvalidGovernanceChainId();
+  error InvalidGovernanceChain();
   error InvalidGovernanceAddress();
 
   error GuardianSetIsNotCurrent();
@@ -46,7 +47,7 @@ contract VerificationV2 is
   error RegistrationMessageExpired();
   error GuardianSignatureVerificationFailed();
 
-  constructor(address coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
+  constructor(ICoreBridge coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
     MultisigVerification(coreV1, initGuardianSetIndex, pullLimit)
   {}
 
@@ -105,8 +106,8 @@ contract VerificationV2 is
         ) = _verifyAndDecodeMultisigVaa(encodedVaa);
 
         // Verify the emitter
-        if (emitterChainId != CHAIN_ID_SOLANA) revert InvalidGovernanceChainId();
-        if (emitterAddress != GOVERNANCE_ADDRESS) revert InvalidGovernanceAddress();
+        require(emitterChainId == CHAIN_ID_SOLANA, InvalidGovernanceChain());
+        require(emitterAddress == GOVERNANCE_ADDRESS, InvalidGovernanceAddress());
 
         // Get the guardian set
         (uint32 guardianSetIndex, address[] memory guardians) = _getCurrentGuardianSetInfo();
@@ -131,12 +132,12 @@ contract VerificationV2 is
         uint32 thresholdKeyIndex;
         uint32 expirationTime;
         bytes32 guardianId;
-        uint8 guardian; bytes32 r; bytes32 s; uint8 v;
+        uint8 guardianIndex; bytes32 r; bytes32 s; uint8 v;
 
         (thresholdKeyIndex, offset) = data.asUint32CdUnchecked(offset);
         (expirationTime, offset) = data.asUint32CdUnchecked(offset);
         (guardianId, offset) = data.asBytes32CdUnchecked(offset);
-        (guardian, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
+        (guardianIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
         // We only allow registrations for the current threshold key
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
@@ -154,11 +155,11 @@ contract VerificationV2 is
         // Verify the signature
         // We're not doing replay protection with the signature itself so we don't care about
         // verifying only canonical (low s) signatures.
-        bytes32 digest = getRegisterGuardianDigest(guardianSetIndex, expirationTime, guardianId);
+        bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, expirationTime, guardianId);
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory == guardianAddrs[guardian], GuardianSignatureVerificationFailed());
+        require(signatory == guardianAddrs[guardianIndex], GuardianSignatureVerificationFailed());
 
-        _registerGuardian(guardianSetIndex, guardian, guardianId);
+        _registerGuardian(guardianSetIndex, guardianIndex, guardianId);
       } else {
         revert InvalidOperation(op);
       }

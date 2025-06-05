@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {eagerOr} from "wormhole-sdk/Utils.sol";
+import {ICoreBridge} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 import {CoreBridgeLib} from "wormhole-sdk/libraries/CoreBridge.sol";
@@ -20,28 +21,25 @@ contract MultisigVerification is MultisigVerificationState {
   error GuardianSetExpired();
 
   constructor(
-    address coreBridge,
+    ICoreBridge coreBridge,
     uint256 initGuardianSetIndex,
     uint256 pullLimit
   ) MultisigVerificationState(coreBridge, initGuardianSetIndex, pullLimit) {}
 
+  // Verify a multisig VAA
+  // NOTE: This function does not validate the VAA version is V1!
   function _verifyMultisigVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
-      uint offset = 0;
-      uint8 version;
+      uint offset = 1;
       uint32 guardianSetIndex;
       uint8 signatureCount;
 
-      (version, offset) = encodedVaa.asUint8CdUnchecked(offset);
       (guardianSetIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
       (signatureCount, offset) = encodedVaa.asUint8CdUnchecked(offset);
 
-      // Validate the version
-      require(version == 1, VaaLib.InvalidVersion(version));
-
       // Get the guardian set and validate it's not expired
       (uint32 expirationTime, address[] memory guardians) = _getGuardianSetInfo(guardianSetIndex);
-      require(expirationTime > block.timestamp, GuardianSetExpired());
+      require(eagerOr(expirationTime == 0, expirationTime > block.timestamp), GuardianSetExpired());
 
       // Get the number of signatures
       // NOTE: Optimization puts guardianCount on stack thus avoids mloads
@@ -98,6 +96,7 @@ contract MultisigVerification is MultisigVerificationState {
   }
 
   // Verify a guardian set VAA
+  // NOTE: This function does not validate the VAA version is V1!
   function _verifyAndDecodeMultisigVaa(bytes calldata encodedVaa) internal view returns (
     uint32 timestamp,
     uint32 nonce,
