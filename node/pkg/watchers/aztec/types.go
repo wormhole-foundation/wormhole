@@ -19,6 +19,11 @@ type LogParameters struct {
 	Sequence         uint64
 	Nonce            uint32
 	ConsistencyLevel uint8
+	// Extracted from payload
+	ArbitrumAddress []byte
+	ArbitrumChainID uint16
+	Amount          uint64 // Added this field
+	TxID            string
 }
 
 // BlockInfo enhanced to include block hash and parent hash
@@ -164,7 +169,8 @@ type LogId struct {
 
 type PublicLog struct {
 	ContractAddress string   `json:"contractAddress"`
-	Log             []string `json:"log"`
+	Fields          []string `json:"fields"`
+	EmittedLength   int      `json:"emittedLength"`
 }
 
 type ExtendedPublicLog struct {

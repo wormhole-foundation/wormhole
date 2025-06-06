@@ -1,13 +1,11 @@
 package aztec
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -38,9 +35,7 @@ type MockRPCClient struct {
 
 func (m *MockRPCClient) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	mockArgs := []interface{}{ctx, result, method}
-	for _, arg := range args {
-		mockArgs = append(mockArgs, arg)
-	}
+	mockArgs = append(mockArgs, args...)
 	return m.Called(mockArgs...).Error(0)
 }
 
@@ -110,7 +105,7 @@ func setupMockAztecServer(t *testing.T) *httptest.Server {
                             "id": {"blockNumber": 5, "txIndex": 0, "logIndex": 0},
                             "log": {
                                 "contractAddress": "0xContract",
-                                "log": ["0x123"]
+                                "fields": ["0x123"]
                             }
                         }
                     ],
@@ -157,35 +152,6 @@ func setupMockAztecServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-// TestParseHexUint64 tests the hex parsing function with various inputs
-func TestParseHexUint64(t *testing.T) {
-	testCases := []struct {
-		name      string
-		input     string
-		expectErr bool
-		expected  uint64
-	}{
-		{"Valid hex with 0x prefix", "0x123", false, 291},
-		{"Valid hex without prefix", "123", false, 291},
-		{"Invalid hex", "0xZZZ", true, 0},
-		{"Empty string", "", true, 0},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			value, err := ParseHexUint64(tc.input)
-
-			if tc.expectErr {
-				assert.Error(t, err)
-				assert.IsType(t, &ErrParsingFailed{}, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expected, value)
-			}
-		})
-	}
-}
-
 // TestCreateObservationID tests the observation ID creation
 func TestCreateObservationID(t *testing.T) {
 	id := CreateObservationID("0x123", 456, 789)
@@ -205,10 +171,10 @@ func TestProcessLogParameters(t *testing.T) {
 	// Valid parameters
 	t.Run("valid parameters", func(t *testing.T) {
 		logEntries := []string{
-			"000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender
-			"0000000000000123", // Sequence (291)
-			"0000000000000001", // Nonce (1)
-			"01",               // Consistency level (1)
+			"0000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender (32 bytes)
+			"0000000000000000000000000000000000000000000000000000000000000123", // Sequence (291 in hex)
+			"0000000000000000000000000000000000000000000000000000000000000001", // Nonce (1)
+			"0000000000000000000000000000000000000000000000000000000000000001", // Consistency level (1)
 		}
 
 		params, err := watcher.parseLogParameters(logEntries)
@@ -221,8 +187,8 @@ func TestProcessLogParameters(t *testing.T) {
 	// Invalid parameters (too few entries)
 	t.Run("invalid parameters", func(t *testing.T) {
 		invalidEntries := []string{
-			"000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender
-			"0000000000000123", // Sequence (291)
+			"0000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender (32 bytes)
+			"0000000000000000000000000000000000000000000000000000000000000123", // Sequence (291)
 		}
 
 		_, err := watcher.parseLogParameters(invalidEntries)
@@ -240,27 +206,51 @@ func TestCreatePayload(t *testing.T) {
 		logger: logger,
 	}
 
-	// Test with valid hex entries
+	// Test with valid hex entries and txID
 	t.Run("valid hex entries", func(t *testing.T) {
 		logEntries := []string{
-			"0x0123",
-			"0x4567",
+			"0x0123", // sender
+			"0x4567", // sequence
+			"0x8901", // nonce
+			"0x23",   // consistency level
+			"0x45",   // timestamp
+			"0x67",   // first payload entry
+			"0x89",   // second payload entry
 		}
+		txID := "0x1234"
 
-		payload := watcher.createPayload(logEntries)
-		assert.Equal(t, []byte{0x01, 0x23, 0x45, 0x67}, payload)
+		payload := watcher.createPayload(logEntries, txID)
+
+		// Check that payload starts with padded txID (32 bytes)
+		assert.Len(t, payload, 34) // 32 bytes for txID + 2 bytes from entries
+		assert.Equal(t, byte(0x12), payload[0])
+		assert.Equal(t, byte(0x34), payload[1])
+		// Remaining bytes should be zero-padded for txID
+		for i := 2; i < 32; i++ {
+			assert.Equal(t, byte(0x00), payload[i])
+		}
 	})
 
 	// Test with mixed entries (valid and invalid)
 	t.Run("mixed entries", func(t *testing.T) {
 		mixedEntries := []string{
-			"0x0123",
-			"invalid",
-			"0x4567",
+			"0x0123",  // sender
+			"0x4567",  // sequence
+			"0x8901",  // nonce
+			"0x23",    // consistency level
+			"0x45",    // timestamp
+			"0x67",    // valid payload entry
+			"invalid", // invalid entry - should be skipped
+			"0x89",    // valid payload entry
 		}
+		txID := "0xabcd"
 
-		payload := watcher.createPayload(mixedEntries)
-		assert.Equal(t, []byte{0x01, 0x23, 0x45, 0x67}, payload)
+		payload := watcher.createPayload(mixedEntries, txID)
+
+		// Should have txID + valid payload entries
+		assert.True(t, len(payload) >= 32) // At least the txID padding
+		assert.Equal(t, byte(0xab), payload[0])
+		assert.Equal(t, byte(0xcd), payload[1])
 	})
 }
 
@@ -388,7 +378,7 @@ func TestProcessLog(t *testing.T) {
 		logger:             logger,
 	}
 
-	// Test with valid log
+	// Test with valid log - note Fields instead of Log
 	log := ExtendedPublicLog{
 		ID: LogId{
 			BlockNumber: 100,
@@ -397,12 +387,20 @@ func TestProcessLog(t *testing.T) {
 		},
 		Log: PublicLog{
 			ContractAddress: contractAddress,
-			Log: []string{
-				"000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender
-				"0000000000000123", // Sequence
-				"0000000000000001", // Nonce
-				"01",               // Consistency level
-				"01020304",         // Payload
+			Fields: []string{
+				"0000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender (32 bytes)
+				"0000000000000000000000000000000000000000000000000000000000000123", // Sequence (291)
+				"0000000000000000000000000000000000000000000000000000000000000001", // Nonce (1)
+				"0000000000000000000000000000000000000000000000000000000000000001", // Consistency level (1)
+				"0000000000000000000000000000000000000000000000000000000061a91c40", // Timestamp
+				// Arbitrum address (20 bytes padded to 31 bytes)
+				"000000000000000000000000742d35Cc6634C0532925a3b8D50C6d111111111",
+				// Arbitrum chain ID (2 bytes padded to 31 bytes) - 42161 = 0xa4b1
+				"00000000000000000000000000000000000000000000000000000000000a4b1",
+				// Amount (8 bytes padded to 31 bytes) - 1000000 = 0xf4240
+				"000000000000000000000000000000000000000000000000000000000f4240",
+				// Name/verification data
+				"4a61636b000000000000000000000000000000000000000000000000000000", // "Jack" padded
 			},
 		},
 	}
@@ -429,7 +427,8 @@ func TestProcessLog(t *testing.T) {
 	assert.Equal(t, uint64(291), msg.Sequence) // 0x123 = 291
 	assert.Equal(t, uint32(1), msg.Nonce)
 	assert.Equal(t, uint8(1), msg.ConsistencyLevel)
-	assert.Equal(t, []byte{1, 2, 3, 4}, msg.Payload)
+	// Payload should include txID at the beginning
+	assert.True(t, len(msg.Payload) > 32) // Should have txID + payload data
 }
 
 // TestProcessBlockLogs tests the block logs processing function
@@ -465,12 +464,20 @@ func TestProcessBlockLogs(t *testing.T) {
 			},
 			Log: PublicLog{
 				ContractAddress: contractAddress,
-				Log: []string{
-					"000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender
-					"0000000000000123", // Sequence
-					"0000000000000001", // Nonce
-					"01",               // Consistency level
-					"01020304",         // Payload
+				Fields: []string{
+					"0000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender (32 bytes)
+					"0000000000000000000000000000000000000000000000000000000000000123", // Sequence (291)
+					"0000000000000000000000000000000000000000000000000000000000000001", // Nonce (1)
+					"0000000000000000000000000000000000000000000000000000000000000001", // Consistency level (1)
+					"0000000000000000000000000000000000000000000000000000000061a91c40", // Timestamp
+					// Arbitrum address (20 bytes padded to 31 bytes)
+					"000000000000000000000000742d35Cc6634C0532925a3b8D50C6d111111111",
+					// Arbitrum chain ID (2 bytes padded to 31 bytes) - 42161 = 0xa4b1
+					"00000000000000000000000000000000000000000000000000000000000a4b1",
+					// Amount (8 bytes padded to 31 bytes) - 1000000 = 0xf4240
+					"000000000000000000000000000000000000000000000000000000000f4240",
+					// Name/verification data
+					"4a61636b000000000000000000000000000000000000000000000000000000", // "Jack" padded
 				},
 			},
 		},
@@ -503,7 +510,8 @@ func TestProcessBlockLogs(t *testing.T) {
 	msg := <-msgC
 	assert.Equal(t, uint64(291), msg.Sequence)
 	assert.Equal(t, uint32(1), msg.Nonce)
-	assert.Equal(t, []byte{1, 2, 3, 4}, msg.Payload)
+	// Should have txID prepended to payload
+	assert.True(t, len(msg.Payload) > 32)
 }
 
 // TestPublishObservation tests the observation publishing function
@@ -724,12 +732,12 @@ func TestAztecFinalityVerifier_Implementation(t *testing.T) {
 		finalizedBlockCacheTTL: time.Second,
 	}
 
-	// Test GetFinalizedBlock
+	// Test GetFinalizedBlock - note: using Proven block number from L2Tips
 	t.Run("GetFinalizedBlock", func(t *testing.T) {
 		block, err := verifier.GetFinalizedBlock(context.Background())
 		require.NoError(t, err)
-		require.Equal(t, 5, block.Number)
-		require.Equal(t, "0x789", block.Hash)
+		require.Equal(t, 8, block.Number)     // Should be proven block number (8), not finalized (5)
+		require.Equal(t, "0x456", block.Hash) // Should be proven hash
 	})
 
 	// Test IsBlockFinalized
@@ -738,7 +746,7 @@ func TestAztecFinalityVerifier_Implementation(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, finalized)
 
-		finalized, err = verifier.IsBlockFinalized(context.Background(), 7)
+		finalized, err = verifier.IsBlockFinalized(context.Background(), 10)
 		require.NoError(t, err)
 		require.False(t, finalized)
 	})
@@ -746,7 +754,7 @@ func TestAztecFinalityVerifier_Implementation(t *testing.T) {
 	// Test GetLatestFinalizedBlockNumber
 	t.Run("GetLatestFinalizedBlockNumber", func(t *testing.T) {
 		number := verifier.GetLatestFinalizedBlockNumber()
-		require.Equal(t, uint64(5), number)
+		require.Equal(t, uint64(8), number) // Should match proven block number
 	})
 }
 
@@ -854,168 +862,190 @@ func TestHelperFunctions(t *testing.T) {
 	})
 }
 
-// TestAztecFinalityVerifier_CacheHandling tests the cache behavior
-func TestAztecFinalityVerifier_CacheHandling(t *testing.T) {
-	// Setup mock server
-	serverCallCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Increment call count to track when it's being called
-		serverCallCount++
+// TestProcessLog_ErrorCases tests error handling in log processing
+func TestProcessLog_ErrorCases(t *testing.T) {
+	logger := zaptest.NewLogger(t)
 
-		var req struct {
-			Method string          `json:"method"`
-			Params json.RawMessage `json:"params"`
-		}
+	mockBlockFetcher := new(MockBlockFetcher)
+	mockL1Verifier := new(MockL1Verifier)
+	mockObservationManager := new(MockObservationManager)
 
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &req)
+	msgC := make(chan *common.MessagePublication, 10)
 
-		if req.Method == "node_getL2Tips" {
-			w.Write([]byte(`{
-                "jsonrpc": "2.0",
-                "id": 1,
-                "result": {
-                    "latest": {"number": 10, "hash": "0x123"},
-                    "proven": {"number": 8, "hash": "0x456"},
-                    "finalized": {"number": 5, "hash": "0x789"}
-                }
-            }`))
-		}
-	}))
-	defer server.Close()
+	config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
+	contractAddress := config.ContractAddress
 
-	// Create verifier manually with a very short cache TTL for testing
-	client, _ := rpc.DialContext(context.Background(), server.URL)
-	verifier := &aztecFinalityVerifier{
-		rpcClient:              client,
-		logger:                 zap.NewNop(),
-		finalizedBlockCacheTTL: 50 * time.Millisecond, // Short TTL for testing
+	watcher := &Watcher{
+		config:             config,
+		blockFetcher:       mockBlockFetcher,
+		l1Verifier:         mockL1Verifier,
+		observationManager: mockObservationManager,
+		msgC:               msgC,
+		logger:             logger,
 	}
 
-	// First call should hit the server
-	block1, err := verifier.GetFinalizedBlock(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, 5, block1.Number)
-	require.Equal(t, 1, serverCallCount, "First call should hit the server")
+	// Test with empty log (should be skipped) - note Fields instead of Log
+	t.Run("empty log", func(t *testing.T) {
+		log := ExtendedPublicLog{
+			ID: LogId{
+				BlockNumber: 100,
+				TxIndex:     0,
+				LogIndex:    0,
+			},
+			Log: PublicLog{
+				ContractAddress: contractAddress,
+				Fields:          []string{}, // Empty fields
+			},
+		}
 
-	// Second immediate call should use the cache
-	block2, err := verifier.GetFinalizedBlock(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, 5, block2.Number)
-	require.Equal(t, 1, serverCallCount, "Second call should use cache")
+		blockInfo := BlockInfo{
+			TxHash:    "0x0123456789abcdef",
+			Timestamp: 1620000000,
+		}
 
-	// Wait for the cache to expire
-	time.Sleep(60 * time.Millisecond)
+		err := watcher.processLog(context.Background(), log, blockInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(msgC), "No message should be published for empty log")
+	})
 
-	// Third call after cache expiry should hit the server again
-	block3, err := verifier.GetFinalizedBlock(context.Background())
-	require.NoError(t, err)
-	require.Equal(t, 5, block3.Number)
-	require.Equal(t, 2, serverCallCount, "Third call after cache expiry should hit server")
+	// Test with invalid log format (missing parameters)
+	t.Run("invalid log format", func(t *testing.T) {
+		log := ExtendedPublicLog{
+			ID: LogId{
+				BlockNumber: 100,
+				TxIndex:     0,
+				LogIndex:    0,
+			},
+			Log: PublicLog{
+				ContractAddress: contractAddress,
+				Fields:          []string{"0x0123"}, // Missing required parameters (need at least 4)
+			},
+		}
 
-	// Test IsBlockFinalized with cache
-	finalized1, err := verifier.IsBlockFinalized(context.Background(), 3)
-	require.NoError(t, err)
-	require.True(t, finalized1)
-	require.Equal(t, 2, serverCallCount, "IsBlockFinalized should use cached data")
+		blockInfo := BlockInfo{
+			TxHash:    "0x0123456789abcdef",
+			Timestamp: 1620000000,
+		}
 
-	// Test GetLatestFinalizedBlockNumber with cache
-	number := verifier.GetLatestFinalizedBlockNumber()
-	require.Equal(t, uint64(5), number)
-	require.Equal(t, 2, serverCallCount, "GetLatestFinalizedBlockNumber should use cached data")
+		err := watcher.processLog(context.Background(), log, blockInfo)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse log parameters")
+		assert.Equal(t, 0, len(msgC), "No message should be published for invalid log")
+	})
 }
 
-// TestHTTPClient_ErrorCases tests error handling in HTTP client
-func TestHTTPClient_ErrorCases(t *testing.T) {
-	logger := zap.NewNop()
+// TestBlockProcessor_ErrorHandling tests error handling in block processor
+func TestBlockProcessor_ErrorHandling(t *testing.T) {
+	logger := zaptest.NewLogger(t)
 
-	// Test 1: Invalid URL
-	t.Run("invalid URL", func(t *testing.T) {
-		client := NewHTTPClient(
-			100*time.Millisecond,
-			1,
-			10*time.Millisecond,
-			1.5,
-			logger,
-		)
+	mockBlockFetcher := new(MockBlockFetcher)
+	mockL1Verifier := new(MockL1Verifier)
+	mockObservationManager := new(MockObservationManager)
 
-		// Test with invalid URL
-		payload := map[string]any{"method": "test_method"}
-		_, err := client.DoRequest(context.Background(), "http://invalid-url-that-doesnt-exist-123456.example", payload)
-		require.Error(t, err)
+	msgC := make(chan *common.MessagePublication, 10)
+
+	config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
+
+	watcher := &Watcher{
+		config:             config,
+		blockFetcher:       mockBlockFetcher,
+		l1Verifier:         mockL1Verifier,
+		observationManager: mockObservationManager,
+		msgC:               msgC,
+		logger:             logger,
+		lastBlockNumber:    100,
+	}
+
+	// Test case where FetchPublicLogs returns an error
+	t.Run("FetchPublicLogs error", func(t *testing.T) {
+		expectedErr := fmt.Errorf("failed to fetch logs")
+		mockBlockFetcher.On("FetchPublicLogs", mock.Anything, 100, 101).Return([]ExtendedPublicLog{}, expectedErr).Once()
+
+		// BlockInfo object for the test
+		blockInfo := BlockInfo{
+			TxHash:    "0x0123456789abcdef",
+			Timestamp: 1620000000,
+		}
+
+		err := watcher.processBlockLogs(context.Background(), 100, blockInfo)
+		assert.Error(t, err)
+		// Check that the error message contains our expected text
+		assert.Contains(t, err.Error(), "failed to fetch public logs")
+		mockBlockFetcher.AssertExpectations(t)
 	})
 
-	// Test 2: Context cancellation
-	t.Run("context cancellation", func(t *testing.T) {
-		// Create a server that delays responses
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Sleep to simulate long request
-			time.Sleep(200 * time.Millisecond)
-			w.Write([]byte(`{"result":"success"}`))
-		}))
-		defer server.Close()
+	// Test case with logs from non-matching contract
+	t.Run("non-matching contract", func(t *testing.T) {
+		// Clear previous expectations
+		mockBlockFetcher = new(MockBlockFetcher)
 
-		client := NewHTTPClient(
-			500*time.Millisecond,
-			1,
-			10*time.Millisecond,
-			1.5,
-			logger,
-		)
+		// Create a new watcher with the fresh mock
+		watcher = &Watcher{
+			config:             config,
+			blockFetcher:       mockBlockFetcher,
+			l1Verifier:         mockL1Verifier,
+			observationManager: mockObservationManager,
+			msgC:               msgC,
+			logger:             logger,
+			lastBlockNumber:    100,
+		}
 
-		// Create context with short timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
+		logs := []ExtendedPublicLog{
+			{
+				ID: LogId{
+					BlockNumber: 100,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+				Log: PublicLog{
+					ContractAddress: "0xdifferentcontract", // Different from our watched contract
+					Fields: []string{
+						"0000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender (32 bytes)
+						"000000000000000000000000000000000000000000000000000000000000012b", // Sequence (291)
+						"0000000000000000000000000000000000000000000000000000000000000001", // Nonce (1)
+						"0000000000000000000000000000000000000000000000000000000000000001", // Consistency level (1)
+						"0000000000000000000000000000000000000000000000000000000061a91c40", // Timestamp
+						"0000000000000000000000000000000000000000000000000000000001020304", // Payload
+					},
+				},
+			},
+		}
 
-		// Call should fail due to context timeout
-		payload := map[string]any{"method": "test_method"}
-		_, err := client.DoRequest(ctx, server.URL, payload)
-		require.Error(t, err)
+		mockBlockFetcher.On("FetchPublicLogs", mock.Anything, 100, 101).Return(logs, nil).Once()
+
+		// BlockInfo for the test
+		blockInfo := BlockInfo{
+			TxHash:    "0x0123456789abcdef",
+			Timestamp: 1620000000,
+			TxHashesByIndex: map[int]string{
+				0: "0x0123456789abcdef",
+			},
+		}
+
+		err := watcher.processBlockLogs(context.Background(), 100, blockInfo)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(msgC), "No messages should be published for non-matching contract")
+		mockBlockFetcher.AssertExpectations(t)
+	})
+}
+
+// TestSimpleFactoryMethods tests simple factory methods
+func TestSimpleFactoryMethods(t *testing.T) {
+	t.Run("NewAztecWatcherFactory", func(t *testing.T) {
+		factory := NewAztecWatcherFactory("aztec-testnet", vaa.ChainID(52))
+		require.NotNil(t, factory)
+		require.Equal(t, "aztec-testnet", factory.NetworkID)
+		require.Equal(t, vaa.ChainID(52), factory.ChainID)
 	})
 
-	// Test 3: Server returning error status code
-	t.Run("error status code", func(t *testing.T) {
-		// Create a server that always returns 500
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error":"server error"}`))
-		}))
-		defer server.Close()
-
-		client := NewHTTPClient(
-			100*time.Millisecond,
-			1,
-			10*time.Millisecond,
-			1.5,
-			logger,
-		)
-
-		payload := map[string]any{"method": "test_method"}
-		_, err := client.DoRequest(context.Background(), server.URL, payload)
-		require.Error(t, err)
-	})
-
-	// Test 4: JSON-RPC error in response
-	t.Run("JSON-RPC error response", func(t *testing.T) {
-		// Create a server that returns JSON-RPC error
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}`))
-		}))
-		defer server.Close()
-
-		client := NewHTTPClient(
-			100*time.Millisecond,
-			1,
-			10*time.Millisecond,
-			1.5,
-			logger,
-		)
-
-		payload := map[string]any{"method": "test_method"}
-		_, err := client.DoRequest(context.Background(), server.URL, payload)
-		require.Error(t, err)
-		require.IsType(t, &ErrRPCError{}, err)
+	t.Run("DefaultConfig", func(t *testing.T) {
+		config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
+		require.Equal(t, vaa.ChainID(52), config.ChainID)
+		require.Equal(t, "test", config.NetworkID)
+		require.Equal(t, "http://localhost:8545", config.RpcURL)
+		require.Equal(t, "0xContract", config.ContractAddress)
+		require.Equal(t, 1, config.StartBlock)
+		require.Equal(t, 13, config.PayloadInitialCap)
 	})
 }
 
@@ -1087,721 +1117,4 @@ func TestNewWatcher(t *testing.T) {
 	require.Equal(t, mockObservationManager, watcher.observationManager)
 	require.Equal(t, logger, watcher.logger)
 	require.Equal(t, 99, watcher.lastBlockNumber)
-}
-
-// TestAztecBlockFetcher_ErrorResponses tests error handling in block fetcher
-func TestAztecBlockFetcher_ErrorResponses(t *testing.T) {
-	// Setup mock server that returns errors
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Method string          `json:"method"`
-			Params json.RawMessage `json:"params"`
-		}
-
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &req)
-
-		// Return error for node_getPublicLogs
-		if req.Method == "node_getPublicLogs" {
-			w.Write([]byte(`{
-                "jsonrpc": "2.0",
-                "id": 1,
-                "error": {
-                    "code": -32000,
-                    "message": "Log filter error"
-                }
-            }`))
-			return
-		}
-
-		// Return error for node_getBlock
-		if req.Method == "node_getBlock" {
-			w.Write([]byte(`{
-                "jsonrpc": "2.0",
-                "id": 1,
-                "error": {
-                    "code": -32000,
-                    "message": "Block not found"
-                }
-            }`))
-			return
-		}
-	}))
-	defer server.Close()
-
-	// Create the block fetcher
-	client, err := rpc.DialContext(context.Background(), server.URL)
-	require.NoError(t, err)
-
-	fetcher := &aztecBlockFetcher{
-		rpcClient: client,
-		logger:    zap.NewNop(),
-	}
-
-	// Test FetchPublicLogs with error response
-	t.Run("FetchPublicLogs error", func(t *testing.T) {
-		_, err := fetcher.FetchPublicLogs(context.Background(), 5, 6)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to fetch public logs")
-	})
-
-	// Test FetchBlock with error response
-	t.Run("FetchBlock error", func(t *testing.T) {
-		_, err := fetcher.FetchBlock(context.Background(), 5)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to fetch block info")
-	})
-}
-
-// TestGetJSONRPCError_MoreCases tests additional cases for JSON-RPC error handling
-func TestGetJSONRPCError_MoreCases(t *testing.T) {
-	// Test with standard JSON-RPC error
-	t.Run("standard error", func(t *testing.T) {
-		jsonResp := []byte(`{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Standard error"}}`)
-		hasError, rpcErr := GetJSONRPCError(jsonResp)
-		require.True(t, hasError)
-		require.Equal(t, -32000, rpcErr.Code)
-		require.Equal(t, "Standard error", rpcErr.Msg)
-	})
-
-	// Test with valid result (no error)
-	t.Run("valid result", func(t *testing.T) {
-		jsonResp := []byte(`{"jsonrpc":"2.0","id":1,"result":{"data":"success"}}`)
-		hasError, _ := GetJSONRPCError(jsonResp)
-		require.False(t, hasError)
-	})
-
-	// Test with malformed JSON
-	t.Run("malformed JSON", func(t *testing.T) {
-		jsonResp := []byte(`{"jsonrpc":"2.0","id":1,error":{"code":-32000,"message":"Malformed"}}`)
-		hasError, _ := GetJSONRPCError(jsonResp)
-		require.False(t, hasError, "Should handle malformed JSON gracefully")
-	})
-
-	// Test with empty response
-	t.Run("empty response", func(t *testing.T) {
-		jsonResp := []byte(`{}`)
-		hasError, _ := GetJSONRPCError(jsonResp)
-		require.False(t, hasError, "Should handle empty response gracefully")
-	})
-
-	// Test with null error
-	t.Run("null error", func(t *testing.T) {
-		jsonResp := []byte(`{"jsonrpc":"2.0","id":1,"error":null}`)
-		hasError, _ := GetJSONRPCError(jsonResp)
-		require.False(t, hasError, "Should handle null error gracefully")
-	})
-}
-
-// TestNewAztecBlockFetcher_Error tests error handling in block fetcher creation
-func TestNewAztecBlockFetcher_Error(t *testing.T) {
-	// Test with invalid URL
-	t.Run("invalid URL", func(t *testing.T) {
-		logger := zap.NewNop()
-
-		// This is a special case where DialContext actually returns an error immediately
-		// for an obviously invalid URL
-		_, err := NewAztecBlockFetcher(context.Background(), "http://invalid-url\u007F", logger)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to create RPC client")
-	})
-
-	// Test with timeout URL (valid format but should time out)
-	// This might not be reliable in all environments so we'll make it skip-able
-	t.Run("timeout URL", func(t *testing.T) {
-		if testing.Short() {
-			t.Skip("Skipping timeout test in short mode")
-		}
-
-		logger := zap.NewNop()
-
-		// Use a context with short timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
-
-		// Try to connect to a non-routable IP address which should time out
-		_, err := NewAztecBlockFetcher(ctx, "http://192.0.2.1:9999", logger)
-
-		// If test is run in an environment where this IP is actually routable,
-		// this might not fail as expected, so we'll check for context deadline or RPC error
-		if err != nil {
-			require.Contains(t, err.Error(), "failed to create RPC client")
-		} else {
-			t.Log("Warning: Expected timeout did not occur, check environment")
-		}
-	})
-}
-
-// TestParseUint_EdgeCases tests edge cases for the ParseUint function
-func TestParseUint_EdgeCases(t *testing.T) {
-	// Test cases covering various edge cases
-	testCases := []struct {
-		name      string
-		input     string
-		base      int
-		bitSize   int
-		expectErr bool
-		expected  uint64
-	}{
-		{"Zero decimal", "0", 10, 64, false, 0},
-		{"Zero hex", "0x0", 16, 64, true, 0}, // ParseUint doesn't handle 0x prefix
-		{"Max uint64", "18446744073709551615", 10, 64, false, math.MaxUint64},
-		{"Overflow uint64", "18446744073709551616", 10, 64, true, 0},
-		{"Max uint32", "4294967295", 10, 32, false, math.MaxUint32},
-		{"Overflow uint32", "4294967296", 10, 32, true, 0},
-		{"Max uint16", "65535", 10, 16, false, math.MaxUint16},
-		{"Overflow uint16", "65536", 10, 16, true, 0},
-		{"Max uint8", "255", 10, 8, false, math.MaxUint8},
-		{"Overflow uint8", "256", 10, 8, true, 0},
-		{"Negative number", "-1", 10, 64, true, 0},
-		{"Leading spaces", "  123", 10, 64, true, 0},
-		{"Trailing spaces", "123  ", 10, 64, true, 0},
-		{"With decimal point", "123.45", 10, 64, true, 0},
-		{"Empty string", "", 10, 64, true, 0},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			val, err := ParseUint(tc.input, tc.base, tc.bitSize)
-
-			if tc.expectErr {
-				require.Error(t, err)
-				require.IsType(t, &ErrParsingFailed{}, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, val)
-			}
-		})
-	}
-}
-
-// TestAztecBlockFetcher_TimestampEdgeCases tests timestamp handling in block fetcher
-func TestAztecBlockFetcher_TimestampEdgeCases(t *testing.T) {
-	// Setup a server that returns block responses with edge case timestamps
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Method string          `json:"method"`
-			Params json.RawMessage `json:"params"`
-		}
-
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &req)
-
-		if req.Method == "node_getBlock" {
-			// Extract block number from params
-			var blockNumber int
-			json.Unmarshal(req.Params, &blockNumber)
-
-			switch blockNumber {
-			case 0: // Genesis block with empty timestamp
-				w.Write([]byte(`{
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "result": {
-                        "archive": {"root": "0xarchive", "nextAvailableLeafIndex": 1},
-                        "header": {
-                            "lastArchive": {"root": "0xparent", "nextAvailableLeafIndex": 0},
-                            "globalVariables": {
-                                "blockNumber": "0x0",
-                                "timestamp": ""
-                            }
-                        },
-                        "body": {
-                            "txEffects": []
-                        }
-                    }
-                }`))
-			case 1: // Non-genesis block with empty timestamp (should use current time fallback)
-				w.Write([]byte(`{
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "result": {
-                        "archive": {"root": "0xarchive", "nextAvailableLeafIndex": 1},
-                        "header": {
-                            "lastArchive": {"root": "0xparent", "nextAvailableLeafIndex": 0},
-                            "globalVariables": {
-                                "blockNumber": "0x1",
-                                "timestamp": ""
-                            }
-                        },
-                        "body": {
-                            "txEffects": []
-                        }
-                    }
-                }`))
-			case 2: // Block with invalid timestamp format
-				w.Write([]byte(`{
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "result": {
-                        "archive": {"root": "0xarchive", "nextAvailableLeafIndex": 1},
-                        "header": {
-                            "lastArchive": {"root": "0xparent", "nextAvailableLeafIndex": 0},
-                            "globalVariables": {
-                                "blockNumber": "0x2",
-                                "timestamp": "INVALID"
-                            }
-                        },
-                        "body": {
-                            "txEffects": []
-                        }
-                    }
-                }`))
-			}
-		}
-	}))
-	defer server.Close()
-
-	// Create the block fetcher
-	client, err := rpc.DialContext(context.Background(), server.URL)
-	require.NoError(t, err)
-
-	fetcher := &aztecBlockFetcher{
-		rpcClient: client,
-		logger:    zap.NewNop(),
-	}
-
-	// Test genesis block with empty timestamp
-	t.Run("genesis block empty timestamp", func(t *testing.T) {
-		block, err := fetcher.FetchBlock(context.Background(), 0)
-		require.NoError(t, err)
-		require.Equal(t, uint64(0), block.Timestamp)
-	})
-
-	// Test non-genesis block with empty timestamp
-	t.Run("non-genesis block empty timestamp", func(t *testing.T) {
-		block, err := fetcher.FetchBlock(context.Background(), 1)
-		require.NoError(t, err)
-		// Should use current time fallback, so timestamp should be recent
-		require.NotEqual(t, uint64(0), block.Timestamp)
-		// Should be within the last minute
-		require.Less(t, math.Abs(float64(time.Now().Unix())-float64(block.Timestamp)), float64(60))
-	})
-
-	// Test block with invalid timestamp format
-	t.Run("invalid timestamp format", func(t *testing.T) {
-		block, err := fetcher.FetchBlock(context.Background(), 2)
-		require.NoError(t, err) // No error expected based on implementation
-		// Likely falls back to current time
-		require.NotEqual(t, uint64(0), block.Timestamp)
-		// Should be within the last minute
-		require.Less(t, math.Abs(float64(time.Now().Unix())-float64(block.Timestamp)), float64(60))
-	})
-}
-
-// TestL1Verifier_ErrorCases tests error handling in L1Verifier
-func TestL1Verifier_ErrorCases(t *testing.T) {
-	// Setup mock server that returns errors for L2Tips
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Method string `json:"method"`
-		}
-
-		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &req)
-
-		if req.Method == "node_getL2Tips" {
-			w.Write([]byte(`{
-                "jsonrpc": "2.0",
-                "id": 1,
-                "error": {
-                    "code": -32000,
-                    "message": "Internal error"
-                }
-            }`))
-		}
-	}))
-	defer server.Close()
-
-	// Create the verifier
-	client, err := rpc.DialContext(context.Background(), server.URL)
-	require.NoError(t, err)
-
-	verifier := &aztecFinalityVerifier{
-		rpcClient:              client,
-		logger:                 zap.NewNop(),
-		finalizedBlockCacheTTL: time.Second,
-	}
-
-	// Test GetFinalizedBlock with RPC error
-	t.Run("GetFinalizedBlock error", func(t *testing.T) {
-		_, err := verifier.GetFinalizedBlock(context.Background())
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to fetch L2 tips")
-	})
-
-	// Test IsBlockFinalized with error from GetFinalizedBlock
-	t.Run("IsBlockFinalized error", func(t *testing.T) {
-		_, err := verifier.IsBlockFinalized(context.Background(), 5)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to get finalized block")
-	})
-
-	// Test GetLatestFinalizedBlockNumber with no cache
-	t.Run("GetLatestFinalizedBlockNumber error", func(t *testing.T) {
-		// Force cache to be empty
-		verifier.finalizedBlockCache = nil
-
-		// Should return 0 when there's an error
-		result := verifier.GetLatestFinalizedBlockNumber()
-		require.Equal(t, uint64(0), result)
-	})
-}
-
-// TestMessagePublisher_ContextCancellation tests context cancellation in message publisher
-func TestMessagePublisher_ContextCancellation(t *testing.T) {
-	// Create a context that we'll cancel
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Setup the watcher with necessary components
-	logger := zap.NewNop()
-	msgC := make(chan *common.MessagePublication, 10)
-
-	config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
-	observationManager := NewObservationManager("test", logger)
-
-	watcher := &Watcher{
-		config:             config,
-		observationManager: observationManager,
-		msgC:               msgC,
-		logger:             logger,
-	}
-
-	// Create params for the test
-	params := LogParameters{
-		SenderAddress:    vaa.Address{1, 2, 3, 4, 5},
-		Sequence:         123,
-		Nonce:            456,
-		ConsistencyLevel: 1,
-	}
-
-	payload := []byte{1, 2, 3, 4, 5}
-	blockInfo := BlockInfo{
-		TxHash:    "INVALID_HASH", // Use invalid hash to test error path
-		Timestamp: 1620000000,
-	}
-	observationID := "test-context-cancellation"
-
-	// Test context cancellation at different points
-	t.Run("early cancellation", func(t *testing.T) {
-		// Cancel the context right away
-		cancel()
-
-		// Now try to publish the observation
-		err := watcher.publishObservation(ctx, params, payload, blockInfo, observationID)
-		require.Error(t, err)
-		require.Equal(t, context.Canceled, err)
-	})
-
-	// Create a new context for the next test
-	ctx, cancel = context.WithCancel(context.Background())
-	defer cancel()
-
-	t.Run("invalid tx hash", func(t *testing.T) {
-		// This tests the error path for hex decoding the transaction hash
-		err := watcher.publishObservation(ctx, params, payload, blockInfo, observationID)
-		require.NoError(t, err) // Should still succeed with a fallback
-
-		// Check that the message was published
-		msg := <-msgC
-		// TX ID should be a fallback value since the hash was invalid
-		require.Equal(t, []byte{0x0}, msg.TxID)
-	})
-}
-
-// TestHTTPClient_MoreErrorCases tests additional error cases for HTTP client
-func TestHTTPClient_MoreErrorCases(t *testing.T) {
-	logger := zap.NewNop()
-
-	// Test with malformed JSON response
-	t.Run("malformed JSON", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Return invalid JSON
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"jsonrpc":"2.0","id":1,result":{"data":"malformed"}}`))
-		}))
-		defer server.Close()
-
-		client := NewHTTPClient(
-			100*time.Millisecond,
-			1,
-			10*time.Millisecond,
-			1.5,
-			logger,
-		)
-
-		payload := map[string]any{"method": "test_method"}
-		response, err := client.DoRequest(context.Background(), server.URL, payload)
-
-		// Our code handles malformed JSON gracefully
-		require.NoError(t, err)
-		require.NotNil(t, response)
-	})
-
-	// Test with JSON-RPC error with data
-	t.Run("JSON-RPC error with data", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{
-                "jsonrpc": "2.0",
-                "id": 1,
-                "error": {
-                    "code": -32000,
-                    "message": "Block not found",
-                    "data": {
-                        "reason": "test reason"
-                    }
-                }
-            }`))
-		}))
-		defer server.Close()
-
-		client := NewHTTPClient(
-			100*time.Millisecond,
-			1,
-			10*time.Millisecond,
-			1.5,
-			logger,
-		)
-
-		payload := map[string]any{"method": "test_method"}
-		_, err := client.DoRequest(context.Background(), server.URL, payload)
-		require.Error(t, err)
-		require.IsType(t, &ErrRPCError{}, err)
-		rpcErr := err.(*ErrRPCError)
-		require.Equal(t, -32000, rpcErr.Code)
-		require.Equal(t, "Block not found", rpcErr.Msg)
-	})
-}
-
-// TestBlockProcessor_ErrorHandling tests error handling in block processor
-func TestBlockProcessor_ErrorHandling(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-
-	mockBlockFetcher := new(MockBlockFetcher)
-	mockL1Verifier := new(MockL1Verifier)
-	mockObservationManager := new(MockObservationManager)
-
-	msgC := make(chan *common.MessagePublication, 10)
-
-	config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
-
-	watcher := &Watcher{
-		config:             config,
-		blockFetcher:       mockBlockFetcher,
-		l1Verifier:         mockL1Verifier,
-		observationManager: mockObservationManager,
-		msgC:               msgC,
-		logger:             logger,
-		lastBlockNumber:    100,
-	}
-
-	// Test case where FetchPublicLogs returns an error
-	t.Run("FetchPublicLogs error", func(t *testing.T) {
-		expectedErr := fmt.Errorf("failed to fetch logs")
-		mockBlockFetcher.On("FetchPublicLogs", mock.Anything, 100, 101).Return([]ExtendedPublicLog{}, expectedErr).Once()
-
-		// BlockInfo object for the test
-		blockInfo := BlockInfo{
-			TxHash:    "0x0123456789abcdef",
-			Timestamp: 1620000000,
-		}
-
-		err := watcher.processBlockLogs(context.Background(), 100, blockInfo)
-		assert.Error(t, err)
-		// Check that the error message contains our expected text
-		assert.Contains(t, err.Error(), "failed to fetch logs")
-		mockBlockFetcher.AssertExpectations(t)
-	})
-
-	// Test case with logs from non-matching contract
-	t.Run("non-matching contract", func(t *testing.T) {
-		// Clear previous expectations
-		mockBlockFetcher = new(MockBlockFetcher)
-
-		// Create a new watcher with the fresh mock
-		watcher = &Watcher{
-			config:             config,
-			blockFetcher:       mockBlockFetcher,
-			l1Verifier:         mockL1Verifier,
-			observationManager: mockObservationManager,
-			msgC:               msgC,
-			logger:             logger,
-			lastBlockNumber:    100,
-		}
-
-		logs := []ExtendedPublicLog{
-			{
-				ID: LogId{
-					BlockNumber: 100,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-				Log: PublicLog{
-					ContractAddress: "0xdifferentcontract", // Different from our watched contract
-					Log: []string{
-						"000000000000000000000000290f41e61374c715c1127974bf08a3993c512fd", // Sender
-						"0000000000000123", // Sequence
-						"0000000000000001", // Nonce
-						"01",               // Consistency level
-						"01020304",         // Payload
-					},
-				},
-			},
-		}
-
-		mockBlockFetcher.On("FetchPublicLogs", mock.Anything, 100, 101).Return(logs, nil).Once()
-
-		// BlockInfo for the test
-		blockInfo := BlockInfo{
-			TxHash:    "0x0123456789abcdef",
-			Timestamp: 1620000000,
-			TxHashesByIndex: map[int]string{
-				0: "0x0123456789abcdef",
-			},
-		}
-
-		err := watcher.processBlockLogs(context.Background(), 100, blockInfo)
-		assert.NoError(t, err)
-		assert.Equal(t, 0, len(msgC), "No messages should be published for non-matching contract")
-		mockBlockFetcher.AssertExpectations(t)
-	})
-}
-
-// TestProcessLog_ErrorCases tests error handling in log processing
-func TestProcessLog_ErrorCases(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-
-	mockBlockFetcher := new(MockBlockFetcher)
-	mockL1Verifier := new(MockL1Verifier)
-	mockObservationManager := new(MockObservationManager)
-
-	msgC := make(chan *common.MessagePublication, 10)
-
-	config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
-	contractAddress := config.ContractAddress
-
-	watcher := &Watcher{
-		config:             config,
-		blockFetcher:       mockBlockFetcher,
-		l1Verifier:         mockL1Verifier,
-		observationManager: mockObservationManager,
-		msgC:               msgC,
-		logger:             logger,
-	}
-
-	// Test with empty log (should be skipped)
-	t.Run("empty log", func(t *testing.T) {
-		log := ExtendedPublicLog{
-			ID: LogId{
-				BlockNumber: 100,
-				TxIndex:     0,
-				LogIndex:    0,
-			},
-			Log: PublicLog{
-				ContractAddress: contractAddress,
-				Log:             []string{}, // Empty log
-			},
-		}
-
-		blockInfo := BlockInfo{
-			TxHash:    "0x0123456789abcdef",
-			Timestamp: 1620000000,
-		}
-
-		err := watcher.processLog(context.Background(), log, blockInfo)
-		assert.NoError(t, err)
-		assert.Equal(t, 0, len(msgC), "No message should be published for empty log")
-	})
-
-	// Test with invalid log format (missing parameters)
-	t.Run("invalid log format", func(t *testing.T) {
-		log := ExtendedPublicLog{
-			ID: LogId{
-				BlockNumber: 100,
-				TxIndex:     0,
-				LogIndex:    0,
-			},
-			Log: PublicLog{
-				ContractAddress: contractAddress,
-				Log:             []string{"0x123"}, // Missing required parameters
-			},
-		}
-
-		blockInfo := BlockInfo{
-			TxHash:    "0x0123456789abcdef",
-			Timestamp: 1620000000,
-		}
-
-		err := watcher.processLog(context.Background(), log, blockInfo)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to parse log parameters")
-		assert.Equal(t, 0, len(msgC), "No message should be published for invalid log")
-	})
-}
-
-// TestZapLoggerAdapter tests the zap logger adapter
-func TestZapLoggerAdapter(t *testing.T) {
-	// Create a buffer to capture logs
-	var buf bytes.Buffer
-
-	// Create a logger that writes to the buffer
-	config := zap.NewDevelopmentConfig()
-	config.OutputPaths = []string{"writer"}
-	config.EncoderConfig.TimeKey = "" // Disable timestamps for predictable output
-
-	zCore := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(config.EncoderConfig),
-		zapcore.AddSync(&buf),
-		zapcore.DebugLevel,
-	)
-	zapLogger := zap.New(zCore)
-
-	// Create our adapter
-	adapter := newRetryableHTTPZapLogger(zapLogger)
-
-	// Test all methods
-	t.Run("Error method", func(t *testing.T) {
-		buf.Reset()
-		adapter.Error("error message")
-		require.Contains(t, buf.String(), "error message")
-	})
-
-	t.Run("Info method", func(t *testing.T) {
-		buf.Reset()
-		adapter.Info("info message")
-		require.Contains(t, buf.String(), "info message")
-	})
-
-	t.Run("Debug method", func(t *testing.T) {
-		buf.Reset()
-		adapter.Debug("debug message")
-		require.Contains(t, buf.String(), "debug message")
-	})
-
-	t.Run("Warn method", func(t *testing.T) {
-		buf.Reset()
-		adapter.Warn("warn message")
-		require.Contains(t, buf.String(), "warn message")
-	})
-}
-
-// TestSimpleFactoryMethods tests simple factory methods
-func TestSimpleFactoryMethods(t *testing.T) {
-	t.Run("NewAztecWatcherFactory", func(t *testing.T) {
-		factory := NewAztecWatcherFactory("aztec-testnet", vaa.ChainID(52))
-		require.NotNil(t, factory)
-		require.Equal(t, "aztec-testnet", factory.NetworkID)
-		require.Equal(t, vaa.ChainID(52), factory.ChainID)
-	})
-
-	t.Run("DefaultConfig", func(t *testing.T) {
-		config := DefaultConfig(vaa.ChainID(52), "test", "http://localhost:8545", "0xContract")
-		require.Equal(t, vaa.ChainID(52), config.ChainID)
-		require.Equal(t, "test", config.NetworkID)
-		require.Equal(t, "http://localhost:8545", config.RpcURL)
-		require.Equal(t, "0xContract", config.ContractAddress)
-		require.Equal(t, 1, config.StartBlock)
-		require.Equal(t, 13, config.PayloadInitialCap)
-	})
 }

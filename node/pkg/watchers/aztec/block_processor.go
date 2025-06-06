@@ -72,7 +72,7 @@ func (w *Watcher) processBlockLogs(ctx context.Context, blockNumber int, blockIn
 	for _, log := range logs {
 		// Skip logs that don't match our contract address
 		if log.Log.ContractAddress != w.config.ContractAddress {
-			w.logger.Info("Skipping log from different contract",
+			w.logger.Debug("Skipping log from different contract",
 				zap.String("expected", w.config.ContractAddress),
 				zap.String("actual", log.Log.ContractAddress))
 			continue

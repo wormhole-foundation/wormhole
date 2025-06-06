@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: aztec-sandbox
-          image: aztecprotocol/aztec:0.85.0
+          image: aztecprotocol/aztec:0.87.2
           command: ["bash"]
           args:
             - -c
@@ -76,5 +76,3 @@ spec:
           readinessProbe:
             tcpSocket:
               port: node
----
-

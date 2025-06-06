@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 // Helper functions for common parsing tasks
@@ -21,21 +20,8 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 	return v, nil
 }
 
-// ParseHexUint64 converts a hex string to uint64
-func ParseHexUint64(hexStr string) (uint64, error) {
-	// Remove "0x" prefix if present
-	hexStr = strings.TrimPrefix(hexStr, "0x")
-
-	// Parse the hex string to uint64
-	value, err := strconv.ParseUint(hexStr, 16, 64)
-	if err != nil {
-		return 0, &ErrParsingFailed{
-			What: "hex uint64",
-			Err:  err,
-		}
-	}
-
-	return value, nil
+func (e *ErrParsingFailed) Unwrap() error {
+	return e.Err
 }
 
 // GetJSONRPCError extracts error information from a JSON-RPC response

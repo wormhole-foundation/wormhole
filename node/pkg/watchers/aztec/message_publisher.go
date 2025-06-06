@@ -3,6 +3,7 @@ package aztec
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"time"
 
@@ -19,6 +20,11 @@ func (w *Watcher) publishObservation(ctx context.Context, params LogParameters, 
 	default:
 		// Continue processing
 	}
+
+	// Log the extracted payload data
+	w.logger.Debug("Using extracted payload data",
+		zap.String("arbitrumAddress", fmt.Sprintf("0x%x", params.ArbitrumAddress)),
+		zap.Uint16("arbitrumChainID", params.ArbitrumChainID))
 
 	// Convert transaction hash to byte array for txID
 	txID, err := hex.DecodeString(strings.TrimPrefix(blockInfo.TxHash, "0x"))
@@ -59,7 +65,9 @@ func (w *Watcher) publishObservation(ctx context.Context, params LogParameters, 
 		zap.Time("timestamp", observation.Timestamp),
 		zap.Uint64("sequence", observation.Sequence),
 		zap.Stringer("emitter_chain", observation.EmitterChain),
-		zap.Stringer("emitter_address", observation.EmitterAddress))
+		zap.Stringer("emitter_address", observation.EmitterAddress),
+		zap.String("arbitrumAddress", fmt.Sprintf("0x%x", params.ArbitrumAddress)),
+		zap.Uint16("arbitrumChainID", params.ArbitrumChainID))
 
 	// Send to the message channel
 	select {

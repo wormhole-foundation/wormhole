@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -51,17 +52,17 @@ type Config struct {
 	vaaProcessor     func(*Relayer, *VAAData) error // Custom VAA processor function
 }
 
-// NewConfigFromEnv creates a Config from environment variables
+// NewConfigFr\omEnv creates a Config from environment variables
 func NewConfigFromEnv() Config {
 	return Config{
 		SpyRPCHost:       getEnvOrDefault("SPY_RPC_HOST", "localhost:7072"),
 		SourceChainID:    uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 52)),
-		DestChainID:      uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 10003)),
+		DestChainID:      uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 10004)),
 		DestRPCURL:       getEnvOrDefault("DEST_RPC_URL", "http://localhost:8545"),
 		PrivateKey:       getEnvOrDefault("PRIVATE_KEY", "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"),
 		WormholeContract: getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
-		TargetContract:   getEnvOrDefault("TARGET_CONTRACT", "0x94dFeceb91678ec912ef8f14c72721c102ed2Df7"),
-		EmitterAddress:   getEnvOrDefault("EMITTER_ADDRESS", "3078303064333539363131626333323265623562343433393936366530663763"),
+		TargetContract:   getEnvOrDefault("TARGET_CONTRACT", "0xb592244aa6477eBDDc14475aaeF921cdDcC0170f"),
+		EmitterAddress:   getEnvOrDefault("EMITTER_ADDRESS", "0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad"),
 	}
 }
 
@@ -72,6 +73,7 @@ type VAAData struct {
 	ChainID    uint16      // Source chain ID
 	EmitterHex string      // Hex-encoded emitter address
 	Sequence   uint64      // VAA sequence number
+	TxID       string      // Source transaction ID
 }
 
 // SpyClient handles connections to the Wormhole spy service
@@ -110,7 +112,7 @@ func (c *SpyClient) SubscribeSignedVAA(ctx context.Context) (spyv1.SpyRPCService
 	const maxRetries = 5
 	const retryDelay = 2 * time.Second
 
-	c.logger.Info("Subscribing to signed VAAs")
+	c.logger.Debug("Subscribing to signed VAAs")
 
 	var stream spyv1.SpyRPCService_SubscribeSignedVAAClient
 	var err error
@@ -187,12 +189,13 @@ func (c *EVMClient) GetAddress() common.Address {
 
 // sendVerifyTransaction sends a transaction to the verify function to process and store a VAA
 func (c *EVMClient) sendVerifyTransaction(ctx context.Context, targetContract string, vaaBytes []byte) (string, error) {
-	c.logger.Debug("Preparing transaction to verify VAA",
-		zap.Int("length", len(vaaBytes)))
+	c.logger.Debug("Sending verify transaction", zap.Int("vaaLength", len(vaaBytes)))
 
-	// ABI for the verify function
+	// Contract ABI for the verify function
 	const abiJSON = `[{
-        "inputs": [{"internalType": "bytes", "name": "encodedVm", "type": "bytes"}],
+        "inputs": [
+            {"internalType": "bytes", "name": "encodedVm", "type": "bytes"}
+        ],
         "name": "verify",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -251,7 +254,6 @@ func (c *EVMClient) sendVerifyTransaction(ctx context.Context, targetContract st
 		return "", fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	// Return the transaction hash
 	return signedTx.Hash().Hex(), nil
 }
 
@@ -336,7 +338,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 			// Wait for all processing goroutines to complete
 			r.logger.Info("Waiting for all VAA processing to complete")
 			wg.Wait()
-			r.logger.Info("All VAA processing completed, shutdown complete")
+			r.logger.Info("Shutdown complete")
 			return nil
 		default:
 			// Receive the next VAA
@@ -382,6 +384,16 @@ func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 		return
 	}
 
+	// Extract the txID from the payload (first 32 bytes)
+	txID := ""
+	if len(wormholeVAA.Payload) >= 32 {
+		txIDBytes := wormholeVAA.Payload[:32]
+		txID = fmt.Sprintf("0x%x", txIDBytes)
+		r.logger.Debug("Extracted txID from payload", zap.String("txID", txID))
+	} else {
+		r.logger.Debug("Payload too short to contain txID", zap.Int("payload_length", len(wormholeVAA.Payload)))
+	}
+
 	// Create VAA data with essential information
 	vaaData := &VAAData{
 		VAA:        wormholeVAA,
@@ -389,12 +401,14 @@ func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 		ChainID:    uint16(wormholeVAA.EmitterChain),
 		EmitterHex: fmt.Sprintf("%064x", wormholeVAA.EmitterAddress),
 		Sequence:   wormholeVAA.Sequence,
+		TxID:       txID,
 	}
 
 	r.logger.Info("Processing VAA",
 		zap.Uint16("chain", vaaData.ChainID),
 		zap.Uint64("sequence", vaaData.Sequence),
-		zap.String("emitter", vaaData.EmitterHex))
+		zap.String("emitter", vaaData.EmitterHex),
+		zap.String("sourceTxID", vaaData.TxID))
 
 	// Use the passed context when calling the processor
 	if err := r.vaaProcessor(r, vaaData); err != nil {
@@ -408,15 +422,30 @@ func defaultVAAProcessor(r *Relayer, vaaData *VAAData) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	// Log essential VAA information
+	r.logger.Info("VAA Details",
+		zap.Uint16("emitterChain", vaaData.ChainID),
+		zap.String("emitterAddress", vaaData.EmitterHex),
+		zap.Uint64("sequence", vaaData.Sequence),
+		zap.Time("timestamp", vaaData.VAA.Timestamp),
+		zap.Int("payloadLength", len(vaaData.VAA.Payload)),
+		zap.String("sourceTxID", vaaData.TxID))
+
+	// Extract and log key payload information at debug level
+	r.logger.Debug("VAA Payload", zap.String("payloadHex", fmt.Sprintf("%x", vaaData.VAA.Payload)))
+
+	// Parse payload structure at debug level
+	if len(vaaData.VAA.Payload) >= 32 {
+		r.parseAndLogPayload(vaaData.VAA.Payload)
+	}
+
 	// Check if this is a VAA from the source chain
 	if vaaData.ChainID == r.config.SourceChainID {
 		r.logger.Info("Processing VAA from source chain",
 			zap.Uint64("sequence", vaaData.Sequence),
-			zap.Uint16("sourceChain", vaaData.ChainID))
+			zap.String("sourceTxID", vaaData.TxID))
 
 		// Send the transaction to verify and store the VAA on-chain
-		r.logger.Info("Sending verify transaction",
-			zap.Uint64("sequence", vaaData.Sequence))
 		txHash, err := r.evmClient.sendVerifyTransaction(ctx, r.config.TargetContract, vaaData.RawBytes)
 		if err != nil {
 			// Check if the context was cancelled or timed out
@@ -427,13 +456,15 @@ func defaultVAAProcessor(r *Relayer, vaaData *VAAData) error {
 
 			r.logger.Error("Failed to send verify transaction",
 				zap.Uint64("sequence", vaaData.Sequence),
+				zap.String("sourceTxID", vaaData.TxID),
 				zap.Error(err))
 			return fmt.Errorf("transaction failed: %v", err)
 		}
 
-		r.logger.Info("Successfully sent verify transaction",
+		r.logger.Info("VAA verification completed",
 			zap.Uint64("sequence", vaaData.Sequence),
-			zap.String("txHash", txHash))
+			zap.String("txHash", txHash),
+			zap.String("sourceTxID", vaaData.TxID))
 
 		return nil
 	}
@@ -446,11 +477,55 @@ func defaultVAAProcessor(r *Relayer, vaaData *VAAData) error {
 		return nil
 	}
 
-	// If neither source nor destination match our criteria, skip this VAA
+	// Skip VAAs not configured for processing
 	r.logger.Debug("Skipping VAA (not configured for processing)",
 		zap.Uint64("sequence", vaaData.Sequence),
 		zap.Uint16("chain", vaaData.ChainID))
 	return nil
+}
+
+// parseAndLogPayload parses and logs payload structure at debug level
+func (r *Relayer) parseAndLogPayload(payload []byte) {
+	const txIDOffset = 32
+	const arraySize = 31
+
+	// Log the transaction ID from the first 32 bytes
+	if len(payload) >= 32 {
+		txIDBytes := payload[:32]
+		r.logger.Debug("Source Transaction ID", zap.String("txID", fmt.Sprintf("0x%x", txIDBytes)))
+	}
+
+	// Parse payload arrays (skip the txID)
+	for i := txIDOffset; i < len(payload); i += arraySize {
+		end := i + arraySize
+		if end > len(payload) {
+			end = len(payload)
+		}
+
+		arrayIndex := (i - txIDOffset) / arraySize
+		r.logger.Debug(fmt.Sprintf("Payload array %d", arrayIndex),
+			zap.String("hex", fmt.Sprintf("0x%x", payload[i:end])))
+
+		// Parse specific fields at debug level
+		switch arrayIndex {
+		case 0:
+			if i+20 <= end {
+				r.logger.Debug("Arbitrum address", zap.String("address", fmt.Sprintf("0x%x", payload[i:i+20])))
+			}
+		case 1:
+			if i+2 <= end {
+				chainIDLower := uint16(payload[i])
+				chainIDUpper := uint16(payload[i+1])
+				chainID := (chainIDUpper << 8) | chainIDLower
+				r.logger.Debug("Arbitrum chain ID", zap.Uint16("chainID", chainID))
+			}
+		case 2:
+			if i < end {
+				amount := uint64(payload[i])
+				r.logger.Debug("Amount", zap.Uint64("amount", amount))
+			}
+		}
+	}
 }
 
 // Environment variable helpers
@@ -467,8 +542,8 @@ func getEnvIntOrDefault(key string, defaultValue int) int {
 	if !exists {
 		return defaultValue
 	}
-	var result int
-	_, err := fmt.Sscanf(val, "%d", &result)
+
+	result, err := strconv.Atoi(val)
 	if err != nil {
 		logger.Warn("Invalid environment variable value, using default",
 			zap.String("key", key),

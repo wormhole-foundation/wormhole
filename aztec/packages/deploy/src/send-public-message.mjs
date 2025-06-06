@@ -1,8 +1,9 @@
 // src/send-message.mjs
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { Contract, createPXEClient, loadContractArtifact, waitForPXE } from '@aztec/aztec.js';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import WormholeJson from "../../../contracts/target/wormhole_contracts-Wormhole.json" assert { type: "json" };
+import { TokenContract } from '@aztec/noir-contracts.js/Token'; 
 
 const WormholeJsonContractArtifact = loadContractArtifact(WormholeJson);
 
@@ -23,19 +24,22 @@ async function main() {
     process.exit(1);
   }
   
-  if (!addresses.wormhole) {
-    console.error("Wormhole contract address not found in addresses.json");
+  if (!addresses.wormhole ||  !addresses.token) {
+    console.error("Wormhole or token contract address not found in addresses.json");
     process.exit(1);
   }
 
   console.log("Addresses from addresses.json:", addresses);
 
-  const [ownerWallet] = await getInitialTestAccountsWallets(pxe);
+  const [ownerWallet, receiverWallet] = await getInitialTestAccountsWallets(pxe);
 
   // Connect to the already deployed contract
   const contract = await Contract.at(addresses.wormhole, WormholeJsonContractArtifact, ownerWallet);
   console.log(`Connected to Wormhole contract at ${addresses.wormhole}`);
-
+  
+  const token = await TokenContract.at(addresses.token, ownerWallet);
+  console.log(`Connected to Token contract at ${addresses.token}`);
+  
   // The message to send
   let message = "Hello World";
 
@@ -62,24 +66,69 @@ async function main() {
   
   // Send the message with nonce 100 and consistency level 2
   console.log("Sending transaction...");
-  const tx = await contract.methods.publish_message(100, payloads, 1,2).send();
+
+  const msg_fee = 3n;
+  // get nonce and increment it
+  const nonce_file_data = JSON.parse(readFileSync('nonce.json', 'utf8'));
+
+  // Safe BigInt handling
+  const current_nonce = nonce_file_data.token_nonce
+    ? BigInt(nonce_file_data.token_nonce)
+    : 0n;
+
+  const token_nonce = current_nonce + 1n;
+
+  const new_nonce_data = { token_nonce: token_nonce.toString() };
+  
+  writeFileSync('nonce.json', JSON.stringify(new_nonce_data, null, 2));  
+  console.log(`Using token nonce: ${token_nonce}`);
+
+  console.log(`Publishing message in public...`);
+
+  // action to be taken using authwit
+  const tokenTransferAction = token.methods.transfer_in_public(
+    ownerWallet.getAddress(),
+    receiverWallet.getAddress(),
+    msg_fee,
+    token_nonce
+  );  
+  // generate authwit to allow for wormhole to send funds to itself on behalf of owner
+  const validateActionInteraction = await ownerWallet.setPublicAuthWit(
+    {
+      caller: contract.address,
+      action: tokenTransferAction
+    },
+    true
+  );
+
+  await validateActionInteraction.send().wait();
+
+  console.log(`Generated public authwit`);
+  
+  const tx = contract.methods.publish_message_in_public(token_nonce, payloads, msg_fee,2, ownerWallet.getAddress(), token_nonce).send();
   
   // Wait for the transaction to be mined
   const receipt = await tx.wait();
   console.log(`Transaction sent! Hash: ${receipt.txHash}`);
   
-  // Get the block number to query logs
-  const blockNumber = await pxe.getBlockNumber();
-  
-  // Query logs for the transaction
-  const logFilter = {
-    fromBlock: blockNumber - 1,
-    toBlock: blockNumber,
-    contractAddress: addresses.token // Filter logs for our contract
+  const sampleLogFilter = {
+    fromBlock: 0,
+    toBlock: 190,
+    contractAddress: '0x081a143b80470311c64f8fd1b67a074e2aa312bf5e22e6ebe0b17c5b3b44470b'
   };
-  
+
+  const logs = await pxe.getPublicLogs(sampleLogFilter);
+
+  console.log(logs.logs[0]);
+
+  const fromBlock = await pxe.getBlockNumber();
+  const logFilter = {
+    fromBlock,
+    toBlock: fromBlock + 1,
+  };
   const publicLogs = (await pxe.getPublicLogs(logFilter)).logs;
-  console.log("Transaction logs:", publicLogs);
+
+  console.log(publicLogs);
 }
 
 main().catch((err) => {

@@ -114,8 +114,8 @@ func (v *aztecFinalityVerifier) GetFinalizedBlock(ctx context.Context) (*Finaliz
 
 	// Create finalized block info
 	block := &FinalizedBlock{
-		Number: l2Tips.Finalized.Number,
-		Hash:   l2Tips.Finalized.Hash,
+		Number: l2Tips.Proven.Number,
+		Hash:   l2Tips.Proven.Hash,
 	}
 
 	// Update the cache
