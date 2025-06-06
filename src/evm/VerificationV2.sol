@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {eagerAnd} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
@@ -21,11 +23,11 @@ uint8 constant OP_REGISTER_GUARDIAN = 0x02;
 // Raw dispatch operation IDs for get
 uint8 constant OP_VERIFY_AND_DECODE_VAA = 0x20;
 uint8 constant OP_VERIFY_VAA = 0x21;
-uint8 constant OP_THRESHOLD_GET_CURRENT = 0x22;
-uint8 constant OP_THRESHOLD_GET = 0x23;
-uint8 constant OP_GUARDIAN_SET_GET_CURRENT = 0x24;
-uint8 constant OP_GUARDIAN_SET_GET = 0x25;
-uint8 constant OP_GUARDIAN_SHARDS_GET = 0x26;
+uint8 constant OP_GET_THRESHOLD_CURRENT = 0x22;
+uint8 constant OP_GET_THRESHOLD = 0x23;
+uint8 constant OP_GET_GUARDIAN_SET_CURRENT = 0x24;
+uint8 constant OP_GET_GUARDIAN_SET = 0x25;
+uint8 constant OP_GET_SHARDS = 0x26;
 
 // Emitter address for the VerificationV2 contract
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
@@ -196,15 +198,14 @@ contract VerificationV2 is
 
         result = abi.encodePacked(
           result,
-          abi.encode(
-            timestamp,
-            nonce,
-            emitterChainId,
-            emitterAddress,
-            sequence,
-            consistencyLevel,
-            payload
-          )
+          timestamp,
+          nonce,
+          emitterChainId,
+          emitterAddress,
+          sequence,
+          consistencyLevel,
+          uint16(payload.length),
+          payload
         );
       } else if (op == OP_VERIFY_VAA) {
         // Read the VAA
@@ -213,35 +214,33 @@ contract VerificationV2 is
 
         // Verify the VAA
         verifyVaa(encodedVaa);
-      } else if (op == OP_THRESHOLD_GET_CURRENT) {
+      } else if (op == OP_GET_THRESHOLD_CURRENT) {
         (ThresholdKeyInfo memory info, uint32 index) = _getCurrentThresholdInfo();
 
-        result = abi.encodePacked(result, abi.encode(info.pubkey, index));
-      } else if (op == OP_THRESHOLD_GET) {
+        result = abi.encodePacked(result, info.pubkey, index);
+      } else if (op == OP_GET_THRESHOLD) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
 
         ThresholdKeyInfo memory info = _getThresholdInfo(index);
 
-        result = abi.encodePacked(result, abi.encode(info.pubkey, info.expirationTime));
-      } else if (op == OP_GUARDIAN_SET_GET_CURRENT) {
+        result = abi.encodePacked(result, info.pubkey, info.expirationTime);
+      } else if (op == OP_GET_GUARDIAN_SET_CURRENT) {
         (uint32 guardianSet, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
 
-        result = abi.encodePacked(result, abi.encode(guardianSetAddrs, guardianSet));
-      } else if (op == OP_GUARDIAN_SET_GET) {
+        result = abi.encodePacked(result, guardianSetAddrs, guardianSet);
+      } else if (op == OP_GET_GUARDIAN_SET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
 
-        (uint32 expirationTime, address[] memory guardianSetAddrs) = _getGuardianSetInfo(index);
-
-        result = abi.encodePacked(result, abi.encode(guardianSetAddrs, expirationTime));
-      } else if (op == OP_GUARDIAN_SHARDS_GET) {
+        (uint32 expirationTime, bytes memory guardianSetData) = _getGuardianSetInfoRaw(index);
+        result = abi.encodePacked(result, uint8(guardianSetData.length >> 5), guardianSetData, expirationTime);
+      } else if (op == OP_GET_SHARDS) {
         uint32 guardianSet;
         (guardianSet, offset) = data.asUint32CdUnchecked(offset);
 
-        ShardInfo[] memory shards = _getShards(guardianSet);
-
-        result = abi.encodePacked(result, abi.encode(shards));
+        bytes memory rawShards = _getShardsRaw(guardianSet);
+        result = abi.encodePacked(result, rawShards);
       } else {
         revert InvalidOperation(op);
       }

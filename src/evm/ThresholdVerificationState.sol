@@ -33,7 +33,7 @@ contract ThresholdVerificationState {
     }
   }
 
-  // NOTE: This will panic if the guardian set index is out of bounds
+  // NOTE: This will panic if the threshold key index is out of bounds
   function _getThresholdInfo(uint32 thresholdKeyIndex) internal view returns (ThresholdKeyInfo memory info) {
     unchecked {
       info = _thresholdKeyData[thresholdKeyIndex];
@@ -74,7 +74,7 @@ contract ThresholdVerificationState {
     }
   }
 
-  // NOTE: This will panic if the guardian set index is out of bounds
+  // NOTE: This will panic if the threshold key index is out of bounds
   function _getShards(uint32 thresholdKeyIndex) internal view returns (ShardInfo[] memory) {
     unchecked {
       ThresholdKeyInfo memory info = _getThresholdInfo(thresholdKeyIndex);
@@ -90,7 +90,37 @@ contract ThresholdVerificationState {
     }
   }
 
-  // NOTE: This will panic if the guardian set index is out of bounds
+  function _getShardsRaw(uint32 thresholdKeyIndex) internal view returns (bytes memory) {
+    unchecked {
+      ThresholdKeyInfo memory info = _getThresholdInfo(thresholdKeyIndex);
+      uint8 shardCount = info.shardCount;
+      uint40 shardBase = info.shardBase;
+
+      bytes memory shards = new bytes(1 + shardCount * 64);
+      assembly ("memory-safe") {
+        mstore(0x0, _shardData.slot)
+        let readPtr := add(keccak256(0x0, 0x20), shardBase)
+        let writePtr := add(shards, 0x20)
+
+        mstore8(writePtr, shardCount)
+        writePtr := add(writePtr, 1)
+
+        for { let i := 0 } lt(i, shardCount) { i := add(i, 1) } {
+          mstore(writePtr, sload(readPtr))
+          readPtr := add(readPtr, 1)
+          writePtr := add(writePtr, 0x20)
+
+          mstore(writePtr, sload(readPtr))
+          readPtr := add(readPtr, 1)
+          writePtr := add(writePtr, 0x20)
+        }
+      }
+
+      return shards;
+    }
+  }
+
+  // NOTE: This will panic if the threshold key index is out of bounds
   function _registerGuardian(uint32 thresholdKeyIndex, uint8 guardianIndex, bytes32 id) internal {
     unchecked {
       ThresholdKeyInfo memory info = _getThresholdInfo(thresholdKeyIndex);

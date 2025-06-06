@@ -13,11 +13,11 @@ import {
 	OP_REGISTER_GUARDIAN,
 	OP_VERIFY_AND_DECODE_VAA,
 	OP_VERIFY_VAA,
-	OP_GUARDIAN_SET_GET_CURRENT,
-	OP_GUARDIAN_SET_GET,
-	OP_GUARDIAN_SHARDS_GET,
-	OP_THRESHOLD_GET_CURRENT,
-	OP_THRESHOLD_GET,
+	OP_GET_GUARDIAN_SET_CURRENT,
+	OP_GET_GUARDIAN_SET,
+	OP_GET_SHARDS,
+	OP_GET_THRESHOLD_CURRENT,
+	OP_GET_THRESHOLD,
 	GOVERNANCE_ADDRESS
 } from "../src/evm/VerificationV2.sol";
 
@@ -132,10 +132,16 @@ library VerificationHelper {
     bytes32 emitterAddress,
     uint64 sequence,
     uint8 consistencyLevel,
-    bytes memory payload
+    bytes memory payload,
+		uint256 newOffset
   ) {
-		(timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = abi.decode(result, (uint32, uint32, uint16, bytes32, uint64, uint8, bytes));
-		// TODO: What should the offset be?
+		(timestamp, newOffset) = result.asUint32MemUnchecked(offset);
+		(nonce, newOffset) = result.asUint32MemUnchecked(newOffset);
+		(emitterChainId, newOffset) = result.asUint16MemUnchecked(newOffset);
+		(emitterAddress, newOffset) = result.asBytes32MemUnchecked(newOffset);
+		(sequence, newOffset) = result.asUint64MemUnchecked(newOffset);
+		(consistencyLevel, newOffset) = result.asUint8MemUnchecked(newOffset);
+		(payload, newOffset) = result.sliceUint16PrefixedMemUnchecked(newOffset);
 	}
 
 	function verifyVaa(bytes calldata encodedVaa) public pure returns (bytes memory) {
@@ -148,60 +154,80 @@ library VerificationHelper {
 
 	function getCurrentThresholdKey() public pure returns (bytes memory) {
 		return abi.encodePacked(
-			OP_THRESHOLD_GET_CURRENT
+			OP_GET_THRESHOLD_CURRENT
 		);
 	}
 
 	function decodeGetCurrentThresholdKey(bytes memory result, uint256 offset) public pure returns (uint256 thresholdKeyPubkey, uint32 thresholdKeyIndex, uint256 newOffset) {
-		(thresholdKeyPubkey, thresholdKeyIndex) = abi.decode(result, (uint256, uint32));
-		// TODO: What should the offset be?
+		(thresholdKeyPubkey, newOffset) = result.asUint256MemUnchecked(offset);
+		(thresholdKeyIndex, newOffset) = result.asUint32MemUnchecked(newOffset);
 	}
 
 	function getThresholdKey(uint32 index) public pure returns (bytes memory) {
 		return abi.encodePacked(
-			OP_THRESHOLD_GET,
+			OP_GET_THRESHOLD,
 			uint32(index)
 		);
 	}
 
 	function decodeGetThresholdKey(bytes memory result, uint256 offset) public pure returns (uint256 thresholdKeyPubkey, uint32 expirationTime, uint256 newOffset) {
-		(thresholdKeyPubkey, expirationTime) = abi.decode(result, (uint256, uint32));
-		// TODO: What should the offset be?
+		(thresholdKeyPubkey, newOffset) = result.asUint256MemUnchecked(offset);
+		(expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
 	}
 
 	function getCurrentGuardianSet() public pure returns (bytes memory) {
 		return abi.encodePacked(
-			OP_GUARDIAN_SET_GET_CURRENT
+			OP_GET_GUARDIAN_SET_CURRENT
 		);
 	}
 
 	function decodeGetCurrentGuardianSet(bytes memory result, uint256 offset) public pure returns (address[] memory guardianSetAddrs, uint32 guardianSetIndex, uint256 newOffset) {
-		(guardianSetAddrs, guardianSetIndex) = abi.decode(result, (address[], uint32));
-		// TODO: What should the offset be?
+		uint8 guardianCount;
+		(guardianCount, newOffset) = result.asUint8MemUnchecked(offset);
+
+		guardianSetAddrs = new address[](guardianCount);
+		for (uint256 i = 0; i < guardianCount; i++) {
+			(guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset);
+		}
+
+		(guardianSetIndex, newOffset) = result.asUint32MemUnchecked(newOffset);
 	}
 
 	function getGuardianSet(uint32 index) public pure returns (bytes memory) {
 		return abi.encodePacked(
-			OP_GUARDIAN_SET_GET,
+			OP_GET_GUARDIAN_SET,
 			uint32(index)
 		);
 	}
 	
 	function decodeGetGuardianSet(bytes memory result, uint256 offset) public pure returns (address[] memory guardianSetAddrs, uint32 expirationTime, uint256 newOffset) {
-		(guardianSetAddrs, expirationTime) = abi.decode(result, (address[], uint32));
-		// TODO: What should the offset be?
+		uint8 guardianCount;
+		(guardianCount, newOffset) = result.asUint8MemUnchecked(offset);
+
+		guardianSetAddrs = new address[](guardianCount);
+		for (uint256 i = 0; i < guardianCount; i++) {
+			(guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset);
+		}
+
+		(expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
 	}
 	
-	function getShardInfo(uint32 guardianSet) public pure returns (bytes memory) {
+	function getShards(uint32 guardianSet) public pure returns (bytes memory) {
 		return abi.encodePacked(
-			OP_GUARDIAN_SHARDS_GET,
+			OP_GET_SHARDS,
 			uint32(guardianSet)
 		);
 	}
 
-	function decodeGetShardInfo(bytes memory result, uint256 offset) public pure returns (ShardInfo[] memory shards, uint256 newOffset) {
-		(shards) = abi.decode(result, (ShardInfo[]));
-		// TODO: What should the offset be?
+	function decodeGetShards(bytes memory result, uint256 offset) public pure returns (ShardInfo[] memory shards, uint256 newOffset) {
+		uint8 shardCount;
+		(shardCount, newOffset) = result.asUint8MemUnchecked(offset);
+
+		shards = new ShardInfo[](shardCount);
+		for (uint256 i = 0; i < shardCount; i++) {
+			(shards[i].shard, newOffset) = result.asBytes32MemUnchecked(newOffset);
+			(shards[i].id, newOffset) = result.asBytes32MemUnchecked(newOffset);
+		}
 	}
 }
 
@@ -507,7 +533,8 @@ contract VerificationV2Test is Test {
 			bytes32 emitterAddress,
 			uint64 sequence,
 			uint8 consistencyLevel,
-			bytes memory decodedPayload
+			bytes memory decodedPayload,
+			uint256 newOffset
 		) = VerificationHelper.decodeVerifyAndDecodeVaa(result, 0);
 
 		assertEq(timestamp, 0);
@@ -517,6 +544,7 @@ contract VerificationV2Test is Test {
 		assertEq(sequence, 0);
 		assertEq(consistencyLevel, 0);
 		assertEq(decodedPayload.length, 49);
+		assertEq(newOffset, 102);
 	}
 
 	function testRevert_veifyAndDecodeVaaV2() public {
@@ -540,10 +568,10 @@ contract VerificationV2Test is Test {
 	function test_getShardInfo() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.getShardInfo(0));
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.getShards(0));
 		assertEq(success, true);
 
-		(ShardInfo[] memory shards,) = VerificationHelper.decodeGetShardInfo(result, 0);
+		(ShardInfo[] memory shards,) = VerificationHelper.decodeGetShards(result, 0);
 		assertEq(shards.length, 1);
 		assertEq(shards[0].shard, thresholdShards1[0].shard);
 		assertEq(shards[0].id, thresholdShards1[0].id);
@@ -566,10 +594,10 @@ contract VerificationV2Test is Test {
 			r, s, v
 		)), true);
 
-		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.getShardInfo(0));
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.getShards(0));
 		assertEq(success, true);
 
-		(ShardInfo[] memory shards,) = VerificationHelper.decodeGetShardInfo(result, 0);
+		(ShardInfo[] memory shards,) = VerificationHelper.decodeGetShards(result, 0);
 		assertEq(shards.length, 1);
 		assertEq(shards[0].shard, thresholdShards1[0].shard);
 		assertEq(shards[0].id, testID);
@@ -592,5 +620,13 @@ contract VerificationV2Test is Test {
 			0,
 			r, s, v
 		)), false);
+
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.getShards(0));
+		assertEq(success, true);
+
+		(ShardInfo[] memory shards,) = VerificationHelper.decodeGetShards(result, 0);
+		assertEq(shards.length, 1);
+		assertEq(shards[0].shard, thresholdShards1[0].shard);
+		assertEq(shards[0].id, thresholdShards1[0].id);
 	}
 }

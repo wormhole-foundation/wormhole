@@ -44,16 +44,14 @@ contract MultisigVerificationState is ExtStore {
     }
   }
 
-  // Get the guardian addresses for a given guardian set index
-  function _getGuardianSetInfo(uint32 index) internal view returns (
+  // Get the guardian set info for a given guardian set index
+  // NOTE: This will panic if the guardian set index is out of bounds
+  function _getGuardianSetInfo(uint32 guardianSetIndex) internal view returns (
     uint32 expirationTime,
     address[] memory guardianAddrs
   ) {
-    require(index < _guardianSetExpirationTime.length, InvalidGuardianSetIndex());
-    expirationTime = _guardianSetExpirationTime[index];
-    
-    // Read the guardian set data from the ExtStore
-    bytes memory data = _extRead(index);
+    bytes memory data;
+    (expirationTime, data) = _getGuardianSetInfoRaw(guardianSetIndex);
 
     // Convert the guardian set data to an array of addresses
     // NOTE: The `data` array is temporary and is invalid after this block
@@ -61,6 +59,16 @@ contract MultisigVerificationState is ExtStore {
       guardianAddrs := data
       mstore(guardianAddrs, shr(5, mload(guardianAddrs)))
     }
+  }
+
+  // Get the guardian addresses for a given guardian set index
+  // NOTE: This will panic if the guardian set index is out of bounds
+  function _getGuardianSetInfoRaw(uint32 guardianSetIndex) internal view returns (
+    uint32 expirationTime,
+    bytes memory data
+  ) {
+    expirationTime = _guardianSetExpirationTime[guardianSetIndex];
+    data = _extRead(guardianSetIndex);
   }
 
   function _pullGuardianSets(uint256 limit) internal returns (bool isComplete, uint32 currentGuardianSetIndex) {
