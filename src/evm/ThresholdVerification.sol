@@ -104,7 +104,7 @@ contract ThresholdVerification is ThresholdVerificationState {
       bytes32 module;
       uint8 action;
 
-      // Headedr
+      // Header
       (module, offset) = payload.asBytes32MemUnchecked(offset);
       (action, offset) = payload.asUint8MemUnchecked(offset);
 

@@ -43,12 +43,12 @@ contract MultisigVerification is MultisigVerificationState {
 
       // Get the number of signatures
       // NOTE: Optimization puts guardianCount on stack thus avoids mloads
-      uint guardianCount = guardians.length;
+      uint256 guardianCount = guardians.length;
 
       // Validate the number of signatures
       // NOTE: This works for empty guardian sets, because the quorum when there
       // are no guardians is 1
-      uint quorumCount = CoreBridgeLib.minSigsForQuorum(guardianCount);
+      uint256 quorumCount = CoreBridgeLib.minSigsForQuorum(guardianCount);
       require(signatureCount >= quorumCount, QuorumNotMet());
 
       // Calculate envelope offset and VAA hash
@@ -58,11 +58,11 @@ contract MultisigVerification is MultisigVerificationState {
       // Verify the signatures
       // NOTE: Optimization instead of always checking i == 0
       bool isFirstSignature = true;
-      uint prevGuardian;
+      uint256 prevGuardian;
       
-      for (uint i = 0; i < signatureCount; i++) {
+      for (uint256 i = 0; i < signatureCount; i++) {
         // Decode the guardian index, r, s, and v
-        uint guardian; bytes32 r; bytes32 s; uint8 v;
+        uint256 guardian; bytes32 r; bytes32 s; uint8 v;
         (guardian, r, s, v, offset) = encodedVaa.decodeGuardianSignatureCdUnchecked(offset);
 
         // Verify the signature

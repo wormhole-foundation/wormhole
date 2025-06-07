@@ -29,7 +29,7 @@ uint8 constant OP_GET_GUARDIAN_SET_CURRENT = 0x24;
 uint8 constant OP_GET_GUARDIAN_SET = 0x25;
 uint8 constant OP_GET_SHARDS = 0x26;
 
-// Emitter address for the VerificationV2 contract
+// Governance emitter address
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
 
 contract VerificationV2 is
