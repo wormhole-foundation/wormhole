@@ -75,9 +75,9 @@ contract VerificationV2 is
   ) {
     (uint8 version, ) = data.asUint8CdUnchecked(0);
     if (version == 2) {
-      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = _verifyAndDecodeThresholdVaa(data);
+      return _verifyAndDecodeThresholdVaa(data);
     } else if (version == 1) {
-      (timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload) = _verifyAndDecodeMultisigVaa(data);
+      return _verifyAndDecodeMultisigVaa(data);
     } else {
       revert VaaLib.InvalidVersion(version);
     }

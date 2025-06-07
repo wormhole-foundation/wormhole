@@ -439,6 +439,26 @@ contract VerificationV2Test is Test {
 	function test_veifyAndDecodeVaaV1() public {
 		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.verifyAndDecodeVaa(registerThresholdKeyVaa));
 		assertEq(success, true);
+
+		(
+			uint32 timestamp,
+			uint32 nonce,
+			uint16 emitterChainId,
+			bytes32 emitterAddress,
+			uint64 sequence,
+			uint8 consistencyLevel,
+			bytes memory payload,
+			uint256 newOffset
+		) = VerificationHelper.decodeVerifyAndDecodeVaa(result, 0);
+
+		assertEq(timestamp, block.timestamp);
+		assertEq(nonce, 0);
+		assertEq(emitterChainId, CHAIN_ID_SOLANA);
+		assertEq(emitterAddress, GOVERNANCE_ADDRESS);
+		assertEq(sequence, 0);
+		assertEq(consistencyLevel, 0);
+		assertEq(payload.length, 137);
+		assertEq(newOffset, 190);
 	}
 
 	function testRevert_veifyAndDecodeVaaV1() public {
