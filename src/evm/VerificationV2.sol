@@ -226,15 +226,15 @@ contract VerificationV2 is
 
         result = abi.encodePacked(result, info.pubkey, info.expirationTime);
       } else if (op == OP_GET_GUARDIAN_SET_CURRENT) {
-        (uint32 guardianSet, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
+        (uint32 guardianSetIndex, address[] memory guardianSetAddrs) = _getCurrentGuardianSetInfo();
 
-        result = abi.encodePacked(result, guardianSetAddrs, guardianSet);
+        result = abi.encodePacked(result, uint8(guardianSetAddrs.length), guardianSetAddrs, guardianSetIndex);
       } else if (op == OP_GET_GUARDIAN_SET) {
         uint32 index;
         (index, offset) = data.asUint32CdUnchecked(offset);
 
-        (uint32 expirationTime, bytes memory guardianSetData) = _getGuardianSetInfoRaw(index);
-        result = abi.encodePacked(result, uint8(guardianSetData.length >> 5), guardianSetData, expirationTime);
+        (uint32 expirationTime, address[] memory guardianSetAddrs) = _getGuardianSetInfo(index);
+        result = abi.encodePacked(result, uint8(guardianSetAddrs.length), guardianSetAddrs, expirationTime);
       } else if (op == OP_GET_SHARDS) {
         uint32 guardianSet;
         (guardianSet, offset) = data.asUint32CdUnchecked(offset);

@@ -187,7 +187,7 @@ library VerificationHelper {
 
 		guardianSetAddrs = new address[](guardianCount);
 		for (uint256 i = 0; i < guardianCount; i++) {
-			(guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset);
+			(guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset + 12);
 		}
 
 		(guardianSetIndex, newOffset) = result.asUint32MemUnchecked(newOffset);
@@ -206,7 +206,7 @@ library VerificationHelper {
 
 		guardianSetAddrs = new address[](guardianCount);
 		for (uint256 i = 0; i < guardianCount; i++) {
-			(guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset);
+			(guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset + 12);
 		}
 
 		(expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
