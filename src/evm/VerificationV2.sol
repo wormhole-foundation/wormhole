@@ -46,9 +46,7 @@ contract VerificationV2 is
 
   error RegistrationMessageExpired();
   error GuardianSignatureVerificationFailed();
-
-  /// @notice Emits an event when the owner successfully invalidates an unordered nonce.
-  event UnorderedNonceInvalidation(address indexed owner, uint256 word, uint256 mask);
+  error InvalidNonce();
 
   mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
@@ -148,9 +146,6 @@ contract VerificationV2 is
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
         require(thresholdKeyIndex == currentThresholdKeyIndex, GuardianSetIsNotCurrent());
 
-        // Replay protection
-        _useUnorderedNonce(owner, nonce);
-
         // Get the guardian set for the threshold key
         uint32 guardianSetIndex = info.guardianSetIndex;
         (, address[] memory guardianAddrs) = _getGuardianSetInfo(guardianSetIndex);
@@ -164,6 +159,9 @@ contract VerificationV2 is
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardianIndex], GuardianSignatureVerificationFailed());
 
+        // Use the nonce
+        _useUnorderedNonce(signatory, nonce);
+
         _registerGuardian(info, guardianIndex, guardianId);
       } else {
         revert InvalidOperation(op);
@@ -175,38 +173,6 @@ contract VerificationV2 is
 
     return new bytes(0);
   }
-
-    /// @notice Invalidates the bits specified in mask for the bitmap at the word position
-    /// @dev The wordPos is maxed at type(uint248).max
-    /// @param wordPos A number to index the nonceBitmap at
-    /// @param mask A bitmap masked against msg.sender's current bitmap at the word position
-    function invalidateUnorderedNonces(uint256 wordPos, uint256 mask) external {
-        nonceBitmap[msg.sender][wordPos] |= mask;
-
-        emit UnorderedNonceInvalidation(msg.sender, wordPos, mask);
-    }
-
-    /// @notice Returns the index of the bitmap and the bit position within the bitmap. Used for unordered nonces
-    /// @param nonce The nonce to get the associated word and bit positions
-    /// @return wordPos The word position or index into the nonceBitmap
-    /// @return bitPos The bit position
-    /// @dev The first 248 bits of the nonce value is the index of the desired bitmap
-    /// @dev The last 8 bits of the nonce value is the position of the bit in the bitmap
-    function bitmapPositions(uint256 nonce) private pure returns (uint256 wordPos, uint256 bitPos) {
-        wordPos = uint248(nonce >> 8);
-        bitPos = uint8(nonce);
-    }
-
-    /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
-    /// @param from The address to use the nonce at
-    /// @param nonce The nonce to spend
-    function _useUnorderedNonce(address from, uint256 nonce) internal {
-        (uint256 wordPos, uint256 bitPos) = bitmapPositions(nonce);
-        uint256 bit = 1 << bitPos;
-        uint256 flipped = nonceBitmap[from][wordPos] ^= bit;
-
-        if (flipped & bit == 0) revert InvalidNonce();
-    }
 
   function _get(bytes calldata data) internal view override returns (bytes memory) {
     uint offset = 0;
@@ -288,5 +254,16 @@ contract VerificationV2 is
     data.length.checkLength(offset);
 
     return result;
+  }
+
+  /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
+  /// @param nonce The nonce to spend
+  function _useUnorderedNonce(address guardian, uint256 nonce) internal {
+    uint256 wordPos = uint248(nonce >> 8);
+    uint256 bitPos = uint8(nonce);
+    uint256 bit = 1 << bitPos;
+    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+
+    if (flipped & bit == 0) revert InvalidNonce();
   }
 }
