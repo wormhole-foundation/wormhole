@@ -30,7 +30,7 @@ contract MultisigVerification is MultisigVerificationState {
   // NOTE: This function does not validate the VAA version is V1!
   function _verifyMultisigVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
     unchecked {
-      uint offset = 1;
+      uint256 offset = 1;
       uint32 guardianSetIndex;
       uint8 signatureCount;
 

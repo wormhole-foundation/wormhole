@@ -46,8 +46,7 @@ contract ThresholdVerification is ThresholdVerificationState {
       ThresholdKeyInfo memory info = _getThresholdInfo(tssIndex);
 
       // Calculate the challenge value
-      // TODO: Verify that this is consistent with the guardian server code
-      bytes32 vaaHash = encodedVaa.calcVaaSingleHashCd(offset);
+      bytes32 vaaHash = encodedVaa.calcVaaDoubleHashCd(offset);
       (uint256 px, uint8 parity) = _decodePubkey(info.pubkey);
       uint256 e = uint256(keccak256(abi.encodePacked(px, parity == 28, vaaHash, r)));
 
@@ -122,6 +121,7 @@ contract ThresholdVerification is ThresholdVerificationState {
       require(eagerAnd(px != 0, px <= HALF_Q), InvalidThresholdKeyAddress());
 
       // Decode shards
+      // TODO: Don't decode this here, do it in the append function so we can save gas
       shards = new ShardInfo[](shardCount);
       for (uint i = 0; i < shardCount; i++) {
         (shards[i].shard, offset) = payload.asBytes32CdUnchecked(offset);
