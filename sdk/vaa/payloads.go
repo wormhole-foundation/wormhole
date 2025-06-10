@@ -503,7 +503,6 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() ([]byte, erro
 
 func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
-	MustWrite(payload, binary.BigEndian, r.ChainID)
 	MustWrite(payload, binary.BigEndian, r.MessageFee)
 	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
 }
