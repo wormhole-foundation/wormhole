@@ -224,6 +224,9 @@ var (
 	mezoRPC      *string
 	mezoContract *string
 
+	convergeRPC      *string
+	convergeContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -476,6 +479,9 @@ func init() {
 
 	mezoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mezoRPC", "Mezo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mezoContract = NodeCmd.Flags().String("mezoContract", "", "Mezo contract address")
+
+	convergeRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "convergeRPC", "converge RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	convergeContract = NodeCmd.Flags().String("convergeContract", "", "Converge contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -875,6 +881,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, vaa.ChainIDMonad)
 	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, vaa.ChainIDSeiEVM)
 	*mezoContract = checkEvmArgs(logger, *mezoRPC, *mezoContract, vaa.ChainIDMezo)
+	*convergeContract = checkEvmArgs(logger, *convergeRPC, *convergeContract, vaa.ChainIDConverge)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1064,6 +1071,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["monadRPC"] = *monadRPC
 	rpcMap["movementRPC"] = *movementRPC
 	rpcMap["mezoRPC"] = *mezoRPC
+	rpcMap["convergeRPC"] = *convergeRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1252,7 +1260,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		})
 	}
 
-	var watcherConfigs = []watchers.WatcherConfig{}
+	watcherConfigs := []watchers.WatcherConfig{}
 
 	if shouldStart(ethRPC) {
 		wc := &evm.WatcherConfig{
@@ -1616,6 +1624,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(convergeRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "converge",
+			ChainID:          vaa.ChainIDConverge,
+			Rpc:              *convergeRPC,
+			Contract:         *convergeContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 

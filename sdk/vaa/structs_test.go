@@ -80,6 +80,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "mezo", output: ChainIDMezo},
 		{input: "fogo", output: ChainIDFogo},
 		{input: "sonic", output: ChainIDSonic},
+		{input: "converge", output: ChainIDConverge},
 		{input: "wormchain", output: ChainIDWormchain},
 		{input: "cosmoshub", output: ChainIDCosmoshub},
 		{input: "evmos", output: ChainIDEvmos},
@@ -148,6 +149,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Mezo", output: ChainIDMezo},
 		{input: "Fogo", output: ChainIDFogo},
 		{input: "Sonic", output: ChainIDSonic},
+		{input: "Converge", output: ChainIDConverge},
 		{input: "Wormchain", output: ChainIDWormchain},
 		{input: "Cosmoshub", output: ChainIDCosmoshub},
 		{input: "Evmos", output: ChainIDEvmos},
@@ -358,6 +360,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 50, output: "mezo"},
 		{input: 51, output: "fogo"},
 		{input: 52, output: "sonic"},
+		{input: 53, output: "converge"},
 		{input: 3104, output: "wormchain"},
 		{input: 4000, output: "cosmoshub"},
 		{input: 4001, output: "evmos"},
@@ -386,8 +389,8 @@ func TestChainId_String(t *testing.T) {
 }
 
 func getVaa() VAA {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	payload := []byte{97, 97, 97, 97, 97, 97}
+	governanceEmitter := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	return VAA{
 		Version:          uint8(1),
@@ -404,8 +407,8 @@ func getVaa() VAA {
 }
 
 func getEmptyPayloadVaa() VAA {
-	var payload = []byte{}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	payload := []byte{}
+	governanceEmitter := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	return VAA{
 		Version:          uint8(1),
@@ -553,85 +556,117 @@ func TestVerifySignatures(t *testing.T) {
 	}
 
 	tests := []test{
-		{label: "NoSignerZero",
+		{
+			label:      "NoSignerZero",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "NoSignerOne",
+			result:     false,
+		},
+		{
+			label:      "NoSignerOne",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{1},
-			result:     false},
-		{label: "SingleZero",
+			result:     false,
+		},
+		{
+			label:      "SingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "RogueSingleOne",
+			result:     true,
+		},
+		{
+			label:      "RogueSingleOne",
 			keyOrder:   []*ecdsa.PrivateKey{privKey4},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "RogueSingleZero",
+			result:     false,
+		},
+		{
+			label:      "RogueSingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey4},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "SingleOne",
+			result:     false,
+		},
+		{
+			label:      "SingleOne",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "MultiUniqSignerMonotonicIndex",
+			result:     true,
+		},
+		{
+			label:      "MultiUniqSignerMonotonicIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 2},
-			result:     true},
-		{label: "MultiMisOrderedSignerMonotonicIndex",
+			result:     true,
+		},
+		{
+			label:      "MultiMisOrderedSignerMonotonicIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey3, privKey2, privKey1},
 			addrs:      addrs,
-			indexOrder: []uint8{0, 1, 2}, result: false},
-		{label: "MultiUniqSignerNonMonotonic",
+			indexOrder: []uint8{0, 1, 2}, result: false,
+		},
+		{
+			label:      "MultiUniqSignerNonMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 2, 1},
-			result:     false},
-		{label: "MultiUniqSignerFullSameIndex0",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerFullSameIndex0",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiUniqSignerFullSameIndex1",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerFullSameIndex1",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiUniqSignerPartialSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerPartialSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 1},
-			result:     false},
-		{label: "MultiSameSignerPartialSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerPartialSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey2},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 1},
-			result:     false},
-		{label: "MultiSameSignerNonMonotonic",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerNonMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey2},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 2, 1},
-			result:     false},
-		{label: "MultiSameSignerFullSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerFullSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey1, privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiSameSignerMonotonic",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey1, privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 2},
-			result:     false},
+			result:     false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -807,7 +842,6 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 }
 
 func TestStringToAddress(t *testing.T) {
-
 	type Test struct {
 		label     string
 		rawAddr   string
@@ -816,29 +850,43 @@ func TestStringToAddress(t *testing.T) {
 	}
 
 	tests := []Test{
-		{label: "simple",
+		{
+			label:     "simple",
 			rawAddr:   "0000000000000000000000000000000000000000000000000000000000000004",
 			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
-			errString: ""},
-		{label: "zero-padding",
+			errString: "",
+		},
+		{
+			label:     "zero-padding",
 			rawAddr:   "04",
 			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
-			errString: ""},
-		{label: "trim-0x", rawAddr: "0x04",
+			errString: "",
+		},
+		{
+			label: "trim-0x", rawAddr: "0x04",
 			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
-			errString: ""},
-		{label: "20byte eth-style address", rawAddr: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+			errString: "",
+		},
+		{
+			label: "20byte eth-style address", rawAddr: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
 			addr:      Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x90, 0xfb, 0x16, 0x72, 0x8, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78, 0x1, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0xc, 0x16},
-			errString: ""},
-		{label: "too long",
+			errString: "",
+		},
+		{
+			label:     "too long",
 			rawAddr:   "0x0000000000000000000000000000000000000000000000000000000000000000000004",
-			errString: "value must be no more than 32 bytes"},
-		{label: "too short",
+			errString: "value must be no more than 32 bytes",
+		},
+		{
+			label:     "too short",
 			rawAddr:   "4",
-			errString: "value must be at least 1 byte"},
-		{label: "empty string",
+			errString: "value must be at least 1 byte",
+		},
+		{
+			label:     "empty string",
 			rawAddr:   "",
-			errString: "value must be at least 1 byte"},
+			errString: "value must be at least 1 byte",
+		},
 	}
 
 	for _, tc := range tests {
@@ -896,7 +944,8 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 	}
 
 	tests := []Test{
-		{label: "valid vaa",
+		{
+			label:          "valid vaa",
 			vaa:            "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
 			payloadType:    1,
 			emitterChainId: ChainIDEthereum,
@@ -908,15 +957,18 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			amount:         725000000,
 			errString:      "",
 		},
-		{label: "unsupported payload type",
+		{
+			label:     "unsupported payload type",
 			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f02000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
 			errString: "unsupported payload type",
 		},
-		{label: "buffer too short",
+		{
+			label:     "buffer too short",
 			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01",
 			errString: "buffer too short",
 		},
-		{label: "empty string",
+		{
+			label:     "empty string",
 			vaa:       "",
 			errString: "VAA is too short",
 		},
@@ -964,7 +1016,6 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 					assert.Equal(t, tc.errString, err.Error())
 				}
 			}
-
 		})
 	}
 }
@@ -1191,7 +1242,6 @@ func TestChainIDFromNumber(t *testing.T) {
 }
 
 func TestStringToKnownChainID(t *testing.T) {
-
 	happy := []struct {
 		name     string
 		input    string
