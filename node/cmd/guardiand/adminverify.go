@@ -57,6 +57,6 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		log.Printf("VAA with digest %s: %+v\n", digest, debugStr)
+		log.Printf("VAA with digest %x: %+v\n", digest, debugStr)
 	}
 }
