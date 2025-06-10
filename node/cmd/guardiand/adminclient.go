@@ -175,7 +175,7 @@ var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
 
 var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
 	Use:   "governor-reset-release-timer [VAA_ID] <num_days>",
-	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 7), defaulting to one day if num_days is omitted",
+	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 30), defaulting to one day if num_days is omitted",
 	Run:   runChainGovernorResetReleaseTimer,
 	Args:  cobra.RangeArgs(1, 2),
 }

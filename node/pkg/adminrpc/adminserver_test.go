@@ -359,7 +359,7 @@ func TestChainGovernorResetReleaseTimer(t *testing.T) {
 
 	// governor has no VAAs enqueued, so if we receive this error we know the input validation passed
 	success := `vaa not found in the pending list`
-	boundsCheckFailure := `the specified number of days falls outside the range of 1 to 7`
+	boundsCheckFailure := `the specified number of days falls outside the range of 1 to 30`
 	vaaIdLengthFailure := `the VAA id must be specified as "chainId/emitterAddress/seqNum"`
 
 	tests := map[string]struct {
