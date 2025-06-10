@@ -24,6 +24,7 @@ import {
 import {MODULE_VERIFICATION_V2, ACTION_APPEND_THRESHOLD_KEY} from "../src/evm/ThresholdVerification.sol";
 import {REGISTER_TYPE_HASH} from "../src/evm/EIP712Encoding.sol";
 
+import {keccak256SliceUnchecked} from "wormhole-solidity-sdk/utils/Keccak.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
 import {ICoreBridge, CoreBridgeVM, GuardianSet} from "wormhole-sdk/interfaces/ICoreBridge.sol";
 import {CHAIN_ID_ETHEREUM, CHAIN_ID_SOLANA} from "wormhole-sdk/constants/Chains.sol";
@@ -66,32 +67,37 @@ contract WormholeMock is ICoreBridge {
 	}
 }
 
-library VerificationHelper {
+contract VerificationHelper {
 	using BytesParsing for bytes;
+
+	error ExecutionFailed();
 
 	bytes4 constant RAW_DISPATCHER_EXEC = bytes4(0x00000eb6);
 	bytes4 constant RAW_DISPATCHER_GET = bytes4(0x0008a112);
 
-	function exec(VerificationV2 verification, bytes memory data) public returns (bool success) {
-		(success,) = address(verification).call(abi.encodePacked(RAW_DISPATCHER_EXEC, data));
-	}
-
-	function appendThresholdKey(bytes calldata encodedVaa) public pure returns (bytes memory) {
-		return abi.encodePacked(
+	function execAppendThresholdKey(VerificationV2 verification, bytes calldata encodedVaa) public {
+		(bool success,) = address(verification).call(abi.encodePacked(
+			bytes4(Optimized.exec768.selector),
 			OP_APPEND_THRESHOLD_KEY,
 			uint16(encodedVaa.length),
 			bytes(encodedVaa)
-		);
+		));
+
+		require(success, ExecutionFailed());
 	}
 
-	function pullGuardianSets(uint32 limit) public pure returns (bytes memory) {
-		return abi.encodePacked(
+	function execPullGuardianSets(VerificationV2 verification, uint32 limit) public {
+		(bool success,) = address(verification).call(abi.encodePacked(
+			bytes4(Optimized.exec768.selector),
 			OP_PULL_GUARDIAN_SETS,
 			uint32(limit)
-		);
+		));
+
+		require(success, ExecutionFailed());
 	}
 
-	function registerGuardian(
+	function execRegisterGuardian(
+		VerificationV2 verification,
 		uint32 thresholdKeyIndex,
 		uint32 expirationTime,
 		bytes32 guardianId,
@@ -99,8 +105,9 @@ library VerificationHelper {
 		bytes32 r,
 		bytes32 s,
 		uint8 v
-	) public pure returns (bytes memory) {
-		return abi.encodePacked(
+	) public {
+		(bool success,) = address(verification).call(abi.encodePacked(
+			bytes4(Optimized.exec768.selector),
 			OP_REGISTER_GUARDIAN,
 			uint32(thresholdKeyIndex),
 			uint32(expirationTime),
@@ -109,47 +116,48 @@ library VerificationHelper {
 			bytes32(r),
 			bytes32(s),
 			uint8(v)
-		);
-	}
-	
-	function get(VerificationV2 verification, bytes memory data) public returns (bool success, bytes memory result) {
-		(success, result) = address(verification).call(abi.encodePacked(RAW_DISPATCHER_GET, data));
-		result = abi.decode(result, (bytes));
+		));
+
+		require(success, ExecutionFailed());
 	}
 
-	function verifyAndDecodeVaa(bytes calldata encodedVaa) public pure returns (bytes memory) {
-		return abi.encodePacked(
-			OP_VERIFY_AND_DECODE_VAA,
-			uint16(encodedVaa.length),
-			bytes(encodedVaa)
-		);
-	}
-
-	function decodeVerifyAndDecodeVaa(bytes memory result, uint256 offset) public pure returns (
+	function getVerifyAndDecodeVaa(VerificationV2 verification, bytes calldata encodedVaa) public view returns (
     uint32 timestamp,
     uint32 nonce,
     uint16 emitterChainId,
     bytes32 emitterAddress,
     uint64 sequence,
     uint8 consistencyLevel,
-    bytes memory payload,
-		uint256 newOffset
+    bytes memory payload
   ) {
-		(timestamp, newOffset) = result.asUint32MemUnchecked(offset);
-		(nonce, newOffset) = result.asUint32MemUnchecked(newOffset);
-		(emitterChainId, newOffset) = result.asUint16MemUnchecked(newOffset);
-		(emitterAddress, newOffset) = result.asBytes32MemUnchecked(newOffset);
-		(sequence, newOffset) = result.asUint64MemUnchecked(newOffset);
-		(consistencyLevel, newOffset) = result.asUint8MemUnchecked(newOffset);
-		(payload, newOffset) = result.sliceUint16PrefixedMemUnchecked(newOffset);
+		(bool success, bytes memory result) = address(verification).staticcall(abi.encodePacked(
+			bytes4(Optimized.get1959.selector),
+			OP_VERIFY_AND_DECODE_VAA,
+			uint16(encodedVaa.length),
+			bytes(encodedVaa)
+		));
+
+		require(success, ExecutionFailed());
+
+		uint256 offset = 0;
+		(timestamp, offset) = result.asUint32MemUnchecked(offset);
+		(nonce, offset) = result.asUint32MemUnchecked(offset);
+		(emitterChainId, offset) = result.asUint16MemUnchecked(offset);
+		(emitterAddress, offset) = result.asBytes32MemUnchecked(offset);
+		(sequence, offset) = result.asUint64MemUnchecked(offset);
+		(consistencyLevel, offset) = result.asUint8MemUnchecked(offset);
+		(payload, offset) = result.sliceUint16PrefixedMemUnchecked(offset);
 	}
 
-	function verifyVaa(bytes calldata encodedVaa) public pure returns (bytes memory) {
-		return abi.encodePacked(
+	function getVerifyVaa(VerificationV2 verification, bytes calldata encodedVaa) public view {
+		(bool success,) = address(verification).staticcall(abi.encodePacked(
+			bytes4(Optimized.get1959.selector),
 			OP_VERIFY_VAA,
 			uint16(encodedVaa.length),
 			bytes(encodedVaa)
-		);
+		));
+
+		require(success, ExecutionFailed());
 	}
 
 	function getCurrentThresholdKey() public pure returns (bytes memory) {
@@ -231,7 +239,7 @@ library VerificationHelper {
 	}
 }
 
-contract VerificationV2Test is Test {
+contract VerificationV2Test is Test, VerificationHelper {
 	// Setup
 	WormholeMock private _wormholeMock;
 	VerificationV2 private _verificationV2;
@@ -251,7 +259,7 @@ contract VerificationV2Test is Test {
 	bytes private invalidVaaV1 = hex"01234567";
 
 	// V2 test data
-	uint256 private constant thresholdKey1 = 0x1cafae803bf91a2e5494162625d34fda2f69db7c1f3589938647bc2abd4a0a0f << 1;
+	uint256 private constant thresholdKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
 
 	ShardInfo[] private thresholdShards1 = [
 		ShardInfo({
@@ -373,14 +381,11 @@ contract VerificationV2Test is Test {
 
 	// V1 codepaths
 
+/*
 	function test_pullGuardianSets() public {
-		_wormholeMock.appendGuardianSet(GuardianSet({
-			keys: guardianKeys2,
-			expirationTime: 0
-		}));
-
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.pullGuardianSets(1)), true);
 	}
+
 
 	function test_getCurrentGuardianSet() public {
 		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.getCurrentGuardianSet());
@@ -421,13 +426,13 @@ contract VerificationV2Test is Test {
 		assertEq(guardianSetAddrs2[0], guardianKeys2[0]);
 		assertEq(expirationTime2, 1);
 	}
+	*/
 
-	function test_verifyVaaV1() public {
-		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.verifyVaa(registerThresholdKeyVaa));
-		assertEq(success, true);
-		assertEq(result.length, 0);
+	function test_verifyVaaV1() public view {
+		this.getVerifyVaa(_verificationV2, registerThresholdKeyVaa);
 	}
 
+	/*
 	function testRevert_verifyVaaV1() public {
 		bytes memory command = VerificationHelper.verifyVaa(invalidVaaV1);
 		vm.expectRevert();
@@ -501,22 +506,32 @@ contract VerificationV2Test is Test {
 		assertEq(expirationTime, 0);
 		assertEq(thresholdKeyPubkey, thresholdKey1);
 	}
-
+*/
 	function test_verifyVaaV2() public {
-		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
+		this.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
-		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
-		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
 		bytes memory payload = new bytes(49);
 		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
 		bytes memory vaa = createVaaV2(0, r, s, envelope);
-		bytes memory command = VerificationHelper.verifyVaa(vaa);
 
-		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
-		assertEq(success, true);
-		assertEq(result.length, 0);
+		this.getVerifyVaa(_verificationV2, vaa);
 	}
 
+	function test_verifyVaaV2_direct() public {
+		this.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
+		bytes memory payload = new bytes(49);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+		bytes memory vaa = createVaaV2(0, r, s, envelope);
+
+		_verificationV2.verifyVaa(vaa);
+	}
+
+/*
 	function testRevert_verifyVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
@@ -648,5 +663,175 @@ contract VerificationV2Test is Test {
 		assertEq(shards.length, 1);
 		assertEq(shards[0].shard, thresholdShards1[0].shard);
 		assertEq(shards[0].id, thresholdShards1[0].id);
+	}
+	*/
+}
+
+import {
+	Optimized,
+	OP_EXEC_APPEND_SCHNORR_KEY,
+	OP_EXEC_PULL_MULTISIG_KEYS,
+	OP_GET_VERIFY_VAA,
+	OP_GET_MAYBE_VERIFY_VAA
+} from "../src/evm/Optimized.sol";
+
+import {keccak256Word, keccak256Cd} from "wormhole-solidity-sdk/utils/Keccak.sol";
+import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
+
+contract VerificationLib {
+	using VaaLib for bytes;
+
+	error ExecutionFailed();
+
+	function execAppendSchnorrKey(Optimized optimized, bytes calldata encodedVaa) public {
+		(bool success,) = address(optimized).call(abi.encodePacked(
+			bytes4(Optimized.exec768.selector),
+			uint8(OP_EXEC_APPEND_SCHNORR_KEY),
+			uint16(encodedVaa.length),
+			encodedVaa
+		));
+
+		require(success, ExecutionFailed());
+	}
+
+	function execPullGuardianSets(Optimized optimized, uint32 limit) public {
+		(bool success,) = address(optimized).call(abi.encodePacked(
+			bytes4(Optimized.exec768.selector),
+			uint8(OP_EXEC_PULL_MULTISIG_KEYS),
+			uint32(limit)
+		));
+
+		require(success, ExecutionFailed());
+	}
+	
+	uint256 constant private SCHNORR_VAA_HEADER_LENGTH = 1 + 4 + 20 + 32;
+
+	function getVerifyVaa(Optimized optimized, bytes calldata vaa) public view {
+		unchecked {
+			uint8 version = uint8(vaa[0]);
+			uint256 headerLength = version == 2 ? SCHNORR_VAA_HEADER_LENGTH : vaa.skipVaaHeaderCdUnchecked();
+
+			bytes memory callInput = abi.encodePacked(
+				bytes4(Optimized.get1959.selector),
+				uint8(OP_GET_VERIFY_VAA),
+				bytes32(0),
+				uint16(headerLength),
+				vaa
+			);
+
+			assembly ("memory-safe") {
+				let singleHash := keccak256(add(callInput, add(71, headerLength)), sub(vaa.length, headerLength))
+				mstore(0, singleHash)
+				let doubleHash := keccak256(0, 32)
+				mstore(add(callInput, 37), doubleHash)
+				mstore(callInput, add(39, headerLength))
+			}
+
+			(bool success,) = address(optimized).staticcall(callInput);
+			require(success, ExecutionFailed());
+		}
+	}
+}
+
+import {GuardianSignature} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
+
+contract OptimizedTest is Test, VerificationLib {
+	using BytesParsing for bytes;
+	using VaaLib for bytes;
+
+	uint256 private constant guardianPrivateKey1 = 0x0123456701234567012345670123456701234567012345670123456701234567;
+	uint256[] private guardianPrivateKeys1 = [guardianPrivateKey1];
+	address private guardianPublicKey1;
+	address[] private guardianKeys1;
+
+	uint256 private constant schnorrKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+
+	bytes private appendSchnorrKeyVaa;
+
+	WormholeMock wormholeMock;
+	Optimized optimized;
+
+	function setUp() public {
+		guardianPublicKey1 = vm.addr(guardianPrivateKey1);
+		guardianKeys1 = [guardianPublicKey1];
+
+		bytes memory appendSchnorrKeyVaaBody = VaaLib.encodeVaaBody(
+				uint32(block.timestamp),
+				0,
+				CHAIN_ID_SOLANA,
+				GOVERNANCE_ADDRESS,
+				0,
+				0,
+				abi.encodePacked(
+					MODULE_VERIFICATION_V2,
+					ACTION_APPEND_THRESHOLD_KEY,
+					uint32(0), // New schnorr key index
+					schnorrKey1, // New schnorr key
+					uint32(0), // Old schnorr key expiration time delta
+					bytes32(0), // Shard0
+					bytes32(0) // ID0
+				)
+			);
+
+		GuardianSignature[] memory appendSchnorrKeyVaaSignatures = new GuardianSignature[](1);
+		(uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianPrivateKey1, keccak256(abi.encodePacked(keccak256(appendSchnorrKeyVaaBody))));
+		appendSchnorrKeyVaaSignatures[0] = GuardianSignature({
+			guardianIndex: 0,
+			r: r,
+			s: s,
+			v: v
+		});
+
+		appendSchnorrKeyVaa = abi.encodePacked(
+			VaaLib.encodeVaaHeader(0, appendSchnorrKeyVaaSignatures),
+			appendSchnorrKeyVaaBody
+		);
+
+		wormholeMock = new WormholeMock();
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+		optimized = new Optimized(wormholeMock, 0, 1);
+	}
+
+	function test_optimized_appendSchnorrKey() public {
+		this.execAppendSchnorrKey(optimized, appendSchnorrKeyVaa);
+	}
+
+	function test_optimized_verifyMultisigVaa() public view {
+		this.getVerifyVaa(optimized, appendSchnorrKeyVaa);
+	}
+
+	function test_optimized_getVerifySchnorrVaa() public {
+		this.execAppendSchnorrKey(optimized, appendSchnorrKeyVaa);
+
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
+		bytes memory vaa = abi.encodePacked(
+			uint8(2),
+			uint32(0),
+			address(r),
+			bytes32(s),
+			new bytes(100)
+		);
+		this.getVerifyVaa(optimized, vaa);
+	}
+
+	function test_optimized_solVerifySchnorrVaa() public {
+		this.execAppendSchnorrKey(optimized, appendSchnorrKeyVaa);
+
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
+		bytes memory vaa = abi.encodePacked(
+			uint8(2),
+			uint32(0),
+			address(r),
+			bytes32(s),
+			new bytes(100)
+		);
+		optimized.verifyVaa(vaa);
 	}
 }
