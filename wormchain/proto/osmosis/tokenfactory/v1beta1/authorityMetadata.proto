@@ -2,7 +2,6 @@ syntax = "proto3";
 package osmosis.tokenfactory.v1beta1;
 
 import "gogoproto/gogo.proto";
-import "cosmos/base/v1beta1/coin.proto";
 
 option go_package = "github.com/wormhole-foundation/wormchain/x/tokenfactory/types";
 
