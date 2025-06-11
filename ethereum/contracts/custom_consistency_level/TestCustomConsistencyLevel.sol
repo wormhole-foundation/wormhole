@@ -18,23 +18,26 @@ contract TestCustomConsistencyLevel is ITestCustomConsistencyLevel {
     IWormhole public immutable wormhole;
     uint32 public nonce;
 
-    constructor(address _wormhole, address _customConsistencyLevel) {
+    constructor(
+        address _wormhole,
+        address _customConsistencyLevel,
+        uint8 _consistencyLevel,
+        uint16 _blocks
+    ) {
         wormhole = IWormhole(_wormhole);
         customConsistencyLevel = ICustomConsistencyLevel(_customConsistencyLevel);
+        ICustomConsistencyLevel(_customConsistencyLevel).configure(
+            ConfigMakers.makeAdditionalBlocksConfig(_consistencyLevel, _blocks)
+        );
     }
 
     // ==================== External Interface ===============================================
 
     /// @inheritdoc ITestCustomConsistencyLevel
-    function configure() external override {
-        customConsistencyLevel.configure(ConfigMakers.makeAdditionalBlocksConfig(201, 5));
-    }
-
-    /// @inheritdoc ITestCustomConsistencyLevel
     function publishMessage(
-        bytes memory payload
+        string memory str
     ) external payable override returns (uint64 sequence) {
         nonce++;
-        sequence = wormhole.publishMessage(nonce, payload, 203);
+        sequence = wormhole.publishMessage(nonce, bytes(str), 203);
     }
 }
