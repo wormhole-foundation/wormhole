@@ -2,9 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface ITestCustomConsistencyLevel {
-    function configure() external;
-
     function publishMessage(
-        bytes memory payload
+        string memory str
     ) external payable returns (uint64 sequence);
 }

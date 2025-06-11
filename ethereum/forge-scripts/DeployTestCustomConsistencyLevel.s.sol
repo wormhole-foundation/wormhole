@@ -15,26 +15,36 @@ import "forge-std/Script.sol";
 contract DeployTestCustomConsistencyLevel is Script {
     function test() public {} // Exclude this from coverage report.
 
-    function dryRun(address _wormhole, address _customConsistencyLevel) public {
-        _deploy(_wormhole, _customConsistencyLevel);
+    function dryRun(
+        address _wormhole,
+        address _customConsistencyLevel,
+        uint8 _consistencyLevel,
+        uint16 _blocks
+    ) public {
+        _deploy(_wormhole, _customConsistencyLevel, _consistencyLevel, _blocks);
     }
 
     function run(
         address _wormhole,
-        address _customConsistencyLevel
+        address _customConsistencyLevel,
+        uint8 _consistencyLevel,
+        uint16 _blocks
     ) public returns (address deployedAddress) {
         vm.startBroadcast();
-        (deployedAddress) = _deploy(_wormhole, _customConsistencyLevel);
+        (deployedAddress) = _deploy(_wormhole, _customConsistencyLevel, _consistencyLevel, _blocks);
         vm.stopBroadcast();
     }
 
     function _deploy(
         address _wormhole,
-        address _customConsistencyLevel
+        address _customConsistencyLevel,
+        uint8 _consistencyLevel,
+        uint16 _blocks
     ) internal returns (address deployedAddress) {
         bytes32 salt = keccak256(abi.encodePacked(testCustomConsistencyLevelVersion));
-        TestCustomConsistencyLevel customConsistencyLevel =
-            new TestCustomConsistencyLevel{salt: salt}(_wormhole, _customConsistencyLevel);
+        TestCustomConsistencyLevel customConsistencyLevel = new TestCustomConsistencyLevel{
+            salt: salt
+        }(_wormhole, _customConsistencyLevel, _consistencyLevel, _blocks);
 
         return (address(customConsistencyLevel));
     }
