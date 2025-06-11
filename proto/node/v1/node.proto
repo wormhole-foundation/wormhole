@@ -470,5 +470,5 @@ message CoreBridgeSetMessageFee {
   // ID of the chain of the core bridge contract where the message fee should be updated (uint16).
   uint32 chain_id = 1;
   // New message fee.
-  uint64 message_fee = 2;
+  string message_fee = 2;
 }
