@@ -35,6 +35,14 @@ const (
 	EVENTHASH_WETH_DEPOSIT = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
 )
 
+// Constants related to caching RPC calls and receipt evaluations.
+const (
+	// CacheMaxSize is the maximum number of entries that should be in any of the caches.
+	CacheMaxSize = 100
+	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
+	CacheDeleteCount = 10
+)
+
 // Errors
 var (
 	ErrChainIDNotSupported        = errors.New("chain ID is not supported")
@@ -134,9 +142,6 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// Cached calls to `isWrapped()` on the token bridge.
 	isWrappedCache map[string]bool
 
-	// Cached calls to `wrappedAsset()` on the token bridge.
-	wrappedCache map[string]common.Address
-
 	// Cached calls to `chainId()` for wrapped asset contracts.
 	chainIdCache map[string]vaa.ChainID
 
@@ -182,7 +187,6 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		lastBlockNumber:     0,
 		pruneHeightDelta:    pruneHeightDelta,
 		isWrappedCache:      make(map[string]bool),
-		wrappedCache:        make(map[string]common.Address),
 		chainIdCache:        make(map[string]vaa.ChainID),
 		nativeContractCache: make(map[string]vaa.Address),
 		decimalsCache:       make(map[common.Address]uint8),

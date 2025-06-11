@@ -21,7 +21,6 @@ const (
 
 // TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
 var (
-	ErrBadWrappedAssetQuery     = errors.New("asset is wrapped but wrappedAsset() call returned zero address")
 	ErrCouldNotGetNativeDetails = errors.New("could not parse native details for transfer")
 	ErrInvalidReceiptArgument   = errors.New("invalid TransferReceipt argument")
 	ErrInvalidUpsertArgument    = errors.New("nil argument passed to upsert")
@@ -60,7 +59,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	receipt *geth.Receipt,
 ) (bool, error) {
 
-	// Prune old transaction information from the cache.
 	tv.pruneCache()
 
 	if Cmp(txHash, ZERO_ADDRESS) == 0 {
@@ -161,6 +159,8 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	return true, nil
 }
 
+// pruneCache removes cached evaluations and RPC calls.
+// TODO: This functionality should be replaced by an LRU cache library.
 func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 	// Prune the cache of processed receipts
 	numPrunedEvals := int(0)
@@ -181,12 +181,101 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 	}
 
 	if numPrunedEvals > 0 {
-		tv.logger.Debug("pruned cached receipt evaluations",
+		tv.logger.Info("pruned receipt evaluations cache",
 			zap.Int("numPruned", numPrunedEvals),
 			zap.Int("cacheSize", len(tv.evaluations)),
 		)
 	}
-	// TODO: The other caches should be pruned here too.
+
+	// For the other caches, just prune them if they're too big.
+	if len(tv.chainIdCache) >= CacheMaxSize {
+		var (
+			i = 0
+			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
+			// iterated over.
+			keysToDelete = make([]string, CacheDeleteCount)
+		)
+		for key := range tv.chainIdCache {
+			keysToDelete[i] = key
+			i++
+			if i >= len(keysToDelete) {
+				break
+			}
+		}
+		for _, key := range keysToDelete {
+			delete(tv.chainIdCache, key)
+		}
+		tv.logger.Info("pruned cached calls to chainId()",
+			zap.Int("numPruned", i),
+			zap.Int("cacheSize", len(tv.chainIdCache)),
+		)
+	}
+	if len(tv.decimalsCache) >= CacheMaxSize {
+		var (
+			i = 0
+			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
+			// iterated over.
+			keysToDelete = make([]common.Address, CacheDeleteCount)
+		)
+		for key := range tv.decimalsCache {
+			keysToDelete[i] = key
+			i++
+			if i >= len(keysToDelete) {
+				break
+			}
+		}
+		for _, key := range keysToDelete {
+			delete(tv.decimalsCache, key)
+		}
+		tv.logger.Info("pruned cached calls to decimals()",
+			zap.Int("numPruned", i),
+			zap.Int("cacheSize", len(tv.decimalsCache)),
+		)
+	}
+	if len(tv.isWrappedCache) >= CacheMaxSize {
+		var (
+			i = 0
+			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
+			// iterated over.
+			keysToDelete = make([]string, CacheDeleteCount)
+		)
+		for key := range tv.isWrappedCache {
+			keysToDelete[i] = key
+			i++
+			if i >= len(keysToDelete) {
+				break
+			}
+		}
+		for _, key := range keysToDelete {
+			delete(tv.isWrappedCache, key)
+		}
+		tv.logger.Info("pruned cached calls to isWrapped()",
+			zap.Int("numPruned", i),
+			zap.Int("cacheSize", len(tv.isWrappedCache)),
+		)
+	}
+	if len(tv.nativeContractCache) >= CacheMaxSize {
+		var (
+			i = 0
+			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
+			// iterated over.
+			keysToDelete = make([]string, CacheDeleteCount)
+		)
+		for key := range tv.nativeContractCache {
+			keysToDelete[i] = key
+			i++
+			if i >= len(keysToDelete) {
+				break
+			}
+		}
+		for _, key := range keysToDelete {
+			delete(tv.nativeContractCache, key)
+		}
+		tv.logger.Info("pruned cached calls to nativeContract()",
+			zap.Int("numPruned", i),
+			zap.Int("cacheSize", len(tv.nativeContractCache)),
+		)
+	}
 }
 
 // updateReceiptDetails performs additional processing on the raw data that has been parsed. This
