@@ -2,9 +2,9 @@
 
 #
 # This script deploys the CustomConsistencyLevel contract.
-# Usage: RPC_URL= MNEMONIC= EVM_CHAIN_ID= WORMHOLE_ADDRESS= CUSTOM_CONSISTENCY_LEVEL= ./sh/deployCustomConsistencyLevel.sh
+# Usage: RPC_URL= MNEMONIC= EVM_CHAIN_ID= WORMHOLE_ADDRESS= CUSTOM_CONSISTENCY_LEVEL= CONSISTENCY_LEVEL = BLOCKS= ./sh/deployCustomConsistencyLevel.sh
 #  tilt: ./sh/deployCustomConsistencyLevel.sh
-#  anvil: EVM_CHAIN_ID=31337 MNEMONIC=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 WORMHOLE_ADDRESS= CUSTOM_CONSISTENCY_LEVEL= ./sh/deployCustomConsistencyLevel.sh
+#  anvil: EVM_CHAIN_ID=31337 MNEMONIC=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 WORMHOLE_ADDRESS= CUSTOM_CONSISTENCY_LEVEL= CONSISTENCY_LEVEL = BLOCKS= ./sh/deployCustomConsistencyLevel.sh
 
 if [ "${RPC_URL}X" == "X" ]; then
   RPC_URL=http://localhost:8545
@@ -21,8 +21,16 @@ fi
 [[ -z $WORMHOLE_ADDRESS ]] && { echo "Missing WORMHOLE_ADDRESS"; exit 1; }
 [[ -z $CUSTOM_CONSISTENCY_LEVEL ]] && { echo "Missing CUSTOM_CONSISTENCY_LEVEL"; exit 1; }
 
+if [ "${CONSISTENCY_LEVEL}X" == "X" ]; then
+  CONSISTENCY_LEVEL=201
+fi
+
+if [ "${BLOCKS}X" == "X" ]; then
+  BLOCKS=5
+fi
+
 forge script ./forge-scripts/DeployTestCustomConsistencyLevel.s.sol:DeployTestCustomConsistencyLevel \
-	--sig "run(address,address)" $WORMHOLE_ADDRESS $CUSTOM_CONSISTENCY_LEVEL \
+	--sig "run(address,address, uint8, uint16)" $WORMHOLE_ADDRESS $CUSTOM_CONSISTENCY_LEVEL $CONSISTENCY_LEVEL $BLOCKS \
 	--rpc-url "$RPC_URL" \
 	--private-key "$MNEMONIC" \
 	--broadcast ${FORGE_ARGS}
@@ -31,12 +39,3 @@ returnInfo=$(cat ./broadcast/DeployTestCustomConsistencyLevel.s.sol/$EVM_CHAIN_I
 
 DEPLOYED_ADDRESS=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "Deployed test custom consistency level to address: $DEPLOYED_ADDRESS using core address $WORMHOLE_ADDRESS and custom consistency level $CUSTOM_CONSISTENCY_LEVEL"
-
-echo "Configuring test custom consistency level at address $DEPLOYED_ADDRESS"
-forge script ./forge-scripts/ConfigureTestCustomConsistencyLevel.s.sol:ConfigureTestCustomConsistencyLevel \
-	--sig "run(address)" $DEPLOYED_ADDRESS \
-	--rpc-url $RPC_URL \
-	--private-key $MNEMONIC \
-	--broadcast
-
-	echo "Configured test custom consistency level at address $DEPLOYED_ADDRESS"
