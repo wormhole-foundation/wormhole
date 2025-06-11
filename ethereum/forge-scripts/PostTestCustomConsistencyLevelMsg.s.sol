@@ -5,27 +5,21 @@ import {ITestCustomConsistencyLevel} from
     "../contracts/custom_consistency_level/interfaces/ITestCustomConsistencyLevel.sol";
 import "forge-std/Script.sol";
 
-contract ConfigureTestCustomConsistencyLevel is Script {
+contract PostTestCustomConsistencyLevelMsg is Script {
     function test() public {} // Exclude this from coverage report.
 
-    function dryRun(
-        address _tccl
-    ) public {
-        _configure(_tccl);
+    function dryRun(address _tccl, string calldata _payload) public {
+        _publishMessage(_tccl, _payload);
     }
 
-    function run(
-        address _tccl
-    ) public {
+    function run(address _tccl, string calldata _payload) public {
         vm.startBroadcast();
-        _configure(_tccl);
+        _publishMessage(_tccl, _payload);
         vm.stopBroadcast();
     }
 
-    function _configure(
-        address _tccl
-    ) internal {
+    function _publishMessage(address _tccl, string calldata _payload) internal {
         ITestCustomConsistencyLevel tccl = ITestCustomConsistencyLevel(_tccl);
-        tccl.configure();
+        tccl.publishMessage(_payload);
     }
 }
