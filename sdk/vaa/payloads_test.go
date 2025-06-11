@@ -457,10 +457,10 @@ func TestBodyRecoverChainIdModuleTooLong(t *testing.T) {
 }
 
 func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
-	expected := "00000000000000000000000000000000000000000000000000000000436f72650304560000000000000123"
+	expected := "00000000000000000000000000000000000000000000000000000000436f72650304560000000000000000000000000000000000000000000000000000000000000123"
 	bodyCoreBridgeSetMessageFee := BodyCoreBridgeSetMessageFee{
 		ChainID:    0x456,
-		MessageFee: uint64(0x123),
+		MessageFee: uint256.NewInt(0x123),
 	}
 	buf, err := bodyCoreBridgeSetMessageFee.Serialize()
 	require.NoError(t, err)
