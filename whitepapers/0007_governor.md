@@ -54,32 +54,13 @@ The Governor divides token-based transactions into two categories: small transac
 
 #### Headroom Calculations
 
-Each chain has a configured limit, denoted in USD, that determines the maximum
-value of transfers that can be emitted within a 24 hour period. This is
-sometimes referred to as the "daily limit", though it uses a 24-hour sliding
-window rather than discrete calendar days. When the sum exceeds the limit,
-any new small transfers that exceed the limit will be queued.
-
-The headroom for a chain is the amount left over after subtracting the current
-sum of small transfers from the chain's daily limit.
-
-Inbound transfers of certain tokens can also decrease this sum, a
-process referred to as Flow Canceling.
+Each chain has a configured limit, denoted in USD, that determines the maximum value of transfers that can be emitted within a 24 hour period. This is sometimes referred to as the "daily limit", though it uses a 24-hour sliding window rather than discrete calendar days. When the sum exceeds the limit, any new small transfers that exceed the limit will be queued. The headroom for a chain is the amount left over after subtracting the current sum of small transfers from the chain's daily limit. Inbound transfers of certain tokens can also decrease this sum, a process referred to as Flow Canceling.
 
 #### Flow Canceling
 
-Guardians can optionally enable "flow canceling". This feature allows incoming
-transfers to reduce the current "daily limit" (sum of the USD value of all
-small transactions within the past 24 hours). This creates additional headroom,
-allowing a greater volume of notional value to leave the chain without being
-delayed.
+Guardians can optionally enable "flow canceling". This feature allows incoming transfers to reduce the current "daily limit" (sum of the USD value of all small transactions within the past 24 hours). This creates additional headroom, allowing a greater volume of notional value to leave the chain without being delayed.
 
-The general idea is to allow certain transfers to offset the consumption of an
-outgoing "budget" that the Governor records. A flow cancel transfer is akin to
-a credit transferred into the Governor which is measured against the total
-debits of the day, 'paying off the debt', and allowing for further consumption.
-
-
+The general idea is to allow certain transfers to offset the consumption of an outgoing "budget" that the Governor records. A flow cancel transfer is akin toa credit transferred into the Governor which is measured against the total debits of the day, 'paying off the debt', and allowing for further consumption.
 
 ### Asset pricing
 
@@ -89,7 +70,7 @@ Since the thresholds are denominated in the base currency, the Governor must kno
 
 The token configurations are in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). [flow_cancel_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/flow_cancel_tokens.go) contains the list of Flow Cancel tokens but does not include price information.
 
-If CoinGecko was to provide an erroneously low price for a token, the Governor errs on the side of safety by using the hardcoded floor price instead.
+If CoinGecko was to provide an erroneously low price for a token, the Governor errs on the side of safety by using the hard-coded floor price instead.
 
 ### Visibility
 Each Guardian publishes its Governor configuration and status on the Wormhole gossip network, which anyone can subscribe to via a guardian spy ([instructions](https://github.com/wormhole-foundation/wormhole/blob/main/docs/operations.md)). Some Guardians also make the Governor status available through a public API, which can be visualized on the [Wormhole Dashboard](https://wormhole-foundation.github.io/wormhole-dashboard/). A more feature-rich [Wormhole Explorer](https://github.com/wormhole-foundation/wormhole-explorer) that will aggregate Governor status across all Guardians is work-in-progress.
@@ -98,7 +79,7 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
 * The Governor can only reduce the impact of an exploit, but not prevent it.
 * Excessively high transfer activity, even if manufactured and not organic, will cause transactions to be delayed by up to 24h.
 * If CoinGecko reports an unreasonably high price for a token, the 24h threshold will be exhausted sooner.
-* Guardians need to manually respond to erroneous messages within the 24h time window. It is expected that all Guardians operate collateralization monitoring for the protocol, taking into account the Governor queue. All Guardians should have alerting and incident response procedures in case of an undercollateralization.
+* Guardians need to manually respond to erroneous messages within the 24h time window. It is expected that all Guardians operate collateralization monitoring for the protocol, taking into account the Governor queue. All Guardians should have alerting and incident response procedures in case of an under-collateralization.
 * An attacker could utilize liquidity pools and other bridges to launder illicitly minted wrapped assets.
 
 ## Detailed Design
@@ -200,16 +181,9 @@ Right now, adding more governed emitters requires modifying guardian code. In th
 
 ### Flow Canceling could weaken Governor protections during an exploit
 
-Enabling Flow Canceling allows more funds to exit a chain when compared with 
-running the Chain Governor without this feature enabled. In the
-context of an exploit of one of the core contracts or the RPC,
-an attacker may be able to craft a series of flow-canceling
-transfers that subvert the Governor limits.
+Enabling Flow Canceling allows more funds to exit a chain when compared with running the Chain Governor without this feature enabled. In the context of an exploit of one of the core contracts or the RPC, an attacker may be able to craft a series of flow-canceling transfers that subvert the Governor limits.
 
-This motivates the design decision to make flow cancel functionality
-optional. If malicious activity is detected, Guardians can toggle
-the CLI flag and restart the node software in order to quickly
-disable the feature.
+This motivates the design decision to make flow cancel functionality optional. If malicious activity is detected, Guardians can toggle the CLI flag and restart the node software in order to quickly disable the feature.
 
 When evaluating whether to enable flow canceling, consider:
 - Is this corridor experiencing chronic congestion?
@@ -217,7 +191,4 @@ When evaluating whether to enable flow canceling, consider:
 - Is the chain and its watcher considered stable?
 - Does historical transfer data show that a small number of assets represent most of the congestion?
 
-All of the above should be taken into account so that flow canceling is enabled
-for a minimal set of assets and corridors. This should mitigate some the risk
-involved with increasing the volume allowed by the Governor.
-
+All of the above should be taken into account so that flow canceling is enabled for a minimal set of assets and corridors. This should mitigate some the risk involved with increasing the volume allowed by the Governor.
