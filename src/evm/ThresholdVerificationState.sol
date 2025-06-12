@@ -91,9 +91,8 @@ contract ThresholdVerificationState {
   }
 
   // NOTE: This will panic if the guardian set index is out of bounds
-  function _registerGuardian(uint32 thresholdKeyIndex, uint8 guardianIndex, bytes32 id) internal {
+  function _registerGuardian(ThresholdKeyInfo memory info, uint8 guardianIndex, bytes32 id) internal {
     unchecked {
-      ThresholdKeyInfo memory info = _getThresholdInfo(thresholdKeyIndex);
       uint8 shardCount = info.shardCount;
       uint40 shardBase = info.shardBase;
 

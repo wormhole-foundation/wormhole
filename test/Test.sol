@@ -93,7 +93,7 @@ library VerificationHelper {
 
 	function registerGuardian(
 		uint32 thresholdKeyIndex,
-		uint32 expirationTime,
+		uint256 nonce,
 		bytes32 guardianId,
 		uint8 guardianIndex,
 		bytes32 r,
@@ -103,7 +103,7 @@ library VerificationHelper {
 		return abi.encodePacked(
 			OP_REGISTER_GUARDIAN,
 			uint32(thresholdKeyIndex),
-			uint32(expirationTime),
+			uint256(nonce),
 			bytes32(guardianId),
 			uint8(guardianIndex),
 			bytes32(r),
@@ -552,15 +552,16 @@ contract VerificationV2Test is Test {
 	function test_setShardID() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
+		uint256 fakeNonce = 10;
 		bytes32 testID = bytes32(0x0000000000000000000000000000000000000000000000000000123412341234);
-		bytes32 registerGuardianMessageHash = _verificationV2.getRegisterGuardianDigest(0, uint32(block.timestamp + 1000), testID);
+		bytes32 registerGuardianMessageHash = _verificationV2.getRegisterGuardianDigest(0, fakeNonce, testID);
 
 		(uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianPrivateKey1, registerGuardianMessageHash);
 		v = v == 27 ? 0 : 1;
 		
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.registerGuardian(
 			0,
-			uint32(block.timestamp + 1000),
+			fakeNonce,
 			testID,
 			0,
 			r, s, v
@@ -578,16 +579,25 @@ contract VerificationV2Test is Test {
 	function testRevert_setShardID() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-		// Create an expired message
+		uint256 fakeNonce = 10;
 		bytes32 testID = bytes32(0x0000000000000000000000000000000000000000000000000000123412341234);
-		bytes32 registerGuardianMessageHash = _verificationV2.getRegisterGuardianDigest(0, uint32(block.timestamp - 100), testID);
+		bytes32 registerGuardianMessageHash = _verificationV2.getRegisterGuardianDigest(0, fakeNonce, testID);
 
 		(uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianPrivateKey1, registerGuardianMessageHash);
 		v = v == 27 ? 0 : 1;
 		
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.registerGuardian(
 			0,
-			uint32(block.timestamp + 1000),
+			fakeNonce,
+			testID,
+			0,
+			r, s, v
+		)), true);
+
+		// Try to register the same shard ID again, should fail
+		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.registerGuardian(
+			0,
+			fakeNonce,
 			testID,
 			0,
 			r, s, v

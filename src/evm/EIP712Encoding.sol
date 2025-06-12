@@ -76,12 +76,12 @@ contract EIP712Encoding is IERC5267 {
   }
 
   function getRegisterGuardianDigest(
-    uint32 thresholdKeyIndex, uint32 expirationTime, bytes32 guardianId
+    uint32 thresholdKeyIndex, uint256 nonce, bytes32 guardianId
   ) public view returns (bytes32) {
     bytes32 idHash = keccak256(abi.encode(
       REGISTER_TYPE_HASH,
       thresholdKeyIndex,
-      expirationTime,
+      nonce,
       guardianId
     ));
 
