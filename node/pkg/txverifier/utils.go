@@ -154,3 +154,53 @@ func ValidateChains(
 
 	return enabled, nil
 }
+
+// deleteEntries deletes CacheDeleteCount entries at random from a pointer to a map.
+// Only trims if the length of the cache is greater than CacheMaxSize.
+// Returns the number of keys deleted.
+func deleteEntries[K comparable, V any](cachePointer *map[K]V) (int, error) {
+	if cachePointer == nil {
+		return 0, errors.New("nil pointer to map passed to deleteEntries()")
+	}
+
+	if *cachePointer == nil {
+		return 0, errors.New("nil map passed (pointer points to a nil map)")
+	}
+
+	cache := *cachePointer
+	currentLen := len(cache)
+
+	if currentLen <= CacheMaxSize {
+		return 0, nil // Nothing to delete, cache is within limits.
+	}
+
+	// Bounds check
+	// NOTE: cache length must be greater than or equal to CacheMaxSize.
+	if len(cache) < CacheMaxSize {
+		return 0, nil
+	}
+
+	// Delete either a fixed number of entries or else delete enough so that the cache
+	// will be at CacheMaxSize after the operation.
+	deleteCount := max(CacheDeleteCount, len(cache)-CacheMaxSize)
+
+	// Allocate array that stores keys to delete.
+	keysToDelete := make([]K, deleteCount)
+
+	// Iterate over the map (non-deterministic) and pick some keys to delete.
+	var i int
+	for key := range cache {
+		keysToDelete[i] = key
+		i++
+		if i >= len(keysToDelete) {
+			break
+		}
+	}
+
+	// Delete the keys from the map.
+	for _, key := range keysToDelete {
+		delete(cache, key)
+	}
+
+	return i, nil
+}
