@@ -162,8 +162,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 // pruneCache removes cached evaluations and RPC calls.
 // TODO: This functionality should be replaced by an LRU cache library.
 func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
-	// Prune the cache of processed receipts
-	numPrunedEvals := int(0)
+	var numPrunedEvals int
 
 	// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
 	for hash, eval := range tv.evaluations {
@@ -189,90 +188,48 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 
 	// For the other caches, just prune them if they're too big.
 	if len(tv.chainIdCache) >= CacheMaxSize {
-		var (
-			i = 0
-			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
-			// iterated over.
-			keysToDelete = make([]string, CacheDeleteCount)
-		)
-		for key := range tv.chainIdCache {
-			keysToDelete[i] = key
-			i++
-			if i >= len(keysToDelete) {
-				break
-			}
+		numDeleted, err := deleteEntries(&tv.chainIdCache)
+		if err != nil {
+			tv.logger.Warn("pruneCache: chainId() cache:", zap.Error(err))
+
+		} else {
+			tv.logger.Info("pruned cached calls to chainId()",
+				zap.Int("numDeleted", numDeleted),
+				zap.Int("cacheSize", len(tv.chainIdCache)),
+			)
 		}
-		for _, key := range keysToDelete {
-			delete(tv.chainIdCache, key)
-		}
-		tv.logger.Info("pruned cached calls to chainId()",
-			zap.Int("numPruned", i),
-			zap.Int("cacheSize", len(tv.chainIdCache)),
-		)
 	}
 	if len(tv.decimalsCache) >= CacheMaxSize {
-		var (
-			i = 0
-			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
-			// iterated over.
-			keysToDelete = make([]common.Address, CacheDeleteCount)
-		)
-		for key := range tv.decimalsCache {
-			keysToDelete[i] = key
-			i++
-			if i >= len(keysToDelete) {
-				break
-			}
+		numDeleted, err := deleteEntries(&tv.nativeContractCache)
+		if err != nil {
+			tv.logger.Warn("pruneCache: decimals() cache:", zap.Error(err))
+
+		} else {
+			tv.logger.Info("pruned cached calls to decimals()",
+				zap.Int("numDeleted", numDeleted),
+				zap.Int("cacheSize", len(tv.nativeContractCache)),
+			)
 		}
-		for _, key := range keysToDelete {
-			delete(tv.decimalsCache, key)
-		}
-		tv.logger.Info("pruned cached calls to decimals()",
-			zap.Int("numPruned", i),
-			zap.Int("cacheSize", len(tv.decimalsCache)),
-		)
 	}
 	if len(tv.isWrappedCache) >= CacheMaxSize {
-		var (
-			i = 0
-			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
-			// iterated over.
-			keysToDelete = make([]string, CacheDeleteCount)
-		)
-		for key := range tv.isWrappedCache {
-			keysToDelete[i] = key
-			i++
-			if i >= len(keysToDelete) {
-				break
-			}
+		numDeleted, err := deleteEntries(&tv.isWrappedCache)
+		if err != nil {
+			tv.logger.Warn("pruneCache: isWrapped() cache:", zap.Error(err))
+
+		} else {
+			tv.logger.Info("pruned cached calls to isWrapped()",
+				zap.Int("numDeleted", numDeleted),
+				zap.Int("cacheSize", len(tv.isWrappedCache)),
+			)
 		}
-		for _, key := range keysToDelete {
-			delete(tv.isWrappedCache, key)
-		}
-		tv.logger.Info("pruned cached calls to isWrapped()",
-			zap.Int("numPruned", i),
-			zap.Int("cacheSize", len(tv.isWrappedCache)),
-		)
 	}
 	if len(tv.nativeContractCache) >= CacheMaxSize {
-		var (
-			i = 0
-			// Slice to store keys to delete in order to avoid deleting keys from maps that are being
-			// iterated over.
-			keysToDelete = make([]string, CacheDeleteCount)
-		)
-		for key := range tv.nativeContractCache {
-			keysToDelete[i] = key
-			i++
-			if i >= len(keysToDelete) {
-				break
-			}
-		}
-		for _, key := range keysToDelete {
-			delete(tv.nativeContractCache, key)
+		numDeleted, err := deleteEntries(&tv.nativeContractCache)
+		if err != nil {
+			tv.logger.Warn("pruneCache: nativeContract() cache:", zap.Error(err))
 		}
 		tv.logger.Info("pruned cached calls to nativeContract()",
-			zap.Int("numPruned", i),
+			zap.Int("numDeleted", numDeleted),
 			zap.Int("cacheSize", len(tv.nativeContractCache)),
 		)
 	}
