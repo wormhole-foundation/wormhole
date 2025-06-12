@@ -552,7 +552,7 @@ contract VerificationV2Test is Test {
 	function test_setShardID() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
-    uint256 fakeNonce = 10;
+		uint256 fakeNonce = 10;
 		bytes32 testID = bytes32(0x0000000000000000000000000000000000000000000000000000123412341234);
 		bytes32 registerGuardianMessageHash = _verificationV2.getRegisterGuardianDigest(0, fakeNonce, testID);
 
@@ -594,7 +594,7 @@ contract VerificationV2Test is Test {
 			r, s, v
 		)), true);
 
-    // Try to register the same shard ID again, should fail
+		// Try to register the same shard ID again, should fail
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.registerGuardian(
 			0,
 			fakeNonce,
