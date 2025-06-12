@@ -25,8 +25,6 @@ contract VaaBuilder is Test {
 		bytes memory signatures = new bytes(guardianCount * 66); // 66 bytes per signature (1 byte index, 32 bytes r, 32 bytes s, 1 byte v)
 		bytes32 vaaDoubleHash = keccak256Word(keccak256SliceUnchecked(envelope, 0, envelope.length));
 
-		console.logBytes32(vaaDoubleHash);
-
 		for (uint256 i = 0; i < guardianCount; i++) {
 			(uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianPrivateKeys[i], vaaDoubleHash);
 
@@ -113,7 +111,7 @@ contract VerificationTests is Test, VaaBuilder {
 	address private guardianPublicKey1 = vm.addr(guardianPrivateKey1);
 	address[] private guardianKeys1 = [guardianPublicKey1];
 
-	uint256 private constant schnorrKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c;
+	uint256 private constant schnorrKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
 	ShardData[] private schnorrShards1 = [
 		ShardData({
 			shard: bytes32(0x0000000000000000000000000000000000000000000000000000000000001234),
@@ -133,8 +131,8 @@ contract VerificationTests is Test, VaaBuilder {
 		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
 		registerSchnorrKeyVaa = createMultisigVaa(0, guardianPrivateKeys1, envelope);
 
-		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
-		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
 		schnorrVaa = createVaaV2(0, r, s, new bytes(100));
 	}
 
