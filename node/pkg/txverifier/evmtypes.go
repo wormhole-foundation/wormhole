@@ -40,6 +40,7 @@ const (
 	// CacheMaxSize is the maximum number of entries that should be in any of the caches.
 	CacheMaxSize = 100
 	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
+	// Must be less than CacheMaxSize.
 	CacheDeleteCount = 10
 )
 
