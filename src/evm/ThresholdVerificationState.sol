@@ -49,7 +49,7 @@ contract ThresholdVerificationState {
     ShardInfo[] memory shards
   ) internal {
     unchecked {
-      // Verify that is a new key
+      // Verify that it is a new key
       require(_currentThresholdKeyIndex == type(uint32).max || thresholdKeyIndex > _currentThresholdKeyIndex, InvalidThresholdKeyIndex());
 
       // If there is a previous threshold key that is now expired, store the expiration time
