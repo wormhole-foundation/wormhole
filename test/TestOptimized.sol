@@ -142,30 +142,36 @@ contract VerificationTests is Test, VaaBuilder {
 		assertEq(result.length, 0);
 	}
 
-	/*
 	function test_verifyMultisigVaaRawErrorCode() public view {
-		bytes memory result = verification.verify(VERIFY_VAA, registerSchnorrKeyVaa);
-		assertEq(result.length, 1);
-		assertEq(result[0], bytes1(uint8(VerificationError.NoError)));
+		bytes memory result = verification.verify(VERIFY_VAA | VERIFY_ERROR_CODE, registerSchnorrKeyVaa);
+		VerificationError errorCode = abi.decode(result, (VerificationError));
+		assertEq(uint8(errorCode), uint8(VerificationError.NoError));
 	}
 
 	function test_verifySchnorrVaaRawRevert() public {
-		bytes[] memory registerSchnorrKeyVaas = new bytes[](1);
-		registerSchnorrKeyVaas[0] = registerSchnorrKeyVaa;
-		verification.appendSchnorrKeys(registerSchnorrKeyVaas);
+		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
+			uint8(1),
+			uint16(registerSchnorrKeyVaa.length),
+			registerSchnorrKeyVaa
+		);
 
-		bytes memory result = verification.verify(0, schnorrVaa);
+		verification.update(registerSchnorrKeyMessage);
+
+		bytes memory result = verification.verify(VERIFY_VAA, schnorrVaa);
 		assertEq(result.length, 0);
 	}
 
 	function test_verifySchnorrVaaRawErrorCode() public {
-		bytes[] memory registerSchnorrKeyVaas = new bytes[](1);
-		registerSchnorrKeyVaas[0] = registerSchnorrKeyVaa;
-		verification.appendSchnorrKeys(registerSchnorrKeyVaas);
+		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
+			uint8(1),
+			uint16(registerSchnorrKeyVaa.length),
+			registerSchnorrKeyVaa
+		);
+
+		verification.update(registerSchnorrKeyMessage);
 
 		bytes memory result = verification.verify(VERIFY_VAA | VERIFY_ERROR_CODE, schnorrVaa);
-		assertEq(result.length, 1);
-		assertEq(result[0], bytes1(uint8(VerificationError.NoError)));
+		VerificationError errorCode = abi.decode(result, (VerificationError));
+		assertEq(uint8(errorCode), uint8(VerificationError.NoError));
 	}
-	*/
 }

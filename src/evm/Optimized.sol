@@ -200,6 +200,8 @@ abstract contract VerificationStateSchnorr {
 		uint32 multisigKeyIndex;
 	}
 
+	error InvalidShardIndex();
+
 	SchnorrKeyData[] private _schnorrKeyData;
 	ShardData[] private _schnorrShardData;
 
@@ -257,8 +259,11 @@ abstract contract VerificationStateSchnorr {
 		}
 	}
 
-	function _setSchnorrShardId(uint40 shardBase, uint8 shardIndex, bytes32 id) internal {
-		_schnorrShardData[shardBase + shardIndex].id = id;
+	function _setSchnorrShardId(SchnorrKeyData memory keyData, uint8 shardIndex, bytes32 id) internal {
+		unchecked {
+			require(shardIndex < keyData.shardCount, InvalidShardIndex());
+			_schnorrShardData[keyData.shardBase + shardIndex].id = id;
+		}
 	}
 }
 
@@ -320,9 +325,16 @@ abstract contract VerificationSingle is VerificationOptions, VerificationStateMu
 		(keyIndex, offset) = data.asUint32CdUnchecked(offset);
 
 		if (version == 2) {
-			return _verifyVaaSchnorr(inputType, outputType, keyIndex, data, offset);
+			bytes32 vaaHash = data.calcVaaDoubleHashCd(SCHNORR_VAA_HEADER_LENGTH);
+			return _verifyHashAndHeaderSchnorr(inputType, outputType, vaaHash, keyIndex, data, offset);
 		} else if (version == 1) {
-			return _verifyVaaMultisig(inputType, outputType, keyIndex, data, offset);
+			uint8 signatureCount;
+
+			(signatureCount, offset) = data.asUint8CdUnchecked(offset);
+
+			uint256 envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
+			bytes32 vaaHash = data.calcVaaDoubleHashCd(envelopeOffset);
+			return _verifyHashAndHeaderMultisig(inputType, outputType, vaaHash, keyIndex, data, offset);
 		} else {
 			return _generateOutputABI(inputType, outputType, VerificationError.InvalidVAAVersion, data, offset);
 		}
@@ -330,21 +342,46 @@ abstract contract VerificationSingle is VerificationOptions, VerificationStateMu
 
 	function _verifyHashAndHeader(uint8 inputType, uint8 outputType, bytes calldata data) internal view returns (bytes memory) {
 		uint256 offset = 0;
-		bytes32 vaaHash;
+		bytes32 digest;
 		uint8 version;
 		uint32 keyIndex;
 
-		(vaaHash, offset) = data.asBytes32CdUnchecked(offset);
+		(digest, offset) = data.asBytes32CdUnchecked(offset);
 		(version, offset) = data.asUint8CdUnchecked(offset);
 		(keyIndex, offset) = data.asUint32CdUnchecked(offset);
 
 		if (version == 2) {
-			return _verifyVaaSchnorr(inputType, outputType, keyIndex, data, offset);
+			return _verifyHashAndHeaderSchnorr(inputType, outputType, digest, keyIndex, data, offset);
 		} else if (version == 1) {
-			return _verifyVaaMultisig(inputType, outputType, keyIndex, data, offset);
+			return _verifyHashAndHeaderMultisig(inputType, outputType, digest, keyIndex, data, offset);
 		} else {
 			return _generateOutputABI(inputType, outputType, VerificationError.InvalidVAAVersion, data, offset);
 		}
+	}
+
+	function _verifyHashAndHeaderSchnorr(uint8 inputType, uint8 outputType, bytes32 digest, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
+		SchnorrKeyData memory keyData = _getSchnorrKeyData(keyIndex);
+		uint32 expirationTime = keyData.expirationTime;
+		if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
+			return _generateOutputABI(inputType, outputType, VerificationError.KeyDataExpired, data, offset);
+		}
+
+		VerificationError errorCode = _verifySchnorr(digest, keyData.pubkey, data, offset);
+		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
+	}
+
+	function _verifyHashAndHeaderMultisig(uint8 inputType, uint8 outputType, bytes32 digest, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
+		uint8 signatureCount;
+
+		(signatureCount, offset) = data.asUint8CdUnchecked(offset);
+
+		(uint32 expirationTime, address[] memory keys) = _getMultisigKeyData(keyIndex);
+		if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
+			return _generateOutputABI(inputType, outputType, VerificationError.KeyDataExpired, data, offset);
+		}
+
+		VerificationError errorCode = _verifyMultisig(digest, keys, signatureCount, data, offset);
+		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
 	}
 
 	function _verifyHashAndSchnorr(uint8 inputType, uint8 outputType, bytes calldata data) internal pure returns (bytes memory) {
@@ -377,37 +414,6 @@ abstract contract VerificationSingle is VerificationOptions, VerificationStateMu
 
 		VerificationError errorCode = _verifyMultisig(vaaHash, keys, signatureCount, data, offset);
 		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
-	}
-
-	function _verifyVaaSchnorr(uint8 inputType, uint8 outputType, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
-		SchnorrKeyData memory keyData = _getSchnorrKeyData(keyIndex);
-		uint32 expirationTime = keyData.expirationTime;
-		if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
-			return _generateOutputABI(inputType, outputType, VerificationError.KeyDataExpired, data, offset);
-		}
-
-		bytes32 vaaHash = data.calcVaaDoubleHashCd(SCHNORR_VAA_HEADER_LENGTH);
-		VerificationError errorCode = _verifySchnorr(vaaHash, keyData.pubkey, data, offset);
-		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
-	}
-
-	function _verifyVaaMultisig(uint8 inputType, uint8 outputType, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
-		unchecked {
-			uint8 signatureCount;
-
-			(signatureCount, offset) = data.asUint8CdUnchecked(offset);
-
-			// Get the guardian set and validate it's not expired
-			(uint32 expirationTime, address[] memory keys) = _getMultisigKeyData(keyIndex);
-			if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
-				return _generateOutputABI(inputType, outputType, VerificationError.KeyDataExpired, data, offset);
-			}
-
-			uint256 envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
-			bytes32 vaaHash = data.calcVaaDoubleHashCd(envelopeOffset);
-			VerificationError errorCode = _verifyMultisig(vaaHash, keys, signatureCount, data, offset);
-			return _generateOutputABI(inputType, outputType, errorCode, data, offset);
-		}
 	}
 
 	function _generateOutputABI(uint8 inputType, uint8 outputType, VerificationError errorCode, bytes calldata data, uint256 envelopeOffset) internal pure returns (bytes memory) {
@@ -469,6 +475,7 @@ abstract contract VerificationCompressed is VerificationOptions, VerificationSta
 			uint8 options;
 
 			(options, offset) = msg.data.asUint8CdUnchecked(offset);
+
 		}
 	}
 }
@@ -488,6 +495,8 @@ contract Verification is VerificationSingle, EIP712Encoding {
 	using UncheckedIndexing for address[];
 	using {BytesParsing.checkLength} for uint;
 
+	error InvalidOpcode(uint8 opcode);
+
 	error InvalidKeyIndex();
 	error SignatureExpired();
 	error InvalidGuardianIndex();
@@ -500,51 +509,38 @@ contract Verification is VerificationSingle, EIP712Encoding {
 	error InvalidAppendSchnorrKeyMessageLength();
 
 	constructor(ICoreBridge coreBridge, uint32 initMultisigKeyIndex, uint32 pullLimit) VerificationStateMultisig(coreBridge, initMultisigKeyIndex) {
-		pullMultisigKeyData(pullLimit);
+		_pullMultisigKeyData(pullLimit);
 	}
 
-	function getCurrentSchnorrKeyData() public view returns (uint32 index, uint256 pubkey) {
-		unchecked {
-			index = uint32(_getSchnorrKeyCount() - 1);
-			pubkey = _getSchnorrKeyData(index).pubkey;
+	function update(bytes calldata data) public {
+		(uint8 opcode,) = data.asUint8CdUnchecked(0);
+
+		if (opcode == 0) {
+			_updateShardId(data, 1);
+		} else if (opcode == 1) {
+			_appendSchnorrKeys(data, 1);
+		} else if (opcode == 2) {
+			uint32 pullLimit;
+			(pullLimit,) = data.asUint32CdUnchecked(1);
+			_pullMultisigKeyData(pullLimit);
+		} else {
+			revert InvalidOpcode(opcode);
 		}
 	}
 
-	function getSchnorrKeyData(uint32 index) public view returns (uint32 expirationTime, uint256 pubkey) {
-		unchecked {
-			SchnorrKeyData memory keyData = _getSchnorrKeyData(index);
-			expirationTime = keyData.expirationTime;
-			pubkey = keyData.pubkey;
-		}
-	}
-
-	function getCurrentMultisigKeyData() public view returns (uint32 index, address[] memory guardians) {
-		unchecked {
-			index = uint32(_getMultisigKeyCount() - 1);
-			(, guardians) = _getMultisigKeyData(index);
-		}
-	}
-
-	function getMultisigKeyData(uint32 index) public view returns (uint32 expirationTime, address[] memory guardians) {
-		unchecked {
-			(expirationTime, guardians) = _getMultisigKeyData(index);
-		}
-	}
-
-	function updateShardId(bytes calldata message) public {
-		uint256 offset = 0;
+	function _updateShardId(bytes calldata data, uint256 offset) private {
 		uint32 schnorrKeyIndex;
 		uint32 expirationTime;
 		bytes32 guardianId;
-		uint8 guardianIndex;
+		uint8 signerIndex;
 		bytes32 r;
 		bytes32 s;
 		uint8 v;
 
-		(schnorrKeyIndex, offset) = message.asUint32CdUnchecked(offset);
-		(expirationTime, offset) = message.asUint32CdUnchecked(offset);
-		(guardianId, offset) = message.asBytes32CdUnchecked(offset);
-		(guardianIndex, r, s, v, offset) = message.decodeGuardianSignatureCdUnchecked(offset);
+		(schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
+		(expirationTime, offset) = data.asUint32CdUnchecked(offset);
+		(guardianId, offset) = data.asBytes32CdUnchecked(offset);
+		(signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
 		// We only allow registrations for the current threshold key
 		require(schnorrKeyIndex == _getSchnorrKeyCount(), InvalidKeyIndex());
@@ -564,20 +560,16 @@ contract Verification is VerificationSingle, EIP712Encoding {
 		// verifying only canonical (low s) signatures.
 		bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, expirationTime, guardianId);
 		address signatory = ecrecover(digest, v, r, s);
-		require(signatory == keys.readUnchecked(guardianIndex), FailedVerification(VerificationError.SignatureMismatch));
+		require(signatory == keys.readUnchecked(signerIndex), FailedVerification(VerificationError.SignatureMismatch));
 
 		// Store the shard ID
-		require(guardianIndex < keyData.shardCount, InvalidGuardianIndex());
-		_setSchnorrShardId(keyData.shardBase, guardianIndex, guardianId);
+		_setSchnorrShardId(keyData, signerIndex, guardianId);
 	}
 
-	function appendSchnorrKeys(bytes[] calldata encodedVaas) public {
+	function _appendSchnorrKeys(bytes calldata data, uint256 offset) private {
 		unchecked {
-			// Decode the VAAs
-			for (uint256 i = 0; i < encodedVaas.length; i++) {
-				bytes calldata encodedVaa = encodedVaas[i];
-
-				uint256 offset = 0;
+			while (offset < data.length) {
+				uint16 encodedVaaLength;
 				uint8 version;
 				uint32 multisigKeyIndex;
 				uint8 signatureCount;
@@ -589,9 +581,11 @@ contract Verification is VerificationSingle, EIP712Encoding {
 				uint256 newSchnorrKey;
 				uint32 expirationDelaySeconds;
 
-				(version, offset) = encodedVaa.asUint8CdUnchecked(offset);
-				(multisigKeyIndex, offset) = encodedVaa.asUint32CdUnchecked(offset);
-				(signatureCount, offset) = encodedVaa.asUint8CdUnchecked(offset);
+				(encodedVaaLength, offset) = data.asUint16CdUnchecked(offset);
+				uint256 baseOffset = offset;
+				(version, offset) = data.asUint8CdUnchecked(offset);
+				(multisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
+				(signatureCount, offset) = data.asUint8CdUnchecked(offset);
 
 				uint256 signaturesOffset = offset;
 				uint256 envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
@@ -604,14 +598,14 @@ contract Verification is VerificationSingle, EIP712Encoding {
 					,
 					,
 					offset
-				) = encodedVaa.decodeVaaEnvelopeCdUnchecked(envelopeOffset);
+				) = data.decodeVaaEnvelopeCdUnchecked(envelopeOffset);
 
-				(module, offset) = encodedVaa.asBytes32MemUnchecked(offset);
-				(action, offset) = encodedVaa.asUint8MemUnchecked(offset);
+				(module, offset) = data.asBytes32MemUnchecked(offset);
+				(action, offset) = data.asUint8MemUnchecked(offset);
 
-				(newSchnorrKeyIndex, offset) = encodedVaa.asUint32MemUnchecked(offset);
-				(newSchnorrKey, offset) = encodedVaa.asUint256MemUnchecked(offset);
-				(expirationDelaySeconds, offset) = encodedVaa.asUint32MemUnchecked(offset);
+				(newSchnorrKeyIndex, offset) = data.asUint32MemUnchecked(offset);
+				(newSchnorrKey, offset) = data.asUint256MemUnchecked(offset);
+				(expirationDelaySeconds, offset) = data.asUint32MemUnchecked(offset);
 
 				// Get the current guardian set index
 				uint32 currentMultisigKeyIndex = _coreBridge.getCurrentGuardianSetIndex();
@@ -634,8 +628,8 @@ contract Verification is VerificationSingle, EIP712Encoding {
 				require(eagerAnd(px != 0, px <= HALF_Q), InvalidKey());
 
 				// Verify the signatures
-				bytes32 vaaDoubleHash = encodedVaa.calcVaaDoubleHashCd(envelopeOffset);
-				VerificationError errorCode = _verifyMultisig(vaaDoubleHash, guardians, signatureCount, encodedVaa, signaturesOffset);
+				bytes32 vaaDoubleHash = data.calcVaaDoubleHashCd(envelopeOffset);
+				VerificationError errorCode = _verifyMultisig(vaaDoubleHash, guardians, signatureCount, data, signaturesOffset);
 				require(errorCode == VerificationError.NoError, FailedVerification(errorCode));
 
 				// If there is a previous schnorr key that is now expired, store the expiration time
@@ -645,15 +639,15 @@ contract Verification is VerificationSingle, EIP712Encoding {
 				}
 
 				// Store the new schnorr key data
-				offset = _appendSchnorrKeyData(newSchnorrKey, multisigKeyIndex, signatureCount, encodedVaa, offset);
+				_appendSchnorrKeyData(newSchnorrKey, multisigKeyIndex, signatureCount, data, offset);
 
-				// Ensure the VAA is fully consumed
-				encodedVaa.length.checkLength(offset);
+				// Update the offset to the next encoded VAA
+				offset = baseOffset + encodedVaaLength;
 			}
 		}
 	}
 
-	function pullMultisigKeyData(uint32 limit) public {
+	function _pullMultisigKeyData(uint32 limit) private {
 		unchecked {
 			uint256 currentMultisigKeyIndex = _coreBridge.getCurrentGuardianSetIndex();
 			uint256 currentMultisigKeysLength = currentMultisigKeyIndex + 1;
@@ -665,24 +659,24 @@ contract Verification is VerificationSingle, EIP712Encoding {
       if (oldMultisigKeysLength > 0) {
         // Pull and write the current guardian set expiration time
         uint32 updateIndex = uint32(oldMultisigKeysLength - 1);
-        (, uint32 expirationTime) = _pullMultisigKeyData(updateIndex);
+        (, uint32 expirationTime) = _pullMultisigKeyDataEntry(updateIndex);
         _setMultisigExpirationTime(updateIndex, expirationTime);
       }
 
 			// Calculate the upper bound of the guardian sets to pull
-      uint upper = eagerOr(limit == 0, currentMultisigKeysLength - oldMultisigKeysLength < limit)
+      uint256 upper = eagerOr(limit == 0, currentMultisigKeysLength - oldMultisigKeysLength < limit)
         ? currentMultisigKeysLength : oldMultisigKeysLength + limit;
 
       // Pull and append the guardian sets
-      for (uint i = oldMultisigKeysLength; i < upper; i++) {
+      for (uint256 i = oldMultisigKeysLength; i < upper; i++) {
         // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
-        (bytes memory data, uint32 expirationTime) = _pullMultisigKeyData(uint32(i));
+        (bytes memory data, uint32 expirationTime) = _pullMultisigKeyDataEntry(uint32(i));
         _appendMultisigKeyData(data, expirationTime);
       }
 		}
 	}
 
-	function _pullMultisigKeyData(uint32 index) private view returns (
+	function _pullMultisigKeyDataEntry(uint32 index) private view returns (
     bytes memory data,
     uint32 expirationTime
   ) {
