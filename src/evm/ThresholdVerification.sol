@@ -111,6 +111,8 @@ contract ThresholdVerification is ThresholdVerificationState {
       // Payload
       (newTSSIndex, offset) = payload.asUint32MemUnchecked(offset);
       (newThresholdPubkey, offset) = payload.asUint256MemUnchecked(offset);
+      // This is the expiration that is going to be applied
+      // for the current key after executing the change
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
       
       // Verify the module and action
