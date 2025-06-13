@@ -17,4 +17,4 @@ exclude = [
 
 [patch.crates-io]
 memmap2 = { path = "bridge/memmap2-rs" }
-spl-token = { git = "https://github.com/wormholelabs-xyz/spl-token.git", rev = "7ae1b55" }
+spl-token = { git = "https://github.com/wormhole-foundation/spl-token.git", rev = "7ae1b55" }

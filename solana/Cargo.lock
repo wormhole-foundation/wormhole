@@ -3969,7 +3969,7 @@ dependencies = [
 [[package]]
 name = "spl-token"
 version = "3.3.0"
-source = "git+https://github.com/wormholelabs-xyz/spl-token.git?rev=7ae1b55#7ae1b553adb5889e57e7afb054e557ab7dd0d873"
+source = "git+https://github.com/wormhole-foundation/spl-token.git?rev=7ae1b55#7ae1b553adb5889e57e7afb054e557ab7dd0d873"
 dependencies = [
  "arrayref",
  "num-derive",
