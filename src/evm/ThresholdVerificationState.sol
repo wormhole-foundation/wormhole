@@ -50,7 +50,7 @@ contract ThresholdVerificationState {
   ) internal {
     unchecked {
       // Verify that is a new key
-			require(_amountOfKnownKeys == 0 || thresholdKeyIndex > _amountOfKnownKeys - 1, InvalidThresholdKeyIndex());
+      require(_amountOfKnownKeys == 0 || thresholdKeyIndex > _amountOfKnownKeys - 1, InvalidThresholdKeyIndex());
 
       // If there is a previous threshold key that is now expired, store the expiration time
       if (_amountOfKnownKeys > 0) {
