@@ -262,31 +262,31 @@ abstract contract VerificationStateSchnorr {
 	}
 }
 
-uint8 constant VERIFY_VAA_INPUT_RAW = 0;
-uint8 constant VERIFY_VAA_INPUT_HASH_AND_HEADER = 1;
-uint8 constant VERIFY_VAA_INPUT_HASH_AND_SCHNORR_SIGNATURE = 2;
-uint8 constant VERIFY_VAA_INPUT_HASH_AND_MULTISIG_SIGNATURE = 3;
+uint8 constant VERIFY_VAA_ESSENTIALS = 0;
+uint8 constant VERIFY_VAA = 1;
+uint8 constant VERIFY_VAA_BODY = 2;
+uint8 constant VERIFY_HASH_AND_HEADER = 3;
+uint8 constant VERIFY_HASH_AND_SCHNORR_SIGNATURE = 4;
+uint8 constant VERIFY_HASH_AND_MULTISIG_SIGNATURE = 5;
 
-uint8 constant VERIFY_VAA_OUTPUT_REVERT = 0 << 4;
-uint8 constant VERIFY_VAA_OUTPUT_BOOL = 1 << 4;
-uint8 constant VERIFY_VAA_OUTPUT_ERROR_CODE = 2 << 4;
-uint8 constant VERIFY_VAA_OUTPUT_BODY = 3 << 4; // NOTE: Only valid for INPUT_RAW
-uint8 constant VERIFY_VAA_OUTPUT_ESSENTIALS = 4 << 4; // NOTE: Only valid for INPUT_RAW
+uint8 constant VERIFY_ERROR_REVERT = 0 << 4;
+uint8 constant VERIFY_ERROR_BOOL = 1 << 4;
+uint8 constant VERIFY_ERROR_CODE = 2 << 4;
 
 abstract contract VerificationOptions {
 	error InvalidInputType(uint8 inputType);
 	error InvalidOutputType(uint8 outputType);
 
-	uint8 constant private VERIFY_VAA_INPUT_MASK = 0x0F;
-	uint8 constant private VERIFY_VAA_OUTPUT_MASK = 0xF0;
+	uint8 constant private VERIFY_INPUT_MASK = 0x0F;
+	uint8 constant private VERIFY_ERROR_MASK = 0xF0;
 
 	uint256 constant internal VAA_COMMON_HEADER_LENGTH = 1 + 4;
 	uint256 constant internal SCHNORR_SIGNATURE_LENGTH = 20 + 32;
 	uint256 constant internal SCHNORR_VAA_HEADER_LENGTH = VAA_COMMON_HEADER_LENGTH + SCHNORR_SIGNATURE_LENGTH;
 
 	function _decodeOptions(uint8 options) internal pure returns (uint8 inputType, uint8 outputType) {
-		inputType = options & VERIFY_VAA_INPUT_MASK;
-		outputType = options & VERIFY_VAA_OUTPUT_MASK;
+		inputType = options & VERIFY_INPUT_MASK;
+		outputType = options & VERIFY_ERROR_MASK;
 	}
 }
 
@@ -294,66 +294,60 @@ abstract contract VerificationSingle is VerificationOptions, VerificationStateMu
 	using BytesParsing for bytes;
 	using VaaLib for bytes;
 
-	function verifyVaa(uint8 options, bytes calldata data) public view returns (bytes memory) {
-		unchecked {
-			(uint8 inputType, uint8 outputType) = _decodeOptions(options);
+	function verify(uint8 options, bytes calldata data) public view returns (bytes memory) {
+		(uint8 inputType, uint8 outputType) = _decodeOptions(options);
 
-			// TODO: Binary tree?
-			if (inputType == VERIFY_VAA_INPUT_RAW) {
-				return _verifyVaaRaw(outputType, data);
-			} else if (inputType == VERIFY_VAA_INPUT_HASH_AND_HEADER) {
-				return _verifyVaaHashAndHeader(outputType, data);
-			} else if (inputType == VERIFY_VAA_INPUT_HASH_AND_SCHNORR_SIGNATURE) {
-				return _verifyVaaHashAndSchnorr(outputType, data);
-			} else if (inputType == VERIFY_VAA_INPUT_HASH_AND_MULTISIG_SIGNATURE) {
-				return _verifyVaaHashAndMultisig(outputType, data);
-			} else {
-				revert InvalidInputType(inputType);
-			}
+		// TODO: Binary tree?
+		if (inputType < VERIFY_HASH_AND_HEADER) {
+			return _verifyVaa(inputType, outputType, data);
+		} else if (inputType == VERIFY_HASH_AND_HEADER) {
+			return _verifyHashAndHeader(inputType, outputType, data);
+		} else if (inputType == VERIFY_HASH_AND_SCHNORR_SIGNATURE) {
+			return _verifyHashAndSchnorr(inputType, outputType, data);
+		} else if (inputType == VERIFY_HASH_AND_MULTISIG_SIGNATURE) {
+			return _verifyHashAndMultisig(inputType, outputType, data);
+		} else {
+			revert InvalidInputType(inputType);
 		}
 	}
 
-	function _verifyVaaRaw(uint8 outputType, bytes calldata data) internal view returns (bytes memory) {
-		unchecked {
-			uint256 offset = 0;
-			uint8 version;
-			uint32 keyIndex;
+	function _verifyVaa(uint8 inputType, uint8 outputType, bytes calldata data) internal view returns (bytes memory) {
+		uint256 offset = 0;
+		uint8 version;
+		uint32 keyIndex;
 
-			(version, offset) = data.asUint8CdUnchecked(offset);
-			(keyIndex, offset) = data.asUint32CdUnchecked(offset);
+		(version, offset) = data.asUint8CdUnchecked(offset);
+		(keyIndex, offset) = data.asUint32CdUnchecked(offset);
 
-			if (version == 2) {
-				return _verifyVaaSchnorr(outputType, keyIndex, data, offset);
-			} else if (version == 1) {
-				return _verifyVaaMultisig(outputType, keyIndex, data, offset);
-			} else {
-				return _generateOutputABI(outputType, VerificationError.InvalidVAAVersion, data, offset);
-			}
+		if (version == 2) {
+			return _verifyVaaSchnorr(inputType, outputType, keyIndex, data, offset);
+		} else if (version == 1) {
+			return _verifyVaaMultisig(inputType, outputType, keyIndex, data, offset);
+		} else {
+			return _generateOutputABI(inputType, outputType, VerificationError.InvalidVAAVersion, data, offset);
 		}
 	}
 
-	function _verifyVaaHashAndHeader(uint8 outputType, bytes calldata data) internal view returns (bytes memory) {
-		unchecked {
-			uint256 offset = 0;
-			bytes32 vaaHash;
-			uint8 version;
-			uint32 keyIndex;
+	function _verifyHashAndHeader(uint8 inputType, uint8 outputType, bytes calldata data) internal view returns (bytes memory) {
+		uint256 offset = 0;
+		bytes32 vaaHash;
+		uint8 version;
+		uint32 keyIndex;
 
-			(vaaHash, offset) = data.asBytes32CdUnchecked(offset);
-			(version, offset) = data.asUint8CdUnchecked(offset);
-			(keyIndex, offset) = data.asUint32CdUnchecked(offset);
+		(vaaHash, offset) = data.asBytes32CdUnchecked(offset);
+		(version, offset) = data.asUint8CdUnchecked(offset);
+		(keyIndex, offset) = data.asUint32CdUnchecked(offset);
 
-			if (version == 2) {
-				return _verifyVaaSchnorr(outputType, keyIndex, data, offset);
-			} else if (version == 1) {
-				return _verifyVaaMultisig(outputType, keyIndex, data, offset);
-			} else {
-				return _generateOutputABI(outputType, VerificationError.InvalidVAAVersion, data, offset);
-			}
+		if (version == 2) {
+			return _verifyVaaSchnorr(inputType, outputType, keyIndex, data, offset);
+		} else if (version == 1) {
+			return _verifyVaaMultisig(inputType, outputType, keyIndex, data, offset);
+		} else {
+			return _generateOutputABI(inputType, outputType, VerificationError.InvalidVAAVersion, data, offset);
 		}
 	}
 
-	function _verifyVaaHashAndSchnorr(uint8 outputType, bytes calldata data) internal pure returns (bytes memory) {
+	function _verifyHashAndSchnorr(uint8 inputType, uint8 outputType, bytes calldata data) internal pure returns (bytes memory) {
 		uint256 offset = 0;
 		bytes32 vaaHash;
 		uint256 pubkey;
@@ -362,10 +356,10 @@ abstract contract VerificationSingle is VerificationOptions, VerificationStateMu
 		(pubkey, offset) = data.asUint256CdUnchecked(offset);
 
 		VerificationError errorCode = _verifySchnorr(vaaHash, pubkey, data, offset);
-		return _generateOutputABI(outputType, errorCode, data, offset);
+		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
 	}
 
-	function _verifyVaaHashAndMultisig(uint8 outputType, bytes calldata data) internal pure returns (bytes memory) {
+	function _verifyHashAndMultisig(uint8 inputType, uint8 outputType, bytes calldata data) internal pure returns (bytes memory) {
 		uint256 offset = 0;
 		bytes32 vaaHash;
 		uint8 guardianCount;
@@ -382,73 +376,86 @@ abstract contract VerificationSingle is VerificationOptions, VerificationStateMu
 		}
 
 		VerificationError errorCode = _verifyMultisig(vaaHash, keys, signatureCount, data, offset);
-		return _generateOutputABI(outputType, errorCode, data, offset);
+		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
 	}
 
-	function _verifyVaaSchnorr(uint8 outputType, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
+	function _verifyVaaSchnorr(uint8 inputType, uint8 outputType, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
 		SchnorrKeyData memory keyData = _getSchnorrKeyData(keyIndex);
 		uint32 expirationTime = keyData.expirationTime;
 		if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
-			return _generateOutputABI(outputType, VerificationError.KeyDataExpired, data, offset);
+			return _generateOutputABI(inputType, outputType, VerificationError.KeyDataExpired, data, offset);
 		}
 
 		bytes32 vaaHash = data.calcVaaDoubleHashCd(SCHNORR_VAA_HEADER_LENGTH);
 		VerificationError errorCode = _verifySchnorr(vaaHash, keyData.pubkey, data, offset);
-		return _generateOutputABI(outputType, errorCode, data, offset);
+		return _generateOutputABI(inputType, outputType, errorCode, data, offset);
 	}
 
-	function _verifyVaaMultisig(uint8 outputType, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
-		uint8 signatureCount;
-
-		(signatureCount, offset) = data.asUint8CdUnchecked(offset);
-
-		// Get the guardian set and validate it's not expired
-		(uint32 expirationTime, address[] memory keys) = _getMultisigKeyData(keyIndex);
-		if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
-			return _generateOutputABI(outputType, VerificationError.KeyDataExpired, data, offset);
-		}
-
-		uint256 envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
-		bytes32 vaaHash = data.calcVaaDoubleHashCd(envelopeOffset);
-		VerificationError errorCode = _verifyMultisig(vaaHash, keys, signatureCount, data, offset);
-		return _generateOutputABI(outputType, errorCode, data, offset);
-	}
-
-	function _generateOutputABI(uint8 outputType, VerificationError errorCode, bytes calldata vaa, uint256 envelopeOffset) internal pure returns (bytes memory) {
+	function _verifyVaaMultisig(uint8 inputType, uint8 outputType, uint32 keyIndex, bytes calldata data, uint256 offset) internal view returns (bytes memory) {
 		unchecked {
-			if (outputType == VERIFY_VAA_OUTPUT_ESSENTIALS) {
-				require(errorCode == VerificationError.NoError, FailedVerification(errorCode));
+			uint8 signatureCount;
 
-				// FIXME: This will return junk data if inputType is not valid!
-				uint16 emitterChainId;
-				bytes32 emitterAddress;
-				uint64 sequence;
+			(signatureCount, offset) = data.asUint8CdUnchecked(offset);
 
-				uint256 essentialsOffset = envelopeOffset + VaaLib.ENVELOPE_EMITTER_CHAIN_ID_OFFSET;
-				(emitterChainId, essentialsOffset) = vaa.asUint16CdUnchecked(essentialsOffset);
-				(emitterAddress, essentialsOffset) = vaa.asBytes32CdUnchecked(essentialsOffset);
-				(sequence,                       ) = vaa.asUint64CdUnchecked(essentialsOffset);
-
-				uint payloadOffset = envelopeOffset + VaaLib.ENVELOPE_SIZE;
-				bytes calldata payload = vaa.decodeVaaPayloadCd(payloadOffset);
-
-				return abi.encode(emitterChainId, emitterAddress, sequence, payload);
-			} else if (outputType == VERIFY_VAA_OUTPUT_REVERT) {
-				require(errorCode == VerificationError.NoError, FailedVerification(errorCode));
-				return new bytes(0);
-			} else if (outputType == VERIFY_VAA_OUTPUT_ERROR_CODE) {
-				bytes memory result = new bytes(1);
-				result[0] = bytes1(uint8(errorCode));
-				return result;
-			} else if (outputType == VERIFY_VAA_OUTPUT_BODY) {
-				require(errorCode == VerificationError.NoError, FailedVerification(errorCode));
-
-				// FIXME: This will return junk data if inputType is not valid!
-				return abi.encode(vaa.decodeVaaBodyStructCd(envelopeOffset));
-			} else {
-				revert InvalidOutputType(outputType);
+			// Get the guardian set and validate it's not expired
+			(uint32 expirationTime, address[] memory keys) = _getMultisigKeyData(keyIndex);
+			if (eagerAnd(expirationTime != 0, expirationTime < block.timestamp)) {
+				return _generateOutputABI(inputType, outputType, VerificationError.KeyDataExpired, data, offset);
 			}
+
+			uint256 envelopeOffset = offset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
+			bytes32 vaaHash = data.calcVaaDoubleHashCd(envelopeOffset);
+			VerificationError errorCode = _verifyMultisig(vaaHash, keys, signatureCount, data, offset);
+			return _generateOutputABI(inputType, outputType, errorCode, data, offset);
 		}
+	}
+
+	function _generateOutputABI(uint8 inputType, uint8 outputType, VerificationError errorCode, bytes calldata data, uint256 envelopeOffset) internal pure returns (bytes memory) {
+		if (outputType == VERIFY_ERROR_REVERT) {
+			if (errorCode != VerificationError.NoError) revert FailedVerification(errorCode);
+
+			if (inputType == VERIFY_VAA_ESSENTIALS) {
+				(uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) = _decodeVaaEssentials(data, envelopeOffset);
+				return abi.encode(emitterChainId, emitterAddress, sequence, payload);
+			} else if (inputType == VERIFY_VAA_BODY) {
+				return abi.encode(data.decodeVaaBodyStructCd(envelopeOffset));
+			} else {
+				return new bytes(0);
+			}
+		} else if (outputType == VERIFY_ERROR_BOOL) {
+			bool errorBool = errorCode == VerificationError.NoError;
+
+			if (inputType == VERIFY_VAA_ESSENTIALS) {
+				(uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) = _decodeVaaEssentials(data, envelopeOffset);
+				return abi.encode(errorBool, emitterChainId, emitterAddress, sequence, payload);
+			} else if (inputType == VERIFY_VAA_BODY) {
+				return abi.encode(errorBool, data.decodeVaaBodyStructCd(envelopeOffset));
+			} else {
+				return abi.encode(errorBool);
+			}
+		} else if (outputType == VERIFY_ERROR_CODE) {
+			if (inputType == VERIFY_VAA_ESSENTIALS) {
+				(uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) = _decodeVaaEssentials(data, envelopeOffset);
+				return abi.encode(errorCode, emitterChainId, emitterAddress, sequence, payload);
+			} else if (inputType == VERIFY_VAA_BODY) {
+				return abi.encode(errorCode, data.decodeVaaBodyStructCd(envelopeOffset));
+			} else {
+				return abi.encode(errorCode);
+			}
+		} else {
+			revert InvalidOutputType(outputType);
+		}
+	}
+
+	function _decodeVaaEssentials(bytes calldata data, uint256 envelopeOffset) internal pure returns (uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) {
+		// NOTE: We can't use the VaaLib version of this because it checks the version field as well
+		uint256 offset = envelopeOffset + VaaLib.ENVELOPE_EMITTER_CHAIN_ID_OFFSET;
+		(emitterChainId, offset) = data.asUint16CdUnchecked(offset);
+		(emitterAddress, offset) = data.asBytes32CdUnchecked(offset);
+		(sequence,             ) = data.asUint32CdUnchecked(offset);
+
+		uint payloadOffset = envelopeOffset + VaaLib.ENVELOPE_SIZE;
+		payload = data.decodeVaaPayloadCd(payloadOffset);
 	}
 }
 

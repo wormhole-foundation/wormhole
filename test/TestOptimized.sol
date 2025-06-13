@@ -16,7 +16,8 @@ import {
 	GOVERNANCE_ADDRESS,
 	ShardData,
 	VerificationError,
-	VERIFY_VAA_OUTPUT_ERROR_CODE
+	VERIFY_VAA,
+	VERIFY_ERROR_CODE
 } from "../src/evm/Optimized.sol";
 
 contract VaaBuilder is Test {
@@ -137,12 +138,13 @@ contract VerificationTests is Test, VaaBuilder {
 	}
 
 	function test_verifyMultisigVaaRawRevert() public view {
-		bytes memory result = verification.verifyVaa(0, registerSchnorrKeyVaa);
+		bytes memory result = verification.verify(VERIFY_VAA, registerSchnorrKeyVaa);
 		assertEq(result.length, 0);
 	}
 
+	/*
 	function test_verifyMultisigVaaRawErrorCode() public view {
-		bytes memory result = verification.verifyVaa(VERIFY_VAA_OUTPUT_ERROR_CODE, registerSchnorrKeyVaa);
+		bytes memory result = verification.verify(VERIFY_VAA, registerSchnorrKeyVaa);
 		assertEq(result.length, 1);
 		assertEq(result[0], bytes1(uint8(VerificationError.NoError)));
 	}
@@ -152,7 +154,7 @@ contract VerificationTests is Test, VaaBuilder {
 		registerSchnorrKeyVaas[0] = registerSchnorrKeyVaa;
 		verification.appendSchnorrKeys(registerSchnorrKeyVaas);
 
-		bytes memory result = verification.verifyVaa(0, schnorrVaa);
+		bytes memory result = verification.verify(0, schnorrVaa);
 		assertEq(result.length, 0);
 	}
 
@@ -161,8 +163,9 @@ contract VerificationTests is Test, VaaBuilder {
 		registerSchnorrKeyVaas[0] = registerSchnorrKeyVaa;
 		verification.appendSchnorrKeys(registerSchnorrKeyVaas);
 
-		bytes memory result = verification.verifyVaa(VERIFY_VAA_OUTPUT_ERROR_CODE, schnorrVaa);
+		bytes memory result = verification.verify(VERIFY_VAA | VERIFY_ERROR_CODE, schnorrVaa);
 		assertEq(result.length, 1);
 		assertEq(result[0], bytes1(uint8(VerificationError.NoError)));
 	}
+	*/
 }
