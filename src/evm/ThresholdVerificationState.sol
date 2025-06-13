@@ -21,7 +21,7 @@ contract ThresholdVerificationState {
     uint32 guardianSetIndex;
   }
 
-  uint32 private _currentThresholdKeyIndex = type(uint32).max;
+  uint32 private _amountOfKnownKeys;
   mapping (uint32 => ThresholdKeyInfo) private _thresholdKeyData;
   ShardInfo[] private _shardData;
 
@@ -29,7 +29,7 @@ contract ThresholdVerificationState {
   // NOTE: This will panic if the threshold data is empty
   function _getCurrentThresholdInfo() internal view returns (ThresholdKeyInfo memory info, uint32 index) {
     unchecked {
-      index = _currentThresholdKeyIndex;
+      index = _amountOfKnownKeys - 1;
       info = _thresholdKeyData[index];
     }
   }
@@ -49,12 +49,12 @@ contract ThresholdVerificationState {
     ShardInfo[] memory shards
   ) internal {
     unchecked {
-      // Verify that it is a new key
-      require(_currentThresholdKeyIndex == type(uint32).max || thresholdKeyIndex > _currentThresholdKeyIndex, InvalidThresholdKeyIndex());
+      // Verify that is a new key
+			require(_amountOfKnownKeys == 0 || thresholdKeyIndex > _amountOfKnownKeys - 1, InvalidThresholdKeyIndex());
 
       // If there is a previous threshold key that is now expired, store the expiration time
-      if (_currentThresholdKeyIndex > 0) {
-        _thresholdKeyData[_currentThresholdKeyIndex].expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
+      if (_amountOfKnownKeys > 0) {
+        _thresholdKeyData[_amountOfKnownKeys - 1].expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
       }
 
       // Store the new threshold info
@@ -66,7 +66,7 @@ contract ThresholdVerificationState {
         guardianSetIndex: currentGuardianSetIndex
       });
 
-      _currentThresholdKeyIndex = thresholdKeyIndex;
+      _amountOfKnownKeys =  thresholdKeyIndex + 1;
 
       // Store the shard data
       // TODO: Assembly block could be used here to save gas
