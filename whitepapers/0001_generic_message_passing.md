@@ -189,11 +189,27 @@ level meanings and enforcing them.
 
 - `200` - publish immediately
 - `201` - `safe`, if available, otherwise falls back to `finalized`
+- `202` - `finalized`
+- `203` - custom handling
 - anything else is treated as `finalized`
 
 Historically, the EVM watcher specified the consistency level as the block depth (from `latest`) the transaction
 should reach before publishing. However, since [The Merge](https://ethereum.org/en/roadmap/merge/), adoption of
 `safe` and `finalized` block tags have become widespread and offer a more exact measure of commitment.
+
+### Custom Handling
+
+The consistency level of 203 indicates that the integrator desires special handling. When the watcher sees this value,
+it reads the `CustomConsistencyLevel` on-chain contract, using the emitter address as the key to determine the
+special handling to be performed. If the emitter address is not configured in the contract, then the observation
+is treated as though it had consistency level 202 (finalized).
+
+#### Additional Blocks handling
+
+Currently, the only supported custom handling is to wait the configured number of additional blocks after the specified
+consistency level. For instance, if the integrator has configured their emitter address in the `CustomConsistencyLevel`
+contract as consistencyLevel == `201` and additional blocks == 5, then the watcher will not approve the observation until
+five blocks after when the observation block is marked safe (note, not five safe blocks, but five blocks after safe).
 
 #### Solana
 

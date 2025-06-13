@@ -104,6 +104,8 @@ type (
 const (
 	ConsistencyLevelPublishImmediately = uint8(200)
 	ConsistencyLevelSafe               = uint8(201)
+	ConsistencyLevelFinalized          = uint8(202)
+	ConsistencyLevelCustom             = uint8(203)
 )
 
 //nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
