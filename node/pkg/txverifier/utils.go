@@ -169,20 +169,15 @@ func deleteEntries[K comparable, V any](cachePointer *map[K]V) (int, error) {
 
 	cache := *cachePointer
 	currentLen := len(cache)
-
-	if currentLen <= CacheMaxSize {
-		return 0, nil // Nothing to delete, cache is within limits.
-	}
-
 	// Bounds check
 	// NOTE: cache length must be greater than or equal to CacheMaxSize.
-	if len(cache) < CacheMaxSize {
+	if currentLen <= CacheMaxSize {
 		return 0, nil
 	}
 
 	// Delete either a fixed number of entries or else delete enough so that the cache
 	// will be at CacheMaxSize after the operation.
-	deleteCount := max(CacheDeleteCount, len(cache)-CacheMaxSize)
+	deleteCount := max(CacheDeleteCount, currentLen-CacheMaxSize)
 
 	// Allocate array that stores keys to delete.
 	keysToDelete := make([]K, deleteCount)
