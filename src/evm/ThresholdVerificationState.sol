@@ -21,14 +21,15 @@ contract ThresholdVerificationState {
     uint32 guardianSetIndex;
   }
 
-  ThresholdKeyInfo[] private _thresholdKeyData;
+  uint32 private _amountOfKnownKeys;
+  mapping (uint32 => ThresholdKeyInfo) private _thresholdKeyData;
   ShardInfo[] private _shardData;
 
   // Get the current threshold signature info
   // NOTE: This will panic if the threshold data is empty
   function _getCurrentThresholdInfo() internal view returns (ThresholdKeyInfo memory info, uint32 index) {
     unchecked {
-      index = uint32(_thresholdKeyData.length - 1);
+      index = _amountOfKnownKeys - 1;
       info = _thresholdKeyData[index];
     }
   }
@@ -48,23 +49,26 @@ contract ThresholdVerificationState {
     ShardInfo[] memory shards
   ) internal {
     unchecked {
-      // Verify the new index is sequential
-      require(thresholdKeyIndex == _thresholdKeyData.length, InvalidThresholdKeyIndex());
+      // Verify that is a new key
+      require(_amountOfKnownKeys == 0 || thresholdKeyIndex > _amountOfKnownKeys - 1, InvalidThresholdKeyIndex());
+      // Avoid overflowing the amount of known keys and subsequently a replay attack
+      require(thresholdKeyIndex < type(uint32).max, InvalidThresholdKeyIndex());
 
       // If there is a previous threshold key that is now expired, store the expiration time
-      if (thresholdKeyIndex > 0) {
-        uint32 expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
-        _thresholdKeyData[thresholdKeyIndex - 1].expirationTime = expirationTime;
+      if (_amountOfKnownKeys > 0) {
+        _thresholdKeyData[_amountOfKnownKeys - 1].expirationTime = uint32(block.timestamp) + expirationDelaySeconds;
       }
 
       // Store the new threshold info
-      _thresholdKeyData.push(ThresholdKeyInfo({
+      _thresholdKeyData[thresholdKeyIndex] = ThresholdKeyInfo({
         pubkey: pubkey,
         expirationTime: 0,
         shardCount: uint8(shards.length),
         shardBase: uint40(_shardData.length),
         guardianSetIndex: currentGuardianSetIndex
-      }));
+      });
+
+      _amountOfKnownKeys = thresholdKeyIndex + 1;
 
       // Store the shard data
       // TODO: Assembly block could be used here to save gas
