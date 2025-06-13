@@ -51,6 +51,8 @@ contract ThresholdVerificationState {
     unchecked {
       // Verify that is a new key
       require(_amountOfKnownKeys == 0 || thresholdKeyIndex > _amountOfKnownKeys - 1, InvalidThresholdKeyIndex());
+      // Avoid overflowing the amount of known keys and subsequently a replay attack
+      require(thresholdKeyIndex < type(uint32).max, InvalidThresholdKeyIndex());
 
       // If there is a previous threshold key that is now expired, store the expiration time
       if (_amountOfKnownKeys > 0) {
@@ -66,7 +68,7 @@ contract ThresholdVerificationState {
         guardianSetIndex: currentGuardianSetIndex
       });
 
-      _amountOfKnownKeys =  thresholdKeyIndex + 1;
+      _amountOfKnownKeys = thresholdKeyIndex + 1;
 
       // Store the shard data
       // TODO: Assembly block could be used here to save gas

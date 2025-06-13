@@ -470,6 +470,15 @@ contract VerificationV2Test is Test {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(thresholdKeyVaa2)), false);
 	}
 
+	function testRevert_appendMaxThresholdKey() public {
+		uint32 tssIndex = type(uint32).max;
+		bytes memory payload = createThresholdKeyUpdatePayload(tssIndex, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory thresholdKeyVaa = createVaaV1(0, guardianPrivateKeys1, envelope);
+
+		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(thresholdKeyVaa)), false);
+	}
+
 	function test_getCurrentThresholdKey() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
