@@ -138,7 +138,7 @@ pub contract Wormhole {
         payloads: [[u8; 31]; 8], 
         message_fee: u128,
         consistency: u8,
-        from: AztecAddress, // explicitly pass token sender address (leaks privacy)  TODO: proper UTXO workflow
+        from: AztecAddress,
         token_nonce: Field,
     ) -> u64 {
         // check fee
@@ -196,10 +196,10 @@ pub contract Wormhole {
         assert(1 <= message_fee, "insufficient fee");
 
         let receiver_address = AztecAddress {
-            inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 // TODO: change this each time
+            inner: 0x25c6603099990f1085903124acaf00217a6e29e50baf163036c566a83c9bb6e3 // TODO: change this each time
         };
         let token_address = AztecAddress {
-            inner: 0x15edee5716556b6d29a9893c9d6872117709a7bf23fb82a72ef6bf7de1de9da0 // TODO: change this each time
+            inner: 0x0dc025163fe73041b970e9a26905fb41358ad14ef8de84e38746679f210d300e // TODO: change this each time
         };
 
         // deposit the message fee to wormhole token contract
