@@ -15,9 +15,7 @@ import {
 	ACTION_APPEND_SCHNORR_KEY,
 	GOVERNANCE_ADDRESS,
 	ShardData,
-	VerificationError,
-	VERIFY_VAA,
-	VERIFY_ERROR_CODE
+	VerificationError
 } from "../src/evm/Optimized.sol";
 
 contract VaaBuilder is Test {
@@ -63,6 +61,7 @@ contract VaaBuilder is Test {
 			envelope
 		);
 	}
+
 	function createVaaEnvelope(
 		uint32 timestamp,
 		uint32 nonce,
@@ -137,18 +136,7 @@ contract VerificationTests is Test, VaaBuilder {
 		schnorrVaa = createVaaV2(0, r, s, new bytes(100));
 	}
 
-	function test_verifyMultisigVaaRawRevert() public view {
-		bytes memory result = verification.verify(VERIFY_VAA, registerSchnorrKeyVaa);
-		assertEq(result.length, 0);
-	}
-
-	function test_verifyMultisigVaaRawErrorCode() public view {
-		bytes memory result = verification.verify(VERIFY_VAA | VERIFY_ERROR_CODE, registerSchnorrKeyVaa);
-		VerificationError errorCode = abi.decode(result, (VerificationError));
-		assertEq(uint8(errorCode), uint8(VerificationError.NoError));
-	}
-
-	function test_verifySchnorrVaaRawRevert() public {
+	function test_verifyVaaSchnorr() public {
 		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
 			uint8(1),
 			uint16(registerSchnorrKeyVaa.length),
@@ -157,11 +145,10 @@ contract VerificationTests is Test, VaaBuilder {
 
 		verification.update(registerSchnorrKeyMessage);
 
-		bytes memory result = verification.verify(VERIFY_VAA, schnorrVaa);
-		assertEq(result.length, 0);
+		verification.verifyVaa_U7N5(schnorrVaa);
 	}
 
-	function test_verifySchnorrVaaRawErrorCode() public {
+	function test_verifyVaaSchnorrVaaEssentials() public {
 		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
 			uint8(1),
 			uint16(registerSchnorrKeyVaa.length),
@@ -170,8 +157,10 @@ contract VerificationTests is Test, VaaBuilder {
 
 		verification.update(registerSchnorrKeyMessage);
 
-		bytes memory result = verification.verify(VERIFY_VAA | VERIFY_ERROR_CODE, schnorrVaa);
-		VerificationError errorCode = abi.decode(result, (VerificationError));
-		assertEq(uint8(errorCode), uint8(VerificationError.NoError));
+		(uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) = verification.verifyVaaDecodeEssentials_gRd6(schnorrVaa);
+		assertEq(emitterChainId, 0);
+		assertEq(emitterAddress, bytes32(0));
+		assertEq(sequence, 0);
+		assertEq(payload.length, 49);
 	}
 }
