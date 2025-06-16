@@ -678,6 +678,9 @@ func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp
 	if overflow {
 		return nil, errors.New("new fee overflow")
 	}
+	if new_fee_big.Cmp(big.NewInt(0)) < 0 {
+		return nil, errors.New("new fee cannot be negative")
+	}
 
 	body, err := vaa.BodyCoreBridgeSetMessageFee{
 		ChainID:    chainId,
