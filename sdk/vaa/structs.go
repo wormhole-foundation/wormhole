@@ -544,6 +544,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDMezo,
 		ChainIDFogo,
 		ChainIDSonic,
+		ChainIDConverge,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
