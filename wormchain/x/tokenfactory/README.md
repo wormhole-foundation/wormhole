@@ -1,5 +1,7 @@
 # Token Factory
 
+_(Adapted from [Osmosis's Token Factory README](https://github.com/osmosis-labs/osmosis/blob/main/x/tokenfactory/README.md).)_
+
 The tokenfactory module allows any account to create a new token with
 the name `factory/{creator address}/{subdenom}`. Because tokens are
 namespaced by creator address, this allows token minting to be
@@ -16,6 +18,15 @@ created denom. Once a denom is created, the original creator is given
   module. The `ChangeAdmin` functionality, allows changing the master admin
   account, or even setting it to `""`, meaning no account has admin privileges
   of the asset.
+
+## Wormchain's Configuration
+
+Wormchain's version of the Token Factory is not configured to enable any tokenfactory capabilities.
+
+In particular, the following actions are not possible:
+- `BurnFrom`
+- `ForceTransfer`
+- `SetDenomMetadata`
 
 ## Messages
 
@@ -97,59 +108,3 @@ message MsgChangeAdmin {
   string newAdmin = 3 [ (gogoproto.moretags) = "yaml:\"new_admin\"" ];
 }
 ```
-
-### SetDenomMetadata
-
-Setting of metadata for a specific denom is only allowed for the admin of the denom.
-It allows the overwriting of the denom metadata in the bank module.
-
-```go
-message MsgChangeAdmin {
-  string sender = 1 [ (gogoproto.moretags) = "yaml:\"sender\"" ];
-  cosmos.bank.v1beta1.Metadata metadata = 2 [ (gogoproto.moretags) = "yaml:\"metadata\"", (gogoproto.nullable)   = false ];
-}
-```
-
-**State Modifications:**
-
-- Check that sender of the message is the admin of denom
-- Modify `AuthorityMetadata` state entry to change the admin of the denom
-
-## Expectations from the chain
-
-The chain's bech32 prefix for addresses can be at most 16 characters long.
-
-This comes from denoms having a 128 byte maximum length, enforced from the SDK,
-and us setting longest_subdenom to be 44 bytes.
-
-A token factory token's denom is: `factory/{creator address}/{subdenom}`
-
-Splitting up into sub-components, this has:
-
-- `len(factory) = 7`
-- `2 * len("/") = 2`
-- `len(longest_subdenom)`
-- `len(creator_address) = len(bech32(longest_addr_length, chain_addr_prefix))`.
-
-Longest addr length at the moment is `32 bytes`. Due to SDK error correction
-settings, this means `len(bech32(32, chain_addr_prefix)) = len(chain_addr_prefix) + 1 + 58`.
-Adding this all, we have a total length constraint of `128 = 7 + 2 + len(longest_subdenom) + len(longest_chain_addr_prefix) + 1 + 58`.
-Therefore `len(longest_subdenom) + len(longest_chain_addr_prefix) = 128 - (7 + 2 + 1 + 58) = 60`.
-
-The choice between how we standardized the split these 60 bytes between maxes
-from longest_subdenom and longest_chain_addr_prefix is somewhat arbitrary.
-Considerations going into this:
-
-- Per [BIP-0173](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32)
-  the technically longest HRP for a 32 byte address ('data field') is 31 bytes.
-  (Comes from encode(data) = 59 bytes, and max length = 90 bytes)
-- subdenom should be at least 32 bytes so hashes can go into it
-- longer subdenoms are very helpful for creating human readable denoms
-- chain addresses should prefer being smaller. The longest HRP in cosmos to date is 11 bytes. (`persistence`)
-
-For explicitness, its currently set to `len(longest_subdenom) = 44` and `len(longest_chain_addr_prefix) = 16`.
-
-Please note, if the SDK increases the maximum length of a denom from 128 bytes,
-these caps should increase.
-
-So please don't make code rely on these max lengths for parsing.
