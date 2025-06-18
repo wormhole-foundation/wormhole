@@ -11,10 +11,8 @@
 // - mkdir custom_consistency_level_abi
 // - abigen --abi /tmp/CustomConsistencyLevel.abi --pkg ccl --out custom_consistency_level_abi/CustomConsistencyLevel.go
 
-// TODO: Cache configurations with a timeout
-
 /*
-Is this the desired behavior? We waited until the desired block was marked safe, then immediately saw that latest was more than five past the desired block, and published.
+Is this the desired behavior? We waited until the desired block was marked safe, then immediately saw that latest was more than five past the desired block and published.
 
 2025-06-13T17:03:31.924Z	INFO	guardian-0.root.eth_watch	received an observation with an additional blocks specifier	{"component": "cclevm", "msgId": "2/00000000000000000000000040d5b8a71a5e8202a26a53406efab755c0db6e93/2", "consistencyLevel": 201, "additionalBlocks": 5}
 2025-06-13T17:03:31.924Z	INFO	guardian-0.root.eth_watch	found new message publication transaction	{"msgId": "2/00000000000000000000000040d5b8a71a5e8202a26a53406efab755c0db6e93/2", "txHash": "0xf2613252a0b11cad2632063dd7f01c928df8c23bd01d703d2a43515d45470d90", "blockNum": 1766, "latestFinalizedBlock": 1701, "latestSafeBlock": 1733, "blockHash": "0xdde6b435191126d0219771b4668f22dd63b424d7efe67a5e0c835cf2af18ff49", "blockTime": 1749834211, "Nonce": 3, "OrigConsistencyLevel": 203, "ConsistencyLevel": 201, "AdditionalBlocks": 5}
@@ -110,6 +108,7 @@ type (
 )
 
 // CCLCacheTimeoutInterval is the lifetime of a cache entry. After that time, we delete the entry and re-read the config data.
+// TODO: This time is arbitrary. Does it sound okay?
 const CCLCacheTimeoutInterval = time.Minute * 5
 
 // cclEnable enables the custom consistency level feature, if it is configured for this environment / chain.
@@ -172,7 +171,7 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 		w.cclLogger.Info("received an observation with the nothing special specifier, treating as finalized", zap.String("msgId", pe.message.MessageIDString()))
 		pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
 	case *AdditionalBlocks:
-		if req.consistencyLevel != vaa.ConsistencyLevelFinalized && req.consistencyLevel != vaa.ConsistencyLevelSafe {
+		if req.consistencyLevel != vaa.ConsistencyLevelFinalized && req.consistencyLevel != vaa.ConsistencyLevelSafe && req.consistencyLevel != vaa.ConsistencyLevelPublishImmediately {
 			w.cclLogger.Error("received an observation with an additional blocks specifier but the configured consistency level is invalid, treating as finalized",
 				zap.String("msgId", pe.message.MessageIDString()),
 				zap.Uint8("consistencyLevel", req.consistencyLevel),
@@ -206,6 +205,9 @@ func (w *Watcher) cclShouldPublish(pe *pendingMessage, latestBlockNum uint64) bo
 		baseTargetBlockNum = atomic.LoadUint64(&w.latestFinalizedBlockNumber)
 	} else if pe.message.ConsistencyLevel == vaa.ConsistencyLevelSafe {
 		baseTargetBlockNum = atomic.LoadUint64(&w.latestSafeBlockNumber)
+	} else if pe.message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+		// We use the height rather than latest, otherwise the check below will never be satisified (comparing latest + X to latest).
+		baseTargetBlockNum = pe.height
 	} else {
 		// We really should never get here, but if we do, just convert it to finalized and let it get handled on the next block.
 		w.cclLogger.Error("observation has additional blocks set but the consistency level is invalid, treating as finalized",
@@ -264,6 +266,7 @@ func (w *Watcher) cclReadContract(ctx context.Context, emitterAddr ethCommon.Add
 	}
 
 	w.cclCacheUpdate(emitterAddr, data)
+	w.cclLogger.Info("TEST: read contract", zap.Stringer("emitterAddr", emitterAddr))
 	return data, nil
 }
 

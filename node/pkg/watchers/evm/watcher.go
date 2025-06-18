@@ -485,7 +485,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 
 				start := time.Now()
-				logger.Info("processing new header",
+				logger.Debug("processing new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Uint64("block_time", ev.Time),
 					zap.Stringer("current_blockhash", ev.Hash),
@@ -528,6 +528,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				for key, pLock := range w.pending {
 					// If this block is safe, only process messages wanting safe.
 					// If it's not safe, only process messages wanting finalized.
+					// TODO: This breaks down if we have any other consistency levels come through here.
 					if (ev.Finality == connectors.Safe) != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
 						continue
 					}

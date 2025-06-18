@@ -7,6 +7,7 @@
     "deploy-wormchain": "ts-node deploy_wormchain.ts",
     "test-accountant": "jest test_accountant.ts --verbose --setupFiles ./ci-config.js",
     "test-ntt-accountant": "jest test_ntt_accountant.ts --verbose --setupFiles ./ci-config.js",
+    "test-custom-consistency-level": "jest test_custom_consistency_level.ts --verbose --setupFiles ./ci-config.js",
     "test-wormchain": "ts-node test_wormchain.ts",
     "deploy-and-test": "npm run deploy-wormchain && npm run test-wormchain"
   },
