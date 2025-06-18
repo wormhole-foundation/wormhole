@@ -744,8 +744,8 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	return true, ce, token, payload, nil
 }
 
-// CheckPending is a wrapper method for CheckPendingForTime. It is called by the processor with the purpose of releasing
-// queued transfers.
+// CheckPending is a wrapper method for CheckPendingForTime that uses time.Now as the release time.
+// Returns a slice of MessagePublications that are ready to be published.
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
