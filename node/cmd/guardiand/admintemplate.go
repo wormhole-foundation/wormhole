@@ -78,7 +78,7 @@ var governanceTargetChain *string
 var governanceCallData *string
 
 var coreBridgeSetMessageFeeChainId *string
-var coreBridgeSetMessageFeeMessageFee *uint64
+var coreBridgeSetMessageFeeMessageFee *string
 
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
@@ -210,7 +210,7 @@ func init() {
 	// flags for the core-bridge-set-message-fee command
 	coreBridgeSetMessageFeeFlagSet := pflag.NewFlagSet("core-bridge-set-message-fee", pflag.ExitOnError)
 	coreBridgeSetMessageFeeChainId = coreBridgeSetMessageFeeFlagSet.String("chain-id", "", "Chain ID")
-	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.Uint64("message-fee", 0, "New message fee")
+	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.String("message-fee", "", "New message fee")
 	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
 	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
 

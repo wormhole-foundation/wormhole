@@ -669,9 +669,22 @@ func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp
 		return nil, fmt.Errorf("failed to convert chain id: %w", err)
 	}
 
+	new_fee_big := big.NewInt(0)
+	new_fee_big, ok := new_fee_big.SetString(req.MessageFee, 10)
+	if !ok {
+		return nil, errors.New("invalid new fee")
+	}
+	new_fee, overflow := uint256.FromBig(new_fee_big)
+	if overflow {
+		return nil, errors.New("new fee overflow")
+	}
+	if new_fee_big.Cmp(big.NewInt(0)) < 0 {
+		return nil, errors.New("new fee cannot be negative")
+	}
+
 	body, err := vaa.BodyCoreBridgeSetMessageFee{
 		ChainID:    chainId,
-		MessageFee: uint64(req.MessageFee),
+		MessageFee: new_fee,
 	}.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize governance body: %w", err)

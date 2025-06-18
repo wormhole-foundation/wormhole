@@ -279,7 +279,7 @@ type (
 	// BodyCoreBridgeSetMessageFee is a governance message to set the message fee for the core bridge.
 	BodyCoreBridgeSetMessageFee struct {
 		ChainID    ChainID
-		MessageFee uint64
+		MessageFee *uint256.Int
 	}
 )
 
@@ -503,7 +503,13 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() ([]byte, erro
 
 func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
 	payload := &bytes.Buffer{}
-	MustWrite(payload, binary.BigEndian, r.MessageFee)
+	feeBytes := r.MessageFee.Bytes()
+	if len(feeBytes) > 32 {
+		return nil, fmt.Errorf("message fee too large")
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(feeBytes):], feeBytes)
+	payload.Write(padded)
 	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
 }
 
