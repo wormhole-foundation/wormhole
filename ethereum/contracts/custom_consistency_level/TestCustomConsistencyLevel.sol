@@ -34,6 +34,13 @@ contract TestCustomConsistencyLevel is ITestCustomConsistencyLevel {
     // ==================== External Interface ===============================================
 
     /// @inheritdoc ITestCustomConsistencyLevel
+    function configure(uint8 _consistencyLevel, uint16 _blocks) external override {
+        customConsistencyLevel.configure(
+            ConfigMakers.makeAdditionalBlocksConfig(_consistencyLevel, _blocks)
+        );
+    }
+
+    /// @inheritdoc ITestCustomConsistencyLevel
     function publishMessage(
         string memory str
     ) external payable override returns (uint64 sequence) {
