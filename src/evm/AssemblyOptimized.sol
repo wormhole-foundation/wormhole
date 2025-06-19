@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.28;
 
 import {console} from "forge-std/console.sol";
 
 import {ICoreBridge, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
-import {CHAIN_ID_SOLANA} from "wormhole-solidity-sdk/constants/Chains.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
-import {VaaLib, VaaBody} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
+import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
+import {CHAIN_ID_SOLANA} from "wormhole-solidity-sdk/constants/Chains.sol";
+
+struct ShardData {
+	bytes32 shard;
+	bytes32 id;
+}
 
 // Governance emitter address
 bytes32 constant GOVERNANCE_ADDRESS = bytes32(0x0000000000000000000000000000000000000000000000000000000000000004);
@@ -18,468 +23,459 @@ bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000
 // Action ID for appending a threshold key
 uint8 constant ACTION_APPEND_SCHNORR_KEY = 0x01;
 
-// Update opcodes
-uint256 constant UPDATE_SHARD_ID = 0;
-uint256 constant UPDATE_APPEND_SCHNORR_KEY = 1;
-uint256 constant UPDATE_PULL_MULTISIG_KEY_DATA = 2;
+uint8 constant UPDATE_SHARD_ID = 0;
+uint8 constant UPDATE_APPEND_SCHNORR_KEY = 1;
+uint8 constant UPDATE_PULL_MULTISIG_KEY_DATA = 2;
 
-contract AssemblyOptimized {
+contract VerificationCore {
+  uint256 private constant SLOT_CORE_BRIDGE = 1000;
+  uint256 private constant SLOT_MULTISIG_KEY_COUNT = 1001;
+  uint256 private constant SLOT_SCHNORR_KEY_COUNT = 1002;
+  uint256 private constant SLOT_SCHNORR_SHARD_COUNT = 1003;
+
+  uint256 private constant SLOT_MULTISIG_KEY_DATA = 1 << 48;
+  uint256 private constant SLOT_SCHNORR_KEY_DATA = 2 << 48;
+  uint256 private constant SLOT_SCHNORR_KEY_EXTRA = 3 << 48;
+  uint256 private constant SLOT_SCHNORR_SHARD_DATA = 4 << 48;
+
+  uint256 private constant MASK_MULTISIG_ENTRY_EXPIRATION_TIME = 0xFFFFFFFF;
+  uint256 private constant SHIFT_MULTISIG_ENTRY_ADDRESS = 32;
+
+  uint256 private constant OFFSET_MULTISIG_CONTRACT_DATA = 1;
+
+  uint256 private constant MASK_SCHNORR_EXTRA_EXPIRATION_TIME = 0xFFFFFFFF;
+  uint256 private constant SHIFT_SCHNORR_EXTRA_SHARD_COUNT = 32;
+  uint256 private constant MASK_SCHNORR_EXTRA_SHARD_COUNT = 0xFF;
+  uint256 private constant SHIFT_SCHNORR_EXTRA_SHARD_BASE = 40;
+  uint256 private constant MASK_SCHNORR_EXTRA_SHARD_BASE = 0xFFFFFFFFFF;
+  uint256 private constant SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX = 80;
+  uint256 private constant MASK_SCHNORR_EXTRA_MULTISIG_KEY_INDEX = 0xFFFFFFFF;
+
+  uint256 private constant VAA_MULTISIG_SIGNATURE_COUNT_OFFSET = 5;
+  uint256 private constant VAA_MULTISIG_SIGNATURE_OFFSET = 6;
+  uint256 private constant VAA_MULTISIG_SIGNATURE_R_OFFSET = 1;
+  uint256 private constant VAA_MULTISIG_SIGNATURE_S_OFFSET = 33;
+  uint256 private constant VAA_MULTISIG_SIGNATURE_V_OFFSET = 65;
+  uint256 private constant VAA_MULTISIG_SIGNATURE_SIZE = 66;
+
+	// Curve order for secp256k1
+  uint256 constant internal Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+  uint256 constant internal HALF_Q = Q >> 1;
+
+  error InvalidOpcode(uint256 offset);
+  error DeploymentFailed();
+  error InvalidPointer();
+  error KeyDataExpired();
+
+  constructor(
+    ICoreBridge coreBridge,
+    uint32 initialMultisigKeyCount,
+    uint32 initialSchnorrKeyCount
+  ) {
+    assembly ("memory-safe") {
+      sstore(SLOT_CORE_BRIDGE, coreBridge)
+      sstore(SLOT_MULTISIG_KEY_COUNT, initialMultisigKeyCount)
+      sstore(SLOT_SCHNORR_KEY_COUNT, initialSchnorrKeyCount)
+    }
+  }
+  
+  function _getCoreBridge() internal view returns (ICoreBridge result) {
+    assembly ("memory-safe") {
+      result := sload(SLOT_CORE_BRIDGE)
+    }
+  }
+
+  function _getMultisigKeyCount() internal view returns (uint256 result) {
+    assembly ("memory-safe") {
+      result := sload(SLOT_MULTISIG_KEY_COUNT)
+    }
+  }
+
+  function _getMultisigKeyData(uint256 index) internal view returns (uint8 keyCount, uint256 keyDataOffset, uint32 expirationTime) {
+    assembly ("memory-safe") {
+      // Load and decode the multisig key data entry
+      let entry := sload(add(SLOT_MULTISIG_KEY_DATA, index))
+      expirationTime := and(entry, MASK_MULTISIG_ENTRY_EXPIRATION_TIME)
+      let keyDataAddress := shr(SHIFT_MULTISIG_ENTRY_ADDRESS, entry)
+      // Load the key data contract, validate the size
+      let keyDataSize := extcodesize(keyDataAddress)
+      if iszero(keyDataSize) {
+        mstore(0x00, 0x11052bb4) // InvalidPointer()
+        revert(0x1c, 0x04)
+      }
+
+      // Copy the value to memory
+      let size := sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA)
+      keyCount := shr(5, size)
+
+      keyDataOffset := mload(0x40)
+      mstore(0x40, add(keyDataOffset, size))
+      extcodecopy(keyDataAddress, keyDataOffset, OFFSET_MULTISIG_CONTRACT_DATA, size)
+    }
+  }
+
+  function _setMultisigExpirationTime(uint32 index, uint32 expirationTime) internal {
+    assembly ("memory-safe") {
+      let ptr := add(SLOT_MULTISIG_KEY_DATA, index)
+      sstore(ptr, or(and(sload(ptr), MASK_MULTISIG_ENTRY_EXPIRATION_TIME), expirationTime))
+    }
+  }
+
+  function _appendMultisigKeyData(address[] memory keys, uint32 expirationTime) internal {
+    assembly ("memory-safe") {
+      // Deploy the data to a new contract
+      let originalDataLength := shl(5, mload(keys))
+      let dataLength := add(originalDataLength, OFFSET_MULTISIG_CONTRACT_DATA)
+      mstore(add(keys, gt(dataLength, 0xFFFF)), or(0xfd61000080600a3d393df300, shl(0x40, dataLength)))
+      let deployedAddress := create(0, add(keys, 0x15), add(dataLength, 0xA))
+      if iszero(deployedAddress) {
+        mstore(0x00, 0x30116425) // DeploymentFailed()
+        revert(0x1c, 0x04)
+      }
+
+      // Restore the original length of the variable size `keys`
+      mstore(keys, originalDataLength)
+
+      // Store the entry in the storage array
+      let index := sload(SLOT_MULTISIG_KEY_COUNT)
+      let entry := or(expirationTime, shl(SHIFT_MULTISIG_ENTRY_ADDRESS, deployedAddress))
+      sstore(add(SLOT_MULTISIG_KEY_DATA, index), entry)
+
+      // Increment the multisig key count
+      sstore(SLOT_MULTISIG_KEY_COUNT, add(index, 1))
+    }
+  }
+
+  function _getSchnorrKeyCount() internal view returns (uint256 result) {
+    assembly ("memory-safe") {
+      result := sload(SLOT_SCHNORR_KEY_COUNT)
+    }
+  }
+
+  function _setSchnorrExpirationTime(uint32 index, uint32 expirationTime) internal {
+    assembly ("memory-safe") {
+      let ptr := add(SLOT_SCHNORR_KEY_EXTRA, index)
+      sstore(ptr, or(and(sload(ptr), MASK_SCHNORR_EXTRA_EXPIRATION_TIME), expirationTime))
+    }
+  }
+
+  function _appendSchnorrKeyData(
+    uint256 pubkey,
+    uint32 multisigKeyIndex,
+    uint8 shardCount,
+    bytes calldata shardData,
+    uint256 offset
+  ) internal returns (uint256 newOffset) {
+    assembly ("memory-safe") {
+      // Append the key data
+      let keyIndex := sload(SLOT_SCHNORR_KEY_COUNT)
+      sstore(add(SLOT_SCHNORR_KEY_DATA, keyIndex), pubkey)
+
+      let shardBase := sload(SLOT_SCHNORR_SHARD_COUNT)
+      let extraInfo := or(
+        shl(SHIFT_SCHNORR_EXTRA_SHARD_COUNT, shardCount),
+        or(
+          shl(SHIFT_SCHNORR_EXTRA_SHARD_BASE, shardBase),
+          shl(SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX, multisigKeyIndex)
+        )
+      )
+
+      sstore(add(SLOT_SCHNORR_KEY_EXTRA, keyIndex), extraInfo)
+
+      // Append the shard data
+      let readPtr := add(shardData.offset, offset)
+      let writePtr := add(SLOT_SCHNORR_SHARD_DATA, keyIndex)
+      for {let i := 0} lt(i, shardCount) {i := add(i, 1)} {
+        sstore(writePtr, calldataload(readPtr))
+        sstore(add(writePtr, 1), calldataload(add(readPtr, 0x20)))
+        writePtr := add(writePtr, 2)
+        readPtr := add(readPtr, 0x40)
+      }
+
+      // Return the new offset
+      newOffset := sub(readPtr, shardData.offset)
+    }
+  }
+
+  function _verifyVaa(bytes calldata data) internal view returns (bool valid, uint256 envelopeOffset) {
+    uint8 version;
+    uint32 keyIndex;
+
+    assembly ("memory-safe") {
+      version := shr(248, calldataload(data.offset))
+      keyIndex := shr(224, calldataload(add(data.offset, 1)))
+    }
+
+    if (version == 2) {
+      assembly ("memory-safe") {
+        // Decode the signature
+        envelopeOffset := 57
+        let r := shr(96, calldataload(add(data.offset, 5)))
+        let s := calldataload(add(data.offset, 25))
+        let validSignature := and(not(iszero(r)), lt(s, Q))
+
+        // Compute the double hash of the VAA
+        let buffer := mload(0x40)
+        let envelopeLength := sub(data.length, envelopeOffset)
+        calldatacopy(buffer, add(data.offset, envelopeOffset), envelopeLength)
+        let singleHash := keccak256(buffer, envelopeLength)
+        mstore(0, singleHash)
+        let doubleHash := keccak256(0, 32)
+
+        // Load the key and validate the expiration time
+        let pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, keyIndex))
+        let expirationTime := and(sload(add(SLOT_SCHNORR_KEY_EXTRA, keyIndex)), 0xFFFFFFFF)
+        let expirationTimeValid := or(iszero(expirationTime), gt(expirationTime, timestamp()))
+
+        // Compute the challenge value
+        let px := shr(1, pubkey)
+        let validPubkey := not(iszero(px))
+        let parity := and(pubkey, 1)
+        mstore(buffer, px)
+        mstore8(add(buffer, 32), parity)
+        mstore(add(buffer, 33), doubleHash)
+        mstore(add(buffer, 65), shl(96, r))
+        let e := keccak256(buffer, 85)
+
+        // Call ecrecover
+        // NOTE: This is non-zero because for all k = px * s, Q > k % Q
+        //       Therefore, Q - k % Q is always positive
+        mstore(buffer, sub(Q, mulmod(px, s, Q)))
+        mstore(add(buffer, 32), add(parity, 27))
+        mstore(add(buffer, 64), px)
+        mstore(add(buffer, 96), mulmod(px, e, Q))
+        let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+
+        // Validate the result
+        let recoveredValid := and(success, eq(r, mload(buffer)))
+        valid := and(expirationTimeValid, and(validPubkey, and(validSignature, recoveredValid)))
+      }
+    } else if (version == 1) {
+      bytes32 digest;
+      uint8 signatureCount;
+
+      assembly ("memory-safe") {
+        // Decode the signature count
+        signatureCount := shr(248, calldataload(add(data.offset, VAA_MULTISIG_SIGNATURE_COUNT_OFFSET)))
+        envelopeOffset := add(VAA_MULTISIG_SIGNATURE_OFFSET, mul(signatureCount, VAA_MULTISIG_SIGNATURE_SIZE))
+
+        // Compute the double hash of the VAA
+        let buffer := mload(0x40)
+        let envelopeLength := sub(data.length, envelopeOffset)
+        calldatacopy(buffer, add(data.offset, envelopeOffset), envelopeLength)
+        let singleHash := keccak256(buffer, envelopeLength)
+        mstore(0, singleHash)
+        digest := keccak256(0, 32)
+      }
+
+      // Load the key data and validate the expiration time
+      // TODO: We should probably inline the rest of this, even though it requires copying the code, I don't trust the compiler
+      (uint8 keyCount, uint256 keyDataOffset, uint32 expirationTime) = _getMultisigKeyData(keyIndex);
+      require(expirationTime == 0 || expirationTime > block.timestamp, KeyDataExpired());
+
+      // Verify the signatures
+      valid = _verifyMultisig(digest, keyCount, keyDataOffset, signatureCount, data, VAA_MULTISIG_SIGNATURE_OFFSET);
+    } else {
+      valid = false;
+    }
+  }
+
+  function _verifyMultisig(bytes32 digest, uint8 keyCount, uint256 keyDataOffset, uint8 signatureCount, bytes calldata signatures, uint256 signaturesOffset) internal view returns (bool valid) {
+    assembly ("memory-safe") {
+      let usedSignerBitfield := 0
+      valid := 1
+
+      let buffer := mload(0x40)
+      let ptr := add(signatures.offset, signaturesOffset)
+      for {let i := 0} lt(i, signatureCount) {i := add(i, 1)} {
+        let signerIndex := shr(248, calldataload(ptr))
+        let r := calldataload(add(ptr, VAA_MULTISIG_SIGNATURE_R_OFFSET))
+        let s := calldataload(add(ptr, VAA_MULTISIG_SIGNATURE_S_OFFSET))
+        let v := shr(248, calldataload(add(ptr, VAA_MULTISIG_SIGNATURE_V_OFFSET)))
+
+        // Call ecrecover
+        mstore(buffer, digest)
+        mstore(add(buffer, 32), add(v, 27))
+        mstore(add(buffer, 64), r)
+        mstore(add(buffer, 96), s)
+        let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+
+        // Validate the result
+        let recovered := mload(buffer)
+        let expected := mload(add(keyDataOffset, shl(5, signerIndex)))
+        let signatureValid := eq(expected, recovered)
+        let indexValid := lt(signerIndex, keyCount)
+        let signerFlag := shl(signerIndex, 1)
+        let signerUsedValid := iszero(and(usedSignerBitfield, signerFlag))
+
+        valid := and(valid, and(and(indexValid, signatureValid), signerUsedValid))
+        usedSignerBitfield := or(usedSignerBitfield, signerFlag)
+        ptr := add(ptr, VAA_MULTISIG_SIGNATURE_SIZE)
+      }
+    }
+  }
+}
+
+contract Verification is VerificationCore {
   using BytesParsing for bytes;
   using VaaLib for bytes;
 
-  error VerificationFailure();
-  error InvalidOpcode(uint8 opcode);
-
-  error InvalidKeyIndex();
-  error QuorumNotMet();
+  error InvalidMultisigKeyIndex();
+  error InvalidSignatureCount();
   error InvalidGovernanceChain();
   error InvalidGovernanceAddress();
   error InvalidModule();
   error InvalidAction();
-  error InvalidSchnorrKey();
-
-  // TODO: Encode range instead of length for schnorr and multisig, so we can set an initial offset
-  uint256 constant internal _schnorrKeyCountOffset = 1000;
-  uint256 constant internal _schnorrShardCountOffset = 1001;
-  uint256 constant internal _multisigKeyCountOffset = 1002;
-
-  uint256 constant internal _schnorrPubkeyOffset = 1 << 50;
-  uint256 constant internal _schnorrDataOffset = 2 << 50;
-  uint256 constant internal _schnorrShardDataOffset = 3 << 50;
-  uint256 constant internal _multisigExpirationTimeOffset = 4 << 50;
-
-  // Curve order for secp256k1
-  uint256 constant internal Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
-  uint256 constant internal HALF_Q = Q >> 1;
-
-  // Various offsets for decoding VAAs
-  // NOTE: Can't use the VaaLib version of these because it makes the assembly blocks below unhappy
-  uint256 constant internal VAA_MULTISIG_SIGNATURE_COUNT_OFFSET = 5;
-  uint256 constant internal VAA_MULTISIG_SIGNATURE_OFFSET = 6;
-  uint256 constant internal VAA_MULTISIG_SIGNATURE_R_OFFSET = 1;
-  uint256 constant internal VAA_MULTISIG_SIGNATURE_S_OFFSET = 33;
-  uint256 constant internal VAA_MULTISIG_SIGNATURE_V_OFFSET = 65;
-  uint256 constant internal VAA_MULTISIG_SIGNATURE_LENGTH = 66;
-
-  uint256 constant internal VAA_ENVELOPE_EMITTER_CHAIN_ID_OFFSET = 8;
-  uint256 constant internal VAA_ENVELOPE_EMITTER_ADDRESS_OFFSET = 10;
-  uint256 constant internal VAA_ENVELOPE_SEQUENCE_OFFSET = 42;
-  uint256 constant internal VAA_ENVELOPE_PAYLOAD_OFFSET = 51;
-
-  uint256 constant internal ABI_ARRAY_DATA_OFFSET = 32;
-
-  ICoreBridge private immutable _coreBridge;
+  error InvalidKeyIndex();
+  error InvalidKey();
+  error VerificationFailed();
 
   constructor(
     ICoreBridge coreBridge,
-    uint32 multisigKeyPullLimit
-  ) {
-    _coreBridge = coreBridge;
-
-    _pullMultisigKeyData(multisigKeyPullLimit);
+    uint32 initialMultisigKeyCount,
+    uint32 initialSchnorrKeyCount,
+    uint32 initialMultisigKeyPullLimit
+  ) VerificationCore(coreBridge, initialMultisigKeyCount, initialSchnorrKeyCount) {
+    _pullMultisigKeyData(initialMultisigKeyPullLimit);
   }
-  
-  // TODO: Raw dispatcher _exec interface instead?
+
+  function verifyVaa_U7N5(bytes calldata data) external view {
+    (bool valid,) = _verifyVaa(data);
+    if (!valid) {
+      revert VerificationFailed();
+    }
+  }
+
   function update(bytes calldata data) external {
     unchecked {
       uint256 offset = 0;
+
       while (offset < data.length) {
         uint8 opcode;
 
         (opcode, offset) = data.asUint8CdUnchecked(offset);
 
-        if (opcode == 0) {
-          offset = _updateSchnorrShardId(data, offset);
-        } else if (opcode == 1) {
+        if (opcode == UPDATE_SHARD_ID) {
+          offset = _updateShardId(data, offset);
+        } else if (opcode == UPDATE_APPEND_SCHNORR_KEY) {
           offset = _appendSchnorrKeys(data, offset);
-        } else if (opcode == 2) {
-          uint32 pullLimit;
-          (pullLimit, offset) = data.asUint32CdUnchecked(offset);
-          _pullMultisigKeyData(pullLimit);
+        } else if (opcode == UPDATE_PULL_MULTISIG_KEY_DATA) {
+          uint32 limit;
+          (limit, offset) = data.asUint32CdUnchecked(offset);
+          _pullMultisigKeyData(limit);
         } else {
-          revert InvalidOpcode(opcode);
+          revert InvalidOpcode(offset);
         }
       }
     }
   }
 
-  function verifyVaa_U7N5(bytes calldata data) external view {
-    _verifyVaa(data);
-	}
-
-  function verifyVaaDecodeEssentials_gRd6(bytes calldata data) external view returns (uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) {
-    uint256 envelopeOffset = _verifyVaa(data);
-
-    assembly ("memory-safe") {
-      emitterChainId := shr(240, calldataload(add(envelopeOffset, VAA_ENVELOPE_EMITTER_CHAIN_ID_OFFSET)))
-      emitterAddress := calldataload(add(envelopeOffset, VAA_ENVELOPE_EMITTER_ADDRESS_OFFSET))
-      sequence := shr(192, calldataload(add(envelopeOffset, VAA_ENVELOPE_SEQUENCE_OFFSET)))
-
-      let payloadOffset := add(envelopeOffset, VAA_ENVELOPE_PAYLOAD_OFFSET)
-      let payloadLength := sub(data.length, payloadOffset)
-      payload := mload(0x40)
-      let payloadDataOffset := add(payload, ABI_ARRAY_DATA_OFFSET)
-      mstore(0x40, add(payloadDataOffset, payloadLength))
-      mstore(payload, payloadLength)
-      calldatacopy(payloadDataOffset, payloadOffset, payloadLength)
-    }
-  }
-
-  function verifyVaaDecodeBody(bytes calldata data) external view returns (VaaBody memory result) {
-    uint256 envelopeOffset = _verifyVaa(data);
-    result = data.decodeVaaBodyStructCd(envelopeOffset);
-  }
-
-  function _verifyVaa(bytes calldata data) internal view returns (uint256 envelopeOffset) {
-    bool valid;
-
-    assembly ("memory-safe") {
-      let version := shr(248, calldataload(data.offset))
-      let keyIndex := shr(224, calldataload(add(data.offset, 1)))
-
-      switch version
-        case 2 {
-					// Decode the signature
-					envelopeOffset := 57
-					let r := shr(96, calldataload(add(data.offset, 5)))
-					let s := calldataload(add(data.offset, 25))
-					let validSignature := and(not(iszero(r)), lt(s, Q))
-
-					// Compute the double hash of the VAA
-					let buffer := mload(0x40)
-					let envelopeLength := sub(data.length, envelopeOffset)
-					calldatacopy(buffer, add(data.offset, envelopeOffset), envelopeLength)
-					let singleHash := keccak256(buffer, envelopeLength)
-					mstore(0, singleHash)
-					let doubleHash := keccak256(0, 32)
-
-					// Load the key and validate the expiration time
-					let pubkey := sload(add(_schnorrPubkeyOffset, keyIndex))
-					let expirationTime := and(sload(add(_schnorrDataOffset, keyIndex)), 0xFFFFFFFF)
-					let expirationTimeValid := or(iszero(expirationTime), gt(expirationTime, timestamp()))
-
-					// Compute the challenge value
-					let px := shr(1, pubkey)
-					let parity := and(pubkey, 1)
-					mstore(buffer, px)
-					mstore8(add(buffer, 32), parity)
-					mstore(add(buffer, 33), doubleHash)
-					mstore(add(buffer, 65), shl(96, r))
-					let e := keccak256(buffer, 85)
-
-					// Call ecrecover
-					// NOTE: This is non-zero because for all k = px * s, Q > k % Q
-					//       Therefore, Q - k % Q is always positive
-					mstore(buffer, sub(Q, mulmod(px, s, Q)))
-					mstore(add(buffer, 32), add(parity, 27))
-					mstore(add(buffer, 64), px)
-					mstore(add(buffer, 96), mulmod(px, e, Q))
-					let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
-
-					// Validate the result
-					let recoveredValid := and(success, eq(r, mload(buffer)))
-					valid := and(expirationTimeValid, and(validSignature, recoveredValid))
-        }
-        case 1 {          
-          // Decode the signature count
-					let signatureCount := shr(248, calldataload(add(data.offset, VAA_MULTISIG_SIGNATURE_COUNT_OFFSET)))
-					envelopeOffset := add(VAA_MULTISIG_SIGNATURE_OFFSET, mul(signatureCount, VAA_MULTISIG_SIGNATURE_LENGTH))
-
-					// Compute the double hash of the VAA
-					let buffer := mload(0x40)
-					let envelopeLength := sub(data.length, envelopeOffset)
-					calldatacopy(buffer, add(data.offset, envelopeOffset), envelopeLength)
-					let singleHash := keccak256(buffer, envelopeLength)
-					mstore(0, singleHash)
-					let doubleHash := keccak256(0, 32)
-
-          // Validate the key index and expiration time
-          let keyCount := sload(_multisigKeyCountOffset)
-          let keyIndexValid := lt(keyIndex, keyCount)
-          let expirationTime := sload(add(_multisigExpirationTimeOffset, keyIndex))
-          let expirationTimeValid := or(iszero(expirationTime), gt(expirationTime, timestamp()))
-
-          // Compute the key data address
-          // TODO: Load this from an array instead of calculating it to save gas
-          // TODO: No need to bounds check that array, since it'll be zero initialized and we check for empty blobs already
-          let nonce := add(keyIndex, 1)
-          let keyDataAddress
-          switch lt(nonce, 0x80)
-            case 1 {
-              mstore(0x00, address())
-              mstore8(0x0b, 0x94)
-              mstore8(0x0a, 0xd6)
-              mstore8(0x20, or(shl(7, iszero(nonce)), nonce))
-              keyDataAddress := keccak256(0x0a, 0x17)
-            }
-            case 0 {
-              // Get number of bytes in nonce
-              // NOTE: We can cap this at 4 bytes because we limit the VAA key index to 4 bytes
-              let i := add(add(add(1, gt(nonce, 0xFF)), gt(nonce, 0xFFFF)), gt(nonce, 0xFFFFFF))
-              
-              // Store in descending slot sequence to overlap the values correctly.
-              mstore(i, nonce)
-              mstore(0x00, shl(8, address()))
-              mstore8(0x1f, add(0x80, i))
-              mstore8(0x0a, 0x94)
-              mstore8(0x09, add(0xd6, i))
-              keyDataAddress := keccak256(0x09, add(0x17, i))
-            }
-
-          // Load the key data
-          let keyDataCodeSize := extcodesize(keyDataAddress)
-          let keyDataValid := gt(keyDataCodeSize, 0)
-
-          let keyDataSize := sub(keyDataCodeSize, 1)
-          let multisigSize := shr(5, keyDataSize)
-
-          // Allocate enough 32 bytes words to cover the key data, and update the buffer to point to free memory
-          // Then store the key data to the allocated memory
-          let keyData := buffer
-          buffer := add(buffer, and(add(keyDataSize, 0x3F), 0xFFE0))
-          extcodecopy(keyDataAddress, keyData, 1, keyDataSize)
-
-					// Decode the signatures and verify them
-					let usedSignerBitfield := 0
-          valid := and(and(keyIndexValid, expirationTimeValid), keyDataValid)
-					
-					let ptr := add(data.offset, envelopeOffset)
-					for {let i := 0} lt(i, signatureCount) {i := add(i, 1)} {
-						// Decode the next signature
-						let signerIndex := shr(248, calldataload(ptr))
-						let r := calldataload(add(ptr, VAA_MULTISIG_SIGNATURE_R_OFFSET))
-						let s := calldataload(add(ptr, VAA_MULTISIG_SIGNATURE_S_OFFSET))
-						let v := shr(248, calldataload(add(ptr, VAA_MULTISIG_SIGNATURE_V_OFFSET)))
-
-						// Call ecrecover
-						mstore(buffer, doubleHash)
-						mstore(add(buffer, 32), v)
-						mstore(add(buffer, 64), r)
-						mstore(add(buffer, 96), s)
-						let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
-
-						// Validate the result
-						let recovered := mload(buffer)
-						let expected := mload(add(keyData, shl(5, signerIndex)))
-						let signatureValid := eq(expected, recovered)
-						let indexValid := lt(signerIndex, multisigSize)
-						let signerFlag := shl(signerIndex, 1)
-						let signerUsedValid := iszero(and(usedSignerBitfield, signerFlag))
-
-						valid := and(valid, and(and(indexValid, signatureValid), signerUsedValid))
-						usedSignerBitfield := or(usedSignerBitfield, signerFlag)
-						ptr := add(ptr, 66)
-					}
-        }
-        default {
-          valid := 0
-        }
-    }
-
-    require(valid, VerificationFailure());
-  }
-
-  function _updateSchnorrShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
+  function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     // TODO: Implement
-    return offset;
   }
 
   function _appendSchnorrKeys(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
-    uint256 envelopeOffset = _verifyVaa(data[offset:]);
-
-    // Decode the VAA for relevant fields(extra work, but it's not a critical path)
-    uint8 version;
-    uint32 multisigKeyIndex;
-    uint8 signatureCount;
-
-    uint16 emitterChainId;
-    bytes32 emitterAddress;
-    bytes32 module;
-    uint8 action;
-    uint32 newSchnorrKeyIndex;
-    uint256 newSchnorrKey;
-    uint32 expirationDelaySeconds;
-
-    (version, offset) = data.asUint8CdUnchecked(offset);
-    (multisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (signatureCount, offset) = data.asUint8CdUnchecked(offset);
-
-    (emitterChainId, offset) = data.asUint16CdUnchecked(envelopeOffset + VAA_ENVELOPE_EMITTER_CHAIN_ID_OFFSET);
-    (emitterAddress, offset) = data.asBytes32CdUnchecked(offset);
-
-    (module, offset) = data.asBytes32CdUnchecked(envelopeOffset + VAA_ENVELOPE_PAYLOAD_OFFSET);
-    (action, offset) = data.asUint8CdUnchecked(offset);
-    (newSchnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (newSchnorrKey, offset) = data.asUint256CdUnchecked(offset);
-    (expirationDelaySeconds, offset) = data.asUint32CdUnchecked(offset);
-
-    // Load extra info needed for the verification
-    uint32 currentMultisigKeyCount = _getMultisigKeyCount();
-    uint32 currentSchnorrKeyCount = _getSchnorrKeyCount();
-
-    require(currentMultisigKeyCount > 0, InvalidKeyIndex());
-    uint32 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
-
-    address keyDataAddress = _getMultisigDataAddress(multisigKeyIndex);
-    uint8 currentMultisigSize;
-    assembly ("memory-safe") {
-      let codeSize := extcodesize(keyDataAddress)
-      let keyDataSize := sub(codeSize, 1)
-      currentMultisigSize := shr(5, keyDataSize)
-    }
-
-    uint256 px = newSchnorrKey >> 1;
-
-    // Validate the message
-    require(version == 1, VaaLib.InvalidVersion(version));
-    require(multisigKeyIndex == currentMultisigKeyIndex, InvalidKeyIndex());
-    require(signatureCount == currentMultisigSize, QuorumNotMet());
-
-    require(emitterChainId == CHAIN_ID_SOLANA, InvalidGovernanceChain());
-    require(emitterAddress == GOVERNANCE_ADDRESS, InvalidGovernanceAddress());
-
-    require(module == MODULE_VERIFICATION_V2, InvalidModule());
-    require(action == ACTION_APPEND_SCHNORR_KEY, InvalidAction());
-    require(newSchnorrKeyIndex == currentSchnorrKeyCount, InvalidKeyIndex());
-    require(px != 0 && px <= HALF_Q, InvalidSchnorrKey());
-
-    // If there is a previous schnorr key that is now expired, store the expiration time
-    if (newSchnorrKeyIndex > 0) {
-      assembly ("memory-safe") {
-        let expirationTime := add(timestamp(), expirationDelaySeconds)
-        sstore(add(_schnorrDataOffset, sub(newSchnorrKeyIndex, 1)), expirationTime)
-      }
-    }
-
-    // Store the new schnorr key data
-    // Append the key data
-
-    assembly ("memory-safe") {
-      let currentShardCount := sload(_schnorrShardCountOffset)
-      let newSchnorrKeyData := or(shl(32, currentMultisigSize), or(shl(40, currentShardCount), shl(80, currentMultisigKeyIndex)))
-      sstore(add(_schnorrPubkeyOffset, newSchnorrKeyIndex), newSchnorrKey)
-      sstore(add(_schnorrDataOffset, newSchnorrKeyIndex), newSchnorrKeyData)
-      sstore(_schnorrKeyCountOffset, add(currentSchnorrKeyCount, 1))
-
-      let ptr := add(data.offset, offset)
-      let shardPtr := add(_schnorrShardDataOffset, shl(1, currentShardCount))
-      for {let i := 0} lt(i, currentMultisigSize) {i := add(i, 1)} {
-        sstore(shardPtr, calldataload(ptr))
-        sstore(add(shardPtr, 1), calldataload(add(ptr, 32)))
-        shardPtr := add(shardPtr, 2)
-        ptr := add(ptr, 64)
-      }
-
-      sstore(_schnorrShardCountOffset, add(currentShardCount, currentMultisigSize))
-
-      newOffset := sub(ptr, data.offset)
-    }
-  }
-
-  function _getMultisigKeyCount() internal view returns (uint32 result) {
-    assembly ("memory-safe") {
-      result := sload(_multisigKeyCountOffset)
-    }
-  }
-
-  function _getSchnorrKeyCount() internal view returns (uint32 result) {
-    assembly ("memory-safe") {
-      result := sload(_schnorrKeyCountOffset)
-    }
-  }
-
-  function _getMultisigDataAddress(uint32 index) internal view returns (address result) {
-    assembly ("memory-safe") {
-      // Compute the key data address
-      let nonce := add(index, 1)
-      switch lt(nonce, 0x80)
-        case 1 {
-          mstore(0x00, address())
-          mstore8(0x0b, 0x94)
-          mstore8(0x0a, 0xd6)
-          mstore8(0x20, or(shl(7, iszero(nonce)), nonce))
-          result := keccak256(0x0a, 0x17)
-        }
-        case 0 {
-          // Get number of bytes in nonce
-          // NOTE: We can cap this at 4 bytes because we limit the VAA key index to 4 bytes
-          let i := add(add(add(1, gt(nonce, 0xFF)), gt(nonce, 0xFFFF)), gt(nonce, 0xFFFFFF))
-          
-          // Store in descending slot sequence to overlap the values correctly.
-          mstore(i, nonce)
-          mstore(0x00, shl(8, address()))
-          mstore8(0x1f, add(0x80, i))
-          mstore8(0x0a, 0x94)
-          mstore8(0x09, add(0xd6, i))
-          result := keccak256(0x09, add(0x17, i))
-        }
-    }
-  }
-
-  function _pullMultisigKeyData(uint32 pullLimit) internal {
     unchecked {
-      uint256 currentMultisigKeyIndex = _coreBridge.getCurrentGuardianSetIndex();
-      uint256 currentMultisigKeyCount = currentMultisigKeyIndex + 1;
-      uint256 oldMultisigKeyCount = _getMultisigKeyCount();
+      // Decode the VAA
+      uint8 version;
+      uint32 multisigKeyIndex;
+      uint8 signatureCount;
 
-      if (currentMultisigKeyCount == oldMultisigKeyCount) return;
+      (version, offset) = data.asUint8CdUnchecked(offset);
+      (multisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
+      (signatureCount, offset) = data.asUint8CdUnchecked(offset);
 
-      if (oldMultisigKeyCount > 0) {
-        uint32 updateIndex = uint32(oldMultisigKeyCount - 1);
-        (, uint32 expirationTime) = _pullMultisigKeyDataEntry(updateIndex);
-        
-        assembly ("memory-safe") {
-          sstore(add(_multisigExpirationTimeOffset, updateIndex), expirationTime)
-        }
+      uint256 signatureOffset = offset;
+      uint256 envelopeOffset = signatureOffset + signatureCount * VaaLib.GUARDIAN_SIGNATURE_SIZE;
+
+      uint16 emitterChainId;
+      bytes32 emitterAddress;
+
+      (emitterChainId, offset) = data.asUint16CdUnchecked(envelopeOffset + VaaLib.ENVELOPE_EMITTER_CHAIN_ID_OFFSET);
+      (emitterAddress, offset) = data.asBytes32CdUnchecked(offset);
+
+      bytes32 module;
+      uint8 action;
+      uint32 newSchnorrKeyIndex;
+      uint256 newSchnorrKey;
+      uint32 expirationDelaySeconds;
+
+      (module, offset) = data.asBytes32CdUnchecked(envelopeOffset + VaaLib.ENVELOPE_SIZE);
+      (action, offset) = data.asUint8CdUnchecked(offset);
+
+      (newSchnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
+      (newSchnorrKey, offset) = data.asUint256CdUnchecked(offset);
+      (expirationDelaySeconds, offset) = data.asUint32CdUnchecked(offset);
+
+      // Decode the pubkey
+      uint256 px = newSchnorrKey >> 1;
+
+      // Load current multisig key data
+      uint256 currentMultisigKeyCount = _getMultisigKeyCount();
+      uint256 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
+      (uint8 keyCount, uint256 keyDataOffset, uint32 expirationTime) = _getMultisigKeyData(currentMultisigKeyIndex);
+
+      require(version == 1, VaaLib.InvalidVersion(version));
+      require(multisigKeyIndex == currentMultisigKeyIndex, InvalidMultisigKeyIndex());
+      require(signatureCount == keyCount, InvalidSignatureCount());
+      // NOTE: No need to check expiration, it's the current multisig key
+
+      require(emitterChainId == CHAIN_ID_SOLANA, InvalidGovernanceChain());
+      require(emitterAddress == GOVERNANCE_ADDRESS, InvalidGovernanceAddress());
+
+      require(module == MODULE_VERIFICATION_V2, InvalidModule());
+      require(action == ACTION_APPEND_SCHNORR_KEY, InvalidAction());
+      require(newSchnorrKeyIndex == _getSchnorrKeyCount(), InvalidKeyIndex());
+      require(px != 0 && px <= HALF_Q, InvalidKey());
+
+      // Verify the signatures
+      bytes32 vaaDoubleHash = data.calcVaaDoubleHashCd(envelopeOffset);
+      _verifyMultisig(vaaDoubleHash, keyCount, keyDataOffset, signatureCount, data, signatureOffset);
+
+      // If there is a previous schnorr key that is now expired, store the expiration time
+      if (newSchnorrKeyIndex > 0) {
+        uint32 newExpirationTime = uint32(block.timestamp) + expirationDelaySeconds;
+        _setSchnorrExpirationTime(newSchnorrKeyIndex - 1, newExpirationTime);
       }
 
-      bool upperCond = pullLimit == 0 || (currentMultisigKeyCount - oldMultisigKeyCount < pullLimit);
-      uint256 upper = upperCond ? currentMultisigKeyCount : oldMultisigKeyCount + pullLimit;
-
-      for (uint256 i = oldMultisigKeyCount; i < upper; i++) {
-        (bytes memory data, uint32 expirationTime) = _pullMultisigKeyDataEntry(uint32(i));
-
-        assembly ("memory-safe") {
-          // Store the expiration time
-          sstore(add(_multisigExpirationTimeOffset, i), expirationTime)
-          
-          // Store the key data
-          let originalDataLength := mload(data)
-          let dataLength := add(data, 1)
-          mstore(add(data, gt(dataLength, 0xFFFF)), or(0xfd61000080600a3d393df300, shl(0x40, dataLength)))
-          let pointer := create(0, add(data, 0x15), add(dataLength, 0xA))
-          if iszero(pointer) {
-            mstore(0x00, 0x30116425)
-            revert(0x1c, 0x04)
-          }
-
-          mstore(data, originalDataLength)
-        }
-      }
-
-      assembly ("memory-safe") {
-        sstore(_multisigKeyCountOffset, upper)
-      }
+      // Store the new schnorr key data
+      newOffset = _appendSchnorrKeyData(newSchnorrKey, multisigKeyIndex, signatureCount, data, offset);
     }
   }
 
-  function _pullMultisigKeyDataEntry(uint32 index) private view returns (
-    bytes memory data,
-    uint32 expirationTime
-  ) {
-    // Get the guardian set from the core bridge
-    // NOTE: The expiration time is copied from the core bridge,
-    //       so any invalid guardian set will already be invalidated
-    GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
-    expirationTime = guardians.expirationTime;
+  function _pullMultisigKeyData(uint32 limit) internal { // 298332
+    unchecked {
+      // Get the current state
+      ICoreBridge coreBridge = _getCoreBridge();
+			uint256 currentMultisigKeyIndex = coreBridge.getCurrentGuardianSetIndex();
+			uint256 currentMultisigKeysLength = currentMultisigKeyIndex + 1;
+			uint256 oldMultisigKeysLength = _getMultisigKeyCount();
 
-    // Convert the guardian set to a byte array
-    // Result is stored in `data`
-    // NOTE: The `keys` array is temporary and is invalid after this block
-    address[] memory keys = guardians.keys;
-    assembly ("memory-safe") {
-      data := keys
-      mstore(data, shl(5, mload(data)))
-    }
+      // If we've already pulled all the guardian sets, return
+			if (currentMultisigKeysLength == oldMultisigKeysLength) return;
+
+			// Check if we need to update the current guardian set
+      if (oldMultisigKeysLength > 0) {
+        // Pull and write the current guardian set expiration time
+        uint32 updateIndex = uint32(oldMultisigKeysLength - 1);
+        uint32 expirationTime = coreBridge.getGuardianSet(updateIndex).expirationTime;
+        _setMultisigExpirationTime(updateIndex, expirationTime);
+      }
+
+			// Calculate the upper bound of the guardian sets to pull
+      uint256 upper;
+      assembly ("memory-safe") {
+        let selector := and(iszero(iszero(limit)), lt(sub(currentMultisigKeysLength, oldMultisigKeysLength), limit))
+        let selected := or(shl(32, currentMultisigKeysLength), add(oldMultisigKeysLength, limit))
+        upper := and(shr(shl(5, selector), selected), 0xFFFFFFFF)
+      }
+
+      // Pull and append the guardian sets
+      for (uint256 i = oldMultisigKeysLength; i < upper; i++) {
+        // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
+        GuardianSet memory guardians = coreBridge.getGuardianSet(uint32(i));
+        _appendMultisigKeyData(guardians.keys, guardians.expirationTime);
+      }
+		}
   }
 }

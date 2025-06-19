@@ -46,7 +46,7 @@ contract VaaBuilder is Test {
 		);
 	}
 
-	function createVaaV2(
+	function createSchnorrVaa(
 		uint32 guardianSetIndex,
 		address r,
 		uint256 s,
@@ -124,7 +124,7 @@ contract VerificationTests is Test, VaaBuilder {
 
 	WormholeMock public wormholeMock = new WormholeMock(guardianKeys1);
 
-	Verification public verification = new Verification(wormholeMock, 0, 1);
+	Verification public verification = new Verification(wormholeMock, 0, 0);
 
 	function setUp() public {
 		bytes memory payload = createAppendSchnorrKeyMessage(0, schnorrKey1, 0, schnorrShards1);
@@ -133,10 +133,12 @@ contract VerificationTests is Test, VaaBuilder {
 
 		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
 		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
-		schnorrVaa = createVaaV2(0, r, s, new bytes(100));
+		schnorrVaa = createSchnorrVaa(0, r, s, new bytes(100));
 	}
 
 	function test_verifyVaaSchnorr() public {
+		verification.update(abi.encodePacked(uint8(2), uint32(1)));
+
 		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
 			uint8(1),
 			uint16(registerSchnorrKeyVaa.length),
@@ -149,6 +151,8 @@ contract VerificationTests is Test, VaaBuilder {
 	}
 
 	function test_verifyVaaSchnorrVaaEssentials() public {
+		verification.update(abi.encodePacked(uint8(2), uint32(1)));
+
 		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
 			uint8(1),
 			uint16(registerSchnorrKeyVaa.length),

@@ -584,40 +584,37 @@ contract Verification is VerificationSingle, EIP712Encoding {
       if (oldMultisigKeysLength > 0) {
         // Pull and write the current guardian set expiration time
         uint32 updateIndex = uint32(oldMultisigKeysLength - 1);
-        (, uint32 expirationTime) = _pullMultisigKeyDataEntry(updateIndex);
+        uint32 expirationTime = _coreBridge.getGuardianSet(updateIndex).expirationTime;
         _setMultisigExpirationTime(updateIndex, expirationTime);
       }
 
 			// Calculate the upper bound of the guardian sets to pull
-      uint256 upper = eagerOr(limit == 0, currentMultisigKeysLength - oldMultisigKeysLength < limit)
-        ? currentMultisigKeysLength : oldMultisigKeysLength + limit;
+      uint256 upper;
+      assembly ("memory-safe") {
+        let selector := and(iszero(iszero(limit)), lt(sub(currentMultisigKeysLength, oldMultisigKeysLength), limit))
+        let selected := or(shl(32, currentMultisigKeysLength), add(oldMultisigKeysLength, limit))
+        upper := and(shr(shl(5, selector), selected), 0xFFFFFFFF)
+      }
 
       // Pull and append the guardian sets
       for (uint256 i = oldMultisigKeysLength; i < upper; i++) {
         // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
-        (bytes memory data, uint32 expirationTime) = _pullMultisigKeyDataEntry(uint32(i));
+        GuardianSet memory guardians = _coreBridge.getGuardianSet(uint32(i));
+        uint32 expirationTime = guardians.expirationTime;
+
+        // Convert the guardian set to a byte array
+        // Result is stored in `data`
+        // NOTE: The `keys` array is temporary and is invalid after this block
+        bytes memory data;
+        address[] memory keys = guardians.keys;
+        assembly ("memory-safe") {
+          data := keys
+          mstore(data, shl(5, mload(data)))
+        }
+
+        // Append the guardian set data to the ExtStore
         _appendMultisigKeyData(data, expirationTime);
       }
 		}
 	}
-
-	function _pullMultisigKeyDataEntry(uint32 index) private view returns (
-    bytes memory data,
-    uint32 expirationTime
-  ) {
-    // Get the guardian set from the core bridge
-    // NOTE: The expiration time is copied from the core bridge,
-    //       so any invalid guardian set will already be invalidated
-    GuardianSet memory guardians = _coreBridge.getGuardianSet(index);
-    expirationTime = guardians.expirationTime;
-
-    // Convert the guardian set to a byte array
-    // Result is stored in `data`
-    // NOTE: The `keys` array is temporary and is invalid after this block
-    address[] memory keys = guardians.keys;
-    assembly ("memory-safe") {
-      data := keys
-      mstore(data, shl(5, mload(data)))
-    }
-  }
 }
