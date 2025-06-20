@@ -1,4 +1,3 @@
-// TODO: This doesn't belong under wormchain. Move it!
 import { ethers } from "ethers";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import axios from "axios";
@@ -11,21 +10,21 @@ import {
   parseSequenceFromLogEth,
 } from "@certusone/wormhole-sdk";
 
-const ci = false; //!!process.env.CI;
+const ci = process.env.CI == "true";
 
 const ETH_NODE_URL = ci ? "http://eth-devnet:8545" : "http://localhost:8545";
 
-const ETH_PRIVATE_KEY9 =
-  "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773";
+const ETH_PRIVATE_KEY10 =
+  "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f";
 
 const GUARDIAN_HOST = ci ? "guardian" : "localhost";
 const GUARDIAN_RPCS = [`http://${GUARDIAN_HOST}:7071`];
 
 const CCL_CONTRACT_ADDR = "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2";
-const TEST_CONTRACT_LATEST_ADDR = "0xF898012A9c50f4994447d2E8F0844329dD3c9F33";
-const TEST_CONTRACT_SAFE_ADDR = "0x7e1E7Ed0F36F62950C8f301C8d653a53aF5FC8c6";
+const TEST_CONTRACT_LATEST_ADDR = "0xC466e54e7e3ca2bDD092714B38C9bE22F6697f08";
+const TEST_CONTRACT_SAFE_ADDR = "0xC6D28Bd852A6ee3e55CF1086D3E32b4a2C47D46c";
 const TEST_CONTRACT_FINALIZED_ADDR =
-  "0x10543afEb5c3eb4aE768e03a2D28f7d67B922298";
+  "0xD622d78D697514877E0d1457e68315b02a923017";
 
 const TEST_CONTRACT_ABI = [
   {
@@ -78,7 +77,7 @@ const numBlocks = 5;
 beforeAll(async () => {
   // 1. create a signer for Eth
   ethProvider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
-  ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY9, ethProvider);
+  ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY10, ethProvider);
 
   // 1. Create an instance of the custom consistency contract so we can read the config.
   cclContract = new ethers.Contract(
@@ -231,18 +230,14 @@ describe("Custom Consistency Level Tests", () => {
     );
 
     // Make sure the VAA wasn't published early. This won't be exact, but it definitely shouldn't be sooner than expected.
-    const currentLatest = await getBlockNumber("latest");
     const currentSafe = await getBlockNumber("safe");
     console.log(
       "Safe: original block: ",
       blockNumber,
-      ", currentLatest: ",
-      currentLatest,
       ", currentSafe: ",
       currentSafe
     );
-    expect(blockNumber).toBeLessThanOrEqual(currentSafe);
-    expect(blockNumber + numBlocks).toBeLessThanOrEqual(currentLatest);
+    expect(blockNumber + numBlocks).toBeLessThanOrEqual(currentSafe);
   });
 
   test("4. Post a message with finalized", async () => {
@@ -282,17 +277,13 @@ describe("Custom Consistency Level Tests", () => {
     );
 
     // Make sure the VAA wasn't published early. This won't be exact, but it definitely shouldn't be sooner than expected.
-    const currentLatest = await getBlockNumber("latest");
     const currentFinalized = await getBlockNumber("finalized");
     console.log(
       "Finalized: original block: ",
       blockNumber,
-      ", currentLatest: ",
-      currentLatest,
       ", currentFinalized: ",
       currentFinalized
     );
-    expect(blockNumber).toBeLessThanOrEqual(currentFinalized);
-    expect(blockNumber + numBlocks).toBeLessThanOrEqual(currentLatest);
+    expect(blockNumber + numBlocks).toBeLessThanOrEqual(currentFinalized);
   });
 });
