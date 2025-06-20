@@ -697,6 +697,12 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = ["eth-devnet"],
     )
+    k8s_resource(
+        "custom-consistency-level-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
+    )
 
 if terra_classic:
     docker_build(
