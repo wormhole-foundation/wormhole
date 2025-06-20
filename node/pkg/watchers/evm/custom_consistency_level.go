@@ -1,7 +1,8 @@
 // The Custom Consistency Level feature allows integrators to specify custom finality handling for their observations.
 // It involves reading the custom configuration from an on chain contract, using the emitter address as a key. If an
 // entry is found, then the specified special handling is performed. Currently, the only supported custom handling is
-// to wait a certain number of blocks after the block containing the message reaches the specified finality (finalized or safe).
+// to wait a certain number of blocks after the block containing the message reaches the specified finality
+// (finalized, safe or immediate).
 //
 // To generate the ABI bindings for the CustomConsistencyLevel contract do the following:
 //
@@ -10,19 +11,6 @@
 // - cd node/pkg/watcher/evm
 // - mkdir custom_consistency_level_abi
 // - abigen --abi /tmp/CustomConsistencyLevel.abi --pkg ccl --out custom_consistency_level_abi/CustomConsistencyLevel.go
-
-/*
-Is this the desired behavior? We waited until the desired block was marked safe, then immediately saw that latest was more than five past the desired block and published.
-
-2025-06-13T17:03:31.924Z	INFO	guardian-0.root.eth_watch	received an observation with an additional blocks specifier	{"component": "cclevm", "msgId": "2/00000000000000000000000040d5b8a71a5e8202a26a53406efab755c0db6e93/2", "consistencyLevel": 201, "additionalBlocks": 5}
-2025-06-13T17:03:31.924Z	INFO	guardian-0.root.eth_watch	found new message publication transaction	{"msgId": "2/00000000000000000000000040d5b8a71a5e8202a26a53406efab755c0db6e93/2", "txHash": "0xf2613252a0b11cad2632063dd7f01c928df8c23bd01d703d2a43515d45470d90", "blockNum": 1766, "latestFinalizedBlock": 1701, "latestSafeBlock": 1733, "blockHash": "0xdde6b435191126d0219771b4668f22dd63b424d7efe67a5e0c835cf2af18ff49", "blockTime": 1749834211, "Nonce": 3, "OrigConsistencyLevel": 203, "ConsistencyLevel": 201, "AdditionalBlocks": 5}
-
-2025-06-13T17:04:04.743Z	INFO	guardian-0.root.eth_watch	processing new header	{"current_block": "1734", "block_time": 1749834179, "current_blockhash": "0x3587563144ff3fe74a86e34cac7065e967df07c6f1ab16ccf734b3f249258d1e", "finality": "finalized"}
-2025-06-13T17:04:04.743Z	INFO	guardian-0.root.eth_watch	processing new header	{"current_block": "1766", "block_time": 1749834211, "current_blockhash": "0xdde6b435191126d0219771b4668f22dd63b424d7efe67a5e0c835cf2af18ff49", "finality": "safe"}
-2025-06-13T17:04:04.886Z	INFO	guardian-0.root.eth_watch	processing new header	{"current_block": "1799", "block_time": 1749834244, "current_blockhash": "0x378562baa653c233baf0b2f718af31201006b61801bf996687cc6f4470989a40", "finality": "latest"}
-2025-06-13T17:04:04.886Z	INFO	guardian-0.root.eth_watch	additional blocks consistency level has been reached, releasing observation	{"component": "cclevm", "msgId": "2/00000000000000000000000040d5b8a71a5e8202a26a53406efab755c0db6e93/2", "consistencyLevel": 201, "observgedBlockNum": 1766, "baseTargetBlockNum": 1766, "additionalBlocks": 5, "latestBlockNum": 1799}
-2025-06-13T17:04:04.889Z	INFO	guardian-0.root.eth_watch	observation confirmed	{"msgId": "2/00000000000000000000000040d5b8a71a5e8202a26a53406efab755c0db6e93/2", "txHash": "0xf2613252a0b11cad2632063dd7f01c928df8c23bd01d703d2a43515d45470d90", "blockHash": "0xdde6b435191126d0219771b4668f22dd63b424d7efe67a5e0c835cf2af18ff49", "target_blockNum": 1766, "current_blockNum": "1799", "finality": "latest", "current_blockHash": "0x378562baa653c233baf0b2f718af31201006b61801bf996687cc6f4470989a40"}
-*/
 
 package evm
 
@@ -206,8 +194,7 @@ func (w *Watcher) cclShouldPublish(pe *pendingMessage, latestBlockNum uint64) bo
 	} else if pe.message.ConsistencyLevel == vaa.ConsistencyLevelSafe {
 		baseTargetBlockNum = atomic.LoadUint64(&w.latestSafeBlockNumber)
 	} else if pe.message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-		// We use the height rather than latest, otherwise the check below will never be satisified (comparing latest + X to latest).
-		baseTargetBlockNum = pe.height
+		baseTargetBlockNum = atomic.LoadUint64(&w.latestBlockNumber)
 	} else {
 		// We really should never get here, but if we do, just convert it to finalized and let it get handled on the next block.
 		w.cclLogger.Error("observation has additional blocks set but the consistency level is invalid, treating as finalized",
@@ -218,11 +205,11 @@ func (w *Watcher) cclShouldPublish(pe *pendingMessage, latestBlockNum uint64) bo
 		return false
 	}
 
-	if pe.height <= baseTargetBlockNum && baseTargetBlockNum+pe.additionalBlocks <= latestBlockNum {
+	if pe.height+pe.additionalBlocks <= baseTargetBlockNum {
 		w.cclLogger.Info("additional blocks consistency level has been reached, releasing observation",
 			zap.String("msgId", pe.message.MessageIDString()),
 			zap.Uint8("consistencyLevel", pe.message.ConsistencyLevel),
-			zap.Uint64("observgedBlockNum", pe.height),
+			zap.Uint64("observedBlockNum", pe.height),
 			zap.Uint64("baseTargetBlockNum", baseTargetBlockNum),
 			zap.Uint64("additionalBlocks", pe.additionalBlocks),
 			zap.Uint64("latestBlockNum", latestBlockNum),

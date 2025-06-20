@@ -1,14 +1,9 @@
 {
-  "name": "@wormhole-foundation/wormchain-contract-tools",
+  "name": "@wormhole-foundation/test-custom-consistency-level",
   "version": "0.0.1",
-  "description": "scripts for working with wormchain contracts",
-  "main": "deploy_wormchain.ts",
+  "description": "scripts for testing the custom consistency contract",
   "scripts": {
-    "deploy-wormchain": "ts-node deploy_wormchain.ts",
-    "test-accountant": "jest test_accountant.ts --verbose --setupFiles ./ci-config.js",
-    "test-ntt-accountant": "jest test_ntt_accountant.ts --verbose --setupFiles ./ci-config.js",
-    "test-wormchain": "ts-node test_wormchain.ts",
-    "deploy-and-test": "npm run deploy-wormchain && npm run test-wormchain"
+    "test-custom-consistency-level": "jest test_custom_consistency_level.ts --verbose --setupFiles ./ci-config.js"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +11,6 @@
     "@certusone/wormhole-sdk": "0.10.10",
     "@cosmjs/cosmwasm-stargate": "0.29.5",
     "@improbable-eng/grpc-web-node-http-transport": "0.15.0",
-    "@wormhole-foundation/wormchain-sdk": "file:../../ts-sdk",
     "cosmwasm": "1.1.1",
     "dotenv": "16.0.3",
     "elliptic": "^6.6.1",
@@ -27,7 +21,7 @@
   },
   "devDependencies": {
     "@types/elliptic": "6.4.14",
-    "@types/jest": "29.4.0",
+    "@types/jest": "^29.4.0",
     "jest": "29.4.1",
     "ts-jest": "29.0.5",
     "ts-node": "10.9.1",
