@@ -11,9 +11,8 @@ import {VaaBuilder, ShardData} from "./TestOptimized.sol";
 import {Verification, GOVERNANCE_ADDRESS, UPDATE_PULL_MULTISIG_KEY_DATA, UPDATE_APPEND_SCHNORR_KEY, UPDATE_PULL_MULTISIG_KEY_DATA} from "../src/evm/AssemblyOptimized.sol";
 
 contract TestAssembly is Test, VaaBuilder {
-	uint256 private constant guardianPrivateKey1 = 0x1234567890123456789012345678901234567890123456789012345678901234;
-	uint256[] private guardianPrivateKeys1 = [guardianPrivateKey1];
-	address[] private guardianSet1 = [vm.addr(guardianPrivateKey1)];
+	uint256[] private guardianPrivateKeys1 = _getGuardianPrivateKeys(19);
+	address[] private guardianSet1 = _getGuardianPublicKeys(guardianPrivateKeys1);
 
 	uint256 private constant schnorrKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
 	ShardData[] private schnorrShards1 = [
@@ -30,6 +29,23 @@ contract TestAssembly is Test, VaaBuilder {
 
 	WormholeMock _wormhole = new WormholeMock(guardianSet1);
 	Verification _verification = new Verification(_wormhole, 0, 0, 0);
+
+	function _getGuardianPrivateKeys(uint256 count) internal pure returns (uint256[] memory) {
+		uint256[] memory keys = new uint256[](count);
+		uint256 baseKey = 0x1234567890123456789012345678901234567890123456789012345678900000;
+		for (uint256 i = 0; i < count; i++) {
+			keys[i] = baseKey + i;
+		}
+		return keys;
+	}
+
+	function _getGuardianPublicKeys(uint256[] memory privateKeys) internal pure returns (address[] memory) {
+		address[] memory publicKeys = new address[](privateKeys.length);
+		for (uint256 i = 0; i < privateKeys.length; i++) {
+			publicKeys[i] = vm.addr(privateKeys[i]);
+		}
+		return publicKeys;
+	}
 
 	function setUp() public {
 		updatePullOneMultisigKey = abi.encodePacked(
@@ -48,6 +64,11 @@ contract TestAssembly is Test, VaaBuilder {
 		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
 		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
 		schnorrVaa = createSchnorrVaa(0, r, s, new bytes(100));
+	}
+
+	function test_verifyMultisigVaa() public {
+		_verification.update(updatePullOneMultisigKey);
+		_verification.verifyVaa_U7N5(registerSchnorrKeyVaa);
 	}
 
 	function test_verifySchnorrVaa() public {

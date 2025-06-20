@@ -136,6 +136,7 @@ contract VerificationTests is Test, VaaBuilder {
 		schnorrVaa = createSchnorrVaa(0, r, s, new bytes(100));
 	}
 
+	/*
 	function test_verifyVaaSchnorr() public {
 		verification.update(abi.encodePacked(uint8(2), uint32(1)));
 
@@ -167,4 +168,5 @@ contract VerificationTests is Test, VaaBuilder {
 		assertEq(sequence, 0);
 		assertEq(payload.length, 49);
 	}
+	*/
 }

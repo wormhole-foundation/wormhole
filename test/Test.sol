@@ -432,13 +432,11 @@ contract VerificationV2Test is Test, VerificationHelper {
 		assertEq(guardianSetAddrs2[0], guardianKeys2[0]);
 		assertEq(expirationTime2, 1);
 	}
-	*/
 
 	function test_verifyVaaV1() public view {
 		this.getVerifyVaa(_verificationV2, registerThresholdKeyVaa);
 	}
 
-	/*
 	function testRevert_verifyVaaV1() public {
 		bytes memory command = VerificationHelper.verifyVaa(invalidVaaV1);
 		vm.expectRevert();
@@ -512,7 +510,6 @@ contract VerificationV2Test is Test, VerificationHelper {
 		assertEq(expirationTime, 0);
 		assertEq(thresholdKeyPubkey, thresholdKey1);
 	}
-*/
 	function test_verifyVaaV2() public {
 		this.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
@@ -537,7 +534,6 @@ contract VerificationV2Test is Test, VerificationHelper {
 		_verificationV2.verifyVaa(vaa);
 	}
 
-/*
 	function testRevert_verifyVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
