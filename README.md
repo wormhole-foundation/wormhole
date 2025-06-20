@@ -1,4 +1,4 @@
-<img alt="Banner" src="docs/images/banner.jpg"/>
+<img alt="Banner" src="docs/images/wormhole-banner.jpg"/>
 
 This monorepo contains the reference implementation of the [Wormhole protocol](https://wormholenetwork.com).
 
