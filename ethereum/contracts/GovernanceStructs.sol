@@ -19,45 +19,40 @@ contract GovernanceStructs {
     }
 
     struct ContractUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-
-        address newContract;
+        bytes32 module; ///< The module identifier.
+        uint8 action; ///< The action type (should be 1 for ContractUpgrade).
+        uint16 chain; ///< The chain ID for which the upgrade is intended.
+        address newContract; ///< The address of the new contract implementation.
     }
 
     struct GuardianSetUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-
-        Structs.GuardianSet newGuardianSet;
-        uint32 newGuardianSetIndex;
+        bytes32 module; ///< The module identifier.
+        uint8 action; ///< The action type (should be 2 for GuardianSetUpgrade).
+        uint16 chain; ///< The chain ID for which the upgrade is intended.
+        Structs.GuardianSet newGuardianSet; ///< The new GuardianSet to be added.
+        uint32 newGuardianSetIndex; ///< The index of the new GuardianSet.
     }
 
     struct SetMessageFee {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-
-        uint256 messageFee;
+        bytes32 module; ///< The module identifier.
+        uint8 action; ///< The action type (should be 3 for SetMessageFee).
+        uint16 chain; ///< The chain ID for which the fee is set.
+        uint256 messageFee; ///< The new message fee value.
     }
 
     struct TransferFees {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-
-        uint256 amount;
-        bytes32 recipient;
+        bytes32 module; ///< The module identifier.
+        uint8 action; ///< The action type (should be 4 for TransferFees).
+        uint16 chain; ///< The chain ID for which the transfer is intended.
+        uint256 amount; ///< The amount of fees to transfer.
+        bytes32 recipient; ///< The recipient address (as bytes32).
     }
 
     struct RecoverChainId {
-        bytes32 module;
-        uint8 action;
-
-        uint256 evmChainId;
-        uint16 newChainId;
+        bytes32 module; ///< The module identifier.
+        uint8 action; ///< The action type (should be 5 for RecoverChainId).
+        uint256 evmChainId; ///< The new EVM chain ID.
+        uint16 newChainId; ///< The new Wormhole chain ID.
     }
 
     /// @dev Parse a contract upgrade (action 1) with minimal validation
