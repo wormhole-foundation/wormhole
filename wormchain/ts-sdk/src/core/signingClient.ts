@@ -3,13 +3,13 @@ import {
   SigningStargateClient,
   SigningStargateClientOptions,
 } from "@cosmjs/stargate";
+import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import * as authModule from "../modules/cosmos.auth.v1beta1";
 import * as bankModule from "../modules/cosmos.bank.v1beta1";
 import * as baseModule from "../modules/cosmos.base.tendermint.v1beta1";
 import * as crisisModule from "../modules/cosmos.crisis.v1beta1";
 import * as distributionModule from "../modules/cosmos.distribution.v1beta1";
 import * as evidenceModule from "../modules/cosmos.evidence.v1beta1";
-import * as feegrantModule from "../modules/cosmos.feegrant.v1beta1";
 import * as govModule from "../modules/cosmos.gov.v1beta1";
 import * as mintModule from "../modules/cosmos.mint.v1beta1";
 import * as paramsModule from "../modules/cosmos.params.v1beta1";
@@ -17,9 +17,9 @@ import * as slashingModule from "../modules/cosmos.slashing.v1beta1";
 import * as stakingModule from "../modules/cosmos.staking.v1beta1";
 import * as txModule from "../modules/cosmos.tx.v1beta1";
 import * as upgradeModule from "../modules/cosmos.upgrade.v1beta1";
-import * as vestingModule from "../modules/cosmos.vesting.v1beta1";
 import * as wasmModule from "../modules/cosmwasm.wasm.v1";
-import * as coreModule from "../modules/wormhole_foundation.wormchain.wormhole";
+import * as coreModule from "../modules/wormchain.wormhole";
+import { ADDRESS_PREFIX } from "./consts";
 
 //protobuf isn't guaranteed to have long support, which is used by the stargate signing client,
 //so we're going to use an independent long module and shove it into the globals of protobuf
@@ -44,8 +44,6 @@ const distributionTypes = distributionModule.registry.types;
 //@ts-ignore
 const evidenceTypes = evidenceModule.registry.types;
 //@ts-ignore
-const feegrantTypes = feegrantModule.registry.types;
-//@ts-ignore
 const govTypes = govModule.registry.types;
 //@ts-ignore
 const mintTypes = mintModule.registry.types;
@@ -60,8 +58,6 @@ const txTypes = txModule.registry.types;
 //@ts-ignore
 const upgradeTypes = upgradeModule.registry.types;
 //@ts-ignore
-const vestingTypes = vestingModule.registry.types;
-//@ts-ignore
 const wasmTypes = wasmModule.registry.types;
 
 const aggregateTypes = [
@@ -72,7 +68,6 @@ const aggregateTypes = [
   ...crisisTypes,
   ...distributionTypes,
   ...evidenceTypes,
-  ...feegrantTypes,
   ...govTypes,
   ...mintTypes,
   ...paramsTypes,
@@ -80,7 +75,6 @@ const aggregateTypes = [
   ...stakingTypes,
   ...txTypes,
   ...upgradeTypes,
-  ...vestingTypes,
   ...wasmTypes,
 ];
 
@@ -92,79 +86,103 @@ export const getWormchainSigningClient = async (
   tendermintAddress: string,
   wallet: OfflineSigner,
   options?: SigningStargateClientOptions
-) => {
+): Promise<any> => {
   if (!wallet) throw MissingWalletError;
 
-  const coreClient = await coreModule.txClient(wallet, {
+  const coreClient = coreModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const authClient = await authModule.txClient(wallet, {
+  const authClient = authModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const bankClient = await bankModule.txClient(wallet, {
+  const bankClient = bankModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const baseClient = await baseModule.txClient(wallet, {
+  const baseClient = baseModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const crisisClient = await crisisModule.txClient(wallet, {
+  const crisisClient = crisisModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const distributionClient = await distributionModule.txClient(wallet, {
+  const distributionClient = distributionModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const evidenceClient = await evidenceModule.txClient(wallet, {
+  const evidenceClient = evidenceModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const feegrantClient = await feegrantModule.txClient(wallet, {
+  const govClient = govModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const govClient = await govModule.txClient(wallet, {
+  const mintClient = mintModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const mintClient = await mintModule.txClient(wallet, {
+  const paramsClient = paramsModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const paramsClient = await paramsModule.txClient(wallet, {
+  const slashingClient = slashingModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const slashingClient = await slashingModule.txClient(wallet, {
+  const stakingClient = stakingModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const stakingClient = await stakingModule.txClient(wallet, {
+  const txClient = txModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const txClient = await txModule.txClient(wallet, {
+  const upgradeClient = upgradeModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const upgradeClient = await upgradeModule.txClient(wallet, {
+  const wasmClient = wasmModule.txClient({
+    signer: wallet,
+    prefix: ADDRESS_PREFIX,
     addr: tendermintAddress,
   });
 
-  const vestingClient = await vestingModule.txClient(wallet, {
-    addr: tendermintAddress,
-  });
+  let tendermintClient = await Tendermint37Client.connect(tendermintAddress);
 
-  const wasmClient = await wasmModule.txClient(wallet, {
-    addr: tendermintAddress,
-  });
-
-  const client = await SigningStargateClient.connectWithSigner(
-    tendermintAddress,
+  const client = await SigningStargateClient.createWithSigner(
+    tendermintClient,
     wallet,
     {
       ...options,
@@ -219,12 +237,6 @@ export const getWormchainSigningClient = async (
   };
   delete evidenceShell.signAndBroadcast;
 
-  const feegrantShell = {
-    ...feegrantClient,
-    signAndBroadcast: undefined,
-  };
-  delete feegrantShell.signAndBroadcast;
-
   const govShell = {
     ...govClient,
     signAndBroadcast: undefined,
@@ -267,12 +279,6 @@ export const getWormchainSigningClient = async (
   };
   delete upgradeShell.signAndBroadcast;
 
-  const vestingShell = {
-    ...vestingClient,
-    signAndBroadcast: undefined,
-  };
-  delete vestingShell.signAndBroadcast;
-
   const wasmShell = {
     ...wasmClient,
     signAndBroadcast: undefined,
@@ -286,7 +292,6 @@ export const getWormchainSigningClient = async (
   type CrisisType = Omit<typeof crisisShell, "signAndBroadcast">;
   type DistributionType = Omit<typeof distributionShell, "signAndBroadcast">;
   type EvidenceType = Omit<typeof evidenceShell, "signAndBroadcast">;
-  type FeegrantType = Omit<typeof feegrantShell, "signAndBroadcast">;
   type GovType = Omit<typeof govShell, "signAndBroadcast">;
   type MintType = Omit<typeof mintShell, "signAndBroadcast">;
   type ParamsType = Omit<typeof paramsShell, "signAndBroadcast">;
@@ -294,7 +299,6 @@ export const getWormchainSigningClient = async (
   type StakingType = Omit<typeof stakingShell, "signAndBroadcast">;
   type TxType = Omit<typeof txShell, "signAndBroadcast">;
   type UpgradeType = Omit<typeof upgradeShell, "signAndBroadcast">;
-  type VestingType = Omit<typeof vestingShell, "signAndBroadcast">;
   type WasmType = Omit<typeof wasmShell, "signAndBroadcast">;
   type WormholeFunctions = {
     core: CoreType;
@@ -304,7 +308,6 @@ export const getWormchainSigningClient = async (
     crisis: CrisisType;
     distribution: DistributionType;
     evidence: EvidenceType;
-    feegrant: FeegrantType;
     gov: GovType;
     mint: MintType;
     params: ParamsType;
@@ -312,7 +315,6 @@ export const getWormchainSigningClient = async (
     staking: StakingType;
     tx: TxType;
     upgrade: UpgradeType;
-    vesting: VestingType;
     wasm: WasmType;
   };
   type WormholeSigningClient = SigningStargateClient & WormholeFunctions;
@@ -326,7 +328,6 @@ export const getWormchainSigningClient = async (
   output.crisis = crisisShell;
   output.distribution = distributionShell;
   output.evidence = evidenceShell;
-  output.feegrant = feegrantShell;
   output.gov = govShell;
   output.mint = mintShell;
   output.params = paramsShell;
@@ -334,7 +335,6 @@ export const getWormchainSigningClient = async (
   output.staking = stakingShell;
   output.tx = txShell;
   output.upgrade = upgradeShell;
-  output.vesting = vestingShell;
   output.wasm = wasmShell;
 
   return output;

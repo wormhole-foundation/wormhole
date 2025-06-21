@@ -4,40 +4,55 @@ GO_FILES=$(shell find . -name "*.go")
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
 
 VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1))
+BFT_VERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::') # grab everything after the space in "github.com/cometbft/cometbft v0.34.7"
 COMMIT := $(shell git log -1 --format='%h' 2> /dev/null || echo 'abc123')
 
-ldflags = \
-    -X github.com/cosmos/cosmos-sdk/version.Name=wormchain\
-	-X github.com/cosmos/cosmos-sdk/version.ServerName=wormchaind\
+build_tags = netgo gcc ledger
+build_tags += $(BUILD_TAGS)
+build_tags := $(strip $(build_tags))
+
+whitespace :=
+whitespace += $(whitespace)
+comma := ,
+build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
+
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=wormchain \
+	-X github.com/cosmos/cosmos-sdk/version.ServerName=wormchaind \
 	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-	-X "github.com/cosmos/cosmos-sdk/version.BuildTags=ledger"
-BUILD_FLAGS := -ldflags '$(ldflags)'
+	-X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)" \
+	-X github.com/cometbft/cometbft/version.TMCoreSemVer=$(BFT_VERSION)
+ldflags += $(LDFLAGS)
+ldflags := $(strip $(ldflags))
+
+BUILD_FLAGS := -tags "$(build_tags)" -ldflags '$(ldflags)'
 
 .PHONY: all
 all: client
 
-.PHONY: client build/wormchaind
+.PHONY: client build/wormchaind install
 client: build/wormchaind
 
-
-build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
+build/wormchaind: cmd/wormchaind/main.go cmd/wormchaind/root.go $(GO_FILES)
 	@echo building "wormchaind-$(VERSION)"
-	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
+	go build -mod=readonly $(BUILD_FLAGS) -o $@ ./cmd/wormchaind
 	cp "$@" "$@"-"$(VERSION)"
 
-# proto: $(PROTO_FILES)
-# 	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
+install: go.sum
+	go install -mod=readonly $(BUILD_FLAGS) ./cmd/wormchaind
 
-# vue: $(GO_FILES) proto
-# 	mkdir -p $@
-# 	touch -m $@
-# 	DOCKER_BUILDKIT=1 docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
+proto: $(PROTO_FILES)
+	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
+
+ts-client: $(GO_FILES) proto
+	mkdir -p $@
+	touch -m $@
+	DOCKER_BUILDKIT=1 docker build --target ts-client-export -f Dockerfile.proto -o type=local,dest=. ..
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies
 .PHONY: ts-sdk
-ts-sdk: vue
+ts-sdk: ts-client
 	npm ci --prefix $@
 	npm run build --prefix $@
 
@@ -76,7 +91,7 @@ bootstrap:
 
 .PHONY: clean
 clean:
-	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue
+	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue/ ts-client/ 
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json
 
 #####################
@@ -96,6 +111,10 @@ ictest-cancel-upgrade: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestCancelUpgrade$$ ./...
 .PHONY: ictest-cancel-upgrade
 
+ictest-chain-start: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestChainStart$$ ./...
+.PHONY: ictest-chain-start
+
 ictest-malformed-payload: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestMalformedPayload$$ ./...
 .PHONY: ictest-malformed-payload
@@ -104,6 +123,10 @@ ictest-slashing-params-update-vaa: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestSlashingParamsUpdateVaa$$ ./...
 .PHONY: ictest-slashing-params-update-vaa
 
+ictest-ibc-client-update-vaa: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestIBCClientUpdateVaa$$ ./...
+.PHONY: ictest-ibc-client-update-vaa
+
 ictest-upgrade-failure: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgradeFailure$$ ./...
 .PHONY: ictest-upgrade-failure
@@ -111,6 +134,10 @@ ictest-upgrade-failure: rm-testcache
 ictest-upgrade: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestUpgrade$$ ./...
 .PHONY: ictest-upgrade
+
+ictest-wasmd-msgs: rm-testcache
+	cd interchaintest && go test -race -v -run ^TestWasmdMsgs$$ ./...
+.PHONY: ictest-wasmd-msgs
 
 ictest-wormchain: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestWormchain$$ ./...
@@ -127,9 +154,6 @@ ictest-cw-wormhole: rm-testcache
 ictest-cw-shutdown-contracts: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestShutdown ./...
 .PHONY: ictest-cw-shutdown-contracts
-
-ictest-cw-shutdown-contracts: rm-testcache
-	cd interchaintest && go test -race -v -run ^TestShutdown ./...
 
 ictest-validator-hotswap: rm-testcache
 	cd interchaintest && go test -race -v -run ^TestValidatorHotswap$$ ./...

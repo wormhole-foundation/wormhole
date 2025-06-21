@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "test": "jest --config jestconfig.json --verbose",
-    "build": "npm run genTypes && tsc",
-    "genTypes": "echo \"disabled: node src/buildHelper.cjs\""
+    "build": "npm run genTypes && NODE_OPTIONS=--max-old-space-size=8192 npx tsc",
+    "genTypes": "node src/buildHelper.cjs"
   },
   "repository": {
     "type": "git",
@@ -23,12 +23,10 @@
   "homepage": "https://github.com/wormhole-foundation/wormchain#readme",
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.2.0",
-    "@cosmjs/cosmwasm-stargate": "^0.27.1",
-    "@cosmjs/launchpad": "^0.27.1",
-    "@cosmjs/math": "^0.27.1",
-    "@cosmjs/proto-signing": "^0.27.1",
-    "@cosmjs/stargate": "^0.27.1",
-    "@cosmjs/tendermint-rpc": "^0.27.1",
+    "@cosmjs/cosmwasm-stargate": "^0.30.1",
+    "@cosmjs/math": "^0.30.1",
+    "@cosmjs/proto-signing": "^0.30.1",
+    "@cosmjs/stargate": "^0.30.1",
     "axios": "^0.26.0",
     "bech32": "^2.0.0",
     "elliptic": "^6.6.1",

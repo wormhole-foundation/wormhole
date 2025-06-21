@@ -67,7 +67,7 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	}
 	genesis.GuardianValidatorList = k.GetAllGuardianValidator(ctx)
 	genesis.AllowedAddresses = k.GetAllAllowedAddresses(ctx)
-	genesis.WasmInstantiateAllowlist = k.GetAllWasmInstiateAllowedAddresses(ctx)
+	genesis.WasmInstantiateAllowlist = k.GetAllWasmInstantiateAllowedAddresses(ctx)
 	genesis.IbcComposabilityMwContract = k.GetIbcComposabilityMwContract(ctx)
 	// this line is used by starport scaffolding # genesis/module/export
 
