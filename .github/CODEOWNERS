@@ -5,16 +5,16 @@
 # Chains
 
 /algorand/ @evan-gray @kcsongor
-/aptos/ @kcsongor @a5-pickle
+/aptos/ @kcsongor
 /bitcoin/ @evan-gray
-/cosmwasm/ @nik-suri @kcsongor @a5-pickle
-/ethereum/ @a5-pickle @gator-boi @kcsongor
-/ethereum/env/ @a5-pickle @gator-boi @kcsongor @evan-gray @bruce-riley
+/cosmwasm/ @nik-suri @kcsongor
+/ethereum/ @gator-boi @kcsongor
+/ethereum/env/ @gator-boi @kcsongor @evan-gray @bruce-riley
 /relayer/ethereum @nonergodic @gator-boi
 /near/ @evan-gray @kcsongor
-/solana/ @kcsongor @a5-pickle
-/sui/ @kcsongor @a5-pickle @gator-boi
-/terra/ @kcsongor @a5-pickle
+/solana/ @kcsongor 
+/sui/ @kcsongor @gator-boi
+/terra/ @kcsongor
 /wormchain/ @nik-suri @johnsaigle @mdulin2 @joelsmith-2019
 
 # Utilities
@@ -29,10 +29,10 @@
 /sdk/js-query/ @evan-gray @kev1n-peters @bruce-riley
 /sdk/js-wasm/ @evan-gray @kev1n-peters
 /sdk/js/ @evan-gray @kev1n-peters @panoel
-/sdk/rust/ @a5-pickle
+/sdk/rust/ @Daniel-Aaron-Bloom
 /sdk/vaa/ @bruce-riley @evan-gray @panoel @SEJeff
 /spydk/ @evan-gray
-/testing/ @a5-pickle @evan-gray
+/testing/ @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 /wormchain/devnet/ @evan-gray @bruce-riley
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
