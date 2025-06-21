@@ -17,6 +17,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/xlabs/multi-party-sig/pkg/math/curve"
+	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 )
 
 type (
@@ -963,6 +965,13 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	return verifySignatures(v.SigningDigest().Bytes(), v.Signatures, addresses)
 }
 
+type PublicKeys any
+
+var (
+	errInvalidTypeVaaV1  = errors.New("expected []common.Address in input")
+	errInvalidTypeTSSVaa = errors.New("expected curve.Point in input")
+)
+
 // Verify is a function on the VAA that takes a complete set of guardian keys as input and attempts certain checks with respect to this guardian.
 // Verify will return nil if the VAA passes checks.  Otherwise, Verify will return an error containing the text of the first check to fail.
 // NOTE:  Verify will not work correctly if a subset of the guardian set keys is passed in.  The complete guardian set must be passed in.
@@ -970,8 +979,8 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 // - If the guardian does not have or know its own guardian set keys, then the VAA cannot be verified.
 // - Quorum is calculated on the guardian set passed in and checks if the VAA has enough signatures.
 // - The signatures in the VAA is verified against the guardian set keys.
-func (v *VAA) Verify(addresses []common.Address) error {
-	if addresses == nil {
+func (v *VAA) Verify(verifyAgainst PublicKeys) error {
+	if verifyAgainst == nil {
 		return errors.New("no addresses were provided")
 	}
 
@@ -984,9 +993,18 @@ func (v *VAA) Verify(addresses []common.Address) error {
 
 	switch v.Version {
 	case VaaVersion1:
+		addresses, ok := verifyAgainst.([]common.Address)
+		if !ok {
+			return errInvalidTypeVaaV1
+		}
+
 		err = v.v1Validation(addresses)
 	case TSSVaaVersion:
-		err = v.tssValidation(addresses)
+		publicKey, ok := verifyAgainst.(curve.Point)
+		if !ok {
+			return errInvalidTypeTSSVaa
+		}
+		err = v.tssValidation(publicKey)
 	}
 
 	return err
@@ -1006,20 +1024,21 @@ func (v *VAA) v1Validation(addresses []common.Address) error {
 
 	return nil
 }
-func (v *VAA) tssValidation(addresses []common.Address) error {
+func (v *VAA) tssValidation(pk curve.Point) error {
 	if len(v.Signatures) != 1 {
 		return errors.New("TSS VAA must have exactly one signature")
 	}
 
-	if len(addresses) != 1 {
-		return errors.New("TSS VAA must have exactly one address")
+	frostsig, err := sign.EmptySignature(curve.Secp256k1{})
+	if err != nil {
+		return fmt.Errorf("failed to create empty TSS signature: %w", err)
 	}
 
-	if !v.VerifySignatures(addresses) {
-		return errors.New("VAA had bad signatures")
+	if err := frostsig.UnmarshalBinary(v.Signatures[0].Signature[:]); err != nil {
+		return fmt.Errorf("failed to unmarshal TSS signature: %w", err)
 	}
 
-	return nil
+	return frostsig.Verify(pk, v.SigningDigest().Bytes())
 }
 
 // Marshal returns the binary representation of the VAA

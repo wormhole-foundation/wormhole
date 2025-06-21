@@ -4,9 +4,8 @@ import (
 	"time"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/xlabs/tss-lib/v2/common"
-	"github.com/xlabs/tss-lib/v2/ecdsa/party"
-	"github.com/xlabs/tss-lib/v2/tss"
+	common "github.com/xlabs/tss-common"
+	"github.com/xlabs/tss-lib/v2/party"
 	"go.uber.org/zap"
 )
 
@@ -86,7 +85,7 @@ type ftChainContext struct {
 
 // Describes a specfic party's data in terms of fault tolerance.
 type ftParty struct {
-	partyID        *tss.PartyID
+	partyID        *common.PartyID
 	ftChainContext map[vaa.ChainID]*ftChainContext
 }
 
@@ -118,7 +117,7 @@ func (t *Engine) sigTracker() {
 	}
 
 	for _, pid := range t.GuardianStorage.Guardians.partyIds {
-		strPid := strPartyId(partyIdToString(pid))
+		strPid := strPartyId(pid.ToString())
 		f.membersData[strPid] = &ftParty{
 			partyID:        pid,
 			ftChainContext: map[vaa.ChainID]*ftChainContext{},
@@ -268,7 +267,7 @@ func (cmd *signCommand) apply(t *Engine, f *sigTracker) {
 	state.approvedToSign = true
 
 	for _, pid := range cmd.SigningInfo.SigningCommittee {
-		m, ok := f.membersData[strPartyId(partyIdToString(pid))]
+		m, ok := f.membersData[strPartyId(pid.ToString())]
 		if !ok {
 			t.logger.Error("signCommand: party not found in the members data")
 

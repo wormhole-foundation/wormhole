@@ -18,9 +18,6 @@ service DirectLink {
 // copyOfTssLib proto.
 message PartyId{
   string id = 1;
-  string moniker = 2;
-  bytes key = 3;
-  uint32 index = 4;
 }
 
 message TssContent{

@@ -27,7 +27,7 @@ func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableM
 
 	var err error
 	for i, peer := range peers {
-		partyIds[i], err = tssMessenger.FetchPartyId(peer)
+		partyIds[i], err = tssMessenger.FetchIdentity(peer)
 		if err != nil {
 			return nil, err
 		}

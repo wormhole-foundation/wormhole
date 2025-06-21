@@ -5,10 +5,12 @@ import (
 	"unsafe"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"github.com/xlabs/tss-lib/v2/ecdsa/keygen"
-	"github.com/xlabs/tss-lib/v2/ecdsa/party"
-	"github.com/xlabs/tss-lib/v2/ecdsa/resharing"
-	"github.com/xlabs/tss-lib/v2/ecdsa/signing"
+
+	"github.com/xlabs/multi-party-sig/protocols/frost/keygen"
+	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
+
+	"github.com/xlabs/tss-lib/v2/party"
+
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -17,15 +19,13 @@ var tssProtoMessageNames = []string{}
 var tssProtoMessageSize = 0
 
 func init() {
-	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(signing.File_protob_ecdsa_signing_proto)...)
-	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(keygen.File_protob_ecdsa_keygen_proto)...)
-	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(resharing.File_protob_ecdsa_resharing_proto)...)
+	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(sign.File_proto_frost_signing_proto)...)
+	tssProtoMessageNames = append(tssProtoMessageNames, extractProtoTypeNames(keygen.File_proto_frost_keygen_proto)...)
 
 	for _, name := range tssProtoMessageNames {
 		tssProtoMessageSize = max(tssProtoMessageSize, len(name))
 	}
 }
-
 func extractProtoTypeNames(protoreflectDesc protoreflect.FileDescriptor) []string {
 	names := make([]string, protoreflectDesc.Messages().Len())
 

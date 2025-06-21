@@ -361,7 +361,7 @@ func (s *server) getIdentityFromIncomingStream(inStream tsscommv1.DirectLink_Sen
 	}
 
 	// fetch the party ID according to the public key used to verify this certificate (embbded in the cert).
-	clientId, err := s.tssMessenger.FetchPartyId(clientCert)
+	clientId, err := s.tssMessenger.FetchIdentity(clientCert)
 	if err != nil {
 		return nil, fmt.Errorf("client certificate wasn't found: %w", err)
 	}

@@ -298,7 +298,13 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	}
 
 	if v.Version == vaa.VaaVersion1 {
-		p.thresholdSigner.WitnessNewVaa(v)
+		// While p.thresholdSigner does run two signing sessions for the same VAA twice,
+		// the leader should initiate signing in case it doesn't has a VaaV2 yet.
+		//
+		// in case the leader has a VaaV2, it doesn't need to start a new signing process.
+		if !p.haveSignedVaav2(*db.VaaIDFromVAA(v)) {
+			p.thresholdSigner.WitnessNewVaa(v)
+		}
 	}
 
 	// Check if we already store this VAA
@@ -320,13 +326,10 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		return
 	}
 
-	addresses := p.gs.Keys
-	if v.Version == vaa.TSSVaaVersion {
-		addresses = []common.Address{p.thresholdSigner.GetEthAddress()}
-	}
+	keys := p.gs.Keys
 
 	// Check if guardianSet doesn't have any keys
-	if len(addresses) == 0 {
+	if len(keys) == 0 {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we have a guardian set without keys",
 			zap.String("message_id", v.MessageID()),
 			zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
@@ -335,7 +338,12 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		return
 	}
 
-	if err := v.Verify(addresses); err != nil {
+	var verificationPublic vaa.PublicKeys = keys
+	if v.Version == vaa.TSSVaaVersion {
+		verificationPublic = p.thresholdSigner.GetPublicKey()
+	}
+
+	if err := v.Verify(verificationPublic); err != nil {
 		// We format the error as part of the message so the tests can check for it.
 		p.logger.Warn(
 			"dropping SignedVAAWithQuorum message because it failed verification: "+err.Error(),

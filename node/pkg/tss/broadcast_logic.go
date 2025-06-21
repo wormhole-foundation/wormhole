@@ -18,8 +18,7 @@ import (
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 
-	"github.com/xlabs/tss-lib/v2/common"
-	"github.com/xlabs/tss-lib/v2/tss"
+	common "github.com/xlabs/tss-common"
 )
 
 // voterId is comprised from the id and key of the signer, should match the guardians (in GuardianStorage) id and key.
@@ -67,7 +66,7 @@ func (s *deliverableMessage) getUUID(loadDistKey []byte) uuid {
 
 // serializeables
 type tssMessageWrapper struct {
-	tss.Message
+	common.Message
 }
 
 func (t *tssMessageWrapper) serialize() []byte {
@@ -75,7 +74,7 @@ func (t *tssMessageWrapper) serialize() []byte {
 }
 
 type parsedTssContent struct {
-	tss.ParsedMessage
+	common.ParsedMessage
 	signingRound
 }
 
@@ -96,17 +95,14 @@ func (p *parsedHashEcho) getUUID(loadDistKey []byte) uuid {
 // We don't add the content of the message to the uuid, instead we collect all data that can put this message in a context.
 // this is used by the broadcast protocol to check no two messages from the same sender will be used to update the full party
 // in the same round for the specific session of the protocol.
-func serializeTSSMessage(msg tss.Message) []byte {
+func serializeTSSMessage(msg common.Message) []byte {
 	// The TackingID of a parsed message is tied to the run of the protocol for a single
 	//  signature, thus we use it as a sessionID.
 	messageTrackingID := [trackingIDHexStrSize]byte{}
 	copy(messageTrackingID[:], []byte(msg.WireMsg().GetTrackingID().ToString()))
 
-	fromId := [hostnameSize]byte{}
-	copy(fromId[:], msg.GetFrom().Id)
-
-	fromKey := [pemKeySize]byte{}
-	copy(fromKey[:], msg.GetFrom().Key)
+	fromId := [pemKeySize]byte{}
+	copy(fromId[:], []byte(msg.GetFrom().GetID()))
 
 	// Adding the Message type allows the same sender to send messages for different rounds.
 	// but, sender j is not allowed to send two different messages to the same round.
@@ -115,12 +111,11 @@ func serializeTSSMessage(msg tss.Message) []byte {
 	msgType := make([]byte, tssProtoMessageSize)
 	copy(msgType[:], tp[:])
 
-	d := make([]byte, 0, len(tssContentDomain)+trackingIDHexStrSize+hostnameSize+pemKeySize)
+	d := make([]byte, 0, len(tssContentDomain)+trackingIDHexStrSize+pemKeySize)
 
 	d = append(d, tssContentDomain...)
 	d = append(d, messageTrackingID[:]...)
 	d = append(d, fromId[:]...)
-	d = append(d, fromKey[:]...)
 	d = append(d, msgType[:]...)
 
 	return d
@@ -210,8 +205,13 @@ func (t *Engine) updateState(s *broadcaststate, parsed broadcastMessage, unparse
 	unparsedSignedMessage := unparsedContent.toBroadcastMsg().Message
 	echoer := unparsedContent.GetSource()
 
-	pid := t.GuardianStorage.getPartyIdFromIndex(SenderIndex(unparsedSignedMessage.Sender))
-	isMsgSrc := equalPartyIds(echoer.Pid, pid)
+	senderIndex := SenderIndex(unparsedSignedMessage.Sender)
+	id, err := t.GuardianStorage.fetchIdentityFromIndex(senderIndex)
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch sender identity: %w", err)
+	}
+
+	isMsgSrc := id.Pid.Equals(echoer.Pid)
 
 	_, isEcho := unparsedSignedMessage.Content.(*tsscommv1.SignedMessage_HashEcho)
 
@@ -306,17 +306,21 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 
 	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
 	if _, ok := parsed.(deliverable); ok {
-		senderPid := t.GuardianStorage.getPartyIdFromIndex(SenderIndex(unparsedSignedMessage.Sender))
-		if senderPid == nil {
-			return fmt.Errorf("sender %v is not a guardian", unparsedSignedMessage.Sender)
+		index := SenderIndex(unparsedSignedMessage.Sender)
+
+		senderID, err := t.GuardianStorage.fetchIdentityFromIndex(index)
+		if err != nil {
+			return fmt.Errorf("failed to fetch sender identity: %w", err)
 		}
 
-		if !equalPartyIds(senderPid, src.Pid) {
+		if !senderID.Pid.Equals(src.Pid) {
 			return fmt.Errorf("any non echo message should have the same sender as the source")
 		}
 	}
 
 	uid := parsed.getUUID(t.LoadDistributionKey)
+
+	signedMsgHash := hashSignedMessage(unparsedSignedMessage)
 
 	// verify incoming
 	if s.verifiedDigest == nil {
@@ -324,10 +328,11 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 			return err
 		}
 
-		tmp := hashSignedMessage(unparsedSignedMessage)
-		s.verifiedDigest = &tmp
+		s.verifiedDigest = &signedMsgHash
 
-	} else if *s.verifiedDigest != hashSignedMessage(unparsedSignedMessage) {
+	} else if *s.verifiedDigest != signedMsgHash {
+		// TODO: VaaV1 leader can cause two signatures with the same trackingID, to run.
+		//       Perhaps we need to add auxilary data to the uuid to remove this bug.
 		if err := t.verifySignedMessage(uid, unparsedSignedMessage); err != nil {
 			// two different digest and bad signature.
 			return fmt.Errorf("caught bad behaviour: Echoer %v sent a digest that can't be verified", src.Hostname)

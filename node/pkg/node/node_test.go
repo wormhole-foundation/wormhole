@@ -168,7 +168,7 @@ func overridePortOfTss(gs []*mockGuardian) {
 	idToPort := map[string]int{}
 	for _, g := range gs {
 		cnfg := g.config
-		idToPort[g.tssEngine.(*tss.Engine).GuardianStorage.Self.Pid.Id] = int(cnfg.tssNetworkPort)
+		idToPort[g.tssEngine.(*tss.Engine).GuardianStorage.Self.Pid.GetID()] = int(cnfg.tssNetworkPort)
 	}
 
 	// go to each guardian and change the ID of everyone including self.
@@ -176,15 +176,15 @@ func overridePortOfTss(gs []*mockGuardian) {
 
 	for _, g := range gs {
 		en := g.tssEngine.(*tss.Engine)
-		en.Self.Port = idToPort[en.Self.Pid.Id]
+		en.Self.Port = idToPort[en.Self.Pid.GetID()]
 		en.Self.Hostname = "localhost"
 
 		for _, id := range en.Guardians.Identities {
-			if _, ok := idToPort[id.Pid.Id]; !ok {
+			if _, ok := idToPort[id.Pid.GetID()]; !ok {
 				continue
 			}
 			id.Hostname = "localhost"
-			id.Port = idToPort[id.Pid.Id]
+			id.Port = idToPort[id.Pid.GetID()]
 		}
 	}
 
@@ -921,12 +921,12 @@ func pollApiAndInspectVaa(t *testing.T, ctx context.Context, msg *common.Message
 
 		// Check signatures
 		if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
-			addrLst := gsAddrList
+			var verificationPublic vaa.PublicKeys = gsAddrList
 			if testCase.tssVaaVersionChecks {
-				addrLst = []eth_common.Address{gs[0].tssEngine.GetEthAddress()}
+				verificationPublic = gs[0].tssEngine.GetPublicKey()
 			}
 
-			assert.NoError(t, returnedVaa.Verify(addrLst))
+			assert.NoError(t, returnedVaa.Verify(verificationPublic))
 		}
 
 		// Match all the fields

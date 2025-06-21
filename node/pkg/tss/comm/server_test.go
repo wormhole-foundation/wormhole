@@ -44,7 +44,7 @@ type mockTssMessageHandler struct {
 
 func (m *mockTssMessageHandler) GetCertificate() *tls.Certificate { return m.selfCert }
 func (m *mockTssMessageHandler) GetPeers() []*x509.Certificate    { return m.peersToConnectTo }
-func (m *mockTssMessageHandler) FetchPartyId(*x509.Certificate) (*tss.Identity, error) {
+func (m *mockTssMessageHandler) FetchIdentity(*x509.Certificate) (*tss.Identity, error) {
 	return m.peerId, nil
 }
 func (m *mockTssMessageHandler) ProducedOutputMessages() <-chan tss.Sendable {
@@ -731,7 +731,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 			continue
 		}
 
-		v.Pid.Id = ""
+		v.Pid.ID = ""
 	}
 
 	streamReceiverEngine.GuardianStorage.SetInnerFields()

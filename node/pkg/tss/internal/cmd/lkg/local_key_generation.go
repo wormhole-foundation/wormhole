@@ -17,9 +17,13 @@ import (
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
-
-	"github.com/xlabs/tss-lib/v2/ecdsa/keygen"
-	"github.com/xlabs/tss-lib/v2/tss"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/xlabs/multi-party-sig/pkg/math/curve"
+	"github.com/xlabs/multi-party-sig/pkg/math/polynomial"
+	"github.com/xlabs/multi-party-sig/pkg/math/sample"
+	"github.com/xlabs/multi-party-sig/pkg/party"
+	"github.com/xlabs/multi-party-sig/protocols/frost"
+	common "github.com/xlabs/tss-common"
 )
 
 var cnfgPath = flag.String("cnfg", "", "path to config file in json format used to run the protocol")
@@ -79,14 +83,15 @@ type dkgPlayer struct {
 	// same for all guardians // generated here.
 	loadDistributionKey []byte
 
-	*tss.PeerContext
-	*tss.Parameters
+	// *tss.PeerContext
+	// *tss.Parameters
 
-	localParty tss.Party
+	// localParty tss.Party
+	frostconf *frost.Config
 
 	// communication channels
-	out               <-chan tss.Message
-	protocolEndOutput <-chan *keygen.LocalPartySaveData
+	// out               <-chan tss.Message
+	// protocolEndOutput <-chan *keygen.LocalPartySaveData
 }
 
 func Run(cnfg *LKGConfig) {
@@ -104,114 +109,62 @@ func Run(cnfg *LKGConfig) {
 		panic(err)
 	}
 
-	for _, p := range all {
-		if err := p.localParty.Start(); err != nil && err.Cause() != nil {
-			panic("keygen failed to start: " + err.Cause().Error())
-		}
-	}
-
 	fmt.Println("all players generated their secrets. Starting the protocol. This might take several minutes.")
-	simulateDKG(all)
+	simulateDKG(all, cnfg.WantedThreshold)
 }
 
-func mustPassMessage(newMsg tss.Message, keyToParty map[string]tss.Party) {
-	bz, routing, err := newMsg.WireBytes()
-	if err != nil {
-		panic("Couldn't pass message to party. err: " + err.Error())
+// this function simulates the results of running a DKG protocol.
+func simulateDKG(all []*dkgPlayer, threshold int) {
+	group := curve.Secp256k1{}
+	secret := sample.Scalar(rand.Reader, group)
+	f := polynomial.NewPolynomial(group, threshold, secret)
+	publicKey := secret.ActOnBase()
+
+	privateShares := make(map[party.ID]curve.Scalar, len(all))
+	for _, p := range all {
+		id := party.ID(p.self.Pid.GetID())
+
+		privateShares[id] = f.Evaluate(id.Scalar(group))
 	}
 
-	// parsedMsg doesn't contain routing, since it assumes this message arrive for this participant from outside.
-	// as a result we'll use the routing of the wireByte msgs.
-	parsedMsg, err := tss.ParseWireMessage(bz, routing.From, routing.IsBroadcast)
-	if err != nil {
-		panic("Couldn't pass message to party. err: " + err.Error())
-	}
+	verificationShares := make(map[party.ID]curve.Point, len(all))
 
-	if routing.IsBroadcast || routing.To == nil {
-		for pID, p := range keyToParty {
-			if string(routing.From.GetKey()) == pID {
-				continue
-			}
+	for _, p := range all {
+		id := party.ID(p.self.Pid.GetID())
 
-			mustFeedParty(p, parsedMsg)
-		}
-
-		return
-	}
-
-	for _, id := range routing.To {
-		p := keyToParty[string(id.GetKey())]
-		mustFeedParty(p, parsedMsg)
-	}
-}
-
-func mustFeedParty(p tss.Party, parsedMsg tss.ParsedMessage) {
-	if p == nil {
-		panic("party is nil")
-	}
-	if parsedMsg == nil {
-		panic("parsedMsg is nil")
-	}
-
-	ok, err := p.Update(parsedMsg)
-	if err != nil {
-		panic("Couldn't pass message to party. err: " + err.Error())
-	}
-
-	if !ok {
-		panic("Couldn't update party with message")
-	}
-}
-
-// In high level, this function simulates the network communication between the parties.
-// It listens on the output channel of each party and puts it into a bag of messages.
-// Once it has gone through all the parties, it empties the bag of messages and feeds
-// each party with all messages that were addressed to it (some messages are broadcast messages too).
-// It repeats this process until every party outputs a `secrets` file.
-// Then it stores these secrets.
-//
-// In a network setting, each guardian would need to listen for messages from all other guardians, and feed the message to the tss.Party.Update method.
-// In addition to that, to ensure the protocol's correctness, one would need to ensure no equivocation on broadcasts.
-// As a result, one would need to create a broadcast channel:
-// Either by using reliable broadcast protocol, or some variant protocol (e.g., a variant on the reliable-broadcast
-// protocol that rebroadcast the hash of a message and not duplicate the message itself).
-// Thus ensuring that all parties feed the tss.Party.Update method with the same message.
-func simulateDKG(all []*dkgPlayer) {
-	done := 0
-
-	// Mapping to easily find the party a message is addressed to based on the key (unique).
-	keyToParty := map[string]tss.Party{}
-	for _, player := range all {
-		keyToParty[string(player.self.Pid.Key)] = player.localParty
+		point := privateShares[id].ActOnBase()
+		verificationShares[id] = point
 	}
 
 	guardians := make([]*engine.GuardianStorage, len(all))
-keygenLoop:
-	for {
-		bagOfMessages := make([]tss.Message, 0, len(all))
-		for _, player := range all {
-			select {
-			case newMsg := <-player.out:
-				bagOfMessages = append(bagOfMessages, newMsg)
+	for i, p := range all {
+		id := party.ID(p.self.Pid.GetID())
 
-			case m := <-player.protocolEndOutput:
-				player.handleKeygenEndMessage(m, guardians)
-				done += 1
-				fmt.Println(done)
-
-			default: // avoid blockage.
-			}
-
-			if done >= len(all) {
-				break keygenLoop
-			}
+		// can't be jsoned.
+		cnf := &frost.Config{
+			ID:           id,
+			Threshold:    threshold,
+			PrivateShare: privateShares[id],
+			PublicKey:    publicKey,
+			// ChainKey:           d.loadDistributionKey, // needed iff we use BIP32 key derivation.
+			VerificationShares: party.NewPointMap(verificationShares),
 		}
 
-		if len(bagOfMessages) > 0 {
-			fmt.Println("passing messages to guardians", len(bagOfMessages))
+		cnfBytes, err := cbor.Marshal(cnf) // TODO: avoid cbor if possible later.
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal frost config for guardian %d: %v", i, err))
 		}
-		for _, msg := range bagOfMessages {
-			mustPassMessage(msg, keyToParty)
+
+		guardians[i] = &engine.GuardianStorage{
+			Configurations: engine.Configurations{},
+			Self:           p.self,
+			TlsX509:        p.selfCert,
+			PrivateKey:     nil, // each guardian stores this by themselves.
+			Guardians:      p.ids,
+			Threshold:      threshold,
+			// SavedSecretParameters: ,
+			LoadDistributionKey: p.loadDistributionKey,
+			TSSSecrets:          cnfBytes,
 		}
 	}
 
@@ -238,16 +191,6 @@ keygenLoop:
 		}
 	}
 
-}
-
-func (cnfg *LKGConfig) find(tlsX509 []byte) *GuardianSpecifics {
-	for _, g := range cnfg.GuardianSpecifics {
-		if string(g.Identifier.TlsX509) == string(tlsX509) {
-			return &g
-		}
-	}
-
-	return nil
 }
 
 func (cnfg *LKGConfig) validate() error {
@@ -282,33 +225,29 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 		return nil, err
 	}
 
-	sortedIDS, sortedPids := sortIdentities(unsortedIdentities)
+	sortedIDS := sortIdentities(unsortedIdentities)
 
 	all := make([]*dkgPlayer, cnfg.NumParticipants)
 	for _, id := range sortedIDS {
 		tmp := make([]byte, 32)
 		copy(tmp, loadBalancingKey)
 
-		peerContext := tss.NewPeerContext(sortedPids)
+		// peerContext := tss.NewPeerContext(sortedPids)
 
-		gspecific := mp[string(id.Pid.Key)]
+		gspecific := mp[string(id.Pid.GetID())]
 
-		all[id.CommunicationIndex] = &dkgPlayer{
+		p := &dkgPlayer{
 			self:                id,
 			whereToStore:        gspecific.WhereToSaveSecrets,
 			selfCert:            gspecific.Identifier.TlsX509,
 			loadDistributionKey: tmp,
-			PeerContext:         peerContext,
-			Parameters:          tss.NewParameters(tss.S256(), peerContext, id.Pid, cnfg.NumParticipants, cnfg.WantedThreshold),
-			localParty:          nil,
-			out:                 make(<-chan tss.Message),
-			protocolEndOutput:   make(<-chan *keygen.LocalPartySaveData),
+
 			ids: engine.Identities{
 				Identities: sortedIDS,
 			},
 		}
+		all[id.CommunicationIndex] = p
 
-		all[id.CommunicationIndex].setNewKeygenHandler()
 	}
 
 	return all, nil
@@ -316,21 +255,21 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 
 // sorts the identities based on the partyID key (as tss-lib expects the parties to be sorted).
 // then sets the communication index according to the sorted order.
-func sortIdentities(unsortedIdentities map[string]*engine.Identity) ([]*engine.Identity, tss.SortedPartyIDs) {
-	pids := make([]*tss.PartyID, 0, len(unsortedIdentities))
+func sortIdentities(unsortedIdentities map[string]*engine.Identity) []*engine.Identity {
+	pids := make([]*common.PartyID, 0, len(unsortedIdentities))
 	for _, p := range unsortedIdentities {
 		pids = append(pids, p.Pid)
 	}
 
-	sortedPids := tss.SortPartyIDs(pids)
+	sortedPids := common.SortPartyIDs(pids)
 
 	sortedIDS := make([]*engine.Identity, len(sortedPids))
 	for i, pid := range sortedPids {
-		sortedIDS[i] = unsortedIdentities[string(pid.Key)]
+		sortedIDS[i] = unsortedIdentities[string(pid.GetID())]
 		sortedIDS[i].CommunicationIndex = engine.SenderIndex(i)
 	}
 
-	return sortedIDS, sortedPids
+	return sortedIDS
 }
 
 func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identity, keyToSpecifics map[string]*GuardianSpecifics, err error) {
@@ -360,13 +299,8 @@ func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identit
 		dnsName := extractDnsFromCert(crt)
 
 		unsortedIdentities[string(bts)] = &engine.Identity{
-			Pid: &tss.PartyID{
-				MessageWrapper_PartyID: &tss.MessageWrapper_PartyID{
-					Id:      dnsName,
-					Moniker: "", // not importent.
-					Key:     bts,
-				},
-				Index: -1, // not known until sorted
+			Pid: &common.PartyID{
+				ID: string(bts),
 			},
 			KeyPEM:             bts,
 			CertPem:            dt.Identifier.TlsX509,
@@ -397,32 +331,4 @@ func extractDnsFromCert(crt *x509.Certificate) string {
 	}
 
 	return dnsName
-}
-
-func (player *dkgPlayer) setNewKeygenHandler() {
-	n := player.ids.Len()
-	out := make(chan tss.Message, n*n*2)               // ready for at least n^2 messages.
-	endOut := make(chan *keygen.LocalPartySaveData, 1) // ready for at least a single message.
-
-	player.localParty = keygen.NewLocalParty(player.Parameters, out, endOut)
-	player.out = out
-	player.protocolEndOutput = endOut
-}
-
-func (player *dkgPlayer) handleKeygenEndMessage(m *keygen.LocalPartySaveData, guardians []*engine.GuardianStorage) {
-	i, err := m.OriginalIndex()
-	if err != nil {
-		panic(err)
-	}
-
-	guardians[i] = &engine.GuardianStorage{
-		Configurations:        engine.Configurations{}, // filled by the deployer.
-		Self:                  player.self,
-		TlsX509:               engine.PEM(player.selfCert),
-		PrivateKey:            nil, // each guardian should load this by themselves.
-		Guardians:             player.ids,
-		Threshold:             player.Threshold(),
-		SavedSecretParameters: m,
-		LoadDistributionKey:   player.loadDistributionKey,
-	}
 }
