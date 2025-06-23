@@ -8,8 +8,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net"
-	"strconv"
 
 	"sync"
 	"sync/atomic"
@@ -26,7 +24,6 @@ import (
 	common "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-lib/v2/party"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 type uuid digest // distinguishing between types to avoid confusion.
@@ -80,81 +77,6 @@ type Configurations struct {
 	// LeaderIdentity is used by the TSS engine protocol to determine who is responsible for telling
 	// the other guardians about a new VAAv1.
 	LeaderIdentity PEM // The public key of the leader in PEM format.
-}
-
-type Identity struct {
-	Pid     *common.PartyID // used for tss protocol.
-	KeyPEM  PEM
-	Key     *ecdsa.PublicKey `json:"-"` // ensuring this isn't stored in non-pem format.
-	CertPem PEM
-	Cert    *x509.Certificate `json:"-"` // ensuring this isn't stored in non-pem format.
-
-	CommunicationIndex SenderIndex // the number representing the guardian when passing messages.
-	Hostname           string
-	Port               int    // the port the guardian is listening on. if 0 -> use the default port.
-	networkname        string // the combination of the two.
-}
-
-func (id *Identity) Copy() *Identity {
-	keypem := make([]byte, len(id.KeyPEM))
-	copy(keypem, id.KeyPEM)
-
-	certPem := make([]byte, len(id.CertPem))
-	copy(certPem, id.CertPem)
-
-	c, k, _ := extractCertAndKeyFromPem(certPem)
-	cpy := &Identity{
-		Pid:                id.getPidCopy(),
-		KeyPEM:             keypem,
-		CertPem:            certPem,
-		CommunicationIndex: id.CommunicationIndex,
-		Hostname:           id.Hostname,
-		Port:               id.Port,
-		Key:                k,
-		Cert:               c,
-		networkname:        id.networkname,
-	}
-
-	return cpy
-}
-
-func (id *Identity) NetworkName() string {
-	if id.networkname != "" {
-		return id.networkname
-	}
-
-	return id.portAndHostToNetName()
-}
-
-func (id *Identity) portAndHostToNetName() string {
-	var port string
-	if id.Port <= 0 || id.Port > (1<<16) {
-		port = DefaultPort
-	} else {
-		port = strconv.Itoa(id.Port)
-	}
-
-	return net.JoinHostPort(id.Hostname, port)
-}
-
-func (id *Identity) getPidCopy() *common.PartyID {
-	// return a copy, tss-lib might modify this object.
-	return proto.CloneOf(id.Pid)
-}
-
-type Identities struct {
-	// sorted by KeyPem.
-	Identities []*Identity
-
-	// maps and slices to ensure quick lookups.
-	partyIDToIdentity map[string]int // maps PartyID.Id to the index in Identities.
-	pemkeyToGuardian  map[string]int
-	peerCerts         []*x509.Certificate
-	partyIds          []*common.PartyID
-}
-
-func (i Identities) Len() int {
-	return len(i.Identities)
 }
 
 // GuardianStorage is a struct that holds the data needed for a guardian to participate in the TSS protocol
@@ -229,7 +151,7 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 
 type signingMeta struct {
 	isFromVaav1 bool
-	isRetry     bool
+	vaaV1Info   *tsscommv1.VaaV1Info
 }
 
 func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8, mt signingMeta) error {
@@ -266,15 +188,12 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 		zap.String("chainID", chainID.String()),
 		zap.Uint8("consistency", consistencyLvl),
 		zap.Bool("isFromVaav1", mt.isFromVaav1),
-		zap.Bool("isRetry", mt.isRetry),
 		zap.Int("numMatchingTrackIDS", len(sigPrepInfo.alreadyStartedSigningTrackingIDs)),
 	)
 
 	t.createSignatureMetrics(vaaDigest, chainID)
 
-	// TODO: Once we can map between the signers of VAAv1 and the TSS party, we can
-	// select a specific committee by stating that anyone who hasn’t signed VAAv1 is a faultier.
-	sigTask := makeSigningRequest(d, nil, chainID)
+	sigTask := makeSigningRequest(d, t.getExcludedFromCommittee(mt), chainID)
 
 	info, err := t.fp.GetSigningInfo(sigTask)
 	if err != nil {
@@ -316,11 +235,39 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 	return nil
 }
 
+// getExcludedFromCommittee follows the Leader's recommendation for the committee
+// by returning the list of guardians that should be excluded from the committee (as 'faulties' list).
+func (t *Engine) getExcludedFromCommittee(mt signingMeta) []*common.PartyID {
+	if !mt.isFromVaav1 {
+		return nil
+	}
+
+	if len(mt.vaaV1Info.RecommendedCommittee) < t.GuardianStorage.Threshold {
+		return nil // not enough guardians to form a committee.
+	}
+
+	numExcluded := len(t.GuardianStorage.Guardians.Identities) - len(mt.vaaV1Info.RecommendedCommittee)
+	excluded := make([]*common.PartyID, 0, numExcluded)
+
+	recomended := make(map[SenderIndex]bool, len(mt.vaaV1Info.RecommendedCommittee))
+	for _, senderIndex := range mt.vaaV1Info.RecommendedCommittee {
+		recomended[SenderIndex(senderIndex)] = true
+	}
+
+	for _, id := range t.GuardianStorage.Guardians.Identities {
+		if !recomended[id.CommunicationIndex] {
+			excluded = append(excluded, id.Pid)
+		}
+	}
+
+	return excluded
+}
+
 func (t *Engine) getCommitteeNetworkNames(pids []*common.PartyID) []string {
 	ids := make([]string, 0, len(pids))
 	for _, pid := range pids {
-		id := t.GuardianStorage.fetchIdentityFromPartyID(pid)
-		if id == nil {
+		id, err := t.GuardianStorage.fetchIdentityFromPartyID(pid)
+		if err != nil {
 			t.logger.Warn("couldn't find identity for partyID", zap.Any("partyID", pid))
 
 			continue
@@ -500,12 +447,10 @@ func (t *Engine) Start(ctx context.Context) error {
 
 	go t.sigTracker()
 
-	leaderIdentityPos, ok := t.Guardians.pemkeyToGuardian[string(t.LeaderIdentity)]
-	if !ok {
-		return fmt.Errorf("leader identity not found in guardian storage")
+	leaderIdentity, err := t.GuardianStorage.fetchIdentityFromKeyPEM(t.LeaderIdentity)
+	if err != nil {
+		return fmt.Errorf("leader identity not found in guardian storage: %w", err)
 	}
-
-	leaderIdentity := t.Guardians.Identities[leaderIdentityPos]
 
 	t.logger.Info(
 		"tss engine started",
@@ -748,7 +693,12 @@ func (t *Engine) intoSendable(m common.Message) (Sendable, error) {
 	} else {
 		recipients := make([]*Identity, 0, len(routing.To))
 		for _, pId := range routing.To {
-			recipients = append(recipients, t.GuardianStorage.fetchIdentityFromPartyID(pId))
+			id, err := t.GuardianStorage.fetchIdentityFromPartyID(pId)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch identity for partyID: %w", err)
+			}
+
+			recipients = append(recipients, id)
 		}
 
 		sendable = &Unicast{
@@ -860,9 +810,9 @@ func (t *Engine) feedIncomingToFp(parsed common.ParsedMessage) error {
 	trackId := parsed.WireMsg().TrackingID
 	from := parsed.GetFrom()
 
-	id := t.GuardianStorage.fetchIdentityFromPartyID(from)
-	if id == nil {
-		return fmt.Errorf("received message from unknown guardian: %v", from) // shouldn't happen.
+	id, err := t.GuardianStorage.fetchIdentityFromPartyID(from)
+	if err != nil {
+		return fmt.Errorf("error feeding fullParty: %w", err) // shouldn't happen.
 	}
 
 	maxLiveSignatures := t.GuardianStorage.maxSimultaneousSignatures

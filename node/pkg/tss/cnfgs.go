@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
@@ -102,14 +103,17 @@ func (s *GuardianStorage) SetInnerFields() error {
 
 	s.Guardians.peerCerts = make([]*x509.Certificate, s.Guardians.Len())
 	s.Guardians.partyIds = make([]*common.PartyID, s.Guardians.Len())
-	s.Guardians.pemkeyToGuardian = make(map[string]int)
-	s.Guardians.partyIDToIdentity = make(map[string]int)
+	s.Guardians.pemkeyToIndex = make(map[string]int)
+	s.Guardians.vaav1PubToIdentity = make(map[ethcommon.Address]int)
 	// Since the guardians are sorted by key, we can use their position as their index.
 	for i := range s.Guardians.Len() {
 		s.Guardians.peerCerts[i] = s.Guardians.Identities[i].Cert
 		s.Guardians.partyIds[i] = s.Guardians.Identities[i].Pid
-		s.Guardians.pemkeyToGuardian[string(s.Guardians.Identities[i].KeyPEM)] = i
-		s.Guardians.partyIDToIdentity[s.Guardians.Identities[i].Pid.GetID()] = i
+		s.Guardians.pemkeyToIndex[string(s.Guardians.Identities[i].KeyPEM)] = i
+
+		if s.Guardians.Identities[i].VAAv1PubKey != nil {
+			s.Guardians.vaav1PubToIdentity[*(s.Guardians.Identities[i].VAAv1PubKey)] = i
+		}
 	}
 
 	if s.LeaderIdentity == nil {
@@ -186,17 +190,20 @@ func extractCertAndKeyFromPem(pem PEM) (*x509.Certificate, *ecdsa.PublicKey, err
 	return c, key, nil
 }
 
-func (s *GuardianStorage) fetchIdentityFromPartyID(senderPid *common.PartyID) *Identity {
+// TODO: consider moving the following functions to the identity/identities responsibility.
+func (s *GuardianStorage) fetchIdentityFromPartyID(senderPid *common.PartyID) (*Identity, error) {
 	return s.fetchIdentityFromKeyPEM(PEM(senderPid.GetID()))
 }
 
-func (st *GuardianStorage) fetchIdentityFromKeyPEM(pk PEM) *Identity {
-	pos, ok := st.Guardians.pemkeyToGuardian[string(pk)]
+var errUnknownPubkey = fmt.Errorf("unknown public key")
+
+func (st *GuardianStorage) fetchIdentityFromKeyPEM(pk PEM) (*Identity, error) {
+	pos, ok := st.Guardians.pemkeyToIndex[string(pk)]
 	if !ok {
-		return nil
+		return nil, errUnknownPubkey
 	}
 
-	return st.Guardians.Identities[pos]
+	return st.fetchIdentityFromIndex(SenderIndex(pos))
 }
 
 // FetchIdentity implements ReliableTSS.
@@ -210,15 +217,18 @@ func (st *GuardianStorage) FetchIdentity(cert *x509.Certificate) (*Identity, err
 			return nil, err
 		}
 
-		id = st.fetchIdentityFromKeyPEM(publicKeyPem)
+		id, err = st.fetchIdentityFromKeyPEM(publicKeyPem)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching identity from public key: %w", err)
+		}
 	case []byte:
-		id = st.fetchIdentityFromKeyPEM(key)
+		var err error
+		id, err = st.fetchIdentityFromKeyPEM(key)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching identity from public key bytes: %w", err)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported public key type")
-	}
-
-	if id == nil {
-		return nil, fmt.Errorf("certificate owner is unknown")
 	}
 
 	return id, nil
@@ -238,4 +248,14 @@ func (s *GuardianStorage) fetchIdentityFromIndex(senderId SenderIndex) (*Identit
 	}
 
 	return s.Guardians.Identities[senderId], nil
+}
+
+func (s *GuardianStorage) fetchIdentityFromVaav1Pubkey(pubkey ethcommon.Address) (*Identity, error) {
+	index, ok := s.Guardians.vaav1PubToIdentity[pubkey]
+	if !ok {
+		return nil, fmt.Errorf("unknown vaav1 pubkey %s", pubkey.Hex())
+	}
+
+	return s.fetchIdentityFromIndex(SenderIndex(index))
+
 }

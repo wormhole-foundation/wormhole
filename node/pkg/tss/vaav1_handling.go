@@ -57,16 +57,49 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 		return nil
 	}
 
+	gs := t.gst.Get()
+	if err := v.Verify(gs.Keys); err != nil {
+		return nil // won't send invalid VAAs.
+	}
+
 	bts, err := v.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal VAA: %w", err)
+	}
+
+	// translating the VAAv1 signers to senderIndexes to use.
+	signersID := make(map[SenderIndex]*Identity, len(gs.Keys))
+	for _, s := range v.Signatures {
+		if int(s.Index) >= len(gs.Keys) {
+			// shouldn't happen, since the signature was verified. but just in case.
+			return fmt.Errorf("signature index %d out of bounds for guardian set size %d", s.Index, len(gs.Keys))
+		}
+
+		id, err := t.GuardianStorage.fetchIdentityFromVaav1Pubkey(gs.Keys[s.Index])
+		if err != nil {
+			continue
+		}
+
+		signersID[id.CommunicationIndex] = id
+	}
+
+	var recommendations []uint32
+	if len(signersID) == len(v.Signatures) {
+		for _, id := range signersID {
+			recommendations = append(recommendations, id.CommunicationIndex.toProto())
+		}
+	} else {
+		t.logger.Error("leader is missing VAAv1 mapping to VAAv2, can't suggest specific committee",
+			zap.String("digest", fmt.Sprintf("%x", dgst)),
+		)
 	}
 
 	send := Unicast{
 		Unicast: &tsscommv1.Unicast{
 			Content: &tsscommv1.Unicast_Vaav1{
 				Vaav1: &tsscommv1.VaaV1Info{
-					Marshaled: bts,
+					Marshaled:            bts,
+					RecommendedCommittee: recommendations,
 				},
 			},
 		},
@@ -129,5 +162,10 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1) error {
 		return err
 	}
 
-	return t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signingMeta{isFromVaav1: true})
+	signatureMeta := signingMeta{
+		isFromVaav1: true,
+		vaaV1Info:   v.Vaav1,
+	}
+
+	return t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signatureMeta)
 }

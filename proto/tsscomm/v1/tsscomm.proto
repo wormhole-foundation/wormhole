@@ -51,6 +51,9 @@ message Echo {
 
 message VaaV1Info {
   bytes marshaled = 1;
+  // The following contains senderIndex the leader think shouldn't participate when 
+  // making VAAv2 for the above VAAv1's digest.
+  repeated uint32 recommendedCommittee = 2;
 }
 
 message Unicast{

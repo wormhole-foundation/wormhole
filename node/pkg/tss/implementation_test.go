@@ -503,10 +503,13 @@ func TestBadInputs(t *testing.T) {
 		})
 		a.ErrorIs(err, ErrSignedMessageIsNil)
 
+		e2id, err := e2.fetchIdentityFromPartyID(e2.Self.Pid)
+		a.NoError(err)
+
 		err = e1.handleIncomingTssMessage(&IncomingMessage{Source: e2.Self, Content: &tsscommv1.PropagatedMessage{
 			Message: &tsscommv1.PropagatedMessage_Echo{Echo: &tsscommv1.Echo{
 				Message: &tsscommv1.SignedMessage{
-					Sender: uint32(e2.fetchIdentityFromPartyID(e2.Self.Pid).CommunicationIndex),
+					Sender: uint32(e2id.CommunicationIndex),
 				},
 			}}},
 		})
@@ -518,7 +521,7 @@ func TestBadInputs(t *testing.T) {
 					Content: &tsscommv1.SignedMessage_TssContent{
 						TssContent: &tsscommv1.TssContent{},
 					},
-					Sender:    uint32(e2.fetchIdentityFromPartyID(e2.Self.Pid).CommunicationIndex),
+					Sender:    uint32(e2id.CommunicationIndex),
 					Signature: []byte{1, 2, 3},
 				},
 			}}},
@@ -533,7 +536,7 @@ func TestBadInputs(t *testing.T) {
 							Payload: []byte{1, 2, 3},
 						},
 					},
-					Sender: uint32(e2.fetchIdentityFromPartyID(e2.Self.Pid).CommunicationIndex),
+					Sender: uint32(e2id.CommunicationIndex),
 				},
 			}}},
 		})
@@ -547,7 +550,7 @@ func TestBadInputs(t *testing.T) {
 							Payload: []byte{1, 2, 3},
 						},
 					},
-					Sender:    uint32(e2.fetchIdentityFromPartyID(e2.Self.Pid).CommunicationIndex),
+					Sender:    uint32(e2id.CommunicationIndex),
 					Signature: []byte{1, 2, 3},
 				},
 			}}},
@@ -1026,7 +1029,6 @@ func TestNoFaultsFlow(t *testing.T) {
 
 		nvaa, gs := genVaaAndGuardianSet(a)
 
-		// ensuring valid vaa.
 		a.NoError(nvaa.Verify(gs.Keys))
 
 		gst := whcommon.NewGuardianSetState(nil)
@@ -1053,8 +1055,86 @@ func TestNoFaultsFlow(t *testing.T) {
 			a.FailNow("context expired without signature")
 		}
 	})
+
+	t.Run("witness signature and use vaav1 mappings", func(t *testing.T) {
+		/*
+			This tests ensures that a specific committee signs the VAAv2 (everyone that signed the VAAv1).
+		*/
+		a := assert.New(t)
+
+		nvaa, gs := genVaaAndGuardianSet(a)
+
+		nvaa.Signatures = nvaa.Signatures[:4]
+		// ensuring valid vaa.
+		a.NoError(nvaa.Verify(gs.Keys))
+
+		gst := whcommon.NewGuardianSetState(nil)
+		gst.Set(gs)
+
+		engines, err := loadGuardians(5, "tss5")
+		a.NoError(err)
+
+		// set mappings (can be arbitrary in this unit test, since everyone is "online" and alive).
+		for i := range engines {
+			for j := range engines[i].GuardianStorage.Guardians.Identities {
+				id := engines[i].GuardianStorage.Guardians.Identities[j]
+
+				tmp := ethcommon.Address{}
+				copy(tmp[:], gs.Keys[j][:])
+
+				id.VAAv1PubKey = &tmp
+				engines[i].GuardianStorage.Guardians.vaav1PubToIdentity[tmp] = int(id.CommunicationIndex)
+			}
+		}
+
+		e := engines[0] // e IS LEADER.
+		e.isleader = true
+
+		// Get who signed the VAAv1:
+		committeeHostnames := make(map[string]bool) // partyIDs
+		for _, s := range nvaa.Signatures {
+			id, err := e.GuardianStorage.fetchIdentityFromVaav1Pubkey(gs.Keys[s.Index])
+			a.NoError(err)
+
+			committeeHostnames[id.Hostname] = true
+		}
+
+		supctx := testutils.MakeSupervisorContext(context.Background())
+		ctx, cancel := context.WithTimeout(supctx, time.Minute*30)
+		defer cancel()
+
+		for _, engine := range engines {
+			engine.LeaderIdentity = PEM(e.Self.Pid.GetID())
+			engine.SetGuardianSetState(gst)
+			a.NoError(engine.Start(ctx))
+		}
+
+		dnchn := msgHandler(ctx, engines, 1)
+
+		e.WitnessNewVaa(nvaa)
+
+		allMessasges := <-dnchn
+
+		// TEST: Check that every TSS-Content message was received from a committee member.
+		for _, m := range allMessasges {
+			echo := m.toBroadcastMsg()
+			if echo == nil || echo.Message == nil || echo.Message.Content == nil {
+				continue
+			}
+			_, ok := echo.Message.Content.(*tsscommv1.SignedMessage_TssContent)
+			if !ok {
+				continue
+			}
+
+			id, err := e.GuardianStorage.fetchIdentityFromIndex(SenderIndex(echo.Message.Sender))
+			a.NoError(err)
+
+			a.True(committeeHostnames[id.Hostname], "message from non-committee member: %s", id.Hostname)
+		}
+	})
 }
 
+// Creates a vaa with 2t+1 sigantures (not n-out-of-n signatures).
 func genVaaAndGuardianSet(a *assert.Assertions) (*vaa.VAA, *whcommon.GuardianSet) {
 	gss := whcommon.NewGuardianSetState(nil)
 	_ = gss
@@ -1097,7 +1177,7 @@ func genVaaAndGuardianSet(a *assert.Assertions) (*vaa.VAA, *whcommon.GuardianSet
 	return nvaa, gs
 }
 
-func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
+func ctxExpiredFirst[T any](ctx context.Context, ch chan T) bool {
 	select {
 	case <-ctx.Done():
 		return true
@@ -1105,13 +1185,6 @@ func ctxExpiredFirst(ctx context.Context, ch chan struct{}) bool {
 		return false
 	}
 }
-
-// func TestFTLoop(t *testing.T) {
-// 	for i := 0; i < 5; i++ {
-// 		t.Run("looping", TestFT)
-// 	}
-
-// }
 
 func TestFT(t *testing.T) {
 	// t.Skip("Skipping these test until we decide about anouncing mechanism.")
@@ -1330,7 +1403,6 @@ func generateFakeMessageWithRandomContent(from, to *common.PartyID, rnd signingR
 
 	switch rnd {
 	case round2Message:
-		// TODO: change to frost message!
 		content = &sign.Broadcast2{
 			Di: rndmBigNumber.Bytes(),
 			Ei: rndmBigNumber.Bytes(),
@@ -1387,8 +1459,10 @@ type msgg struct {
 	Sendable
 }
 
-func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int) chan struct{} {
-	signalSuccess := make(chan struct{})
+// its channel returns an array of ALL messages it received.
+func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int) chan []*IncomingMessage {
+	messageBucket := make([]*IncomingMessage, 0, 10000)
+	signalDone := make(chan []*IncomingMessage, 1)
 	once := sync.Once{}
 
 	nmsigs := map[string]struct{}{}
@@ -1418,10 +1492,16 @@ func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int)
 						return
 
 					case msg := <-chns[engine.Self.Pid.GetID()]:
-						engine.HandleIncomingTssMessage(&IncomingMessage{
+						in := &IncomingMessage{
 							Source:  msg.Sender,
-							Content: msg.GetNetworkMessage(),
-						})
+							Content: msg.Sendable.GetNetworkMessage(),
+						}
+
+						engine.HandleIncomingTssMessage(in)
+
+						lck.Lock() // used across multiple goroutines: must lock.
+						messageBucket = append(messageBucket, in)
+						lck.Unlock()
 					}
 				}
 			}()
@@ -1463,7 +1543,12 @@ func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int)
 
 						fmt.Printf("/////////\nreceived all signatures (%v)\n/////////\n", numDiffSigsExpected)
 						once.Do(func() {
-							close(signalSuccess)
+							lck.Lock()
+							messageSlice := messageBucket
+							lck.Unlock()
+
+							signalDone <- messageSlice
+							close(signalDone)
 						})
 					}
 				}
@@ -1473,7 +1558,7 @@ func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int)
 		wg.Wait()
 	}()
 
-	return signalSuccess
+	return signalDone
 }
 
 func unicast(m Sendable, chns map[string]chan msgg, engine *Engine) {
@@ -1796,12 +1881,6 @@ func beginSigningAndGrabMessage(e1 *Engine, dgst []byte, cid vaa.ChainID) Sendab
 			panic("timeout!")
 		}
 	}
-	return msg
-}
-
-func round1NumberOfMessages(e1 *Engine) int {
-	// we only send one since this is a broadcast message...
-	return 1
 }
 
 func contains(lst []*Engine, e *Engine) bool {
