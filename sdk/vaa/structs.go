@@ -245,6 +245,8 @@ func (c ChainID) String() string {
 		return "sonic"
 	case ChainIDConverge:
 		return "converge"
+	case ChainIDCodex:
+		return "codex"
 	case ChainIDWormchain:
 		return "wormchain"
 	case ChainIDCosmoshub:
@@ -453,6 +455,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSonic, nil
 	case "converge":
 		return ChainIDConverge, nil
+	case "codex":
+		return ChainIDCodex, nil
 	case "wormchain":
 		return ChainIDWormchain, nil
 	case "cosmoshub":
@@ -545,6 +549,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDFogo,
 		ChainIDSonic,
 		ChainIDConverge,
+		ChainIDCodex,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -672,6 +677,8 @@ const (
 	ChainIDSonic ChainID = 52
 	// ChainIDConverge is the ChainID of Converge
 	ChainIDConverge ChainID = 53
+	// ChainIDCodex is the ChainID of Codex
+	ChainIDCodex ChainID = 54
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
