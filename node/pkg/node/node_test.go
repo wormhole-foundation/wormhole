@@ -893,7 +893,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int, inf
 	// is shutdown. Namely some pkg/db bits, metrics sinks, and p2p logging. This gives them time to shutdown so the
 	// tests are happy.
 	zapLogger.Info("Test root context cancelled, waiting for everything to shut down properly...")
-	time.Sleep(time.Millisecond * 50)
+	time.Sleep(time.Second * 1)
 }
 
 func pollApiAndInspectVaa(t *testing.T, ctx context.Context, msg *common.MessagePublication, testCase testCase, c publicrpcv1.PublicRPCServiceClient, gsAddrList []eth_common.Address, gs []*mockGuardian) {
