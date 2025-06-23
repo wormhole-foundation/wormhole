@@ -19,3 +19,4 @@ See [docs/operations.md](docs/operations.md) for node operator instructions.
 implied. See the License for the specific language governing permissions and limitations under the License.** 
 
 Wormhole contributors encourage integrators to evaluate their own regulatory obligations when integrating this code into their products, including, but not limited to, those related to economic or trade sanctions compliance.
+_Additionally, interacting with this software entails technological and financial risk—including the possibility of partial or total loss of digital assets—and you remain solely responsible for assessing and mitigating these risks before deployment or use._
