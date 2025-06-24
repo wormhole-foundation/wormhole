@@ -155,6 +155,9 @@ readyz
 regen
 reinit
 reobservation
+reobservations
+Reobservation
+Reobservations
 reobserved
 repoint
 rustup
