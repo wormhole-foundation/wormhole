@@ -21,7 +21,7 @@ import {
 	GOVERNANCE_ADDRESS
 } from "../src/evm/VerificationV2.sol";
 
-import {MODULE_VERIFICATION_V2, ACTION_APPEND_THRESHOLD_KEY} from "../src/evm/ThresholdVerification.sol";
+import {MODULE_VERIFICATION_V2, ACTION_APPEND_THRESHOLD_KEY, Q} from "../src/evm/ThresholdVerification.sol";
 import {REGISTER_TYPE_HASH} from "../src/evm/EIP712Encoding.sol";
 
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
@@ -647,5 +647,13 @@ contract VerificationV2Test is Test {
 			0,
 			r, s, v
 		)), false);
+	}
+
+	function testEcrecover_zero() public {
+		// TODO: turn this into a test that attempts to verify a VAA that refers to an uninitialized TSS key.
+		// We should have one for skipped keys and one for untouched future keys.
+		// Verification should fail in all cases.
+		address result = ecrecover(bytes32(Q), 0, 0, 0);
+		assertEq(result, address(0));
 	}
 }
