@@ -51,6 +51,12 @@ ethereum$ MNEMONIC=<redacted> ./sh/deployCoreShutdown.sh
 ethereum$ MNEMONIC=<redacted> ./sh/deployTokenBridgeShutdown.sh
 ```
 
+#### Deploy the Custom Consistency Level contract
+
+```shell
+ethereum$ RPC_URL= MNEMONIC= EVM_CHAIN_ID= ./sh/deployCustomConsistencyLevel.sh
+```
+
 #### Generate Flattened Source
 
 To generated the flattened source files to verify the contracts using the explorer UI
