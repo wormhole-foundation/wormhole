@@ -502,7 +502,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					atomic.StoreUint64(&w.latestBlockNumber, blockNumberU)
 					currentEthHeight.WithLabelValues(w.networkName).Set(float64(blockNumberU))
 					stats.Height = int64(blockNumberU) // #nosec G115 -- This conversion is safe indefinitely
-					w.updateNetworkStats(&stats)
 					w.ccqAddLatestBlock(ev)
 				case connectors.Safe:
 					thisConsistencyLevel = vaa.ConsistencyLevelSafe
@@ -525,7 +524,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				w.pendingMu.Lock()
 				for key, pLock := range w.pending {
 					// Don't process the observation if it is waiting on a different consistency level.
-					if thisConsistencyLevel != pLock.message.ConsistencyLevel {
+					if !consistencyLevelMatches(thisConsistencyLevel, pLock.message.ConsistencyLevel) {
 						continue
 					}
 
@@ -535,92 +534,60 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					// Transaction is now ready
-					if pLock.height+pLock.additionalBlocks <= blockNumberU {
-						msm := time.Now()
-						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						tx, err := w.ethConn.TransactionReceipt(timeout, eth_common.BytesToHash(pLock.message.TxID))
-						queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
-						cancel()
+					msm := time.Now()
+					timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+					tx, err := w.ethConn.TransactionReceipt(timeout, eth_common.BytesToHash(pLock.message.TxID))
+					queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
+					cancel()
 
-						// If the node returns an error after waiting expectedConfirmation blocks,
-						// it means the chain reorged and the transaction was orphaned. The
-						// TransactionReceipt call is using the same websocket connection than the
-						// head notifications, so it's guaranteed to be atomic.
-						//
-						// Check multiple possible error cases - the node seems to return a
-						// "not found" error most of the time, but it could conceivably also
-						// return a nil tx or rpc.ErrNoResult.
-						if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
-							logger.Warn("tx was orphaned",
-								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.String("txHash", pLock.message.TxIDString()),
-								zap.Stringer("blockHash", key.BlockHash),
-								zap.Uint64("observedHeight", pLock.height),
-								zap.Uint64("additionalBlocks", pLock.additionalBlocks),
-								zap.Stringer("current_blockNum", ev.Number),
-								zap.Stringer("finality", ev.Finality),
-								zap.Stringer("current_blockHash", currentHash),
-								zap.Error(err))
-							delete(w.pending, key)
-							ethMessagesOrphaned.WithLabelValues(w.networkName, "not_found").Inc()
-							continue
-						}
+					// If the node returns an error after waiting expectedConfirmation blocks,
+					// it means the chain reorged and the transaction was orphaned. The
+					// TransactionReceipt call is using the same websocket connection than the
+					// head notifications, so it's guaranteed to be atomic.
+					//
+					// Check multiple possible error cases - the node seems to return a
+					// "not found" error most of the time, but it could conceivably also
+					// return a nil tx or rpc.ErrNoResult.
+					if tx == nil || errors.Is(err, rpc.ErrNoResult) || (err != nil && err.Error() == "not found") {
+						logger.Warn("tx was orphaned",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", pLock.message.TxIDString()),
+							zap.Stringer("blockHash", key.BlockHash),
+							zap.Uint64("observedHeight", pLock.height),
+							zap.Uint64("additionalBlocks", pLock.additionalBlocks),
+							zap.Stringer("current_blockNum", ev.Number),
+							zap.Stringer("finality", ev.Finality),
+							zap.Stringer("current_blockHash", currentHash),
+							zap.Error(err))
+						delete(w.pending, key)
+						ethMessagesOrphaned.WithLabelValues(w.networkName, "not_found").Inc()
+						continue
+					}
 
-						// This should never happen - if we got this far, it means that logs were emitted,
-						// which is only possible if the transaction succeeded. We check it anyway just
-						// in case the EVM implementation is buggy.
-						if tx.Status != 1 {
-							logger.Error("transaction receipt with non-success status",
-								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.String("txHash", pLock.message.TxIDString()),
-								zap.Stringer("blockHash", key.BlockHash),
-								zap.Uint64("observedHeight", pLock.height),
-								zap.Uint64("additionalBlocks", pLock.additionalBlocks),
-								zap.Stringer("current_blockNum", ev.Number),
-								zap.Stringer("finality", ev.Finality),
-								zap.Stringer("current_blockHash", currentHash),
-								zap.Error(err))
-							delete(w.pending, key)
-							ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
-							continue
-						}
+					// This should never happen - if we got this far, it means that logs were emitted,
+					// which is only possible if the transaction succeeded. We check it anyway just
+					// in case the EVM implementation is buggy.
+					if tx.Status != 1 {
+						logger.Error("transaction receipt with non-success status",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", pLock.message.TxIDString()),
+							zap.Stringer("blockHash", key.BlockHash),
+							zap.Uint64("observedHeight", pLock.height),
+							zap.Uint64("additionalBlocks", pLock.additionalBlocks),
+							zap.Stringer("current_blockNum", ev.Number),
+							zap.Stringer("finality", ev.Finality),
+							zap.Stringer("current_blockHash", currentHash),
+							zap.Error(err))
+						delete(w.pending, key)
+						ethMessagesOrphaned.WithLabelValues(w.networkName, "tx_failed").Inc()
+						continue
+					}
 
-						// Any error other than "not found" is likely transient - we retry next block.
-						if err != nil {
-							if pLock.height+MaxWaitConfirmations <= blockNumberU {
-								// An error from this "transient" case has persisted for more than MaxWaitConfirmations.
-								logger.Info("observation timed out",
-									zap.String("msgId", pLock.message.MessageIDString()),
-									zap.String("txHash", pLock.message.TxIDString()),
-									zap.Stringer("blockHash", key.BlockHash),
-									zap.Uint64("observedHeight", pLock.height),
-									zap.Uint64("additionalBlocks", pLock.additionalBlocks),
-									zap.Stringer("current_blockNum", ev.Number),
-									zap.Stringer("finality", ev.Finality),
-									zap.Stringer("current_blockHash", currentHash),
-								)
-								ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
-								delete(w.pending, key)
-							} else {
-								logger.Warn("transaction could not be fetched",
-									zap.String("msgId", pLock.message.MessageIDString()),
-									zap.String("txHash", pLock.message.TxIDString()),
-									zap.Stringer("blockHash", key.BlockHash),
-									zap.Uint64("observedHeight", pLock.height),
-									zap.Uint64("additionalBlocks", pLock.additionalBlocks),
-									zap.Stringer("current_blockNum", ev.Number),
-									zap.Stringer("finality", ev.Finality),
-									zap.Stringer("current_blockHash", currentHash),
-									zap.Error(err))
-							}
-							continue
-						}
-
-						// It's possible for a transaction to be orphaned and then included in a different block
-						// but with the same tx hash. Drop the observation (it will be re-observed and needs to
-						// wait for the full confirmation time again).
-						if tx.BlockHash != key.BlockHash {
-							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
+					// Any error other than "not found" is likely transient - we retry next block.
+					if err != nil {
+						if pLock.height+MaxWaitConfirmations <= blockNumberU {
+							// An error from this "transient" case has persisted for more than MaxWaitConfirmations.
+							logger.Info("observation timed out",
 								zap.String("msgId", pLock.message.MessageIDString()),
 								zap.String("txHash", pLock.message.TxIDString()),
 								zap.Stringer("blockHash", key.BlockHash),
@@ -630,12 +597,28 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Stringer("finality", ev.Finality),
 								zap.Stringer("current_blockHash", currentHash),
 							)
+							ethMessagesOrphaned.WithLabelValues(w.networkName, "timeout").Inc()
 							delete(w.pending, key)
-							ethMessagesOrphaned.WithLabelValues(w.networkName, "blockhash_mismatch").Inc()
-							continue
+						} else {
+							logger.Warn("transaction could not be fetched",
+								zap.String("msgId", pLock.message.MessageIDString()),
+								zap.String("txHash", pLock.message.TxIDString()),
+								zap.Stringer("blockHash", key.BlockHash),
+								zap.Uint64("observedHeight", pLock.height),
+								zap.Uint64("additionalBlocks", pLock.additionalBlocks),
+								zap.Stringer("current_blockNum", ev.Number),
+								zap.Stringer("finality", ev.Finality),
+								zap.Stringer("current_blockHash", currentHash),
+								zap.Error(err))
 						}
+						continue
+					}
 
-						logger.Info("observation confirmed",
+					// It's possible for a transaction to be orphaned and then included in a different block
+					// but with the same tx hash. Drop the observation (it will be re-observed and needs to
+					// wait for the full confirmation time again).
+					if tx.BlockHash != key.BlockHash {
+						logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
 							zap.String("msgId", pLock.message.MessageIDString()),
 							zap.String("txHash", pLock.message.TxIDString()),
 							zap.Stringer("blockHash", key.BlockHash),
@@ -646,17 +629,31 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Stringer("current_blockHash", currentHash),
 						)
 						delete(w.pending, key)
+						ethMessagesOrphaned.WithLabelValues(w.networkName, "blockhash_mismatch").Inc()
+						continue
+					}
 
-						// Note that `tx` here is actually a receipt
-						txHash := eth_common.Hash(pLock.message.TxID)
-						pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
-						if pubErr != nil {
-							logger.Error("could not publish message",
-								zap.String("msgId", pLock.message.MessageIDString()),
-								zap.String("txHash", txHash.String()),
-								zap.Error(pubErr),
-							)
-						}
+					logger.Info("observation confirmed",
+						zap.String("msgId", pLock.message.MessageIDString()),
+						zap.String("txHash", pLock.message.TxIDString()),
+						zap.Stringer("blockHash", key.BlockHash),
+						zap.Uint64("observedHeight", pLock.height),
+						zap.Uint64("additionalBlocks", pLock.additionalBlocks),
+						zap.Stringer("current_blockNum", ev.Number),
+						zap.Stringer("finality", ev.Finality),
+						zap.Stringer("current_blockHash", currentHash),
+					)
+					delete(w.pending, key)
+
+					// Note that `tx` here is actually a receipt
+					txHash := eth_common.Hash(pLock.message.TxID)
+					pubErr := w.verifyAndPublish(pLock.message, ctx, txHash, tx)
+					if pubErr != nil {
+						logger.Error("could not publish message",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", txHash.String()),
+							zap.Error(pubErr),
+						)
 					}
 				}
 
@@ -1042,4 +1039,19 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 		ethConn = connectors.NewInstantFinalityConnector(baseConnector, w.logger)
 	}
 	return
+}
+
+// consistencyLevelMatches returns true if the consistency level of this block "matches" the requested consistency level of an observation.
+// It matches if either the actual values match, or if this block is finalized and the requested value is not immediate (latest) or safe.
+// This extra check is necessary because the requested consistency level is assumed to be finalized unless they specifically ask for immediate or safe.
+func consistencyLevelMatches(thisConsistencyLevel uint8, requestedConsistencyLevel uint8) bool {
+	if thisConsistencyLevel == requestedConsistencyLevel {
+		return true
+	}
+
+	if thisConsistencyLevel != vaa.ConsistencyLevelFinalized {
+		return false
+	}
+
+	return requestedConsistencyLevel != vaa.ConsistencyLevelPublishImmediately && requestedConsistencyLevel != vaa.ConsistencyLevelSafe
 }
