@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -182,44 +181,6 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 	}
 }
 
-// cclShouldPublish is called to see if an observation can be released because the custom conditions have been met.
-func (w *Watcher) cclShouldPublish(pe *pendingMessage, latestBlockNum uint64) bool {
-	if pe.additionalBlocks == 0 {
-		return false
-	}
-
-	baseTargetBlockNum := uint64(0)
-	if pe.message.ConsistencyLevel == vaa.ConsistencyLevelFinalized {
-		baseTargetBlockNum = atomic.LoadUint64(&w.latestFinalizedBlockNumber)
-	} else if pe.message.ConsistencyLevel == vaa.ConsistencyLevelSafe {
-		baseTargetBlockNum = atomic.LoadUint64(&w.latestSafeBlockNumber)
-	} else if pe.message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-		baseTargetBlockNum = atomic.LoadUint64(&w.latestBlockNumber)
-	} else {
-		// We really should never get here, but if we do, just convert it to finalized and let it get handled on the next block.
-		w.cclLogger.Error("observation has additional blocks set but the consistency level is invalid, treating as finalized",
-			zap.String("msgId", pe.message.MessageIDString()),
-		)
-		pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
-		pe.additionalBlocks = 0
-		return false
-	}
-
-	if pe.height+pe.additionalBlocks <= baseTargetBlockNum {
-		w.cclLogger.Info("additional blocks consistency level has been reached, releasing observation",
-			zap.String("msgId", pe.message.MessageIDString()),
-			zap.Uint8("consistencyLevel", pe.message.ConsistencyLevel),
-			zap.Uint64("observedBlockNum", pe.height),
-			zap.Uint64("baseTargetBlockNum", baseTargetBlockNum),
-			zap.Uint64("additionalBlocks", pe.additionalBlocks),
-			zap.Uint64("latestBlockNum", latestBlockNum),
-		)
-		return true
-	}
-
-	return false
-}
-
 // cclReadAndParseConfig reads the configuration for a given emitter and parses it into a request type.
 func (w *Watcher) cclReadAndParseConfig(ctx context.Context, emitterAddr ethCommon.Address) (CCLRequest, error) {
 	data, err := w.cclReadContract(ctx, emitterAddr)
@@ -253,7 +214,7 @@ func (w *Watcher) cclReadContract(ctx context.Context, emitterAddr ethCommon.Add
 	}
 
 	w.cclCacheUpdate(emitterAddr, data)
-	w.cclLogger.Info("TEST: read contract", zap.Stringer("emitterAddr", emitterAddr))
+	w.cclLogger.Debug("read contract", zap.Stringer("emitterAddr", emitterAddr))
 	return data, nil
 }
 
@@ -263,7 +224,7 @@ func CCLReadContract(ctx context.Context, ethClient *ethclient.Client, cclAddr e
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	caller, err := cclAbi.NewCclCaller(ethCommon.BytesToAddress(cclAddr.Bytes()), ethClient)
+	caller, err := cclAbi.NewCclCaller(cclAddr, ethClient)
 	if err != nil {
 		return cclEmptyData, fmt.Errorf("failed to create abi caller: %w", err)
 	}
@@ -358,7 +319,7 @@ func (w *Watcher) cclCacheLookUp(emitterAddr ethCommon.Address) ([32]byte, bool)
 			return entry.data, true
 		}
 
-		w.cclLogger.Info("TEST: cache entry has expired", zap.Stringer("emitterAddr", emitterAddr))
+		w.cclLogger.Debug("cache entry has expired", zap.Stringer("emitterAddr", emitterAddr))
 		delete(w.cclCache, emitterAddr)
 	}
 
@@ -370,5 +331,5 @@ func (w *Watcher) cclCacheUpdate(emitterAddr ethCommon.Address, data [32]byte) {
 	w.cclCacheLock.Lock()
 	w.cclCache[emitterAddr] = CCLCacheEntry{data, time.Now()}
 	w.cclCacheLock.Unlock()
-	w.cclLogger.Info("TEST: cache entry added", zap.Stringer("emitterAddr", emitterAddr))
+	w.cclLogger.Debug("cache entry added", zap.Stringer("emitterAddr", emitterAddr))
 }
