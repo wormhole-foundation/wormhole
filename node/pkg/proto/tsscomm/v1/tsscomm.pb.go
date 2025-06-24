@@ -335,7 +335,7 @@ type VaaV1Info struct {
 	unknownFields protoimpl.UnknownFields
 
 	Marshaled []byte `protobuf:"bytes,1,opt,name=marshaled,proto3" json:"marshaled,omitempty"`
-	// The following contains senderIndex the leader think shouldn't participate when
+	// The following contains senderIndex the leader think should participate when
 	// making VAAv2 for the above VAAv1's digest.
 	RecommendedCommittee []uint32 `protobuf:"varint,2,rep,packed,name=recommendedCommittee,proto3" json:"recommendedCommittee,omitempty"`
 }
