@@ -101,12 +101,14 @@ func (s *GuardianStorage) SetInnerFields() error {
 		return err
 	}
 
-	s.Guardians.peerCerts = make([]*x509.Certificate, s.Guardians.Len())
-	s.Guardians.partyIds = make([]*common.PartyID, s.Guardians.Len())
+	numGuardians := len(s.Guardians.Identities)
+
+	s.Guardians.peerCerts = make([]*x509.Certificate, numGuardians)
+	s.Guardians.partyIds = make([]*common.PartyID, numGuardians)
 	s.Guardians.pemkeyToIndex = make(map[string]int)
 	s.Guardians.vaav1PubToIdentity = make(map[ethcommon.Address]int)
 	// Since the guardians are sorted by key, we can use their position as their index.
-	for i := range s.Guardians.Len() {
+	for i := range numGuardians {
 		s.Guardians.peerCerts[i] = s.Guardians.Identities[i].Cert
 		s.Guardians.partyIds[i] = s.Guardians.Identities[i].Pid
 		s.Guardians.pemkeyToIndex[string(s.Guardians.Identities[i].KeyPEM)] = i
@@ -258,4 +260,12 @@ func (s *GuardianStorage) fetchIdentityFromVaav1Pubkey(pubkey ethcommon.Address)
 
 	return s.fetchIdentityFromIndex(SenderIndex(index))
 
+}
+
+func (s *GuardianStorage) NumGuardians() int {
+	if s == nil {
+		return 0
+	}
+
+	return len(s.Guardians.Identities)
 }

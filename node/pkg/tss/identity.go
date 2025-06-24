@@ -90,7 +90,3 @@ type Identities struct {
 	peerCerts          []*x509.Certificate
 	partyIds           []*common.PartyID
 }
-
-func (i Identities) Len() int {
-	return len(i.Identities)
-}

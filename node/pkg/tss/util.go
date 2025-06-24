@@ -313,7 +313,7 @@ func (st *GuardianStorage) validateTrackingIDForm(tid *common.TrackingID) error 
 	}
 
 	// checking that the byte array is the correct size
-	if len(tid.PartiesState) < (st.Guardians.Len()+7)/8 {
+	if len(tid.PartiesState) < (st.NumGuardians()+7)/8 {
 		return fmt.Errorf("trackingID partiesState is too short")
 	}
 

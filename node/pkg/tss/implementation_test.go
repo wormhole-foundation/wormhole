@@ -575,7 +575,7 @@ func TestBadInputs(t *testing.T) {
 	})
 
 	t.Run("fetch certificate", func(t *testing.T) {
-		_, err := e1.fetchIdentityFromIndex(SenderIndex(e1.GuardianStorage.Guardians.Len() + 1))
+		_, err := e1.fetchIdentityFromIndex(SenderIndex(e1.GuardianStorage.NumGuardians() + 1))
 		a.ErrorIs(err, ErrUnkownSender)
 	})
 
@@ -1113,10 +1113,10 @@ func TestNoFaultsFlow(t *testing.T) {
 
 		e.WitnessNewVaa(nvaa)
 
-		allMessasges := <-dnchn
+		allMessages := <-dnchn
 
 		// TEST: Check that every TSS-Content message was received from a committee member.
-		for _, m := range allMessasges {
+		for _, m := range allMessages {
 			echo := m.toBroadcastMsg()
 			if echo == nil || echo.Message == nil || echo.Message.Content == nil {
 				continue

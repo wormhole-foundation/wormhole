@@ -246,16 +246,16 @@ func (t *Engine) getExcludedFromCommittee(mt signingMeta) []*common.PartyID {
 		return nil // not enough guardians to form a committee.
 	}
 
-	numExcluded := len(t.GuardianStorage.Guardians.Identities) - len(mt.vaaV1Info.RecommendedCommittee)
+	numExcluded := t.GuardianStorage.NumGuardians() - len(mt.vaaV1Info.RecommendedCommittee)
 	excluded := make([]*common.PartyID, 0, numExcluded)
 
-	recomended := make(map[SenderIndex]bool, len(mt.vaaV1Info.RecommendedCommittee))
+	recommended := make(map[SenderIndex]bool, len(mt.vaaV1Info.RecommendedCommittee))
 	for _, senderIndex := range mt.vaaV1Info.RecommendedCommittee {
-		recomended[SenderIndex(senderIndex)] = true
+		recommended[SenderIndex(senderIndex)] = true
 	}
 
 	for _, id := range t.GuardianStorage.Guardians.Identities {
-		if !recomended[id.CommunicationIndex] {
+		if !recommended[id.CommunicationIndex] {
 			excluded = append(excluded, id.Pid)
 		}
 	}
@@ -388,7 +388,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	}
 
 	expectedMsgs := storage.maxSimultaneousSignatures *
-		(numBroadcastsPerSignature + numUnicastsRounds*storage.Guardians.Len()) * 2 // times 2 to stay on the safe side.
+		(numBroadcastsPerSignature + numUnicastsRounds*storage.NumGuardians()) * 2 // times 2 to stay on the safe side.
 	t := &Engine{
 		ctx: nil,
 
