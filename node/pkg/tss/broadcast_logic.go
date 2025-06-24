@@ -304,8 +304,9 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
+	_, isDeliverable := parsed.(deliverable)
 	// only non-echo messages should have the same sender as the source. (Echo messages should have different source then original sender).
-	if _, ok := parsed.(deliverable); ok {
+	if isDeliverable {
 		index := SenderIndex(unparsedSignedMessage.Sender)
 
 		senderID, err := t.GuardianStorage.fetchIdentityFromIndex(index)
@@ -339,6 +340,9 @@ func (t *Engine) validateBroadcastState(s *broadcaststate, parsed broadcastMessa
 		}
 
 		// no error and two different digests:
+		// NOTICE: this error will be triggered when a leader has no valid mapping from VAAv1 addresses/ publicKeys to
+		// the VAAv2 keys/ identities. As a result, the leader sends effectively the same VAA to be signed by the
+		// exact same guardians, which will result in TWO attempts to sign, creating a false 'equivocation' error.
 		return fmt.Errorf("equivication attack detected. Sender %v sent two different digests. "+
 			"Time %v passed from prev msg", unparsedSignedMessage.Sender, time.Since(s.timeReceived))
 	}

@@ -151,7 +151,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 		}
 	}
 
-	overridePortOfTss(gs)
+	setTSSEngineAccordingToMockSet(gs)
 	return gs
 }
 
@@ -164,32 +164,45 @@ func mockGuardianSetToGuardianAddrList(t testing.TB, gs []*mockGuardian) []eth_c
 	return result
 }
 
-func overridePortOfTss(gs []*mockGuardian) {
+func setTSSEngineAccordingToMockSet(gs []*mockGuardian) {
 	idToPort := map[string]int{}
-	for _, g := range gs {
+	idToAddress := map[string]eth_common.Address{}
+	engines := make([]*tss.Engine, len(gs))
+
+	for i, g := range gs {
 		cnfg := g.config
-		idToPort[g.tssEngine.(*tss.Engine).GuardianStorage.Self.Pid.GetID()] = int(cnfg.tssNetworkPort)
+		en := g.tssEngine.(*tss.Engine)
+
+		idToPort[en.GuardianStorage.Self.Pid.GetID()] = int(cnfg.tssNetworkPort)
+		idToAddress[en.GuardianStorage.Self.Pid.GetID()] = g.guardianAddr
+
+		en.GuardianStorage.Self.Port = int(cnfg.tssNetworkPort)
+		en.GuardianStorage.Self.Hostname = "localhost"
+
+		tmp := eth_common.Address{}
+		copy(tmp[:], g.guardianAddr[:])
+		en.GuardianStorage.Self.VAAv1PubKey = &tmp
+
+		engines[i] = en
 	}
 
 	// go to each guardian and change the ID of everyone including self.
 	// for each member, grab its port, then change it in the peer of the guardian.
-
-	for _, g := range gs {
-		en := g.tssEngine.(*tss.Engine)
-		en.Self.Port = idToPort[en.Self.Pid.GetID()]
-		en.Self.Hostname = "localhost"
-
+	for _, en := range engines {
 		for _, id := range en.Guardians.Identities {
-			if _, ok := idToPort[id.Pid.GetID()]; !ok {
-				continue
-			}
 			id.Hostname = "localhost"
 			id.Port = idToPort[id.Pid.GetID()]
+
+			tmp := eth_common.Address{}
+			addr := idToAddress[id.Pid.GetID()]
+			copy(tmp[:], addr[:])
+
+			id.VAAv1PubKey = &tmp
 		}
 	}
 
-	for _, g := range gs {
-		g.tssEngine.(*tss.Engine).GuardianStorage.SetInnerFields()
+	for _, e := range engines {
+		e.GuardianStorage.SetInnerFields()
 	}
 }
 
