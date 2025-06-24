@@ -88,24 +88,3 @@ source ./sh/deployCustomConsistencyLevel.sh
 returnInfo=$(cat ./broadcast/DeployCustomConsistencyLevel.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 CUSTOM_CONSISTENCY_LEVEL=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "CUSTOM_CONSISTENCY_LEVEL: $CUSTOM_CONSISTENCY_LEVEL"
-
-echo "Deploying Test Custom Consistency Level for latest"
-CONSISTENCY_LEVEL=200
-source ./sh/deployTestCustomConsistencyLevel.sh
-returnInfo=$(cat ./broadcast/DeployTestCustomConsistencyLevel.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
-TEST_CUSTOM_CONSISTENCY_LEVEL_LATEST=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
-echo "TEST_CUSTOM_CONSISTENCY_LEVEL_LATEST: $TEST_CUSTOM_CONSISTENCY_LEVEL_LATEST"
-
-echo "Deploying Test Custom Consistency Level for safe"
-CONSISTENCY_LEVEL=201
-source ./sh/deployTestCustomConsistencyLevel.sh
-returnInfo=$(cat ./broadcast/DeployTestCustomConsistencyLevel.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
-TEST_CUSTOM_CONSISTENCY_LEVEL_SAFE=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
-echo "TEST_CUSTOM_CONSISTENCY_LEVEL_SAFE: $TEST_CUSTOM_CONSISTENCY_LEVEL_SAFE"
-
-echo "Deploying Test Custom Consistency Level for Finalized"
-CONSISTENCY_LEVEL=202
-source ./sh/deployTestCustomConsistencyLevel.sh
-returnInfo=$(cat ./broadcast/DeployTestCustomConsistencyLevel.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
-TEST_CUSTOM_CONSISTENCY_LEVEL_FINALIZED=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
-echo "TEST_CUSTOM_CONSISTENCY_LEVEL_FINALIZED: $TEST_CUSTOM_CONSISTENCY_LEVEL_FINALIZED"
