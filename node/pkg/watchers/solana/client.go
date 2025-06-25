@@ -89,8 +89,13 @@ type (
 		shimPostMessageDiscriminator  []byte
 		shimMessageEventDiscriminator []byte
 
-		// PollForTx indicates if we should poll for transactions using `getSignaturesForAddress`.
-		PollForTx bool
+		// pollForTx indicates if we should poll for transactions using `getSignaturesForAddress`.
+		pollForTx bool
+
+		// pollPrevWormholeSignature is used when we are polling for transactions. It is the last
+		// wormhole transaction to be observed. It is stored in the Watcher so it will survive a
+		// watcher restart, allowing us to continue on without gaps.
+		pollPrevWormholeSignature solana.Signature
 	}
 
 	EventSubscriptionError struct {
@@ -276,7 +281,7 @@ func NewSolanaWatcher(
 		ccqConfig:           query.GetPerChainConfig(chainID),
 		shimContractStr:     shimContractStr,
 		shimContractAddr:    shimContractAddr,
-		PollForTx:           pollForTx,
+		pollForTx:           pollForTx,
 	}
 }
 
@@ -376,7 +381,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		zap.String("rawContract", s.rawContract),
 		zap.String("shimContract", s.shimContractStr),
 		zap.Duration("pollInterval", pollInterval),
-		zap.Bool("pollForTx", s.PollForTx),
+		zap.Bool("pollForTx", s.pollForTx),
 	)
 
 	s.shimSetup()
@@ -386,7 +391,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	useWs := false
 	if s.wsUrl != "" {
-		if s.PollForTx {
+		if s.pollForTx {
 			// This would definitely be a program bug, so panic is appropriate.
 			panic(fmt.Sprintf("invalid config in %s watcher, cannot have both useWS and pollForTx", s.chainID.String()))
 		}
@@ -400,7 +405,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
 		timer := time.NewTicker(pollInterval)
 		defer timer.Stop()
-		useStdPolling := (!s.PollForTx) && (!useWs)
+		useStdPolling := (!s.pollForTx) && (!useWs)
 
 		for {
 			select {
@@ -487,7 +492,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		}
 	})
 
-	if s.PollForTx {
+	if s.pollForTx {
 		common.RunWithScissors(ctx, s.errC, "SolanaTxProcessor", s.transactionProcessor)
 	}
 
