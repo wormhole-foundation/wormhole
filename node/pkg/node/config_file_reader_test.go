@@ -10,14 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func NewTestRootCommand() *cobra.Command {
+const TestConfigFile = "testdata/test.yaml"
+
+func NewTestRootCommand(configFile string) *cobra.Command {
 	var ethRPC *string
 	var solRPC *string
 
 	// Define test configuration
 	testConfig := ConfigOptions{
-		FilePath:  "testdata",
-		FileName:  "test",
+		FilePath:  configFile,
 		EnvPrefix: "TEST_GUARDIAND",
 	}
 
@@ -48,7 +49,7 @@ func NewTestRootCommand() *cobra.Command {
 // Tests that the config file is read and the default value is set
 func TestInitFileConfig(t *testing.T) {
 
-	cmd := NewTestRootCommand()
+	cmd := NewTestRootCommand(TestConfigFile)
 	output := &bytes.Buffer{}
 	cmd.SetOut(output)
 	_ = cmd.Execute()
@@ -66,7 +67,7 @@ func TestEnvVarPrecedence(t *testing.T) {
 	os.Setenv("TEST_GUARDIAND_ETHRPC", "ws://eth-env-var:8545")
 	defer os.Unsetenv("TEST_GUARDIAND_ETHRPC")
 
-	cmd := NewTestRootCommand()
+	cmd := NewTestRootCommand(TestConfigFile)
 	output := &bytes.Buffer{}
 	cmd.SetOut(output)
 	_ = cmd.Execute()
@@ -85,7 +86,30 @@ func TestFlagPrecedence(t *testing.T) {
 	os.Setenv("TEST_GUARDIAND_ETHRPC", "ws://eth-env-var:8545")
 	defer os.Unsetenv("TEST_GUARDIAND_ETHRPC")
 
-	cmd := NewTestRootCommand()
+	cmd := NewTestRootCommand(TestConfigFile)
+	output := &bytes.Buffer{}
+	cmd.SetOut(output)
+	cmd.SetArgs([]string{
+		"--ethRPC",
+		"ws://eth-flag:8545",
+		"--solRPC",
+		"ws://sol-flag:8545",
+	})
+	_ = cmd.Execute()
+
+	gotOutput := output.String()
+	wantOutput := `ethRPC: ws://eth-flag:8545
+solRPC: ws://sol-flag:8545
+`
+
+	assert.Equal(t, wantOutput, gotOutput, "expected the ethRPC to use the flag value and solRPC to use the flag value")
+}
+
+func TestNoConfigFileWorks(t *testing.T) {
+	os.Setenv("TEST_GUARDIAND_ETHRPC", "ws://eth-env-var:8545")
+	defer os.Unsetenv("TEST_GUARDIAND_ETHRPC")
+
+	cmd := NewTestRootCommand("")
 	output := &bytes.Buffer{}
 	cmd.SetOut(output)
 	cmd.SetArgs([]string{

@@ -80,6 +80,8 @@ spec:
           command:
             - /guardiand
             - node
+            - --config
+            - node/config/guardiand.yaml
             # - --ethRPC
             # - ws://eth-devnet:8545
             # - --wormchainURL
