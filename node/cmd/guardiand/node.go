@@ -45,6 +45,7 @@ import (
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -546,11 +547,7 @@ var (
 	rootCtxCancel context.CancelFunc
 )
 
-var (
-	configFilename = "guardiand"
-	configPath     = "node/config"
-	envPrefix      = "GUARDIAND"
-)
+const envPrefix = "GUARDIAND"
 
 // "Why would anyone do this?" are famous last words.
 //
@@ -582,8 +579,7 @@ var Build = "prod"
 // initConfig initializes the file configuration.
 func initConfig(cmd *cobra.Command, args []string) error {
 	return node.InitFileConfig(cmd, node.ConfigOptions{
-		FilePath:  configPath,
-		FileName:  configFilename,
+		FilePath:  viper.ConfigFileUsed(),
 		EnvPrefix: envPrefix,
 	})
 }
@@ -659,6 +655,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
+
+	if viper.ConfigFileUsed() != "" {
+		logger.Info("loaded config file", zap.String("filePath", viper.ConfigFileUsed()))
+	}
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if env == common.UnsafeDevNet {
