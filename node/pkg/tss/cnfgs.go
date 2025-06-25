@@ -26,11 +26,11 @@ func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 		return fmt.Errorf("TlsPrivateKey is nil")
 	}
 
-	if len(s.Guardians.Identities) == 0 {
+	if len(s.IdentitiesKeep.Identities) == 0 {
 		return fmt.Errorf("no guardians array given")
 	}
 
-	if s.Threshold > len(s.Guardians.Identities) {
+	if s.Threshold > len(s.IdentitiesKeep.Identities) {
 		return fmt.Errorf("threshold is higher than the number of guardians")
 	}
 
@@ -43,7 +43,7 @@ func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 		return fmt.Errorf("error unmarshalling TSSSecrets: %v", err)
 	}
 
-	if len(cnf.VerificationShares.Points) != len(s.Guardians.Identities) {
+	if len(cnf.VerificationShares.Points) != len(s.IdentitiesKeep.Identities) {
 		return fmt.Errorf("number of verification shares does not match number of guardians")
 	}
 
@@ -101,26 +101,26 @@ func (s *GuardianStorage) SetInnerFields() error {
 		return err
 	}
 
-	numGuardians := len(s.Guardians.Identities)
+	numGuardians := len(s.IdentitiesKeep.Identities)
 
-	s.Guardians.peerCerts = make([]*x509.Certificate, numGuardians)
-	s.Guardians.partyIds = make([]*common.PartyID, numGuardians)
-	s.Guardians.pemkeyToIndex = make(map[string]int)
-	s.Guardians.vaav1PubToIdentity = make(map[ethcommon.Address]int)
+	s.IdentitiesKeep.peerCerts = make([]*x509.Certificate, numGuardians)
+	s.IdentitiesKeep.partyIds = make([]*common.PartyID, numGuardians)
+	s.IdentitiesKeep.pemkeyToIndex = make(map[string]int)
+	s.IdentitiesKeep.vaav1PubToIdentity = make(map[ethcommon.Address]int)
 	// Since the guardians are sorted by key, we can use their position as their index.
 	for i := range numGuardians {
-		s.Guardians.peerCerts[i] = s.Guardians.Identities[i].Cert
-		s.Guardians.partyIds[i] = s.Guardians.Identities[i].Pid
-		s.Guardians.pemkeyToIndex[string(s.Guardians.Identities[i].KeyPEM)] = i
+		s.IdentitiesKeep.peerCerts[i] = s.IdentitiesKeep.Identities[i].Cert
+		s.IdentitiesKeep.partyIds[i] = s.IdentitiesKeep.Identities[i].Pid
+		s.IdentitiesKeep.pemkeyToIndex[string(s.IdentitiesKeep.Identities[i].KeyPEM)] = i
 
-		if s.Guardians.Identities[i].VAAv1PubKey != nil {
-			s.Guardians.vaav1PubToIdentity[*(s.Guardians.Identities[i].VAAv1PubKey)] = i
+		if s.IdentitiesKeep.Identities[i].VAAv1PubKey != nil {
+			s.IdentitiesKeep.vaav1PubToIdentity[*(s.IdentitiesKeep.Identities[i].VAAv1PubKey)] = i
 		}
 	}
 
 	if s.LeaderIdentity == nil {
 		// since the guardians are expected to be sorted already, the first guardian is the leader.
-		s.LeaderIdentity = s.Guardians.Identities[0].KeyPEM
+		s.LeaderIdentity = s.IdentitiesKeep.Identities[0].KeyPEM
 	}
 
 	s.isleader = bytes.Equal(s.Self.KeyPEM, s.LeaderIdentity)
@@ -133,7 +133,7 @@ func (s *GuardianStorage) SetInnerFields() error {
 func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 	uniquePidIDs := make(map[string]struct{})
 
-	for i, id := range s.Guardians.Identities {
+	for i, id := range s.Identities {
 		if id == nil {
 			return fmt.Errorf("error guardian %v is nil", i)
 		}
@@ -192,80 +192,10 @@ func extractCertAndKeyFromPem(pem PEM) (*x509.Certificate, *ecdsa.PublicKey, err
 	return c, key, nil
 }
 
-// TODO: consider moving the following functions to the identity/identities responsibility.
-func (s *GuardianStorage) fetchIdentityFromPartyID(senderPid *common.PartyID) (*Identity, error) {
-	return s.fetchIdentityFromKeyPEM(PEM(senderPid.GetID()))
-}
-
-var errUnknownPubkey = fmt.Errorf("unknown public key")
-
-func (st *GuardianStorage) fetchIdentityFromKeyPEM(pk PEM) (*Identity, error) {
-	pos, ok := st.Guardians.pemkeyToIndex[string(pk)]
-	if !ok {
-		return nil, errUnknownPubkey
-	}
-
-	return st.fetchIdentityFromIndex(SenderIndex(pos))
-}
-
-// FetchIdentity implements ReliableTSS.
-func (st *GuardianStorage) FetchIdentity(cert *x509.Certificate) (*Identity, error) {
-	var id *Identity
-
-	switch key := cert.PublicKey.(type) {
-	case *ecdsa.PublicKey:
-		publicKeyPem, err := internal.PublicKeyToPem(key)
-		if err != nil {
-			return nil, err
-		}
-
-		id, err = st.fetchIdentityFromKeyPEM(publicKeyPem)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching identity from public key: %w", err)
-		}
-	case []byte:
-		var err error
-		id, err = st.fetchIdentityFromKeyPEM(key)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching identity from public key bytes: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported public key type")
-	}
-
-	return id, nil
-}
-
-func (s *GuardianStorage) contains(senderId SenderIndex) bool {
-	if senderId < 0 || int(senderId) >= len(s.Guardians.Identities) {
-		return false
-	}
-
-	return true
-}
-
-func (s *GuardianStorage) fetchIdentityFromIndex(senderId SenderIndex) (*Identity, error) {
-	if !s.contains(senderId) {
-		return nil, ErrUnkownSender
-	}
-
-	return s.Guardians.Identities[senderId], nil
-}
-
-func (s *GuardianStorage) fetchIdentityFromVaav1Pubkey(pubkey ethcommon.Address) (*Identity, error) {
-	index, ok := s.Guardians.vaav1PubToIdentity[pubkey]
-	if !ok {
-		return nil, fmt.Errorf("unknown vaav1 pubkey %s", pubkey.Hex())
-	}
-
-	return s.fetchIdentityFromIndex(SenderIndex(index))
-
-}
-
 func (s *GuardianStorage) NumGuardians() int {
 	if s == nil {
 		return 0
 	}
 
-	return len(s.Guardians.Identities)
+	return len(s.Identities)
 }

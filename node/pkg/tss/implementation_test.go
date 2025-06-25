@@ -728,7 +728,7 @@ func TestFetchPartyId(t *testing.T) {
 	a := assert.New(t)
 	engines := load5GuardiansSetupForBroadcastChecks(a)
 	e1 := engines[0]
-	id, err := e1.FetchIdentity(e1.Guardians.peerCerts[0])
+	id, err := e1.FetchIdentity(e1.GuardianStorage.IdentitiesKeep.peerCerts[0])
 	a.NoError(err)
 	a.True(e1.Self.Pid.Equals(id.Pid))
 
@@ -1075,15 +1075,17 @@ func TestNoFaultsFlow(t *testing.T) {
 		a.NoError(err)
 
 		// set mappings (can be arbitrary in this unit test, since everyone is "online" and alive).
+
 		for i := range engines {
-			for j := range engines[i].GuardianStorage.Guardians.Identities {
-				id := engines[i].GuardianStorage.Guardians.Identities[j]
+			engineIdentities := engines[i].GuardianStorage.Identities
+			for j := range engineIdentities {
+				id := engineIdentities[j]
 
 				tmp := ethcommon.Address{}
 				copy(tmp[:], gs.Keys[j][:])
 
 				id.VAAv1PubKey = &tmp
-				engines[i].GuardianStorage.Guardians.vaav1PubToIdentity[tmp] = int(id.CommunicationIndex)
+				engines[i].GuardianStorage.IdentitiesKeep.vaav1PubToIdentity[tmp] = int(id.CommunicationIndex)
 			}
 		}
 

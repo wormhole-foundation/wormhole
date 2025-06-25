@@ -116,10 +116,10 @@ func (t *Engine) sigTracker() {
 		chainIdsToSigs: map[vaa.ChainID]map[sigKey]*signatureState{},
 	}
 
-	for _, pid := range t.GuardianStorage.Guardians.partyIds {
-		strPid := strPartyId(pid.ToString())
+	for _, id := range t.GuardianStorage.Identities {
+		strPid := strPartyId(id.Pid.ToString())
 		f.membersData[strPid] = &ftParty{
-			partyID:        pid,
+			partyID:        id.Pid,
 			ftChainContext: map[vaa.ChainID]*ftChainContext{},
 		}
 	}

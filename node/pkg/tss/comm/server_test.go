@@ -288,7 +288,7 @@ func TestNonBlockedBroadcast(t *testing.T) {
 		go gserver.Serve(listener)
 	}
 
-	for _, v := range en[2].GuardianStorage.Guardians.Identities {
+	for _, v := range en[2].GuardianStorage.Identities {
 		v.Hostname = "localhost"
 		if bytes.Equal(v.KeyPEM, en[0].Self.KeyPEM) {
 			v.Port = 5500
@@ -651,7 +651,7 @@ func TestDialWithDefaultPort(t *testing.T) {
 
 	//  SETTING THE ID TO CONNECT TO WITHOUT A PORT:
 	// ensuring the communicating server will have to use the default port to dial.
-	for _, v := range communicatingEngine.Guardians.Identities {
+	for _, v := range communicatingEngine.Identities {
 		if bytes.Equal(v.KeyPEM, listenerEngine.Self.KeyPEM) {
 			v.Hostname = "localhost"
 			v.Port = 0
@@ -678,7 +678,7 @@ func TestDialWithDefaultPort(t *testing.T) {
 	time.Sleep(time.Second)
 
 	for i := 0; i < 10; i++ {
-		tmp := communicatingEngine.Guardians.Identities
+		tmp := communicatingEngine.Identities
 		msgChan <- &tss.Echo{
 			Recipients: tmp,
 		}
@@ -724,7 +724,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	// the tls key, then returns the tss.PartyID according to what is
 	// stored in the guardian storage.
 	expectedText := "This text is what i expect to see in the incoming message."
-	for _, v := range streamReceiverEngine.Guardians.Identities {
+	for _, v := range streamReceiverEngine.Identities {
 		if bytes.Equal(v.KeyPEM, senderEngine.Self.KeyPEM) {
 			v.Hostname = expectedText
 
@@ -737,7 +737,7 @@ func TestDialWithDefaultPortDeliverCorrectSrc(t *testing.T) {
 	streamReceiverEngine.GuardianStorage.SetInnerFields()
 
 	// Setting the ID as they will be sent and used to connect to the other party.
-	for _, v := range senderEngine.Guardians.Identities {
+	for _, v := range senderEngine.Identities {
 		if bytes.Equal(v.KeyPEM, streamReceiverEngine.Self.KeyPEM) {
 			v.Hostname = streamReceiverPath // ensuring the server connects
 			v.Port = 5930
@@ -837,7 +837,7 @@ func TestConnectingToServers(t *testing.T) {
 		incomingMsgChn[i] = make(chan tss.Incoming)
 		e.GuardianStorage.Self.Hostname = "localhost"
 		e.GuardianStorage.Self.Port = 5930 + i
-		for j, id := range e.Guardians.Identities {
+		for j, id := range e.Identities {
 			id.Hostname = "localhost"
 			id.Port = 5930 + j
 		}
@@ -865,7 +865,7 @@ func TestConnectingToServers(t *testing.T) {
 	// ============
 	time.Sleep(time.Second * 2)
 	channelForGeneratedMessages <- &tss.Echo{
-		Recipients: en[0].Guardians.Identities,
+		Recipients: en[0].Identities,
 		Echo:       &tsscommv1.Echo{},
 	}
 	time.Sleep(time.Second * 2)

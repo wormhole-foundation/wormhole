@@ -189,7 +189,7 @@ func setTSSEngineAccordingToMockSet(gs []*mockGuardian) {
 	// go to each guardian and change the ID of everyone including self.
 	// for each member, grab its port, then change it in the peer of the guardian.
 	for _, en := range engines {
-		for _, id := range en.Guardians.Identities {
+		for _, id := range en.GuardianStorage.Identities {
 			id.Hostname = "localhost"
 			id.Port = idToPort[id.Pid.GetID()]
 

@@ -6,7 +6,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 
 	"sync"
@@ -85,15 +84,14 @@ type Configurations struct {
 type GuardianStorage struct {
 	Configurations
 
-	Self *Identity
+	Self           *Identity
+	IdentitiesKeep `json:"IdentitiesKeep,inline"`
 
 	// should be a certificate generated with SecretKey
 	TlsX509    PEM
 	PrivateKey PEM
 	tlsCert    *tls.Certificate
 	signingKey *ecdsa.PrivateKey // should be the unmarshalled value of PriavteKey.
-
-	Guardians Identities
 
 	// Assumes threshold = 2f+1, where f is the maximal expected number of faulty nodes.
 	Threshold int
@@ -131,11 +129,6 @@ func (t *Engine) ProducedOutputMessages() <-chan Sendable {
 // GetCertificate implements ReliableTSS.
 func (st *GuardianStorage) GetCertificate() *tls.Certificate {
 	return st.tlsCert
-}
-
-// GetPeers implements ReliableTSS.
-func (st *GuardianStorage) GetPeers() []*x509.Certificate {
-	return st.Guardians.peerCerts
 }
 
 var (
@@ -254,7 +247,7 @@ func (t *Engine) getExcludedFromCommittee(mt signingMeta) []*common.PartyID {
 		recommended[SenderIndex(senderIndex)] = true
 	}
 
-	for _, id := range t.GuardianStorage.Guardians.Identities {
+	for _, id := range t.GuardianStorage.Identities {
 		if !recommended[id.CommunicationIndex] {
 			excluded = append(excluded, id.Pid)
 		}
@@ -375,7 +368,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 
 	fpParams := &party.Parameters{
 		FrostSecrets: storage.frostconf,
-		PartyIDs:     storage.Guardians.partyIds,
+		PartyIDs:     storage.GetPartyIDs(),
 		Self:         storage.Self.Pid,
 
 		MaxSignerTTL:         storage.MaxSignerTTL,
@@ -689,7 +682,7 @@ func (t *Engine) intoSendable(m common.Message) (Sendable, error) {
 			return nil, err
 		}
 
-		sendable = newEcho(msgToSend, t.Guardians.Identities)
+		sendable = newEcho(msgToSend, t.Identities)
 	} else {
 		recipients := make([]*Identity, 0, len(routing.To))
 		for _, pId := range routing.To {
@@ -780,7 +773,7 @@ func (t *Engine) makeEcho(m Incoming, parsed broadcastMessage) *Echo {
 			},
 		},
 	}
-	ech := newEcho(content, t.Guardians.Identities)
+	ech := newEcho(content, t.GuardianStorage.Identities)
 	return ech
 }
 

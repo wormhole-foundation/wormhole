@@ -76,7 +76,7 @@ type dkgPlayer struct {
 
 	// the identity of the player, tied to the x509 cert and its private key.
 	self *engine.Identity
-	ids  engine.Identities
+	ids  engine.IdentitiesKeep
 
 	selfCert []byte
 
@@ -160,7 +160,7 @@ func simulateDKG(all []*dkgPlayer, threshold int) {
 			Self:           p.self,
 			TlsX509:        p.selfCert,
 			PrivateKey:     nil, // each guardian stores this by themselves.
-			Guardians:      p.ids,
+			IdentitiesKeep: p.ids,
 			Threshold:      threshold,
 			// SavedSecretParameters: ,
 			LoadDistributionKey: p.loadDistributionKey,
@@ -242,7 +242,7 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 			selfCert:            gspecific.Identifier.TlsX509,
 			loadDistributionKey: tmp,
 
-			ids: engine.Identities{
+			ids: engine.IdentitiesKeep{
 				Identities: sortedIDS,
 			},
 		}
