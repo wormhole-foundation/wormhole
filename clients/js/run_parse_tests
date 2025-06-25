@@ -50,7 +50,6 @@ for test in ${test_files[@]}; do
         cat "$result" > "$expected"
         continue
     fi
-
     if [ ! -f "$expected" ]; then
         echo "Missing '$expected' (re-run with -a flag to create)"
         failed_tests=$(($failed_tests + 1))
