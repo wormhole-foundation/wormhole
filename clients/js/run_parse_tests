@@ -44,7 +44,7 @@ for test in ${test_files[@]}; do
     expected="$test_name.expected"
 
     result=$(mktemp)
-    node build/main.js parse $(cat "$test") > "$result" 2>&1
+    node build/main.js parse $(cat "$test") > "$result"
     if [ $accept = true ]; then
         echo "Updating $test_name"
         cat "$result" > "$expected"
