@@ -7,7 +7,7 @@ FROM guardiand-image AS base
 FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:v1.0.0@sha256:d12a373ec950de170d5461014ef9320ba0fb6e0db6f87835999d0fcf3820370e as foundry
 
 # node is required to install Foundry
-FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
+FROM node:22.17-bullseye-slim@sha256:eb37f58646a901dc7727cf448cae36daaefaba79de33b5058dab79aa4c04aefb
 
 # prepare cast
 COPY --from=foundry /usr/local/bin/cast /bin/cast

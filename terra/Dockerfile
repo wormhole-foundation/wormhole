@@ -13,7 +13,7 @@ FROM scratch as artifacts
 COPY --from=builder /code/artifacts /
 
 # Contract deployment stage
-FROM node:16-buster-slim@sha256:93c9fc3550f5f7d159f282027228e90e3a7f8bf38544758024f005e82607f546
+FROM node:22.17-bullseye-slim@sha256:eb37f58646a901dc7727cf448cae36daaefaba79de33b5058dab79aa4c04aefb
 
 RUN apt update && apt install netcat curl jq -y
 
