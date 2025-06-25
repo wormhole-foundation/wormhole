@@ -69,13 +69,14 @@ func (s *SolanaWatcher) processLatestTransactions(oldestSlot uint64) (uint64, er
 		return 0, nil
 	}
 
-	if oldestSlot == 0 {
+	switch oldestSlot {
+	case 0:
 		// This is the startup scenario.
 		oldestSlot = newestSlot - 1
-	} else if oldestSlot == newestSlot {
+	case newestSlot:
 		//s.logger.Info("TEST: not getting transactions, slot number has not advanced", zap.Uint64("slotNum", oldestSlot))
 		return oldestSlot, nil
-	} else {
+	default:
 		oldestSlot++
 	}
 
@@ -125,33 +126,19 @@ func (s *SolanaWatcher) processTransactionsForSlots(oldestSlot uint64, newestSlo
 
 // getFirstSignature returns the first signature in the block.
 func getFirstSignature(block *rpc.GetBlockResult) (solana.Signature, error) {
-	if len(block.Transactions) == 0 {
-		return solana.Signature{}, errors.New("block does not contain any transactions")
-	}
-	tx, err := block.Transactions[0].GetTransaction()
-	if err != nil {
-		return solana.Signature{}, fmt.Errorf("failed to extract tx: %w", err)
-	}
-	if len(tx.Signatures) == 0 {
-		return solana.Signature{}, errors.New("transaction contains no signatures")
+	if len(block.Signatures) == 0 {
+		return solana.Signature{}, errors.New("block contains no signatures")
 	}
 
-	return tx.Signatures[0], nil
+	return block.Signatures[0], nil
 }
 
 // getLastSignature returns the last signature in the block.
 func getLastSignature(block *rpc.GetBlockResult) (solana.Signature, error) {
-	if len(block.Transactions) == 0 {
-		return solana.Signature{}, errors.New("block does not contain any transactions")
+	if len(block.Signatures) == 0 {
+		return solana.Signature{}, errors.New("block contains no signatures")
 	}
-	tx, err := block.Transactions[len(block.Transactions)-1].GetTransaction()
-	if err != nil {
-		return solana.Signature{}, fmt.Errorf("failed to extract tx: %w", err)
-	}
-	if len(tx.Signatures) == 0 {
-		return solana.Signature{}, errors.New("transaction contains no signatures")
-	}
-	return tx.Signatures[len(tx.Signatures)-1], nil
+	return block.Signatures[len(block.Signatures)-1], nil
 }
 
 // findNextValidBlock queries for a block associated with a slot. If the slot was skipped or is missing,
@@ -171,7 +158,7 @@ func (s *SolanaWatcher) findNextValidBlock(slot uint64, decrement bool, retries 
 		maxSupportedTransactionVersion := uint64(0)
 		block, err = s.rpcClient.GetBlockWithOpts(s.ctx, uint64(slot), &rpc.GetBlockOpts{
 			Encoding:                       solana.EncodingBase64, // solana-go doesn't support json encoding.
-			TransactionDetails:             "full",
+			TransactionDetails:             rpc.TransactionDetailsSignatures,
 			Rewards:                        &rewards,
 			Commitment:                     s.commitment,
 			MaxSupportedTransactionVersion: &maxSupportedTransactionVersion,
@@ -200,7 +187,7 @@ func (s *SolanaWatcher) findNextValidBlock(slot uint64, decrement bool, retries 
 		}
 	}
 
-	if block == nil || block.BlockTime == nil || len(block.Transactions) == 0 {
+	if block == nil || block.BlockTime == nil || len(block.Signatures) == 0 {
 		return s.findNextValidBlock(updateSlot(slot, decrement), decrement, retries-1)
 	}
 
