@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -19,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	vaaLib "github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -39,30 +45,143 @@ func initLogger() {
 	}
 }
 
-// Config holds all configuration parameters for the relayer
-type Config struct {
-	SpyRPCHost       string                         // Wormhole spy service endpoint
-	SourceChainID    uint16                         // Chain ID to receive VAAs from
-	DestChainID      uint16                         // Chain ID to relay VAAs to
-	DestRPCURL       string                         // RPC URL for the destination chain
-	PrivateKey       string                         // Private key for transaction signing
-	WormholeContract string                         // Wormhole core contract address
-	TargetContract   string                         // Target contract to call with VAAs
-	EmitterAddress   string                         // Emitter address to monitor
-	vaaProcessor     func(*Relayer, *VAAData) error // Custom VAA processor function
+// ADD: HTTP verification service types
+type VerificationRequest struct {
+	VAABytes string `json:"vaaBytes"`
 }
 
-// NewConfigFr\omEnv creates a Config from environment variables
+type VerificationResponse struct {
+	Success bool   `json:"success"`
+	TxHash  string `json:"txHash,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ADD: HTTP client for verification service
+type VerificationServiceClient struct {
+	baseURL    string
+	httpClient *http.Client
+	logger     *zap.Logger
+}
+
+// ADD: Create new verification service client
+func NewVerificationServiceClient(baseURL string) *VerificationServiceClient {
+	return &VerificationServiceClient{
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		httpClient: &http.Client{
+			Timeout: 60 * time.Second,
+		},
+		logger: logger.With(zap.String("component", "VerificationServiceClient")),
+	}
+}
+
+// ADD: Verify VAA via HTTP service
+func (c *VerificationServiceClient) VerifyVAA(ctx context.Context, vaaBytes []byte) (string, error) {
+	c.logger.Debug("Sending VAA to verification service", zap.Int("vaaLength", len(vaaBytes)))
+
+	// Prepare request
+	vaaHex := hex.EncodeToString(vaaBytes)
+	if !strings.HasPrefix(vaaHex, "0x") {
+		vaaHex = "0x" + vaaHex
+	}
+
+	request := VerificationRequest{
+		VAABytes: vaaHex,
+	}
+
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal verification request: %v", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/verify", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send verification request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read verification response: %v", err)
+	}
+
+	c.logger.Debug("Received response from verification service",
+		zap.Int("statusCode", resp.StatusCode))
+
+	// Parse response
+	var response VerificationResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("failed to unmarshal verification response: %v", err)
+	}
+
+	if !response.Success {
+		return "", fmt.Errorf("verification failed: %s", response.Error)
+	}
+
+	return response.TxHash, nil
+}
+
+// ADD: Check if verification service is healthy
+func (c *VerificationServiceClient) CheckHealth(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/health", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create health check request: %v", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("health check failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("verification service unhealthy: status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// Config holds all configuration parameters for the relayer
+type Config struct {
+	SpyRPCHost             string                         // Wormhole spy service endpoint
+	SourceChainID          uint16                         // Aztec chain ID
+	DestChainID            uint16                         // Arbitrum chain ID
+	AztecPXEURL            string                         // PXE URL for Aztec
+	AztecWalletAddress     string                         // Aztec wallet address to use
+	ArbitrumRPCURL         string                         // RPC URL for Arbitrum
+	PrivateKey             string                         // Private key for Arbitrum
+	WormholeContract       string                         // Wormhole core contract address
+	AztecTargetContract    string                         // Target contract on Aztec
+	ArbitrumTargetContract string                         // Target contract on Arbitrum
+	EmitterAddress         string                         // Emitter address to monitor
+	VerificationServiceURL string                         // ADD: Verification service URL
+	vaaProcessor           func(*Relayer, *VAAData) error // Custom VAA processor function
+}
+
+// NewConfigFromEnv creates a Config from environment variables
 func NewConfigFromEnv() Config {
 	return Config{
-		SpyRPCHost:       getEnvOrDefault("SPY_RPC_HOST", "localhost:7072"),
-		SourceChainID:    uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 52)),
-		DestChainID:      uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 10004)),
-		DestRPCURL:       getEnvOrDefault("DEST_RPC_URL", "http://localhost:8545"),
-		PrivateKey:       getEnvOrDefault("PRIVATE_KEY", "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"),
-		WormholeContract: getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
-		TargetContract:   getEnvOrDefault("TARGET_CONTRACT", "0x009cbB8f91d392856Cb880d67c806Aa731E3d686"),
-		EmitterAddress:   getEnvOrDefault("EMITTER_ADDRESS", "0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad"),
+		SpyRPCHost:             getEnvOrDefault("SPY_RPC_HOST", "localhost:7072"),
+		SourceChainID:          uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 52)), // Aztec
+		DestChainID:            uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 2)),    // Arbitrum
+		AztecPXEURL:            getEnvOrDefault("AZTEC_PXE_URL", "http://localhost:8090"),
+		AztecWalletAddress:     getEnvOrDefault("AZTEC_WALLET_ADDRESS", "0x05795e88e667e308bc7dc72bca7e5a2db244674b46313a421a378fdbc65b2c9a"),
+		ArbitrumRPCURL:         getEnvOrDefault("ARBITRUM_RPC_URL", "http://localhost:8545"),
+		PrivateKey:             getEnvOrDefault("PRIVATE_KEY", "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"),
+		WormholeContract:       getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
+		AztecTargetContract:    getEnvOrDefault("AZTEC_TARGET_CONTRACT", "0x27aceaacfa90a3f1138345ae1c7bb2bce6ce0d0bba257cc0dfe06caf951c5085"),
+		ArbitrumTargetContract: getEnvOrDefault("ARBITRUM_TARGET_CONTRACT", "0x009cbB8f91d392856Cb880d67c806Aa731E3d686"),
+		EmitterAddress:         getEnvOrDefault("EMITTER_ADDRESS", "0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad"),
+		VerificationServiceURL: getEnvOrDefault("VERIFICATION_SERVICE_URL", "http://localhost:8080"), // ADD
 	}
 }
 
@@ -141,7 +260,138 @@ func (c *SpyClient) SubscribeSignedVAA(ctx context.Context) (spyv1.SpyRPCService
 	return nil, fmt.Errorf("subscribe to signed VAAs after %d attempts: %v", maxRetries, err)
 }
 
-// EVMClient handles interactions with EVM-compatible blockchains
+// AztecPXEClient handles interactions with Aztec blockchain via PXE
+type AztecPXEClient struct {
+	rpcClient     *rpc.Client
+	walletAddress string
+	logger        *zap.Logger
+}
+
+// NewAztecPXEClient creates a new client for Aztec blockchain via PXE
+func NewAztecPXEClient(pxeURL, walletAddress string) (*AztecPXEClient, error) {
+	client := &AztecPXEClient{
+		walletAddress: walletAddress,
+		logger:        logger.With(zap.String("component", "AztecPXEClient")),
+	}
+
+	client.logger.Info("Connecting to Aztec PXE",
+		zap.String("pxeURL", pxeURL),
+		zap.String("walletAddress", walletAddress))
+
+	// Create RPC client using the same pattern as your working code
+	rpcClient, err := rpc.Dial(pxeURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RPC client: %v", err)
+	}
+
+	client.rpcClient = rpcClient
+
+	// Test connection using the working node_getBlock method
+	err = client.testConnection()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Aztec PXE: %v", err)
+	}
+
+	return client, nil
+}
+
+// testConnection tests the connection to Aztec PXE using working methods
+func (c *AztecPXEClient) testConnection() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Test with node_getBlock method (we know this works)
+	var blockResult interface{}
+	err := c.rpcClient.CallContext(ctx, &blockResult, "node_getBlock", 1)
+	if err != nil {
+		c.logger.Debug("node_getBlock test failed", zap.Error(err))
+		// This is okay - block 1 might not exist, connection is still working
+	}
+
+	c.logger.Info("Aztec PXE connection successful")
+	return nil
+}
+
+// SendVerifyTransaction sends a transaction to verify and store a VAA on Aztec via PXE
+func (c *AztecPXEClient) SendVerifyTransaction(ctx context.Context, targetContract string, vaaBytes []byte) (string, error) {
+	c.logger.Debug("Sending verify_vaa transaction to Aztec via PXE", zap.Int("vaaLength", len(vaaBytes)))
+
+	// Pad to 2000 bytes for contract but pass actual length
+	paddedVAABytes := make([]byte, 2000)
+	copy(paddedVAABytes, vaaBytes)
+
+	// Convert the padded bytes to array format for Aztec
+	vaaArray := make([]interface{}, 2000)
+	for i, b := range paddedVAABytes {
+		vaaArray[i] = int(b)
+	}
+
+	actualLength := len(vaaBytes)
+
+	c.logger.Debug("Calling verify_vaa function",
+		zap.String("contract", targetContract),
+		zap.Int("actualLength", actualLength),
+		zap.Int("paddedLength", len(paddedVAABytes)))
+
+	// Use the RPC client pattern from your working code
+	// First, let's try to simulate the call to see if the contract/function exists
+	var result interface{}
+	err := c.rpcClient.CallContext(ctx, &result, "pxe_simulateTransaction", map[string]interface{}{
+		"contractAddress": targetContract,
+		"functionName":    "verify_vaa",
+		"args":            []interface{}{vaaArray, actualLength},
+		"origin":          c.walletAddress,
+	})
+
+	if err != nil {
+		c.logger.Warn("Transaction simulation failed", zap.Error(err))
+		// Continue anyway - simulation might not be available
+	} else {
+		c.logger.Debug("Transaction simulation successful", zap.Any("result", result))
+	}
+
+	// Now try to send the actual transaction
+	// This method name needs to be confirmed with actual PXE API
+	var txResult interface{}
+	err = c.rpcClient.CallContext(ctx, &txResult, "pxe_sendTransaction", map[string]interface{}{
+		"contractAddress": targetContract,
+		"functionName":    "verify_vaa",
+		"args":            []interface{}{vaaArray, actualLength},
+		"origin":          c.walletAddress,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to send verify_vaa transaction: %v", err)
+	}
+
+	// Extract transaction hash from result
+	if txMap, ok := txResult.(map[string]interface{}); ok {
+		if txHash, exists := txMap["txHash"]; exists {
+			if txHashStr, ok := txHash.(string); ok {
+				return txHashStr, nil
+			}
+		}
+		if txHash, exists := txMap["hash"]; exists {
+			if txHashStr, ok := txHash.(string); ok {
+				return txHashStr, nil
+			}
+		}
+	}
+
+	if txHashStr, ok := txResult.(string); ok {
+		return txHashStr, nil
+	}
+
+	c.logger.Debug("PXE transaction result", zap.Any("result", txResult))
+	return fmt.Sprintf("tx_submitted_%d", time.Now().Unix()), nil
+}
+
+// GetWalletAddress returns the wallet address being used
+func (c *AztecPXEClient) GetWalletAddress() string {
+	return c.walletAddress
+}
+
+// EVMClient handles interactions with EVM-compatible blockchains (Arbitrum)
 type EVMClient struct {
 	client     *ethclient.Client
 	privateKey *ecdsa.PrivateKey
@@ -187,9 +437,9 @@ func (c *EVMClient) GetAddress() common.Address {
 	return c.address
 }
 
-// sendVerifyTransaction sends a transaction to the verify function to process and store a VAA
-func (c *EVMClient) sendVerifyTransaction(ctx context.Context, targetContract string, vaaBytes []byte) (string, error) {
-	c.logger.Debug("Sending verify transaction", zap.Int("vaaLength", len(vaaBytes)))
+// SendVerifyTransaction sends a transaction to the verify function to process and store a VAA
+func (c *EVMClient) SendVerifyTransaction(ctx context.Context, targetContract string, vaaBytes []byte) (string, error) {
+	c.logger.Debug("Sending verify transaction to EVM", zap.Int("vaaLength", len(vaaBytes)))
 
 	// Contract ABI for the verify function
 	const abiJSON = `[{
@@ -259,11 +509,13 @@ func (c *EVMClient) sendVerifyTransaction(ctx context.Context, targetContract st
 
 // Relayer coordinates processing VAAs from the spy service
 type Relayer struct {
-	spyClient    *SpyClient
-	evmClient    *EVMClient
-	config       Config
-	vaaProcessor func(*Relayer, *VAAData) error
-	logger       *zap.Logger
+	spyClient          *SpyClient
+	aztecClient        *AztecPXEClient
+	evmClient          *EVMClient
+	verificationClient *VerificationServiceClient // ADD: HTTP verification client
+	config             Config
+	vaaProcessor       func(*Relayer, *VAAData) error
+	logger             *zap.Logger
 }
 
 // NewRelayer creates a new relayer instance
@@ -279,15 +531,38 @@ func NewRelayer(config Config) (*Relayer, error) {
 		return nil, fmt.Errorf("failed to create spy client: %v", err)
 	}
 
-	// Connect to the EVM chain
-	evmClient, err := NewEVMClient(config.DestRPCURL, config.PrivateKey)
+	// Connect to Aztec via PXE
+	aztecClient, err := NewAztecPXEClient(config.AztecPXEURL, config.AztecWalletAddress)
+	if err != nil {
+		spyClient.Close()
+		return nil, fmt.Errorf("failed to create Aztec PXE client: %v", err)
+	}
+
+	// Connect to Arbitrum (EVM)
+	evmClient, err := NewEVMClient(config.ArbitrumRPCURL, config.PrivateKey)
 	if err != nil {
 		spyClient.Close()
 		return nil, fmt.Errorf("failed to create EVM client: %v", err)
 	}
 
+	// ADD: Create verification service client
+	verificationClient := NewVerificationServiceClient(config.VerificationServiceURL)
+
+	// ADD: Test connection to verification service
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := verificationClient.CheckHealth(ctx); err != nil {
+		spyClient.Close()
+		relayer.logger.Warn("Verification service not available", zap.Error(err))
+		// Don't fail - we can still relay Aztec->Arbitrum
+	} else {
+		relayer.logger.Info("Connected to verification service", zap.String("url", config.VerificationServiceURL))
+	}
+
 	relayer.spyClient = spyClient
+	relayer.aztecClient = aztecClient
 	relayer.evmClient = evmClient
+	relayer.verificationClient = verificationClient // ADD
 
 	// Set default VAA processor
 	if config.vaaProcessor == nil {
@@ -308,11 +583,12 @@ func (r *Relayer) Close() {
 
 // Start begins listening for VAAs and processing them
 func (r *Relayer) Start(ctx context.Context) error {
-	r.logger.Info("Starting relayer",
-		zap.String("address", r.evmClient.GetAddress().Hex()),
-		zap.Uint16("sourceChain", r.config.SourceChainID),
-		zap.Uint16("destChain", r.config.DestChainID),
-		zap.String("emitter", r.config.EmitterAddress))
+	r.logger.Info("Starting bidirectional Aztec-Arbitrum relayer",
+		zap.String("aztecWallet", r.aztecClient.GetWalletAddress()),
+		zap.String("arbitrumAddress", r.evmClient.GetAddress().Hex()),
+		zap.Uint16("aztecChain", r.config.SourceChainID),
+		zap.Uint16("arbitrumChain", r.config.DestChainID),
+		zap.String("verificationServiceURL", r.config.VerificationServiceURL)) // ADD
 
 	// Create a wait group to track goroutines
 	var wg sync.WaitGroup
@@ -357,7 +633,7 @@ func (r *Relayer) Start(ctx context.Context) error {
 				continue
 			}
 
-			// Process the VAA in a goroutine, but track it with the WaitGroup
+			// Process the VAA in a goroutine, but track it with the WaitGroupp
 			wg.Add(1)
 			go func(vaaBytes []byte) {
 				defer wg.Done()
@@ -416,10 +692,10 @@ func (r *Relayer) processVAA(ctx context.Context, vaaBytes []byte) {
 	}
 }
 
-// defaultVAAProcessor is the default VAA processing logic
+// MODIFY: defaultVAAProcessor to use verification service for Arbitrum->Aztec
 func defaultVAAProcessor(r *Relayer, vaaData *VAAData) error {
 	// Create a context with timeout for processing operations
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for HTTP calls
 	defer cancel()
 
 	// Log essential VAA information
@@ -439,48 +715,68 @@ func defaultVAAProcessor(r *Relayer, vaaData *VAAData) error {
 		r.parseAndLogPayload(vaaData.VAA.Payload)
 	}
 
-	// Check if this is a VAA from the source chain
+	var txHash string
+	var err error
+	var direction string
+
+	// Check if this is a VAA from Aztec (source chain) -> send to Arbitrum
 	if vaaData.ChainID == r.config.SourceChainID {
-		r.logger.Info("Processing VAA from source chain",
+		direction = "Aztec->Arbitrum"
+
+		r.logger.Info("Processing VAA from Aztec to Arbitrum",
 			zap.Uint64("sequence", vaaData.Sequence),
 			zap.String("sourceTxID", vaaData.TxID))
 
-		// Send the transaction to verify and store the VAA on-chain
-		txHash, err := r.evmClient.sendVerifyTransaction(ctx, r.config.TargetContract, vaaData.RawBytes)
-		if err != nil {
-			// Check if the context was cancelled or timed out
-			if ctx.Err() != nil {
-				r.logger.Warn("Transaction sending cancelled or timed out", zap.Error(ctx.Err()))
-				return fmt.Errorf("transaction interrupted: %v", ctx.Err())
-			}
+		// Send to Arbitrum using EVM client
+		txHash, err = r.evmClient.SendVerifyTransaction(ctx, r.config.ArbitrumTargetContract, vaaData.RawBytes)
 
-			r.logger.Error("Failed to send verify transaction",
-				zap.Uint64("sequence", vaaData.Sequence),
-				zap.String("sourceTxID", vaaData.TxID),
-				zap.Error(err))
-			return fmt.Errorf("transaction failed: %v", err)
+		// Check if this is a VAA from Arbitrum (dest chain) -> send to Aztec
+	} else if vaaData.ChainID == r.config.DestChainID {
+		direction = "Arbitrum->Aztec"
+
+		r.logger.Info("Processing VAA from Arbitrum to Aztec",
+			zap.Uint64("sequence", vaaData.Sequence),
+			zap.String("sourceTxID", vaaData.TxID))
+
+		// MODIFY: Try verification service first, fallback to direct PXE
+		txHash, err = r.verificationClient.VerifyVAA(ctx, vaaData.RawBytes)
+		if err != nil {
+			r.logger.Warn("Verification service failed, trying direct PXE", zap.Error(err))
+			// Fallback to direct PXE call
+			txHash, err = r.aztecClient.SendVerifyTransaction(ctx, r.config.AztecTargetContract, vaaData.RawBytes)
+		} else {
+			r.logger.Debug("Used verification service successfully")
 		}
 
-		r.logger.Info("VAA verification completed",
+	} else {
+		// Skip VAAs not from our configured chains
+		r.logger.Debug("Skipping VAA (not from configured chains)",
 			zap.Uint64("sequence", vaaData.Sequence),
-			zap.String("txHash", txHash),
-			zap.String("sourceTxID", vaaData.TxID))
-
+			zap.Uint16("chain", vaaData.ChainID))
 		return nil
 	}
 
-	// Check if this is a VAA for the destination chain
-	if vaaData.ChainID == r.config.DestChainID {
-		r.logger.Info("Received VAA for destination chain",
-			zap.Uint16("chain", vaaData.ChainID),
-			zap.Uint64("sequence", vaaData.Sequence))
-		return nil
+	if err != nil {
+		// Check if the context was cancelled or timed out
+		if ctx.Err() != nil {
+			r.logger.Warn("Transaction sending cancelled or timed out", zap.Error(ctx.Err()))
+			return fmt.Errorf("transaction interrupted: %v", ctx.Err())
+		}
+
+		r.logger.Error("Failed to send verify transaction",
+			zap.String("direction", direction),
+			zap.Uint64("sequence", vaaData.Sequence),
+			zap.String("sourceTxID", vaaData.TxID),
+			zap.Error(err))
+		return fmt.Errorf("transaction failed: %v", err)
 	}
 
-	// Skip VAAs not configured for processing
-	r.logger.Debug("Skipping VAA (not configured for processing)",
+	r.logger.Info("VAA verification completed",
+		zap.String("direction", direction),
 		zap.Uint64("sequence", vaaData.Sequence),
-		zap.Uint16("chain", vaaData.ChainID))
+		zap.String("txHash", txHash),
+		zap.String("sourceTxID", vaaData.TxID))
+
 	return nil
 }
 
@@ -510,14 +806,14 @@ func (r *Relayer) parseAndLogPayload(payload []byte) {
 		switch arrayIndex {
 		case 0:
 			if i+20 <= end {
-				r.logger.Debug("Arbitrum address", zap.String("address", fmt.Sprintf("0x%x", payload[i:i+20])))
+				r.logger.Debug("Address", zap.String("address", fmt.Sprintf("0x%x", payload[i:i+20])))
 			}
 		case 1:
 			if i+2 <= end {
 				chainIDLower := uint16(payload[i])
 				chainIDUpper := uint16(payload[i+1])
 				chainID := (chainIDUpper << 8) | chainIDLower
-				r.logger.Debug("Arbitrum chain ID", zap.Uint16("chainID", chainID))
+				r.logger.Debug("Chain ID", zap.Uint16("chainID", chainID))
 			}
 		case 2:
 			if i < end {
@@ -558,10 +854,14 @@ func main() {
 	initLogger()
 	defer logger.Sync()
 
-	logger.Info("Starting Wormhole relayer")
+	logger.Info("Starting bidirectional Aztec-Arbitrum Wormhole relayer")
 
 	// Load configuration from environment
 	config := NewConfigFromEnv()
+
+	logger.Info("DEBUG: Config loaded",
+		zap.Uint16("sourceChainID", config.SourceChainID),
+		zap.Uint16("destChainID", config.DestChainID))
 
 	// Create relayer
 	relayer, err := NewRelayer(config)

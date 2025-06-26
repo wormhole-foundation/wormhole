@@ -2,6 +2,13 @@
   "dependencies": {
     "@aztec/accounts": "0.87.2",
     "@aztec/noir-contracts.js": "0.87.2",
-    "@aztec/stdlib": "0.87.2"
+    "@aztec/stdlib": "0.87.2",
+    "express": "^4.18.2",
+    "js-sha3": "^0.9.3",
+    "secp256k1": "^5.0.1"
+  },
+  "type": "module",
+  "scripts": {
+    "start-verification": "node vaa-verification-service.mjs"
   }
 }
