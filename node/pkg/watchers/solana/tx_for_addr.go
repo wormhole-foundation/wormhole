@@ -22,14 +22,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// MaxSignaturesPerQuery is the maximum number of transactions to be returned by `GetSignaturesForAddressWithOpts`.
-	// The max / default is 1000. You can set this to something smaller (like 5) to test pagination.
-	MaxSignaturesPerQuery = 1000
-
-	// NumGetBlockRetries is how many times we will try to query for a slot, allowing for skipped / missing slots.
-	NumGetBlockRetries = 25
-)
+// MaxSignaturesPerQuery is the maximum number of transactions to be returned by `GetSignaturesForAddressWithOpts`.
+// The max / default is 1000. You can set this to something smaller (like 5) to test pagination.
+const MaxSignaturesPerQuery = 1000
 
 // transactionProcessor is the entry point of the runnable that periodically queries for new Wormhole observations.
 // It uses the standard `DefaultPollDelay`, although the timing will vary based on query delays. Each interval, it
@@ -82,7 +77,7 @@ func (s *SolanaWatcher) getPrevWormholeSignature() (solana.Signature, error) {
 		return solana.Signature{}, err
 	}
 
-	return signatures[len(signatures)-1].Signature, nil
+	return signatures[0].Signature, nil
 }
 
 // processNewTransactions checks for new transactions involving the core contract and processes them.
