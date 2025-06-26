@@ -17,8 +17,8 @@ const ci = process.env.CI == "true";
 
 const ETH_NODE_URL = ci ? "http://eth-devnet:8545" : "http://localhost:8545";
 
-const ETH_PRIVATE_KEY10 =
-  "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f";
+const ETH_PRIVATE_KEY14 =
+  "0x21d7212f3b4e5332fd465877b64926e3532653e2798a11255a46f533852dfe46";
 
 const GUARDIAN_HOST = ci ? "guardian" : "localhost";
 const GUARDIAN_RPCS = [`http://${GUARDIAN_HOST}:7071`];
@@ -40,7 +40,7 @@ const numBlocks = 5;
 beforeAll(async () => {
   // 1. create a signer for Eth
   ethProvider = new ethers.providers.JsonRpcProvider(ETH_NODE_URL);
-  ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY10, ethProvider);
+  ethSigner = new ethers.Wallet(ETH_PRIVATE_KEY14, ethProvider);
 
   // 1. Connect to the custom consistency contract so we can read the config.
   cclContract = new ethers.Contract(
