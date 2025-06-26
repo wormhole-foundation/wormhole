@@ -10,7 +10,7 @@ import (
 )
 
 func TestTokenListSize(t *testing.T) {
-	tokenConfigEntries := tokenList()
+	tokenConfigEntries := TokenList()
 
 	// We should have a sensible number of tokens
 	// These numbers shouldn't have to change frequently
@@ -22,13 +22,13 @@ func TestTokenListSize(t *testing.T) {
 }
 
 func TestTokenListAddressSize(t *testing.T) {
-	tokenConfigEntries := tokenList()
+	tokenConfigEntries := TokenList()
 
 	/* Assume that token addresses must always be 32 bytes (64 chars) */
 	for _, tokenConfigEntry := range tokenConfigEntries {
-		testLabel := vaa.ChainID(tokenConfigEntry.chain).String() + ":" + tokenConfigEntry.symbol
+		testLabel := vaa.ChainID(tokenConfigEntry.Chain).String() + ":" + tokenConfigEntry.Symbol
 		t.Run(testLabel, func(t *testing.T) {
-			assert.Equal(t, len(tokenConfigEntry.addr), 64)
+			assert.Equal(t, len(tokenConfigEntry.Addr), 64)
 		})
 	}
 }
@@ -56,17 +56,17 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 		t.Logf("This test ignored the following chains: %s\n", strings.Join(ignoredOutput, "\n"))
 	}
 
-	tokenConfigEntries := tokenList()
+	tokenConfigEntries := TokenList()
 
-	for _, chainConfigEntry := range chainList() {
-		e := chainConfigEntry.emitterChainID
+	for _, chainConfigEntry := range ChainList() {
+		e := chainConfigEntry.EmitterChainID
 		if _, ignored := ignoredChains[e]; ignored {
 			continue
 		}
 		t.Run(e.String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
-				if tokenConfigEntry.chain == uint16(e) {
+				if tokenConfigEntry.Chain == uint16(e) {
 					found = true
 					break
 				}
@@ -76,9 +76,9 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 	}
 
 	// Make sure we're not ignoring any chains with governed tokens.
-	for _, tokenEntry := range tokenList() {
-		t.Run(vaa.ChainID(tokenEntry.chain).String(), func(t *testing.T) {
-			if _, exists := ignoredChains[vaa.ChainID(tokenEntry.chain)]; exists {
+	for _, tokenEntry := range TokenList() {
+		t.Run(vaa.ChainID(tokenEntry.Chain).String(), func(t *testing.T) {
+			if _, exists := ignoredChains[vaa.ChainID(tokenEntry.Chain)]; exists {
 				assert.Fail(t, "Chain is in ignoredChains but it has governed tokens")
 			}
 		})
@@ -86,36 +86,36 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 }
 
 func TestTokenListTokenAddressDuplicates(t *testing.T) {
-	tokenConfigEntries := tokenList()
+	tokenConfigEntries := TokenList()
 
 	/* Assume that all governed token entry addresses won't include duplicates */
 	addrs := make(map[string]string)
 	for _, e := range tokenConfigEntries {
 		// In a few cases, the same address exists on multiple chains, so we need to compare both the chain and the address.
 		// Also using that as the map payload so if we do have a duplicate, we can print out something meaningful.
-		key := fmt.Sprintf("%v:%v", e.chain, e.addr)
+		key := fmt.Sprintf("%v:%v", e.Chain, e.Addr)
 		assert.Equal(t, "", addrs[key])
-		addrs[key] = key + ":" + e.symbol
+		addrs[key] = key + ":" + e.Symbol
 	}
 }
 
 func TestTokenListEmptySymbols(t *testing.T) {
-	tokenConfigEntries := tokenList()
+	tokenConfigEntries := TokenList()
 
 	/* Assume that all governed token entry symbol strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenConfigEntries {
 		// Some Solana tokens don't have the symbol set. For now, we'll still enforce this for other chains.
-		if len(tokenConfigEntry.symbol) == 0 && vaa.ChainID(tokenConfigEntry.chain) != vaa.ChainIDSolana {
-			assert.Equal(t, "", fmt.Sprintf("token %v:%v does not have the symbol set", tokenConfigEntry.chain, tokenConfigEntry.addr))
+		if len(tokenConfigEntry.Symbol) == 0 && vaa.ChainID(tokenConfigEntry.Chain) != vaa.ChainIDSolana {
+			assert.Equal(t, "", fmt.Sprintf("token %v:%v does not have the symbol set", tokenConfigEntry.Chain, tokenConfigEntry.Addr))
 		}
 	}
 }
 
 func TestTokenListEmptyCoinGeckoId(t *testing.T) {
-	tokenConfigEntries := tokenList()
+	tokenConfigEntries := TokenList()
 
 	/* Assume that all governed token entry coingecko id strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenConfigEntries {
-		assert.Greater(t, len(tokenConfigEntry.coinGeckoId), 0)
+		assert.Greater(t, len(tokenConfigEntry.CoinGeckoId), 0)
 	}
 }
