@@ -209,7 +209,24 @@ is treated as though it had consistency level 202 (finalized).
 Currently, the only supported custom handling is to wait the configured number of additional blocks after the specified
 consistency level. For instance, if the integrator has configured their emitter address in the `CustomConsistencyLevel`
 contract as consistencyLevel == `201` and additional blocks == 5, then the watcher will not approve the observation until
-five blocks after when the observation block is marked safe (note, not five safe blocks, but five blocks after safe).
+five safe blocks after when the observation block is marked safe.
+
+##### Usage on chains that publish bursts
+
+Since safe and finalized blocks on Ethereum advance in bursts, rather than one-by-one, it probably does not make sense to use
+this feature for safe or finalized. Either "safe plus two" will happen at the same time as the observed block is marked safe,
+or it will wait until the next burst, which could be an arbitrarily long time.
+
+However, this feature might be useful on Ethereum to wait X blocks after the block is published as latest. For instance,
+if an integrator has configured their emitter address in the `CustomConsistencyLevel` contract as consistencyLevel == `200`
+and additional blocks == 2, the observation would get published two blocks after the observed block.
+
+##### Usage on chains that publish incrementally
+
+On chains like Hyper EVM, where safe and finalized are published regularly, this feature might be useful to wait X blocks
+after the block is published as safe or finalized, since that would happen in a predictable fashion. For instance,
+if an integrator has configured their emitter address in the `CustomConsistencyLevel` contract as consistencyLevel == `201`
+and additional blocks == 2, the observation would get published two safe blocks after the observed block is marked safe.
 
 #### Solana
 
