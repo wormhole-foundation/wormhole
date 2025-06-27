@@ -24,6 +24,8 @@ To add a new ChainID to Wormhole:
    - Add to governor chain lists (`node/pkg/governor/mainnet_chains.go`)
    - Add manual tokens if required (`node/pkg/governor/manual_tokens.go`)
    - Update any chain-specific configuration files
+   - Add the ChainID in `proto/publicrpc/v1/publicrpc.proto`.
+   - If watcher support is necessary, update the guardian code.
 
 # Directory Structure
 
