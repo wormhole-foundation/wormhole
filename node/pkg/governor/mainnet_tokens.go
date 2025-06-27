@@ -1,5 +1,5 @@
 package governor
 
-func tokenList() []tokenConfigEntry {
+func TokenList() []TokenConfigEntry {
 	return append(manualTokenList(), generatedMainnetTokenList()...)
 }

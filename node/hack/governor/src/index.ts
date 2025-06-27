@@ -123,8 +123,8 @@ axios
       MinNotional +
       "\n\n";
     content += "package governor\n\n";
-    content += "func generatedMainnetTokenList() []tokenConfigEntry {\n";
-    content += "\treturn []tokenConfigEntry {\n";
+    content += "func generatedMainnetTokenList() []TokenConfigEntry {\n";
+    content += "\treturn []TokenConfigEntry {\n";
 
     var significantPriceChanges = [];
     var addedTokens = [];
@@ -257,17 +257,17 @@ axios
             }
             
             content +=
-              "\t{ chain: " +
+              "\t{ Chain: " +
               chain +
-              ', addr: "' +
+              ', Addr: "' +
               wormholeAddr +
-              '", symbol: "' +
+              '", Symbol: "' +
               data.Symbol +
-              '", coinGeckoId: "' +
+              '", CoinGeckoId: "' +
               data.CoinGeckoId +
-              '", decimals: ' +
+              '", Decimals: ' +
               data.TokenDecimals +
-              ", price: " +
+              ", Price: " +
               data.TokenPrice +
               " }, // Addr: " +
               data.Address +
