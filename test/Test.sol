@@ -289,7 +289,7 @@ contract VerificationV2Test is Test {
 	}
 
 	function createVaaV2(
-		uint32 guardianSetIndex,
+		uint32 tssIndex,
 		address r,
 		uint256 s,
 		bytes memory envelope
@@ -297,7 +297,7 @@ contract VerificationV2Test is Test {
 		return abi.encodePacked(
 			// Header
 			uint8(2), // version
-			guardianSetIndex, // guardian set index
+			tssIndex, // TSS index
 			r,
 			s,
 			envelope
@@ -532,7 +532,47 @@ contract VerificationV2Test is Test {
 		assertEq(result.length, 0);
 	}
 
-	function test_veifyAndDecodeVaaV2() public {
+	function testRevert_verifyVaaV2_notRegisteredKey() public {
+    assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
+
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		bytes memory payload = new bytes(49);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+    uint32 notRegisteredKeyTssIndex = 3;
+		bytes memory vaa = createVaaV2(notRegisteredKeyTssIndex, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyVaa(vaa);
+
+    vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	} 
+
+	function test_verifyVaaV2_skippedKey() public {
+    uint32 tssIndex = 5;
+    bytes memory payload = createThresholdKeyUpdatePayload(tssIndex, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope);
+
+		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
+    assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa2)), true);
+
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		payload = new bytes(49);
+		envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+    uint32 skippedTssIndex = 3;
+		bytes memory vaa = createVaaV2(skippedTssIndex, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyVaa(vaa);
+
+		vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	}
+
+	function test_verifyAndDecodeVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
@@ -647,13 +687,5 @@ contract VerificationV2Test is Test {
 			0,
 			r, s, v
 		)), false);
-	}
-
-	function testEcrecover_zero() public {
-		// TODO: turn this into a test that attempts to verify a VAA that refers to an uninitialized TSS key.
-		// We should have one for skipped keys and one for untouched future keys.
-		// Verification should fail in all cases.
-		address result = ecrecover(bytes32(Q), 0, 0, 0);
-		assertEq(result, address(0));
 	}
 }
