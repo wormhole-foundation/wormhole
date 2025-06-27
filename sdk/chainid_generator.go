@@ -1,6 +1,25 @@
 //go:build ignore
 
+// ChainID Auto-Generation Tool
+//
 // This file generates the ChainID methods for the VAA struct in the SDK.
+// It automatically creates String(), ChainIDFromString(), and GetAllNetworkIDs()
+// methods by parsing ChainID constants from vaa/structs.go.
+//
+// ADDING A NEW CHAINID:
+// 1. Add the new ChainID constant to vaa/structs.go following the pattern:
+//    // ChainIDNewChain is the ChainID of NewChain
+//    ChainIDNewChain ChainID = 99
+//
+// 2. Run `make go-generate` to regenerate the methods in vaa/chainid_generated.go
+//
+// 3. The generator will automatically:
+//    - Extract the chain name from the constant (removes "ChainID" prefix)
+//    - Convert to lowercase for string representation
+//    - Handle special cases like testnet names (e.g., "PolygonSepolia" -> "polygon_sepolia")
+//    - Add the new chain to all generated methods
+//
+// The generated file should never be edited manually - always regenerate it.
 package main
 
 import (
@@ -23,7 +42,9 @@ type ChainInfo struct {
 }
 
 func main() {
-	// Parse the source file to extract ChainID constants
+	// Parse the source file to extract ChainID constants from vaa/structs.go
+	// This reads the Go source code and builds an Abstract Syntax Tree (AST)
+	// to programmatically find all ChainID constant declarations
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "vaa/structs.go", nil, parser.ParseComments)
 	if err != nil {
@@ -31,52 +52,60 @@ func main() {
 	}
 
 	// Stores each ChainID declared as a constant in vaa/structs.go
+	// Each ChainInfo contains the chain name, numeric value, and Go constant name
 	var chains []ChainInfo
 
 	// Walk the AST to find ChainID constants
+	// This traverses the parsed Go code looking for constant declarations
+	// that have the type "ChainID"
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.GenDecl:
 			if x.Tok == token.CONST {
 				for _, spec := range x.Specs {
 					if vspec, ok := spec.(*ast.ValueSpec); ok {
-						// Check if this is a ChainID constant
-						if vspec.Type != nil {
-							if ident, ok := vspec.Type.(*ast.Ident); ok && ident.Name == "ChainID" {
-								for i, name := range vspec.Names {
-									if name.Name == "ChainIDUnset" {
-										// Skip the unset value
-										continue
-									}
+					// Check if this is a ChainID constant by examining the type
+					if vspec.Type != nil {
+						if ident, ok := vspec.Type.(*ast.Ident); ok && ident.Name == "ChainID" {
+							for i, name := range vspec.Names {
+								if name.Name == "ChainIDUnset" {
+									// Skip the unset value (ChainIDUnset = 0)
+									// This is a special case that shouldn't be included in generated methods
+									continue
+								}
 
-									var value int
-									if len(vspec.Values) > i {
-										if basic, ok := vspec.Values[i].(*ast.BasicLit); ok {
-											if v, err := strconv.Atoi(basic.Value); err == nil {
-												value = v
-											}
+								// Extract the numeric value from the constant declaration
+								var value int
+								if len(vspec.Values) > i {
+									if basic, ok := vspec.Values[i].(*ast.BasicLit); ok {
+										if v, err := strconv.Atoi(basic.Value); err == nil {
+											value = v
 										}
 									}
-
-									// Extract the chain name from the constant name
-									chainName := strings.TrimPrefix(name.Name, "ChainID")
-
-									// Convert to lowercase for string representation
-									chainNameLower := strings.ToLower(chainName)
-
-									// Separate alt-EVM testnet names with underscores.
-									// e.g. `PolygonSepolia` --> `polygon_sepolia`.
-									// (Don't match on "sepolia" itself though.)
-									if strings.HasSuffix(chainNameLower, "sepolia") && len(chainNameLower) > len("sepolia") {
-										chainNameLower = fmt.Sprintf("%s_sepolia", strings.TrimSuffix(chainNameLower, "sepolia"))
-									}
-
-									chains = append(chains, ChainInfo{
-										Name:   chainNameLower,
-										Value:  value,
-										GoName: name.Name,
-									})
 								}
+
+								// Extract the chain name from the constant name
+								// e.g., "ChainIDEthereum" -> "Ethereum"
+								chainName := strings.TrimPrefix(name.Name, "ChainID")
+
+								// Convert to lowercase for string representation
+								// e.g., "Ethereum" -> "ethereum"
+								chainNameLower := strings.ToLower(chainName)
+
+								// Handle special naming for testnet chains
+								// Separate alt-EVM testnet names with underscores.
+								// e.g. `PolygonSepolia` --> `polygon_sepolia`.
+								// (Don't match on "sepolia" itself though.)
+								if strings.HasSuffix(chainNameLower, "sepolia") && len(chainNameLower) > len("sepolia") {
+									chainNameLower = fmt.Sprintf("%s_sepolia", strings.TrimSuffix(chainNameLower, "sepolia"))
+								}
+
+								// Store the chain information for code generation
+								chains = append(chains, ChainInfo{
+									Name:   chainNameLower, // String representation (e.g., "ethereum")
+									Value:  value,          // Numeric ID (e.g., 2)
+									GoName: name.Name,      // Go constant name (e.g., "ChainIDEthereum")
+								})								}
 							}
 						}
 					}
@@ -86,12 +115,17 @@ func main() {
 		return true
 	})
 
-	// Sort by value for consistent output
+	// Sort by numeric value for consistent output
+	// This ensures the generated code has chains in the same order as the constants
 	sort.Slice(chains, func(i, j int) bool {
 		return chains[i].Value < chains[j].Value
 	})
 
-	// Generate the code template.
+	// Generate the code template for the output file
+	// This template creates three methods:
+	// 1. String() - converts ChainID to string representation
+	// 2. ChainIDFromString() - converts string to ChainID
+	// 3. GetAllNetworkIDs() - returns slice of all known ChainIDs
 	// NOTE: This should follow gofumpt formatting in order to pass CI checks.
 	tmpl := `// Code generated by go generate; DO NOT EDIT.
 
@@ -140,6 +174,7 @@ func GetAllNetworkIDs() []ChainID {
 }
 `
 
+	// Write the generated code to the output file
 	outfile := "vaa/chainid_generated.go"
 	t, err := template.New("chainid").Parse(tmpl)
 	if err != nil {
@@ -152,6 +187,7 @@ func GetAllNetworkIDs() []ChainID {
 	}
 	defer output.Close()
 
+	// Execute the template with the extracted chain information
 	err = t.Execute(output, struct {
 		Chains []ChainInfo
 	}{
@@ -161,5 +197,5 @@ func GetAllNetworkIDs() []ChainID {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Generated %s\n", outfile)
+	fmt.Printf("Generated %s with %d chains\n", outfile, len(chains))
 }
