@@ -6,8 +6,6 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 2, Addr: "0000000000000000000000006c3ea9036406852006290770bedfcaba0e23a0e8", Symbol: "PYUSD", CoinGeckoId: "paypal-usd", Decimals: 6, Price: 1.00},
 		{Chain: 2, Addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},   // Near on ethereum
 		{Chain: 8, Addr: "000000000000000000000000000000000000000000000000000000000004c5c1", Symbol: "USDt", CoinGeckoId: "tether", Decimals: 6, Price: 1.002}, // Addr: 312769, Notional: 22.31747085
-		{Chain: 12, Addr: "0000000000000000000000000000000000000000000100000000000000000002", Symbol: "DOT", CoinGeckoId: "polkadot", Decimals: 10, Price: 6.48},
-		{Chain: 12, Addr: "0000000000000000000000000000000000000000000100000000000000000000", Symbol: "ACA", CoinGeckoId: "acala", Decimals: 12, Price: 0.05694},
 		{Chain: 13, Addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", Symbol: "KLEVA", CoinGeckoId: "kleva", Decimals: 18, Price: 0.086661},
 		{Chain: 13, Addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", Symbol: "WEMIX", CoinGeckoId: "wemix-token", Decimals: 18, Price: 1.74},
 		{Chain: 15, Addr: "0000000000000000000000000000000000000000000000000000000000000000", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},
