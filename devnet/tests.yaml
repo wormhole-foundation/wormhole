@@ -123,4 +123,29 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
 ---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: custom-consistency-level-ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: custom-consistency-level-ci-tests
+          image: sdk-test-image
+          command:
+            - /bin/sh
+            - -c
+            - "bash /app/testing/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh && touch /app/testing/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
 
