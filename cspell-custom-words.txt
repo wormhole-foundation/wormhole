@@ -30,6 +30,8 @@ celestia
 Celestia
 celo
 certusone
+chainid
+ChainID
 Chainlink
 Coinspect
 collateralization
