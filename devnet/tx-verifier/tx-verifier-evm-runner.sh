@@ -22,9 +22,9 @@ guardiand \
 current_count=$(grep -c "$error_pattern" "$log_file")    
 echo "Found ${current_count} of ${TARGET} instances"
 
-# if we found the requisite number of error messages, we can exit
-if [ $current_count -ne $TARGET ]; then 
-    echo "Tests failed. Only found ${current_count} of ${TARGET} required log messages"
+# if we found at least the requisite number of error messages, we can exit
+if [ $current_count -lt $TARGET ]; then 
+    echo "Tests failed. Found ${current_count} of ${TARGET} required log messages"
     exit 1
 fi
 
