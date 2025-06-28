@@ -10,7 +10,7 @@ import (
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	cosmossdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +60,7 @@ func TestParseBatchTransferStatusCommittedResponse(t *testing.T) {
 	expectedTokenAddress, err := vaa.StringToAddress("0000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a")
 	require.NoError(t, err)
 
-	expectedAmount := cosmossdk.NewInt(1000000000000000000)
+	expectedAmount := math.NewInt(1000000000000000000)
 
 	expectedDigest, err := hex.DecodeString("d676db7dfffbfda8bd18952ce21d89ca616e3b8f9771ab02eadd398255dcf7d3")
 	require.NoError(t, err)
