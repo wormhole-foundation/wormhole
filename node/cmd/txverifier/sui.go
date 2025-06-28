@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	INITIAL_EVENT_FETCH_LIMIT = 25
+	InitialEventFetchLimit = 25
+	EventQueryInterval     = 2 * time.Second
 )
 
 // CLI args
@@ -55,8 +56,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
 	// Setup logging
-	// lvl, err := ipfslog.LevelFromString(*logLevel)
-	lvl, err := ipfslog.LevelFromString("info")
+	lvl, err := ipfslog.LevelFromString(*logLevel)
 	if err != nil {
 		fmt.Println("Invalid log level")
 		os.Exit(1)
@@ -108,16 +108,16 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			zap.String("suiTokenBridgeContract", *suiTokenBridgeContract))
 	}
 
+	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
+
 	// Create a new SuiTransferVerifier
-	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreContract, *suiTokenBridgeEmitter, *suiTokenBridgeContract)
+	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreContract, *suiTokenBridgeEmitter, *suiTokenBridgeContract, suiApiConnection)
 
 	// Get the event filter
 	eventFilter := suiTransferVerifier.GetEventFilter()
 
-	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
-
 	// Initial event fetching
-	resp, err := suiApiConnection.QueryEvents(eventFilter, "null", INITIAL_EVENT_FETCH_LIMIT, true)
+	resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", InitialEventFetchLimit, true)
 	if err != nil {
 		logger.Fatal("Error in querying initial events", zap.Error(err))
 	}
@@ -146,7 +146,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 		logger.Info("Processing initial events")
 		for _, event := range initialEvents {
 			if event.ID.TxDigest != nil {
-				_, err = suiTransferVerifier.ProcessDigest(*event.ID.TxDigest, suiApiConnection, logger)
+				_, err = suiTransferVerifier.ProcessDigest(ctx, *event.ID.TxDigest, logger)
 				if err != nil {
 					logger.Error(err.Error())
 				}
@@ -155,7 +155,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	}
 
 	// Ticker for live processing
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(EventQueryInterval)
 	defer ticker.Stop()
 
 	for {
@@ -164,7 +164,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			logger.Info("Context cancelled")
 		case <-ticker.C:
 			// Fetch new events
-			resp, err := suiApiConnection.QueryEvents(eventFilter, "null", 25, true)
+			resp, err := suiApiConnection.QueryEvents(ctx, eventFilter, "null", InitialEventFetchLimit, true)
 			if err != nil {
 				logger.Error("Error in querying new events", zap.Error(err))
 				continue
@@ -195,7 +195,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			}
 
 			for _, txDigest := range txDigests {
-				_, err := suiTransferVerifier.ProcessDigest(txDigest, suiApiConnection, logger)
+				_, err := suiTransferVerifier.ProcessDigest(ctx, txDigest, logger)
 				if err != nil {
 					logger.Error(err.Error())
 				}
