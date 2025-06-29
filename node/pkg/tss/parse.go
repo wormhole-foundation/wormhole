@@ -30,7 +30,8 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 			return nil, fmt.Errorf("couldn't fetch identity from index %d: %w", senderId, err)
 		}
 
-		p, err := common.ParseWireMessage(v.TssContent.Payload, id.Pid, true)
+		// since this is a broadcast, we set the `to` field to nil, indicating no specific recipient.
+		p, err := common.ParseWireMessage(v.TssContent.Payload, id.Pid, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +74,6 @@ func (t *Engine) parseBroadcast(m Incoming) (broadcastMessage, error) {
 	}
 }
 
-// TODO: this is used for keygen/reshare only since frost doesn't use unicasts.
 func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *Identity) (*parsedTssContent, error) {
 	if err := validateContentCorrectForm(m); err != nil {
 		return nil, err
@@ -81,7 +81,8 @@ func (t *Engine) parseTssContent(m *tsscommv1.TssContent, source *Identity) (*pa
 
 	spid := source.getPidCopy()
 
-	p, err := common.ParseWireMessage(m.Payload, spid, false)
+	// since this is a unicast, we set the `to` field to self.
+	p, err := common.ParseWireMessage(m.Payload, spid, t.GuardianStorage.Self.Pid)
 	if err != nil {
 		return nil, err
 	}

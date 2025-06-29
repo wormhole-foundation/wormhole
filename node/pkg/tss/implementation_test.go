@@ -772,7 +772,7 @@ func (b *badtssMessage) ValidateBasic() bool            { return true }
 func (b *badtssMessage) GetRound() int                  { return 2 }
 func (b *badtssMessage) Content() common.MessageContent { return nil }
 func (b *badtssMessage) GetFrom() *common.PartyID       { panic("unimplemented") }
-func (b *badtssMessage) GetTo() []*common.PartyID       { panic("unimplemented") }
+func (b *badtssMessage) GetTo() *common.PartyID         { panic("unimplemented") }
 func (b *badtssMessage) IsBroadcast() bool              { panic("unimplemented") }
 func (b *badtssMessage) IsToOldAndNewCommittees() bool  { panic("unimplemented") }
 func (b *badtssMessage) IsToOldCommittee() bool         { panic("unimplemented") }
@@ -802,9 +802,9 @@ func TestRouteCheck(t *testing.T) {
 	defer cancel()
 
 	e1.Start(ctx)
-	e1.fpOutChan <- &badtssMessage{}
-	e1.fpErrChannel <- common.NewTrackableError(errors.New("test"), "test", -1, nil, &tsscommon.TrackingID{})
-	e1.fpErrChannel <- nil
+	e1.fpCommChans.OutChannel <- &badtssMessage{}
+	e1.fpCommChans.ErrChannel <- common.NewTrackableError(errors.New("test"), "test", -1, nil, &tsscommon.TrackingID{})
+	e1.fpCommChans.ErrChannel <- nil
 
 	time.Sleep(time.Millisecond * 200)
 }
@@ -1399,7 +1399,7 @@ func generateFakeMessageWithRandomContent(from, to *common.PartyID, rnd signingR
 	rndmBigNumber.SetBytes(buf)
 
 	var (
-		meta    = common.MessageRouting{From: from, IsBroadcast: true}
+		meta    = common.MessageRouting{From: from, To: nil} // broadcast message since `To` is nil.
 		content common.MessageContent
 	)
 
@@ -1413,7 +1413,7 @@ func generateFakeMessageWithRandomContent(from, to *common.PartyID, rnd signingR
 		if to == nil {
 			panic("not a broadcast message")
 		}
-		meta = common.MessageRouting{From: from, To: []*common.PartyID{to}, IsBroadcast: false}
+		meta = common.MessageRouting{From: from, To: to} // unicast message since `To` isn't nil.
 
 		content = &sign.Broadcast3{
 			Zi: rndmBigNumber.Bytes(),
@@ -1735,7 +1735,7 @@ func TestSigCounter(t *testing.T) {
 		// test:
 		a.Equal(e1.sigCounter.digestToGuardiansLen(), 1)
 		select {
-		case e1.fpErrChannel <- common.NewTrackableError(fmt.Errorf("dummyerr"), "de", -1, e1.Self.Pid, tid):
+		case e1.fpCommChans.ErrChannel <- common.NewTrackableError(fmt.Errorf("dummyerr"), "de", -1, e1.Self.Pid, tid):
 		case <-time.After(time.Second * 1):
 			t.FailNow()
 			return
@@ -1780,7 +1780,7 @@ func TestSigCounter(t *testing.T) {
 
 		// test:
 		a.Equal(e1.sigCounter.digestToGuardiansLen(), 1)
-		e1.fpSigOutChan <- &tsscommon.SignatureData{
+		e1.fpCommChans.SignatureOutputChannel <- &tsscommon.SignatureData{
 			Signature:         []byte{},
 			SignatureRecovery: []byte{},
 			R:                 []byte{},
@@ -1905,4 +1905,49 @@ func TestTrackingIDSizeIsOkay(t *testing.T) {
 
 	tidstr := tid.ToString()
 	assert.Equal(t, len(tidstr), trackingIDHexStrSize)
+}
+
+func TestDKG(t *testing.T) {
+	a := assert.New(t)
+
+	engines, err := loadGuardians(5, "tss5")
+	a.NoError(err)
+
+	for _, e := range engines { // Checks things work when no frost config is set.
+		e.GuardianStorage.frostconf = nil
+	}
+
+	supctx := testutils.MakeSupervisorContext(context.Background())
+	ctx, cancel := context.WithTimeout(supctx, time.Minute*1)
+	defer cancel()
+
+	for _, engine := range engines {
+		a.NoError(engine.Start(ctx))
+	}
+
+	_ = msgHandler(ctx, engines, 1)
+
+	promises := make([]chan *frost.Config, len(engines))
+	for _, engine := range engines {
+		chn, err := engine.StartDKG()
+		a.NoError(err)
+
+		promises[engine.Self.CommunicationIndex] = chn
+	}
+	fmt.Println("dkg started, waiting for configs...")
+
+	res := make([]*frost.Config, len(engines))
+	for _, v := range engines {
+		select {
+		case <-ctx.Done():
+			a.FailNow("context expired before DKG finished")
+		case cfg := <-promises[v.Self.CommunicationIndex]:
+			fmt.Println("received config for", v.Self.CommunicationIndex)
+			res[v.Self.CommunicationIndex] = cfg
+		}
+	}
+
+	fmt.Println("DKG finished, configs:")
+
+	fmt.Println("")
 }

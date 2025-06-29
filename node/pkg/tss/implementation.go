@@ -27,6 +27,8 @@ import (
 
 type uuid digest // distinguishing between types to avoid confusion.
 
+type fpCommunicationChannels party.StartParams
+
 // Engine is the implementation of reliableTSS, it is a wrapper for the
 // tss-lib fullParty and adds  hash-broadcast logic
 // to the message sending and receiving.
@@ -39,11 +41,9 @@ type Engine struct {
 	fpParams *party.Parameters
 	fp       party.FullParty
 
-	fpOutChan      chan common.ParsedMessage
-	fpSigOutChan   chan *common.SignatureData // output inspected in fpListener.
+	fpCommChans    fpCommunicationChannels
 	sigOutChan     chan *common.SignatureData // actual sig output.
 	messageOutChan chan Sendable
-	fpErrChannel   chan *common.Error // used to log issues from the FullParty.
 
 	started         atomic.Uint32
 	msgSerialNumber uint64
@@ -388,14 +388,18 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 		logger:          &zap.Logger{},
 		GuardianStorage: *storage,
 
-		fpParams:     fpParams,
-		fp:           fp,
-		fpOutChan:    make(chan common.ParsedMessage, expectedMsgs),
-		fpSigOutChan: make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
-		sigOutChan:   make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
+		fpParams: fpParams,
+		fp:       fp,
+		fpCommChans: fpCommunicationChannels{
+			OutChannel:             make(chan common.ParsedMessage, expectedMsgs),
+			SignatureOutputChannel: make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
+			ErrChannel:             make(chan *common.Error, storage.maxSimultaneousSignatures),
+			KeygenOutputChannel:    make(chan *frost.Config, 1), // shouldn't output often.
+		},
 
-		fpErrChannel:    make(chan *common.Error, storage.maxSimultaneousSignatures),
-		messageOutChan:  make(chan Sendable, expectedMsgs),
+		sigOutChan:     make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
+		messageOutChan: make(chan Sendable, expectedMsgs),
+
 		msgSerialNumber: 0,
 		mtx:             &sync.Mutex{},
 		received:        map[uuid]*broadcaststate{},
@@ -429,7 +433,7 @@ func (t *Engine) Start(ctx context.Context) error {
 		With(zap.String("hostname", t.GuardianStorage.Self.Hostname)).
 		Named("tss")
 
-	if err := t.fp.Start(t.fpOutChan, t.fpSigOutChan, t.fpErrChannel); err != nil {
+	if err := t.fp.Start(party.StartParams(t.fpCommChans)); err != nil {
 		t.started.Store(notStarted)
 
 		return err
@@ -503,13 +507,13 @@ func (t *Engine) fpListener() {
 			cleanUpTicker.Stop()
 
 			return
-		case m := <-t.fpOutChan:
+		case m := <-t.fpCommChans.OutChannel:
 			t.handleFpOutput(m)
 
-		case err := <-t.fpErrChannel:
+		case err := <-t.fpCommChans.ErrChannel:
 			t.handleFpError(err)
 
-		case sig := <-t.fpSigOutChan:
+		case sig := <-t.fpCommChans.SignatureOutputChannel:
 			t.handleFpSignature(sig)
 
 		case <-cleanUpTicker.C:
@@ -669,7 +673,7 @@ func (t *Engine) intoSendable(m common.Message) (Sendable, error) {
 
 	var sendable Sendable
 
-	if routing.IsBroadcast || len(routing.To) == 0 {
+	if routing.IsBroadcast() {
 		msgToSend := &tsscommv1.SignedMessage{
 			Content:   content,
 			Sender:    t.Self.CommunicationIndex.toProto(),
@@ -684,14 +688,9 @@ func (t *Engine) intoSendable(m common.Message) (Sendable, error) {
 
 		sendable = newEcho(msgToSend, t.Identities)
 	} else {
-		recipients := make([]*Identity, 0, len(routing.To))
-		for _, pId := range routing.To {
-			id, err := t.GuardianStorage.fetchIdentityFromPartyID(pId)
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch identity for partyID: %w", err)
-			}
-
-			recipients = append(recipients, id)
+		recipient, err := t.GuardianStorage.fetchIdentityFromPartyID(routing.To)
+		if err != nil {
+			return nil, fmt.Errorf("intoSendable: couldn't fetch partyID: %w", err)
 		}
 
 		sendable = &Unicast{
@@ -700,7 +699,7 @@ func (t *Engine) intoSendable(m common.Message) (Sendable, error) {
 					Tss: content.TssContent,
 				},
 			},
-			Receipients: recipients,
+			Receipients: []*Identity{recipient},
 		}
 	}
 
@@ -810,18 +809,17 @@ func (t *Engine) feedIncomingToFp(parsed common.ParsedMessage) error {
 
 	maxLiveSignatures := t.GuardianStorage.maxSimultaneousSignatures
 
-	if ok := t.sigCounter.add(trackId, from, maxLiveSignatures); ok {
-		_, err := t.fp.Update(parsed)
-		if err != nil {
-			return fmt.Errorf("failed to update full party with incoming message: %w", err)
-		}
+	if ok := t.sigCounter.add(trackId, from, maxLiveSignatures); !ok {
+		tooManySimulSigsErrCntr.Inc()
 
-		return nil
+		return fmt.Errorf("guardian %v has reached the maximum number of simultaneous signatures", id.Hostname)
 	}
 
-	tooManySimulSigsErrCntr.Inc()
+	if err := t.fp.Update(parsed); err != nil {
+		return fmt.Errorf("failed to update full party with incoming message: %w", err)
+	}
 
-	return fmt.Errorf("guardian %v has reached the maximum number of simultaneous signatures", id.Hostname)
+	return nil
 }
 
 // handleUnicast is responsible to handle any incoming unicast messages.
@@ -965,4 +963,24 @@ func (st *GuardianStorage) verifySignedMessage(uid uuid, msg *tsscommv1.SignedMe
 	}
 
 	return nil
+}
+
+func (t *Engine) StartDKG() (chan *frost.Config, error) {
+	if t == nil {
+		return nil, fmt.Errorf("tss engine is nil")
+	}
+
+	if t.started.Load() != started {
+		return nil, fmt.Errorf("tss engine hasn't started")
+	}
+
+	if t.fp == nil {
+		return nil, fmt.Errorf("tss engine is not set up correctly, use NewReliableTSS to create a new engine")
+	}
+
+	t.logger.Info("starting DKG")
+
+	err := t.fp.StartDKG(t.GuardianStorage.Threshold, party.Digest{}) // TODO: Decide how to handle the digest.
+
+	return t.fpCommChans.KeygenOutputChannel, err
 }

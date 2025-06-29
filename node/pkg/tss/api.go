@@ -11,6 +11,7 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
+	"github.com/xlabs/multi-party-sig/protocols/frost"
 	common "github.com/xlabs/tss-common"
 )
 
@@ -71,11 +72,19 @@ type Signer interface {
 	WitnessNewVaa(v *vaa.VAA) error
 }
 
+type KeyGenerator interface {
+	// StartDKG starts a distributed key generation protocol, which will produce a frost.Config.
+	// Using this config, one can create a frost.Signer.
+	// this function doesn't change disk stored state.
+	StartDKG() (chan *frost.Config, error)
+}
+
 // ReliableTSS represents a TSS engine that can fully support logic of
 // reliable broadcast needed for the security of TSS over the network.
 type ReliableTSS interface {
 	ReliableMessenger
 	Signer
+	KeyGenerator
 
 	SetGuardianSetState(gs *whcommon.GuardianSetState) error
 	Start(ctx context.Context) error

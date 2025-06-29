@@ -34,8 +34,12 @@ func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 		return fmt.Errorf("threshold is higher than the number of guardians")
 	}
 
+	return s.attemptLoadTssSecrets()
+}
+
+func (s *GuardianStorage) attemptLoadTssSecrets() error {
 	if s.TSSSecrets == nil {
-		return fmt.Errorf("TSSSecrets is nil")
+		return nil
 	}
 
 	cnf := frost.EmptyConfig(curve.Secp256k1{})
