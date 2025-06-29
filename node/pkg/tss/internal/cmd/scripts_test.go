@@ -1,4 +1,4 @@
-package playground
+package cmd_test
 
 import (
 	"crypto/ecdsa"
@@ -69,7 +69,7 @@ var hostnames = []string{
 	// "t-gcp-threshsignnet-euw-03.gcp.testnet.xlabs.xyz",
 }
 
-const saveFile = "../lkg/lkg.json"
+const saveFile = "./lkg/lkg.json"
 const specificKeysFolder = "5-servers"
 
 func TestMain(t *testing.T) {
@@ -88,7 +88,7 @@ func storeTestGuardians(t *testing.T) {
 	cnfg := loadConfigs(t)
 
 	mainFolder := "tss5"
-	resultDir := path.Join("..", "..", "..", "..", "internal", "testutils", "testdata", mainFolder)
+	resultDir := path.Join("..", "..", "..", "internal", "testutils", "testdata", mainFolder)
 	cleanResultFolder(t, resultDir)
 
 	// if err := os.MkdirAll(_path, 0755); err != nil {
@@ -100,7 +100,7 @@ func storeTestGuardians(t *testing.T) {
 			t.Fatalf("guardian %d has empty WhereToSaveSecrets", i)
 		}
 
-		_path := path.Join("..", "setkey", "keys", specificKeysFolder, guardian.WhereToSaveSecrets)
+		_path := path.Join("setkey", "keys", specificKeysFolder, guardian.WhereToSaveSecrets)
 		lkgpath := path.Join(_path, "secrets.json")
 
 		//read the file into a GuardianStorage struct
@@ -164,7 +164,7 @@ func sendToServers(t *testing.T) {
 
 	errs := make(chan error, len(cnfg.GuardianSpecifics))
 
-	workdir := path.Join(path.Dir(file), "..", "setkey", "keys", specificKeysFolder)
+	workdir := path.Join(path.Dir(file), "setkey", "keys", specificKeysFolder)
 	fmt.Println("sending files...")
 	for i := range cnfg.GuardianSpecifics {
 		go func(i int) {
@@ -240,7 +240,7 @@ func shoveKeys(t *testing.T) {
 			t.Fatalf("guardian %d has empty WhereToSaveSecrets", i)
 		}
 
-		_path := path.Join("..", "setkey", "keys", specificKeysFolder, guardian.WhereToSaveSecrets)
+		_path := path.Join(".", "setkey", "keys", specificKeysFolder, guardian.WhereToSaveSecrets)
 
 		keypath := path.Join(_path, "key.pem")
 		if err := os.WriteFile(
@@ -254,7 +254,7 @@ func shoveKeys(t *testing.T) {
 		lkgpath := path.Join(_path, "secrets.json")
 
 		args := []string{
-			"run", "../setkey",
+			"run", "./setkey",
 			"--key=" + keypath,
 			"--lkg=" + lkgpath,
 		}
