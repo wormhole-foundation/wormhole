@@ -1508,10 +1508,6 @@ impl TokenBridge {
             token
         ));
 
-        if env::signer_account_id() != sender_id {
-            env::panic_str("signer != sender");
-        }
-
         if ft_info.is_err() {
             env::panic_str("ft_infoError");
         }
