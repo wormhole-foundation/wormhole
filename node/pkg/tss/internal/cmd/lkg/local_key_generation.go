@@ -17,6 +17,7 @@ import (
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
+	"github.com/certusone/wormhole/node/pkg/tss/internal/cmd"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
 	"github.com/xlabs/multi-party-sig/pkg/math/polynomial"
@@ -55,21 +56,8 @@ func main() {
 	Run(cnfg)
 }
 
-type LKGConfig struct {
-	NumParticipants int
-	WantedThreshold int // should be non inclusive. That is, if you have n=19,f=6, then threshold=12 (13 guardians needed to sign).
-
-	GuardianSpecifics []GuardianSpecifics
-}
-
-type GuardianSpecifics struct {
-	Identifier         Identifier
-	WhereToSaveSecrets string // where to save the secrets of this guardian.
-}
-type Identifier struct {
-	// Self Signed, CA level cert.
-	TlsX509 engine.PEM // PEM Encoded (see certs.go). Note, you must have the private key of this cert later.
-}
+type LKGConfig cmd.SetupConfigs
+type Identifier = cmd.Identifier
 
 type dkgPlayer struct {
 	whereToStore string
@@ -198,7 +186,7 @@ func (cnfg *LKGConfig) validate() error {
 		return fmt.Errorf("number of participants should be at least 1")
 	}
 
-	if len(cnfg.GuardianSpecifics) != cnfg.NumParticipants {
+	if len(cnfg.Peers) != cnfg.NumParticipants {
 		return fmt.Errorf("number of guardian identifiers should be equal to number of participants")
 	}
 
@@ -229,6 +217,15 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 
 	all := make([]*dkgPlayer, cnfg.NumParticipants)
 	for _, id := range sortedIDS {
+		index := 0
+		for _, v := range cnfg.Peers {
+			if string(v.TlsX509) == string(id.CertPem) {
+				break
+			}
+
+			index++
+		}
+
 		tmp := make([]byte, 32)
 		copy(tmp, loadBalancingKey)
 
@@ -238,8 +235,8 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 
 		p := &dkgPlayer{
 			self:                id,
-			whereToStore:        gspecific.WhereToSaveSecrets,
-			selfCert:            gspecific.Identifier.TlsX509,
+			whereToStore:        cnfg.SaveLocation[index],
+			selfCert:            gspecific.TlsX509,
 			loadDistributionKey: tmp,
 
 			ids: engine.IdentitiesKeep{
@@ -272,12 +269,12 @@ func sortIdentities(unsortedIdentities map[string]*engine.Identity) []*engine.Id
 	return sortedIDS
 }
 
-func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identity, keyToSpecifics map[string]*GuardianSpecifics, err error) {
+func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identity, keyToSpecifics map[string]*Identifier, err error) {
 	unsortedIdentities = make(map[string]*engine.Identity, cnfg.NumParticipants)
 
-	keyToSpecifics = map[string]*GuardianSpecifics{}
-	for i, dt := range cnfg.GuardianSpecifics {
-		crt, err := internal.PemToCert(dt.Identifier.TlsX509)
+	keyToSpecifics = map[string]*Identifier{}
+	for i, peer := range cnfg.Peers {
+		crt, err := internal.PemToCert(peer.TlsX509)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -303,14 +300,14 @@ func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identit
 				ID: string(bts),
 			},
 			KeyPEM:             bts,
-			CertPem:            dt.Identifier.TlsX509,
+			CertPem:            peer.TlsX509,
 			Cert:               nil, // not stored, since we have the certPem.
 			CommunicationIndex: 0,   // unknown until sorted.
 			Hostname:           dnsName,
 			Port:               0, // undefined.
 		}
 
-		keyToSpecifics[string(bts)] = &cnfg.GuardianSpecifics[i]
+		keyToSpecifics[string(bts)] = &cnfg.Peers[i]
 	}
 
 	return unsortedIdentities, keyToSpecifics, nil

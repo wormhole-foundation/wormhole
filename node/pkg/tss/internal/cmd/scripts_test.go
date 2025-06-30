@@ -1,4 +1,4 @@
-package cmd_test
+package cmd
 
 import (
 	"crypto/ecdsa"
@@ -21,24 +21,6 @@ import (
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 )
-
-type Identifier struct {
-	Hostname  string
-	SecretKey engine.PEM // SecretKey is the secret key of the node. This is used to sign messages.
-	TlsX509   engine.PEM // PEM Encoded (see certs.go). Note, you must have the private key of this cert later.
-}
-
-type LKGConfig struct {
-	NumParticipants int
-	WantedThreshold int // should be non inclusive. That is, if you have n=19,f=6, then threshold=12 (13 guardians needed to sign).
-
-	GuardianSpecifics []GuardianSpecifics
-}
-
-type GuardianSpecifics struct {
-	Identifier         Identifier
-	WhereToSaveSecrets string // where to save the secrets of this guardian.
-}
 
 // create these from scrath, then store it into a single file.
 // json should be able to read it.
@@ -72,6 +54,8 @@ var hostnames = []string{
 const saveFile = "./lkg/lkg.json"
 const specificKeysFolder = "5-servers"
 
+type LKGConfig SetupConfigs
+
 func TestMain(t *testing.T) {
 	t.Skip("skipping main test, use specific tests instead")
 
@@ -94,13 +78,14 @@ func storeTestGuardians(t *testing.T) {
 	// if err := os.MkdirAll(_path, 0755); err != nil {
 	// 	t.Fatalf("failed to create directory: %v", err)
 	// }
-	for i := range cnfg.GuardianSpecifics {
-		guardian := cnfg.GuardianSpecifics[i]
-		if guardian.WhereToSaveSecrets == "" {
+	for i := range cnfg.Peers {
+		// guardian := cnfg.Peers[i]
+		saveLocation := cnfg.SaveLocation[i]
+		if saveLocation == "" {
 			t.Fatalf("guardian %d has empty WhereToSaveSecrets", i)
 		}
 
-		_path := path.Join("setkey", "keys", specificKeysFolder, guardian.WhereToSaveSecrets)
+		_path := path.Join("setkey", "keys", specificKeysFolder, saveLocation)
 		lkgpath := path.Join(_path, "secrets.json")
 
 		//read the file into a GuardianStorage struct
@@ -162,22 +147,22 @@ func sendToServers(t *testing.T) {
 		t.Fatal("could not grab file due to runtime.Caller(0) failure")
 	}
 
-	errs := make(chan error, len(cnfg.GuardianSpecifics))
+	errs := make(chan error, len(cnfg.Peers))
 
 	workdir := path.Join(path.Dir(file), "setkey", "keys", specificKeysFolder)
 	fmt.Println("sending files...")
-	for i := range cnfg.GuardianSpecifics {
+	for i := range cnfg.Peers {
 		go func(i int) {
-
-			guardian := cnfg.GuardianSpecifics[i]
-			if guardian.WhereToSaveSecrets == "" {
+			saveLocation := cnfg.SaveLocation[i]
+			if saveLocation == "" {
 				errs <- fmt.Errorf("guardian %d has empty WhereToSaveSecrets", i)
 
 				return
 			}
 
-			localSecretsPath := path.Join(workdir, guardian.WhereToSaveSecrets, "secrets.json")
-			cmd := exec.Command("scp", "-i", "~/.ssh/id_ed25519", localSecretsPath, fmt.Sprintf("jonathan@%s:~", guardian.Identifier.Hostname))
+			localSecretsPath := path.Join(workdir, saveLocation, "secrets.json")
+			hostname := cnfg.Peers[i].Hostname
+			cmd := exec.Command("scp", "-i", "~/.ssh/id_ed25519", localSecretsPath, fmt.Sprintf("jonathan@%s:~", hostname))
 
 			// fmt.Println(cmd.String())
 			cmd.Stdout = os.Stdout
@@ -188,7 +173,7 @@ func sendToServers(t *testing.T) {
 
 				return
 			}
-			fmt.Printf("sent %s to %s\n", localSecretsPath, guardian.Identifier.Hostname)
+			fmt.Printf("sent %s to %s\n", localSecretsPath, hostname)
 
 			errs <- nil
 		}(i)
@@ -198,7 +183,7 @@ func sendToServers(t *testing.T) {
 	timer := time.NewTimer(time.Second * 90)
 	defer timer.Stop()
 
-	for i := 0; i < len(cnfg.GuardianSpecifics); i++ {
+	for i := 0; i < len(cnfg.Peers); i++ {
 		select {
 		case err := <-errs:
 			if err != nil {
@@ -234,18 +219,20 @@ func shoveKeys(t *testing.T) {
 	// var secretkeypath = flag.String("key", "", "path to the secret key PEM file")
 	// var lkgSecrets = flag.String("lkg", "", "path to the LKG secrets json file")
 
-	for i := range cnfg.GuardianSpecifics {
-		guardian := cnfg.GuardianSpecifics[i]
-		if guardian.WhereToSaveSecrets == "" {
+	for i := range cnfg.Peers {
+
+		saveLocation := cnfg.SaveLocation[i]
+		if saveLocation == "" {
 			t.Fatalf("guardian %d has empty WhereToSaveSecrets", i)
 		}
 
-		_path := path.Join(".", "setkey", "keys", specificKeysFolder, guardian.WhereToSaveSecrets)
+		_path := path.Join(".", "setkey", "keys", specificKeysFolder, saveLocation)
 
+		secretKey := cnfg.Secrets[i]
 		keypath := path.Join(_path, "key.pem")
 		if err := os.WriteFile(
 			keypath,
-			guardian.Identifier.SecretKey,
+			secretKey,
 			0644,
 		); err != nil {
 			t.Fatalf("failed to write file: %v", err)
@@ -284,21 +271,21 @@ func createLKGConfigs(t *testing.T) {
 	}
 
 	cnfg := LKGConfig{
-		NumParticipants:   len(hostnames),
-		WantedThreshold:   2*(len(hostnames)/3) + 1,
-		GuardianSpecifics: make([]GuardianSpecifics, len(hostnames)),
+		NumParticipants: len(hostnames),
+		WantedThreshold: 2*(len(hostnames)/3) + 1,
+		Peers:           make([]Identifier, len(hostnames)),
+		Secrets:         make([]engine.PEM, len(hostnames)),
+		SaveLocation:    make([]string, len(hostnames)),
 	}
 
 	for i, hostname := range hostnames {
 		sk, cert := createTLSCert(hostname)
-		cnfg.GuardianSpecifics[i] = GuardianSpecifics{
-			Identifier: Identifier{
-				Hostname:  hostname,
-				SecretKey: internal.PrivateKeyToPem(sk),
-				TlsX509:   cert,
-			},
-			WhereToSaveSecrets: extractRegion(hostname),
+		cnfg.Peers[i] = Identifier{
+			Hostname: hostname,
+			TlsX509:  cert,
 		}
+		cnfg.SaveLocation[i] = extractRegion(hostname)
+		cnfg.Secrets[i] = internal.PrivateKeyToPem(sk)
 	}
 
 	bts, err := json.MarshalIndent(cnfg, "", "  ")
