@@ -410,6 +410,52 @@ contract VerificationV2Test is Test {
 		assertEq(result.length, 0);
 	}
 
+	function testRevert_verifyVaaV1_notRegisteredGuardianSet() public {
+    uint32 fakeGuardianSetIndex = 5;
+		bytes memory payload = createThresholdKeyUpdatePayload(0, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa2  = createVaaV1(fakeGuardianSetIndex, guardianPrivateKeys1, envelope);
+    bytes memory command = VerificationHelper.verifyVaa(registerThresholdKeyVaa2);
+
+    vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	}
+
+	function testRevert_verifyVaaV1_skippedGuardianSet() public {
+		WormholeMock wormholeMock = new WormholeMock();
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+    uint256 initGuardianSetIndex = 2;
+		VerificationV2 verificationV2 = new VerificationV2(wormholeMock, initGuardianSetIndex, 1);
+
+    uint32 fakeGuardianSetIndex = 1;
+		bytes memory payload = createThresholdKeyUpdatePayload(0, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa2  = createVaaV1(fakeGuardianSetIndex, guardianPrivateKeys1, envelope);
+    bytes memory command = VerificationHelper.verifyVaa(registerThresholdKeyVaa2);
+
+    vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	}
+
 	function test_veifyAndDecodeVaaV1() public {
 		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, VerificationHelper.verifyAndDecodeVaa(registerThresholdKeyVaa));
 		assertEq(success, true);
