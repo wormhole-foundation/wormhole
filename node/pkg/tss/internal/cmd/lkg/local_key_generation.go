@@ -5,18 +5,14 @@
 package main
 
 import (
-	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path"
-	"sort"
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
-	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	"github.com/certusone/wormhole/node/pkg/tss/internal/cmd"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
@@ -24,7 +20,6 @@ import (
 	"github.com/xlabs/multi-party-sig/pkg/math/sample"
 	"github.com/xlabs/multi-party-sig/pkg/party"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
-	common "github.com/xlabs/tss-common"
 )
 
 var cnfgPath = flag.String("cnfg", "", "path to config file in json format used to run the protocol")
@@ -45,7 +40,7 @@ func main() {
 		return
 	}
 
-	cnfg := &LKGConfig{}
+	cnfg := &cmd.SetupConfigs{}
 	err = json.Unmarshal(f, cnfg)
 	if err != nil {
 		fmt.Println("failed to unmarshal config, err: ", err)
@@ -70,19 +65,9 @@ type dkgPlayer struct {
 
 	// same for all guardians // generated here.
 	loadDistributionKey []byte
-
-	// *tss.PeerContext
-	// *tss.Parameters
-
-	// localParty tss.Party
-	frostconf *frost.Config
-
-	// communication channels
-	// out               <-chan tss.Message
-	// protocolEndOutput <-chan *keygen.LocalPartySaveData
 }
 
-func Run(cnfg *LKGConfig) {
+func Run(cnfg *cmd.SetupConfigs) {
 	if cnfg == nil {
 		panic("config is nil")
 	}
@@ -181,24 +166,8 @@ func simulateDKG(all []*dkgPlayer, threshold int) {
 
 }
 
-func (cnfg *LKGConfig) validate() error {
-	if cnfg.NumParticipants < 1 {
-		return fmt.Errorf("number of participants should be at least 1")
-	}
-
-	if len(cnfg.Peers) != cnfg.NumParticipants {
-		return fmt.Errorf("number of guardian identifiers should be equal to number of participants")
-	}
-
-	if cnfg.WantedThreshold >= cnfg.NumParticipants-1 {
-		return fmt.Errorf("threshold should be less than number of participants")
-	}
-
-	return nil
-}
-
-func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
-	if err := cnfg.validate(); err != nil {
+func setupPlayers(cnfg *cmd.SetupConfigs) ([]*dkgPlayer, error) {
+	if err := cnfg.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -208,12 +177,12 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 		return nil, err
 	}
 
-	unsortedIdentities, mp, err := cnfg.intoMaps()
+	unsortedIdentities, mp, err := cnfg.IntoMaps()
 	if err != nil {
 		return nil, err
 	}
 
-	sortedIDS := sortIdentities(unsortedIdentities)
+	sortedIDS := cmd.SortIdentities(unsortedIdentities)
 
 	all := make([]*dkgPlayer, cnfg.NumParticipants)
 	for _, id := range sortedIDS {
@@ -248,84 +217,4 @@ func setupPlayers(cnfg *LKGConfig) ([]*dkgPlayer, error) {
 	}
 
 	return all, nil
-}
-
-// sorts the identities based on the partyID key (as tss-lib expects the parties to be sorted).
-// then sets the communication index according to the sorted order.
-func sortIdentities(unsortedIdentities map[string]*engine.Identity) []*engine.Identity {
-	pids := make([]*common.PartyID, 0, len(unsortedIdentities))
-	for _, p := range unsortedIdentities {
-		pids = append(pids, p.Pid)
-	}
-
-	sortedPids := common.SortPartyIDs(pids)
-
-	sortedIDS := make([]*engine.Identity, len(sortedPids))
-	for i, pid := range sortedPids {
-		sortedIDS[i] = unsortedIdentities[string(pid.GetID())]
-		sortedIDS[i].CommunicationIndex = engine.SenderIndex(i)
-	}
-
-	return sortedIDS
-}
-
-func (cnfg *LKGConfig) intoMaps() (unsortedIdentities map[string]*engine.Identity, keyToSpecifics map[string]*Identifier, err error) {
-	unsortedIdentities = make(map[string]*engine.Identity, cnfg.NumParticipants)
-
-	keyToSpecifics = map[string]*Identifier{}
-	for i, peer := range cnfg.Peers {
-		crt, err := internal.PemToCert(peer.TlsX509)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if len(crt.DNSNames) == 0 {
-			return nil, nil, fmt.Errorf("expected DNS names in the cert")
-		}
-
-		pk, ok := crt.PublicKey.(*ecdsa.PublicKey) // TODO
-		if !ok {
-			return nil, nil, fmt.Errorf("expected ecdsa public key in certs")
-		}
-
-		bts, err := internal.PublicKeyToPem(pk)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		dnsName := extractDnsFromCert(crt)
-
-		unsortedIdentities[string(bts)] = &engine.Identity{
-			Pid: &common.PartyID{
-				ID: string(bts),
-			},
-			KeyPEM:             bts,
-			CertPem:            peer.TlsX509,
-			Cert:               nil, // not stored, since we have the certPem.
-			CommunicationIndex: 0,   // unknown until sorted.
-			Hostname:           dnsName,
-			Port:               0, // undefined.
-		}
-
-		keyToSpecifics[string(bts)] = &cnfg.Peers[i]
-	}
-
-	return unsortedIdentities, keyToSpecifics, nil
-}
-
-func extractDnsFromCert(crt *x509.Certificate) string {
-	if len(crt.DNSNames) == 0 {
-		panic("expected DNS names in the certificate")
-	}
-
-	sort.Strings(crt.DNSNames)
-
-	dnsName := ""
-	for _, name := range crt.DNSNames {
-		if len(name) > 0 && name != "localhost" {
-			dnsName = name // using the first non localhost name.
-		}
-	}
-
-	return dnsName
 }
