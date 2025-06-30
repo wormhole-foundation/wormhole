@@ -4,8 +4,9 @@ pragma solidity ^0.8.28;
 
 import {console} from "forge-std/console.sol";
 
+import {FREE_MEMORY_PTR, SCRATCH_SPACE_PTR, WORD_SIZE} from "wormhole-solidity-sdk/constants/Common.sol";
 import {RawDispatcher} from "wormhole-solidity-sdk/RawDispatcher.sol";
-import {eagerAnd} from "wormhole-solidity-sdk/Utils.sol";
+import {eagerAnd, eagerOr} from "wormhole-solidity-sdk/Utils.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-solidity-sdk/constants/Chains.sol";
 import {ICoreBridge, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
@@ -112,17 +113,32 @@ contract VerificationCore {
       // Load the key data contract, validate the size
       let keyDataSize := extcodesize(keyDataAddress)
       if iszero(keyDataSize) {
-        mstore(0, 0x11052bb4) // InvalidPointer()
-        revert(0, 0x04)
+        mstore(SCRATCH_SPACE_PTR, 0x11052bb4) // InvalidPointer()
+        revert(SCRATCH_SPACE_PTR, 0x04)
       }
 
       // Copy the value to memory
       let size := sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA)
       keyCount := shr(5, size)
 
-      keyDataOffset := mload(0x40)
-      mstore(0x40, add(keyDataOffset, size))
+      keyDataOffset := mload(FREE_MEMORY_PTR)
+      mstore(FREE_MEMORY_PTR, add(keyDataOffset, size))
       extcodecopy(keyDataAddress, keyDataOffset, OFFSET_MULTISIG_CONTRACT_DATA, size)
+    }
+  }
+  
+  function _getMultisigKeyDataExport(uint256 index) internal view returns (address[] memory keys, uint32 expirationTime) {
+    assembly ("memory-safe") {
+      mstore(FREE_MEMORY_PTR, add(WORD_SIZE, keys))
+    }
+
+    uint8 keyCount;
+    uint256 keyDataOffset;
+
+    (keyCount, keyDataOffset, expirationTime) = _getMultisigKeyData(index);
+
+    assembly ("memory-safe") {
+      mstore(keys, keyCount)
     }
   }
 
@@ -141,8 +157,8 @@ contract VerificationCore {
       mstore(add(keys, gt(dataLength, 0xFFFF)), or(0xfd61000080600a3d393df300, shl(0x40, dataLength)))
       let deployedAddress := create(0, add(keys, 0x15), add(dataLength, 0xA))
       if iszero(deployedAddress) {
-        mstore(0, 0x30116425) // DeploymentFailed()
-        revert(0, 0x04)
+        mstore(SCRATCH_SPACE_PTR, 0x30116425) // DeploymentFailed()
+        revert(SCRATCH_SPACE_PTR, 0x04)
       }
 
       // Restore the original length of the variable size `keys`
@@ -191,16 +207,16 @@ contract VerificationCore {
     (, uint8 shardCount, uint40 shardBase,) = _getSchnorrExtraInfo(index);
 
     assembly ("memory-safe") {
-      result := mload(0x40)
+      result := mload(FREE_MEMORY_PTR)
       let shardBytes := shl(6, shardCount)
-      mstore(0x40, add(result, add(0x20, shardBytes)))
+      mstore(FREE_MEMORY_PTR, add(result, add(WORD_SIZE, shardBytes)))
       mstore(result, shardBytes)
 
       let readPtr := add(SLOT_SCHNORR_SHARD_DATA, shardBase)
-      let writePtr := add(0x20, result)
+      let writePtr := add(WORD_SIZE, result)
       for {let i := 0} lt(i, shardCount) {i := add(i, 1)} {
         mstore(writePtr, sload(readPtr))
-        mstore(add(writePtr, 0x20), sload(add(readPtr, 1)))
+        mstore(add(writePtr, WORD_SIZE), sload(add(readPtr, 1)))
         writePtr := add(writePtr, 0x40)
         readPtr := add(readPtr, 2)
       }
@@ -225,7 +241,7 @@ contract VerificationCore {
       // Validate the pubkey
       let px := shr(1, pubkey)
       if or(iszero(px), gt(px, HALF_Q)) {
-        mstore(0, 0x76d4e1e8) // InvalidKey()
+        mstore(SCRATCH_SPACE_PTR, 0x76d4e1e8) // InvalidKey()
         revert(0, 0x04)
       }
 
@@ -267,7 +283,7 @@ contract VerificationCore {
     assembly ("memory-safe") {
       let version := shr(248, calldataload(data.offset))
       let keyIndex := shr(224, calldataload(add(data.offset, 1)))
-      let buffer := mload(0x40)
+      let buffer := mload(FREE_MEMORY_PTR)
       
       switch version
       case 2 {
@@ -280,8 +296,8 @@ contract VerificationCore {
         let envelopeLength := sub(data.length, envelopeOffset)
         calldatacopy(buffer, add(data.offset, envelopeOffset), envelopeLength)
         let singleHash := keccak256(buffer, envelopeLength)
-        mstore(0, singleHash)
-        let digest := keccak256(0, 32)
+        mstore(SCRATCH_SPACE_PTR, singleHash)
+        let digest := keccak256(SCRATCH_SPACE_PTR, WORD_SIZE)
 
         // Load the key and validate the expiration time
         let pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, keyIndex))
@@ -304,7 +320,7 @@ contract VerificationCore {
         mstore(add(buffer, 32), add(parity, 27))
         mstore(add(buffer, 64), px)
         mstore(add(buffer, 96), mulmod(px, e, Q))
-        let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+        let success := staticcall(gas(), 1, buffer, 128, buffer, WORD_SIZE)
 
         // Validate the result
         let expirationTimeValid := or(iszero(expirationTime), gt(expirationTime, timestamp()))
@@ -324,8 +340,8 @@ contract VerificationCore {
         let envelopeLength := sub(data.length, envelopeOffset)
         calldatacopy(buffer, add(data.offset, envelopeOffset), envelopeLength)
         let singleHash := keccak256(buffer, envelopeLength)
-        mstore(0, singleHash)
-        let digest := keccak256(0, 32)
+        mstore(SCRATCH_SPACE_PTR, singleHash)
+        let digest := keccak256(SCRATCH_SPACE_PTR, WORD_SIZE)
 
         // NOTE: Inline from _getMultisigKeyData to save gas
         // Load the key data and validate the expiration time
@@ -367,7 +383,7 @@ contract VerificationCore {
           mstore(add(buffer, 32), add(v, 27))
           mstore(add(buffer, 64), r)
           mstore(add(buffer, 96), s)
-          let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+          let success := staticcall(gas(), 1, buffer, 128, buffer, WORD_SIZE)
 
           // Validate the result
           let recovered := mload(buffer)
@@ -395,7 +411,7 @@ contract VerificationCore {
       let usedSignerBitfield := 0
       valid := 1
 
-      let buffer := mload(0x40)
+      let buffer := mload(FREE_MEMORY_PTR)
       let ptr := add(signatures.offset, signaturesOffset)
       for {let i := 0} lt(i, signatureCount) {i := add(i, 1)} {
         let signerIndex := shr(248, calldataload(ptr))
@@ -408,7 +424,7 @@ contract VerificationCore {
         mstore(add(buffer, 32), add(v, 27))
         mstore(add(buffer, 64), r)
         mstore(add(buffer, 96), s)
-        let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+        let success := staticcall(gas(), 1, buffer, 128, buffer, WORD_SIZE)
 
         // Validate the result
         let recovered := mload(buffer)
@@ -430,7 +446,7 @@ contract VerificationCore {
       // Compute the challenge value
       let px := shr(1, pubkey)
       let parity := and(pubkey, 1)
-      let buffer := mload(0x40)
+      let buffer := mload(FREE_MEMORY_PTR)
       mstore(buffer, px)
       mstore8(add(buffer, 32), parity)
       mstore(add(buffer, 33), digest)
@@ -444,7 +460,7 @@ contract VerificationCore {
       mstore(add(buffer, 32), add(parity, 27))
       mstore(add(buffer, 64), px)
       mstore(add(buffer, 96), mulmod(px, e, Q))
-      let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+      let success := staticcall(gas(), 1, buffer, 128, buffer, WORD_SIZE)
 
       // Validate the result
       let validPubkey := not(iszero(px))
@@ -454,12 +470,12 @@ contract VerificationCore {
     }
   }
 
-  function _verifyHashAndHeader(bytes calldata data) internal view {
+  function _verifyHashAndHeader(bytes calldata data) internal view returns (uint256 envelopeOffset) {
     assembly ("memory-safe") {
       let digest := calldataload(data.offset)
       let version := shr(248, calldataload(add(data.offset, 32)))
       let keyIndex := shr(224, calldataload(add(data.offset, 33)))
-      let buffer := mload(0x40)
+      let buffer := mload(FREE_MEMORY_PTR)
 
       switch version
       case 2 {
@@ -489,15 +505,12 @@ contract VerificationCore {
         mstore(add(buffer, 32), add(parity, 27))
         mstore(add(buffer, 64), px)
         mstore(add(buffer, 96), mulmod(px, e, Q))
-        let success := staticcall(gas(), 0x01, buffer, 128, buffer, 0x20)
+        let success := staticcall(gas(), 1, buffer, 128, buffer, WORD_SIZE)
 
         // Validate the result
         let recoveredValid := and(success, eq(r, mload(buffer)))
         let valid := and(pubkeyValid, and(expirationTimeValid, recoveredValid))
-        if iszero(valid) {
-          mstore(0, 0x439cc0cd) // VerificationFailed()
-          revert(0, 0x04)
-        }
+        envelopeOffset := mul(89, valid)
       }
       case 1 {
         let signatureCount := shr(248, calldataload(add(data.offset, 37)))
@@ -557,10 +570,8 @@ contract VerificationCore {
           ptr := add(ptr, VAA_MULTISIG_SIGNATURE_SIZE)
         }
 
-        if iszero(valid) {
-          mstore(0, 0x439cc0cd) // VerificationFailed()
-          revert(0, 0x04)
-        }
+        envelopeOffset := add(38, mul(signatureCount, 66))
+        envelopeOffset := mul(envelopeOffset, valid)
       }
       default {
         mstore(buffer, 0x7207be20) // InvalidVersion(uint8)
@@ -626,7 +637,8 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
   }
 
   function verifyHashAndHeader(bytes calldata data) external view {
-    _verifyHashAndHeader(data);
+    uint256 envelopeOffset = _verifyHashAndHeader(data);
+    require(envelopeOffset != 0, VerificationFailed());
   }
 
   function _exec(bytes calldata data) internal override returns (bytes memory) {
@@ -674,6 +686,10 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
           // TODO: Do we want to include the shard count here?
           result = abi.encodePacked(result, index, pubkey, expirationTime, multisigKeyIndex);
         } else if (opcode == GET_CURRENT_MULTISIG_KEY_DATA) {
+          uint256 index = _getMultisigKeyCount() - 1;
+          (address[] memory keys,) = _getMultisigKeyDataExport(index);
+
+          result = abi.encodePacked(result, keys);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
           uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
@@ -683,6 +699,12 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
 
           result = abi.encodePacked(result, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_MULTISIG_KEY_DATA) {
+          uint256 index;
+          (index, offset) = data.asUint32CdUnchecked(offset);
+
+          (address[] memory keys, uint32 expirationTime) = _getMultisigKeyDataExport(index);
+
+          result = abi.encodePacked(result, keys, expirationTime);
         } else if (opcode == GET_SCHNORR_SHARD_DATA) {
           uint32 schnorrKeyIndex;
           (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
@@ -812,6 +834,7 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
       }
 
       // Store the new schnorr key data
+      // FIXME: Use the new spec data format, this is outdated
       newOffset = _appendSchnorrKeyData(newSchnorrKey, multisigKeyIndex, signatureCount, data, offset);
     }
   }
@@ -836,7 +859,9 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
       }
 
 			// Calculate the upper bound of the guardian sets to pull
-      uint256 upper;
+      uint256 upper = eagerOr(limit == 0, currentMultisigKeysLength - oldMultisigKeysLength < limit)
+        ? currentMultisigKeysLength : oldMultisigKeysLength + limit;
+
       assembly ("memory-safe") {
         let selector := and(iszero(iszero(limit)), lt(sub(currentMultisigKeysLength, oldMultisigKeysLength), limit))
         let selected := or(shl(32, currentMultisigKeysLength), add(oldMultisigKeysLength, limit))
