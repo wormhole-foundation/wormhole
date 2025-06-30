@@ -137,6 +137,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Mezo", vaa.ChainIDMezo},
 		{"Fogo", vaa.ChainIDFogo},
 		{"Converge", vaa.ChainIDConverge},
+		{"Plume", vaa.ChainIDPlume},
 		// The IBC chains (4000 range) are not included here.
 		{"Sepolia", vaa.ChainIDSepolia},
 		{"ArbitrumSepolia", vaa.ChainIDArbitrumSepolia},
