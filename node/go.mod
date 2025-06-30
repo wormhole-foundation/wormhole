@@ -395,7 +395,7 @@ require (
 	github.com/gogo/status v1.1.1
 	github.com/test-go/testify v1.1.4
 	// github.com/xlabs/tss-lib/v2 v2.0.0-20241224083831-c218006b15e3
-	github.com/xlabs/tss-lib/v2 v2.0.0-20250629072927-5add3e5b1c3d
+	github.com/xlabs/tss-lib/v2 v2.0.0-20250629155833-00828fb18d45
 )
 
 replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43 // done in the TSS-LIB.

@@ -27,7 +27,7 @@ import (
 
 type uuid digest // distinguishing between types to avoid confusion.
 
-type fpCommunicationChannels party.StartParams
+type fpCommunicationChannels party.OutputChannels
 
 // Engine is the implementation of reliableTSS, it is a wrapper for the
 // tss-lib fullParty and adds  hash-broadcast logic
@@ -344,6 +344,19 @@ func makeSigningRequest(d party.Digest, faulties []*common.PartyID, chainID vaa.
 		AuxilaryData: chainIDToBytes(chainID),
 	}
 }
+func NewKeyGenerator(storage *GuardianStorage) (KeyGenerator, error) {
+	relTSS, err := NewReliableTSS(storage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create reliable TSS: %w", err)
+	}
+
+	engine, ok := relTSS.(*Engine)
+	if !ok { // shouldn't happen, but just in case.
+		return nil, fmt.Errorf("reliable TSS does not implement KeyGenerator interface")
+	}
+
+	return engine, nil
+}
 
 func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 	if storage == nil {
@@ -433,7 +446,7 @@ func (t *Engine) Start(ctx context.Context) error {
 		With(zap.String("hostname", t.GuardianStorage.Self.Hostname)).
 		Named("tss")
 
-	if err := t.fp.Start(party.StartParams(t.fpCommChans)); err != nil {
+	if err := t.fp.Start(party.OutputChannels(t.fpCommChans)); err != nil {
 		t.started.Store(notStarted)
 
 		return err
@@ -965,7 +978,7 @@ func (st *GuardianStorage) verifySignedMessage(uid uuid, msg *tsscommv1.SignedMe
 	return nil
 }
 
-func (t *Engine) StartDKG() (chan *frost.Config, error) {
+func (t *Engine) StartDKG(task party.DkgTask) (chan *frost.Config, error) {
 	if t == nil {
 		return nil, fmt.Errorf("tss engine is nil")
 	}
@@ -980,7 +993,7 @@ func (t *Engine) StartDKG() (chan *frost.Config, error) {
 
 	t.logger.Info("starting DKG")
 
-	err := t.fp.StartDKG(t.GuardianStorage.Threshold, party.Digest{}) // TODO: Decide how to handle the digest.
+	err := t.fp.StartDKG(task)
 
 	return t.fpCommChans.KeygenOutputChannel, err
 }

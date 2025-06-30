@@ -1929,7 +1929,10 @@ func TestDKG(t *testing.T) {
 
 	promises := make([]chan *frost.Config, len(engines))
 	for _, engine := range engines {
-		chn, err := engine.StartDKG()
+		chn, err := engine.StartDKG(party.DkgTask{
+			Threshold: 3,
+			Seed:      party.Digest{},
+		})
 		a.NoError(err)
 
 		promises[engine.Self.CommunicationIndex] = chn

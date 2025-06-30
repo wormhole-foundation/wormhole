@@ -13,6 +13,7 @@ import (
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
 	common "github.com/xlabs/tss-common"
+	"github.com/xlabs/tss-lib/v2/party"
 )
 
 type message interface {
@@ -73,10 +74,14 @@ type Signer interface {
 }
 
 type KeyGenerator interface {
+	// demands the usage of a reliable messenger. Either via full Reliable Broadcast,
+	// or via a hash-broadcast protocol.
+	ReliableMessenger
+
 	// StartDKG starts a distributed key generation protocol, which will produce a frost.Config.
 	// Using this config, one can create a frost.Signer.
 	// this function doesn't change disk stored state.
-	StartDKG() (chan *frost.Config, error)
+	StartDKG(party.DkgTask) (chan *frost.Config, error)
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of
@@ -84,7 +89,6 @@ type KeyGenerator interface {
 type ReliableTSS interface {
 	ReliableMessenger
 	Signer
-	KeyGenerator
 
 	SetGuardianSetState(gs *whcommon.GuardianSetState) error
 	Start(ctx context.Context) error
