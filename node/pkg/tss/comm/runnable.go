@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
+	"sync/atomic"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss"
@@ -18,6 +19,14 @@ type DirectLink interface {
 	tsscommv1.DirectLinkServer
 
 	Run(ctx context.Context) error
+
+	// Will wait until either the context is expired, or the number of active connections
+	// match the number of peers.
+	// NOTICE: this function might return, and the server might still lose a connection to a peer.
+	// This is a best-effort function, and it is not guaranteed that all connections are active
+	// when it returns.
+	// NOTICE: This is a busy-loop wait function. It uses a spin-lock mechanism to check the number of active connections.
+	WaitForConnections(ctx context.Context) error
 }
 
 func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableMessenger) (DirectLink, error) {
@@ -40,14 +49,13 @@ func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableM
 		ctx:                           nil, // set up in Run(ctx)
 		logger:                        logger,
 		socketPath:                    socketPath,
-
-		tssMessenger: tssMessenger,
-
-		peers:         partyIds,
-		peerToCert:    peerToCert,
-		connections:   make(map[string]*connection, len(peers)),
-		requestRedial: make(chan redialRequest, len(peers)),
-		redials:       make(chan redialResponse, 1),
+		tssMessenger:                  tssMessenger,
+		peers:                         partyIds,
+		peerToCert:                    peerToCert,
+		connections:                   make(map[string]*connection, len(peers)),
+		requestRedial:                 make(chan redialRequest, len(peers)),
+		redials:                       make(chan redialResponse, 1),
+		numConnsActive:                &atomic.Int32{},
 	}, nil
 }
 

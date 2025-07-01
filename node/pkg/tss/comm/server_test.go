@@ -880,5 +880,84 @@ func TestConnectingToServers(t *testing.T) {
 	cancel()
 	time.Sleep(100 * time.Millisecond)
 
-	return
+}
+
+func TestDetectConnectionsDone(t *testing.T) {
+	a := require.New(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*40)
+	defer cancel()
+	ctx = testutils.MakeSupervisorContext(ctx)
+
+	en, err := _loadGuardians(2)
+	a.NoError(err)
+
+	tmpSrvr, err := NewServer(workingServerSock, supervisor.Logger(ctx), &mockTssMessageHandler{
+		chn:      nil,
+		selfCert: en[0].GetCertificate(),
+		// connect to no one.
+		peersToConnectTo: []*x509.Certificate{en[1].GetCertificate().Leaf}, // Give the peer a certificate.
+		peerId:           &tss.Identity{},
+	})
+	a.NoError(err)
+
+	tstServer := testServer{
+		server:                       tmpSrvr.(*server),
+		Uint32:                       atomic.Uint32{},
+		done:                         make(chan struct{}),
+		numberOfReconnectionAttempts: 1,
+	}
+	tstServer.server.ctx = ctx
+
+	listener, err := net.Listen("tcp", workingServerSock)
+	a.NoError(err)
+	defer listener.Close()
+
+	gserver := grpc.NewServer(tstServer.makeServerCredentials())
+	defer gserver.Stop()
+
+	tsscommv1.RegisterDirectLinkServer(gserver, &tstServer)
+	// go gserver.Serve(listener)
+
+	PEMCert := en[0].GuardianStorage.TlsX509
+	serverCert, err := internal.PemToCert(PEMCert)
+	a.NoError(err)
+
+	msgChan := make(chan tss.Sendable)
+	srvr, err := NewServer("localhost:5930", supervisor.Logger(ctx), &mockTssMessageHandler{
+		chn:              msgChan,
+		selfCert:         en[1].GetCertificate(),
+		peersToConnectTo: []*x509.Certificate{serverCert}, // will ask to fetch each peer (and return the below peerId)
+		peerId: &tss.Identity{
+			Cert:     serverCert,
+			Hostname: workingServerName,
+			Port:     workingServerPort,
+		},
+	})
+	a.NoError(err)
+
+	srv := srvr.(*server)
+	srv.ctx = ctx
+	// setting up server dailer and sender
+	srv.run()
+	// time.Sleep(time.Second * 2)
+
+	time.Sleep(time.Second)
+	// go gserver.Serve(listener)
+
+	go gserver.Serve(listener)
+	time.Sleep(time.Second * 5)
+	if err := srv.WaitForConnections(ctx); err != nil {
+		t.Fatalf("failed to wait for connections: %v", err)
+	}
+
+	msgChan <- &tss.Echo{
+		Echo:       &tsscommv1.Echo{},
+		Recipients: workingServerAsMessageRecipient,
+	}
+
+	select {
+	case <-ctx.Done():
+		t.FailNow()
+	case <-tstServer.done:
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
@@ -49,6 +50,21 @@ type server struct {
 	connections   map[string]*connection
 	requestRedial chan redialRequest
 	redials       chan redialResponse
+
+	numConnsActive *atomic.Int32
+}
+
+func (s *server) WaitForConnections(ctx context.Context) error {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return ctx.Err()
+		default:
+			if s.numConnsActive.Load() == int32(len(s.peers)) {
+				return nil
+			}
+		}
+	}
 }
 
 func (s *server) run() {
@@ -92,6 +108,7 @@ func (s *server) sender() {
 			}
 
 			s.connections[redial.name] = redial.conn
+			s.numConnsActive.Store(int32(len(s.connections)))
 
 		case <-connectionCheckTicker.C:
 			s.forceDialIfNotConnected()
