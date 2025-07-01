@@ -102,6 +102,7 @@ var (
 		vaa.ChainIDMezo: {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		// vaa.ChainIDConverge: Not in Mainnet yet
 		// vaa.ChainIDPlume: Not in Mainnet yet
+		vaa.ChainIDPlume: {Finalized: true, Safe: true, EvmChainID: 98866, PublicRPC: "https://rpc.plume.org", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
