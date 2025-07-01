@@ -109,9 +109,7 @@ func main() {
 		}
 
 		fname := path.Join(cnfgs.StorageLocation, "secrets.json")
-		if gst.Self.CommunicationIndex != 0 {
-			return // TODO: don't forget to remove this!
-		}
+
 		if err := os.WriteFile(fname, toStore, 0777); err != nil {
 			panic(fmt.Sprintf("failed to write GuardianStorage to file %s, err: %v", fname, err))
 		}
