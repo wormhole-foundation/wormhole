@@ -71,7 +71,7 @@ func main() {
 
 		sha256sum := sha256.Sum256([]byte("dkg seed:" + strconv.Itoa(i)))
 		resChn, err := keygen.StartDKG(party.DkgTask{
-			Threshold: 0,
+			Threshold: gst.Threshold,
 			Seed:      sha256sum,
 		})
 
@@ -112,7 +112,7 @@ func main() {
 		}
 
 		fname := path.Join(cnfgs.StorageLocation, "secrets.json")
-
+		fmt.Println("Writing GuardianStorage to file:", fname)
 		if err := os.WriteFile(fname, toStore, 0777); err != nil {
 			panic(fmt.Sprintf("failed to write GuardianStorage to file %s, err: %v", fname, err))
 		}

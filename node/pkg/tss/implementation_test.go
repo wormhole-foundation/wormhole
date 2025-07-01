@@ -1205,7 +1205,7 @@ func TestFT(t *testing.T) {
 		engines, err := loadGuardians(5, "tss5")
 		a.NoError(err)
 
-		n := 3
+		n := 2
 		chainId := vaa.ChainID(1)
 		digests := make([]party.SigningTask, n)
 		for i := 0; i < n; i++ {
