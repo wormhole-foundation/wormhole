@@ -40,9 +40,11 @@ func main() {
 
 	keygen.Start(ctx)
 
-	logger.Info("Setting up server...", zap.String("networkName", gst.Self.NetworkName()))
+	logger.Info("Setting up server...")
 
-	srvr, err := comm.NewServer(gst.Self.NetworkName(), logger, keygen)
+	socketpath := "[::]:" + strconv.Itoa(gst.Self.Port)
+
+	srvr, err := comm.NewServer(socketpath, logger, keygen)
 	if err != nil {
 		panic("failed to create a new server, err: " + err.Error())
 	}
