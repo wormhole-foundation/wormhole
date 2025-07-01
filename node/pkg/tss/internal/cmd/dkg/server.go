@@ -49,8 +49,6 @@ func main() {
 
 	go srvr.Run(ctx)
 
-	time.Sleep(5 * time.Second) // wait for the server to start
-
 	logger.Info("DKG server is running, waiting for connections...")
 	srvr.WaitForConnections(ctx)
 
@@ -74,14 +72,15 @@ func main() {
 		var tssConfigs *frost.Config
 		select {
 		case tssConfigs = <-resChn:
-		case <-time.After(time.Second * 15):
+		case <-time.After(time.Second * 20):
 			logger.Error("FAILED DKG. attempting again.")
+
 			continue
 		}
 
-		logger.Info("Received TSS configurations from DKG", zap.Any("tssConfigs", tssConfigs))
+		logger.Info("DKG completed successfully", zap.Int("iteration", i-1))
 
-		logger.Info("verifying randomly chosen PK is valid for smart-contract usage", zap.Any("tssConfigs", tssConfigs))
+		logger.Info("verifying randomly chosen PK is valid for smart-contract usage")
 		if !sign.PublicKeyValidForContract(tssConfigs.PublicKey) {
 			continue
 		}
@@ -103,6 +102,9 @@ func main() {
 		}
 
 		fname := path.Join(cnfgs.StorageLocation, "secrets.json")
+		if gst.Self.CommunicationIndex != 0 {
+			return // TODO: don't forget to remove this!
+		}
 		if err := os.WriteFile(fname, toStore, 0777); err != nil {
 			panic(fmt.Sprintf("failed to write GuardianStorage to file %s, err: %v", fname, err))
 		}
