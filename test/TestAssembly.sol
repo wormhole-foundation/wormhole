@@ -11,7 +11,7 @@ import {RawDispatcher} from "wormhole-solidity-sdk/RawDispatcher.sol";
 
 import {WormholeMock} from "./Test.sol";
 import {VaaBuilder, ShardData} from "./TestOptimized.sol";
-import {Verification, GOVERNANCE_ADDRESS, EXEC_PULL_MULTISIG_KEY_DATA, EXEC_APPEND_SCHNORR_KEY, EXEC_UPDATE_SHARD_ID, GET_SCHNORR_SHARD_DATA} from "../src/evm/AssemblyOptimized.sol";
+import {Verification, GOVERNANCE_ADDRESS, EXEC_PULL_MULTISIG_KEY_DATA, EXEC_APPEND_SCHNORR_KEY, EXEC_UPDATE_SHARD_ID, GET_SCHNORR_SHARD_DATA, MODULE_VERIFICATION_V2, ACTION_APPEND_SCHNORR_KEY, EXEC_APPEND_SCHNORR_SHARD_DATA} from "../src/evm/AssemblyOptimized.sol";
 
 contract TestAssembly is Test, VaaBuilder {
 	uint256 private constant SHARD_COUNT = 19;
@@ -57,6 +57,22 @@ contract TestAssembly is Test, VaaBuilder {
 		vm.warmSlot(address(_verification), bytes32(uint256((3 << 48) + keyIndex)));
 	}
 
+	function createAppendSchnorrKeyMessage2(
+		uint32 newTSSIndex,
+		uint256 newThresholdPubkey,
+		uint32 expirationDelaySeconds,
+		bytes32 initialShardDataHash
+	) public pure returns (bytes memory) {
+		return abi.encodePacked(
+			MODULE_VERIFICATION_V2,
+			ACTION_APPEND_SCHNORR_KEY,
+			newTSSIndex,
+			newThresholdPubkey,
+			expirationDelaySeconds,
+			initialShardDataHash
+		);
+	}
+
 	function setUp() public {
 		bytes memory smallEnvelope = new bytes(100);
 		uint256[] memory guardianPrivateKeysSlice = new uint256[](SHARD_QUORUM);
@@ -93,23 +109,36 @@ contract TestAssembly is Test, VaaBuilder {
 			});
 		}
 
-		bytes memory payload = createAppendSchnorrKeyMessage(0, schnorrKey1, 0, schnorrShards);
+		bytes memory schnorrShardsRaw = new bytes(0);
+		for (uint256 i = 0; i < SHARD_COUNT; i++) {
+			schnorrShardsRaw = abi.encodePacked(schnorrShardsRaw, schnorrShards[i].shard, schnorrShards[i].id);
+		}
+
+		bytes32 schnorrShardDataHash = keccak256(abi.encodePacked(schnorrShardsRaw));
+
+		bytes memory payload = createAppendSchnorrKeyMessage2(0, schnorrKey1, 0, schnorrShardDataHash);
 		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
 		bytes memory registerSchnorrKeyVaa = createMultisigVaa(0, guardianPrivateKeys1, envelope);
 
-		payload = createAppendSchnorrKeyMessage(1, schnorrKey2, 24 * 60 * 60, schnorrShards);
+		payload = createAppendSchnorrKeyMessage2(1, schnorrKey2, 24 * 60 * 60, schnorrShardDataHash);
 		envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
 		bytes memory registerSchnorrKeyVaa2 = createMultisigVaa(0, guardianPrivateKeys1, envelope);
 
-		(bool success, ) = address(_verification).call(abi.encodePacked(
+		bytes memory message = abi.encodePacked(
 			RawDispatcher.exec768.selector,
 			EXEC_PULL_MULTISIG_KEY_DATA,
 			uint32(1),
 			EXEC_APPEND_SCHNORR_KEY,
 			registerSchnorrKeyVaa,
+			EXEC_APPEND_SCHNORR_SHARD_DATA,
+			schnorrShardsRaw,
 			EXEC_APPEND_SCHNORR_KEY,
-			registerSchnorrKeyVaa2
-		));
+			registerSchnorrKeyVaa2,
+			EXEC_APPEND_SCHNORR_SHARD_DATA,
+			schnorrShardsRaw
+		);
+
+		(bool success, ) = address(_verification).call(message);
 		assert(success);
 	}
 
