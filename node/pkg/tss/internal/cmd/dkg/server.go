@@ -2,20 +2,118 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"path"
+	"strconv"
+	"time"
 
+	"github.com/certusone/wormhole/node/pkg/internal/testutils"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
 	engine "github.com/certusone/wormhole/node/pkg/tss"
+	"github.com/certusone/wormhole/node/pkg/tss/comm"
 	"github.com/certusone/wormhole/node/pkg/tss/internal/cmd"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
+	"github.com/xlabs/tss-lib/v2/party"
+	"go.uber.org/zap"
 )
 
 var cnfgPath = flag.String("cnfg", "/workspaces/wormhole/node/pkg/tss/internal/cmd/dkg/dkg.json", "path to config file in json format used to run the protocol")
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctx = testutils.MakeSupervisorContext(ctx)
+	logger := supervisor.Logger(ctx)
+
+	logger.Info("Loading KeyGenerator and GuardianStorage for DKG...")
 	cnfgs := loadConfigsFromFlags()
 
+	keygen, gst := keygeneratorSetup(cnfgs)
+
+	logger.Info("Setting up server...")
+
+	srvr, err := comm.NewServer(gst.Self.NetworkName(), logger, keygen)
+	if err != nil {
+		panic("failed to create a new server, err: " + err.Error())
+	}
+
+	go srvr.Run(ctx)
+
+	time.Sleep(5 * time.Second) // wait for the server to start
+
+	logger.Info("DKG server is running, waiting for connections...")
+	srvr.WaitForConnections(ctx)
+
+	logger.Info("Connections established, starting DKG...")
+
+	sginals := make(chan os.Signal, 1)
+	signal.Notify(sginals, os.Interrupt)
+
+	i := 0
+	for { // The loop should converge after 2~3 iterations.
+		i++
+		logger.Info("Making DKG Attemp", zap.Int("iteration", i))
+
+		sha256sum := sha256.Sum256([]byte("dkg seed:" + strconv.Itoa(i)))
+		resChn, err := keygen.StartDKG(party.DkgTask{
+			Threshold: 0,
+			Seed:      sha256sum,
+		})
+
+		if err != nil {
+			panic("failed to start DKG, err: " + err.Error())
+		}
+
+		select {
+		case <-sginals:
+			logger.Info("Received interrupt signal, exiting DKG server.")
+
+			return
+		case tssConfigs := <-resChn:
+			logger.Info("Received TSS configurations from DKG", zap.Any("tssConfigs", tssConfigs))
+
+			logger.Info("verifying randomly chosen PK is valid for smart-contract usage", zap.Any("tssConfigs", tssConfigs))
+			if !sign.PublicKeyValidForContract(tssConfigs.PublicKey) {
+				continue
+			}
+
+			cnfBytes, err := cbor.Marshal(tssConfigs)
+			if err != nil {
+				panic(fmt.Sprintf("failed to marshal frost config for guardian %d: %v", i, err))
+			}
+
+			gst.TSSSecrets = cnfBytes
+			if err := gst.SetInnerFields(); err != nil {
+				panic(fmt.Sprintf("failed to set inner fields of the GuardianStorage for guardian %d, err: %v", i, err))
+			}
+			logger.Info("GuardianStorage updated with TSS secrets. Storing result into file", zap.Int("guardianIndex", i))
+
+			toStore, err := json.MarshalIndent(gst, "", "  ")
+			if err != nil {
+				panic(fmt.Sprintf("failed to marshal GuardianStorage for guardian %d, err: %v", i, err))
+			}
+
+			fname := path.Join(cnfgs.StorageLocation, "secrets.json")
+			if err := os.WriteFile(fname, toStore, 0777); err != nil {
+				panic(fmt.Sprintf("failed to write GuardianStorage to file %s, err: %v", fname, err))
+			}
+
+			logger.Info("GuardianStorage successfully written to file", zap.String("file", fname))
+			time.Sleep(1 * time.Second)
+			return
+		}
+	}
+}
+
+func keygeneratorSetup(cnfgs *cmd.SetupConfigs) (engine.KeyGenerator, *engine.GuardianStorage) {
 	engineIds, _, err := cnfgs.IntoMaps()
 	if err != nil {
 		panic("failed to load configs, err: " + err.Error())
@@ -38,7 +136,7 @@ func main() {
 	}
 
 	// Then Create a GuardianStorage.
-	gst := engine.GuardianStorage{
+	gst := &engine.GuardianStorage{
 		Configurations: engine.Configurations{},
 		Self:           self,
 		IdentitiesKeep: engine.IdentitiesKeep{
@@ -56,18 +154,12 @@ func main() {
 	}
 
 	// Then Create a KeyGenerator.
-	keygen, err := engine.NewKeyGenerator(&gst)
+	keygen, err := engine.NewKeyGenerator(gst)
 	if err != nil {
 		panic("failed to create a KeyGenerator, err: " + err.Error())
 	}
 
-	// Create Supervisor.
-
-	fmt.Println(keygen)
-	// Then start a Server.
-	// Then Start the DKG.
-
-	// Should load with basic knowledge of the tss package: Certs, and OWN TLS key.
+	return keygen, gst
 }
 
 func loadConfigsFromFlags() *cmd.SetupConfigs {
