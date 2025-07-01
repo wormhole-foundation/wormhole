@@ -47,7 +47,11 @@ func main() {
 		panic("failed to create a new server, err: " + err.Error())
 	}
 
-	go srvr.Run(ctx)
+	go func() {
+		if err := srvr.Run(ctx); err != nil {
+			logger.Error("Failed to run server", zap.Error(err))
+		}
+	}()
 
 	time.Sleep(2 * time.Second) // wait for the server to start
 	logger.Info("DKG server is running, waiting for connections...")
