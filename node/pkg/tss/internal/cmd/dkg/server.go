@@ -43,6 +43,9 @@ func main() {
 	logger.Info("Setting up server...")
 
 	socketpath := "[::]:" + strconv.Itoa(gst.Self.Port)
+	if gst.Self.Port == 0 {
+		socketpath = "[::]:" + engine.DefaultPort
+	}
 
 	srvr, err := comm.NewServer(socketpath, logger, keygen)
 	if err != nil {
