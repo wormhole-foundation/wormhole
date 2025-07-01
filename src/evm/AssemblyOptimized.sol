@@ -934,12 +934,6 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
       uint256 upper = eagerOr(limit == 0, currentMultisigKeysLength - oldMultisigKeysLength < limit)
         ? currentMultisigKeysLength : oldMultisigKeysLength + limit;
 
-      assembly ("memory-safe") {
-        let selector := and(iszero(iszero(limit)), lt(sub(currentMultisigKeysLength, oldMultisigKeysLength), limit))
-        let selected := or(shl(32, currentMultisigKeysLength), add(oldMultisigKeysLength, limit))
-        upper := and(shr(shl(5, selector), selected), 0xFFFFFFFF)
-      }
-
       // Pull and append the guardian sets
       for (uint256 i = oldMultisigKeysLength; i < upper; i++) {
         // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
