@@ -50,3 +50,5 @@ unreachable.
 Once you run the protocol, it will generate for each guardian a `secrets.json` fil upon lkg completion. 
 This `secrets.json` file contains everything the Guardian process needs to run VAAv2.
 Keep this file secret.
+
+You can see an example of the output in `dkg/secrets_example.json`
