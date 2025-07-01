@@ -114,7 +114,7 @@ contract TestAssembly is Test, VaaBuilder {
 			schnorrShardsRaw = abi.encodePacked(schnorrShardsRaw, schnorrShards[i].shard, schnorrShards[i].id);
 		}
 
-		bytes32 schnorrShardDataHash = keccak256(abi.encodePacked(schnorrShardsRaw));
+		bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
 
 		bytes memory payload = createAppendSchnorrKeyMessage2(0, schnorrKey1, 0, schnorrShardDataHash);
 		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);

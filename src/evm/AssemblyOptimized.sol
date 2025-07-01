@@ -287,6 +287,21 @@ contract VerificationCore {
     }
   }
 
+  function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, uint8 shardCount, bytes memory shardData) internal {
+    assembly ("memory-safe") {
+      let extraData := add(SLOT_SCHNORR_KEY_EXTRA, schnorrKeyIndex)
+      let shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, sload(extraData)), MASK_SCHNORR_EXTRA_SHARD_BASE)
+      let writePtr := add(SLOT_SCHNORR_SHARD_DATA, shardBase)
+      let readPtr := add(shardData, 0x20)
+      for {let i := 0} lt(i, shardCount) {i := add(i, 1)} {
+        sstore(writePtr, mload(readPtr))
+        sstore(add(writePtr, 1), mload(add(readPtr, WORD_SIZE)))
+        writePtr := add(writePtr, 2)
+        readPtr := add(readPtr, 0x40)
+      }
+    }
+  }
+
   function _verifyVaa(bytes calldata data) internal view returns (uint256 result) {
     assembly ("memory-safe") {
       let version := shr(248, calldataload(data.offset))
@@ -647,6 +662,7 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
   error InvalidAction();
   error InvalidKeyIndex();
   error InvalidDataLength();
+  error ShardDataMismatch();
 
   error SignatureExpired();
   error InvalidSignerIndex();
@@ -710,13 +726,14 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
         if (opcode == EXEC_UPDATE_SHARD_ID) {
           offset = _updateShardId(data, offset);
         } else if (opcode == EXEC_APPEND_SCHNORR_KEY) {
+          uint32 schnorrKeyIndex;
           bytes32 initialShardDataHash;
           uint8 shardCount;
-          (initialShardDataHash, shardCount, offset) = _appendSchnorrKey(data, offset);
+          (schnorrKeyIndex, shardCount, initialShardDataHash, offset) = _appendSchnorrKey(data, offset);
 
           (opcode, offset) = data.asUint8CdUnchecked(offset);
           if (opcode == EXEC_APPEND_SCHNORR_SHARD_DATA) {
-            offset = _appendSchnorrShardData(initialShardDataHash, shardCount, data, offset);
+            offset = _appendSchnorrShardData(schnorrKeyIndex, initialShardDataHash, shardCount, data, offset);
           } else {
             revert MissingAppendSchnorrShardData(offset);
           }
@@ -833,7 +850,7 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
     return offset;
   }
 
-  function _appendSchnorrKey(bytes calldata data, uint256 offset) internal returns (bytes32 initialShardDataHash, uint8 shardCount, uint256 newOffset) {
+  function _appendSchnorrKey(bytes calldata data, uint256 offset) internal returns (uint32 newSchnorrKeyIndex, uint8 shardCount, bytes32 initialShardDataHash, uint256 newOffset) {
     unchecked {
       // Decode the VAA
       uint8 version;
@@ -855,7 +872,6 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
 
       bytes32 module;
       uint8 action;
-      uint32 newSchnorrKeyIndex;
       uint256 newSchnorrKey;
       uint32 expirationDelaySeconds;
 
@@ -906,9 +922,21 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
     }
   }
 
-  function _appendSchnorrShardData(bytes32 initialShardDataHash, uint8 shardCount, bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
-    // FIXME: Implement
-    return offset + uint256(shardCount) * 64;
+  function _appendSchnorrShardData(uint32 schnorrKeyIndex, bytes32 initialShardDataHash, uint8 shardCount, bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
+    unchecked {
+      // Read and validate the shard data
+      bytes memory shardData;
+      uint256 shardDataLength = uint256(shardCount) << 6;
+      (shardData, offset) = data.sliceCdUnchecked(offset, shardDataLength);
+
+      bytes32 expectedHash = keccak256(shardData);
+      require(expectedHash == initialShardDataHash, ShardDataMismatch());
+
+      // Store the shard data
+      _storeSchnorrShardDataBlock(schnorrKeyIndex, shardCount, shardData);
+
+      return offset;
+    }
   }
 
   function _pullMultisigKeyData(uint32 limit) internal { // 298332
