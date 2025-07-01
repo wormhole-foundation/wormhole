@@ -473,11 +473,19 @@ func (t *Engine) Start(ctx context.Context) error {
 }
 
 func (t *Engine) GetPublicKey() curve.Point {
-	return t.fp.GetPublic()
+	pk, err := t.fp.GetPublic()
+	if err != nil {
+		t.logger.Fatal("failed to get public key from full party", zap.Error(err))
+	}
+
+	return pk
 }
 
 func (t *Engine) GetEthAddress() ethcommon.Address {
-	pubkey := t.fp.GetPublic()
+	pubkey, err := t.fp.GetPublic()
+	if err != nil {
+		t.logger.Fatal("failed to get public key from full party", zap.Error(err))
+	}
 
 	ethaddress := ethcommon.Address{}
 
