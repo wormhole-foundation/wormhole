@@ -40,7 +40,7 @@ func main() {
 
 	keygen.Start(ctx)
 
-	logger.Info("Setting up server...")
+	logger.Info("Setting up server...", zap.String("networkName", gst.Self.NetworkName()))
 
 	srvr, err := comm.NewServer(gst.Self.NetworkName(), logger, keygen)
 	if err != nil {
@@ -49,6 +49,7 @@ func main() {
 
 	go srvr.Run(ctx)
 
+	time.Sleep(2 * time.Second) // wait for the server to start
 	logger.Info("DKG server is running, waiting for connections...")
 	srvr.WaitForConnections(ctx)
 
