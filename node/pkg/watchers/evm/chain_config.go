@@ -101,6 +101,7 @@ var (
 		// vaa.ChainIDMonad:      Not in Mainnet yet.
 		vaa.ChainIDMezo: {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		// vaa.ChainIDConverge: Not in Mainnet yet
+		// vaa.ChainIDPlume: Not in Mainnet yet
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
@@ -153,6 +154,7 @@ var (
 		vaa.ChainIDMonad:           {Finalized: true, Safe: true, EvmChainID: 10143, PublicRPC: "https://testnet-rpc.monad.xyz", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		vaa.ChainIDMezo:            {Finalized: true, Safe: true, EvmChainID: 31611, PublicRPC: "https://rpc.test.mezo.org", ContractAddr: "0x268557122Ffd64c85750d630b716471118F323c8"},
 		vaa.ChainIDConverge:        {Finalized: true, Safe: true, EvmChainID: 52085145, PublicRPC: "https://rpc-converge-testnet-1.t.conduit.xyz", ContractAddr: "0x556B259cFaCd9896B2773310080c7c3bcE90Ff01"},
+		vaa.ChainIDPlume:           {Finalized: true, Safe: true, EvmChainID: 98867, PublicRPC: "https://testnet-rpc.plume.org", ContractAddr: "0x81705b969cDcc6FbFde91a0C6777bE0EF3A75855"},
 		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},
