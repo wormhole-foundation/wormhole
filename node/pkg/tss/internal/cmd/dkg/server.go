@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"path"
 	"strconv"
 	"time"
@@ -19,12 +18,13 @@ import (
 	"github.com/certusone/wormhole/node/pkg/tss/comm"
 	"github.com/certusone/wormhole/node/pkg/tss/internal/cmd"
 	"github.com/fxamacker/cbor/v2"
+	"github.com/xlabs/multi-party-sig/protocols/frost"
 	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 	"github.com/xlabs/tss-lib/v2/party"
 	"go.uber.org/zap"
 )
 
-var cnfgPath = flag.String("cnfg", "/workspaces/wormhole/node/pkg/tss/internal/cmd/dkg/dkg.json", "path to config file in json format used to run the protocol")
+var cnfgPath = flag.String("cnfg", "/workspaces/wormhole/node/pkg/tss/internal/cmd/dkg/5/dkg.json", "path to config file in json format used to run the protocol")
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,6 +37,8 @@ func main() {
 	cnfgs := loadConfigsFromFlags()
 
 	keygen, gst := keygeneratorSetup(cnfgs)
+
+	keygen.Start(ctx)
 
 	logger.Info("Setting up server...")
 
@@ -54,9 +56,6 @@ func main() {
 
 	logger.Info("Connections established, starting DKG...")
 
-	sginals := make(chan os.Signal, 1)
-	signal.Notify(sginals, os.Interrupt)
-
 	i := 0
 	for { // The loop should converge after 2~3 iterations.
 		i++
@@ -72,44 +71,45 @@ func main() {
 			panic("failed to start DKG, err: " + err.Error())
 		}
 
+		var tssConfigs *frost.Config
 		select {
-		case <-sginals:
-			logger.Info("Received interrupt signal, exiting DKG server.")
-
-			return
-		case tssConfigs := <-resChn:
-			logger.Info("Received TSS configurations from DKG", zap.Any("tssConfigs", tssConfigs))
-
-			logger.Info("verifying randomly chosen PK is valid for smart-contract usage", zap.Any("tssConfigs", tssConfigs))
-			if !sign.PublicKeyValidForContract(tssConfigs.PublicKey) {
-				continue
-			}
-
-			cnfBytes, err := cbor.Marshal(tssConfigs)
-			if err != nil {
-				panic(fmt.Sprintf("failed to marshal frost config for guardian %d: %v", i, err))
-			}
-
-			gst.TSSSecrets = cnfBytes
-			if err := gst.SetInnerFields(); err != nil {
-				panic(fmt.Sprintf("failed to set inner fields of the GuardianStorage for guardian %d, err: %v", i, err))
-			}
-			logger.Info("GuardianStorage updated with TSS secrets. Storing result into file", zap.Int("guardianIndex", i))
-
-			toStore, err := json.MarshalIndent(gst, "", "  ")
-			if err != nil {
-				panic(fmt.Sprintf("failed to marshal GuardianStorage for guardian %d, err: %v", i, err))
-			}
-
-			fname := path.Join(cnfgs.StorageLocation, "secrets.json")
-			if err := os.WriteFile(fname, toStore, 0777); err != nil {
-				panic(fmt.Sprintf("failed to write GuardianStorage to file %s, err: %v", fname, err))
-			}
-
-			logger.Info("GuardianStorage successfully written to file", zap.String("file", fname))
-			time.Sleep(1 * time.Second)
-			return
+		case tssConfigs = <-resChn:
+		case <-time.After(time.Second * 15):
+			logger.Error("FAILED DKG. attempting again.")
+			continue
 		}
+
+		logger.Info("Received TSS configurations from DKG", zap.Any("tssConfigs", tssConfigs))
+
+		logger.Info("verifying randomly chosen PK is valid for smart-contract usage", zap.Any("tssConfigs", tssConfigs))
+		if !sign.PublicKeyValidForContract(tssConfigs.PublicKey) {
+			continue
+		}
+
+		cnfBytes, err := cbor.Marshal(tssConfigs)
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal frost config for guardian %d: %v", i, err))
+		}
+
+		gst.TSSSecrets = cnfBytes
+		if err := gst.SetInnerFields(); err != nil {
+			panic(fmt.Sprintf("failed to set inner fields of the GuardianStorage for guardian %d, err: %v", i, err))
+		}
+		logger.Info("GuardianStorage updated with TSS secrets. Storing result into file", zap.Int("guardianIndex", i))
+
+		toStore, err := json.MarshalIndent(gst, "", "  ")
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal GuardianStorage for guardian %d, err: %v", i, err))
+		}
+
+		fname := path.Join(cnfgs.StorageLocation, "secrets.json")
+		if err := os.WriteFile(fname, toStore, 0777); err != nil {
+			panic(fmt.Sprintf("failed to write GuardianStorage to file %s, err: %v", fname, err))
+		}
+
+		logger.Info("GuardianStorage successfully written to file", zap.String("file", fname))
+		time.Sleep(1 * time.Second)
+		return
 	}
 }
 

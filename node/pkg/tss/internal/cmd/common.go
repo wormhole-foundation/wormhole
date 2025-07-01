@@ -14,6 +14,7 @@ import (
 type Identifier struct {
 	Hostname string
 	TlsX509  engine.PEM // PEM Encoded (see certs.go). Note, you must have the private key of this cert later.
+	Port     int        // if one needs different ports, tell it here.
 }
 
 type SetupConfigs struct {
@@ -69,8 +70,6 @@ func (cnfg *SetupConfigs) IntoMaps() (keyToEngineIdentity map[string]*engine.Ide
 			return nil, nil, err
 		}
 
-		dnsName := extractDnsFromCert(crt)
-
 		keyToEngineIdentity[string(bts)] = &engine.Identity{
 			Pid: &common.PartyID{
 				ID: string(bts),
@@ -79,8 +78,10 @@ func (cnfg *SetupConfigs) IntoMaps() (keyToEngineIdentity map[string]*engine.Ide
 			CertPem:            peer.TlsX509,
 			Cert:               nil, // not stored, since we have the certPem.
 			CommunicationIndex: 0,   // unknown until sorted.
-			Hostname:           dnsName,
-			Port:               0, // undefined.
+			Hostname:           peer.Hostname,
+			Port:               peer.Port,
+			Key:                nil, // not stored.
+			VAAv1PubKey:        nil, // not stored.
 		}
 
 		keyToID[string(bts)] = &cnfg.Peers[i]

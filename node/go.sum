@@ -3139,14 +3139,6 @@ github.com/xlabs/multi-party-sig v0.0.2-0.20250627061502-fad331e9a67c h1:LZTmpTg
 github.com/xlabs/multi-party-sig v0.0.2-0.20250627061502-fad331e9a67c/go.mod h1:nj+lVandXi5A95tOft+8vXS07oWsa4ff/PU8sLKGOjA=
 github.com/xlabs/tss-common v0.0.0-20250627061221-0a6547e8e6da h1:2RPJnBGFo4Ztq/Kcyd13auoplbYgv02V889g+x3mY3c=
 github.com/xlabs/tss-common v0.0.0-20250627061221-0a6547e8e6da/go.mod h1:EBXV5kup1GsnVpEknaxXXpid87uN6Mh7NboAZhV+HNM=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250628063546-f80ed837eac7 h1:8PDRuLnDKCC6j+fFM/zMcv5eEt957BvSUKqRa5Wan98=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250628063546-f80ed837eac7/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250629042037-10e6cee16f71 h1:u0VZLDHKpQw7d4CdtVx13OxDwdZPPuomR72Y0QHvrbU=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250629042037-10e6cee16f71/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250629072927-5add3e5b1c3d h1:alup40oS0nfIoKCnlq7rRKBURhw15BYZkvuBz3e23+o=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250629072927-5add3e5b1c3d/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250629155833-00828fb18d45 h1:X7BPaedqcHvPPah2vTWzTHGlQaCAuBbgM5PEr+kUPs0=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250629155833-00828fb18d45/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
 github.com/xlabs/tss-lib/v2 v2.0.0-20250701120807-ab2a5f5787f5 h1:Wo11nTXo9iPCnj/jqLEc376bpxCEYpFfKJh4W4W5lpQ=
 github.com/xlabs/tss-lib/v2 v2.0.0-20250701120807-ab2a5f5787f5/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=

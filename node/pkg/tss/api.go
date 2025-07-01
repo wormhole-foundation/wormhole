@@ -73,7 +73,13 @@ type Signer interface {
 	WitnessNewVaa(v *vaa.VAA) error
 }
 
+type Starter interface {
+	Start(ctx context.Context) error
+}
+
 type KeyGenerator interface {
+	Starter
+
 	// demands the usage of a reliable messenger. Either via full Reliable Broadcast,
 	// or via a hash-broadcast protocol.
 	ReliableMessenger
@@ -87,9 +93,11 @@ type KeyGenerator interface {
 // ReliableTSS represents a TSS engine that can fully support logic of
 // reliable broadcast needed for the security of TSS over the network.
 type ReliableTSS interface {
+	Starter
+	// demands the usage of a reliable messenger. Either via full Reliable Broadcast,
+	// or via a hash-broadcast protocol.
 	ReliableMessenger
 	Signer
 
 	SetGuardianSetState(gs *whcommon.GuardianSetState) error
-	Start(ctx context.Context) error
 }
