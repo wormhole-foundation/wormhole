@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync/atomic"
 	"time"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
@@ -51,7 +50,7 @@ type server struct {
 	requestRedial chan redialRequest
 	redials       chan redialResponse
 
-	numConnsActive *atomic.Int32
+	fullyConnected chan struct{} // used to signal that the server is fully connected to all peers.
 }
 
 func (s *server) WaitForConnections(ctx context.Context) error {
@@ -59,10 +58,8 @@ func (s *server) WaitForConnections(ctx context.Context) error {
 		select {
 		case <-s.ctx.Done():
 			return ctx.Err()
-		default:
-			if s.numConnsActive.Load() == int32(len(s.peers)) {
-				return nil
-			}
+		case <-s.fullyConnected:
+			return nil
 		}
 	}
 }
@@ -108,7 +105,10 @@ func (s *server) sender() {
 			}
 
 			s.connections[redial.name] = redial.conn
-			s.numConnsActive.Store(int32(len(s.connections)))
+			select {
+			case s.fullyConnected <- struct{}{}: // signal that a new connection was established
+			default: // don't block if the channel is already full.
+			}
 
 		case <-connectionCheckTicker.C:
 			s.forceDialIfNotConnected()
