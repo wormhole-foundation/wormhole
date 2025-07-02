@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -17,7 +18,6 @@ import (
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/comm"
 	"github.com/certusone/wormhole/node/pkg/tss/internal/cmd"
-	"github.com/fxamacker/cbor/v2"
 	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 	"github.com/xlabs/tss-lib/v2/party"
 	"go.uber.org/zap"
@@ -108,12 +108,14 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 			continue
 		}
 
-		cnfBytes, err := cbor.Marshal(tssConfigs)
-		if err != nil {
+		buff := bytes.NewBuffer(nil)
+		enc := gob.NewEncoder(buff)
+
+		if err := enc.Encode(tssConfigs); err != nil {
 			lg.Fatal("failed to marshal frost configuration", zap.Error(err))
 		}
 
-		gst.TSSSecrets = cnfBytes
+		gst.TSSSecrets = buff.Bytes()
 		if err := gst.SetInnerFields(); err != nil {
 			lg.Fatal("failed to set inner fields of the GuardianStorage", zap.Error(err))
 		}

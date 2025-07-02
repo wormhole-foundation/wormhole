@@ -5,13 +5,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/fxamacker/cbor/v2"
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
 	common "github.com/xlabs/tss-common"
@@ -42,8 +42,11 @@ func (s *GuardianStorage) attemptLoadTssSecrets() error {
 		return nil
 	}
 
+	buff := bytes.NewBuffer(s.TSSSecrets)
+	dec := gob.NewDecoder(buff)
+
 	cnf := frost.EmptyConfig(curve.Secp256k1{})
-	if err := cbor.Unmarshal(s.TSSSecrets, &cnf); err != nil { // TODO: find a way to remove cbor dependency
+	if err := dec.Decode(cnf); err != nil {
 		return fmt.Errorf("error unmarshalling TSSSecrets: %v", err)
 	}
 
