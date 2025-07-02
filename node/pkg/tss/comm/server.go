@@ -105,9 +105,11 @@ func (s *server) sender() {
 			}
 
 			s.connections[redial.name] = redial.conn
-			select {
-			case s.fullyConnected <- struct{}{}: // signal that a new connection was established
-			default: // don't block if the channel is already full.
+			if len(s.connections) == len(s.peers) {
+				select {
+				case s.fullyConnected <- struct{}{}:
+				default: // don't block if the channel is already full.
+				}
 			}
 
 		case <-connectionCheckTicker.C:
