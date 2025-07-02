@@ -74,6 +74,8 @@ type Signer interface {
 }
 
 type Starter interface {
+	// Start deploys the component and allocates its resources.
+	// The context is used to control the lifetime of the component.
 	Start(ctx context.Context) error
 }
 
