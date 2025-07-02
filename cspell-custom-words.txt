@@ -146,6 +146,7 @@ protobuf
 protos
 prototxt
 pubkey
+publicrpc
 pushbytes
 pushint
 pytest
