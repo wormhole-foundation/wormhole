@@ -472,19 +472,19 @@ func (t *Engine) Start(ctx context.Context) error {
 	return nil
 }
 
-func (t *Engine) GetPublicKey() curve.Point {
+func (t *Engine) GetPublicKey() (curve.Point, error) {
 	pk, err := t.fp.GetPublic()
 	if err != nil {
-		t.logger.Fatal("failed to get public key from full party", zap.Error(err))
+		return nil, fmt.Errorf("failed to get public key from full party: %w", err)
 	}
 
-	return pk
+	return pk, nil
 }
 
-func (t *Engine) GetEthAddress() ethcommon.Address {
+func (t *Engine) GetEthAddress() (ethcommon.Address, error) {
 	pubkey, err := t.fp.GetPublic()
 	if err != nil {
-		t.logger.Fatal("failed to get public key from full party", zap.Error(err))
+		return ethcommon.Address{}, fmt.Errorf("failed to get public key from full party: %w", err)
 	}
 
 	ethaddress := ethcommon.Address{}
@@ -496,7 +496,7 @@ func (t *Engine) GetEthAddress() ethcommon.Address {
 
 	copy(ethaddress[:], add[:])
 
-	return ethaddress
+	return ethaddress, nil
 }
 
 func (st *GuardianStorage) maxSignerTTL() time.Duration {

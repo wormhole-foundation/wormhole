@@ -936,7 +936,8 @@ func pollApiAndInspectVaa(t *testing.T, ctx context.Context, msg *common.Message
 		if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
 			var verificationPublic vaa.PublicKeys = gsAddrList
 			if testCase.tssVaaVersionChecks {
-				verificationPublic = gs[0].tssEngine.GetPublicKey()
+				verificationPublic, err = gs[0].tssEngine.GetPublicKey()
+				assert.NoError(t, err)
 			}
 
 			assert.NoError(t, returnedVaa.Verify(verificationPublic))

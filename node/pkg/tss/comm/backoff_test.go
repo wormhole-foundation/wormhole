@@ -2,7 +2,6 @@ package comm
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 )
@@ -31,7 +30,6 @@ func TestBackoffRepeats(t *testing.T) {
 			continue // skip (nothing to dial to)
 		}
 
-		fmt.Println("Oh no! failed to dial to peer!", dialTo)
 		waiters.Enqueue(dialTo) // ensuring a retry.
 	}
 

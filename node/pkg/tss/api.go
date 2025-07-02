@@ -61,8 +61,8 @@ type Signer interface {
 	BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID vaa.ChainID, vaaconsistency uint8) error
 	ProducedSignature() <-chan *common.SignatureData
 
-	GetPublicKey() curve.Point
-	GetEthAddress() ethcommon.Address
+	GetPublicKey() (curve.Point, error)
+	GetEthAddress() (ethcommon.Address, error)
 
 	// tells the maximal duration one might wait on a signature to be produced
 	// (realisticly, it should be produced within a few seconds).

@@ -340,7 +340,15 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 
 	var verificationPublic vaa.PublicKeys = keys
 	if v.Version == vaa.TSSVaaVersion {
-		verificationPublic = p.thresholdSigner.GetPublicKey()
+		verificationPublic, err = p.thresholdSigner.GetPublicKey()
+		if err != nil {
+			p.logger.Warn("dropping SignedVAAWithQuorum message since we failed to get public key for TSS VAA",
+				zap.String("message_id", v.MessageID()),
+				zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
+				zap.Error(err),
+			)
+			return
+		}
 	}
 
 	if err := v.Verify(verificationPublic); err != nil {

@@ -1528,7 +1528,11 @@ func msgHandler(ctx context.Context, engines []*Engine, numDiffSigsExpected int)
 							panic("failed to translate signature:" + err.Error())
 						}
 
-						pk := engine.GetPublicKey()
+						pk, err := engine.GetPublicKey()
+						if err != nil {
+							panic("failed to get public key:" + err.Error())
+						}
+
 						if err := sg.Verify(pk, sig.M); err != nil {
 							panic("failed to verify signature:" + err.Error())
 						}
