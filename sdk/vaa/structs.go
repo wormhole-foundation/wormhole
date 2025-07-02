@@ -684,7 +684,7 @@ const (
 	ChainIDConverge ChainID = 53
 	// ChainIDCodex is the ChainID of Codex
 	ChainIDCodex ChainID = 54
-	// ChainIdPlume
+	// ChainIdPlume is the ChainID of Plume
 	ChainIDPlume ChainID = 55
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
