@@ -141,9 +141,9 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	var err error
 	if usesBlockscout(chainId) {
 		// This is the BlockScout based explorer leg
-		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
+		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
-		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
+		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
 	}
 	if err != nil {
 		panic(err)
