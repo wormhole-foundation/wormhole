@@ -24,7 +24,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var cnfgPath = flag.String("cnfg", "/workspaces/wormhole/node/pkg/tss/internal/cmd/dkg/5/dkg.json", "path to config file in json format used to run the protocol")
+var cnfgPath = flag.String("cnfg", "", "path to config file in json format used to run the protocol")
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
