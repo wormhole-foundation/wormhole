@@ -3141,6 +3141,8 @@ github.com/xlabs/tss-common v0.0.0-20250627061221-0a6547e8e6da h1:2RPJnBGFo4Ztq/
 github.com/xlabs/tss-common v0.0.0-20250627061221-0a6547e8e6da/go.mod h1:EBXV5kup1GsnVpEknaxXXpid87uN6Mh7NboAZhV+HNM=
 github.com/xlabs/tss-lib/v2 v2.0.0-20250701120807-ab2a5f5787f5 h1:Wo11nTXo9iPCnj/jqLEc376bpxCEYpFfKJh4W4W5lpQ=
 github.com/xlabs/tss-lib/v2 v2.0.0-20250701120807-ab2a5f5787f5/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
+github.com/xlabs/tss-lib/v2 v2.0.0-20250702103806-fae0ba9d5dd9 h1:gcUdBJeH55lS1oJx4B+GJusNFgZUI1GMlXX27Em8Fak=
+github.com/xlabs/tss-lib/v2 v2.0.0-20250702103806-fae0ba9d5dd9/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRTfdpNzjtPYqr8smhKouy9mxVdGPU=

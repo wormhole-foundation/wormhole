@@ -1927,7 +1927,7 @@ func TestDKG(t *testing.T) {
 
 	_ = msgHandler(ctx, engines, 1)
 
-	promises := make([]chan *frost.Config, len(engines))
+	promises := make([]chan *party.TSSSecrets, len(engines))
 	for _, engine := range engines {
 		chn, err := engine.StartDKG(party.DkgTask{
 			Threshold: 3,
@@ -1946,7 +1946,7 @@ func TestDKG(t *testing.T) {
 			a.FailNow("context expired before DKG finished")
 		case cfg := <-promises[v.Self.CommunicationIndex]:
 			fmt.Println("received config for", v.Self.CommunicationIndex)
-			res[v.Self.CommunicationIndex] = cfg
+			res[v.Self.CommunicationIndex] = cfg.Config
 		}
 	}
 

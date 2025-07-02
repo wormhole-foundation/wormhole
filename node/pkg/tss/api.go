@@ -11,7 +11,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
-	"github.com/xlabs/multi-party-sig/protocols/frost"
 	common "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-lib/v2/party"
 )
@@ -89,7 +88,7 @@ type KeyGenerator interface {
 	// StartDKG starts a distributed key generation protocol, which will produce a frost.Config.
 	// Using this config, one can create a frost.Signer.
 	// this function doesn't change disk stored state.
-	StartDKG(party.DkgTask) (chan *frost.Config, error)
+	StartDKG(party.DkgTask) (chan *party.TSSSecrets, error)
 }
 
 // ReliableTSS represents a TSS engine that can fully support logic of

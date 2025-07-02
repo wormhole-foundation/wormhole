@@ -407,7 +407,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 			OutChannel:             make(chan common.ParsedMessage, expectedMsgs),
 			SignatureOutputChannel: make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
 			ErrChannel:             make(chan *common.Error, storage.maxSimultaneousSignatures),
-			KeygenOutputChannel:    make(chan *frost.Config, 1), // shouldn't output often.
+			KeygenOutputChannel:    make(chan *party.TSSSecrets, 1), // shouldn't output often.
 		},
 
 		sigOutChan:     make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
@@ -986,7 +986,7 @@ func (st *GuardianStorage) verifySignedMessage(uid uuid, msg *tsscommv1.SignedMe
 	return nil
 }
 
-func (t *Engine) StartDKG(task party.DkgTask) (chan *frost.Config, error) {
+func (t *Engine) StartDKG(task party.DkgTask) (chan *party.TSSSecrets, error) {
 	if t == nil {
 		return nil, fmt.Errorf("tss engine is nil")
 	}
