@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"crypto/ecdsa"
-	"crypto/x509"
 	"fmt"
-	"sort"
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/tss/internal"
@@ -77,34 +75,17 @@ func (cnfg *SetupConfigs) IntoMaps() (keyToEngineIdentity map[string]*engine.Ide
 			KeyPEM:             bts,
 			CertPem:            peer.TlsX509,
 			Cert:               nil, // not stored, since we have the certPem.
-			CommunicationIndex: 0,   // unknown until sorted.
+			CommunicationIndex: 0,   // unknown until all identites are sorted according to their Party ids.
 			Hostname:           peer.Hostname,
 			Port:               peer.Port,
-			Key:                nil, // not stored.
-			VAAv1PubKey:        nil, // not stored.
+			Key:                nil, // Filled by the guardian storage on boot.
+			VAAv1PubKey:        nil, // not used in dkg, so nil.
 		}
 
 		keyToID[string(bts)] = &cnfg.Peers[i]
 	}
 
 	return keyToEngineIdentity, keyToID, nil
-}
-
-func extractDnsFromCert(crt *x509.Certificate) string {
-	if len(crt.DNSNames) == 0 {
-		panic("expected DNS names in the certificate")
-	}
-
-	sort.Strings(crt.DNSNames)
-
-	dnsName := ""
-	for _, name := range crt.DNSNames {
-		if len(name) > 0 && name != "localhost" {
-			dnsName = name // using the first non localhost name.
-		}
-	}
-
-	return dnsName
 }
 
 // sorts the identities based on the partyID key (as tss-lib expects the parties to be sorted).
