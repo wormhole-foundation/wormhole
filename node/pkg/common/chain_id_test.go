@@ -23,7 +23,6 @@ func TestVerifyProtoBufChainIDs(t *testing.T) {
 	// Get all of the chain IDs from the SDK and put them in a map keyed by chain ID.
 	vaaChainList := vaa.GetAllNetworkIDs()
 	require.NotEmpty(t, vaaChainList)
-	assert.NotEmpty(t, vaaChainList)
 
 	vaaChains := ChainMap{}
 	for _, chainId := range vaaChainList {
