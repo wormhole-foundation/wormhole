@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -641,7 +640,7 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to post: %w", err)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to read: %w", err)
 	}

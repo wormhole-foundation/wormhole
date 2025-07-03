@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"net/http"
@@ -155,7 +154,7 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	var r struct {
 		Result string `json:"result"`
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -198,7 +197,7 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 
 	var r logResponse
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
