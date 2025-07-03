@@ -270,6 +270,11 @@ func cclParseAdditionalBlocksConfig(reader *bytes.Reader) (CCLRequest, error) {
 		return nil, fmt.Errorf("failed to read num blocks: %w", err)
 	}
 
+	// The config data is 32 bytes and the AdditionalBlocks request uses the first four, so we should have 28 left.
+	if reader.Len() != 28 {
+		return nil, fmt.Errorf("unexpected remaining unread bytes in buffer, should be 28, are %d", reader.Len())
+	}
+
 	return &AdditionalBlocks{consistencyLevel, blocks}, nil
 }
 
