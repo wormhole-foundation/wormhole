@@ -128,11 +128,9 @@ describe("VerificationV2", function() {
     const accounts = await connection.getProgramAccounts(coreV1Address)
     assert(accounts.length === 2, "Expected 2 accounts")
 
-    const guardianSetIndex = await coreV1.client.getGuardianSetIndex();
+    const guardianSetIndex = await coreV1.client.getGuardianSetIndex()
     assert(guardianSetIndex === 0, "Expected guardian set index to be 0")
     const guardianSet = await coreV1.client.getGuardianSet(guardianSetIndex);
-    // FIXME? initialize doesn't seem to set the correct expiration time
-    // assert.strictEqual(guardianSet.expiry, BigInt(guardianSetExpirationTime), "Guardian set expiration time")
 
     const queriedFee = await coreV1.client.getMessageFee();
     assert(queriedFee === BigInt(fee), "Expected fee to be 100")
