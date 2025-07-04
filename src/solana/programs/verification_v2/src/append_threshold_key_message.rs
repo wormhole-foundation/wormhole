@@ -1,6 +1,6 @@
+use anchor_lang::prelude::{AnchorDeserialize, Result, error_code};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
-use anchor_lang::prelude::*;
 
 use crate::threshold_key::ThresholdKey;
 
@@ -14,6 +14,7 @@ pub struct AppendThresholdKeyMessage {
 pub enum AppendThresholdKeyDecodeError {
 	InvalidModule,
 	InvalidAction,
+	InvalidPayload,
 }
 
 // Module ID for the VerificationV2 contract, ASCII "TSS"
@@ -26,9 +27,8 @@ pub const MODULE_VERIFICATION_V2: [u8; 32] = [
 pub const ACTION_APPEND_THRESHOLD_KEY: u8 = 0x01;
 
 impl AppendThresholdKeyMessage {
-	pub fn deserialize(vaa_body: &[u8]) -> Result<Self> {
-		// Decode the VAA body
-		let mut cursor = Cursor::new(vaa_body);
+	pub fn deserialize(vaa_payload: &[u8]) -> Result<Self> {
+		let mut cursor = Cursor::new(vaa_payload);
 		let mut module = [0; 32];
 		cursor.read_exact(&mut module)?;
 		let action = cursor.read_u8()?;
@@ -43,6 +43,12 @@ impl AppendThresholdKeyMessage {
 
 		if action != ACTION_APPEND_THRESHOLD_KEY {
 			return Err(AppendThresholdKeyDecodeError::InvalidAction.into());
+		}
+
+		// We check that the rest of the VAA is fine but we don't really need the shards here.
+		let remaining_bytes = vaa_payload.len() - cursor.position() as usize;
+		if remaining_bytes != 32 {
+			return Err(AppendThresholdKeyDecodeError::InvalidPayload.into());
 		}
 
 		Ok(
