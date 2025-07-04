@@ -29,8 +29,9 @@ build-evm: dependencies-evm
 	forge build
 
 test-evm: dependencies-evm
-	forge test --fork-url $(TEST_RPC) -vvvv
+	forge test
 #--match-test InitiateFullFuzz
+#--fork-url $(TEST_RPC)
 
 clean-evm:
 	forge clean

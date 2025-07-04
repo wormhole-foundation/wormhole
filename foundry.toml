@@ -3,7 +3,7 @@ solc_version = "0.8.28"
 evm_version = "paris" # prevent use of PUSH0 opcode until it is widely supported
 optimizer = true
 via_ir = true
-extra_output = ["asm", "metadata", "storageLayout", "evm.deployedBytecode.immutableReferences"]
+extra_output = ["evm.assembly", "irOptimized", "metadata", "storageLayout", "evm.deployedBytecode.immutableReferences"]
 
 libs = [
     "lib",
