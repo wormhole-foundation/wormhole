@@ -24,7 +24,20 @@ const (
 	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
 	// Must be less than CacheMaxSize.
 	CacheDeleteCount = 10
+
+	// Invariant violation messages. There technically only exists two violations.
+	INVARIANT_NO_DEPOSIT           = "bridge transfer requested for tokens that were never deposited"
+	INVARIANT_INSUFFICIENT_DEPOSIT = "bridge transfer requested for more tokens than were deposited"
 )
+
+// Custom error type used to signal that a core invariant of the token bridge has been violated.
+type InvariantError struct {
+	Msg string
+}
+
+func (i InvariantError) Error() string {
+	return fmt.Sprintf("invariant violated: %s", i.Msg)
+}
 
 // Extracts the value at the given path from the JSON object, and casts it to
 // type T. If the path does not exist in the object, an error is returned.
@@ -63,7 +76,7 @@ func extractFromJsonPath[T any](data json.RawMessage, path string) (T, error) {
 		if v, ok := value.(T); ok {
 			return v, nil
 		} else {
-			return defaultT, fmt.Errorf("can't convert to type T")
+			return defaultT, fmt.Errorf("can't convert to type %T", *new(T))
 		}
 	} else {
 		return defaultT, fmt.Errorf("key %s not found", keys[len(keys)-1])
