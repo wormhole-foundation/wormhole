@@ -24,6 +24,12 @@ startup_wait = 5000
 shutdown_wait = 2000
 upgradeable = false
 
+[test.validator]
+# AjX3A4Nv2rzUuATEUWLP4rrBaBropyUnHxEvFDj1dKbx - this feature disables memory gaps.
+# We disable it because we want to test execution like in devnet or mainnet.
+# See https://github.com/anza-xyz/agave/blob/v2.2.7/feature-set/src/lib.rs
+deactivate_feature = ["AjX3A4Nv2rzUuATEUWLP4rrBaBropyUnHxEvFDj1dKbx"]
+
 [[test.genesis]]
 name = "wormhole-core-v1"
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
