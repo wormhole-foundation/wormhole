@@ -1,4 +1,43 @@
-import { chainToChainId, enumItem, Layout, layoutItems } from '@wormhole-foundation/sdk-connect';
+import { chainToChainId, enumItem, Layout } from '@wormhole-foundation/sdk-base';
+import { envelopeLayout, layoutItems } from '@wormhole-foundation/sdk-definitions';
+
+
+/* VerificationV2 layouts */
+
+export const schnorrSignatureLayout = [
+  {name: "r", binary: "bytes", size: 20},
+  {name: "s", binary: "bytes", size: 32},
+] as const satisfies Layout;
+
+export const headerV2Layout = [
+  {name: "version",   binary: "uint",  size: 1, custom: 2, omit: true},
+  {name: "tssIndex",  binary: "uint",  size: 4                       },
+  {name: "signature", binary: "bytes", layout: schnorrSignatureLayout},
+] as const satisfies Layout;
+
+export const baseV2Layout = [
+  ...headerV2Layout,
+  ...envelopeLayout,
+] as const satisfies Layout;
+
+/** @dev module: TSS */
+export const MODULE_VERIFICATION_V2 = Uint8Array.from([
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x53, 0x53,
+]);
+
+export const appendSchnorrKeyMessageLayout = [
+  {name: "module",                 binary: "bytes",           custom: MODULE_VERIFICATION_V2, omit: true},
+  {name: "action",                 binary: "uint",  size:  1, custom: 1,                      omit: true},
+  {name: "tssIndex",               binary: "uint",  size:  4},
+  {name: "tssKey",                 binary: "bytes", size: 32},
+  {name: "expirationDelaySeconds", binary: "uint",  size:  4},
+  {name: "shardDataHash",          binary: "bytes", size: 32},
+] as const satisfies Layout;
+
+
+
+/* Solana core program layouts */
 
 const versionItem = <const N extends number>(custom: N) =>
   ({ name: 'version', binary: 'uint', size: 1, custom, omit: true }) as const;
