@@ -5,17 +5,20 @@ declare_id!("GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6");
 mod vaa;
 mod append_threshold_key_message;
 mod threshold_key;
+mod utils;
 
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::clock::Clock;
+use anchor_lang::{prelude::*, Result};
 
-use wormhole_anchor_sdk::wormhole::program::Wormhole;
-use wormhole_anchor_sdk::wormhole::constants::CHAIN_ID_SOLANA;
-use wormhole_anchor_sdk::wormhole::{PostedVaaData};
+use wormhole_anchor_sdk::wormhole::{program::Wormhole, constants::CHAIN_ID_SOLANA, PostedVaaData};
 
 use vaa::VAA;
 use append_threshold_key_message::AppendThresholdKeyMessage;
-use threshold_key::ThresholdKey;
+use threshold_key::{
+  AppendThresholdKeyError,
+  ThresholdKeyAccount,
+  init_threshold_key_account
+};
+use utils::{SeedPrefix};
 
 const GOVERNANCE_ADDRESS: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4];
 
@@ -25,50 +28,22 @@ pub enum VAAError {
   InvalidVersion,
   #[msg("Invalid VAA index")]
   InvalidIndex,
-  #[msg("TSS key expired")]
   TSSKeyExpired,
-  #[msg("Invalid signature")]
-  InvalidSignature,
-}
-
-#[error_code]
-pub enum AppendThresholdKeyError {
-  #[msg("Invalid VAA")]
-  InvalidVAA,
-  #[msg("Invalid governance chain ID")]
-  InvalidGovernanceChainId,
-  #[msg("Invalid governance address")]
-  InvalidGovernanceAddress,
-  #[msg("Index mismatch")]
-  IndexMismatch,
-  #[msg("Invalid old threshold key")]
-  InvalidOldThresholdKey,
-  #[msg("Invalid TSS key")]
-  InvalidTSSKey,
 }
 
 #[account]
 #[derive(InitSpace)]
-pub struct ThresholdKeyAccount {
-  pub index: u32,
-  pub key: ThresholdKey,
-  pub expiration_timestamp: u64,
+pub struct LatestKeyAccount {
+  pub account: Pubkey,
 }
 
-impl ThresholdKeyAccount {
-  pub fn is_unexpired(&self) -> bool {
-    self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
-  }
-
-  pub fn update_expiration_timestamp(&mut self, time_lapse: u64) {
-    let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
-    self.expiration_timestamp = current_timestamp + time_lapse;
-  }
+impl SeedPrefix for LatestKeyAccount {
+  const SEED_PREFIX: &'static [u8] = b"latestkey";
 }
 
 // TODO: Refactor this to have one accounts/instruction per file
 #[derive(Accounts)]
-pub struct AppendThresholdKey<'info> {
+pub struct InitThresholdKey<'info> {
   #[account(mut)]
   pub payer: Signer<'info>,
 
@@ -82,15 +57,44 @@ pub struct AppendThresholdKey<'info> {
   #[account(
     init,
     payer = payer,
-    space = 8 + ThresholdKeyAccount::INIT_SPACE,
+    space = 8 + LatestKeyAccount::INIT_SPACE,
+    seeds = [LatestKeyAccount::SEED_PREFIX],
+    bump
   )]
-  pub new_threshold_key: Account<'info, ThresholdKeyAccount>,
+  pub latest_key: Account<'info, LatestKeyAccount>,
+
+  /// CHECK: See `init_threshold_key_account` for checks on this account.
+  #[account(mut)]
+  pub new_threshold_key: UncheckedAccount<'info>,
+
+  pub wormhole_program: Program<'info, Wormhole>,
+  pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AppendThresholdKey<'info> {
+  #[account(mut)]
+  pub payer: Signer<'info>,
+
+  #[account(
+    owner = wormhole_program.key() @ AppendThresholdKeyError::InvalidVAA,
+    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA @ AppendThresholdKeyError::InvalidGovernanceChainId,
+    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS @ AppendThresholdKeyError::InvalidGovernanceAddress,
+  )]
+  pub vaa: Account<'info, PostedVaaData>,
+
+  #[account(mut)]
+  pub latest_key: Account<'info, LatestKeyAccount>,
+
+  /// CHECK: See `init_threshold_key_account` for checks on this account.
+  #[account(mut)]
+  pub new_threshold_key: UncheckedAccount<'info>,
 
   #[account(
     mut,
-    constraint = old_threshold_key.expiration_timestamp == 0 @ AppendThresholdKeyError::InvalidOldThresholdKey,
+    constraint = old_threshold_key.key() == latest_key.account @ AppendThresholdKeyError::InvalidOldThresholdKey,
   )]
-  pub old_threshold_key: Option<Account<'info, ThresholdKeyAccount>>,
+  pub old_threshold_key: Account<'info, ThresholdKeyAccount>,
 
   pub wormhole_program: Program<'info, Wormhole>,
   pub system_program: Program<'info, System>,
@@ -108,29 +112,45 @@ pub struct VerifyVaa<'info> {
 pub mod verification_v2 {
   use super::*;
 
+  pub fn init_threshold_key(ctx: Context<InitThresholdKey>) -> Result<()> {
+    // Decode the VAA payload
+    let message = AppendThresholdKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
+
+    init_threshold_key_account(
+      ctx.accounts.new_threshold_key.to_account_info(),
+      message.tss_index,
+      message.tss_key,
+      &ctx.accounts.system_program,
+      ctx.accounts.payer.to_account_info()
+    )?;
+
+    ctx.accounts.latest_key.account = ctx.accounts.new_threshold_key.key();
+
+    Ok(())
+  }
+
   pub fn append_threshold_key(ctx: Context<AppendThresholdKey>) -> Result<()> {
     // Decode the VAA payload
     let message = AppendThresholdKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
 
-    // Check that if there is no old threshold key, the index is 0
-    // Otherwise, check that the index is increasing from the previous index
-    // FIXME: There's nothing preventing us from creating many chains of valid threshold keys unless we use PDAs based on index
-    let expected_index = ctx.accounts.old_threshold_key.as_ref().map_or(0, |key| key.index + 1);
-    if message.tss_index != expected_index {
-      return Err(AppendThresholdKeyError::IndexMismatch.into());
+    let old_threshold_key = &mut ctx.accounts.old_threshold_key;
+
+    // Check that the index is increasing from the previous index
+    if message.tss_index <= old_threshold_key.index {
+      return Err(AppendThresholdKeyError::InvalidNewKeyIndex.into());
     }
 
-    // Set the new threshold key
-    ctx.accounts.new_threshold_key.index = message.tss_index;
-    ctx.accounts.new_threshold_key.key = message.tss_key;
-    ctx.accounts.new_threshold_key.expiration_timestamp = 0;
+    init_threshold_key_account(
+      ctx.accounts.new_threshold_key.to_account_info(),
+      message.tss_index,
+      message.tss_key,
+      &ctx.accounts.system_program,
+      ctx.accounts.payer.to_account_info()
+    )?;
 
-    // Set the old threshold key expiration timestamp
-    if let Some(ref mut old_threshold_key) = &mut ctx.accounts.old_threshold_key {
-      old_threshold_key.update_expiration_timestamp(message.expiration_delay_seconds as u64);
-    } else if expected_index > 0 {
-      return Err(AppendThresholdKeyError::InvalidOldThresholdKey.into());
-    }
+    old_threshold_key.update_expiration_timestamp(message.expiration_delay_seconds as u64);
+
+    ctx.accounts.latest_key.account = ctx.accounts.new_threshold_key.key();
 
     Ok(())
   }
@@ -139,14 +159,16 @@ pub mod verification_v2 {
     // Decode the VAA
     let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
 
+    vaa.check_valid()?;
+
     // Check that the threshold key index matches the VAA index
-    let threshold_key = &mut ctx.accounts.threshold_key;
+    let threshold_key = &ctx.accounts.threshold_key;
     if threshold_key.index != vaa.header.tss_index {
       return Err(VAAError::InvalidIndex.into());
     }
 
     // Check that the signature is valid
-    threshold_key.key.check_signature(&vaa.message_hash()?, &vaa.header.signature)?;
+    threshold_key.tss_key.check_signature(&vaa.message_hash()?, &vaa.header.signature)?;
 
     // Return the VAA
     Ok(vaa)

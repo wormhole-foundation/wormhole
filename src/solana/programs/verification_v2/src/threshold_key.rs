@@ -1,25 +1,74 @@
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+	AccountInfo,
+	AnchorDeserialize,
+	AnchorSerialize,
+	Clock,
+	Discriminator,
+	InitSpace,
+	Key,
+	Program,
+	Pubkey,
+	Result,
+	SolanaSysvar,
+	Space,
+	System,
+	account,
+	borsh,
+	error_code
+};
+#[cfg(feature = "idl-build")]
+use anchor_lang::{
+  IdlBuild,
+  idl::types::{
+    IdlArrayLen,
+    IdlDefinedFields,
+    IdlField,
+    IdlSerialization,
+    IdlType,
+    IdlTypeDef,
+    IdlTypeDefTy,
+  },
+};
+use anchor_lang::solana_program::{keccak::{Hash, hash}, secp256k1_recover};
 use primitive_types::U256;
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::ops::{Rem, Shr, Sub};
-use anchor_lang::solana_program::keccak::{Hash, hash};
-use libsecp256k1::{Message, RecoveryId, Signature, recover};
 use crate::vaa::VAAThresholdSignature;
+use crate::utils::{init_account, SeedPrefix};
+use crate::ID;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ThresholdKey {
   pub key: U256,
 }
 
 #[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for ThresholdKey {}
+impl IdlBuild for ThresholdKey {
+  fn create_type() -> Option<IdlTypeDef> {
+    Some(IdlTypeDef {
+      name: "ThresholdKey".to_string(),
+      docs: vec![],
+      serialization: IdlSerialization::Borsh,
+      repr: None,
+      generics: vec![],
+      ty: IdlTypeDefTy::Struct {
+        fields: Some(IdlDefinedFields::Named(vec![
+          IdlField {
+            name: "key".to_string(),
+            docs: vec![],
+            ty: IdlType::Array(Box::new(IdlType::U8), IdlArrayLen::Value(32)),
+          },
+        ])),
+      },
+    })
+  }
+}
 
 #[error_code]
 pub enum ThresholdKeyError {
-    #[msg("Invalid scalar value")]
-    InvalidScalar,
-    #[msg("Invalid signature")]
+    #[msg("Signature does not satisfy preconditions")]
     InvalidSignature,
+    SignatureVerificationFailed,
 }
 
 impl ThresholdKey {
@@ -73,17 +122,16 @@ impl ThresholdKey {
 
 		// Recover the signer address
 		let mut signature_bytes = [0u8; 64];
+		// this is r
 		signature_bytes[0..32].copy_from_slice(&px.to_big_endian());
+		// this is s
 		signature_bytes[32..64].copy_from_slice(&ep.to_big_endian());
 
-		let message = Message::parse_slice(&sp.to_big_endian()).unwrap();
-		let signature = Signature::parse_standard(&signature_bytes).unwrap();
-		let recovery_id = RecoveryId::parse(parity as u8).unwrap();
-		let recovered = recover(&message, &signature, &recovery_id).unwrap();
-		let recovered_address = &hash(&recovered.serialize()[1..]).to_bytes()[12..];
+		let recovered_pubkey = secp256k1_recover::secp256k1_recover(&sp.to_big_endian(), parity as u8, &signature_bytes).unwrap();
+		let recovered_address = &hash(&recovered_pubkey.to_bytes()).to_bytes()[12..];
 
 		if recovered_address != r {
-			return Err(ThresholdKeyError::InvalidSignature.into());
+			return Err(ThresholdKeyError::SignatureVerificationFailed.into());
 		}
 
 		Ok(())
@@ -91,7 +139,7 @@ impl ThresholdKey {
 
 	fn mulmod(a: U256, b: U256, c: U256) -> U256 {
 		let result = a.full_mul(b).rem(c);
-		U256(result.0[0..3].try_into().unwrap())
+		U256(result.0[0..4].try_into().unwrap())
 	}
 }
 
@@ -107,10 +155,6 @@ impl AnchorSerialize for ThresholdKey {
 }
 
 impl AnchorDeserialize for ThresholdKey {
-	fn deserialize(data: &mut &[u8]) -> std::result::Result<Self, std::io::Error> {
-		Self::deserialize_reader(&mut Cursor::new(data))
-	}
-
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
 		let mut key = [0u8; 32];
 		reader.read_exact(&mut key)?;
@@ -122,4 +166,79 @@ impl AnchorDeserialize for ThresholdKey {
 
 		Ok(key)
 	}
+}
+
+
+#[account]
+#[derive(InitSpace)]
+pub struct ThresholdKeyAccount {
+  pub index: u32,
+  pub tss_key: ThresholdKey,
+  pub expiration_timestamp: u64,
+}
+
+impl ThresholdKeyAccount {
+  pub fn is_unexpired(&self) -> bool {
+    self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
+  }
+
+  pub fn update_expiration_timestamp(&mut self, time_lapse: u64) {
+    let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
+    self.expiration_timestamp = current_timestamp + time_lapse;
+  }
+}
+
+impl SeedPrefix for ThresholdKeyAccount {
+  const SEED_PREFIX: &'static [u8] = b"thresholdkey";
+}
+
+pub fn init_threshold_key_account<'info>(
+  new_threshold_key: AccountInfo<'info>,
+  tss_index: u32,
+  tss_key: ThresholdKey,
+  system_program: &Program<'info, System>,
+  payer: AccountInfo<'info>
+) -> Result<()> {
+  // We need to parse the threshold key append VAA payload
+  // to perform the derivation.
+  // This is why the initialization happens manually here.
+
+  let (pubkey, bump) = Pubkey::find_program_address(
+    &[ThresholdKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes()],
+    &ID,
+  );
+
+  if pubkey != new_threshold_key.key() {
+    return Err(AppendThresholdKeyError::AccountMismatchTSSKeyIndex.into());
+  }
+
+  let threshold_key_seeds = [ThresholdKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes(), &[bump]];
+
+  init_account(
+    new_threshold_key.clone(),
+    &threshold_key_seeds,
+    &system_program,
+    payer,
+    ThresholdKeyAccount{
+      index: tss_index,
+      tss_key,
+      expiration_timestamp: 0,
+    }
+  )?;
+
+  Ok(())
+}
+
+
+#[error_code]
+pub enum AppendThresholdKeyError {
+  InvalidVAA,
+  InvalidGovernanceChainId,
+  InvalidGovernanceAddress,
+  #[msg("New key must have strictly greater index")]
+  InvalidNewKeyIndex,
+  #[msg("Old threshold key must be the latest key")]
+  InvalidOldThresholdKey,
+  #[msg("TSS account pubkey mismatches TSS key index")]
+  AccountMismatchTSSKeyIndex,
 }

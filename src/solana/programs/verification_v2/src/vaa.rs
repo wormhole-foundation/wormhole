@@ -1,11 +1,16 @@
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+	AnchorDeserialize,
+	AnchorSerialize,
+	Result,
+	borsh,
+	borsh::{BorshDeserialize, BorshSerialize},
+};
 use anchor_lang::solana_program::keccak::{Hash, hash};
 use primitive_types::U256;
-use borsh::{BorshSerialize, BorshDeserialize};
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt};
 
-use crate::threshold_key::ThresholdKey;
+use crate::{threshold_key::{ThresholdKey, ThresholdKeyError}, VAAError};
 
 pub struct VAAThresholdSignature {
   pub r: [u8; 20],
@@ -27,10 +32,6 @@ impl AnchorSerialize for VAAThresholdSignature {
 }
 
 impl AnchorDeserialize for VAAThresholdSignature {
-	fn deserialize(data: &mut &[u8]) -> std::result::Result<Self, std::io::Error> {
-		Self::deserialize_reader(&mut Cursor::new(data))
-	}
-
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
 		let mut r = [0u8; 20];
 		reader.read_exact(&mut r)?;
@@ -47,8 +48,14 @@ pub struct VAAHeader {
 }
 
 impl VAAHeader {
-	pub fn is_valid(&self) -> bool {
-		self.version == 2 && self.signature.is_valid()
+	pub fn check_valid(&self) -> Result<()> {
+		if self.version != 2 {
+			return Err(VAAError::InvalidVersion.into());
+		}
+		if !self.signature.is_valid() {
+			return Err(ThresholdKeyError::InvalidSignature.into());
+		}
+		Ok(())
 	}
 }
 
@@ -62,10 +69,6 @@ impl AnchorSerialize for VAAHeader {
 }
 
 impl AnchorDeserialize for VAAHeader {
-	fn deserialize(data: &mut &[u8]) -> std::result::Result<Self, std::io::Error> {
-		Self::deserialize_reader(&mut Cursor::new(data))
-	}
-
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
 		let version = reader.read_u8()?;
 		let tss_index = reader.read_u32::<BigEndian>()?;
@@ -96,10 +99,6 @@ impl AnchorSerialize for VAAEnvelope {
 }
 
 impl AnchorDeserialize for VAAEnvelope {
-	fn deserialize(data: &mut &[u8]) -> std::result::Result<Self, std::io::Error> {
-		Self::deserialize_reader(&mut Cursor::new(data))
-	}
-
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
 		let timestamp = reader.read_u32::<BigEndian>()?;
 		let nonce = reader.read_u32::<BigEndian>()?;
@@ -112,25 +111,47 @@ impl AnchorDeserialize for VAAEnvelope {
 	}
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize)]
 pub struct VAA {
 	pub header: VAAHeader,
-  pub envelope: VAAEnvelope,
+	pub envelope: VAAEnvelope,
 	pub payload: Vec<u8>,
+}
+
+impl BorshDeserialize for VAA {
+  fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
+    let header = VAAHeader::deserialize_reader(reader)?;
+    let envelope = VAAEnvelope::deserialize_reader(reader)?;
+
+    // Read the remaining bytes into `payload`
+    let mut payload = Vec::new();
+    reader.read_to_end(&mut payload)?;
+
+    Ok(Self {
+      header,
+      envelope,
+      payload,
+    })
+  }
 }
 
 #[cfg(feature = "idl-build")]
 impl anchor_lang::IdlBuild for VAA {}
 
 impl VAA {
-	pub fn is_valid(&self) -> bool {
-		self.header.is_valid()
+	pub fn check_valid(&self) -> Result<()> {
+		self.header.check_valid()
 	}
 
 	pub fn message_hash(&self) -> Result<Hash> {
-		let mut cursor = Cursor::new(Vec::new());
-		self.envelope.serialize(&mut cursor)?;
-		cursor.write_all(&self.payload)?;
-		Ok(hash(&cursor.get_ref()))
+		let mut body: Vec<u8> = Vec::new();
+		self.envelope.serialize(&mut body)?;
+
+		body.extend_from_slice(&self.payload);
+
+		// Single hash
+		// Ok(hash(body.as_ref()))
+		// Double hash
+		Ok(hash(&hash(body.as_ref()).to_bytes()))
 	}
 }
