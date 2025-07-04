@@ -730,7 +730,7 @@ func TestProcessDigest(t *testing.T) {
 		objectChanges []ObjectChange
 		resultList    []ResultTestCase
 		suiEvents     []SuiEvent
-		expectedError string
+		expectedError error
 		expectedCount uint
 	}{
 		{
@@ -762,7 +762,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "",
+			expectedError: nil,
 			expectedCount: 1,
 		},
 		{
@@ -794,7 +794,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "token bridge transfer requested for an amount larger than what was deposited",
+			expectedError: &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT},
 			expectedCount: 0,
 		},
 		{
@@ -810,7 +810,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "token bridge transfer requested for tokens that were never deposited",
+			expectedError: &InvariantError{Msg: INVARIANT_NO_DEPOSIT},
 			expectedCount: 0,
 		},
 		{
@@ -842,7 +842,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "",
+			expectedError: nil,
 			expectedCount: 1,
 		},
 		{
@@ -858,7 +858,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "token bridge transfer requested for tokens that were never deposited",
+			expectedError: &InvariantError{Msg: INVARIANT_NO_DEPOSIT},
 			expectedCount: 0,
 		},
 		{
@@ -897,7 +897,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "",
+			expectedError: nil,
 			expectedCount: 2,
 		},
 		{
@@ -936,7 +936,7 @@ func TestProcessDigest(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "token bridge transfer requested for an amount larger than what was deposited",
+			expectedError: &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT},
 			expectedCount: 0,
 		},
 	}
@@ -958,9 +958,9 @@ func TestProcessDigest(t *testing.T) {
 				connection.SetObjectsResponse(responseObject)
 			}
 
-			numProcessed, err := suiTxVerifier.ProcessDigest(ctx, "HASH", logger)
+			numProcessed, _, err := suiTxVerifier.processDigestInternal(ctx, "HASH", logger)
 
-			assert.Equal(t, true, tt.expectedError == "" && err == nil || err != nil && err.Error() == tt.expectedError)
+			assert.Equal(t, true, tt.expectedError == nil && err == nil || err != nil && err.Error() == tt.expectedError.Error())
 			assert.Equal(t, tt.expectedCount, numProcessed)
 		})
 	}
