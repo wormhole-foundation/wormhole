@@ -43,8 +43,6 @@ var TransferVerifierCmdSui = &cobra.Command{
 }
 
 // CLI parameters
-//
-//nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
 func init() {
 	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui RPC url")
 	suiCoreContract = TransferVerifierCmdSui.Flags().String("suiCoreContract", "", "Sui core contract address")
@@ -53,11 +51,6 @@ func init() {
 	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
 	suiMainnet = TransferVerifierCmdSui.Flags().Bool("suiMainnet", false, "This flag sets the Sui-related package and object IDs to mainnet defaults, but will be overridden by any additional arguments")
 	suiDigest = TransferVerifierCmdSui.Flags().String("suiDigest", "", "If provided, perform transaction verification on this single digest")
-
-	// TransferVerifierCmd.MarkFlagRequired("suiRPC")
-	// TransferVerifierCmd.MarkFlagRequired("suiCoreContract")
-	// TransferVerifierCmd.MarkFlagRequired("suiTokenBridgeEmitter")
-	// TransferVerifierCmd.MarkFlagRequired("suiTokenBridgeContract")
 }
 
 // Analyse the commandline arguments and prepare the net effect of package and object IDs

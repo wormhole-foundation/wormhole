@@ -46,7 +46,7 @@ func (e *Watcher) verify(
 		if valid {
 			verificationState = common.Valid
 		} else if err != nil {
-			// If an error was returned with valid = false, then it's a signal that an internal error ocurred,
+			// If an error was returned with valid = false, then it's a signal that an internal error occurred,
 			// and the validity of the transfer cannot be determined.
 			logger.Error("an internal tx verifier error occurred: ", zap.Error(err))
 			verificationState = common.NotApplicable
