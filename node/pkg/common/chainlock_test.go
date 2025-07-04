@@ -1,9 +1,12 @@
 package common
 
 import (
+	"bytes"
 	"encoding/binary"
 	"math"
+	"io"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -798,6 +801,57 @@ func TestMessagePublication_SetVerificationState(t *testing.T) {
 			}
 			if err := msg.SetVerificationState(tt.arg); (err != nil) != tt.wantErr {
 				t.Errorf("MessagePublication.SetVerificationState() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSafeRead(t *testing.T) {
+	tests := []struct {
+		name    string
+		size    int
+		wantErr bool
+	}{
+		{
+			"happy path",
+			MaxSafeInputSize,
+			false,
+		},
+		{
+			"error: too big",
+			MaxSafeInputSize + 1,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary file and write bytes to it
+			tmp := os.TempDir()
+
+			f, err := os.CreateTemp(tmp, "tmpfile-")
+			require.NoError(t, err)
+
+			defer f.Close()
+			defer os.Remove(f.Name())
+
+			// Fill slice with zeroes.
+			data := make([]byte, tt.size)
+			if _, err := f.Write(data); err != nil {
+				require.NoError(t, err)
+			}
+
+			// File pointer is at EOF at this point. Reset to the start.
+			_, err = f.Seek(0, io.SeekStart)
+			require.NoError(t, err)
+
+			got, err := SafeRead(f)
+			if tt.wantErr {
+				require.Error(t, err, "SafeRead() should have returned an error")
+				require.Nil(t, got, "got should be nil when error occurs")
+			} else {
+				require.NoError(t, err, "SafeRead() should not have returned an error")
+				require.NotNil(t, got, "got should not be nil when no error occurs")
+				require.True(t, bytes.Equal(got, data), "bytes read are not equal to bytes written")
 			}
 		})
 	}
