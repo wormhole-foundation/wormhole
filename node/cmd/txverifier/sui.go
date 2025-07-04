@@ -2,6 +2,7 @@ package txverifier
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,6 +15,9 @@ import (
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 const (
@@ -28,6 +32,8 @@ var (
 	suiTokenBridgeEmitter   *string
 	suiTokenBridgeContract  *string
 	suiProcessInitialEvents *bool
+	suiMainnet              *bool
+	suiDigest               *string
 )
 
 var TransferVerifierCmdSui = &cobra.Command{
@@ -45,14 +51,35 @@ func init() {
 	suiTokenBridgeEmitter = TransferVerifierCmdSui.Flags().String("suiTokenBridgeEmitter", "", "Token bridge emitter on Sui")
 	suiTokenBridgeContract = TransferVerifierCmdSui.Flags().String("suiTokenBridgeContract", "", "Token bridge contract on Sui")
 	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
+	suiMainnet = TransferVerifierCmdSui.Flags().Bool("suiMainnet", false, "This flag sets the Sui-related package and object IDs to mainnet defaults, but will be overridden by any additional arguments")
+	suiDigest = TransferVerifierCmdSui.Flags().String("suiDigest", "", "If provided, perform transaction verification on this single digest")
 
-	TransferVerifierCmd.MarkFlagRequired("suiRPC")
-	TransferVerifierCmd.MarkFlagRequired("suiCoreContract")
-	TransferVerifierCmd.MarkFlagRequired("suiTokenBridgeEmitter")
-	TransferVerifierCmd.MarkFlagRequired("suiTokenBridgeContract")
+	// TransferVerifierCmd.MarkFlagRequired("suiRPC")
+	// TransferVerifierCmd.MarkFlagRequired("suiCoreContract")
+	// TransferVerifierCmd.MarkFlagRequired("suiTokenBridgeEmitter")
+	// TransferVerifierCmd.MarkFlagRequired("suiTokenBridgeContract")
+}
+
+// Analyse the commandline arguments and prepare the net effect of package and object IDs
+func resolveSuiConfiguration() {
+
+	// if Mainnet is specified, set the empty configuration arguments to mainnet defaults
+	if *suiMainnet {
+		if *suiCoreContract == "" {
+			*suiCoreContract = sdk.KnownMainnetCoreContracts[vaa.ChainIDSui]
+		}
+		if *suiTokenBridgeContract == "" {
+			*suiTokenBridgeContract = sdk.KnownMainnetTokenBridgeContracts[vaa.ChainIDSui]
+		}
+		if *suiTokenBridgeEmitter == "" {
+			*suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
+		}
+	}
 }
 
 func runTransferVerifierSui(cmd *cobra.Command, args []string) {
+	resolveSuiConfiguration()
+
 	ctx := context.Background()
 
 	// Setup logging
@@ -69,8 +96,6 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	// Setup logging to Loki if configured
 	if *telemetryLokiUrl != "" && *telemetryNodeName != "" {
 		labels := map[string]string{
-			// Is this required?
-			// "network":   *p2pNetworkID,
 			"node_name": *telemetryNodeName,
 			"version":   version.Version(),
 		}
@@ -92,13 +117,6 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
 	}
 
-	logger.Info("Starting Sui transfer verifier")
-	logger.Debug("Sui rpc connection", zap.String("url", *suiRPC))
-	logger.Debug("Sui core contract", zap.String("address", *suiCoreContract))
-	logger.Debug("Sui token bridge contract", zap.String("address", *suiTokenBridgeContract))
-	logger.Debug("token bridge event emitter", zap.String("object id", *suiTokenBridgeEmitter))
-	logger.Debug("process initial events", zap.Bool("processInitialEvents", *suiProcessInitialEvents))
-
 	// Verify CLI parameters
 	if *suiRPC == "" || *suiCoreContract == "" || *suiTokenBridgeEmitter == "" || *suiTokenBridgeContract == "" {
 		logger.Fatal("One or more CLI parameters are empty",
@@ -108,10 +126,30 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 			zap.String("suiTokenBridgeContract", *suiTokenBridgeContract))
 	}
 
+	logger.Info("Starting Sui transfer verifier")
+	logger.Debug("Sui rpc connection", zap.String("url", *suiRPC))
+	logger.Debug("Sui core contract", zap.String("address", *suiCoreContract))
+	logger.Debug("Sui token bridge contract", zap.String("address", *suiTokenBridgeContract))
+	logger.Debug("token bridge event emitter", zap.String("object id", *suiTokenBridgeEmitter))
+	logger.Debug("process initial events", zap.Bool("processInitialEvents", *suiProcessInitialEvents))
+
 	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
 
 	// Create a new SuiTransferVerifier
 	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreContract, *suiTokenBridgeEmitter, *suiTokenBridgeContract, suiApiConnection)
+
+	if *suiDigest != "" {
+		logger.Info("Processing single digest", zap.String("txDigeset", *suiDigest))
+		valid, err := suiTransferVerifier.ProcessDigest(ctx, *suiDigest, logger)
+
+		if err != nil {
+			logger.Error("Error validating the digest", zap.Error(err))
+		}
+
+		logger.Info("Validation completed", zap.Bool("valid", valid))
+
+		return
+	}
 
 	// Get the event filter
 	eventFilter := suiTransferVerifier.GetEventFilter()
@@ -152,6 +190,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 				}
 			}
 		}
+		logger.Info("Finished processing initial events")
 	}
 
 	// Ticker for live processing
