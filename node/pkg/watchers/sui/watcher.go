@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -205,16 +206,16 @@ func NewWatcher(
 		case common.MainNet:
 			suiCoreBridgeAddress = sdk.KnownMainnetCoreContracts[vaa.ChainIDSui]
 			suiTokenBridgeAddress = sdk.KnownMainnetTokenBridgeContracts[vaa.ChainIDSui]
-			suiTokenBridgeEmitter = string(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
+			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
 		case common.TestNet:
 			suiCoreBridgeAddress = sdk.KnownTestnetCoreContracts[vaa.ChainIDSui]
 			suiTokenBridgeAddress = sdk.KnownTestnetTokenBridgeContracts[vaa.ChainIDSui]
-			suiTokenBridgeEmitter = string(sdk.KnownTestnetTokenbridgeEmitters[vaa.ChainIDSui])
+			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownTestnetTokenbridgeEmitters[vaa.ChainIDSui])
 
 		case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 			suiCoreBridgeAddress = sdk.KnownDevnetCoreContracts[vaa.ChainIDSui]
 			suiTokenBridgeAddress = sdk.KnownDevnetTokenBridgeContracts[vaa.ChainIDSui]
-			suiTokenBridgeEmitter = string(sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDSui])
+			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDSui])
 		}
 
 		suiTxVerifier = txverifier.NewSuiTransferVerifier(
