@@ -1,6 +1,6 @@
 package types
 
-import sdk "github.com/cosmos/cosmos-sdk/types"
+import "cosmossdk.io/math"
 
 type TokenFactoryMsg struct {
 	Token *TokenMsg `json:"token,omitempty"`
@@ -44,15 +44,15 @@ type ChangeAdmin struct {
 }
 
 type MintTokens struct {
-	Denom         string  `json:"denom"`
-	Amount        sdk.Int `json:"amount"`
-	MintToAddress string  `json:"mint_to_address"`
+	Denom         string   `json:"denom"`
+	Amount        math.Int `json:"amount"`
+	MintToAddress string   `json:"mint_to_address"`
 }
 
 type BurnTokens struct {
-	Denom           string  `json:"denom"`
-	Amount          sdk.Int `json:"amount"`
-	BurnFromAddress string  `json:"burn_from_address"`
+	Denom           string   `json:"denom"`
+	Amount          math.Int `json:"amount"`
+	BurnFromAddress string   `json:"burn_from_address"`
 }
 
 type SetMetadata struct {
@@ -61,8 +61,8 @@ type SetMetadata struct {
 }
 
 type ForceTransfer struct {
-	Denom       string  `json:"denom"`
-	Amount      sdk.Int `json:"amount"`
-	FromAddress string  `json:"from_address"`
-	ToAddress   string  `json:"to_address"`
+	Denom       string   `json:"denom"`
+	Amount      math.Int `json:"amount"`
+	FromAddress string   `json:"from_address"`
+	ToAddress   string   `json:"to_address"`
 }

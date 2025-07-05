@@ -1,20 +1,86 @@
-FROM ignitehq/cli@sha256:1e2846f3621bc3ed2af3e59749bc02f6aec761e1260486da3a17c8fe2c8d2b6c AS base
+FROM golang:1.23.3-bullseye@sha256:9e53abacfc22cd3df3e4ebcc04ac64951b71d2a38c52b690f3807af6a2000ed2 AS base
 
-COPY --chown=tendermint:tendermint wormchain /apps/wormchain
-COPY --chown=tendermint:tendermint sdk /apps/sdk
+WORKDIR /home
 
-WORKDIR /apps/wormchain
+# Install dependencies
+RUN apt update && \
+    apt-get install -y \
+        build-essential \
+        ca-certificates \
+        curl
 
-FROM base AS ignite-go-build
+# Enable faster module downloading.
+ENV GOPROXY=https://proxy.golang.org
+
+
+
+## CLI BUILDER STAGE
+FROM base AS cli-builder
+
+WORKDIR /ignite
+
+# Git clone https://github.com/ignite/cli version v0.27.2
+RUN git clone --branch release/v0.27.2 https://github.com/ignite/cli.git
+
+WORKDIR /ignite/cli
+
+RUN sed -i 's/go 1.19/go 1.23/g' go.mod
+RUN sed -i 's#github.com/rogpeppe/go-internal v1.10.0#github.com/rogpeppe/go-internal v1.13.1#g' go.mod
+RUN sed -i 's#golang.org/x/mod v0.10.0#golang.org/x/mod v0.23.0#g' go.mod
+RUN go mod tidy
+
+# Install ignite binary & verify installation
+RUN --mount=type=cache,target=/root/.cache/go-build go install -v ./...
+RUN ignite version
+
+
+
+## WORMCHAIN BUILDER STAGE
+FROM base AS wormchain-builder
+
+# Define 'tendermint' user (same as in the official ignite image)
+RUN useradd -ms /bin/bash tendermint
+USER tendermint
+
+# Copy wormchain into container
+COPY --chown=tendermint:tendermint wormchain /wh/apps/wormchain
+COPY --chown=tendermint:tendermint sdk /wh/apps/sdk
+
+# Set working directory
+WORKDIR /wh/apps/wormchain
+
+# Copy ignite cli binary
+COPY --from=cli-builder /go/bin/ignite /usr/bin 
+
+# Verify ignite setup
+RUN ignite doctor
+
+
+
+## GO PROTO BUILDER STAGE
+FROM wormchain-builder AS ignite-go-build
+# Ignite only likes minor versions in go.mod
+RUN sed -i 's/go 1.22.7/go 1.23/g' go.mod
 RUN ignite generate proto-go
 
+
+
+## GO EXPORT STAGE
 FROM scratch AS go-export
-COPY --from=ignite-go-build /apps/wormchain/x/wormhole/types /x/wormhole/types
-COPY --from=ignite-go-build /apps/wormchain/x/tokenfactory/types /x/tokenfactory/types
-COPY --from=ignite-go-build /apps/wormchain/x/ibc-composability-mw/types /x/ibc-composability-mw/types
+COPY --from=ignite-go-build /wh/apps/wormchain/x/wormhole/types /x/wormhole/types
+COPY --from=ignite-go-build /wh/apps/wormchain/x/tokenfactory/types /x/tokenfactory/types
+COPY --from=ignite-go-build /wh/apps/wormchain/x/ibc-composability-mw/types /x/ibc-composability-mw/types
 
-FROM base AS ignite-vue-build
-RUN NODE_OPTIONS="" ignite generate vuex --proto-all-modules
 
-FROM scratch AS vue-export
-COPY --from=ignite-vue-build /apps/wormchain/vue/ /vue
+
+## TS CLIENT BUILDER STAGE
+FROM wormchain-builder AS ignite-ts-client-build
+# Ignite only likes minor versions in go.mod
+RUN sed -i 's/go 1.22.7/go 1.23/g' go.mod
+RUN NODE_OPTIONS="" ignite generate ts-client
+
+
+
+## VUE EXPORT STAGE
+FROM scratch AS ts-client-export
+COPY --from=ignite-ts-client-build /wh/apps/wormchain/ts-client /ts-client

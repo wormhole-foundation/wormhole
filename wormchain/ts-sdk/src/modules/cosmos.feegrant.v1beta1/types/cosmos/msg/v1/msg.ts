@@ -1,0 +1,4 @@
+//@ts-nocheck
+//@ts-nocheck
+/* eslint-disable */
+export const protobufPackage = "cosmos.msg.v1";
