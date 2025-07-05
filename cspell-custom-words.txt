@@ -55,6 +55,7 @@ ethcrypto
 ethersproject
 ETHRPC
 evmos
+evmtypes
 fogo
 Fogo
 forgeable
@@ -185,6 +186,7 @@ structs
 subdenom
 subdenoms
 Subdenoms
+suitypes
 supermajority
 superminority
 tendermint
