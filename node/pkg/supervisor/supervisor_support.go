@@ -18,7 +18,7 @@ func GRPCServer(srv *grpc.Server, lis net.Listener, graceful bool) Runnable {
 		Signal(ctx, SignalHealthy)
 		errC := make(chan error)
 		go func() {
-			errC <- srv.Serve(lis)
+			errC <- srv.Serve(lis) //nolint:channelcheck // Will only block this go routine
 		}()
 		select {
 		case <-ctx.Done():
