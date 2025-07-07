@@ -60,7 +60,7 @@ lint(){
         printf "%s\n" "cspell is not installed. Skipping spellcheck"
     else
     # NOTE: Keep this command in sync with `.github/workflows/build.yml`
-        cspell -c cspell.config.yaml --dictionary cspell-custom-words.txt "**.*md"
+        cspell -c cspell.config.yaml --dictionary cspell-custom-words.txt "*/**.*md"
     fi
     
     # === Go linting
