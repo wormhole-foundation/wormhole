@@ -49,8 +49,10 @@ build-solana:
 build-solana-ts: build-solana dependencies-solana-ts
 	npm run build --prefix src/solana
 
+# cargo test runs the Rust unit tests
+# anchor test runs the contract tests
 test-solana: build-solana-ts
-	cd src/solana; anchor test
+	cd src/solana; cargo test && anchor test
 
 clean-solana:
 	cd src/solana; anchor clean
