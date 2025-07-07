@@ -156,20 +156,20 @@ func (g *G) applyOptions(ctx context.Context, logger *zap.Logger, options []*Gua
 	for _, option := range options {
 		// check that this component has not been configured yet
 		if _, ok := configuredComponents[option.name]; ok {
-			return fmt.Errorf("Component %s is already configured and cannot be configured a second time.", option.name)
+			return fmt.Errorf("component %s is already configured and cannot be configured a second time", option.name)
 		}
 
 		// check that all dependencies have been met
 		for _, dep := range option.dependencies {
 			if _, ok := configuredComponents[dep]; !ok {
-				return fmt.Errorf("Component %s requires %s to be configured first. Check the order of your options.", option.name, dep)
+				return fmt.Errorf("component %s requires %s to be configured first, check the order of your options", option.name, dep)
 			}
 		}
 
 		// run the config
 		err := option.f(ctx, logger, g)
 		if err != nil {
-			return fmt.Errorf("Error applying option for component %s: %w", option.name, err)
+			return fmt.Errorf("error applying option for component %s: %w", option.name, err)
 		}
 
 		// mark the component as configured

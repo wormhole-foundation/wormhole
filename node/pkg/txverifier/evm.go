@@ -173,7 +173,7 @@ func (tv *TransferVerifier[ethClient, Connector]) UpdateReceiptDetails(
 	invalidErr := receipt.Validate()
 	if invalidErr != nil {
 		return errors.Join(
-			errors.New("ProcessReceipt was called with an invalid Transfer Receipt:"),
+			errors.New("ProcessReceipt was called with an invalid Transfer Receipt"),
 			invalidErr,
 		)
 	}
@@ -485,7 +485,7 @@ func (tv *TransferVerifier[evmClient, connector]) ProcessReceipt(
 	invalidErr := receipt.Validate()
 	if invalidErr != nil {
 		return nil, errors.Join(
-			errors.New("ProcessReceipt was called with an invalid Transfer Receipt:"),
+			errors.New("ProcessReceipt was called with an invalid Transfer Receipt"),
 			invalidErr,
 		)
 	}
@@ -634,7 +634,7 @@ func parseLogMessagePublishedPayload(
 	// Note: vaa.DecodeTransferPayloadHdr performs validation on data, e.g. length checks.
 	hdr, err := vaa.DecodeTransferPayloadHdr(data)
 	if err != nil {
-		return nil, errors.Join(errors.New("could not parse LogMessagePublished payload:"), err)
+		return nil, errors.Join(errors.New("could not parse LogMessagePublished payload"), err)
 	}
 	return &TransferDetails{
 		PayloadType:      VAAPayloadType(hdr.Type),
@@ -688,7 +688,7 @@ func (tv *TransferVerifier[ethClient, connector]) fetchLogMessageDetails(details
 				zap.String("originAddressRaw", details.OriginAddress.String()),
 				zap.String("tokenChain", details.TokenChain.String()),
 			)
-			return newDetails, errors.New("unwrap call for foreign asset returned the zero address. Either token has not been registered or there is a bug in the program.")
+			return newDetails, errors.New("unwrap call for foreign asset returned the zero address, either token has not been registered or there is a bug in the program")
 		} else {
 			originAddress = unwrappedAddress
 		}
