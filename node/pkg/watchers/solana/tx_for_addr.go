@@ -66,6 +66,8 @@ func (s *SolanaWatcher) transactionProcessor(ctx context.Context) error {
 }
 
 // getPrevWormholeSignature reads the most recent transaction involving the Wormhole core contract and returns it.
+// If the read is successful, but there are no transactions yet, the null signature is returned. This is fine, the
+// `getSignaturesForAddress` will just return all available transactions, or no transactions until there is one.
 func (s *SolanaWatcher) getPrevWormholeSignature() (solana.Signature, error) {
 	limit := int(1)
 	signatures, err := s.rpcClient.GetSignaturesForAddressWithOpts(s.ctx, s.contract, &rpc.GetSignaturesForAddressOpts{
@@ -73,8 +75,13 @@ func (s *SolanaWatcher) getPrevWormholeSignature() (solana.Signature, error) {
 		Limit:      &limit,
 	})
 
-	if err != nil || len(signatures) == 0 {
+	if err != nil {
 		return solana.Signature{}, err
+	}
+
+	if len(signatures) == 0 {
+		s.logger.Info("start up query did not return any transaction, will poll for all transactions on contract")
+		return solana.Signature{}, nil
 	}
 
 	return signatures[0].Signature, nil
@@ -109,7 +116,15 @@ func (s *SolanaWatcher) getTransactionSignatures() ([]*rpc.TransactionSignature,
 	numSignatures := MaxSignaturesPerQuery
 	currSig := solana.Signature{}
 
+	startTime := time.Now()
 	for numSignatures == MaxSignaturesPerQuery {
+		if time.Since(startTime) > time.Minute {
+			// It shouldn't take this long to query transactions. Return an error and kill the watcher. We can't
+			// attempt to process the transactions because we read them from most recent backwards, so there could
+			// be a gap and we might miss older transactions.
+			return results, fmt.Errorf("getTransactionSignatures has taken too long, numResults: %d", len(results))
+		}
+
 		batchSignatures, err := s.rpcClient.GetSignaturesForAddressWithOpts(s.ctx, s.contract, &rpc.GetSignaturesForAddressOpts{
 			Before:     currSig,
 			Until:      s.pollPrevWormholeSignature,
