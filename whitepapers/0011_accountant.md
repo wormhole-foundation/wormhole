@@ -277,6 +277,8 @@ In practice, cosmos chains are stable and wormchain is not particularly complex.
 
 Due to the nature of the accountants, a guardian that chooses to enable them in enforcing-mode will refuse to sign a transfer until it sees that the transfer is committed by the appropriate accountant. If a super-minority of guardians choose to not enable an accountant at all (i.e. stop sending their observations to the contract) then we will end up with a stalemate: the guardians with the feature disabled will be unable to reach quorum because they don't have enough signatures while the guardians in enforcing-mode will never observe the transfer being committed by the accountant (and so will never sign the observation). This is very different from [the governor feature](0007_governor.md), where only a super-minority of guardians have to enable it to be effective.
 
+Note: this applies only to the enforcing mode. If the Guardians enable logging mode on the accountant(s) instead, this issue will not occur.
+
 ### Configuration Complexity
 
 The dual accountant system introduces configuration complexity:
