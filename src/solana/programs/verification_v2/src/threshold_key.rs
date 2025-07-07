@@ -33,6 +33,8 @@ use anchor_lang::solana_program::{keccak::{Hash, hash}, secp256k1_recover};
 use primitive_types::U256;
 use std::io::{Read, Write};
 use std::ops::{Rem, Shr, Sub};
+
+use crate::hex_literal::hex;
 use crate::vaa::VAAThresholdSignature;
 use crate::utils::{init_account, SeedPrefix};
 use crate::ID;
@@ -72,14 +74,21 @@ pub enum ThresholdKeyError {
 }
 
 impl ThresholdKey {
+	const HALF_Q: [u8; 32] = hex!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0");
+	// Using the U256 representation makes verification cheaper
+	const Q_U256: [u64; 4] = [
+		0xBFD25E8CD0364141,
+		0xBAAEDCE6AF48A03B,
+		0xFFFFFFFFFFFFFFFE,
+		0xFFFFFFFFFFFFFFFF
+	];
+
 	pub fn q() -> U256 {
-		// TODO: Move this to a constant
-		U256::from_str_radix("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16).unwrap()
+		U256(ThresholdKey::Q_U256)
 	}
 
 	pub fn half_q() -> U256 {
-		// TODO: Move this to a constant
-		Self::q().shr(U256::one())
+		U256::from_big_endian(&ThresholdKey::HALF_Q)
 	}
 
   pub fn px(&self) -> U256 {
@@ -103,16 +112,15 @@ impl ThresholdKey {
 		let s = signature.s;
 
 		// Calculate the message challenge
-		let mut hash_bytes = Vec::new();
-		hash_bytes.extend_from_slice(&px.to_big_endian());
-		hash_bytes.push(parity as u8);
-		hash_bytes.extend_from_slice(&message_hash.to_bytes());
-		hash_bytes.extend_from_slice(&r);
+		let mut hash_bytes = [0u8; 85];
+		hash_bytes[0..32].copy_from_slice(&px.to_big_endian());
+		hash_bytes[32] = parity as u8;
+		hash_bytes[33..65].copy_from_slice(&message_hash.to_bytes());
+		hash_bytes[65..85].copy_from_slice(&r);
 
 		let e = U256::from_big_endian(&hash(&hash_bytes).to_bytes());
 
 		// Calculate the recovery inputs
-		// FIXME: Is the overflow correct on the sp/ep calculations?
 		let sp = q.sub(Self::mulmod(px, s, q));
 		let ep = Self::mulmod(e, px, q);
 
@@ -137,6 +145,7 @@ impl ThresholdKey {
 		Ok(())
 	}
 
+	#[inline(always)]
 	fn mulmod(a: U256, b: U256, c: U256) -> U256 {
 		let result = a.full_mul(b).rem(c);
 		U256(result.0[0..4].try_into().unwrap())
@@ -149,6 +158,10 @@ impl Space for ThresholdKey {
 
 impl AnchorSerialize for ThresholdKey {
 	fn serialize<W: Write>(&self, writer: &mut W) -> std::result::Result<(), std::io::Error> {
+		if !self.is_valid() {
+			return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid threshold key"));
+		}
+
 		writer.write_all(&self.key.to_big_endian())?;
 		Ok(())
 	}
@@ -156,13 +169,9 @@ impl AnchorSerialize for ThresholdKey {
 
 impl AnchorDeserialize for ThresholdKey {
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
-		let mut key = [0u8; 32];
-		reader.read_exact(&mut key)?;
-		let key = ThresholdKey { key: U256::from_big_endian(&key) };
-
-		if !key.is_valid() {
-			return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid threshold key"));
-		}
+		let mut key_buf = [0u8; 32];
+		reader.read_exact(&mut key_buf)?;
+		let key = ThresholdKey { key: U256::from_big_endian(&key_buf) };
 
 		Ok(key)
 	}
@@ -241,4 +250,15 @@ pub enum AppendThresholdKeyError {
   InvalidOldThresholdKey,
   #[msg("TSS account pubkey mismatches TSS key index")]
   AccountMismatchTSSKeyIndex,
+}
+
+#[test]
+fn half_q_is_correct() {
+	assert_eq!(ThresholdKey::q().shr(U256::one()), ThresholdKey::half_q());
+}
+
+#[test]
+fn q_is_correct() {
+	let q = U256::from_str_radix("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16).unwrap();
+	assert_eq!(ThresholdKey::q(), q);
 }

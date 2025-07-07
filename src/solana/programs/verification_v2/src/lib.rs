@@ -6,12 +6,13 @@ mod vaa;
 mod append_threshold_key_message;
 mod threshold_key;
 mod utils;
+mod hex_literal;
 
 use anchor_lang::{prelude::*, Result};
 
 use wormhole_anchor_sdk::wormhole::{program::Wormhole, constants::CHAIN_ID_SOLANA, PostedVaaData};
 
-use vaa::VAA;
+use vaa::{VAA, VAABody};
 use append_threshold_key_message::AppendThresholdKeyMessage;
 use threshold_key::{
   AppendThresholdKeyError,
@@ -29,6 +30,7 @@ pub enum VAAError {
   #[msg("Invalid VAA index")]
   InvalidIndex,
   TSSKeyExpired,
+  BodyTooSmall,
 }
 
 #[account]
@@ -155,22 +157,30 @@ pub mod verification_v2 {
     Ok(())
   }
 
-  pub fn verify_vaa(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<VAA> {
-    // Decode the VAA
-    let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
-
-    vaa.check_valid()?;
-
-    // Check that the threshold key index matches the VAA index
-    let threshold_key = &ctx.accounts.threshold_key;
-    if threshold_key.index != vaa.header.tss_index {
-      return Err(VAAError::InvalidIndex.into());
-    }
-
-    // Check that the signature is valid
-    threshold_key.tss_key.check_signature(&vaa.message_hash()?, &vaa.header.signature)?;
-
-    // Return the VAA
-    Ok(vaa)
+  pub fn verify_vaa(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<()> {
+    verify_vaa_impl(ctx, raw_vaa)?;
+    Ok(())
   }
+
+  pub fn verify_vaa_and_decode(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<VAABody> {
+    let body_buf = verify_vaa_impl(ctx, raw_vaa)?;
+    let body = VAABody::deserialize(&mut body_buf.as_slice())?;
+    Ok(body)
+  }
+}
+
+
+fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
+  let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
+
+  vaa.check_valid()?;
+
+  let threshold_key = &ctx.accounts.threshold_key;
+  if threshold_key.index != vaa.header.tss_index {
+    return Err(VAAError::InvalidIndex.into());
+  }
+
+  threshold_key.tss_key.check_signature(&vaa.message_hash()?, &vaa.header.signature)?;
+
+  Ok(vaa.body)
 }
