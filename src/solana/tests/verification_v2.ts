@@ -307,6 +307,7 @@ describe("VerificationV2", function() {
 
     const txid = await $.sendAndConfirm(verifyIx, payer)
     const tx = await $.getTransaction(txid);
+    console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
     console.log(`compute units consumed: ${tx?.meta?.computeUnitsConsumed}`)
   })
 
