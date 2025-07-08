@@ -1,6 +1,7 @@
 package governor
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,6 +77,19 @@ func TestChainListBigTransfers(t *testing.T) {
 		assert.Less(t, e.BigTransactionSize, e.DailyLimit)
 
 		// in fact, it's even better for bigTransactionSize not to exceed 1/3rd the limit (convention has it at 1/10th to start)
-		assert.Less(t, e.BigTransactionSize, e.DailyLimit/3)
+		switch e.EmitterChainID {
+		// Base and Arbitrum are intentionally configured to not follow the 1/3rd convention for now.
+		// However, this check is still useful for other chains.
+		case vaa.ChainIDBase, vaa.ChainIDArbitrum:
+			continue
+		default:
+			assert.Less(t, e.BigTransactionSize, e.DailyLimit/3,
+				fmt.Sprintf(
+					"Chain %s has a big transaction size of %d which is more than 1/3 of the daily limit of %d",
+					e.EmitterChainID,
+					e.BigTransactionSize,
+					e.DailyLimit,
+				))
+		}
 	}
 }
