@@ -927,7 +927,7 @@ func TestGuardianConfigs(t *testing.T) {
 					nil,   // nttWormchainConn
 				),
 			},
-			err: "Check the order of your options.",
+			err: ComponentDependencyError{componentName: "accountant", dependentComponentName: "db"}.Error(),
 		},
 		{
 			name: "double-configuration",
@@ -935,7 +935,7 @@ func TestGuardianConfigs(t *testing.T) {
 				GuardianOptionDatabase(nil),
 				GuardianOptionDatabase(nil),
 			},
-			err: "Component db is already configured and cannot be configured a second time",
+			err: ComponentAlreadyConfiguredError{componentName: "db"}.Error(),
 		},
 	}
 	runGuardianConfigTests(t, tc)
@@ -989,6 +989,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				if tc.err == "" {
 					assert.Equal(t, tc.err, r)
 				}
+				// Check that the string logged by the fatal hook contains the error message.
 				assert.Contains(t, r, tc.err)
 				rootCtxCancel()
 			case <-rootCtx.Done():

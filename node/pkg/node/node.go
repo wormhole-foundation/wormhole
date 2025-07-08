@@ -53,6 +53,23 @@ const (
 	observationRequestPerChainBufferSize = 100
 )
 
+type ComponentAlreadyConfiguredError struct {
+	componentName string
+}
+
+func (e ComponentAlreadyConfiguredError) Error() string {
+	return fmt.Sprintf("component %s is already configured and cannot be configured a second time", e.componentName)
+}
+
+type ComponentDependencyError struct {
+	componentName          string
+	dependentComponentName string
+}
+
+func (e ComponentDependencyError) Error() string {
+	return fmt.Sprintf("component %s requires %s to be configured first, check the order of your options", e.componentName, e.dependentComponentName)
+}
+
 type PrometheusCtxKey struct{}
 
 type G struct {
@@ -156,13 +173,13 @@ func (g *G) applyOptions(ctx context.Context, logger *zap.Logger, options []*Gua
 	for _, option := range options {
 		// check that this component has not been configured yet
 		if _, ok := configuredComponents[option.name]; ok {
-			return fmt.Errorf("component %s is already configured and cannot be configured a second time", option.name)
+			return ComponentAlreadyConfiguredError{componentName: option.name}
 		}
 
 		// check that all dependencies have been met
 		for _, dep := range option.dependencies {
 			if _, ok := configuredComponents[dep]; !ok {
-				return fmt.Errorf("component %s requires %s to be configured first, check the order of your options", option.name, dep)
+				return ComponentDependencyError{componentName: option.name, dependentComponentName: dep}
 			}
 		}
 
