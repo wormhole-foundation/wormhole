@@ -80,6 +80,7 @@ impl ThresholdKey {
 	// The following constants are used during verification.
 	// We chose the representation that makes verification cheaper.
 	// Concretely, these are arrays of 64 bit integers where the least significative parts come first.
+	// See the math_tests module at the end of this file for tests related to these.
 
 	// Q is the curve order of secp256k1
 	const Q_U256: [u64; 4] = [
@@ -143,7 +144,7 @@ impl ThresholdKey {
 		let e = U256::from_big_endian(&hash(&hash_bytes).to_bytes());
 
 		// Calculate the recovery inputs
-		let sp = q.sub(Self::mulmod_barrett_q(px, s));
+		let sp = q.sub(Self::mulmod_barrett_q(s, px));
 		let ep = Self::mulmod_barrett_q(e, px);
 
 		if sp.is_zero() || ep.is_zero() {
