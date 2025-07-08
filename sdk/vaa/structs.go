@@ -67,6 +67,7 @@ type (
 	//
 	// Other uses of this type are NOT RECOMMENDED given that they can overload the semantic meaning of this field
 	// which already does a lot of conceptual work across disparate blockchain implementations.
+	// nolint:recvcheck // Array type with marshaling interface - mixed receivers are idiomatic
 	Address [32]byte
 
 	// Signature of a single guardian
