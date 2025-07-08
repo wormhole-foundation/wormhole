@@ -170,13 +170,20 @@ linters:
       # Default: false
       require-specific: true
     recvcheck:
+      disable-builtin: false
       # User-defined method exclusions.
       # The format is `struct_name.method_name` (ex: `Foo.MethodName`).
       # A wildcard `*` can use as a struct name (ex: `*.MethodName`).
       # Default: []
       exclusions:
-        - "BodyWormchain*.*erialize"
-        - "BodyGateway*.*erialize"
+        - "BodyGatewayScheduleUpgrade.Serialize"
+        - "BodyGatewayScheduleUpgrade.Deserialize"
+        - "BodyWormchainWasmAllowlistInstantiate.Serialize"
+        - "BodyWormchainWasmAllowlistInstantiate.Serialize"
+        - "BodyGatewaySlashingParamsUpdate.Serialize"
+        - "BodyGatewaySlashingParamsUpdate.Deserialize"
+        - "BodyGatewayIbcComposabilityMwContract.Serialize"
+        - "BodyGatewayIbcComposabilityMwContract.Deserialize"
     staticcheck:
       checks:
         # All of these lints should eventually be added.
