@@ -37,9 +37,9 @@ func TestSignedHeartbeat(t *testing.T) {
 	p2pNodeId, err := fromP2pId.Marshal()
 	assert.NoError(t, err)
 
-	//guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
-	//assert.NoError(t, err)
-	//gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
+	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	assert.NoError(t, err)
+	gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
 	fromP2pId2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")
 	assert.NoError(t, err)
 	p2pNodeId2, err := fromP2pId2.Marshal()
@@ -55,15 +55,15 @@ func TestSignedHeartbeat(t *testing.T) {
 			p2pNodeId:             p2pNodeId,
 			expectSuccess:         true,
 		},
-		// // guardian signed a heartbeat for another guardian
-		// {
-		// 	timestamp:             time.Now().UnixNano(),
-		// 	guardianSigner:        guardianSigner,
-		// 	heartbeatGuardianAddr: gAddr2.String(),
-		// 	fromP2pId:             fromP2pId,
-		// 	p2pNodeId:             p2pNodeId,
-		// 	expectSuccess:         false,
-		// },
+		// guardian signed a heartbeat for another guardian
+		{
+			timestamp:             time.Now().UnixNano(),
+			guardianSigner:        guardianSigner,
+			heartbeatGuardianAddr: gAddr2.String(),
+			fromP2pId:             fromP2pId,
+			p2pNodeId:             p2pNodeId,
+			expectSuccess:         false,
+		},
 		// old heartbeat
 		{
 			timestamp:             time.Now().Add(-time.Hour).UnixNano(),
@@ -148,18 +148,21 @@ func TestSignedObservation(t *testing.T) {
 	assert.NoError(t, err)
 	gAddr := crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background()))
 	assert.NoError(t, err)
-	assert.NoError(t, err)
 
 	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
-	assert.NoError(t, err)
-	//gAddr2 := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
-	assert.NoError(t, err)
 	assert.NoError(t, err)
 
 	tests := []testCase{
 		// happy case
 		{
 			timestamp:       time.Now().UnixNano(),
+			guardianSigner:  guardianSigner,
+			guardianAddress: gAddr[:],
+			expectSuccess:   true,
+		},
+		// Old protobuf version still works (initially, this will change)
+		{
+			timestamp:       0,
 			guardianSigner:  guardianSigner,
 			guardianAddress: gAddr[:],
 			expectSuccess:   true,
@@ -178,13 +181,6 @@ func TestSignedObservation(t *testing.T) {
 			guardianAddress: gAddr[:],
 			expectSuccess:   false,
 		},
-		// Old protobuf version handles (for now)
-		{
-			timestamp:       0,
-			guardianSigner:  guardianSigner,
-			guardianAddress: gAddr[:],
-			expectSuccess:   true,
-		},
 	}
 	// run the tests
 
@@ -197,13 +193,13 @@ func TestSignedObservation(t *testing.T) {
 		}
 		b, err := proto.Marshal(req)
 		if err != nil {
-			panic(err)
+			assert.NoError(t, err)
 		}
 
 		digest := signedObservationRequestDigest(b)
 		sig, err := tc.guardianSigner.Sign(context.Background(), digest.Bytes())
 		if err != nil {
-			panic(err)
+			assert.NoError(t, err)
 		}
 
 		sReq := &gossipv1.SignedObservationRequest{
