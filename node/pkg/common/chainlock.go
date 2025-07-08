@@ -83,8 +83,10 @@ func (e ErrInputSize) Error() string {
 	AddressLength = 32
 )
 
-// MaxSafeInputSize defines the maximum safe size for untrusted input.
-const MaxSafeInputSize = 64 * 1024 * 1024 // 64MB (arbitrary)
+// MaxSafeInputSize defines the maximum safe size for untrusted input from `io` Readers.
+// It should be configured so that it can comfortably contain all valid reads while
+// providing a strict upper bound to prevent unlimited reads.
+const MaxSafeInputSize = 128 * 1024 * 1024 // 128MB (arbitrary)
 
 var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
 >>>>>>> b312bdd7 (node: create SafeRead function to replace io.ReadAll)
