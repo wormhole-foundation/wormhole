@@ -29,3 +29,7 @@ libsecp256k1 = "0.7.2"
 primitive-types = "0.13.1"
 # wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false }
 wormhole-anchor-sdk = { git = "https://github.com/XLabs/wormhole-scaffolding.git", rev = "3811c6c4beadbf2f1fc42ce038bfea925a596872", default-features = false }
+
+[dev-dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"

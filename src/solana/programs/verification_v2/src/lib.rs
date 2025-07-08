@@ -169,7 +169,6 @@ pub mod verification_v2 {
   }
 }
 
-
 fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
   let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
 
@@ -180,7 +179,9 @@ fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>>
     return Err(VAAError::InvalidIndex.into());
   }
 
-  threshold_key.tss_key.check_signature(&vaa.message_hash()?, &vaa.header.signature)?;
+  let msg_hash = vaa.message_hash()?;
+
+  threshold_key.tss_key.check_signature(&msg_hash, &vaa.header.signature)?;
 
   Ok(vaa.body)
 }

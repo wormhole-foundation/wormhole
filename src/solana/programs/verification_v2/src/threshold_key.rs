@@ -14,7 +14,7 @@ use anchor_lang::prelude::{
 	System,
 	account,
 	borsh,
-	error_code
+	error_code,
 };
 #[cfg(feature = "idl-build")]
 use anchor_lang::{
@@ -30,9 +30,9 @@ use anchor_lang::{
   },
 };
 use anchor_lang::solana_program::{keccak::{Hash, hash}, secp256k1_recover};
-use primitive_types::U256;
+use primitive_types::{U256, U512};
 use std::io::{Read, Write};
-use std::ops::{Rem, Shr, Sub};
+use std::ops::{Shr, Sub};
 
 use crate::hex_literal::hex;
 use crate::vaa::VAAThresholdSignature;
@@ -74,17 +74,38 @@ pub enum ThresholdKeyError {
 }
 
 impl ThresholdKey {
+	// This is only used to validate when appending a pubkey so we don't really care about its representation.
 	const HALF_Q: [u8; 32] = hex!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0");
-	// Using the U256 representation makes verification cheaper
+
+	// The following constants are used during verification.
+	// We chose the representation that makes verification cheaper.
+	// Concretely, these are arrays of 64 bit integers where the least significative parts come first.
+
+	// Q is the curve order of secp256k1
 	const Q_U256: [u64; 4] = [
 		0xBFD25E8CD0364141,
 		0xBAAEDCE6AF48A03B,
 		0xFFFFFFFFFFFFFFFE,
 		0xFFFFFFFFFFFFFFFF
 	];
+	// Reciprocal of Q in U512 for Barret reduction
+	const ΜQ_U512: [u64; 8] = [
+		0x402da1732fc9bec0,
+		0x4551231950b75fc4,
+		0x0000000000000001,
+		0x0000000000000000,
+		0x0000000000000001,
+		0x0000000000000000,
+		0x0000000000000000,
+		0x0000000000000000
+	];
 
 	pub fn q() -> U256 {
 		U256(ThresholdKey::Q_U256)
+	}
+
+	pub fn μq() -> U512 {
+		U512(ThresholdKey::ΜQ_U512)
 	}
 
 	pub fn half_q() -> U256 {
@@ -104,6 +125,7 @@ impl ThresholdKey {
 		!px.is_zero() && px.le(&Self::half_q())
 	}
 
+	#[inline(always)]
 	pub fn check_signature(&self, message_hash: &Hash, signature: &VAAThresholdSignature) -> Result<()> {
 		let px = self.px();
 		let parity = self.parity();
@@ -121,21 +143,23 @@ impl ThresholdKey {
 		let e = U256::from_big_endian(&hash(&hash_bytes).to_bytes());
 
 		// Calculate the recovery inputs
-		let sp = q.sub(Self::mulmod(px, s, q));
-		let ep = Self::mulmod(e, px, q);
+		let sp = q.sub(Self::mulmod_barrett_q(px, s));
+		let ep = Self::mulmod_barrett_q(e, px);
 
 		if sp.is_zero() || ep.is_zero() {
 			return Err(ThresholdKeyError::InvalidSignature.into());
 		}
 
-		// Recover the signer address
+		// Prepare the ecrecover inputs
 		let mut signature_bytes = [0u8; 64];
 		// this is r
 		signature_bytes[0..32].copy_from_slice(&px.to_big_endian());
 		// this is s
 		signature_bytes[32..64].copy_from_slice(&ep.to_big_endian());
+		let sp_buf = sp.to_big_endian();
 
-		let recovered_pubkey = secp256k1_recover::secp256k1_recover(&sp.to_big_endian(), parity as u8, &signature_bytes).unwrap();
+		let recovered_pubkey = secp256k1_recover::secp256k1_recover(&sp_buf, parity as u8, &signature_bytes).unwrap();
+
 		let recovered_address = &hash(&recovered_pubkey.to_bytes()).to_bytes()[12..];
 
 		if recovered_address != r {
@@ -146,9 +170,30 @@ impl ThresholdKey {
 	}
 
 	#[inline(always)]
-	fn mulmod(a: U256, b: U256, c: U256) -> U256 {
-		let result = a.full_mul(b).rem(c);
-		U256(result.0[0..4].try_into().unwrap())
+	fn mulmod_barrett_q(a: U256, b: U256) -> U256 {
+		let x = a.full_mul(b);
+
+		// t1 = floor(x / 2^256)   → top 256 bits
+		let mut t1 = [0u64; 8];
+		t1[0..4].copy_from_slice(&x.0[4..8]);
+
+		// t2 = t1 * μQ
+		let t2 = U512(t1) * ThresholdKey::μq();
+
+		// t3 = floor(t2 / 2^256)  → top 256 bits
+		let t3 = U256(t2.0[4..8].try_into().unwrap());
+
+		let q = ThresholdKey::q();
+		let r = x - t3.full_mul(q);
+
+		// r should be in [0, 2Q), so we subtract Q if needed
+		let q_u512 = U512::from(q);
+		let mut result = r;
+		if r >= q_u512 {
+			result -= q_u512;
+		}
+
+		result.try_into().unwrap()
 	}
 }
 
@@ -252,13 +297,40 @@ pub enum AppendThresholdKeyError {
   AccountMismatchTSSKeyIndex,
 }
 
-#[test]
-fn half_q_is_correct() {
-	assert_eq!(ThresholdKey::q().shr(U256::one()), ThresholdKey::half_q());
-}
+#[cfg(test)]
+mod math_tests {
+	use super::{ThresholdKey, U256, U512, Shr};
+	use num_bigint::BigUint;
+	use num_traits::{Num, One};
 
-#[test]
-fn q_is_correct() {
-	let q = U256::from_str_radix("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16).unwrap();
-	assert_eq!(ThresholdKey::q(), q);
+	#[test]
+	fn q_is_correct() {
+		let q = U256::from_str_radix(
+			"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+			16
+		).unwrap();
+		assert_eq!(ThresholdKey::q(), q);
+	}
+
+	#[test]
+	fn half_q_is_correct() {
+		assert_eq!(ThresholdKey::q().shr(U256::one()), ThresholdKey::half_q());
+	}
+
+	#[test]
+	fn μq_is_correct() {
+		let q = BigUint::from_str_radix(
+			"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+			16
+		).unwrap();
+
+		// 2^512
+		let two_exp512 = BigUint::one() << 512;
+
+		// μ = floor(2^512 / Q)
+		let mu: BigUint = &two_exp512 / &q;
+		let μq = U512::from_little_endian(&mu.to_bytes_le());
+
+		assert_eq!(μq, ThresholdKey::μq());
+	}
 }

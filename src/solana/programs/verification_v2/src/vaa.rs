@@ -2,7 +2,6 @@ use anchor_lang::prelude::{
 	AnchorDeserialize,
 	AnchorSerialize,
 	Result,
-	borsh,
 	borsh::{BorshDeserialize, BorshSerialize},
 };
 use anchor_lang::solana_program::keccak::{Hash, hash};
@@ -18,6 +17,7 @@ pub struct VAAThresholdSignature {
 }
 
 impl VAAThresholdSignature {
+	#[inline(always)]
 	pub fn is_valid(&self) -> bool {
 		!self.s.is_zero() && self.s.lt(&ThresholdKey::q()) && !self.r.iter().all(|r| *r == 0)
 	}
@@ -48,6 +48,7 @@ pub struct VAAHeader {
 }
 
 impl VAAHeader {
+	#[inline(always)]
 	pub fn check_valid(&self) -> Result<()> {
 		if self.version != 2 {
 			return Err(VAAError::InvalidVersion.into());
@@ -114,6 +115,7 @@ impl VAA {
 		Ok(())
 	}
 
+	#[inline(always)]
 	pub fn message_hash(&self) -> Result<Hash> {
 		// Single hash
 		// Ok(hash(&self.body))
