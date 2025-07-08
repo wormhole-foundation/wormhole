@@ -927,7 +927,7 @@ func TestGuardianConfigs(t *testing.T) {
 					nil,   // nttWormchainConn
 				),
 			},
-			err: ComponentDependencyError{componentName: "accountant", dependentComponentName: "db"}.Error(),
+			err: ComponentDependencyError{componentName: "accountant", dependencyName: "db"}.Error(),
 		},
 		{
 			name: "double-configuration",

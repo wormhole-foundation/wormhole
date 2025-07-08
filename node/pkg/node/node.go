@@ -62,12 +62,12 @@ func (e ComponentAlreadyConfiguredError) Error() string {
 }
 
 type ComponentDependencyError struct {
-	componentName          string
-	dependentComponentName string
+	componentName  string
+	dependencyName string
 }
 
 func (e ComponentDependencyError) Error() string {
-	return fmt.Sprintf("component %s requires %s to be configured first, check the order of your options", e.componentName, e.dependentComponentName)
+	return fmt.Sprintf("component %s requires %s to be configured first, check the order of your options", e.componentName, e.dependencyName)
 }
 
 type PrometheusCtxKey struct{}
@@ -179,7 +179,7 @@ func (g *G) applyOptions(ctx context.Context, logger *zap.Logger, options []*Gua
 		// check that all dependencies have been met
 		for _, dep := range option.dependencies {
 			if _, ok := configuredComponents[dep]; !ok {
-				return ComponentDependencyError{componentName: option.name, dependentComponentName: dep}
+				return ComponentDependencyError{componentName: option.name, dependencyName: dep}
 			}
 		}
 
