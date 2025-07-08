@@ -10,8 +10,8 @@ import (
 
 func ChainList() []ChainConfigEntry {
 	return []ChainConfigEntry{
-		{EmitterChainID: vaa.ChainIDSolana, DailyLimit: 50_000_000, BigTransactionSize: 2_500_000},
-		{EmitterChainID: vaa.ChainIDEthereum, DailyLimit: 100_000_000, BigTransactionSize: 5_000_000},
+		{EmitterChainID: vaa.ChainIDSolana, DailyLimit: 50_000_000, BigTransactionSize: 10_000_000},
+		{EmitterChainID: vaa.ChainIDEthereum, DailyLimit: 100_000_000, BigTransactionSize: 20_000_000},
 		{EmitterChainID: vaa.ChainIDTerra, DailyLimit: 150_000, BigTransactionSize: 15_000},
 		{EmitterChainID: vaa.ChainIDBSC, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
 		{EmitterChainID: vaa.ChainIDPolygon, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
@@ -28,12 +28,12 @@ func ChainList() []ChainConfigEntry {
 		{EmitterChainID: vaa.ChainIDMoonbeam, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
 		{EmitterChainID: vaa.ChainIDTerra2, DailyLimit: 100_000, BigTransactionSize: 10_000},
 		{EmitterChainID: vaa.ChainIDInjective, DailyLimit: 150_000, BigTransactionSize: 15_000},
-		{EmitterChainID: vaa.ChainIDSui, DailyLimit: 10_000_000, BigTransactionSize: 500_000},
+		{EmitterChainID: vaa.ChainIDSui, DailyLimit: 10_000_000, BigTransactionSize: 2_000_000},
 		{EmitterChainID: vaa.ChainIDAptos, DailyLimit: 1_000_000, BigTransactionSize: 100_000},
-		{EmitterChainID: vaa.ChainIDArbitrum, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
+		{EmitterChainID: vaa.ChainIDArbitrum, DailyLimit: 5_000_000, BigTransactionSize: 2_000_000},
 		{EmitterChainID: vaa.ChainIDOptimism, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
 		{EmitterChainID: vaa.ChainIDXpla, DailyLimit: 50_000, BigTransactionSize: 5_000},
-		{EmitterChainID: vaa.ChainIDBase, DailyLimit: 5_000_000, BigTransactionSize: 500_000},
+		{EmitterChainID: vaa.ChainIDBase, DailyLimit: 5_000_000, BigTransactionSize: 2_000_000},
 		{EmitterChainID: vaa.ChainIDSei, DailyLimit: 150_000, BigTransactionSize: 15_000},
 		{EmitterChainID: vaa.ChainIDScroll, DailyLimit: 500_000, BigTransactionSize: 50_000},
 		{EmitterChainID: vaa.ChainIDMantle, DailyLimit: 100_000, BigTransactionSize: 10_000},
