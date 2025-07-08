@@ -648,7 +648,7 @@ contract VerificationCore {
   }
 }
 
-contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
+contract Verification is VerificationCore, EIP712Encoding {
   using BytesParsing for bytes;
   using VaaLib for bytes;
 
@@ -678,12 +678,9 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
     _pullMultisigKeyData(initialMultisigKeyPullLimit);
   }
 
-  function verifyVaa_U7N5(bytes calldata data) external view {
-    uint256 result = _verifyVaa(data);
-    require((result & MASK_VERIFY_RESULT_ERROR_FLAGS) == 0, VerificationFailed(result));
-  }
+  // TODO: Check the selector order, ensure that this is the correct order
 
-  function verifyVaaDecodeEssentials(bytes calldata data) external view returns (
+  function verifyVaa(bytes calldata data) external view returns (
     uint16 emitterChainId,
     bytes32 emitterAddress,
     uint64 sequence,
@@ -691,6 +688,7 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
   ) {
     unchecked {
       uint256 result = _verifyVaa(data);
+      // TODO: Test if we can use an assembly block here to save gas
       require((result & MASK_VERIFY_RESULT_ERROR_FLAGS) == 0, VerificationFailed(result));
 
       uint256 offset = result + VaaLib.ENVELOPE_EMITTER_CHAIN_ID_OFFSET;
@@ -703,18 +701,12 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
     }
   }
 
-  function verifyVaaBody(bytes calldata data) external view returns (VaaBody memory body) {
-    uint256 result = _verifyVaa(data);
-    require((result & MASK_VERIFY_RESULT_ERROR_FLAGS) == 0, VerificationFailed(result));
-    return data.decodeVaaBodyStructCd(result);
-  }
-
   function verifyHashAndHeader(bytes calldata data) external view {
     uint256 result = _verifyHashAndHeader(data);
     require((result & MASK_VERIFY_RESULT_ERROR_FLAGS) == 0, VerificationFailed(result));
   }
 
-  function _exec(bytes calldata data) internal override returns (bytes memory) {
+  function update(bytes calldata data) external {
     unchecked {
       uint256 offset = 0;
 
@@ -747,11 +739,10 @@ contract Verification is RawDispatcher, VerificationCore, EIP712Encoding {
       }
 
       require(offset == data.length, InvalidDataLength());
-      return new bytes(0);
     }
   }
 
-  function _get(bytes calldata data) internal view override returns (bytes memory) {
+  function get(bytes calldata data) external view returns (bytes memory) {
     unchecked {
       uint256 offset = 0;
       bytes memory result;

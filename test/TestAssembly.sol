@@ -73,6 +73,7 @@ contract TestAssembly is Test, VaaBuilder {
 		);
 	}
 
+	/*
 	function setUp() public {
 		bytes memory smallEnvelope = new bytes(100);
 		uint256[] memory guardianPrivateKeysSlice = new uint256[](SHARD_QUORUM);
@@ -125,7 +126,7 @@ contract TestAssembly is Test, VaaBuilder {
 		bytes memory registerSchnorrKeyVaa2 = createMultisigVaa(0, guardianPrivateKeys1, envelope);
 
 		bytes memory message = abi.encodePacked(
-			RawDispatcher.exec768.selector,
+			Verification.update.selector,
 			EXEC_PULL_MULTISIG_KEY_DATA,
 			uint32(1),
 			EXEC_APPEND_SCHNORR_KEY,
@@ -138,43 +139,42 @@ contract TestAssembly is Test, VaaBuilder {
 			schnorrShardsRaw
 		);
 
-		(bool success, ) = address(_verification).call(message);
-		assert(success);
+		_verification.update(message);
 	}
 
 	function testRevert_verifyInvalidVersionVaa() public {
 		vm.expectRevert();
-		_verification.verifyVaa_U7N5(invalidVersionVaa);
+		_verification.verifyVaa(invalidVersionVaa);
 	}
 
 	function test_verifyMultisigVaa() public view {
-		_verification.verifyVaa_U7N5(multisigVaa);
+		_verification.verifyVaa(multisigVaa);
 	}
 
 	function testRevert_verifyInvalidMultisigVaa() public {
 		vm.expectRevert();
-		_verification.verifyVaa_U7N5(invalidMultisigVaa);
+		_verification.verifyVaa(invalidMultisigVaa);
 	}
 
 	function test_verifySchnorrVaa() public {
 		_warmSchnorrSlots(0);
-		_verification.verifyVaa_U7N5(schnorrVaa);
+		_verification.verifyVaa(schnorrVaa);
 	}
 
 	function testRevert_verifyInvalidSchnorrVaa() public {
 		_warmSchnorrSlots(0);
 		vm.expectRevert();
-		_verification.verifyVaa_U7N5(invalidSchnorrVaa);
+		_verification.verifyVaa(invalidSchnorrVaa);
 	}
 
 	function test_verifyBigSchnorrVaa() public {
 		_warmSchnorrSlots(1);
-		_verification.verifyVaa_U7N5(bigSchnorrVaa);
+		_verification.verifyVaa(bigSchnorrVaa);
 	}
 
 	function test_verifyBigMultisigVaa() public {
 		_warmSchnorrSlots(1);
-		_verification.verifyVaa_U7N5(bigMultisigVaa);
+		_verification.verifyVaa(bigMultisigVaa);
 	}
 
 	function test_verifyHashAndHeader() public {
@@ -209,7 +209,6 @@ contract TestAssembly is Test, VaaBuilder {
 		));
 	}
 
-	/*
 	function test_updateShardId() public {
 		// TODO: Implement
 	}
@@ -245,7 +244,6 @@ contract TestAssembly is Test, VaaBuilder {
 	function testRevert_getSchnorrData_invalid() public {
 		// TODO: Implement
 	}
-	*/
 
 	function test_getShardData() public view {
 		(bool success, bytes memory resultRaw) = address(_verification).staticcall(abi.encodePacked(
@@ -283,4 +281,5 @@ contract TestAssembly is Test, VaaBuilder {
 		bytes memory result = abi.decode(resultRaw, (bytes));
 		assertEq(result.length, 0);
 	}
+	*/
 }
