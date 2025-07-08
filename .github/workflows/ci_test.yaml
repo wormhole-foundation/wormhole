@@ -29,7 +29,7 @@ jobs:
 
       - name: Set the rust toolchain version
         run: |
-          rustup override set 1.86.0
+          rustup override set 1.88.0
           rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
       - name: Cache Rust packages
         uses: actions/cache@v4
@@ -38,7 +38,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src/solana/target
-          key: ${{ runner.os }}-rust-1.86.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
+          key: ${{ runner.os }}-rust-1.88.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
 
       # Taken from https://github.com/metaDAOproject/setup-anchor/blob/main/action.yml#L25-L40
       # TODO: read Solana version from Anchor.toml
@@ -49,10 +49,10 @@ jobs:
           path: |
             ~/.cache/solana/
             ~/.local/share/solana/
-          key: solana-cli-${{ runner.os }}-build-2.1.18
+          key: solana-cli-${{ runner.os }}-build-2.2.19
       - name: Install Solana CLI tools
         if: ${{ steps.cache-solana-tools.outputs.cache-hit != 'true' }}
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.18/install)"
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.19/install)"
         shell: bash
       # TODO: read Anchor version from Anchor.toml
       - name: Cache Anchor CLI tools
