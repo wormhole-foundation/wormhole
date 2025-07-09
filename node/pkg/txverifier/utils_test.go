@@ -284,19 +284,19 @@ func TestValidateChains(t *testing.T) {
 
 func Test_deleteEntries_StringKeys(t *testing.T) {
 	tests := []struct {
-		name         string
-		setupCache   func() *map[string]vaa.Address
-		wantNumPruned         int
-		wantErr      bool
-		wantFinalLen int
+		name          string
+		setupCache    func() *map[string]vaa.Address
+		wantNumPruned int
+		wantErr       bool
+		wantFinalLen  int
 	}{
 		{
 			name: "nil pointer",
 			setupCache: func() *map[string]vaa.Address {
 				return nil
 			},
-			wantNumPruned:    0,
-			wantErr: true,
+			wantNumPruned: 0,
+			wantErr:       true,
 		},
 		{
 			name: "pointer to nil map",
@@ -304,8 +304,8 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				var m map[string]vaa.Address = nil
 				return &m
 			},
-			wantNumPruned:    0,
-			wantErr: true,
+			wantNumPruned: 0,
+			wantErr:       true,
 		},
 		{
 			name: "cache within limits - no deletion needed",
@@ -317,9 +317,9 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			wantNumPruned:         0,
-			wantErr:      false,
-			wantFinalLen: CacheMaxSize - 10,
+			wantNumPruned: 0,
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize - 10,
 		},
 		{
 			name: "cache exactly at limit - no deletion needed",
@@ -330,9 +330,9 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			wantNumPruned:         0,
-			wantErr:      false,
-			wantFinalLen: CacheMaxSize,
+			wantNumPruned: 0,
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize,
 		},
 		{
 			name: "cache way over limit - delete enough to reach CacheMaxSize",
@@ -343,9 +343,9 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			wantNumPruned:         50, // CacheMaxSize+50-CacheMaxSize = 50 (more than CacheDeleteCount)
-			wantErr:      false,
-			wantFinalLen: CacheMaxSize,
+			wantNumPruned: 50, // CacheMaxSize+50-CacheMaxSize = 50 (more than CacheDeleteCount)
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize,
 		},
 		{
 			name: "small cache over limit",
@@ -356,9 +356,9 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			wantNumPruned:         CacheDeleteCount, // max(10, 3) = 10
-			wantErr:      false,
-			wantFinalLen: CacheMaxSize + 3 - CacheDeleteCount,
+			wantNumPruned: CacheDeleteCount, // max(10, 3) = 10
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize + 3 - CacheDeleteCount,
 		},
 	}
 

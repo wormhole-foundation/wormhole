@@ -125,8 +125,12 @@ type TransferVerifier[E evmClient, C connector] struct {
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
 	evaluations map[common.Hash]*evaluation
-	// The latest transaction block number, used to determine the size of historic receipts to keep in memory.
+
+	// The last block number that the program has processed.
+	// Used to determine the size of historic receipts to keep in memory.
+	// Must increase monotonically.
 	lastBlockNumber uint64
+
 	// The block height difference between the latest block and the oldest block to keep in memory.
 	pruneHeightDelta uint64
 
