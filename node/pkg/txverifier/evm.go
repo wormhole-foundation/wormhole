@@ -73,7 +73,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	if eval, exists := tv.evaluations[txHash]; exists {
 		tv.logger.Debug("skip: transaction hash already processed",
 			zap.String("txHash", txHash.String()))
-		return eval.Result, eval.Err
+		return eval.Result, nil
 	}
 
 	// Get the full transaction receipt for this txHash if it was not provided as an argument.
@@ -146,7 +146,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Cache successful results.
-	eval.Err = nil
 	eval.Result = true
 	tv.addToCache(txHash, &eval)
 
