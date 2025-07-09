@@ -959,6 +959,10 @@ func validate[L TransferLog](tLog TransferLog) error {
 		return &InvalidLogError{Msg: "transfer amount is negative"}
 	}
 
+	if Cmp(tLog.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		return &InvalidLogError{Msg: "originAddress is the zero address"}
+	}
+
 	switch log := tLog.(type) {
 	case *NativeDeposit:
 		// Deposit does not actually have a sender, so it should always be equal to the zero address.
@@ -971,16 +975,13 @@ func validate[L TransferLog](tLog TransferLog) error {
 		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
-		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-			return &InvalidLogError{Msg: "originAddress is the zero address"}
-		}
 	case *ERC20Transfer:
 		// Note: The token bridge transfers to the zero address in
 		// order to burn tokens for some kinds of transfers. For this
 		// reason, there is no validation here to check if Destination
 		// is the zero address.
 
-		// Sender must not be checked to be non-zero here. The event
+		// Note: Sender must not be checked to be non-zero here. The event
 		// hash for Transfer also shows up in other popular contracts
 		// (e.g. UniswapV2) and may have a valid reason to set this
 		// field to zero.
@@ -988,9 +989,7 @@ func validate[L TransferLog](tLog TransferLog) error {
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "transfer emitter is not equal to its token address"}
 		}
-		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-			return &InvalidLogError{Msg: "originAddress is the zero address"}
-		}
+
 	case *LogMessagePublished:
 		// LogMessagePublished cannot have a sender with a 0 address
 		if Cmp(log.Sender(), ZERO_ADDRESS_VAA) == 0 {
@@ -998,10 +997,6 @@ func validate[L TransferLog](tLog TransferLog) error {
 		}
 		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
-		}
-
-		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-			return &InvalidLogError{Msg: "origin cannot be zero"}
 		}
 
 		// The following values are not exposed by the interface, so check them directly here.
