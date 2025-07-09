@@ -61,7 +61,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	tv.pruneCache()
 
 	if Cmp(txHash, ZERO_ADDRESS) == 0 {
-		tv.logger.Error("txHash is the zero address")
+		tv.logger.Error(ErrTxHashIsZeroAddr.Error())
 		return false, ErrTxHashIsZeroAddr
 	}
 
