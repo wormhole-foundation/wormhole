@@ -21,7 +21,7 @@ const (
 // TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
 var (
 	ErrCouldNotGetNativeDetails = errors.New("could not parse native details for transfer")
-	ErrDepositFromWrongAddress    = errors.New("parsed Deposit event has wrong address")
+	ErrDepositFromWrongAddress  = errors.New("parsed Deposit event has wrong address")
 	ErrInvalidReceiptArgument   = errors.New("invalid TransferReceipt argument")
 	ErrInvalidUpsertArgument    = errors.New("nil argument passed to upsert")
 	ErrNoMsgsFromTokenBridge    = errors.New("no messages published from Token Bridge")
@@ -123,6 +123,10 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	summary, processErr := tv.validateReceipt(transferReceipt)
 	if summary != nil {
 		tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
+
+		if summary.logsProcessed == 0 {
+			tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
+		}
 	} else {
 		tv.logger.Debug("finished processing receipt (but summary is nil)", zap.String("txHash", txHash.String()))
 	}
@@ -138,11 +142,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		tv.logger.Error("invariant violation", zap.Error(processErr), zap.String("receipt summary", summary.String()))
 		// The error is deliberately discarded in this case, but is logged above.
 		return false, nil
-	}
-
-	// Update statistics
-	if summary.logsProcessed == 0 {
-		tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
 	}
 
 	// Cache successful results.
@@ -793,4 +792,3 @@ func (tv *TransferVerifier[ethClient, Connector]) addToCache(
 		tv.evaluations[txHash] = evaluation
 	}
 }
-
