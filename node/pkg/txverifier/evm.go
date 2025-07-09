@@ -621,10 +621,6 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 
 	summary := NewReceiptSummary()
 
-	if len(*receipt.MessagePublications) == 0 {
-		return nil, ErrNoMsgsFromTokenBridge
-	}
-
 	if len(*receipt.Deposits) == 0 && len(*receipt.Transfers) == 0 {
 		// This should result in an invariant error below but this is helpful context.
 		tv.logger.Warn("receipt is a token transfer but has no deposits or transfers",
