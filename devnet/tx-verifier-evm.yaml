@@ -18,7 +18,7 @@ spec:
           env:
             - name: ERROR_PATTERN
               # NOTE: This value must match the string used in the invariant violation branch
-              # // of the Transfer Verifier CLI tool.
+              # of the Transfer Verifier CLI tool.
               value: "invariant violation"
             - name: ERROR_LOG_PATH
               value: "/tmp/error.log"
