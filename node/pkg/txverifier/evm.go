@@ -452,15 +452,6 @@ func (tv *TransferVerifier[evmClient, connector]) ParseReceipt(
 		nil
 }
 
-// Custom error type used to signal that a core invariant of the token bridge has been violated.
-type InvariantError struct {
-	Msg string
-}
-
-func (i InvariantError) Error() string {
-	return fmt.Sprintf("invariant violated: %s", i.Msg)
-}
-
 // ProcessReceipt verifies that a receipt for a LogMessagedPublished event does
 // not verify a fundamental invariant of Wormhole token transfers: when the
 // core bridge reports a transfer has occurred, there must be a corresponding
