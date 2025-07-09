@@ -123,7 +123,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Ensure that the amount coming in is at least as much as the amount requested out.
-	summary, processErr := tv.processReceipt(transferReceipt)
+	summary, processErr := tv.validateReceipt(transferReceipt)
 	if summary != nil {
 		tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
 	} else {
@@ -585,7 +585,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		nil
 }
 
-// processReceipt verifies that a receipt for a LogMessagedPublished event does
+// validateReceipt verifies that a receipt for a LogMessagedPublished event does
 // not verify a fundamental invariant of Wormhole token transfers: when the
 // core bridge reports a transfer has occurred, there must be a corresponding
 // transfer in the token bridge. This is determined by iterating through the
@@ -596,7 +596,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 // can match on this error type to determine whether the transfer was safe or not.
 //
 // Returns a summary of the events that were processed, or nil when a parsing error occurs.
-func (tv *TransferVerifier[evmClient, connector]) processReceipt(
+func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 	receipt *TransferReceipt,
 ) (*ReceiptSummary, error) {
 
@@ -613,7 +613,7 @@ func (tv *TransferVerifier[evmClient, connector]) processReceipt(
 		)
 	}
 
-	tv.logger.Debug("beginning to process receipt",
+	tv.logger.Debug("beginning to validate receipt",
 		zap.String("receipt", receipt.String()),
 	)
 
@@ -750,7 +750,7 @@ func (tv *TransferVerifier[evmClient, connector]) processReceipt(
 				)
 			}
 
-			tv.logger.Debug("bridge request processed",
+			tv.logger.Debug("bridge request validated",
 				zap.String("key", key),
 				zap.String("amountOut", amountOut.String()),
 				zap.String("amountIn", amountIn.String()))
