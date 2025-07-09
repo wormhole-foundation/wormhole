@@ -213,7 +213,7 @@ func upsert(
 	key string,
 	amount *big.Int,
 ) error {
-	if dict == nil || amount == nil {
+	if dict == nil || *dict == nil || amount == nil {
 		return ErrInvalidUpsertArgument
 	}
 	d := *dict
