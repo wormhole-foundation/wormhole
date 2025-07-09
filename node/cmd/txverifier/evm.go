@@ -42,6 +42,15 @@ var (
 
 var ErrInvariant = errors.New("invariant violation")
 
+// sanityCheck represents a test case for the transfer verifier that can be replayed
+// against mainnet to ensure that the tool has not regressed.
+type sanityCheck struct {
+	txHash common.Hash
+	valid  bool
+	err    error
+}
+
+
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
 //
 //nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
@@ -227,12 +236,6 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 			logger.Debug("done processing", zap.Bool("result", valid), zap.String("txHash", vLog.Raw.TxHash.String()))
 		}
 	}
-}
-
-type sanityCheck struct {
-	txHash common.Hash
-	valid  bool
-	err    error
 }
 
 // A list of receipts that have revealed bugs during testing. These can be replayed while developing the
