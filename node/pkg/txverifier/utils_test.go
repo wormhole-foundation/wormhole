@@ -286,7 +286,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 	tests := []struct {
 		name         string
 		setupCache   func() *map[string]vaa.Address
-		want         int
+		wantNumPruned         int
 		wantErr      bool
 		wantFinalLen int
 	}{
@@ -295,7 +295,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 			setupCache: func() *map[string]vaa.Address {
 				return nil
 			},
-			want:    0,
+			wantNumPruned:    0,
 			wantErr: true,
 		},
 		{
@@ -304,7 +304,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				var m map[string]vaa.Address = nil
 				return &m
 			},
-			want:    0,
+			wantNumPruned:    0,
 			wantErr: true,
 		},
 		{
@@ -317,7 +317,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			want:         0,
+			wantNumPruned:         0,
 			wantErr:      false,
 			wantFinalLen: CacheMaxSize - 10,
 		},
@@ -330,7 +330,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			want:         0,
+			wantNumPruned:         0,
 			wantErr:      false,
 			wantFinalLen: CacheMaxSize,
 		},
@@ -343,7 +343,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			want:         50, // CacheMaxSize+50-CacheMaxSize = 50 (more than CacheDeleteCount)
+			wantNumPruned:         50, // CacheMaxSize+50-CacheMaxSize = 50 (more than CacheDeleteCount)
 			wantErr:      false,
 			wantFinalLen: CacheMaxSize,
 		},
@@ -356,7 +356,7 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 				}
 				return &m
 			},
-			want:         CacheDeleteCount, // max(10, 3) = 10
+			wantNumPruned:         CacheDeleteCount, // max(10, 3) = 10
 			wantErr:      false,
 			wantFinalLen: CacheMaxSize + 3 - CacheDeleteCount,
 		},
@@ -381,8 +381,8 @@ func Test_deleteEntries_StringKeys(t *testing.T) {
 			}
 
 			// Check return value
-			if got != tt.want {
-				t.Errorf("deleteEntries() returned %v, want %v", got, tt.want)
+			if got != tt.wantNumPruned {
+				t.Errorf("deleteEntries() returned %v, want %v", got, tt.wantNumPruned)
 				return
 			}
 
