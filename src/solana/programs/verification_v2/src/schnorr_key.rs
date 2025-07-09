@@ -35,20 +35,20 @@ use std::io::{Read, Write};
 use std::ops::{Shr, Sub};
 
 use crate::hex_literal::hex;
-use crate::vaa::VAAThresholdSignature;
+use crate::vaa::VAASchnorrSignature;
 use crate::utils::{init_account, SeedPrefix};
 use crate::ID;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ThresholdKey {
+pub struct SchnorrKey {
   pub key: U256,
 }
 
 #[cfg(feature = "idl-build")]
-impl IdlBuild for ThresholdKey {
+impl IdlBuild for SchnorrKey {
   fn create_type() -> Option<IdlTypeDef> {
     Some(IdlTypeDef {
-      name: "ThresholdKey".to_string(),
+      name: "SchnorrKey".to_string(),
       docs: vec![],
       serialization: IdlSerialization::Borsh,
       repr: None,
@@ -67,13 +67,13 @@ impl IdlBuild for ThresholdKey {
 }
 
 #[error_code]
-pub enum ThresholdKeyError {
+pub enum SchnorrKeyError {
     #[msg("Signature does not satisfy preconditions")]
     InvalidSignature,
     SignatureVerificationFailed,
 }
 
-impl ThresholdKey {
+impl SchnorrKey {
 	// This is only used to validate when appending a pubkey
 	// so we don't really care about its representation.
 	const HALF_Q: [u8; 32] = hex!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0");
@@ -100,15 +100,15 @@ impl ThresholdKey {
 	];
 
 	pub fn q() -> U256 {
-		U256(ThresholdKey::Q_U256)
+		U256(SchnorrKey::Q_U256)
 	}
 
 	pub fn μq() -> U256 {
-		U256(ThresholdKey::ΜQ_U256)
+		U256(SchnorrKey::ΜQ_U256)
 	}
 
 	pub fn half_q() -> U256 {
-		U256::from_big_endian(&ThresholdKey::HALF_Q)
+		U256::from_big_endian(&SchnorrKey::HALF_Q)
 	}
 
   pub fn px(&self) -> U256 {
@@ -125,7 +125,7 @@ impl ThresholdKey {
 	}
 
 	#[inline(always)]
-	pub fn check_signature(&self, message_hash: &Hash, signature: &VAAThresholdSignature) -> Result<()> {
+	pub fn check_signature(&self, message_hash: &Hash, signature: &VAASchnorrSignature) -> Result<()> {
 		let px = self.px();
 		let parity = self.parity();
 		let q = Self::q();
@@ -145,12 +145,12 @@ impl ThresholdKey {
 		// Barrett reductions work as long as the product a*b doesn't exceed Q^2.
 		// Here, one of the factors is the x component of the public key.
 		// In particular, we already know that px <= Q/2
-		// See ThresholdKey::is_valid() and math_tests::test_mulmod_upper_bound_is_safe()
+		// See SchnorrKey::is_valid() and math_tests::test_mulmod_upper_bound_is_safe()
 		let sp = q.sub(Self::mulmod_barrett_q(s, px));
 		let ep = Self::mulmod_barrett_q(e, px);
 
 		if sp.is_zero() || ep.is_zero() {
-			return Err(ThresholdKeyError::InvalidSignature.into());
+			return Err(SchnorrKeyError::InvalidSignature.into());
 		}
 
 		// Prepare the ecrecover inputs
@@ -170,7 +170,7 @@ impl ThresholdKey {
 		let recovered_address = &hash(&recovered_pubkey.to_bytes()).to_bytes()[12..];
 
 		if recovered_address != r {
-			return Err(ThresholdKeyError::SignatureVerificationFailed.into());
+			return Err(SchnorrKeyError::SignatureVerificationFailed.into());
 		}
 
 		Ok(())
@@ -191,7 +191,7 @@ impl ThresholdKey {
 		ab_high[0..4].copy_from_slice(&ab.0[4..8]);
 
 		// t1 = ab_high * μQ
-		let t1 = U256(ab_high).full_mul(ThresholdKey::μq());
+		let t1 = U256(ab_high).full_mul(SchnorrKey::μq());
 
 		// t2 = floor(t1 / 2^255)        → top 257 bits
 		// but (t1 >> 255) fits in 256 bits because:
@@ -199,7 +199,7 @@ impl ThresholdKey {
 		// then ab_high fits in 255 bits => ab_high * μq, i.e. t1, fits in 511 bits
 		let t2: U256 = (t1 >> 255).try_into().unwrap();
 
-		let q = ThresholdKey::q();
+		let q = SchnorrKey::q();
 		let representative = ab - t2.full_mul(q);
 
 		// representative should be in [0, 3Q), so we subtract Q if needed
@@ -216,14 +216,14 @@ impl ThresholdKey {
 	}
 }
 
-impl Space for ThresholdKey {
+impl Space for SchnorrKey {
   const INIT_SPACE: usize = 32;
 }
 
-impl AnchorSerialize for ThresholdKey {
+impl AnchorSerialize for SchnorrKey {
 	fn serialize<W: Write>(&self, writer: &mut W) -> std::result::Result<(), std::io::Error> {
 		if !self.is_valid() {
-			return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid threshold key"));
+			return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid schnorr key"));
 		}
 
 		writer.write_all(&self.key.to_big_endian())?;
@@ -231,11 +231,11 @@ impl AnchorSerialize for ThresholdKey {
 	}
 }
 
-impl AnchorDeserialize for ThresholdKey {
+impl AnchorDeserialize for SchnorrKey {
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
 		let mut key_buf = [0u8; 32];
 		reader.read_exact(&mut key_buf)?;
-		let key = ThresholdKey { key: U256::from_big_endian(&key_buf) };
+		let key = SchnorrKey { key: U256::from_big_endian(&key_buf) };
 
 		Ok(key)
 	}
@@ -244,13 +244,13 @@ impl AnchorDeserialize for ThresholdKey {
 
 #[account]
 #[derive(InitSpace)]
-pub struct ThresholdKeyAccount {
+pub struct SchnorrKeyAccount {
   pub index: u32,
-  pub tss_key: ThresholdKey,
+  pub tss_key: SchnorrKey,
   pub expiration_timestamp: u64,
 }
 
-impl ThresholdKeyAccount {
+impl SchnorrKeyAccount {
   pub fn is_unexpired(&self) -> bool {
     self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
   }
@@ -261,38 +261,38 @@ impl ThresholdKeyAccount {
   }
 }
 
-impl SeedPrefix for ThresholdKeyAccount {
-  const SEED_PREFIX: &'static [u8] = b"thresholdkey";
+impl SeedPrefix for SchnorrKeyAccount {
+  const SEED_PREFIX: &'static [u8] = b"schnorrkey";
 }
 
-pub fn init_threshold_key_account<'info>(
-  new_threshold_key: AccountInfo<'info>,
+pub fn init_schnorr_key_account<'info>(
+  new_schnorr_key: AccountInfo<'info>,
   tss_index: u32,
-  tss_key: ThresholdKey,
+  tss_key: SchnorrKey,
   system_program: &Program<'info, System>,
   payer: AccountInfo<'info>
 ) -> Result<()> {
-  // We need to parse the threshold key append VAA payload
+  // We need to parse the schnorr key append VAA payload
   // to perform the derivation.
   // This is why the initialization happens manually here.
 
   let (pubkey, bump) = Pubkey::find_program_address(
-    &[ThresholdKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes()],
+    &[SchnorrKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes()],
     &ID,
   );
 
-  if pubkey != new_threshold_key.key() {
-    return Err(AppendThresholdKeyError::AccountMismatchTSSKeyIndex.into());
+  if pubkey != new_schnorr_key.key() {
+    return Err(AppendSchnorrKeyError::AccountMismatchTSSKeyIndex.into());
   }
 
-  let threshold_key_seeds = [ThresholdKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes(), &[bump]];
+  let schnorr_key_seeds = [SchnorrKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes(), &[bump]];
 
   init_account(
-    new_threshold_key.clone(),
-    &threshold_key_seeds,
+    new_schnorr_key.clone(),
+    &schnorr_key_seeds,
     &system_program,
     payer,
-    ThresholdKeyAccount{
+    SchnorrKeyAccount{
       index: tss_index,
       tss_key,
       expiration_timestamp: 0,
@@ -304,21 +304,21 @@ pub fn init_threshold_key_account<'info>(
 
 
 #[error_code]
-pub enum AppendThresholdKeyError {
+pub enum AppendSchnorrKeyError {
   InvalidVAA,
   InvalidGovernanceChainId,
   InvalidGovernanceAddress,
   #[msg("New key must have strictly greater index")]
   InvalidNewKeyIndex,
-  #[msg("Old threshold key must be the latest key")]
-  InvalidOldThresholdKey,
+  #[msg("Old schnorr key must be the latest key")]
+  InvalidOldSchnorrKey,
   #[msg("TSS account pubkey mismatches TSS key index")]
   AccountMismatchTSSKeyIndex,
 }
 
 #[cfg(test)]
 mod math_tests {
-	use super::{ThresholdKey, U256, U512, Shr};
+	use super::{SchnorrKey, U256, U512, Shr};
 	use num_bigint::BigUint;
 	use num_traits::{Num, One};
 	use rstest::rstest;
@@ -330,12 +330,12 @@ mod math_tests {
 			"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
 			16
 		).unwrap();
-		assert_eq!(ThresholdKey::q(), q);
+		assert_eq!(SchnorrKey::q(), q);
 	}
 
 	#[test]
 	fn half_q_is_correct() {
-		assert_eq!(ThresholdKey::q().shr(U256::one()), ThresholdKey::half_q());
+		assert_eq!(SchnorrKey::q().shr(U256::one()), SchnorrKey::half_q());
 	}
 
 	#[test]
@@ -352,7 +352,7 @@ mod math_tests {
 		let mu: BigUint = &two_exp511 / &q;
 		let μq = U256::from_little_endian(&mu.to_bytes_le());
 
-		assert_eq!(μq, ThresholdKey::μq());
+		assert_eq!(μq, SchnorrKey::μq());
 	}
 
 	#[rstest]
@@ -368,23 +368,23 @@ mod math_tests {
 		let a = U256::from_str_radix(a_str, 16).unwrap();
 		let b = U256::from_str_radix(b_str, 16).unwrap();
 
-		let mulmod = ThresholdKey::mulmod_barrett_q(a, b);
-		let expected: U256 = (a.full_mul(b) % U512::from(ThresholdKey::q())).try_into().unwrap();
+		let mulmod = SchnorrKey::mulmod_barrett_q(a, b);
+		let expected: U256 = (a.full_mul(b) % U512::from(SchnorrKey::q())).try_into().unwrap();
 		assert_eq!(mulmod, expected);
 	}
 
 	#[test]
 	fn test_mulmod_upper_bound_is_safe() {
 		let a = U256::max_value();
-		// We know that one of the factors is at most half Q (see ThresholdKey::is_valid)
-		let b = ThresholdKey::half_q();
+		// We know that one of the factors is at most half Q (see SchnorrKey::is_valid)
+		let b = SchnorrKey::half_q();
 
-		let q = ThresholdKey::q();
+		let q = SchnorrKey::q();
 
 		let q_2 = q.full_mul(q);
 		assert!(a.full_mul(b) < q_2);
 
-		let mulmod = ThresholdKey::mulmod_barrett_q(a, b);
+		let mulmod = SchnorrKey::mulmod_barrett_q(a, b);
 
 		let expected: U256 = (a.full_mul(b) % U512::from(q)).try_into().unwrap();
 		assert_eq!(mulmod, expected);
@@ -399,9 +399,9 @@ mod math_tests {
 
 		#[test]
 		fn test_mulmod_random_inputs(a in u256_strategy(), b in u256_strategy()) {
-			let q = ThresholdKey::q();
+			let q = SchnorrKey::q();
 
-			let mulmod = ThresholdKey::mulmod_barrett_q(a, b);
+			let mulmod = SchnorrKey::mulmod_barrett_q(a, b);
 			let expected: U256 = (a.full_mul(b) % U512::from(q)).try_into().unwrap();
 			assert_eq!(mulmod, expected);
 		}

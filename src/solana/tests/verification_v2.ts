@@ -133,8 +133,8 @@ describe("VerificationV2", function() {
     const tssIndexBuf = Buffer.alloc(4)
     tssIndexBuf.writeUint32LE(tssIndex)
 
-    // See impl SeedPrefix for ThresholdKeyAccount
-    const seeds = [Buffer.from("thresholdkey"), tssIndexBuf]
+    // See impl SeedPrefix for SchnorrKeyAccount
+    const seeds = [Buffer.from("schnorrkey"), tssIndexBuf]
 
     return PublicKey.findProgramAddressSync(
       seeds,
@@ -180,15 +180,15 @@ describe("VerificationV2", function() {
 
       let ix
       if (test.operation === "InitSchnorrKey") {
-        ix = await coreV2.methods.initThresholdKey().accounts({
+        ix = await coreV2.methods.initSchnorrKey().accounts({
           vaa: postedVaaAddress,
-          newThresholdKey: deriveTssKeyPda(test.keyIndex)[0]
+          newSchnorrKey: deriveTssKeyPda(test.keyIndex)[0]
         }).instruction()
       } else {
-        ix = await coreV2.methods.appendThresholdKey().accounts({
+        ix = await coreV2.methods.appendSchnorrKey().accounts({
           vaa: postedVaaAddress,
-          newThresholdKey: deriveTssKeyPda(test.keyIndex)[0],
-          oldThresholdKey: deriveTssKeyPda(test.oldKeyIndex)[0],
+          newSchnorrKey: deriveTssKeyPda(test.keyIndex)[0],
+          oldSchnorrKey: deriveTssKeyPda(test.oldKeyIndex)[0],
           latestKey: deriveLatestKeyPda()[0],
         }).instruction()
       }
@@ -302,7 +302,7 @@ describe("VerificationV2", function() {
   it("Verifies a v2 VAA", async function() {
     const vaa = Buffer.from(getTestMessage100Zeroed(testKeyIndex));
     const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
-      thresholdKey: deriveTssKeyPda(testKeyIndex)[0],
+      schnorrKey: deriveTssKeyPda(testKeyIndex)[0],
     }).instruction()
 
     const txid = await $.sendAndConfirm(verifyIx, payer)
@@ -314,7 +314,7 @@ describe("VerificationV2", function() {
   it("v2 VAA verification fails for an invalid signature", async function() {
     const vaa = Buffer.from(getTestMessageInvalidSignature(testKeyIndex));
     const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
-      thresholdKey: deriveTssKeyPda(testKeyIndex)[0],
+      schnorrKey: deriveTssKeyPda(testKeyIndex)[0],
     }).instruction()
 
     expectFailure(

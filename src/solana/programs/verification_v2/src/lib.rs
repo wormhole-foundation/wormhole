@@ -3,8 +3,8 @@
 declare_id!("GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6");
 
 mod vaa;
-mod append_threshold_key_message;
-mod threshold_key;
+mod append_schnorr_key_message;
+mod schnorr_key;
 mod utils;
 mod hex_literal;
 
@@ -13,11 +13,11 @@ use anchor_lang::{prelude::*, Result};
 use wormhole_anchor_sdk::wormhole::{program::Wormhole, constants::CHAIN_ID_SOLANA, PostedVaaData};
 
 use vaa::{VAA, VAABody};
-use append_threshold_key_message::AppendThresholdKeyMessage;
-use threshold_key::{
-  AppendThresholdKeyError,
-  ThresholdKeyAccount,
-  init_threshold_key_account
+use append_schnorr_key_message::AppendSchnorrKeyMessage;
+use schnorr_key::{
+  AppendSchnorrKeyError,
+  SchnorrKeyAccount,
+  init_schnorr_key_account
 };
 use utils::{SeedPrefix};
 use hex_literal::hex;
@@ -47,16 +47,16 @@ impl SeedPrefix for LatestKeyAccount {
 
 // TODO: Refactor this to have one accounts/instruction per file
 #[derive(Accounts)]
-pub struct InitThresholdKey<'info> {
+pub struct InitSchnorrKey<'info> {
   #[account(mut)]
   pub payer: Signer<'info>,
 
   #[account(
-    owner = wormhole_program.key() @ AppendThresholdKeyError::InvalidVAA,
+    owner = wormhole_program.key() @ AppendSchnorrKeyError::InvalidVAA,
     constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
-      @ AppendThresholdKeyError::InvalidGovernanceChainId,
+      @ AppendSchnorrKeyError::InvalidGovernanceChainId,
     constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
-      @ AppendThresholdKeyError::InvalidGovernanceAddress,
+      @ AppendSchnorrKeyError::InvalidGovernanceAddress,
   )]
   pub vaa: Account<'info, PostedVaaData>,
 
@@ -69,41 +69,41 @@ pub struct InitThresholdKey<'info> {
   )]
   pub latest_key: Account<'info, LatestKeyAccount>,
 
-  /// CHECK: See `init_threshold_key_account` for checks on this account.
+  /// CHECK: See `init_schnorr_key_account` for checks on this account.
   #[account(mut)]
-  pub new_threshold_key: UncheckedAccount<'info>,
+  pub new_schnorr_key: UncheckedAccount<'info>,
 
   pub wormhole_program: Program<'info, Wormhole>,
   pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct AppendThresholdKey<'info> {
+pub struct AppendSchnorrKey<'info> {
   #[account(mut)]
   pub payer: Signer<'info>,
 
   #[account(
-    owner = wormhole_program.key() @ AppendThresholdKeyError::InvalidVAA,
+    owner = wormhole_program.key() @ AppendSchnorrKeyError::InvalidVAA,
     constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
-      @ AppendThresholdKeyError::InvalidGovernanceChainId,
+      @ AppendSchnorrKeyError::InvalidGovernanceChainId,
     constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
-      @ AppendThresholdKeyError::InvalidGovernanceAddress,
+      @ AppendSchnorrKeyError::InvalidGovernanceAddress,
   )]
   pub vaa: Account<'info, PostedVaaData>,
 
   #[account(mut)]
   pub latest_key: Account<'info, LatestKeyAccount>,
 
-  /// CHECK: See `init_threshold_key_account` for checks on this account.
+  /// CHECK: See `init_schnorr_key_account` for checks on this account.
   #[account(mut)]
-  pub new_threshold_key: UncheckedAccount<'info>,
+  pub new_schnorr_key: UncheckedAccount<'info>,
 
   #[account(
     mut,
-    constraint = old_threshold_key.key() == latest_key.account
-      @ AppendThresholdKeyError::InvalidOldThresholdKey,
+    constraint = old_schnorr_key.key() == latest_key.account
+      @ AppendSchnorrKeyError::InvalidOldSchnorrKey,
   )]
-  pub old_threshold_key: Account<'info, ThresholdKeyAccount>,
+  pub old_schnorr_key: Account<'info, SchnorrKeyAccount>,
 
   pub wormhole_program: Program<'info, Wormhole>,
   pub system_program: Program<'info, System>,
@@ -112,54 +112,54 @@ pub struct AppendThresholdKey<'info> {
 #[derive(Accounts)]
 pub struct VerifyVaa<'info> {
   #[account(
-    constraint = threshold_key.is_unexpired() @ VAAError::TSSKeyExpired,
+    constraint = schnorr_key.is_unexpired() @ VAAError::TSSKeyExpired,
   )]
-  pub threshold_key: Account<'info, ThresholdKeyAccount>,
+  pub schnorr_key: Account<'info, SchnorrKeyAccount>,
 }
 
 #[program]
 pub mod verification_v2 {
   use super::*;
 
-  pub fn init_threshold_key(ctx: Context<InitThresholdKey>) -> Result<()> {
+  pub fn init_schnorr_key(ctx: Context<InitSchnorrKey>) -> Result<()> {
     // Decode the VAA payload
-    let message = AppendThresholdKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
+    let message = AppendSchnorrKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
 
-    init_threshold_key_account(
-      ctx.accounts.new_threshold_key.to_account_info(),
+    init_schnorr_key_account(
+      ctx.accounts.new_schnorr_key.to_account_info(),
       message.tss_index,
       message.tss_key,
       &ctx.accounts.system_program,
       ctx.accounts.payer.to_account_info()
     )?;
 
-    ctx.accounts.latest_key.account = ctx.accounts.new_threshold_key.key();
+    ctx.accounts.latest_key.account = ctx.accounts.new_schnorr_key.key();
 
     Ok(())
   }
 
-  pub fn append_threshold_key(ctx: Context<AppendThresholdKey>) -> Result<()> {
+  pub fn append_schnorr_key(ctx: Context<AppendSchnorrKey>) -> Result<()> {
     // Decode the VAA payload
-    let message = AppendThresholdKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
+    let message = AppendSchnorrKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
 
-    let old_threshold_key = &mut ctx.accounts.old_threshold_key;
+    let old_schnorr_key = &mut ctx.accounts.old_schnorr_key;
 
     // Check that the index is increasing from the previous index
-    if message.tss_index <= old_threshold_key.index {
-      return Err(AppendThresholdKeyError::InvalidNewKeyIndex.into());
+    if message.tss_index <= old_schnorr_key.index {
+      return Err(AppendSchnorrKeyError::InvalidNewKeyIndex.into());
     }
 
-    init_threshold_key_account(
-      ctx.accounts.new_threshold_key.to_account_info(),
+    init_schnorr_key_account(
+      ctx.accounts.new_schnorr_key.to_account_info(),
       message.tss_index,
       message.tss_key,
       &ctx.accounts.system_program,
       ctx.accounts.payer.to_account_info()
     )?;
 
-    old_threshold_key.update_expiration_timestamp(message.expiration_delay_seconds as u64);
+    old_schnorr_key.update_expiration_timestamp(message.expiration_delay_seconds as u64);
 
-    ctx.accounts.latest_key.account = ctx.accounts.new_threshold_key.key();
+    ctx.accounts.latest_key.account = ctx.accounts.new_schnorr_key.key();
 
     Ok(())
   }
@@ -181,14 +181,14 @@ fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>>
 
   vaa.check_valid()?;
 
-  let threshold_key = &ctx.accounts.threshold_key;
-  if threshold_key.index != vaa.header.tss_index {
+  let schnorr_key = &ctx.accounts.schnorr_key;
+  if schnorr_key.index != vaa.header.tss_index {
     return Err(VAAError::InvalidIndex.into());
   }
 
   let msg_hash = vaa.message_hash()?;
 
-  threshold_key.tss_key.check_signature(&msg_hash, &vaa.header.signature)?;
+  schnorr_key.tss_key.check_signature(&msg_hash, &vaa.header.signature)?;
 
   Ok(vaa.body)
 }

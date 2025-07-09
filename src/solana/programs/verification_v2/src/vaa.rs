@@ -9,21 +9,21 @@ use primitive_types::U256;
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt};
 
-use crate::{threshold_key::{ThresholdKey, ThresholdKeyError}, VAAError};
+use crate::{schnorr_key::{SchnorrKey, SchnorrKeyError}, VAAError};
 
-pub struct VAAThresholdSignature {
+pub struct VAASchnorrSignature {
   pub r: [u8; 20],
   pub s: U256,
 }
 
-impl VAAThresholdSignature {
+impl VAASchnorrSignature {
 	#[inline(always)]
 	pub fn is_valid(&self) -> bool {
-		!self.s.is_zero() && self.s.lt(&ThresholdKey::q()) && !self.r.iter().all(|r| *r == 0)
+		!self.s.is_zero() && self.s.lt(&SchnorrKey::q()) && !self.r.iter().all(|r| *r == 0)
 	}
 }
 
-impl AnchorSerialize for VAAThresholdSignature {
+impl AnchorSerialize for VAASchnorrSignature {
 	fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
 		writer.write_all(&self.r)?;
 		writer.write_all(&self.s.to_big_endian())?;
@@ -31,7 +31,7 @@ impl AnchorSerialize for VAAThresholdSignature {
 	}
 }
 
-impl AnchorDeserialize for VAAThresholdSignature {
+impl AnchorDeserialize for VAASchnorrSignature {
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
 		let mut r = [0u8; 20];
 		reader.read_exact(&mut r)?;
@@ -44,7 +44,7 @@ impl AnchorDeserialize for VAAThresholdSignature {
 pub struct VAAHeader {
 	pub version: u8,
 	pub tss_index: u32,
-	pub signature: VAAThresholdSignature,
+	pub signature: VAASchnorrSignature,
 }
 
 impl VAAHeader {
@@ -54,7 +54,7 @@ impl VAAHeader {
 			return Err(VAAError::InvalidVersion.into());
 		}
 		if !self.signature.is_valid() {
-			return Err(ThresholdKeyError::InvalidSignature.into());
+			return Err(SchnorrKeyError::InvalidSignature.into());
 		}
 		Ok(())
 	}
@@ -73,7 +73,7 @@ impl AnchorDeserialize for VAAHeader {
 	fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
 		let version = reader.read_u8()?;
 		let tss_index = reader.read_u32::<BigEndian>()?;
-		let signature = VAAThresholdSignature::deserialize_reader(reader)?;
+		let signature = VAASchnorrSignature::deserialize_reader(reader)?;
 		Ok(Self { version, tss_index, signature })
 	}
 }
