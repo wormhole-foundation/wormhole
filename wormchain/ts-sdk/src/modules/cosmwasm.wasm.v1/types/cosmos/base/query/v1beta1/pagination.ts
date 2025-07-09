@@ -1,7 +1,7 @@
 //@ts-nocheck
 /* eslint-disable */
-import * as Long from "long";
-import { util, configure, Writer, Reader } from "protobufjs/minimal";
+import Long from "long";
+import _m0 from "protobufjs/minimal";
 
 export const protobufPackage = "cosmos.base.query.v1beta1";
 
@@ -38,7 +38,13 @@ export interface PageRequest {
    * count_total is only respected when offset is used. It is ignored when key
    * is set.
    */
-  count_total: boolean;
+  countTotal: boolean;
+  /**
+   * reverse is set to true if results are to be returned in the descending order.
+   *
+   * Since: cosmos-sdk 0.43
+   */
+  reverse: boolean;
 }
 
 /**
@@ -53,9 +59,10 @@ export interface PageRequest {
 export interface PageResponse {
   /**
    * next_key is the key to be passed to PageRequest.key to
-   * query the next page most efficiently
+   * query the next page most efficiently. It will be empty if
+   * there are no more results.
    */
-  next_key: Uint8Array;
+  nextKey: Uint8Array;
   /**
    * total is total number of results available if PageRequest.count_total
    * was set, its value is undefined otherwise
@@ -63,10 +70,12 @@ export interface PageResponse {
   total: number;
 }
 
-const basePageRequest: object = { offset: 0, limit: 0, count_total: false };
+function createBasePageRequest(): PageRequest {
+  return { key: new Uint8Array(), offset: 0, limit: 0, countTotal: false, reverse: false };
+}
 
 export const PageRequest = {
-  encode(message: PageRequest, writer: Writer = Writer.create()): Writer {
+  encode(message: PageRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.key.length !== 0) {
       writer.uint32(10).bytes(message.key);
     }
@@ -76,16 +85,19 @@ export const PageRequest = {
     if (message.limit !== 0) {
       writer.uint32(24).uint64(message.limit);
     }
-    if (message.count_total === true) {
-      writer.uint32(32).bool(message.count_total);
+    if (message.countTotal === true) {
+      writer.uint32(32).bool(message.countTotal);
+    }
+    if (message.reverse === true) {
+      writer.uint32(40).bool(message.reverse);
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): PageRequest {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): PageRequest {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...basePageRequest } as PageRequest;
+    const message = createBasePageRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -99,7 +111,10 @@ export const PageRequest = {
           message.limit = longToNumber(reader.uint64() as Long);
           break;
         case 4:
-          message.count_total = reader.bool();
+          message.countTotal = reader.bool();
+          break;
+        case 5:
+          message.reverse = reader.bool();
           break;
         default:
           reader.skipType(tag & 7);
@@ -110,73 +125,45 @@ export const PageRequest = {
   },
 
   fromJSON(object: any): PageRequest {
-    const message = { ...basePageRequest } as PageRequest;
-    if (object.key !== undefined && object.key !== null) {
-      message.key = bytesFromBase64(object.key);
-    }
-    if (object.offset !== undefined && object.offset !== null) {
-      message.offset = Number(object.offset);
-    } else {
-      message.offset = 0;
-    }
-    if (object.limit !== undefined && object.limit !== null) {
-      message.limit = Number(object.limit);
-    } else {
-      message.limit = 0;
-    }
-    if (object.count_total !== undefined && object.count_total !== null) {
-      message.count_total = Boolean(object.count_total);
-    } else {
-      message.count_total = false;
-    }
-    return message;
+    return {
+      key: isSet(object.key) ? bytesFromBase64(object.key) : new Uint8Array(),
+      offset: isSet(object.offset) ? Number(object.offset) : 0,
+      limit: isSet(object.limit) ? Number(object.limit) : 0,
+      countTotal: isSet(object.countTotal) ? Boolean(object.countTotal) : false,
+      reverse: isSet(object.reverse) ? Boolean(object.reverse) : false,
+    };
   },
 
   toJSON(message: PageRequest): unknown {
     const obj: any = {};
-    message.key !== undefined &&
-      (obj.key = base64FromBytes(
-        message.key !== undefined ? message.key : new Uint8Array()
-      ));
-    message.offset !== undefined && (obj.offset = message.offset);
-    message.limit !== undefined && (obj.limit = message.limit);
-    message.count_total !== undefined &&
-      (obj.count_total = message.count_total);
+    message.key !== undefined
+      && (obj.key = base64FromBytes(message.key !== undefined ? message.key : new Uint8Array()));
+    message.offset !== undefined && (obj.offset = Math.round(message.offset));
+    message.limit !== undefined && (obj.limit = Math.round(message.limit));
+    message.countTotal !== undefined && (obj.countTotal = message.countTotal);
+    message.reverse !== undefined && (obj.reverse = message.reverse);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<PageRequest>): PageRequest {
-    const message = { ...basePageRequest } as PageRequest;
-    if (object.key !== undefined && object.key !== null) {
-      message.key = object.key;
-    } else {
-      message.key = new Uint8Array();
-    }
-    if (object.offset !== undefined && object.offset !== null) {
-      message.offset = object.offset;
-    } else {
-      message.offset = 0;
-    }
-    if (object.limit !== undefined && object.limit !== null) {
-      message.limit = object.limit;
-    } else {
-      message.limit = 0;
-    }
-    if (object.count_total !== undefined && object.count_total !== null) {
-      message.count_total = object.count_total;
-    } else {
-      message.count_total = false;
-    }
+  fromPartial<I extends Exact<DeepPartial<PageRequest>, I>>(object: I): PageRequest {
+    const message = createBasePageRequest();
+    message.key = object.key ?? new Uint8Array();
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    message.countTotal = object.countTotal ?? false;
+    message.reverse = object.reverse ?? false;
     return message;
   },
 };
 
-const basePageResponse: object = { total: 0 };
+function createBasePageResponse(): PageResponse {
+  return { nextKey: new Uint8Array(), total: 0 };
+}
 
 export const PageResponse = {
-  encode(message: PageResponse, writer: Writer = Writer.create()): Writer {
-    if (message.next_key.length !== 0) {
-      writer.uint32(10).bytes(message.next_key);
+  encode(message: PageResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.nextKey.length !== 0) {
+      writer.uint32(10).bytes(message.nextKey);
     }
     if (message.total !== 0) {
       writer.uint32(16).uint64(message.total);
@@ -184,15 +171,15 @@ export const PageResponse = {
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): PageResponse {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): PageResponse {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...basePageResponse } as PageResponse;
+    const message = createBasePageResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.next_key = reader.bytes();
+          message.nextKey = reader.bytes();
           break;
         case 2:
           message.total = longToNumber(reader.uint64() as Long);
@@ -206,87 +193,82 @@ export const PageResponse = {
   },
 
   fromJSON(object: any): PageResponse {
-    const message = { ...basePageResponse } as PageResponse;
-    if (object.next_key !== undefined && object.next_key !== null) {
-      message.next_key = bytesFromBase64(object.next_key);
-    }
-    if (object.total !== undefined && object.total !== null) {
-      message.total = Number(object.total);
-    } else {
-      message.total = 0;
-    }
-    return message;
+    return {
+      nextKey: isSet(object.nextKey) ? bytesFromBase64(object.nextKey) : new Uint8Array(),
+      total: isSet(object.total) ? Number(object.total) : 0,
+    };
   },
 
   toJSON(message: PageResponse): unknown {
     const obj: any = {};
-    message.next_key !== undefined &&
-      (obj.next_key = base64FromBytes(
-        message.next_key !== undefined ? message.next_key : new Uint8Array()
-      ));
-    message.total !== undefined && (obj.total = message.total);
+    message.nextKey !== undefined
+      && (obj.nextKey = base64FromBytes(message.nextKey !== undefined ? message.nextKey : new Uint8Array()));
+    message.total !== undefined && (obj.total = Math.round(message.total));
     return obj;
   },
 
-  fromPartial(object: DeepPartial<PageResponse>): PageResponse {
-    const message = { ...basePageResponse } as PageResponse;
-    if (object.next_key !== undefined && object.next_key !== null) {
-      message.next_key = object.next_key;
-    } else {
-      message.next_key = new Uint8Array();
-    }
-    if (object.total !== undefined && object.total !== null) {
-      message.total = object.total;
-    } else {
-      message.total = 0;
-    }
+  fromPartial<I extends Exact<DeepPartial<PageResponse>, I>>(object: I): PageResponse {
+    const message = createBasePageResponse();
+    message.nextKey = object.nextKey ?? new Uint8Array();
+    message.total = object.total ?? 0;
     return message;
   },
 };
 
 declare var self: any | undefined;
 declare var window: any | undefined;
+declare var global: any | undefined;
 var globalThis: any = (() => {
-  if (typeof globalThis !== "undefined") return globalThis;
-  if (typeof self !== "undefined") return self;
-  if (typeof window !== "undefined") return window;
-  if (typeof global !== "undefined") return global;
+  if (typeof globalThis !== "undefined") {
+    return globalThis;
+  }
+  if (typeof self !== "undefined") {
+    return self;
+  }
+  if (typeof window !== "undefined") {
+    return window;
+  }
+  if (typeof global !== "undefined") {
+    return global;
+  }
   throw "Unable to locate global object";
 })();
 
-const atob: (b64: string) => string =
-  globalThis.atob ||
-  ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; ++i) {
-    arr[i] = bin.charCodeAt(i);
+  if (globalThis.Buffer) {
+    return Uint8Array.from(globalThis.Buffer.from(b64, "base64"));
+  } else {
+    const bin = globalThis.atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
   }
-  return arr;
 }
 
-const btoa: (bin: string) => string =
-  globalThis.btoa ||
-  ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr: Uint8Array): string {
-  const bin: string[] = [];
-  for (let i = 0; i < arr.byteLength; ++i) {
-    bin.push(String.fromCharCode(arr[i]));
+  if (globalThis.Buffer) {
+    return globalThis.Buffer.from(arr).toString("base64");
+  } else {
+    const bin: string[] = [];
+    arr.forEach((byte) => {
+      bin.push(String.fromCharCode(byte));
+    });
+    return globalThis.btoa(bin.join(""));
   }
-  return btoa(bin.join(""));
 }
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function longToNumber(long: Long): number {
   if (long.gt(Number.MAX_SAFE_INTEGER)) {
@@ -295,7 +277,11 @@ function longToNumber(long: Long): number {
   return long.toNumber();
 }
 
-if (util.Long !== Long) {
-  util.Long = Long as any;
-  configure();
+if (_m0.util.Long !== Long) {
+  _m0.util.Long = Long as any;
+  _m0.configure();
+}
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
 }

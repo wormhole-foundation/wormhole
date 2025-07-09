@@ -1,8 +1,8 @@
 //@ts-nocheck
 /* eslint-disable */
-import { Params } from "../../../osmosis/tokenfactory/v1beta1/params";
-import { DenomAuthorityMetadata } from "../../../osmosis/tokenfactory/v1beta1/authorityMetadata";
-import { Writer, Reader } from "protobufjs/minimal";
+import _m0 from "protobufjs/minimal";
+import { DenomAuthorityMetadata } from "./authorityMetadata";
+import { Params } from "./params";
 
 export const protobufPackage = "osmosis.tokenfactory.v1beta1";
 
@@ -10,7 +10,7 @@ export const protobufPackage = "osmosis.tokenfactory.v1beta1";
 export interface GenesisState {
   /** params defines the paramaters of the module. */
   params: Params | undefined;
-  factory_denoms: GenesisDenom[];
+  factoryDenoms: GenesisDenom[];
 }
 
 /**
@@ -20,27 +20,28 @@ export interface GenesisState {
  */
 export interface GenesisDenom {
   denom: string;
-  authority_metadata: DenomAuthorityMetadata | undefined;
+  authorityMetadata: DenomAuthorityMetadata | undefined;
 }
 
-const baseGenesisState: object = {};
+function createBaseGenesisState(): GenesisState {
+  return { params: undefined, factoryDenoms: [] };
+}
 
 export const GenesisState = {
-  encode(message: GenesisState, writer: Writer = Writer.create()): Writer {
+  encode(message: GenesisState, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.params !== undefined) {
       Params.encode(message.params, writer.uint32(10).fork()).ldelim();
     }
-    for (const v of message.factory_denoms) {
+    for (const v of message.factoryDenoms) {
       GenesisDenom.encode(v!, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): GenesisState {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): GenesisState {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseGenesisState } as GenesisState;
-    message.factory_denoms = [];
+    const message = createBaseGenesisState();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -48,9 +49,7 @@ export const GenesisState = {
           message.params = Params.decode(reader, reader.uint32());
           break;
         case 2:
-          message.factory_denoms.push(
-            GenesisDenom.decode(reader, reader.uint32())
-          );
+          message.factoryDenoms.push(GenesisDenom.decode(reader, reader.uint32()));
           break;
         default:
           reader.skipType(tag & 7);
@@ -61,72 +60,54 @@ export const GenesisState = {
   },
 
   fromJSON(object: any): GenesisState {
-    const message = { ...baseGenesisState } as GenesisState;
-    message.factory_denoms = [];
-    if (object.params !== undefined && object.params !== null) {
-      message.params = Params.fromJSON(object.params);
-    } else {
-      message.params = undefined;
-    }
-    if (object.factory_denoms !== undefined && object.factory_denoms !== null) {
-      for (const e of object.factory_denoms) {
-        message.factory_denoms.push(GenesisDenom.fromJSON(e));
-      }
-    }
-    return message;
+    return {
+      params: isSet(object.params) ? Params.fromJSON(object.params) : undefined,
+      factoryDenoms: Array.isArray(object?.factoryDenoms)
+        ? object.factoryDenoms.map((e: any) => GenesisDenom.fromJSON(e))
+        : [],
+    };
   },
 
   toJSON(message: GenesisState): unknown {
     const obj: any = {};
-    message.params !== undefined &&
-      (obj.params = message.params ? Params.toJSON(message.params) : undefined);
-    if (message.factory_denoms) {
-      obj.factory_denoms = message.factory_denoms.map((e) =>
-        e ? GenesisDenom.toJSON(e) : undefined
-      );
+    message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined);
+    if (message.factoryDenoms) {
+      obj.factoryDenoms = message.factoryDenoms.map((e) => e ? GenesisDenom.toJSON(e) : undefined);
     } else {
-      obj.factory_denoms = [];
+      obj.factoryDenoms = [];
     }
     return obj;
   },
 
-  fromPartial(object: DeepPartial<GenesisState>): GenesisState {
-    const message = { ...baseGenesisState } as GenesisState;
-    message.factory_denoms = [];
-    if (object.params !== undefined && object.params !== null) {
-      message.params = Params.fromPartial(object.params);
-    } else {
-      message.params = undefined;
-    }
-    if (object.factory_denoms !== undefined && object.factory_denoms !== null) {
-      for (const e of object.factory_denoms) {
-        message.factory_denoms.push(GenesisDenom.fromPartial(e));
-      }
-    }
+  fromPartial<I extends Exact<DeepPartial<GenesisState>, I>>(object: I): GenesisState {
+    const message = createBaseGenesisState();
+    message.params = (object.params !== undefined && object.params !== null)
+      ? Params.fromPartial(object.params)
+      : undefined;
+    message.factoryDenoms = object.factoryDenoms?.map((e) => GenesisDenom.fromPartial(e)) || [];
     return message;
   },
 };
 
-const baseGenesisDenom: object = { denom: "" };
+function createBaseGenesisDenom(): GenesisDenom {
+  return { denom: "", authorityMetadata: undefined };
+}
 
 export const GenesisDenom = {
-  encode(message: GenesisDenom, writer: Writer = Writer.create()): Writer {
+  encode(message: GenesisDenom, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.denom !== "") {
       writer.uint32(10).string(message.denom);
     }
-    if (message.authority_metadata !== undefined) {
-      DenomAuthorityMetadata.encode(
-        message.authority_metadata,
-        writer.uint32(18).fork()
-      ).ldelim();
+    if (message.authorityMetadata !== undefined) {
+      DenomAuthorityMetadata.encode(message.authorityMetadata, writer.uint32(18).fork()).ldelim();
     }
     return writer;
   },
 
-  decode(input: Reader | Uint8Array, length?: number): GenesisDenom {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+  decode(input: _m0.Reader | Uint8Array, length?: number): GenesisDenom {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseGenesisDenom } as GenesisDenom;
+    const message = createBaseGenesisDenom();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -134,10 +115,7 @@ export const GenesisDenom = {
           message.denom = reader.string();
           break;
         case 2:
-          message.authority_metadata = DenomAuthorityMetadata.decode(
-            reader,
-            reader.uint32()
-          );
+          message.authorityMetadata = DenomAuthorityMetadata.decode(reader, reader.uint32());
           break;
         default:
           reader.skipType(tag & 7);
@@ -148,63 +126,44 @@ export const GenesisDenom = {
   },
 
   fromJSON(object: any): GenesisDenom {
-    const message = { ...baseGenesisDenom } as GenesisDenom;
-    if (object.denom !== undefined && object.denom !== null) {
-      message.denom = String(object.denom);
-    } else {
-      message.denom = "";
-    }
-    if (
-      object.authority_metadata !== undefined &&
-      object.authority_metadata !== null
-    ) {
-      message.authority_metadata = DenomAuthorityMetadata.fromJSON(
-        object.authority_metadata
-      );
-    } else {
-      message.authority_metadata = undefined;
-    }
-    return message;
+    return {
+      denom: isSet(object.denom) ? String(object.denom) : "",
+      authorityMetadata: isSet(object.authorityMetadata)
+        ? DenomAuthorityMetadata.fromJSON(object.authorityMetadata)
+        : undefined,
+    };
   },
 
   toJSON(message: GenesisDenom): unknown {
     const obj: any = {};
     message.denom !== undefined && (obj.denom = message.denom);
-    message.authority_metadata !== undefined &&
-      (obj.authority_metadata = message.authority_metadata
-        ? DenomAuthorityMetadata.toJSON(message.authority_metadata)
-        : undefined);
+    message.authorityMetadata !== undefined && (obj.authorityMetadata = message.authorityMetadata
+      ? DenomAuthorityMetadata.toJSON(message.authorityMetadata)
+      : undefined);
     return obj;
   },
 
-  fromPartial(object: DeepPartial<GenesisDenom>): GenesisDenom {
-    const message = { ...baseGenesisDenom } as GenesisDenom;
-    if (object.denom !== undefined && object.denom !== null) {
-      message.denom = object.denom;
-    } else {
-      message.denom = "";
-    }
-    if (
-      object.authority_metadata !== undefined &&
-      object.authority_metadata !== null
-    ) {
-      message.authority_metadata = DenomAuthorityMetadata.fromPartial(
-        object.authority_metadata
-      );
-    } else {
-      message.authority_metadata = undefined;
-    }
+  fromPartial<I extends Exact<DeepPartial<GenesisDenom>, I>>(object: I): GenesisDenom {
+    const message = createBaseGenesisDenom();
+    message.denom = object.denom ?? "";
+    message.authorityMetadata = (object.authorityMetadata !== undefined && object.authorityMetadata !== null)
+      ? DenomAuthorityMetadata.fromPartial(object.authorityMetadata)
+      : undefined;
     return message;
   },
 };
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined;
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends Array<infer U>
-  ? Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
+
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
+
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
+}

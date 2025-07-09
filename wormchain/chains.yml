@@ -1,0 +1,11 @@
+# This file is used to create docker images using the heighliner binary.
+# ref: https://github.com/strangelove-ventures/heighliner
+
+- name: wormchain
+  github-organization: wormhole-foundation
+  github-repo: wormhole
+  dockerfile: cosmos
+  build-target: make client
+  build-dir: wormchain
+  binaries:
+    - wormchain/build/wormchaind

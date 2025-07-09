@@ -1,4 +1,4 @@
-import { describe, test } from "@jest/globals";
+import { describe, test, jest } from "@jest/globals";
 import {
   LCDClient,
   MnemonicKey,
@@ -73,6 +73,7 @@ describe("IBC Watcher Integration Tests", () => {
         },
       }
     );
+
     const postedVaa = await terraBroadcastTxAndGetSignedVaa(
       [postMsg],
       terraWallet,

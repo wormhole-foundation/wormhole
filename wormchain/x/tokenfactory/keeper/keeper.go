@@ -3,55 +3,74 @@ package keeper
 import (
 	"fmt"
 
-	"github.com/tendermint/tendermint/libs/log"
+	"github.com/cometbft/cometbft/libs/log"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
-
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 type (
 	Keeper struct {
-		storeKey storetypes.StoreKey
-
-		paramSpace paramtypes.Subspace
+		cdc         codec.BinaryCodec
+		storeKey    storetypes.StoreKey
+		permAddrs   map[string]authtypes.PermissionsForAddress
+		permAddrMap map[string]bool
 
 		accountKeeper       types.AccountKeeper
 		bankKeeper          types.BankKeeper
 		communityPoolKeeper types.CommunityPoolKeeper
 
 		enabledCapabilities []string
+
+		// the address capable of executing a MsgUpdateParams message. Typically, this
+		// should be the x/gov module account.
+		authority string
 	}
 )
 
 // NewKeeper returns a new instance of the x/tokenfactory keeper
 func NewKeeper(
+	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
-	paramSpace paramtypes.Subspace,
+	maccPerms map[string][]string,
 	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
 	communityPoolKeeper types.CommunityPoolKeeper,
 	enabledCapabilities []string,
+	authority string,
 ) Keeper {
-	if !paramSpace.HasKeyTable() {
-		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
+	permAddrs := make(map[string]authtypes.PermissionsForAddress)
+	permAddrMap := make(map[string]bool)
+	for name, perms := range maccPerms {
+		permsForAddr := authtypes.NewPermissionsForAddress(name, perms)
+		permAddrs[name] = permsForAddr
+		permAddrMap[permsForAddr.GetAddress().String()] = true
 	}
 
 	return Keeper{
-		storeKey:   storeKey,
-		paramSpace: paramSpace,
+		cdc:      cdc,
+		storeKey: storeKey,
 
+		permAddrs:           permAddrs,
+		permAddrMap:         permAddrMap,
 		accountKeeper:       accountKeeper,
 		bankKeeper:          bankKeeper,
 		communityPoolKeeper: communityPoolKeeper,
 
 		enabledCapabilities: enabledCapabilities,
+
+		authority: authority,
 	}
+}
+
+// GetAuthority returns the x/mint module's authority.
+func (k Keeper) GetAuthority() string {
+	return k.authority
 }
 
 // Logger returns a logger for the x/tokenfactory module

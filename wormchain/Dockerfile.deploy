@@ -19,7 +19,8 @@ COPY ./ts-sdk/package.json ./ts-sdk/package-lock.json /ts-sdk/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci --prefix=/ts-sdk
 COPY ./ts-sdk /ts-sdk
-# COPY --from=vue-export /vue /vue
+COPY --from=ts-client-export /ts-client /ts-client
+
 RUN npm run build --prefix=/ts-sdk
 
 COPY ./contracts/tools/package.json ./contracts/tools/package-lock.json /app/tools/

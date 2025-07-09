@@ -1,0 +1,12 @@
+version: 1
+accounts:
+- name: alice
+  coins:
+  - 20000token
+  - 200000000stake
+client:
+  typescript:
+    path: ts-client
+  vuex:
+    path: vue/src/store
+validators: []

@@ -107,7 +107,6 @@ export interface ProtobufAny {
    * expect it to use in the context of Any. However, for URLs which use the
    * scheme `http`, `https`, or no scheme, one can optionally set up a type
    * server that maps type URLs to message definitions as follows:
-   *
    * * If no scheme is provided, `https` is assumed.
    * * An HTTP GET on the URL must yield a [google.protobuf.Type][]
    *   value in binary format, or produce an error.
@@ -116,11 +115,9 @@ export interface ProtobufAny {
    *   lookup. Therefore, binary compatibility needs to be preserved
    *   on changes to types. (Use versioned type names to manage
    *   breaking changes.)
-   *
    * Note: this functionality is not currently available in the official
    * protobuf release, and it is not used for type URLs beginning with
    * type.googleapis.com.
-   *
    * Schemes other than `http`, `https` (or the empty scheme) might be
    * used with implementation specific semantics.
    */
@@ -132,6 +129,94 @@ export interface RpcStatus {
   code?: number;
   message?: string;
   details?: ProtobufAny[];
+}
+
+/**
+* Delegation represents the bond with tokens held by an account. It is
+owned by one delegator, and is associated with the voting power of one
+validator.
+*/
+export interface Stakingv1Beta1Delegation {
+  /** delegator_address is the bech32-encoded address of the delegator. */
+  delegator_address?: string;
+
+  /** validator_address is the bech32-encoded address of the validator. */
+  validator_address?: string;
+
+  /** shares define the delegation shares received. */
+  shares?: string;
+}
+
+/**
+* HistoricalInfo contains header and validator information for a given block.
+It is stored as part of staking module's state, which persists the `n` most
+recent HistoricalInfo
+(`n` is set by the staking module's `historical_entries` parameter).
+*/
+export interface Stakingv1Beta1HistoricalInfo {
+  /** Header defines the structure of a block header. */
+  header?: TypesHeader;
+  valset?: Stakingv1Beta1Validator[];
+}
+
+/**
+ * Params defines the parameters for the x/staking module.
+ */
+export interface Stakingv1Beta1Params {
+  /** unbonding_time is the time duration of unbonding. */
+  unbonding_time?: string;
+
+  /**
+   * max_validators is the maximum number of validators.
+   * @format int64
+   */
+  max_validators?: number;
+
+  /**
+   * max_entries is the max entries for either unbonding delegation or redelegation (per pair/trio).
+   * @format int64
+   */
+  max_entries?: number;
+
+  /**
+   * historical_entries is the number of historical entries to persist.
+   * @format int64
+   */
+  historical_entries?: number;
+
+  /** bond_denom defines the bondable coin denomination. */
+  bond_denom?: string;
+
+  /** min_commission_rate is the chain-wide minimum commission rate that a validator can charge their delegators */
+  min_commission_rate?: string;
+}
+
+/**
+* Pool is used for tracking bonded and not-bonded token supply of the bond
+denomination.
+*/
+export interface Stakingv1Beta1Pool {
+  not_bonded_tokens?: string;
+  bonded_tokens?: string;
+}
+
+/**
+* UnbondingDelegation stores all of a single delegator's unbonding bonds
+for a single validator in an time-ordered list.
+*/
+export interface Stakingv1Beta1UnbondingDelegation {
+  /** delegator_address is the bech32-encoded address of the delegator. */
+  delegator_address?: string;
+
+  /** validator_address is the bech32-encoded address of the validator. */
+  validator_address?: string;
+
+  /**
+   * entries are the unbonding delegation entries.
+   *
+   * unbonding delegation entries
+   */
+  entries?: V1Beta1UnbondingDelegationEntry[];
 }
 
 /**
@@ -181,8 +266,21 @@ export interface Stakingv1Beta1Validator {
   /** commission defines the commission parameters. */
   commission?: V1Beta1Commission;
 
-  /** min_self_delegation is the validator's self declared minimum self delegation. */
+  /**
+   * min_self_delegation is the validator's self declared minimum self delegation.
+   *
+   * Since: cosmos-sdk 0.46
+   */
   min_self_delegation?: string;
+
+  /**
+   * strictly positive if this validator's unbonding has been stopped by external modules
+   * @format int64
+   */
+  unbonding_on_hold_ref_count?: string;
+
+  /** list of unbonding ids, each uniquely identifing an unbonding of this validator */
+  unbonding_ids?: string[];
 }
 
 export interface TypesBlockID {
@@ -192,10 +290,11 @@ export interface TypesBlockID {
 }
 
 /**
- * Header defines the structure of a Tendermint block header.
+ * Header defines the structure of a block header.
  */
 export interface TypesHeader {
   /**
+   * basic block info
    * Consensus captures the consensus rules for processing a block in the blockchain,
    * including all blockchain data structures and the rules of the application's
    * state transition machine.
@@ -208,42 +307,65 @@ export interface TypesHeader {
 
   /** @format date-time */
   time?: string;
+
+  /** prev block info */
   last_block_id?: TypesBlockID;
 
   /**
+   * hashes of block data
    * commit from validators from the last block
    * @format byte
    */
   last_commit_hash?: string;
 
-  /** @format byte */
+  /**
+   * transactions
+   * @format byte
+   */
   data_hash?: string;
 
   /**
+   * hashes from the app output from the prev block
    * validators for the current block
    * @format byte
    */
   validators_hash?: string;
 
-  /** @format byte */
+  /**
+   * validators for the next block
+   * @format byte
+   */
   next_validators_hash?: string;
 
-  /** @format byte */
+  /**
+   * consensus params for current block
+   * @format byte
+   */
   consensus_hash?: string;
 
-  /** @format byte */
+  /**
+   * state after txs from the previous block
+   * @format byte
+   */
   app_hash?: string;
 
-  /** @format byte */
+  /**
+   * root hash of all results from the txs from the previous block
+   * @format byte
+   */
   last_results_hash?: string;
 
   /**
+   * consensus info
    * evidence included in the block
    * @format byte
    */
   evidence_hash?: string;
 
-  /** @format byte */
+  /**
+   * original proposer of the block
+   * @format byte
+   */
   proposer_address?: string;
 }
 
@@ -311,22 +433,6 @@ export interface V1Beta1CommissionRates {
 }
 
 /**
-* Delegation represents the bond with tokens held by an account. It is
-owned by one delegator, and is associated with the voting power of one
-validator.
-*/
-export interface V1Beta1Delegation {
-  /** delegator_address is the bech32-encoded address of the delegator. */
-  delegator_address?: string;
-
-  /** validator_address is the bech32-encoded address of the validator. */
-  validator_address?: string;
-
-  /** shares define the delegation shares received. */
-  shares?: string;
-}
-
-/**
 * DelegationResponse is equivalent to Delegation except that it contains a
 balance in addition to shares which is more suitable for client responses.
 */
@@ -336,7 +442,7 @@ export interface V1Beta1DelegationResponse {
    * owned by one delegator, and is associated with the voting power of one
    * validator.
    */
-  delegation?: V1Beta1Delegation;
+  delegation?: Stakingv1Beta1Delegation;
 
   /**
    * Coin defines a token with a denomination and an amount.
@@ -368,24 +474,17 @@ export interface V1Beta1Description {
 }
 
 /**
-* HistoricalInfo contains header and validator information for a given block.
-It is stored as part of staking module's state, which persists the `n` most
-recent HistoricalInfo
-(`n` is set by the staking module's `historical_entries` parameter).
-*/
-export interface V1Beta1HistoricalInfo {
-  /** Header defines the structure of a Tendermint block header. */
-  header?: TypesHeader;
-  valset?: Stakingv1Beta1Validator[];
-}
-
-/**
  * MsgBeginRedelegateResponse defines the Msg/BeginRedelegate response type.
  */
 export interface V1Beta1MsgBeginRedelegateResponse {
   /** @format date-time */
   completion_time?: string;
 }
+
+/**
+ * Since: cosmos-sdk 0.46
+ */
+export type V1Beta1MsgCancelUnbondingDelegationResponse = object;
 
 /**
  * MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -409,6 +508,14 @@ export interface V1Beta1MsgUndelegateResponse {
   /** @format date-time */
   completion_time?: string;
 }
+
+/**
+* MsgUpdateParamsResponse defines the response structure for executing a
+MsgUpdateParams message.
+
+Since: cosmos-sdk 0.47
+*/
+export type V1Beta1MsgUpdateParamsResponse = object;
 
 /**
 * message SomeRequest {
@@ -466,49 +573,20 @@ corresponding request message has used PageRequest.
  }
 */
 export interface V1Beta1PageResponse {
-  /** @format byte */
+  /**
+   * next_key is the key to be passed to PageRequest.key to
+   * query the next page most efficiently. It will be empty if
+   * there are no more results.
+   * @format byte
+   */
   next_key?: string;
 
-  /** @format uint64 */
+  /**
+   * total is total number of results available if PageRequest.count_total
+   * was set, its value is undefined otherwise
+   * @format uint64
+   */
   total?: string;
-}
-
-/**
- * Params defines the parameters for the staking module.
- */
-export interface V1Beta1Params {
-  /** unbonding_time is the time duration of unbonding. */
-  unbonding_time?: string;
-
-  /**
-   * max_validators is the maximum number of validators.
-   * @format int64
-   */
-  max_validators?: number;
-
-  /**
-   * max_entries is the max entries for either unbonding delegation or redelegation (per pair/trio).
-   * @format int64
-   */
-  max_entries?: number;
-
-  /**
-   * historical_entries is the number of historical entries to persist.
-   * @format int64
-   */
-  historical_entries?: number;
-
-  /** bond_denom defines the bondable coin denomination. */
-  bond_denom?: string;
-}
-
-/**
-* Pool is used for tracking bonded and not-bonded token supply of the bond
-denomination.
-*/
-export interface V1Beta1Pool {
-  not_bonded_tokens?: string;
-  bonded_tokens?: string;
 }
 
 /**
@@ -536,7 +614,7 @@ export interface V1Beta1QueryDelegatorDelegationsResponse {
 Query/UnbondingDelegatorDelegations RPC method.
 */
 export interface V1Beta1QueryDelegatorUnbondingDelegationsResponse {
-  unbonding_responses?: V1Beta1UnbondingDelegation[];
+  unbonding_responses?: Stakingv1Beta1UnbondingDelegation[];
 
   /** pagination defines the pagination in the response. */
   pagination?: V1Beta1PageResponse;
@@ -547,7 +625,7 @@ export interface V1Beta1QueryDelegatorUnbondingDelegationsResponse {
 Query/DelegatorValidator RPC method.
 */
 export interface V1Beta1QueryDelegatorValidatorResponse {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator?: Stakingv1Beta1Validator;
 }
 
@@ -556,7 +634,7 @@ export interface V1Beta1QueryDelegatorValidatorResponse {
 Query/DelegatorValidators RPC method.
 */
 export interface V1Beta1QueryDelegatorValidatorsResponse {
-  /** validators defines the the validators' info of a delegator. */
+  /** validators defines the validators' info of a delegator. */
   validators?: Stakingv1Beta1Validator[];
 
   /** pagination defines the pagination in the response. */
@@ -569,7 +647,7 @@ method.
 */
 export interface V1Beta1QueryHistoricalInfoResponse {
   /** hist defines the historical info at the given height. */
-  hist?: V1Beta1HistoricalInfo;
+  hist?: Stakingv1Beta1HistoricalInfo;
 }
 
 /**
@@ -577,7 +655,7 @@ export interface V1Beta1QueryHistoricalInfoResponse {
  */
 export interface V1Beta1QueryParamsResponse {
   /** params holds all the parameters of this module. */
-  params?: V1Beta1Params;
+  params?: Stakingv1Beta1Params;
 }
 
 /**
@@ -585,7 +663,7 @@ export interface V1Beta1QueryParamsResponse {
  */
 export interface V1Beta1QueryPoolResponse {
   /** pool defines the pool info. */
-  pool?: V1Beta1Pool;
+  pool?: Stakingv1Beta1Pool;
 }
 
 /**
@@ -605,7 +683,7 @@ RPC method.
 */
 export interface V1Beta1QueryUnbondingDelegationResponse {
   /** unbond defines the unbonding information of a delegation. */
-  unbond?: V1Beta1UnbondingDelegation;
+  unbond?: Stakingv1Beta1UnbondingDelegation;
 }
 
 export interface V1Beta1QueryValidatorDelegationsResponse {
@@ -616,7 +694,7 @@ export interface V1Beta1QueryValidatorDelegationsResponse {
 }
 
 export interface V1Beta1QueryValidatorResponse {
-  /** validator defines the the validator info. */
+  /** validator defines the validator info. */
   validator?: Stakingv1Beta1Validator;
 }
 
@@ -625,7 +703,7 @@ export interface V1Beta1QueryValidatorResponse {
 Query/ValidatorUnbondingDelegations RPC method.
 */
 export interface V1Beta1QueryValidatorUnbondingDelegationsResponse {
-  unbonding_responses?: V1Beta1UnbondingDelegation[];
+  unbonding_responses?: Stakingv1Beta1UnbondingDelegation[];
 
   /** pagination defines the pagination in the response. */
   pagination?: V1Beta1PageResponse;
@@ -682,6 +760,18 @@ export interface V1Beta1RedelegationEntry {
 
   /** shares_dst is the amount of destination-validator shares created by redelegation. */
   shares_dst?: string;
+
+  /**
+   * Incrementing id that uniquely identifies this entry
+   * @format uint64
+   */
+  unbonding_id?: string;
+
+  /**
+   * Strictly positive if this entry's unbonding has been stopped by external modules
+   * @format int64
+   */
+  unbonding_on_hold_ref_count?: string;
 }
 
 /**
@@ -710,25 +800,6 @@ export interface V1Beta1RedelegationResponse {
 }
 
 /**
-* UnbondingDelegation stores all of a single delegator's unbonding bonds
-for a single validator in an time-ordered list.
-*/
-export interface V1Beta1UnbondingDelegation {
-  /** delegator_address is the bech32-encoded address of the delegator. */
-  delegator_address?: string;
-
-  /** validator_address is the bech32-encoded address of the validator. */
-  validator_address?: string;
-
-  /**
-   * entries are the unbonding delegation entries.
-   *
-   * unbonding delegation entries
-   */
-  entries?: V1Beta1UnbondingDelegationEntry[];
-}
-
-/**
  * UnbondingDelegationEntry defines an unbonding object with relevant metadata.
  */
 export interface V1Beta1UnbondingDelegationEntry {
@@ -749,6 +820,18 @@ export interface V1Beta1UnbondingDelegationEntry {
 
   /** balance defines the tokens to receive at completion. */
   balance?: string;
+
+  /**
+   * Incrementing id that uniquely identifies this entry
+   * @format uint64
+   */
+  unbonding_id?: string;
+
+  /**
+   * Strictly positive if this entry's unbonding has been stopped by external modules
+   * @format int64
+   */
+  unbonding_on_hold_ref_count?: string;
 }
 
 /**
@@ -764,10 +847,11 @@ export interface VersionConsensus {
   app?: string;
 }
 
-export type QueryParamsType = Record<string | number, any>;
-export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 
-export interface FullRequestParams extends Omit<RequestInit, "body"> {
+export type QueryParamsType = Record<string | number, any>;
+
+export interface FullRequestParams extends Omit<AxiosRequestConfig, "data" | "params" | "url" | "responseType"> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -777,29 +861,20 @@ export interface FullRequestParams extends Omit<RequestInit, "body"> {
   /** query params */
   query?: QueryParamsType;
   /** format of response (i.e. response.json() -> format: "json") */
-  format?: keyof Omit<Body, "body" | "bodyUsed">;
+  format?: ResponseType;
   /** request body */
   body?: unknown;
-  /** base url */
-  baseUrl?: string;
-  /** request cancellation token */
-  cancelToken?: CancelToken;
 }
 
 export type RequestParams = Omit<FullRequestParams, "body" | "method" | "query" | "path">;
 
-export interface ApiConfig<SecurityDataType = unknown> {
-  baseUrl?: string;
-  baseApiParams?: Omit<RequestParams, "baseUrl" | "cancelToken" | "signal">;
-  securityWorker?: (securityData: SecurityDataType) => RequestParams | void;
+export interface ApiConfig<SecurityDataType = unknown> extends Omit<AxiosRequestConfig, "data" | "cancelToken"> {
+  securityWorker?: (
+    securityData: SecurityDataType | null,
+  ) => Promise<AxiosRequestConfig | void> | AxiosRequestConfig | void;
+  secure?: boolean;
+  format?: ResponseType;
 }
-
-export interface HttpResponse<D extends unknown, E extends unknown = unknown> extends Response {
-  data: D;
-  error: E;
-}
-
-type CancelToken = Symbol | string | number;
 
 export enum ContentType {
   Json = "application/json",
@@ -808,149 +883,86 @@ export enum ContentType {
 }
 
 export class HttpClient<SecurityDataType = unknown> {
-  public baseUrl: string = "";
-  private securityData: SecurityDataType = null as any;
-  private securityWorker: null | ApiConfig<SecurityDataType>["securityWorker"] = null;
-  private abortControllers = new Map<CancelToken, AbortController>();
+  public instance: AxiosInstance;
+  private securityData: SecurityDataType | null = null;
+  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
+  private secure?: boolean;
+  private format?: ResponseType;
 
-  private baseApiParams: RequestParams = {
-    credentials: "same-origin",
-    headers: {},
-    redirect: "follow",
-    referrerPolicy: "no-referrer",
-  };
-
-  constructor(apiConfig: ApiConfig<SecurityDataType> = {}) {
-    Object.assign(this, apiConfig);
+  constructor({ securityWorker, secure, format, ...axiosConfig }: ApiConfig<SecurityDataType> = {}) {
+    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || "" });
+    this.secure = secure;
+    this.format = format;
+    this.securityWorker = securityWorker;
   }
 
-  public setSecurityData = (data: SecurityDataType) => {
+  public setSecurityData = (data: SecurityDataType | null) => {
     this.securityData = data;
   };
 
-  private addQueryParam(query: QueryParamsType, key: string) {
-    const value = query[key];
-
-    return (
-      encodeURIComponent(key) +
-      "=" +
-      encodeURIComponent(Array.isArray(value) ? value.join(",") : typeof value === "number" ? value : `${value}`)
-    );
-  }
-
-  protected toQueryString(rawQuery?: QueryParamsType): string {
-    const query = rawQuery || {};
-    const keys = Object.keys(query).filter((key) => "undefined" !== typeof query[key]);
-    return keys
-      .map((key) =>
-        typeof query[key] === "object" && !Array.isArray(query[key])
-          ? this.toQueryString(query[key] as QueryParamsType)
-          : this.addQueryParam(query, key),
-      )
-      .join("&");
-  }
-
-  protected addQueryParams(rawQuery?: QueryParamsType): string {
-    const queryString = this.toQueryString(rawQuery);
-    return queryString ? `?${queryString}` : "";
-  }
-
-  private contentFormatters: Record<ContentType, (input: any) => any> = {
-    [ContentType.Json]: (input: any) =>
-      input !== null && (typeof input === "object" || typeof input === "string") ? JSON.stringify(input) : input,
-    [ContentType.FormData]: (input: any) =>
-      Object.keys(input || {}).reduce((data, key) => {
-        data.append(key, input[key]);
-        return data;
-      }, new FormData()),
-    [ContentType.UrlEncoded]: (input: any) => this.toQueryString(input),
-  };
-
-  private mergeRequestParams(params1: RequestParams, params2?: RequestParams): RequestParams {
+  private mergeRequestParams(params1: AxiosRequestConfig, params2?: AxiosRequestConfig): AxiosRequestConfig {
     return {
-      ...this.baseApiParams,
+      ...this.instance.defaults,
       ...params1,
       ...(params2 || {}),
       headers: {
-        ...(this.baseApiParams.headers || {}),
+        ...(this.instance.defaults.headers || {}),
         ...(params1.headers || {}),
         ...((params2 && params2.headers) || {}),
       },
     };
   }
 
-  private createAbortSignal = (cancelToken: CancelToken): AbortSignal | undefined => {
-    if (this.abortControllers.has(cancelToken)) {
-      const abortController = this.abortControllers.get(cancelToken);
-      if (abortController) {
-        return abortController.signal;
-      }
-      return void 0;
-    }
+  private createFormData(input: Record<string, unknown>): FormData {
+    return Object.keys(input || {}).reduce((formData, key) => {
+      const property = input[key];
+      formData.append(
+        key,
+        property instanceof Blob
+          ? property
+          : typeof property === "object" && property !== null
+          ? JSON.stringify(property)
+          : `${property}`,
+      );
+      return formData;
+    }, new FormData());
+  }
 
-    const abortController = new AbortController();
-    this.abortControllers.set(cancelToken, abortController);
-    return abortController.signal;
-  };
-
-  public abortRequest = (cancelToken: CancelToken) => {
-    const abortController = this.abortControllers.get(cancelToken);
-
-    if (abortController) {
-      abortController.abort();
-      this.abortControllers.delete(cancelToken);
-    }
-  };
-
-  public request = <T = any, E = any>({
-    body,
+  public request = async <T = any, _E = any>({
     secure,
     path,
     type,
     query,
-    format = "json",
-    baseUrl,
-    cancelToken,
+    format,
+    body,
     ...params
-  }: FullRequestParams): Promise<HttpResponse<T, E>> => {
-    const secureParams = (secure && this.securityWorker && this.securityWorker(this.securityData)) || {};
+  }: FullRequestParams): Promise<AxiosResponse<T>> => {
+    const secureParams =
+      ((typeof secure === "boolean" ? secure : this.secure) &&
+        this.securityWorker &&
+        (await this.securityWorker(this.securityData))) ||
+      {};
     const requestParams = this.mergeRequestParams(params, secureParams);
-    const queryString = query && this.toQueryString(query);
-    const payloadFormatter = this.contentFormatters[type || ContentType.Json];
+    const responseFormat = (format && this.format) || void 0;
 
-    return fetch(`${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`, {
+    if (type === ContentType.FormData && body && body !== null && typeof body === "object") {
+      requestParams.headers.common = { Accept: "*/*" };
+      requestParams.headers.post = {};
+      requestParams.headers.put = {};
+
+      body = this.createFormData(body as Record<string, unknown>);
+    }
+
+    return this.instance.request({
       ...requestParams,
       headers: {
         ...(type && type !== ContentType.FormData ? { "Content-Type": type } : {}),
         ...(requestParams.headers || {}),
       },
-      signal: cancelToken ? this.createAbortSignal(cancelToken) : void 0,
-      body: typeof body === "undefined" || body === null ? null : payloadFormatter(body),
-    }).then(async (response) => {
-      const r = response as HttpResponse<T, E>;
-      r.data = (null as unknown) as T;
-      r.error = (null as unknown) as E;
-
-      const data = await response[format]()
-        .then((data) => {
-          if (r.ok) {
-            r.data = data;
-          } else {
-            r.error = data;
-          }
-          return r;
-        })
-        .catch((e) => {
-          r.error = e;
-          return r;
-        });
-
-      if (cancelToken) {
-        this.abortControllers.delete(cancelToken);
-      }
-
-      if (!response.ok) throw data;
-      return data;
+      params: query,
+      responseType: responseFormat,
+      data: body,
+      url: path,
     });
   };
 }
@@ -961,7 +973,7 @@ export class HttpClient<SecurityDataType = unknown> {
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryDelegatorDelegations
@@ -969,7 +981,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @request GET:/cosmos/staking/v1beta1/delegations/{delegator_addr}
    */
   queryDelegatorDelegations = (
-    delegator_addr: string,
+    delegatorAddr: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
@@ -980,7 +992,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryDelegatorDelegationsResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/delegations/${delegator_addr}`,
+      path: `/cosmos/staking/v1beta1/delegations/${delegatorAddr}`,
       method: "GET",
       query: query,
       format: "json",
@@ -988,7 +1000,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     });
 
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryRedelegations
@@ -996,7 +1008,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
    * @request GET:/cosmos/staking/v1beta1/delegators/{delegator_addr}/redelegations
    */
   queryRedelegations = (
-    delegator_addr: string,
+    delegatorAddr: string,
     query?: {
       src_validator_addr?: string;
       dst_validator_addr?: string;
@@ -1009,7 +1021,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryRedelegationsResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/delegators/${delegator_addr}/redelegations`,
+      path: `/cosmos/staking/v1beta1/delegators/${delegatorAddr}/redelegations`,
       method: "GET",
       query: query,
       format: "json",
@@ -1017,7 +1029,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     });
 
   /**
- * No description
+ * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
  * 
  * @tags Query
  * @name QueryDelegatorUnbondingDelegations
@@ -1026,7 +1038,7 @@ delegator address.
  * @request GET:/cosmos/staking/v1beta1/delegators/{delegator_addr}/unbonding_delegations
  */
   queryDelegatorUnbondingDelegations = (
-    delegator_addr: string,
+    delegatorAddr: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
@@ -1037,7 +1049,7 @@ delegator address.
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryDelegatorUnbondingDelegationsResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/delegators/${delegator_addr}/unbonding_delegations`,
+      path: `/cosmos/staking/v1beta1/delegators/${delegatorAddr}/unbonding_delegations`,
       method: "GET",
       query: query,
       format: "json",
@@ -1045,7 +1057,7 @@ delegator address.
     });
 
   /**
- * No description
+ * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
  * 
  * @tags Query
  * @name QueryDelegatorValidators
@@ -1054,7 +1066,7 @@ address.
  * @request GET:/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators
  */
   queryDelegatorValidators = (
-    delegator_addr: string,
+    delegatorAddr: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
@@ -1065,7 +1077,7 @@ address.
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryDelegatorValidatorsResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/delegators/${delegator_addr}/validators`,
+      path: `/cosmos/staking/v1beta1/delegators/${delegatorAddr}/validators`,
       method: "GET",
       query: query,
       format: "json",
@@ -1081,9 +1093,9 @@ address.
 pair.
  * @request GET:/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/{validator_addr}
  */
-  queryDelegatorValidator = (delegator_addr: string, validator_addr: string, params: RequestParams = {}) =>
+  queryDelegatorValidator = (delegatorAddr: string, validatorAddr: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegatorValidatorResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/delegators/${delegator_addr}/validators/${validator_addr}`,
+      path: `/cosmos/staking/v1beta1/delegators/${delegatorAddr}/validators/${validatorAddr}`,
       method: "GET",
       format: "json",
       ...params,
@@ -1138,7 +1150,7 @@ pair.
     });
 
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryValidators
@@ -1172,16 +1184,16 @@ pair.
    * @summary Validator queries validator info for given validator address.
    * @request GET:/cosmos/staking/v1beta1/validators/{validator_addr}
    */
-  queryValidator = (validator_addr: string, params: RequestParams = {}) =>
+  queryValidator = (validatorAddr: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryValidatorResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/validators/${validator_addr}`,
+      path: `/cosmos/staking/v1beta1/validators/${validatorAddr}`,
       method: "GET",
       format: "json",
       ...params,
     });
 
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryValidatorDelegations
@@ -1189,7 +1201,7 @@ pair.
    * @request GET:/cosmos/staking/v1beta1/validators/{validator_addr}/delegations
    */
   queryValidatorDelegations = (
-    validator_addr: string,
+    validatorAddr: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
@@ -1200,7 +1212,7 @@ pair.
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryValidatorDelegationsResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/validators/${validator_addr}/delegations`,
+      path: `/cosmos/staking/v1beta1/validators/${validatorAddr}/delegations`,
       method: "GET",
       query: query,
       format: "json",
@@ -1215,9 +1227,9 @@ pair.
    * @summary Delegation queries delegate info for given validator delegator pair.
    * @request GET:/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}
    */
-  queryDelegation = (validator_addr: string, delegator_addr: string, params: RequestParams = {}) =>
+  queryDelegation = (validatorAddr: string, delegatorAddr: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegationResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/validators/${validator_addr}/delegations/${delegator_addr}`,
+      path: `/cosmos/staking/v1beta1/validators/${validatorAddr}/delegations/${delegatorAddr}`,
       method: "GET",
       format: "json",
       ...params,
@@ -1232,16 +1244,16 @@ pair.
 pair.
  * @request GET:/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}/unbonding_delegation
  */
-  queryUnbondingDelegation = (validator_addr: string, delegator_addr: string, params: RequestParams = {}) =>
+  queryUnbondingDelegation = (validatorAddr: string, delegatorAddr: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryUnbondingDelegationResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/validators/${validator_addr}/delegations/${delegator_addr}/unbonding_delegation`,
+      path: `/cosmos/staking/v1beta1/validators/${validatorAddr}/delegations/${delegatorAddr}/unbonding_delegation`,
       method: "GET",
       format: "json",
       ...params,
     });
 
   /**
-   * No description
+   * @description When called from another module, this query might consume a high amount of gas if the pagination field is incorrectly set.
    *
    * @tags Query
    * @name QueryValidatorUnbondingDelegations
@@ -1249,7 +1261,7 @@ pair.
    * @request GET:/cosmos/staking/v1beta1/validators/{validator_addr}/unbonding_delegations
    */
   queryValidatorUnbondingDelegations = (
-    validator_addr: string,
+    validatorAddr: string,
     query?: {
       "pagination.key"?: string;
       "pagination.offset"?: string;
@@ -1260,7 +1272,7 @@ pair.
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryValidatorUnbondingDelegationsResponse, RpcStatus>({
-      path: `/cosmos/staking/v1beta1/validators/${validator_addr}/unbonding_delegations`,
+      path: `/cosmos/staking/v1beta1/validators/${validatorAddr}/unbonding_delegations`,
       method: "GET",
       query: query,
       format: "json",

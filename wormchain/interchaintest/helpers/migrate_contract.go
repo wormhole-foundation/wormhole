@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -37,7 +37,7 @@ func MigrateContract(
 	guardians *guardians.ValSet,
 ) error {
 
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 
 	code_id, err := strconv.ParseUint(codeId, 10, 64)
 	require.NoError(t, err)

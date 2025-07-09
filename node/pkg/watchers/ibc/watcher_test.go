@@ -21,18 +21,18 @@ import (
 func TestParseIbcReceivePublishEvent(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := `{"type": "wasm","attributes": [` +
-		`{"key": "X2NvbnRyYWN0X2FkZHJlc3M=","value": "d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==","index": true},` +
-		`{"key": "YWN0aW9u", "value": "cmVjZWl2ZV9wdWJsaXNo", "index": true},` +
-		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
-		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
-		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
-		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
-		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5ibG9ja19oZWlnaHQ=","value": "MjYxMw==","index": true}` +
-		`]}`
+	eventJson := `{"type": "wasm", "attributes": [
+			{"key": "_contract_address", "value": "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj", "index": true},
+			{"key": "action", "value": "receive_publish", "index": true},
+			{"key": "channel_id", "value": "channel-0", "index": true},
+			{"key": "message.message", "value": "0000000000000000000000000000000000000000000000000000000000000004", "index": true},
+			{"key": "message.sender", "value": "00000000000000000000000035743074956c710800e83198011ccbd4ddf1556d", "index": true},
+			{"key": "message.chain_id", "value": "18", "index": true},
+			{"key": "message.nonce", "value": "1", "index": true},
+			{"key": "message.sequence", "value": "2", "index": true},
+			{"key": "message.block_time", "value": "1680099814", "index": true},
+			{"key": "message.block_height", "value": "2613", "index": true}
+		]}`
 
 	require.Equal(t, true, gjson.Valid(eventJson))
 	event := gjson.Parse(eventJson)
@@ -71,18 +71,15 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 func TestParseEventForWrongContract(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := `{"type": "wasm","attributes": [` +
-		`{"key": "X2NvbnRyYWN0X2FkZHJlc3M=","value": "d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==","index": true},` +
-		`{"key": "YWN0aW9u", "value": "cmVjZWl2ZV9wdWJsaXNo", "index": true},` +
-		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
-		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
-		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
-		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
-		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5ibG9ja19oZWlnaHQ=","value": "MjYxMw==","index": true}` +
-		`]}`
+	eventJson := `{"type":"wasm","attributes":[
+		{"key":"_contract_address","value":"wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj","index":true},
+		{"key":"action","value":"receive_publish","index":true},{"key":"channel_id","value":"channel-0","index":true},
+		{"key":"message.message","value":"0000000000000000000000000000000000000000000000000000000000000004","index":true},
+		{"key":"message.sender","value":"00000000000000000000000035743074956c710800e83198011ccbd4ddf1556d","index":true},
+		{"key":"message.chain_id","value":"18","index":true},{"key":"message.nonce","value":"1","index":true},
+		{"key":"message.sequence","value":"2","index":true},{"key":"message.block_time","value":"1680099814","index":true},
+		{"key":"message.block_height","value":"2613","index":true}
+	]}`
 
 	require.Equal(t, true, gjson.Valid(eventJson))
 	event := gjson.Parse(eventJson)
@@ -99,18 +96,15 @@ func TestParseEventForWrongContract(t *testing.T) {
 func TestParseEventForWrongAction(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := `{"type": "wasm","attributes": [` +
-		`{"key": "X2NvbnRyYWN0X2FkZHJlc3M=","value": "d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==","index": true},` +
-		`{"key": "YWN0aW9u", "value": "cmVjZWl2ZV9wa3Q=", "index": true},` + // Changed action value to "receive_pkt"
-		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
-		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
-		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
-		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
-		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5ibG9ja19oZWlnaHQ=","value": "MjYxMw==","index": true}` +
-		`]}`
+	eventJson := `{"type":"wasm","attributes":[
+		{"key":"_contract_address","value":"wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj","index":true},
+		{"key":"action","value":"receive_pkt","index":true},{"key":"channel_id","value":"channel-0","index":true},
+		{"key":"message.message","value":"0000000000000000000000000000000000000000000000000000000000000004","index":true},
+		{"key":"message.sender","value":"00000000000000000000000035743074956c710800e83198011ccbd4ddf1556d","index":true},
+		{"key":"message.chain_id","value":"18","index":true},{"key":"message.nonce","value":"1","index":true},
+		{"key":"message.sequence","value":"2","index":true},{"key":"message.block_time","value":"1680099814","index":true},
+		{"key":"message.block_height","value":"2613","index":true}
+	]}`
 
 	require.Equal(t, true, gjson.Valid(eventJson))
 	event := gjson.Parse(eventJson)
@@ -128,18 +122,15 @@ func TestParseEventForWrongAction(t *testing.T) {
 func TestParseEventForNoContractSpecified(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := `{"type": "wasm","attributes": [` +
-		// No contract specified
-		`{"key": "YWN0aW9u", "value": "cmVjZWl2ZV9wdWJsaXNo", "index": true},` +
-		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
-		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
-		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
-		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
-		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5ibG9ja19oZWlnaHQ=","value": "MjYxMw==","index": true}` +
-		`]}`
+	eventJson := `{"type":"wasm","attributes":[
+		{"key":"action","value":"receive_publish","index":true},
+		{"key":"channel_id","value":"channel-0","index":true},
+		{"key":"message.message","value":"0000000000000000000000000000000000000000000000000000000000000004","index":true},
+		{"key":"message.sender","value":"00000000000000000000000035743074956c710800e83198011ccbd4ddf1556d","index":true},
+		{"key":"message.chain_id","value":"18","index":true},{"key":"message.nonce","value":"1","index":true},
+		{"key":"message.sequence","value":"2","index":true},{"key":"message.block_time","value":"1680099814","index":true},
+		{"key":"message.block_height","value":"2613","index":true}
+	]}`
 
 	require.Equal(t, true, gjson.Valid(eventJson))
 	event := gjson.Parse(eventJson)
@@ -156,18 +147,16 @@ func TestParseEventForNoContractSpecified(t *testing.T) {
 func TestParseEventForNoActionSpecified(t *testing.T) {
 	logger := zap.NewNop()
 
-	eventJson := `{"type": "wasm","attributes": [` +
-		`{"key": "X2NvbnRyYWN0X2FkZHJlc3M=","value": "d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==","index": true},` +
-		// No action specified
-		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
-		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
-		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
-		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
-		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5ibG9ja19oZWlnaHQ=","value": "MjYxMw==","index": true}` +
-		`]}`
+	eventJson := `{"type":"wasm","attributes":[
+		{"key":"_contract_address","value":"wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj","index":true},
+		{"key":"channel_id","value":"channel-0","index":true},{"key":"message.message","value":"0000000000000000000000000000000000000000000000000000000000000004","index":true},
+		{"key":"message.sender","value":"00000000000000000000000035743074956c710800e83198011ccbd4ddf1556d","index":true},
+		{"key":"message.chain_id","value":"18","index":true},
+		{"key":"message.nonce","value":"1","index":true},
+		{"key":"message.sequence","value":"2","index":true},
+		{"key":"message.block_time","value":"1680099814","index":true},
+		{"key":"message.block_height","value":"2613","index":true}
+	]}`
 
 	require.Equal(t, true, gjson.Valid(eventJson))
 	event := gjson.Parse(eventJson)

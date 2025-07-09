@@ -1,4 +1,4 @@
-FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf AS builder
+FROM golang:1.23.3-bullseye@sha256:9e53abacfc22cd3df3e4ebcc04ac64951b71d2a38c52b690f3807af6a2000ed2 AS builder
 
 WORKDIR /app
 
@@ -21,14 +21,14 @@ COPY ./wormchain .
 
 RUN make build/wormchaind
 
-FROM golang:1.22.5@sha256:86a3c48a61915a8c62c0e1d7594730399caa3feb73655dfe96c7bc17710e96cf
+FROM golang:1.23.3-bullseye@sha256:9e53abacfc22cd3df3e4ebcc04ac64951b71d2a38c52b690f3807af6a2000ed2
 
 WORKDIR /home/heighliner
 
 COPY --from=builder /app/build/wormchaind /usr/bin
 
 # copy over c bindings (libwasmvm.x86_64.so, etc)
-COPY --from=builder /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.1.1/internal/api/* /usr/lib/
+COPY --from=builder /go/pkg/mod/github.com/!cosm!wasm/wasmvm@v1.5.2/internal/api/* /usr/lib/
 
 EXPOSE 26657
 EXPOSE 26656

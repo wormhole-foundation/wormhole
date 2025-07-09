@@ -147,11 +147,15 @@ async function main() {
       };
       vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
       console.log("uploading", file);
+
       const msg = client.core.msgStoreCode({
-        signer,
-        wasm_byte_code: new Uint8Array(contract_bytes),
-        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+        value: {
+          signer,
+          wasmByteCode: new Uint8Array(contract_bytes),
+          vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+        }
       });
+
       const result = await client.signAndBroadcast(signer, [msg], {
         ...ZERO_FEE,
         gas: "10000000",
@@ -173,13 +177,13 @@ async function main() {
 
   // Instantiate contracts.
 
-  async function instantiate(code_id: number, inst_msg: any, label: string) {
+  async function instantiate(codeId: number, inst_msg: any, label: string) {
     const instMsgBinary = toBinary(inst_msg);
     const instMsgBytes = fromBase64(instMsgBinary);
 
     // see /sdk/vaa/governance.go
     const codeIdBuf = Buffer.alloc(8);
-    codeIdBuf.writeBigInt64BE(BigInt(code_id));
+    codeIdBuf.writeBigInt64BE(BigInt(codeId));
     const codeIdHash = keccak256(codeIdBuf);
     const codeIdLabelHash = keccak256(
       Buffer.concat([
@@ -213,11 +217,13 @@ async function main() {
     // TODO: check for number of guardians in set and use the corresponding keys
     vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
     const msg = client.core.msgInstantiateContract({
-      signer,
-      code_id,
-      label,
-      msg: instMsgBytes,
-      vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      value: {
+        signer,
+        codeId,
+        label,
+        msg: instMsgBytes,
+        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      }
     });
     const result = await client.signAndBroadcast(signer, [msg], {
       ...ZERO_FEE,
@@ -229,7 +235,7 @@ async function main() {
       .events.find(({ type }) => type === "instantiate")
       .attributes.find(({ key }) => key === "_contract_address").value;
     console.log(
-      `deployed contract ${label}, codeID: ${code_id}, address: ${addr}, txHash: ${result.transactionHash}`
+      `deployed contract ${label}, codeID: ${codeId}, address: ${addr}, txHash: ${result.transactionHash}`
     );
 
     return addr;
@@ -267,16 +273,18 @@ async function main() {
     Buffer.from(r, "hex").toString("base64")
   );
   const msg = client.wasm.msgExecuteContract({
-    sender: signer,
-    contract: addresses["global_accountant.wasm"],
-    msg: toUtf8(
-      JSON.stringify({
-        submit_vaas: {
-          vaas: accountingRegistrations,
-        },
-      })
-    ),
-    funds: [],
+    value: {
+      sender: signer,
+      contract: addresses["global_accountant.wasm"],
+      msg: toUtf8(
+        JSON.stringify({
+          submit_vaas: {
+            vaas: accountingRegistrations,
+          },
+        })
+      ),
+      funds: [],
+    }
   });
   const res = await client.signAndBroadcast(signer, [msg], {
     ...ZERO_FEE,
@@ -330,10 +338,12 @@ async function main() {
     },
   };
   const executeMsg = client.wasm.msgExecuteContract({
-    sender: signer,
-    contract: addresses["wormchain_ibc_receiver.wasm"],
-    msg: toUtf8(JSON.stringify(wormchainIbcReceiverUpdateWhitelistMsg)),
-    funds: [],
+    value: {
+      sender: signer,
+      contract: addresses["wormchain_ibc_receiver.wasm"],
+      msg: toUtf8(JSON.stringify(wormchainIbcReceiverUpdateWhitelistMsg)),
+      funds: [],
+    }
   });
   const updateIbcWhitelistRes = await client.signAndBroadcast(
     signer,
@@ -364,44 +374,60 @@ async function main() {
     signer,
     [
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
-        name: "ibcRelayer",
+        value: {
+          signer: signer,
+          address: "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
+          name: "ibcRelayer",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
-        name: "guardianGatewayRelayer0",
+        value: {
+          signer: signer,
+          address: "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
+          name: "guardianGatewayRelayer0",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
-        name: "guardianGatewayRelayer1",
+        value: {
+          signer: signer,
+          address: "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
+          name: "guardianGatewayRelayer1",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
-        name: "guardianNttAccountant0",
+        value: {
+          signer: signer,
+          address: "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
+          name: "guardianNttAccountant0",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
-        name: "guardianNttAccountant1",
+        value: {
+          signer: signer,
+          address: "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
+          name: "guardianNttAccountant1",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
-        name: "nttAccountantTest",
+        value: {
+          signer: signer,
+          address: "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
+          name: "nttAccountantTest",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole1h6v7cku5w803pf563czepx5s32vrzz5cntj9k4",
-        name: "guardianAccountant0",
+        value: {
+          signer: signer,
+          address: "wormhole1h6v7cku5w803pf563czepx5s32vrzz5cntj9k4",
+          name: "guardianAccountant0",
+        }
       }),
       client.core.msgCreateAllowlistEntryRequest({
-        signer: signer,
-        address: "wormhole1g25zz7gyuyh6chuejc3ppfemgfla4xpsm69lzq",
-        name: "guardianAccountant1",
+        value: {
+          signer: signer,
+          address: "wormhole1g25zz7gyuyh6chuejc3ppfemgfla4xpsm69lzq",
+          name: "guardianAccountant1",
+        }
       }),
     ],
     {
@@ -491,16 +517,18 @@ async function main() {
     console.log(`Registering chains for ${contract}:`);
     for (const registration of registrations) {
       const executeMsg = client.wasm.msgExecuteContract({
-        sender: signer,
-        contract: addresses[contract],
-        msg: toUtf8(
-          JSON.stringify({
-            submit_vaa: {
-              data: Buffer.from(registration, "hex").toString("base64"),
-            },
-          })
-        ),
-        funds: [],
+        value: {
+          sender: signer,
+          contract: addresses[contract],
+          msg: toUtf8(
+            JSON.stringify({
+              submit_vaa: {
+                data: Buffer.from(registration, "hex").toString("base64"),
+              },
+            })
+          ),
+          funds: [],
+        }
       });
       const executeRes = await client.signAndBroadcast(signer, [executeMsg], {
         ...ZERO_FEE,
@@ -544,10 +572,12 @@ async function main() {
   vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
 
   const msgInstantiateAllowlist = client.core.msgAddWasmInstantiateAllowlist({
-    signer: signer,
-    address: addresses["cw_token_bridge.wasm"],
-    code_id: codeIds["cw20_wrapped_2.wasm"],
-    vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+    value: {
+      signer: signer,
+      address: addresses["cw_token_bridge.wasm"],
+      codeId: codeIds["cw20_wrapped_2.wasm"],
+      vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+    }
   });
   const msgInstantiateAllowlistRes = await client.signAndBroadcast(
     signer,
@@ -602,19 +632,21 @@ async function main() {
     updateChannelVaa as unknown as VAA<Payload>
   );
   const updateMsg = client.wasm.msgExecuteContract({
-    sender: signer,
-    contract: addresses["ibc_translator.wasm"],
-    msg: toUtf8(
-      JSON.stringify({
-        submit_update_chain_to_channel_map: {
-          vaa: Buffer.from(
-            serialiseVAA(updateChannelVaa as unknown as VAA<Payload>),
-            "hex"
-          ).toString("base64"),
-        },
-      })
-    ),
-    funds: [],
+    value: {
+      sender: signer,
+      contract: addresses["ibc_translator.wasm"],
+      msg: toUtf8(
+        JSON.stringify({
+          submit_update_chain_to_channel_map: {
+            vaa: Buffer.from(
+              serialiseVAA(updateChannelVaa as unknown as VAA<Payload>),
+              "hex"
+            ).toString("base64"),
+          },
+        })
+      ),
+      funds: [],
+    }
   });
   const executeRes = await client.signAndBroadcast(signer, [updateMsg], {
     ...ZERO_FEE,
@@ -639,10 +671,12 @@ async function main() {
     },
   };
   const setParamsMsg = client.core.msgExecuteGatewayGovernanceVaa({
-    signer: signer,
-    vaa: hexToUint8Array(
-      serialiseVAA(setDefaultParamsVaa as unknown as VAA<Payload>)
-    ),
+    value: {
+      signer: signer,
+      vaa: hexToUint8Array(
+        serialiseVAA(setDefaultParamsVaa as unknown as VAA<Payload>)
+      ),
+    }
   });
   await client
     .signAndBroadcast(signer, [setParamsMsg], {

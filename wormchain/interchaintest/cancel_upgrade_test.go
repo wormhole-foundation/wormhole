@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
@@ -20,11 +21,16 @@ func TestCancelUpgrade(t *testing.T) {
 	// Base setup
 	numVals := 2
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := CreateChains(t, "v2.18.1.1", *guardians)
-	ctx, _, _, _ := BuildInterchain(t, chains)
 
-	// Chains
+	chains := CreateChain(t, *guardians, ibc.DockerImage{
+		Repository: WormchainRemoteRepo,
+		Version:    "v2.24.3.2",
+		UidGid:     WormchainImage.UidGid,
+	})
+
 	wormchain := chains[0].(*cosmos.CosmosChain)
+
+	_, ctx, _, _, _, _ := BuildInterchain(t, chains)
 
 	// Set up upgrade
 	blocksAfterUpgrade := uint64(10)
@@ -32,11 +38,11 @@ func TestCancelUpgrade(t *testing.T) {
 	require.NoError(t, err, "error fetching height before upgrade")
 	fmt.Println("Height at sending schedule upgrade: ", height)
 
-	haltHeight := height + blocksAfterUpgrade
+	haltHeight := uint64(height) + blocksAfterUpgrade
 	fmt.Println("Height for scheduled upgrade: ", haltHeight)
 
 	// Schedule upgrade
-	helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v2.23.0", haltHeight, guardians)
+	helpers.ScheduleUpgrade(t, ctx, wormchain, "faucet", "v3.0.0", haltHeight, guardians)
 
 	// Cancel upgrade
 	testutil.WaitForBlocks(ctx, 2, wormchain)

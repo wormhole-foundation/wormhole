@@ -11,10 +11,10 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	tmAbci "github.com/tendermint/tendermint/abci/types"
-	tmHttp "github.com/tendermint/tendermint/rpc/client/http"
-	tmCoreTypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmTypes "github.com/tendermint/tendermint/types"
+	tmAbci "github.com/cometbft/cometbft/abci/types"
+	tmHttp "github.com/cometbft/cometbft/rpc/client/http"
+	tmCoreTypes "github.com/cometbft/cometbft/rpc/core/types"
+	tmTypes "github.com/cometbft/cometbft/types"
 
 	"go.uber.org/zap"
 )
@@ -99,6 +99,7 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 			}
 
 			for _, event := range tx.Result.Events {
+
 				if event.Type == "wasm-Observation" {
 					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", contract)
 					if err != nil {
@@ -139,13 +140,16 @@ type (
 func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, contractAddress string) (*T, error) {
 	attrs := make(map[string]json.RawMessage)
 	for _, attr := range event.Attributes {
-		if string(attr.Key) == "_contract_address" {
-			if string(attr.Value) != contractAddress {
-				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, string(attr.Value))
+		key := attr.Key
+		value := attr.Value
+
+		if key == "_contract_address" {
+			if value != contractAddress {
+				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, value)
 			}
 		} else {
-			logger.Debug("event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
-			attrs[string(attr.Key)] = attr.Value
+			logger.Debug("event attribute", zap.String("event", name), zap.String("key", key), zap.String("value", value))
+			attrs[key] = []byte(value)
 		}
 	}
 

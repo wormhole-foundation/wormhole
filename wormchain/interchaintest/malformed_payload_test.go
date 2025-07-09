@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/btcsuite/btcd/btcutil/base58"
-	"github.com/strangelove-ventures/interchaintest/v4"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
@@ -17,7 +18,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 )
 
 // TestMalformedPayload tests the state of wormhole/osmosis chains when a GatewayIbcTokenBridge payload is malformed
@@ -26,8 +27,10 @@ func TestMalformedPayload(t *testing.T) {
 	// Base setup
 	numVals := 1
 	guardians := guardians.CreateValSet(t, numVals)
-	chains := CreateChains(t, "v2.23.0", *guardians)
-	ctx, r, eRep, _ := BuildInterchain(t, chains)
+
+	chains := CreateLocalChain(t, *guardians)
+
+	_, ctx, r, eRep, _, _ := BuildInterchain(t, chains)
 
 	// Chains
 	wormchain := chains[0].(*cosmos.CosmosChain)
@@ -41,15 +44,16 @@ func TestMalformedPayload(t *testing.T) {
 	require.NoError(t, err)
 	wormToGaiaChannel := gaiaToWormChannel.Counterparty
 
-	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", int64(10_000_000_000), wormchain, gaia, osmosis, osmosis)
+	users := interchaintest.GetAndFundTestUsers(t, ctx, "default", math.NewInt(10_000_000_000), wormchain, gaia, osmosis, osmosis)
+	gaiaUser1 := users[1]
 	osmoUser1 := users[2]
 	osmoUser2 := users[3]
 
-	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName, "./contracts/ibc_hooks.wasm")
+	ibcHooksCodeId, err := osmosis.StoreContract(ctx, osmoUser1.KeyName(), "./contracts/ibc_hooks.wasm")
 	require.NoError(t, err)
 	fmt.Println("IBC hooks code id: ", ibcHooksCodeId)
 
-	ibcHooksContractAddr, err := osmosis.InstantiateContract(ctx, osmoUser1.KeyName, ibcHooksCodeId, "{}", true)
+	ibcHooksContractAddr, err := osmosis.InstantiateContract(ctx, osmoUser1.KeyName(), ibcHooksCodeId, "{}", true)
 	require.NoError(t, err)
 	fmt.Println("IBC hooks contract addr: ", ibcHooksContractAddr)
 
@@ -58,7 +62,7 @@ func TestMalformedPayload(t *testing.T) {
 	fmt.Println("Core contract code id: ", coreContractCodeId)
 
 	// Instantiate wormhole core contract
-	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, wormchainConfig, vaa.ChainIDWormchain, guardians)
+	coreInstantiateMsg := helpers.CoreContractInstantiateMsg(t, WormchainConfig, vaa.ChainIDWormchain, guardians)
 	coreContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", coreContractCodeId, "wormhole_core", coreInstantiateMsg, guardians)
 	fmt.Println("Core contract address: ", coreContractAddr)
 
@@ -71,7 +75,7 @@ func TestMalformedPayload(t *testing.T) {
 	fmt.Println("Token bridge contract code id: ", tbContractCodeId)
 
 	// Instantiate token bridge contract
-	tbInstantiateMsg := helpers.TbContractInstantiateMsg(t, wormchainConfig, coreContractAddr, wrappedAssetCodeId)
+	tbInstantiateMsg := helpers.TbContractInstantiateMsg(t, WormchainConfig, coreContractAddr, wrappedAssetCodeId)
 	tbContractAddr := helpers.InstantiateContract(t, ctx, wormchain, "faucet", tbContractCodeId, "token_bridge", tbInstantiateMsg, guardians)
 	fmt.Println("Token bridge contract address: ", tbContractAddr)
 
@@ -140,12 +144,12 @@ func TestMalformedPayload(t *testing.T) {
 	// -----------------------------------------------------------------------------------------------------------------------------------------
 
 	// Test 1 (GW Tranfer has 100 added to osmo chain id to make it denied / no chain id -> channel mapping)
-	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID+100, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), 0, 1)
+	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID+100, osmoUser1.FormattedAddress(), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}
 	payload3 := helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
-	require.NoError(t, err)
+	require.Error(t, err)
 	err = testutil.WaitForBlocks(ctx, 1, wormchain, osmosis)
 	require.NoError(t, err)
 
@@ -156,10 +160,10 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err := wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(0), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 0")
+	require.Equal(t, int64(0), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 0")
 
 	// Test 2 (GW Transfer has a cosmos/gaia prefix for recipient address)
-	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, osmoUser1.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
+	simplePayload = helpers.CreateGatewayIbcTokenBridgePayloadTransfer(t, OsmoChainID, gaiaUser1.FormattedAddress(), 0, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -174,11 +178,11 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(100), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 100")
+	require.Equal(t, int64(100), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 100")
 
 	// Test 3 (GW TransferWithPayload has osmo user1 as recipient and not a contract)
-	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
-	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), ibcHooksPayload, 1)
+	ibcHooksPayload := helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
+	contractControlledPayload := helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, osmoUser1.FormattedAddress(), ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
@@ -193,10 +197,10 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(200), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 200")
+	require.Equal(t, int64(200), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 200")
 
 	// Test 4 (GW TransferWithPayload - change wasm root in memo)
-	ibcHooksPayload = CreateInvalidIbcHooksMsgWasm(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	ibcHooksPayload = CreateInvalidIbcHooksMsgWasm(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
 	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -212,11 +216,11 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = osmosis.GetBalance(ctx, ibcHooksContractAddr, osmoIbcAsset1Denom)
 	require.NoError(t, err)
-	require.Equal(t, int64(100), asset1DenomBalance, "Ibchooks asset 1 denom balance should be 100")
+	require.Equal(t, int64(100), asset1DenomBalance.Int64(), "Ibchooks asset 1 denom balance should be 100")
 
 	// Test 5 (GW TransferWithPayload's ibc hook payload has osmo user1 as recipient and not a contract)
 	cosmosIbcHooksContractAddr := swapBech32Prefix(ibcHooksContractAddr, osmosis.Config().Bech32Prefix, gaia.Config().Bech32Prefix)
-	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, cosmosIbcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, cosmosIbcHooksContractAddr, osmoUser2.FormattedAddress())
 	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -232,10 +236,10 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(300), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 300")
+	require.Equal(t, int64(300), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 300")
 
 	// Test 6 (GW TransferWithPayload's ibc hook payload has osmo user1 as recipient and not a contract)
-	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, osmoUser1.FormattedAddress(), osmoUser2.FormattedAddress())
 	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -251,10 +255,10 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(400), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 400")
+	require.Equal(t, int64(400), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 400")
 
 	// Test 7 (GW TransferWithPayload has invalid execute method for ibc hooks contract)
-	ibcHooksPayload = CreateInvalidIbcHooksMsgExecute(t, ibcHooksContractAddr, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
+	ibcHooksPayload = CreateInvalidIbcHooksMsgExecute(t, ibcHooksContractAddr, osmoUser2.FormattedAddress())
 	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -270,10 +274,10 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(500), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 500")
+	require.Equal(t, int64(500), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 500")
 
 	// Test 8 (GW TransferWithPayload's ibc hook payload has recipient with cosmos/gaia bech32 prefix)
-	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, osmoUser2.Bech32Address(gaia.Config().Bech32Prefix))
+	ibcHooksPayload = helpers.CreateIbcHooksMsg(t, ibcHooksContractAddr, gaiaUser1.FormattedAddress())
 	contractControlledPayload = helpers.CreateGatewayIbcTokenBridgePayloadTransferWithPayload(t, OsmoChainID, ibcHooksContractAddr, ibcHooksPayload, 1)
 	payload3 = helpers.CreatePayload3(wormchain.Config(), 100, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, contractControlledPayload)
 	completeTransferAndConvertMsg = helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
@@ -289,7 +293,7 @@ func TestMalformedPayload(t *testing.T) {
 	// Check ibc-translator asset 1 denom balance
 	asset1DenomBalance, err = wormchain.GetBalance(ctx, ibcTranslatorContractAddr, asset1TokenFactoryDenom)
 	require.NoError(t, err)
-	require.Equal(t, int64(600), asset1DenomBalance, "Ibc translator asset 1 denom balance should be 600")
+	require.Equal(t, int64(600), asset1DenomBalance.Int64(), "Ibc translator asset 1 denom balance should be 600")
 }
 
 type IbcHooksWasm struct {

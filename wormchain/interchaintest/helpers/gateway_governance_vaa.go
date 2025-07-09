@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/ibc"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormchain/interchaintest/guardians"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -17,7 +17,7 @@ func GetMiddlewareContract(
 	ctx context.Context,
 	chain *cosmos.CosmosChain,
 ) string {
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 	stdout, _, err := node.ExecQuery(ctx, "wormhole", "show-ibc-composability-mw-contract")
 	require.NoError(t, err)
 	return string(stdout)
@@ -32,7 +32,7 @@ func SetMiddlewareContract(
 	contractBech32Addr string,
 	guardians *guardians.ValSet,
 ) {
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 
 	contractAddr := [32]byte{}
 	copy(contractAddr[:], MustAccAddressFromBech32(contractBech32Addr, cfg.Bech32Prefix).Bytes())
@@ -59,7 +59,7 @@ func ScheduleUpgrade(
 	height uint64,
 	guardians *guardians.ValSet,
 ) {
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 
 	payload := vaa.BodyGatewayScheduleUpgrade{
 		Name:   name,
@@ -83,7 +83,7 @@ func CancelUpgrade(
 	keyName string,
 	guardians *guardians.ValSet,
 ) {
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 
 	payloadBz, err := vaa.EmptyPayloadVaa(vaa.GatewayModuleStr, vaa.ActionCancelUpgrade, vaa.ChainIDWormchain)
 	require.NoError(t, err)

@@ -5,19 +5,32 @@ import (
 	"time"
 
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/wormhole-foundation/wormchain/app"
 	"github.com/wormhole-foundation/wormchain/app/apptesting"
-	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
+	wormholekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 )
 
-func WormholeKeeper(t *testing.T) (*keeper.Keeper, sdk.Context) {
-	k, _, _, ctx := WormholeKeeperAndWasmd(t)
-	return k, ctx
+func WormholeKeeper(t *testing.T) (*wormholekeeper.Keeper, sdk.Context) {
+	app, ctx := SetupWormchainAndContext(t)
+	return &app.WormholeKeeper, ctx
 }
 
-func WormholeKeeperAndWasmd(t *testing.T) (*keeper.Keeper, wasmkeeper.Keeper, *wasmkeeper.PermissionedKeeper, sdk.Context) {
+func WormholeKeeperAndWasmd(t *testing.T) (*wormholekeeper.Keeper, *wasmkeeper.Keeper, *wasmkeeper.PermissionedKeeper, sdk.Context) {
+	app, ctx := SetupWormchainAndContext(t)
+
+	wasmGenState := wasmtypes.GenesisState{}
+	wasmGenState.Params.CodeUploadAccess = wasmtypes.DefaultUploadAccess
+	wasmGenState.Params.InstantiateDefaultPermission = wasmtypes.AccessTypeEverybody
+	app.GetWasmKeeper().SetParams(ctx, wasmGenState.Params)
+
+	return &app.WormholeKeeper, app.GetWasmKeeper(), app.ContractKeeper, ctx
+}
+
+func SetupWormchainAndContext(t *testing.T) (*app.App, sdk.Context) {
 	app := apptesting.Setup(t, false, 0)
 
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{
@@ -28,5 +41,5 @@ func WormholeKeeperAndWasmd(t *testing.T) (*keeper.Keeper, wasmkeeper.Keeper, *w
 		Time:   time.Now(),
 	})
 
-	return &app.WormholeKeeper, *app.GetWasmKeeper(), app.ContractKeeper, ctx
+	return app, ctx
 }

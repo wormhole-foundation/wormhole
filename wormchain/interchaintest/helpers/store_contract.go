@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/crypto/sha3"
@@ -22,7 +22,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func createWasmStoreCodePayload(wasmBytes []byte) []byte {
+func CreateWasmStoreCodePayload(wasmBytes []byte) []byte {
 	// governance message with sha3 of wasmBytes as the payload
 	var hashWasm [32]byte
 	keccak := sha3.NewLegacyKeccak256()
@@ -63,7 +63,7 @@ func createIbcReceiverUpdateChannelPayload(payload vaa.BodyIbcUpdateChannelChain
 
 // wormchaind tx wormhole store [wasm file] [vaa-hex] [flags]
 func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain, keyName string, fileLoc string, guardians *guardians.ValSet) (codeId string) {
-	node := chain.GetFullNode()
+	node := chain.FullNodes[0]
 
 	_, file := filepath.Split(fileLoc)
 	err := node.CopyFile(ctx, fileLoc, file)
@@ -78,7 +78,7 @@ func StoreContract(t *testing.T, ctx context.Context, chain *cosmos.CosmosChain,
 		require.NoError(t, err)
 	}
 
-	payload := createWasmStoreCodePayload(content)
+	payload := CreateWasmStoreCodePayload(content)
 	v := GenerateVaa(0, guardians, vaa.ChainID(vaa.GovernanceChain), vaa.Address(vaa.GovernanceEmitter), payload)
 	vBz, err := v.Marshal()
 	require.NoError(t, err)

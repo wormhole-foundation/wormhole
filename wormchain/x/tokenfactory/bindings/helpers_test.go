@@ -5,28 +5,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/ed25519"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/testutil"
 
-	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/wormhole-foundation/wormchain/app"
 	"github.com/wormhole-foundation/wormchain/app/apptesting"
 )
 
 func CreateTestInput(t *testing.T) (*app.App, sdk.Context) {
-	osmosis := apptesting.Setup(t, true, 0)
-	ctx := osmosis.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: "wormchain", Time: time.Now().UTC()})
-	return osmosis, ctx
+	wormchain := apptesting.Setup(t, true, 0)
+	ctx := wormchain.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: apptesting.SimAppChainID, Time: time.Now().UTC()})
+	return wormchain, ctx
 }
 
-func FundAccount(t *testing.T, ctx sdk.Context, osmosis *app.App, acct sdk.AccAddress) {
-	err := simapp.FundAccount(osmosis.BankKeeper, ctx, acct, sdk.NewCoins(
+func FundAccount(t *testing.T, ctx sdk.Context, wormchain *app.App, acct sdk.AccAddress) {
+	err := banktestutil.FundAccount(wormchain.BankKeeper, ctx, acct, sdk.NewCoins(
 		sdk.NewCoin("uosmo", sdk.NewInt(10000000000)),
 	))
 	require.NoError(t, err)
@@ -49,20 +49,20 @@ func RandomBech32AccountAddress() string {
 	return RandomAccountAddress().String()
 }
 
-func storeReflectCode(t *testing.T, ctx sdk.Context, tokenz *app.App, addr sdk.AccAddress) uint64 {
+func storeReflectCode(t *testing.T, ctx sdk.Context, wormchain *app.App, addr sdk.AccAddress) uint64 {
 	wasmCode, err := os.ReadFile("./testdata/token_reflect.wasm")
 	require.NoError(t, err)
 
-	contractKeeper := keeper.NewDefaultPermissionKeeper(tokenz.GetWasmKeeper())
+	contractKeeper := keeper.NewDefaultPermissionKeeper(wormchain.GetWasmKeeper())
 	codeID, _, err := contractKeeper.Create(ctx, addr, wasmCode, nil)
 	require.NoError(t, err)
 
 	return codeID
 }
 
-func instantiateReflectContract(t *testing.T, ctx sdk.Context, tokenz *app.App, funder sdk.AccAddress) sdk.AccAddress {
+func instantiateReflectContract(t *testing.T, ctx sdk.Context, wormchain *app.App, funder sdk.AccAddress) sdk.AccAddress {
 	initMsgBz := []byte("{}")
-	contractKeeper := keeper.NewDefaultPermissionKeeper(tokenz.GetWasmKeeper())
+	contractKeeper := keeper.NewDefaultPermissionKeeper(wormchain.GetWasmKeeper())
 	codeID := uint64(1)
 	addr, _, err := contractKeeper.Instantiate(ctx, codeID, funder, funder, initMsgBz, "demo contract", nil)
 	require.NoError(t, err)
@@ -70,9 +70,9 @@ func instantiateReflectContract(t *testing.T, ctx sdk.Context, tokenz *app.App, 
 	return addr
 }
 
-func fundAccount(t *testing.T, ctx sdk.Context, tokenz *app.App, addr sdk.AccAddress, coins sdk.Coins) {
-	err := simapp.FundAccount(
-		tokenz.BankKeeper,
+func fundAccount(t *testing.T, ctx sdk.Context, wormchain *app.App, addr sdk.AccAddress, coins sdk.Coins) {
+	err := banktestutil.FundAccount(
+		wormchain.BankKeeper,
 		ctx,
 		addr,
 		coins,
@@ -81,13 +81,13 @@ func fundAccount(t *testing.T, ctx sdk.Context, tokenz *app.App, addr sdk.AccAdd
 }
 
 func SetupCustomApp(t *testing.T, addr sdk.AccAddress) (*app.App, sdk.Context) {
-	tokenz, ctx := CreateTestInput(t)
-	wasmKeeper := tokenz.GetWasmKeeper()
+	wormchain, ctx := CreateTestInput(t)
+	wasmKeeper := wormchain.GetWasmKeeper()
 
-	storeReflectCode(t, ctx, tokenz, addr)
+	storeReflectCode(t, ctx, wormchain, addr)
 
 	cInfo := wasmKeeper.GetCodeInfo(ctx, 1)
 	require.NotNil(t, cInfo)
 
-	return tokenz, ctx
+	return wormchain, ctx
 }

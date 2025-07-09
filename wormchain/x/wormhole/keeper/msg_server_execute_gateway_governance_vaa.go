@@ -1,13 +1,16 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -52,6 +55,8 @@ func (k msgServer) ExecuteGatewayGovernanceVaa(
 		return k.setIbcComposabilityMwContract(ctx, payload)
 	case vaa.ActionSlashingParamsUpdate:
 		return k.setSlashingParams(ctx, payload)
+	case vaa.ActionIBCClientUpdate:
+		return k.updateIBCClient(ctx, payload)
 	default:
 		return nil, types.ErrUnknownGovernanceAction
 	}
@@ -122,11 +127,30 @@ func (k msgServer) setSlashingParams(
 	)
 
 	// Set the new params
-	//
-	// TODO: Once upgraded to CosmosSDK v0.47, this method will return an error
-	// if the params do not pass validation checks. Because of that, we need to
-	// return the error from this function.
-	k.slashingKeeper.SetParams(ctx, params)
+	return &types.EmptyResponse{}, k.slashingKeeper.SetParams(ctx, params)
+}
 
-	return &types.EmptyResponse{}, nil
+func (k msgServer) updateIBCClient(
+	ctx sdk.Context,
+	payload []byte,
+) (*types.EmptyResponse, error) {
+	var payloadBody vaa.BodyGatewayIBCClientUpdate
+	payloadBody.Deserialize(payload)
+
+	subjectClientId := string(bytes.TrimLeft(payload[0:64], "\x00"))
+	substituteClientId := string(bytes.TrimLeft(payload[64:128], "\x00"))
+
+	msg := clienttypes.ClientUpdateProposal{
+		Title:              "Update IBC Client",
+		Description:        fmt.Sprintf("Updates Client %s with %s", subjectClientId, substituteClientId),
+		SubjectClientId:    subjectClientId,
+		SubstituteClientId: substituteClientId,
+	}
+
+	if err := msg.ValidateBasic(); err != nil {
+		return &types.EmptyResponse{}, err
+	}
+
+	err := k.clientKeeper.ClientUpdateProposal(ctx, &msg)
+	return &types.EmptyResponse{}, err
 }

@@ -5,17 +5,18 @@ import (
 	"math/big"
 	"testing"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cometbft/cometbft/crypto/ed25519"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/testhelpers"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
-
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
-// // Test authz serialize and de-serializes for tokenfactory msg.
+// Test authz serialize and de-serializes for tokenfactory msg.
 func TestAuthzMsg(t *testing.T) {
 	t.Skip("TODO: figure out how to register authz interfaces for tests")
 	pk1 := ed25519.GenPrivKey().PubKey()

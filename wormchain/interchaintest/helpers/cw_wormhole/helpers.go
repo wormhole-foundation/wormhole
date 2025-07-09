@@ -11,8 +11,8 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v4/testutil"
+	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v7/testutil"
 
 	"github.com/stretchr/testify/require"
 
@@ -247,7 +247,7 @@ func SubmitFeeUpdate(
 	}
 
 	// Query transaction result
-	txResult, _, err := wormchain.Validators[0].ExecQuery(ctx, "tx", txHash)
+	txResult, _, err := wormchain.Validators[0].ExecQuery(ctx, "tx", txHash.TxHash)
 	require.NoError(t, err)
 
 	// Parse response
@@ -328,7 +328,7 @@ func PostMessageWithFee(
 	require.NoError(t, err)
 
 	funds := sdk.Coins{sdk.NewInt64Coin("uworm", fee)}
-	_, err = wormchain.ExecuteContractWithAmount(ctx, "faucet", contractAddr, string(executeMsg), funds)
+	_, err = wormchain.ExecuteContract(ctx, "faucet", contractAddr, string(executeMsg), "--amount", funds.String())
 	return err
 }
 
@@ -387,7 +387,7 @@ func SubmitTransferFee(
 		require.Contains(t, err.Error(), "VaaAlreadyExecuted")
 	}
 
-	txResult, _, err := wormchain.Validators[0].ExecQuery(ctx, "tx", txHash)
+	txResult, _, err := wormchain.Validators[0].ExecQuery(ctx, "tx", txHash.TxHash)
 	require.NoError(t, err)
 
 	var txResponse TxResponse
@@ -404,5 +404,5 @@ func GetUwormBalance(t *testing.T, ctx context.Context, wormchain *cosmos.Cosmos
 		return 0, err
 	}
 
-	return coins, nil
+	return coins.Int64(), nil
 }

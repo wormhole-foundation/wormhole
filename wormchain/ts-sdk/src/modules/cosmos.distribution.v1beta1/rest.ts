@@ -10,6 +10,34 @@
  * ---------------------------------------------------------------
  */
 
+/**
+ * Params defines the set of params for the distribution module.
+ */
+export interface Distributionv1Beta1Params {
+  community_tax?: string;
+
+  /**
+   * Deprecated: The base_proposer_reward field is deprecated and is no longer used
+   * in the x/distribution module's reward mechanism.
+   */
+  base_proposer_reward?: string;
+
+  /**
+   * Deprecated: The bonus_proposer_reward field is deprecated and is no longer used
+   * in the x/distribution module's reward mechanism.
+   */
+  bonus_proposer_reward?: string;
+  withdraw_addr_enabled?: boolean;
+}
+
+/**
+* ValidatorOutstandingRewards represents outstanding (un-withdrawn) rewards
+for a validator inexpensive to track, allows simple sanity checks.
+*/
+export interface Distributionv1Beta1ValidatorOutstandingRewards {
+  rewards?: V1Beta1DecCoin[];
+}
+
 export interface ProtobufAny {
   "@type"?: string;
 }
@@ -53,24 +81,49 @@ export interface V1Beta1DelegationDelegatorReward {
 }
 
 /**
+* MsgCommunityPoolSpendResponse defines the response to executing a
+MsgCommunityPoolSpend message.
+
+Since: cosmos-sdk 0.47
+*/
+export type V1Beta1MsgCommunityPoolSpendResponse = object;
+
+/**
  * MsgFundCommunityPoolResponse defines the Msg/FundCommunityPool response type.
  */
 export type V1Beta1MsgFundCommunityPoolResponse = object;
 
 /**
- * MsgSetWithdrawAddressResponse defines the Msg/SetWithdrawAddress response type.
- */
+* MsgSetWithdrawAddressResponse defines the Msg/SetWithdrawAddress response
+type.
+*/
 export type V1Beta1MsgSetWithdrawAddressResponse = object;
 
 /**
- * MsgWithdrawDelegatorRewardResponse defines the Msg/WithdrawDelegatorReward response type.
- */
-export type V1Beta1MsgWithdrawDelegatorRewardResponse = object;
+* MsgUpdateParamsResponse defines the response structure for executing a
+MsgUpdateParams message.
+
+Since: cosmos-sdk 0.47
+*/
+export type V1Beta1MsgUpdateParamsResponse = object;
 
 /**
- * MsgWithdrawValidatorCommissionResponse defines the Msg/WithdrawValidatorCommission response type.
- */
-export type V1Beta1MsgWithdrawValidatorCommissionResponse = object;
+* MsgWithdrawDelegatorRewardResponse defines the Msg/WithdrawDelegatorReward
+response type.
+*/
+export interface V1Beta1MsgWithdrawDelegatorRewardResponse {
+  /** Since: cosmos-sdk 0.46 */
+  amount?: V1Beta1Coin[];
+}
+
+/**
+* MsgWithdrawValidatorCommissionResponse defines the
+Msg/WithdrawValidatorCommission response type.
+*/
+export interface V1Beta1MsgWithdrawValidatorCommissionResponse {
+  /** Since: cosmos-sdk 0.46 */
+  amount?: V1Beta1Coin[];
+}
 
 /**
 * message SomeRequest {
@@ -128,21 +181,20 @@ corresponding request message has used PageRequest.
  }
 */
 export interface V1Beta1PageResponse {
-  /** @format byte */
+  /**
+   * next_key is the key to be passed to PageRequest.key to
+   * query the next page most efficiently. It will be empty if
+   * there are no more results.
+   * @format byte
+   */
   next_key?: string;
 
-  /** @format uint64 */
+  /**
+   * total is total number of results available if PageRequest.count_total
+   * was set, its value is undefined otherwise
+   * @format uint64
+   */
   total?: string;
-}
-
-/**
- * Params defines the set of params for the distribution module.
- */
-export interface V1Beta1Params {
-  community_tax?: string;
-  base_proposer_reward?: string;
-  bonus_proposer_reward?: string;
-  withdraw_addr_enabled?: boolean;
 }
 
 /**
@@ -198,12 +250,26 @@ export interface V1Beta1QueryDelegatorWithdrawAddressResponse {
  */
 export interface V1Beta1QueryParamsResponse {
   /** params defines the parameters of the module. */
-  params?: V1Beta1Params;
+  params?: Distributionv1Beta1Params;
 }
 
 export interface V1Beta1QueryValidatorCommissionResponse {
-  /** commission defines the commision the validator received. */
+  /** commission defines the commission the validator received. */
   commission?: V1Beta1ValidatorAccumulatedCommission;
+}
+
+/**
+ * QueryValidatorDistributionInfoResponse is the response type for the Query/ValidatorDistributionInfo RPC method.
+ */
+export interface V1Beta1QueryValidatorDistributionInfoResponse {
+  /** operator_address defines the validator operator address. */
+  operator_address?: string;
+
+  /** self_bond_rewards defines the self delegations rewards. */
+  self_bond_rewards?: V1Beta1DecCoin[];
+
+  /** commission defines the commission the validator received. */
+  commission?: V1Beta1DecCoin[];
 }
 
 /**
@@ -215,7 +281,7 @@ export interface V1Beta1QueryValidatorOutstandingRewardsResponse {
    * ValidatorOutstandingRewards represents outstanding (un-withdrawn) rewards
    * for a validator inexpensive to track, allows simple sanity checks.
    */
-  rewards?: V1Beta1ValidatorOutstandingRewards;
+  rewards?: Distributionv1Beta1ValidatorOutstandingRewards;
 }
 
 /**
@@ -239,14 +305,6 @@ export interface V1Beta1ValidatorAccumulatedCommission {
 }
 
 /**
-* ValidatorOutstandingRewards represents outstanding (un-withdrawn) rewards
-for a validator inexpensive to track, allows simple sanity checks.
-*/
-export interface V1Beta1ValidatorOutstandingRewards {
-  rewards?: V1Beta1DecCoin[];
-}
-
-/**
 * ValidatorSlashEvent represents a validator slash event.
 Height is implicit within the store key.
 This is needed to calculate appropriate amount of staking tokens
@@ -258,10 +316,11 @@ export interface V1Beta1ValidatorSlashEvent {
   fraction?: string;
 }
 
-export type QueryParamsType = Record<string | number, any>;
-export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 
-export interface FullRequestParams extends Omit<RequestInit, "body"> {
+export type QueryParamsType = Record<string | number, any>;
+
+export interface FullRequestParams extends Omit<AxiosRequestConfig, "data" | "params" | "url" | "responseType"> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -271,29 +330,20 @@ export interface FullRequestParams extends Omit<RequestInit, "body"> {
   /** query params */
   query?: QueryParamsType;
   /** format of response (i.e. response.json() -> format: "json") */
-  format?: keyof Omit<Body, "body" | "bodyUsed">;
+  format?: ResponseType;
   /** request body */
   body?: unknown;
-  /** base url */
-  baseUrl?: string;
-  /** request cancellation token */
-  cancelToken?: CancelToken;
 }
 
 export type RequestParams = Omit<FullRequestParams, "body" | "method" | "query" | "path">;
 
-export interface ApiConfig<SecurityDataType = unknown> {
-  baseUrl?: string;
-  baseApiParams?: Omit<RequestParams, "baseUrl" | "cancelToken" | "signal">;
-  securityWorker?: (securityData: SecurityDataType) => RequestParams | void;
+export interface ApiConfig<SecurityDataType = unknown> extends Omit<AxiosRequestConfig, "data" | "cancelToken"> {
+  securityWorker?: (
+    securityData: SecurityDataType | null,
+  ) => Promise<AxiosRequestConfig | void> | AxiosRequestConfig | void;
+  secure?: boolean;
+  format?: ResponseType;
 }
-
-export interface HttpResponse<D extends unknown, E extends unknown = unknown> extends Response {
-  data: D;
-  error: E;
-}
-
-type CancelToken = Symbol | string | number;
 
 export enum ContentType {
   Json = "application/json",
@@ -302,149 +352,86 @@ export enum ContentType {
 }
 
 export class HttpClient<SecurityDataType = unknown> {
-  public baseUrl: string = "";
-  private securityData: SecurityDataType = null as any;
-  private securityWorker: null | ApiConfig<SecurityDataType>["securityWorker"] = null;
-  private abortControllers = new Map<CancelToken, AbortController>();
+  public instance: AxiosInstance;
+  private securityData: SecurityDataType | null = null;
+  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
+  private secure?: boolean;
+  private format?: ResponseType;
 
-  private baseApiParams: RequestParams = {
-    credentials: "same-origin",
-    headers: {},
-    redirect: "follow",
-    referrerPolicy: "no-referrer",
-  };
-
-  constructor(apiConfig: ApiConfig<SecurityDataType> = {}) {
-    Object.assign(this, apiConfig);
+  constructor({ securityWorker, secure, format, ...axiosConfig }: ApiConfig<SecurityDataType> = {}) {
+    this.instance = axios.create({ ...axiosConfig, baseURL: axiosConfig.baseURL || "" });
+    this.secure = secure;
+    this.format = format;
+    this.securityWorker = securityWorker;
   }
 
-  public setSecurityData = (data: SecurityDataType) => {
+  public setSecurityData = (data: SecurityDataType | null) => {
     this.securityData = data;
   };
 
-  private addQueryParam(query: QueryParamsType, key: string) {
-    const value = query[key];
-
-    return (
-      encodeURIComponent(key) +
-      "=" +
-      encodeURIComponent(Array.isArray(value) ? value.join(",") : typeof value === "number" ? value : `${value}`)
-    );
-  }
-
-  protected toQueryString(rawQuery?: QueryParamsType): string {
-    const query = rawQuery || {};
-    const keys = Object.keys(query).filter((key) => "undefined" !== typeof query[key]);
-    return keys
-      .map((key) =>
-        typeof query[key] === "object" && !Array.isArray(query[key])
-          ? this.toQueryString(query[key] as QueryParamsType)
-          : this.addQueryParam(query, key),
-      )
-      .join("&");
-  }
-
-  protected addQueryParams(rawQuery?: QueryParamsType): string {
-    const queryString = this.toQueryString(rawQuery);
-    return queryString ? `?${queryString}` : "";
-  }
-
-  private contentFormatters: Record<ContentType, (input: any) => any> = {
-    [ContentType.Json]: (input: any) =>
-      input !== null && (typeof input === "object" || typeof input === "string") ? JSON.stringify(input) : input,
-    [ContentType.FormData]: (input: any) =>
-      Object.keys(input || {}).reduce((data, key) => {
-        data.append(key, input[key]);
-        return data;
-      }, new FormData()),
-    [ContentType.UrlEncoded]: (input: any) => this.toQueryString(input),
-  };
-
-  private mergeRequestParams(params1: RequestParams, params2?: RequestParams): RequestParams {
+  private mergeRequestParams(params1: AxiosRequestConfig, params2?: AxiosRequestConfig): AxiosRequestConfig {
     return {
-      ...this.baseApiParams,
+      ...this.instance.defaults,
       ...params1,
       ...(params2 || {}),
       headers: {
-        ...(this.baseApiParams.headers || {}),
+        ...(this.instance.defaults.headers || {}),
         ...(params1.headers || {}),
         ...((params2 && params2.headers) || {}),
       },
     };
   }
 
-  private createAbortSignal = (cancelToken: CancelToken): AbortSignal | undefined => {
-    if (this.abortControllers.has(cancelToken)) {
-      const abortController = this.abortControllers.get(cancelToken);
-      if (abortController) {
-        return abortController.signal;
-      }
-      return void 0;
-    }
+  private createFormData(input: Record<string, unknown>): FormData {
+    return Object.keys(input || {}).reduce((formData, key) => {
+      const property = input[key];
+      formData.append(
+        key,
+        property instanceof Blob
+          ? property
+          : typeof property === "object" && property !== null
+          ? JSON.stringify(property)
+          : `${property}`,
+      );
+      return formData;
+    }, new FormData());
+  }
 
-    const abortController = new AbortController();
-    this.abortControllers.set(cancelToken, abortController);
-    return abortController.signal;
-  };
-
-  public abortRequest = (cancelToken: CancelToken) => {
-    const abortController = this.abortControllers.get(cancelToken);
-
-    if (abortController) {
-      abortController.abort();
-      this.abortControllers.delete(cancelToken);
-    }
-  };
-
-  public request = <T = any, E = any>({
-    body,
+  public request = async <T = any, _E = any>({
     secure,
     path,
     type,
     query,
-    format = "json",
-    baseUrl,
-    cancelToken,
+    format,
+    body,
     ...params
-  }: FullRequestParams): Promise<HttpResponse<T, E>> => {
-    const secureParams = (secure && this.securityWorker && this.securityWorker(this.securityData)) || {};
+  }: FullRequestParams): Promise<AxiosResponse<T>> => {
+    const secureParams =
+      ((typeof secure === "boolean" ? secure : this.secure) &&
+        this.securityWorker &&
+        (await this.securityWorker(this.securityData))) ||
+      {};
     const requestParams = this.mergeRequestParams(params, secureParams);
-    const queryString = query && this.toQueryString(query);
-    const payloadFormatter = this.contentFormatters[type || ContentType.Json];
+    const responseFormat = (format && this.format) || void 0;
 
-    return fetch(`${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`, {
+    if (type === ContentType.FormData && body && body !== null && typeof body === "object") {
+      requestParams.headers.common = { Accept: "*/*" };
+      requestParams.headers.post = {};
+      requestParams.headers.put = {};
+
+      body = this.createFormData(body as Record<string, unknown>);
+    }
+
+    return this.instance.request({
       ...requestParams,
       headers: {
         ...(type && type !== ContentType.FormData ? { "Content-Type": type } : {}),
         ...(requestParams.headers || {}),
       },
-      signal: cancelToken ? this.createAbortSignal(cancelToken) : void 0,
-      body: typeof body === "undefined" || body === null ? null : payloadFormatter(body),
-    }).then(async (response) => {
-      const r = response as HttpResponse<T, E>;
-      r.data = (null as unknown) as T;
-      r.error = (null as unknown) as E;
-
-      const data = await response[format]()
-        .then((data) => {
-          if (r.ok) {
-            r.data = data;
-          } else {
-            r.error = data;
-          }
-          return r;
-        })
-        .catch((e) => {
-          r.error = e;
-          return r;
-        });
-
-      if (cancelToken) {
-        this.abortControllers.delete(cancelToken);
-      }
-
-      if (!response.ok) throw data;
-      return data;
+      params: query,
+      responseType: responseFormat,
+      data: body,
+      url: path,
     });
   };
 }
@@ -479,9 +466,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
 validator.
  * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards
  */
-  queryDelegationTotalRewards = (delegator_address: string, params: RequestParams = {}) =>
+  queryDelegationTotalRewards = (delegatorAddress: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegationTotalRewardsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/rewards`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards`,
       method: "GET",
       format: "json",
       ...params,
@@ -495,9 +482,9 @@ validator.
    * @summary DelegationRewards queries the total rewards accrued by a delegation.
    * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards/{validator_address}
    */
-  queryDelegationRewards = (delegator_address: string, validator_address: string, params: RequestParams = {}) =>
+  queryDelegationRewards = (delegatorAddress: string, validatorAddress: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegationRewardsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/rewards/${validator_address}`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/rewards/${validatorAddress}`,
       method: "GET",
       format: "json",
       ...params,
@@ -511,9 +498,9 @@ validator.
    * @summary DelegatorValidators queries the validators of a delegator.
    * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/validators
    */
-  queryDelegatorValidators = (delegator_address: string, params: RequestParams = {}) =>
+  queryDelegatorValidators = (delegatorAddress: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegatorValidatorsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/validators`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/validators`,
       method: "GET",
       format: "json",
       ...params,
@@ -527,9 +514,9 @@ validator.
    * @summary DelegatorWithdrawAddress queries withdraw address of a delegator.
    * @request GET:/cosmos/distribution/v1beta1/delegators/{delegator_address}/withdraw_address
    */
-  queryDelegatorWithdrawAddress = (delegator_address: string, params: RequestParams = {}) =>
+  queryDelegatorWithdrawAddress = (delegatorAddress: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryDelegatorWithdrawAddressResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/delegators/${delegator_address}/withdraw_address`,
+      path: `/cosmos/distribution/v1beta1/delegators/${delegatorAddress}/withdraw_address`,
       method: "GET",
       format: "json",
       ...params,
@@ -555,13 +542,29 @@ validator.
    * No description
    *
    * @tags Query
+   * @name QueryValidatorDistributionInfo
+   * @summary ValidatorDistributionInfo queries validator commission and self-delegation rewards for validator
+   * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}
+   */
+  queryValidatorDistributionInfo = (validatorAddress: string, params: RequestParams = {}) =>
+    this.request<V1Beta1QueryValidatorDistributionInfoResponse, RpcStatus>({
+      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
    * @name QueryValidatorCommission
    * @summary ValidatorCommission queries accumulated commission for a validator.
    * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}/commission
    */
-  queryValidatorCommission = (validator_address: string, params: RequestParams = {}) =>
+  queryValidatorCommission = (validatorAddress: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryValidatorCommissionResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/validators/${validator_address}/commission`,
+      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}/commission`,
       method: "GET",
       format: "json",
       ...params,
@@ -575,9 +578,9 @@ validator.
    * @summary ValidatorOutstandingRewards queries rewards of a validator address.
    * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}/outstanding_rewards
    */
-  queryValidatorOutstandingRewards = (validator_address: string, params: RequestParams = {}) =>
+  queryValidatorOutstandingRewards = (validatorAddress: string, params: RequestParams = {}) =>
     this.request<V1Beta1QueryValidatorOutstandingRewardsResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/validators/${validator_address}/outstanding_rewards`,
+      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}/outstanding_rewards`,
       method: "GET",
       format: "json",
       ...params,
@@ -592,7 +595,7 @@ validator.
    * @request GET:/cosmos/distribution/v1beta1/validators/{validator_address}/slashes
    */
   queryValidatorSlashes = (
-    validator_address: string,
+    validatorAddress: string,
     query?: {
       starting_height?: string;
       ending_height?: string;
@@ -605,7 +608,7 @@ validator.
     params: RequestParams = {},
   ) =>
     this.request<V1Beta1QueryValidatorSlashesResponse, RpcStatus>({
-      path: `/cosmos/distribution/v1beta1/validators/${validator_address}/slashes`,
+      path: `/cosmos/distribution/v1beta1/validators/${validatorAddress}/slashes`,
       method: "GET",
       query: query,
       format: "json",
