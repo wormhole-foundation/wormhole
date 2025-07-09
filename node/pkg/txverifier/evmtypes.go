@@ -35,15 +35,6 @@ const (
 	EVENTHASH_WETH_DEPOSIT = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
 )
 
-// Constants related to caching RPC calls and receipt evaluations.
-const (
-	// CacheMaxSize is the maximum number of entries that should be in any of the caches.
-	CacheMaxSize = 100
-	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
-	// Must be less than CacheMaxSize.
-	CacheDeleteCount = 10
-)
-
 // Errors
 var (
 	ErrChainIDNotSupported        = errors.New("chain ID is not supported")

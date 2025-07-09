@@ -17,6 +17,13 @@ const (
 	MAX_DECIMALS = 8
 	// A pair of origin address and origin chain to identify assets moving in and out of the bridge.
 	KEY_FORMAT = "%s-%d"
+
+	// CacheMaxSize is the maximum number of entries that should be in any of the caches.
+	CacheMaxSize = 100
+
+	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
+	// Must be less than CacheMaxSize.
+	CacheDeleteCount = 10
 )
 
 // Extracts the value at the given path from the JSON object, and casts it to
@@ -198,4 +205,22 @@ func deleteEntries[K comparable, V any](cachePointer *map[K]V) (int, error) {
 	}
 
 	return i, nil
+}
+
+// upsert inserts a new key and value into a map or update the value if the key already exists.
+func upsert(
+	dict *map[string]*big.Int,
+	key string,
+	amount *big.Int,
+) error {
+	if dict == nil || amount == nil {
+		return ErrInvalidUpsertArgument
+	}
+	d := *dict
+	if _, exists := d[key]; !exists {
+		d[key] = new(big.Int).Set(amount)
+	} else {
+		d[key] = new(big.Int).Add(d[key], amount)
+	}
+	return nil
 }

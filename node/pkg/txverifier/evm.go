@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -794,20 +793,3 @@ func (tv *TransferVerifier[ethClient, Connector]) addToCache(
 	}
 }
 
-// upsert inserts a new key and value into a map or update the value if the key already exists.
-func upsert(
-	dict *map[string]*big.Int,
-	key string,
-	amount *big.Int,
-) error {
-	if dict == nil || amount == nil {
-		return ErrInvalidUpsertArgument
-	}
-	d := *dict
-	if _, exists := d[key]; !exists {
-		d[key] = new(big.Int).Set(amount)
-	} else {
-		d[key] = new(big.Int).Add(d[key], amount)
-	}
-	return nil
-}
