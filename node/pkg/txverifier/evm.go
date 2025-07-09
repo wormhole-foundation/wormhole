@@ -570,6 +570,8 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		}
 	}
 
+	// Return an error when there are no valid messages from the token bridge
+	// after filtering out irrelevant events.
 	if len(messagePublications) == 0 {
 		receiptErr = errors.Join(receiptErr, ErrNoMsgsFromTokenBridge)
 	}
