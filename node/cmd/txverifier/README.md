@@ -7,7 +7,7 @@ modify the package code at `node/pkg/txverifier/` and run this tool to test the 
 
 ### Ethereum
 
-_Ensure that you have a valid API key connected with a **WebSockets** URL._
+_Requires a valid API key connected with a **WebSockets** URL._
 
 #### Devnet
 
