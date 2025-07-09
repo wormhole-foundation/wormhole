@@ -2,22 +2,6 @@
 
 ## Overview
 
-```
-
-├── evm_test.go
-├── evm.go
-├── evmtypes_test.go
-├── evmtypes.go
-├── README.md
-├── sui_test.go
-├── sui.go
-├── suitypes.go
-├── utils_test.go
-└── utils.go
-
-1 directory, 10 files
-```
-
 The package is organized by runtime environment. Currently there are implementations for the Ethereum and Sui blockchains.
 Because the Ethereum implementation is (hopefully) generalizable to other EVM-chains, it is referred to as 
 `evm` implementation rather than the `ethereum` implementation
