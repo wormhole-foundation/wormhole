@@ -98,19 +98,16 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	transferReceipt, parseErr := tv.parseReceipt(receipt)
 
 	if parseErr != nil {
-		eval.Err = parseErr
 		return false, parseErr
 	}
 
 	// ParseReceipt should only return nil when there is also an error, so we don't expect to get here.
 	if transferReceipt == nil {
-		eval.Err = ErrParsedReceiptIsNil
 		return false, ErrParsedReceiptIsNil
 	}
 
 	// Invalid receipt: no message publications
 	if len(*transferReceipt.MessagePublications) == 0 {
-		eval.Err = ErrNoMsgsFromTokenBridge
 		return false, ErrNoMsgsFromTokenBridge
 	}
 
@@ -119,7 +116,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	// such as a token's native address and its decimals.
 	updateErr := tv.updateReceiptDetails(transferReceipt)
 	if updateErr != nil {
-		eval.Err = updateErr
 		return false, updateErr
 	}
 
@@ -132,8 +128,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	if processErr != nil {
-		eval.Err = processErr
-
 		// Check if the error type is an invariant error. If not, it's just a parsing error.
 		var invError *InvariantError
 		if !errors.As(processErr, &invError) {

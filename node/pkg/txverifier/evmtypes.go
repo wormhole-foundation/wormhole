@@ -110,7 +110,6 @@ type evaluation struct {
 	Receipt *types.Receipt
 	// Whether the transfer verifier determined this receipt safe or not
 	Result bool
-	Err    error
 }
 
 // TransferVerifier contains configuration values for verifying transfers.

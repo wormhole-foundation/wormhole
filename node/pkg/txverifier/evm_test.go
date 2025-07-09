@@ -2,7 +2,7 @@ package txverifier
 
 // TODO:
 // - more robust mocking of RPC return values so that we can test multiple cases
-// - add tests checking amount values from ProcessReceipt
+// - add tests checking amount values from ValidateReceipt
 
 import (
 	"context"
@@ -458,7 +458,7 @@ func TestParseWNativeDepositEvent(t *testing.T) {
 
 }
 
-func TestProcessReceipt(t *testing.T) {
+func TestValidateReceipt(t *testing.T) {
 	mocks := setup()
 
 	tests := map[string]struct {
@@ -680,7 +680,7 @@ func TestProcessReceipt(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			summary, err := mocks.transferVerifier.processReceipt(test.transferReceipt)
+			summary, err := mocks.transferVerifier.validateReceipt(test.transferReceipt)
 
 			assert.Equal(t, test.expected, summary.logsProcessed, "number of processed receipts did not match")
 
@@ -770,9 +770,9 @@ func TestNoPanics(t *testing.T) {
 	defer mocks.ctxCancel()
 
 	require.NotPanics(t, func() {
-		_, err := mocks.transferVerifier.processReceipt(nil)
-		require.Error(t, err, "ProcessReceipt must return an error on nil input")
-	}, "ProcessReceipt should handle nil without panicking")
+		_, err := mocks.transferVerifier.validateReceipt(nil)
+		require.Error(t, err, "must return an error on nil input")
+	}, "should handle nil without panicking")
 
 	require.NotPanics(t, func() {
 		err := mocks.transferVerifier.updateReceiptDetails(nil)
