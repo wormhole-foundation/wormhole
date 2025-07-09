@@ -86,7 +86,7 @@ type TVAddresses struct {
 	CoreBridgeAddr common.Address
 	// Address of the Wormhole token bridge contract for this chain
 	TokenBridgeAddr common.Address
-	// Wrapped version of the native asset, e.g. WETH for Ethereum
+	// Wrapped version of the chain's coin or "native asset", e.g. WETH for Ethereum
 	WrappedNativeAddr common.Address
 }
 
@@ -352,6 +352,7 @@ func DepositFromLog(
 	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
 	chainId vaa.ChainID,
 ) (deposit *NativeDeposit, err error) {
+
 	dest, amount, err := parseWNativeDepositEvent(log.Topics, log.Data)
 	if err != nil {
 		return nil, err
