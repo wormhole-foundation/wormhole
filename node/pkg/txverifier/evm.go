@@ -21,6 +21,7 @@ const (
 // TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
 var (
 	ErrCouldNotGetNativeDetails = errors.New("could not parse native details for transfer")
+	ErrDepositFromWrongAddress    = errors.New("parsed Deposit event has wrong address")
 	ErrInvalidReceiptArgument   = errors.New("invalid TransferReceipt argument")
 	ErrInvalidUpsertArgument    = errors.New("nil argument passed to upsert")
 	ErrNoMsgsFromTokenBridge    = errors.New("no messages published from Token Bridge")
@@ -430,6 +431,15 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 
 		switch log.Topics[0] {
 		case common.HexToHash(EVENTHASH_WETH_DEPOSIT):
+
+			// Ensure that the deposit event is from the correct contract.
+			if log.Address != tv.Addresses.WrappedNativeAddr {
+				tv.logger.Debug(ErrDepositFromWrongAddress.Error(),
+					zap.String("txHash", log.TxHash.String()),
+				)
+				continue
+			}
+
 			deposit, depositErr := DepositFromLog(log, tv.chainIds.wormholeChainId)
 
 			if depositErr != nil {
