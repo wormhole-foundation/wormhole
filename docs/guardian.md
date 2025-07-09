@@ -19,9 +19,12 @@ Each watcher listens to one chain, and there are a number of different watcher t
    mechanism to listen for new logs from the Wormhole core contract as well as the latest blocks. Additionally, it polls for
    new finalized and safe blocks (as supported on each chain).
 
-2. Solana - the Solana watcher monitors a Solana runtime based chain, namely Solana and Pyth. It uses the `solana-go` library.
-   For each chain, there are two watchers, one listening for new confirmed slots, and one listening for new finalized slots.
-   For Pyth, it uses a web socket subscription to listen for messages. For Solana, it polls for slots.
+2. Solana - the Solana watcher monitors SVM based chains, namely Solana, Pyth and Fogo. It uses the `solana-go` library.
+   For each chain, there are two watchers, one listening for confirmed observations, and one listening for finalized observations.
+
+   - For Solana, it polls for slots and searches for Wormhole transactions in all slots since the previous one.
+   - For Pyth, it uses a web socket subscription to listen for messages.
+   - For Fogo, it polls for any transactions involving the core contract since the previous one.
 
 3. Cosmwasm - the Cosmwasm watcher connects to the various Cosmwasm chains (one chain per watcher instance). It subscribes
    for events from the Wormhole core contract and polls for new blocks.
@@ -82,6 +85,41 @@ Certain guardians may be configured as a public RPC endpoint. If this feature is
 for things like the status of a given VAA.
 
 For a list of the guardian public RPC endpoints see `PublicRPCEndpoints` in [sdk/mainnet_consts.go](../sdk/mainnet_consts.go)
+
+### Guardian Key Management
+
+Originally, the guardian signing key had to be stored in an armored file on local disk. The guardian signer feature added support
+for other signing methods, including the existing armored file and Amazon KMS. The interface is generic, meaning that additional
+signing techniques may be added going forward.
+
+To enable a custom signer, use the `guardianSignerUri` config parameter.
+
+### Alternate Publishing
+
+The guardian supports the ability to publish observations to one or more configured HTTP endpoints. This is in addition to publishing
+over P2P. This feature is described in more detail [here](../node/pkg/altpub/README.md).
+
+### Transfer Verification
+
+The guardian supports the ability to verify that transfers are valid. This feature is currently supported for certain EVM chains and Sui.
+
+The verifier can be run as a stand alone monitoring tool as described [here](../node/cmd/txverifier/README.md). Or it can be enabled in the
+guardian. In that case, suspect transfers will be blocked, meaning the observation will not be published. For more information on this mode,
+see [here](../node/pkg/txverifier//README.md).
+
+### Logs and Metrics
+
+The guardian uses the [Zap logger](https://pkg.go.dev/go.uber.org/zap) for all of it's logging
+and [Prometheus](https://pkg.go.dev/github.com/prometheus/client_golang/prometheus) for metrics.
+The logs are always written to local disk and the metrics are always available locally on the box.
+
+The guardian can also be configured to publish logs to Grafana. To enable this, set the `telemetryLokiURL`
+config parameter to point at a Grafana endpoint. In this mode, it still logs to local disk, but it
+also publishes to Grafana in a non-blocking manner.
+
+The guardian can also be configured to publish metrics to Grafana. To enable this, set the `promRemoteURL`
+config parameter to point at a Grafana endpoint. In this mode, metrics will be posted to Grafana every
+fifteen seconds, also in a non-blocking manner.
 
 ## Observation Lifecycle
 
