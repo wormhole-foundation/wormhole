@@ -3,6 +3,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
 
 use crate::threshold_key::ThresholdKey;
+use crate::hex;
 
 pub struct AppendThresholdKeyMessage {
 	pub tss_index: u32,
@@ -18,10 +19,8 @@ pub enum AppendThresholdKeyDecodeError {
 }
 
 // Module ID for the VerificationV2 contract, ASCII "TSS"
-pub const MODULE_VERIFICATION_V2: [u8; 32] = [
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x53, 0x53,
-];
+pub const MODULE_VERIFICATION_V2: [u8; 32] =
+	hex!("0000000000000000000000000000000000000000000000000000000000545353");
 
 // Action ID for appending a threshold key
 pub const ACTION_APPEND_THRESHOLD_KEY: u8 = 0x01;

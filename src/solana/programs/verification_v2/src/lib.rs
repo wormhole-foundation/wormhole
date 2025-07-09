@@ -20,8 +20,10 @@ use threshold_key::{
   init_threshold_key_account
 };
 use utils::{SeedPrefix};
+use hex_literal::hex;
 
-const GOVERNANCE_ADDRESS: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4];
+const GOVERNANCE_ADDRESS: [u8; 32] =
+  hex!("0000000000000000000000000000000000000000000000000000000000000004");
 
 #[error_code]
 pub enum VAAError {
@@ -51,8 +53,10 @@ pub struct InitThresholdKey<'info> {
 
   #[account(
     owner = wormhole_program.key() @ AppendThresholdKeyError::InvalidVAA,
-    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA @ AppendThresholdKeyError::InvalidGovernanceChainId,
-    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS @ AppendThresholdKeyError::InvalidGovernanceAddress,
+    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
+      @ AppendThresholdKeyError::InvalidGovernanceChainId,
+    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
+      @ AppendThresholdKeyError::InvalidGovernanceAddress,
   )]
   pub vaa: Account<'info, PostedVaaData>,
 
@@ -80,8 +84,10 @@ pub struct AppendThresholdKey<'info> {
 
   #[account(
     owner = wormhole_program.key() @ AppendThresholdKeyError::InvalidVAA,
-    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA @ AppendThresholdKeyError::InvalidGovernanceChainId,
-    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS @ AppendThresholdKeyError::InvalidGovernanceAddress,
+    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
+      @ AppendThresholdKeyError::InvalidGovernanceChainId,
+    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
+      @ AppendThresholdKeyError::InvalidGovernanceAddress,
   )]
   pub vaa: Account<'info, PostedVaaData>,
 
@@ -94,7 +100,8 @@ pub struct AppendThresholdKey<'info> {
 
   #[account(
     mut,
-    constraint = old_threshold_key.key() == latest_key.account @ AppendThresholdKeyError::InvalidOldThresholdKey,
+    constraint = old_threshold_key.key() == latest_key.account
+      @ AppendThresholdKeyError::InvalidOldThresholdKey,
   )]
   pub old_threshold_key: Account<'info, ThresholdKeyAccount>,
 
