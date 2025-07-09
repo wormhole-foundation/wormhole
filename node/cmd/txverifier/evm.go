@@ -50,7 +50,6 @@ type sanityCheck struct {
 	err    error
 }
 
-
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
 //
 //nolint:errcheck // The MarkFlagRequired calls will cause the script to fail on their own. No need to handle the errors manually.
@@ -171,6 +170,15 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 				if !errors.Is(err, check.err) {
 					logger.Fatal(fmt.Sprintf("Sanity check %d failed (wrong error) for txHash %s", i, check.txHash))
+				}
+			} else {
+				// We got nil but we expected an error.
+				if check.err != nil {
+					logger.Fatal(fmt.Sprintf(
+						"Sanity check had nil error for txHash %s, expected %s",
+						check.txHash,
+						check.err,
+					))
 				}
 			}
 
