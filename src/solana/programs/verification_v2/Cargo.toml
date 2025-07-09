@@ -33,3 +33,5 @@ wormhole-anchor-sdk = { git = "https://github.com/XLabs/wormhole-scaffolding.git
 [dev-dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
+rstest = "0.18"
+proptest = "1.7.0"

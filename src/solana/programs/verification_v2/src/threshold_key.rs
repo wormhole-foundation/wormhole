@@ -74,7 +74,8 @@ pub enum ThresholdKeyError {
 }
 
 impl ThresholdKey {
-	// This is only used to validate when appending a pubkey so we don't really care about its representation.
+	// This is only used to validate when appending a pubkey
+	// so we don't really care about its representation.
 	const HALF_Q: [u8; 32] = hex!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0");
 
 	// The following constants are used during verification.
@@ -89,24 +90,21 @@ impl ThresholdKey {
 		0xFFFFFFFFFFFFFFFE,
 		0xFFFFFFFFFFFFFFFF
 	];
-	// Reciprocal of Q in U512 for Barret reduction
-	const ΜQ_U512: [u64; 8] = [
-		0x402da1732fc9bec0,
-		0x4551231950b75fc4,
-		0x0000000000000001,
+	// Used to approximate division by Q
+	// floor(2^511 / Q)
+	const ΜQ_U256: [u64; 4] = [
+		0x2016d0b997e4df60,
+		0xa2a8918ca85bafe2,
 		0x0000000000000000,
-		0x0000000000000001,
-		0x0000000000000000,
-		0x0000000000000000,
-		0x0000000000000000
+		0x8000000000000000
 	];
 
 	pub fn q() -> U256 {
 		U256(ThresholdKey::Q_U256)
 	}
 
-	pub fn μq() -> U512 {
-		U512(ThresholdKey::ΜQ_U512)
+	pub fn μq() -> U256 {
+		U256(ThresholdKey::ΜQ_U256)
 	}
 
 	pub fn half_q() -> U256 {
@@ -144,6 +142,10 @@ impl ThresholdKey {
 		let e = U256::from_big_endian(&hash(&hash_bytes).to_bytes());
 
 		// Calculate the recovery inputs
+		// Barrett reductions work as long as the product a*b doesn't exceed Q^2.
+		// Here, one of the factors is the x component of the public key.
+		// In particular, we already know that px <= Q/2
+		// See ThresholdKey::is_valid() and math_tests::test_mulmod_upper_bound_is_safe()
 		let sp = q.sub(Self::mulmod_barrett_q(s, px));
 		let ep = Self::mulmod_barrett_q(e, px);
 
@@ -159,7 +161,11 @@ impl ThresholdKey {
 		signature_bytes[32..64].copy_from_slice(&ep.to_big_endian());
 		let sp_buf = sp.to_big_endian();
 
-		let recovered_pubkey = secp256k1_recover::secp256k1_recover(&sp_buf, parity as u8, &signature_bytes).unwrap();
+		let recovered_pubkey = secp256k1_recover::secp256k1_recover(
+			&sp_buf,
+			parity as u8,
+			&signature_bytes
+		).unwrap();
 
 		let recovered_address = &hash(&recovered_pubkey.to_bytes()).to_bytes()[12..];
 
@@ -170,28 +176,40 @@ impl ThresholdKey {
 		Ok(())
 	}
 
+	/// This implements the modulo step via barrett reduction.
+	/// r = ab - floor(floor(ab / 2^256) * μq / 2^255) * q
+	/// where q = Q, the secp256k1 curve order
+	///       ab = a*b, the product of the inputs to mulmod
+	///       μq = floor(2^511 / q), used to approximate division by q
+	/// Note that the scaling factor was chosen so that μq fits into 256 bits.
 	#[inline(always)]
 	fn mulmod_barrett_q(a: U256, b: U256) -> U256 {
-		let x = a.full_mul(b);
+		let ab = a.full_mul(b);
 
-		// t1 = floor(x / 2^256)   → top 256 bits
-		let mut t1 = [0u64; 8];
-		t1[0..4].copy_from_slice(&x.0[4..8]);
+		// ab_high = floor(ab / 2^256)   → top 256 bits
+		let mut ab_high = [0u64; 4];
+		ab_high[0..4].copy_from_slice(&ab.0[4..8]);
 
-		// t2 = t1 * μQ
-		let t2 = U512(t1) * ThresholdKey::μq();
+		// t1 = ab_high * μQ
+		let t1 = U256(ab_high).full_mul(ThresholdKey::μq());
 
-		// t3 = floor(t2 / 2^256)  → top 256 bits
-		let t3 = U256(t2.0[4..8].try_into().unwrap());
+		// t2 = floor(t1 / 2^255)        → top 257 bits
+		// but (t1 >> 255) fits in 256 bits because:
+		// ab fits in 511 bits => top 256 bits have the most significant bit cleared
+		// then ab_high fits in 255 bits => ab_high * μq, i.e. t1, fits in 511 bits
+		let t2: U256 = (t1 >> 255).try_into().unwrap();
 
 		let q = ThresholdKey::q();
-		let r = x - t3.full_mul(q);
+		let representative = ab - t2.full_mul(q);
 
-		// r should be in [0, 2Q), so we subtract Q if needed
+		// representative should be in [0, 3Q), so we subtract Q if needed
 		let q_u512 = U512::from(q);
-		let mut result = r;
-		if r >= q_u512 {
+		let mut result = representative;
+		if result >= q_u512 {
 			result -= q_u512;
+			if result >= q_u512 {
+				result -= q_u512;
+			}
 		}
 
 		result.try_into().unwrap()
@@ -303,6 +321,8 @@ mod math_tests {
 	use super::{ThresholdKey, U256, U512, Shr};
 	use num_bigint::BigUint;
 	use num_traits::{Num, One};
+	use rstest::rstest;
+	use proptest::prelude::{proptest, any, Strategy, ProptestConfig};
 
 	#[test]
 	fn q_is_correct() {
@@ -325,13 +345,65 @@ mod math_tests {
 			16
 		).unwrap();
 
-		// 2^512
-		let two_exp512 = BigUint::one() << 512;
+		// 2^511
+		let two_exp511 = BigUint::one() << 511;
 
-		// μ = floor(2^512 / Q)
-		let mu: BigUint = &two_exp512 / &q;
-		let μq = U512::from_little_endian(&mu.to_bytes_le());
+		// μ = floor(2^511 / Q)
+		let mu: BigUint = &two_exp511 / &q;
+		let μq = U256::from_little_endian(&mu.to_bytes_le());
 
 		assert_eq!(μq, ThresholdKey::μq());
+	}
+
+	#[rstest]
+	#[case("FFEFFFF13FFFFF6FF8FF9FFEBAAEDCE6AF48A03BBFD25E8CD0364100",
+	       "ABEFFFF13FFFFF6FF8FF9FFEBAAEDCE6AF48A03BBFD25E341"                )]
+	#[case("CDFF13FFFB6FF8FF9FFEBAAEDCE6AF48A03BBFD25E80000000000",
+	       "486ABBA13FFFFF6FF8FF9FFEBAAEDCE6AF48A03B324365316"                )]
+	#[case("1",
+	       "ABEF00F13FFFFF6FF8FF9FFEBAAEDCE6AF48A03BBFD25E341"                )]
+	#[case("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+	       "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B209F" )]
+	fn test_mulmod(#[case] a_str: &str, #[case] b_str: &str) {
+		let a = U256::from_str_radix(a_str, 16).unwrap();
+		let b = U256::from_str_radix(b_str, 16).unwrap();
+
+		let mulmod = ThresholdKey::mulmod_barrett_q(a, b);
+		let expected: U256 = (a.full_mul(b) % U512::from(ThresholdKey::q())).try_into().unwrap();
+		assert_eq!(mulmod, expected);
+	}
+
+	#[test]
+	fn test_mulmod_upper_bound_is_safe() {
+		let a = U256::max_value();
+		// We know that one of the factors is at most half Q (see ThresholdKey::is_valid)
+		let b = ThresholdKey::half_q();
+
+		let q = ThresholdKey::q();
+
+		let q_2 = q.full_mul(q);
+		assert!(a.full_mul(b) < q_2);
+
+		let mulmod = ThresholdKey::mulmod_barrett_q(a, b);
+
+		let expected: U256 = (a.full_mul(b) % U512::from(q)).try_into().unwrap();
+		assert_eq!(mulmod, expected);
+	}
+
+	fn u256_strategy() -> impl Strategy<Value = U256> {
+		any::<[u64; 4]>().prop_map(|words| U256(words))
+	}
+
+	proptest! {
+		#![proptest_config(ProptestConfig::with_cases(10000))]
+
+		#[test]
+		fn test_mulmod_random_inputs(a in u256_strategy(), b in u256_strategy()) {
+			let q = ThresholdKey::q();
+
+			let mulmod = ThresholdKey::mulmod_barrett_q(a, b);
+			let expected: U256 = (a.full_mul(b) % U512::from(q)).try_into().unwrap();
+			assert_eq!(mulmod, expected);
+		}
 	}
 }
