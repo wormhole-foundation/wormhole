@@ -324,7 +324,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) error {
 	if int(e.transactionProcessingQueueCounter.Load())+len(e.transactionProcessingQueue) > queueSize {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-		return fmt.Errorf("NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.")
+		return fmt.Errorf("NEAR transactionProcessingQueue exceeds max queue size, skipping transaction")
 	}
 
 	common.RunWithScissors(ctx, e.errC, "scheduledThread",

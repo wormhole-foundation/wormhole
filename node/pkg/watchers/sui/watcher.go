@@ -198,10 +198,10 @@ func NewWatcher(
 
 func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservation bool) error {
 	if body.ID.TxDigest == nil {
-		return errors.New("Missing TxDigest field")
+		return errors.New("missing TxDigest field")
 	}
 	if body.Type == nil {
-		return errors.New("Missing Type field")
+		return errors.New("missing Type field")
 	}
 
 	// There may be moveEvents caught without these params.
@@ -247,7 +247,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 			zap.String("log_msg_type", "tx_processing_error"),
 			zap.String("txHash", *body.ID.TxDigest),
 		)
-		return errors.New("Transaction hash is not 32 bytes")
+		return errors.New("transaction hash is not 32 bytes")
 	}
 
 	txHashEthFormat := eth_common.BytesToHash(txHashBytes)

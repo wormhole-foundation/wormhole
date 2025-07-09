@@ -138,12 +138,12 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 	// Fetch EVM chain ID from the connector and attempt to convert it to a Wormhole chain ID.
 	evmChainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
 	if parseErr != nil {
-		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: %w", parseErr)
+		return nil, fmt.Errorf("failed to parse chainId from string returned by connector client: %w", parseErr)
 	}
 
 	wormholeChainId, unregisteredErr := TryWormholeChainIdFromNative(evmChainId)
 	if unregisteredErr != nil {
-		return nil, fmt.Errorf("Could not get Wormhole chain ID from EVM chain ID: %w", unregisteredErr)
+		return nil, fmt.Errorf("could not get Wormhole chain ID from EVM chain ID: %w", unregisteredErr)
 	}
 
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
@@ -1061,7 +1061,7 @@ func TryWormholeChainIdFromNative(evmChainId uint64) (wormholeChainID vaa.ChainI
 		wormholeChainID = vaa.ChainIDSepolia
 	default:
 		err = fmt.Errorf(
-			"Transfer Verifier does not have a registered mapping from EVM chain ID %d to a Wormhole chain ID",
+			"transfer Verifier does not have a registered mapping from EVM chain ID %d to a Wormhole chain ID",
 			evmChainId,
 		)
 	}

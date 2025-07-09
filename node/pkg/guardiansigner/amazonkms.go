@@ -84,7 +84,7 @@ func NewAmazonKmsSigner(ctx context.Context, keyPath string) (*AmazonKms, error)
 	region := getRegionFromArn(keyPath)
 
 	if region == "" {
-		return nil, errors.New("Invalid KMS ARN")
+		return nil, errors.New("invalid KMS ARN")
 	}
 
 	amazonKmsSigner := AmazonKms{
@@ -97,7 +97,7 @@ func NewAmazonKmsSigner(ctx context.Context, keyPath string) (*AmazonKms, error)
 	// an error. This is why the region is first extracted from the keyPath.
 	cfg, err := config.LoadDefaultConfig(timeoutCtx, config.WithDefaultRegion(amazonKmsSigner.region))
 	if err != nil {
-		return nil, errors.New("Failed to load KMS default config")
+		return nil, errors.New("failed to load KMS default config")
 	}
 
 	amazonKmsSigner.client = kms.NewFromConfig(cfg)
@@ -116,12 +116,12 @@ func NewAmazonKmsSigner(ctx context.Context, keyPath string) (*AmazonKms, error)
 	_, err = asn1.Unmarshal(pubKeyOutput.PublicKey, &asn1Pubkey)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal KMS public key: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal KMS public key: %w", err)
 	}
 
 	// The public key is expected to be at least `MINIMUM_KMS_PUBKEY_LENGTH` bytes long.
 	if len(asn1Pubkey.PublicKey.Bytes) < MINIMUM_KMS_PUBKEY_LENGTH {
-		return nil, errors.New("Invalid KMS public key length")
+		return nil, errors.New("invalid KMS public key length")
 	}
 
 	// It is possible to use `ethcrypto.UnmarshalPubkey(asn1Pubkey.PublicKey.Bytes)`` to get the public key,
@@ -160,7 +160,7 @@ func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, er
 	r, s, err := derSignatureToRS(res.Signature)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode signature: %w", err)
+		return nil, fmt.Errorf("failed to decode signature: %w", err)
 	}
 
 	// if s is greater than secp256k1HalfN, we need to subtract secp256k1N from it
@@ -196,7 +196,7 @@ func (a *AmazonKms) Sign(ctx context.Context, hash []byte) (signature []byte, er
 
 	// Reaching this return implies that it wasn't possible to generate a valid signature. This shouldn't
 	// happen, unless there is something seriously wrong with the KMS service.
-	return nil, fmt.Errorf("Failed to generate valid signature")
+	return nil, fmt.Errorf("failed to generate valid signature")
 }
 
 func (a *AmazonKms) PublicKey(ctx context.Context) ecdsa.PublicKey {

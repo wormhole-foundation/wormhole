@@ -90,7 +90,7 @@ func usesBlockscout(chainId vaa.ChainID) bool {
 	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDAcala
 }
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
@@ -98,7 +98,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	}
 
 	c := nodev1.NewNodePrivilegedServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
 type logEntry struct {
@@ -284,11 +284,12 @@ func main() {
 
 	missingMessages := make(map[eth_common.Address]map[uint64]bool)
 
-	conn, err, admin := getAdminClient(ctx, *adminRPC)
-	defer conn.Close()
+	conn, admin, err := getAdminClient(ctx, *adminRPC)
 	if err != nil {
+		conn.Close()
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	// A polygon VAA that was not reobserved before the blocks aged out of guardian rpc nodes
 	ignoreAddress, _ := vaa.StringToAddress("0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde")
