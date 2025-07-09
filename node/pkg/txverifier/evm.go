@@ -161,7 +161,7 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 
 	// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
 	for hash, eval := range tv.evaluations {
-		if eval.Receipt != nil {
+		if eval.Receipt != nil && eval.Receipt.BlockNumber != nil {
 			if eval.Receipt.BlockNumber.Uint64() < tv.lastBlockNumber-tv.pruneHeightDelta {
 				numPrunedEvals++
 				delete(tv.evaluations, hash)
