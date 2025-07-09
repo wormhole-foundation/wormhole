@@ -16,7 +16,7 @@ The script at `scripts/transfer-verifier-localnet.sh` runs the transfer verifier
 #### Automated testing
 
 This command provides a "sanity check" mode that runs the package against mainnet data using a hard-coded
-list of tx hashes and their expected return values. It checks that ruling of true/false matches what's
+list of transaction hashes and their expected return values. It checks that ruling of true/false matches what's
 expected, and ensures that the expected error codes match.
 
 The code will log a fatal error and exit as soon as one of the sanity checks fail.
@@ -54,7 +54,7 @@ the contract addresses.
 
 ##### Testing a single receipt
 
-A single receipt can be evaluated by adding the `--hash` flag and passing an Ethereum receipt hash.
+A single receipt can be evaluated by adding the `--hash` flag and passing an Ethereum transaction hash.
 This is the easiest way to get insight into how the algorithm works and to verify expected results.
 
 Any unexpected results should be added to the sanity checks described earlier to help guard against regressions.

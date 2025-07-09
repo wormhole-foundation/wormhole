@@ -34,7 +34,7 @@ var (
 	wrappedNativeContract *string
 	// Height difference between pruning windows (in blocks).
 	pruneHeightDelta *uint64
-	// Receipt hash to analyze.
+	// Transaction hash to analyze.
 	hash *string
 	// Perform sanity checks
 	sanity *bool
@@ -61,7 +61,7 @@ func init() {
 	wrappedNativeContract = TransferVerifierCmdEvm.Flags().String("wrappedNativeContract", "", "wrapped native address (e.g. WETH on Ethereum)")
 	pruneHeightDelta = TransferVerifierCmdEvm.Flags().Uint64("pruneHeightDelta", 10, "The number of blocks for which to retain transaction receipts. Defaults to 10 blocks.")
 	// Allows testing the tool on a single receipt.
-	hash = TransferVerifierCmdEvm.Flags().String("hash", "", "A receipt hash to evaluate. The tool will exit after processing the receipt.")
+	hash = TransferVerifierCmdEvm.Flags().String("hash", "", "A transaction hash to evaluate. The tool will exit after processing the receipt.")
 	sanity = TransferVerifierCmdEvm.Flags().Bool("sanity", false, "Sanity check: evaluate a hard-coded set of receipts for testing. A fatal error is logged if the results don't match what was expected.")
 
 	TransferVerifierCmd.MarkFlagRequired("rpcUrl")
@@ -183,7 +183,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 		os.Exit(0)
 	}
 
-	// Single-shot mode: process a single receipt hash, then quit.
+	// Single-shot mode: process a single transaction hash, then quit.
 	if len(*hash) > 0 {
 		receiptHash := common.HexToHash(*hash)
 		result, err := transferVerifier.TransferIsValid(ctx, receiptHash, nil)
