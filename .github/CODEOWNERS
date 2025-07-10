@@ -35,6 +35,7 @@
 /testing/ @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 /wormchain/devnet/ @evan-gray @bruce-riley
+/wormchain/devnet/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 /wormchain/ts-sdk/ @evan-gray @kev1n-peters @panoel
 /deployments @evan-gray @kev1n-peters @panoel @bruce-riley
 
@@ -95,6 +96,7 @@
 ## Watchers
 
 /node/pkg/watchers @evan-gray @bruce-riley @panoel
+/node/pkg/watchers/evm/msg_verifier.go @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Hacks / Tools
 
