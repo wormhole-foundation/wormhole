@@ -181,6 +181,7 @@ impl SchnorrKey {
   /// where q = Q, the secp256k1 curve order
   ///       ab = a*b, the product of the inputs to mulmod
   ///       μq = floor(2^511 / q), used to approximate division by q
+  ///       r, i.e. the result: representant of a*b mod q
   /// Note that the scaling factor was chosen so that μq fits into 256 bits.
   #[inline(always)]
   fn mulmod_barrett_q(a: U256, b: U256) -> U256 {
