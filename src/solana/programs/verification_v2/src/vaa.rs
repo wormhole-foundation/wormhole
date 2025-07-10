@@ -43,7 +43,7 @@ impl AnchorDeserialize for VAASchnorrSignature {
 
 pub struct VAAHeader {
   pub version: u8,
-  pub tss_index: u32,
+  pub schnorr_key_index: u32,
   pub signature: VAASchnorrSignature,
 }
 
@@ -63,7 +63,7 @@ impl VAAHeader {
 impl AnchorSerialize for VAAHeader {
   fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
     writer.write_all(&[self.version])?;
-    writer.write_all(&self.tss_index.to_be_bytes())?;
+    writer.write_all(&self.schnorr_key_index.to_be_bytes())?;
     self.signature.serialize(writer)?;
     Ok(())
   }
@@ -72,9 +72,9 @@ impl AnchorSerialize for VAAHeader {
 impl AnchorDeserialize for VAAHeader {
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
     let version = reader.read_u8()?;
-    let tss_index = reader.read_u32::<BigEndian>()?;
+    let schnorr_key_index = reader.read_u32::<BigEndian>()?;
     let signature = VAASchnorrSignature::deserialize_reader(reader)?;
-    Ok(Self { version, tss_index, signature })
+    Ok(Self { version, schnorr_key_index, signature })
   }
 }
 

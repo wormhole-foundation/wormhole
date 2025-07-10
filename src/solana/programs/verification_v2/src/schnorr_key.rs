@@ -246,7 +246,7 @@ impl AnchorDeserialize for SchnorrKey {
 #[derive(InitSpace)]
 pub struct SchnorrKeyAccount {
   pub index: u32,
-  pub tss_key: SchnorrKey,
+  pub schnorr_key: SchnorrKey,
   pub expiration_timestamp: u64,
 }
 
@@ -267,8 +267,8 @@ impl SeedPrefix for SchnorrKeyAccount {
 
 pub fn init_schnorr_key_account<'info>(
   new_schnorr_key: AccountInfo<'info>,
-  tss_index: u32,
-  tss_key: SchnorrKey,
+  schnorr_key_index: u32,
+  schnorr_key: SchnorrKey,
   system_program: &Program<'info, System>,
   payer: AccountInfo<'info>
 ) -> Result<()> {
@@ -277,15 +277,15 @@ pub fn init_schnorr_key_account<'info>(
   // This is why the initialization happens manually here.
 
   let (pubkey, bump) = Pubkey::find_program_address(
-    &[SchnorrKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes()],
+    &[SchnorrKeyAccount::SEED_PREFIX, &schnorr_key_index.to_le_bytes()],
     &ID,
   );
 
   if pubkey != new_schnorr_key.key() {
-    return Err(AppendSchnorrKeyError::AccountMismatchTSSKeyIndex.into());
+    return Err(AppendSchnorrKeyError::AccountMismatchSchnorrKeyIndex.into());
   }
 
-  let schnorr_key_seeds = [SchnorrKeyAccount::SEED_PREFIX, &tss_index.to_le_bytes(), &[bump]];
+  let schnorr_key_seeds = [SchnorrKeyAccount::SEED_PREFIX, &schnorr_key_index.to_le_bytes(), &[bump]];
 
   init_account(
     new_schnorr_key.clone(),
@@ -293,8 +293,8 @@ pub fn init_schnorr_key_account<'info>(
     &system_program,
     payer,
     SchnorrKeyAccount{
-      index: tss_index,
-      tss_key,
+      index: schnorr_key_index,
+      schnorr_key,
       expiration_timestamp: 0,
     }
   )?;
@@ -312,8 +312,8 @@ pub enum AppendSchnorrKeyError {
   InvalidNewKeyIndex,
   #[msg("Old schnorr key must be the latest key")]
   InvalidOldSchnorrKey,
-  #[msg("TSS account pubkey mismatches TSS key index")]
-  AccountMismatchTSSKeyIndex,
+  #[msg("Schnorr key address mismatches Schnorr key index")]
+  AccountMismatchSchnorrKeyIndex,
 }
 
 #[cfg(test)]

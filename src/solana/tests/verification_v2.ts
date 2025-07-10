@@ -43,8 +43,8 @@ export const createAppendSchnorrKeyMessage = ({
   publicKey,
   previousSetExpirationTime,
 }: SchnorrKeyMessage) => serializeLayout(appendSchnorrKeyMessageLayout, {
-  tssIndex: keyIndex,
-  tssKey: publicKey,
+  schnorrKeyIndex: keyIndex,
+  schnorrKey: publicKey,
   expirationDelaySeconds: previousSetExpirationTime,
   shardDataHash: randomBytes(32),
 })
@@ -94,7 +94,7 @@ const invalidSignature = {
 
 const getTestMessage100Zeroed = (schnorrKeyIndex: number) => Uint8Array.from([
   ...serializeLayout(headerV2Layout, {
-    tssIndex: schnorrKeyIndex,
+    schnorrKeyIndex: schnorrKeyIndex,
     signature: signatureTestMessage100Zeroed,
   }),
   ...new Uint8Array(100)
@@ -102,7 +102,7 @@ const getTestMessage100Zeroed = (schnorrKeyIndex: number) => Uint8Array.from([
 
 const getTestMessageInvalidSignature = (schnorrKeyIndex: number) => Uint8Array.from([
   ...serializeLayout(headerV2Layout, {
-    tssIndex: schnorrKeyIndex,
+    schnorrKeyIndex: schnorrKeyIndex,
     signature: invalidSignature,
   }),
   ...new Uint8Array(100)
@@ -124,17 +124,17 @@ describe("VerificationV2", function() {
   const testKeyIndex = 5
 
 
-  function deriveTssKeyPda(tssIndex: number) {
+  function deriveSchnorrKeyPda(schnorrKeyIndex: number) {
     // Buffer write already checks that the value is within bounds
-    if (!Number.isSafeInteger(tssIndex)) {
-      throw new Error(`invalid non integer TSS index ${tssIndex}`)
+    if (!Number.isSafeInteger(schnorrKeyIndex)) {
+      throw new Error(`invalid non integer Schnorr index ${schnorrKeyIndex}`)
     }
 
-    const tssIndexBuf = Buffer.alloc(4)
-    tssIndexBuf.writeUint32LE(tssIndex)
+    const schnorrKeyIndexBuf = Buffer.alloc(4)
+    schnorrKeyIndexBuf.writeUint32LE(schnorrKeyIndex)
 
     // See impl SeedPrefix for SchnorrKeyAccount
-    const seeds = [Buffer.from("schnorrkey"), tssIndexBuf]
+    const seeds = [Buffer.from("schnorrkey"), schnorrKeyIndexBuf]
 
     return PublicKey.findProgramAddressSync(
       seeds,
@@ -182,13 +182,13 @@ describe("VerificationV2", function() {
       if (test.operation === "InitSchnorrKey") {
         ix = await coreV2.methods.initSchnorrKey().accounts({
           vaa: postedVaaAddress,
-          newSchnorrKey: deriveTssKeyPda(test.keyIndex)[0]
+          newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0]
         }).instruction()
       } else {
         ix = await coreV2.methods.appendSchnorrKey().accounts({
           vaa: postedVaaAddress,
-          newSchnorrKey: deriveTssKeyPda(test.keyIndex)[0],
-          oldSchnorrKey: deriveTssKeyPda(test.oldKeyIndex)[0],
+          newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
+          oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
           latestKey: deriveLatestKeyPda()[0],
         }).instruction()
       }
@@ -302,7 +302,7 @@ describe("VerificationV2", function() {
   it("Verifies a v2 VAA", async function() {
     const vaa = Buffer.from(getTestMessage100Zeroed(testKeyIndex));
     const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
-      schnorrKey: deriveTssKeyPda(testKeyIndex)[0],
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
     }).instruction()
 
     const txid = await $.sendAndConfirm(verifyIx, payer)
@@ -314,7 +314,7 @@ describe("VerificationV2", function() {
   it("v2 VAA verification fails for an invalid signature", async function() {
     const vaa = Buffer.from(getTestMessageInvalidSignature(testKeyIndex));
     const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
-      schnorrKey: deriveTssKeyPda(testKeyIndex)[0],
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
     }).instruction()
 
     expectFailure(

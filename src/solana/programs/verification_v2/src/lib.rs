@@ -31,7 +31,7 @@ pub enum VAAError {
   InvalidVersion,
   #[msg("Invalid VAA index")]
   InvalidIndex,
-  TSSKeyExpired,
+  SchnorrKeyExpired,
   BodyTooSmall,
 }
 
@@ -112,7 +112,7 @@ pub struct AppendSchnorrKey<'info> {
 #[derive(Accounts)]
 pub struct VerifyVaa<'info> {
   #[account(
-    constraint = schnorr_key.is_unexpired() @ VAAError::TSSKeyExpired,
+    constraint = schnorr_key.is_unexpired() @ VAAError::SchnorrKeyExpired,
   )]
   pub schnorr_key: Account<'info, SchnorrKeyAccount>,
 }
@@ -127,8 +127,8 @@ pub mod verification_v2 {
 
     init_schnorr_key_account(
       ctx.accounts.new_schnorr_key.to_account_info(),
-      message.tss_index,
-      message.tss_key,
+      message.schnorr_key_index,
+      message.schnorr_key,
       &ctx.accounts.system_program,
       ctx.accounts.payer.to_account_info()
     )?;
@@ -145,14 +145,14 @@ pub mod verification_v2 {
     let old_schnorr_key = &mut ctx.accounts.old_schnorr_key;
 
     // Check that the index is increasing from the previous index
-    if message.tss_index <= old_schnorr_key.index {
+    if message.schnorr_key_index <= old_schnorr_key.index {
       return Err(AppendSchnorrKeyError::InvalidNewKeyIndex.into());
     }
 
     init_schnorr_key_account(
       ctx.accounts.new_schnorr_key.to_account_info(),
-      message.tss_index,
-      message.tss_key,
+      message.schnorr_key_index,
+      message.schnorr_key,
       &ctx.accounts.system_program,
       ctx.accounts.payer.to_account_info()
     )?;
@@ -182,13 +182,13 @@ fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>>
   vaa.check_valid()?;
 
   let schnorr_key = &ctx.accounts.schnorr_key;
-  if schnorr_key.index != vaa.header.tss_index {
+  if schnorr_key.index != vaa.header.schnorr_key_index {
     return Err(VAAError::InvalidIndex.into());
   }
 
   let msg_hash = vaa.message_hash()?;
 
-  schnorr_key.tss_key.check_signature(&msg_hash, &vaa.header.signature)?;
+  schnorr_key.schnorr_key.check_signature(&msg_hash, &vaa.header.signature)?;
 
   Ok(vaa.body)
 }

@@ -10,9 +10,9 @@ export const schnorrSignatureLayout = [
 ] as const satisfies Layout;
 
 export const headerV2Layout = [
-  {name: "version",   binary: "uint",  size: 1, custom: 2, omit: true},
-  {name: "tssIndex",  binary: "uint",  size: 4                       },
-  {name: "signature", binary: "bytes", layout: schnorrSignatureLayout},
+  {name: "version",         binary: "uint",  size: 1, custom: 2, omit: true},
+  {name: "schnorrKeyIndex", binary: "uint",  size: 4                       },
+  {name: "signature",       binary: "bytes", layout: schnorrSignatureLayout},
 ] as const satisfies Layout;
 
 export const baseV2Layout = [
@@ -29,8 +29,8 @@ export const MODULE_VERIFICATION_V2 = Uint8Array.from([
 export const appendSchnorrKeyMessageLayout = [
   {name: "module",                 binary: "bytes",           custom: MODULE_VERIFICATION_V2, omit: true},
   {name: "action",                 binary: "uint",  size:  1, custom: 1,                      omit: true},
-  {name: "tssIndex",               binary: "uint",  size:  4},
-  {name: "tssKey",                 binary: "bytes", size: 32},
+  {name: "schnorrKeyIndex",        binary: "uint",  size:  4},
+  {name: "schnorrKey",             binary: "bytes", size: 32},
   {name: "expirationDelaySeconds", binary: "uint",  size:  4},
   {name: "shardDataHash",          binary: "bytes", size: 32},
 ] as const satisfies Layout;
