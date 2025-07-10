@@ -202,7 +202,7 @@ type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
 // TransferIsValid simulates the evaluation made by the Transfer Verifier.
 // Always returns nil. The error should be non-nil only when a parsing or RPC error occurs.
 // For now, these are not included in the unit tests.
-func (m *MockTransferVerifier[E, C]) TransferIsValid(_ context.Context, _ eth_common.Hash, _ *types.Receipt) (bool, error) {
+func (m *MockTransferVerifier[E, C]) TransferIsValid(_ context.Context, _ string, _ eth_common.Hash, _ *types.Receipt) (bool, error) {
 	return m.success, nil
 }
 func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {

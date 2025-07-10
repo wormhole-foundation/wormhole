@@ -7,6 +7,7 @@ package txverifier
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -682,7 +683,15 @@ func TestValidateReceipt(t *testing.T) {
 
 			summary, err := mocks.transferVerifier.validateReceipt(test.transferReceipt)
 
-			assert.Equal(t, test.expected, summary.logsProcessed, "number of processed receipts did not match")
+			assert.Equal(
+				t,
+				test.expected,
+				len(summary.msgPubResult),
+				fmt.Sprintf(
+					"number of processed receipts did not match. got %v",
+					summary.msgPubResult,
+				),
+			)
 
 			if err != nil {
 				assert.True(t, test.shouldError, "test should have returned an error")
