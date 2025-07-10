@@ -90,7 +90,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	eval := evaluation{Receipt: receipt}
 
 	// Caching: if the new receipt is newer than the last one, update the last block number.
-	// This is important to prevent the Transfer Verifier from recording a block number that older
+	// This is important to prevent the Transfer Verifier from recording a block number that is older
 	// than the one being processed, as this would result in the verifier not being able to
 	// correctly prune the cache.
 	if receipt.BlockNumber != nil && receipt.BlockNumber.Uint64() > tv.lastBlockNumber {
