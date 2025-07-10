@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -25,6 +26,57 @@ const (
 	// Must be less than CacheMaxSize.
 	CacheDeleteCount = 10
 )
+
+// msgID is a unique identifier the corresponds to a VAA's "message ID".
+// i.e.emitter_chain/emitter_address/sequence tuple. In this package, it is used
+// to identify a single LogMessagePublished event, which in turn maps onto a unique
+// MessagePublication elsewhere in the Guardian code.
+type msgID struct {
+	// Sequence of the VAA
+	Sequence uint64
+	// EmitterChain the VAA was emitted on
+	EmitterChain vaa.ChainID
+	// EmitterAddress of the contract that emitted the Message
+	EmitterAddress vaa.Address
+}
+
+// MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
+func (m *msgID) String() string {
+	return fmt.Sprintf("%d/%s/%d", m.EmitterChain, m.EmitterAddress, m.Sequence)
+}
+
+// NewMsgID creates a new msgID from a string in the format "chainID/emitterAddress/sequence".
+func NewMsgID(in string) (msgID, error) {
+	parts := strings.Split(in, "/")
+	if len(parts) != 3 {
+		return msgID{}, errors.New("invalid msgID: must be in the format chainID/emitterAddress/sequence")
+	}
+
+	chainID, err := vaa.StringToKnownChainID(parts[0])
+	if err != nil {
+		return msgID{}, err
+	}
+
+	supported := IsSupported(chainID)
+	if !supported {
+		return msgID{}, err
+	}
+
+	emitterAddress, err := vaa.StringToAddress(parts[1])
+	if err != nil {
+		return msgID{}, err
+	}
+
+	sequence, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return msgID{}, err
+	}
+	return msgID{
+		EmitterChain:   chainID,
+		EmitterAddress: emitterAddress,
+		Sequence:       sequence,
+	}, nil
+}
 
 // Extracts the value at the given path from the JSON object, and casts it to
 // type T. If the path does not exist in the object, an error is returned.
@@ -121,6 +173,7 @@ func SupportedChains() []vaa.ChainID {
 	}
 }
 
+// IsSupported returns true if the chain ID is supported by the Transfer Verifier.
 func IsSupported(cid vaa.ChainID) bool {
 	return slices.Contains(SupportedChains(), cid)
 }
