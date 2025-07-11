@@ -198,7 +198,7 @@ impl SchnorrKey {
     // but (t1 >> 255) fits in 256 bits because:
     // ab fits in 511 bits => top 256 bits have the most significant bit cleared
     // then ab_high fits in 255 bits => ab_high * μq, i.e. t1, fits in 511 bits
-    let t2: U256 = (t1 >> 255).try_into().unwrap();
+    let t2 = U256((t1 >> 255).0[0..4].try_into().unwrap());
 
     let q = SchnorrKey::q();
     let representative = ab - t2.full_mul(q);
