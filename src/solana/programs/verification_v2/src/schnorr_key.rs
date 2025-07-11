@@ -188,8 +188,7 @@ impl SchnorrKey {
     let ab = a.full_mul(b);
 
     // ab_high = floor(ab / 2^256)   → top 256 bits
-    let mut ab_high = [0u64; 4];
-    ab_high[0..4].copy_from_slice(&ab.0[4..8]);
+    let ab_high: [u64; 4] = ab.0[4..8].try_into().unwrap();
 
     // t1 = ab_high * μQ
     let t1 = U256(ab_high).full_mul(SchnorrKey::μq());
