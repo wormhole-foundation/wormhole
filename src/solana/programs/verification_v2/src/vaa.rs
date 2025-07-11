@@ -109,7 +109,7 @@ impl VAA {
   pub fn check_valid(&self) -> Result<()> {
     self.header.check_valid()?;
     // See VAABody for necessary fields.
-    if self.body.len() < 51 {
+    if self.body.len() < VAABody::MIN_SIZE {
       return Err(VAAError::BodyTooSmall.into());
     }
     Ok(())
@@ -122,7 +122,7 @@ impl VAA {
 }
 
 
-pub struct VAABody {  
+pub struct VAABody {
   pub timestamp: u32,
   pub nonce: u32,
   pub emitter_chain_id: u16,
@@ -130,6 +130,10 @@ pub struct VAABody {
   pub sequence: u64,
   pub consistency_level: u8,
   pub payload: Vec<u8>,
+}
+
+impl VAABody {
+  const MIN_SIZE: usize = 51;
 }
 
 // TODO: define the type for the body IDL?
@@ -170,4 +174,18 @@ impl AnchorDeserialize for VAABody {
       payload
     })
   }
+}
+
+#[test]
+fn min_size_body_deserializes() {
+  let body_raw = [0u8; VAABody::MIN_SIZE];
+  let body = VAABody::deserialize(&mut body_raw.as_slice());
+  assert!(body.is_ok());
+}
+
+#[test]
+fn min_size_body_is_minimum() {
+  let body_raw = [0u8; VAABody::MIN_SIZE - 1];
+  let body = VAABody::deserialize(&mut body_raw.as_slice());
+  assert!(body.is_err());
 }
