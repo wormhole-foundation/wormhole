@@ -45,8 +45,8 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary implements BinaryUnmarshaler for [PendingMessage].
 func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 
-	if len(data) < minMarshaledMsgSize {
-		return ErrDataTooShort
+	if len(data) < marshaledMsgSizeMin {
+		return ErrInputSize{Msg: "data too short"}
 	}
 
 	// Compare with [UnmarshalPendingTransfer].
