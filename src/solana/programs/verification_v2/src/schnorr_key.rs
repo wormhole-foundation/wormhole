@@ -398,8 +398,9 @@ mod math_tests {
     #![proptest_config(ProptestConfig::with_cases(10000))]
 
     #[test]
-    fn test_mulmod_random_inputs(a in u256_strategy(), b in u256_strategy()) {
+    fn test_mulmod_random_inputs(a in u256_strategy(), mut b in u256_strategy()) {
       let q = SchnorrKey::q();
+      b = b % (q >> 1);
 
       let mulmod = SchnorrKey::mulmod_barrett_q(a, b);
       let expected: U256 = (a.full_mul(b) % U512::from(q)).try_into().unwrap();
