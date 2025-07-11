@@ -46,10 +46,6 @@ func (gov *ChainGovernor) initConfigForTest(
 	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
 }
 
-func (gov *ChainGovernor) setDayLengthInMinutes(minimum int) {
-	gov.dayLengthInMinutes = minimum
-}
-
 // Utility method: adds a new `chainEntry` to `gov`
 // Supplying a bigTransactionSize of 0 will skip checks for big transactions.
 func (gov *ChainGovernor) setChainForTesting(
@@ -883,7 +879,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
-	gov.setDayLengthInMinutes(24 * 60)
+
 	transferTime := time.Unix(int64(1654543099), 0)
 
 	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
@@ -1120,7 +1116,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
-	gov.setDayLengthInMinutes(24 * 60)
+
 	transferTime := time.Unix(int64(1654543099), 0)
 
 	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
@@ -1330,7 +1326,6 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -1454,7 +1449,6 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -1648,7 +1642,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
-	gov.setDayLengthInMinutes(24 * 60)
+
 	transferTime := time.Unix(int64(1654543099), 0)
 
 	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
@@ -1911,7 +1905,6 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -2156,7 +2149,6 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 100000)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -2217,7 +2209,6 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 100000)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -2425,8 +2416,6 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
-
 	// This configuration does not make sense for real, but allows for this test.
 	// We are setting the big transfer size smaller than the daily limit, so we can
 	// easily enqueue a transfer that is not considered big and confirm that it eventually
@@ -2524,7 +2513,6 @@ func TestTransferPayloadTooShort(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 0)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -2577,14 +2565,13 @@ func TestDontReloadDuplicates(t *testing.T) {
 
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, emitterAddrStr, 1000000, 0)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, emitterAddrStr, "WETH", 1774.62, false)
 	require.NoError(t, err)
 
 	now, _ := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 2, 2022 at 12:01pm (CST)")
-	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	startTime := now.Add(-gov.slidingWindow())
 
 	var xfers []*guardianDB.Transfer
 
@@ -2688,7 +2675,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
-	gov.setDayLengthInMinutes(24 * 60)
+
 	transferTime := time.Now()
 
 	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
@@ -2994,7 +2981,6 @@ func TestReobservationOfPublishedMsg(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 100000)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -3054,7 +3040,6 @@ func TestReobservationOfEnqueued(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 100000)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -3113,7 +3098,6 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
 
-	gov.setDayLengthInMinutes(24 * 60)
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 1000000, 100000)
 	require.NoError(t, err)
 	err = gov.setTokenForTesting(vaa.ChainIDEthereum, tokenAddrStr, "WETH", 1774.62, false)
@@ -3312,8 +3296,6 @@ func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 	tokenBridgeAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16" //nolint:gosec
 	tokenBridgeAddr, err := vaa.StringToAddress(tokenBridgeAddrStr)
 	require.NoError(t, err)
-
-	gov.setDayLengthInMinutes(24 * 60)
 
 	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStr, 10000, 100000)
 	require.NoError(t, err)

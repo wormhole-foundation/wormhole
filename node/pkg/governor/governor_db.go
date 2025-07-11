@@ -21,8 +21,7 @@ func (gov *ChainGovernor) loadFromDB() error {
 
 // loadFromDBAlreadyLocked method loads transfers and pending data from the database and modifies the corresponding fields in the ChainGovernor.
 // These fields are slices of transfers or pendingTransfers and will be sorted by their Timestamp property.
-// Modifies the state of the database as a side-effect: 'transfers' that are older than 24 hours are deleted.
-// It assumes that the Governor's mutex is already locked.
+// Modifies the state of the database as a side-effect: 'transfers' that are older than the sliding window are deleted.
 func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
@@ -46,7 +45,7 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 			return xfers[i].Timestamp.Before(xfers[j].Timestamp)
 		})
 
-		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+		startTime := now.Add(-gov.slidingWindow())
 		for _, xfer := range xfers {
 			if startTime.Before(xfer.Timestamp) {
 				if err := gov.reloadTransfer(xfer); err != nil {

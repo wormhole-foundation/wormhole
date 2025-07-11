@@ -1,13 +1,13 @@
 package governor
 
-// The purpose of the Chain Governor is to limit the notional TVL that can leave a chain in a single day.
+// The purpose of the Chain Governor is to limit the notional TVL that can leave a chain within a given duration.
 // It works by tracking transfers (types one and three) for a configured set of tokens from a configured set of emitters (chains).
 //
 // To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
 // a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
 // its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
 //
-// The governor maintains a rolling 24 hour window of transfers that have been received from a configured chain (emitter)
+// The governor maintains a rolling window of transfers that have been emitted by a configured chain
 // and compares that value to the configured limit for that chain. If a new transfer would exceed the limit, it is enqueued
 // until it can be published without exceeding the limit. Even if the governor has an enqueued transfer, it will still allow
 // additional transfers that do not exceed the threshold.
@@ -15,15 +15,15 @@ package governor
 // The chain governor checks for pending transfers each minute to see if any can be published yet. It will publish any that can be published
 // without exceeding the daily limit, even if one in front of it in the queue is too big.
 //
-// All completed transfers from the last 24 hours and all pending transfers are stored in the Badger DB, and reloaded on start up.
+// All completed transfers within the sliding window and all pending transfers are stored in the Badger DB, and reloaded on start up.
 //
-// The chain governor supports admin client commands as documented in governor_cmd.go.
+// The chain governor supports admin client commands.
 //
 // The set of tokens to be monitored is specified in tokens.go, which can be auto generated using the tool in node/hack/governor. See the README there.
 //
 // The set of chains to be monitored is specified in chains.go, which can be edited by hand.
 //
-// To enable the chain governor, you must specified the --chainGovernorEnabled guardiand command line argument.
+// To enable the chain governor, you must specify the --chainGovernorEnabled guardiand command line argument.
 
 import (
 	"context"
@@ -114,8 +114,10 @@ type (
 	// `transfers` with positive Value represent outgoing transfers from the emitterChainId. Transfers with negative
 	// Value represent incoming transfers of Assets that can Flow Cancel.
 	chainEntry struct {
-		emitterChainId          vaa.ChainID
-		emitterAddr             vaa.Address
+		emitterChainId vaa.ChainID
+		emitterAddr    vaa.Address
+		// The amount of notional value that can leave the chain during the period
+		// defined by the sliding window.
 		dailyLimit              uint64
 		bigTransactionSize      uint64
 		checkForBigTransactions bool
@@ -234,12 +236,12 @@ type ChainGovernor struct {
 	chains              map[vaa.ChainID]*chainEntry // protected by `mutex`
 	// We maintain a sorted slice of governed chainIds so we can iterate over maps in a deterministic way
 	// This slice should be sorted in ascending order by (Wormhole) Chain ID.
-	chainIds              []vaa.ChainID
-	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
-	msgsToPublish         []*common.MessagePublication // protected by `mutex`
-	dayLengthInMinutes    int
-	coinGeckoQueries      []string
-	env                   common.Environment
+	chainIds         []vaa.ChainID
+	msgsSeen         map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
+	msgsToPublish    []*common.MessagePublication // protected by `mutex`
+	coinGeckoQueries []string
+	env              common.Environment
+
 	nextStatusPublishTime time.Time
 	nextConfigPublishTime time.Time
 	statusPublishCounter  int64
@@ -295,11 +297,18 @@ func (gov *ChainGovernor) IsFlowCancelEnabled() bool {
 	return gov.flowCancelEnabled
 }
 
+func (gov *ChainGovernor) slidingWindow() time.Duration {
+	const MinutesInOneDay = 24 * 60 * time.Minute
+	if gov.env == common.UnsafeDevNet {
+		return 5 * time.Minute
+	}
+	return MinutesInOneDay
+}
+
 func (gov *ChainGovernor) initConfig() error {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	gov.dayLengthInMinutes = 24 * 60
 	configChains := ChainList()
 	configTokens := TokenList()
 	flowCancelTokens := []TokenConfigEntry{}
@@ -553,8 +562,8 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 		return true, nil
 	}
 
-	// Get all outgoing transfers for `emitterChainEntry` that happened within the last 24 hours
-	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	// Get all outgoing transfers for `emitterChainEntry` that happened within the sliding window.
+	startTime := now.Add(-gov.slidingWindow())
 	prevTotalValue, err := gov.trimAndSumValueForChain(emitterChainEntry, startTime)
 	if err != nil {
 		gov.logger.Error("Error when attempting to trim and sum transfers",
@@ -795,10 +804,10 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 // checkPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
 // moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
 // A transfer is ready to be released when one of the following conditions holds:
-//   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
+//   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for longer than the sliding window length, regardless of
 //     the Governor's current capacity)
 //   - Within the release time duration, other transfers have been processed and have freed up outbound Governor capacity.
-//     This happens either because other transfers get released after 24 hours or because incoming transfers of
+//     This happens either because other transfers get released after the sliding window or because incoming transfers of
 //     flow-cancelling assets have freed up outbound capacity.
 //
 // WARNING: When this function returns an error, it propagates to the `processor` which in turn interprets this as a
@@ -808,7 +817,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 	defer gov.mutex.Unlock()
 
 	// Note: Using Add() with a negative value because Sub() takes a time and returns a duration, which is not what we want.
-	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	startTime := now.Add(-gov.slidingWindow())
 
 	var msgsToPublish []*common.MessagePublication
 	if len(gov.msgsToPublish) != 0 {
@@ -1069,7 +1078,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 }
 
 // trimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
-// chain's "Governor Usage" for a given 24 hour period.
+// chain's "Governor Usage" for a given period defined by the sliding window duration.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
 // The resulting `sum` return value therefore represents the net flow across a chain when taking flow-cancelling transfers
@@ -1128,7 +1137,7 @@ func (gov *ChainGovernor) trimAndSumValue(transfers []transfer, startTime time.T
 				// transfers are not sorted by value so we can't make any guarantee on the final value
 				// if we hit the upper or lower bound. We don't expect this to happen in any case
 				// because we don't expect this number to ever overflow, as it would represent
-				// $184467440737095516.15 USD moving between two chains in a 24h period.
+				// $184467440737095516.15 USD moving between two chains in the sliding window.
 				return 0, transfers, err
 			}
 			sum = checkedSum
