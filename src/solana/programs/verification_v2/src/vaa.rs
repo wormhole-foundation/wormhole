@@ -118,7 +118,7 @@ impl VAA {
   }
 
   #[inline(always)]
-  pub fn message_hash(&self) -> Result<Hash> {
+  pub fn digest(&self) -> Result<Hash> {
     Ok(hash(&hash(&self.body).to_bytes()))
   }
 }

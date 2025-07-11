@@ -178,7 +178,7 @@ pub mod verification_v2 {
   pub fn verify_vaa_header_with_digest(
     ctx: Context<VerifyVaa>,
     raw_vaa_header: [u8; VAAHeader::SIZE],
-    digest: [u8; SchnorrKey::HASH_SIZE]
+    digest: [u8; SchnorrKey::DIGEST_SIZE]
   ) -> Result<()> {
     let vaa_header = VAAHeader::deserialize(&mut raw_vaa_header.as_slice())?;
 
@@ -205,9 +205,9 @@ fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>>
     return Err(VAAError::InvalidIndex.into());
   }
 
-  let msg_hash = vaa.message_hash()?;
+  let digest = vaa.digest()?;
 
-  schnorr_key_account.schnorr_key.check_signature(&msg_hash.to_bytes(), &vaa.header.signature)?;
+  schnorr_key_account.schnorr_key.check_signature(&digest.to_bytes(), &vaa.header.signature)?;
 
   Ok(vaa.body)
 }

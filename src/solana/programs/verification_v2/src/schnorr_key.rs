@@ -99,7 +99,7 @@ impl SchnorrKey {
     0x8000000000000000
   ];
 
-  pub const HASH_SIZE: usize = 32;
+  pub const DIGEST_SIZE: usize = 32;
 
   pub fn q() -> U256 {
     U256(Self::Q_U256)
@@ -127,7 +127,7 @@ impl SchnorrKey {
   }
 
   #[inline(always)]
-  pub fn check_signature(&self, message_hash: &[u8; Self::HASH_SIZE], signature: &VAASchnorrSignature) -> Result<()> {
+  pub fn check_signature(&self, digest: &[u8; Self::DIGEST_SIZE], signature: &VAASchnorrSignature) -> Result<()> {
     let px = self.px();
     let parity = self.parity();
     let q = Self::q();
@@ -137,7 +137,7 @@ impl SchnorrKey {
     let mut message_challenge = [0u8; 85];
     message_challenge[0..32].copy_from_slice(&px.to_big_endian());
     message_challenge[32] = parity as u8;
-    message_challenge[33..65].copy_from_slice(message_hash);
+    message_challenge[33..65].copy_from_slice(digest);
     message_challenge[65..85].copy_from_slice(&r);
 
     let e = U256::from_big_endian(&hash(&message_challenge).to_bytes());
