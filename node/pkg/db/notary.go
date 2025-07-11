@@ -81,7 +81,7 @@ func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
 	b, marshalErr := p.MarshalBinary()
 
 	if marshalErr != nil {
-		return ErrMarshal
+		return errors.Join(ErrMarshal, marshalErr)
 	}
 
 	key := delayKey(p)
@@ -96,7 +96,7 @@ func (d *NotaryDB) StoreBlackhole(m *common.MessagePublication) error {
 	b, marshalErr := m.MarshalBinary()
 
 	if marshalErr != nil {
-		return ErrMarshal
+		return errors.Join(ErrMarshal, marshalErr)
 	}
 
 	key := blackholeKey(m)

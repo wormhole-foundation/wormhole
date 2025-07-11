@@ -72,6 +72,7 @@ func TestRoundTripMarshal(t *testing.T) {
 
 	bytes, writeErr := orig.MarshalBinary()
 	require.NoError(t, writeErr)
+	t.Logf("marshaled bytes: %x", bytes)
 
 	readErr := loaded.UnmarshalBinary(bytes)
 	require.NoError(t, readErr)

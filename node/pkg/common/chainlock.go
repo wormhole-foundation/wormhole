@@ -19,14 +19,9 @@ const (
 	HashLength    = 32
 	AddressLength = 32
 
-	// TODO: is this big enough?
-	MaxPayloadSize = math.MaxUint16
-	MinTxIdSize    = 1
-	MaxTxIdSize    = math.MaxUint8
-
 	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
-	minMarshaledMsgSize = 1 + // TxID length (uint8)
+	marshaledMsgSizeMin = 1 + // TxID length (uint8)
 		8 + // Timestamp (int64)
 		4 + // Nonce (uint32)
 		8 + // Sequence (uint64)
@@ -45,24 +40,28 @@ const (
 )
 
 var (
-	ErrBinaryWrite         = errors.New("failed to write binary data")
-	ErrTxIDTooLong         = errors.New("field TxID too long")
-	ErrTxIDTooShort        = errors.New("field TxID too short")
-	ErrInvalidPayload      = errors.New("field payload too long")
-	ErrDataTooShort        = errors.New("data too short")
-	ErrTimestampTooShort   = errors.New("data too short for timestamp")
-	ErrNonceTooShort       = errors.New("data too short for nonce")
-	ErrSequenceTooShort    = errors.New("data too short for sequence")
-	ErrConsistencyTooShort = errors.New("data too short for consistency level")
-	ErrChainTooShort       = errors.New("data too short for emitter chain")
-	ErrAddressTooShort     = errors.New("data too short for emitter address")
-	ErrReobsTooShort       = errors.New("data too short for IsReobservation")
-	ErrUnreliableTooShort  = errors.New("data too short for Unreliable")
-	ErrVerStateTooShort    = errors.New("data too short for verification state")
-	ErrPayloadLenTooShort  = errors.New("data too short for payload length")
-	ErrPayloadTooShort     = errors.New("data too short for payload")
-	ErrUnexpectedEndOfRead = errors.New("data position after unmarshal does not match data length")
+	ErrBinaryWrite              = errors.New("failed to write binary data")
+	ErrInvalidBinaryBool        = errors.New("invalid binary bool (neither 0x00 nor 0x01)")
+	ErrInvalidVerificationState = errors.New("invalid verification state")
 )
+
+type ErrUnexpectedEndOfRead struct {
+	expected int
+	got      int
+}
+
+func (e ErrUnexpectedEndOfRead) Error() string {
+	return fmt.Sprintf("data position after unmarshal does not match data length. expected: %d got: %d", e.expected, e.got)
+}
+
+// ErrInputSize is returned when the input size is not the expected size during marshaling.
+type ErrInputSize struct {
+	Msg string
+}
+
+func (i ErrInputSize) Error() string {
+	return fmt.Sprintf("wrong size: %s", i.Msg)
+}
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
@@ -83,6 +82,10 @@ const (
 	// The message could not complete the verification process.
 	CouldNotVerify
 )
+
+// NumVariantsVerificationState is the number of variants in the VerificationState enum.
+// Used to validate deserialization.
+const NumVariantsVerificationState = 6
 
 func (v VerificationState) String() string {
 	switch v {
@@ -252,29 +255,52 @@ func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication,
 	return msg, nil
 }
 
-// Implements the BinaryMarshaler interface for MessagePublication.
+// MarshalBinary implements the BinaryMarshaler interface for MessagePublication.
 func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
+	// Marshalled Message Publication layout:
+	//
+	// - TxID length
+	// - TxID
+	// - Timestamp
+	// - Nonce
+	// - Sequence
+	// - ConsistencyLevel
+	// - EmitterChain
+	// - EmitterAddress
+	// - IsReobservation
+	// - Unreliable
+	// - verificationState
+	// - Payload length
+	// - Payload
+
+	const (
+		// TODO: is this big enough?
+		PayloadSizeMax = math.MaxUint16
+
+		// TxID is an alias for []byte.
+		TxIDSizeMin = 20 // 20 bytes is the minimum size of a txID as determined by the EVM address length.
+		TxIDSizeMax = math.MaxUint8
+	)
 
 	// Check preconditions
 	txIDLen := len(msg.TxID)
-	if txIDLen > MaxTxIdSize {
-		return nil, ErrTxIDTooLong
+	if txIDLen > TxIDSizeMax {
+		return nil, ErrInputSize{Msg: "TxID too long"}
 	}
 
-	// TODO: What is the minimum value here 32 bytes?
-	if txIDLen < MinTxIdSize {
-		return nil, ErrTxIDTooShort
+	if txIDLen < TxIDSizeMin {
+		return nil, ErrInputSize{Msg: "TxID too short"}
 	}
 
 	payloadLen := len(msg.Payload)
-	if payloadLen > MaxPayloadSize {
-		return nil, ErrInvalidPayload
+	if payloadLen > PayloadSizeMax {
+		return nil, ErrInputSize{Msg: "payload too long"}
 	}
 
 	// Set up for serialization
 	var (
 		be      = binary.BigEndian
-		bufSize = minMarshaledMsgSize + txIDLen + payloadLen
+		bufSize = marshaledMsgSizeMin + txIDLen + payloadLen
 		buf     = make([]byte, 0, bufSize)
 	)
 
@@ -402,14 +428,14 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	return msg, nil
 }
 
-// Implements the BinaryUnmarshaler interface for MessagePublication.
+// UnmarshalBinary implements the BinaryUnmarshaler interface for MessagePublication.
 func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
 
 	// Initial check for minimum data length
-	if len(data) < minMarshaledMsgSize {
-		return ErrDataTooShort
+	if len(data) < marshaledMsgSizeMin {
+		return ErrInputSize{Msg: "data too short"}
 	}
 
 	// Set up deserialization
@@ -421,8 +447,8 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	pos++
 
 	// Check if we have enough data for TxID and the rest
-	if len(data) < minMarshaledMsgSize+int(txIDLen) {
-		return ErrTxIDTooShort
+	if len(data) < marshaledMsgSizeMin+int(txIDLen) {
+		return ErrInputSize{Msg: "data too short"}
 	}
 
 	// Read TxID
@@ -446,6 +472,7 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	pos += 8
 
 	// ConsistencyLevel
+	// TODO: This could be validated against the valid range of values for ConsistencyLevel.
 	msg.ConsistencyLevel = data[pos]
 	pos++
 
@@ -458,33 +485,43 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	pos += 32
 
 	// IsReobservation
+	if !validBinaryBool(data[pos]) {
+		return ErrInvalidBinaryBool
+	}
 	msg.IsReobservation = data[pos] != 0
 	pos++
 
 	// Unreliable
+	if !validBinaryBool(data[pos]) {
+		return ErrInvalidBinaryBool
+	}
 	msg.Unreliable = data[pos] != 0
 	pos++
 
 	// verificationState
+	if data[pos] > NumVariantsVerificationState {
+		return ErrInvalidVerificationState
+	}
 	msg.verificationState = VerificationState(data[pos])
 	pos++
 
 	// Payload length
-	payloadLen := uint16(be.Uint16(data[pos : pos+2]))
+	payloadLen := be.Uint16(data[pos : pos+2])
 	pos += 2
 
 	// Check if we have enough data for the payload
 	if len(data) < pos+int(payloadLen) {
-		return ErrPayloadTooShort
+		return ErrInputSize{Msg: "payload too short"}
 	}
 
 	// Read payload
 	msg.Payload = make([]byte, payloadLen)
 	copy(msg.Payload, data[pos:pos+int(payloadLen)])
+	pos += int(payloadLen)
 
 	// Check that exactly the correct number of bytes was read.
-	if pos+int(payloadLen) != len(data) {
-		return ErrUnexpectedEndOfRead
+	if pos != len(data) {
+		return ErrUnexpectedEndOfRead{expected: len(data), got: pos}
 	}
 
 	return nil
@@ -561,4 +598,12 @@ func (msg *MessagePublication) VAAHash() string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
 	digest := v.SigningDigest()
 	return hex.EncodeToString(digest.Bytes())
+}
+
+// validBinaryBool returns true if the byte is either 0x00 or 0x01.
+// Go marshals booleans as strictly 0x00 or 0x01, so this function is used to validate
+// that a given byte is a valid boolean. When reading, any non-zero value is considered true,
+// but here we want to validate that the value is strictly either 0x00 or 0x01.
+func validBinaryBool(b byte) bool {
+	return b == 0x00 || b == 0x01
 }
