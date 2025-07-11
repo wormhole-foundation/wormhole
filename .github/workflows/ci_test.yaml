@@ -1,4 +1,4 @@
-name: Run tests
+name: Tests
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   solana-tests:
-    name: Run Solana tests
+    name: Solana
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
