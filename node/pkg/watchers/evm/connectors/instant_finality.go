@@ -54,9 +54,9 @@ func (c *InstantFinalityConnector) SubscribeForBlocks(ctx context.Context, errC 
 					Hash:     ev.Hash(),
 					Finality: Finalized,
 				}
-				sink <- block
-				sink <- block.Copy(Safe)
-				sink <- block.Copy(Latest)
+				sink <- block              //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
+				sink <- block.Copy(Safe)   //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
+				sink <- block.Copy(Latest) //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 			}
 		}
 	})

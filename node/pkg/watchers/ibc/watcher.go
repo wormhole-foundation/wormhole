@@ -670,7 +670,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	ce.msgC <- evt.Msg
+	ce.msgC <- evt.Msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 	if evt.Msg.IsReobservation {
 		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()

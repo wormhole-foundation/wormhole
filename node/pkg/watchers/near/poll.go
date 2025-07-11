@@ -50,7 +50,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
 	// If we go back too far, we just report the error and terminate early.
 	if recursionDepth > maxFallBehindBlocks {
-		e.eventChan <- EVENT_NEAR_WATCHER_TOO_FAR_BEHIND
+		e.eventChan <- EVENT_NEAR_WATCHER_TOO_FAR_BEHIND //nolint:channelcheck // Only pauses this watcher
 		return errors.New("recursivelyReadFinalizedBlocks: maxFallBehindBlocks")
 	}
 
@@ -71,7 +71,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	chunks := startBlock.ChunkHashes()
 	// process chunks after recursion such that youngest chunks get processed first
 	for i := 0; i < len(chunks); i++ {
-		chunkSink <- chunks[i]
+		chunkSink <- chunks[i] //nolint:channelcheck // Only pauses this watcher
 	}
 	return nil
 }
