@@ -292,6 +292,15 @@ func (p *Processor) Run(ctx context.Context) error {
 			)
 			p.gst.Set(p.gs)
 		case k := <-p.msgC:
+			// This is the main message processing loop. It is responsible for handling messages that are
+			// received on the message channel. Depending on the configuration, a message may be processed
+			// by the Notary, the Governor, and/or the Accountant.
+			// This loop effectively causes each of these components to be process messages in a modular
+			// manner. The Notary, Governor, and Accountant can be enabled or disabled independently.
+			// As a consequence of this loop, each of these components updates its internal state, tracking
+			// whether a message is ready to be processed from its perspective. This state is used by the
+			// processor to determine whether a message should be processed or not. This occurs elsewhere
+			// in the processor code.
 
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 
@@ -314,6 +323,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					)
 				}
 
+				// Based on the verdict, we can decide what to do with the message.
 				switch verdict {
 				case guardianNotary.Blackhole, guardianNotary.Delay:
 					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
@@ -321,7 +331,7 @@ func (p *Processor) Run(ctx context.Context) error {
 						// Black-holed messages should not be processed.
 						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 					} else {
-						// Delayed messages are adding to a separate queue and processed elsewhere.
+						// Delayed messages are added to a separate queue and processed elsewhere.
 						p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 					}
 					// We're done processing the message.
@@ -376,10 +386,9 @@ func (p *Processor) Run(ctx context.Context) error {
 			// As each of the Notary, Governor, and Accountant can be enabled separately, each must
 			// be processed in a modular way.
 			// When more than one of these features are enabled, messages should be processed
-			// in serial in the order Notary -> Governor -> Accountant.
+			// serially in the order: Notary -> Governor -> Accountant.
 			// NOTE: The Accountant can signal to a channel that it is ready to publish a message via
-			// writing to acctReadC so it is not handled separately here.
-
+			// writing to acctReadC so it is not handled here.
 			if p.notary != nil {
 				readyMsgs := p.notary.ReleaseReadyMessages()
 
