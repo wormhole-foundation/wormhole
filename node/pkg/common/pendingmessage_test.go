@@ -3,6 +3,7 @@ package common_test
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -37,26 +38,33 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 		input common.MessagePublication
 		err   error
 	}
-	longPayload := bytes.NewBuffer(make([]byte, math.MaxUint16+1))
-	longTxID := bytes.NewBuffer(make([]byte, math.MaxUint8+1))
+
+	// Set up.
+	var (
+		longPayload = bytes.NewBuffer(make([]byte, math.MaxUint16+1))
+		longTxID    = bytes.NewBuffer(make([]byte, math.MaxUint8+1))
+	)
 	emitter, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	validTxID, err := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
 	require.NoError(t, err)
 
 	tests := []test{
 		{
 			label: "payload too long",
 			input: common.MessagePublication{
-				TxID:    []byte{0x01},
+				TxID:    validTxID,
 				Payload: longPayload.Bytes(),
 			},
-			err: common.ErrInvalidPayload,
+			err: common.ErrInputSize{Msg: "payload too long"},
 		},
 		{
 			label: "txID too long",
 			input: common.MessagePublication{
 				TxID: longTxID.Bytes(),
 			},
-			err: common.ErrTxIDTooLong,
+			err: common.ErrInputSize{Msg: "TxID too long"},
 		},
 		{
 			label: "txID too short",
@@ -72,7 +80,7 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 				Unreliable:       true,
 				IsReobservation:  true,
 			},
-			err: common.ErrTxIDTooShort,
+			err: common.ErrInputSize{Msg: "TxID too short"},
 		},
 	}
 

@@ -1,6 +1,8 @@
 package db
 
 import (
+	"encoding/hex"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -26,9 +28,9 @@ func TestStoreAndReloadData(t *testing.T) {
 
 	// Store messages.
 	delayErr := nDB.StoreDelayed(pendingMsg)
-	require.NoError(t, delayErr)
+	require.NoError(t, delayErr, fmt.Sprintf("failed to store delayed message: %v", delayErr))
 	blackholeErr := nDB.StoreBlackhole(&msg2)
-	require.NoError(t, blackholeErr)
+	require.NoError(t, blackholeErr, fmt.Sprintf("failed to store blackholed message: %v", blackholeErr))
 
 	// Retrieve both messages and ensure they're equal to what was stored.
 	res, loadErr := nDB.LoadAll(zap.NewNop())
@@ -69,8 +71,12 @@ func makeNewMsgPub(t *testing.T) *common.MessagePublication {
 
 	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
+
+	validTxID, err := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
+	require.NoError(t, err)
+
 	msg := &common.MessagePublication{
-		TxID:            []byte{0x01},
+		TxID:            validTxID,
 		Timestamp:       nowSeconds(),
 		Nonce:           1,
 		Sequence:        789101112131415,
