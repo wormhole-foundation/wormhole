@@ -10,6 +10,7 @@ linters:
     - depguard
     # Duplicate word usage, such as 'and and' in a comment.
     - dupword
+    - durationcheck
     - errcheck
     # Type assertion and comparison validation on errors. https://github.com/polyfloyd/go-errorlint
     - errorlint
