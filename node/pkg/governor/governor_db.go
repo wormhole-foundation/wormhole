@@ -126,7 +126,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 		return
 	}
 
-	hash := gov.HashFromMsg(msg)
+	hash := gov.hashFromMsg(msg)
 
 	if _, alreadyExists := gov.msgsSeen[hash]; alreadyExists {
 		gov.logger.Error("not reloading pending transfer because it is a duplicate",
