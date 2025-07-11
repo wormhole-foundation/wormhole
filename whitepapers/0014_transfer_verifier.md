@@ -114,8 +114,6 @@ This prevents a scenario where a `Rejected` message might still consume outgoing
 
 ## Implementations
 
-The initial implementations were tested for Ethereum and Sui.
-
 ### Ethereum
 
 The EVM provides a Receipt containing detailed logs for all of the contracts that were interacted with during the transactions.
@@ -125,15 +123,6 @@ publish Message Publications in violation of the invariants checked by the Trans
 
 For EVM implementations, the contents of the [LogMessagePublished event](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/ethereum/contracts/Implementation.sol#L12-L26)
 can be observed and parsed.
-
-### Sui
-
-For Sui, [events emitting the WormholeMessage struct](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/sui/wormhole/sources/publish_message.move#L138-L148) are analyzed.
-
-There are a number of complications that arise when querying historical account data on Sui.
-
-TODO: add details from Sui
-
 
 # Deployment Considerations
 
@@ -171,4 +160,3 @@ Cancel is enabled, the suspicious transfers may become released early.
 
 It should be noted that this only affects small transfers, as Flow Cancel does not affect transfers over the big
 transfer limit.
-
