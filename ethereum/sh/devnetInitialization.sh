@@ -82,3 +82,9 @@ echo "Registering chains on nft bridge"
 echo "NFT_BRIDGE_REGISTRATION_VAAS: $NFT_BRIDGE_REGISTRATION_VAAS"
 source "./sh/registerChainsNFTBridge.sh"
 echo "Done registering chains on nft bridge"
+
+echo "Deploying Custom Consistency Level"
+source ./sh/deployCustomConsistencyLevel.sh
+returnInfo=$(cat ./broadcast/DeployCustomConsistencyLevel.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
+CUSTOM_CONSISTENCY_LEVEL=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
+echo "CUSTOM_CONSISTENCY_LEVEL: $CUSTOM_CONSISTENCY_LEVEL"
