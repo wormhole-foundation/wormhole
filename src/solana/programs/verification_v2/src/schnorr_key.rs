@@ -36,7 +36,7 @@ use std::ops::{Shr, Sub};
 
 use crate::hex_literal::hex;
 use crate::vaa::VAASchnorrSignature;
-use crate::utils::{init_account, SeedPrefix};
+use crate::utils::init_account;
 use crate::ID;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -252,6 +252,8 @@ pub struct SchnorrKeyAccount {
 }
 
 impl SchnorrKeyAccount {
+  const SEED_PREFIX: &'static [u8] = b"schnorrkey";
+
   pub fn is_unexpired(&self) -> bool {
     self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
   }
@@ -260,10 +262,6 @@ impl SchnorrKeyAccount {
     let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
     self.expiration_timestamp = current_timestamp + time_lapse;
   }
-}
-
-impl SeedPrefix for SchnorrKeyAccount {
-  const SEED_PREFIX: &'static [u8] = b"schnorrkey";
 }
 
 pub fn init_schnorr_key_account<'info>(

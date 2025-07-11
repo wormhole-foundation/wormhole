@@ -20,7 +20,6 @@ use schnorr_key::{
   SchnorrKeyAccount,
   init_schnorr_key_account
 };
-use utils::{SeedPrefix};
 use hex_literal::hex;
 
 const GOVERNANCE_ADDRESS: [u8; 32] =
@@ -42,7 +41,7 @@ pub struct LatestKeyAccount {
   pub account: Pubkey,
 }
 
-impl SeedPrefix for LatestKeyAccount {
+impl LatestKeyAccount {
   const SEED_PREFIX: &'static [u8] = b"latestkey";
 }
 

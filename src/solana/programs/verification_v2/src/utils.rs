@@ -8,11 +8,6 @@ use anchor_lang::{
 use std::ops::DerefMut;
 use crate::ID;
 
-
-pub trait SeedPrefix {
-  const SEED_PREFIX: &'static [u8];
-}
-
 pub fn init_account<'info, T: Space + AccountSerialize>(
   account: AccountInfo<'info>,
   seeds: &[&[u8]],
