@@ -177,18 +177,18 @@ pub mod verification_v2 {
 }
 
 fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
-  let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
+  let vaa = VAA::deserialize_reader(&mut raw_vaa.as_slice())?;
 
   vaa.check_valid()?;
 
-  let schnorr_key = &ctx.accounts.schnorr_key;
-  if schnorr_key.index != vaa.header.schnorr_key_index {
+  let schnorr_key_account = &ctx.accounts.schnorr_key;
+  if schnorr_key_account.index != vaa.header.schnorr_key_index {
     return Err(VAAError::InvalidIndex.into());
   }
 
   let msg_hash = vaa.message_hash()?;
 
-  schnorr_key.schnorr_key.check_signature(&msg_hash, &vaa.header.signature)?;
+  schnorr_key_account.schnorr_key.check_signature(&msg_hash, &vaa.header.signature)?;
 
   Ok(vaa.body)
 }

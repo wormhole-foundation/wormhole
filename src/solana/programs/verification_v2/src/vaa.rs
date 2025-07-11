@@ -95,7 +95,6 @@ impl BorshDeserialize for VAA {
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
     let header = VAAHeader::deserialize_reader(reader)?;
 
-    // Read the remaining bytes into `payload`
     let mut body = Vec::new();
     reader.read_to_end(&mut body)?;
 
@@ -109,6 +108,7 @@ impl BorshDeserialize for VAA {
 impl VAA {
   pub fn check_valid(&self) -> Result<()> {
     self.header.check_valid()?;
+    // See VAABody for necessary fields.
     if self.body.len() < 51 {
       return Err(VAAError::BodyTooSmall.into());
     }
@@ -117,9 +117,6 @@ impl VAA {
 
   #[inline(always)]
   pub fn message_hash(&self) -> Result<Hash> {
-    // Single hash
-    // Ok(hash(&self.body))
-    // Double hash
     Ok(hash(&hash(&self.body).to_bytes()))
   }
 }

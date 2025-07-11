@@ -100,15 +100,15 @@ impl SchnorrKey {
   ];
 
   pub fn q() -> U256 {
-    U256(SchnorrKey::Q_U256)
+    U256(Self::Q_U256)
   }
 
   pub fn μq() -> U256 {
-    U256(SchnorrKey::ΜQ_U256)
+    U256(Self::ΜQ_U256)
   }
 
   pub fn half_q() -> U256 {
-    U256::from_big_endian(&SchnorrKey::HALF_Q)
+    U256::from_big_endian(&Self::HALF_Q)
   }
 
   pub fn px(&self) -> U256 {
@@ -132,14 +132,13 @@ impl SchnorrKey {
     let r = signature.r;
     let s = signature.s;
 
-    // Calculate the message challenge
-    let mut hash_bytes = [0u8; 85];
-    hash_bytes[0..32].copy_from_slice(&px.to_big_endian());
-    hash_bytes[32] = parity as u8;
-    hash_bytes[33..65].copy_from_slice(&message_hash.to_bytes());
-    hash_bytes[65..85].copy_from_slice(&r);
+    let mut message_challenge = [0u8; 85];
+    message_challenge[0..32].copy_from_slice(&px.to_big_endian());
+    message_challenge[32] = parity as u8;
+    message_challenge[33..65].copy_from_slice(&message_hash.to_bytes());
+    message_challenge[65..85].copy_from_slice(&r);
 
-    let e = U256::from_big_endian(&hash(&hash_bytes).to_bytes());
+    let e = U256::from_big_endian(&hash(&message_challenge).to_bytes());
 
     // Calculate the recovery inputs
     // Barrett reductions work as long as the product a*b doesn't exceed Q^2.
@@ -181,7 +180,7 @@ impl SchnorrKey {
   /// where q = Q, the secp256k1 curve order
   ///       ab = a*b, the product of the inputs to mulmod
   ///       μq = floor(2^511 / q), used to approximate division by q
-  ///       r, i.e. the result: representant of a*b mod q
+  ///       r, i.e. the result: representative of a*b mod q
   /// Note that the scaling factor was chosen so that μq fits into 256 bits.
   #[inline(always)]
   fn mulmod_barrett_q(a: U256, b: U256) -> U256 {
@@ -191,7 +190,7 @@ impl SchnorrKey {
     let ab_high: [u64; 4] = ab.0[4..8].try_into().unwrap();
 
     // t1 = ab_high * μQ
-    let t1 = U256(ab_high).full_mul(SchnorrKey::μq());
+    let t1 = U256(ab_high).full_mul(Self::μq());
 
     // t2 = floor(t1 / 2^255)        → top 257 bits
     // but (t1 >> 255) fits in 256 bits because:
@@ -199,7 +198,7 @@ impl SchnorrKey {
     // then ab_high fits in 255 bits => ab_high * μq, i.e. t1, fits in 511 bits
     let t2 = U256((t1 >> 255).0[0..4].try_into().unwrap());
 
-    let q = SchnorrKey::q();
+    let q = Self::q();
     let representative = ab - t2.full_mul(q);
 
     // representative should be in [0, 3Q), so we subtract Q if needed
@@ -235,7 +234,7 @@ impl AnchorDeserialize for SchnorrKey {
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::result::Result<Self, std::io::Error> {
     let mut key_buf = [0u8; 32];
     reader.read_exact(&mut key_buf)?;
-    let key = SchnorrKey { key: U256::from_big_endian(&key_buf) };
+    let key = Self { key: U256::from_big_endian(&key_buf) };
 
     Ok(key)
   }
