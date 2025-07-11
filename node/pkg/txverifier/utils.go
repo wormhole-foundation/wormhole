@@ -15,7 +15,15 @@ import (
 // Constants
 const (
 	MAX_DECIMALS = 8
-	KEY_FORMAT   = "%s-%d"
+	// A pair of origin address and origin chain to identify assets moving in and out of the bridge.
+	KEY_FORMAT = "%s-%d"
+
+	// CacheMaxSize is the maximum number of entries that should be in any of the caches.
+	CacheMaxSize = 100
+
+	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
+	// Must be less than CacheMaxSize.
+	CacheDeleteCount = 10
 )
 
 // Extracts the value at the given path from the JSON object, and casts it to
@@ -113,6 +121,10 @@ func SupportedChains() []vaa.ChainID {
 	}
 }
 
+func IsSupported(cid vaa.ChainID) bool {
+	return slices.Contains(SupportedChains(), cid)
+}
+
 // ValidateChains validates that a slice of uints correspond to chain IDs with a Transfer Verifier implementation.
 // Returns a slice of the input values converted into valid, known ChainIDs.
 // Returns nil when an error occurs.
@@ -148,4 +160,67 @@ func ValidateChains(
 	}
 
 	return enabled, nil
+}
+
+// deleteEntries deletes CacheDeleteCount entries at random from a pointer to a map.
+// Only trims if the length of the cache is greater than CacheMaxSize.
+// Returns the number of keys deleted.
+func deleteEntries[K comparable, V any](cachePointer *map[K]V) (int, error) {
+	if cachePointer == nil {
+		return 0, errors.New("nil pointer to map passed to deleteEntries()")
+	}
+
+	if *cachePointer == nil {
+		return 0, errors.New("nil map passed (pointer points to a nil map)")
+	}
+
+	cache := *cachePointer
+	currentLen := len(cache)
+	// Bounds check
+	// NOTE: cache length must be greater than or equal to CacheMaxSize.
+	if currentLen <= CacheMaxSize {
+		return 0, nil
+	}
+
+	// Delete either a fixed number of entries or else delete enough so that the cache
+	// will be at CacheMaxSize after the operation.
+	deleteCount := max(CacheDeleteCount, currentLen-CacheMaxSize)
+
+	// Allocate array that stores keys to delete.
+	keysToDelete := make([]K, deleteCount)
+
+	// Iterate over the map (non-deterministic) and pick some keys to delete.
+	var i int
+	for key := range cache {
+		keysToDelete[i] = key
+		i++
+		if i >= len(keysToDelete) {
+			break
+		}
+	}
+
+	// Delete the keys from the map.
+	for _, key := range keysToDelete {
+		delete(cache, key)
+	}
+
+	return i, nil
+}
+
+// upsert inserts a new key and value into a map or update the value if the key already exists.
+func upsert(
+	dict *map[string]*big.Int,
+	key string,
+	amount *big.Int,
+) error {
+	if dict == nil || *dict == nil || amount == nil {
+		return ErrInvalidUpsertArgument
+	}
+	d := *dict
+	if _, exists := d[key]; !exists {
+		d[key] = new(big.Int).Set(amount)
+	} else {
+		d[key] = new(big.Int).Add(d[key], amount)
+	}
+	return nil
 }

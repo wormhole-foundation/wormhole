@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/txverifier"
+	evm_verifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -19,7 +19,7 @@ func verify(
 	msg *common.MessagePublication,
 	txHash eth_common.Hash,
 	receipt *types.Receipt,
-	txVerifier txverifier.TransferVerifierInterface,
+	verifier evm_verifier.TransferVerifierInterface,
 ) (common.MessagePublication, error) {
 
 	if msg == nil {
@@ -30,38 +30,49 @@ func verify(
 		return common.MessagePublication{}, fmt.Errorf("MessagePublication already has a non-default verification state")
 	}
 
-	if txVerifier == nil {
+	if verifier == nil {
 		return common.MessagePublication{}, fmt.Errorf("transfer verifier is nil")
 	}
 
 	// Create a local copy of the MessagePublication.
 	localMsg := msg
 
-	var verificationState common.VerificationState
+	var newState common.VerificationState
 
 	// Only involve the transfer verifier for core messages sent
 	// from the token bridge. This check is also done in the
 	// transfer verifier package, but this helps us skip useless
 	// computation.
-	if txverifier.Cmp(localMsg.EmitterAddress, txVerifier.Addrs().TokenBridgeAddr) != 0 {
-		verificationState = common.NotApplicable
+	if evm_verifier.Cmp(localMsg.EmitterAddress, verifier.Addrs().TokenBridgeAddr) != 0 {
+		newState = common.NotApplicable
 	} else {
-		// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
-		// to protect against fraudulent message emissions.
-		valid := txVerifier.ProcessEvent(ctx, txHash, receipt)
-		if valid {
-			verificationState = common.Valid
-		} else {
-			verificationState = common.Rejected
-		}
+		newState = state(ctx, txHash, receipt, verifier)
 	}
 
 	// Update the state of the message.
-	updateErr := localMsg.SetVerificationState(verificationState)
+	updateErr := localMsg.SetVerificationState(newState)
 	if updateErr != nil {
 		errMsg := fmt.Sprintf("could not set verification state for message with txID %s", localMsg.TxIDString())
 		return common.MessagePublication{}, fmt.Errorf("%s %w", errMsg, updateErr)
 	}
 
 	return *localMsg, nil
+}
+
+// state returns a verification state based on the results of querying the Transfer Verifier.
+func state(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt, tv evm_verifier.TransferVerifierInterface) common.VerificationState {
+	// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
+	// to protect against fraudulent message emissions.
+	valid, err := tv.TransferIsValid(ctx, txHash, receipt)
+
+	// The receipt couldn't be processed properly for some reason.
+	if err != nil {
+		return common.CouldNotVerify
+	}
+
+	if !valid {
+		return common.Rejected
+	}
+
+	return common.Valid
 }
