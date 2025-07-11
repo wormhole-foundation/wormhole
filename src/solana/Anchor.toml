@@ -34,3 +34,8 @@ deactivate_feature = ["1ncomp1ete111111111111111111111111111111111"]
 name = "wormhole-core-v1"
 address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 program = "imports/wormhole.so"
+
+[[test.genesis]]
+name = "fake-wormhole-core-v1"
+address = "fakjdvbwK6LYU8jwoixSA6Sw4EVmZzDAFFqshHCoRJi"
+program = "imports/wormhole.so"

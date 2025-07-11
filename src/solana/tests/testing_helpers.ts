@@ -121,30 +121,26 @@ export async function sendAndConfirm(
 
 /** Helper allowing to abstract over the Wormhole configuration (network and addresses) */
 export class WormholeContracts {
-  static Network = 'Devnet' as const;
+  readonly network = "Devnet";
 
-  private static core: PublicKey = PublicKey.default;
+  private core: PublicKey;
 
-  static get coreBridge(): PublicKey {
-    WormholeContracts.init();
-    return WormholeContracts.core;
+  constructor(name = "wormhole-core-v1") {
+    const anchorCfg = toml.parse(fsSync.readFileSync("./Anchor.toml", "utf-8"));
+
+    this.core = new PublicKey(
+      anchorCfg.test.genesis.find((cfg: any) => cfg.name == name).address,
+    );
   }
 
-  static get addresses(): Contracts {
-    WormholeContracts.init();
+  get coreBridge(): PublicKey {
+    return this.core;
+  }
+
+  get addresses(): Contracts {
     return {
-      coreBridge: WormholeContracts.core.toString(),
+      coreBridge: this.core.toString(),
     };
-  }
-
-  private static init() {
-    if (WormholeContracts.core.equals(PublicKey.default)) {
-      const anchorCfg = toml.parse(fsSync.readFileSync('./Anchor.toml', 'utf-8'));
-
-      WormholeContracts.core = new PublicKey(
-        anchorCfg.test.genesis.find((cfg: any) => cfg.name == 'wormhole-core-v1').address,
-      );
-    }
   }
 }
 

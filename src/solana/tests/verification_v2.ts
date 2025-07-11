@@ -117,11 +117,13 @@ describe("VerificationV2", function() {
   const guardianSetExpirationTime = 86400
   const fee = 100
   const txSigner = $.keypair.generate()
-  let coreV1: TestingWormholeCore<"Devnet">;
+  let coreV1: TestingWormholeCore<"Devnet">
   const connection = $.connection
   let payer: Keypair;
   const coreV2 = anchor.workspace.VerificationV2 as anchor.Program<VerificationV2>
   const testKeyIndex = 5
+
+  let fakeCoreV1: TestingWormholeCore<"Devnet">
 
 
   function deriveSchnorrKeyPda(schnorrKeyIndex: number) {
@@ -152,9 +154,9 @@ describe("VerificationV2", function() {
     )
   }
 
-  function postVaaV1(message: Uint8Array) {
+  function postVaaV1(message: Uint8Array, core = coreV1) {
     const governanceContract = new UniversalAddress("0000000000000000000000000000000000000000000000000000000000000004", "hex");
-    return coreV1.postVaa(
+    return core.postVaa(
       payer,
       {
         chain: "Solana",
@@ -213,16 +215,31 @@ describe("VerificationV2", function() {
       payer.publicKey,
     ]);
 
+    const wormholeContracts = new WormholeContracts();
+
     coreV1 = new TestingWormholeCore(
       txSigner,
       connection,
-      WormholeContracts.Network,
+      wormholeContracts.network,
       coreV1Address,
-      WormholeContracts.addresses,
+      wormholeContracts.addresses,
     );
 
-    const txid = await coreV1.initialize(undefined, guardianSetExpirationTime, fee)
-    const tx = await $.getTransaction(txid)
+    let txid = await coreV1.initialize(undefined, guardianSetExpirationTime, fee)
+    let tx = await $.getTransaction(txid)
+
+    const fakeWormholeContracts = new WormholeContracts("fake-wormhole-core-v1");
+
+    fakeCoreV1 = new TestingWormholeCore(
+      txSigner,
+      connection,
+      fakeWormholeContracts.network,
+      coreV1Address,
+      fakeWormholeContracts.addresses,
+    );
+
+    txid = await fakeCoreV1.initialize(undefined, guardianSetExpirationTime, fee)
+    tx = await $.getTransaction(txid)
   });
 
   it("Check correct core v1 setup", async function() {
@@ -298,6 +315,30 @@ describe("VerificationV2", function() {
       }
     },
   ] satisfies AddKeyTest[]).map((test) => addKeyTest(test))
+
+
+  it("Posting a VAA to a fake wormhole contract is not accepted by VerificationV2", async () => {
+    const newKeyIndex = 10
+    const message = createAppendSchnorrKeyMessage({
+      keyIndex: newKeyIndex,
+      publicKey: testSchnorrKey,
+      previousSetExpirationTime: guardianSetExpirationTime,
+    })
+
+    const postedVaaAddress = await postVaaV1(message, fakeCoreV1)
+
+    const ix = await coreV2.methods.appendSchnorrKey().accounts({
+      vaa: postedVaaAddress,
+      newSchnorrKey: deriveSchnorrKeyPda(newKeyIndex)[0],
+      oldSchnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+      latestKey: deriveLatestKeyPda()[0],
+    }).instruction()
+
+    return expectFailure(
+      () => $.sendAndConfirm(ix, payer),
+      (error) => expectAtLeastOneLog(error, "Error Code: AccountOwnedByWrongProgram."),
+    )
+  })
 
   it("Verifies a v2 VAA", async function() {
     const vaa = Buffer.from(getTestMessage100Zeroed(testKeyIndex));
