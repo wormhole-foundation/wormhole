@@ -52,9 +52,6 @@
 
 /node/cmd/ @panoel @evan-gray
 
-## Transfer Verifier standalone tool
-
-/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## DB
 
@@ -91,6 +88,7 @@
 ## Transfer Verifier
 
 /node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/cmd/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Watchers
 
@@ -102,7 +100,7 @@
 
 ## Notary
 
-/node/pkg/txverifier/ @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/notary/ @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Hacks / Tools
 
