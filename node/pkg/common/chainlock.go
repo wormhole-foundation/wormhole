@@ -10,12 +10,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
 
-<<<<<<< HEAD
 const (
 	// TxIDLenMin is the minimum length of a txID.
 	TxIDLenMin = 32
@@ -80,56 +78,6 @@ func (e ErrInputSize) Error() string {
 	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgLenMin, e.got)
 }
 
-// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
-// the fields plus length information for fields with variable lengths (TxID and Payload).
-const (
-	HashLength    = 32
-	AddressLength = 32
-
-	// TODO: is this big enough?
-	MaxPayloadSize = math.MaxUint16
-	MinTxIdSize    = 1
-	MaxTxIdSize    = math.MaxUint8
-
-	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
-	// the fields plus length information for fields with variable lengths (TxID and Payload).
-	minMarshaledMsgSize = 1 + // TxID length (uint8)
-		8 + // Timestamp (int64)
-		4 + // Nonce (uint32)
-		8 + // Sequence (uint64)
-		1 + // ConsistencyLevel (uint8)
-		2 + // EmitterChain (uint16)
-		32 + // EmitterAddress (32 bytes)
-		1 + // IsReobservation (bool)
-		1 + // Unreliable (bool)
-		1 + // verificationState (uint8)
-		2 // Payload length (uint16)
-
-	// Deprecated: represents the minimum message length for a marshaled message publication
-	// before the Unreliable and verificationState fields were added.
-	// Use [minMarshaledMsgSize] instead.
-	minMsgLength = 88
-)
-
-var (
-	ErrBinaryWrite         = errors.New("failed to write binary data")
-	ErrTxIDTooLong         = errors.New("field TxID too long")
-	ErrTxIDTooShort        = errors.New("field TxID too short")
-	ErrInvalidPayload      = errors.New("field payload too long")
-	ErrDataTooShort        = errors.New("data too short")
-	ErrTimestampTooShort   = errors.New("data too short for timestamp")
-	ErrNonceTooShort       = errors.New("data too short for nonce")
-	ErrSequenceTooShort    = errors.New("data too short for sequence")
-	ErrConsistencyTooShort = errors.New("data too short for consistency level")
-	ErrChainTooShort       = errors.New("data too short for emitter chain")
-	ErrAddressTooShort     = errors.New("data too short for emitter address")
-	ErrReobsTooShort       = errors.New("data too short for IsReobservation")
-	ErrUnreliableTooShort  = errors.New("data too short for Unreliable")
-	ErrVerStateTooShort    = errors.New("data too short for verification state")
-	ErrPayloadLenTooShort  = errors.New("data too short for payload length")
-	ErrPayloadTooShort     = errors.New("data too short for payload")
-	ErrUnexpectedEndOfRead = errors.New("data position after unmarshal does not match data length")
-)
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
@@ -485,15 +433,9 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 
 	// Timestamp
 	timestamp := be.Uint64(data[pos : pos+8])
-<<<<<<< HEAD
 	// Nanoseconds are not serialized as they are not used in Wormhole, so set them to zero.
 	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
 	mp.Timestamp = time.Unix(int64(timestamp), 0)
-=======
-	// Nanoseconds are not serialized
-	//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
-	msg.Timestamp = time.Unix(int64(timestamp), 0)
->>>>>>> b7b28d535 (fix lint errors)
 	pos += 8
 
 	// Nonce
