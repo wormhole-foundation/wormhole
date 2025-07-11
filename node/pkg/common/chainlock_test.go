@@ -29,7 +29,58 @@ func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	return bytes
 }
 
-func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
+// makeTestMsgPub is a helper function that generates a Message Publication.
+func makeTestMsgPub(t *testing.T) *MessagePublication {
+	t.Helper()
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
+
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	payload := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	payloadBytes := encodePayloadBytes(payload)
+
+	return &MessagePublication{
+		TxID:              eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
+		Timestamp:         time.Unix(int64(1654516425), 0),
+		Nonce:             123456,
+		Sequence:          789101112131415,
+		EmitterChain:      vaa.ChainIDEthereum,
+		EmitterAddress:    tokenBridgeAddress,
+		Payload:           payloadBytes,
+		ConsistencyLevel:  32,
+		Unreliable:        true,
+		verificationState: Anomalous,
+	}
+}
+
+func TestRoundTripMarshal(t *testing.T) {
+	orig := makeTestMsgPub(t)
+	var loaded MessagePublication
+
+	bytes, writeErr := orig.MarshalBinary()
+	require.NoError(t, writeErr)
+	t.Logf("marshaled bytes: %x", bytes)
+
+	readErr := loaded.UnmarshalBinary(bytes)
+	require.NoError(t, readErr)
+
+	require.Equal(t, *orig, loaded)
+}
+
+func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
