@@ -12,7 +12,7 @@ use anchor_lang::{prelude::*, Result};
 
 use wormhole_anchor_sdk::wormhole::{program::Wormhole, constants::CHAIN_ID_SOLANA, PostedVaaData};
 
-use vaa::{VAA, VAABody, VAAHeader};
+use vaa::{VAA, VAAHeader};
 use append_schnorr_key_message::AppendSchnorrKeyMessage;
 use schnorr_key::{
   AppendSchnorrKeyError,
@@ -170,9 +170,8 @@ pub mod verification_v2 {
     Ok(())
   }
 
-  pub fn verify_vaa_and_decode(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<VAABody> {
-    let body_buf = verify_vaa_impl(ctx, raw_vaa)?;
-    let body = VAABody::deserialize(&mut body_buf.as_slice())?;
+  pub fn verify_vaa_and_decode(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
+    let body = verify_vaa_impl(ctx, raw_vaa)?;
     Ok(body)
   }
 
@@ -197,7 +196,7 @@ pub mod verification_v2 {
 }
 
 fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
-  let vaa = VAA::deserialize_reader(&mut raw_vaa.as_slice())?;
+  let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
 
   vaa.check_valid()?;
 

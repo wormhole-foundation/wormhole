@@ -124,6 +124,8 @@ impl VAA {
 }
 
 
+// TODO: move the VAABody definition to a crate
+// that can be consumed by integrators.
 pub struct VAABody {
   pub timestamp: u32,
   pub nonce: u32,
