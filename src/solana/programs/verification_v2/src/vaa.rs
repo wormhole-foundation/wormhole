@@ -48,6 +48,8 @@ pub struct VAAHeader {
 }
 
 impl VAAHeader {
+  pub const SIZE: usize = 57;
+
   #[inline(always)]
   pub fn check_valid(&self) -> Result<()> {
     if self.version != 2 {
@@ -174,6 +176,20 @@ impl AnchorDeserialize for VAABody {
       payload
     })
   }
+}
+
+#[test]
+fn header_deserializes() {
+  let header_raw = [0u8; VAAHeader::SIZE];
+  let header = VAAHeader::deserialize(&mut header_raw.as_slice());
+  assert!(header.is_ok());
+}
+
+#[test]
+fn header_size_is_correct() {
+  let header_raw = [0u8; VAAHeader::SIZE - 1];
+  let header = VAAHeader::deserialize(&mut header_raw.as_slice());
+  assert!(header.is_err());
 }
 
 #[test]

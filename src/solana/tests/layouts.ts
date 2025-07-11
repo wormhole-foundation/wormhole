@@ -1,4 +1,4 @@
-import { chainToChainId, enumItem, Layout } from '@wormhole-foundation/sdk-base';
+import { chainToChainId, enumItem, Layout, LayoutToType } from '@wormhole-foundation/sdk-base';
 import { envelopeLayout, layoutItems } from '@wormhole-foundation/sdk-definitions';
 
 
@@ -14,6 +14,8 @@ export const headerV2Layout = [
   {name: "schnorrKeyIndex", binary: "uint",  size: 4                       },
   {name: "signature",       binary: "bytes", layout: schnorrSignatureLayout},
 ] as const satisfies Layout;
+
+export type HeaderV2 = LayoutToType<typeof headerV2Layout>;
 
 export const baseV2Layout = [
   ...headerV2Layout,

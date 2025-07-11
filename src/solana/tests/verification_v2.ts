@@ -2,7 +2,7 @@ import assert from "assert"
 
 import * as anchor from "@coral-xyz/anchor"
 import { ComputeBudgetProgram, Keypair, PublicKey } from "@solana/web3.js"
-import { toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
+import { keccak256, toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
 import { encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
 import { randomBytes } from "@noble/hashes/utils"
 
@@ -11,7 +11,7 @@ import { VerificationV2 } from "../target/types/verification_v2.js"
 import { guardianAddress, TestingWormholeCore } from "./testing-wormhole-core.js"
 import { WormholeContracts, TestsHelper, expectFailure } from "./testing_helpers.js"
 import { inspect } from "util"
-import { appendSchnorrKeyMessageLayout, headerV2Layout } from "./layouts.js"
+import { appendSchnorrKeyMessageLayout, HeaderV2, headerV2Layout } from "./layouts.js"
 
 
 interface SchnorrKeyMessage {
@@ -91,22 +91,33 @@ const invalidSignature = {
   s: encoding.hex.decode("0x1c2d1ca6fd3830e653d6abfc57956f3700059a661d8cabae684ea1bc62294e4c"),
 }
 
+const getDeserializedHeaderTestMessage100Zeroed = (schnorrKeyIndex: number): HeaderV2 => ({
+  schnorrKeyIndex: schnorrKeyIndex,
+  signature: signatureTestMessage100Zeroed,
+})
+
+const getDeserializedHeaderTestMessageInvalidSignature = (schnorrKeyIndex: number): HeaderV2 => ({
+  schnorrKeyIndex: schnorrKeyIndex,
+  signature: invalidSignature,
+})
+
+const getHeaderTestMessage100Zeroed = (schnorrKeyIndex: number): Uint8Array =>
+  serializeLayout(headerV2Layout, getDeserializedHeaderTestMessage100Zeroed(schnorrKeyIndex))
+
+const getHeaderTestMessageInvalidSignature = (schnorrKeyIndex: number): Uint8Array =>
+  serializeLayout(headerV2Layout, getDeserializedHeaderTestMessageInvalidSignature(schnorrKeyIndex))
 
 const getTestMessage100Zeroed = (schnorrKeyIndex: number) => Uint8Array.from([
-  ...serializeLayout(headerV2Layout, {
-    schnorrKeyIndex: schnorrKeyIndex,
-    signature: signatureTestMessage100Zeroed,
-  }),
+  ...getHeaderTestMessage100Zeroed(schnorrKeyIndex),
   ...new Uint8Array(100)
 ])
 
 const getTestMessageInvalidSignature = (schnorrKeyIndex: number) => Uint8Array.from([
-  ...serializeLayout(headerV2Layout, {
-    schnorrKeyIndex: schnorrKeyIndex,
-    signature: invalidSignature,
-  }),
+  ...getHeaderTestMessageInvalidSignature(schnorrKeyIndex),
   ...new Uint8Array(100)
 ])
+
+const vaaDigest = (vaaBody: Uint8Array) => keccak256(keccak256(vaaBody));
 
 
 // ------------------------------------------------------------------------------------------------
@@ -349,12 +360,62 @@ describe("VerificationV2", function() {
     const txid = await $.sendAndConfirm(verifyIx, payer)
     const tx = await $.getTransaction(txid);
     console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
-    console.log(`compute units consumed: ${tx?.meta?.computeUnitsConsumed}`)
+    console.log(`${this.test?.title}: CUs consumed: ${tx?.meta?.computeUnitsConsumed}`)
   })
 
   it("v2 VAA verification fails for an invalid signature", async function() {
     const vaa = Buffer.from(getTestMessageInvalidSignature(testKeyIndex));
     const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    expectFailure(
+      () => $.sendAndConfirm(verifyIx, payer),
+      expectFailedSignatureVerification
+    )
+  })
+
+  it("Verifies a v2 VAA and decodes", async function() {
+    const vaa = Buffer.from(getTestMessage100Zeroed(testKeyIndex));
+    const verifyIx = await coreV2.methods.verifyVaaAndDecode(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    const txid = await $.sendAndConfirm(verifyIx, payer)
+    const tx = await $.getTransaction(txid);
+    // console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
+    console.log(`${this.test?.title}: CUs consumed: ${tx?.meta?.computeUnitsConsumed}`)
+  })
+
+  it("v2 VAA verification and decoding fails for an invalid signature", async function() {
+    const vaa = Buffer.from(getTestMessageInvalidSignature(testKeyIndex));
+    const verifyIx = await coreV2.methods.verifyVaaAndDecode(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    expectFailure(
+      () => $.sendAndConfirm(verifyIx, payer),
+      expectFailedSignatureVerification
+    )
+  })
+
+  it("Verifies a v2 VAA header with digest", async function() {
+    const vaaHeader = [...getHeaderTestMessage100Zeroed(testKeyIndex)]
+    const digest = [...vaaDigest(new Uint8Array(100))]
+    const verifyIx = await coreV2.methods.verifyVaaHeaderWithDigest(vaaHeader, digest).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    const txid = await $.sendAndConfirm(verifyIx, payer)
+    const tx = await $.getTransaction(txid);
+    // console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
+    console.log(`${this.test?.title}: CUs consumed: ${tx?.meta?.computeUnitsConsumed}`)
+  })
+
+  it("v2 VAA header and digest verification fails for an invalid signature", async function() {
+    const vaaHeader = [...getHeaderTestMessageInvalidSignature(testKeyIndex)]
+    const digest = [...vaaDigest(new Uint8Array(100))]
+    const verifyIx = await coreV2.methods.verifyVaaHeaderWithDigest(vaaHeader, digest).accounts({
       schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
     }).instruction()
 

@@ -12,10 +12,11 @@ use anchor_lang::{prelude::*, Result};
 
 use wormhole_anchor_sdk::wormhole::{program::Wormhole, constants::CHAIN_ID_SOLANA, PostedVaaData};
 
-use vaa::{VAA, VAABody};
+use vaa::{VAA, VAABody, VAAHeader};
 use append_schnorr_key_message::AppendSchnorrKeyMessage;
 use schnorr_key::{
   AppendSchnorrKeyError,
+  SchnorrKey,
   SchnorrKeyAccount,
   init_schnorr_key_account
 };
@@ -174,6 +175,25 @@ pub mod verification_v2 {
     let body = VAABody::deserialize(&mut body_buf.as_slice())?;
     Ok(body)
   }
+
+  pub fn verify_vaa_header_with_digest(
+    ctx: Context<VerifyVaa>,
+    raw_vaa_header: [u8; VAAHeader::SIZE],
+    digest: [u8; SchnorrKey::HASH_SIZE]
+  ) -> Result<()> {
+    let vaa_header = VAAHeader::deserialize(&mut raw_vaa_header.as_slice())?;
+
+    vaa_header.check_valid()?;
+
+    let schnorr_key_account = &ctx.accounts.schnorr_key;
+    if schnorr_key_account.index != vaa_header.schnorr_key_index {
+      return Err(VAAError::InvalidIndex.into());
+    }
+
+    schnorr_key_account.schnorr_key.check_signature(&digest, &vaa_header.signature)?;
+
+    Ok(())
+  }
 }
 
 fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
@@ -188,7 +208,7 @@ fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>>
 
   let msg_hash = vaa.message_hash()?;
 
-  schnorr_key_account.schnorr_key.check_signature(&msg_hash, &vaa.header.signature)?;
+  schnorr_key_account.schnorr_key.check_signature(&msg_hash.to_bytes(), &vaa.header.signature)?;
 
   Ok(vaa.body)
 }
