@@ -171,9 +171,7 @@ func checkTargetOnReleasedIsSet(t *testing.T, toBePublished []*common.MessagePub
 
 func TestTrimEmptyTransfers(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
@@ -188,9 +186,7 @@ func TestTrimEmptyTransfers(t *testing.T) {
 // Make sure that the code doesn't panic if called with a nil chainEntry
 func TestTrimAndSumValueForChainReturnsErrorForNilChainEntry(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
@@ -202,9 +198,7 @@ func TestTrimAndSumValueForChainReturnsErrorForNilChainEntry(t *testing.T) {
 
 func TestSumAllFromToday(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
@@ -225,14 +219,13 @@ func TestSumAllFromToday(t *testing.T) {
 // Checks sum calculation for the flow cancel mechanism
 func TestSumWithFlowCancelling(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	// Choose a hard-coded value from the Flow Cancel Token List
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var originChain vaa.ChainID = 1
 	var originAddress vaa.Address
+	var err error
 	originAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
@@ -351,14 +344,13 @@ func TestFlowCancelFeatureFlag(t *testing.T) {
 // Also, the function should not return an error in this case.
 func TestFlowCancelCannotUnderflow(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up asset to be used in the test
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var originChain vaa.ChainID = 1
 	var originAddress vaa.Address
+	var err error
 	originAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
@@ -427,9 +419,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 // transfers have been emitted, causing the sum to exceed the daily limit.
 func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
@@ -475,9 +465,7 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 
 func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("2006-Jan-02", "2024-Feb-19")
 	require.NoError(t, err)
@@ -535,9 +523,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 
 func TestTrimOneOfTwoTransfers(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
@@ -569,9 +555,7 @@ func TestTrimOneOfTwoTransfers(t *testing.T) {
 
 func TestTrimSeveralTransfers(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
@@ -625,9 +609,7 @@ func TestTrimSeveralTransfers(t *testing.T) {
 
 func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	now, err := time.Parse("Jan 2, 2006 at 3:04pm (MST)", "Jun 1, 2022 at 12:00pm (CST)")
 	require.NoError(t, err)
@@ -656,31 +638,29 @@ func TestTrimmingAllTransfersShouldReturnZero(t *testing.T) {
 	assert.Equal(t, int64(0), sum)
 }
 
-func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
-	return newChainGovernorForTestWithLogger(ctx, zap.NewNop())
+func newChainGovernorForTest(t *testing.T, ctx context.Context) *ChainGovernor {
+	return newChainGovernorForTestWithLogger(t, ctx, zap.NewNop())
 }
 
-func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) (*ChainGovernor, error) {
-	if ctx == nil {
-		return nil, fmt.Errorf("ctx is nil")
-	}
+func newChainGovernorForTestWithLogger(t *testing.T, ctx context.Context, logger *zap.Logger) *ChainGovernor {
+	require.NotNil(t, ctx)
 
 	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	err := gov.Run(ctx)
 	if err != nil {
-		return gov, err
+		require.NoError(t, err)
 	}
 
 	emitterAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	if err != nil {
-		return gov, err
+		require.NoError(t, err)
 	}
 
 	tokenAddr, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	if err != nil {
-		return gov, err
+		require.NoError(t, err)
 	}
 
 	gov.initConfigForTest(
@@ -694,7 +674,10 @@ func newChainGovernorForTestWithLogger(ctx context.Context, logger *zap.Logger) 
 		8,
 	)
 
-	return gov, nil
+	require.NoError(t, err)
+	require.NotNil(t, gov)
+
+	return gov
 }
 
 // Converts a TxHash string into a byte array to be used as a TxID.
@@ -708,10 +691,7 @@ func hashToTxID(str string) []byte {
 
 func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
 	payload := []byte{1, 97, 97, 97, 97, 97}
@@ -740,10 +720,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 
 func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
 	payload := []byte{1, 97, 97, 97, 97, 97}
@@ -773,10 +750,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 
 func TestVaaForUninterestingPayloadType(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	payload := []byte{2, 97, 97, 97, 97, 97}
@@ -868,10 +842,7 @@ func TestBuidMockTransferPayload(t *testing.T) {
 
 func TestVaaForUninterestingToken(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	uninterestingTokenAddrStr := "0x42"
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -916,12 +887,8 @@ func TestVaaForUninterestingToken(t *testing.T) {
 // The flow cancelling asset has an origin chain that is different from the emitter chain to demonstrate
 // that these values don't have to match.
 func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
-
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
 	gov.setDayLengthInMinutes(24 * 60)
@@ -931,6 +898,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	// when the Origin chain of the asset does not match the emitter chain
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var flowCancelTokenOriginAddress vaa.Address
+	var err error
 	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
@@ -1157,10 +1125,7 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
 	gov.setDayLengthInMinutes(24 * 60)
@@ -1170,6 +1135,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	// when the Origin chain of the asset does not match the emitter chain
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var flowCancelTokenOriginAddress vaa.Address
+	var err error
 	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
@@ -1364,10 +1330,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 
 func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -1491,9 +1454,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 
 func TestPendingTransferBeingReleased(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -1668,9 +1629,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 
 func TestPopulateChainIds(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 	// Sanity check
 	assert.NotZero(t, len(gov.chainIds))
 
@@ -1694,10 +1653,7 @@ func TestPopulateChainIds(t *testing.T) {
 func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
 	gov.setDayLengthInMinutes(24 * 60)
@@ -1707,6 +1663,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 	// when the Origin chain of the asset does not match the emitter chain
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var flowCancelTokenOriginAddress vaa.Address
+	var err error
 	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
@@ -1954,10 +1911,7 @@ func TestPendingTransferFlowCancelsWhenReleased(t *testing.T) {
 
 func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -2202,9 +2156,7 @@ func TestTestnetConfigIsValid(t *testing.T) {
 
 func TestNumDaysForReleaseTimerReset(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -2265,10 +2217,7 @@ func TestNumDaysForReleaseTimerReset(t *testing.T) {
 
 func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -2476,10 +2425,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 
 func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -2578,10 +2524,7 @@ func TestIsBigTransfer(t *testing.T) {
 
 func TestTransferPayloadTooShort(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -2629,10 +2572,7 @@ func TestTransferPayloadTooShort(t *testing.T) {
 
 func TestDontReloadDuplicates(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	emitterAddrStr := "0x0290fb167208af455bb137780163b7b7a9a10c16"
 	emitterAddr, err := vaa.StringToAddress(emitterAddrStr)
@@ -2753,10 +2693,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 func TestReloadTransfersNearCapacity(t *testing.T) {
 	// Setup
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	// Set-up time
 	gov.setDayLengthInMinutes(24 * 60)
@@ -2766,6 +2703,7 @@ func TestReloadTransfersNearCapacity(t *testing.T) {
 	// when the Origin chain of the asset does not match the emitter chain
 	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
 	var flowCancelTokenOriginAddress vaa.Address
+	var err error
 	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
 	require.NoError(t, err)
 
@@ -3056,10 +2994,7 @@ func TestFlowCancelDependsOnCorridors(t *testing.T) {
 
 func TestReobservationOfPublishedMsg(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -3119,10 +3054,7 @@ func TestReobservationOfPublishedMsg(t *testing.T) {
 func TestReobservationOfEnqueued(t *testing.T) {
 	// The duplicate should not get published and not get enqueued again.
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -3181,10 +3113,7 @@ func TestReobservationOfEnqueued(t *testing.T) {
 
 func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 	ctx := context.Background()
-	gov, err := newChainGovernorForTest(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, gov)
+	gov := newChainGovernorForTest(t, ctx)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
@@ -3384,9 +3313,7 @@ func setupLogsCapture(t testing.TB, options ...zap.Option) (*zap.Logger, *observ
 func TestPendingTransferWithBadPayloadGetsDroppedNotReleased(t *testing.T) {
 	ctx := context.Background()
 	zapLogger, zapObserver := setupLogsCapture(t)
-	gov, err := newChainGovernorForTestWithLogger(ctx, zapLogger)
-	require.NoError(t, err)
-	require.NotNil(t, gov)
+	gov := newChainGovernorForTestWithLogger(t, ctx, zapLogger)
 
 	tokenAddrStr := "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E" //nolint:gosec
 	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
