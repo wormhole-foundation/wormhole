@@ -102,7 +102,7 @@ func (gov *ChainGovernor) Status() (resp string) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	startTime := time.Now().Add(-gov.slidingWindow())
 
 	for _, ce := range gov.chains {
 		netValue, _, _, err := sumValue(ce.transfers, startTime)
@@ -229,7 +229,7 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time, 
 		for _, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				pe.dbData.ReleaseTime = now.Add(time.Duration(numDays) * time.Hour * 24)
+				pe.dbData.ReleaseTime = now.Add(time.Duration(numDays) * 24 * time.Hour)
 				gov.logger.Info("updating the release time due to admin command",
 					zap.String("msgId", msgId),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
@@ -300,7 +300,7 @@ func (gov *ChainGovernor) GetAvailableNotionalByChain() (resp []*publicrpcv1.Gov
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	startTime := time.Now().Add(-gov.slidingWindow())
 
 	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
 	for _, chainId := range gov.chainIds {
@@ -498,7 +498,7 @@ func (gov *ChainGovernor) CollectMetrics(ctx context.Context, hb *gossipv1.Heart
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	startTime := time.Now().Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
+	startTime := time.Now().Add(-gov.slidingWindow())
 	totalPending := 0
 	for _, n := range hb.Networks {
 		if n == nil {
@@ -560,7 +560,7 @@ func (gov *ChainGovernor) CollectMetrics(ctx context.Context, hb *gossipv1.Heart
 
 	if startTime.After(gov.nextConfigPublishTime) {
 		gov.publishConfig(ctx, hb, sendC, guardianSigner, ourAddr)
-		gov.nextConfigPublishTime = startTime.Add(time.Minute * time.Duration(5))
+		gov.nextConfigPublishTime = startTime.Add(5 * time.Minute)
 	}
 
 	if startTime.After(gov.nextStatusPublishTime) {
