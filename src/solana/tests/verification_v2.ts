@@ -3,7 +3,7 @@ import assert from "assert"
 import * as anchor from "@coral-xyz/anchor"
 import { ComputeBudgetProgram, Keypair, PublicKey } from "@solana/web3.js"
 import { keccak256, toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
-import { encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
+import { Chain, encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
 import { randomBytes } from "@noble/hashes/utils"
 
 import { VerificationV2 } from "../target/types/verification_v2.js"
@@ -165,14 +165,17 @@ describe("VerificationV2", function() {
     )
   }
 
-  function postVaaV1(message: Uint8Array, core = coreV1) {
-    const governanceContract = new UniversalAddress("0000000000000000000000000000000000000000000000000000000000000004", "hex");
+  function postVaaV1(
+    message: Uint8Array,
+    core = coreV1,
+    emitter = {
+      chain: "Solana" as Chain,
+      emitterAddress: new UniversalAddress("0000000000000000000000000000000000000000000000000000000000000004", "hex"),
+    }
+  ) {
     return core.postVaa(
       payer,
-      {
-        chain: "Solana",
-        emitterAddress: governanceContract,
-      },
+      emitter,
       message,
     )
   }
@@ -195,7 +198,7 @@ describe("VerificationV2", function() {
       if (test.operation === "InitSchnorrKey") {
         ix = await coreV2.methods.initSchnorrKey().accounts({
           vaa: postedVaaAddress,
-          newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0]
+          newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
         }).instruction()
       } else {
         ix = await coreV2.methods.appendSchnorrKey().accounts({
@@ -325,10 +328,76 @@ describe("VerificationV2", function() {
         oldKeyIndex: 1,
       }
     },
-  ] satisfies AddKeyTest[]).map((test) => addKeyTest(test))
+    {
+      name: "Fails to append Schnorr key when referencing an old key",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: testKeyIndex + 1,
+        publicKey: testSchnorrKey,
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: 1,
+      },
+      expectFailureHandler: expectInvalidOldSchnorrKey,
+    },
+    {
+      name: "Fails to append invalid Schnorr key",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: testKeyIndex + 1,
+        publicKey: generateInvalidMockPubkey(),
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: testKeyIndex,
+      },
+      expectFailureHandler: expectInvalidSchnorrKey,
+    },
+  ] satisfies AddKeyTest[]).map((test) => addKeyTest(test));
+
+  [{
+    name: "Fails to append Schnorr key when emitter chain is not Solana",
+    emitter: {
+      chain: "Ethereum",
+      emitterAddress: new UniversalAddress("0x0000000000000000000000000000000000000000000000000000000000000004"),
+    } as const,
+    test: {
+      keyIndex: testKeyIndex + 1,
+      publicKey: testSchnorrKey,
+      previousSetExpirationTime: guardianSetExpirationTime,
+      oldKeyIndex: testKeyIndex,
+    },
+    expectFailureHandler: expectInvalidGovernanceChain,
+  },{
+    name: "Fails to append Schnorr key when emitter address is not governance contract",
+    emitter: {
+      chain: "Solana",
+      emitterAddress: new UniversalAddress("0x0000000000000000000000000000000000000000000000000000000000000009"),
+    } as const,
+    test: {
+      keyIndex: testKeyIndex + 1,
+      publicKey: testSchnorrKey,
+      previousSetExpirationTime: guardianSetExpirationTime,
+      oldKeyIndex: testKeyIndex,
+    },
+    expectFailureHandler: expectInvalidGovernanceContract,
+  }].map(({name, emitter, test, expectFailureHandler}) => it(name, async () => {
+    let message = createAppendSchnorrKeyMessage(test)
+
+    const postedVaaAddress = await postVaaV1(message, undefined, emitter)
+
+    let ix = await coreV2.methods.appendSchnorrKey().accounts({
+      vaa: postedVaaAddress,
+      newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
+      oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
+      latestKey: deriveLatestKeyPda()[0],
+    }).instruction()
+
+    return expectFailure(
+      () => $.sendAndConfirm(ix, payer),
+      expectFailureHandler
+    )
+  }))
 
 
-  it("Posting a VAA to a fake wormhole contract is not accepted by VerificationV2", async () => {
+  it("Posting a governance VAA to a fake wormhole contract is not accepted by VerificationV2", async () => {
     const newKeyIndex = 10
     const message = createAppendSchnorrKeyMessage({
       keyIndex: newKeyIndex,
@@ -438,12 +507,35 @@ function generateMockPubkey() {
   return key
 }
 
+function generateInvalidMockPubkey() {
+  const key = new Uint8Array(32)
+  key.fill(0xff)
+
+  return key
+}
+
 function expectInvalidPayload(error: Error) {
   expectAtLeastOneLog(error, "Error Code: InvalidPayload")
 }
 
 function expectFailedSignatureVerification(error: Error) {
   expectAtLeastOneLog(error, "Error Code: SignatureVerificationFailed.")
+}
+
+function expectInvalidOldSchnorrKey(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidOldSchnorrKey.")
+}
+
+function expectInvalidGovernanceChain(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidGovernanceChainId.")
+}
+
+function expectInvalidGovernanceContract(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidGovernanceAddress.")
+}
+
+function expectInvalidSchnorrKey(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: AccountDidNotSerialize.")
 }
 
 function expectAtLeastOneLog(error: Error, message: string) {
