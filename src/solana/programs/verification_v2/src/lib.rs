@@ -152,7 +152,6 @@ pub mod verification_v2 {
   use super::*;
 
   pub fn init_schnorr_key(ctx: Context<InitSchnorrKey>) -> Result<()> {
-    // Decode the VAA payload
     let message = AppendSchnorrKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
 
     init_schnorr_key_account(
@@ -169,7 +168,6 @@ pub mod verification_v2 {
   }
 
   pub fn append_schnorr_key(ctx: Context<AppendSchnorrKey>) -> Result<()> {
-    // Decode the VAA payload
     let message = AppendSchnorrKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
 
     let old_schnorr_key = &mut ctx.accounts.old_schnorr_key;
