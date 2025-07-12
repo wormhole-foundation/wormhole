@@ -8,9 +8,43 @@ mod schnorr_key;
 mod utils;
 mod hex_literal;
 
-use anchor_lang::{prelude::*, Result};
+use anchor_lang::prelude::{
+  Account,
+  AccountDeserialize,
+  AccountInfo,
+  AccountSerialize,
+  Accounts,
+  AccountsExit,
+  AnchorDeserialize,
+  AnchorSerialize,
+  Context,
+  Discriminator,
+  InitSpace,
+  Key,
+  Program,
+  Pubkey,
+  Rent,
+  Result,
+  Signer,
+  SolanaSysvar,
+  Space,
+  System,
+  ToAccountInfo,
+  UncheckedAccount,
+  account,
+  borsh,
+  declare_id,
+  error,
+  error_code,
+  program,
+  require_eq,
+  require_gte,
+  require_keys_neq,
+};
+#[cfg(feature = "idl-build")]
+use anchor_lang::IdlBuild;
 
-use wormhole_anchor_sdk::wormhole::{program::Wormhole, constants::CHAIN_ID_SOLANA, PostedVaaData};
+use wormhole_anchor_sdk::wormhole::{constants::CHAIN_ID_SOLANA, PostedVaaData};
 
 use vaa::{VAA, VAAHeader};
 use append_schnorr_key_message::AppendSchnorrKeyMessage;
@@ -52,7 +86,6 @@ pub struct InitSchnorrKey<'info> {
   pub payer: Signer<'info>,
 
   #[account(
-    owner = wormhole_program.key() @ AppendSchnorrKeyError::InvalidVAA,
     constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
       @ AppendSchnorrKeyError::InvalidGovernanceChainId,
     constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
@@ -73,7 +106,6 @@ pub struct InitSchnorrKey<'info> {
   #[account(mut)]
   pub new_schnorr_key: UncheckedAccount<'info>,
 
-  pub wormhole_program: Program<'info, Wormhole>,
   pub system_program: Program<'info, System>,
 }
 
@@ -83,7 +115,6 @@ pub struct AppendSchnorrKey<'info> {
   pub payer: Signer<'info>,
 
   #[account(
-    owner = wormhole_program.key() @ AppendSchnorrKeyError::InvalidVAA,
     constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
       @ AppendSchnorrKeyError::InvalidGovernanceChainId,
     constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
@@ -105,7 +136,6 @@ pub struct AppendSchnorrKey<'info> {
   )]
   pub old_schnorr_key: Account<'info, SchnorrKeyAccount>,
 
-  pub wormhole_program: Program<'info, Wormhole>,
   pub system_program: Program<'info, System>,
 }
 
