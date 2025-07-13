@@ -25,7 +25,12 @@ idl-build = [
 [dependencies]
 anchor-lang = "0.31.1"
 byteorder = "1.5.0"
-libsecp256k1 = "0.7.2"
 primitive-types = "0.13.1"
 # wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false }
-wormhole-anchor-sdk = { git = "https://github.com/XLabs/wormhole-scaffolding.git", rev = "c008cf26c2449b914911a19ecbf8630fd9b4f5b5", default-features = false }
+wormhole-anchor-sdk = { git = "https://github.com/XLabs/wormhole-scaffolding.git", rev = "3811c6c4beadbf2f1fc42ce038bfea925a596872", default-features = false }
+
+[dev-dependencies]
+num-bigint = "0.4.6"
+num-traits = "0.2.19"
+rstest = "0.25.0"
+proptest = "1.7.0"

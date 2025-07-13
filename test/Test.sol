@@ -21,7 +21,7 @@ import {
 	GOVERNANCE_ADDRESS
 } from "../src/evm/VerificationV2.sol";
 
-import {MODULE_VERIFICATION_V2, ACTION_APPEND_THRESHOLD_KEY} from "../src/evm/ThresholdVerification.sol";
+import {MODULE_VERIFICATION_V2, ACTION_APPEND_THRESHOLD_KEY, Q} from "../src/evm/ThresholdVerification.sol";
 import {REGISTER_TYPE_HASH} from "../src/evm/EIP712Encoding.sol";
 
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
@@ -289,7 +289,7 @@ contract VerificationV2Test is Test {
 	}
 
 	function createVaaV2(
-		uint32 guardianSetIndex,
+		uint32 tssIndex,
 		address r,
 		uint256 s,
 		bytes memory envelope
@@ -297,7 +297,7 @@ contract VerificationV2Test is Test {
 		return abi.encodePacked(
 			// Header
 			uint8(2), // version
-			guardianSetIndex, // guardian set index
+			tssIndex, // TSS index
 			r,
 			s,
 			envelope
@@ -406,6 +406,52 @@ contract VerificationV2Test is Test {
 		bytes memory command = VerificationHelper.verifyVaa(invalidVaaV1);
 		vm.expectRevert();
 		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	}
+
+	function testRevert_verifyVaaV1_notRegisteredGuardianSet() public {
+    uint32 fakeGuardianSetIndex = 5;
+		bytes memory payload = createThresholdKeyUpdatePayload(0, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa2  = createVaaV1(fakeGuardianSetIndex, guardianPrivateKeys1, envelope);
+    bytes memory command = VerificationHelper.verifyVaa(registerThresholdKeyVaa2);
+
+    vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	}
+
+	function testRevert_verifyVaaV1_skippedGuardianSet() public {
+		WormholeMock wormholeMock = new WormholeMock();
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+		wormholeMock.appendGuardianSet(GuardianSet({
+			keys: guardianKeys1,
+			expirationTime: 0
+		}));
+
+    uint256 initGuardianSetIndex = 2;
+		VerificationV2 verificationV2 = new VerificationV2(wormholeMock, initGuardianSetIndex, 1);
+
+    uint32 fakeGuardianSetIndex = 1;
+		bytes memory payload = createThresholdKeyUpdatePayload(0, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa2  = createVaaV1(fakeGuardianSetIndex, guardianPrivateKeys1, envelope);
+    bytes memory command = VerificationHelper.verifyVaa(registerThresholdKeyVaa2);
+
+    vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(verificationV2, command);
 		assertEq(success, false);
 		assertEq(result.length, 0);
 	}
@@ -532,7 +578,47 @@ contract VerificationV2Test is Test {
 		assertEq(result.length, 0);
 	}
 
-	function test_veifyAndDecodeVaaV2() public {
+	function testRevert_verifyVaaV2_notRegisteredKey() public {
+    assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
+
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		bytes memory payload = new bytes(49);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+    uint32 notRegisteredKeyTssIndex = 3;
+		bytes memory vaa = createVaaV2(notRegisteredKeyTssIndex, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyVaa(vaa);
+
+    vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	} 
+
+	function test_verifyVaaV2_skippedKey() public {
+    uint32 tssIndex = 5;
+    bytes memory payload = createThresholdKeyUpdatePayload(tssIndex, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope);
+
+		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
+    assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa2)), true);
+
+		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
+		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
+		payload = new bytes(49);
+		envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+    uint32 skippedTssIndex = 3;
+		bytes memory vaa = createVaaV2(skippedTssIndex, r, s, envelope);
+		bytes memory command = VerificationHelper.verifyVaa(vaa);
+
+		vm.expectRevert();
+		(bool success, bytes memory result) = VerificationHelper.get(_verificationV2, command);
+		assertEq(success, false);
+		assertEq(result.length, 0);
+	}
+
+	function test_verifyAndDecodeVaaV2() public {
 		assertEq(VerificationHelper.exec(_verificationV2, VerificationHelper.appendThresholdKey(registerThresholdKeyVaa)), true);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);

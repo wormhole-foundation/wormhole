@@ -15,14 +15,15 @@ bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000
 // Action ID for appending a threshold key
 uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
 
+// Curve order for secp256k1
+uint256 constant Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+uint256 constant HALF_Q = Q >> 1;
+
 contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using {BytesParsing.checkLength} for uint;
 
-  // Curve order for secp256k1
-  uint256 constant internal Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
-  uint256 constant internal HALF_Q = Q >> 1;
 
   error ThresholdKeyExpired();
   error ThresholdSignatureVerificationFailed();

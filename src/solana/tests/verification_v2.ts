@@ -1,107 +1,224 @@
 import assert from "assert"
 
 import * as anchor from "@coral-xyz/anchor"
-import { Keypair, PublicKey } from "@solana/web3.js"
-import { toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
-import { getPublicKey, sign } from "@noble/secp256k1"
-import { keccak_256 } from "@noble/hashes/sha3"
+import { ComputeBudgetProgram, Keypair, PublicKey } from "@solana/web3.js"
+import { keccak256, toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
+import { Chain, encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
 import { randomBytes } from "@noble/hashes/utils"
 
-// import { VerificationV2 } from "../target/types/verification_v2.js"
+import { VerificationV2 } from "../target/types/verification_v2.js"
 
 import { guardianAddress, TestingWormholeCore } from "./testing-wormhole-core.js"
-import { WormholeContracts, TestsHelper } from "./testing_helpers.js"
+import { WormholeContracts, TestsHelper, expectFailure } from "./testing_helpers.js"
+import { inspect } from "util"
+import { appendSchnorrKeyMessageLayout, HeaderV2, headerV2Layout } from "./layouts.js"
+
+
+interface SchnorrKeyMessage {
+  keyIndex: number;
+  publicKey: Uint8Array;
+  previousSetExpirationTime: number;
+}
+
+interface InitSchnorrKey extends SchnorrKeyMessage {
+  operation: "InitSchnorrKey";
+}
+
+interface AppendSchnorrKey extends SchnorrKeyMessage {
+  operation: "AppendSchnorrKey";
+  oldKeyIndex: number;
+}
+
+interface AddKeyTest {
+  name: string;
+  test: InitSchnorrKey | AppendSchnorrKey;
+  extraMessageData?: string | Uint8Array;
+  expectFailureHandler?: (error: Error) => void | Promise<void>;
+}
 
 const $ = new TestsHelper()
 
-const encodeU16BE = (value: number) => [value >> 8, value & 0xFF]
+export const createAppendSchnorrKeyMessage = ({
+  keyIndex,
+  publicKey,
+  previousSetExpirationTime,
+}: SchnorrKeyMessage) => serializeLayout(appendSchnorrKeyMessageLayout, {
+  schnorrKeyIndex: keyIndex,
+  schnorrKey: publicKey,
+  expirationDelaySeconds: previousSetExpirationTime,
+  shardDataHash: randomBytes(32),
+})
 
-const encodeU32BE = (value: number) => [
-  ...encodeU16BE(value >> 16),
-  ...encodeU16BE(value & 0xFFFF),
-]
+// Signature for 100 zero bytes body VAA with `testSchnorrKey` hashed only once
+// ContractSig{
+//   pkX                : 0x1cafae803bf91a2e5494162625d34fda2f69db7c1f3589938647bc2abd4a0a0f
+//   pkyparity          : 0
+//   msghash            : 0x913fb9e1f6f1c6d910fd574a5cad8857aa43bfba24e401ada4f56090d4d997a7
+//   s                  : 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c
+//   nonceTimesGAddress : 0xe46df5bea4597cef7d3c6eff36356a3f0ba33a56
+// }
 
-const encodeU64BE = (value: number | bigint) => [
-  ...encodeU32BE(Number(BigInt(value) >> BigInt(32))),
-  ...encodeU32BE(Number(BigInt(value) & BigInt(0xFFFFFFFF))),
-]
+// const testSchnorrKey = encoding.bignum.toBytes(
+//   0x1cafae803bf91a2e5494162625d34fda2f69db7c1f3589938647bc2abd4a0a0fn << 1n, 32
+// );
 
-export interface VAABody {
-  readonly timestamp: number
-  readonly nonce: number
-  readonly emitterChainId: number
-  readonly emitterAddress: Uint8Array
-  readonly sequence: number
-  readonly consistencyLevel: number
-  readonly payload: Uint8Array
+// const signatureTestMessage100Zeroed = {
+//   r: encoding.hex.decode("0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56"),
+//   s: encoding.hex.decode("0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c"),
+// }
+
+
+// Signature for 100 zero bytes body VAA with `testSchnorrKey` hashed twice
+// ContractSig{
+//   pkX                : 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c
+//   pkyparity          : 0
+//   msghash            : 0x258752639c534fd7fb6b52e5e3ba32ed9e8de081c966fd895992f63464869309
+//   s                  : 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29
+//   nonceTimesGAddress : 0x636a8688ef4b82e5a121f7c74d821a5b07d695f3
+// }
+
+const testSchnorrKey = encoding.bignum.toBytes(
+  0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770cn << 1n, 32
+);
+
+const signatureTestMessage100Zeroed = {
+  r: encoding.hex.decode("0x636a8688ef4b82e5a121f7c74d821a5b07d695f3"),
+  s: encoding.hex.decode("0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29"),
 }
 
-export const createVAAv2 = (tssIndex: number, body: VAABody, privateKey: Uint8Array) => {
-  const vaaBody = new Uint8Array([
-    ...encodeU32BE(body.timestamp),
-    ...encodeU32BE(body.nonce),
-    ...encodeU16BE(body.emitterChainId),
-    ...body.emitterAddress,
-    ...encodeU64BE(body.sequence),
-    body.consistencyLevel,
-    ...body.payload,
-  ])
-
-  const signature = sign(keccak_256(vaaBody), privateKey)
-
-  const TSS_VAA_VERSION = 0x02
-
-  return new Uint8Array([
-    TSS_VAA_VERSION,
-    ...encodeU32BE(tssIndex),
-    ...signature.toCompactRawBytes(),
-    signature.recovery,
-    ...vaaBody,
-  ])
+const invalidSignature = {
+  r: encoding.hex.decode("0xE46Df5BEa4597CEF7D346EfF36356A3F0bA33a56"),
+  s: encoding.hex.decode("0x1c2d1ca6fd3830e653d6abfc57956f3700059a661d8cabae684ea1bc62294e4c"),
 }
 
-export interface AppendThresholdKeyMessage {
-  readonly tssIndex: number
-  readonly tssKey: Uint8Array
-  readonly expirationDelaySeconds: number
-}
+const getDeserializedHeaderTestMessage100Zeroed = (schnorrKeyIndex: number): HeaderV2 => ({
+  schnorrKeyIndex: schnorrKeyIndex,
+  signature: signatureTestMessage100Zeroed,
+})
 
-export const createAppendThresholdKeyMessage = (tssIndex: number, tssKey: Uint8Array, expirationDelaySeconds: number) => {
-  const MODULE_VERIFICATION_V2 = new Uint8Array([
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x53, 0x53,
-  ])
+const getDeserializedHeaderTestMessageInvalidSignature = (schnorrKeyIndex: number): HeaderV2 => ({
+  schnorrKeyIndex: schnorrKeyIndex,
+  signature: invalidSignature,
+})
 
-  const ACTION_APPEND_THRESHOLD_KEY = 0x01
+const getHeaderTestMessage100Zeroed = (schnorrKeyIndex: number): Uint8Array =>
+  serializeLayout(headerV2Layout, getDeserializedHeaderTestMessage100Zeroed(schnorrKeyIndex))
 
-  assert(tssKey.length === 20, "TSS key must be 20 bytes")
+const getHeaderTestMessageInvalidSignature = (schnorrKeyIndex: number): Uint8Array =>
+  serializeLayout(headerV2Layout, getDeserializedHeaderTestMessageInvalidSignature(schnorrKeyIndex))
 
-  return new Uint8Array([
-    ...MODULE_VERIFICATION_V2,
-    ACTION_APPEND_THRESHOLD_KEY,
-    ...encodeU32BE(tssIndex),
-    ...tssKey,
-    ...encodeU32BE(expirationDelaySeconds),
-  ])
-}
+const getTestMessage100Zeroed = (schnorrKeyIndex: number) => Uint8Array.from([
+  ...getHeaderTestMessage100Zeroed(schnorrKeyIndex),
+  ...new Uint8Array(100)
+])
+
+const getTestMessageInvalidSignature = (schnorrKeyIndex: number) => Uint8Array.from([
+  ...getHeaderTestMessageInvalidSignature(schnorrKeyIndex),
+  ...new Uint8Array(100)
+])
+
+const vaaDigest = (vaaBody: Uint8Array) => keccak256(keccak256(vaaBody));
+
 
 // ------------------------------------------------------------------------------------------------
 
-
-//TODO: get implementation for schnorr signing
-async function thresholdGuardianSign(x: Uint8Array): Promise<Uint8Array> {
-  return x;
-}
 
 describe("VerificationV2", function() {
   const coreV1Address = new PublicKey('worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth')
   const guardianSetExpirationTime = 86400
   const fee = 100
   const txSigner = $.keypair.generate()
-  let coreV1: TestingWormholeCore<"Devnet">;
+  let coreV1: TestingWormholeCore<"Devnet">
   const connection = $.connection
   let payer: Keypair;
-  // const coreV2 = anchor.workspace.VerificationV2 as Program<VerificationV2>
+  const coreV2 = anchor.workspace.VerificationV2 as anchor.Program<VerificationV2>
+  const testKeyIndex = 5
+
+  let fakeCoreV1: TestingWormholeCore<"Devnet">
+
+
+  function deriveSchnorrKeyPda(schnorrKeyIndex: number) {
+    // Buffer write already checks that the value is within bounds
+    if (!Number.isSafeInteger(schnorrKeyIndex)) {
+      throw new Error(`invalid non integer Schnorr index ${schnorrKeyIndex}`)
+    }
+
+    const schnorrKeyIndexBuf = Buffer.alloc(4)
+    schnorrKeyIndexBuf.writeUint32LE(schnorrKeyIndex)
+
+    // See impl SeedPrefix for SchnorrKeyAccount
+    const seeds = [Buffer.from("schnorrkey"), schnorrKeyIndexBuf]
+
+    return PublicKey.findProgramAddressSync(
+      seeds,
+      coreV2.programId
+    )
+  }
+
+  function deriveLatestKeyPda() {
+    // See impl SeedPrefix for LatestKeyAccount
+    const seeds = [Buffer.from("latestkey")]
+
+    return PublicKey.findProgramAddressSync(
+      seeds,
+      coreV2.programId
+    )
+  }
+
+  function postVaaV1(
+    message: Uint8Array,
+    core = coreV1,
+    emitter = {
+      chain: "Solana" as Chain,
+      emitterAddress: new UniversalAddress("0000000000000000000000000000000000000000000000000000000000000004", "hex"),
+    }
+  ) {
+    return core.postVaa(
+      payer,
+      emitter,
+      message,
+    )
+  }
+
+  function addKeyTest({
+    name,
+    test,
+    extraMessageData,
+    expectFailureHandler,
+  }: AddKeyTest) {
+    it(name, async () => {
+      let message = createAppendSchnorrKeyMessage(test)
+      if (extraMessageData !== undefined) {
+        message = Uint8Array.from([...message, ...extraMessageData])
+      }
+
+      const postedVaaAddress = await postVaaV1(message)
+
+      let ix
+      if (test.operation === "InitSchnorrKey") {
+        ix = await coreV2.methods.initSchnorrKey().accounts({
+          vaa: postedVaaAddress,
+          newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
+        }).instruction()
+      } else {
+        ix = await coreV2.methods.appendSchnorrKey().accounts({
+          vaa: postedVaaAddress,
+          newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
+          oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
+          latestKey: deriveLatestKeyPda()[0],
+        }).instruction()
+      }
+
+      if (expectFailureHandler !== undefined) {
+        return expectFailure(
+          () => $.sendAndConfirm(ix, payer),
+          expectFailureHandler
+        )
+      } else {
+        return $.sendAndConfirm(ix, payer)
+      }
+    })
+  }
 
   before(async function() {
     payer = anchor.getProvider().wallet?.payer!
@@ -112,27 +229,40 @@ describe("VerificationV2", function() {
       payer.publicKey,
     ]);
 
+    const wormholeContracts = new WormholeContracts();
+
     coreV1 = new TestingWormholeCore(
       txSigner,
       connection,
-      WormholeContracts.Network,
+      wormholeContracts.network,
       coreV1Address,
-      WormholeContracts.addresses,
+      wormholeContracts.addresses,
     );
 
-    const txid = await coreV1.initialize(undefined, guardianSetExpirationTime, fee)
-    const tx = await $.getTransaction(txid)
+    let txid = await coreV1.initialize(undefined, guardianSetExpirationTime, fee)
+    let tx = await $.getTransaction(txid)
+
+    const fakeWormholeContracts = new WormholeContracts("fake-wormhole-core-v1");
+
+    fakeCoreV1 = new TestingWormholeCore(
+      txSigner,
+      connection,
+      fakeWormholeContracts.network,
+      coreV1Address,
+      fakeWormholeContracts.addresses,
+    );
+
+    txid = await fakeCoreV1.initialize(undefined, guardianSetExpirationTime, fee)
+    tx = await $.getTransaction(txid)
   });
 
   it("Check correct core v1 setup", async function() {
     const accounts = await connection.getProgramAccounts(coreV1Address)
     assert(accounts.length === 2, "Expected 2 accounts")
 
-    const guardianSetIndex = await coreV1.client.getGuardianSetIndex();
+    const guardianSetIndex = await coreV1.client.getGuardianSetIndex()
     assert(guardianSetIndex === 0, "Expected guardian set index to be 0")
     const guardianSet = await coreV1.client.getGuardianSet(guardianSetIndex);
-    // FIXME? initialize doesn't seem to set the correct expiration time
-    // assert.strictEqual(guardianSet.expiry, BigInt(guardianSetExpirationTime), "Guardian set expiration time")
 
     const queriedFee = await coreV1.client.getMessageFee();
     assert(queriedFee === BigInt(fee), "Expected fee to be 100")
@@ -140,29 +270,276 @@ describe("VerificationV2", function() {
     assert(guardianSet.index === 0, "Expected guardian set index to be 0")
     assert(guardianSet.keys.length === 1, "Expected guardian set keys to have length 1")
 
-    const queriedGuardian = new UniversalAddress(guardianSet.keys[0], "hex");
+    const queriedGuardian = new UniversalAddress(guardianSet.keys[0], "hex")
     const expectedGuardian = toUniversal("Ethereum", guardianAddress)
     assert(queriedGuardian.equals(expectedGuardian), "Expected guardian set keys to be the devnet guardian")
-  })
+  });
 
-  it("Posts append threshold key VAA successfully", async function(){
-    const guardianPrivateKey = randomBytes(32)
-    const guardianPublicKey = keccak_256(getPublicKey(guardianPrivateKey)).slice(12)
-    const message = createAppendThresholdKeyMessage(
-      0,
-      guardianPublicKey,
-      guardianSetExpirationTime,
-    )
-
-    const governanceContract = new UniversalAddress("0000000000000000000000000000000000000000000000000000000000000004", "hex");
-    const postedVaaAddress = await coreV1.postVaa(
-      payer,
-      {
-        chain: "Solana",
-        emitterAddress: governanceContract,
+  ([
+    {
+      name: "Posts invalid init append Schnorr key VAA and fails",
+      test: {
+        operation: "InitSchnorrKey",
+        keyIndex: 0,
+        publicKey: generateMockPubkey(),
+        previousSetExpirationTime: guardianSetExpirationTime,
       },
-      message,
+      extraMessageData: "junkdata",
+      expectFailureHandler: expectInvalidPayload,
+    },
+    {
+      name: "Posts init append Schnorr key VAA successfully",
+      test: {
+        operation: "InitSchnorrKey",
+        keyIndex: 0,
+        publicKey: generateMockPubkey(),
+        previousSetExpirationTime: guardianSetExpirationTime,
+      },
+    },
+    {
+      name: "Posts invalid append Schnorr key VAA and fails",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: 1,
+        publicKey: generateMockPubkey(),
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: 0,
+      },
+      extraMessageData: "junkdata",
+      expectFailureHandler: expectInvalidPayload,
+    },
+    {
+      name: "Posts append Schnorr key VAA successfully",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: 1,
+        publicKey: generateMockPubkey(),
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: 0,
+      }
+    },
+    {
+      name: "Appends Schnorr key leaving a gap successfully",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: testKeyIndex,
+        publicKey: testSchnorrKey,
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: 1,
+      }
+    },
+    {
+      name: "Fails to append Schnorr key when referencing an old key",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: testKeyIndex + 1,
+        publicKey: testSchnorrKey,
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: 1,
+      },
+      expectFailureHandler: expectInvalidOldSchnorrKey,
+    },
+    {
+      name: "Fails to append invalid Schnorr key",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: testKeyIndex + 1,
+        publicKey: generateInvalidMockPubkey(),
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: testKeyIndex,
+      },
+      expectFailureHandler: expectInvalidSchnorrKey,
+    },
+  ] satisfies AddKeyTest[]).map((test) => addKeyTest(test));
+
+  [{
+    name: "Fails to append Schnorr key when emitter chain is not Solana",
+    emitter: {
+      chain: "Ethereum",
+      emitterAddress: new UniversalAddress("0x0000000000000000000000000000000000000000000000000000000000000004"),
+    } as const,
+    test: {
+      keyIndex: testKeyIndex + 1,
+      publicKey: testSchnorrKey,
+      previousSetExpirationTime: guardianSetExpirationTime,
+      oldKeyIndex: testKeyIndex,
+    },
+    expectFailureHandler: expectInvalidGovernanceChain,
+  },{
+    name: "Fails to append Schnorr key when emitter address is not governance contract",
+    emitter: {
+      chain: "Solana",
+      emitterAddress: new UniversalAddress("0x0000000000000000000000000000000000000000000000000000000000000009"),
+    } as const,
+    test: {
+      keyIndex: testKeyIndex + 1,
+      publicKey: testSchnorrKey,
+      previousSetExpirationTime: guardianSetExpirationTime,
+      oldKeyIndex: testKeyIndex,
+    },
+    expectFailureHandler: expectInvalidGovernanceContract,
+  }].map(({name, emitter, test, expectFailureHandler}) => it(name, async () => {
+    let message = createAppendSchnorrKeyMessage(test)
+
+    const postedVaaAddress = await postVaaV1(message, undefined, emitter)
+
+    let ix = await coreV2.methods.appendSchnorrKey().accounts({
+      vaa: postedVaaAddress,
+      newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
+      oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
+      latestKey: deriveLatestKeyPda()[0],
+    }).instruction()
+
+    return expectFailure(
+      () => $.sendAndConfirm(ix, payer),
+      expectFailureHandler
+    )
+  }))
+
+
+  it("Posting a governance VAA to a fake wormhole contract is not accepted by VerificationV2", async () => {
+    const newKeyIndex = 10
+    const message = createAppendSchnorrKeyMessage({
+      keyIndex: newKeyIndex,
+      publicKey: testSchnorrKey,
+      previousSetExpirationTime: guardianSetExpirationTime,
+    })
+
+    const postedVaaAddress = await postVaaV1(message, fakeCoreV1)
+
+    const ix = await coreV2.methods.appendSchnorrKey().accounts({
+      vaa: postedVaaAddress,
+      newSchnorrKey: deriveSchnorrKeyPda(newKeyIndex)[0],
+      oldSchnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+      latestKey: deriveLatestKeyPda()[0],
+    }).instruction()
+
+    return expectFailure(
+      () => $.sendAndConfirm(ix, payer),
+      (error) => expectAtLeastOneLog(error, "Error Code: AccountOwnedByWrongProgram."),
     )
   })
 
+  it("Verifies a v2 VAA", async function() {
+    const vaa = Buffer.from(getTestMessage100Zeroed(testKeyIndex));
+    const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    const txid = await $.sendAndConfirm(verifyIx, payer)
+    const tx = await $.getTransaction(txid);
+    console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
+    console.log(`${this.test?.title}: CUs consumed: ${tx?.meta?.computeUnitsConsumed}`)
+  })
+
+  it("v2 VAA verification fails for an invalid signature", async function() {
+    const vaa = Buffer.from(getTestMessageInvalidSignature(testKeyIndex));
+    const verifyIx = await coreV2.methods.verifyVaa(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    expectFailure(
+      () => $.sendAndConfirm(verifyIx, payer),
+      expectFailedSignatureVerification
+    )
+  })
+
+  it("Verifies a v2 VAA and decodes", async function() {
+    const vaa = Buffer.from(getTestMessage100Zeroed(testKeyIndex));
+    const verifyIx = await coreV2.methods.verifyVaaAndDecode(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    const txid = await $.sendAndConfirm(verifyIx, payer)
+    const tx = await $.getTransaction(txid);
+    // console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
+    console.log(`${this.test?.title}: CUs consumed: ${tx?.meta?.computeUnitsConsumed}`)
+  })
+
+  it("v2 VAA verification and decoding fails for an invalid signature", async function() {
+    const vaa = Buffer.from(getTestMessageInvalidSignature(testKeyIndex));
+    const verifyIx = await coreV2.methods.verifyVaaAndDecode(vaa).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    expectFailure(
+      () => $.sendAndConfirm(verifyIx, payer),
+      expectFailedSignatureVerification
+    )
+  })
+
+  it("Verifies a v2 VAA header with digest", async function() {
+    const vaaHeader = [...getHeaderTestMessage100Zeroed(testKeyIndex)]
+    const digest = [...vaaDigest(new Uint8Array(100))]
+    const verifyIx = await coreV2.methods.verifyVaaHeaderWithDigest(vaaHeader, digest).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    const txid = await $.sendAndConfirm(verifyIx, payer)
+    const tx = await $.getTransaction(txid);
+    // console.log(`logs: ${tx?.meta?.logMessages?.join("\n")}`)
+    console.log(`${this.test?.title}: CUs consumed: ${tx?.meta?.computeUnitsConsumed}`)
+  })
+
+  it("v2 VAA header and digest verification fails for an invalid signature", async function() {
+    const vaaHeader = [...getHeaderTestMessageInvalidSignature(testKeyIndex)]
+    const digest = [...vaaDigest(new Uint8Array(100))]
+    const verifyIx = await coreV2.methods.verifyVaaHeaderWithDigest(vaaHeader, digest).accounts({
+      schnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
+    }).instruction()
+
+    expectFailure(
+      () => $.sendAndConfirm(verifyIx, payer),
+      expectFailedSignatureVerification
+    )
+  })
 });
+
+
+function generateMockPubkey() {
+  const halfQ = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a1n;
+  let key = randomBytes(32)
+
+  const parity = BigInt((key[0] & 0x80) >> 7)
+  const x = encoding.bignum.decode(key) % halfQ
+  key = encoding.bignum.toBytes((x << 1n) | parity, 32)
+
+  return key
+}
+
+function generateInvalidMockPubkey() {
+  const key = new Uint8Array(32)
+  key.fill(0xff)
+
+  return key
+}
+
+function expectInvalidPayload(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidPayload")
+}
+
+function expectFailedSignatureVerification(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: SignatureVerificationFailed.")
+}
+
+function expectInvalidOldSchnorrKey(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidOldSchnorrKey.")
+}
+
+function expectInvalidGovernanceChain(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidGovernanceChainId.")
+}
+
+function expectInvalidGovernanceContract(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidGovernanceAddress.")
+}
+
+function expectInvalidSchnorrKey(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: AccountDidNotSerialize.")
+}
+
+function expectAtLeastOneLog(error: Error, message: string) {
+  assert((error as any).transactionLogs.find(
+    (log: string) => log.includes(message)
+  ))
+}

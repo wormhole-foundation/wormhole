@@ -12,29 +12,15 @@ import {
   VersionedTransactionResponse
 } from "@solana/web3.js"
 import { mocks } from "@wormhole-foundation/sdk-definitions/testing"
-import { Contracts } from '@wormhole-foundation/sdk-definitions';
+import { Contracts } from '@wormhole-foundation/sdk-definitions'
 import fs from "fs/promises"
 import fsSync from "fs"
-import * as toml from 'toml';
+import * as toml from 'toml'
 
 // Copied from @wormhole-foundation/wormhole-scaffolding/solana/ts/helpers/utils.ts
 // TODO: There's probably some way to import this?
 
 export const MOCK_GUARDIANS = new mocks.MockGuardians(0, ["cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"])
-
-// class SendIxError extends Error {
-//   logs: string;
-
-//   constructor(originalError: Error & { logs?: string[] }) {
-//     //The newlines don't actually show up correctly in chai's assertion error, but at least
-//     // we have all the information and can just replace '\n' with a newline manually to see
-//     // what's happening without having to change the code.
-//     const logs = originalError.logs?.join('\n') || "error had no logs";
-//     super(originalError.message + "\nlogs:\n" + logs);
-//     this.stack = originalError.stack;
-//     this.logs = logs;
-//   }
-// }
 
 type Tuple<T, N extends number, R extends T[] = []> = R['length'] extends N
   ? R
@@ -135,29 +121,50 @@ export async function sendAndConfirm(
 
 /** Helper allowing to abstract over the Wormhole configuration (network and addresses) */
 export class WormholeContracts {
-  static Network = 'Devnet' as const;
+  readonly network = "Devnet";
 
-  private static core: PublicKey = PublicKey.default;
+  private core: PublicKey;
 
-  static get coreBridge(): PublicKey {
-    WormholeContracts.init();
-    return WormholeContracts.core;
+  constructor(name = "wormhole-core-v1") {
+    const anchorCfg = toml.parse(fsSync.readFileSync("./Anchor.toml", "utf-8"));
+
+    this.core = new PublicKey(
+      anchorCfg.test.genesis.find((cfg: any) => cfg.name == name).address,
+    );
   }
 
-  static get addresses(): Contracts {
-    WormholeContracts.init();
+  get coreBridge(): PublicKey {
+    return this.core;
+  }
+
+  get addresses(): Contracts {
     return {
-      coreBridge: WormholeContracts.core.toString(),
+      coreBridge: this.core.toString(),
     };
   }
+}
 
-  private static init() {
-    if (WormholeContracts.core.equals(PublicKey.default)) {
-      const anchorCfg = toml.parse(fsSync.readFileSync('./Anchor.toml', 'utf-8'));
-
-      WormholeContracts.core = new PublicKey(
-        anchorCfg.test.genesis.find((cfg: any) => cfg.name == 'wormhole-core-v1').address,
-      );
+export async function expectFailure(
+  f: () => Promise<unknown>,
+  handle: (error: Error) => void | Promise<void>
+): Promise<void> {
+  let result;
+  try {
+    result = await f();
+  } catch (error) {
+    if (error instanceof Error) {
+      // In most cases the handler won't return a promise, but just in case.
+      try {
+        await handle(error);
+      } catch (assertion) {
+        throw new Error(`${assertion}
+Original error: ${error.stack || error}`);
+      }
+      return;
     }
+
+    throw error;
   }
+
+  throw new Error(`Did not fail. Result: ${result}`);
 }
