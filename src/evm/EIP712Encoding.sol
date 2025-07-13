@@ -7,7 +7,7 @@ import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
 
 bytes32 constant REGISTER_TYPE_HASH = keccak256(
-  "GuardianRegister(uint32 guardianSet,uint32 expirationTime,bytes32 id)"
+  "GuardianRegister(uint32 guardianSet,uint256 nonce,bytes32 id)"
 );
 
 interface IERC5267 {
@@ -76,12 +76,12 @@ contract EIP712Encoding is IERC5267 {
   }
 
   function getRegisterGuardianDigest(
-    uint32 thresholdKeyIndex, uint32 expirationTime, bytes32 guardianId
+    uint32 thresholdKeyIndex, uint256 nonce, bytes32 guardianId
   ) public view returns (bytes32) {
     bytes32 idHash = keccak256(abi.encode(
       REGISTER_TYPE_HASH,
       thresholdKeyIndex,
-      expirationTime,
+      nonce,
       guardianId
     ));
 

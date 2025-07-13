@@ -11,9 +11,9 @@
     "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.2",
     "@noble/secp256k1": "^2.2.3",
-    "@wormhole-foundation/sdk-base": "^1.20.0",
-    "@wormhole-foundation/sdk-definitions": "^1.20.0",
-    "@wormhole-foundation/sdk-solana-core": "^1.20.0"
+    "@wormhole-foundation/sdk-base": "^2.2.0",
+    "@wormhole-foundation/sdk-definitions": "^2.2.0",
+    "@wormhole-foundation/sdk-solana-core": "^2.2.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
@@ -25,6 +25,6 @@
     "prettier": "^2.6.2",
     "toml": "^3.0.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.3"
   }
 }

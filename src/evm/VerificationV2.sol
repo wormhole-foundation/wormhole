@@ -48,6 +48,9 @@ contract VerificationV2 is
 
   error RegistrationMessageExpired();
   error GuardianSignatureVerificationFailed();
+  error InvalidNonce();
+
+  mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
   constructor(ICoreBridge coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
     MultisigVerification(coreV1, initGuardianSetIndex, pullLimit)
@@ -132,21 +135,18 @@ contract VerificationV2 is
       } else if (op == OP_REGISTER_GUARDIAN) {
         // Decode the payload
         uint32 thresholdKeyIndex;
-        uint32 expirationTime;
+        uint256 nonce;
         bytes32 guardianId;
         uint8 guardianIndex; bytes32 r; bytes32 s; uint8 v;
 
         (thresholdKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-        (expirationTime, offset) = data.asUint32CdUnchecked(offset);
+        (nonce, offset) = data.asUint256CdUnchecked(offset);
         (guardianId, offset) = data.asBytes32CdUnchecked(offset);
         (guardianIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
         // We only allow registrations for the current threshold key
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
         require(thresholdKeyIndex == currentThresholdKeyIndex, GuardianSetIsNotCurrent());
-
-        // Verify the message is not expired
-        require(expirationTime > block.timestamp, RegistrationMessageExpired());
 
         // Get the guardian set for the threshold key
         uint32 guardianSetIndex = info.guardianSetIndex;
@@ -157,11 +157,14 @@ contract VerificationV2 is
         // Verify the signature
         // We're not doing replay protection with the signature itself so we don't care about
         // verifying only canonical (low s) signatures.
-        bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, expirationTime, guardianId);
+        bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, nonce, guardianId);
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardianIndex], GuardianSignatureVerificationFailed());
 
-        _registerGuardian(guardianSetIndex, guardianIndex, guardianId);
+        // Use the nonce
+        _useUnorderedNonce(signatory, nonce);
+
+        _registerGuardian(info, guardianIndex, guardianId);
       } else {
         revert InvalidOperation(op);
       }
@@ -250,5 +253,16 @@ contract VerificationV2 is
     data.length.checkLength(offset);
 
     return result;
+  }
+
+  /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
+  /// @param nonce The nonce to spend
+  function _useUnorderedNonce(address guardian, uint256 nonce) internal {
+    uint256 wordPos = uint248(nonce >> 8);
+    uint256 bitPos = uint8(nonce);
+    uint256 bit = 1 << bitPos;
+    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+
+    if (flipped & bit == 0) revert InvalidNonce();
   }
 }

@@ -10,7 +10,6 @@ import {
 import { SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
 import { SolanaWormholeCore, utils as coreUtils } from '@wormhole-foundation/sdk-solana-core';
 import {
-  serializePayload,
   serialize as serializeVaa,
   deserialize as deserializeVaa,
   UniversalAddress,

@@ -29,8 +29,9 @@ build-evm: dependencies-evm
 	forge build
 
 test-evm: dependencies-evm
-	forge test --fork-url $(TEST_RPC) -vvvv
+	forge test
 #--match-test InitiateFullFuzz
+#--fork-url $(TEST_RPC)
 
 clean-evm:
 	forge clean
@@ -42,11 +43,16 @@ dependencies-solana-ts:
 build-solana:
 	cd src/solana; anchor build
 
-build-solana-ts: dependencies-solana-ts
+# depends on build-solana to generate the IDL
+# This happens automatically as soon as you run `anchor test` but it's useful to trigger the build
+# before typechecking if you're tweaking things that impact the IDL and haven't regenerated it yet.
+build-solana-ts: build-solana dependencies-solana-ts
 	npm run build --prefix src/solana
 
+# cargo test runs the Rust unit tests
+# anchor test runs the contract tests
 test-solana: build-solana-ts
-	cd src/solana; anchor test
+	cd src/solana; cargo test && anchor test
 
 clean-solana:
 	cd src/solana; anchor clean
