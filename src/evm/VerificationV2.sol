@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {eagerAnd} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";

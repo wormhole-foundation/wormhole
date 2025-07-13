@@ -32,7 +32,7 @@ contract ThresholdVerification is ThresholdVerificationState {
 
   // Verify a threshold signature V2 VAA
   // NOTE: This function does not validate the VAA version is V2!
-  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
+  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint bodyOffset) {
     unchecked {
       // Decode the VAA header
       uint offset = 1;
@@ -87,8 +87,8 @@ contract ThresholdVerification is ThresholdVerificationState {
     uint8 consistencyLevel,
     bytes calldata payload
   ) {
-    uint payloadOffset = _verifyThresholdVaaHeader(encodedVaa);
-    return encodedVaa.decodeVaaBodyCd(payloadOffset);
+    uint bodyOffset = _verifyThresholdVaaHeader(encodedVaa);
+    return encodedVaa.decodeVaaBodyCd(bodyOffset);
   }
 
   // Decode a threshold key update payload, given the number of shards(which is the same as the number of guardians for the current guardian set)
