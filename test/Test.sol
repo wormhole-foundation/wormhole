@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 import {StdAssertions} from "forge-std/StdAssertions.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 
 import {
@@ -94,6 +95,109 @@ contract WormholeMock is ICoreBridge {
 	}
 }
 
+/// @dev Cheat code address.
+/// Calculated as `address(uint160(uint256(keccak256("hevm cheat code"))))`.
+address constant VM_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
+Vm constant vm = Vm(VM_ADDRESS);
+
+// Message helper functions
+function createVaaV1(uint32 guardianSetIndex, uint256[] memory guardianPrivateKeys, bytes memory envelope) pure returns (bytes memory) {
+	uint256 guardianCount = guardianPrivateKeys.length;
+	bytes memory signatures = new bytes(guardianCount * 66); // 66 bytes per signature (1 byte index, 32 bytes r, 32 bytes s, 1 byte v)
+	bytes32 preMessage = keccak256(envelope);
+	bytes32 message = keccak256(abi.encodePacked(preMessage));
+
+	for (uint256 i = 0; i < guardianCount; i++) {
+		(uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianPrivateKeys[i], message);
+
+		assembly ("memory-safe") {
+			let offset := add(add(signatures, 32), mul(i, 66))
+			mstore8(offset, i)
+			mstore(add(offset, 1), r)
+			mstore(add(offset, 33), s)
+			mstore8(add(offset, 65), eq(v, 28))
+		}
+	}
+
+	return abi.encodePacked(
+		// Header
+		uint8(1), // version
+		uint32(guardianSetIndex), // guardian set index
+		uint8(guardianCount), // signature count
+		signatures, // signatures
+		envelope // envelope
+	);
+}
+
+function createVaaV2(
+	uint32 tssIndex,
+	address r,
+	uint256 s,
+	bytes memory envelope
+) pure returns (bytes memory) {
+	return abi.encodePacked(
+		// Header
+		uint8(2), // version
+		tssIndex, // TSS index
+		r,
+		s,
+		envelope
+	);
+}
+
+function createVaaEnvelope(
+	uint32 timestamp,
+	uint32 nonce,
+	uint16 emitterChainId,
+	bytes32 emitterAddress,
+	uint64 sequence,
+	uint8 consistencyLevel,
+	bytes memory payload
+) pure returns (bytes memory) {
+	return abi.encodePacked(
+		timestamp,
+		nonce,
+		emitterChainId,
+		emitterAddress,
+		sequence,
+		consistencyLevel,
+		payload
+	);
+}
+
+function createThresholdKeyUpdatePayload(
+	uint32 newTSSIndex,
+	uint256 newThresholdPubkey,
+	uint32 expirationDelaySeconds,
+	ShardInfo[] memory shards
+) pure returns (bytes memory) {
+	bytes32[] memory shardsData = new bytes32[](shards.length * 2);
+	for (uint256 i = 0; i < shards.length; i++) {
+		shardsData[i * 2] = shards[i].shard;
+		shardsData[i * 2 + 1] = shards[i].id;
+	}
+
+	return abi.encodePacked(
+		MODULE_VERIFICATION_V2,
+		ACTION_APPEND_THRESHOLD_KEY,
+		newTSSIndex,
+		newThresholdPubkey,
+		expirationDelaySeconds,
+		shardsData
+	);
+}
+
+function execAppendThresholdKey(VerificationV2 verification, bytes memory encodedVaa) {
+	(bool success, bytes memory response) = address(verification).call(abi.encodePacked(
+		bytes4(RawDispatcher.exec768.selector),
+		OP_APPEND_THRESHOLD_KEY,
+		uint16(encodedVaa.length),
+		bytes(encodedVaa)
+	));
+
+	if (!success) reRevert(response);
+}
+
 contract VerificationHelper is StdAssertions {
 	using BytesParsing for bytes;
 
@@ -104,17 +208,6 @@ contract VerificationHelper is StdAssertions {
 	bytes4 constant RAW_DISPATCHER_GET = bytes4(0x0008a112);
 
 	function Panic(uint256) public {}
-
-	function execAppendThresholdKey(VerificationV2 verification, bytes memory encodedVaa) public {
-		(bool success, bytes memory response) = address(verification).call(abi.encodePacked(
-			bytes4(RawDispatcher.exec768.selector),
-			OP_APPEND_THRESHOLD_KEY,
-			uint16(encodedVaa.length),
-			bytes(encodedVaa)
-		));
-
-		if (!success) reRevert(response);
-	}
 
 	function expectRevertAppendThresholdKey(VerificationV2 verification, bytes memory encodedVaa) public returns (bytes memory) {
 		(bool success, bytes memory response) = address(verification).call(abi.encodePacked(
@@ -403,92 +496,6 @@ contract VerificationV2Test is Test, VerificationHelper {
 		_verificationV2 = new VerificationV2(_wormholeMock, 0, 1);
 	}
 
-	// Message helper functions
-	function createVaaV1(uint32 guardianSetIndex, uint256[] memory guardianPrivateKeys, bytes memory envelope) public pure returns (bytes memory) {
-		uint256 guardianCount = guardianPrivateKeys.length;
-		bytes memory signatures = new bytes(guardianCount * 66); // 66 bytes per signature (1 byte index, 32 bytes r, 32 bytes s, 1 byte v)
-		bytes32 preMessage = keccak256(envelope);
-		bytes32 message = keccak256(abi.encodePacked(preMessage));
-
-		for (uint256 i = 0; i < guardianCount; i++) {
-			(uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianPrivateKeys[i], message);
-
-			assembly ("memory-safe") {
-				let offset := add(add(signatures, 32), mul(i, 66))
-				mstore8(offset, i)
-				mstore(add(offset, 1), r)
-				mstore(add(offset, 33), s)
-				mstore8(add(offset, 65), eq(v, 28))
-			}
-		}
-
-		return abi.encodePacked(
-			// Header
-			uint8(1), // version
-			uint32(guardianSetIndex), // guardian set index
-			uint8(guardianCount), // signature count
-			signatures, // signatures
-			envelope // envelope
-		);
-	}
-
-	function createVaaV2(
-		uint32 tssIndex,
-		address r,
-		uint256 s,
-		bytes memory envelope
-	) public pure returns (bytes memory) {
-		return abi.encodePacked(
-			// Header
-			uint8(2), // version
-			tssIndex, // TSS index
-			r,
-			s,
-			envelope
-		);
-	}
-	function createVaaEnvelope(
-		uint32 timestamp,
-		uint32 nonce,
-		uint16 emitterChainId,
-		bytes32 emitterAddress,
-		uint64 sequence,
-		uint8 consistencyLevel,
-		bytes memory payload
-	) public pure returns (bytes memory) {
-		return abi.encodePacked(
-			timestamp,
-			nonce,
-			emitterChainId,
-			emitterAddress,
-			sequence,
-			consistencyLevel,
-			payload
-		);
-	}
-
-	function createThresholdKeyUpdatePayload(
-		uint32 newTSSIndex,
-		uint256 newThresholdPubkey,
-		uint32 expirationDelaySeconds,
-		ShardInfo[] memory shards
-	) public pure returns (bytes memory) {
-		bytes32[] memory shardsData = new bytes32[](shards.length * 2);
-		for (uint256 i = 0; i < shards.length; i++) {
-			shardsData[i * 2] = shards[i].shard;
-			shardsData[i * 2 + 1] = shards[i].id;
-		}
-
-		return abi.encodePacked(
-			MODULE_VERIFICATION_V2,
-			ACTION_APPEND_THRESHOLD_KEY,
-			newTSSIndex,
-			newThresholdPubkey,
-			expirationDelaySeconds,
-			shardsData
-		);
-	}
-
 	// V1 codepaths
 
 	function test_pullGuardianSets() public {
@@ -624,7 +631,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	// V2 codepaths
 
 	function test_appendThresholdKey() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 	}
 
 	function test_appendMultipleThresholdKey() public {
@@ -638,9 +645,9 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory envelope2 = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload2);
 		bytes memory thresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope2);
 
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
-		VerificationHelper.execAppendThresholdKey(_verificationV2, thresholdKeyVaa);
-		VerificationHelper.execAppendThresholdKey(_verificationV2, thresholdKeyVaa2);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, thresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, thresholdKeyVaa2);
 	}
 
 	function testRevert_appendThresholdKey() public {
@@ -651,7 +658,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_appendThresholdKey_duplicatedKey() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 		bytes memory result = VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 		(bytes4 error,) = result.asBytes4MemUnchecked(0);
 		assertEq(error, ThresholdVerificationState.InvalidThresholdKeyIndex.selector);
@@ -669,7 +676,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory envelope2 = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload2);
 		bytes memory thresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope2);
 	
-		VerificationHelper.execAppendThresholdKey(_verificationV2, thresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, thresholdKeyVaa);
 		bytes memory result = VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, thresholdKeyVaa2);
 		(bytes4 error,) = result.asBytes4MemUnchecked(0);
 		assertEq(error, ThresholdVerificationState.InvalidThresholdKeyIndex.selector);
@@ -689,7 +696,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function test_getCurrentThresholdKey() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		bytes memory result = VerificationHelper.get(_verificationV2, VerificationHelper.getCurrentThresholdKey());
 
@@ -699,7 +706,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function test_getThresholdKey() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		bytes memory result = VerificationHelper.get(_verificationV2, VerificationHelper.getThresholdKey(0));
 
@@ -709,7 +716,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function test_verifyVaaV2() public {
-		this.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
 		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
@@ -721,7 +728,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function test_verifyVaaV2_direct() public {
-		this.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
 		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
@@ -733,7 +740,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_verifyVaaV2() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
 		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
@@ -748,7 +755,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_verifyVaaV2_unregisteredKey() public {
-    VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+    execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
 		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
@@ -769,8 +776,8 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
 		bytes memory registerThresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope);
 
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
-    VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa2);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+    execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa2);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
 		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
@@ -786,7 +793,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function test_verifyAndDecodeVaaV2() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
 		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
@@ -814,7 +821,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_verifyAndDecodeVaaV2_signatureVerificationFailure() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
 		uint256 s = 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c;
@@ -831,7 +838,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	// Shard update codepaths
 
 	function test_getShardInfo() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		bytes memory result = VerificationHelper.get(_verificationV2, VerificationHelper.getShards(0));
 
@@ -842,7 +849,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function test_setShardID() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		uint256 fakeNonce = 10;
 		bytes32 testID = bytes32(0x0000000000000000000000000000000000000000000000000000123412341234);
@@ -869,7 +876,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_setShardID_invalidNonce() public {
-		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		uint256 nonce = 10;
 		bytes32 testID = bytes32(0x0000000000000000000000000000000000000000000000000000123412341234);
@@ -910,5 +917,74 @@ contract VerificationV2Test is Test, VerificationHelper {
 		assertEq(shards.length, 1);
 		assertEq(shards[0].shard, thresholdShards1[0].shard);
 		assertEq(shards[0].id, testID);
+	}
+}
+
+contract VerificationV2Benchmark is Test {
+	using BytesParsing for bytes;
+
+	// Setup
+	WormholeMock private _wormholeMock;
+	VerificationV2 private _verificationV2;
+
+	// V1 test data
+	uint256 private constant guardianPrivateKey1 = 0x0123456701234567012345670123456701234567012345670123456701234567;
+	uint256[] private guardianPrivateKeys1 = [guardianPrivateKey1];
+	address private guardianPublicKey1;
+	address[] private guardianKeys1;
+
+	// V2 test data
+	uint256 private constant thresholdKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+  uint256 private constant thresholdKey2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
+
+	ShardInfo[] private thresholdShards1 = [
+		ShardInfo({
+			shard: bytes32(0x0000000000000000000000000000000000000000000000000000000000001234),
+			id: bytes32(0x0000000000000000000000000000000000000000000000000000000000005678)
+		})
+	];
+
+	function setUp() public {
+		// Create a couple guardian set
+		guardianPublicKey1 = vm.addr(guardianPrivateKey1);
+		guardianKeys1 = [guardianPublicKey1];
+
+		// Create a VAA to register the threshold key
+		bytes memory payload = createThresholdKeyUpdatePayload(0, thresholdKey1, 0, thresholdShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerThresholdKeyVaa = createVaaV1(0, guardianPrivateKeys1, envelope);
+
+		bytes memory payload2 = createThresholdKeyUpdatePayload(1, thresholdKey2, 24 * 60 * 60, thresholdShards1);
+		bytes memory envelope2 = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload2);
+		bytes memory registerThresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope2);
+
+		// Create a wormhole mock
+		_wormholeMock = new WormholeMock(guardianKeys1);
+
+		// Create the verification contract
+		_verificationV2 = new VerificationV2(_wormholeMock, 0, 1);
+
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa2);
+	}
+
+	function test_benchmark_verifyVaaV2_direct() public {
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
+		bytes memory payload = new bytes(49);
+		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
+		bytes memory vaa = createVaaV2(0, r, s, envelope);
+
+		_verificationV2.verifyVaa(vaa);
+	}
+
+	function test_benchmark_verifyVaaV2_direct_big() public {
+		bytes memory bigEnvelope = new bytes(5000);
+
+		address r = 0xD970AcFC9e8ff8BE38b0Fd6C4Fe4DD4DDB744cb4;
+		uint256 s = 0xfc201908d0a3aec1973711f48365deaa91180ef2771cb3744bccfc3ba77d6c77;
+		bytes memory bigSchnorrVaa = createVaaV2(1, r, s, bigEnvelope);
+
+		_verificationV2.verifyVaa(bigSchnorrVaa);
 	}
 }

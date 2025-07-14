@@ -73,7 +73,6 @@ contract TestAssembly is Test, VaaBuilder {
 		);
 	}
 
-	/*
 	function setUp() public {
 		bytes memory smallEnvelope = new bytes(100);
 		uint256[] memory guardianPrivateKeysSlice = new uint256[](SHARD_QUORUM);
@@ -126,7 +125,6 @@ contract TestAssembly is Test, VaaBuilder {
 		bytes memory registerSchnorrKeyVaa2 = createMultisigVaa(0, guardianPrivateKeys1, envelope);
 
 		bytes memory message = abi.encodePacked(
-			Verification.update.selector,
 			EXEC_PULL_MULTISIG_KEY_DATA,
 			uint32(1),
 			EXEC_APPEND_SCHNORR_KEY,
@@ -281,5 +279,4 @@ contract TestAssembly is Test, VaaBuilder {
 		bytes memory result = abi.decode(resultRaw, (bytes));
 		assertEq(result.length, 0);
 	}
-	*/
 }

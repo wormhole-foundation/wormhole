@@ -231,7 +231,7 @@ contract TestAssembly2 is VerificationTestAPI {
     invalidSchnorrVaa = new bytes(100);
     invalidSchnorrVaa[0] = 0x02;
 
-    // Geneate shard data
+    // Generate shard data
     ShardData[] memory schnorrShards = new ShardData[](SHARD_COUNT);
     for (uint256 i = 0; i < SHARD_COUNT; i++) {
       schnorrShards[i] = ShardData({
