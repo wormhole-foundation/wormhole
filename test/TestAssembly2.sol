@@ -194,33 +194,20 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
     verifier.update(message);
   }
 
-  function get(WormholeVerifier verifier, bytes memory queries) public view returns (bytes memory) {
-    bytes memory response = verifier.get(queries);
-
-    (uint length,) = response.asUint256MemUnchecked(32);
-    (bytes memory data, uint256 offset) = response.sliceMemUnchecked(64, length);
-    assertEq(length + 64, offset);
-    assertGe(response.length, offset);
-
-    if (response.length > offset) {
-      (bytes memory trailingZeroes,) = response.sliceMemUnchecked(offset, response.length - offset);
-      for (uint i = 0; i < trailingZeroes.length; ++i) {
-        assertEq(trailingZeroes[i], 0);
-      }
-    }
-    return data;
-  }
-
   function getCurrentGuardianSet() public pure returns (bytes memory) {
     return abi.encodePacked(
       GET_CURRENT_MULTISIG_KEY_DATA
     );
   }
 
-  function decodeGetCurrentGuardianSet(bytes memory result, uint256 offset) public pure returns (address[] memory guardianSetAddrs, uint32 guardianSetIndex, uint256 newOffset) {
+  function decodeGetCurrentGuardianSet(bytes memory result, uint256 offset) public pure returns (
+    address[] memory guardianSetAddrs,
+    uint32 guardianSetIndex,
+    uint256 newOffset
+  ) {
     uint8 guardianCount;
-    (guardianCount, newOffset) = result.asUint8MemUnchecked(offset);
-    (guardianSetIndex, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (guardianSetIndex, newOffset) = result.asUint32MemUnchecked(offset);
+    (guardianCount, newOffset) = result.asUint8MemUnchecked(newOffset);
 
     guardianSetAddrs = new address[](guardianCount);
     for (uint256 i = 0; i < guardianCount; i++) {
@@ -743,14 +730,14 @@ contract TestAssembly2 is VerificationTestAPI {
     pullGuardianSets(_wormholeVerifierV2, 2);
   }
 
-  // function test_getCurrentGuardianSet() public {
-  //   pullGuardianSets(_wormholeVerifierV2, 1);
-  //   bytes memory result = get(_wormholeVerifierV2, getCurrentGuardianSet());
+  function test_getCurrentGuardianSet() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    bytes memory result = _wormholeVerifierV2.get(getCurrentGuardianSet());
 
-  //   (address[] memory guardianSetAddrs, uint32 guardianSetIndex,) = decodeGetCurrentGuardianSet(result, 0);
-  //   assertEq(guardianSetAddrs.length, 1);
-  //   assertEq(guardianSetAddrs[0], guardianPublicKeys[0]);
-  //   assertEq(guardianSetIndex, 0);
-  // }
+    (address[] memory guardianSetAddrs, uint32 guardianSetIndex,) = decodeGetCurrentGuardianSet(result, 0);
+    assertEq(guardianSetAddrs.length, 1);
+    assertEq(guardianSetAddrs[0], guardianPublicKeys[0]);
+    assertEq(guardianSetIndex, 0);
+  }
 
 }

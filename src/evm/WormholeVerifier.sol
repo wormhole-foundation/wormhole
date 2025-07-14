@@ -998,9 +998,9 @@ contract WormholeVerifier is EIP712Encoding {
           result = abi.encodePacked(result, index, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_CURRENT_MULTISIG_KEY_DATA) {
           uint256 index = _getMultisigKeyCount() - 1;
-          (address[] memory keys,) = _getMultisigKeyDataExport(index);
+          (address[] memory keys,,) = _getMultisigKeyData(index);
 
-          result = abi.encodePacked(result, index, uint8(keys.length), keys);
+          result = abi.encodePacked(result, uint32(index), uint8(keys.length), keys);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
           uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
@@ -1013,7 +1013,7 @@ contract WormholeVerifier is EIP712Encoding {
           uint256 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
 
-          (address[] memory keys, uint32 expirationTime) = _getMultisigKeyDataExport(index);
+          (address[] memory keys,, uint32 expirationTime) = _getMultisigKeyData(index);
 
           result = abi.encodePacked(result, uint8(keys.length), keys, expirationTime);
         } else if (opcode == GET_SCHNORR_SHARD_DATA) {
@@ -1148,7 +1148,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Load current multisig key data
       uint256 currentMultisigKeyCount = _getMultisigKeyCount();
       uint256 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
-      (uint8 shardCount, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
+      (address[] memory shards, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
+      uint8 shardCount = uint8(shards.length);
 
       // TODO: Compute all the flags at once
       // NOTE: No need to check multisig expiration, since it's the current multisig key
@@ -1273,7 +1274,11 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function _getMultisigKeyData(uint256 index) internal view returns (uint8 keyCount, uint256 keyDataOffset, uint32 expirationTime) {
+  function _getMultisigKeyData(uint256 index) internal view returns (
+    address[] memory keys,
+    uint256 keyDataOffset,
+    uint32 expirationTime
+  ) {
     assembly ("memory-safe") {
       // Load and decode the multisig key data entry
       let entry := sload(add(SLOT_MULTISIG_KEY_DATA, index))
@@ -1289,27 +1294,13 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Copy the value to memory
       let size := sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA)
-      keyCount := shr(5, size)
+      let keyCount := shr(5, size)
 
-      keyDataOffset := mload(PTR_FREE_MEMORY)
+      keys := mload(PTR_FREE_MEMORY)
+      mstore(keys, keyCount)
+      keyDataOffset := add(keys, LENGTH_WORD)
       mstore(PTR_FREE_MEMORY, add(keyDataOffset, size))
       extcodecopy(keyDataAddress, keyDataOffset, OFFSET_MULTISIG_CONTRACT_DATA, size)
-    }
-  }
-
-  function _getMultisigKeyDataExport(uint256 index) internal view returns (address[] memory keys, uint32 expirationTime) {
-    assembly ("memory-safe") {
-      // Set up the result pointer
-      keys := mload(PTR_FREE_MEMORY)
-      mstore(PTR_FREE_MEMORY, add(keys, LENGTH_WORD))
-    }
-
-    uint8 keyCount;
-    (keyCount, , expirationTime) = _getMultisigKeyData(index);
-
-    assembly ("memory-safe") {
-      // Set the length of the keys array
-      mstore(keys, keyCount)
     }
   }
 
