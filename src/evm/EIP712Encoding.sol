@@ -59,24 +59,27 @@ contract EIP712Encoding is IERC5267 {
     );
   }
 
-  function DOMAIN_SEPARATOR() external view returns (bytes32) {
+  function DOMAIN_SEPARATOR() public view returns (bytes32) {
     return _domainSeparator;
   }
 
   function getDomainSeparator(
-    uint256 eth_chain_id, address verifyingContract
+    uint256 ethChainId,
+    address verifyingContract
   ) internal pure returns (bytes32) {
     return keccak256(abi.encode(
       EIP712_DOMAIN_TYPE_HASH,
       EIP712_NAME_HASH,
       EIP712_VERSION_HASH,
-      eth_chain_id,
+      ethChainId,
       verifyingContract
     ));
   }
 
   function getRegisterGuardianDigest(
-    uint32 thresholdKeyIndex, uint32 expirationTime, bytes32 guardianId
+    uint32 thresholdKeyIndex,
+    uint32 expirationTime,
+    bytes32 guardianId
   ) public view returns (bytes32) {
     bytes32 idHash = keccak256(abi.encode(
       REGISTER_TYPE_HASH,
