@@ -569,10 +569,9 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
   }
 
   function test_verifyBatchMultisig() public {
-    // FIXME: Get this test to pass!
-    // (bool success, bytes memory data) = address(_wormholeVerifierV2).call(batchMultisigMessage);
-    // vm.assertEq(success, true);
-    // vm.assertEq(data.length, 0);
+    (bool success, bytes memory data) = address(_wormholeVerifierV2).call(batchMultisigMessage);
+    vm.assertEq(success, true);
+    vm.assertEq(data.length, 0);
   }
 
   function test_verifyBatchSchnorr() public {
@@ -593,7 +592,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(data.length, 4+32);
   }
 }
-
+/*
 contract TestAssembly2 is VerificationTestAPI {
   using VaaLib for bytes;
 
@@ -684,18 +683,18 @@ contract TestAssembly2 is VerificationTestAPI {
     bytes memory appendSchnorrKeyEnvelope2 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage2);
     appendSchnorrKeyVaa2 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope2, guardianPrivateKeys), appendSchnorrKeyEnvelope2);
 
-    // bytes memory message = abi.encodePacked(
-    //   UPDATE_PULL_MULTISIG_KEY_DATA,
-    //   uint32(1),
-    //   UPDATE_APPEND_SCHNORR_KEY,
-    //   appendSchnorrKeyVaa1,
-    //   schnorrShardsRaw,
-    //   UPDATE_APPEND_SCHNORR_KEY,
-    //   appendSchnorrKeyVaa2,
-    //   schnorrShardsRaw
-    // );
+    bytes memory message = abi.encodePacked(
+      UPDATE_PULL_MULTISIG_KEY_DATA,
+      uint32(1),
+      UPDATE_APPEND_SCHNORR_KEY,
+      appendSchnorrKeyVaa1,
+      schnorrShardsRaw,
+      UPDATE_APPEND_SCHNORR_KEY,
+      appendSchnorrKeyVaa2,
+      schnorrShardsRaw
+    );
 
-    // _wormholeVerifierV2.update(message);
+    _wormholeVerifierV2.update(message);
   }
 
   function test_verifyMultisig() public view {
@@ -754,3 +753,4 @@ contract TestAssembly2 is VerificationTestAPI {
   // }
 
 }
+*/

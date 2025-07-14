@@ -30,6 +30,7 @@ uint256 constant MASK_VERIFY_RESULT_INVALID_SIGNER_INDEX    = 1 << 22;
 uint256 constant MASK_VERIFY_RESULT_SIGNER_USED             = 1 << 23;
 uint256 constant MASK_VERIFY_RESULT_INVALID_OPCODE          = 1 << 24;
 uint256 constant MASK_VERIFY_RESULT_INVALID_MESSAGE_LENGTH  = 1 << 25;
+uint256 constant MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE   = 1 << 26;
 
 // Update opcodes
 uint8 constant UPDATE_SET_SHARD_ID           = 0;
@@ -304,8 +305,11 @@ contract WormholeVerifier is EIP712Encoding {
       // Multisig key data access functions
       function getMultisigKeyDataFromContract(keyDataAddress, buffer) -> keyDataSize {
         keyDataSize := extcodesize(keyDataAddress)
-        // FIXME: Do we want to return an error code if the size is zero?
-        //        It's safe to not care, because we'll run out of gas if we try to copy 0xFFFF... bytes
+        if iszero(keyDataSize) {
+          mstore(PTR_SCRATCH, SELECTOR_ERROR_VERIFICATION_FAILED)
+          mstore(OFFSET_VERIFICATION_FAILED_RESULT, MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE)
+          revert(PTR_SCRATCH, LENGTH_VERIFICATION_FAILED)
+        }
         extcodecopy(keyDataAddress, buffer, OFFSET_MULTISIG_CONTRACT_DATA, sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA))
       }
 
@@ -566,8 +570,11 @@ contract WormholeVerifier is EIP712Encoding {
       // Multisig key data access functions
       function getMultisigKeyDataFromContract(keyDataAddress, buffer) -> keyDataSize {
         keyDataSize := extcodesize(keyDataAddress)
-        // FIXME: Do we want to return an error code if the size is zero?
-        //        It's safe to not care, because we'll run out of gas if we try to copy 0xFFFF... bytes
+        if iszero(keyDataSize) {
+          mstore(PTR_SCRATCH, SELECTOR_ERROR_VERIFICATION_FAILED)
+          mstore(OFFSET_VERIFICATION_FAILED_RESULT, MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE)
+          revert(PTR_SCRATCH, LENGTH_VERIFICATION_FAILED)
+        }
         extcodecopy(keyDataAddress, buffer, OFFSET_MULTISIG_CONTRACT_DATA, sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA))
       }
 
