@@ -971,7 +971,7 @@ contract WormholeVerifier is EIP712Encoding {
           uint256 index = _getMultisigKeyCount() - 1;
           (address[] memory keys,) = _getMultisigKeyDataExport(index);
 
-          result = abi.encodePacked(result, keys);
+          result = abi.encodePacked(result, index, uint8(keys.length), keys);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
           uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
@@ -986,7 +986,7 @@ contract WormholeVerifier is EIP712Encoding {
 
           (address[] memory keys, uint32 expirationTime) = _getMultisigKeyDataExport(index);
 
-          result = abi.encodePacked(result, keys, expirationTime);
+          result = abi.encodePacked(result, uint8(keys.length), keys, expirationTime);
         } else if (opcode == GET_SCHNORR_SHARD_DATA) {
           uint32 schnorrKeyIndex;
           (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
