@@ -24,7 +24,13 @@ import {
 
 import {MultisigVerification} from "../src/evm/MultisigVerification.sol";
 import {SSTORE2} from "../src/evm/ExtStore.sol";
-import {MODULE_VERIFICATION_V2, ACTION_APPEND_THRESHOLD_KEY, Q} from "../src/evm/ThresholdVerification.sol";
+import {
+	ThresholdVerification,
+	MODULE_VERIFICATION_V2,
+	ACTION_APPEND_THRESHOLD_KEY,
+	Q
+} from "../src/evm/ThresholdVerification.sol";
+import {ThresholdVerificationState} from "../src/evm/ThresholdVerificationState.sol";
 import {REGISTER_TYPE_HASH} from "../src/evm/EIP712Encoding.sol";
 
 import {RawDispatcher} from "wormhole-solidity-sdk/RawDispatcher.sol";
@@ -638,14 +644,18 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_appendThresholdKey() public {
-		// TODO: add assert on response error
-		VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, invalidVaaV1);
+		bytes memory result = VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, invalidVaaV1);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, MultisigVerification.MultisigSignatureVerificationFailed.selector);
+		assertEq(result.length, 4);
 	}
 
 	function testRevert_appendThresholdKey_duplicatedKey() public {
 		VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
-		// TODO: add assert on response error
-		VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		bytes memory result = VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerificationState.InvalidThresholdKeyIndex.selector);
+		assertEq(result.length, 4);
 	}
 
 	function testRevert_appendOldThresholdKey() public {
@@ -660,8 +670,10 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory thresholdKeyVaa2 = createVaaV1(0, guardianPrivateKeys1, envelope2);
 	
 		VerificationHelper.execAppendThresholdKey(_verificationV2, thresholdKeyVaa);
-		// TODO: add assert on response error
-		VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, thresholdKeyVaa2);
+		bytes memory result = VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, thresholdKeyVaa2);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerificationState.InvalidThresholdKeyIndex.selector);
+		assertEq(result.length, 4);
 	}
 
 	function testRevert_appendMaxThresholdKey() public {
@@ -670,8 +682,10 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
 		bytes memory thresholdKeyVaa = createVaaV1(0, guardianPrivateKeys1, envelope);
 
-		// TODO: add assert on response error
-		VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, thresholdKeyVaa);
+		bytes memory result = VerificationHelper.expectRevertAppendThresholdKey(_verificationV2, thresholdKeyVaa);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerificationState.InvalidThresholdKeyIndex.selector);
+		assertEq(result.length, 4);
 	}
 
 	function test_getCurrentThresholdKey() public {
@@ -727,12 +741,13 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
 		bytes memory vaa = createVaaV2(0, r, s, envelope);
 
-		// TODO: assert specific error
 		bytes memory result = VerificationHelper.expectFailureVerifyVaa(_verificationV2, vaa);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerification.ThresholdSignatureVerificationFailed.selector);
 		assertEq(result.length, 4);
 	}
 
-	function testRevert_verifyVaaV2_notRegisteredKey() public {
+	function testRevert_verifyVaaV2_unregisteredKey() public {
     VerificationHelper.execAppendThresholdKey(_verificationV2, registerThresholdKeyVaa);
 
 		address r = address(0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56);
@@ -742,8 +757,9 @@ contract VerificationV2Test is Test, VerificationHelper {
     uint32 notRegisteredKeyTssIndex = 3;
 		bytes memory vaa = createVaaV2(notRegisteredKeyTssIndex, r, s, envelope);
 
-		// TODO: assert specific error
 		bytes memory result = VerificationHelper.expectFailureVerifyVaa(_verificationV2, vaa);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerification.ThresholdSignatureVerificationFailed.selector);
 		assertEq(result.length, 4);
 	} 
 
@@ -763,8 +779,9 @@ contract VerificationV2Test is Test, VerificationHelper {
     uint32 skippedTssIndex = 3;
 		bytes memory vaa = createVaaV2(skippedTssIndex, r, s, envelope);
 
-		// TODO: assert specific error
 		bytes memory result = VerificationHelper.expectFailureVerifyVaa(_verificationV2, vaa);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerification.ThresholdSignatureVerificationFailed.selector);
 		assertEq(result.length, 4);
 	}
 
@@ -794,7 +811,6 @@ contract VerificationV2Test is Test, VerificationHelper {
 		assertEq(sequence, 0);
 		assertEq(consistencyLevel, 0);
 		assertEq(decodedPayload.length, 49);
-		// assertEq(newOffset, 102);
 	}
 
 	function testRevert_verifyAndDecodeVaaV2_signatureVerificationFailure() public {
@@ -806,8 +822,9 @@ contract VerificationV2Test is Test, VerificationHelper {
 		bytes memory envelope = createVaaEnvelope(0, 0, 0, 0, 0, 0, payload);
 		bytes memory vaa = createVaaV2(0, r, s, envelope);
 
-		// TODO: assert specific error
 		bytes memory result = VerificationHelper.expectFailureVerifyAndDecodeVaa(_verificationV2, vaa);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, ThresholdVerification.ThresholdSignatureVerificationFailed.selector);
 		assertEq(result.length, 4);
 	}
 
@@ -875,8 +892,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 		(v, r, s) = vm.sign(guardianPrivateKey1, register2);
 		v = v == 27 ? 0 : 1;
 
-		// TODO: assert specific error
-		VerificationHelper.expectRevertRegisterGuardian(
+		bytes memory result = VerificationHelper.expectRevertRegisterGuardian(
 			_verificationV2,
 			0,
 			nonce,
@@ -884,8 +900,11 @@ contract VerificationV2Test is Test, VerificationHelper {
 			0,
 			r, s, v
 		);
+		(bytes4 error,) = result.asBytes4MemUnchecked(0);
+		assertEq(error, VerificationV2.InvalidNonce.selector);
+		assertEq(result.length, 4);
 
-		bytes memory result = VerificationHelper.get(_verificationV2, VerificationHelper.getShards(0));
+		result = VerificationHelper.get(_verificationV2, VerificationHelper.getShards(0));
 
 		(ShardInfo[] memory shards,) = VerificationHelper.decodeGetShards(result, 0);
 		assertEq(shards.length, 1);

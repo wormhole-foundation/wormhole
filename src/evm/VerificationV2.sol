@@ -42,7 +42,7 @@ contract VerificationV2 is
   error InvalidGovernanceChain();
   error InvalidGovernanceAddress();
 
-  error GuardianSetIsNotCurrent();
+  error ThresholdKeyIsNotCurrent();
 
   error RegistrationMessageExpired();
   error GuardianSignatureVerificationFailed();
@@ -144,7 +144,7 @@ contract VerificationV2 is
 
         // We only allow registrations for the current threshold key
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
-        require(thresholdKeyIndex == currentThresholdKeyIndex, GuardianSetIsNotCurrent());
+        require(thresholdKeyIndex == currentThresholdKeyIndex, ThresholdKeyIsNotCurrent());
 
         // Get the guardian set for the threshold key
         uint32 guardianSetIndex = info.guardianSetIndex;
