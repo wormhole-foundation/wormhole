@@ -552,7 +552,6 @@ contract VerificationV2Test is Test, VerificationHelper {
 		this.verifyVaa(_verificationV2, registerThresholdKeyVaa);
 	}
 
-	// TODO: rewrite these tests to use new entrypoint
 	function testRevert_verifyVaaV1() public {
 		bytes memory result = VerificationHelper.expectFailureVerifyVaa(_verificationV2, invalidVaaV1);
 		(bytes4 error,) = result.asBytes4MemUnchecked(0);
