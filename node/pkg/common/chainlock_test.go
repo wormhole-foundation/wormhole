@@ -12,6 +12,24 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+// The following constants are used to calculate the offset of each field in the serialized message publication.
+const (
+	offsetTxIDLength = 0
+	// Assumes a length of 32 bytes for the TxID.
+	offsetTxID              = offsetTxIDLength + 1
+	offsetTimestamp         = offsetTxID + 32
+	offsetNonce             = offsetTimestamp + 8
+	offsetSequence          = offsetNonce + 4
+	offsetConsistencyLevel  = offsetSequence + 8
+	offsetEmitterChain      = offsetConsistencyLevel + 1
+	offsetEmitterAddress    = offsetEmitterChain + 2
+	offsetIsReobservation   = offsetEmitterAddress + 32
+	offsetUnreliable        = offsetIsReobservation + 1
+	offsetVerificationState = offsetUnreliable + 1
+	offsetPayloadLength     = offsetVerificationState + 1
+	offsetPayload           = offsetPayloadLength + 2
+)
+
 func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	bytes := make([]byte, 101)
 	bytes[0] = payload.Type
@@ -78,6 +96,38 @@ func TestRoundTripMarshal(t *testing.T) {
 	require.NoError(t, readErr)
 
 	require.Equal(t, *orig, loaded)
+}
+
+func TestUnmarshalError(t *testing.T) {
+	// Test strategy: Write a good message, then corrupt it.
+	orig := makeTestMsgPub(t)
+
+	origBytes, writeErr := orig.MarshalBinary()
+	require.NoError(t, writeErr)
+	t.Logf("marshaled bytes: %x", origBytes)
+
+	// Check VerificationState errors.
+	// The valid range for the verificationState field is [0, NumVariantsVerificationState-1],
+	// so corrupting the verificationState field should cause an error.
+	bytes := origBytes
+	var err error
+	bytes[offsetVerificationState] = NumVariantsVerificationState
+	var loaded MessagePublication
+	err = loaded.UnmarshalBinary(bytes)
+	require.ErrorIs(t, err, ErrInvalidVerificationState, "expected error to be ErrInvalidVerificationState when unmarshaling corrupted verificationState")
+
+	// Check IsUnreliable errors.
+	bytes = origBytes
+	bytes[offsetUnreliable] = 0x02 // invalid boolean value
+	err = loaded.UnmarshalBinary(bytes)
+	require.ErrorIs(t, err, ErrInvalidBinaryBool, "expected error to be ErrInvalidBinaryBool when unmarshaling corrupted unreliable field")
+
+	// Check IsReobservation errors.
+	bytes = origBytes
+	bytes[offsetIsReobservation] = 0x02 // invalid boolean value
+	err = loaded.UnmarshalBinary(bytes)
+	require.ErrorIs(t, err, ErrInvalidBinaryBool, "expected error to be ErrInvalidBinaryBool when unmarshaling corrupted isReobservation field")
+
 }
 
 func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {

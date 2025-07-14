@@ -499,8 +499,9 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	msg.Unreliable = data[pos] != 0
 	pos++
 
-	// verificationState
-	if data[pos] > NumVariantsVerificationState {
+	// verificationState. NumVariantsVerificationState is the number of variants of the enum,
+	// which begins at 0. This means the valid range is [0, NumVariantsVerificationState-1].
+	if data[pos] > NumVariantsVerificationState-1 {
 		return ErrInvalidVerificationState
 	}
 	msg.verificationState = VerificationState(data[pos])
