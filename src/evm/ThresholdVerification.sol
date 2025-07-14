@@ -15,14 +15,15 @@ bytes32 constant MODULE_VERIFICATION_V2 = bytes32(0x0000000000000000000000000000
 // Action ID for appending a threshold key
 uint8 constant ACTION_APPEND_THRESHOLD_KEY = 0x01;
 
+// Curve order for secp256k1
+uint256 constant Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+uint256 constant HALF_Q = Q >> 1;
+
 contract ThresholdVerification is ThresholdVerificationState {
   using BytesParsing for bytes;
   using VaaLib for bytes;
   using {BytesParsing.checkLength} for uint;
 
-  // Curve order for secp256k1
-  uint256 constant internal Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
-  uint256 constant internal HALF_Q = Q >> 1;
 
   error ThresholdKeyExpired();
   error ThresholdSignatureVerificationFailed();
@@ -31,7 +32,7 @@ contract ThresholdVerification is ThresholdVerificationState {
 
   // Verify a threshold signature V2 VAA
   // NOTE: This function does not validate the VAA version is V2!
-  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint envelopeOffset) {
+  function _verifyThresholdVaaHeader(bytes calldata encodedVaa) internal view returns (uint bodyOffset) {
     unchecked {
       // Decode the VAA header
       uint offset = 1;
@@ -86,8 +87,8 @@ contract ThresholdVerification is ThresholdVerificationState {
     uint8 consistencyLevel,
     bytes calldata payload
   ) {
-    uint payloadOffset = _verifyThresholdVaaHeader(encodedVaa);
-    return encodedVaa.decodeVaaBodyCd(payloadOffset);
+    uint bodyOffset = _verifyThresholdVaaHeader(encodedVaa);
+    return encodedVaa.decodeVaaBodyCd(bodyOffset);
   }
 
   // Decode a threshold key update payload, given the number of shards(which is the same as the number of guardians for the current guardian set)
@@ -110,6 +111,8 @@ contract ThresholdVerification is ThresholdVerificationState {
       // Payload
       (newTSSIndex, offset) = payload.asUint32MemUnchecked(offset);
       (newThresholdPubkey, offset) = payload.asUint256MemUnchecked(offset);
+      // This is the expiration that is going to be applied
+      // for the current key after executing the change
       (expirationDelaySeconds, offset) = payload.asUint32MemUnchecked(offset);
       
       // Verify the module and action

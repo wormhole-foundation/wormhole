@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {eagerAnd} from "wormhole-sdk/Utils.sol";
 import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
@@ -44,10 +42,13 @@ contract VerificationV2 is
   error InvalidGovernanceChain();
   error InvalidGovernanceAddress();
 
-  error GuardianSetIsNotCurrent();
+  error ThresholdKeyIsNotCurrent();
 
   error RegistrationMessageExpired();
   error GuardianSignatureVerificationFailed();
+  error InvalidNonce();
+
+  mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
   constructor(ICoreBridge coreV1, uint256 initGuardianSetIndex, uint256 pullLimit)
     MultisigVerification(coreV1, initGuardianSetIndex, pullLimit)
@@ -92,11 +93,9 @@ contract VerificationV2 is
       (op, offset) = data.asUint8CdUnchecked(offset);
 
       if (op == OP_APPEND_THRESHOLD_KEY) {
-        // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
-        // Decode and verify the VAA
         (
           ,
           ,
@@ -107,14 +106,11 @@ contract VerificationV2 is
           bytes calldata payload
         ) = _verifyAndDecodeMultisigVaa(encodedVaa);
 
-        // Verify the emitter
         require(emitterChainId == CHAIN_ID_SOLANA, InvalidGovernanceChain());
         require(emitterAddress == GOVERNANCE_ADDRESS, InvalidGovernanceAddress());
 
-        // Get the guardian set
         (uint32 guardianSetIndex, address[] memory guardians) = _getCurrentGuardianSetInfo();
 
-        // Decode the payload
         (
           uint32 newTSSIndex,
           uint256 newThresholdAddr,
@@ -122,7 +118,6 @@ contract VerificationV2 is
           ShardInfo[] memory shards
         ) = _decodeThresholdKeyUpdatePayload(payload, guardians.length);
 
-        // Append the threshold key
         _appendThresholdKey(guardianSetIndex, newTSSIndex, newThresholdAddr, expirationDelaySeconds, shards);
       } else if (op == OP_PULL_GUARDIAN_SETS) {
         uint32 limit;
@@ -132,36 +127,30 @@ contract VerificationV2 is
       } else if (op == OP_REGISTER_GUARDIAN) {
         // Decode the payload
         uint32 thresholdKeyIndex;
-        uint32 expirationTime;
+        uint256 nonce;
         bytes32 guardianId;
         uint8 guardianIndex; bytes32 r; bytes32 s; uint8 v;
 
         (thresholdKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-        (expirationTime, offset) = data.asUint32CdUnchecked(offset);
+        (nonce, offset) = data.asUint256CdUnchecked(offset);
         (guardianId, offset) = data.asBytes32CdUnchecked(offset);
         (guardianIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
-        // We only allow registrations for the current threshold key
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
-        require(thresholdKeyIndex == currentThresholdKeyIndex, GuardianSetIsNotCurrent());
+        require(thresholdKeyIndex == currentThresholdKeyIndex, ThresholdKeyIsNotCurrent());
 
-        // Verify the message is not expired
-        require(expirationTime > block.timestamp, RegistrationMessageExpired());
-
-        // Get the guardian set for the threshold key
         uint32 guardianSetIndex = info.guardianSetIndex;
         (, address[] memory guardianAddrs) = _getGuardianSetInfo(guardianSetIndex);
-        // TODO: Verify the guardian set is still valid? What about for the verification path?
-        // We can't afford to check it there, so I'm skipping it here for now too
 
-        // Verify the signature
         // We're not doing replay protection with the signature itself so we don't care about
         // verifying only canonical (low s) signatures.
-        bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, expirationTime, guardianId);
+        bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, nonce, guardianId);
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardianIndex], GuardianSignatureVerificationFailed());
 
-        _registerGuardian(guardianSetIndex, guardianIndex, guardianId);
+        _useUnorderedNonce(signatory, nonce);
+
+        _registerGuardian(info, guardianIndex, guardianId);
       } else {
         revert InvalidOperation(op);
       }
@@ -181,7 +170,6 @@ contract VerificationV2 is
       (op, offset) = data.asUint8CdUnchecked(offset);
 
       if (op == OP_VERIFY_AND_DECODE_VAA) {
-        // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
@@ -208,11 +196,9 @@ contract VerificationV2 is
           payload
         );
       } else if (op == OP_VERIFY_VAA) {
-        // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
-        // Verify the VAA
         verifyVaa(encodedVaa);
       } else if (op == OP_GET_THRESHOLD_CURRENT) {
         (ThresholdKeyInfo memory info, uint32 index) = _getCurrentThresholdInfo();
@@ -250,5 +236,16 @@ contract VerificationV2 is
     data.length.checkLength(offset);
 
     return result;
+  }
+
+  /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
+  /// @param nonce The nonce to spend
+  function _useUnorderedNonce(address guardian, uint256 nonce) internal {
+    uint256 wordPos = uint248(nonce >> 8);
+    uint256 bitPos = uint8(nonce);
+    uint256 bit = 1 << bitPos;
+    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+
+    if (flipped & bit == 0) revert InvalidNonce();
   }
 }

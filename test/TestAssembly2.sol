@@ -396,7 +396,7 @@ contract TestAssembly2 is VerificationTestAPI {
     setUpMessages1(smallEnvelope, bigEnvelope, guardianPrivateKeysSlice);
     setUpMessages2(smallEnvelope, bigEnvelope);
 
-    // Geneate shard data
+    // Generate shard data
     ShardData[] memory schnorrShards = new ShardData[](SHARD_COUNT);
     for (uint256 i = 0; i < SHARD_COUNT; i++) {
       schnorrShards[i] = ShardData({

@@ -136,7 +136,6 @@ contract VerificationTests is Test, VaaBuilder {
 		schnorrVaa = createSchnorrVaa(0, r, s, new bytes(100));
 	}
 
-	/*
 	function test_verifyVaaSchnorr() public {
 		verification.update(abi.encodePacked(uint8(2), uint32(1)));
 
@@ -168,5 +167,80 @@ contract VerificationTests is Test, VaaBuilder {
 		assertEq(sequence, 0);
 		assertEq(payload.length, 49);
 	}
-	*/
+}
+
+
+contract VerificationV2Benchmark is Test, VaaBuilder {
+	uint256 private constant guardianPrivateKey1 = 0x0123456701234567012345670123456701234567012345670123456701234567;
+	uint256[] private guardianPrivateKeys1 = [guardianPrivateKey1];
+	address private guardianPublicKey1 = vm.addr(guardianPrivateKey1);
+	address[] private guardianKeys1 = [guardianPublicKey1];
+
+	uint256 private constant schnorrKey1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+	uint256 private constant schnorrKey2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
+	ShardData[] private schnorrShards1 = [
+		ShardData({
+			shard: bytes32(0x0000000000000000000000000000000000000000000000000000000000001234),
+			id: bytes32(0x0000000000000000000000000000000000000000000000000000000000005678)
+		})
+	];
+
+	bytes private schnorrVaa;
+
+	WormholeMock public wormholeMock = new WormholeMock(guardianKeys1);
+
+	Verification public verification = new Verification(wormholeMock, 0, 0);
+
+	function setUp() public {
+		bytes memory payload = createAppendSchnorrKeyMessage(0, schnorrKey1, 0, schnorrShards1);
+		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
+		bytes memory registerSchnorrKeyVaa = createMultisigVaa(0, guardianPrivateKeys1, envelope);
+
+		bytes memory payload2 = createAppendSchnorrKeyMessage(1, schnorrKey2, 24 * 60 * 60, schnorrShards1);
+		bytes memory envelope2 = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload2);
+		bytes memory registerSchnorrKeyVaa2 = createMultisigVaa(0, guardianPrivateKeys1, envelope2);
+
+		address r = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
+		uint256 s = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
+		schnorrVaa = createSchnorrVaa(0, r, s, new bytes(100));
+
+		verification.update(abi.encodePacked(uint8(2), uint32(1)));
+
+		// Batching is broken for appends for some reason
+		bytes memory registerSchnorrKeyMessage = abi.encodePacked(
+			uint8(1),
+			uint16(registerSchnorrKeyVaa.length),
+			registerSchnorrKeyVaa
+		);
+		verification.update(registerSchnorrKeyMessage);
+
+		bytes memory registerSchnorrKeyMessage2 = abi.encodePacked(
+			uint8(1),
+			uint16(registerSchnorrKeyVaa2.length),
+			registerSchnorrKeyVaa2
+		);
+		verification.update(registerSchnorrKeyMessage2);
+	}
+
+	function test_benchmark_verifyVaaSchnorr() public {
+		verification.verifyVaa_U7N5(schnorrVaa);
+	}
+
+	function test_benchmark_verifyVaaSchnorr_big() public {
+		bytes memory bigEnvelope = new bytes(5000);
+
+		address r = 0xD970AcFC9e8ff8BE38b0Fd6C4Fe4DD4DDB744cb4;
+		uint256 s = 0xfc201908d0a3aec1973711f48365deaa91180ef2771cb3744bccfc3ba77d6c77;
+		bytes memory bigSchnorrVaa = createSchnorrVaa(1, r, s, bigEnvelope);
+
+		verification.verifyVaa_U7N5(bigSchnorrVaa);
+	}
+
+	function test_benchmark_verifyVaaSchnorrVaaEssentials() public {
+		(uint16 emitterChainId, bytes32 emitterAddress, uint32 sequence, bytes memory payload) = verification.verifyVaaDecodeEssentials_gRd6(schnorrVaa);
+		assertEq(emitterChainId, 0);
+		assertEq(emitterAddress, bytes32(0));
+		assertEq(sequence, 0);
+		assertEq(payload.length, 49);
+	}
 }
