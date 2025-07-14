@@ -561,7 +561,7 @@ contract VerificationV2Test is Test, VerificationHelper {
 	}
 
 	function testRevert_verifyVaaV1_notRegisteredGuardianSet() public {
-    uint32 fakeGuardianSetIndex = 5;
+		uint32 fakeGuardianSetIndex = 5;
 		bytes memory payload = createThresholdKeyUpdatePayload(0, thresholdKey1, 0, thresholdShards1);
 		bytes memory envelope = createVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, payload);
 		bytes memory registerThresholdKeyVaa2  = createVaaV1(fakeGuardianSetIndex, guardianPrivateKeys1, envelope);

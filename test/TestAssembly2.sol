@@ -33,6 +33,7 @@ import {
   MASK_VERIFY_RESULT_SIGNATURE_MISMATCH,
   MASK_VERIFY_RESULT_INVALID_SIGNATURE_COUNT,
   MASK_VERIFY_RESULT_INVALID_SIGNATURE,
+  MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE,
 
   VERIFY_ANY,
   VERIFY_MULTISIG,
@@ -624,7 +625,7 @@ contract TestAssembly2 is VerificationTestAPI {
   bytes private smallSchnorrVaa;
   bytes private bigSchnorrVaa;
 
-  bytes private invalidVersionVaa;
+  bytes private constant invalidVersionVaa = new bytes(100);
   bytes private invalidMultisigVaa;
   bytes private invalidSchnorrVaa;
 
@@ -670,8 +671,6 @@ contract TestAssembly2 is VerificationTestAPI {
     address r2 = 0xD970AcFC9e8ff8BE38b0Fd6C4Fe4DD4DDB744cb4;
     uint256 s2 = 0xfc201908d0a3aec1973711f48365deaa91180ef2771cb3744bccfc3ba77d6c77;
     bigSchnorrVaa = newSchnorrVaa(1, r2, s2, bigEnvelope);
-
-    invalidVersionVaa = new bytes(100);
 
     invalidMultisigVaa = new bytes(100);
     invalidMultisigVaa[0] = 0x01;
@@ -796,6 +795,61 @@ contract TestAssembly2 is VerificationTestAPI {
     assertEq(guardianSetAddrs2.length, 1);
     assertEq(guardianSetAddrs2[0], guardianPublicKeysSet1[0]);
     assertEq(expirationTime2, expirationTimeSet1);
+  }
+
+  function testRevert_verifyVaaV1() public {
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_VERSION
+    ));
+    _wormholeVerifierV2.verify(invalidVersionVaa);
+  }
+
+  function testRevert_verifyVaaV1_notRegisteredGuardianSet() public {
+    uint32 fakeGuardianSetIndex = 5;
+
+    uint256[] memory guardianPrivateKeysSlice = new uint256[](SHARD_QUORUM);
+    for (uint256 i = 0; i < SHARD_QUORUM; i++) {
+      guardianPrivateKeysSlice[i] = guardianPrivateKeysSet0[i];
+    }
+    bytes memory smallEnvelope = new bytes(100);
+    bytes memory smallMultisigSignatures = signMultisig(smallEnvelope, guardianPrivateKeysSlice);
+    bytes memory vaa = newMultisigVaa(fakeGuardianSetIndex, smallMultisigSignatures, smallEnvelope);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE
+    ));
+    _wormholeVerifierV2.verify(vaa);
+  }
+
+  function testRevert_verifyVaaV1_skippedGuardianSet() public {
+    WormholeV1Mock wormholeMock = new WormholeV1Mock();
+
+    wormholeMock.appendGuardianSet(GuardianSet({
+      keys: guardianPublicKeysSet0,
+      expirationTime: 0
+    }));
+
+    wormholeMock.appendGuardianSet(GuardianSet({
+      keys: guardianPublicKeysSet0,
+      expirationTime: 0
+    }));
+
+    wormholeMock.appendGuardianSet(GuardianSet({
+      keys: guardianPublicKeysSet0,
+      expirationTime: 0
+    }));
+
+    uint32 initGuardianSetIndex = 2;
+    WormholeVerifier tempVerifier = new WormholeVerifier(wormholeMock, initGuardianSetIndex, 0, 1);
+
+    // small multisig VAA has guardian set 0 in the header
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE
+    ));
+    tempVerifier.verify(smallMultisigVaa);
   }
 }
 */
