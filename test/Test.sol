@@ -439,8 +439,16 @@ contract VerificationHelper is StdAssertions {
 
 		if (!success) reRevert(response);
 
-    (uint length,) = response.asUint256MemUnchecked(32);
-    (bytes memory data,) = response.sliceMemUnchecked(64, length);
+		(uint length,) = response.asUint256MemUnchecked(32);
+		(bytes memory data, uint256 offset) = response.sliceMemUnchecked(64, length);
+		assertEq(length + 64, offset);
+		assertGe(response.length, offset);
+		if (response.length > offset) {
+			(bytes memory trailingZeroes,) = response.sliceMemUnchecked(offset, response.length - offset);
+			for (uint i = 0; i < trailingZeroes.length; ++i) {
+				assertEq(trailingZeroes[i], 0);
+			}
+		}
 		return data;
 	}
 }
