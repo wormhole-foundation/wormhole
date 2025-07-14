@@ -6,8 +6,13 @@ Add a defense-in-depth mechanism that cross-references a message publication fro
 
 # Background
 
-Wormhole detects activity on a sender chain by watching for message publications on the core bridge. If an attacker
-has a way to fraudulently emit message from the core bridge, the integrity of the system will be compromised. 
+Wormhole works by watching for message publications on Core Bridge contracts for supported chains. Message Publications
+are created when a contract calls into the Core Bridge to trigger a state change in the Wormhole network.
+
+Generally speaking, if an attacker has a way to fraudulently emit message from the Core Bridge, the integrity of the system will be compromised. 
+
+In order to mitigate this risk for Token Transfers, it's possible to cross-reference the Core Bridge message publications with the
+calling contract i.e. the corresponding Token Bridge for that chain.
 
 # Goals
 
@@ -28,15 +33,15 @@ has a way to fraudulently emit message from the core bridge, the integrity of th
 
 Users are able to send funds cross-chain by interacting with a Token Bridge contract deployed on the sending chain. When they
 transfer funds into this contract, it will make a corresponding call to the Core Bridge contract on the same chain. The
-Core Bridge contract will then make the details of the token transfer available via e.g. emitting a log. The Wormhole Guardians
-run "watcher" software that observe this activity, parse and verify the data, and finally issue a transfer on the destination
-chain to complete the cross-chain transfer.
+Core Bridge contract will then make the details of the token transfer available via a message publishing process 
+(e.g. emitting an event on EVM based chains). The Wormhole Guardians run "watcher" software that observe this activity, 
+parse and verify the data, and finally issue a transfer on the destination chain to complete the cross-chain transfer.
 
 The ability to spoof messages coming from the Core Bridge would pose a serious threat to the integrity of the system, as
 it would trick the Guardians into minting or unlocking funds on the destination chain without a corresponding deposit on the source chain.
 
-In order to mitigate this attack, the Transfer Verifier is designed to cross-reference core bridge messages against the Token Bridge's
-activity. If there is no Token Bridge activity that matches the core bridge message, the Guardians will have the ability to
+In order to mitigate this attack, a Transfer Verifier is designed to cross-reference Core Bridge messages against the Token Bridge's
+activity. If there is no Token Bridge activity that matches the Core Bridge message, the Guardians will have the ability to
 respond to a potentially fraudulent message, such as by dropping or delaying it.
 
 The Transfer Verifier will not drop or delay messages itself. Another part of the node can respond as it sees fit.
@@ -45,15 +50,15 @@ gives them.
 
 # Detailed Design
 
-The overview section described an abstract view of how the Token Bridge, core bridge, and Guardians interact. However,
+The overview section described an abstract view of how the Token Bridge, Core Bridge, and Guardians interact. However,
 different blockchain environments operate heterogeneously. For example, the EVM provides strict logs in the form
 of message receipts that can easily be verified. In contrast, Sui and Solana do not provide the same degree of introspection
-on historical account states. As a result, the Transfer Verifier must be implemented in an ad-hoc way using the state
+on historical account states. As a result, a Transfer Verifier must be implemented in an ad-hoc way using the state
 and tooling available to particular chains. RPC providers for different blockchains may prune state aggressively which
 provides another limitation on the degree of confidence.
 
 ## Types of Implementations
-Broadly, the Transfer Verifier for a chain can be thought of as "strict" or "heuristic" based on whether or not
+Broadly, a Transfer Verifier for a chain can be thought of as "strict" or "heuristic" based on whether or not
 historical account data is easily accessible. For "strict" implementations, the Guardian could drop
 the message publication completely as it is guaranteed to be fraudulent. For "heuristic" implementations, the Guardian
 could choose to delay the transfer, allowing time for the transaction to be manually triaged.
@@ -68,7 +73,7 @@ transferred into the Token Bridge as are encoded in the Core Bridge's message
 - If the above is not true, report the Message Publication as having failed verification.
 
 ### Responding to suspicious messages
-If the Transfer Verifier reports an error the Guardian should block the Message
+If  a Transfer Verifier reports an error the Guardian should block the Message
 Publication if the implementation is "strict". If the implementation is
 "heuristic", the message should be delayed. This will allow some time for core
 contributors to analyze the message and associated logs for potential bugs or
@@ -88,27 +93,31 @@ Some example "verification states" are:
 - Verified
 - Anomalous
 - Rejected
+- Could not verify
 
-Messages can have a `NotVerified` state initially and should be eventually be marked as one of the other states.
+Messages can have an initial state of `Not verified` which should eventually be changed to one of the other states.
 
-Messages marked as `NotApplicable` should be processed normally. This state
+Messages marked as `Not applicable` should be processed normally. This state
 will be used for messages that are not Token Transfers, as only Token Transfers
-are process by the Transfer Verifier.
+are process by  a Transfer Verifier.
 
 A `Verified` message is in a "known good" state and should be processed normally.
 
 Both `Anomalous` and `Rejected` represent potentially dangerous states. `Anomalous` should be used for "heuristic"
 Transfer Verifier implementations and `Rejected` should be used for "strict" implementations. `Rejected` messages
 must be dropped and must not result in a VAA creation for the message. `Anomalous` messages can be delayed, though
-other potential responses may be appropriate depending on the reliability of the Transfer Verifier implementation
+other potential responses may be appropriate depending on the reliability of  a Transfer Verifier implementation
 and how likely `Anomalous` messages are to occur in practice.
+
+`Could not verify` refers to transactions that could be correctly parsed for whatever reason. This state signals
+that an attempt was made to verify a transfer but that it could not be completed successfully.
 
 ### Sequencing with the Governor and the Accountant
 
 Assuming both are enabled, the processor first sends a message to the Governor and then to the Accountant once the
-message is release by the Governor.
+message is released by the Governor.
 
-Checks relating to the Transfer Verifier should occur before the checks to the Governor or the Accountant. If a message
+Checks relating to  a Transfer Verifier should occur before the checks to the Governor or the Accountant. If a message
 is `Rejected` or `Anomalous`, it should be dropped or delayed before it is included in the Governor or Accountant.
 This prevents a scenario where a `Rejected` message might still consume outgoing Governor capacity, for example.
 
@@ -118,8 +127,8 @@ This prevents a scenario where a `Rejected` message might still consume outgoing
 
 The EVM provides a Receipt containing detailed logs for all of the contracts that were interacted with during the transactions.
 The Receipt can be parsed and filtered to isolate Token Bridge and Core Bridge activity and the details are precise. For these
-reasons the Ethereum implementation can be considered "strict". If the Transfer Verifier is enabled, the Guardians will not
-publish Message Publications in violation of the invariants checked by the Transfer Verifier.
+reasons the Ethereum implementation can be considered "strict". If  a Transfer Verifier is enabled, the Guardians will not
+publish Message Publications in violation of the invariants checked by  a Transfer Verifier.
 
 For EVM implementations, the contents of the [LogMessagePublished event](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/ethereum/contracts/Implementation.sol#L12-L26)
 can be observed and parsed.
@@ -127,9 +136,9 @@ can be observed and parsed.
 # Deployment Considerations
 
 ## Modularity
-Because the Transfer Verifier will be integrated with the Watcher code, bugs in its implementations could lead to messages
+Because  a Transfer Verifier will be integrated with the Watcher code, bugs in its implementations could lead to messages
 being missed. For this reason, the changes to the watcher code must be minimal, well-tested, and reversible. It should
-be possible to disable the Transfer Verifier entirely or on a per-chain basis by a Guardian without the need for a 
+be possible to disable a Transfer Verifier entirely or on a per-chain basis by a Guardian without the need for a 
 new release.
 
 ## Testing
@@ -160,3 +169,5 @@ Cancel is enabled, the suspicious transfers may become released early.
 
 It should be noted that this only affects small transfers, as Flow Cancel does not affect transfers over the big
 transfer limit.
+
+More details about the Flow Cancel feature can be found in the [Governor whitepaper](./0007_governor.md).
