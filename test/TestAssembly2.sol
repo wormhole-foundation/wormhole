@@ -214,6 +214,29 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
       (guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset + 12);
     }
   }
+
+  function getGuardianSet(uint32 index) public pure returns (bytes memory) {
+    return abi.encodePacked(
+      GET_MULTISIG_KEY_DATA,
+      uint32(index)
+    );
+  }
+
+  function decodeGetGuardianSet(bytes memory result, uint256 offset) public pure returns (
+    address[] memory guardianSetAddrs,
+    uint32 expirationTime,
+    uint256 newOffset
+  ) {
+    uint8 guardianCount;
+    (guardianCount, newOffset) = result.asUint8MemUnchecked(offset);
+
+    guardianSetAddrs = new address[](guardianCount);
+    for (uint256 i = 0; i < guardianCount; i++) {
+      (guardianSetAddrs[i], newOffset) = result.asAddressMemUnchecked(newOffset + 12);
+    }
+
+    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
+  }
 }
 
 contract WormholeV1Mock is ICoreBridge {
@@ -588,8 +611,13 @@ contract TestAssembly2 is VerificationTestAPI {
   uint256 private constant SHARD_COUNT = 1;
   uint256 private constant SHARD_QUORUM = 1;
 
-  uint256[] private guardianPrivateKeys;
-  address[] private guardianPublicKeys;
+  uint256[] private guardianPrivateKeysSet0;
+  address[] private guardianPublicKeysSet0;
+  uint32 private expirationTimeSet0;
+
+  // Used to rotate to a new guardian set in some tests
+  uint256[] private guardianPrivateKeysSet1;
+  address[] private guardianPublicKeysSet1;
 
   bytes private smallMultisigVaa;
   bytes private bigMultisigVaa;
@@ -607,19 +635,21 @@ contract TestAssembly2 is VerificationTestAPI {
   WormholeVerifier private immutable _wormholeVerifierV2 = new WormholeVerifier(_wormholeV1Mock, 0, 0, 0);
 
   function setUp() public {
-    // Generate the initial guardian set
-    (guardianPrivateKeys, guardianPublicKeys) = newKeySet(SHARD_COUNT);
+    // Generate the guardian sets
+    (guardianPrivateKeysSet0, guardianPublicKeysSet0) = newKeySet(SHARD_COUNT);
+    (guardianPrivateKeysSet1, guardianPublicKeysSet1) = newKeySet(SHARD_COUNT);
 
+    expirationTimeSet0 = uint32(block.timestamp + EXPIRATION_DELAY_SECONDS);
     // Append the initial guardian set to the wormholeV1Mock
     _wormholeV1Mock.appendGuardianSet(GuardianSet({
-      expirationTime: uint32(block.timestamp + EXPIRATION_DELAY_SECONDS),
-      keys: guardianPublicKeys
+      expirationTime: expirationTimeSet0,
+      keys: guardianPublicKeysSet0
     }));
 
     // Create a slice of the guardian private keys for the multisig to hit quorum without wasting gas
     uint256[] memory guardianPrivateKeysSlice = new uint256[](SHARD_QUORUM);
     for (uint256 i = 0; i < SHARD_QUORUM; i++) {
-      guardianPrivateKeysSlice[i] = guardianPrivateKeys[i];
+      guardianPrivateKeysSlice[i] = guardianPrivateKeysSet0[i];
     }
 
     // Create VAAs
@@ -664,11 +694,11 @@ contract TestAssembly2 is VerificationTestAPI {
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
     bytes memory appendSchnorrKeyMessage1 = newAppendSchnorrKeyMessage(0, pk1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope1 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage1);
-    appendSchnorrKeyVaa1 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope1, guardianPrivateKeys), appendSchnorrKeyEnvelope1);
+    appendSchnorrKeyVaa1 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope1, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope1);
 
     bytes memory appendSchnorrKeyMessage2 = newAppendSchnorrKeyMessage(1, pk2, EXPIRATION_DELAY_SECONDS, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope2 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage2);
-    appendSchnorrKeyVaa2 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope2, guardianPrivateKeys), appendSchnorrKeyEnvelope2);
+    appendSchnorrKeyVaa2 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope2, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope2);
 
     bytes memory message = abi.encodePacked(
       UPDATE_PULL_MULTISIG_KEY_DATA,
@@ -735,9 +765,37 @@ contract TestAssembly2 is VerificationTestAPI {
 
     (address[] memory guardianSetAddrs, uint32 guardianSetIndex,) = decodeGetCurrentGuardianSet(result, 0);
     assertEq(guardianSetAddrs.length, 1);
-    assertEq(guardianSetAddrs[0], guardianPublicKeys[0]);
+    assertEq(guardianSetAddrs[0], guardianPublicKeysSet0[0]);
     assertEq(guardianSetIndex, 0);
   }
 
+  function test_getGuardianSet() public {
+    // Add a new guardian set
+    uint32 expirationTimeSet1 = uint32(block.timestamp + 10);
+    _wormholeV1Mock.appendGuardianSet(GuardianSet({
+      keys: guardianPublicKeysSet1,
+      expirationTime: expirationTimeSet1
+    }));
+
+    pullGuardianSets(_wormholeVerifierV2, 2);
+
+    // Get the old guardian set
+    bytes memory result = _wormholeVerifierV2.get(getGuardianSet(0));
+
+    // Decode the guardian set
+    (address[] memory guardianSetAddrs, uint32 expirationTime,) = decodeGetGuardianSet(result, 0);
+    assertEq(guardianSetAddrs.length, 1);
+    assertEq(guardianSetAddrs[0], guardianPublicKeysSet0[0]);
+    assertEq(expirationTime, expirationTimeSet0);
+
+    // Get the new guardian set
+    bytes memory result2 = _wormholeVerifierV2.get(getGuardianSet(1));
+
+    // Decode the guardian set
+    (address[] memory guardianSetAddrs2, uint32 expirationTime2,) = decodeGetGuardianSet(result2, 0);
+    assertEq(guardianSetAddrs2.length, 1);
+    assertEq(guardianSetAddrs2[0], guardianPublicKeysSet1[0]);
+    assertEq(expirationTime2, expirationTimeSet1);
+  }
 }
 */
