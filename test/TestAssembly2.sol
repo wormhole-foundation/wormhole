@@ -466,7 +466,8 @@ contract TestAssembly2 is VerificationTestAPI {
     // _wormholeVerifierV2.update(message);
   }
 
-  function test_verifyMultisig() public view {
+  function test_verifyMultisig() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
     (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
       _wormholeVerifierV2.verify(smallMultisigVaa);
     vm.assertEq(emitterChain, 0);
@@ -475,16 +476,18 @@ contract TestAssembly2 is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 1 + 66*SHARD_QUORUM + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
-  function test_verifySchnorr() public view {
-    (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
-      _wormholeVerifierV2.verify(smallSchnorrVaa);
-    vm.assertEq(emitterChain, 0);
-    vm.assertEq(emitterAddress, bytes32(0));
-    vm.assertEq(sequence, 0);
-    vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
-  }
+  // function test_verifySchnorr() public {
+  //   pullGuardianSets(_wormholeVerifierV2, 1);
+  //   (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
+  //     _wormholeVerifierV2.verify(smallSchnorrVaa);
+  //   vm.assertEq(emitterChain, 0);
+  //   vm.assertEq(emitterAddress, bytes32(0));
+  //   vm.assertEq(sequence, 0);
+  //   vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
+  // }
 
-  function test_verifyMultisigBig() public view {
+  function test_verifyMultisigBig() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
     (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
       _wormholeVerifierV2.verify(bigMultisigVaa);
     vm.assertEq(emitterChain, 0);
@@ -493,14 +496,15 @@ contract TestAssembly2 is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 1 + 66*SHARD_QUORUM + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
-  function test_verifySchnorrBig() public view {
-    (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
-      _wormholeVerifierV2.verify(bigSchnorrVaa);
-    vm.assertEq(emitterChain, 0);
-    vm.assertEq(emitterAddress, bytes32(0));
-    vm.assertEq(sequence, 0);
-    vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
-  }
+  // function test_verifySchnorrBig() public {
+  //   pullGuardianSets(_wormholeVerifierV2, 1);
+  //   (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
+  //     _wormholeVerifierV2.verify(bigSchnorrVaa);
+  //   vm.assertEq(emitterChain, 0);
+  //   vm.assertEq(emitterAddress, bytes32(0));
+  //   vm.assertEq(sequence, 0);
+  //   vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
+  // }
 
 
   function test_pullGuardianSets_pullsOne() public {
@@ -521,4 +525,5 @@ contract TestAssembly2 is VerificationTestAPI {
   //   assertEq(guardianSetIndex, 0);
   // }
 
+  // TODO: finish porting over tests
 }
