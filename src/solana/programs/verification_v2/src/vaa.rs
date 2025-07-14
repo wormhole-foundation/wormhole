@@ -85,6 +85,9 @@ pub struct VAA {
   pub body: Vec<u8>,
 }
 
+// We implement Borsh serialize/deserialize instead of Anchor equivalents
+// because Anchor forces you to provide an `IdlBuild` implementation too and
+// we don't need it.
 impl BorshSerialize for VAA {
   fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
       self.header.serialize(writer)?;
