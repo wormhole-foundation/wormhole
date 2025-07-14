@@ -34,11 +34,8 @@ contract ThresholdVerificationState {
     }
   }
 
-  // NOTE: This will panic if the threshold key index is out of bounds
   function _getThresholdInfo(uint32 thresholdKeyIndex) internal view returns (ThresholdKeyInfo memory info) {
-    unchecked {
-      info = _thresholdKeyData[thresholdKeyIndex];
-    }
+    info = _thresholdKeyData[thresholdKeyIndex];
   }
 
   function _appendThresholdKey(

@@ -28,7 +28,6 @@ contract MultisigVerificationState is ExtStore {
 
     require(initGuardianSetIndex <= _coreBridge.getCurrentGuardianSetIndex());
     // All previous guardian sets will have expiration timestamp 0
-    // FIXME: Is this okay? It seems like it would validate VAAs from before the initGuardianSetIndex
     assembly ("memory-safe") {
       sstore(_guardianSetExpirationTime.slot, initGuardianSetIndex)
     }

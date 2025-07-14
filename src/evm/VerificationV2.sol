@@ -93,11 +93,9 @@ contract VerificationV2 is
       (op, offset) = data.asUint8CdUnchecked(offset);
 
       if (op == OP_APPEND_THRESHOLD_KEY) {
-        // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
-        // Decode and verify the VAA
         (
           ,
           ,
@@ -108,14 +106,11 @@ contract VerificationV2 is
           bytes calldata payload
         ) = _verifyAndDecodeMultisigVaa(encodedVaa);
 
-        // Verify the emitter
         require(emitterChainId == CHAIN_ID_SOLANA, InvalidGovernanceChain());
         require(emitterAddress == GOVERNANCE_ADDRESS, InvalidGovernanceAddress());
 
-        // Get the guardian set
         (uint32 guardianSetIndex, address[] memory guardians) = _getCurrentGuardianSetInfo();
 
-        // Decode the payload
         (
           uint32 newTSSIndex,
           uint256 newThresholdAddr,
@@ -123,7 +118,6 @@ contract VerificationV2 is
           ShardInfo[] memory shards
         ) = _decodeThresholdKeyUpdatePayload(payload, guardians.length);
 
-        // Append the threshold key
         _appendThresholdKey(guardianSetIndex, newTSSIndex, newThresholdAddr, expirationDelaySeconds, shards);
       } else if (op == OP_PULL_GUARDIAN_SETS) {
         uint32 limit;
@@ -142,24 +136,18 @@ contract VerificationV2 is
         (guardianId, offset) = data.asBytes32CdUnchecked(offset);
         (guardianIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
-        // We only allow registrations for the current threshold key
         (ThresholdKeyInfo memory info, uint32 currentThresholdKeyIndex) = _getCurrentThresholdInfo();
         require(thresholdKeyIndex == currentThresholdKeyIndex, ThresholdKeyIsNotCurrent());
 
-        // Get the guardian set for the threshold key
         uint32 guardianSetIndex = info.guardianSetIndex;
         (, address[] memory guardianAddrs) = _getGuardianSetInfo(guardianSetIndex);
-        // TODO: Verify the guardian set is still valid? What about for the verification path?
-        // We can't afford to check it there, so I'm skipping it here for now too
 
-        // Verify the signature
         // We're not doing replay protection with the signature itself so we don't care about
         // verifying only canonical (low s) signatures.
         bytes32 digest = getRegisterGuardianDigest(thresholdKeyIndex, nonce, guardianId);
         address signatory = ecrecover(digest, v, r, s);
         require(signatory == guardianAddrs[guardianIndex], GuardianSignatureVerificationFailed());
 
-        // Use the nonce
         _useUnorderedNonce(signatory, nonce);
 
         _registerGuardian(info, guardianIndex, guardianId);
@@ -182,7 +170,6 @@ contract VerificationV2 is
       (op, offset) = data.asUint8CdUnchecked(offset);
 
       if (op == OP_VERIFY_AND_DECODE_VAA) {
-        // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
@@ -209,11 +196,9 @@ contract VerificationV2 is
           payload
         );
       } else if (op == OP_VERIFY_VAA) {
-        // Read the VAA
         bytes calldata encodedVaa;
         (encodedVaa, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
 
-        // Verify the VAA
         verifyVaa(encodedVaa);
       } else if (op == OP_GET_THRESHOLD_CURRENT) {
         (ThresholdKeyInfo memory info, uint32 index) = _getCurrentThresholdInfo();
