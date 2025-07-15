@@ -33,14 +33,6 @@ func (wc *WatcherConfig) GetChainID() vaa.ChainID {
 	return wc.ChainID
 }
 
-func (wc *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
-	return ""
-}
-
-func (wc *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
-	// empty
-}
-
 func (wc *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -48,17 +40,17 @@ func (wc *WatcherConfig) Create(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+) (supervisor.Runnable, interfaces.Reobserver, error) {
 	solAddress, err := solana_types.PublicKeyFromBase58(wc.Contract)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	var shimContractAddr solana.PublicKey
 	if wc.ShimContract != "" {
 		shimContractAddr, err = solana_types.PublicKeyFromBase58(wc.ShimContract)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -73,5 +65,5 @@ func (wc *WatcherConfig) Create(
 		reobserver = watcher
 	}
 
-	return watcher, watcher.Run, reobserver, nil
+	return watcher.Run, reobserver, nil
 }

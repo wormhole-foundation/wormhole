@@ -1416,13 +1416,12 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(arbitrumRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:           "arbitrum",
-			ChainID:             vaa.ChainIDArbitrum,
-			Rpc:                 *arbitrumRPC,
-			Contract:            *arbitrumContract,
-			L1FinalizerRequired: "eth",
-			TxVerifierEnabled:   slices.Contains(txVerifierChains, vaa.ChainIDArbitrum),
-			CcqBackfillCache:    *ccqBackfillCache,
+			NetworkID:         "arbitrum",
+			ChainID:           vaa.ChainIDArbitrum,
+			Rpc:               *arbitrumRPC,
+			Contract:          *arbitrumContract,
+			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDArbitrum),
+			CcqBackfillCache:  *ccqBackfillCache,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
