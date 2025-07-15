@@ -1,15 +1,14 @@
 use anchor_lang::prelude::{
   AnchorDeserialize,
-  AnchorSerialize,
   Result,
-  borsh::{BorshDeserialize, BorshSerialize},
+  borsh::{BorshDeserialize},
 };
 use anchor_lang::solana_program::keccak::{Hash, hash};
 use primitive_types::U256;
-use std::io::{Read, Write};
+use std::io::{Read, Error, ErrorKind};
 use byteorder::{BigEndian, ReadBytesExt};
 
-use crate::{schnorr_key::{SchnorrKey, SchnorrKeyError}, VAAError};
+use crate::schnorr_key::SchnorrKey;
 
 pub struct VAASchnorrSignature {
   pub r: [u8; 20],
@@ -20,14 +19,6 @@ impl VAASchnorrSignature {
   #[inline(always)]
   pub fn is_valid(&self) -> bool {
     !self.s.is_zero() && self.s.lt(&SchnorrKey::q()) && !self.r.iter().all(|r| *r == 0)
-  }
-}
-
-impl AnchorSerialize for VAASchnorrSignature {
-  fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-    writer.write_all(&self.r)?;
-    writer.write_all(&self.s.to_big_endian())?;
-    Ok(())
   }
 }
 
@@ -42,41 +33,27 @@ impl AnchorDeserialize for VAASchnorrSignature {
 }
 
 pub struct VAAHeader {
-  pub version: u8,
   pub schnorr_key_index: u32,
   pub signature: VAASchnorrSignature,
 }
 
 impl VAAHeader {
   pub const SIZE: usize = 57;
-
-  #[inline(always)]
-  pub fn check_valid(&self) -> Result<()> {
-    if self.version != 2 {
-      return Err(VAAError::InvalidVersion.into());
-    }
-    if !self.signature.is_valid() {
-      return Err(SchnorrKeyError::InvalidSignature.into());
-    }
-    Ok(())
-  }
-}
-
-impl AnchorSerialize for VAAHeader {
-  fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-    writer.write_all(&[self.version])?;
-    writer.write_all(&self.schnorr_key_index.to_be_bytes())?;
-    self.signature.serialize(writer)?;
-    Ok(())
-  }
 }
 
 impl AnchorDeserialize for VAAHeader {
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
     let version = reader.read_u8()?;
+    if version != 2 {
+      return Err(Error::new(ErrorKind::InvalidData, "Invalid version"));
+    }
     let schnorr_key_index = reader.read_u32::<BigEndian>()?;
     let signature = VAASchnorrSignature::deserialize_reader(reader)?;
-    Ok(Self { version, schnorr_key_index, signature })
+    if !signature.is_valid() {
+      return Err(Error::new(ErrorKind::InvalidData, "Invalid signature"));
+    }
+    
+    Ok(Self { schnorr_key_index, signature })
   }
 }
 
@@ -85,11 +62,12 @@ pub struct VAA {
   pub body: Vec<u8>,
 }
 
-impl BorshSerialize for VAA {
-  fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-    self.header.serialize(writer)?;
-    writer.write_all(&self.body)?;
-    Ok(())
+impl VAA {
+  const BODY_MIN_SIZE: usize = 51;
+
+  #[inline(always)]
+  pub fn digest(&self) -> Result<Hash> {
+    Ok(hash(&hash(&self.body).to_bytes()))
   }
 }
 
@@ -99,84 +77,11 @@ impl BorshDeserialize for VAA {
 
     let mut body = Vec::new();
     reader.read_to_end(&mut body)?;
-
-    Ok(Self {
-      header,
-      body,
-    })
-  }
-}
-
-impl VAA {
-  pub fn check_valid(&self) -> Result<()> {
-    self.header.check_valid()?;
-    // See VAABody for necessary fields.
-    if self.body.len() < VAABody::MIN_SIZE {
-      return Err(VAAError::BodyTooSmall.into());
+    if body.len() < VAA::BODY_MIN_SIZE {
+      return Err(Error::new(ErrorKind::InvalidData, "VAA body too short"));
     }
-    Ok(())
-  }
 
-  #[inline(always)]
-  pub fn digest(&self) -> Result<Hash> {
-    Ok(hash(&hash(&self.body).to_bytes()))
-  }
-}
-
-
-// TODO: move the VAABody definition to a crate
-// that can be consumed by integrators.
-pub struct VAABody {
-  pub timestamp: u32,
-  pub nonce: u32,
-  pub emitter_chain_id: u16,
-  pub emitter_address: [u8; 32],
-  pub sequence: u64,
-  pub consistency_level: u8,
-  pub payload: Vec<u8>,
-}
-
-impl VAABody {
-  const MIN_SIZE: usize = 51;
-}
-
-// TODO: define the type for the body IDL?
-#[cfg(feature = "idl-build")]
-impl anchor_lang::IdlBuild for VAABody {}
-
-impl AnchorSerialize for VAABody {
-  fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-    writer.write_all(&self.timestamp.to_be_bytes())?;
-    writer.write_all(&self.nonce.to_be_bytes())?;
-    writer.write_all(&self.emitter_chain_id.to_be_bytes())?;
-    writer.write_all(&self.emitter_address)?;
-    writer.write_all(&self.sequence.to_be_bytes())?;
-    writer.write_all(&[self.consistency_level])?;
-    writer.write_all(&self.payload)?;
-    Ok(())
-  }
-}
-
-impl AnchorDeserialize for VAABody {
-  fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
-    let timestamp = reader.read_u32::<BigEndian>()?;
-    let nonce = reader.read_u32::<BigEndian>()?;
-    let emitter_chain_id = reader.read_u16::<BigEndian>()?;
-    let mut emitter_address = [0u8; 32];
-    reader.read_exact(&mut emitter_address)?;
-    let sequence = reader.read_u64::<BigEndian>()?;
-    let consistency_level = reader.read_u8()?;
-    let mut payload = Vec::new();
-    reader.read_to_end(&mut payload)?;
-    Ok(Self {
-      timestamp,
-      nonce,
-      emitter_chain_id,
-      emitter_address,
-      sequence,
-      consistency_level,
-      payload
-    })
+    Ok(Self { header, body })
   }
 }
 
@@ -192,18 +97,4 @@ fn header_size_is_correct() {
   let header_raw = [0u8; VAAHeader::SIZE - 1];
   let header = VAAHeader::deserialize(&mut header_raw.as_slice());
   assert!(header.is_err());
-}
-
-#[test]
-fn min_size_body_deserializes() {
-  let body_raw = [0u8; VAABody::MIN_SIZE];
-  let body = VAABody::deserialize(&mut body_raw.as_slice());
-  assert!(body.is_ok());
-}
-
-#[test]
-fn min_size_body_is_minimum() {
-  let body_raw = [0u8; VAABody::MIN_SIZE - 1];
-  let body = VAABody::deserialize(&mut body_raw.as_slice());
-  assert!(body.is_err());
 }

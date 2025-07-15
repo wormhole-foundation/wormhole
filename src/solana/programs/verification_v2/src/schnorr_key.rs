@@ -1,17 +1,5 @@
-use anchor_lang::prelude::{
-  AnchorDeserialize,
-  AnchorSerialize,
-  Clock,
-  Discriminator,
-  InitSpace,
-  Pubkey,
-  Result,
-  SolanaSysvar,
-  Space,
-  account,
-  borsh,
-  error_code,
-};
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{keccak::hash, secp256k1_recover};
 #[cfg(feature = "idl-build")]
 use anchor_lang::{
   IdlBuild,
@@ -25,13 +13,9 @@ use anchor_lang::{
     IdlTypeDefTy,
   },
 };
-use anchor_lang::solana_program::{keccak::hash, secp256k1_recover};
 use primitive_types::{U256, U512};
-use std::io::{Read, Write};
-use std::ops::{Shr, Sub};
-
-use crate::hex_literal::hex;
-use crate::vaa::VAASchnorrSignature;
+use std::{io::{Read, Write}, ops::{Shr, Sub}};
+use crate::{DIGEST_SIZE, hex_literal::hex, vaa::VAASchnorrSignature};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SchnorrKey {
@@ -62,66 +46,14 @@ impl IdlBuild for SchnorrKey {
 
 #[error_code]
 pub enum SchnorrKeyError {
-    #[msg("Signature does not satisfy preconditions")]
-    InvalidSignature,
-    SignatureVerificationFailed,
+  #[msg("Signature does not satisfy preconditions")]
+  InvalidSignature,
+  SignatureVerificationFailed,
 }
 
 impl SchnorrKey {
-  // This is only used to validate when appending a pubkey
-  // so we don't really care about its representation.
-  const HALF_Q: [u8; 32] = hex!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0");
-
-  // The following constants are used during verification.
-  // We chose the representation that makes verification cheaper.
-  // Concretely, these are arrays of 64 bit integers where the least significative parts come first.
-  // See the math_tests module at the end of this file for tests related to these.
-
-  // Q is the curve order of secp256k1
-  const Q_U256: [u64; 4] = [
-    0xBFD25E8CD0364141,
-    0xBAAEDCE6AF48A03B,
-    0xFFFFFFFFFFFFFFFE,
-    0xFFFFFFFFFFFFFFFF
-  ];
-  // Used to approximate division by Q
-  // floor(2^511 / Q)
-  const ΜQ_U256: [u64; 4] = [
-    0x2016d0b997e4df60,
-    0xa2a8918ca85bafe2,
-    0x0000000000000000,
-    0x8000000000000000
-  ];
-
-  pub const DIGEST_SIZE: usize = 32;
-
-  pub fn q() -> U256 {
-    U256(Self::Q_U256)
-  }
-
-  pub fn μq() -> U256 {
-    U256(Self::ΜQ_U256)
-  }
-
-  pub fn half_q() -> U256 {
-    U256::from_big_endian(&Self::HALF_Q)
-  }
-
-  pub fn px(&self) -> U256 {
-    self.key.shr(U256::one())
-  }
-
-  pub fn parity(&self) -> bool {
-    self.key.bit(0)
-  }
-
-  pub fn is_valid(&self) -> bool {
-    let px = self.px();
-    !px.is_zero() && px.le(&Self::half_q())
-  }
-
   #[inline(always)]
-  pub fn check_signature(&self, digest: &[u8; Self::DIGEST_SIZE], signature: &VAASchnorrSignature) -> Result<()> {
+  pub fn check_signature(&self, digest: &[u8; DIGEST_SIZE], signature: &VAASchnorrSignature) -> Result<()> {
     let px = self.px();
     let parity = self.parity();
     let q = Self::q();
@@ -169,6 +101,56 @@ impl SchnorrKey {
     }
 
     Ok(())
+  }
+
+  // This is only used to validate when appending a pubkey
+  // so we don't really care about its representation.
+  const HALF_Q: [u8; 32] = hex!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0");
+
+  // The following constants are used during verification.
+  // We chose the representation that makes verification cheaper.
+  // Concretely, these are arrays of 64 bit integers where the least significative parts come first.
+  // See the math_tests module at the end of this file for tests related to these.
+
+  // Q is the curve order of secp256k1
+  const Q_U256: [u64; 4] = [
+    0xBFD25E8CD0364141,
+    0xBAAEDCE6AF48A03B,
+    0xFFFFFFFFFFFFFFFE,
+    0xFFFFFFFFFFFFFFFF
+  ];
+  // Used to approximate division by Q
+  // floor(2^511 / Q)
+  const ΜQ_U256: [u64; 4] = [
+    0x2016d0b997e4df60,
+    0xa2a8918ca85bafe2,
+    0x0000000000000000,
+    0x8000000000000000
+  ];
+
+  pub fn q() -> U256 {
+    U256(Self::Q_U256)
+  }
+
+  fn μq() -> U256 {
+    U256(Self::ΜQ_U256)
+  }
+
+  fn half_q() -> U256 {
+    U256::from_big_endian(&Self::HALF_Q)
+  }
+
+  fn px(&self) -> U256 {
+    self.key.shr(U256::one())
+  }
+
+  fn parity(&self) -> bool {
+    self.key.bit(0)
+  }
+
+  fn is_valid(&self) -> bool {
+    let px = self.px();
+    !px.is_zero() && px.le(&Self::half_q())
   }
 
   /// This implements the modulo step via barrett reduction.
@@ -235,7 +217,6 @@ impl AnchorDeserialize for SchnorrKey {
     Ok(key)
   }
 }
-
 
 #[account]
 #[derive(InitSpace)]

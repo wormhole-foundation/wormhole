@@ -13,25 +13,15 @@ use anchor_lang::IdlBuild;
 
 use wormhole_anchor_sdk::wormhole::{constants::CHAIN_ID_SOLANA, PostedVaa};
 
-use vaa::{VAA, VAAHeader};
+use vaa::{VAA, VAAHeader, VAASchnorrSignature};
 use append_schnorr_key_message::AppendSchnorrKeyMessage;
-use schnorr_key::{
-  SchnorrKey,
-  SchnorrKeyAccount,
-};
+use schnorr_key::SchnorrKeyAccount;
 use hex_literal::hex;
 
 const GOVERNANCE_ADDRESS: [u8; 32] =
   hex!("0000000000000000000000000000000000000000000000000000000000000004");
 
-#[error_code]
-pub enum VAAError {
-  #[msg("Invalid VAA version")]
-  InvalidVersion,
-  #[msg("Invalid VAA index")]
-  InvalidIndex,
-  BodyTooSmall,
-}
+pub const DIGEST_SIZE: usize = 32;
 
 #[error_code]
 pub enum VerificationV2Error {
@@ -41,6 +31,7 @@ pub enum VerificationV2Error {
   SchnorrKeyExpired,
   InvalidAccounts,
   NewKeyIndexNotDirectSuccessor,
+  IndexMismatch,
 }
 
 #[account]
@@ -107,9 +98,9 @@ pub mod verification_v2 {
   use super::*;
 
   pub fn append_schnorr_key(ctx: Context<AppendSchnorrKey>) -> Result<()> {
-    require!( //either both must be true (initialization) or both must be false (append)
-      (ctx.accounts.latest_key.account == Pubkey::default()) ==
-        ctx.accounts.old_schnorr_key.is_none(),
+    require_eq!( //either both must be true (initialization) or both must be false (append)
+      (ctx.accounts.latest_key.account == Pubkey::default()),
+      ctx.accounts.old_schnorr_key.is_none(),
       VerificationV2Error::InvalidAccounts,
     );
 
@@ -150,36 +141,25 @@ pub mod verification_v2 {
   pub fn verify_vaa_header_with_digest(
     ctx: Context<VerifyVaa>,
     raw_vaa_header: [u8; VAAHeader::SIZE],
-    digest: [u8; SchnorrKey::DIGEST_SIZE]
+    digest: [u8; DIGEST_SIZE]
   ) -> Result<()> {
     let vaa_header = VAAHeader::deserialize(&mut raw_vaa_header.as_slice())?;
-
-    vaa_header.check_valid()?;
-
-    let schnorr_key_account = &ctx.accounts.schnorr_key;
-    if schnorr_key_account.index != vaa_header.schnorr_key_index {
-      return Err(VAAError::InvalidIndex.into());
-    }
-
-    schnorr_key_account.schnorr_key.check_signature(&digest, &vaa_header.signature)?;
-
-    Ok(())
+    verify(ctx, vaa_header.schnorr_key_index, &vaa_header.signature, digest)
   }
 }
 
 fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>> {
   let vaa = VAA::deserialize(&mut raw_vaa.as_slice())?;
-
-  vaa.check_valid()?;
-
-  let schnorr_key_account = &ctx.accounts.schnorr_key;
-  if schnorr_key_account.index != vaa.header.schnorr_key_index {
-    return Err(VAAError::InvalidIndex.into());
-  }
-
-  let digest = vaa.digest()?;
-
-  schnorr_key_account.schnorr_key.check_signature(&digest.to_bytes(), &vaa.header.signature)?;
-
+  verify(ctx, vaa.header.schnorr_key_index, &vaa.header.signature, vaa.digest()?.to_bytes())?;
   Ok(vaa.body)
+}
+
+fn verify(ctx: Context<VerifyVaa>,
+  index: u32,
+  signature: &VAASchnorrSignature,
+  digest: [u8; DIGEST_SIZE]
+) -> Result<()> {
+  require_eq!(index, ctx.accounts.schnorr_key.index, VerificationV2Error::IndexMismatch);
+  ctx.accounts.schnorr_key.schnorr_key.check_signature(&digest, signature)?;
+  Ok(())
 }
