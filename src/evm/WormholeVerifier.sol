@@ -559,8 +559,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Slot reader functions
       function getSchnorrKeyData(keyIndex) -> pubkeyX, parity {
         let pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, keyIndex))
-        pubkeyX := shr(1, pubkey) // TODO: magic number
-        parity := and(pubkey, 1) // TODO: magic number
+        pubkeyX := shr(SHIFT_SCHNORR_KEY_PX, pubkey)
+        parity := and(pubkey, MASK_SCHNORR_KEY_PARITY)
       }
 
       function getSchnorrKeyExtra(keyIndex) -> extraData {

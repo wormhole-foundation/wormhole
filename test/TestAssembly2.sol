@@ -342,6 +342,7 @@ contract WormholeV1Mock is ICoreBridge {
 
 contract TestAssembly2Benchmark is VerificationTestAPI {
   using VaaLib for bytes;
+  using BytesParsing for bytes;
 
   uint32 private constant EXPIRATION_DELAY_SECONDS = 24 * 60 * 60;
 
@@ -403,15 +404,12 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     uint256 multisigVaaHeaderLength2 = 4+1+66*SHARD_QUORUM;
     uint256 schnorrVaaHeaderLength2 = 4+20+32;
 
-    bytes memory smallMultisigVaaHeader2 = new bytes(multisigVaaHeaderLength2);
+    bytes memory smallMultisigVaaHeader2;
+    (smallMultisigVaaHeader2,) = smallMultisigVaa.sliceMemUnchecked(1, multisigVaaHeaderLength2);
     bytes memory smallSchnorrVaaHeader2 = new bytes(schnorrVaaHeaderLength2);
-    bytes memory bigMultisigVaaHeader2 = new bytes(multisigVaaHeaderLength2);
+    bytes memory bigMultisigVaaHeader2;
+    (bigMultisigVaaHeader2,) = bigMultisigVaa.sliceMemUnchecked(1, multisigVaaHeaderLength2);
     bytes memory bigSchnorrVaaHeader2 = new bytes(schnorrVaaHeaderLength2);
-
-    for (uint256 i = 0; i < multisigVaaHeaderLength2; i++) {
-      smallMultisigVaaHeader2[i] = smallMultisigVaa[i];
-      bigMultisigVaaHeader2[i] = bigMultisigVaa[i];
-    }
 
     for (uint256 i = 0; i < schnorrVaaHeaderLength2; i++) {
       smallSchnorrVaaHeader2[i] = smallSchnorrVaa[i];
@@ -423,6 +421,10 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
       VERIFY_MULTISIG,
       smallMultisigVaaHeader2,
       getEnvelopeDigest(smallEnvelope),
+      bigMultisigVaaHeader2,
+      getEnvelopeDigest(bigEnvelope),
+      bigMultisigVaaHeader2,
+      getEnvelopeDigest(bigEnvelope),
       bigMultisigVaaHeader2,
       getEnvelopeDigest(bigEnvelope)
     );
@@ -475,7 +477,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
       smallMultisigVaaHeader[i] = smallMultisigVaa[i];
       bigMultisigVaaHeader[i] = bigMultisigVaa[i];
     }
-    
+
     uint256 schnorrVaaHeaderLength = 1+4+20+32;
     bytes memory smallSchnorrVaaHeader = new bytes(schnorrVaaHeaderLength);
     bytes memory bigSchnorrVaaHeader = new bytes(schnorrVaaHeaderLength);
