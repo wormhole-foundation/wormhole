@@ -23,6 +23,7 @@ impl VAASchnorrSignature {
 }
 
 impl AnchorDeserialize for VAASchnorrSignature {
+  #[inline(always)]
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
     let mut r = [0u8; 20];
     reader.read_exact(&mut r)?;
@@ -42,6 +43,7 @@ impl VAAHeader {
 }
 
 impl AnchorDeserialize for VAAHeader {
+  #[inline(always)]
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
     let version = reader.read_u8()?;
     if version != 2 {
@@ -71,6 +73,9 @@ impl VAA {
   }
 }
 
+// We implement Borsh deserialize instead of Anchor equivalents
+// because Anchor forces you to provide an `IdlBuild` implementation too and
+// we don't need it.
 impl BorshDeserialize for VAA {
   fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
     let header = VAAHeader::deserialize_reader(reader)?;

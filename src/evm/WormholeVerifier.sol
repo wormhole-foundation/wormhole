@@ -29,6 +29,8 @@ uint256 constant MASK_VERIFY_RESULT_INVALID_SIGNATURE_COUNT = 1 << 21;
 uint256 constant MASK_VERIFY_RESULT_INVALID_SIGNER_INDEX    = 1 << 22;
 uint256 constant MASK_VERIFY_RESULT_SIGNER_USED             = 1 << 23;
 uint256 constant MASK_VERIFY_RESULT_INVALID_OPCODE          = 1 << 24;
+uint256 constant MASK_VERIFY_RESULT_INVALID_MESSAGE_LENGTH  = 1 << 25;
+uint256 constant MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE   = 1 << 26;
 
 // Update opcodes
 uint8 constant UPDATE_SET_SHARD_ID           = 0;
@@ -39,7 +41,7 @@ uint8 constant UPDATE_PULL_MULTISIG_KEY_DATA = 2;
 uint256 constant MASK_UPDATE_DEPLOYMENT_FAILED                 = 1 << 16;
 uint256 constant MASK_UPDATE_RESULT_INVALID_VERSION            = 1 << 17;
 uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX  = 1 << 18;
-uint256 constant MASK_UPDATE_RESULT_EXPIRED                    = 1 << 19;
+uint256 constant MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED     = 1 << 19;
 uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX       = 1 << 20;
 uint256 constant MASK_UPDATE_RESULT_SIGNATURE_MISMATCH         = 1 << 21;
 uint256 constant MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX = 1 << 22;
@@ -105,10 +107,11 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant SLOT_SCHNORR_SHARD_DATA = 3 << 48;
   uint256 private constant SLOT_MULTISIG_KEY_DATA  = 4 << 48;
 
-  // Schnorr key extra data information
+  // Schnorr key data information
+  uint256 private constant SHIFT_SCHNORR_KEY_PX = 1;
   uint256 private constant MASK_SCHNORR_KEY_PARITY = 1;
-  uint256 private constant SHIFT_SCHNORR_KEY_X     = 1;
 
+  // Schnorr extra data information
   uint256 private constant MASK_SCHNORR_EXTRA_EXPIRATION_TIME     = 0xFFFFFFFF;
   uint256 private constant MASK_SCHNORR_EXTRA_SHARD_COUNT         = 0xFF;
   uint256 private constant MASK_SCHNORR_EXTRA_SHARD_BASE          = 0xFFFFFFFFFF;
@@ -133,6 +136,7 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant SHIFT_VERIFY_RESULT_INVALID_SIGNER_INDEX    = 22;
   uint256 private constant SHIFT_VERIFY_RESULT_SIGNER_USED             = 23;
   uint256 private constant SHIFT_VERIFY_RESULT_INVALID_OPCODE          = 24;
+  uint256 private constant SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH  = 25;
 
   // Update result information
   uint256 private constant SHIFT_UPDATE_DEPLOYMENT_FAILED                 = 16;
@@ -214,11 +218,11 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant MAGIC_ECRECOVER_PARITY_DELTA = 27;
 
   // Error encoding information
-  uint256 private constant SELECTOR_ERROR_VERIFICATION_FAILED = 0x32629d58;
+  uint256 private constant SELECTOR_ERROR_VERIFICATION_FAILED = 0x32629d58 << (256 - 32);
   uint256 private constant OFFSET_VERIFICATION_FAILED_RESULT = 0x04;
   uint256 private constant LENGTH_VERIFICATION_FAILED = 0x24;
 
-  uint256 private constant SELECTOR_ERROR_UPDATE_FAILED = 0xa77ba01e;
+  uint256 private constant SELECTOR_ERROR_UPDATE_FAILED = 0xa77ba01e << (256 - 32);
   uint256 private constant OFFSET_UPDATE_FAILED_RESULT = 0x04;
   uint256 private constant LENGTH_UPDATE_FAILED = 0x24;
 
@@ -226,7 +230,11 @@ contract WormholeVerifier is EIP712Encoding {
   error GetFailed(uint256 result);
   error UpdateFailed(uint256 result);
 
+  error UnknownGuardianSet(uint32 index);
+
   ICoreBridge private immutable _coreBridge;
+
+  mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
   constructor(
     ICoreBridge coreBridge,
@@ -286,8 +294,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Slot reader functions
       function getSchnorrKeyData(keyIndex) -> pubkeyX, parity {
         let pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, keyIndex))
-        pubkeyX := shr(1, pubkey) // TODO: magic number
-        parity := and(pubkey, 1) // TODO: magic number
+        pubkeyX := shr(SHIFT_SCHNORR_KEY_PX, pubkey)
+        parity := and(pubkey, MASK_SCHNORR_KEY_PARITY)
       }
 
       function getSchnorrKeyExtra(keyIndex) -> extraData {
@@ -301,8 +309,11 @@ contract WormholeVerifier is EIP712Encoding {
       // Multisig key data access functions
       function getMultisigKeyDataFromContract(keyDataAddress, buffer) -> keyDataSize {
         keyDataSize := extcodesize(keyDataAddress)
-        // FIXME: Do we want to return an error code if the size is zero?
-        //        It's safe to not care, because we'll run out of gas if we try to copy 0xFFFF... bytes
+        if iszero(keyDataSize) {
+          mstore(PTR_SCRATCH, SELECTOR_ERROR_VERIFICATION_FAILED)
+          mstore(OFFSET_VERIFICATION_FAILED_RESULT, MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE)
+          revert(PTR_SCRATCH, LENGTH_VERIFICATION_FAILED)
+        }
         extcodecopy(keyDataAddress, buffer, OFFSET_MULTISIG_CONTRACT_DATA, sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA))
       }
 
@@ -399,27 +410,30 @@ contract WormholeVerifier is EIP712Encoding {
         revert(PTR_SCRATCH, LENGTH_VERIFICATION_FAILED)
       }
 
-      function verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner) {
+      function verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner, invalidMessageLength, offset) {
         let invalidExpirationTimeFlag := shl(SHIFT_VERIFY_RESULT_INVALID_EXPIRATION_TIME, invalidExpirationTime)
         let invalidSignatureCountFlag := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNATURE_COUNT, invalidSignatureCount)
         let invalidIndexFlag := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNER_INDEX, invalidIndex)
         let invalidMismatchFlag := shl(SHIFT_VERIFY_RESULT_SIGNATURE_MISMATCH, invalidMismatch)
         let invalidUsedSignerFlag := shl(SHIFT_VERIFY_RESULT_SIGNER_USED, invalidUsedSigner)
+        let invalidMessageLengthFlag := shl(SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH, invalidMessageLength)
 
         let flags1 := or(invalidExpirationTimeFlag, invalidSignatureCountFlag)
-        let flags2 := or(or(invalidIndexFlag, invalidMismatchFlag), invalidUsedSignerFlag)
-        verificationFailed(or(flags1, flags2))
+        let flags2 := or(invalidIndexFlag, invalidMismatchFlag)
+        let flags3 := or(invalidUsedSignerFlag, invalidMessageLengthFlag)
+        verificationFailed(or(offset, or(flags1, or(flags2, flags3))))
       }
 
-      function verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch) {
+      function verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch, invalidMessageLength, offset) {
         let invalidExpirationTimeFlag := shl(SHIFT_VERIFY_RESULT_INVALID_EXPIRATION_TIME, invalidExpirationTime)
         let invalidPubkeyFlag := shl(SHIFT_VERIFY_RESULT_INVALID_KEY, invalidPubkey)
         let invalidSignatureFlag := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNATURE, invalidSignature)
         let invalidRecoveredFlag := shl(SHIFT_VERIFY_RESULT_SIGNATURE_MISMATCH, invalidMismatch)
+        let invalidMessageLengthFlag := shl(SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH, invalidMessageLength)
 
         let flags1 := or(invalidExpirationTimeFlag, invalidPubkeyFlag)
-        let flags2 := or(invalidSignatureFlag, invalidRecoveredFlag)
-        verificationFailed(or(flags1, flags2))
+        let flags2 := or(or(invalidSignatureFlag, invalidRecoveredFlag), invalidMessageLengthFlag)
+        verificationFailed(or(offset, or(flags1, flags2)))
       }
 
       // !!!!!                    END OF DUPLICATED FUNCTIONS                    !!!!!
@@ -451,7 +465,7 @@ contract WormholeVerifier is EIP712Encoding {
 
         // Error when any of the invalid flags are set
         if or(invalidExpirationTime, or(invalidPubkey, or(invalidSignature, invalidMismatch))) {
-          verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch)
+          verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch, 0, 0)
         }
 
         // Generate the result
@@ -495,7 +509,7 @@ contract WormholeVerifier is EIP712Encoding {
 
         // Generate the result
         if or(invalidIndex, or(invalidMismatch, or(invalidUsedSigner, or(invalidSignatureCount, invalidExpirationTime)))) {
-          verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner)
+          verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner, 0, 0)
         }
 
         // Generate the result
@@ -545,8 +559,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Slot reader functions
       function getSchnorrKeyData(keyIndex) -> pubkeyX, parity {
         let pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, keyIndex))
-        pubkeyX := shr(1, pubkey) // TODO: magic number
-        parity := and(pubkey, 1) // TODO: magic number
+        pubkeyX := shr(SHIFT_SCHNORR_KEY_PX, pubkey)
+        parity := and(pubkey, MASK_SCHNORR_KEY_PARITY)
       }
 
       function getSchnorrKeyExtra(keyIndex) -> extraData {
@@ -560,8 +574,11 @@ contract WormholeVerifier is EIP712Encoding {
       // Multisig key data access functions
       function getMultisigKeyDataFromContract(keyDataAddress, buffer) -> keyDataSize {
         keyDataSize := extcodesize(keyDataAddress)
-        // FIXME: Do we want to return an error code if the size is zero?
-        //        It's safe to not care, because we'll run out of gas if we try to copy 0xFFFF... bytes
+        if iszero(keyDataSize) {
+          mstore(PTR_SCRATCH, SELECTOR_ERROR_VERIFICATION_FAILED)
+          mstore(OFFSET_VERIFICATION_FAILED_RESULT, MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE)
+          revert(PTR_SCRATCH, LENGTH_VERIFICATION_FAILED)
+        }
         extcodecopy(keyDataAddress, buffer, OFFSET_MULTISIG_CONTRACT_DATA, sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA))
       }
 
@@ -658,27 +675,30 @@ contract WormholeVerifier is EIP712Encoding {
         revert(PTR_SCRATCH, LENGTH_VERIFICATION_FAILED)
       }
 
-      function verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner) {
+      function verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner, invalidMessageLength, offset) {
         let invalidExpirationTimeFlag := shl(SHIFT_VERIFY_RESULT_INVALID_EXPIRATION_TIME, invalidExpirationTime)
         let invalidSignatureCountFlag := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNATURE_COUNT, invalidSignatureCount)
         let invalidIndexFlag := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNER_INDEX, invalidIndex)
         let invalidMismatchFlag := shl(SHIFT_VERIFY_RESULT_SIGNATURE_MISMATCH, invalidMismatch)
         let invalidUsedSignerFlag := shl(SHIFT_VERIFY_RESULT_SIGNER_USED, invalidUsedSigner)
+        let invalidMessageLengthFlag := shl(SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH, invalidMessageLength)
 
         let flags1 := or(invalidExpirationTimeFlag, invalidSignatureCountFlag)
-        let flags2 := or(or(invalidIndexFlag, invalidMismatchFlag), invalidUsedSignerFlag)
-        verificationFailed(or(flags1, flags2))
+        let flags2 := or(invalidIndexFlag, invalidMismatchFlag)
+        let flags3 := or(invalidUsedSignerFlag, invalidMessageLengthFlag)
+        verificationFailed(or(offset, or(flags1, or(flags2, flags3))))
       }
 
-      function verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch) {
+      function verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch, invalidMessageLength, offset) {
         let invalidExpirationTimeFlag := shl(SHIFT_VERIFY_RESULT_INVALID_EXPIRATION_TIME, invalidExpirationTime)
         let invalidPubkeyFlag := shl(SHIFT_VERIFY_RESULT_INVALID_KEY, invalidPubkey)
         let invalidSignatureFlag := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNATURE, invalidSignature)
         let invalidRecoveredFlag := shl(SHIFT_VERIFY_RESULT_SIGNATURE_MISMATCH, invalidMismatch)
+        let invalidMessageLengthFlag := shl(SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH, invalidMessageLength)
 
         let flags1 := or(invalidExpirationTimeFlag, invalidPubkeyFlag)
-        let flags2 := or(invalidSignatureFlag, invalidRecoveredFlag)
-        verificationFailed(or(flags1, flags2))
+        let flags2 := or(or(invalidSignatureFlag, invalidRecoveredFlag), invalidMessageLengthFlag)
+        verificationFailed(or(offset, or(flags1, flags2)))
       }
 
       // !!!!!    END OF DUPLICATED FUNCTIONS    !!!!!
@@ -726,8 +746,9 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidTotal := 0
 
         let buffer := mload(PTR_FREE_MEMORY)
+        let offset := OFFSET_BATCH_DATA
 
-        for { let offset := OFFSET_BATCH_DATA } and(iszero(invalidTotal), lt(offset, calldatasize())) {} {
+        for {} and(iszero(invalidTotal), lt(offset, calldatasize())) {} {
           let version := getCd_1(offset)
           switch version
           case 0x02 {
@@ -760,6 +781,9 @@ contract WormholeVerifier is EIP712Encoding {
           }
         }
 
+        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidTotal := or(invalidTotal, invalidMessageLength)
+
         if invalidTotal {
           let flagInvalidExpirationTime := shl(SHIFT_VERIFY_RESULT_INVALID_EXPIRATION_TIME, invalidExpirationTime)
           let flagInvalidPubkey := shl(SHIFT_VERIFY_RESULT_INVALID_KEY, invalidPubkey)
@@ -786,8 +810,9 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidTotal := 0
 
         let buffer := mload(PTR_FREE_MEMORY)
+        let offset := OFFSET_BATCH_DATA
 
-        for { let offset := OFFSET_BATCH_DATA } and(iszero(invalidTotal), lt(offset, calldatasize())) {} {
+        for {} and(iszero(invalidTotal), lt(offset, calldatasize())) {} {
           let keyIndex := getCd_4(offset)
           let signatureCount := getCd_1(add(offset, OFFSET_BATCH_MULTISIG_SIGNATURE_COUNT))
           let signaturesOffset := add(offset, OFFSET_BATCH_MULTISIG_SIGNATURES)
@@ -800,8 +825,11 @@ contract WormholeVerifier is EIP712Encoding {
           offset := add(digestOffset, LENGTH_WORD)
         }
 
+        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidTotal := or(invalidTotal, invalidMessageLength)
+
         if invalidTotal {
-          verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner)
+          verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner, invalidMessageLength, offset)
         }
       }
 
@@ -813,8 +841,9 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidTotal := 0
 
         let buffer := mload(PTR_FREE_MEMORY)
+        let offset := OFFSET_BATCH_DATA
 
-        for { let offset := OFFSET_BATCH_DATA } and(iszero(invalidTotal), lt(offset, calldatasize())) { offset := add(offset, LENGTH_BATCH_SCHNORR_ENTRY) } {
+        for {} and(iszero(invalidTotal), lt(offset, calldatasize())) { offset := add(offset, LENGTH_BATCH_SCHNORR_ENTRY) } {
           // Decode the schnorr header and digest
           let keyIndex := getCd_4(offset)
           let r := getCd_20(add(offset, OFFSET_BATCH_SCHNORR_ENTRY_R))
@@ -826,8 +855,11 @@ contract WormholeVerifier is EIP712Encoding {
           invalidTotal := or(invalidExpirationTime, or(invalidPubkey, or(invalidSignature, invalidMismatch)))
         }
 
+        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidTotal := or(invalidTotal, invalidMessageLength)
+
         if invalidTotal {
-          verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch)
+          verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch, invalidMessageLength, offset)
         }
       }
 
@@ -859,8 +891,9 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidTotal := 0
         
         let buffer := add(keyDataOffset, keyDataSize)
+        let offset := OFFSET_BATCH_UNIFORM_DATA
 
-        for { let offset := OFFSET_BATCH_UNIFORM_DATA } and(iszero(invalidTotal), lt(offset, calldatasize())) {} {
+        for {} and(iszero(invalidTotal), lt(offset, calldatasize())) {} {
           let signatureCount := getCd_1(offset)
           let signaturesOffset := add(offset, 1) // TODO: magic number
           let digestOffset := add(signaturesOffset, mul(signatureCount, LENGTH_MULTISIG_SIGNATURE))
@@ -873,8 +906,11 @@ contract WormholeVerifier is EIP712Encoding {
           offset := add(digestOffset, LENGTH_WORD)
         }
 
+        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidTotal := or(invalidTotal, invalidMessageLength)
+
         if invalidTotal {
-          verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner)
+          verificationFailedMultisig(invalidExpirationTime, invalidSignatureCount, invalidIndex, invalidMismatch, invalidUsedSigner, invalidMessageLength, offset)
         }
       }
 
@@ -899,8 +935,9 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidTotal := 0
 
         let buffer := mload(PTR_FREE_MEMORY)
+        let offset := OFFSET_BATCH_UNIFORM_DATA
 
-        for { let offset := OFFSET_BATCH_UNIFORM_DATA } and(iszero(invalidTotal), lt(offset, calldatasize())) { offset := add(offset, LENGTH_BATCH_SCHNORR_UNIFORM_ENTRY) } {
+        for {} and(iszero(invalidTotal), lt(offset, calldatasize())) { offset := add(offset, LENGTH_BATCH_SCHNORR_UNIFORM_ENTRY) } {
           let r := getCd_20(offset)
           let s := getCd_32(add(offset, OFFSET_BATCH_SCHNORR_UNIFORM_S))
           let digest := getCd_32(add(offset, OFFSET_BATCH_SCHNORR_UNIFORM_DIGEST))
@@ -910,8 +947,11 @@ contract WormholeVerifier is EIP712Encoding {
           invalidTotal := or(invalidPubkey, or(invalidSignature, invalidMismatch))
         }
 
+        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidTotal := or(invalidTotal, invalidMessageLength)
+
         if invalidTotal {
-          verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch)
+          verificationFailedSchnorr(invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch, invalidMessageLength, offset)
         }
       }
 
@@ -962,16 +1002,16 @@ contract WormholeVerifier is EIP712Encoding {
         (opcode, offset) = data.asUint8CdUnchecked(offset);
 
         if (opcode == GET_CURRENT_SCHNORR_KEY_DATA) {
-          uint256 index = _getSchnorrKeyCount() - 1;
+          uint32 index = _getSchnorrKeyCount() - 1;
           uint256 pubkey = _getSchnorrKeyData(index);
           (uint32 expirationTime, uint8 shardCount, , uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
 
           result = abi.encodePacked(result, index, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_CURRENT_MULTISIG_KEY_DATA) {
-          uint256 index = _getMultisigKeyCount() - 1;
-          (address[] memory keys,) = _getMultisigKeyDataExport(index);
+          uint32 index = _getMultisigKeyCount() - 1;
+          (address[] memory keys,,) = _getMultisigKeyData(index);
 
-          result = abi.encodePacked(result, index, uint8(keys.length), keys);
+          result = abi.encodePacked(result, uint32(index), uint8(keys.length), keys);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
           uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
@@ -981,10 +1021,10 @@ contract WormholeVerifier is EIP712Encoding {
 
           result = abi.encodePacked(result, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_MULTISIG_KEY_DATA) {
-          uint256 index;
+          uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
 
-          (address[] memory keys, uint32 expirationTime) = _getMultisigKeyDataExport(index);
+          (address[] memory keys,, uint32 expirationTime) = _getMultisigKeyData(index);
 
           result = abi.encodePacked(result, uint8(keys.length), keys, expirationTime);
         } else if (opcode == GET_SCHNORR_SHARD_DATA) {
@@ -1034,45 +1074,42 @@ contract WormholeVerifier is EIP712Encoding {
   // Update functions
   function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
-    uint32 expirationTime;
-    bytes32 newSchnorrId;
+    uint256 nonce;
+    bytes32 shardId;
     uint8 signerIndex;
     bytes32 r;
     bytes32 s;
     uint8 v;
 
+    uint256 baseOffset = offset;
     (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (expirationTime, offset) = data.asUint32CdUnchecked(offset);
-    (newSchnorrId, offset) = data.asBytes32CdUnchecked(offset);
+    (nonce, offset) = data.asUint256CdUnchecked(offset);
+    (shardId, offset) = data.asBytes32CdUnchecked(offset);
     (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
     // We only allow registrations for the current threshold key
-    require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
-
-    // Verify the message is not expired
-    require(expirationTime > block.timestamp, UpdateFailed(offset | MASK_UPDATE_RESULT_EXPIRED));
+    require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
 
     // Get the shard data range associated with the schnorr key
     (, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) = _getSchnorrExtraData(schnorrKeyIndex);
-    require(signerIndex < shardCount, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX));
+    require(signerIndex < shardCount, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX));
 
     // TODO: We could save a bit of gas by only codecopying the key we need
-    (, uint256 keyDataOffset,) = _getMultisigKeyData(multisigKeyIndex);
+    (address[] memory keys,,) = _getMultisigKeyData(multisigKeyIndex);
 
-    address expected;
-    assembly ("memory-safe") {
-      expected := mload(add(keyDataOffset, shl(5, signerIndex))) // TODO: magic number
-    }
+    address expected = keys[signerIndex];
 
     // Verify the signature
     // We're not doing replay protection with the signature itself so we don't care about
     // verifying only canonical (low s) signatures.
-    bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, expirationTime, newSchnorrId);
+    bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, nonce, shardId);
     address signatory = ecrecover(digest, v, r, s);
-    require(signatory == expected, UpdateFailed(offset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
+    require(signatory == expected, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
+
+    _useUnorderedNonce(signatory, nonce, baseOffset);
 
     // Store the shard ID
-    _setSchnorrShardId(shardBase, signerIndex, newSchnorrId);
+    _setSchnorrShardId(shardBase, signerIndex, shardId);
 
     return offset;
   }
@@ -1116,9 +1153,11 @@ contract WormholeVerifier is EIP712Encoding {
       uint256 px = newSchnorrKey >> 1;
 
       // Load current multisig key data
-      uint256 currentMultisigKeyCount = _getMultisigKeyCount();
-      uint256 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
-      (uint8 shardCount, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
+      uint32 currentMultisigKeyCount = _getMultisigKeyCount();
+      uint32 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
+      (address[] memory shards, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
+
+      uint8 shardCount = uint8(shards.length);
 
       // TODO: Compute all the flags at once
       // NOTE: No need to check multisig expiration, since it's the current multisig key
@@ -1132,8 +1171,14 @@ contract WormholeVerifier is EIP712Encoding {
       require(module == MODULE_VERIFICATION_V2, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MODULE));
       require(action == ACTION_APPEND_SCHNORR_KEY, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_ACTION));
 
-      require(newSchnorrKeyIndex == _getSchnorrKeyCount(), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
-      require(eagerAnd(px != 0, px < HALF_SECP256K1_ORDER_PLUS_ONE), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
+      require(eagerAnd(
+        newSchnorrKeyIndex == _getSchnorrKeyCount(),
+        newSchnorrKeyIndex < type(uint32).max
+      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
+      require(eagerAnd(
+        px != 0,
+        px < HALF_SECP256K1_ORDER_PLUS_ONE
+      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
 
       // Verify the signatures
       (bytes calldata vaaBody,) = data.sliceCdUnchecked(envelopeOffset, VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
@@ -1237,49 +1282,37 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Internal multisig state access functions
-  function _getMultisigKeyCount() internal view returns (uint256 result) {
+  function _getMultisigKeyCount() internal view returns (uint32 result) {
     assembly ("memory-safe") {
       result := sload(SLOT_MULTISIG_KEY_COUNT)
     }
   }
 
-  function _getMultisigKeyData(uint256 index) internal view returns (uint8 keyCount, uint256 keyDataOffset, uint32 expirationTime) {
+  function _getMultisigKeyData(uint32 index) internal view returns (
+    address[] memory keys,
+    uint256 keyDataOffset,
+    uint32 expirationTime
+  ) {
+    // Load and decode the multisig key data entry
+    uint256 multisigDataIndex = SLOT_MULTISIG_KEY_DATA + index;
+    uint256 entry;
+    assembly ("memory-safe") { entry := sload(multisigDataIndex) }
+    expirationTime = uint32(entry & MASK_MULTISIG_ENTRY_EXPIRATION_TIME);
+
+    // Load the key data contract, validate the size
+    address keyDataAddress = address(uint160(entry >> SHIFT_MULTISIG_ENTRY_ADDRESS));
+    uint256 keyDataSize = keyDataAddress.code.length;
+    require (keyDataSize > 0, UnknownGuardianSet(index));
+
+    // Copy the value to memory
+    uint256 size = keyDataSize - OFFSET_MULTISIG_CONTRACT_DATA;
+    uint256 keyCount = size >> 5;
     assembly ("memory-safe") {
-      // Load and decode the multisig key data entry
-      let entry := sload(add(SLOT_MULTISIG_KEY_DATA, index))
-      expirationTime := and(entry, MASK_MULTISIG_ENTRY_EXPIRATION_TIME)
-      let keyDataAddress := shr(SHIFT_MULTISIG_ENTRY_ADDRESS, entry)
-
-      // Load the key data contract, validate the size
-      let keyDataSize := extcodesize(keyDataAddress)
-      if iszero(keyDataSize) {
-        mstore(PTR_SCRATCH, 0x11052bb4) // InvalidPointer()
-        revert(PTR_SCRATCH, 0x04)
-      }
-
-      // Copy the value to memory
-      let size := sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA)
-      keyCount := shr(5, size)
-
-      keyDataOffset := mload(PTR_FREE_MEMORY)
+      keys := mload(PTR_FREE_MEMORY)
+      mstore(keys, keyCount)
+      keyDataOffset := add(keys, LENGTH_WORD)
       mstore(PTR_FREE_MEMORY, add(keyDataOffset, size))
       extcodecopy(keyDataAddress, keyDataOffset, OFFSET_MULTISIG_CONTRACT_DATA, size)
-    }
-  }
-
-  function _getMultisigKeyDataExport(uint256 index) internal view returns (address[] memory keys, uint32 expirationTime) {
-    assembly ("memory-safe") {
-      // Set up the result pointer
-      keys := mload(PTR_FREE_MEMORY)
-      mstore(PTR_FREE_MEMORY, add(keys, LENGTH_WORD))
-    }
-
-    uint8 keyCount;
-    (keyCount, , expirationTime) = _getMultisigKeyData(index);
-
-    assembly ("memory-safe") {
-      // Set the length of the keys array
-      mstore(keys, keyCount)
     }
   }
 
@@ -1317,29 +1350,30 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Internal schnorr state access functions
-  function _getSchnorrKeyCount() internal view returns (uint256 result) {
+  function _getSchnorrKeyCount() internal view returns (uint32 result) {
     assembly ("memory-safe") {
       result := sload(SLOT_SCHNORR_KEY_COUNT)
     }
   }
 
-  function _getSchnorrKeyData(uint256 index) internal view returns (uint256 pubkey) {
+  function _getSchnorrKeyData(uint32 index) internal view returns (uint256 pubkey) {
     assembly ("memory-safe") {
       pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, index))
     }
   }
 
-  function _getSchnorrExtraData(uint256 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+  function _getSchnorrExtraData(uint32 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+    uint256 storageWord;
     assembly ("memory-safe") {
-      let result := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
-      expirationTime := and(result, MASK_SCHNORR_EXTRA_EXPIRATION_TIME)
-      shardCount := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_COUNT, result), MASK_SCHNORR_EXTRA_SHARD_COUNT)
-      shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, result), MASK_SCHNORR_EXTRA_SHARD_BASE)
-      multisigKeyIndex := shr(SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX, result)
+      storageWord := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
     }
+    expirationTime = uint32(storageWord & MASK_SCHNORR_EXTRA_EXPIRATION_TIME);
+    shardCount = uint8((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_COUNT) & MASK_SCHNORR_EXTRA_SHARD_COUNT);
+    shardBase = uint40((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_BASE) & MASK_SCHNORR_EXTRA_SHARD_BASE);
+    multisigKeyIndex = uint32(storageWord >> SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX);
   }
 
-  function _getSchnorrShardDataExport(uint256 index) internal view returns (bytes memory shardData) {
+  function _getSchnorrShardDataExport(uint32 index) internal view returns (bytes memory shardData) {
     assembly ("memory-safe") {
       let extraData := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
       let shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, extraData), MASK_SCHNORR_EXTRA_SHARD_BASE)
@@ -1362,7 +1396,7 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function _setSchnorrExpirationTime(uint256 index, uint32 expirationTime) internal {
+  function _setSchnorrExpirationTime(uint32 index, uint32 expirationTime) internal {
     assembly ("memory-safe") {
       let ptr := add(SLOT_SCHNORR_EXTRA_DATA, index)
       let old := and(sload(ptr), not(MASK_SCHNORR_EXTRA_EXPIRATION_TIME))
@@ -1418,5 +1452,16 @@ contract WormholeVerifier is EIP712Encoding {
         readPtr := add(readPtr, 0x40)
       }
     }
+  }
+
+  /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
+  /// @param nonce The nonce to spend
+  function _useUnorderedNonce(address guardian, uint256 nonce, uint256 baseOffset) internal {
+    uint256 wordPos = uint248(nonce >> 8);
+    uint256 bitPos = uint8(nonce);
+    uint256 bit = 1 << bitPos;
+    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+
+    if (flipped & bit == 0) revert UpdateFailed(baseOffset | MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED);
   }
 }

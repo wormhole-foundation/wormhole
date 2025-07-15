@@ -138,6 +138,7 @@ pub mod verification_v2 {
     Ok(body)
   }
 
+  #[inline(always)]
   pub fn verify_vaa_header_with_digest(
     ctx: Context<VerifyVaa>,
     raw_vaa_header: [u8; VAAHeader::SIZE],
@@ -154,6 +155,7 @@ fn verify_vaa_impl(ctx: Context<VerifyVaa>, raw_vaa: Vec<u8>) -> Result<Vec<u8>>
   Ok(vaa.body)
 }
 
+#[inline(always)]
 fn verify(ctx: Context<VerifyVaa>,
   index: u32,
   signature: &VAASchnorrSignature,
