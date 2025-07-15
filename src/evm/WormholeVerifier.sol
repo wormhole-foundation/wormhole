@@ -1000,7 +1000,7 @@ contract WormholeVerifier is EIP712Encoding {
         (opcode, offset) = data.asUint8CdUnchecked(offset);
 
         if (opcode == GET_CURRENT_SCHNORR_KEY_DATA) {
-          uint256 index = _getSchnorrKeyCount() - 1;
+          uint32 index = _getSchnorrKeyCount() - 1;
           uint256 pubkey = _getSchnorrKeyData(index);
           (uint32 expirationTime, uint8 shardCount, , uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
 
@@ -1173,8 +1173,14 @@ contract WormholeVerifier is EIP712Encoding {
       require(module == MODULE_VERIFICATION_V2, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MODULE));
       require(action == ACTION_APPEND_SCHNORR_KEY, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_ACTION));
 
-      require(newSchnorrKeyIndex == _getSchnorrKeyCount(), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
-      require(eagerAnd(px != 0, px < HALF_SECP256K1_ORDER_PLUS_ONE), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
+      require(eagerAnd(
+        newSchnorrKeyIndex == _getSchnorrKeyCount(),
+        newSchnorrKeyIndex < type(uint32).max
+      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
+      require(eagerAnd(
+        px != 0,
+        px < HALF_SECP256K1_ORDER_PLUS_ONE
+      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
 
       // Verify the signatures
       (bytes calldata vaaBody,) = data.sliceCdUnchecked(envelopeOffset, VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
@@ -1346,29 +1352,30 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Internal schnorr state access functions
-  function _getSchnorrKeyCount() internal view returns (uint256 result) {
+  function _getSchnorrKeyCount() internal view returns (uint32 result) {
     assembly ("memory-safe") {
       result := sload(SLOT_SCHNORR_KEY_COUNT)
     }
   }
 
-  function _getSchnorrKeyData(uint256 index) internal view returns (uint256 pubkey) {
+  function _getSchnorrKeyData(uint32 index) internal view returns (uint256 pubkey) {
     assembly ("memory-safe") {
       pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, index))
     }
   }
 
-  function _getSchnorrExtraData(uint256 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+  function _getSchnorrExtraData(uint32 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+    uint256 storageWord;
     assembly ("memory-safe") {
-      let result := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
-      expirationTime := and(result, MASK_SCHNORR_EXTRA_EXPIRATION_TIME)
-      shardCount := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_COUNT, result), MASK_SCHNORR_EXTRA_SHARD_COUNT)
-      shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, result), MASK_SCHNORR_EXTRA_SHARD_BASE)
-      multisigKeyIndex := shr(SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX, result)
+      storageWord := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
     }
+    expirationTime = uint32(storageWord & MASK_SCHNORR_EXTRA_EXPIRATION_TIME);
+    shardCount = uint8((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_COUNT) & MASK_SCHNORR_EXTRA_SHARD_COUNT);
+    shardBase = uint40((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_BASE) & MASK_SCHNORR_EXTRA_SHARD_BASE);
+    multisigKeyIndex = uint32(storageWord >> SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX);
   }
 
-  function _getSchnorrShardDataExport(uint256 index) internal view returns (bytes memory shardData) {
+  function _getSchnorrShardDataExport(uint32 index) internal view returns (bytes memory shardData) {
     assembly ("memory-safe") {
       let extraData := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
       let shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, extraData), MASK_SCHNORR_EXTRA_SHARD_BASE)
@@ -1391,7 +1398,7 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function _setSchnorrExpirationTime(uint256 index, uint32 expirationTime) internal {
+  function _setSchnorrExpirationTime(uint32 index, uint32 expirationTime) internal {
     assembly ("memory-safe") {
       let ptr := add(SLOT_SCHNORR_EXTRA_DATA, index)
       let old := and(sload(ptr), not(MASK_SCHNORR_EXTRA_EXPIRATION_TIME))
