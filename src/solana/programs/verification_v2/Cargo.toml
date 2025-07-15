@@ -23,7 +23,7 @@ idl-build = [
 ]
 
 [dependencies]
-anchor-lang = "0.31.1"
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 byteorder = "1.5.0"
 primitive-types = "0.13.1"
 # wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false }
