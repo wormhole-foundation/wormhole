@@ -665,7 +665,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(data.length, 4+32);
   }
 }
-/*
+
 contract TestAssembly2 is VerificationTestAPI {
   using VaaLib for bytes;
 
@@ -1105,4 +1105,4 @@ contract TestAssembly2 is VerificationTestAPI {
     _wormholeVerifierV2.verify(smallSchnorrVaa);
   }
 }
-*/
+
