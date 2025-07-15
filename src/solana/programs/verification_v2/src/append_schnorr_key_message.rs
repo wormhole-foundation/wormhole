@@ -50,6 +50,10 @@ impl AnchorDeserialize for AppendSchnorrKeyMessage {
       return Err(Error::new(ErrorKind::InvalidData, "Invalid payload"));
     }
 
+    if reader.read_u8().is_ok() {
+      return Err(Error::new(ErrorKind::InvalidData, "Invalid payload"));
+    }
+
     Ok(Self {
       schnorr_key_index,
       schnorr_key,

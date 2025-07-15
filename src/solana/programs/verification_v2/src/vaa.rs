@@ -85,16 +85,26 @@ impl BorshDeserialize for VAA {
   }
 }
 
-#[test]
-fn header_deserializes() {
-  let header_raw = [0u8; VAAHeader::SIZE];
-  let header = VAAHeader::deserialize(&mut header_raw.as_slice());
-  assert!(header.is_ok());
-}
+#[cfg(test)]
+mod vaa_tests {
+  use super::*;
+  use crate::hex;
 
-#[test]
-fn header_size_is_correct() {
-  let header_raw = [0u8; VAAHeader::SIZE - 1];
-  let header = VAAHeader::deserialize(&mut header_raw.as_slice());
-  assert!(header.is_err());
+  #[test]
+  fn header_deserializes() {
+    let mut header_raw = [0u8; VAAHeader::SIZE];
+    header_raw[0] = 2;
+    header_raw[5..25].copy_from_slice(hex!("636a8688ef4b82e5a121f7c74d821a5b07d695f3").as_slice());
+    header_raw[25..57].copy_from_slice(hex!("aa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29").as_slice());
+
+    let header = VAAHeader::deserialize(&mut header_raw.as_slice());
+    assert!(header.is_ok());
+  }
+
+  #[test]
+  fn header_size_is_correct() {
+    let header_raw = [0u8; VAAHeader::SIZE - 1];
+    let header = VAAHeader::deserialize(&mut header_raw.as_slice());
+    assert!(header.is_err());
+  }
 }
