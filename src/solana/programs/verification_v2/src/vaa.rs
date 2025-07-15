@@ -87,9 +87,9 @@ pub struct VAA {
 
 impl BorshSerialize for VAA {
   fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-      self.header.serialize(writer)?;
-      writer.write_all(&self.body)?;
-      Ok(())
+    self.header.serialize(writer)?;
+    writer.write_all(&self.body)?;
+    Ok(())
   }
 }
 

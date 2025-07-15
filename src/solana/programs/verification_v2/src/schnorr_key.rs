@@ -1,17 +1,13 @@
 use anchor_lang::prelude::{
-  AccountInfo,
   AnchorDeserialize,
   AnchorSerialize,
   Clock,
   Discriminator,
   InitSpace,
-  Key,
-  Program,
   Pubkey,
   Result,
   SolanaSysvar,
   Space,
-  System,
   account,
   borsh,
   error_code,
@@ -36,8 +32,6 @@ use std::ops::{Shr, Sub};
 
 use crate::hex_literal::hex;
 use crate::vaa::VAASchnorrSignature;
-use crate::utils::init_account;
-use crate::ID;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SchnorrKey {
@@ -252,7 +246,7 @@ pub struct SchnorrKeyAccount {
 }
 
 impl SchnorrKeyAccount {
-  const SEED_PREFIX: &'static [u8] = b"schnorrkey";
+  pub const SEED_PREFIX: &'static [u8] = b"schnorrkey";
 
   pub fn is_unexpired(&self) -> bool {
     self.expiration_timestamp == 0 || self.expiration_timestamp > Clock::get().unwrap().unix_timestamp as u64
@@ -262,57 +256,6 @@ impl SchnorrKeyAccount {
     let current_timestamp = Clock::get().unwrap().unix_timestamp as u64;
     self.expiration_timestamp = current_timestamp + time_lapse;
   }
-}
-
-pub fn init_schnorr_key_account<'info>(
-  new_schnorr_key: AccountInfo<'info>,
-  schnorr_key_index: u32,
-  schnorr_key: SchnorrKey,
-  system_program: &Program<'info, System>,
-  payer: AccountInfo<'info>
-) -> Result<()> {
-  // We need to parse the schnorr key append VAA payload
-  // to perform the derivation.
-  // This is why the initialization happens manually here.
-
-  let (pubkey, bump) = Pubkey::find_program_address(
-    &[SchnorrKeyAccount::SEED_PREFIX, &schnorr_key_index.to_le_bytes()],
-    &ID,
-  );
-
-  if pubkey != new_schnorr_key.key() {
-    return Err(AppendSchnorrKeyError::AccountMismatchSchnorrKeyIndex.into());
-  }
-
-  let schnorr_key_seeds = [SchnorrKeyAccount::SEED_PREFIX, &schnorr_key_index.to_le_bytes(), &[bump]];
-
-  init_account(
-    new_schnorr_key.clone(),
-    &schnorr_key_seeds,
-    &system_program,
-    payer,
-    SchnorrKeyAccount{
-      index: schnorr_key_index,
-      schnorr_key,
-      expiration_timestamp: 0,
-    }
-  )?;
-
-  Ok(())
-}
-
-
-#[error_code]
-pub enum AppendSchnorrKeyError {
-  InvalidVAA,
-  InvalidGovernanceChainId,
-  InvalidGovernanceAddress,
-  #[msg("New key must have strictly greater index")]
-  InvalidNewKeyIndex,
-  #[msg("Old schnorr key must be the latest key")]
-  InvalidOldSchnorrKey,
-  #[msg("Schnorr key address mismatches Schnorr key index")]
-  AccountMismatchSchnorrKeyIndex,
 }
 
 #[cfg(test)]

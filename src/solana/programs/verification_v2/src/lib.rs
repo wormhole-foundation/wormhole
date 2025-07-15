@@ -5,54 +5,19 @@ declare_id!("GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6");
 mod vaa;
 mod append_schnorr_key_message;
 mod schnorr_key;
-mod utils;
 mod hex_literal;
 
-use anchor_lang::prelude::{
-  Account,
-  AccountDeserialize,
-  AccountInfo,
-  AccountSerialize,
-  Accounts,
-  AccountsExit,
-  AnchorDeserialize,
-  AnchorSerialize,
-  Context,
-  Discriminator,
-  InitSpace,
-  Key,
-  Program,
-  Pubkey,
-  Rent,
-  Result,
-  Signer,
-  SolanaSysvar,
-  Space,
-  System,
-  ToAccountInfo,
-  UncheckedAccount,
-  account,
-  borsh,
-  declare_id,
-  error,
-  error_code,
-  program,
-  require_eq,
-  require_gte,
-  require_keys_neq,
-};
+use anchor_lang::prelude::*;
 #[cfg(feature = "idl-build")]
 use anchor_lang::IdlBuild;
 
-use wormhole_anchor_sdk::wormhole::{constants::CHAIN_ID_SOLANA, PostedVaaData};
+use wormhole_anchor_sdk::wormhole::{constants::CHAIN_ID_SOLANA, PostedVaa};
 
 use vaa::{VAA, VAAHeader};
 use append_schnorr_key_message::AppendSchnorrKeyMessage;
 use schnorr_key::{
-  AppendSchnorrKeyError,
   SchnorrKey,
   SchnorrKeyAccount,
-  init_schnorr_key_account
 };
 use hex_literal::hex;
 
@@ -65,8 +30,17 @@ pub enum VAAError {
   InvalidVersion,
   #[msg("Invalid VAA index")]
   InvalidIndex,
-  SchnorrKeyExpired,
   BodyTooSmall,
+}
+
+#[error_code]
+pub enum VerificationV2Error {
+  InvalidGovernanceChainId,
+  InvalidGovernanceAddress,
+  InvalidOldSchnorrKey,
+  SchnorrKeyExpired,
+  InvalidAccounts,
+  NewKeyIndexNotDirectSuccessor,
 }
 
 #[account]
@@ -79,36 +53,6 @@ impl LatestKeyAccount {
   const SEED_PREFIX: &'static [u8] = b"latestkey";
 }
 
-// TODO: Refactor this to have one accounts/instruction per file
-#[derive(Accounts)]
-pub struct InitSchnorrKey<'info> {
-  #[account(mut)]
-  pub payer: Signer<'info>,
-
-  #[account(
-    constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
-      @ AppendSchnorrKeyError::InvalidGovernanceChainId,
-    constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
-      @ AppendSchnorrKeyError::InvalidGovernanceAddress,
-  )]
-  pub vaa: Account<'info, PostedVaaData>,
-
-  #[account(
-    init,
-    payer = payer,
-    space = 8 + LatestKeyAccount::INIT_SPACE,
-    seeds = [LatestKeyAccount::SEED_PREFIX],
-    bump
-  )]
-  pub latest_key: Account<'info, LatestKeyAccount>,
-
-  /// CHECK: See `init_schnorr_key_account` for checks on this account.
-  #[account(mut)]
-  pub new_schnorr_key: UncheckedAccount<'info>,
-
-  pub system_program: Program<'info, System>,
-}
-
 #[derive(Accounts)]
 pub struct AppendSchnorrKey<'info> {
   #[account(mut)]
@@ -116,25 +60,36 @@ pub struct AppendSchnorrKey<'info> {
 
   #[account(
     constraint = vaa.meta.emitter_chain == CHAIN_ID_SOLANA
-      @ AppendSchnorrKeyError::InvalidGovernanceChainId,
+      @ VerificationV2Error::InvalidGovernanceChainId,
     constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
-      @ AppendSchnorrKeyError::InvalidGovernanceAddress,
+      @ VerificationV2Error::InvalidGovernanceAddress,
   )]
-  pub vaa: Account<'info, PostedVaaData>,
+  pub vaa: Account<'info, PostedVaa::<AppendSchnorrKeyMessage>>,
 
-  #[account(mut)]
+  #[account(
+    init_if_needed,
+    payer = payer,
+    space = 8 + LatestKeyAccount::INIT_SPACE,
+    seeds = [LatestKeyAccount::SEED_PREFIX],
+    bump
+  )]
   pub latest_key: Account<'info, LatestKeyAccount>,
 
-  /// CHECK: See `init_schnorr_key_account` for checks on this account.
-  #[account(mut)]
-  pub new_schnorr_key: UncheckedAccount<'info>,
+  #[account(
+    init,
+    payer = payer,
+    space = 8 + SchnorrKeyAccount::INIT_SPACE,
+    seeds = [SchnorrKeyAccount::SEED_PREFIX, &vaa.data().schnorr_key_index.to_le_bytes()],
+    bump
+  )]
+  pub new_schnorr_key: Account<'info, SchnorrKeyAccount>,
 
   #[account(
     mut,
     constraint = old_schnorr_key.key() == latest_key.account
-      @ AppendSchnorrKeyError::InvalidOldSchnorrKey,
+      @ VerificationV2Error::InvalidOldSchnorrKey,
   )]
-  pub old_schnorr_key: Account<'info, SchnorrKeyAccount>,
+  pub old_schnorr_key: Option<Account<'info, SchnorrKeyAccount>>,
 
   pub system_program: Program<'info, System>,
 }
@@ -142,7 +97,7 @@ pub struct AppendSchnorrKey<'info> {
 #[derive(Accounts)]
 pub struct VerifyVaa<'info> {
   #[account(
-    constraint = schnorr_key.is_unexpired() @ VAAError::SchnorrKeyExpired,
+    constraint = schnorr_key.is_unexpired() @ VerificationV2Error::SchnorrKeyExpired,
   )]
   pub schnorr_key: Account<'info, SchnorrKeyAccount>,
 }
@@ -151,41 +106,31 @@ pub struct VerifyVaa<'info> {
 pub mod verification_v2 {
   use super::*;
 
-  pub fn init_schnorr_key(ctx: Context<InitSchnorrKey>) -> Result<()> {
-    let message = AppendSchnorrKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
-
-    init_schnorr_key_account(
-      ctx.accounts.new_schnorr_key.to_account_info(),
-      message.schnorr_key_index,
-      message.schnorr_key,
-      &ctx.accounts.system_program,
-      ctx.accounts.payer.to_account_info()
-    )?;
-
-    ctx.accounts.latest_key.account = ctx.accounts.new_schnorr_key.key();
-
-    Ok(())
-  }
-
   pub fn append_schnorr_key(ctx: Context<AppendSchnorrKey>) -> Result<()> {
-    let message = AppendSchnorrKeyMessage::deserialize(&ctx.accounts.vaa.payload)?;
-
-    let old_schnorr_key = &mut ctx.accounts.old_schnorr_key;
+    require!( //either both must be true (initialization) or both must be false (append)
+      (ctx.accounts.latest_key.account == Pubkey::default()) ==
+        ctx.accounts.old_schnorr_key.is_none(),
+      VerificationV2Error::InvalidAccounts,
+    );
 
     // Check that the index is increasing from the previous index
-    if message.schnorr_key_index <= old_schnorr_key.index {
-      return Err(AppendSchnorrKeyError::InvalidNewKeyIndex.into());
+    if let Some(old_schnorr_key) = ctx.accounts.old_schnorr_key.as_deref_mut() {
+      require_eq!(
+        old_schnorr_key.index + 1,
+        ctx.accounts.vaa.data().schnorr_key_index,
+        VerificationV2Error::NewKeyIndexNotDirectSuccessor,
+      );
+
+      old_schnorr_key.update_expiration_timestamp(
+        ctx.accounts.vaa.data().expiration_delay_seconds as u64
+      );
     }
 
-    init_schnorr_key_account(
-      ctx.accounts.new_schnorr_key.to_account_info(),
-      message.schnorr_key_index,
-      message.schnorr_key,
-      &ctx.accounts.system_program,
-      ctx.accounts.payer.to_account_info()
-    )?;
-
-    old_schnorr_key.update_expiration_timestamp(message.expiration_delay_seconds as u64);
+    ctx.accounts.new_schnorr_key.set_inner(SchnorrKeyAccount {
+      index: ctx.accounts.vaa.data().schnorr_key_index,
+      schnorr_key: ctx.accounts.vaa.data().schnorr_key.clone(),
+      expiration_timestamp: 0,
+    });
 
     ctx.accounts.latest_key.account = ctx.accounts.new_schnorr_key.key();
 
