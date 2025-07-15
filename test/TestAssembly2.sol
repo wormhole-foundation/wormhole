@@ -879,9 +879,37 @@ contract TestAssembly2 is VerificationTestAPI {
 
   // V2 codepaths
 
-  function test_appendThresholdKey() public {
+  function test_appendSchnorrKey() public {
     pullGuardianSets(_wormholeVerifierV2, 1);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+  }
+
+  function test_appendMultipleSchnorrKey() public {
+    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
+
+    uint32 schnorrKeyIndex = 8;
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
+    bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
+
+    uint32 schnorrKeyIndex2 = 15;
+    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope4 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage4);
+    bytes memory appendSchnorrKeyVaa4 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope4, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope4);
+
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa3, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa4, schnorrShardsRaw);
+  }
+
+  function testRevert_appendSchnorrKey() public {
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UnknownGuardianSet.selector,
+      type(uint32).max
+    ));
+    appendSchnorrKey(_wormholeVerifierV2, invalidMultisigVaa, schnorrShardsRaw);
   }
 }
 */
