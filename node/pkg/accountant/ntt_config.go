@@ -31,6 +31,9 @@ func nttGetEmitters(env common.Environment) (validEmitters, validEmitters, error
 			// Lido wstETH + NTT deployment emitters
 			{chainId: vaa.ChainIDEthereum, addr: "000000000000000000000000A1ACC1e6edaB281Febd91E3515093F1DE81F25c0"},
 			{chainId: vaa.ChainIDBSC, addr: "000000000000000000000000be3F7e06872E0dF6CD7FF35B7aa4Bb1446DC9986"},
+			// mUSD NTT deployment emitters
+			{chainId: vaa.ChainIDEthereum, addr: "00000000000000000000000056E27f1A8425515FFD4BD76A254Ac1a5c0B66D71"},
+			{chainId: vaa.ChainIDBSC, addr: "00000000000000000000000076ddB3f1dDe02391Ef0A28664499B74C29d18d3E"},
 		}
 	} else if env == common.TestNet {
 		directEmitterConfig = emitterConfig{
