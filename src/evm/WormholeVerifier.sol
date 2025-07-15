@@ -41,7 +41,7 @@ uint8 constant UPDATE_PULL_MULTISIG_KEY_DATA = 2;
 uint256 constant MASK_UPDATE_DEPLOYMENT_FAILED                 = 1 << 16;
 uint256 constant MASK_UPDATE_RESULT_INVALID_VERSION            = 1 << 17;
 uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX  = 1 << 18;
-uint256 constant MASK_UPDATE_RESULT_EXPIRED                    = 1 << 19;
+uint256 constant MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED     = 1 << 19;
 uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX       = 1 << 20;
 uint256 constant MASK_UPDATE_RESULT_SIGNATURE_MISMATCH         = 1 << 21;
 uint256 constant MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX = 1 << 22;
@@ -233,6 +233,8 @@ contract WormholeVerifier is EIP712Encoding {
   error UnknownGuardianSet(uint32 index);
 
   ICoreBridge private immutable _coreBridge;
+
+  mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
   constructor(
     ICoreBridge coreBridge,
@@ -1072,7 +1074,7 @@ contract WormholeVerifier is EIP712Encoding {
   // Update functions
   function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
-    uint32 expirationTime;
+    uint256 nonce;
     bytes32 shardId;
     uint8 signerIndex;
     bytes32 r;
@@ -1081,34 +1083,30 @@ contract WormholeVerifier is EIP712Encoding {
 
     uint256 baseOffset = offset;
     (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (expirationTime, offset) = data.asUint32CdUnchecked(offset);
+    (nonce, offset) = data.asUint256CdUnchecked(offset);
     (shardId, offset) = data.asBytes32CdUnchecked(offset);
     (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
     // We only allow registrations for the current threshold key
     require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
 
-    // Verify the message is not expired
-    require(expirationTime > block.timestamp, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_EXPIRED));
-
     // Get the shard data range associated with the schnorr key
     (, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) = _getSchnorrExtraData(schnorrKeyIndex);
     require(signerIndex < shardCount, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX));
 
     // TODO: We could save a bit of gas by only codecopying the key we need
-    (, uint256 keyDataOffset,) = _getMultisigKeyData(multisigKeyIndex);
+    (address[] memory keys,,) = _getMultisigKeyData(multisigKeyIndex);
 
-    address expected;
-    assembly ("memory-safe") {
-      expected := mload(add(keyDataOffset, shl(5, signerIndex))) // TODO: magic number
-    }
+    address expected = keys[signerIndex];
 
     // Verify the signature
     // We're not doing replay protection with the signature itself so we don't care about
     // verifying only canonical (low s) signatures.
-    bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, expirationTime, shardId);
+    bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, nonce, shardId);
     address signatory = ecrecover(digest, v, r, s);
     require(signatory == expected, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
+
+    _useUnorderedNonce(signatory, nonce, baseOffset);
 
     // Store the shard ID
     _setSchnorrShardId(shardBase, signerIndex, shardId);
@@ -1454,5 +1452,16 @@ contract WormholeVerifier is EIP712Encoding {
         readPtr := add(readPtr, 0x40)
       }
     }
+  }
+
+  /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
+  /// @param nonce The nonce to spend
+  function _useUnorderedNonce(address guardian, uint256 nonce, uint256 baseOffset) internal {
+    uint256 wordPos = uint248(nonce >> 8);
+    uint256 bitPos = uint8(nonce);
+    uint256 bit = 1 << bitPos;
+    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+
+    if (flipped & bit == 0) revert UpdateFailed(baseOffset | MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED);
   }
 }

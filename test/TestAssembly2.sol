@@ -25,7 +25,7 @@ import {
   UPDATE_SET_SHARD_ID,
   
   MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX,
-  MASK_UPDATE_RESULT_EXPIRED,
+  MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED,
   MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX,
   MASK_UPDATE_RESULT_SIGNATURE_MISMATCH,
   MASK_UPDATE_RESULT_INVALID_KEY_INDEX,
@@ -170,18 +170,18 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
   function signUpdateShardIdMessage(
     WormholeVerifier wormholeVerifier,
     uint32 keyIndex,
-    uint32 expirationTime,
+    uint256 nonce,
     bytes32 shardId,
     uint8 signerIndex,
     uint256 privateKey
   ) internal view returns (bytes memory signedMessage) {
-    bytes32 digest = wormholeVerifier.getRegisterGuardianDigest(keyIndex, expirationTime, shardId);
+    bytes32 digest = wormholeVerifier.getRegisterGuardianDigest(keyIndex, nonce, shardId);
 
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
 
     return abi.encodePacked(
       keyIndex,
-      expirationTime,
+      nonce,
       shardId,
       signerIndex,
       r,
@@ -556,36 +556,36 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     _wormholeVerifierV2.update(message);
   }
 
-  function test_updateShardId() public {
+  function test_updateShardId_success() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[0]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidKeyIndex() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 2, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[0]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 2, 1, id, 0, guardianPrivateKeys[0]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
-  function test_updateShardIdInvalidExpirationTime() public {
+  function test_updateShardIdInvalidNonce() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp - EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[0]);
-    vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_EXPIRED | 1));
-    _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
+    vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED | 0x88));
+    _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage, UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidSignerIndex() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0xFF, guardianPrivateKeys[0]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0xFF, guardianPrivateKeys[0]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidSignature() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[1]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[1]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_SIGNATURE_MISMATCH | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
