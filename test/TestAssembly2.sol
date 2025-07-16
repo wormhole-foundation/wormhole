@@ -25,15 +25,19 @@ import {
   UPDATE_SET_SHARD_ID,
   
   MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX,
-  MASK_UPDATE_RESULT_EXPIRED,
+  MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED,
   MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX,
   MASK_UPDATE_RESULT_SIGNATURE_MISMATCH,
+  MASK_UPDATE_RESULT_INVALID_KEY_INDEX,
+  MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY,
+  MASK_UPDATE_RESULT_SHARD_DATA_MISMATCH,
 
   MASK_VERIFY_RESULT_INVALID_VERSION,
   MASK_VERIFY_RESULT_SIGNATURE_MISMATCH,
   MASK_VERIFY_RESULT_INVALID_SIGNATURE_COUNT,
   MASK_VERIFY_RESULT_INVALID_SIGNATURE,
   MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE,
+  MASK_VERIFY_RESULT_INVALID_KEY,
 
   VERIFY_ANY,
   VERIFY_MULTISIG,
@@ -56,7 +60,7 @@ struct ShardData {
 abstract contract VerificationMessageBuilder {
   function newAppendSchnorrKeyMessage(
     uint32 newTSSIndex,
-    uint256 newThresholdPubkey,
+    uint256 newSchnorrPubkey,
     uint32 expirationDelaySeconds,
     bytes32 initialShardDataHash
   ) internal pure returns (bytes memory) {
@@ -64,7 +68,7 @@ abstract contract VerificationMessageBuilder {
       MODULE_VERIFICATION_V2,
       ACTION_APPEND_SCHNORR_KEY,
       newTSSIndex,
-      newThresholdPubkey,
+      newSchnorrPubkey,
       expirationDelaySeconds,
       initialShardDataHash
     );
@@ -167,18 +171,18 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
   function signUpdateShardIdMessage(
     WormholeVerifier wormholeVerifier,
     uint32 keyIndex,
-    uint32 expirationTime,
+    uint256 nonce,
     bytes32 shardId,
     uint8 signerIndex,
     uint256 privateKey
   ) internal view returns (bytes memory signedMessage) {
-    bytes32 digest = wormholeVerifier.getRegisterGuardianDigest(keyIndex, expirationTime, shardId);
+    bytes32 digest = wormholeVerifier.getRegisterGuardianDigest(keyIndex, nonce, shardId);
 
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
 
     return abi.encodePacked(
       keyIndex,
-      expirationTime,
+      nonce,
       shardId,
       signerIndex,
       r,
@@ -253,6 +257,50 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
 
     (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
   }
+
+  function getCurrentSchnorrKey() public pure returns (bytes memory) {
+    return abi.encodePacked(
+      GET_CURRENT_SCHNORR_KEY_DATA
+    );
+  }
+
+  function decodeGetCurrentSchnorrKey(bytes memory result, uint256 offset) public pure returns (
+    uint32 schnorrKeyIndex,
+    uint256 schnorrKeyPubkey,
+    uint32 expirationTime,
+    uint8 shardCount,
+    uint32 guardianSet,
+    uint256 newOffset
+  ) {
+    (schnorrKeyIndex, newOffset) = result.asUint32MemUnchecked(offset);
+    (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(newOffset);
+    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
+    (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
+    assertGe(result.length, newOffset);
+  }
+
+
+  function getSchnorrKey(uint32 index) public pure returns (bytes memory) {
+    return abi.encodePacked(
+      GET_SCHNORR_KEY_DATA,
+      uint32(index)
+    );
+  }
+
+  function decodeGetSchnorrKey(bytes memory result, uint256 offset) public pure returns (
+    uint256 schnorrKeyPubkey,
+    uint32 expirationTime,
+    uint8 shardCount,
+    uint32 guardianSet,
+    uint256 newOffset
+  ) {
+    (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(newOffset);
+    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
+    (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
+    assertGe(result.length, newOffset);
+  }
 }
 
 contract WormholeV1Mock is ICoreBridge {
@@ -295,6 +343,7 @@ contract WormholeV1Mock is ICoreBridge {
 
 contract TestAssembly2Benchmark is VerificationTestAPI {
   using VaaLib for bytes;
+  using BytesParsing for bytes;
 
   uint32 private constant EXPIRATION_DELAY_SECONDS = 24 * 60 * 60;
 
@@ -356,15 +405,12 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     uint256 multisigVaaHeaderLength2 = 4+1+66*SHARD_QUORUM;
     uint256 schnorrVaaHeaderLength2 = 4+20+32;
 
-    bytes memory smallMultisigVaaHeader2 = new bytes(multisigVaaHeaderLength2);
+    bytes memory smallMultisigVaaHeader2;
+    (smallMultisigVaaHeader2,) = smallMultisigVaa.sliceMemUnchecked(1, multisigVaaHeaderLength2);
     bytes memory smallSchnorrVaaHeader2 = new bytes(schnorrVaaHeaderLength2);
-    bytes memory bigMultisigVaaHeader2 = new bytes(multisigVaaHeaderLength2);
+    bytes memory bigMultisigVaaHeader2;
+    (bigMultisigVaaHeader2,) = bigMultisigVaa.sliceMemUnchecked(1, multisigVaaHeaderLength2);
     bytes memory bigSchnorrVaaHeader2 = new bytes(schnorrVaaHeaderLength2);
-
-    for (uint256 i = 0; i < multisigVaaHeaderLength2; i++) {
-      smallMultisigVaaHeader2[i] = smallMultisigVaa[i];
-      bigMultisigVaaHeader2[i] = bigMultisigVaa[i];
-    }
 
     for (uint256 i = 0; i < schnorrVaaHeaderLength2; i++) {
       smallSchnorrVaaHeader2[i] = smallSchnorrVaa[i];
@@ -376,6 +422,10 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
       VERIFY_MULTISIG,
       smallMultisigVaaHeader2,
       getEnvelopeDigest(smallEnvelope),
+      bigMultisigVaaHeader2,
+      getEnvelopeDigest(bigEnvelope),
+      bigMultisigVaaHeader2,
+      getEnvelopeDigest(bigEnvelope),
       bigMultisigVaaHeader2,
       getEnvelopeDigest(bigEnvelope)
     );
@@ -433,7 +483,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
       smallMultisigVaaHeader[i] = smallMultisigVaa[i];
       bigMultisigVaaHeader[i] = bigMultisigVaa[i];
     }
-    
+
     uint256 schnorrVaaHeaderLength = 1+4+20+32;
     bytes memory smallSchnorrVaaHeader = new bytes(schnorrVaaHeaderLength);
     bytes memory bigSchnorrVaaHeader = new bytes(schnorrVaaHeaderLength);
@@ -514,36 +564,36 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     _wormholeVerifierV2.update(message);
   }
 
-  function test_updateShardId() public {
+  function test_updateShardId_success() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[0]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidKeyIndex() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 2, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[0]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 2, 1, id, 0, guardianPrivateKeys[0]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
-  function test_updateShardIdInvalidExpirationTime() public {
+  function test_updateShardIdInvalidNonce() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp - EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[0]);
-    vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_EXPIRED | 1));
-    _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
+    vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED | 0x88));
+    _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage, UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidSignerIndex() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0xFF, guardianPrivateKeys[0]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0xFF, guardianPrivateKeys[0]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidSignature() public {
     bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, uint32(block.timestamp + EXPIRATION_DELAY_SECONDS), id, 0, guardianPrivateKeys[1]);
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[1]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_SIGNATURE_MISMATCH | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
@@ -624,7 +674,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(data.length, 4+32);
   }
 }
-/*
+
 contract TestAssembly2 is VerificationTestAPI {
   using VaaLib for bytes;
 
@@ -886,9 +936,182 @@ contract TestAssembly2 is VerificationTestAPI {
 
   // V2 codepaths
 
-  function test_appendThresholdKey() public {
+  function test_appendSchnorrKey() public {
     pullGuardianSets(_wormholeVerifierV2, 1);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
   }
+
+  function test_appendMultipleSchnorrKey() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+
+    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
+
+    uint32 schnorrKeyIndex = 2;
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
+    bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
+
+    uint32 schnorrKeyIndex2 = 3;
+    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope4 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage4);
+    bytes memory appendSchnorrKeyVaa4 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope4, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope4);
+
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa3, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa4, schnorrShardsRaw);
+  }
+
+  function test_appendSchnorrKey_canSkipIndicesOnDeploy() public {
+    uint32 schnorrKeyIndex2 = 3;
+    WormholeVerifier tempVerifier = new WormholeVerifier(_wormholeV1Mock, 0, schnorrKeyIndex2, 1);
+
+    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
+
+    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope4 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage4);
+    bytes memory appendSchnorrKeyVaa4 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope4, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope4);
+
+    appendSchnorrKey(tempVerifier, appendSchnorrKeyVaa4, schnorrShardsRaw);
+  }
+
+  function test_appendSchnorrKey_deployCanPreventSubmissionOfOldIndices() public {
+    uint32 initialSchnorrKeyIndex = 3;
+    WormholeVerifier tempVerifier = new WormholeVerifier(_wormholeV1Mock, 0, initialSchnorrKeyIndex, 1);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UpdateFailed.selector,
+      MASK_UPDATE_RESULT_INVALID_KEY_INDEX | 0xe5
+    ));
+    appendSchnorrKey(tempVerifier, appendSchnorrKeyVaa1, schnorrShardsRaw);
+  }
+
+  function testRevert_appendSchnorrKey() public {
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UnknownGuardianSet.selector,
+      type(uint32).max
+    ));
+    appendSchnorrKey(_wormholeVerifierV2, invalidMultisigVaa, schnorrShardsRaw);
+  }
+
+  function testRevert_appendSchnorrKey_duplicatedKey() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UpdateFailed.selector,
+      MASK_UPDATE_RESULT_INVALID_KEY_INDEX | 0xe5
+    ));
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+  }
+
+  function testRevert_appendOldSchnorrKey() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+
+    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
+
+    uint32 schnorrKeyIndex = 0;
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
+    bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
+
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UpdateFailed.selector,
+      MASK_UPDATE_RESULT_INVALID_KEY_INDEX | 0xe5
+    ));
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa3, schnorrShardsRaw);
+  }
+
+  function testRevert_appendMaxSchnorrKey() public {
+    uint32 schnorrKeyIndex = type(uint32).max;
+    WormholeVerifier tempVerifier = new WormholeVerifier(_wormholeV1Mock, 0, schnorrKeyIndex, 1);
+
+    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
+
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
+    bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UpdateFailed.selector,
+      MASK_UPDATE_RESULT_INVALID_KEY_INDEX | 0xe5
+    ));
+    appendSchnorrKey(tempVerifier, appendSchnorrKeyVaa3, schnorrShardsRaw);
+  }
+
+  function test_getCurrentSchnorrKey() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
+
+    uint256 pk2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
+
+    bytes memory result = _wormholeVerifierV2.get(getCurrentSchnorrKey());
+
+    (
+      uint32 schnorrKeyIndex,
+      uint256 schnorrKeyPubkey,
+      uint32 expirationTime,
+      uint8 shardCount,
+      uint32 guardianSet,
+    ) = decodeGetCurrentSchnorrKey(result, 0);
+    assertEq(schnorrKeyIndex, 1);
+    assertEq(schnorrKeyPubkey, pk2);
+    assertEq(expirationTime, 0);
+    assertEq(shardCount, SHARD_COUNT);
+    assertEq(guardianSet, 0);
+  }
+
+  function test_getSchnorrKey() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
+
+    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
+
+    bytes memory result = _wormholeVerifierV2.get(getSchnorrKey(0));
+
+    (
+      uint256 schnorrKeyPubkey,
+      uint32 expirationTime,
+      uint8 shardCount,
+      uint32 guardianSet,
+    ) = decodeGetSchnorrKey(result, 0);
+    assertEq(schnorrKeyPubkey, pk1);
+    assertEq(expirationTime, expirationTimeSet0);
+    assertEq(shardCount, SHARD_COUNT);
+    assertEq(guardianSet, 0);
+  }
+
+
+  function testRevert_verifyVaaV2_unregisteredKey() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY | MASK_VERIFY_RESULT_SIGNATURE_MISMATCH
+    ));
+    _wormholeVerifierV2.verify(bigSchnorrVaa);
+  }
+
+  function test_verifyVaaV2_skippedKey() public {
+    WormholeVerifier tempVerifier = new WormholeVerifier(_wormholeV1Mock, 0, 1, 1);
+    pullGuardianSets(tempVerifier, 1);
+    appendSchnorrKey(tempVerifier, appendSchnorrKeyVaa2, schnorrShardsRaw);
+
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY | MASK_VERIFY_RESULT_SIGNATURE_MISMATCH
+    ));
+    _wormholeVerifierV2.verify(smallSchnorrVaa);
+  }
 }
-*/
+

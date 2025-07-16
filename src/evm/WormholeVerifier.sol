@@ -11,6 +11,7 @@ import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
 import {eagerAnd, eagerOr} from "wormhole-solidity-sdk/Utils.sol";
 
 import {EIP712Encoding} from "./EIP712Encoding.sol";
+import {SSTORE2} from "./ExtStore.sol";
 
 // Verify opcodes
 uint8 constant VERIFY_ANY              = 0;
@@ -41,7 +42,7 @@ uint8 constant UPDATE_PULL_MULTISIG_KEY_DATA = 2;
 uint256 constant MASK_UPDATE_DEPLOYMENT_FAILED                 = 1 << 16;
 uint256 constant MASK_UPDATE_RESULT_INVALID_VERSION            = 1 << 17;
 uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX  = 1 << 18;
-uint256 constant MASK_UPDATE_RESULT_EXPIRED                    = 1 << 19;
+uint256 constant MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED     = 1 << 19;
 uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX       = 1 << 20;
 uint256 constant MASK_UPDATE_RESULT_SIGNATURE_MISMATCH         = 1 << 21;
 uint256 constant MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX = 1 << 22;
@@ -230,7 +231,11 @@ contract WormholeVerifier is EIP712Encoding {
   error GetFailed(uint256 result);
   error UpdateFailed(uint256 result);
 
+  error UnknownGuardianSet(uint32 index);
+
   ICoreBridge private immutable _coreBridge;
+
+  mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
   constructor(
     ICoreBridge coreBridge,
@@ -240,8 +245,8 @@ contract WormholeVerifier is EIP712Encoding {
   ) {
     _coreBridge = coreBridge;
 
+    _updateMultisigKeyCount(initialMultisigKeyCount);
     assembly ("memory-safe") {
-      sstore(SLOT_MULTISIG_KEY_COUNT, initialMultisigKeyCount)
       sstore(SLOT_SCHNORR_KEY_COUNT, initialSchnorrKeyCount)
     }
 
@@ -999,13 +1004,13 @@ contract WormholeVerifier is EIP712Encoding {
         (opcode, offset) = data.asUint8CdUnchecked(offset);
 
         if (opcode == GET_CURRENT_SCHNORR_KEY_DATA) {
-          uint256 index = _getSchnorrKeyCount() - 1;
+          uint32 index = _getSchnorrKeyCount() - 1;
           uint256 pubkey = _getSchnorrKeyData(index);
           (uint32 expirationTime, uint8 shardCount, , uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
 
           result = abi.encodePacked(result, index, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_CURRENT_MULTISIG_KEY_DATA) {
-          uint256 index = _getMultisigKeyCount() - 1;
+          uint32 index = _getMultisigKeyCount() - 1;
           (address[] memory keys,,) = _getMultisigKeyData(index);
 
           result = abi.encodePacked(result, uint32(index), uint8(keys.length), keys);
@@ -1018,7 +1023,7 @@ contract WormholeVerifier is EIP712Encoding {
 
           result = abi.encodePacked(result, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_MULTISIG_KEY_DATA) {
-          uint256 index;
+          uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
 
           (address[] memory keys,, uint32 expirationTime) = _getMultisigKeyData(index);
@@ -1071,7 +1076,7 @@ contract WormholeVerifier is EIP712Encoding {
   // Update functions
   function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
-    uint32 expirationTime;
+    uint256 nonce;
     bytes32 shardId;
     uint8 signerIndex;
     bytes32 r;
@@ -1080,34 +1085,30 @@ contract WormholeVerifier is EIP712Encoding {
 
     uint256 baseOffset = offset;
     (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (expirationTime, offset) = data.asUint32CdUnchecked(offset);
+    (nonce, offset) = data.asUint256CdUnchecked(offset);
     (shardId, offset) = data.asBytes32CdUnchecked(offset);
     (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
     // We only allow registrations for the current threshold key
     require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
 
-    // Verify the message is not expired
-    require(expirationTime > block.timestamp, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_EXPIRED));
-
     // Get the shard data range associated with the schnorr key
     (, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) = _getSchnorrExtraData(schnorrKeyIndex);
     require(signerIndex < shardCount, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX));
 
     // TODO: We could save a bit of gas by only codecopying the key we need
-    (, uint256 keyDataOffset,) = _getMultisigKeyData(multisigKeyIndex);
+    (address[] memory keys,,) = _getMultisigKeyData(multisigKeyIndex);
 
-    address expected;
-    assembly ("memory-safe") {
-      expected := mload(add(keyDataOffset, shl(5, signerIndex))) // TODO: magic number
-    }
+    address expected = keys[signerIndex];
 
     // Verify the signature
     // We're not doing replay protection with the signature itself so we don't care about
     // verifying only canonical (low s) signatures.
-    bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, expirationTime, shardId);
+    bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, nonce, shardId);
     address signatory = ecrecover(digest, v, r, s);
     require(signatory == expected, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
+
+    _useUnorderedNonce(signatory, nonce, baseOffset);
 
     // Store the shard ID
     _setSchnorrShardId(shardBase, signerIndex, shardId);
@@ -1154,9 +1155,10 @@ contract WormholeVerifier is EIP712Encoding {
       uint256 px = newSchnorrKey >> 1;
 
       // Load current multisig key data
-      uint256 currentMultisigKeyCount = _getMultisigKeyCount();
-      uint256 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
+      uint32 currentMultisigKeyCount = _getMultisigKeyCount();
+      uint32 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
       (address[] memory shards, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
+
       uint8 shardCount = uint8(shards.length);
 
       // TODO: Compute all the flags at once
@@ -1171,8 +1173,14 @@ contract WormholeVerifier is EIP712Encoding {
       require(module == MODULE_VERIFICATION_V2, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MODULE));
       require(action == ACTION_APPEND_SCHNORR_KEY, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_ACTION));
 
-      require(newSchnorrKeyIndex == _getSchnorrKeyCount(), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
-      require(eagerAnd(px != 0, px < HALF_SECP256K1_ORDER_PLUS_ONE), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
+      require(eagerAnd(
+        newSchnorrKeyIndex == _getSchnorrKeyCount(),
+        newSchnorrKeyIndex < type(uint32).max
+      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
+      require(eagerAnd(
+        px != 0,
+        px < HALF_SECP256K1_ORDER_PLUS_ONE
+      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
 
       // Verify the signatures
       (bytes calldata vaaBody,) = data.sliceCdUnchecked(envelopeOffset, VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
@@ -1276,34 +1284,38 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Internal multisig state access functions
-  function _getMultisigKeyCount() internal view returns (uint256 result) {
+  function _getMultisigKeyCount() internal view returns (uint32 result) {
     assembly ("memory-safe") {
       result := sload(SLOT_MULTISIG_KEY_COUNT)
     }
   }
 
-  function _getMultisigKeyData(uint256 index) internal view returns (
+  function _updateMultisigKeyCount(uint32 count) internal {
+    assembly ("memory-safe") {
+      sstore(SLOT_MULTISIG_KEY_COUNT, count)
+    }
+  }
+
+  function _getMultisigKeyData(uint32 index) internal view returns (
     address[] memory keys,
     uint256 keyDataOffset,
     uint32 expirationTime
   ) {
+    // Load and decode the multisig key data entry
+    uint256 multisigDataIndex = SLOT_MULTISIG_KEY_DATA + index;
+    uint256 entry;
+    assembly ("memory-safe") { entry := sload(multisigDataIndex) }
+    expirationTime = uint32(entry & MASK_MULTISIG_ENTRY_EXPIRATION_TIME);
+
+    // Load the key data contract, validate the size
+    address keyDataAddress = address(uint160(entry >> SHIFT_MULTISIG_ENTRY_ADDRESS));
+    uint256 keyDataSize = keyDataAddress.code.length;
+    require (keyDataSize > 0, UnknownGuardianSet(index));
+
+    // Copy the value to memory
+    uint256 size = keyDataSize - OFFSET_MULTISIG_CONTRACT_DATA;
+    uint256 keyCount = size >> 5;
     assembly ("memory-safe") {
-      // Load and decode the multisig key data entry
-      let entry := sload(add(SLOT_MULTISIG_KEY_DATA, index))
-      expirationTime := and(entry, MASK_MULTISIG_ENTRY_EXPIRATION_TIME)
-      let keyDataAddress := shr(SHIFT_MULTISIG_ENTRY_ADDRESS, entry)
-
-      // Load the key data contract, validate the size
-      let keyDataSize := extcodesize(keyDataAddress)
-      if iszero(keyDataSize) {
-        mstore(PTR_SCRATCH, 0x11052bb4) // InvalidPointer()
-        revert(PTR_SCRATCH, 0x04)
-      }
-
-      // Copy the value to memory
-      let size := sub(keyDataSize, OFFSET_MULTISIG_CONTRACT_DATA)
-      let keyCount := shr(5, size)
-
       keys := mload(PTR_FREE_MEMORY)
       mstore(keys, keyCount)
       keyDataOffset := add(keys, LENGTH_WORD)
@@ -1321,54 +1333,52 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Append a new multisig key data entry and creates the corresponding contract
-  // NOTE: This will destroy the `keys` array
   function _appendMultisigKeyData(address[] memory keys, uint32 expirationTime) internal {
-    assembly ("memory-safe") {
-      // Deploy the data to a new contract
-      let originalDataLength := shl(5, mload(keys))
-      let dataLength := add(originalDataLength, OFFSET_MULTISIG_CONTRACT_DATA)
-      mstore(add(keys, gt(dataLength, 0xFFFF)), or(0xfd61000080600a3d393df300, shl(0x40, dataLength)))
-      let deployedAddress := create(0, add(keys, 0x15), add(dataLength, 0xA))
-      if iszero(deployedAddress) {
-        // FIXME: Wrong error code
-        mstore(PTR_SCRATCH, 0x30116425) // DeploymentFailed()
-        revert(PTR_SCRATCH, 0x04)
-      }
-
-      // Store the entry in the storage array
-      let index := sload(SLOT_MULTISIG_KEY_COUNT)
-      let entry := or(expirationTime, shl(SHIFT_MULTISIG_ENTRY_ADDRESS, deployedAddress))
-      sstore(add(SLOT_MULTISIG_KEY_DATA, index), entry)
-
-      // Increment the multisig key count
-      sstore(SLOT_MULTISIG_KEY_COUNT, add(index, 1))
+    bytes memory keysBuffer = new bytes(keys.length << 5);
+    for (uint i = 0; i < keys.length; ++i) {
+      address key = keys[i];
+      uint256 offset = (i + 1) << 5;
+      assembly ("memory-safe") { mstore(add(keysBuffer, offset), key) }
     }
+
+    address deployedAddress = SSTORE2.write(keysBuffer);
+
+    // Store the entry in the storage array
+    uint32 index = _getMultisigKeyCount();
+    bytes32 entry =
+      bytes32(uint256(uint160(deployedAddress)) << SHIFT_MULTISIG_ENTRY_ADDRESS)
+      | bytes32(uint256(expirationTime));
+
+    uint256 multisigKeyDataPtr = SLOT_MULTISIG_KEY_DATA + index;
+    assembly ("memory-safe") { sstore(multisigKeyDataPtr, entry) }
+    _updateMultisigKeyCount(index + 1);
   }
 
   // Internal schnorr state access functions
-  function _getSchnorrKeyCount() internal view returns (uint256 result) {
+  function _getSchnorrKeyCount() internal view returns (uint32 result) {
     assembly ("memory-safe") {
       result := sload(SLOT_SCHNORR_KEY_COUNT)
     }
   }
 
-  function _getSchnorrKeyData(uint256 index) internal view returns (uint256 pubkey) {
+  function _getSchnorrKeyData(uint32 index) internal view returns (uint256 pubkey) {
     assembly ("memory-safe") {
       pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, index))
     }
   }
 
-  function _getSchnorrExtraData(uint256 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+  function _getSchnorrExtraData(uint32 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+    uint256 storageWord;
     assembly ("memory-safe") {
-      let result := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
-      expirationTime := and(result, MASK_SCHNORR_EXTRA_EXPIRATION_TIME)
-      shardCount := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_COUNT, result), MASK_SCHNORR_EXTRA_SHARD_COUNT)
-      shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, result), MASK_SCHNORR_EXTRA_SHARD_BASE)
-      multisigKeyIndex := shr(SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX, result)
+      storageWord := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
     }
+    expirationTime = uint32(storageWord & MASK_SCHNORR_EXTRA_EXPIRATION_TIME);
+    shardCount = uint8((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_COUNT) & MASK_SCHNORR_EXTRA_SHARD_COUNT);
+    shardBase = uint40((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_BASE) & MASK_SCHNORR_EXTRA_SHARD_BASE);
+    multisigKeyIndex = uint32(storageWord >> SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX);
   }
 
-  function _getSchnorrShardDataExport(uint256 index) internal view returns (bytes memory shardData) {
+  function _getSchnorrShardDataExport(uint32 index) internal view returns (bytes memory shardData) {
     assembly ("memory-safe") {
       let extraData := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
       let shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, extraData), MASK_SCHNORR_EXTRA_SHARD_BASE)
@@ -1391,7 +1401,7 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function _setSchnorrExpirationTime(uint256 index, uint32 expirationTime) internal {
+  function _setSchnorrExpirationTime(uint32 index, uint32 expirationTime) internal {
     assembly ("memory-safe") {
       let ptr := add(SLOT_SCHNORR_EXTRA_DATA, index)
       let old := and(sload(ptr), not(MASK_SCHNORR_EXTRA_EXPIRATION_TIME))
@@ -1447,5 +1457,16 @@ contract WormholeVerifier is EIP712Encoding {
         readPtr := add(readPtr, 0x40)
       }
     }
+  }
+
+  /// @notice Checks whether a nonce is taken and sets the bit at the bit position in the bitmap at the word position
+  /// @param nonce The nonce to spend
+  function _useUnorderedNonce(address guardian, uint256 nonce, uint256 baseOffset) internal {
+    uint256 wordPos = uint248(nonce >> 8);
+    uint256 bitPos = uint8(nonce);
+    uint256 bit = 1 << bitPos;
+    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+
+    if (flipped & bit == 0) revert UpdateFailed(baseOffset | MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED);
   }
 }
