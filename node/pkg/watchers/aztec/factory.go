@@ -27,13 +27,13 @@ func NewWatcherFromConfig(
 	rpcURL string,
 	contractAddress string,
 	msgC chan<- *common.MessagePublication,
-	obsvReqC <-chan *gossipv1.ObservationRequest,
+	_ <-chan *gossipv1.ObservationRequest,
 ) (interfaces.L1Finalizer, supervisor.Runnable) {
 	// Create a logger
 	logger := zap.L().Named("aztec")
 
 	// Create a shared L1Verifier instance
-	l1Verifier, err := NewAztecFinalityVerifier(rpcURL, logger.Named("finality"))
+	l1Verifier, err := NewAztecFinalityVerifier(context.Background(), rpcURL, logger.Named("finality"))
 	if err != nil {
 		// Log error but continue - we'll retry in the runnable
 		logger.Error("Failed to create L1Verifier at startup, will retry in runnable", zap.Error(err))
@@ -61,7 +61,7 @@ func NewWatcherFromConfig(
 		// If L1Verifier creation failed earlier, create it now
 		if l1Verifier == nil {
 			var initErr error
-			l1Verifier, initErr = NewAztecFinalityVerifier(rpcURL, logger.Named("aztec_finality"))
+			l1Verifier, initErr = NewAztecFinalityVerifier(context.Background(), rpcURL, logger.Named("aztec_finality"))
 			if initErr != nil {
 				return fmt.Errorf("failed to create L1Verifier: %v", initErr)
 			}

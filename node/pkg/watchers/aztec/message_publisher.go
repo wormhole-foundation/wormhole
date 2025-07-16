@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -45,7 +46,7 @@ func (w *Watcher) publishObservation(ctx context.Context, params LogParameters, 
 	// Create the observation
 	observation := &common.MessagePublication{
 		TxID:             txID,
-		Timestamp:        time.Unix(int64(blockInfo.Timestamp), 0),
+		Timestamp:        time.Unix(safeUint64ToInt64(blockInfo.Timestamp), 0),
 		Nonce:            params.Nonce,
 		Sequence:         params.Sequence,
 		EmitterChain:     w.config.ChainID,
@@ -78,4 +79,11 @@ func (w *Watcher) publishObservation(ctx context.Context, params LogParameters, 
 	}
 
 	return nil
+}
+
+func safeUint64ToInt64(value uint64) int64 {
+	if value > math.MaxInt64 {
+		return math.MaxInt64 // Cap at maximum int64 value
+	}
+	return int64(value)
 }

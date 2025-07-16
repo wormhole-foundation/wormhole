@@ -95,7 +95,14 @@ func (f *aztecBlockFetcher) FetchBlock(ctx context.Context, blockNumber int) (Bl
 			f.logger.Debug("Genesis block has no timestamp, using default value")
 		} else {
 			// Use current time as fallback for non-genesis blocks
-			info.Timestamp = uint64(time.Now().Unix())
+			unixTime := time.Now().Unix()
+			if unixTime < 0 {
+				// Handle negative timestamp - this shouldn't happen in practice
+				// but gosec wants us to check for it
+				info.Timestamp = 0
+			} else {
+				info.Timestamp = uint64(unixTime)
+			}
 			f.logger.Warn("Block has empty timestamp, using current time",
 				zap.Int("blockNumber", blockNumber))
 		}
