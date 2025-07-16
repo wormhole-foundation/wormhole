@@ -41,8 +41,8 @@ func NewAztecFinalityVerifier(
 	rpcURL string,
 	logger *zap.Logger,
 ) (L1Verifier, error) {
-	// Create a new RPC client
-	client, err := rpc.DialContext(context.Background(), rpcURL)
+	// Create a new RPC client - this needs to use context.Background() for the connection
+	client, err := rpc.DialContext(ctx, rpcURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RPC client: %v", err)
 	}

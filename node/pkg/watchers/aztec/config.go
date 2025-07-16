@@ -94,7 +94,7 @@ func (c *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) { //nolint:unparam // Aztec watcher does not implement Reobserver interface
 	// Create the runnable and L1Finalizer
 	l1Finalizer, runnable := NewWatcherFromConfig(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
 

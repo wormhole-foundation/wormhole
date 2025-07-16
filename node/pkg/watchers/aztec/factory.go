@@ -61,7 +61,8 @@ func NewWatcherFromConfig(
 		// If L1Verifier creation failed earlier, create it now
 		if l1Verifier == nil {
 			var initErr error
-			l1Verifier, initErr = NewAztecFinalityVerifier(context.Background(), rpcURL, logger.Named("aztec_finality"))
+			// Use the ctx parameter here instead of context.Background()
+			l1Verifier, initErr = NewAztecFinalityVerifier(ctx, rpcURL, logger.Named("aztec_finality"))
 			if initErr != nil {
 				return fmt.Errorf("failed to create L1Verifier: %v", initErr)
 			}
