@@ -11,6 +11,7 @@ import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
 import {eagerAnd, eagerOr} from "wormhole-solidity-sdk/Utils.sol";
 
 import {EIP712Encoding} from "./EIP712Encoding.sol";
+import {SSTORE2} from "./ExtStore.sol";
 
 // Verify opcodes
 uint8 constant VERIFY_ANY              = 0;
@@ -244,8 +245,8 @@ contract WormholeVerifier is EIP712Encoding {
   ) {
     _coreBridge = coreBridge;
 
+    _updateMultisigKeyCount(initialMultisigKeyCount);
     assembly ("memory-safe") {
-      sstore(SLOT_MULTISIG_KEY_COUNT, initialMultisigKeyCount)
       sstore(SLOT_SCHNORR_KEY_COUNT, initialSchnorrKeyCount)
     }
 
@@ -1288,6 +1289,12 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
+  function _updateMultisigKeyCount(uint32 count) internal {
+    assembly ("memory-safe") {
+      sstore(SLOT_MULTISIG_KEY_COUNT, count)
+    }
+  }
+
   function _getMultisigKeyData(uint32 index) internal view returns (
     address[] memory keys,
     uint256 keyDataOffset,
@@ -1325,28 +1332,25 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Append a new multisig key data entry and creates the corresponding contract
-  // NOTE: This will destroy the `keys` array
   function _appendMultisigKeyData(address[] memory keys, uint32 expirationTime) internal {
-    assembly ("memory-safe") {
-      // Deploy the data to a new contract
-      let originalDataLength := shl(5, mload(keys))
-      let dataLength := add(originalDataLength, OFFSET_MULTISIG_CONTRACT_DATA)
-      mstore(add(keys, gt(dataLength, 0xFFFF)), or(0xfd61000080600a3d393df300, shl(0x40, dataLength)))
-      let deployedAddress := create(0, add(keys, 0x15), add(dataLength, 0xA))
-      if iszero(deployedAddress) {
-        // FIXME: Wrong error code
-        mstore(PTR_SCRATCH, 0x30116425) // DeploymentFailed()
-        revert(PTR_SCRATCH, 0x04)
-      }
-
-      // Store the entry in the storage array
-      let index := sload(SLOT_MULTISIG_KEY_COUNT)
-      let entry := or(expirationTime, shl(SHIFT_MULTISIG_ENTRY_ADDRESS, deployedAddress))
-      sstore(add(SLOT_MULTISIG_KEY_DATA, index), entry)
-
-      // Increment the multisig key count
-      sstore(SLOT_MULTISIG_KEY_COUNT, add(index, 1))
+    bytes memory keysBuffer = new bytes(keys.length << 5);
+    for (uint i = 0; i < keys.length; ++i) {
+      address key = keys[i];
+      uint256 offset = (i + 1) << 5;
+      assembly ("memory-safe") { mstore(add(keysBuffer, offset), key) }
     }
+
+    address deployedAddress = SSTORE2.write(keysBuffer);
+
+    // Store the entry in the storage array
+    uint32 index = _getMultisigKeyCount();
+    bytes32 entry =
+      bytes32(uint256(uint160(deployedAddress)) << SHIFT_MULTISIG_ENTRY_ADDRESS)
+      | bytes32(uint256(expirationTime));
+
+    uint256 multisigKeyDataPtr = SLOT_MULTISIG_KEY_DATA + index;
+    assembly ("memory-safe") { sstore(multisigKeyDataPtr, entry) }
+    _updateMultisigKeyCount(index + 1);
   }
 
   // Internal schnorr state access functions
