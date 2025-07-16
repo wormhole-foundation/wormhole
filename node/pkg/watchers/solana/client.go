@@ -1102,8 +1102,8 @@ func (s *SolanaWatcher) updateLatestBlock(slot uint64) {
 	}
 }
 
-// GetLatestFinalizedBlockNumber() returns the latest published block.
-func (s *SolanaWatcher) GetLatestFinalizedBlockNumber() uint64 {
+// getLatestFinalizedBlockNumber() returns the latest published block.
+func (s *SolanaWatcher) getLatestFinalizedBlockNumber() uint64 {
 	s.latestBlockNumberMu.Lock()
 	defer s.latestBlockNumberMu.Unlock()
 	return s.latestBlockNumber

@@ -21,7 +21,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
-	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -430,7 +429,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}(chainQueryResponseC[chainId], chainId)
 			}
 
-			configuredWatchers := make(map[watchers.NetworkID]interfaces.L1Finalizer)
+			configuredWatchers := make(map[watchers.NetworkID]struct{})
 
 			for _, wc := range watcherConfigs {
 				if _, ok := configuredWatchers[wc.GetNetworkID()]; ok {
@@ -446,24 +445,14 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					g.chainQueryReqC[wc.GetChainID()] = make(chan *query.PerChainQueryInternal, query.QueryRequestBufferSize)
 				}
 
-				if wc.RequiredL1Finalizer() != "" {
-					l1watcher, ok := configuredWatchers[wc.RequiredL1Finalizer()]
-					if !ok || l1watcher == nil {
-						logger.Fatal("L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs. The L1 must be configured before this one.",
-							zap.String("ChainID", wc.GetChainID().String()),
-							zap.String("L1ChainID", string(wc.RequiredL1Finalizer())))
-					}
-					wc.SetL1Finalizer(l1watcher)
-				}
-
-				l1finalizer, runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
+				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
 					return fmt.Errorf("error creating watcher: %w", err)
 				}
 
 				g.runnablesWithScissors[watcherName] = runnable
-				configuredWatchers[wc.GetNetworkID()] = l1finalizer
+				configuredWatchers[wc.GetNetworkID()] = struct{}{}
 
 				if reobserver != nil {
 					g.reobservers[wc.GetChainID()] = reobserver

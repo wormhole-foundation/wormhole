@@ -18,8 +18,6 @@ type NetworkID string
 type WatcherConfig interface {
 	GetNetworkID() NetworkID
 	GetChainID() vaa.ChainID
-	RequiredL1Finalizer() NetworkID // returns NetworkID of the L1 Finalizer that should be used for this Watcher.
-	SetL1Finalizer(l1finalizer interfaces.L1Finalizer)
 	Create(
 		msgC chan<- *common.MessagePublication,
 		obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -27,7 +25,7 @@ type WatcherConfig interface {
 		queryResponseC chan<- *query.PerChainQueryResponseInternal,
 		setC chan<- *common.GuardianSet,
 		env common.Environment,
-	) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error)
+	) (supervisor.Runnable, interfaces.Reobserver, error)
 }
 
 var (
