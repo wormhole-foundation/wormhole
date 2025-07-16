@@ -5,7 +5,7 @@ package governor
 //
 // To compute the notional value of a transfer, the governor uses the amount from the transfer multiplied by the maximum of
 // a hard coded price and the latest price pulled from CoinkGecko (every five minutes). Once a transfer is published,
-// its value (as factored into the daily total) is fixed. However the value of pending transfers is computed using the latest price each interval.
+// its value (as factored into the USD limit for the sliding window duration) is fixed. However the value of pending transfers is computed using the latest price each interval.
 //
 // The governor maintains a rolling window of transfers that have been emitted by a configured chain
 // and compares that value to the configured limit for that chain. If a new transfer would exceed the limit, it is enqueued
@@ -13,7 +13,7 @@ package governor
 // additional transfers that do not exceed the threshold.
 //
 // The chain governor checks for pending transfers each minute to see if any can be published yet. It will publish any that can be published
-// without exceeding the daily limit, even if one in front of it in the queue is too big.
+// without exceeding the USD limit, even if one in front of it in the queue is too big.
 //
 // All completed transfers within the sliding window and all pending transfers are stored in the Badger DB, and reloaded on start up.
 //
@@ -69,8 +69,10 @@ type (
 
 	// Layout of the config data for each chain
 	ChainConfigEntry struct {
-		EmitterChainID     vaa.ChainID
-		DailyLimit         uint64
+		EmitterChainID vaa.ChainID
+		// The notional USD value that can leave the chain during the period
+		// defined by the sliding window. Formerly referred to as the 'daily limit'
+		USDLimit           uint64
 		BigTransactionSize uint64
 	}
 
@@ -116,9 +118,9 @@ type (
 	chainEntry struct {
 		emitterChainId vaa.ChainID
 		emitterAddr    vaa.Address
-		// The amount of notional value that can leave the chain during the period
+		// The notional USD value that can leave the chain during the period
 		// defined by the sliding window.
-		dailyLimit              uint64
+		usdLimit                uint64
 		bigTransactionSize      uint64
 		checkForBigTransactions bool
 
@@ -455,7 +457,7 @@ func (gov *ChainGovernor) initConfig() error {
 		ce := &chainEntry{
 			emitterChainId:          cc.EmitterChainID,
 			emitterAddr:             emitterAddr,
-			dailyLimit:              cc.DailyLimit,
+			usdLimit:                cc.USDLimit,
 			bigTransactionSize:      cc.BigTransactionSize,
 			checkForBigTransactions: cc.BigTransactionSize != 0,
 		}
@@ -463,7 +465,7 @@ func (gov *ChainGovernor) initConfig() error {
 		if gov.env != common.GoTest {
 			gov.logger.Info("will monitor chain:", zap.Stringer("emitterChainId", cc.EmitterChainID),
 				zap.Stringer("emitterAddr", ce.emitterAddr),
-				zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)),
+				zap.String("usdLimit", fmt.Sprint(ce.usdLimit)),
 				zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
 				zap.Bool("checkForBigTransactions", ce.checkForBigTransactions),
 			)
@@ -614,10 +616,10 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 			zap.String("hash", hash),
 			zap.String("txID", msg.TxIDString()),
 		)
-	} else if newTotalValue > emitterChainEntry.dailyLimit {
+	} else if newTotalValue > emitterChainEntry.usdLimit {
 		enqueueIt = true
 		releaseTime = now.Add(maxEnqueuedTime)
-		gov.logger.Error("enqueuing vaa because it would exceed the daily limit",
+		gov.logger.Error("enqueuing vaa because it would exceed the USD limit for the sliding window period",
 			zap.Uint64("value", value),
 			zap.Uint64("prevTotalValue", prevTotalValue),
 			zap.Uint64("newTotalValue", newTotalValue),
@@ -890,7 +892,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 						return nil, fmt.Errorf("total value has overflowed")
 					}
 
-					if newTotalValue > ce.dailyLimit {
+					if newTotalValue > ce.usdLimit {
 						// This one won't fit. Keep checking other enqueued ones.
 						continue
 					}
@@ -1086,7 +1088,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 // As a side-effect, this function modifies the parameter `chainEntry`, updating its `transfers` field so that it only includes
 // filtered `Transfer`s (i.e. outgoing `Transfer`s newer than `startTime`).
 // Returns an error if the sum cannot be calculated. The transfers field will still be updated in this case. When
-// an error condition occurs, this function returns the chain's `dailyLimit` as the sum. This should result in the
+// an error condition occurs, this function returns the chain's `usdLimit` as the sum. This should result in the
 // chain appearing at maximum capacity from the perspective of the Governor, and therefore cause new transfers to be
 // queued until space opens up.
 // SECURITY Invariant: The `sum` return value should never be less than 0
@@ -1100,8 +1102,8 @@ func (gov *ChainGovernor) trimAndSumValueForChain(chainEntry *chainEntry, startT
 	var sumValue int64
 	sumValue, chainEntry.transfers, err = gov.trimAndSumValue(chainEntry.transfers, startTime)
 	if err != nil {
-		// Return the daily limit as the sum so that any further transfers will be queued.
-		return chainEntry.dailyLimit, err
+		// Return the USD limit as the sum so that any further transfers will be queued.
+		return chainEntry.usdLimit, err
 	}
 
 	// Return 0 even if the sum is negative.

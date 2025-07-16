@@ -24,8 +24,8 @@ func (gov *ChainGovernor) initDevnetConfig() ([]TokenConfigEntry, []TokenConfigE
 	}
 
 	chains := []ChainConfigEntry{
-		{EmitterChainID: vaa.ChainIDSolana, DailyLimit: 100, BigTransactionSize: 75},
-		{EmitterChainID: vaa.ChainIDEthereum, DailyLimit: 100000},
+		{EmitterChainID: vaa.ChainIDSolana, USDLimit: 100, BigTransactionSize: 75},
+		{EmitterChainID: vaa.ChainIDEthereum, USDLimit: 100000},
 	}
 
 	return tokens, flowCancelTokens, chains, flowCancelCorridors
