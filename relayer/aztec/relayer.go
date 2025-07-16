@@ -171,7 +171,7 @@ type Config struct {
 func NewConfigFromEnv() Config {
 	return Config{
 		SpyRPCHost:             getEnvOrDefault("SPY_RPC_HOST", "localhost:7072"),
-		SourceChainID:          uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 52)), // Aztec
+		SourceChainID:          uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 56)), // Aztec
 		DestChainID:            uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 2)),    // Arbitrum
 		AztecPXEURL:            getEnvOrDefault("AZTEC_PXE_URL", "http://localhost:8090"),
 		AztecWalletAddress:     getEnvOrDefault("AZTEC_WALLET_ADDRESS", "0x05795e88e667e308bc7dc72bca7e5a2db244674b46313a421a378fdbc65b2c9a"),
