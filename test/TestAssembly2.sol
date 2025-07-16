@@ -39,6 +39,7 @@ import {
   VERIFY_MULTISIG,
   VERIFY_MULTISIG_UNIFORM,
   VERIFY_SCHNORR,
+  VERIFY_SCHNORR_UNIFORM,
 
   GET_CURRENT_SCHNORR_KEY_DATA,
   GET_CURRENT_MULTISIG_KEY_DATA,
@@ -393,29 +394,34 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
 
     bytes memory smallMultisigVaaHeader3 = new bytes(multisigVaaHeaderLength3);
     bytes memory smallSchnorrVaaHeader3 = new bytes(schnorrVaaHeaderLength3);
-    bytes memory bigMultisigVaaHeader3 = new bytes(multisigVaaHeaderLength3);
-    bytes memory bigSchnorrVaaHeader3 = new bytes(schnorrVaaHeaderLength3);
 
     for (uint256 i = 0; i < multisigVaaHeaderLength3; i++) {
       smallMultisigVaaHeader3[i] = smallMultisigVaa[i];
-      bigMultisigVaaHeader3[i] = bigMultisigVaa[i];
     }
 
     for (uint256 i = 0; i < schnorrVaaHeaderLength3; i++) {
       smallSchnorrVaaHeader3[i] = smallSchnorrVaa[i];
-      bigSchnorrVaaHeader3[i] = bigSchnorrVaa[i];
     }
 
     batchMultisigUniformMessage = abi.encodePacked(
       WormholeVerifier.verifyBatch.selector,
       VERIFY_MULTISIG_UNIFORM,
+      uint32(0),
       smallMultisigVaaHeader3,
       getEnvelopeDigest(smallEnvelope),
-      bigMultisigVaaHeader3,
-      getEnvelopeDigest(bigEnvelope)
+      smallMultisigVaaHeader3,
+      getEnvelopeDigest(smallEnvelope)
     );
 
-    // FIXME: We need more signed messages to test the batch schnorr uniform message!
+    batchSchnorrUniformMessage = abi.encodePacked(
+      WormholeVerifier.verifyBatch.selector,
+      VERIFY_SCHNORR_UNIFORM,
+      uint32(0),
+      smallSchnorrVaaHeader3,
+      getEnvelopeDigest(smallEnvelope),
+      smallSchnorrVaaHeader3,
+      getEnvelopeDigest(smallEnvelope)
+    );
   }
 
   function setUpMessages2(bytes memory smallEnvelope, bytes memory bigEnvelope) internal {
@@ -595,6 +601,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
 
   function test_verifyBatchMultisig() public {
     (bool success, bytes memory data) = address(_wormholeVerifierV2).call(batchMultisigMessage);
+    console.logBytes(data);
     vm.assertEq(success, true);
     vm.assertEq(data.length, 0);
   }
