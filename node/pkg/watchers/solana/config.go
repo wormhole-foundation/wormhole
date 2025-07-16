@@ -17,6 +17,7 @@ type WatcherConfig struct {
 	NetworkID     watchers.NetworkID // unique identifier of the network
 	ChainID       vaa.ChainID        // ChainID
 	ReceiveObsReq bool               // if false, this watcher will not get access to the observation request channel
+	PollForTx     bool               // Poll for transactions using `getSignaturesForAddress`
 	Rpc           string             // RPC URL
 	Websocket     string             // Websocket URL
 	Contract      string             // hex representation of the contract address
@@ -46,7 +47,7 @@ func (wc *WatcherConfig) Create(
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
-	env common.Environment,
+	_ common.Environment,
 ) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
 	solAddress, err := solana_types.PublicKeyFromBase58(wc.Contract)
 	if err != nil {
@@ -65,7 +66,7 @@ func (wc *WatcherConfig) Create(
 		obsvReqC = nil
 	}
 
-	watcher := NewSolanaWatcher(wc.Rpc, &wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr)
+	watcher := NewSolanaWatcher(wc.Rpc, wc.Websocket, solAddress, wc.Contract, msgC, obsvReqC, wc.Commitment, wc.ChainID, queryReqC, queryResponseC, wc.ShimContract, shimContractAddr, wc.PollForTx)
 
 	var reobserver interfaces.Reobserver
 	if wc.Commitment == solana_rpc.CommitmentFinalized {

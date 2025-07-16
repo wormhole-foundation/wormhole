@@ -41,13 +41,12 @@ type (
 )
 
 var (
-	//nolint:exhaustruct // Intentional design of CounterOpts to not include all items in the struct.
 	aptosMessagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_aptos_observations_confirmed_total",
 			Help: "Total number of verified observations found for the chain",
 		}, []string{"chain_name"})
-	//nolint:exhaustruct // Intentional design of GaugeOpts to not include all items in the struct.
+
 	currentAptosHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "wormhole_aptos_current_height",
@@ -269,8 +268,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
+//nolint:noctx // TODO: this function should use a context. (Also this line flags nolintlint unless placed here.)
 func (e *Watcher) retrievePayload(s string) ([]byte, error) {
-	res, err := http.Get(s) // nolint
+	//nolint:gosec // the URL is hard-coded to the Aptos RPC endpoint.
+	res, err := http.Get(s)
 	if err != nil {
 		return nil, err
 	}
@@ -374,5 +375,5 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
 	)
 
-	e.msgC <- observation
+	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 }

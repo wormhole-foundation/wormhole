@@ -16,7 +16,7 @@ func TestGetOrCreateNodeKeyWithNewPath(t *testing.T) {
 	path := "/tmp/node_key_test_" + fmt.Sprint(rand.Int()) //#nosec G404 no CSPRNG needed here
 	defer os.Remove(path)
 
-	logger, _ := zap.NewProduction()
+	logger := zap.NewNop()
 	privKey1, _ := GetOrCreateNodeKey(logger, path)
 	assert.NotNil(t, privKey1)
 
@@ -43,7 +43,7 @@ func TestGetOrCreateNodeKeyWithPreExistingPath(t *testing.T) {
 	// Write the private key bytes to temp file
 	_, _ = file.Write(marshalledPrivKey)
 
-	logger, _ := zap.NewProduction()
+	logger := zap.NewNop()
 	privKey2, _ := GetOrCreateNodeKey(logger, file.Name())
 
 	// Make sure we got the same key

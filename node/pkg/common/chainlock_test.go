@@ -30,7 +30,7 @@ func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 }
 
 func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
-	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -90,7 +90,7 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 }
 
 func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) {
-	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -135,7 +135,7 @@ func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) 
 }
 
 func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing.T) {
-	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -233,7 +233,7 @@ func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T)
 }
 
 func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
-	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -279,7 +279,7 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 }
 
 func TestMarshalUnmarshalJSONOfMessagePublicationWithArbitraryTxID(t *testing.T) {
-	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")

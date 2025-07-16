@@ -1,4 +1,3 @@
-//nolint:unparam
 package adminrpc
 
 type adminCommandTestEntry struct {

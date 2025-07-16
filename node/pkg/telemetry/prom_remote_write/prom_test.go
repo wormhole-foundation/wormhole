@@ -198,10 +198,10 @@ func TestParseAndPushMetricsTextAndFormat(t *testing.T) {
 func TestMarshalUnmarshal(t *testing.T) {
 	timeseries := []*prometheusv1.TimeSeries{}
 	wr := prometheusv1.WriteRequest{Timeseries: timeseries}
-	bytes, err := proto.Marshal(&wr)
+	wrBytes, err := proto.Marshal(&wr)
 	require.NoError(t, err)
 
 	newWr := prometheusv1.WriteRequest{}
-	err = proto.Unmarshal(bytes, &newWr)
+	err = proto.Unmarshal(wrBytes, &newWr)
 	require.NoError(t, err)
 }

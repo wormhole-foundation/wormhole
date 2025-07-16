@@ -16,22 +16,20 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/types"
-	"github.com/davecgh/go-spew/spew"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
-	"github.com/certusone/wormhole/node/pkg/node"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/spf13/cobra"
-	"github.com/status-im/keycard-go/hexutils"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -177,7 +175,7 @@ var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
 
 var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
 	Use:   "governor-reset-release-timer [VAA_ID] <num_days>",
-	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 7), defaulting to one day if num_days is omitted",
+	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 30), defaulting to one day if num_days is omitted",
 	Run:   runChainGovernorResetReleaseTimer,
 	Args:  cobra.RangeArgs(1, 2),
 }
@@ -303,7 +301,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	}
 
 	for _, digest := range resp.Digests {
-		log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(digest))
+		log.Printf("VAA successfully injected with digest %x", digest)
 	}
 }
 
@@ -394,7 +392,11 @@ func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to decode VAA: %v", err)
 	}
 
-	log.Printf("VAA with digest %s: %+v\n", v.HexDigest(), spew.Sdump(v))
+	debugStr, err := v.DebugString()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Printf("VAA with digest %s: %+v\n", v.HexDigest(), debugStr)
 	fmt.Printf("Bytes:\n%s\n", hex.EncodeToString(resp.VaaBytes))
 }
 
@@ -450,7 +452,7 @@ func runReobserveWithEndpoint(cmd *cobra.Command, args []string) {
 	}
 
 	url := args[2]
-	if valid := node.ValidateURL(url, []string{"http", "https"}); !valid {
+	if valid := common.ValidateURL(url, []string{"http", "https"}); !valid {
 		log.Fatalf(`invalid url, must be "http" or "https"`)
 	}
 

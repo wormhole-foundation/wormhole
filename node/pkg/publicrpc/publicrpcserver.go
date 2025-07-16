@@ -8,7 +8,7 @@ import (
 	"math"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -21,14 +21,14 @@ import (
 type PublicrpcServer struct {
 	publicrpcv1.UnsafePublicRPCServiceServer
 	logger *zap.Logger
-	db     *db.Database
+	db     *guardianDB.Database
 	gst    *common.GuardianSetState
 	gov    *governor.ChainGovernor
 }
 
 func NewPublicrpcServer(
 	logger *zap.Logger,
-	db *db.Database,
+	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
 ) *PublicrpcServer {
@@ -40,7 +40,7 @@ func NewPublicrpcServer(
 	}
 }
 
-func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv1.GetLastHeartbeatsRequest) (*publicrpcv1.GetLastHeartbeatsResponse, error) {
+func (s *PublicrpcServer) GetLastHeartbeats(_ context.Context, _ *publicrpcv1.GetLastHeartbeatsRequest) (*publicrpcv1.GetLastHeartbeatsResponse, error) {
 	gs := s.gst.Get()
 	if gs == nil {
 		return nil, status.Error(codes.Unavailable, "guardian set not fetched from chain yet")
@@ -65,7 +65,7 @@ func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv
 	return resp, nil
 }
 
-func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.GetSignedVAARequest) (*publicrpcv1.GetSignedVAAResponse, error) {
+func (s *PublicrpcServer) GetSignedVAA(_ context.Context, req *publicrpcv1.GetSignedVAARequest) (*publicrpcv1.GetSignedVAAResponse, error) {
 	if req.MessageId == nil {
 		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
 	}
@@ -92,14 +92,14 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	addr := vaa.Address{}
 	copy(addr[:], address)
 
-	b, err := s.db.GetSignedVAABytes(db.VAAID{
+	b, err := s.db.GetSignedVAABytes(guardianDB.VAAID{
 		EmitterChain:   chainID,
 		EmitterAddress: addr,
 		Sequence:       req.MessageId.Sequence,
 	})
 
 	if err != nil {
-		if errors.Is(err, db.ErrVAANotFound) {
+		if errors.Is(err, guardianDB.ErrVAANotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		s.logger.Error("failed to fetch VAA", zap.Error(err), zap.Any("request", req))
@@ -111,7 +111,7 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	}, nil
 }
 
-func (s *PublicrpcServer) GetCurrentGuardianSet(ctx context.Context, req *publicrpcv1.GetCurrentGuardianSetRequest) (*publicrpcv1.GetCurrentGuardianSetResponse, error) {
+func (s *PublicrpcServer) GetCurrentGuardianSet(_ context.Context, _ *publicrpcv1.GetCurrentGuardianSetRequest) (*publicrpcv1.GetCurrentGuardianSetResponse, error) {
 	gs := s.gst.Get()
 	if gs == nil {
 		return nil, status.Error(codes.Unavailable, "guardian set not fetched from chain yet")
@@ -131,7 +131,8 @@ func (s *PublicrpcServer) GetCurrentGuardianSet(ctx context.Context, req *public
 	return resp, nil
 }
 
-func (s *PublicrpcServer) GovernorGetAvailableNotionalByChain(ctx context.Context, req *publicrpcv1.GovernorGetAvailableNotionalByChainRequest) (*publicrpcv1.GovernorGetAvailableNotionalByChainResponse, error) {
+//nolint:unparam // TODO: error is always nil. This function signature can be changed.
+func (s *PublicrpcServer) GovernorGetAvailableNotionalByChain(_ context.Context, _ *publicrpcv1.GovernorGetAvailableNotionalByChainRequest) (*publicrpcv1.GovernorGetAvailableNotionalByChainResponse, error) {
 	resp := &publicrpcv1.GovernorGetAvailableNotionalByChainResponse{}
 
 	if s.gov != nil {
@@ -143,7 +144,8 @@ func (s *PublicrpcServer) GovernorGetAvailableNotionalByChain(ctx context.Contex
 	return resp, nil
 }
 
-func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(ctx context.Context, req *publicrpcv1.GovernorGetEnqueuedVAAsRequest) (*publicrpcv1.GovernorGetEnqueuedVAAsResponse, error) {
+//nolint:unparam // TODO: error is always nil. This function signature can be changed.
+func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(_ context.Context, _ *publicrpcv1.GovernorGetEnqueuedVAAsRequest) (*publicrpcv1.GovernorGetEnqueuedVAAsResponse, error) {
 	resp := &publicrpcv1.GovernorGetEnqueuedVAAsResponse{}
 
 	if s.gov != nil {
@@ -155,7 +157,7 @@ func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(ctx context.Context, req *publ
 	return resp, nil
 }
 
-func (s *PublicrpcServer) GovernorIsVAAEnqueued(ctx context.Context, req *publicrpcv1.GovernorIsVAAEnqueuedRequest) (*publicrpcv1.GovernorIsVAAEnqueuedResponse, error) {
+func (s *PublicrpcServer) GovernorIsVAAEnqueued(_ context.Context, req *publicrpcv1.GovernorIsVAAEnqueuedRequest) (*publicrpcv1.GovernorIsVAAEnqueuedResponse, error) {
 	resp := &publicrpcv1.GovernorIsVAAEnqueuedResponse{}
 
 	if req.MessageId == nil {
@@ -175,7 +177,8 @@ func (s *PublicrpcServer) GovernorIsVAAEnqueued(ctx context.Context, req *public
 	return resp, nil
 }
 
-func (s *PublicrpcServer) GovernorGetTokenList(ctx context.Context, req *publicrpcv1.GovernorGetTokenListRequest) (*publicrpcv1.GovernorGetTokenListResponse, error) {
+//nolint:unparam // TODO: error is always nil. This function signature can be changed.
+func (s *PublicrpcServer) GovernorGetTokenList(_ context.Context, _ *publicrpcv1.GovernorGetTokenListRequest) (*publicrpcv1.GovernorGetTokenListResponse, error) {
 	resp := &publicrpcv1.GovernorGetTokenListResponse{}
 
 	if s.gov != nil {

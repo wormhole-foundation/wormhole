@@ -23,7 +23,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/processor"
@@ -82,7 +82,7 @@ type mockGuardian struct {
 	guardianAddr     eth_common.Address
 	ready            bool
 	config           *guardianConfig
-	db               *db.Database
+	db               *guardianDB.Database
 }
 
 type guardianConfig struct {
@@ -148,7 +148,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		defer ctxCancel()
 
 		// setup db
-		db := db.OpenDb(nil, nil)
+		db := guardianDB.OpenDb(nil, nil)
 		defer db.Close()
 		gs[mockGuardianIndex].db = db
 
@@ -190,13 +190,17 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true, false, ""),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }, []string{}, []string{}, []string{}),
+			GuardianOptionQueryHandler(false, ""), // disable queries
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
+			GuardianOptionAlternatePublisher([]byte{}, []string{}), // disable alternate publisher
 			GuardianOptionProcessor(networkID),
+
+			// Keep this last so that all of its dependencies are met.
+			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, false, cfg.p2pPort, "", 0, "", "", false, []string{}, []string{}, []string{}),
 		}
 
 		guardianNode := NewGuardianNode(
@@ -365,7 +369,8 @@ type testCase struct {
 }
 
 func randomTime() time.Time {
-	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // nolint // convert time to unix and back to match what is done during serialization/de-serialization
+	// #nosec G404 we don't need cryptographic randomness here.
+	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
 var someMsgSequenceCounter uint64 = 0
@@ -455,14 +460,14 @@ func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
 }
 
 func makeObsDb(tc []testCase) mock.ObservationDb {
-	db := make(map[eth_common.Hash]*common.MessagePublication)
+	obsDB := make(map[eth_common.Hash]*common.MessagePublication)
 	for _, t := range tc {
 		if t.unavailableInReobservation {
 			continue
 		}
-		db[eth_common.BytesToHash(t.msg.TxID)] = t.msg
+		obsDB[eth_common.BytesToHash(t.msg.TxID)] = t.msg
 	}
-	return db
+	return obsDB
 }
 
 // waitForStatusServer queries the /readyz and /metrics endpoints at `statusAddr` every 100ms until they are online.
@@ -922,7 +927,7 @@ func TestGuardianConfigs(t *testing.T) {
 					nil,   // nttWormchainConn
 				),
 			},
-			err: "Check the order of your options.",
+			err: ComponentDependencyError{componentName: "accountant", dependencyName: "db"}.Error(),
 		},
 		{
 			name: "double-configuration",
@@ -930,7 +935,7 @@ func TestGuardianConfigs(t *testing.T) {
 				GuardianOptionDatabase(nil),
 				GuardianOptionDatabase(nil),
 			},
-			err: "Component db is already configured and cannot be configured a second time",
+			err: ComponentAlreadyConfiguredError{componentName: "db"}.Error(),
 		},
 	}
 	runGuardianConfigTests(t, tc)
@@ -984,6 +989,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				if tc.err == "" {
 					assert.Equal(t, tc.err, r)
 				}
+				// Check that the string logged by the fatal hook contains the error message.
 				assert.Contains(t, r, tc.err)
 				rootCtxCancel()
 			case <-rootCtx.Done():
@@ -1124,7 +1130,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 	b.Run("eth_crypto (secp256k1)", func(b *testing.B) {
 
-		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(eth_crypto.S256(), 0)
+		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(0)
 
 		b.Run("sign", func(b *testing.B) {
 			msgs := signingMsgs(b.N)

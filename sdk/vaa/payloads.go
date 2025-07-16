@@ -13,6 +13,7 @@ import (
 
 // CoreModule is the identifier of the Core module (which is used for governance messages)
 var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x43, 0x6f, 0x72, 0x65}
+var CoreModuleStr = string(CoreModule[:])
 
 // WasmdModule is the identifier of the Wormchain Wasmd module (which is used for governance messages)
 var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
@@ -274,8 +275,15 @@ type (
 		// an abi encoded calldata doesn't include the target contract address)
 		Instruction []byte
 	}
+
+	// BodyCoreBridgeSetMessageFee is a governance message to set the message fee for the core bridge.
+	BodyCoreBridgeSetMessageFee struct {
+		ChainID    ChainID
+		MessageFee *uint256.Int
+	}
 )
 
+//nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -291,6 +299,7 @@ func (b BodyContractUpgrade) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+//nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (b BodyGuardianSetUpdate) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -450,6 +459,7 @@ func (r BodyGatewayScheduleUpgrade) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(GatewayModuleStr, ActionScheduleUpgrade, ChainIDWormchain, payload.Bytes())
 }
 
+//nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (r *BodyGatewayScheduleUpgrade) Deserialize(bz []byte) error {
 	r.Name = string(bz[0 : len(bz)-8])
 	r.Height = binary.BigEndian.Uint64(bz[len(bz)-8:])
@@ -489,6 +499,18 @@ func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() ([]byte, erro
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
 	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
+}
+
+func (r BodyCoreBridgeSetMessageFee) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	feeBytes := r.MessageFee.Bytes()
+	if len(feeBytes) > 32 {
+		return nil, fmt.Errorf("message fee too large")
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(feeBytes):], feeBytes)
+	payload.Write(padded)
+	return serializeBridgeGovernanceVaa(CoreModuleStr, ActionCoreSetMessageFee, r.ChainID, payload.Bytes())
 }
 
 func (r BodyGeneralPurposeGovernanceEvm) Serialize() ([]byte, error) {

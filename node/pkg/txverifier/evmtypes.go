@@ -7,8 +7,6 @@ package txverifier
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -37,6 +35,17 @@ const (
 	EVENTHASH_WETH_DEPOSIT = "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"
 )
 
+// Errors
+var (
+	ErrChainIDNotSupported        = errors.New("chain ID is not supported")
+	ErrDepositWrongNumberOfTopics = errors.New("parsed Deposit event has wrong number of topics")
+	ErrFailedToGetDecimals        = errors.New("failed to get decimals for token. decimals() result has insufficient length")
+	// Some events look like transfers based on the method signature, but aren't (e.g. NFT ERC721 transfers.)
+	ErrTransferIsNotERC20          = errors.New("parsed Transfer event is not an ERC20 transfer")
+	ErrEventWrongDataSize          = errors.New("unexpected data size from event")
+	ErrWrappedAssetResultBadLength = errors.New("isWrappedAsset() result has insufficient length")
+)
+
 // Function signatures
 var (
 	// wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) => 0x1ff1e286
@@ -47,6 +56,8 @@ var (
 	ERC20_DECIMALS_SIGNATURE = []byte("\x31\x3c\xe5\x67")
 	// chainId() => 0x9a8a0592
 	WRAPPED_ERC20_CHAIN_ID_SIGNATURE = []byte("\x9a\x8a\x05\x92")
+	// nativeContract() => 0x3d6c043b
+	WRAPPED_ERC20_NATIVE_CONTRACT_SIGNATURE = []byte("\x3d\x6c\x04\x3b")
 )
 
 // Fixed addresses
@@ -75,7 +86,7 @@ type TVAddresses struct {
 	CoreBridgeAddr common.Address
 	// Address of the Wormhole token bridge contract for this chain
 	TokenBridgeAddr common.Address
-	// Wrapped version of the native asset, e.g. WETH for Ethereum
+	// Wrapped version of the chain's coin or "native asset", e.g. WETH for Ethereum
 	WrappedNativeAddr common.Address
 }
 
@@ -86,12 +97,19 @@ type chainIds struct {
 }
 
 type TransferVerifierInterface interface {
-	ProcessEvent(ctx context.Context, txHash common.Hash, receipt *types.Receipt) bool
+	TransferIsValid(ctx context.Context, txHash common.Hash, receipt *types.Receipt) (bool, error)
 	Addrs() *TVAddresses
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) Addrs() *TVAddresses {
 	return tv.Addresses
+}
+
+type evaluation struct {
+	// The go-ethereum receipt.
+	Receipt *types.Receipt
+	// Whether the transfer verifier determined this receipt safe or not
+	Result bool
 }
 
 // TransferVerifier contains configuration values for verifying transfers.
@@ -106,26 +124,27 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// Corresponds to an ethClient from go-ethereum
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
-	processedTransactions map[common.Hash]*types.Receipt
-	// The latest transaction block number, used to determine the size of historic receipts to keep in memory.
+	evaluations map[common.Hash]*evaluation
+
+	// The last block number that the program has processed.
+	// Used to determine the size of historic receipts to keep in memory.
+	// Must increase monotonically.
 	lastBlockNumber uint64
+
 	// The block height difference between the latest block and the oldest block to keep in memory.
 	pruneHeightDelta uint64
 
-	// Holds previously-recorded decimals (uint8) for token addresses
-	// (common.Address) that have been observed.
-	decimalsCache map[common.Address]uint8
-
-	// Records whether an asset is wrapped but does not store the native data
+	// Cached calls to `isWrapped()` on the token bridge.
 	isWrappedCache map[string]bool
 
-	// Maps the 32-byte token addresses received via LogMessagePublished
-	// events to their unwrapped 20-byte addresses. This mapping is also
-	// used for non-wrapped token addresses.
-	wrappedCache map[string]common.Address
+	// Cached calls to `chainId()` for wrapped asset contracts.
+	chainIdCache map[string]vaa.ChainID
 
-	// Native chain cache for wrapped assets.
-	nativeChainCache map[string]vaa.ChainID
+	// Cached calls to `nativeContract()` for wrapped asset contracts.
+	nativeContractCache map[string]vaa.Address
+
+	// Cached calls to `decimals()` for token contracts (both wrapped and native).
+	decimalsCache map[common.Address]uint8
 }
 
 func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tvAddrs *TVAddresses, pruneHeightDelta uint64, logger *zap.Logger) (*TransferVerifier[*ethClient.Client, connectors.Connector], error) {
@@ -138,12 +157,16 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 	// Fetch EVM chain ID from the connector and attempt to convert it to a Wormhole chain ID.
 	evmChainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
 	if parseErr != nil {
-		return nil, fmt.Errorf("Failed to parse chainId from string returned by connector client: %w", parseErr)
+		return nil, fmt.Errorf("failed to parse chainId from string returned by connector client: %w", parseErr)
 	}
 
 	wormholeChainId, unregisteredErr := TryWormholeChainIdFromNative(evmChainId)
 	if unregisteredErr != nil {
-		return nil, fmt.Errorf("Could not get Wormhole chain ID from EVM chain ID: %w", unregisteredErr)
+		return nil, fmt.Errorf("could not get Wormhole chain ID from EVM chain ID: %w", unregisteredErr)
+	}
+
+	if !IsSupported(wormholeChainId) {
+		return nil, ErrChainIDNotSupported
 	}
 
 	return &TransferVerifier[*ethClient.Client, connectors.Connector]{
@@ -152,16 +175,16 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 			evmChainId:      evmChainId,
 			wormholeChainId: wormholeChainId,
 		},
-		logger:                *logger,
-		evmConnector:          connector,
-		client:                connector.Client(),
-		processedTransactions: make(map[common.Hash]*types.Receipt),
-		lastBlockNumber:       0,
-		pruneHeightDelta:      pruneHeightDelta,
-		decimalsCache:         make(map[common.Address]uint8),
-		isWrappedCache:        make(map[string]bool),
-		wrappedCache:          make(map[string]common.Address),
-		nativeChainCache:      make(map[string]vaa.ChainID),
+		logger:              *logger,
+		evmConnector:        connector,
+		client:              connector.Client(),
+		evaluations:         make(map[common.Hash]*evaluation),
+		lastBlockNumber:     0,
+		pruneHeightDelta:    pruneHeightDelta,
+		isWrappedCache:      make(map[string]bool),
+		chainIdCache:        make(map[string]vaa.ChainID),
+		nativeContractCache: make(map[string]vaa.Address),
+		decimalsCache:       make(map[common.Address]uint8),
 	}, nil
 }
 
@@ -213,8 +236,8 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				)
 
 				if err != nil {
-					s.errC <- fmt.Errorf("failed to subscribe to logs: %w", err)
-					time.Sleep(RECONNECT_DELAY) // Wait before retrying
+					s.errC <- fmt.Errorf("failed to subscribe to logs: %w", err) //nolint:channelcheck // Will only block this subscriber routine
+					time.Sleep(RECONNECT_DELAY)                                  // Wait before retrying
 					continue
 				}
 
@@ -224,7 +247,7 @@ func (s *Subscription) Subscribe(ctx context.Context) {
 				err = s.handleSubscription(ctx, subscription)
 
 				if err != nil {
-					s.errC <- err
+					s.errC <- err               //nolint:channelcheck // Will only block this subscriber routine
 					time.Sleep(RECONNECT_DELAY) // Wait before retrying
 				}
 			}
@@ -332,10 +355,10 @@ func DepositFromLog(
 	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
 	chainId vaa.ChainID,
 ) (deposit *NativeDeposit, err error) {
-	dest, amount := parseWNativeDepositEvent(log.Topics, log.Data)
 
-	if amount == nil {
-		return deposit, errors.New("could not parse Deposit from log")
+	dest, amount, err := parseWNativeDepositEvent(log.Topics, log.Data)
+	if err != nil {
+		return nil, err
 	}
 
 	deposit = &NativeDeposit{
@@ -348,29 +371,36 @@ func DepositFromLog(
 }
 
 // parseWNativeDepositEvent parses an event for a deposit of a wrapped version of the chain's native asset, i.e. WETH for Ethereum.
-func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (destination common.Address, amount *big.Int) {
+func parseWNativeDepositEvent(logTopics []common.Hash, logData []byte) (common.Address, *big.Int, error) {
+
+	if len(logData) != EVM_WORD_LENGTH {
+		return common.Address{}, nil, ErrEventWrongDataSize
+	}
 
 	// https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#code#L29
 	// event  Deposit(address indexed dst, uint wad);
-	if len(logData) != EVM_WORD_LENGTH || len(logTopics) != TOPICS_COUNT_DEPOSIT {
-		return common.Address{}, nil
+	if len(logTopics) != TOPICS_COUNT_DEPOSIT {
+		return common.Address{}, nil, ErrDepositWrongNumberOfTopics
 	}
 
-	destination = common.BytesToAddress(logTopics[1][:])
-	amount = new(big.Int).SetBytes(logData[:])
+	destination := common.BytesToAddress(logTopics[1][:])
+	amount := new(big.Int).SetBytes(logData[:])
 
-	return destination, amount
+	return destination, amount, nil
 }
 
 // Abstraction over an ERC20 Transfer event.
 type ERC20Transfer struct {
 	// The address of the token. Also equivalent to the Emitter of the event.
 	TokenAddress common.Address
-	// The native chain of the token (where it was minted)
+	// The origin address of the token. (The "unwrapped" address.)
+	OriginAddr vaa.Address
+	// The origin chain of the token (where it was minted).
 	TokenChain vaa.ChainID
 	From       common.Address
 	To         common.Address
-	Amount     *big.Int
+	// The Amount transferred. Set to the normalized amount after processing.
+	Amount *big.Int
 }
 
 func (t *ERC20Transfer) TransferAmount() *big.Int {
@@ -399,7 +429,7 @@ func (t *ERC20Transfer) OriginChain() vaa.ChainID {
 }
 
 func (t *ERC20Transfer) OriginAddress() vaa.Address {
-	return VAAAddrFrom(t.TokenAddress)
+	return t.OriginAddr
 }
 
 func (t *ERC20Transfer) String() string {
@@ -416,11 +446,13 @@ func (t *ERC20Transfer) String() string {
 // ERC20TransferFromLog() creates an ERC20Transfer struct given a log and Wormhole chain ID.
 func ERC20TransferFromLog(
 	log *types.Log,
-	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID. In this context it's
-	// important to track the transfer as Wormhole sees it, not as the EVM network itself sees it.
+	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID.
 	chainId vaa.ChainID,
-) (transfer *ERC20Transfer, err error) {
-	from, to, amount := parseERC20TransferEvent(log.Topics, log.Data)
+) (*ERC20Transfer, error) {
+	from, to, amount, err := parseERC20TransferEvent(log.Topics, log.Data)
+	if err != nil {
+		return nil, err
+	}
 
 	// NOTE: When minting tokens, some ERC20 implementations will emit a
 	// Transfer event that has the From field set to the zero address.
@@ -435,15 +467,15 @@ func ERC20TransferFromLog(
 		return nil, errors.New("could not parse ERC20 Transfer from log: nil Amount")
 	}
 
-	transfer = &ERC20Transfer{
+	transfer := &ERC20Transfer{
 		TokenAddress: log.Address,
+		From:         from,
+		To:           to,
+		Amount:       amount,
 		// Initially, set Token's chain to the chain being monitored. This will be updated by making an RPC call later.
 		TokenChain: chainId,
-		From:       from,
-		To:         to,
-		Amount:     amount,
 	}
-	return
+	return transfer, nil
 }
 
 // This function parses an ERC20 transfer event from a log topic and data.
@@ -451,23 +483,28 @@ func ERC20TransferFromLog(
 // and returns these values as common.Address and big.Int types.
 // - Error handling: The function checks if the log data and topic lengths are correct before attempting to parse them.
 // - Input validation: The function verifies that the input lengths match expected values, preventing potential attacks or errors.
-func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (from common.Address, to common.Address, amount *big.Int) {
+func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (common.Address, common.Address, *big.Int, error) {
+
+	if len(logData) != EVM_WORD_LENGTH {
+		return common.Address{}, common.Address{}, nil, ErrEventWrongDataSize
+	}
 
 	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/6e224307b44bc4bd0cb60d408844e028cfa3e485/contracts/token/ERC20/IERC20.sol#L16
 	// event Transfer(address indexed from, address indexed to, uint256 value)
-	if len(logData) != EVM_WORD_LENGTH || len(logTopics) != TOPICS_COUNT_TRANSFER {
-		return common.Address{}, common.Address{}, nil
+	// Some other contracts like ERC721 (NFTs) have Transfer events too but a different number of topics
+	// We don't want to parse these.
+	if len(logTopics) != TOPICS_COUNT_TRANSFER {
+		return common.Address{}, common.Address{}, nil, ErrTransferIsNotERC20
 	}
 
-	from = common.BytesToAddress(logTopics[1][:])
-	to = common.BytesToAddress(logTopics[2][:])
-	amount = new(big.Int).SetBytes(logData[:])
+	from := common.BytesToAddress(logTopics[1][:])
+	to := common.BytesToAddress(logTopics[2][:])
+	amount := new(big.Int).SetBytes(logData[:])
 
-	return
+	return from, to, amount, nil
 }
 
 // Abstraction over a LogMessagePublished event emitted by the core bridge.
-// TODO add String() method
 type LogMessagePublished struct {
 	// Which contract emitted the event.
 	EventEmitter common.Address
@@ -510,7 +547,7 @@ func (l *LogMessagePublished) TransferAmount() (amount *big.Int) {
 
 func (l *LogMessagePublished) OriginAddress() (origin vaa.Address) {
 	if l.TransferDetails != nil {
-		origin = VAAAddrFrom(l.TransferDetails.OriginAddress)
+		origin = l.TransferDetails.OriginAddress
 	}
 	return
 }
@@ -544,17 +581,22 @@ type TransferReceipt struct {
 // As as result, this function should only be used near the end of parsing and processing
 // when all the logs have been parsed and used to populate the TransferReceipt instance.
 func (r *TransferReceipt) Validate() (err error) {
+	if r == nil {
+		return ErrInvalidReceiptArgument
+	}
 	if r.Deposits == nil {
-		return errors.Join(err, errors.New("parsed receipt's Deposits field is nil"))
+		err = errors.Join(err, errors.New("parsed receipt's Deposits field is nil"))
 	}
 	if r.Transfers == nil {
-		return errors.Join(err, errors.New("parsed receipt's Transfers field is nil"))
+		err = errors.Join(err, errors.New("parsed receipt's Transfers field is nil"))
 	}
 	if r.MessagePublications == nil {
-		return errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
+		err = errors.Join(err, errors.New("parsed receipt's MessagePublications field is nil"))
+		// Can't do the next check because it would be a nil deref.
+		return
 	}
 	if len(*r.MessagePublications) == 0 {
-		return errors.Join(err, errors.New("parsed receipt has no Message Publications"))
+		err = errors.Join(err, ErrNoMsgsFromTokenBridge)
 	}
 
 	return
@@ -652,111 +694,47 @@ const (
 // https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0003_token_bridge.md#api--database-schema
 type TransferDetails struct {
 	PayloadType VAAPayloadType
-	// Denormalized amount, accounting for decimal differences between contracts and chains
+	// Normalized amount
 	Amount *big.Int
-	// Amount as sent in the raw payload
-	AmountRaw *big.Int
 	// Original wormhole chain ID where the token was minted.
 	TokenChain vaa.ChainID
-	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge.
-	OriginAddress common.Address
-	// Raw token address parsed from the payload. May be wrapped.
-	OriginAddressRaw []byte
+	// Original address of the token when minted natively. Corresponds to the "unwrapped" address in the token bridge
+	// for assets minted on a chain other than the one being monitored by the Transfer Verifier.
+	OriginAddress vaa.Address
 	// Not necessarily an EVM address, so vaa.Address is used instead
 	TargetAddress vaa.Address
 }
 
 func (td *TransferDetails) String() string {
 	return fmt.Sprintf(
-		"PayloadType: %d OriginAddressRaw(hex-encoded): %s TokenChain: %d OriginAddress: %s TargetAddress: %s AmountRaw: %s Amount: %s",
+		"PayloadType: %d TokenChain: %d OriginAddress: %s TargetAddress: %s Amount: %s",
 		td.PayloadType,
-		fmt.Sprintf("%x", td.OriginAddressRaw),
 		td.TokenChain,
 		td.OriginAddress.String(),
 		td.TargetAddress.String(),
-		td.AmountRaw.String(),
 		td.Amount.String(),
 	)
 }
 
-// unwrapIfWrapped returns the "unwrapped" address for a token a.k.a. the OriginAddress
-// of the token's original minting contract.
-func (tv *TransferVerifier[ethClient, connector]) unwrapIfWrapped(
-	tokenAddress []byte,
-	tokenChain vaa.ChainID,
-) (unwrappedTokenAddress common.Address, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
-	defer cancel()
-
-	tokenAddressAsKey := hex.EncodeToString(tokenAddress)
-
-	// If the token address already exists in the wrappedCache mapping the
-	// cached value can be returned.
-	if addr, exists := tv.wrappedCache[tokenAddressAsKey]; exists {
-		tv.logger.Debug("wrapped asset found in cache, returning")
-		return addr, nil
-	}
-
-	// prepare eth_call data, 4-byte signature + 2x 32 byte arguments
-	calldata := make([]byte, 4+EVM_WORD_LENGTH+EVM_WORD_LENGTH)
-
-	copy(calldata, TOKEN_BRIDGE_WRAPPED_ASSET_SIGNATURE)
-	// Add the uint16 tokenChain as the last two bytes in the first argument
-	binary.BigEndian.PutUint16(calldata[4+30:], uint16(tokenChain))
-	copy(calldata[4+EVM_WORD_LENGTH:], common.LeftPadBytes(tokenAddress, EVM_WORD_LENGTH))
-
-	ethCallMsg := ethereum.CallMsg{
-		To:   &tv.Addresses.TokenBridgeAddr,
-		Data: calldata,
-	}
-	tv.logger.Debug("calling wrappedAsset",
-		zap.Uint16("tokenChain", uint16(tokenChain)),
-		zap.String("tokenChainString", tokenChain.String()),
-		zap.String("tokenAddress", fmt.Sprintf("%x", tokenAddress)),
-		zap.String("callData", fmt.Sprintf("%x", calldata)))
-
-	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
-	if err != nil {
-		// This strictly handles the error case. The contract call will
-		// return the zero address for assets not in its map.
-		return common.Address{}, fmt.Errorf("failed to get mapping for token %s", tokenAddressAsKey)
-	}
-
-	tokenAddressNative := common.BytesToAddress(result)
-	tv.wrappedCache[tokenAddressAsKey] = tokenAddressNative
-
-	tv.logger.Debug("got wrappedAsset result",
-		zap.String("tokenAddressNative", fmt.Sprintf("%x", tokenAddressNative)))
-
-	if Cmp(tokenAddressNative, ZERO_ADDRESS) == 0 {
-		tv.logger.Info("got zero address for wrappedAsset result. this asset is probably not registered correctly",
-			zap.String("queried tokenAddress", fmt.Sprintf("%x", tokenAddress)),
-			zap.Uint16("queried tokenChain", uint16(tokenChain)),
-			zap.String("tokenChain name", tokenChain.String()),
-		)
-	}
-
-	return tokenAddressNative, nil
-}
-
 // chainId() calls the chainId() function on the contract at the supplied address. To get the chain ID being monitored
 // by the Transfer Verifier, use the field TransferVerifier.chain.
+// The argument must be a wrapped address.
 func (tv *TransferVerifier[ethClient, Connector]) chainId(
-	addr common.Address,
+	wrappedAddr common.Address,
 ) (vaa.ChainID, error) {
 
-	if Cmp(addr, ZERO_ADDRESS) == 0 {
-		return 0, errors.New("got zero address as parameter for chainId() call")
+	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
+		return vaa.ChainIDUnset, errors.New("got zero address as parameter for chainId() call")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
 
-	tokenAddressAsKey := addr.Hex()
+	tokenAddressAsKey := wrappedAddr.Hex()
 
 	// If the token address already exists in the wrappedCache mapping the
 	// cached value can be returned.
-	if chainId, exists := tv.nativeChainCache[tokenAddressAsKey]; exists {
-		tv.logger.Debug("wrapped asset found in native chain cache, returning")
+	if chainId, exists := tv.chainIdCache[tokenAddressAsKey]; exists {
+		tv.logger.Debug("using cached chain ID", zap.String("tokenAddress", wrappedAddr.String()), zap.String("chainID", chainId.String()))
 		return chainId, nil
 	}
 
@@ -766,30 +744,99 @@ func (tv *TransferVerifier[ethClient, Connector]) chainId(
 	copy(calldata, WRAPPED_ERC20_CHAIN_ID_SIGNATURE)
 
 	ethCallMsg := ethereum.CallMsg{
-		To:   &addr,
+		To:   &wrappedAddr,
 		Data: calldata,
 	}
 
-	tv.logger.Debug("calling chainId()", zap.String("tokenAddress", addr.String()))
+	tv.logger.Debug("calling chainId()", zap.String("tokenAddress", wrappedAddr.String()))
 
 	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
 
 	if err != nil {
-		// TODO add more checks here
-		return 0, err
+		return vaa.ChainIDUnset, err
 	}
 	if len(result) < EVM_WORD_LENGTH {
 		tv.logger.Warn("result for chainId has insufficient length",
 			zap.Int("length", len(result)),
 			zap.String("result", fmt.Sprintf("%x", result)))
-		return 0, errors.New("result for chainId has insufficient length")
+		return vaa.ChainIDUnset, errors.New("result for chainId has insufficient length")
 	}
 
-	chainID := vaa.ChainID(binary.BigEndian.Uint16(result))
+	chainID, parseErr := vaa.ChainIDFromNumber(new(big.Int).SetBytes(result).Uint64())
+	if parseErr != nil {
+		return vaa.ChainIDUnset, parseErr
+	}
 
-	tv.nativeChainCache[tokenAddressAsKey] = chainID
+	tv.chainIdCache[tokenAddressAsKey] = chainID
 
 	return chainID, nil
+}
+
+// nativeContract calls the nativeContract() function on the contract at the supplied address.
+// Returns the origin address of the asset (32 bytes).
+// The argument must be a wrapped address.
+func (tv *TransferVerifier[ethClient, Connector]) nativeContract(
+	wrappedAddr common.Address,
+) (vaa.Address, error) {
+
+	if Cmp(wrappedAddr, ZERO_ADDRESS) == 0 {
+		return ZERO_ADDRESS_VAA, errors.New("got zero address as parameter for nativeContract() call")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
+	defer cancel()
+
+	tokenAddressAsKey := wrappedAddr.Hex()
+
+	// If the token address already exists in the wrappedCache mapping the
+	// cached value can be returned.
+	if originAddr, exists := tv.nativeContractCache[tokenAddressAsKey]; exists {
+		tv.logger.Debug("using cached origin address", zap.String("tokenAddress", wrappedAddr.String()), zap.String("originAddr", originAddr.String()))
+		return originAddr, nil
+	}
+
+	// prepare eth_call data, 4-byte signature
+	calldata := make([]byte, 4)
+
+	copy(calldata, WRAPPED_ERC20_NATIVE_CONTRACT_SIGNATURE)
+
+	ethCallMsg := ethereum.CallMsg{
+		To:   &wrappedAddr,
+		Data: calldata,
+	}
+
+	tv.logger.Debug("calling nativeContract()", zap.String("tokenAddress", wrappedAddr.String()))
+
+	result, err := tv.client.CallContract(ctx, ethCallMsg, nil)
+
+	if err != nil {
+		return ZERO_ADDRESS_VAA, err
+	}
+	if len(result) < EVM_WORD_LENGTH {
+		msg := "result for nativeContract() has insufficient length"
+		tv.logger.Warn(msg,
+			zap.Int("len", len(result)),
+			zap.String("result", fmt.Sprintf("%x", result)))
+		return ZERO_ADDRESS_VAA, errors.New(msg)
+	}
+
+	if bytes.Equal(result, ZERO_ADDRESS.Bytes()) {
+		msg := "nativeContract() returned the zero address"
+		tv.logger.Warn(msg,
+			zap.Int("len", len(result)),
+			zap.String("result", fmt.Sprintf("%x", result)))
+
+		return ZERO_ADDRESS_VAA, errors.New(msg)
+	}
+
+	originAddr, convertErr := vaa.BytesToAddress(result)
+	if convertErr != nil {
+		return ZERO_ADDRESS_VAA, convertErr
+	}
+
+	// Insert into cache.
+	tv.nativeContractCache[tokenAddressAsKey] = originAddr
+
+	return originAddr, nil
 }
 
 func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
@@ -823,21 +870,20 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 	result, err := tv.client.CallContract(ctx, evmCallMsg, nil)
 
 	if err != nil {
-		// TODO add more info here
 		tv.logger.Warn("isWrappedAsset() call error", zap.Error(err))
 		return false, err
 	}
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("isWrappedAsset() result length is too small", zap.String("result", fmt.Sprintf("%x", result)))
-		return false, err
+		tv.logger.Warn(ErrWrappedAssetResultBadLength.Error(), zap.String("result", fmt.Sprintf("%x", result)))
+		return false, ErrWrappedAssetResultBadLength
 	}
-	tv.logger.Debug("isWrappedAsset result", zap.String("result", fmt.Sprintf("%x", result)))
 
 	// The boolean result will be returned as a byte string with length
 	// equal to EVM_WORD_LENGTH. Grab the last byte.
 	wrapped := result[EVM_WORD_LENGTH-1] == 1
 
 	tv.isWrappedCache[tokenAddressAsKey] = wrapped
+	tv.logger.Debug("isWrappedAsset result", zap.Bool("isWrapped", wrapped), zap.String("result bytes", fmt.Sprintf("%x", result)))
 
 	return wrapped, nil
 }
@@ -916,6 +962,10 @@ func validate[L TransferLog](tLog TransferLog) error {
 		return &InvalidLogError{Msg: "transfer amount is negative"}
 	}
 
+	if Cmp(tLog.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
+		return &InvalidLogError{Msg: "originAddress is the zero address"}
+	}
+
 	switch log := tLog.(type) {
 	case *NativeDeposit:
 		// Deposit does not actually have a sender, so it should always be equal to the zero address.
@@ -928,29 +978,21 @@ func validate[L TransferLog](tLog TransferLog) error {
 		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
-		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-			return &InvalidLogError{Msg: "originAddress is the zero address"}
-		}
 	case *ERC20Transfer:
 		// Note: The token bridge transfers to the zero address in
 		// order to burn tokens for some kinds of transfers. For this
 		// reason, there is no validation here to check if Destination
 		// is the zero address.
 
-		// Sender must not be checked to be non-zero here. The event
+		// Note: Sender must not be checked to be non-zero here. The event
 		// hash for Transfer also shows up in other popular contracts
 		// (e.g. UniswapV2) and may have a valid reason to set this
 		// field to zero.
 
-		// TODO ensure that, if the Token is wrapped, that its tokenchain is not equal to NATIVE_CHAIN_ID.
-		// at this point, this should've been updated
-
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "transfer emitter is not equal to its token address"}
 		}
-		if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-			return &InvalidLogError{Msg: "originAddress is the zero address"}
-		}
+
 	case *LogMessagePublished:
 		// LogMessagePublished cannot have a sender with a 0 address
 		if Cmp(log.Sender(), ZERO_ADDRESS_VAA) == 0 {
@@ -960,11 +1002,6 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
 
-		// TODO is this valid for assets that return the zero address from unwrap?
-		// if Cmp(log.OriginAddress(), ZERO_ADDRESS_VAA) == 0 {
-		// 	return errors.New("origin cannot be zero")
-		// }
-
 		// The following values are not exposed by the interface, so check them directly here.
 		if log.TransferDetails == nil {
 			return &InvalidLogError{Msg: "TransferDetails cannot be nil"}
@@ -973,22 +1010,13 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "target address cannot be zero"}
 		}
 
-		if len(log.TransferDetails.OriginAddressRaw) == 0 {
-			return &InvalidLogError{Msg: "origin address raw cannot be empty"}
+		if log.TransferDetails.Amount.Sign() == -1 {
+			return &InvalidLogError{Msg: "amount cannot be negative"}
 		}
 
-		// if bytes.Compare(log.TransferDetails.OriginAddressRaw, ZERO_ADDRESS_VAA.Bytes()) == 0 {
-		// 	return &InvalidLogError{Msg: "origin address raw cannot be zero"}
-		// }
-
-		if log.TransferDetails.AmountRaw == nil {
-			return &InvalidLogError{Msg: "amountRaw cannot be nil"}
-		}
-		if log.TransferDetails.AmountRaw.Sign() == -1 {
-			return &InvalidLogError{Msg: "amountRaw cannot be negative"}
-		}
 		if log.TransferDetails.PayloadType != TransferTokens && log.TransferDetails.PayloadType != TransferTokensWithPayload {
-			return &InvalidLogError{Msg: "payload type is not a transfer type"}
+
+			return &InvalidLogError{Msg: ErrNotTransfer.Error()}
 		}
 	default:
 		return &InvalidLogError{Msg: "invalid transfer log type: unknown"}
@@ -1003,6 +1031,10 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 ) (decimals uint8, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPC_TIMEOUT)
 	defer cancel()
+
+	if Cmp(tokenAddress, ZERO_ADDRESS) == 0 {
+		return 0, errors.New("getDecimals() argument cannot be the zero address")
+	}
 
 	// First check if this token's decimals is stored in cache
 	if _, exists := tv.decimalsCache[tokenAddress]; exists {
@@ -1027,10 +1059,10 @@ func (tv *TransferVerifier[evmClient, connector]) getDecimals(
 	}
 
 	if len(result) < EVM_WORD_LENGTH {
-		tv.logger.Warn("failed to get decimals for token: decimals() result has insufficient length",
+		tv.logger.Warn(ErrFailedToGetDecimals.Error(),
 			zap.String("tokenAddress", tokenAddress.String()),
 			zap.ByteString("result", result))
-		return 0, err
+		return 0, ErrFailedToGetDecimals
 	}
 
 	// An ERC20 token's decimals should fit in a single byte. A call to `decimals()`
@@ -1053,7 +1085,7 @@ func TryWormholeChainIdFromNative(evmChainId uint64) (wormholeChainID vaa.ChainI
 	// Add additional cases below to support more EVM chains.
 	// Note: it might be better for this function to be moved into the SDK in case other codebases need similar functionality.
 	switch evmChainId {
-	// Special carve out for anvil-based testing. This chain ID  1337 anvil's default.
+	// Special carve out for anvil-based testing. ChainID 1337 is anvil's default.
 	// In this case, report the native chain ID as the mainnet chain ID for the purposes of testing.
 	case 1, 1337:
 		wormholeChainID = vaa.ChainIDEthereum
@@ -1061,7 +1093,7 @@ func TryWormholeChainIdFromNative(evmChainId uint64) (wormholeChainID vaa.ChainI
 		wormholeChainID = vaa.ChainIDSepolia
 	default:
 		err = fmt.Errorf(
-			"Transfer Verifier does not have a registered mapping from EVM chain ID %d to a Wormhole chain ID",
+			"transfer Verifier does not have a registered mapping from EVM chain ID %d to a Wormhole chain ID",
 			evmChainId,
 		)
 	}

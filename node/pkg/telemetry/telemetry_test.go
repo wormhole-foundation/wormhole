@@ -19,14 +19,14 @@ type externalLoggerMock struct {
 	eventCounter *atomic.Int64
 }
 
-func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, level zapcore.Level) {
+func (logger *externalLoggerMock) log(timestamp time.Time, message json.RawMessage, level zapcore.Level) {
 	if logger.eventCounter != nil {
 		logger.eventCounter.Add(1)
 	}
 
 	// do the following to make sure that the conversion into a loki log entry works
 	entry := logproto.Entry{
-		Timestamp: time,
+		Timestamp: timestamp,
 		Line:      string(message),
 	}
 	_, err := entry.Marshal()
@@ -45,10 +45,7 @@ func TestTelemetryWithPrivate(t *testing.T) {
 	var expectedCounter int64 = 0
 
 	externalLogger := &externalLoggerMock{eventCounter: &eventCounter}
-	tm, err := NewExternalLogger(true, externalLogger)
-	if err != nil {
-		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-	}
+	tm := NewExternalLogger(true, externalLogger)
 	defer tm.Close()
 	logger = tm.WrapLogger(logger)
 
@@ -85,10 +82,7 @@ func TestTelemetryWithOutPrivate(t *testing.T) {
 	var eventCounter atomic.Int64
 
 	externalLogger := &externalLoggerMock{eventCounter: &eventCounter}
-	tm, err := NewExternalLogger(false, externalLogger)
-	if err != nil {
-		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-	}
+	tm := NewExternalLogger(false, externalLogger)
 	defer tm.Close()
 	logger = tm.WrapLogger(logger)
 

@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+
+permissions:
+  contents: read
+
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:
@@ -293,7 +297,7 @@ jobs:
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.63.4
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.2.1
       - name: Run linters
         run: make generate && golangci-lint --version && ./scripts/lint.sh -g lint
       - name: Ensure generated proto matches
@@ -309,6 +313,7 @@ jobs:
       # Pinned version of the v6 tag, which is a lightweight and hence mutable tag
       - uses: streetsidesoftware/cspell-action@214db1e3138f326d33b7a6a51c92852e89ab0618
         with:
+          # NOTE: Keep this command in sync with `scripts/lint.sh`
           # For now, only lint markdown files
           files: "**/*.md"
           inline: warning
@@ -343,7 +348,9 @@ jobs:
       matrix:
         manifest:
           - path: cosmwasm/Cargo.toml
-            args: "--workspace --locked"
+            args: "--workspace --locked --exclude 'shutdown-*'"
+          - path: cosmwasm/Cargo.toml
+            args: "-p 'shutdown-*' --no-default-features --locked"
           - path: terra/Cargo.toml
             args: "--workspace --locked"
           - path: sdk/rust/Cargo.toml

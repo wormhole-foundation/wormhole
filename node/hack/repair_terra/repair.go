@@ -60,7 +60,7 @@ var (
 	sleepTime = flag.Int("sleepTime", 1, "Time to sleep between http requests")
 )
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
@@ -68,7 +68,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	}
 
 	c := nodev1.NewNodePrivilegedServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
 func getSequencesForTxhash(txhash string, fcd string, contractAddressLogKey string, coreContract string, emitter Emitter, chainID vaa.ChainID) ([]uint64, error) {
@@ -286,11 +286,12 @@ func main() {
 
 	missingMessages := make(map[uint64]bool)
 
-	conn, err, admin := getAdminClient(ctx, *adminRPC)
-	defer conn.Close()
+	conn, admin, err := getAdminClient(ctx, *adminRPC)
 	if err != nil {
+		conn.Close()
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	log.Printf("Requesting missing messages for %s", emitter.Emitter)
 

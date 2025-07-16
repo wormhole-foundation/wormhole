@@ -47,6 +47,13 @@ const expectedUSDDepeggs = [
   "13-000000000000000000000000cee8faf64bb97a73bb51e115aa89c17ffa8dd167-oUSDT", // Orbit bridge Klatyn USDT, depegged since December 2023
   "16-000000000000000000000000ffffffff52c56a9257bb97f4b2b6f7b2d624ecda-xcaUSD", // Acala USD being converted to aSEED, dead token
   "1-689ac099ef657e5d3b7efaf1e36ab8b897e2746232d8a9261b3e49b35c1dead4-xUSD", // Synthetic USD is inactive and deactivated
+  "16-000000000000000000000000818ec0a7fe18ff94269904fced6ae3dae6d6dc0b-USDC", // Multichain bridge USDC Moonbeam has no volume and thus the extended depeg is expected
+  "4-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "5-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "6-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "24-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "1-aa77c1f5d0d2c07ce7075e31d348ca1c0965bb287be13984dec1c5615bf22665-CUSD", // Coin98 Dollar has been depegged since March 2024
+
 ]
 
 const axios = require("axios");
@@ -91,7 +98,7 @@ var newTokenKeys = {};
 var depeggedUSDStablecoins = [];
 
 fs.readFile("../../pkg/governor/generated_mainnet_tokens.go", "utf8", function(_, doc) {
-  var matches = doc.matchAll(/{chain: (?<chain>[0-9]+).+addr: "(?<addr>[0-9a-fA-F]+)".*symbol: "(?<symbol>.*)", coin.*price: (?<price>.*)}.*\n/g);
+  var matches = doc.matchAll(/{Chain: (?<chain>[0-9]+).+Addr: "(?<addr>[0-9a-fA-F]+)".*Symbol: "(?<symbol>.*)", Coin.*Price: (?<price>.*)}.*\n/g);
   for(let result of matches) {
     let {chain, addr, symbol, price} = result.groups;
     if (!existingTokenPrices[chain]) existingTokenPrices[chain] = {};
@@ -122,8 +129,8 @@ axios
       MinNotional +
       "\n\n";
     content += "package governor\n\n";
-    content += "func generatedMainnetTokenList() []tokenConfigEntry {\n";
-    content += "\treturn []tokenConfigEntry {\n";
+    content += "func generatedMainnetTokenList() []TokenConfigEntry {\n";
+    content += "\treturn []TokenConfigEntry {\n";
 
     var significantPriceChanges = [];
     var addedTokens = [];
@@ -204,7 +211,7 @@ axios
               
               // If the character list is violated, then skip the coin. The error is logged in the function if something happens to have some sort of check on it.
               if(!(safetyCheck(chain, wormholeAddr, data.Symbol, data.CoinGeckoId, data.TokenDecimals, data.TokenPrice, data.Address, notional))){
-                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
+                failedInputValidationTokens.push(chain + "-" + wormholeAddr + "-" + data.Symbol + " (https://www.coingecko.com/en/coins/" + data.CoinGeckoId + ")")
                 continue; 
               }
             }
@@ -256,17 +263,17 @@ axios
             }
             
             content +=
-              "\t{ chain: " +
+              "\t{ Chain: " +
               chain +
-              ', addr: "' +
+              ', Addr: "' +
               wormholeAddr +
-              '", symbol: "' +
+              '", Symbol: "' +
               data.Symbol +
-              '", coinGeckoId: "' +
+              '", CoinGeckoId: "' +
               data.CoinGeckoId +
-              '", decimals: ' +
+              '", Decimals: ' +
               data.TokenDecimals +
-              ", price: " +
+              ", Price: " +
               data.TokenPrice +
               " }, // Addr: " +
               data.Address +

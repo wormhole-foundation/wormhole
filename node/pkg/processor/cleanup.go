@@ -1,4 +1,4 @@
-// nolint:unparam // this will be refactored in https://github.com/wormhole-foundation/wormhole/pull/1953
+//nolint:unparam // this will be refactored in https://github.com/wormhole-foundation/wormhole/pull/1953
 package processor
 
 import (
@@ -231,7 +231,11 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					}
 					if s.ourMsg != nil {
 						// This is the case for immediately published messages (as well as anything still pending from before the cutover).
-						p.gossipAttestationSendC <- s.ourMsg
+						select {
+						case p.gossipAttestationSendC <- s.ourMsg:
+						default:
+							batchObservationChannelOverflow.WithLabelValues("gossipResend").Inc()
+						}
 					} else {
 						p.postObservationToBatch(s.ourObs)
 					}

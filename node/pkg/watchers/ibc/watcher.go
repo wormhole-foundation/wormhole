@@ -165,16 +165,9 @@ func NewWatcher(
 		}
 
 		chainMap[ce.chainID] = ce
-
-		if feats == "" {
-			feats = "ibc:"
-		} else {
-			feats += "|"
-		}
-		feats += ce.chainID.String()
 	}
 
-	setFeatures(feats)
+	setFeatures("ibc")
 
 	return &Watcher{
 		wsUrl:                 wsUrl,
@@ -248,7 +241,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 	}
 
-	// nolint:bodyclose // Misses the close below
+	//nolint:bodyclose // Misses the close below
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
@@ -327,11 +320,11 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 			}
 
 			// Received a message from the blockchain.
-			json := string(message)
+			jsonStr := string(message)
 
-			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+			txHashRaw := gjson.Get(jsonStr, "result.events.tx\\.hash.0")
 			if !txHashRaw.Exists() {
-				w.logger.Warn("message does not have tx hash", zap.String("payload", json))
+				w.logger.Warn("message does not have tx hash", zap.String("payload", jsonStr))
 				continue
 			}
 			txHash, err := vaa.StringToHash(txHashRaw.String())
@@ -340,9 +333,9 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 				continue
 			}
 
-			events := gjson.Get(json, "result.data.value.TxResult.result.events")
+			events := gjson.Get(jsonStr, "result.data.value.TxResult.result.events")
 			if !events.Exists() {
-				w.logger.Warn("message has no events", zap.String("payload", json))
+				w.logger.Warn("message has no events", zap.String("payload", jsonStr))
 				continue
 			}
 
@@ -374,11 +367,11 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 
 // convertWsUrlToHttpUrl takes a string like "ws://wormchain:26657/websocket" and converts it to "http://wormchain:26657". This is
 // used to query for the abci_info. That query doesn't work on the LCD. We have to do it on the websocket port, using an http URL.
-func convertWsUrlToHttpUrl(url string) string {
-	url = strings.TrimPrefix(url, "ws://")
-	url = strings.TrimPrefix(url, "wss://")
-	url = strings.TrimSuffix(url, "/websocket")
-	return "http://" + url
+func convertWsUrlToHttpUrl(URL string) string {
+	URL = strings.TrimPrefix(URL, "ws://")
+	URL = strings.TrimPrefix(URL, "wss://")
+	URL = strings.TrimSuffix(URL, "/websocket")
+	return "http://" + URL
 }
 
 // handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
@@ -429,7 +422,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 			}
 
 			readiness.SetReady(common.ReadinessIBCSyncing)
-			setFeatures(w.baseFeatures + ":" + abciInfo.Result.Response.Version)
+			setFeatures("ibc:" + abciInfo.Result.Response.Version)
 		}
 	}
 }
@@ -677,7 +670,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	ce.msgC <- evt.Msg
+	ce.msgC <- evt.Msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 	if evt.Msg.IsReobservation {
 		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()
@@ -778,7 +771,12 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 			return nil, fmt.Errorf("channel map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(entry), string(body))
 		}
 
-		channelIdBytes, err := base64.StdEncoding.DecodeString(entry[0].(string))
+		channelIdString, ok := entry[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("error converting channelIdBytes to string")
+		}
+
+		channelIdBytes, err := base64.StdEncoding.DecodeString(channelIdString)
 		if err != nil {
 			return nil, fmt.Errorf("channel ID for entry %d is invalid base64: %s, err: %s", idx, entry[0], err)
 		}

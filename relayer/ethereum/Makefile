@@ -15,7 +15,7 @@ node_modules: package-lock.json
 # Instead, we just specify the dependencies here. make will then take care of
 # installing them if they are not yet present.
 # When adding a new dependency, make sure to specify the exact commit hash, and
-# the --no-git and --no-commit flags (see lib/forge-std below)
+# the --no-git flag (see lib/forge-std below)
 .PHONY: forge_dependencies
 forge_dependencies: lib/forge-std lib/openzeppelin-contracts
 

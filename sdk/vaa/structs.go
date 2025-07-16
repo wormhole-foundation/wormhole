@@ -6,6 +6,7 @@ import (
 	"encoding"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -105,6 +106,7 @@ const (
 	ConsistencyLevelSafe               = uint8(201)
 )
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -128,6 +130,7 @@ func (a Address) Bytes() []byte {
 	return a[:]
 }
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (a SignatureData) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -293,7 +296,6 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 	case int8, uint8, int16, uint16:
 		// Because these values have been checked to be non-negative, we can return early with a simple conversion.
 		return ChainID(n), nil
-
 	}
 	// Use intermediate uint64 to safely handle conversion and allow comparison with MaxUint16.
 	// This is safe to do because the negative case is already handled.
@@ -302,7 +304,6 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 		return ChainIDUnset, fmt.Errorf("chainID must be less than or equal to %d but got %d", math.MaxUint16, n)
 	}
 	return ChainID(n), nil
-
 }
 
 // KnownChainIDFromNumber converts an unsigned integer into a known ChainID. It is a wrapper function for ChainIDFromNumber
@@ -321,14 +322,12 @@ func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
 	}
 
 	return ChainIDUnset, fmt.Errorf("no known ChainID for input %d", n)
-
 }
 
 // StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
 // The argument can be either a numeric string representation of a number or a known chain name such as "solana".
 // Inputs of unknown ChainIDs, including 0, will result in an error.
 func StringToKnownChainID(s string) (ChainID, error) {
-
 	// Try to convert from chain name first, and return early if it's found.
 	id, err := ChainIDFromString(s)
 	if err == nil {
@@ -618,7 +617,7 @@ const (
 	// NOTE: 27 belongs to a chain that was never deployed.
 	// ChainIDXpla is the ChainID of Xpla
 	ChainIDXpla ChainID = 28
-	//ChainIDBtc is the ChainID of Bitcoin
+	// ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
 	// ChainIDBase is the ChainID of Base
 	ChainIDBase ChainID = 30
@@ -664,10 +663,20 @@ const (
 	ChainIDMezo ChainID = 50
 	// ChainIDFogo is the ChainID of Fogo
 	ChainIDFogo ChainID = 51
-	// ChainIDAztec is the ChainID of Aztec
-	ChainIDAztec ChainID = 52
 	//ChainIDWormchain is the ChainID of Wormchain
 	// Wormchain is in it's own range.
+	// ChainIDSonic is the ChainID of Sonic
+	ChainIDSonic ChainID = 52
+	// ChainIDConverge is the ChainID of Converge
+	ChainIDConverge ChainID = 53
+	// ChainIDCodex is the ChainID of Codex
+	ChainIDCodex ChainID = 54
+	// ChainIdPlume is the ChainID of Plume
+	ChainIDPlume ChainID = 55
+	// ChainIDAztec is the ChainID of Aztec
+	ChainIDAztec ChainID = 56
+
+	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
 
 	// The IBC chains start at 4000.
@@ -691,9 +700,9 @@ const (
 	ChainIDProvenance ChainID = 4008
 	// ChainIDNoble is the ChainID of Noble
 	ChainIDNoble ChainID = 4009
-	// ChainIDSepolia is the ChainID of Sepolia
 
 	// The Testnet only chains start at 10000.
+	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
 	ChainIDArbitrumSepolia ChainID = 10003
@@ -742,6 +751,9 @@ const (
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2, etc
+// parameter. This function should probably be reworked as a method of the VAA type.
+//
+//nolint:unparam // TODO: The argument data is not used here. Instead data is read from the VAA
 func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
@@ -856,7 +868,7 @@ func DeprecatedSigningDigest(bz []byte) common.Hash {
 func MessageSigningDigest(prefix []byte, data []byte) (common.Hash, error) {
 	if len(prefix) < 32 {
 		// Prefixes must be at least 32 bytes
-		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_key.md
+		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_signer.md
 		return common.Hash([32]byte{}), errors.New("prefix must be at least 32 bytes")
 	}
 	return crypto.Keccak256Hash(prefix[:], data), nil
@@ -885,7 +897,15 @@ func verifySignature(vaa_digest []byte, signature *Signature, address common.Add
 
 // Digest should be the output of SigningMsg(data).Bytes()
 // Should not be public as other message types should be verified using a message prefix.
+// Returns false when the signatures or addresses are empty.
 func verifySignatures(vaa_digest []byte, signatures []*Signature, addresses []common.Address) bool {
+	// An empty set is neither valid nor invalid, it's just specified incorrectly.
+	// To help with backward-compatibility, return false instead of changing the function
+	// signature to return an error.
+	if len(signatures) == 0 || len(addresses) == 0 {
+		return false
+	}
+
 	if len(addresses) < len(signatures) {
 		return false
 	}
@@ -943,6 +963,10 @@ func VerifyMessageSignature(prefix []byte, messageBody []byte, signatures *Signa
 
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
+// Returns false when the signatures or addresses are empty.
+//
+// WARNING: This function is not sufficient for validating a VAA as it does not consider
+// signature quorum. [VAA.Verify] should be used instead.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	return verifySignatures(v.SigningDigest().Bytes(), v.Signatures, addresses)
 }
@@ -1192,4 +1216,14 @@ func BytesToHash(b []byte) (common.Hash, error) {
 
 	hash = common.BytesToHash(b)
 	return hash, nil
+}
+
+// DebugString returns a pretty-formatted JSON string representation of the VAA.
+func (v *VAA) DebugString() (string, error) {
+	jsonBytes, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal VAA to JSON for debugging: %w", err)
+	}
+
+	return string(jsonBytes), nil
 }

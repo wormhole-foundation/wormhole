@@ -14,7 +14,6 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
-	"github.com/tendermint/tendermint/libs/rand"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	"github.com/certusone/wormhole/node/pkg/random"
 )
 
 var setUpdateNumGuardians *int
@@ -76,6 +76,9 @@ var governanceContractAddress *string
 var governanceTargetAddress *string
 var governanceTargetChain *string
 var governanceCallData *string
+
+var coreBridgeSetMessageFeeChainId *string
+var coreBridgeSetMessageFeeMessageFee *string
 
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
@@ -203,6 +206,13 @@ func init() {
 	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(accountantModifyBalanceFlagSet)
 	AdminClientAccountantModifyBalanceCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientAccountantModifyBalanceCmd)
+
+	// flags for the core-bridge-set-message-fee command
+	coreBridgeSetMessageFeeFlagSet := pflag.NewFlagSet("core-bridge-set-message-fee", pflag.ExitOnError)
+	coreBridgeSetMessageFeeChainId = coreBridgeSetMessageFeeFlagSet.String("chain-id", "", "Chain ID")
+	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.String("message-fee", "", "New message fee")
+	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
+	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
 
 	// flags for general-purpose governance call command
 	generalPurposeGovernanceFlagSet := pflag.NewFlagSet("general-purpose-governance", pflag.ExitOnError)
@@ -343,6 +353,12 @@ var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
 	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
 }
 
+var AdminClientCoreBridgeSetMessageFeeCmd = &cobra.Command{
+	Use:   "core-bridge-set-message-fee",
+	Short: "Generate a 'set message fee' template for specified chain and address",
+	Run:   runCoreBridgeSetMessageFeeTemplate,
+}
+
 var AdminClientGeneralPurposeGovernanceEvmCallCmd = &cobra.Command{
 	Use:   "governance-evm-call",
 	Short: "Generate a 'general purpose evm governance call' template for specified chain and address",
@@ -359,19 +375,20 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	// Use deterministic devnet addresses as examples in the template, such that this doubles as a test fixture.
 	guardians := make([]*nodev1.GuardianSetUpdate_Guardian, *setUpdateNumGuardians)
 	for i := 0; i < *setUpdateNumGuardians; i++ {
-		k := devnet.InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), uint64(i)) // #nosec G115 -- Number of guardians will never overflow here
+		k := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(i)) // #nosec G115 -- Number of guardians will never overflow here
 		guardians[i] = &nodev1.GuardianSetUpdate_Guardian{
 			Pubkey: crypto.PubkeyToAddress(k.PublicKey).Hex(),
 			Name:   fmt.Sprintf("Example validator %d", i),
 		}
 	}
+	seq, nonce := randSeqNonce()
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_GuardianSet{
 					GuardianSet: &nodev1.GuardianSetUpdate{Guardians: guardians},
 				},
@@ -396,12 +413,14 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	seq, nonce := randSeqNonce()
+
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_ContractUpgrade{
 					ContractUpgrade: &nodev1.ContractUpgrade{
 						ChainId:     uint32(chainID),
@@ -428,12 +447,13 @@ func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_BridgeRegisterChain{
 					BridgeRegisterChain: &nodev1.BridgeRegisterChain{
 						Module:         *module,
@@ -462,12 +482,13 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_BridgeContractUpgrade{
 					BridgeContractUpgrade: &nodev1.BridgeUpgradeContract{
 						Module:        *module,
@@ -504,12 +525,13 @@ func runRecoverChainIdTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal("failed to parse chain id:", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_RecoverChainId{
 					RecoverChainId: &nodev1.RecoverChainId{
 						Module:     *module,
@@ -595,12 +617,13 @@ func runAccountantModifyBalanceTemplate(cmd *cobra.Command, args []string) {
 	if len(*accountantModifyBalanceReason) > vaa.AccountantModifyBalanceReasonLength {
 		log.Fatalf("reason is too long, can be at most %d bytes", vaa.AccountantModifyBalanceReasonLength)
 	}
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_AccountantModifyBalance{
 					AccountantModifyBalance: &nodev1.AccountantModifyBalance{
 						Module:        *accountantModifyBalanceModule,
@@ -641,12 +664,13 @@ func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args
 		log.Fatal("failed to parse finality as uint8: ", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality{
 					CircleIntegrationUpdateWormholeFinality: &nodev1.CircleIntegrationUpdateWormholeFinality{
 						TargetChainId: uint32(chainID),
@@ -694,12 +718,13 @@ func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, ar
 		log.Fatal("failed to parse circle domain as uint32:", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain{
 					CircleIntegrationRegisterEmitterAndDomain: &nodev1.CircleIntegrationRegisterEmitterAndDomain{
 						TargetChainId:         uint32(chainID),
@@ -735,12 +760,13 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 		log.Fatal("failed to parse new implementation address: ", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation{
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
@@ -774,12 +800,13 @@ func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
 		log.Fatalf("wasm-hash (expected 32 bytes but received %d bytes)", len(buf))
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_WormchainStoreCode{
 					WormchainStoreCode: &nodev1.WormchainStoreCode{
 						WasmHash: string(*wormchainStoreCodeWasmHash),
@@ -811,12 +838,13 @@ func runWormchainInstantiateContractTemplate(cmd *cobra.Command, args []string) 
 		log.Fatal("--instantiation-msg must be specified.")
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_WormchainInstantiateContract{
 					WormchainInstantiateContract: &nodev1.WormchainInstantiateContract{
 						CodeId:           codeId,
@@ -850,12 +878,13 @@ func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal("--instantiation-msg must be specified.")
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_WormchainMigrateContract{
 					WormchainMigrateContract: &nodev1.WormchainMigrateContract{
 						CodeId:           codeId,
@@ -894,12 +923,13 @@ func runWormchainWasmInstantiateAllowlistTemplate(action nodev1.WormchainWasmIns
 		log.Fatal("--contract-address must be specified")
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_WormchainWasmInstantiateAllowlist{
 					WormchainWasmInstantiateAllowlist: &nodev1.WormchainWasmInstantiateAllowlist{
 						CodeId:   codeId,
@@ -932,12 +962,13 @@ func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
 		log.Fatal("failed to parse height as uint64: ", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_GatewayScheduleUpgrade{
 					GatewayScheduleUpgrade: &nodev1.GatewayScheduleUpgrade{
 						Name:   *gatewayScheduleUpgradeName,
@@ -956,12 +987,13 @@ func runGatewayScheduleUpgradeTemplate(cmd *cobra.Command, args []string) {
 }
 
 func runGatewayCancelUpgradeTemplate(cmd *cobra.Command, args []string) {
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload:  &nodev1.GovernanceMessage_GatewayCancelUpgrade{},
 			},
 		},
@@ -979,12 +1011,13 @@ func runGatewayIbcComposabilityMwSetContractTemplate(cmd *cobra.Command, args []
 		log.Fatal("--contract-address must be specified")
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_GatewayIbcComposabilityMwSetContract{
 					GatewayIbcComposabilityMwSetContract: &nodev1.GatewayIbcComposabilityMwSetContract{
 						Contract: *gatewayIbcComposabilityMwContractAddress,
@@ -1033,12 +1066,13 @@ func runIbcUpdateChannelChainTemplate(module nodev1.IbcUpdateChannelChainModule)
 		log.Fatal("failed to parse chain id: ", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_IbcUpdateChannelChain{
 					IbcUpdateChannelChain: &nodev1.IbcUpdateChannelChain{
 						TargetChainId: uint32(targetChainId),
@@ -1069,16 +1103,48 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 		log.Fatal(err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider{
 					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
 						ChainId:                           uint32(chainID),
 						NewDefaultDeliveryProviderAddress: address,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
+	chainID, err := parseChainID(*coreBridgeSetMessageFeeChainId)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seq, nonce := randSeqNonce()
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_CoreBridgeSetMessageFee{
+					CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
+						ChainId:    uint32(chainID),
+						MessageFee: *coreBridgeSetMessageFeeMessageFee,
 					},
 				},
 			},
@@ -1118,12 +1184,13 @@ func runGeneralPurposeGovernanceEvmCallTemplate(cmd *cobra.Command, args []strin
 		log.Fatal("failed to parse chain id: ", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_EvmCall{
 					EvmCall: &nodev1.EvmCall{
 						ChainId:            uint32(chainID),
@@ -1162,12 +1229,13 @@ func runGeneralPurposeGovernanceSolanaCallTemplate(cmd *cobra.Command, args []st
 		log.Fatal("failed to parse chain id: ", err)
 	}
 
+	seq, nonce := randSeqNonce()
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- This will never overflow
 		Messages: []*nodev1.GovernanceMessage{
 			{
-				Sequence: rand.Uint64(),
-				Nonce:    rand.Uint32(),
+				Sequence: seq,
+				Nonce:    nonce,
 				Payload: &nodev1.GovernanceMessage_SolanaCall{
 					SolanaCall: &nodev1.SolanaCall{
 						ChainId:            uint32(chainID),
@@ -1251,4 +1319,17 @@ func isValidUint256(s string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// randSeqNonce returns a new random sequence and nonce. It exits if the random numbers can't be generated.
+func randSeqNonce() (uint64, uint32) {
+	seq, err := random.Uint64()
+	if err != nil {
+		log.Fatal("random number: ", err)
+	}
+	nonce, err := random.Uint32()
+	if err != nil {
+		log.Fatal("random number: ", err)
+	}
+	return seq, nonce
 }

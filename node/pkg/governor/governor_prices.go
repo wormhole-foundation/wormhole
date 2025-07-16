@@ -22,7 +22,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
@@ -158,7 +158,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				throttle <- 1
+				throttle <- 1 //nolint:channelcheck // We want this to block for throttling
 			case <-ctx.Done():
 				return
 			}
@@ -257,7 +257,8 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	var result map[string]interface{}
 
 	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
-	response, err := http.Get(query) //nolint:gosec,noctx
+	// #nosec G107 // the URL is hard-coded to the CoinGecko API. See [createCoinGeckoQuery].
+	response, err := http.Get(query) //nolint:noctx // TODO: a context should be added here.
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
 	}
@@ -318,7 +319,7 @@ func (te tokenEntry) updatePrice() {
 func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
-	var db db.MockGovernorDB
+	var db guardianDB.MockGovernorDB
 	gov := NewChainGovernor(logger, &db, common.MainNet, true, "")
 
 	if err := gov.initConfig(); err != nil {

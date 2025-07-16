@@ -603,13 +603,13 @@ docker run \
 
 <!-- cspell:enable -->
 
-## Guardian Configurations
+## Guardian Configuration
 
-Configuration files, environment variables and flags are all supported.
+Configuration files, environment variables and command line arguments are all supported.
 
 ### Config File
 
-**Location/Naming**: By default, the config file is expected to be in the `node/config` directory. The standard name for the config file is `guardiand.yaml`. Currently there's no support for custom directory or filename yet.
+**Specifying the File**: To load config parameters from an arbitrary file, specify the `--config <fileName>` command line argument. The file name should be complete, including any extension. It may include a relative or absolute path.
 
 **Format**: We support any format that is supported by [Viper](https://pkg.go.dev/github.com/dvln/viper#section-readme). But YAML format is generally preferred.
 

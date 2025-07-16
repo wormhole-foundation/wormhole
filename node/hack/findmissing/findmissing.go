@@ -19,7 +19,7 @@ var (
 	onlyChain      = flag.String("only", "", "Only check this chain")
 )
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
@@ -27,7 +27,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	}
 
 	c := nodev1.NewNodePrivilegedServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
 func main() {
@@ -35,11 +35,12 @@ func main() {
 
 	ctx := context.Background()
 
-	conn, err, admin := getAdminClient(ctx, *adminRPC)
-	defer conn.Close()
+	conn, admin, err := getAdminClient(ctx, *adminRPC)
 	if err != nil {
+		conn.Close()
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	var only vaa.ChainID
 	if *onlyChain != "" {

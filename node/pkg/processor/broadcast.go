@@ -7,6 +7,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -34,7 +35,7 @@ var (
 // broadcastSignature broadcasts the observation for something we observed locally.
 func (p *Processor) broadcastSignature(
 	messageID string,
-	txhash []byte,
+	k *common.MessagePublication,
 	digest ethCommon.Hash,
 	signature []byte,
 	shouldPublishImmediately bool,
@@ -43,7 +44,7 @@ func (p *Processor) broadcastSignature(
 	ourObs = &gossipv1.Observation{
 		Hash:      digest.Bytes(),
 		Signature: signature,
-		TxHash:    txhash,
+		TxHash:    k.TxID,
 		MessageId: messageID,
 	}
 
@@ -53,6 +54,10 @@ func (p *Processor) broadcastSignature(
 	} else {
 		p.postObservationToBatch(ourObs)
 		batchObservationsBroadcast.Inc()
+	}
+
+	if p.alternatePublisher != nil {
+		p.alternatePublisher.PublishObservation(k.EmitterChain, ourObs)
 	}
 
 	return ourObs, msg
@@ -74,9 +79,14 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 		panic(err)
 	}
 
-	// Broadcast the signed VAA.
-	p.gossipVaaSendC <- msg
-	signedVAAsBroadcast.Inc()
+	// Broadcast the signed VAA. The channel is buffered. If it overflows, just drop it and rely on a reobservation if necessary.
+	common.WriteToChannelWithoutBlocking(p.gossipVaaSendC, msg, "vaa_broadcast")
+	select {
+	case p.gossipVaaSendC <- msg:
+		signedVAAsBroadcast.Inc()
+	default:
+		vaaPublishChannelOverflow.Inc()
+	}
 
 	if p.gatewayRelayer != nil {
 		p.gatewayRelayer.SubmitVAA(v)

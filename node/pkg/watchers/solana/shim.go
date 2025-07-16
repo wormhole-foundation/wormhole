@@ -385,7 +385,7 @@ func (s *SolanaWatcher) shimProcessRest(
 		)
 	}
 
-	s.msgC <- observation
+	s.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }

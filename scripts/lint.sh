@@ -55,6 +55,15 @@ format(){
 }
 
 lint(){
+    # === Spell check
+    if ! command -v cspell >/dev/null 2>&1; then
+        printf "%s\n" "cspell is not installed. Skipping spellcheck"
+    else
+    # NOTE: Keep this command in sync with `.github/workflows/build.yml`
+        cspell -c cspell.config.yaml --dictionary cspell-custom-words.txt "**.*md"
+    fi
+    
+    # === Go linting
     # Check for dependencies
     if ! command -v golangci-lint >/dev/null 2>&1; then
         printf "%s\n" "Require golangci-lint. You can run this command in a docker container instead with '-c' and not worry about it or install it: https://golangci-lint.run/usage/install/"
@@ -62,7 +71,7 @@ lint(){
 
     # Do the actual linting!
     cd "$ROOT"/node
-    golangci-lint run --timeout=10m --path-prefix=node $GOLANGCI_LINT_ARGS ./...
+    golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
 
     cd "${ROOT}/sdk"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...

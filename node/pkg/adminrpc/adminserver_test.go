@@ -327,10 +327,10 @@ func Test_adminCommands(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, 1, len(msg.Messages))
 			govMsg := msg.Messages[0]
-			vaa, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
+			govVAA, err := GovMsgToVaa(govMsg, govGuardianSetIndex, govTimestamp)
 			if tst.errText == "" {
 				require.NoError(t, err)
-				verifyGovernanceVAA(t, vaa, govMsg.Sequence, govMsg.Nonce)
+				verifyGovernanceVAA(t, govVAA, govMsg.Sequence, govMsg.Nonce)
 			} else {
 				require.ErrorContains(t, err, tst.errText)
 			}
@@ -359,7 +359,7 @@ func TestChainGovernorResetReleaseTimer(t *testing.T) {
 
 	// governor has no VAAs enqueued, so if we receive this error we know the input validation passed
 	success := `vaa not found in the pending list`
-	boundsCheckFailure := `the specified number of days falls outside the range of 1 to 7`
+	boundsCheckFailure := `the specified number of days falls outside the range of 1 to 30`
 	vaaIdLengthFailure := `the VAA id must be specified as "chainId/emitterAddress/seqNum"`
 
 	tests := map[string]struct {

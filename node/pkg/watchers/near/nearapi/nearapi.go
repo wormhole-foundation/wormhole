@@ -50,7 +50,9 @@ type (
 
 func NewHttpNearRpc(nearRPC string) HttpNearRpc {
 	// Customize the Transport to have larger connection pool (default is only 2 per host)
-	t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert
+
+	//nolint:forcetypeassert // This should always succeed, and the function is only called on start-up.
+	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxConnsPerHost = nearRPCConcurrentConnections
 	t.MaxIdleConnsPerHost = nearRPCConcurrentConnections
 	var httpClient = &http.Client{
@@ -111,7 +113,7 @@ func (n NearApiImpl) GetBlock(ctx context.Context, blockId string) (Block, error
 
 	// SECURITY defense-in-depth
 	if newBlock.Header.Hash != blockId {
-		return Block{}, errors.New("Returned block hash does not equal queried block hash")
+		return Block{}, errors.New("returned block hash does not equal queried block hash")
 	}
 
 	return newBlock, err
@@ -131,7 +133,7 @@ func (n NearApiImpl) GetBlockByHeight(ctx context.Context, blockHeight uint64) (
 
 	// SECURITY defense-in-depth
 	if newBlock.Header.Height != blockHeight {
-		return Block{}, errors.New("Returned block height not equal queried block height")
+		return Block{}, errors.New("returned block height not equal queried block height")
 	}
 	return newBlock, nil
 }
@@ -149,11 +151,11 @@ func (n NearApiImpl) GetFinalBlock(ctx context.Context) (Block, error) {
 // getChunk gets a chunk from the NEAR RPC API: https://docs.near.org/api/rpc/block-chunk#chunk-details
 func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "chunk", "params": {"chunk_id": "%s"}}`, chunkHeader.Hash)
-	bytes, err := n.nearRPC.Query(ctx, s)
+	resBytes, err := n.nearRPC.Query(ctx, s)
 	if err != nil {
 		return Chunk{}, err
 	}
-	newChunk, err := NewChunkFromBytes(bytes)
+	newChunk, err := NewChunkFromBytes(resBytes)
 	if err != nil {
 		return Chunk{}, err
 	}
@@ -161,7 +163,7 @@ func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chu
 	// SECURITY defense-in-depth
 	if newChunk.Hash != chunkHeader.Hash {
 		fmt.Printf("queried hash=%s, return_hash=%s", chunkHeader.Hash, newChunk.Hash)
-		return Chunk{}, errors.New("Returned chunk hash does not equal queried chunk hash")
+		return Chunk{}, errors.New("returned chunk hash does not equal queried chunk hash")
 	}
 	return newChunk, nil
 }

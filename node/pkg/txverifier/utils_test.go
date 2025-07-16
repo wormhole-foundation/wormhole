@@ -2,10 +2,12 @@ package txverifier
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -275,6 +277,254 @@ func TestValidateChains(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ValidateChains() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_deleteEntries_StringKeys(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupCache    func() *map[string]vaa.Address
+		wantNumPruned int
+		wantErr       bool
+		wantFinalLen  int
+	}{
+		{
+			name: "nil pointer",
+			setupCache: func() *map[string]vaa.Address {
+				return nil
+			},
+			wantNumPruned: 0,
+			wantErr:       true,
+		},
+		{
+			name: "pointer to nil map",
+			setupCache: func() *map[string]vaa.Address {
+				var m map[string]vaa.Address = nil
+				return &m
+			},
+			wantNumPruned: 0,
+			wantErr:       true,
+		},
+		{
+			name: "cache within limits - no deletion needed",
+			setupCache: func() *map[string]vaa.Address {
+				m := make(map[string]vaa.Address)
+				// Add entries below CacheMaxSize
+				for i := range CacheMaxSize - 10 {
+					m[fmt.Sprintf("key%d", i)] = vaa.Address{}
+				}
+				return &m
+			},
+			wantNumPruned: 0,
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize - 10,
+		},
+		{
+			name: "cache exactly at limit - no deletion needed",
+			setupCache: func() *map[string]vaa.Address {
+				m := make(map[string]vaa.Address)
+				for i := range CacheMaxSize {
+					m[fmt.Sprintf("key%d", i)] = vaa.Address{}
+				}
+				return &m
+			},
+			wantNumPruned: 0,
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize,
+		},
+		{
+			name: "cache way over limit - delete enough to reach CacheMaxSize",
+			setupCache: func() *map[string]vaa.Address {
+				m := make(map[string]vaa.Address)
+				for i := range CacheMaxSize + 50 {
+					m[fmt.Sprintf("key%d", i)] = vaa.Address{}
+				}
+				return &m
+			},
+			wantNumPruned: 50, // CacheMaxSize+50-CacheMaxSize = 50 (more than CacheDeleteCount)
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize,
+		},
+		{
+			name: "small cache over limit",
+			setupCache: func() *map[string]vaa.Address {
+				m := make(map[string]vaa.Address)
+				for i := range CacheMaxSize + 3 {
+					m[fmt.Sprintf("key%d", i)] = vaa.Address{}
+				}
+				return &m
+			},
+			wantNumPruned: CacheDeleteCount, // max(10, 3) = 10
+			wantErr:       false,
+			wantFinalLen:  CacheMaxSize + 3 - CacheDeleteCount,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cachePtr := tt.setupCache()
+
+			// Store original length for verification
+			var originalLen int
+			if cachePtr != nil && *cachePtr != nil {
+				originalLen = len(*cachePtr)
+			}
+
+			got, err := deleteEntries(cachePtr)
+
+			// Check error expectation
+			if (err != nil) != tt.wantErr {
+				t.Errorf("deleteEntries() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// Check return value
+			if got != tt.wantNumPruned {
+				t.Errorf("deleteEntries() returned %v, want %v", got, tt.wantNumPruned)
+				return
+			}
+
+			// If no error expected, verify the cache state
+			if !tt.wantErr && cachePtr != nil && *cachePtr != nil {
+				finalLen := len(*cachePtr)
+				if finalLen != tt.wantFinalLen {
+					t.Errorf("deleteEntries() final cache length = %v, want %v (original: %v, deleted: %v)",
+						finalLen, tt.wantFinalLen, originalLen, got)
+				}
+
+				// Verify that the returned count matches actual deletions
+				expectedDeletions := originalLen - finalLen
+				if got != expectedDeletions {
+					t.Errorf("deleteEntries() returned %v deletions, but actual deletions = %v",
+						got, expectedDeletions)
+				}
+			}
+		})
+	}
+}
+
+//nolint:gosec // Testing on the uint8 value types, but ranging over a size gives int. The truncation issues don't matter here.
+func Test_deleteEntries_AddressKeys(t *testing.T) {
+	tests := []struct {
+		name         string
+		setupCache   func() *map[common.Address]uint8
+		want         int
+		wantErr      bool
+		wantFinalLen int
+	}{
+		{
+			name: "nil pointer",
+			setupCache: func() *map[common.Address]uint8 {
+				return nil
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name: "pointer to nil map",
+			setupCache: func() *map[common.Address]uint8 {
+				var m map[common.Address]uint8 = nil
+				return &m
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name: "cache within limits - no deletion needed",
+			setupCache: func() *map[common.Address]uint8 {
+				m := make(map[common.Address]uint8)
+				// Add entries below CacheMaxSize
+				for i := range CacheMaxSize - 10 {
+					// TODO needs to be common.Address
+					m[common.BytesToAddress([]byte{byte(i)})] = uint8(i)
+				}
+				return &m
+			},
+			want:         0,
+			wantErr:      false,
+			wantFinalLen: CacheMaxSize - 10,
+		},
+		{
+			name: "cache exactly at limit - no deletion needed",
+			setupCache: func() *map[common.Address]uint8 {
+				m := make(map[common.Address]uint8)
+				for i := range CacheMaxSize {
+					m[common.BytesToAddress([]byte{byte(i)})] = uint8(i)
+				}
+				return &m
+			},
+			want:         0,
+			wantErr:      false,
+			wantFinalLen: CacheMaxSize,
+		},
+		{
+			name: "cache way over limit - delete enough to reach CacheMaxSize",
+			setupCache: func() *map[common.Address]uint8 {
+				m := make(map[common.Address]uint8)
+				for i := range CacheMaxSize + 50 {
+					m[common.BytesToAddress([]byte{byte(i)})] = uint8(i)
+				}
+				return &m
+			},
+			want:         50, // CacheMaxSize+50-CacheMaxSize = 50 (more than CacheDeleteCount)
+			wantErr:      false,
+			wantFinalLen: CacheMaxSize,
+		},
+		{
+			name: "small cache over limit",
+			setupCache: func() *map[common.Address]uint8 {
+				m := make(map[common.Address]uint8)
+				for i := range CacheMaxSize + 3 {
+					m[common.BytesToAddress([]byte{byte(i)})] = uint8(i)
+				}
+				return &m
+			},
+			want:         CacheDeleteCount, // max(10, 3) = 10
+			wantErr:      false,
+			wantFinalLen: CacheMaxSize + 3 - CacheDeleteCount,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cachePtr := tt.setupCache()
+
+			// Store original length for verification
+			var originalLen int
+			if cachePtr != nil && *cachePtr != nil {
+				originalLen = len(*cachePtr)
+			}
+
+			got, err := deleteEntries(cachePtr)
+
+			// Check error expectation
+			if (err != nil) != tt.wantErr {
+				t.Errorf("deleteEntries() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// Check return value
+			if got != tt.want {
+				t.Errorf("deleteEntries() returned %v, want %v", got, tt.want)
+				return
+			}
+
+			// If no error expected, verify the cache state
+			if !tt.wantErr && cachePtr != nil && *cachePtr != nil {
+				finalLen := len(*cachePtr)
+				if finalLen != tt.wantFinalLen {
+					t.Errorf("deleteEntries() final cache length = %v, want %v (original: %v, deleted: %v)",
+						finalLen, tt.wantFinalLen, originalLen, got)
+				}
+
+				// Verify that the returned count matches actual deletions
+				expectedDeletions := originalLen - finalLen
+				if got != expectedDeletions {
+					t.Errorf("deleteEntries() returned %v deletions, but actual deletions = %v",
+						got, expectedDeletions)
+				}
 			}
 		})
 	}

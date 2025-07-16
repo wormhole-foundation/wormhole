@@ -30,7 +30,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 
-	"github.com/certusone/wormhole/node/pkg/db"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -46,6 +46,8 @@ import (
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
@@ -53,10 +55,11 @@ import (
 )
 
 var (
-	p2pNetworkID   *string
-	p2pPort        *uint
-	p2pBootstrap   *string
-	protectedPeers []string
+	p2pNetworkID         *string
+	p2pPort              *uint
+	p2pBootstrap         *string
+	protectedPeers       []string
+	additionalPublishers *[]string
 
 	nodeKeyPath *string
 
@@ -226,6 +229,12 @@ var (
 	mezoRPC      *string
 	mezoContract *string
 
+	convergeRPC      *string
+	convergeContract *string
+
+	plumeRPC      *string
+	plumeContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -307,6 +316,7 @@ func init() {
 	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (optional for mainnet or testnet, overrides default, required for unsafeDevMode)")
 	NodeCmd.Flags().StringSliceVarP(&protectedPeers, "protectedPeers", "", []string{}, "")
+	additionalPublishers = NodeCmd.Flags().StringArray("additionalPublishEndpoint", []string{}, "defines an alternate publisher as label;url;delay;chains where delay and chains are optional")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
@@ -481,6 +491,12 @@ func init() {
 	mezoRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mezoRPC", "Mezo RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mezoContract = NodeCmd.Flags().String("mezoContract", "", "Mezo contract address")
 
+	convergeRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "convergeRPC", "converge RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	convergeContract = NodeCmd.Flags().String("convergeContract", "", "Converge contract address")
+
+	plumeRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plumeRPC", "plume RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	plumeContract = NodeCmd.Flags().String("plumeContract", "", "Plume contract address")
+
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
 
@@ -544,11 +560,7 @@ var (
 	rootCtxCancel context.CancelFunc
 )
 
-var (
-	configFilename = "guardiand"
-	configPath     = "node/config"
-	envPrefix      = "GUARDIAND"
-)
+const envPrefix = "GUARDIAND"
 
 // "Why would anyone do this?" are famous last words.
 //
@@ -580,8 +592,7 @@ var Build = "prod"
 // initConfig initializes the file configuration.
 func initConfig(cmd *cobra.Command, args []string) error {
 	return node.InitFileConfig(cmd, node.ConfigOptions{
-		FilePath:  configPath,
-		FileName:  configFilename,
+		FilePath:  viper.ConfigFileUsed(),
 		EnvPrefix: envPrefix,
 	})
 }
@@ -657,6 +668,10 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
+
+	if viper.ConfigFileUsed() != "" {
+		logger.Info("loaded config file", zap.String("filePath", viper.ConfigFileUsed()))
+	}
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if env == common.UnsafeDevNet {
@@ -879,6 +894,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	*monadContract = checkEvmArgs(logger, *monadRPC, *monadContract, vaa.ChainIDMonad)
 	*seiEvmContract = checkEvmArgs(logger, *seiEvmRPC, *seiEvmContract, vaa.ChainIDSeiEVM)
 	*mezoContract = checkEvmArgs(logger, *mezoRPC, *mezoContract, vaa.ChainIDMezo)
+	*convergeContract = checkEvmArgs(logger, *convergeRPC, *convergeContract, vaa.ChainIDConverge)
+	*plumeContract = checkEvmArgs(logger, *plumeRPC, *plumeContract, vaa.ChainIDPlume)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -974,6 +991,13 @@ func runNode(cmd *cobra.Command, args []string) {
 		if parseErr != nil {
 			logger.Fatal("transferVerifierEnabledChainIDs input is invalid", zap.Error(parseErr))
 		}
+
+		// Format the feature string in the form "txverifier:ethereum|sui" and append it to the feature flags.
+		chainNames := make([]string, 0, len(txVerifierChains))
+		for _, cid := range txVerifierChains {
+			chainNames = append(chainNames, cid.String())
+		}
+		featureFlags = append(featureFlags, fmt.Sprintf("txverifier:%s", strings.Join(chainNames, "|")))
 	}
 
 	var publicRpcLogDetail common.GrpcLogDetail
@@ -1066,6 +1090,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["movementRPC"] = *movementRPC
 	rpcMap["mezoRPC"] = *mezoRPC
 	rpcMap["aztecRPC"] = *aztecRPC
+	rpcMap["convergeRPC"] = *convergeRPC
+	rpcMap["plumeRPC"] = *plumeRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1109,7 +1135,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	ipfslog.SetPrimaryCore(logger.Core())
 
 	// Database
-	db := db.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
+	db := guardianDB.OpenDb(logger.With(zap.String("component", "badgerDb")), dataDir)
 	defer db.Close()
 
 	wormchainId := "wormchain"
@@ -1221,7 +1247,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("failed to connect to wormchain", zap.Error(err), zap.String("component", "gwrelayer"))
 		}
-
 	}
 	usingPromRemoteWrite := *promRemoteURL != ""
 	if usingPromRemoteWrite {
@@ -1255,7 +1280,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		})
 	}
 
-	var watcherConfigs = []watchers.WatcherConfig{}
+	watcherConfigs := []watchers.WatcherConfig{}
 
 	if shouldStart(ethRPC) {
 		wc := &evm.WatcherConfig{
@@ -1622,6 +1647,28 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
+	if shouldStart(convergeRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "converge",
+			ChainID:          vaa.ChainIDConverge,
+			Rpc:              *convergeRPC,
+			Contract:         *convergeContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(plumeRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "plume",
+			ChainID:          vaa.ChainIDPlume,
+			Rpc:              *plumeRPC,
+			Contract:         *plumeContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
 	if shouldStart(terraWS) {
 		wc := &cosmwasm.WatcherConfig{
 			NetworkID: "terra",
@@ -1779,6 +1826,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			ShimContract:  *fogoShimContract,
 			ReceiveObsReq: false,
 			Commitment:    rpc.CommitmentConfirmed,
+			PollForTx:     true,
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -1793,6 +1841,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			ShimContract:  *fogoShimContract,
 			ReceiveObsReq: true,
 			Commitment:    rpc.CommitmentFinalized,
+			PollForTx:     true,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 
@@ -1923,6 +1972,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		guardianSigner,
 	)
 
+	var guardianAddrAsBytes []byte
+	if len(*additionalPublishers) > 0 {
+		guardianAddrAsBytes = ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
+	}
+
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
@@ -1931,10 +1985,28 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
-		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *subscribeToVAAs, *disableHeartbeatVerify, *p2pPort, *ccqP2pBootstrap, *ccqP2pPort, *ccqAllowedPeers,
-			*gossipAdvertiseAddress, ibc.GetFeatures, protectedPeers, ccqProtectedPeers, featureFlags),
 		node.GuardianOptionStatusServer(*statusAddr),
+		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID),
+
+		// Keep this last so that all of its dependencies are met.
+		node.GuardianOptionP2P(
+			p2pKey,
+			*p2pNetworkID,
+			*p2pBootstrap,
+			*nodeName,
+			*subscribeToVAAs,
+			*disableHeartbeatVerify,
+			*p2pPort,
+			*ccqP2pBootstrap,
+			*ccqP2pPort,
+			*ccqAllowedPeers,
+			*gossipAdvertiseAddress,
+			ibcWatcherConfig != nil,
+			protectedPeers,
+			ccqProtectedPeers,
+			featureFlags,
+		),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {
@@ -1961,27 +2033,27 @@ func runNode(cmd *cobra.Command, args []string) {
 	logger.Info("root context cancelled, exiting...")
 }
 
-func shouldStart(rpc *string) bool {
-	return *rpc != "" && *rpc != "none"
+func shouldStart(rpcURL *string) bool {
+	return *rpcURL != "" && *rpcURL != "none"
 }
 
 // checkEvmArgs verifies that the RPC and contract address parameters for an EVM chain make sense, given the environment.
 // If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
-func checkEvmArgs(logger *zap.Logger, rpc string, contractAddr string, chainID vaa.ChainID) string {
+func checkEvmArgs(logger *zap.Logger, rpcURL string, contractAddr string, chainID vaa.ChainID) string {
 	if env != common.UnsafeDevNet {
 		// In mainnet / testnet, if either parameter is specified, they must both be specified.
-		if (rpc == "") != (contractAddr == "") {
+		if (rpcURL == "") != (contractAddr == "") {
 			logger.Fatal(fmt.Sprintf("Both contract and RPC for chain %s must be set or both unset", chainID.String()))
 		}
 	} else {
 		// In devnet, if RPC is set but contract is not set, use the deterministic one for tilt.
-		if rpc == "" {
+		if rpcURL == "" {
 			if contractAddr != "" {
 				logger.Fatal(fmt.Sprintf("If RPC is not set for chain %s, contract must not be set", chainID.String()))
 			}
 		} else {
 			if contractAddr == "" {
-				contractAddr = devnet.GanacheWormholeContractAddress.Hex()
+				contractAddr = sdk.KnownDevnetCoreContracts[vaa.ChainIDEthereum]
 			}
 		}
 	}

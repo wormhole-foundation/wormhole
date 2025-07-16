@@ -5,7 +5,6 @@ package supervisor
 import (
 	"context"
 	"net"
-	"os/exec"
 
 	"google.golang.org/grpc"
 )
@@ -19,7 +18,7 @@ func GRPCServer(srv *grpc.Server, lis net.Listener, graceful bool) Runnable {
 		Signal(ctx, SignalHealthy)
 		errC := make(chan error)
 		go func() {
-			errC <- srv.Serve(lis)
+			errC <- srv.Serve(lis) //nolint:channelcheck // Will only block this go routine
 		}()
 		select {
 		case <-ctx.Done():
@@ -32,15 +31,5 @@ func GRPCServer(srv *grpc.Server, lis net.Listener, graceful bool) Runnable {
 		case err := <-errC:
 			return err
 		}
-	}
-}
-
-// Command will create a Runnable that starts a long-running command, whose exit is determined to be a failure.
-func Command(name string, arg ...string) Runnable {
-	return func(ctx context.Context) error {
-		Signal(ctx, SignalHealthy)
-
-		cmd := exec.CommandContext(ctx, name, arg...)
-		return cmd.Run()
 	}
 }
