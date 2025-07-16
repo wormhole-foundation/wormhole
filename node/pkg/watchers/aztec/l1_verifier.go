@@ -37,11 +37,12 @@ type aztecFinalityVerifier struct {
 
 // NewAztecFinalityVerifier creates a new L1 verifier
 func NewAztecFinalityVerifier(
+	ctx context.Context,
 	rpcURL string,
 	logger *zap.Logger,
 ) (L1Verifier, error) {
-	// Create a new RPC client
-	client, err := rpc.DialContext(context.Background(), rpcURL)
+	// Create a new RPC client - this needs to use context.Background() for the connection
+	client, err := rpc.DialContext(ctx, rpcURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RPC client: %v", err)
 	}
@@ -57,6 +58,10 @@ func NewAztecFinalityVerifier(
 func (v *aztecFinalityVerifier) GetLatestFinalizedBlockNumber() uint64 {
 	// Check the cache first
 	if block, found := v.getFromCache(); found {
+		if block.Number < 0 {
+			v.logger.Warn("Negative block number detected, returning 0", zap.Int("blockNumber", block.Number))
+			return 0
+		}
 		return uint64(block.Number)
 	}
 
@@ -70,6 +75,10 @@ func (v *aztecFinalityVerifier) GetLatestFinalizedBlockNumber() uint64 {
 		return 0
 	}
 
+	if block.Number < 0 {
+		v.logger.Warn("Failed to get finalized block for L1Finalizer", zap.Error(err))
+		return 0
+	}
 	return uint64(block.Number)
 }
 

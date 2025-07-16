@@ -90,15 +90,15 @@ func (c *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
 func (c *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	queryReqC <-chan *query.PerChainQueryInternal,
-	queryRespC chan<- *query.PerChainQueryResponseInternal,
-	gst chan<- *common.GuardianSet,
-	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+	_ <-chan *query.PerChainQueryInternal,
+	_ chan<- *query.PerChainQueryResponseInternal,
+	_ chan<- *common.GuardianSet,
+	_ common.Environment,
+) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) { //nolint:unparam // Aztec watcher does not implement Reobserver interface
 	// Create the runnable and L1Finalizer
 	l1Finalizer, runnable := NewWatcherFromConfig(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
 
 	// Return the L1Verifier as an L1Finalizer along with the runnable
-	// This makes it available to the framework if needed
+	// Aztec does not implement a Reobserver, so we return nil for that interface
 	return l1Finalizer, runnable, nil, nil
 }

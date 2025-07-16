@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -234,8 +235,8 @@ func (w *Watcher) parseLogParameters(logEntries []string) (LogParameters, error)
 	return LogParameters{
 		SenderAddress:    senderAddress,
 		Sequence:         sequence,
-		Nonce:            uint32(nonce),
-		ConsistencyLevel: uint8(consistencyLevel),
+		Nonce:            safeUint64ToUint32(nonce),
+		ConsistencyLevel: safeUint64ToUint8(consistencyLevel),
 		Amount:           0, // Initialize with 0, will be set later
 	}, nil
 }
@@ -342,4 +343,20 @@ func ParseHexUint64(hexStr string) (uint64, error) {
 	}
 
 	return value, nil
+}
+
+// safeUint64ToUint32 safely converts uint64 to uint32
+func safeUint64ToUint32(value uint64) uint32 {
+	if value > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(value)
+}
+
+// safeUint64ToUint8 safely converts uint64 to uint8
+func safeUint64ToUint8(value uint64) uint8 {
+	if value > math.MaxUint8 {
+		return math.MaxUint8
+	}
+	return uint8(value)
 }

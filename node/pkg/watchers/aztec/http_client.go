@@ -104,18 +104,18 @@ func newRetryableHTTPZapLogger(logger *zap.Logger) *retryableHTTPZapLogger {
 	return &retryableHTTPZapLogger{logger: logger}
 }
 
-func (l *retryableHTTPZapLogger) Error(msg string, keysAndValues ...interface{}) {
+func (l *retryableHTTPZapLogger) Error(msg string, _ ...interface{}) {
 	l.logger.Error(msg)
 }
 
-func (l *retryableHTTPZapLogger) Info(msg string, keysAndValues ...interface{}) {
+func (l *retryableHTTPZapLogger) Info(msg string, _ ...interface{}) {
 	l.logger.Info(msg)
 }
 
-func (l *retryableHTTPZapLogger) Debug(msg string, keysAndValues ...interface{}) {
+func (l *retryableHTTPZapLogger) Debug(msg string, _ ...interface{}) {
 	l.logger.Debug(msg)
 }
 
-func (l *retryableHTTPZapLogger) Warn(msg string, keysAndValues ...interface{}) {
+func (l *retryableHTTPZapLogger) Warn(msg string, _ ...interface{}) {
 	l.logger.Warn(msg)
 }
