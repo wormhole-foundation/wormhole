@@ -65,7 +65,7 @@ func (gov *ChainGovernor) setChainForTesting(
 	ce := &chainEntry{
 		emitterChainId:          emitterChainId,
 		emitterAddr:             emitterAddr,
-		usdLimit:              dailyLimit,
+		usdLimit:                dailyLimit,
 		bigTransactionSize:      bigTransactionSize,
 		checkForBigTransactions: bigTransactionSize != 0,
 	}
@@ -266,7 +266,7 @@ func TestSumWithFlowCancelling(t *testing.T) {
 	emitter := &chainEntry{
 		transfers:      chainEntryTransfers,
 		emitterChainId: vaa.ChainID(emitterChainId),
-		usdLimit:     emitterLimit,
+		usdLimit:       emitterLimit,
 	}
 
 	err = emitter.addFlowCancelTransferFromDbTransfer(incomingDbTransfer)
@@ -389,7 +389,7 @@ func TestFlowCancelCannotUnderflow(t *testing.T) {
 	emitter := &chainEntry{
 		transfers:      transfers_from_emitter,
 		emitterChainId: vaa.ChainID(emitterChainId),
-		usdLimit:     emitterLimit,
+		usdLimit:       emitterLimit,
 	}
 	err = emitter.addFlowCancelTransferFromDbTransfer(flowCancelDbTransfer)
 	require.NoError(t, err)
@@ -443,7 +443,7 @@ func TestChainEntrySumExceedsDailyLimit(t *testing.T) {
 	emitter := &chainEntry{
 		transfers:      transfers_from_emitter,
 		emitterChainId: vaa.ChainID(emitterChainId),
-		usdLimit:     emitterLimit,
+		usdLimit:       emitterLimit,
 	}
 	gov.chains[emitter.emitterChainId] = emitter
 
@@ -482,7 +482,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	emitter := &chainEntry{
 		transfers:      transfers_from_emitter,
 		emitterChainId: vaa.ChainID(emitterChainId),
-		usdLimit:     10000,
+		usdLimit:       10000,
 	}
 	gov.chains[emitter.emitterChainId] = emitter
 
@@ -496,7 +496,7 @@ func TestTrimAndSumValueOverflowErrors(t *testing.T) {
 	// overwrite emitter (discard transfer added above)
 	emitter = &chainEntry{
 		emitterChainId: vaa.ChainID(emitterChainId),
-		usdLimit:     10000,
+		usdLimit:       10000,
 	}
 	gov.chains[emitter.emitterChainId] = emitter
 
@@ -2493,7 +2493,7 @@ func TestIsBigTransfer(t *testing.T) {
 	ce := chainEntry{
 		emitterChainId:          vaa.ChainIDEthereum,
 		emitterAddr:             emitterAddr,
-		usdLimit:              uint64(50_000_000),
+		usdLimit:                uint64(50_000_000),
 		bigTransactionSize:      bigTransactionSize,
 		checkForBigTransactions: bigTransactionSize != 0,
 	}
