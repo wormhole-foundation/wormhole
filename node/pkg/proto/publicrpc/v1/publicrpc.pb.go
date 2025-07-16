@@ -81,6 +81,7 @@ const (
 	ChainID_CHAIN_ID_CONVERGE         ChainID = 53
 	ChainID_CHAIN_ID_CODEX            ChainID = 54
 	ChainID_CHAIN_ID_PLUME            ChainID = 55
+	ChainID_CHAIN_ID_AZTEC            ChainID = 56
 	ChainID_CHAIN_ID_WORMCHAIN        ChainID = 3104
 	ChainID_CHAIN_ID_COSMOSHUB        ChainID = 4000
 	ChainID_CHAIN_ID_EVMOS            ChainID = 4001
