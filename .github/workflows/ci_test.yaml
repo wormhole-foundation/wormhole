@@ -11,8 +11,33 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      evm: ${{ steps.filter.outputs.evm }}
+      solana: ${{ steps.filter.outputs.solana }}
+    steps:
+    # For pull requests it's not necessary to checkout the code
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          evm:
+            - 'Makefile'
+            - '.github/workflow/ci_test.yaml'
+            - 'foundry.toml'
+            - 'src/evm/**'
+            - 'test/**'
+          solana:
+            - 'Makefile'
+            - '.github/workflow/ci_test.yaml'
+            - 'src/solana/**'
+
   solana-tests:
     name: Solana
+    needs: changes
+    if: ${{ needs.changes.outputs.solana == 'true' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
@@ -81,8 +106,11 @@ jobs:
         shell: bash
       - name: Run Solana tests
         run: make test-solana
+
   evm-tests:
     name: EVM
+    needs: changes
+    if: ${{ needs.changes.outputs.evm == 'true' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
