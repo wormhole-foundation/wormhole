@@ -54,16 +54,27 @@ aztec-wallet deploy \
     TokenContract \
     --args accounts:owner-wallet WormToken WORM 18 --no-wait
 6. Mint tokens to public & private now to call the upcoming functions:
+aztec-wallet send mint_to_private \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address 0x290769b8eedc8c5671f6eb95b00d172421ce755088e05b48158416797f6b07e3 \
+    --args accounts:owner-wallet accounts:owner-wallet 10000
 6a. Mint public tokens:
+aztec-wallet send mint_to_public \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address 0x290769b8eedc8c5671f6eb95b00d172421ce755088e05b48158416797f6b07e3 \
+    --args accounts:owner-wallet 10000
 7. Deploy the Wormhole contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --alias wormhole \
-    Wormhole \
-    --args 13 13 *receiver address* *token contract address* --no-wait
-*/
+    wormhole_contracts-Wormhole.json \
+    --args 13 13 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x290769b8eedc8c5671f6eb95b00d172421ce755088e05b48158416797f6b07e3 --no-wait --init init*/
 
 #[aztec]
 pub contract Wormhole {
@@ -371,7 +382,7 @@ pub contract Wormhole {
             inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2
         };
         let token_address = AztecAddress {
-            inner: 0x13cbdd508896505ef168ccd64a757bb91e1ddb89c737973d2c596961af73ce8e
+            inner: 0x290769b8eedc8c5671f6eb95b00d172421ce755088e05b48158416797f6b07e3
         };
 
         let _ = Token::at(token_address).transfer_in_private(
