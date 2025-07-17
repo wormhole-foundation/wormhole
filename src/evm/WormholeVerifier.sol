@@ -1117,6 +1117,7 @@ contract WormholeVerifier is EIP712Encoding {
   function _appendSchnorrKey(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     unchecked {
       // Decode the VAA
+      uint256 vaaOffset = offset;
       uint8 version;
       uint32 multisigKeyIndex;
       uint8 signatureCount;
@@ -1125,14 +1126,16 @@ contract WormholeVerifier is EIP712Encoding {
       (multisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
       (signatureCount, offset) = data.asUint8CdUnchecked(offset);
 
-      uint256 signaturesOffset = offset;
-      uint256 envelopeOffset = signaturesOffset + signatureCount * LENGTH_MULTISIG_SIGNATURE;
+      uint256 envelopeOffset = offset + signatureCount * LENGTH_MULTISIG_SIGNATURE;
 
       uint16 emitterChainId;
       bytes32 emitterAddress;
+      uint16 payloadOffset;
 
-      (emitterChainId, offset) = data.asUint16CdUnchecked(envelopeOffset + VaaLib.ENVELOPE_EMITTER_CHAIN_ID_OFFSET);
-      (emitterAddress, offset) = data.asBytes32CdUnchecked(offset);
+      (bytes calldata vaa,) = data.sliceCdUnchecked(vaaOffset, (envelopeOffset - vaaOffset) + VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
+      (emitterChainId, emitterAddress,, payloadOffset) = this.verify(vaa);
+
+      offset = vaaOffset + payloadOffset;
 
       bytes32 module;
       uint8 action;
@@ -1153,8 +1156,7 @@ contract WormholeVerifier is EIP712Encoding {
       uint256 px = newSchnorrKey >> 1;
 
       // Load current multisig key data
-      uint32 currentMultisigKeyCount = _getMultisigKeyCount();
-      uint32 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
+      uint32 currentMultisigKeyIndex = _getMultisigKeyCount() - 1;
       (address[] memory shards, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
 
       uint8 shardCount = uint8(shards.length);
@@ -1179,53 +1181,6 @@ contract WormholeVerifier is EIP712Encoding {
         px != 0,
         px < HALF_SECP256K1_ORDER_PLUS_ONE
       ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
-
-      // Verify the signatures
-      (bytes calldata vaaBody,) = data.sliceCdUnchecked(envelopeOffset, VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
-      bytes32 vaaDoubleHash = vaaBody.calcVaaDoubleHashCd(0);
-
-      bool invalidSignatures = false;
-      assembly ("memory-safe") {
-        function ecrecover(digest, v, r, s, buffer, expected) -> success {
-          mstore(buffer, digest)
-          mstore(add(buffer, OFFSET_ECRECOVER_V), v)
-          mstore(add(buffer, OFFSET_ECRECOVER_R), r)
-          mstore(add(buffer, OFFSET_ECRECOVER_S), s)
-          success := staticcall(gas(), ADDRESS_ECRECOVER, buffer, LENGTH_ECRECOVER_BUFFER, buffer, LENGTH_ECRECOVER_RESULT)
-          success := and(success, eq(expected, mload(buffer)))
-        }
-
-        // Verify the signatures
-        let usedSignerBitfield := 0
-
-        signaturesOffset := add(data.offset, signaturesOffset)
-
-        let buffer := mload(PTR_FREE_MEMORY)
-        for { let i := 0 } lt(i, 1) { i := add(i, 1) } {
-          let signerIndex := shr(SHIFT_GET_1, calldataload(signaturesOffset))
-          let r := calldataload(add(signaturesOffset, OFFSET_MULTISIG_SIGNATURE_R))
-          let s := calldataload(add(signaturesOffset, OFFSET_MULTISIG_SIGNATURE_S))
-          let v := shr(SHIFT_GET_1, calldataload(add(signaturesOffset, OFFSET_MULTISIG_SIGNATURE_V)))
-
-          // Call ecrecover
-          let expected := mload(add(keyDataOffset, shl(5, signerIndex)))
-          let signatureMatch := ecrecover(vaaDoubleHash, add(v, MAGIC_ECRECOVER_PARITY_DELTA), r, s, buffer, expected)
-
-          // Validate the result
-          let invalidIndex := iszero(lt(signerIndex, shardCount))
-          let signerFlag := shl(signerIndex, 1)
-          let invalidSignerUsed := and(usedSignerBitfield, signerFlag)
-          let invalidSignature := iszero(signatureMatch)
-          invalidSignatures := or(or(invalidIndex, invalidSignerUsed), invalidSignature)
-
-          // Update the used signer bitfield and offset for the next signature
-          usedSignerBitfield := or(usedSignerBitfield, signerFlag)
-          signaturesOffset := add(signaturesOffset, LENGTH_MULTISIG_SIGNATURE)
-        }
-      }
-
-      // FIXME: Why is this not correct?
-      require(!invalidSignatures, UpdateFailed(offset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
 
       // If there is a previous schnorr key that is now expired, store the expiration time
       if (newSchnorrKeyIndex > 0) {
@@ -1323,11 +1278,12 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   function _setMultisigExpirationTime(uint256 index, uint32 expirationTime) internal {
-    assembly ("memory-safe") {
-      let ptr := add(SLOT_MULTISIG_KEY_DATA, index)
-      let old := and(sload(ptr), not(MASK_MULTISIG_ENTRY_EXPIRATION_TIME))
-      sstore(ptr, or(old, expirationTime))
-    }
+    uint256 multisigKeySlot = SLOT_MULTISIG_KEY_DATA + index;
+    uint256 oldEntry;
+    assembly ("memory-safe") { oldEntry := sload(multisigKeySlot) }
+
+    uint256 newEntry = (oldEntry & ~MASK_MULTISIG_ENTRY_EXPIRATION_TIME) | expirationTime;
+    assembly ("memory-safe") { sstore(multisigKeySlot, newEntry) }
   }
 
   // Append a new multisig key data entry and creates the corresponding contract

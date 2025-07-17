@@ -878,6 +878,17 @@ contract TestAssembly2 is VerificationTestAPI {
     assertEq(expirationTime2, expirationTimeSet1);
   }
 
+  function test_getGuardianSet_unknownGuardianSet() public {
+    pullGuardianSets(_wormholeVerifierV2, 4);
+
+    uint32 uninitializedGuardianSet = 10000;
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UnknownGuardianSet.selector,
+      uninitializedGuardianSet
+    ));
+    _wormholeVerifierV2.get(getGuardianSet(uninitializedGuardianSet));
+  }
+
   function testRevert_verifyVaaV1() public {
     pullGuardianSets(_wormholeVerifierV2, 5);
     vm.expectRevert(abi.encodeWithSelector(
@@ -990,8 +1001,8 @@ contract TestAssembly2 is VerificationTestAPI {
 
   function testRevert_appendSchnorrKey() public {
     vm.expectRevert(abi.encodeWithSelector(
-      WormholeVerifier.UnknownGuardianSet.selector,
-      type(uint32).max
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE
     ));
     appendSchnorrKey(_wormholeVerifierV2, invalidMultisigVaa, schnorrShardsRaw);
   }
