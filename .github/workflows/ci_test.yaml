@@ -18,7 +18,8 @@ jobs:
       evm: ${{ steps.filter.outputs.evm }}
       solana: ${{ steps.filter.outputs.solana }}
     steps:
-    # For pull requests it's not necessary to checkout the code
+    - name: Checkout repo
+      uses: actions/checkout@v4
     - uses: dorny/paths-filter@v3
       id: filter
       with:
@@ -42,70 +43,70 @@ jobs:
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.15.0"
-          registry-url: "https://npm.pkg.github.com"
-          cache: "npm"
-          cache-dependency-path: |
-            ./src/solana/package-lock.json
+    - name: Checkout repo
+      uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "22.15.0"
+        registry-url: "https://npm.pkg.github.com"
+        cache: "npm"
+        cache-dependency-path: |
+          ./src/solana/package-lock.json
 
-      - name: Set the rust toolchain version
-        run: |
-          rustup override set 1.88.0
-          rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
-      - name: Cache Rust packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src/solana/target
-          key: ${{ runner.os }}-rust-1.88.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
+    - name: Set the rust toolchain version
+      run: |
+        rustup override set 1.88.0
+        rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
+    - name: Cache Rust packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          src/solana/target
+        key: ${{ runner.os }}-rust-1.88.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
 
-      # Taken from https://github.com/metaDAOproject/setup-anchor/blob/main/action.yml#L25-L40
-      # TODO: read Solana version from Anchor.toml
-      - name: Cache Solana CLI tools
-        id: cache-solana-tools
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/solana/
-            ~/.local/share/solana/
-          key: solana-cli-${{ runner.os }}-build-2.2.19
-      - name: Install Solana CLI tools
-        if: ${{ steps.cache-solana-tools.outputs.cache-hit != 'true' }}
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.19/install)"
-        shell: bash
-      # TODO: read Anchor version from Anchor.toml
-      - name: Cache Anchor CLI tools
-        id: cache-anchor-tool
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/bin/anchor
-          key: anchor-cli-${{ runner.os }}-build-0.31.1
-      - name: Install Anchor
-        if: ${{ steps.cache-anchor-tool.outputs.cache-hit != 'true' }}
-        run: |
-          wget https://github.com/coral-xyz/anchor/releases/download/v0.31.1/anchor-0.31.1-x86_64-unknown-linux-gnu
-          chmod +x anchor-0.31.1-x86_64-unknown-linux-gnu
-          mkdir -p "$HOME/bin/anchor"
-          mv anchor-0.31.1-x86_64-unknown-linux-gnu "$HOME/bin/anchor/anchor"
-        shell: bash
-      - name: Update PATH
-        run: |
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          echo "$HOME/bin/anchor" >> $GITHUB_PATH
-        shell: bash
-      # We create the Solana CLI keypair to avoid errors and/or interactive keygen prompts
-      - name: Create keypair
-        run: solana-keygen new --no-bip39-passphrase
-        shell: bash
-      - name: Run Solana tests
-        run: make test-solana
+    # Taken from https://github.com/metaDAOproject/setup-anchor/blob/main/action.yml#L25-L40
+    # TODO: read Solana version from Anchor.toml
+    - name: Cache Solana CLI tools
+      id: cache-solana-tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/solana/
+          ~/.local/share/solana/
+        key: solana-cli-${{ runner.os }}-build-2.2.19
+    - name: Install Solana CLI tools
+      if: ${{ steps.cache-solana-tools.outputs.cache-hit != 'true' }}
+      run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.19/install)"
+      shell: bash
+    # TODO: read Anchor version from Anchor.toml
+    - name: Cache Anchor CLI tools
+      id: cache-anchor-tool
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/bin/anchor
+        key: anchor-cli-${{ runner.os }}-build-0.31.1
+    - name: Install Anchor
+      if: ${{ steps.cache-anchor-tool.outputs.cache-hit != 'true' }}
+      run: |
+        wget https://github.com/coral-xyz/anchor/releases/download/v0.31.1/anchor-0.31.1-x86_64-unknown-linux-gnu
+        chmod +x anchor-0.31.1-x86_64-unknown-linux-gnu
+        mkdir -p "$HOME/bin/anchor"
+        mv anchor-0.31.1-x86_64-unknown-linux-gnu "$HOME/bin/anchor/anchor"
+      shell: bash
+    - name: Update PATH
+      run: |
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        echo "$HOME/bin/anchor" >> $GITHUB_PATH
+      shell: bash
+    # We create the Solana CLI keypair to avoid errors and/or interactive keygen prompts
+    - name: Create keypair
+      run: solana-keygen new --no-bip39-passphrase
+      shell: bash
+    - name: Run Solana tests
+      run: make test-solana
 
   evm-tests:
     name: EVM
@@ -115,46 +116,46 @@ jobs:
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      # - uses: actions/setup-node@v4
-      #   with:
-      #     node-version: "22.15.0"
-      #     registry-url: "https://npm.pkg.github.com"
-      #     cache: "npm"
-      #     cache-dependency-path: |
-      #       ./src/solana/package-lock.json
-      - name: Hash Solidity dependencies
-        id: solidity-deps-hash
-        run: |
-          HASH=$(grep "^LIB_DEPS" Makefile | sha256sum | cut --delimiter=" " --fields=1)
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
-      - name: Cache Solidity build
-        uses: actions/cache@v4
-        with:
-          path: |
-            out
-            cache
-          key: ${{ runner.os }}-${{ steps.solidity-deps-hash.outputs.hash }}-${{ hashFiles('foundry.toml') }}
+    - name: Checkout repo
+      uses: actions/checkout@v4
+    # - uses: actions/setup-node@v4
+    #   with:
+    #     node-version: "22.15.0"
+    #     registry-url: "https://npm.pkg.github.com"
+    #     cache: "npm"
+    #     cache-dependency-path: |
+    #       ./src/solana/package-lock.json
+    - name: Hash Solidity dependencies
+      id: solidity-deps-hash
+      run: |
+        HASH=$(grep "^LIB_DEPS" Makefile | sha256sum | cut --delimiter=" " --fields=1)
+        echo "hash=$HASH" >> $GITHUB_OUTPUT
+    - name: Cache Solidity build
+      uses: actions/cache@v4
+      with:
+        path: |
+          out
+          cache
+        key: ${{ runner.os }}-${{ steps.solidity-deps-hash.outputs.hash }}-${{ hashFiles('foundry.toml') }}
 
-      - name: Cache Foundry CLI tools
-        id: cache-foundry-tool
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.foundry/bin
-          key: foundry-cli-${{ runner.os }}-build-1.2.3
-      - name: Install Foundry
-        if: ${{ steps.cache-foundry-tool.outputs.cache-hit != 'true' }}
-        run: |
-          wget https://github.com/foundry-rs/foundry/releases/download/v1.2.3/foundry_v1.2.3_linux_amd64.tar.gz
-          mkdir -p ~/.foundry/bin
-          tar -xvf foundry_v1.2.3_linux_amd64.tar.gz --directory ~/.foundry/bin
-          chmod +x ~/.foundry/bin/*
-        shell: bash
-      - name: Update PATH
-        run: |
-          echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-        shell: bash
-      - name: Run EVM tests
-        run: make test-evm
+    - name: Cache Foundry CLI tools
+      id: cache-foundry-tool
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.foundry/bin
+        key: foundry-cli-${{ runner.os }}-build-1.2.3
+    - name: Install Foundry
+      if: ${{ steps.cache-foundry-tool.outputs.cache-hit != 'true' }}
+      run: |
+        wget https://github.com/foundry-rs/foundry/releases/download/v1.2.3/foundry_v1.2.3_linux_amd64.tar.gz
+        mkdir -p ~/.foundry/bin
+        tar -xvf foundry_v1.2.3_linux_amd64.tar.gz --directory ~/.foundry/bin
+        chmod +x ~/.foundry/bin/*
+      shell: bash
+    - name: Update PATH
+      run: |
+        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+      shell: bash
+    - name: Run EVM tests
+      run: make test-evm
