@@ -132,7 +132,7 @@ describe("VerificationV2", function() {
   const connection = $.connection
   let payer: Keypair;
   const coreV2 = anchor.workspace.VerificationV2 as anchor.Program<VerificationV2>
-  const testKeyIndex = 5
+  const testKeyIndex = 2
 
   let fakeCoreV1: TestingWormholeCore<"Devnet">
 
@@ -196,16 +196,16 @@ describe("VerificationV2", function() {
 
       let ix
       if (test.operation === "InitSchnorrKey") {
-        ix = await coreV2.methods.initSchnorrKey().accounts({
+        ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
           vaa: postedVaaAddress,
           newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
+          oldSchnorrKey: null,
         }).instruction()
       } else {
-        ix = await coreV2.methods.appendSchnorrKey().accounts({
+        ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
           vaa: postedVaaAddress,
           newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
           oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
-          latestKey: deriveLatestKeyPda()[0],
         }).instruction()
       }
 
@@ -319,7 +319,18 @@ describe("VerificationV2", function() {
       }
     },
     {
-      name: "Appends Schnorr key leaving a gap successfully",
+      name: "Fails to append Schnorr key when skipping indices",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: 5,
+        publicKey: testSchnorrKey,
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: 1,
+      },
+      expectFailureHandler: expectNewKeyIndexNotDirectSuccessor,
+    },
+    {
+      name: "Appends a third Schnorr key",
       test: {
         operation: "AppendSchnorrKey",
         keyIndex: testKeyIndex,
@@ -332,12 +343,12 @@ describe("VerificationV2", function() {
       name: "Fails to append Schnorr key when referencing an old key",
       test: {
         operation: "AppendSchnorrKey",
-        keyIndex: testKeyIndex + 1,
+        keyIndex: testKeyIndex,
         publicKey: testSchnorrKey,
         previousSetExpirationTime: guardianSetExpirationTime,
-        oldKeyIndex: 1,
+        oldKeyIndex: testKeyIndex - 1,
       },
-      expectFailureHandler: expectInvalidOldSchnorrKey,
+      expectFailureHandler: expectAllocateAccountError(deriveSchnorrKeyPda(testKeyIndex)[0].toBase58()),
     },
     {
       name: "Fails to append invalid Schnorr key",
@@ -383,11 +394,10 @@ describe("VerificationV2", function() {
 
     const postedVaaAddress = await postVaaV1(message, undefined, emitter)
 
-    let ix = await coreV2.methods.appendSchnorrKey().accounts({
+    let ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
       vaa: postedVaaAddress,
       newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
       oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
-      latestKey: deriveLatestKeyPda()[0],
     }).instruction()
 
     return expectFailure(
@@ -407,11 +417,10 @@ describe("VerificationV2", function() {
 
     const postedVaaAddress = await postVaaV1(message, fakeCoreV1)
 
-    const ix = await coreV2.methods.appendSchnorrKey().accounts({
+    const ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
       vaa: postedVaaAddress,
       newSchnorrKey: deriveSchnorrKeyPda(newKeyIndex)[0],
       oldSchnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
-      latestKey: deriveLatestKeyPda()[0],
     }).instruction()
 
     return expectFailure(
@@ -515,7 +524,7 @@ function generateInvalidMockPubkey() {
 }
 
 function expectInvalidPayload(error: Error) {
-  expectAtLeastOneLog(error, "Error Code: InvalidPayload")
+  expectAtLeastOneLog(error, "Error Message: IO Error: Invalid payload.")
 }
 
 function expectFailedSignatureVerification(error: Error) {
@@ -537,6 +546,15 @@ function expectInvalidGovernanceContract(error: Error) {
 function expectInvalidSchnorrKey(error: Error) {
   expectAtLeastOneLog(error, "Error Code: AccountDidNotSerialize.")
 }
+
+function expectNewKeyIndexNotDirectSuccessor(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: NewKeyIndexNotDirectSuccessor.")
+}
+
+function expectAllocateAccountError(account: string) {
+  return (error: Error) => expectAtLeastOneLog(error, `Allocate: account Address { address: ${account}, base: None } already in use`)
+}
+
 
 function expectAtLeastOneLog(error: Error, message: string) {
   assert((error as any).transactionLogs.find(

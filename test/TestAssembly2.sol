@@ -295,7 +295,7 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
     uint32 guardianSet,
     uint256 newOffset
   ) {
-    (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(newOffset);
+    (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(offset);
     (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
     (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
     (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
