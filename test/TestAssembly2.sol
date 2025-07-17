@@ -651,7 +651,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
 
   function test_verifyBatchMultisig() public {
     (bool success, bytes memory data) = address(_wormholeVerifierV2).call(batchMultisigMessage);
-    console.logBytes(data);
+
     vm.assertEq(success, true);
     vm.assertEq(data.length, 0);
   }
