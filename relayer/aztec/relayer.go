@@ -174,7 +174,7 @@ func NewConfigFromEnv() Config {
 		SourceChainID:          uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 56)), // Aztec
 		DestChainID:            uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 2)),    // Arbitrum
 		AztecPXEURL:            getEnvOrDefault("AZTEC_PXE_URL", "http://localhost:8090"),
-		AztecWalletAddress:     getEnvOrDefault("AZTEC_WALLET_ADDRESS", "0x05795e88e667e308bc7dc72bca7e5a2db244674b46313a421a378fdbc65b2c9a"),
+		AztecWalletAddress:     getEnvOrDefault("AZTEC_WALLET_ADDRESS", "0x055fd624152f22d925a4e91db92053c63eb022f9c8c9f6690a40e24b7654a4e4"),
 		ArbitrumRPCURL:         getEnvOrDefault("ARBITRUM_RPC_URL", "http://localhost:8545"),
 		PrivateKey:             getEnvOrDefault("PRIVATE_KEY", "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"),
 		WormholeContract:       getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
