@@ -25,13 +25,13 @@ jobs:
         filters: |
           evm:
             - 'Makefile'
-            - '.github/workflow/ci_test.yaml'
+            - '.github/workflows/ci_test.yaml'
             - 'foundry.toml'
             - 'src/evm/**'
             - 'test/**'
           solana:
             - 'Makefile'
-            - '.github/workflow/ci_test.yaml'
+            - '.github/workflows/ci_test.yaml'
             - 'src/solana/**'
 
   solana-tests:
