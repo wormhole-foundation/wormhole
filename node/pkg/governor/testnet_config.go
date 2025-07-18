@@ -27,9 +27,9 @@ func (gov *ChainGovernor) initTestnetConfig() ([]TokenConfigEntry, []TokenConfig
 	}
 
 	chains := []ChainConfigEntry{
-		{EmitterChainID: vaa.ChainIDSolana, DailyLimit: 100000000},
-		{EmitterChainID: vaa.ChainIDEthereum, DailyLimit: 100000000},
-		{EmitterChainID: vaa.ChainIDFantom, DailyLimit: 1000000},
+		{EmitterChainID: vaa.ChainIDSolana, USDLimit: 100000000},
+		{EmitterChainID: vaa.ChainIDEthereum, USDLimit: 100000000},
+		{EmitterChainID: vaa.ChainIDFantom, USDLimit: 1000000},
 	}
 
 	return tokens, flowCancelTokens, chains, flowCancelCorridors
