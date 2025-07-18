@@ -315,6 +315,21 @@
       "name": "12",
       "public": "0xfA2435Eacf10Ca62ae6787ba2fB044f8733Ee843",
       "private": "0x9b9c613a36396172eab2d34d72331c8ca83a358781883a535d2941f66db07b24"
+    },
+    {
+      "name": "13",
+      "public": "0x64E078A8Aa15A41B85890265648e965De686bAE6",
+      "private": "0x0874049f95d55fb76916262dc70571701b5c4cc5900c0691af75f1a8a52c8268"
+    },
+    {
+      "name": "14",
+      "public": "0x2F560290FEF1B3Ada194b6aA9c40aa71f8e95598",
+      "private": "0x21d7212f3b4e5332fd465877b64926e3532653e2798a11255a46f533852dfe46"
+    },
+    {
+      "name": "15",
+      "public": "0xf408f04F9b7691f7174FA2bb73ad6d45fD5d3CBe",
+      "private": "0x47b65307d0d654fd4f786b908c04af8fface7710fc998b37d219de19c39ee58c"
     }
   ],
   "devnetGuardians": [

@@ -45,6 +45,10 @@ type (
 		// ContractAddr specifies the Wormhole core contract address for this chain (starting with 0x).
 		// SECURITY: This is for documentation and validation only. Allowing it as a default would provide a single point attack vector.
 		ContractAddr string
+
+		// CCLContractAddr specifies the address of the custom consistency level contract for this chain (starting with 0x).
+		// SECURITY: This is for documentation and validation only. Allowing it as a default would provide a single point attack vector.
+		CCLContractAddr string
 	}
 
 	// EnvMap defines the config data for a given environment (mainet or testnet).
