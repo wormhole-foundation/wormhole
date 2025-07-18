@@ -312,6 +312,8 @@ const (
 	ChainIDCodex ChainID = 54
 	// ChainIdPlume is the ChainID of Plume
 	ChainIDPlume ChainID = 55
+	// ChainIdAztec is the ChainID of Aztec
+	ChainIDAztec ChainID = 56
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
