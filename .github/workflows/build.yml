@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "22"
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
       - run: cd ethereum && make test-push0 && make test
@@ -82,7 +82,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "22"
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
       - run: cd relayer/ethereum && make test-push0 && make test
@@ -93,7 +93,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "22"
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
       - run: cd clients/js && make install
@@ -222,7 +222,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "22"
       - run: cd terra && make test
   terra-2:
     runs-on: ubuntu-24.04
@@ -230,7 +230,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "22"
       - run: cd cosmwasm/deployment/terra2 && make test
   cosmwasm:
     runs-on: ubuntu-24.04
@@ -238,7 +238,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "16"
+          node-version: "22"
       - run: cd cosmwasm && make test
 
   cli:
@@ -247,7 +247,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: "20"
+          node-version: "22"
       - run: |
           cd clients/js && make test
           make docs
@@ -414,5 +414,5 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: "22"
       - run: npx prettier@2.3.2 --check ./clients/js/src ./sdk/js/src
