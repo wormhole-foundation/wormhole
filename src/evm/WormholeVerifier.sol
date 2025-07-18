@@ -4,7 +4,7 @@ pragma solidity ^0.8.25;
 
 import {console} from "forge-std/console.sol";
 
-import {ICoreBridge, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
+import {CoreBridgeVM, ICoreBridge, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-solidity-sdk/constants/Chains.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
 import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
@@ -232,6 +232,7 @@ contract WormholeVerifier is EIP712Encoding {
   error UpdateFailed(uint256 result);
 
   error UnknownGuardianSet(uint32 index);
+  error GovernanceVaaVerificationFailure();
 
   ICoreBridge private immutable _coreBridge;
 
@@ -1009,7 +1010,7 @@ contract WormholeVerifier is EIP712Encoding {
           result = abi.encodePacked(result, index, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_CURRENT_MULTISIG_KEY_DATA) {
           uint32 index = _getMultisigKeyCount() - 1;
-          (address[] memory keys,,) = _getMultisigKeyData(index);
+          (address[] memory keys,) = _getMultisigKeyData(index);
 
           result = abi.encodePacked(result, uint32(index), uint8(keys.length), keys);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
@@ -1024,7 +1025,7 @@ contract WormholeVerifier is EIP712Encoding {
           uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
 
-          (address[] memory keys,, uint32 expirationTime) = _getMultisigKeyData(index);
+          (address[] memory keys, uint32 expirationTime) = _getMultisigKeyData(index);
 
           result = abi.encodePacked(result, uint8(keys.length), keys, expirationTime);
         } else if (opcode == GET_SCHNORR_SHARD_DATA) {
@@ -1094,8 +1095,7 @@ contract WormholeVerifier is EIP712Encoding {
     (, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) = _getSchnorrExtraData(schnorrKeyIndex);
     require(signerIndex < shardCount, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX));
 
-    // TODO: We could save a bit of gas by only codecopying the key we need
-    (address[] memory keys,,) = _getMultisigKeyData(multisigKeyIndex);
+    (address[] memory keys,) = _getMultisigKeyData(multisigKeyIndex);
 
     address expected = keys[signerIndex];
 
@@ -1117,6 +1117,7 @@ contract WormholeVerifier is EIP712Encoding {
   function _appendSchnorrKey(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     unchecked {
       // Decode the VAA
+      uint256 vaaOffset = offset;
       uint8 version;
       uint32 multisigKeyIndex;
       uint8 signatureCount;
@@ -1125,14 +1126,18 @@ contract WormholeVerifier is EIP712Encoding {
       (multisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
       (signatureCount, offset) = data.asUint8CdUnchecked(offset);
 
-      uint256 signaturesOffset = offset;
-      uint256 envelopeOffset = signaturesOffset + signatureCount * LENGTH_MULTISIG_SIGNATURE;
+      uint256 envelopeOffset = offset + signatureCount * LENGTH_MULTISIG_SIGNATURE;
 
       uint16 emitterChainId;
       bytes32 emitterAddress;
+      uint16 payloadOffset;
 
-      (emitterChainId, offset) = data.asUint16CdUnchecked(envelopeOffset + VaaLib.ENVELOPE_EMITTER_CHAIN_ID_OFFSET);
-      (emitterAddress, offset) = data.asBytes32CdUnchecked(offset);
+      (bytes calldata vaa,) = data.sliceCdUnchecked(vaaOffset, (envelopeOffset - vaaOffset) + VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
+      (emitterChainId, emitterAddress,, payloadOffset) = this.verify(vaa);
+      (CoreBridgeVM memory parsedVM, bool valid,) = _coreBridge.parseAndVerifyVM(vaa);
+      require(valid, GovernanceVaaVerificationFailure());
+
+      offset = vaaOffset + payloadOffset;
 
       bytes32 module;
       uint8 action;
@@ -1153,79 +1158,30 @@ contract WormholeVerifier is EIP712Encoding {
       uint256 px = newSchnorrKey >> 1;
 
       // Load current multisig key data
-      uint32 currentMultisigKeyCount = _getMultisigKeyCount();
-      uint32 currentMultisigKeyIndex = currentMultisigKeyCount - 1;
-      (address[] memory shards, uint256 keyDataOffset,) = _getMultisigKeyData(currentMultisigKeyIndex);
+      uint32 currentMultisigKeyIndex = _getMultisigKeyCount() - 1;
+      (address[] memory shards,) = _getMultisigKeyData(currentMultisigKeyIndex);
 
       uint8 shardCount = uint8(shards.length);
 
       // TODO: Compute all the flags at once
       // NOTE: No need to check multisig expiration, since it's the current multisig key
-      require(version == 1, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_VERSION));
-      require(multisigKeyIndex == currentMultisigKeyIndex, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX));
-      require(signatureCount == shardCount, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SIGNATURE_COUNT));
+      require(version == 1,                         UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_VERSION));
 
-      require(emitterChainId == CHAIN_ID_SOLANA, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_GOVERNANCE_CHAIN));
+      require(eagerAnd(multisigKeyIndex == currentMultisigKeyIndex, parsedVM.guardianSetIndex == currentMultisigKeyIndex),
+                                                    UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX));
+      require(signatureCount == shardCount,         UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SIGNATURE_COUNT));
+
+      require(emitterChainId == CHAIN_ID_SOLANA,    UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_GOVERNANCE_CHAIN));
       require(emitterAddress == GOVERNANCE_ADDRESS, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_GOVERNANCE_ADDRESS));
 
-      require(module == MODULE_VERIFICATION_V2, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MODULE));
-      require(action == ACTION_APPEND_SCHNORR_KEY, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_ACTION));
+      require(module == MODULE_VERIFICATION_V2,     UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_MODULE));
+      require(action == ACTION_APPEND_SCHNORR_KEY,  UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_ACTION));
 
-      require(eagerAnd(
-        newSchnorrKeyIndex == _getSchnorrKeyCount(),
-        newSchnorrKeyIndex < type(uint32).max
-      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
-      require(eagerAnd(
-        px != 0,
-        px < HALF_SECP256K1_ORDER_PLUS_ONE
-      ), UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
+      require(eagerAnd(newSchnorrKeyIndex == _getSchnorrKeyCount(), newSchnorrKeyIndex < type(uint32).max),
+                                                    UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_KEY_INDEX));
 
-      // Verify the signatures
-      (bytes calldata vaaBody,) = data.sliceCdUnchecked(envelopeOffset, VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
-      bytes32 vaaDoubleHash = vaaBody.calcVaaDoubleHashCd(0);
-
-      bool invalidSignatures = false;
-      assembly ("memory-safe") {
-        function ecrecover(digest, v, r, s, buffer, expected) -> success {
-          mstore(buffer, digest)
-          mstore(add(buffer, OFFSET_ECRECOVER_V), v)
-          mstore(add(buffer, OFFSET_ECRECOVER_R), r)
-          mstore(add(buffer, OFFSET_ECRECOVER_S), s)
-          success := staticcall(gas(), ADDRESS_ECRECOVER, buffer, LENGTH_ECRECOVER_BUFFER, buffer, LENGTH_ECRECOVER_RESULT)
-          success := and(success, eq(expected, mload(buffer)))
-        }
-
-        // Verify the signatures
-        let usedSignerBitfield := 0
-
-        signaturesOffset := add(data.offset, signaturesOffset)
-
-        let buffer := mload(PTR_FREE_MEMORY)
-        for { let i := 0 } lt(i, 1) { i := add(i, 1) } {
-          let signerIndex := shr(SHIFT_GET_1, calldataload(signaturesOffset))
-          let r := calldataload(add(signaturesOffset, OFFSET_MULTISIG_SIGNATURE_R))
-          let s := calldataload(add(signaturesOffset, OFFSET_MULTISIG_SIGNATURE_S))
-          let v := shr(SHIFT_GET_1, calldataload(add(signaturesOffset, OFFSET_MULTISIG_SIGNATURE_V)))
-
-          // Call ecrecover
-          let expected := mload(add(keyDataOffset, shl(5, signerIndex)))
-          let signatureMatch := ecrecover(vaaDoubleHash, add(v, MAGIC_ECRECOVER_PARITY_DELTA), r, s, buffer, expected)
-
-          // Validate the result
-          let invalidIndex := iszero(lt(signerIndex, shardCount))
-          let signerFlag := shl(signerIndex, 1)
-          let invalidSignerUsed := and(usedSignerBitfield, signerFlag)
-          let invalidSignature := iszero(signatureMatch)
-          invalidSignatures := or(or(invalidIndex, invalidSignerUsed), invalidSignature)
-
-          // Update the used signer bitfield and offset for the next signature
-          usedSignerBitfield := or(usedSignerBitfield, signerFlag)
-          signaturesOffset := add(signaturesOffset, LENGTH_MULTISIG_SIGNATURE)
-        }
-      }
-
-      // FIXME: Why is this not correct?
-      require(!invalidSignatures, UpdateFailed(offset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
+      require(eagerAnd(px != 0, px < HALF_SECP256K1_ORDER_PLUS_ONE),
+                                                    UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
 
       // If there is a previous schnorr key that is now expired, store the expiration time
       if (newSchnorrKeyIndex > 0) {
@@ -1296,13 +1252,12 @@ contract WormholeVerifier is EIP712Encoding {
 
   function _getMultisigKeyData(uint32 index) internal view returns (
     address[] memory keys,
-    uint256 keyDataOffset,
     uint32 expirationTime
   ) {
     // Load and decode the multisig key data entry
-    uint256 multisigDataIndex = SLOT_MULTISIG_KEY_DATA + index;
+    uint256 multisigDataSlot = SLOT_MULTISIG_KEY_DATA + index;
     uint256 entry;
-    assembly ("memory-safe") { entry := sload(multisigDataIndex) }
+    assembly ("memory-safe") { entry := sload(multisigDataSlot) }
     expirationTime = uint32(entry & MASK_MULTISIG_ENTRY_EXPIRATION_TIME);
 
     // Load the key data contract, validate the size
@@ -1311,23 +1266,28 @@ contract WormholeVerifier is EIP712Encoding {
     require (keyDataSize > 0, UnknownGuardianSet(index));
 
     // Copy the value to memory
+    bytes memory keysBuffer = SSTORE2.read(keyDataAddress);
+
     uint256 size = keyDataSize - OFFSET_MULTISIG_CONTRACT_DATA;
-    uint256 keyCount = size >> 5;
-    assembly ("memory-safe") {
-      keys := mload(PTR_FREE_MEMORY)
-      mstore(keys, keyCount)
-      keyDataOffset := add(keys, LENGTH_WORD)
-      mstore(PTR_FREE_MEMORY, add(keyDataOffset, size))
-      extcodecopy(keyDataAddress, keyDataOffset, OFFSET_MULTISIG_CONTRACT_DATA, size)
+    uint256 keyCount = size / LENGTH_WORD;
+    keys = new address[](keyCount);
+
+    for (uint i = 0; i < keyCount; ++i) {
+      address key;
+      uint256 offset = (i + 1) * LENGTH_WORD;
+      assembly ("memory-safe") { key := mload(add(keysBuffer, offset)) }
+
+      keys[i] = key;
     }
   }
 
   function _setMultisigExpirationTime(uint256 index, uint32 expirationTime) internal {
-    assembly ("memory-safe") {
-      let ptr := add(SLOT_MULTISIG_KEY_DATA, index)
-      let old := and(sload(ptr), not(MASK_MULTISIG_ENTRY_EXPIRATION_TIME))
-      sstore(ptr, or(old, expirationTime))
-    }
+    uint256 multisigKeySlot = SLOT_MULTISIG_KEY_DATA + index;
+    uint256 oldEntry;
+    assembly ("memory-safe") { oldEntry := sload(multisigKeySlot) }
+
+    uint256 newEntry = (oldEntry & ~MASK_MULTISIG_ENTRY_EXPIRATION_TIME) | expirationTime;
+    assembly ("memory-safe") { sstore(multisigKeySlot, newEntry) }
   }
 
   // Append a new multisig key data entry and creates the corresponding contract

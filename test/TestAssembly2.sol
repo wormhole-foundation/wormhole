@@ -7,8 +7,9 @@ import {Test} from "forge-std/Test.sol";
 
 import {CHAIN_ID_SOLANA, CHAIN_ID_ETHEREUM} from "wormhole-solidity-sdk/constants/Chains.sol";
 import {keccak256Word, keccak256SliceUnchecked} from "wormhole-solidity-sdk/utils/Keccak.sol";
-import {ICoreBridge, CoreBridgeVM, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
+import {ICoreBridge, CoreBridgeVM, GuardianSet, GuardianSignature} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
 import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
+import {CoreBridgeLib} from "wormhole-solidity-sdk/libraries/CoreBridge.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
 
 import {EIP712Encoding} from "../src/evm/EIP712Encoding.sol";
@@ -303,8 +304,55 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
   }
 }
 
+contract WormholeV1MockVerification {
+  using BytesParsing for bytes;
+  WormholeV1Mock core;
+
+  constructor(WormholeV1Mock initCore) {
+    core = initCore;
+  }
+
+  function parseAndVerifyVM(bytes calldata vaa) external view returns (
+    CoreBridgeVM memory,
+    bool,
+    string memory
+  ) {
+    (
+      uint32  timestamp,
+      uint32  nonce,
+      uint16  emitterChainId,
+      bytes32 emitterAddress,
+      uint64  sequence,
+      uint8   consistencyLevel,
+      bytes calldata payload
+    ) = CoreBridgeLib.decodeAndVerifyVaaCd(address(core), vaa);
+
+    (uint32 guardianSet,) = vaa.asUint32CdUnchecked(1);
+
+    CoreBridgeVM memory result = CoreBridgeVM({
+      version: 1,
+      timestamp: timestamp,
+      nonce: nonce,
+      emitterChainId: emitterChainId,
+      emitterAddress: emitterAddress,
+      sequence: sequence,
+      consistencyLevel: consistencyLevel,
+      payload: payload,
+      guardianSetIndex: guardianSet,
+      signatures: new GuardianSignature[](0),
+      hash: 0x0
+    });
+    return (result, true, "");
+  }
+}
+
 contract WormholeV1Mock is ICoreBridge {
   GuardianSet[] private _guardianSets;
+  WormholeV1MockVerification wrapVerify;
+
+  constructor() {
+    wrapVerify = new WormholeV1MockVerification(this);
+  }
 
   function messageFee() external pure returns (uint256) {
     revert("Not implemented");
@@ -314,8 +362,20 @@ contract WormholeV1Mock is ICoreBridge {
     revert("Not implemented");
   }
 
-  function parseAndVerifyVM(bytes calldata) external pure returns (CoreBridgeVM memory, bool, string memory) {
-    revert("Not implemented");
+  function parseAndVerifyVM(bytes calldata vaa) external view returns (
+    CoreBridgeVM memory result,
+    bool valid,
+    string memory reason
+  ) {
+    try wrapVerify.parseAndVerifyVM(vaa) returns (CoreBridgeVM memory result2, bool valid2, string memory reason2) {
+      result = result2;
+      valid = valid2;
+      reason = reason2;
+    }
+    catch {
+      valid = false;
+      reason = "Verification failed";
+    }
   }
 
   function nextSequence(address) external pure returns (uint64) {
@@ -878,6 +938,17 @@ contract TestAssembly2 is VerificationTestAPI {
     assertEq(expirationTime2, expirationTimeSet1);
   }
 
+  function test_getGuardianSet_unknownGuardianSet() public {
+    pullGuardianSets(_wormholeVerifierV2, 4);
+
+    uint32 uninitializedGuardianSet = 10000;
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UnknownGuardianSet.selector,
+      uninitializedGuardianSet
+    ));
+    _wormholeVerifierV2.get(getGuardianSet(uninitializedGuardianSet));
+  }
+
   function testRevert_verifyVaaV1() public {
     pullGuardianSets(_wormholeVerifierV2, 5);
     vm.expectRevert(abi.encodeWithSelector(
@@ -990,8 +1061,8 @@ contract TestAssembly2 is VerificationTestAPI {
 
   function testRevert_appendSchnorrKey() public {
     vm.expectRevert(abi.encodeWithSelector(
-      WormholeVerifier.UnknownGuardianSet.selector,
-      type(uint32).max
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE
     ));
     appendSchnorrKey(_wormholeVerifierV2, invalidMultisigVaa, schnorrShardsRaw);
   }
