@@ -146,7 +146,8 @@ axios
           let notional = parseFloat(data.Notional);
           let key = chain + ":" + data.Address.toLowerCase();
           let includeIt = false;
-          if (notional > MinNotional) {
+          // TODO: When the data source is changed, `!=` should be updated to `>`
+          if (notional != MinNotional) {
             includeIt = true;
           } else {
             if (includedTokens.has(key)) {
