@@ -15,7 +15,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
-	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -137,7 +136,6 @@ type (
 		latestBlockNumber          uint64
 		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
-		l1Finalizer                interfaces.L1Finalizer
 
 		ccqConfig          query.PerChainConfig
 		ccqMaxBlockNumber  *big.Int
@@ -743,18 +741,12 @@ func (w *Watcher) getFinality(ctx context.Context) (bool, bool, error) {
 	return finalized, safe, nil
 }
 
-// SetL1Finalizer is used to set the layer one finalizer.
-func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
-	w.l1Finalizer = l1Finalizer
-}
-
-// GetLatestFinalizedBlockNumber() implements the L1Finalizer interface and allows other watchers to
-// get the latest finalized block number from this watcher.
-func (w *Watcher) GetLatestFinalizedBlockNumber() uint64 {
+// getLatestFinalizedBlockNumber() returns the latest finalized block seen by this watcher.
+func (w *Watcher) getLatestFinalizedBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestFinalizedBlockNumber)
 }
 
-// getLatestSafeBlockNumber() returns the latest safe block seen by this watcher..
+// getLatestSafeBlockNumber() returns the latest safe block seen by this watcher.
 func (w *Watcher) getLatestSafeBlockNumber() uint64 {
 	return atomic.LoadUint64(&w.latestSafeBlockNumber)
 }

@@ -25,14 +25,6 @@ func (wc *WatcherConfig) GetChainID() vaa.ChainID {
 	return wc.ChainID
 }
 
-func (wc *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
-	return ""
-}
-
-func (wc *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
-	// empty
-}
-
 //nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (wc *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
@@ -41,8 +33,8 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+) (supervisor.Runnable, interfaces.Reobserver, error) {
 	var devMode = (env == common.UnsafeDevNet)
 
-	return nil, NewWatcher(wc.Rpc, wc.SuiMoveEventType, devMode, msgC, obsvReqC).Run, nil, nil
+	return NewWatcher(wc.Rpc, wc.SuiMoveEventType, devMode, msgC, obsvReqC).Run, nil, nil
 }

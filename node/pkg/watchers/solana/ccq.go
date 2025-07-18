@@ -287,7 +287,7 @@ func (w *SolanaWatcher) ccqCheckForMinSlotContext(
 	if currentSlotFromError != 0 {
 		currentSlot = currentSlotFromError
 	} else {
-		currentSlot = w.GetLatestFinalizedBlockNumber()
+		currentSlot = w.getLatestFinalizedBlockNumber()
 	}
 
 	// Estimate how far in the future the requested slot is, using our estimated slot time.
