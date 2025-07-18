@@ -12,6 +12,24 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+// The following constants are used to calculate the offset of each field in the serialized message publication.
+const (
+	offsetTxIDLength = 0
+	// Assumes a length of 32 bytes for the TxID.
+	offsetTxID              = offsetTxIDLength + 1
+	offsetTimestamp         = offsetTxID + 32
+	offsetNonce             = offsetTimestamp + 8
+	offsetSequence          = offsetNonce + 4
+	offsetConsistencyLevel  = offsetSequence + 8
+	offsetEmitterChain      = offsetConsistencyLevel + 1
+	offsetEmitterAddress    = offsetEmitterChain + 2
+	offsetIsReobservation   = offsetEmitterAddress + 32
+	offsetUnreliable        = offsetIsReobservation + 1
+	offsetVerificationState = offsetUnreliable + 1
+	offsetPayloadLength     = offsetVerificationState + 1
+	offsetPayload           = offsetPayloadLength + 2
+)
+
 func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	bytes := make([]byte, 101)
 	bytes[0] = payload.Type
@@ -29,7 +47,90 @@ func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	return bytes
 }
 
-func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
+// makeTestMsgPub is a helper function that generates a Message Publication.
+func makeTestMsgPub(t *testing.T) *MessagePublication {
+	t.Helper()
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
+
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	payload := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+
+	payloadBytes := encodePayloadBytes(payload)
+
+	return &MessagePublication{
+		TxID:              eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
+		Timestamp:         time.Unix(int64(1654516425), 0),
+		Nonce:             123456,
+		Sequence:          789101112131415,
+		EmitterChain:      vaa.ChainIDEthereum,
+		EmitterAddress:    tokenBridgeAddress,
+		Payload:           payloadBytes,
+		ConsistencyLevel:  32,
+		Unreliable:        true,
+		verificationState: Anomalous,
+	}
+}
+
+func TestRoundTripMarshal(t *testing.T) {
+	orig := makeTestMsgPub(t)
+	var loaded MessagePublication
+
+	bytes, writeErr := orig.MarshalBinary()
+	require.NoError(t, writeErr)
+	t.Logf("marshaled bytes: %x", bytes)
+
+	readErr := loaded.UnmarshalBinary(bytes)
+	require.NoError(t, readErr)
+
+	require.Equal(t, *orig, loaded)
+}
+
+func TestUnmarshalError(t *testing.T) {
+	// Test strategy: Write a good message, then corrupt it.
+	orig := makeTestMsgPub(t)
+
+	origBytes, writeErr := orig.MarshalBinary()
+	require.NoError(t, writeErr)
+	t.Logf("marshaled bytes: %x", origBytes)
+
+	// Check VerificationState errors.
+	// The valid range for the verificationState field is [0, NumVariantsVerificationState-1],
+	// so corrupting the verificationState field should cause an error.
+	bytes := origBytes
+	var err error
+	bytes[offsetVerificationState] = NumVariantsVerificationState
+	var loaded MessagePublication
+	err = loaded.UnmarshalBinary(bytes)
+	require.ErrorIs(t, err, ErrInvalidVerificationState, "expected error to be ErrInvalidVerificationState when unmarshaling corrupted verificationState")
+
+	// Check IsUnreliable errors.
+	bytes = origBytes
+	bytes[offsetUnreliable] = 0x02 // invalid boolean value
+	err = loaded.UnmarshalBinary(bytes)
+	require.ErrorIs(t, err, ErrInvalidBinaryBool, "expected error to be ErrInvalidBinaryBool when unmarshaling corrupted unreliable field")
+
+	// Check IsReobservation errors.
+	bytes = origBytes
+	bytes[offsetIsReobservation] = 0x02 // invalid boolean value
+	err = loaded.UnmarshalBinary(bytes)
+	require.ErrorIs(t, err, ErrInvalidBinaryBool, "expected error to be ErrInvalidBinaryBool when unmarshaling corrupted isReobservation field")
+
+}
+
+func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
