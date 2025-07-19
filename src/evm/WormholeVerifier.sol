@@ -1032,9 +1032,9 @@ contract WormholeVerifier is EIP712Encoding {
           uint32 schnorrKeyIndex;
           (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
 
-          bytes memory shardData = _getSchnorrShardDataExport(schnorrKeyIndex);
+          (uint8 shardCount, bytes memory shardData) = _getSchnorrShardDataExport(schnorrKeyIndex);
 
-          result = abi.encodePacked(result, shardData);
+          result = abi.encodePacked(result, shardCount, shardData);
         } else {
           revert GetFailed(offset | MASK_GET_RESULT_INVALID_OPCODE);
         }
@@ -1200,7 +1200,7 @@ contract WormholeVerifier is EIP712Encoding {
       require(expectedHash == initialShardDataHash, UpdateFailed(offset | MASK_UPDATE_RESULT_SHARD_DATA_MISMATCH));
 
       // Store the shard data
-      _storeSchnorrShardDataBlock(newSchnorrKeyIndex, shardCount, shardData);
+      _storeSchnorrShardDataBlock(newSchnorrKeyIndex, shardData);
 
       return offset;
     }
@@ -1272,10 +1272,11 @@ contract WormholeVerifier is EIP712Encoding {
     uint256 keyCount = size / LENGTH_WORD;
     keys = new address[](keyCount);
 
+    uint256 offset = 0;
     for (uint i = 0; i < keyCount; ++i) {
       address key;
-      uint256 offset = (i + 1) * LENGTH_WORD;
-      assembly ("memory-safe") { key := mload(add(keysBuffer, offset)) }
+      // each key is padded to 32 bytes
+      (key, offset) = keysBuffer.asAddressMemUnchecked(offset + 12);
 
       keys[i] = key;
     }
@@ -1292,10 +1293,10 @@ contract WormholeVerifier is EIP712Encoding {
 
   // Append a new multisig key data entry and creates the corresponding contract
   function _appendMultisigKeyData(address[] memory keys, uint32 expirationTime) internal {
-    bytes memory keysBuffer = new bytes(keys.length << 5);
+    bytes memory keysBuffer = new bytes(keys.length * LENGTH_WORD);
     for (uint i = 0; i < keys.length; ++i) {
       address key = keys[i];
-      uint256 offset = (i + 1) << 5;
+      uint256 offset = (i + 1) * LENGTH_WORD;
       assembly ("memory-safe") { mstore(add(keysBuffer, offset), key) }
     }
 
@@ -1342,41 +1343,37 @@ contract WormholeVerifier is EIP712Encoding {
     multisigKeyIndex = uint32( storageWord >> SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX                                     );
   }
 
-  function _getSchnorrShardDataExport(uint32 index) internal view returns (bytes memory shardData) {
-    assembly ("memory-safe") {
-      let extraData := sload(add(SLOT_SCHNORR_EXTRA_DATA, index))
-      let shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, extraData), MASK_SCHNORR_EXTRA_SHARD_BASE)
-      let shardCount := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_COUNT, extraData), MASK_SCHNORR_EXTRA_SHARD_COUNT)
+  function _getSchnorrShardDataExport(uint32 index) internal view returns (uint8 shardCount, bytes memory shardData) {
+    uint40 shardBase;
+    (, shardCount, shardBase,) = _getSchnorrExtraData(index);
 
-      // Set the result pointer and the length
-      shardData := mload(PTR_FREE_MEMORY)
-      mstore(shardData, shl(6, shardCount)) // NOTE: 2^6 = 64 bytes per shard, 32 for the shard + 32 for the ID
+    // 32 bytes for the shard + 32 for the ID
+    uint256 entries = shardCount * 2;
+    shardData = new bytes(entries * LENGTH_WORD);
 
-      // Copy the shard data
-      let readPtr := add(SLOT_SCHNORR_SHARD_DATA, shardBase)
-      let writePtr := add(shardData, shl(5, shardCount))
-
-      for {let i := 0} lt(i, shardCount) {i := add(i, 1)} {
-        mstore(writePtr, sload(readPtr))
-        mstore(add(writePtr, LENGTH_WORD), sload(add(readPtr, 1)))
-        writePtr := add(writePtr, 0x40)
-        readPtr := add(readPtr, 2)
+    for (uint i = 0; i < entries; ++i) {
+      uint256 memoryOffset = (i + 1) * LENGTH_WORD;
+      uint256 readSlot = SLOT_SCHNORR_SHARD_DATA + shardBase + i * LENGTH_WORD;
+      assembly ("memory-safe") {
+        let entry := sload(readSlot)
+        mstore(add(shardData, memoryOffset), entry)
       }
     }
   }
 
   function _setSchnorrExpirationTime(uint32 index, uint32 expirationTime) internal {
-    assembly ("memory-safe") {
-      let ptr := add(SLOT_SCHNORR_EXTRA_DATA, index)
-      let old := and(sload(ptr), not(MASK_SCHNORR_EXTRA_EXPIRATION_TIME))
-      sstore(ptr, or(old, expirationTime))
-    }
+    uint256 schnorrDataSlot = SLOT_SCHNORR_EXTRA_DATA + index;
+    uint256 oldEntry;
+    assembly ("memory-safe") { oldEntry := sload(schnorrDataSlot) }
+
+    uint256 newEntry = (oldEntry & ~MASK_SCHNORR_EXTRA_EXPIRATION_TIME) | expirationTime;
+    assembly ("memory-safe") { sstore(schnorrDataSlot, newEntry) }
   }
 
   function _setSchnorrShardId(uint40 shardBase, uint8 signerIndex, bytes32 newSchnorrId) internal {
+    uint256 shardIdSlot = SLOT_SCHNORR_SHARD_DATA + shardBase + (signerIndex * 2 + 1) * LENGTH_WORD;
     assembly ("memory-safe") {
-      let ptr := add(add(shardBase, 1), shl(1, signerIndex)) // TODO: magic number
-      sstore(ptr, newSchnorrId)
+      sstore(shardIdSlot, newSchnorrId)
     }
   }
   
@@ -1408,17 +1405,17 @@ contract WormholeVerifier is EIP712Encoding {
     _updateSchnorrKeyCount(keyIndex + 1);
   }
 
-  function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, uint8 shardCount, bytes memory shardData) internal {
-    assembly ("memory-safe") {
-      let extraData := add(SLOT_SCHNORR_EXTRA_DATA, schnorrKeyIndex)
-      let shardBase := and(shr(SHIFT_SCHNORR_EXTRA_SHARD_BASE, sload(extraData)), MASK_SCHNORR_EXTRA_SHARD_BASE)
-      let writePtr := add(SLOT_SCHNORR_SHARD_DATA, shardBase)
-      let readPtr := add(shardData, LENGTH_WORD)
-      for {let i := 0} lt(i, shardCount) {i := add(i, 1)} {
-        sstore(writePtr, mload(readPtr))
-        sstore(add(writePtr, 1), mload(add(readPtr, LENGTH_WORD)))
-        writePtr := add(writePtr, 2)
-        readPtr := add(readPtr, 0x40)
+  function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, bytes memory shardData) internal {
+    (,, uint40 shardBase,) = _getSchnorrExtraData(schnorrKeyIndex);
+    uint256 shardsSlot = SLOT_SCHNORR_SHARD_DATA + shardBase;
+
+    uint256 entries = shardData.length / LENGTH_WORD;
+    for (uint i = 0; i < entries; ++i) {
+      uint256 memoryOffset = (i + 1) * LENGTH_WORD;
+      uint256 writeSlot = SLOT_SCHNORR_SHARD_DATA + shardBase + i * LENGTH_WORD;
+      assembly ("memory-safe") {
+        let entry := mload(add(shardData, memoryOffset))
+        sstore(writeSlot, entry)
       }
     }
   }
