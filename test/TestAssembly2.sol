@@ -53,6 +53,9 @@ import {
   GET_SCHNORR_SHARD_DATA
 } from "../src/evm/WormholeVerifier.sol";
 
+
+uint256 constant LENGTH_WORD = 0x20;
+
 struct ShardData {
   bytes32 shard;
   bytes32 id;
@@ -266,18 +269,18 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
   }
 
   function decodeGetCurrentSchnorrKey(bytes memory result, uint256 offset) public pure returns (
-    uint32 schnorrKeyIndex,
+    uint32  schnorrKeyIndex,
     uint256 schnorrKeyPubkey,
-    uint32 expirationTime,
-    uint8 shardCount,
-    uint32 guardianSet,
+    uint32  expirationTime,
+    uint8   shardCount,
+    uint32  guardianSet,
     uint256 newOffset
   ) {
-    (schnorrKeyIndex, newOffset) = result.asUint32MemUnchecked(offset);
+    (schnorrKeyIndex,  newOffset) = result.asUint32MemUnchecked(offset);
     (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(newOffset);
-    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
-    (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
-    (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (expirationTime,   newOffset) = result.asUint32MemUnchecked(newOffset);
+    (shardCount,       newOffset) = result.asUint8MemUnchecked(newOffset);
+    (guardianSet,      newOffset) = result.asUint32MemUnchecked(newOffset);
     assertGe(result.length, newOffset);
   }
 
@@ -291,15 +294,41 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
 
   function decodeGetSchnorrKey(bytes memory result, uint256 offset) public pure returns (
     uint256 schnorrKeyPubkey,
-    uint32 expirationTime,
-    uint8 shardCount,
-    uint32 guardianSet,
+    uint32  expirationTime,
+    uint8   shardCount,
+    uint32  guardianSet,
     uint256 newOffset
   ) {
     (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(offset);
-    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
-    (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
-    (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (expirationTime,   newOffset) = result.asUint32MemUnchecked(newOffset);
+    (shardCount,       newOffset) = result.asUint8MemUnchecked(newOffset);
+    (guardianSet,      newOffset) = result.asUint32MemUnchecked(newOffset);
+    assertGe(result.length, newOffset);
+  }
+
+  function getShardData(uint32 index) public pure returns (bytes memory) {
+    return abi.encodePacked(
+      GET_SCHNORR_SHARD_DATA,
+      uint32(index)
+    );
+  }
+
+  function decodeShardData(bytes memory result, uint256 offset) public pure returns (
+    ShardData[] memory shardData,
+    uint256     newOffset
+  ) {
+    uint256 shards;
+    (shards, newOffset) = result.asUint8MemUnchecked(offset);
+    shardData = new ShardData[](shards);
+
+    for (uint i = 0; i < shards; ++i) {
+      bytes32 shard;
+      bytes32 id;
+      (shard, newOffset) = result.asBytes32MemUnchecked(newOffset);
+      (id,    newOffset) = result.asBytes32MemUnchecked(newOffset);
+      shardData[i].shard = shard;
+      shardData[i].id = id;
+    }
     assertGe(result.length, newOffset);
   }
 }
@@ -737,6 +766,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
 
 contract TestAssembly2 is VerificationTestAPI {
   using VaaLib for bytes;
+  using BytesParsing for bytes;
 
   uint32 private constant EXPIRATION_DELAY_SECONDS = 24 * 60 * 60;
 
@@ -1138,6 +1168,33 @@ contract TestAssembly2 is VerificationTestAPI {
     assertEq(expirationTime, 0);
     assertEq(shardCount, SHARD_COUNT);
     assertEq(guardianSet, 0);
+  }
+
+  function test_getSchnorrShards() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+
+    uint256 pk2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
+
+    uint32 schnorrKeyIndex = 0;
+    bytes memory result = _wormholeVerifierV2.get(getShardData(schnorrKeyIndex));
+
+    (
+      ShardData[] memory shards,
+    ) = decodeShardData(result, 0);
+    uint256 shardCount = schnorrShardsRaw.length / (LENGTH_WORD * 2);
+    assertEq(shards.length, shardCount);
+
+    uint256 offset = 0;
+    for (uint i = 0; i < shardCount; ++i) {
+      bytes32 shard;
+      bytes32 id;
+      (shard, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+      (id,    offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+
+      assertEq(shard, shards[i].shard);
+      assertEq(id,    shards[i].id);
+    }
   }
 
   function test_getSchnorrKey() public {
