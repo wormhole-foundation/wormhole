@@ -7,8 +7,9 @@ import {Test} from "forge-std/Test.sol";
 
 import {CHAIN_ID_SOLANA, CHAIN_ID_ETHEREUM} from "wormhole-solidity-sdk/constants/Chains.sol";
 import {keccak256Word, keccak256SliceUnchecked} from "wormhole-solidity-sdk/utils/Keccak.sol";
-import {ICoreBridge, CoreBridgeVM, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
+import {ICoreBridge, CoreBridgeVM, GuardianSet, GuardianSignature} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
 import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
+import {CoreBridgeLib} from "wormhole-solidity-sdk/libraries/CoreBridge.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
 
 import {EIP712Encoding} from "../src/evm/EIP712Encoding.sol";
@@ -51,6 +52,9 @@ import {
   GET_MULTISIG_KEY_DATA,
   GET_SCHNORR_SHARD_DATA
 } from "../src/evm/WormholeVerifier.sol";
+
+
+uint256 constant LENGTH_WORD = 0x20;
 
 struct ShardData {
   bytes32 shard;
@@ -265,18 +269,18 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
   }
 
   function decodeGetCurrentSchnorrKey(bytes memory result, uint256 offset) public pure returns (
-    uint32 schnorrKeyIndex,
+    uint32  schnorrKeyIndex,
     uint256 schnorrKeyPubkey,
-    uint32 expirationTime,
-    uint8 shardCount,
-    uint32 guardianSet,
+    uint32  expirationTime,
+    uint8   shardCount,
+    uint32  guardianSet,
     uint256 newOffset
   ) {
-    (schnorrKeyIndex, newOffset) = result.asUint32MemUnchecked(offset);
+    (schnorrKeyIndex,  newOffset) = result.asUint32MemUnchecked(offset);
     (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(newOffset);
-    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
-    (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
-    (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (expirationTime,   newOffset) = result.asUint32MemUnchecked(newOffset);
+    (shardCount,       newOffset) = result.asUint8MemUnchecked(newOffset);
+    (guardianSet,      newOffset) = result.asUint32MemUnchecked(newOffset);
     assertGe(result.length, newOffset);
   }
 
@@ -290,21 +294,94 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
 
   function decodeGetSchnorrKey(bytes memory result, uint256 offset) public pure returns (
     uint256 schnorrKeyPubkey,
-    uint32 expirationTime,
-    uint8 shardCount,
-    uint32 guardianSet,
+    uint32  expirationTime,
+    uint8   shardCount,
+    uint32  guardianSet,
     uint256 newOffset
   ) {
     (schnorrKeyPubkey, newOffset) = result.asUint256MemUnchecked(offset);
-    (expirationTime, newOffset) = result.asUint32MemUnchecked(newOffset);
-    (shardCount, newOffset) = result.asUint8MemUnchecked(newOffset);
-    (guardianSet, newOffset) = result.asUint32MemUnchecked(newOffset);
+    (expirationTime,   newOffset) = result.asUint32MemUnchecked(newOffset);
+    (shardCount,       newOffset) = result.asUint8MemUnchecked(newOffset);
+    (guardianSet,      newOffset) = result.asUint32MemUnchecked(newOffset);
     assertGe(result.length, newOffset);
+  }
+
+  function getShardData(uint32 index) public pure returns (bytes memory) {
+    return abi.encodePacked(
+      GET_SCHNORR_SHARD_DATA,
+      uint32(index)
+    );
+  }
+
+  function decodeShardData(bytes memory result, uint256 offset) public pure returns (
+    ShardData[] memory shardData,
+    uint256     newOffset
+  ) {
+    uint256 shards;
+    (shards, newOffset) = result.asUint8MemUnchecked(offset);
+    shardData = new ShardData[](shards);
+
+    for (uint i = 0; i < shards; ++i) {
+      bytes32 shard;
+      bytes32 id;
+      (shard, newOffset) = result.asBytes32MemUnchecked(newOffset);
+      (id,    newOffset) = result.asBytes32MemUnchecked(newOffset);
+      shardData[i].shard = shard;
+      shardData[i].id = id;
+    }
+    assertGe(result.length, newOffset);
+  }
+}
+
+contract WormholeV1MockVerification {
+  using BytesParsing for bytes;
+  WormholeV1Mock core;
+
+  constructor(WormholeV1Mock initCore) {
+    core = initCore;
+  }
+
+  function parseAndVerifyVM(bytes calldata vaa) external view returns (
+    CoreBridgeVM memory,
+    bool,
+    string memory
+  ) {
+    (
+      uint32  timestamp,
+      uint32  nonce,
+      uint16  emitterChainId,
+      bytes32 emitterAddress,
+      uint64  sequence,
+      uint8   consistencyLevel,
+      bytes calldata payload
+    ) = CoreBridgeLib.decodeAndVerifyVaaCd(address(core), vaa);
+
+    (uint32 guardianSet,) = vaa.asUint32CdUnchecked(1);
+
+    CoreBridgeVM memory result = CoreBridgeVM({
+      version: 1,
+      timestamp: timestamp,
+      nonce: nonce,
+      emitterChainId: emitterChainId,
+      emitterAddress: emitterAddress,
+      sequence: sequence,
+      consistencyLevel: consistencyLevel,
+      payload: payload,
+      guardianSetIndex: guardianSet,
+      signatures: new GuardianSignature[](0),
+      hash: 0x0
+    });
+    return (result, true, "");
   }
 }
 
 contract WormholeV1Mock is ICoreBridge {
   GuardianSet[] private _guardianSets;
+  WormholeV1MockVerification wrapVerify;
+
+  constructor() {
+    wrapVerify = new WormholeV1MockVerification(this);
+  }
 
   function messageFee() external pure returns (uint256) {
     revert("Not implemented");
@@ -314,8 +391,20 @@ contract WormholeV1Mock is ICoreBridge {
     revert("Not implemented");
   }
 
-  function parseAndVerifyVM(bytes calldata) external pure returns (CoreBridgeVM memory, bool, string memory) {
-    revert("Not implemented");
+  function parseAndVerifyVM(bytes calldata vaa) external view returns (
+    CoreBridgeVM memory result,
+    bool valid,
+    string memory reason
+  ) {
+    try wrapVerify.parseAndVerifyVM(vaa) returns (CoreBridgeVM memory result2, bool valid2, string memory reason2) {
+      result = result2;
+      valid = valid2;
+      reason = reason2;
+    }
+    catch {
+      valid = false;
+      reason = "Verification failed";
+    }
   }
 
   function nextSequence(address) external pure returns (uint64) {
@@ -435,6 +524,10 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
       VERIFY_SCHNORR,
       smallSchnorrVaaHeader2,
       getEnvelopeDigest(smallEnvelope),
+      bigSchnorrVaaHeader2,
+      getEnvelopeDigest(bigEnvelope),
+      bigSchnorrVaaHeader2,
+      getEnvelopeDigest(bigEnvelope),
       bigSchnorrVaaHeader2,
       getEnvelopeDigest(bigEnvelope)
     );
@@ -598,7 +691,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
-  function test_verifyMultisig() public view {
+  function test_benchmark_verifyMultisig() public view {
     (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
       _wormholeVerifierV2.verify(smallMultisigVaa);
     vm.assertEq(emitterChain, 0);
@@ -607,7 +700,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 1 + 66*SHARD_QUORUM + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
-  function test_verifySchnorr() public view {
+  function test_benchmark_verifySchnorr() public view {
     (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
       _wormholeVerifierV2.verify(smallSchnorrVaa);
     vm.assertEq(emitterChain, 0);
@@ -616,7 +709,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
-  function test_verifyMultisigBig() public view {
+  function test_benchmark_verifyMultisigBig() public view {
     (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
       _wormholeVerifierV2.verify(bigMultisigVaa);
     vm.assertEq(emitterChain, 0);
@@ -625,7 +718,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 1 + 66*SHARD_QUORUM + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
-  function test_verifySchnorrBig() public view {
+  function test_benchmark_verifySchnorrBig() public view {
     (uint16 emitterChain, bytes32 emitterAddress, uint64 sequence, uint16 payloadOffset) =
       _wormholeVerifierV2.verify(bigSchnorrVaa);
     vm.assertEq(emitterChain, 0);
@@ -649,14 +742,14 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     _wormholeVerifierV2.verify(invalidSchnorrVaa);
   }
 
-  function test_verifyBatchMultisig() public {
+  function test_benchmark_verifyBatchMultisig() public {
     (bool success, bytes memory data) = address(_wormholeVerifierV2).call(batchMultisigMessage);
 
     vm.assertEq(success, true);
     vm.assertEq(data.length, 0);
   }
 
-  function test_verifyBatchSchnorr() public {
+  function test_benchmark_verifyBatchSchnorr() public {
     (bool success, bytes memory data) = address(_wormholeVerifierV2).call(batchSchnorrMessage);
 
     vm.assertEq(success, true);
@@ -677,6 +770,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
 
 contract TestAssembly2 is VerificationTestAPI {
   using VaaLib for bytes;
+  using BytesParsing for bytes;
 
   uint32 private constant EXPIRATION_DELAY_SECONDS = 24 * 60 * 60;
 
@@ -878,6 +972,17 @@ contract TestAssembly2 is VerificationTestAPI {
     assertEq(expirationTime2, expirationTimeSet1);
   }
 
+  function test_getGuardianSet_unknownGuardianSet() public {
+    pullGuardianSets(_wormholeVerifierV2, 4);
+
+    uint32 uninitializedGuardianSet = 10000;
+    vm.expectRevert(abi.encodeWithSelector(
+      WormholeVerifier.UnknownGuardianSet.selector,
+      uninitializedGuardianSet
+    ));
+    _wormholeVerifierV2.get(getGuardianSet(uninitializedGuardianSet));
+  }
+
   function testRevert_verifyVaaV1() public {
     pullGuardianSets(_wormholeVerifierV2, 5);
     vm.expectRevert(abi.encodeWithSelector(
@@ -990,8 +1095,8 @@ contract TestAssembly2 is VerificationTestAPI {
 
   function testRevert_appendSchnorrKey() public {
     vm.expectRevert(abi.encodeWithSelector(
-      WormholeVerifier.UnknownGuardianSet.selector,
-      type(uint32).max
+      WormholeVerifier.VerificationFailed.selector,
+      MASK_VERIFY_RESULT_INVALID_KEY_DATA_SIZE
     ));
     appendSchnorrKey(_wormholeVerifierV2, invalidMultisigVaa, schnorrShardsRaw);
   }
@@ -1067,6 +1172,31 @@ contract TestAssembly2 is VerificationTestAPI {
     assertEq(expirationTime, 0);
     assertEq(shardCount, SHARD_COUNT);
     assertEq(guardianSet, 0);
+  }
+
+  function test_getSchnorrShards() public {
+    pullGuardianSets(_wormholeVerifierV2, 1);
+    appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
+
+    uint32 schnorrKeyIndex = 0;
+    bytes memory result = _wormholeVerifierV2.get(getShardData(schnorrKeyIndex));
+
+    (
+      ShardData[] memory shards,
+    ) = decodeShardData(result, 0);
+    uint256 shardCount = schnorrShardsRaw.length / (LENGTH_WORD * 2);
+    assertEq(shards.length, shardCount);
+
+    uint256 offset = 0;
+    for (uint i = 0; i < shardCount; ++i) {
+      bytes32 shard;
+      bytes32 id;
+      (shard, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+      (id,    offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+
+      assertEq(shard, shards[i].shard);
+      assertEq(id,    shards[i].id);
+    }
   }
 
   function test_getSchnorrKey() public {
