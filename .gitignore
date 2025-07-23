@@ -11,3 +11,5 @@ broadcast
 dist
 ts-types
 ts-build
+
+tmp/
