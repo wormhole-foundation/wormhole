@@ -1,12 +1,8 @@
 package db
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
-	"sort"
 	"testing"
 	"time"
 
@@ -57,11 +53,11 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfer2)
 
-	expectedTransferKey := "GOV:XFER3:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedTransferKey := "GOV:XFER4:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
 }
 
-func TestPendingMsgID(t *testing.T) {
+func TestPendingMsgIDV5(t *testing.T) {
 	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
@@ -76,10 +72,10 @@ func TestPendingMsgID(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	assert.Equal(t, []byte("GOV:PENDING4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
+	assert.Equal(t, []byte("GOV:PENDING5:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
 }
 
-func TestTransferMsgID(t *testing.T) {
+func TestTransferMsgIDV4(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
@@ -102,37 +98,291 @@ func TestTransferMsgID(t *testing.T) {
 		Hash:           "Hash1",
 	}
 
-	assert.Equal(t, []byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
+	assert.Equal(t, []byte("GOV:XFER4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
 }
 
-func TestIsTransfer(t *testing.T) {
-	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:1")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:1/1/1")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:XFER3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsTransfer([]byte("GOV:XFER3:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, IsTransfer([]byte("GOV:PENDING:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsTransfer([]byte{0x01, 0x02, 0x03, 0x04}))
-	assert.Equal(t, false, IsTransfer([]byte{}))
-	assert.Equal(t, true, isOldTransfer([]byte("GOV:XFER2:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldTransfer([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+// Deprecated: This function does not unmarshal the Unreliable or verificationState fields.
+func TestTransferMsgIDV3(t *testing.T) {
+	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
 
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
+	require.NoError(t, err)
+
+	xfer := &Transfer{
+		Timestamp:      time.Unix(int64(1654516425), 0),
+		Value:          125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
+		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		Hash:           "Hash1",
+	}
+
+	assert.Equal(t, []byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), oldTransferMsgID(xfer))
 }
 
-func TestIsPendingMsg(t *testing.T) {
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:"+"1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:"+"1/1/1")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING4:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/")))
-	assert.Equal(t, true, IsPendingMsg([]byte("GOV:PENDING4:"+"1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")))
-	assert.Equal(t, false, IsPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, IsPendingMsg([]byte{0x01, 0x02, 0x03, 0x04}))
-	assert.Equal(t, false, IsPendingMsg([]byte{}))
-	assert.Equal(t, true, isOldPendingMsg([]byte("GOV:PENDING3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
-	assert.Equal(t, false, isOldPendingMsg([]byte("GOV:PENDING4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415")))
+// TestIsTransferV4 tests the IsTransfer function for the current transfer format.
+// The V4 suffix matches the "GOV:XFER4:" prefix used by the current transfer implementation.
+func TestIsTransferV4(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected bool
+	}{
+		{
+			name:     "valid transfer message",
+			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: true,
+		},
+		{
+			name:     "transfer prefix only",
+			input:    []byte("GOV:XFER4:"),
+			expected: false,
+		},
+		{
+			name:     "transfer with single digit",
+			input:    []byte("GOV:XFER4:1"),
+			expected: false,
+		},
+		{
+			name:     "transfer with a msgID that is too small",
+			input:    []byte("GOV:XFER4:1/1/1"),
+			expected: false,
+		},
+		{
+			name:     "transfer with missing sequence",
+			input:    []byte("GOV:XFER4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
+			expected: false,
+		},
+		{
+			name:     "valid transfer with sequence 0",
+			input:    []byte("GOV:XFER4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
+			expected: true,
+		},
+		{
+			name:     "pending message (not transfer)",
+			input:    []byte("GOV:PENDING:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: false,
+		},
+		{
+			name:     "binary data",
+			input:    []byte{0x01, 0x02, 0x03, 0x04},
+			expected: false,
+		},
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsTransfer(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestIsTransferV3 tests the isOldTransfer function for the legacy transfer format.
+// The V3 suffix matches the "GOV:XFER3:" prefix used by the legacy transfer implementation.
+func TestIsTransferV3(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected bool
+	}{
+		{
+			name:     "old transfer message",
+			input:    []byte("GOV:XFER3:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: true,
+		},
+		{
+			name:     "new transfer message",
+			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: false,
+		},
+		{
+			name:     "old transfer prefix only",
+			input:    []byte("GOV:XFER3:"),
+			expected: false,
+		},
+		{
+			name:     "old transfer with single digit",
+			input:    []byte("GOV:XFER3:1"),
+			expected: false,
+		},
+		{
+			name:     "old transfer with a msgID that is too small",
+			input:    []byte("GOV:XFER3:1/1/1"),
+			expected: false,
+		},
+		{
+			name:     "old transfer with missing sequence",
+			input:    []byte("GOV:XFER3:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
+			expected: false,
+		},
+		{
+			name:     "old transfer with sequence 0",
+			input:    []byte("GOV:XFER3:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
+			expected: true,
+		},
+		{
+			name:     "binary data",
+			input:    []byte{0x01, 0x02, 0x03, 0x04},
+			expected: false,
+		},
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isOldTransfer(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestIsPendingMsgV5 tests the IsPendingMsg function for the current pending message format.
+// The V5 suffix matches the "GOV:PENDING5:" prefix used by the current pending message implementation.
+func TestIsPendingMsgV5(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected bool
+	}{
+		{
+			name:     "valid pending message",
+			input:    []byte("GOV:PENDING5:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: true,
+		},
+		{
+			name:     "transfer message (not pending)",
+			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: false,
+		},
+		{
+			name:     "pending prefix only",
+			input:    []byte("GOV:PENDING5:"),
+			expected: false,
+		},
+		{
+			name:     "pending with single digit",
+			input:    []byte("GOV:PENDING5:" + "1"),
+			expected: false,
+		},
+		{
+			name:     "pending with a msgID that is too small",
+			input:    []byte("GOV:PENDING5:" + "1/1/1"),
+			expected: false,
+		},
+		{
+			name:     "pending with missing sequence",
+			input:    []byte("GOV:PENDING5:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
+			expected: false,
+		},
+		{
+			name:     "valid pending with sequence 0",
+			input:    []byte("GOV:PENDING5:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
+			expected: true,
+		},
+		{
+			name:     "old pending version",
+			input:    []byte("GOV:PENDING4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: false,
+		},
+		{
+			name:     "binary data",
+			input:    []byte{0x01, 0x02, 0x03, 0x04},
+			expected: false,
+		},
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsPendingMsg(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestIsPendingMsgV4 tests the isOldPendingMsg function for the legacy pending message format.
+// The V4 suffix matches the "GOV:PENDING4:" prefix used by the legacy pending message implementation.
+func TestIsPendingMsgV4(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected bool
+	}{
+		{
+			name:     "old pending message",
+			input:    []byte("GOV:PENDING4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: true,
+		},
+		{
+			name:     "new pending message",
+			input:    []byte("GOV:PENDING5:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: false,
+		},
+		{
+			name:     "old pending prefix only",
+			input:    []byte("GOV:PENDING4:"),
+			expected: false,
+		},
+		{
+			name:     "old pending with single digit",
+			input:    []byte("GOV:PENDING4:" + "1"),
+			expected: false,
+		},
+		{
+			name:     "old pending with a msgID that is too small",
+			input:    []byte("GOV:PENDING4:" + "1/1/1"),
+			expected: false,
+		},
+		{
+			name:     "old pending with missing sequence",
+			input:    []byte("GOV:PENDING4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
+			expected: false,
+		},
+		{
+			name:     "old pending with sequence 0",
+			input:    []byte("GOV:PENDING4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
+			expected: true,
+		},
+		{
+			name:     "binary data",
+			input:    []byte{0x01, 0x02, 0x03, 0x04},
+			expected: false,
+		},
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isOldPendingMsg(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 func TestGetChainGovernorData(t *testing.T) {
@@ -294,6 +544,8 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 		ConsistencyLevel: 16,
 		IsReobservation:  true,
 	}
+	vStateErr := msg.SetVerificationState(common.Valid)
+	require.NoError(t, vStateErr)
 
 	pending1 := &PendingTransfer{
 		ReleaseTime: time.Unix(int64(1654516425+72*60*60), 0),
@@ -301,18 +553,18 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 	}
 
 	pending1Bytes, err := pending1.Marshal()
-	require.NoError(t, err)
+	require.NoError(t, err, fmt.Sprintf("Failed to marshal pending transfer: %v", err))
 
 	pending2, err := UnmarshalPendingTransfer(pending1Bytes, false)
-	require.NoError(t, err)
+	require.NoError(t, err, fmt.Sprintf("Failed to unmarshal pending transfer: %v", err))
 
 	assert.Equal(t, pending1, pending2)
 
-	expectedPendingKey := "GOV:PENDING4:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedPendingKey := "GOV:PENDING5:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedPendingKey, string(PendingMsgID(&pending2.Msg)))
 }
 
-func TestStoreAndReloadTransfers(t *testing.T) {
+func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 	dbPath := t.TempDir()
 	db := OpenDb(zap.NewNop(), &dbPath)
 	defer db.Close()
@@ -562,398 +814,4 @@ func TestUnmarshalPendingTransferFailures(t *testing.T) {
 	// Truncate some of the serialized message.
 	_, err = UnmarshalPendingTransfer(pending1Bytes[0:len(pending1Bytes)-10], false)
 	assert.ErrorContains(t, err, "failed to unmarshal pending transfer msg")
-}
-
-func (d *Database) storeOldPendingMsg(t *testing.T, p *PendingTransfer) {
-	buf := new(bytes.Buffer)
-
-	vaa.MustWrite(buf, binary.BigEndian, uint32(p.ReleaseTime.Unix())) // #nosec G115 -- This conversion is safe until year 2106
-
-	b := marshalOldMessagePublication(&p.Msg)
-
-	vaa.MustWrite(buf, binary.BigEndian, b)
-
-	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(oldPendingMsgID(&p.Msg), buf.Bytes()); err != nil {
-			return err
-		}
-		return nil
-	})
-
-	require.NoError(t, err)
-}
-
-func marshalOldMessagePublication(msg *common.MessagePublication) []byte {
-	buf := new(bytes.Buffer)
-
-	buf.Write(msg.TxID[:])
-	vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
-	vaa.MustWrite(buf, binary.BigEndian, msg.Nonce)
-	vaa.MustWrite(buf, binary.BigEndian, msg.Sequence)
-	vaa.MustWrite(buf, binary.BigEndian, msg.ConsistencyLevel)
-	vaa.MustWrite(buf, binary.BigEndian, msg.EmitterChain)
-	buf.Write(msg.EmitterAddress[:])
-	vaa.MustWrite(buf, binary.BigEndian, msg.IsReobservation)
-	buf.Write(msg.Payload)
-
-	return buf.Bytes()
-}
-
-func TestLoadingOldPendingTransfers(t *testing.T) {
-	dbPath := t.TempDir()
-	db := OpenDb(zap.NewNop(), &dbPath)
-	defer db.Close()
-	defer os.Remove(dbPath)
-
-	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	require.NoError(t, err)
-
-	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
-	require.NoError(t, err)
-
-	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	require.NoError(t, err)
-
-	oldXfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		// Don't set TargetChain or TargetAddress.
-		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		Hash:  "Hash1",
-	}
-
-	err = db.storeOldTransfer(oldXfer1)
-	require.NoError(t, err)
-
-	newXfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516426), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		TargetChain:    vaa.ChainIDBSC,
-		TargetAddress:  bscTokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
-		Hash:           "Hash1",
-	}
-
-	err = db.StoreTransfer(newXfer1)
-	require.NoError(t, err)
-
-	oldXfer2 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516427), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		// Don't set TargetChain or TargetAddress.
-		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131417",
-		Hash:  "Hash2",
-	}
-
-	err = db.storeOldTransfer(oldXfer2)
-	require.NoError(t, err)
-
-	newXfer2 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516428), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		TargetChain:    vaa.ChainIDBSC,
-		TargetAddress:  bscTokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131418",
-		Hash:           "Hash2",
-	}
-
-	err = db.StoreTransfer(newXfer2)
-	require.NoError(t, err)
-
-	// Write the first pending event in the old format.
-	now := time.Unix(time.Now().Unix(), 0)
-	pending1 := &PendingTransfer{
-		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.,
-		Msg: common.MessagePublication{
-			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-			Timestamp:        now,
-			Nonce:            123456,
-			Sequence:         789101112131417,
-			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   ethereumTokenBridgeAddr,
-			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			ConsistencyLevel: 16,
-			// IsReobservation will not be serialized. It should be set to false on reload.
-		},
-	}
-
-	db.storeOldPendingMsg(t, pending1)
-	require.NoError(t, err)
-
-	// Write the second one in the new format.
-	now = now.Add(time.Second * 5)
-	pending2 := &PendingTransfer{
-		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.
-		Msg: common.MessagePublication{
-			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
-			Timestamp:        now,
-			Nonce:            123456,
-			Sequence:         789101112131418,
-			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   ethereumTokenBridgeAddr,
-			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			ConsistencyLevel: 16,
-			IsReobservation:  true,
-		},
-	}
-
-	err = db.StorePendingMsg(pending2)
-	require.NoError(t, err)
-
-	// Write the third pending event in the old format.
-	now = now.Add(time.Second * 5)
-	pending3 := &PendingTransfer{
-		ReleaseTime: now.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.,
-		Msg: common.MessagePublication{
-			TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064").Bytes(),
-			Timestamp:        now,
-			Nonce:            123456,
-			Sequence:         789101112131419,
-			EmitterChain:     vaa.ChainIDEthereum,
-			EmitterAddress:   ethereumTokenBridgeAddr,
-			Payload:          []byte{4, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			ConsistencyLevel: 16,
-			// IsReobservation will not be serialized. It should be set to false on reload.
-		},
-	}
-
-	db.storeOldPendingMsg(t, pending3)
-	require.NoError(t, err)
-
-	logger, zapObserver := setupLogsCapture(t)
-
-	xfers, pendings, err := db.GetChainGovernorDataForTime(logger, now)
-
-	require.NoError(t, err)
-	require.Equal(t, 4, len(xfers))
-	require.Equal(t, 3, len(pendings))
-
-	// Verify that we converted the two old pending transfers and the two old completed transfers.
-	loggedEntries := zapObserver.FilterMessage("updating format of database entry for pending vaa").All()
-	require.Equal(t, 2, len(loggedEntries))
-	loggedEntries = zapObserver.FilterMessage("updating format of database entry for completed transfer").All()
-	require.Equal(t, 2, len(loggedEntries))
-
-	sort.SliceStable(xfers, func(i, j int) bool {
-		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
-	})
-
-	assert.Equal(t, oldXfer1, xfers[0])
-	assert.Equal(t, newXfer1, xfers[1])
-	assert.Equal(t, oldXfer2, xfers[2])
-	assert.Equal(t, newXfer2, xfers[3])
-
-	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
-	sort.SliceStable(pendings, func(i, j int) bool {
-		return pendings[i].Msg.Timestamp.Before(pendings[j].Msg.Timestamp)
-	})
-
-	assert.Equal(t, pending1.Msg, pendings[0].Msg)
-	assert.Equal(t, pending2.Msg, pendings[1].Msg)
-	assert.Equal(t, pending3.Msg, pendings[2].Msg)
-
-	// Make sure we can reload the updated pendings.
-
-	logger, zapObserver = setupLogsCapture(t)
-
-	xfers2, pendings2, err := db.GetChainGovernorDataForTime(logger, now)
-
-	require.NoError(t, err)
-	require.Equal(t, 4, len(xfers2))
-	require.Equal(t, 3, len(pendings2))
-
-	// This time we shouldn't have updated anything.
-	loggedEntries = zapObserver.FilterMessage("updating format of database entry for pending vaa").All()
-	require.Equal(t, 0, len(loggedEntries))
-	loggedEntries = zapObserver.FilterMessage("updating format of database entry for completed transfer").All()
-	require.Equal(t, 0, len(loggedEntries))
-
-	sort.SliceStable(xfers2, func(i, j int) bool {
-		return xfers2[i].Timestamp.Before(xfers2[j].Timestamp)
-	})
-
-	assert.Equal(t, oldXfer1, xfers2[0])
-	assert.Equal(t, newXfer1, xfers2[1])
-	assert.Equal(t, oldXfer2, xfers2[2])
-	assert.Equal(t, newXfer2, xfers2[3])
-
-	assert.Equal(t, pending1.Msg, pendings2[0].Msg)
-	assert.Equal(t, pending2.Msg, pendings2[1].Msg)
-}
-
-func marshalOldTransfer(xfer *Transfer) ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	vaa.MustWrite(buf, binary.BigEndian, uint32(xfer.Timestamp.Unix())) // #nosec G115 -- This conversion is safe until year 2106
-	vaa.MustWrite(buf, binary.BigEndian, xfer.Value)
-	vaa.MustWrite(buf, binary.BigEndian, xfer.OriginChain)
-	buf.Write(xfer.OriginAddress[:])
-	vaa.MustWrite(buf, binary.BigEndian, xfer.EmitterChain)
-	buf.Write(xfer.EmitterAddress[:])
-	if len(xfer.MsgID) > math.MaxUint16 {
-		return nil, fmt.Errorf("failed to marshal MsgID, length too long: %d", len(xfer.MsgID))
-	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.MsgID))) // #nosec G115 -- This conversion is checked above
-	if len(xfer.MsgID) > 0 {
-		buf.Write([]byte(xfer.MsgID))
-	}
-	if len(xfer.Hash) > math.MaxUint16 {
-		return nil, fmt.Errorf("failed to marshal Hash, length too long: %d", len(xfer.Hash))
-	}
-	vaa.MustWrite(buf, binary.BigEndian, uint16(len(xfer.Hash))) // #nosec G115 -- This conversion is checked above
-	if len(xfer.Hash) > 0 {
-		buf.Write([]byte(xfer.Hash))
-	}
-	return buf.Bytes(), nil
-}
-
-func (d *Database) storeOldTransfer(xfer *Transfer) error {
-	key := []byte(fmt.Sprintf("%v%v", oldTransfer, xfer.MsgID))
-	b, err := marshalOldTransfer(xfer)
-
-	if err != nil {
-		return err
-	}
-
-	return d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(key, b); err != nil {
-			return err
-		}
-		return nil
-	})
-}
-
-func TestDeserializeOfOldTransfer(t *testing.T) {
-	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	require.NoError(t, err)
-
-	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	require.NoError(t, err)
-
-	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		// Don't set TargetChain or TargetAddress.
-		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		Hash:  "Hash1",
-	}
-
-	xfer1Bytes, err := marshalOldTransfer(xfer1)
-	require.NoError(t, err)
-
-	xfer2, err := unmarshalOldTransfer(xfer1Bytes)
-	require.NoError(t, err)
-
-	assert.Equal(t, xfer1, xfer2)
-
-	expectedTransferKey := "GOV:XFER3:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
-	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
-}
-
-func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
-	dbPath := t.TempDir()
-	db := OpenDb(zap.NewNop(), &dbPath)
-	defer db.Close()
-	defer os.Remove(dbPath)
-
-	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	require.NoError(t, err)
-
-	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
-	require.NoError(t, err)
-
-	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	require.NoError(t, err)
-
-	// Write the first transfer in the old format.
-	xfer1 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		// Don't set TargetChain or TargetAddress.
-		MsgID: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		// Do not set the Hash.
-	}
-
-	err = db.storeOldTransfer(xfer1)
-	require.NoError(t, err)
-
-	// Write the second one in the new format.
-	xfer2 := &Transfer{
-		Timestamp:      time.Unix(int64(1654516430), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		TargetChain:    vaa.ChainIDBSC,
-		TargetAddress:  bscTokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131416",
-		Hash:           "Hash2",
-	}
-
-	err = db.StoreTransfer(xfer2)
-	require.NoError(t, err)
-
-	now := time.Unix(time.Now().Unix(), 0)
-
-	logger := zap.NewNop()
-	xfers, pendings, err := db.GetChainGovernorDataForTime(logger, now)
-
-	require.NoError(t, err)
-	require.Equal(t, 2, len(xfers))
-	require.Equal(t, 0, len(pendings))
-
-	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
-	sort.SliceStable(xfers, func(i, j int) bool {
-		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
-	})
-
-	assert.Equal(t, xfer1, xfers[0])
-	assert.Equal(t, xfer2, xfers[1])
-
-	// Make sure the old transfer got dropped from the database and rewritten in the new format.
-	assert.ErrorIs(t, badger.ErrKeyNotFound, db.rowExistsInDB(oldTransferMsgID(xfer1)))
-	assert.NoError(t, db.rowExistsInDB(TransferMsgID(xfer1)))
-
-	// And make sure the other transfer is still there.
-	assert.NoError(t, db.rowExistsInDB(TransferMsgID(xfer2)))
-
-	// Make sure we can still read the database after the conversion.
-	xfers, pendings, err = db.GetChainGovernorDataForTime(logger, now)
-
-	require.NoError(t, err)
-	require.Equal(t, 2, len(xfers))
-	require.Equal(t, 0, len(pendings))
-
-	// Updated old pending events get placed at the end, so we need to sort into timestamp order.
-	sort.SliceStable(xfers, func(i, j int) bool {
-		return xfers[i].Timestamp.Before(xfers[j].Timestamp)
-	})
-
-	assert.Equal(t, xfer1, xfers[0])
-	assert.Equal(t, xfer2, xfers[1])
 }

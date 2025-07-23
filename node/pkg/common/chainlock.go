@@ -10,7 +10,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -32,12 +31,16 @@ const (
 		1 + // IsReobservation (bool)
 		1 + // Unreliable (bool)
 		1 + // verificationState (uint8)
-		2 // Payload length (uint16)
+		8 // Payload length (uint64), may be zero
 
 	// Deprecated: represents the minimum message length for a marshaled message publication
 	// before the Unreliable and verificationState fields were added.
-	// Use [minMarshaledMsgSize] instead.
+	// Use [marshaledMsgSizeMin] instead.
 	minMsgLength = 88
+
+	// minMsgIdLen is the minimum length of a message ID. It is used to uniquely identify
+	// messages in the case of a duplicate message ID and is stored in the database.
+	MinMsgIdLen = len("1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")
 )
 
 var (
@@ -57,11 +60,12 @@ func (e ErrUnexpectedEndOfRead) Error() string {
 
 // ErrInputSize is returned when the input size is not the expected size during marshaling.
 type ErrInputSize struct {
-	Msg string
+	msg string
+	got int
 }
 
-func (i ErrInputSize) Error() string {
-	return fmt.Sprintf("wrong size: %s", i.Msg)
+func (e ErrInputSize) Error() string {
+	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgSizeMin, e.got)
 }
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
@@ -116,8 +120,10 @@ type MessagePublication struct {
 	ConsistencyLevel uint8
 	EmitterChain     vaa.ChainID
 	EmitterAddress   vaa.Address
-	Payload          []byte
-	IsReobservation  bool
+	// NOTE: there is no upper bound on the size of the payload. Wormhole supports arbitrary payloads
+	// due to the variance in transaction and block sizes between chains.
+	Payload         []byte
+	IsReobservation bool
 
 	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
@@ -197,65 +203,6 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Deprecated: UnmarshalOldMessagePublicationWithTxHash deserializes a MessagePublication from when the TxHash was a fixed size ethCommon.Hash.
-// This function can be deleted once all guardians have been upgraded. That's why the code is just duplicated.
-func UnmarshalOldMessagePublicationWithTxHash(data []byte) (*MessagePublication, error) {
-	if len(data) < minMsgLength {
-		return nil, errors.New("message is too short")
-	}
-
-	msg := &MessagePublication{}
-
-	reader := bytes.NewReader(data[:])
-
-	txHash := common.Hash{}
-	if n, err := reader.Read(txHash[:]); err != nil || n != HashLength {
-		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
-	}
-	msg.TxID = txHash.Bytes()
-
-	unixSeconds := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
-		return nil, fmt.Errorf("failed to read timestamp: %w", err)
-	}
-	msg.Timestamp = time.Unix(int64(unixSeconds), 0)
-
-	if err := binary.Read(reader, binary.BigEndian, &msg.Nonce); err != nil {
-		return nil, fmt.Errorf("failed to read nonce: %w", err)
-	}
-
-	if err := binary.Read(reader, binary.BigEndian, &msg.Sequence); err != nil {
-		return nil, fmt.Errorf("failed to read sequence: %w", err)
-	}
-
-	if err := binary.Read(reader, binary.BigEndian, &msg.ConsistencyLevel); err != nil {
-		return nil, fmt.Errorf("failed to read consistency level: %w", err)
-	}
-
-	if err := binary.Read(reader, binary.BigEndian, &msg.EmitterChain); err != nil {
-		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
-	}
-
-	emitterAddress := vaa.Address{}
-	if n, err := reader.Read(emitterAddress[:]); err != nil || n != AddressLength {
-		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
-	}
-	msg.EmitterAddress = emitterAddress
-
-	if err := binary.Read(reader, binary.BigEndian, &msg.IsReobservation); err != nil {
-		return nil, fmt.Errorf("failed to read isReobservation: %w", err)
-	}
-
-	payload := make([]byte, reader.Len())
-	n, err := reader.Read(payload)
-	if err != nil || n == 0 {
-		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
-	}
-	msg.Payload = payload[:n]
-
-	return msg, nil
-}
-
 // MarshalBinary implements the BinaryMarshaler interface for MessagePublication.
 func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Marshalled Message Publication layout:
@@ -275,9 +222,6 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// - Payload
 
 	const (
-		// TODO: is this big enough?
-		PayloadSizeMax = math.MaxUint16
-
 		// TxID is an alias for []byte.
 		TxIDSizeMin = 20 // 20 bytes is the minimum size of a txID as determined by the EVM address length.
 		TxIDSizeMax = math.MaxUint8
@@ -286,18 +230,14 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Check preconditions
 	txIDLen := len(msg.TxID)
 	if txIDLen > TxIDSizeMax {
-		return nil, ErrInputSize{Msg: "TxID too long"}
+		return nil, ErrInputSize{msg: "TxID too long"}
 	}
 
 	if txIDLen < TxIDSizeMin {
-		return nil, ErrInputSize{Msg: "TxID too short"}
+		return nil, ErrInputSize{msg: "TxID too short"}
 	}
 
 	payloadLen := len(msg.Payload)
-	if payloadLen > PayloadSizeMax {
-		return nil, ErrInputSize{Msg: "payload too long"}
-	}
-
 	// Set up for serialization
 	var (
 		be      = binary.BigEndian
@@ -354,8 +294,9 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	buf = append(buf, uint8(msg.verificationState))
 
 	// Payload (and length)
-	payloadLenBytes := make([]byte, 2)
-	be.PutUint16(payloadLenBytes, uint16(payloadLen))
+	// There is no upper bound on the size of the payload as Wormhole supports arbitrary payloads. A uint64 should suffice to hold the length of the payload.
+	payloadLenBytes := make([]byte, 8)
+	be.PutUint64(payloadLenBytes, uint64(payloadLen))
 	buf = append(buf, payloadLenBytes...)
 	buf = append(buf, msg.Payload...)
 
@@ -430,14 +371,16 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 }
 
 // UnmarshalBinary implements the BinaryUnmarshaler interface for MessagePublication.
-func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
+func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
 
 	// Initial check for minimum data length
 	if len(data) < marshaledMsgSizeMin {
-		return ErrInputSize{Msg: "data too short"}
+		return ErrInputSize{msg: "data too short", got: len(data)}
 	}
+
+	mp := &MessagePublication{}
 
 	// Set up deserialization
 	be := binary.BigEndian
@@ -447,56 +390,51 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	txIDLen := uint8(data[pos])
 	pos++
 
-	// Check if we have enough data for TxID and the rest
-	if len(data) < marshaledMsgSizeMin+int(txIDLen) {
-		return ErrInputSize{Msg: "data too short"}
-	}
-
 	// Read TxID
-	msg.TxID = make([]byte, txIDLen)
-	copy(msg.TxID, data[pos:pos+int(txIDLen)])
+	mp.TxID = make([]byte, txIDLen)
+	copy(mp.TxID, data[pos:pos+int(txIDLen)])
 	pos += int(txIDLen)
 
 	// Timestamp
 	timestamp := be.Uint64(data[pos : pos+8])
 	// Nanoseconds are not serialized
 	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
-	msg.Timestamp = time.Unix(int64(timestamp), 0)
+	mp.Timestamp = time.Unix(int64(timestamp), 0)
 	pos += 8
 
 	// Nonce
-	msg.Nonce = be.Uint32(data[pos : pos+4])
+	mp.Nonce = be.Uint32(data[pos : pos+4])
 	pos += 4
 
 	// Sequence
-	msg.Sequence = be.Uint64(data[pos : pos+8])
+	mp.Sequence = be.Uint64(data[pos : pos+8])
 	pos += 8
 
 	// ConsistencyLevel
 	// TODO: This could be validated against the valid range of values for ConsistencyLevel.
-	msg.ConsistencyLevel = data[pos]
+	mp.ConsistencyLevel = data[pos]
 	pos++
 
 	// EmitterChain
-	msg.EmitterChain = vaa.ChainID(be.Uint16(data[pos : pos+2]))
+	mp.EmitterChain = vaa.ChainID(be.Uint16(data[pos : pos+2]))
 	pos += 2
 
 	// EmitterAddress
-	copy(msg.EmitterAddress[:], data[pos:pos+32])
+	copy(mp.EmitterAddress[:], data[pos:pos+32])
 	pos += 32
 
 	// IsReobservation
 	if !validBinaryBool(data[pos]) {
 		return ErrInvalidBinaryBool
 	}
-	msg.IsReobservation = data[pos] != 0
+	mp.IsReobservation = data[pos] != 0
 	pos++
 
 	// Unreliable
 	if !validBinaryBool(data[pos]) {
 		return ErrInvalidBinaryBool
 	}
-	msg.Unreliable = data[pos] != 0
+	mp.Unreliable = data[pos] != 0
 	pos++
 
 	// verificationState. NumVariantsVerificationState is the number of variants of the enum,
@@ -504,21 +442,24 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 	if data[pos] > NumVariantsVerificationState-1 {
 		return ErrInvalidVerificationState
 	}
-	msg.verificationState = VerificationState(data[pos])
+	mp.verificationState = VerificationState(data[pos])
 	pos++
 
 	// Payload length
-	payloadLen := be.Uint16(data[pos : pos+2])
-	pos += 2
+	payloadLen := be.Uint64(data[pos : pos+8])
+	pos += 8
 
 	// Check if we have enough data for the payload
+	// #nosec G115 -- payloadLen is read from data, bounds checked above
 	if len(data) < pos+int(payloadLen) {
-		return ErrInputSize{Msg: "payload too short"}
+		return ErrInputSize{msg: "payload too short"}
 	}
 
 	// Read payload
-	msg.Payload = make([]byte, payloadLen)
-	copy(msg.Payload, data[pos:pos+int(payloadLen)])
+	mp.Payload = make([]byte, payloadLen)
+	// #nosec G115 -- payloadLen is read from data, bounds checked above
+	copy(mp.Payload, data[pos:pos+int(payloadLen)])
+	// #nosec G115 -- payloadLen is read from data, bounds checked above
 	pos += int(payloadLen)
 
 	// Check that exactly the correct number of bytes was read.
@@ -526,6 +467,8 @@ func (msg *MessagePublication) UnmarshalBinary(data []byte) error {
 		return ErrUnexpectedEndOfRead{expected: len(data), got: pos}
 	}
 
+	// Overwrite the receiver with the deserialized message.
+	*m = *mp
 	return nil
 }
 

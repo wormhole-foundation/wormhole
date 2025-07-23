@@ -27,7 +27,7 @@ const (
 	offsetUnreliable        = offsetIsReobservation + 1
 	offsetVerificationState = offsetUnreliable + 1
 	offsetPayloadLength     = offsetVerificationState + 1
-	offsetPayload           = offsetPayloadLength + 2
+	offsetPayload           = offsetPayloadLength + 8
 )
 
 func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
@@ -50,7 +50,7 @@ func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 // makeTestMsgPub is a helper function that generates a Message Publication.
 func makeTestMsgPub(t *testing.T) *MessagePublication {
 	t.Helper()
-	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
 
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
@@ -98,38 +98,186 @@ func TestRoundTripMarshal(t *testing.T) {
 	require.Equal(t, *orig, loaded)
 }
 
-func TestUnmarshalError(t *testing.T) {
-	// Test strategy: Write a good message, then corrupt it.
+func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
+	// Create a valid message publication for testing
 	orig := makeTestMsgPub(t)
+	validBytes, err := orig.MarshalBinary()
+	require.Greater(t, len(validBytes), marshaledMsgSizeMin)
+	require.NoError(t, err)
 
-	origBytes, writeErr := orig.MarshalBinary()
-	require.NoError(t, writeErr)
-	t.Logf("marshaled bytes: %x", origBytes)
+	tests := []struct {
+		name         string
+		data         []byte
+		expectedErr  error
+		errorChecker func(t *testing.T, err error)
+		setupData    func() []byte
+	}{
+		{
+			name: "data too short - empty data",
+			data: []byte{},
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "data too short")
+			},
+		},
+		{
+			name: "data too short - less than minimum size",
+			data: make([]byte, marshaledMsgSizeMin-1),
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "data too short")
+			},
+		},
+		{
+			name:        "invalid IsReobservation boolean - value 0x02",
+			expectedErr: ErrInvalidBinaryBool,
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				data[offsetIsReobservation] = 0x02
+				return data
+			},
+		},
+		{
+			name:        "invalid IsReobservation boolean - value 0xFF",
+			expectedErr: ErrInvalidBinaryBool,
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				data[offsetIsReobservation] = 0xFF
+				return data
+			},
+		},
+		{
+			name:        "invalid Unreliable boolean - value 0x02",
+			expectedErr: ErrInvalidBinaryBool,
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				data[offsetUnreliable] = 0x02
+				return data
+			},
+		},
+		{
+			name:        "invalid Unreliable boolean - value 0xFF",
+			expectedErr: ErrInvalidBinaryBool,
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				data[offsetUnreliable] = 0xFF
+				return data
+			},
+		},
+		{
+			name:        "invalid verification state - at boundary",
+			expectedErr: ErrInvalidVerificationState,
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				data[offsetVerificationState] = NumVariantsVerificationState
+				return data
+			},
+		},
+		{
+			name:        "invalid verification state - above boundary",
+			expectedErr: ErrInvalidVerificationState,
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				data[offsetVerificationState] = NumVariantsVerificationState + 1
+				return data
+			},
+		},
+		{
+			name: "payload too short - truncated at payload length",
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "payload too short")
+			},
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				// Set payload length to be larger than remaining data
+				// #nosec G115 -- intentionally creating invalid data for testing
+				binary.BigEndian.PutUint64(data[offsetPayloadLength:offsetPayloadLength+8], uint64(len(data)-offsetPayload+1))
+				return data
+			},
+		},
+		{
+			name: "payload too short - no payload data",
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "payload too short")
+			},
+			setupData: func() []byte {
+				// Create data that ends right before payload
+				data := make([]byte, offsetPayload)
+				copy(data, validBytes[:offsetPayload])
+				// Set payload length to 1 but provide no payload data
+				binary.BigEndian.PutUint64(data[offsetPayloadLength:offsetPayloadLength+8], 1)
+				return data
+			},
+		},
+		{
+			name: "unexpected end of read - extra bytes",
+			errorChecker: func(t *testing.T, err error) {
+				var endOfReadErr ErrUnexpectedEndOfRead
+				require.ErrorAs(t, err, &endOfReadErr)
+				assert.Greater(t, endOfReadErr.expected, endOfReadErr.got)
+			},
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes)+1)
+				copy(data, validBytes)
+				data[len(validBytes)] = 0xFF // extra byte
+				return data
+			},
+		},
+		{
+			name: "unexpected end of read - missing bytes",
+			errorChecker: func(t *testing.T, err error) {
+				// This case actually triggers payload too short error first
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "payload too short")
+			},
+			setupData: func() []byte {
+				// Create data that's shorter than expected but has valid payload length
+				data := make([]byte, len(validBytes)-1)
+				copy(data, validBytes[:len(validBytes)-1])
+				return data
+			},
+		},
+	}
 
-	// Check VerificationState errors.
-	// The valid range for the verificationState field is [0, NumVariantsVerificationState-1],
-	// so corrupting the verificationState field should cause an error.
-	bytes := origBytes
-	var err error
-	bytes[offsetVerificationState] = NumVariantsVerificationState
-	var loaded MessagePublication
-	err = loaded.UnmarshalBinary(bytes)
-	require.ErrorIs(t, err, ErrInvalidVerificationState, "expected error to be ErrInvalidVerificationState when unmarshaling corrupted verificationState")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var data []byte
+			if tt.setupData != nil {
+				data = tt.setupData()
+			} else {
+				data = tt.data
+			}
 
-	// Check IsUnreliable errors.
-	bytes = origBytes
-	bytes[offsetUnreliable] = 0x02 // invalid boolean value
-	err = loaded.UnmarshalBinary(bytes)
-	require.ErrorIs(t, err, ErrInvalidBinaryBool, "expected error to be ErrInvalidBinaryBool when unmarshaling corrupted unreliable field")
+			var mp MessagePublication
+			err := mp.UnmarshalBinary(data)
 
-	// Check IsReobservation errors.
-	bytes = origBytes
-	bytes[offsetIsReobservation] = 0x02 // invalid boolean value
-	err = loaded.UnmarshalBinary(bytes)
-	require.ErrorIs(t, err, ErrInvalidBinaryBool, "expected error to be ErrInvalidBinaryBool when unmarshaling corrupted isReobservation field")
+			require.Error(t, err, "expected error for test case: %s", tt.name)
 
+			if tt.errorChecker != nil {
+				tt.errorChecker(t, err)
+			} else if tt.expectedErr != nil {
+				require.ErrorIs(t, err, tt.expectedErr, "expected specific error type for test case: %s", tt.name)
+			}
+		})
+	}
 }
 
+// This tests a message publication using the deprecated [Marshal] and [UnmarshalMessagePublication] functions.
+// The test and these functions can be removed once the message publication upgrade is complete.
 func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
@@ -190,6 +338,8 @@ func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	assert.Equal(t, payload1, payload2)
 }
 
+// This tests a message publication using the deprecated [Marshal] and [UnmarshalMessagePublication] functions.
+// The test and these functions can be removed once the message publication upgrade is complete.
 func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) {
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
@@ -235,6 +385,8 @@ func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) 
 	assert.Equal(t, payload1, payload2)
 }
 
+// This tests a message publication using the deprecated [Marshal] and [UnmarshalMessagePublication] functions.
+// The test and these functions can be removed once the message publication upgrade is complete.
 func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing.T) {
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 	require.NoError(t, err)
@@ -280,6 +432,8 @@ func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing
 	assert.Equal(t, payload1, payload2)
 }
 
+// This tests a message publication using the deprecated [Marshal] and [UnmarshalMessagePublication] functions.
+// The test and these functions can be removed once the message publication upgrade is complete.
 func TestTxIDStringTooLongShouldFail(t *testing.T) {
 	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
@@ -302,6 +456,8 @@ func TestTxIDStringTooLongShouldFail(t *testing.T) {
 	assert.ErrorContains(t, err, "TxID too long")
 }
 
+// This tests a message publication using the deprecated [Marshal] and [UnmarshalMessagePublication] functions.
+// The test and these functions can be removed once the message publication upgrade is complete.
 func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T) {
 	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
