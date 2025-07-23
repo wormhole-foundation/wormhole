@@ -234,7 +234,9 @@ contract WormholeVerifier is EIP712Encoding {
   error UnknownGuardianSet(uint32 index);
   error GovernanceVaaVerificationFailure();
 
-  ICoreBridge private immutable _coreBridge;
+  // We don't make this immutable to keep bytecode verification from build simple.
+  // It's only used in cold execution paths like governance operations.
+  ICoreBridge private _coreBridge;
 
   mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
