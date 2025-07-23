@@ -109,7 +109,7 @@ see [here](../node/pkg/txverifier//README.md).
 
 ### Logs and Metrics
 
-The guardian uses the [Zap logger](https://pkg.go.dev/go.uber.org/zap) for all of it's logging
+The guardian uses the [Zap logger](https://pkg.go.dev/go.uber.org/zap) for all of its logging
 and [Prometheus](https://pkg.go.dev/github.com/prometheus/client_golang/prometheus) for metrics.
 The logs are always written to local disk and the metrics are always available locally on the box.
 
