@@ -9,7 +9,7 @@
 | Gas cost| Gas cost / VAA|        Implementation | Notes                                                       |
 |--------:|--------------:|-----------------------|-------------------------------------------------------------|
 | 134,689 |       134,689 |          mainnet core |                                                             |
-| 108,341 |       108,341 |         CoreBridgeLib | Usage of this implementation is up to integrator.           |
+| 108,341 |       108,341 |       [CoreBridgeLib] | Usage of this implementation is up to integrator.           |
 |  88,686 |        88,686 | modified mainnet core | Keeps public keys in calldata. Not backwards compatible.[^1]|
 |  69,570 |        69,570 | modified mainnet core | Optimized, backwards compatible implementation.[^1]         |
 |  51,061 |        51,061 |        VerificationV2 | VAA with 100 bytes body                                     |
@@ -41,3 +41,5 @@ The costs for implementations other than VerificationV2 come from [here](https:/
 The costs for VerificationV2 come from some benchmark tests that we have [here](test/TestAssembly2.sol#L433).
 
 [^1]: Never deployed to mainnet nor testnet.
+
+[CoreBridgeLib]: https://github.com/wormhole-foundation/wormhole-solidity-sdk/blob/main/src/libraries/CoreBridge.sol#L42
