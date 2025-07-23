@@ -36,12 +36,12 @@ const Mainnet = {
     chain_id: 56,
   },
   Polygon: {
-    rpc: "https://rpc.ankr.com/polygon",
+    rpc: "https://polygon-bor-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY"),
     chain_id: 137,
   },
   Avalanche: {
-    rpc: "https://rpc.ankr.com/avalanche",
+    rpc: "https://avalanche-c-chain-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY"),
     chain_id: 43114,
   },
@@ -168,7 +168,7 @@ const Mainnet = {
     chain_id: 30,
   },
   Scroll: {
-    rpc: "https://rpc.ankr.com/scroll",
+    rpc: "https://scroll-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY"),
     chain_id: 534352,
   },
@@ -178,7 +178,7 @@ const Mainnet = {
     chain_id: undefined,
   },
   Blast: {
-    rpc: "https://rpc.ankr.com/blast",
+    rpc: "https://blast-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY"),
     chain_id: 81457,
   },
@@ -295,7 +295,7 @@ const Testnet = {
     key: getEnvVar("TERRA_MNEMONIC_TESTNET"),
   },
   Ethereum: {
-    rpc: `https://rpc.ankr.com/eth_goerli`,
+    rpc: undefined, // Deprecated in favor of Holesky
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 5,
   },
@@ -305,12 +305,12 @@ const Testnet = {
     chain_id: 97,
   },
   Polygon: {
-    rpc: `https://rpc.ankr.com/polygon_mumbai`,
+    rpc: undefined, // Deprecated in favor of PolygonSepolia
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 80001,
   },
   Avalanche: {
-    rpc: "https://rpc.ankr.com/avalanche_fuji",
+    rpc: "https://avalanche-fuji-c-chain-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 43113,
   },
@@ -390,7 +390,7 @@ const Testnet = {
     key: getEnvVar("SEI_KEY_TESTNET"),
   },
   Scroll: {
-    rpc: "https://rpc.ankr.com/scroll_sepolia_testnet",
+    rpc: "https://scroll-sepolia-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 534353,
   },
@@ -415,7 +415,7 @@ const Testnet = {
     chain_id: 59141,
   },
   Berachain: {
-    rpc: "https://bartio.rpc.berachain.com/",
+    rpc: "https://bepolia.rpc.berachain.com/",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 80084,
   },
@@ -430,12 +430,12 @@ const Testnet = {
     chain_id: 713715,
   },
   Sepolia: {
-    rpc: "https://rpc.ankr.com/eth_sepolia",
+    rpc: "https://ethereum-sepolia-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 11155111,
   },
   Holesky: {
-    rpc: "https://rpc.ankr.com/eth_holesky",
+    rpc: "https://1rpc.io/holesky",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 17000,
   },
@@ -463,12 +463,12 @@ const Testnet = {
     key: getEnvVar("TERRA_MNEMONIC_TESTNET"),
   },
   Arbitrum: {
-    rpc: "https://goerli-rollup.arbitrum.io/rpc",
+    rpc: undefined, // Deprecated in favor of ArbitrumSepolia
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 421613,
   },
   Optimism: {
-    rpc: "https://goerli.optimism.io",
+    rpc: undefined, // Deprecated in favor of OptimismSepolia
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 420,
   },
@@ -523,7 +523,7 @@ const Testnet = {
     chain_id: 84532,
   },
   OptimismSepolia: {
-    rpc: "https://rpc.ankr.com/optimism_sepolia",
+    rpc: "https://optimism-sepolia-rpc.publicnode.com",
     key: getEnvVar("ETH_KEY_TESTNET"),
     chain_id: 11155420,
   },
