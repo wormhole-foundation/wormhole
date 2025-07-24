@@ -249,7 +249,9 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Set up for serialization
 	var (
 		be      = binary.BigEndian
-		bufSize = marshaledMsgLenMin + txIDLen + payloadLen
+		// Size of the buffer needed to hold the serialized message.
+		// TxIDLenMin is already accounted for in the marshaledMsgLenMin calculation.
+		bufSize = (marshaledMsgLenMin  - TxIDLenMin) + txIDLen + payloadLen
 		buf     = make([]byte, 0, bufSize)
 	)
 
@@ -382,7 +384,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 
 	// fixedFieldsLen is the minimum length of the fixed portion of a message publication.
-	// It is the sum of the sizes of each of the fields plus length information for fields with variable lengths (TxID and Payload).
+	// It is the sum of the sizes of each of the fields plus length information for the Payload.
 	// This is used to check that the data is long enough for the rest of the message after reading the TxID.
 	const fixedFieldsLen = 8 + // Timestamp (int64)
 		4 + // Nonce (uint32)
@@ -396,8 +398,6 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
-
-	// Initial check for minimum data length
 	if len(data) < marshaledMsgLenMin {
 		return ErrInputSize{msg: "data too short", got: len(data)}
 	}
@@ -424,13 +424,15 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	pos += int(txIDLen)
 
 	// TxID has a dynamic length, so now that we've read it, check that the remaining data is long enough for the rest of the message. This means that all fixed-length fields can be parsed with a payload of 0 or more bytes.
+	// Concretely, we're checking that the data is at least long enough to contain information for all of
+	// the fields except for the Payload itself.
 	if len(data)-pos < fixedFieldsLen {
 		return ErrInputSize{msg: "data too short after reading TxID", got: len(data)}
 	}
 
 	// Timestamp
 	timestamp := be.Uint64(data[pos : pos+8])
-	// Nanoseconds are not serialized
+	// Nanoseconds are not serialized as they are not used in Wormhole, so set them to zero.
 	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
 	mp.Timestamp = time.Unix(int64(timestamp), 0)
 	pos += 8
