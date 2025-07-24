@@ -1,16 +1,45 @@
-git clone, then run via `make test` to observe gas costs in forge test traces:
+# Usage
 
-gas costs of `parseAndVerifyVM` (not including transaction overhead):
-```
-134,689 original
-134,689 thirteen sigs (matches as expected)
-108,341 using CoreBridgeLib from Solidity SDK (parses and verifies VAA itself after fetching guardian set from core bridge)
- 27,677 single signature
- 88,686 guardian set from calldata (gscd) optimizations (does not agree with 83k number in the monorepo PR despite additional optimizations)
- 69,570 optimized, backwards compatible implementation
- 13,874 threshold signature (i.e. single address) optimized version
-```
+`make test` builds and runs the tests for Solana and EVM implementations.
 
-Original gas costs also match gas used field of Action[3] in [Etherscan Parity trace of the sample transaction](https://etherscan.io/vmtrace?txhash=0xedd3ac96bc37961cce21a33fd50449dba257737c168006b40aa65496aaf92449&type=parity).
+# EVM
 
-[guardian set from calldata monorepo PR](https://github.com/wormhole-foundation/wormhole/pull/3366) that passes the guardian set as calldata and only checks the hash - its README is the source of the 83k number above
+## Verify 13 signatures multisig (v1 VAA)
+
+| Gas cost| Gas cost / VAA|        Implementation | Notes                                                       |
+|--------:|--------------:|-----------------------|-------------------------------------------------------------|
+| 134,689 |       134,689 |          mainnet core |                                                             |
+| 108,341 |       108,341 |       [CoreBridgeLib] | Usage of this implementation is up to integrator.           |
+|  88,686 |        88,686 | modified mainnet core | Keeps public keys in calldata. Not backwards compatible.[^1]|
+|  69,570 |        69,570 | modified mainnet core | Optimized, backwards compatible implementation.[^1]         |
+|  51,061 |        51,061 |        VerificationV2 | VAA with 100 bytes body                                     |
+|  52,886 |        52,886 |        VerificationV2 | VAA with 5000 bytes body                                    |
+|  50,836 |        50,836 |        VerificationV2 | Header + digest verification                                |
+| 188,320 |        47,080 |        VerificationV2 | Header + digest batch verification for 4 VAAs               |
+
+This means that there is a fixed overhead of ~5008 gas units for batch multisig verification in VerificationV2.
+
+
+
+## Verify 1 threshold signature (v2 VAA)
+
+| Gas cost| Gas cost / VAA|        Implementation |  Notes                                        |
+|--------:|--------------:|-----------------------|-----------------------------------------------|
+| 13,874  |        13,874 | early VerificationV2  | Proxied                                       |
+|  8,962  |         8,962 | early VerificationV2  | No proxy, i.e. unupgradeable                  |
+|  8,544  |         8,544 |       VerificationV2  | VAA with 100 bytes body                       |
+| 10,430  |        10,430 |       VerificationV2  | VAA with 5000 bytes body                      |
+|  6,177  |         6,177 |       VerificationV2  | Header + digest verification                  |
+| 17,385  |         4,347 |       VerificationV2  | Header + digest batch verification for 4 VAAs |
+
+This means that there is a fixed overhead of ~2441 gas units for batch schnorr verification in VerificationV2.
+
+## Sources
+
+The costs for implementations other than VerificationV2 come from [here](https://github.com/nonergodic/core-bridge/blob/fc4d76a/README.md)
+
+The costs for VerificationV2 come from some benchmark tests that we have [here](test/TestAssembly2.sol#L433).
+
+[^1]: Never deployed to mainnet nor testnet.
+
+[CoreBridgeLib]: https://github.com/wormhole-foundation/wormhole-solidity-sdk/blob/main/src/libraries/CoreBridge.sol#L42
