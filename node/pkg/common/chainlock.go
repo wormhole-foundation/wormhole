@@ -248,10 +248,10 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	payloadLen := len(msg.Payload)
 	// Set up for serialization
 	var (
-		be      = binary.BigEndian
+		be = binary.BigEndian
 		// Size of the buffer needed to hold the serialized message.
 		// TxIDLenMin is already accounted for in the marshaledMsgLenMin calculation.
-		bufSize = (marshaledMsgLenMin  - TxIDLenMin) + txIDLen + payloadLen
+		bufSize = (marshaledMsgLenMin - TxIDLenMin) + txIDLen + payloadLen
 		buf     = make([]byte, 0, bufSize)
 	)
 
