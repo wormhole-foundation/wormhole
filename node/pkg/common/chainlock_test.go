@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/binary"
+	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -70,6 +71,7 @@ func makeTestMsgPub(t *testing.T) *MessagePublication {
 
 	payloadBytes := encodePayloadBytes(payload)
 
+	// Use a non-default value for each field to ensure that the unmarshalled values are represented correctly.
 	return &MessagePublication{
 		TxID:              eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:         time.Unix(int64(1654516425), 0),
@@ -80,6 +82,7 @@ func makeTestMsgPub(t *testing.T) *MessagePublication {
 		Payload:           payloadBytes,
 		ConsistencyLevel:  32,
 		Unreliable:        true,
+		IsReobservation:   true,
 		verificationState: Anomalous,
 	}
 }
@@ -99,10 +102,9 @@ func TestRoundTripMarshal(t *testing.T) {
 }
 
 func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
-	// Create a valid message publication for testing
 	orig := makeTestMsgPub(t)
 	validBytes, err := orig.MarshalBinary()
-	require.Greater(t, len(validBytes), marshaledMsgSizeMin)
+	require.Greater(t, len(validBytes), marshaledMsgLenMin)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -123,7 +125,7 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 		},
 		{
 			name: "data too short - less than minimum size",
-			data: make([]byte, marshaledMsgSizeMin-1),
+			data: make([]byte, marshaledMsgLenMin-1),
 			errorChecker: func(t *testing.T, err error) {
 				var inputSizeErr ErrInputSize
 				require.ErrorAs(t, err, &inputSizeErr)
@@ -191,11 +193,11 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "payload too short - truncated at payload length",
+			name: "invalid payload length - truncated at payload length",
 			errorChecker: func(t *testing.T, err error) {
 				var inputSizeErr ErrInputSize
 				require.ErrorAs(t, err, &inputSizeErr)
-				assert.Contains(t, inputSizeErr.Error(), "payload too short")
+				assert.Contains(t, inputSizeErr.Error(), "invalid payload length")
 			},
 			setupData: func() []byte {
 				data := make([]byte, len(validBytes))
@@ -207,11 +209,11 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "payload too short - no payload data",
+			name: "invalid payload length - no payload data",
 			errorChecker: func(t *testing.T, err error) {
 				var inputSizeErr ErrInputSize
 				require.ErrorAs(t, err, &inputSizeErr)
-				assert.Contains(t, inputSizeErr.Error(), "payload too short")
+				assert.Contains(t, inputSizeErr.Error(), "invalid payload length")
 			},
 			setupData: func() []byte {
 				// Create data that ends right before payload
@@ -239,15 +241,30 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 		{
 			name: "unexpected end of read - missing bytes",
 			errorChecker: func(t *testing.T, err error) {
-				// This case actually triggers payload too short error first
+				// This case actually triggers invalid payload length error first
 				var inputSizeErr ErrInputSize
 				require.ErrorAs(t, err, &inputSizeErr)
-				assert.Contains(t, inputSizeErr.Error(), "payload too short")
+				assert.Contains(t, inputSizeErr.Error(), "invalid payload length")
 			},
 			setupData: func() []byte {
 				// Create data that's shorter than expected but has valid payload length
 				data := make([]byte, len(validBytes)-1)
 				copy(data, validBytes[:len(validBytes)-1])
+				return data
+			},
+		},
+		{
+			name: "payload length overflow - makeslice panic",
+			errorChecker: func(t *testing.T, err error) {
+				var inputSizeErr ErrInputSize
+				require.ErrorAs(t, err, &inputSizeErr)
+				assert.Contains(t, inputSizeErr.Error(), "payload length too large")
+			},
+			setupData: func() []byte {
+				data := make([]byte, len(validBytes))
+				copy(data, validBytes)
+				// Set payload length to maximum uint64 value which would cause makeslice to panic
+				binary.BigEndian.PutUint64(data[offsetPayloadLength:offsetPayloadLength+8], math.MaxUint64)
 				return data
 			},
 		},
@@ -274,6 +291,71 @@ func TestMessagePublicationUnmarshalBinaryErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzMessagePublicationUnmarshalBinary(f *testing.F) {
+	// Create a valid message publication for seeding
+	orig := &MessagePublication{
+		TxID:              make([]byte, TxIDLenMin), // Use minimum valid TxID length
+		Timestamp:         time.Unix(int64(1654516425), 0),
+		Nonce:             123456,
+		Sequence:          789101112131415,
+		EmitterChain:      vaa.ChainIDEthereum,
+		EmitterAddress:    vaa.Address{0x07, 0x07, 0xf9, 0x11, 0x8e, 0x33, 0xa9, 0xb8, 0x99, 0x8b, 0xea, 0x41, 0xdd, 0x0d, 0x46, 0xf3, 0x8b, 0xb9, 0x63, 0xfc, 0x80},
+		Payload:           []byte("test payload"),
+		ConsistencyLevel:  32,
+		IsReobservation:   true,
+		Unreliable:        true,
+		verificationState: Valid,
+	}
+
+	// Seed with valid marshaled data
+	validBytes, err := orig.MarshalBinary()
+	if err == nil {
+		f.Add(validBytes)
+	}
+
+	// Seed with some edge cases
+	f.Add([]byte{})                           // empty data
+	f.Add(make([]byte, marshaledMsgLenMin-1)) // too short
+	f.Add(make([]byte, marshaledMsgLenMin))   // minimum size
+	f.Add(make([]byte, 1000))                 // larger data
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		// Catch panics and report them as test failures
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("UnmarshalBinary panicked with input length %d: %v", len(data), r)
+			}
+		}()
+
+		var mp MessagePublication
+		err := mp.UnmarshalBinary(data)
+
+		// The function should never panic, but may return an error
+		// We don't assert anything about the error - just that it doesn't crash
+		if err == nil {
+			// If unmarshaling succeeded, the result should be valid
+			// Basic sanity checks on the unmarshaled data
+			if len(mp.TxID) > 255 {
+				t.Errorf("TxID length %d exceeds maximum of 255", len(mp.TxID))
+			}
+			if len(mp.TxID) < TxIDLenMin && len(mp.TxID) > 0 {
+				t.Errorf("TxID length %d is less than minimum of %d (unless empty)", len(mp.TxID), TxIDLenMin)
+			}
+
+			// Verify that a successful unmarshal can be marshaled back
+			_, marshalErr := mp.MarshalBinary()
+			if marshalErr != nil {
+				t.Errorf("Successfully unmarshaled data cannot be marshaled back: %v", marshalErr)
+			}
+
+			// Additional invariant checks
+			if mp.verificationState >= NumVariantsVerificationState {
+				t.Errorf("Invalid verification state %d >= %d", mp.verificationState, NumVariantsVerificationState)
+			}
+		}
+	})
 }
 
 // This tests a message publication using the deprecated [Marshal] and [UnmarshalMessagePublication] functions.

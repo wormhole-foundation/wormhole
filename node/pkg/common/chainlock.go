@@ -15,13 +15,15 @@ import (
 )
 
 const (
-	HashLength    = 32
+	// TxIDLenMin is the minimum length of a txID.
+	TxIDLenMin = 32
+	// AddressLength is the length of a normalized Wormhole address in bytes.
 	AddressLength = 32
 
 	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
-	marshaledMsgSizeMin = 1 + // TxID length (uint8)
-		20 + // TxID ([]byte), minimum length of 20 bytes
+	marshaledMsgLenMin = 1 + // TxID length (uint8)
+		TxIDLenMin + // TxID ([]byte), minimum length of 32 bytes (but may be longer)
 		8 + // Timestamp (int64)
 		4 + // Nonce (uint32)
 		8 + // Sequence (uint64)
@@ -65,7 +67,7 @@ type ErrInputSize struct {
 }
 
 func (e ErrInputSize) Error() string {
-	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgSizeMin, e.got)
+	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgLenMin, e.got)
 }
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
@@ -121,7 +123,8 @@ type MessagePublication struct {
 	EmitterChain     vaa.ChainID
 	EmitterAddress   vaa.Address
 	// NOTE: there is no upper bound on the size of the payload. Wormhole supports arbitrary payloads
-	// due to the variance in transaction and block sizes between chains.
+	// due to the variance in transaction and block sizes between chains. However, during deserialization,
+	// payload lengths are bounds-checked against math.MaxInt to prevent makeslice panics from malformed input.
 	Payload         []byte
 	IsReobservation bool
 
@@ -221,11 +224,8 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// - Payload length
 	// - Payload
 
-	const (
-		// TxID is an alias for []byte.
-		TxIDSizeMin = 20 // 20 bytes is the minimum size of a txID as determined by the EVM address length.
-		TxIDSizeMax = math.MaxUint8
-	)
+	// TxID is an alias for []byte.
+	const TxIDSizeMax = math.MaxUint8
 
 	// Check preconditions
 	txIDLen := len(msg.TxID)
@@ -233,7 +233,7 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 		return nil, ErrInputSize{msg: "TxID too long"}
 	}
 
-	if txIDLen < TxIDSizeMin {
+	if txIDLen < TxIDLenMin {
 		return nil, ErrInputSize{msg: "TxID too short"}
 	}
 
@@ -241,7 +241,7 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Set up for serialization
 	var (
 		be      = binary.BigEndian
-		bufSize = marshaledMsgSizeMin + txIDLen + payloadLen
+		bufSize = marshaledMsgLenMin + txIDLen + payloadLen
 		buf     = make([]byte, 0, bufSize)
 	)
 
@@ -372,11 +372,25 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 
 // UnmarshalBinary implements the BinaryUnmarshaler interface for MessagePublication.
 func (m *MessagePublication) UnmarshalBinary(data []byte) error {
+
+	// fixedFieldsLen is the minimum length of the fixed portion of a message publication.
+	// It is the sum of the sizes of each of the fields plus length information for fields with variable lengths (TxID and Payload).
+	// This is used to check that the data is long enough for the rest of the message after reading the TxID.
+	const fixedFieldsLen = 8 + // Timestamp (int64)
+		4 + // Nonce (uint32)
+		8 + // Sequence (uint64)
+		1 + // ConsistencyLevel (uint8)
+		2 + // EmitterChain (uint16)
+		32 + // EmitterAddress (32 bytes)
+		1 + // IsReobservation (bool)
+		1 + // Unreliable (bool)
+		8 // Payload length (uint64)
+
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
 
 	// Initial check for minimum data length
-	if len(data) < marshaledMsgSizeMin {
+	if len(data) < marshaledMsgLenMin {
 		return ErrInputSize{msg: "data too short", got: len(data)}
 	}
 
@@ -390,10 +404,21 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	txIDLen := uint8(data[pos])
 	pos++
 
+	// Bounds checks. TxID length should be at lesat TxIDLenMin, but not larger than the length of the data.
+	// The second check is to avoid panics.
+	if int(txIDLen) < TxIDLenMin || int(txIDLen) > len(data) {
+		return ErrInputSize{msg: "TxID length is invalid"}
+	}
+
 	// Read TxID
 	mp.TxID = make([]byte, txIDLen)
 	copy(mp.TxID, data[pos:pos+int(txIDLen)])
 	pos += int(txIDLen)
+
+	// TxID has a dynamic length, so now that we've read it, check that the remaining data is long enough for the rest of the message. This means that all fixed-length fields can be parsed with a payload of 0 or more bytes.
+	if len(data)-pos < fixedFieldsLen {
+		return ErrInputSize{msg: "data too short after reading TxID", got: len(data)}
+	}
 
 	// Timestamp
 	timestamp := be.Uint64(data[pos : pos+8])
@@ -449,10 +474,20 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	payloadLen := be.Uint64(data[pos : pos+8])
 	pos += 8
 
+	// Check if payload length is within reasonable bounds to prevent makeslice panic.
+	// In Go, slice lengths are constrained by the int type, which means the maximum
+	// slice length is math.MaxInt (platform-dependent: 2^31-1 on 32-bit, 2^63-1 on 64-bit).
+	// Since payloadLen is read as uint64 from untrusted input, it could potentially
+	// exceed this limit and cause a runtime panic when passed to make([]byte, payloadLen).
+	// This bounds check prevents such panics by rejecting oversized payload lengths early.
+	if payloadLen > math.MaxInt {
+		return ErrInputSize{msg: "payload length too large", got: len(data)}
+	}
+
 	// Check if we have enough data for the payload
 	// #nosec G115 -- payloadLen is read from data, bounds checked above
 	if len(data) < pos+int(payloadLen) {
-		return ErrInputSize{msg: "payload too short"}
+		return ErrInputSize{msg: "invalid payload length"}
 	}
 
 	// Read payload
