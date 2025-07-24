@@ -40,7 +40,7 @@ This means that there is a fixed overhead of ~2441 gas units for batch schnorr v
 
 ## Current vs VerificationV2 comparison
 
-![Chart comparing gas costs for v2 VAA threshold verification across several implementations][currentVsVerificationV2Chart]
+![Chart comparing gas costs for current Wormhole Core and VerificationV2][currentVsVerificationV2Chart]
 
 ## Sources
 
