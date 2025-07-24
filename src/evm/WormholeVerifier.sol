@@ -39,23 +39,24 @@ uint8 constant UPDATE_APPEND_SCHNORR_KEY     = 1;
 uint8 constant UPDATE_PULL_MULTISIG_KEY_DATA = 2;
 
 // Update error flags
-uint256 constant MASK_UPDATE_DEPLOYMENT_FAILED                 = 1 << 16;
-uint256 constant MASK_UPDATE_RESULT_INVALID_VERSION            = 1 << 17;
-uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX  = 1 << 18;
-uint256 constant MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED     = 1 << 19;
-uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX       = 1 << 20;
-uint256 constant MASK_UPDATE_RESULT_SIGNATURE_MISMATCH         = 1 << 21;
-uint256 constant MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX = 1 << 22;
-uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNATURE_COUNT    = 1 << 23;
-uint256 constant MASK_UPDATE_RESULT_INVALID_GOVERNANCE_CHAIN   = 1 << 24;
-uint256 constant MASK_UPDATE_RESULT_INVALID_GOVERNANCE_ADDRESS = 1 << 25;
-uint256 constant MASK_UPDATE_RESULT_INVALID_MODULE             = 1 << 26;
-uint256 constant MASK_UPDATE_RESULT_INVALID_ACTION             = 1 << 27;
-uint256 constant MASK_UPDATE_RESULT_INVALID_KEY_INDEX          = 1 << 28;
-uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY        = 1 << 29;
-uint256 constant MASK_UPDATE_RESULT_SHARD_DATA_MISMATCH        = 1 << 30;
-uint256 constant MASK_UPDATE_RESULT_INVALID_OPCODE             = 1 << 31;
-uint256 constant MASK_UPDATE_RESULT_INVALID_DATA_LENGTH        = 1 << 32;
+uint256 constant MASK_UPDATE_DEPLOYMENT_FAILED                  = 1 << 16;
+uint256 constant MASK_UPDATE_RESULT_INVALID_VERSION             = 1 << 17;
+uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX   = 1 << 18;
+uint256 constant MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED      = 1 << 19;
+uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX        = 1 << 20;
+uint256 constant MASK_UPDATE_RESULT_SIGNATURE_MISMATCH          = 1 << 21;
+uint256 constant MASK_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX  = 1 << 22;
+uint256 constant MASK_UPDATE_RESULT_INVALID_SIGNATURE_COUNT     = 1 << 23;
+uint256 constant MASK_UPDATE_RESULT_INVALID_GOVERNANCE_CHAIN    = 1 << 24;
+uint256 constant MASK_UPDATE_RESULT_INVALID_GOVERNANCE_ADDRESS  = 1 << 25;
+uint256 constant MASK_UPDATE_RESULT_INVALID_MODULE              = 1 << 26;
+uint256 constant MASK_UPDATE_RESULT_INVALID_ACTION              = 1 << 27;
+uint256 constant MASK_UPDATE_RESULT_INVALID_KEY_INDEX           = 1 << 28;
+uint256 constant MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY         = 1 << 29;
+uint256 constant MASK_UPDATE_RESULT_SHARD_DATA_MISMATCH         = 1 << 30;
+uint256 constant MASK_UPDATE_RESULT_INVALID_OPCODE              = 1 << 31;
+uint256 constant MASK_UPDATE_RESULT_INVALID_DATA_LENGTH         = 1 << 32;
+uint256 constant MASK_UPDATE_RESULT_MULTISIG_KEY_INDEX_MISMATCH = 1 << 33;
 
 // Get opcodes
 uint8 constant GET_CURRENT_SCHNORR_KEY_DATA  = 0;
@@ -107,6 +108,7 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant SLOT_SCHNORR_EXTRA_DATA = 2 << 48;
   uint256 private constant SLOT_SCHNORR_SHARD_DATA = 3 << 48;
   uint256 private constant SLOT_MULTISIG_KEY_DATA  = 4 << 48;
+  uint256 private constant SLOT_NONCE_BITMAP       = 1 << 64;
 
   // Schnorr key data information
   uint256 private constant SHIFT_SCHNORR_KEY_PX = 1;
@@ -140,23 +142,24 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH  = 25;
 
   // Update result information
-  uint256 private constant SHIFT_UPDATE_DEPLOYMENT_FAILED                 = 16;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_VERSION            = 17;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX  = 18;
-  uint256 private constant SHIFT_UPDATE_RESULT_EXPIRED                    = 19;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SIGNER_INDEX       = 20;
-  uint256 private constant SHIFT_UPDATE_RESULT_SIGNATURE_MISMATCH         = 21;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX = 22;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SIGNATURE_COUNT    = 23;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_GOVERNANCE_CHAIN   = 24;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_GOVERNANCE_ADDRESS = 25;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_MODULE             = 26;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_ACTION             = 27;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_KEY_INDEX          = 28;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SCHNORR_KEY        = 29;
-  uint256 private constant SHIFT_UPDATE_RESULT_SHARD_DATA_MISMATCH        = 30;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_OPCODE             = 31;
-  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_DATA_LENGTH        = 32;
+  uint256 private constant SHIFT_UPDATE_DEPLOYMENT_FAILED                  = 16;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_VERSION             = 17;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX   = 18;
+  uint256 private constant SHIFT_UPDATE_RESULT_EXPIRED                     = 19;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SIGNER_INDEX        = 20;
+  uint256 private constant SHIFT_UPDATE_RESULT_SIGNATURE_MISMATCH          = 21;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_MULTISIG_KEY_INDEX  = 22;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SIGNATURE_COUNT     = 23;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_GOVERNANCE_CHAIN    = 24;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_GOVERNANCE_ADDRESS  = 25;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_MODULE              = 26;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_ACTION              = 27;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_KEY_INDEX           = 28;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_SCHNORR_KEY         = 29;
+  uint256 private constant SHIFT_UPDATE_RESULT_SHARD_DATA_MISMATCH         = 30;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_OPCODE              = 31;
+  uint256 private constant SHIFT_UPDATE_RESULT_INVALID_DATA_LENGTH         = 32;
+  uint256 private constant SHIFT_UPDATE_RESULT_MULTISIG_KEY_INDEX_MISMATCH = 33;
 
   // VAA header information
   uint256 private constant OFFSET_HEADER_KEY_INDEX = 1;
@@ -182,7 +185,7 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant LENGTH_MULTISIG_SIGNATURE   = 1 + 32 + 32 + 1;
 
   // Append schnorr key message information
-  uint256 private constant LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY = 32 + 1 + 4 + 32 + 4 + 32;
+  uint256 private constant LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY = 32 + 1 + 4 + 4 + 32 + 4 + 32;
 
   // Batch format information
   // Offsets relative to the message data start
@@ -235,8 +238,6 @@ contract WormholeVerifier is EIP712Encoding {
   error GovernanceVaaVerificationFailure();
 
   ICoreBridge private immutable _coreBridge;
-
-  mapping(address => mapping(uint256 => uint256)) public nonceBitmap;
 
   constructor(
     ICoreBridge coreBridge,
@@ -1075,7 +1076,7 @@ contract WormholeVerifier is EIP712Encoding {
   // Update functions
   function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
-    uint256 nonce;
+    uint32 nonce;
     bytes32 shardId;
     uint8 signerIndex;
     bytes32 r;
@@ -1084,7 +1085,7 @@ contract WormholeVerifier is EIP712Encoding {
 
     uint256 baseOffset = offset;
     (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (nonce, offset) = data.asUint256CdUnchecked(offset);
+    (nonce, offset) = data.asUint32CdUnchecked(offset);
     (shardId, offset) = data.asBytes32CdUnchecked(offset);
     (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
@@ -1106,7 +1107,7 @@ contract WormholeVerifier is EIP712Encoding {
     address signatory = ecrecover(digest, v, r, s);
     require(signatory == expected, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
 
-    _useUnorderedNonce(signatory, nonce, baseOffset);
+    _useUnorderedNonce(schnorrKeyIndex, signerIndex, nonce, baseOffset);
 
     // Store the shard ID
     _setSchnorrShardId(shardBase, signerIndex, shardId);
@@ -1142,6 +1143,7 @@ contract WormholeVerifier is EIP712Encoding {
       bytes32 module;
       uint8 action;
       uint32 newSchnorrKeyIndex;
+      uint32 expectedMultisigKeyIndex;
       uint256 newSchnorrKey;
       uint32 expirationDelaySeconds;
       bytes32 initialShardDataHash;
@@ -1150,6 +1152,7 @@ contract WormholeVerifier is EIP712Encoding {
       (action, offset) = data.asUint8CdUnchecked(offset);
 
       (newSchnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
+      (expectedMultisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
       (newSchnorrKey, offset) = data.asUint256CdUnchecked(offset);
       (expirationDelaySeconds, offset) = data.asUint32CdUnchecked(offset);
       (initialShardDataHash, offset) = data.asBytes32CdUnchecked(offset);
@@ -1182,6 +1185,9 @@ contract WormholeVerifier is EIP712Encoding {
 
       require(eagerAnd(px != 0, px < HALF_SECP256K1_ORDER_PLUS_ONE),
                                                     UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY));
+
+      require(expectedMultisigKeyIndex == multisigKeyIndex,
+                                                    UpdateFailed(offset | MASK_UPDATE_RESULT_MULTISIG_KEY_INDEX_MISMATCH));
 
       // If there is a previous schnorr key that is now expired, store the expiration time
       if (newSchnorrKeyIndex > 0) {
@@ -1419,13 +1425,15 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function _useUnorderedNonce(address guardian, uint256 nonce, uint256 baseOffset) internal {
-    uint256 wordPos = uint248(nonce >> 8);
-    uint256 bitPos = uint8(nonce);
-    uint256 bit = 1 << bitPos;
-    uint256 flipped = nonceBitmap[guardian][wordPos] ^= bit;
+  function _useUnorderedNonce(uint32 keyIndex, uint8 signerIndex, uint32 nonce, uint256 baseOffset) internal {
+    uint256 nonceSlot = SLOT_NONCE_BITMAP | (keyIndex << 32) | (signerIndex << 24) | (nonce >> 8);
+    uint256 oldEntry;
+    assembly ("memory-safe") { oldEntry := sload(nonceSlot) }
 
-    require(flipped & bit != 0,
-      UpdateFailed(baseOffset | MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED));
+    uint256 bit = 1 << (nonce & 0xFF);
+    require(oldEntry & bit == 0, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED));
+
+    uint256 newEntry = oldEntry | bit;
+    assembly ("memory-safe") { sstore(nonceSlot, newEntry) }
   }
 }
