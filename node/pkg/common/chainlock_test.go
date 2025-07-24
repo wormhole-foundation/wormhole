@@ -320,6 +320,12 @@ func FuzzMessagePublicationUnmarshalBinary(f *testing.F) {
 	f.Add(make([]byte, marshaledMsgLenMin-1)) // too short
 	f.Add(make([]byte, marshaledMsgLenMin))   // minimum size
 	f.Add(make([]byte, 1000))                 // larger data
+	// Previous inputs that caused panics
+	f.Add([]byte(" 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\x01\x01\x00\x7f\xff\xff\xff\xff\xff\xff\xed"))
+	f.Add([]byte("x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"))
+	f.Add([]byte(" 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\x00\x00\x00\xec0000000"))
+
+	f.Add([]byte("\x000000000000000000000000000000000000000000000000000000000\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 00000000000000000000000000000000"))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Catch panics and report them as test failures

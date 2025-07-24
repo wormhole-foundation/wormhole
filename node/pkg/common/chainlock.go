@@ -20,6 +20,14 @@ const (
 	// AddressLength is the length of a normalized Wormhole address in bytes.
 	AddressLength = 32
 
+	// Wormhole supports arbitrary payloads due to the variance in transaction and block sizes between chains.
+	// However, during serialization, payload lengths are limited by Go slice length constraints and violations
+	// of these limits can cause panics.
+	// (https://go.dev/src/runtime/slice.go)
+	// This limit is chosen to be large enough to prevent such panics but it should comfortably handle all payloads.
+	// If not, the limit can be increased.
+	PayloadLenMax = 1024 * 1024 * 1024 * 10 // 10 GB
+
 	// The minimum size of a marshaled message publication. It is the sum of the sizes of each of
 	// the fields plus length information for fields with variable lengths (TxID and Payload).
 	marshaledMsgLenMin = 1 + // TxID length (uint8)
@@ -33,7 +41,7 @@ const (
 		1 + // IsReobservation (bool)
 		1 + // Unreliable (bool)
 		1 + // verificationState (uint8)
-		8 // Payload length (uint64), may be zero
+		8 // Payload length (int64), may be zero
 
 	// Deprecated: represents the minimum message length for a marshaled message publication
 	// before the Unreliable and verificationState fields were added.
@@ -404,7 +412,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	txIDLen := uint8(data[pos])
 	pos++
 
-	// Bounds checks. TxID length should be at lesat TxIDLenMin, but not larger than the length of the data.
+	// Bounds checks. TxID length should be at least TxIDLenMin, but not larger than the length of the data.
 	// The second check is to avoid panics.
 	if int(txIDLen) < TxIDLenMin || int(txIDLen) > len(data) {
 		return ErrInputSize{msg: "TxID length is invalid"}
@@ -475,12 +483,10 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	pos += 8
 
 	// Check if payload length is within reasonable bounds to prevent makeslice panic.
-	// In Go, slice lengths are constrained by the int type, which means the maximum
-	// slice length is math.MaxInt (platform-dependent: 2^31-1 on 32-bit, 2^63-1 on 64-bit).
 	// Since payloadLen is read as uint64 from untrusted input, it could potentially
 	// exceed this limit and cause a runtime panic when passed to make([]byte, payloadLen).
 	// This bounds check prevents such panics by rejecting oversized payload lengths early.
-	if payloadLen > math.MaxInt {
+	if payloadLen > PayloadLenMax {
 		return ErrInputSize{msg: "payload length too large", got: len(data)}
 	}
 
