@@ -340,7 +340,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 				transfers = append(transfers, v)
 
 			} else if isOldTransfer(key) {
-				// NOTE: This is the intentionally the same as IsTransfer branch
+				// NOTE: This is intentionally the same as IsTransfer branch
 				// for the current upgrade but this branch is left here for convenience for future upgrades.
 				v, err := UnmarshalTransfer(val)
 				if err != nil {

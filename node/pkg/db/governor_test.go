@@ -142,6 +142,11 @@ func TestIsTransferV4(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "previous message format",
+			input:    []byte("GOV:XFER3:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			expected: false,
+		},
+		{
 			name:     "transfer prefix only",
 			input:    []byte("GOV:XFER4:"),
 			expected: false,
