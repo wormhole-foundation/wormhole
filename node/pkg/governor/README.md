@@ -8,7 +8,7 @@ This occurs if a field is added, removed, or changed or if the marshaling format
 The Governor has to handle this in a special way because it must be able to read the old format and write the new format.
 This is required so that the Governor can continue to monitor transfers and messages that have already been recorded.
 It only needs to support the old format for the duration of its sliding window as the old transfers and messages will
-automatically dropped after the duration of the window.
+automatically be dropped after the duration of the window.
 
 ### Example upgrade
 
@@ -48,7 +48,5 @@ methods and the accompanying maintenance burden.
 ### Live Migration
 
 When the Governor restarts and loads its data from the key-value store, it marks which transfers and/or messages
-are in the old format and saves them in the new format right away. This minimizes the time needed to support
-the two different versions.
-
-
+are in the old format and saves them in the new format right away. It also deletes the records using the old format.
+This minimizes the time needed to support the two different versions.
