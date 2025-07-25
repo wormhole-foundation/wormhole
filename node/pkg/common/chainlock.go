@@ -132,7 +132,7 @@ type MessagePublication struct {
 	EmitterAddress   vaa.Address
 	// NOTE: there is no upper bound on the size of the payload. Wormhole supports arbitrary payloads
 	// due to the variance in transaction and block sizes between chains. However, during deserialization,
-	// payload lengths are bounds-checked against math.MaxInt to prevent makeslice panics from malformed input.
+	// payload lengths are bounds-checked against [PayloadLenMax] to prevent makeslice panics from malformed input.
 	Payload         []byte
 	IsReobservation bool
 
