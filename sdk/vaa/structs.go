@@ -210,26 +210,21 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// ChainIDTerra is the ChainID of Terra
-	ChainIDTerra ChainID = 3
+	// OBSOLETE: ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon
 	ChainIDPolygon ChainID = 5
 	// ChainIDAvalanche is the ChainID of Avalanche
 	ChainIDAvalanche ChainID = 6
-	// ChainIDOasis is the ChainID of Oasis
-	ChainIDOasis ChainID = 7
+	// OBSOLETE: ChainIDOasis ChainID = 7
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
-	// ChainIDAurora is the ChainID of Aurora
-	ChainIDAurora ChainID = 9
+	// OBSOLETE: ChainIDAurora ChainID = 9
 	// ChainIDFantom is the ChainID of Fantom
 	ChainIDFantom ChainID = 10
-	// ChainIDKarura is the ChainID of Karura
-	ChainIDKarura ChainID = 11
-	// ChainIDAcala is the ChainID of Acala
-	ChainIDAcala ChainID = 12
+	// OBSOLETE: ChainIDKarura ChainID = 11
+	// OBSOLETE: ChainIDAcala ChainID = 12
 	// ChainIDKlaytn is the ChainID of Klaytn
 	ChainIDKlaytn ChainID = 13
 	// ChainIDCelo is the ChainID of Celo
@@ -258,8 +253,7 @@ const (
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
 	// NOTE: 27 belongs to a chain that was never deployed.
-	// ChainIDXpla is the ChainID of Xpla
-	ChainIDXpla ChainID = 28
+	// OBSOLETE: ChainIDXpla ChainID = 28
 	// ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
 	// ChainIDBase is the ChainID of Base

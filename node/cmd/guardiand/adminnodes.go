@@ -90,16 +90,11 @@ func runListNodes(cmd *cobra.Command, args []string) {
 	networks := []network{
 		{"Solana", vaa.ChainIDSolana},
 		{"Ethereum", vaa.ChainIDEthereum},
-		{"Terra", vaa.ChainIDTerra},
 		{"BSC", vaa.ChainIDBSC},
 		{"Polygon", vaa.ChainIDPolygon},
 		{"Avalanche", vaa.ChainIDAvalanche},
-		{"Oasis", vaa.ChainIDOasis},
 		{"Algorand", vaa.ChainIDAlgorand},
-		{"Aurora", vaa.ChainIDAurora},
 		{"Fantom", vaa.ChainIDFantom},
-		{"Karura", vaa.ChainIDKarura},
-		{"Acala", vaa.ChainIDAcala},
 		{"Klaytn", vaa.ChainIDKlaytn},
 		{"Celo", vaa.ChainIDCelo},
 		{"Near", vaa.ChainIDNear},
@@ -113,7 +108,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Optimism", vaa.ChainIDOptimism},
 		// Gnosis is not supported in the guardian.
 		{"Pythnet", vaa.ChainIDPythNet},
-		{"Xpla", vaa.ChainIDXpla},
 		{"Btc", vaa.ChainIDBtc},
 		{"Base", vaa.ChainIDBase},
 		// Filecoin is not supported in the guardian.

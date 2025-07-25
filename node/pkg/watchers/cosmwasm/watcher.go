@@ -121,7 +121,7 @@ func NewWatcher(
 	// Injective does not base64 encode parameters (as of release v1.11.2).
 	// Terra does not base64 encode parameters (as of v3.0.1 software upgrade)
 	// Terra2 no longer base64 encodes parameters.
-	b64Encoded := env == common.UnsafeDevNet || (chainID != vaa.ChainIDInjective && chainID != vaa.ChainIDTerra2 && chainID != vaa.ChainIDTerra)
+	b64Encoded := env == common.UnsafeDevNet || (chainID != vaa.ChainIDInjective && chainID != vaa.ChainIDTerra2)
 
 	return &Watcher{
 		urlWS:                    urlWS,
@@ -290,19 +290,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				contractAddressLogKey := e.contractAddressLogKey
-				if e.chainID == vaa.ChainIDTerra {
-					// Terra Classic upgraded WASM versions starting at block 13215800. If this transaction is from before that, we need to use the old contract address format.
-					blockHeightStr := gjson.Get(txJSON, "tx_response.height")
-					if !blockHeightStr.Exists() {
-						logger.Error("failed to look up block height on old reobserved tx", zap.String("network", networkName), zap.String("txHash", txHash), zap.String("payload", txJSON))
-						continue
-					}
-					blockHeight := blockHeightStr.Int()
-					if blockHeight < 13215800 {
-						logger.Info("doing look up of old tx", zap.String("network", networkName), zap.String("txHash", txHash), zap.Int64("blockHeight", blockHeight))
-						contractAddressLogKey = "contract_address"
-					}
-				}
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey, e.b64Encoded)
 				for _, msg := range msgs {

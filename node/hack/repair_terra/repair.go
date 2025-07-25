@@ -31,21 +31,15 @@ import (
 )
 
 var fcdMap = map[vaa.ChainID]string{
-	vaa.ChainIDTerra:  "https://fcd.terra.dev",
 	vaa.ChainIDTerra2: "https://phoenix-fcd.terra.dev",
-	vaa.ChainIDXpla:   "https://dimension-fcd.xpla.dev",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
-	vaa.ChainIDTerra:  "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5",
 	vaa.ChainIDTerra2: "terra12mrnzvhx3rpej6843uge2yyfppfyd3u9c3uq223q8sl48huz9juqffcnhp",
-	vaa.ChainIDXpla:   "xpla1jn8qmdda5m6f6fqu9qv46rt7ajhklg40ukpqchkejcvy8x7w26cqxamv3w",
 }
 
 var emitterMap = map[vaa.ChainID]string{
-	vaa.ChainIDTerra:  "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2",
 	vaa.ChainIDTerra2: "a463ad028fb79679cfc8ce1efba35ac0e77b35080a1abe9bebe83461f176b0a3",
-	vaa.ChainIDXpla:   "8f9cf727175353b17a5f574270e370776123d90fd74956ae4277962b4fdee24c",
 }
 
 type Emitter struct {
@@ -277,10 +271,6 @@ func main() {
 
 	// CosmWasm 1.0.0
 	contractAddressLogKey := "_contract_address"
-	if chainID == vaa.ChainIDTerra {
-		// CosmWasm <1.0.0
-		contractAddressLogKey = "contract_address"
-	}
 
 	ctx := context.Background()
 

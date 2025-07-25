@@ -12,7 +12,6 @@ var KnownDevnetTokenbridgeEmitters = buildEmitterMap(knownDevnetTokenbridgeEmitt
 var knownDevnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDSolana:    "c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
 	vaa.ChainIDEthereum:  "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
-	vaa.ChainIDTerra:     "9e28beafa966b2407bffb0d48651e94972a56e69f3c0897d9e8facbdaeb98386",
 	vaa.ChainIDBSC:       "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
 	vaa.ChainIDAlgorand:  "8ec299cb7f3efec28f542397e07f07118d74c875f85409ed8e6b93c17b60e992",
 	vaa.ChainIDWormchain: "c9138c6e5bd7a2ab79c1a87486c9d7349d064b35ac9f7498f3b207b3a61e6013",

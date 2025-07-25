@@ -16,26 +16,16 @@ func (c ChainID) String() string {
 		return "solana"
 	case ChainIDEthereum:
 		return "ethereum"
-	case ChainIDTerra:
-		return "terra"
 	case ChainIDBSC:
 		return "bsc"
 	case ChainIDPolygon:
 		return "polygon"
 	case ChainIDAvalanche:
 		return "avalanche"
-	case ChainIDOasis:
-		return "oasis"
 	case ChainIDAlgorand:
 		return "algorand"
-	case ChainIDAurora:
-		return "aurora"
 	case ChainIDFantom:
 		return "fantom"
-	case ChainIDKarura:
-		return "karura"
-	case ChainIDAcala:
-		return "acala"
 	case ChainIDKlaytn:
 		return "klaytn"
 	case ChainIDCelo:
@@ -62,8 +52,6 @@ func (c ChainID) String() string {
 		return "gnosis"
 	case ChainIDPythNet:
 		return "pythnet"
-	case ChainIDXpla:
-		return "xpla"
 	case ChainIDBtc:
 		return "btc"
 	case ChainIDBase:
@@ -168,26 +156,16 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDSolana, nil
 	case "ethereum":
 		return ChainIDEthereum, nil
-	case "terra":
-		return ChainIDTerra, nil
 	case "bsc":
 		return ChainIDBSC, nil
 	case "polygon":
 		return ChainIDPolygon, nil
 	case "avalanche":
 		return ChainIDAvalanche, nil
-	case "oasis":
-		return ChainIDOasis, nil
 	case "algorand":
 		return ChainIDAlgorand, nil
-	case "aurora":
-		return ChainIDAurora, nil
 	case "fantom":
 		return ChainIDFantom, nil
-	case "karura":
-		return ChainIDKarura, nil
-	case "acala":
-		return ChainIDAcala, nil
 	case "klaytn":
 		return ChainIDKlaytn, nil
 	case "celo":
@@ -214,8 +192,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDGnosis, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
-	case "xpla":
-		return ChainIDXpla, nil
 	case "btc":
 		return ChainIDBtc, nil
 	case "base":
@@ -316,16 +292,11 @@ func GetAllNetworkIDs() []ChainID {
 	return []ChainID{
 		ChainIDSolana,
 		ChainIDEthereum,
-		ChainIDTerra,
 		ChainIDBSC,
 		ChainIDPolygon,
 		ChainIDAvalanche,
-		ChainIDOasis,
 		ChainIDAlgorand,
-		ChainIDAurora,
 		ChainIDFantom,
-		ChainIDKarura,
-		ChainIDAcala,
 		ChainIDKlaytn,
 		ChainIDCelo,
 		ChainIDNear,
@@ -339,7 +310,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimism,
 		ChainIDGnosis,
 		ChainIDPythNet,
-		ChainIDXpla,
 		ChainIDBtc,
 		ChainIDBase,
 		ChainIDFileCoin,
