@@ -459,20 +459,16 @@ func TestParseWNativeDepositEvent(t *testing.T) {
 
 }
 
+// TestValidateReceipt verifies the happy path and expected errors for the main algorithm that determines whether a receipt and its messages are valid.
 func TestValidateReceipt(t *testing.T) {
 	mocks := setup()
 
 	tests := map[string]struct {
 		transferReceipt *TransferReceipt
-		// number of receipts successfully processed
-		expected    int
+		expected    ReceiptSummary
 		shouldError bool
 	}{
-		// TODO test cases:
-		// - multiple transfers adding up to the right amount
-		// - multiple depoists adding up to the right amount
-		// - multiple LogMessagePublished events
-		"valid transfer: amounts match, deposit": {
+		"safe receipt: amounts match, deposit": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{
 					{
@@ -497,10 +493,10 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: true},
 			shouldError: false,
 		},
-		"valid transfer: amounts match, transfer": {
+		"safe receipt: amounts match, transfer": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
@@ -527,10 +523,10 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: true},
 			shouldError: false,
 		},
-		"valid transfer: amount in is greater than amount out, deposit": {
+		"safe receipt: amount in is greater than amount out, deposit": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{
 					{
@@ -555,10 +551,10 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: true},
 			shouldError: false,
 		},
-		"valid transfer: amount in is greater than amount out, transfer": {
+		"safe receipt: amount in is greater than amount out, transfer": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
@@ -585,10 +581,143 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: true},
 			shouldError: false,
 		},
-		"invalid transfer: amount in too low, deposit": {
+		"safe receipt: two deposits": {
+			transferReceipt: &TransferReceipt{
+				// Deposit WETH
+				Deposits: &[]*NativeDeposit{
+					{
+						TokenAddress: nativeAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Receiver:     tokenBridgeAddr,
+						Amount:       big.NewInt(100),
+					},
+					{
+						TokenAddress: nativeAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Receiver:     tokenBridgeAddr,
+						Amount:       big.NewInt(99),
+					},
+				},
+				Transfers: &[]*ERC20Transfer{
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					// Transfer out WETH
+					{
+						Sequence:     1,
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(199),
+						},
+					},
+				},
+			},
+			expected:    ReceiptSummary{isSafe: true},
+			shouldError: false,
+		},
+		"safe receipt: two transfers": {
+			transferReceipt: &TransferReceipt{
+				// Deposit WETH
+				Deposits: &[]*NativeDeposit{},
+				Transfers: &[]*ERC20Transfer{
+					// Transfer in USDC
+					{
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						Amount:       big.NewInt(999),
+						OriginAddr:   usdcAddrVAA,
+					},
+					{
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						Amount:       big.NewInt(1),
+						OriginAddr:   usdcAddrVAA,
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					// Transfer out USDC
+					{
+						Sequence:     1,
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(1000),
+						},
+					},
+				},
+			},
+			expected:    ReceiptSummary{isSafe: true},
+			shouldError: false,
+		},
+		"safe receipt: two separate assets, one deposit and one transfer": {
+			transferReceipt: &TransferReceipt{
+				Deposits: &[]*NativeDeposit{
+					// Depost WETH
+					{
+						TokenAddress: nativeAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Receiver:     tokenBridgeAddr,
+						Amount:       big.NewInt(999),
+					},
+				},
+				Transfers: &[]*ERC20Transfer{
+					// Transfer in USDC
+					{
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						Amount:       big.NewInt(999),
+						OriginAddr:   usdcAddrVAA,
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					// Transfer out WETH and USDC
+					{
+						Sequence:     1,
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(321),
+						},
+					},
+					{
+						Sequence:     2,
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(456),
+						},
+					},
+				},
+			},
+			expected:    ReceiptSummary{isSafe: true},
+			shouldError: false,
+		},
+		"unsafe receipt: amount in too low, deposit": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{
 					{
@@ -613,10 +742,10 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: false},
 			shouldError: true,
 		},
-		"invalid transfer: amount in too low, transfer": {
+		"unsafe receipt: amount in too low, transfer": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
@@ -643,13 +772,14 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: false},
 			shouldError: true,
 		},
-		"invalid transfer: transfer out after transferring a different token": {
+		"unsafe receipt: transfer out after transferring a different token": {
 			transferReceipt: &TransferReceipt{
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
+					// Transfer in USDC
 					{
 						TokenAddress: usdcAddrGeth,
 						TokenChain:   vaa.ChainIDEthereum,
@@ -660,6 +790,7 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 				MessagePublications: &[]*LogMessagePublished{
+					// But transfer out WETH
 					{
 						EventEmitter: coreBridgeAddr,
 						MsgSender:    tokenBridgeAddr,
@@ -673,7 +804,138 @@ func TestValidateReceipt(t *testing.T) {
 					},
 				},
 			},
-			expected:    1,
+			expected:    ReceiptSummary{isSafe: false},
+			shouldError: true,
+		},
+		"unsafe receipt: duplicate msgID for LogMessagePublished events": {
+			transferReceipt: &TransferReceipt{
+				Deposits: &[]*NativeDeposit{},
+				Transfers: &[]*ERC20Transfer{},
+				// Sequence numbers are not unique, so the receipt is invalid
+				MessagePublications: &[]*LogMessagePublished{
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     1,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(1),
+						},
+					},
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     1,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(1),
+						},
+					},
+				},
+			},
+			shouldError: true,
+		},
+		"unsafe receipt: total amount in is too small even though messages are valid when considered individually": {
+			transferReceipt: &TransferReceipt{
+				Deposits: &[]*NativeDeposit{},
+				Transfers: &[]*ERC20Transfer{
+					{
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						Amount:       big.NewInt(1),
+						OriginAddr:   usdcAddrVAA,
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     1,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(1),
+						},
+					},
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     2,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(1),
+						},
+					},
+				},
+			},
+			expected: ReceiptSummary{
+				isSafe: false,
+				in: map[string]*big.Int{
+					fmt.Sprintf("%s-%s", nativeAddrVAA, "2"): big.NewInt(2),
+				},
+				out:          map[msgID]transferOut{},
+				msgPubResult: map[msgID]bool{},
+			},
+			shouldError: true,
+		},
+		"unsafe receipt: one valid message, one invalid message": {
+			transferReceipt: &TransferReceipt{
+				Deposits: &[]*NativeDeposit{},
+				// Transfer in WETH but not USDC
+				Transfers: &[]*ERC20Transfer{
+					{
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						Amount:       big.NewInt(2),
+						OriginAddr:   usdcAddrVAA,
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					// Transfer out both WETH and USDC
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     1,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(2),
+						},
+					},
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     2,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(1),
+						},
+					},
+				},
+			},
+			expected: ReceiptSummary{
+				isSafe: false,
+			},
 			shouldError: true,
 		},
 	}
@@ -683,21 +945,21 @@ func TestValidateReceipt(t *testing.T) {
 
 			summary, err := mocks.transferVerifier.validateReceipt(test.transferReceipt)
 
-			assert.Equal(
-				t,
-				test.expected,
-				len(summary.msgPubResult),
-				fmt.Sprintf(
-					"number of processed receipts did not match. got %v",
-					summary.msgPubResult,
-				),
-			)
-
 			if err != nil {
-				assert.True(t, test.shouldError, "test should have returned an error")
+				assert.True(t, test.shouldError, "test returned an error but should not have: %v", err)
+
 				var invErr *InvariantError
-				ok := errors.As(err, &invErr)
-				assert.True(t, ok, "wrong error type. expected InvariantError, got: `%w`", err)
+				isInvariantErr := errors.As(err, &invErr)
+
+				if !isInvariantErr {
+					// Check non-invariant errors
+					assert.Nil(t, summary, "summary must be nil when a non-invariant error is returned")
+				} else {
+					// Check summary when invariant error is returned
+					assert.NotNil(t, summary, "summary must not be nil when an invariant error is returned")
+					assert.False(t, summary.isSafe, "receipt should not be marked as safe when it returns an error")
+				}
+
 			} else {
 				assert.False(t, test.shouldError, "test should not have returned an error but got: `%w`", err)
 			}
@@ -722,7 +984,7 @@ func TestTransferReceiptValidate(t *testing.T) {
 		},
 	}
 
-	err := transferReceipt.Validate()
+	err := transferReceipt.SanityCheck()
 	require.NoError(t, err, "Validate must not return an error when it has a non-zero Message Publication slice")
 
 	// Test error cases.
@@ -768,7 +1030,7 @@ func TestTransferReceiptValidate(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			require.NotNil(t, test.transferReceipt)
-			err := test.transferReceipt.Validate()
+			err := test.transferReceipt.SanityCheck()
 			require.ErrorContains(t, err, test.errMsg)
 		})
 	}

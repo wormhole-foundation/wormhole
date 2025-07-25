@@ -131,17 +131,20 @@ func (tv *TransferVerifier[ethClient, Connector]) MsgID(log *LogMessagePublished
 	}, nil
 }
 
-// evaluation contains the result of verifying all LogMessagePublished events in a single transaction receipt.
-type evaluation struct {
-	// Whether the transfer verifier determined a message to be safe or not.
-	// The key is the message ID [msgID] for the LogMessagePublished event.
-	Results     map[msgID]bool
+// receiptEvaluation contains the result of verifying all LogMessagePublished events in a single transaction receipt.
+type receiptEvaluation struct {
+	// Whether the entire receipt itself is valid or not. It is possible for all of the messages in a receipt to be
+	// valid, but the receipt itself to be invalid.
+	Valid bool
+	// Whether individual messages in the receipt are valid or not.
+	MsgResults     map[msgID]bool
 	blockNumber uint64
 }
 
-func NewEvaluation(blockNumber uint64) evaluation {
-	return evaluation{
-		Results:     make(map[msgID]bool),
+func NewReceiptEvaluation(blockNumber uint64) receiptEvaluation {
+	return receiptEvaluation{
+		Valid: false,
+		MsgResults:     make(map[msgID]bool),
 		blockNumber: blockNumber,
 	}
 }
@@ -159,7 +162,7 @@ type TransferVerifier[E evmClient, C connector] struct {
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
 	// An evaluation may contain multiple results, one for each relevant LogMessagePublished event.
-	evaluations map[common.Hash]*evaluation
+	evaluations map[common.Hash]*receiptEvaluation
 
 	// The last block number that the program has processed.
 	// Used to determine the size of historic receipts to keep in memory.
@@ -213,7 +216,7 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		logger:              *logger,
 		evmConnector:        connector,
 		client:              connector.Client(),
-		evaluations:         make(map[common.Hash]*evaluation),
+		evaluations:         make(map[common.Hash]*receiptEvaluation),
 		lastBlockNumber:     0,
 		pruneHeightDelta:    pruneHeightDelta,
 		isWrappedCache:      make(map[string]bool),
@@ -609,7 +612,7 @@ type TransferReceipt struct {
 	MessagePublications *[]*LogMessagePublished
 }
 
-// Validate ensures that a parsed TransferReceipt struct is well-formed (i.e.
+// SanityCheck ensures that a parsed TransferReceipt struct is well-formed (i.e.
 // structurally valid, even if the semantic contents of the TransferReceipt
 // would be evaluated as "bad" from a security perspective.
 //
@@ -618,7 +621,7 @@ type TransferReceipt struct {
 // - The MessagePublications fields must have at least one element.
 // As as result, this function should only be used near the end of parsing and processing
 // when all the logs have been parsed and used to populate the TransferReceipt instance.
-func (r *TransferReceipt) Validate() (err error) {
+func (r *TransferReceipt) SanityCheck() (err error) {
 	if r == nil {
 		return ErrInvalidReceiptArgument
 	}
@@ -677,13 +680,17 @@ func (r *TransferReceipt) String() string {
 }
 
 // Summary of a processed TransferReceipt. Contains information about relevant
-// transfers requested in and out of the bridge.
+// transfers requested in and out of the bridge. Message Publications within a receipt
+// are evaluated independently of each other.
 type ReceiptSummary struct {
+	// Whether the entire receipt, including all of its messages, is safe without any invariant violations.
+	// There may be safe individual messages in the receipt.
+	isSafe bool
 	// The sum of tokens transferred into the Token Bridge contract.
 	in map[string]*big.Int
 	// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
 	// The key is the msgID for the LogMessagePublished event.
-	out map[msgID][]transferOut
+	out map[msgID]transferOut
 	// Whether the transfer verifier determined a message to be safe or not.
 	// The key is the message ID [msgID] for the LogMessagePublished event.
 	msgPubResult map[msgID]bool
@@ -702,7 +709,7 @@ func NewReceiptSummary() *ReceiptSummary {
 		// The sum of tokens transferred into the Token Bridge contract.
 		in: make(map[string]*big.Int),
 		// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
-		out:          make(map[msgID][]transferOut),
+		out:          make(map[msgID]transferOut),
 		msgPubResult: make(map[msgID]bool),
 	}
 }
@@ -712,14 +719,12 @@ func (s *ReceiptSummary) String() (outStr string) {
 	ins := ""
 
 	for tokenID, amountIn := range s.in {
-		ins += fmt.Sprintf("%s=%s", tokenID, amountIn.String())
+		ins += fmt.Sprintf("tokenID=%s amount=%s", tokenID, amountIn.String())
 	}
 
 	outs := ""
-	for msgID, transfersOut := range s.out {
-		for _, transferOut := range transfersOut {
-			outs += fmt.Sprintf("%s-%s=%s ", msgID.String(), transferOut.tokenID, transferOut.amount.String())
-		}
+	for msgID, transferOut := range s.out {
+		outs += fmt.Sprintf("msgID=%s tokenID=%s amount=%s ", msgID.String(), transferOut.tokenID, transferOut.amount.String())
 	}
 
 	outStr = fmt.Sprintf(
@@ -729,19 +734,6 @@ func (s *ReceiptSummary) String() (outStr string) {
 		outs,
 	)
 	return outStr
-}
-
-func (s *ReceiptSummary) addTransferOut(msgID msgID, tokenID string, amount *big.Int) {
-	if amount == nil {
-		return
-	}
-
-	if _, exists := s.out[msgID]; !exists {
-		s.out[msgID] = make([]transferOut, 0)
-		s.out[msgID] = append(s.out[msgID], transferOut{tokenID, amount})
-	}
-
-	s.out[msgID] = append(s.out[msgID], transferOut{tokenID, amount})
 }
 
 // https://wormhole.com/docs/learn/infrastructure/vaas/#payload-types
