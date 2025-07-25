@@ -245,16 +245,13 @@ contract WormholeVerifier is EIP712Encoding {
     ICoreBridge coreBridge,
     uint32 initialMultisigKeyCount,
     uint32 initialSchnorrKeyCount,
-    uint32 initialMultisigKeyPullLimit
+    bytes memory initialUpdate
   ) {
     _coreBridge = coreBridge;
 
     _updateMultisigKeyCount(initialMultisigKeyCount);
     _updateSchnorrKeyCount(initialSchnorrKeyCount);
-
-    if (initialMultisigKeyPullLimit > 0) {
-      _pullMultisigKeyData(initialMultisigKeyPullLimit);
-    }
+    update(initialUpdate);
   }
 
   function verify(bytes calldata data) external view returns (
@@ -1049,14 +1046,14 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function update(bytes calldata data) external {
+  function update(bytes memory data) public {
     unchecked {
       uint256 offset = 0;
 
       while (offset < data.length) {
         uint8 opcode;
 
-        (opcode, offset) = data.asUint8CdUnchecked(offset);
+        (opcode, offset) = data.asUint8MemUnchecked(offset);
 
         if (opcode == UPDATE_SET_SHARD_ID) {
           offset = _updateShardId(data, offset);
@@ -1064,7 +1061,7 @@ contract WormholeVerifier is EIP712Encoding {
           offset = _appendSchnorrKey(data, offset);
         } else if (opcode == UPDATE_PULL_MULTISIG_KEY_DATA) {
           uint32 limit;
-          (limit, offset) = data.asUint32CdUnchecked(offset);
+          (limit, offset) = data.asUint32MemUnchecked(offset);
           _pullMultisigKeyData(limit);
         } else {
           revert UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_OPCODE);
@@ -1076,7 +1073,7 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   // Update functions
-  function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
+  function _updateShardId(bytes memory data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
     uint32 nonce;
     bytes32 shardId;
@@ -1086,10 +1083,10 @@ contract WormholeVerifier is EIP712Encoding {
     uint8 v;
 
     uint256 baseOffset = offset;
-    (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-    (nonce, offset) = data.asUint32CdUnchecked(offset);
-    (shardId, offset) = data.asBytes32CdUnchecked(offset);
-    (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
+    (schnorrKeyIndex, offset) = data.asUint32MemUnchecked(offset);
+    (nonce, offset) = data.asUint32MemUnchecked(offset);
+    (shardId, offset) = data.asBytes32MemUnchecked(offset);
+    (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureMemUnchecked(offset);
 
     // We only allow registrations for the current threshold key
     require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
@@ -1117,7 +1114,7 @@ contract WormholeVerifier is EIP712Encoding {
     return offset;
   }
 
-  function _appendSchnorrKey(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
+  function _appendSchnorrKey(bytes memory data, uint256 offset) internal returns (uint256 newOffset) {
     unchecked {
       // Decode the VAA
       uint256 vaaOffset = offset;
@@ -1125,9 +1122,9 @@ contract WormholeVerifier is EIP712Encoding {
       uint32 multisigKeyIndex;
       uint8 signatureCount;
 
-      (version, offset) = data.asUint8CdUnchecked(offset);
-      (multisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-      (signatureCount, offset) = data.asUint8CdUnchecked(offset);
+      (version, offset) = data.asUint8MemUnchecked(offset);
+      (multisigKeyIndex, offset) = data.asUint32MemUnchecked(offset);
+      (signatureCount, offset) = data.asUint8MemUnchecked(offset);
 
       uint256 envelopeOffset = offset + signatureCount * LENGTH_MULTISIG_SIGNATURE;
 
@@ -1135,7 +1132,7 @@ contract WormholeVerifier is EIP712Encoding {
       bytes32 emitterAddress;
       uint16 payloadOffset;
 
-      (bytes calldata vaa,) = data.sliceCdUnchecked(vaaOffset, (envelopeOffset - vaaOffset) + VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
+      (bytes memory vaa,) = data.sliceMemUnchecked(vaaOffset, (envelopeOffset - vaaOffset) + VaaLib.ENVELOPE_SIZE + LENGTH_APPEND_SCHNORR_KEY_MESSAGE_BODY);
       (emitterChainId, emitterAddress,, payloadOffset) = this.verify(vaa);
       (CoreBridgeVM memory parsedVM, bool valid,) = _coreBridge.parseAndVerifyVM(vaa);
       require(valid, GovernanceVaaVerificationFailure());
@@ -1150,14 +1147,14 @@ contract WormholeVerifier is EIP712Encoding {
       uint32 expirationDelaySeconds;
       bytes32 initialShardDataHash;
 
-      (module, offset) = data.asBytes32CdUnchecked(envelopeOffset + VaaLib.ENVELOPE_SIZE);
-      (action, offset) = data.asUint8CdUnchecked(offset);
+      (module, offset) = data.asBytes32MemUnchecked(envelopeOffset + VaaLib.ENVELOPE_SIZE);
+      (action, offset) = data.asUint8MemUnchecked(offset);
 
-      (newSchnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-      (expectedMultisigKeyIndex, offset) = data.asUint32CdUnchecked(offset);
-      (newSchnorrKey, offset) = data.asUint256CdUnchecked(offset);
-      (expirationDelaySeconds, offset) = data.asUint32CdUnchecked(offset);
-      (initialShardDataHash, offset) = data.asBytes32CdUnchecked(offset);
+      (newSchnorrKeyIndex, offset) = data.asUint32MemUnchecked(offset);
+      (expectedMultisigKeyIndex, offset) = data.asUint32MemUnchecked(offset);
+      (newSchnorrKey, offset) = data.asUint256MemUnchecked(offset);
+      (expirationDelaySeconds, offset) = data.asUint32MemUnchecked(offset);
+      (initialShardDataHash, offset) = data.asBytes32MemUnchecked(offset);
 
       // Decode the pubkey
       uint256 px = newSchnorrKey >> 1;
@@ -1201,8 +1198,8 @@ contract WormholeVerifier is EIP712Encoding {
       _appendSchnorrKeyData(newSchnorrKey, multisigKeyIndex, signatureCount);
 
       // Read and validate the shard data
-      bytes calldata shardData;
-      (shardData, offset) = data.sliceCdUnchecked(offset, uint256(shardCount) << 6);
+      bytes memory shardData;
+      (shardData, offset) = data.sliceMemUnchecked(offset, uint256(shardCount) << 6);
 
       bytes32 expectedHash = keccak256(shardData);
       require(expectedHash == initialShardDataHash, UpdateFailed(offset | MASK_UPDATE_RESULT_SHARD_DATA_MISMATCH));
