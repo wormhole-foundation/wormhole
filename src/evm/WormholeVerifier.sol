@@ -1052,7 +1052,7 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function update(bytes calldata data) public {
+  function update(bytes calldata data) external {
     uint256 offset = 0;
 
     while (offset < data.length) {
