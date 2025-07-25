@@ -245,13 +245,19 @@ contract WormholeVerifier is EIP712Encoding {
     ICoreBridge coreBridge,
     uint32 initialMultisigKeyCount,
     uint32 initialSchnorrKeyCount,
-    bytes memory initialUpdate
+    uint32 initialMultisigKeyPullLimit,
+    bytes memory appendSchnorrKeyVaa
   ) {
     _coreBridge = coreBridge;
 
     _updateMultisigKeyCount(initialMultisigKeyCount);
     _updateSchnorrKeyCount(initialSchnorrKeyCount);
-    update(initialUpdate);
+
+    if (initialMultisigKeyPullLimit > 0) {
+      _pullMultisigKeyData(initialMultisigKeyPullLimit);
+    }
+
+    if (appendSchnorrKeyVaa.length > 0) _appendSchnorrKey(appendSchnorrKeyVaa);
   }
 
   function verify(bytes calldata data) external view returns (
@@ -1046,34 +1052,35 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function update(bytes memory data) public {
-    unchecked {
-      uint256 offset = 0;
+  function update(bytes calldata data) public {
+    uint256 offset = 0;
 
-      while (offset < data.length) {
-        uint8 opcode;
+    while (offset < data.length) {
+      uint8 opcode;
 
-        (opcode, offset) = data.asUint8MemUnchecked(offset);
+      (opcode, offset) = data.asUint8CdUnchecked(offset);
 
-        if (opcode == UPDATE_SET_SHARD_ID) {
-          offset = _updateShardId(data, offset);
-        } else if (opcode == UPDATE_APPEND_SCHNORR_KEY) {
-          offset = _appendSchnorrKey(data, offset);
-        } else if (opcode == UPDATE_PULL_MULTISIG_KEY_DATA) {
-          uint32 limit;
-          (limit, offset) = data.asUint32MemUnchecked(offset);
-          _pullMultisigKeyData(limit);
-        } else {
-          revert UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_OPCODE);
-        }
+      if (opcode == UPDATE_SET_SHARD_ID) {
+        offset = _updateShardId(data, offset);
+      } else if (opcode == UPDATE_APPEND_SCHNORR_KEY) {
+        // The size here allows us to pass in just the slice of the VAA + shard data.
+        bytes memory appendSchnorrKeyInstruction;
+        (appendSchnorrKeyInstruction, offset) = data.sliceUint16PrefixedCdUnchecked(offset);
+        _appendSchnorrKey(appendSchnorrKeyInstruction);
+      } else if (opcode == UPDATE_PULL_MULTISIG_KEY_DATA) {
+        uint32 limit;
+        (limit, offset) = data.asUint32CdUnchecked(offset);
+        _pullMultisigKeyData(limit);
+      } else {
+        revert UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_OPCODE);
       }
-
-      require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
     }
+
+    require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
   }
 
   // Update functions
-  function _updateShardId(bytes memory data, uint256 offset) internal returns (uint256 newOffset) {
+  function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
     uint32 nonce;
     bytes32 shardId;
@@ -1083,10 +1090,10 @@ contract WormholeVerifier is EIP712Encoding {
     uint8 v;
 
     uint256 baseOffset = offset;
-    (schnorrKeyIndex, offset) = data.asUint32MemUnchecked(offset);
-    (nonce, offset) = data.asUint32MemUnchecked(offset);
-    (shardId, offset) = data.asBytes32MemUnchecked(offset);
-    (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureMemUnchecked(offset);
+    (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
+    (nonce, offset) = data.asUint32CdUnchecked(offset);
+    (shardId, offset) = data.asBytes32CdUnchecked(offset);
+    (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
     // We only allow registrations for the current threshold key
     require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
@@ -1114,9 +1121,10 @@ contract WormholeVerifier is EIP712Encoding {
     return offset;
   }
 
-  function _appendSchnorrKey(bytes memory data, uint256 offset) internal returns (uint256 newOffset) {
+  function _appendSchnorrKey(bytes memory data) internal {
     unchecked {
       // Decode the VAA
+      uint256 offset = 0;
       uint256 vaaOffset = offset;
       uint8 version;
       uint32 multisigKeyIndex;
@@ -1207,7 +1215,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Store the shard data
       _storeSchnorrShardDataBlock(newSchnorrKeyIndex, shardData);
 
-      return offset;
+      // Bounds check on data read
+      require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
     }
   }
 
