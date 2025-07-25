@@ -27,7 +27,7 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
 		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
 		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
+		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "NDAwMA==", "index": true },` +
 		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
 		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
 		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
@@ -57,7 +57,7 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 		Msg: &common.MessagePublication{
 			TxID:           txHash.Bytes(),
 			EmitterAddress: expectedSender,
-			EmitterChain:   vaa.ChainIDTerra2,
+			EmitterChain:   vaa.ChainIDCosmoshub,
 			Nonce:          1,
 			Sequence:       2,
 			Timestamp:      time.Unix(1680099814, 0),

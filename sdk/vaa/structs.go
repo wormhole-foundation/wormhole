@@ -234,8 +234,7 @@ const (
 	// ChainIDMoonbeam is the ChainID of Moonbeam
 	ChainIDMoonbeam ChainID = 16
 	// OBSOLETE: ChainIDNeon ChainID = 17
-	// ChainIDTerra2 is the ChainID of Terra 2
-	ChainIDTerra2 ChainID = 18
+	// OBSOLETE: ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
 	// ChainIDOsmosis is the ChainID of Osmosis
@@ -268,8 +267,7 @@ const (
 	ChainIDScroll ChainID = 34
 	// ChainIDMantle is the ChainID of Mantle
 	ChainIDMantle ChainID = 35
-	// ChainIDBlast is the ChainID of Blast
-	ChainIDBlast ChainID = 36
+	// OBSOLETE: ChainIDBlast ChainID = 36
 	// ChainIDXLayer is the ChainID of XLayer
 	ChainIDXLayer ChainID = 37
 	// ChainIDLinea is the ChainID of Linea

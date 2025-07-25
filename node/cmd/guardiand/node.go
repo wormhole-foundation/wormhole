@@ -96,10 +96,6 @@ var (
 	moonbeamRPC      *string
 	moonbeamContract *string
 
-	terra2WS       *string
-	terra2LCD      *string
-	terra2Contract *string
-
 	injectiveWS       *string
 	injectiveLCD      *string
 	injectiveContract *string
@@ -171,9 +167,6 @@ var (
 
 	mantleRPC      *string
 	mantleContract *string
-
-	blastRPC      *string
-	blastContract *string
 
 	xlayerRPC      *string
 	xlayerContract *string
@@ -337,10 +330,6 @@ func init() {
 	moonbeamRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "moonbeamRPC", "Moonbeam RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	moonbeamContract = NodeCmd.Flags().String("moonbeamContract", "", "Moonbeam contract address")
 
-	terra2WS = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2WS", "Path to terrad root for websocket connection", "ws://terra2-terrad:26657/websocket", []string{"ws", "wss"})
-	terra2LCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "terra2LCD", "Path to LCD service root for http calls", "http://terra2-terrad:1317", []string{"http", "https"})
-	terra2Contract = NodeCmd.Flags().String("terra2Contract", "", "Wormhole contract address on Terra 2 blockchain")
-
 	injectiveWS = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveWS", "Path to root for Injective websocket connection", "ws://injective:26657/websocket", []string{"ws", "wss"})
 	injectiveLCD = node.RegisterFlagWithValidationOrFail(NodeCmd, "injectiveLCD", "Path to LCD service root for Injective http calls", "http://injective:1317", []string{"http", "https"})
 	injectiveContract = NodeCmd.Flags().String("injectiveContract", "", "Wormhole contract address on Injective blockchain")
@@ -410,9 +399,6 @@ func init() {
 
 	mantleRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mantleRPC", "Mantle RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mantleContract = NodeCmd.Flags().String("mantleContract", "", "Mantle contract address")
-
-	blastRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "blastRPC", "Blast RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	blastContract = NodeCmd.Flags().String("blastContract", "", "Blast contract address")
 
 	xlayerRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xlayerRPC", "XLayer RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xlayerContract = NodeCmd.Flags().String("xlayerContract", "", "XLayer contract address")
@@ -838,7 +824,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	*baseContract = checkEvmArgs(logger, *baseRPC, *baseContract, vaa.ChainIDBase)
 	*scrollContract = checkEvmArgs(logger, *scrollRPC, *scrollContract, vaa.ChainIDScroll)
 	*mantleContract = checkEvmArgs(logger, *mantleRPC, *mantleContract, vaa.ChainIDMantle)
-	*blastContract = checkEvmArgs(logger, *blastRPC, *blastContract, vaa.ChainIDBlast)
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, vaa.ChainIDXLayer)
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, vaa.ChainIDLinea)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, vaa.ChainIDBerachain)
@@ -879,10 +864,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if !argsConsistent([]string{*pythnetContract, *pythnetRPC, *pythnetWS}) {
 		logger.Fatal("Either --pythnetContract, --pythnetRPC and --pythnetWS must all be set or all unset")
-	}
-
-	if !argsConsistent([]string{*terra2Contract, *terra2WS, *terra2LCD}) {
-		logger.Fatal("Either --terra2Contract, --terra2WS and --terra2LCD must all be set or all unset")
 	}
 
 	if !argsConsistent([]string{*injectiveContract, *injectiveWS, *injectiveLCD}) {
@@ -994,8 +975,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["moonbeamRPC"] = *moonbeamRPC
-	rpcMap["terra2WS"] = *terra2WS
-	rpcMap["terra2LCD"] = *terra2LCD
 	rpcMap["injectiveLCD"] = *injectiveLCD
 	rpcMap["injectiveWS"] = *injectiveWS
 	// ChainIDOsmosis is not supported in the guardian.
@@ -1012,7 +991,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	// ChainIDRootstock is not supported in the guardian.
 	rpcMap["scrollRPC"] = *scrollRPC
 	rpcMap["mantleRPC"] = *mantleRPC
-	rpcMap["blastRPC"] = *blastRPC
 	rpcMap["xlayerRPC"] = *xlayerRPC
 	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["berachainRPC"] = *berachainRPC
@@ -1387,19 +1365,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 
-	if shouldStart(blastRPC) {
-		wc := &evm.WatcherConfig{
-			NetworkID:         "blast",
-			ChainID:           vaa.ChainIDBlast,
-			Rpc:               *blastRPC,
-			Contract:          *blastContract,
-			CcqBackfillCache:  *ccqBackfillCache,
-			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBlast),
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
 	if shouldStart(xlayerRPC) {
 		wc := &evm.WatcherConfig{
 			NetworkID:         "xlayer",
@@ -1561,18 +1526,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:         *plumeContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(terra2WS) {
-		wc := &cosmwasm.WatcherConfig{
-			NetworkID: "terra2",
-			ChainID:   vaa.ChainIDTerra2,
-			Websocket: *terra2WS,
-			Lcd:       *terra2LCD,
-			Contract:  *terra2Contract,
-		}
-
 		watcherConfigs = append(watcherConfigs, wc)
 	}
 

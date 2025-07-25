@@ -99,7 +99,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Celo", vaa.ChainIDCelo},
 		{"Near", vaa.ChainIDNear},
 		{"Moonbeam", vaa.ChainIDMoonbeam},
-		{"Terra2", vaa.ChainIDTerra2},
 		{"Injective", vaa.ChainIDInjective},
 		// Osmosis is not supported in the guardian.
 		{"Sui", vaa.ChainIDSui},
@@ -115,7 +114,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		// Rootstock is not supported in the guardian.
 		{"Scroll", vaa.ChainIDScroll},
 		{"Mantle", vaa.ChainIDMantle},
-		{"Blast", vaa.ChainIDBlast},
 		{"XLayer", vaa.ChainIDXLayer},
 		{"Linea", vaa.ChainIDLinea},
 		{"Berachain", vaa.ChainIDBerachain},

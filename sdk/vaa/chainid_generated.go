@@ -34,8 +34,6 @@ func (c ChainID) String() string {
 		return "near"
 	case ChainIDMoonbeam:
 		return "moonbeam"
-	case ChainIDTerra2:
-		return "terra2"
 	case ChainIDInjective:
 		return "injective"
 	case ChainIDOsmosis:
@@ -66,8 +64,6 @@ func (c ChainID) String() string {
 		return "scroll"
 	case ChainIDMantle:
 		return "mantle"
-	case ChainIDBlast:
-		return "blast"
 	case ChainIDXLayer:
 		return "xlayer"
 	case ChainIDLinea:
@@ -174,8 +170,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDNear, nil
 	case "moonbeam":
 		return ChainIDMoonbeam, nil
-	case "terra2":
-		return ChainIDTerra2, nil
 	case "injective":
 		return ChainIDInjective, nil
 	case "osmosis":
@@ -206,8 +200,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDScroll, nil
 	case "mantle":
 		return ChainIDMantle, nil
-	case "blast":
-		return ChainIDBlast, nil
 	case "xlayer":
 		return ChainIDXLayer, nil
 	case "linea":
@@ -301,7 +293,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDCelo,
 		ChainIDNear,
 		ChainIDMoonbeam,
-		ChainIDTerra2,
 		ChainIDInjective,
 		ChainIDOsmosis,
 		ChainIDSui,
@@ -317,7 +308,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDRootstock,
 		ChainIDScroll,
 		ChainIDMantle,
-		ChainIDBlast,
 		ChainIDXLayer,
 		ChainIDLinea,
 		ChainIDBerachain,
