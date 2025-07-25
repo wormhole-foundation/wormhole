@@ -5,8 +5,7 @@ mod structs;
 To deploy on testnet, use the following commands (following the tutorial):
 1. Set the environment variable for the node URL:
 export NODE_URL=https://aztec-alpha-testnet-fullnode.zkv.xyz
-export SPONSORED_FPC_ADDRESS=0x1260a43ecf03e985727affbbe3e483e60b836ea821b6305bea1c53398b986047
-2. Create a new wallets:
+export SPONSORED_FPC_ADDRESS=0x19b5539ca1b104d4c3705de94e4555c9630def411f025e023a13189d0c56f8f22. Create a new wallets:
 2a. Create a new wallet for the owner:
 aztec-wallet create-account \
     --register-only \
@@ -58,14 +57,14 @@ aztec-wallet send mint_to_private \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x01fb3308b703d9f0caf5dcfe78317e72c96bfa2d819a2061bc820a5f5da9a174 \
+    --contract-address 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5 \
     --args accounts:owner-wallet accounts:owner-wallet 10000
 6a. Mint public tokens:
 aztec-wallet send mint_to_public \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x01fb3308b703d9f0caf5dcfe78317e72c96bfa2d819a2061bc820a5f5da9a174 \
+    --contract-address 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5 \
     --args accounts:owner-wallet 10000
 7. Deploy the Wormhole contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
@@ -74,7 +73,7 @@ aztec-wallet deploy \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --alias wormhole \
     wormhole_contracts-Wormhole.json \
-    --args 56 56 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x01fb3308b703d9f0caf5dcfe78317e72c96bfa2d819a2061bc820a5f5da9a174 --no-wait --init init*/
+    --args 56 56 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5 --no-wait --init init*/
 
 #[aztec]
 pub contract Wormhole {
@@ -252,7 +251,7 @@ pub contract Wormhole {
             inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2
         };
         let token_address = AztecAddress {
-            inner: 0x01fb3308b703d9f0caf5dcfe78317e72c96bfa2d819a2061bc820a5f5da9a174
+            inner: 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5
         };
 
         let _ = Token::at(token_address).transfer_in_private(
