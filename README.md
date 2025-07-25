@@ -19,6 +19,7 @@
 
 This means that there is a fixed overhead of ~5008 gas units for batch multisig verification in VerificationV2.
 
+![Chart comparing gas costs for v1 VAA multisig verification across several implementations][v1CostsChart]
 
 
 ## Verify 1 threshold signature (v2 VAA)
@@ -34,6 +35,13 @@ This means that there is a fixed overhead of ~5008 gas units for batch multisig 
 
 This means that there is a fixed overhead of ~2441 gas units for batch schnorr verification in VerificationV2.
 
+![Chart comparing gas costs for v2 VAA threshold verification across several implementations][v2CostsChart]
+
+
+## Current vs VerificationV2 comparison
+
+![Chart comparing gas costs for current Wormhole Core and VerificationV2][currentVsVerificationV2Chart]
+
 ## Sources
 
 The costs for implementations other than VerificationV2 come from [here](https://github.com/nonergodic/core-bridge/blob/fc4d76a/README.md)
@@ -43,3 +51,7 @@ The costs for VerificationV2 come from some benchmark tests that we have [here](
 [^1]: Never deployed to mainnet nor testnet.
 
 [CoreBridgeLib]: https://github.com/wormhole-foundation/wormhole-solidity-sdk/blob/main/src/libraries/CoreBridge.sol#L42
+
+[v1CostsChart]:                 https://github.com/xLabs/core-bridge/blob/develop/data/performance-v1.svg?sanitize=true
+[v2CostsChart]:                 https://github.com/xLabs/core-bridge/blob/develop/data/performance-v2.svg?sanitize=true
+[currentVsVerificationV2Chart]: https://github.com/xLabs/core-bridge/blob/develop/data/performance-current-vs-verificationV2.svg?sanitize=true
