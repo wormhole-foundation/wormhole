@@ -143,8 +143,8 @@ func (t *Engine) BeginAsyncThresholdSigningProtocol(vaaDigest []byte, chainID va
 }
 
 type signingMeta struct {
-	isFromVaav1 bool
-	vaaV1Info   *tsscommv1.VaaV1Info
+	isFromVaav1   bool
+	verifiedVAAv1 *vaa.VAA
 }
 
 func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistencyLvl uint8, mt signingMeta) error {
@@ -231,29 +231,28 @@ func (t *Engine) beginTSSSign(vaaDigest []byte, chainID vaa.ChainID, consistency
 // getExcludedFromCommittee follows the Leader's recommendation for the committee
 // by returning the list of guardians that should be excluded from the committee (as 'faulties' list).
 func (t *Engine) getExcludedFromCommittee(mt signingMeta) []*common.PartyID {
-	if !mt.isFromVaav1 {
+	if !mt.isFromVaav1 || mt.verifiedVAAv1 == nil {
 		return nil
 	}
 
-	if len(mt.vaaV1Info.RecommendedCommittee) < t.GuardianStorage.Threshold {
+	signersID, err := t.translateVaaV1Signers(mt.verifiedVAAv1)
+	if err != nil {
+		return nil
+	}
+
+	if len(signersID) < t.GuardianStorage.Threshold {
 		return nil // not enough guardians to form a committee.
 	}
 
-	numExcluded := t.GuardianStorage.NumGuardians() - len(mt.vaaV1Info.RecommendedCommittee)
-	excluded := make([]*common.PartyID, 0, numExcluded)
-
-	recommended := make(map[SenderIndex]bool, len(mt.vaaV1Info.RecommendedCommittee))
-	for _, senderIndex := range mt.vaaV1Info.RecommendedCommittee {
-		recommended[SenderIndex(senderIndex)] = true
-	}
-
+	// grab everyone that is not a signer in the VAAv1.
+	var excludedSigners []*common.PartyID
 	for _, id := range t.GuardianStorage.Identities {
-		if !recommended[id.CommunicationIndex] {
-			excluded = append(excluded, id.Pid)
+		if _, ok := signersID[id.CommunicationIndex]; !ok {
+			excludedSigners = append(excludedSigners, id.Pid)
 		}
 	}
 
-	return excluded
+	return excludedSigners
 }
 
 func (t *Engine) getCommitteeNetworkNames(pids []*common.PartyID) []string {

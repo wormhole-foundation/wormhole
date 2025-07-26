@@ -1,6 +1,7 @@
 package tss
 
 import (
+	"errors"
 	"fmt"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
@@ -8,11 +9,12 @@ import (
 	"go.uber.org/zap"
 )
 
-var errNilGuardianSetState = fmt.Errorf("tss' guardianSetState nil")
-var errNilVaa = fmt.Errorf("nil VAA")
+var errNilGuardianSetState = errors.New("tss' guardianSetState nil")
+var errNilVaa = errors.New("nil VAA")
+var errNetworkOutputChannelFull = errors.New("network output channel buffer is full")
 
 // Assumes valid VAAs only.
-func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
+func (t *Engine) WitnessNewVaa(v *vaa.VAA) error {
 	if t == nil {
 		return errNilTssEngine
 	}
@@ -29,24 +31,13 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 	}
 
 	if v == nil {
-		err = errNilVaa
-
-		return
+		return errNilVaa
 	}
 
-	// at end of function check if logging is needed too.
-	defer func() {
-		if err == nil {
-			return
-		}
-
-		t.logger.Error("issue sending VAAv1 to others", zap.Error(err))
-	}()
-
 	if t.gst == nil {
-		err = errNilGuardianSetState
+		t.logger.Error("issue sending VAAv1 to others", zap.Error(errNilGuardianSetState))
 
-		return
+		return errNilGuardianSetState
 	}
 
 	dgst := digest{}
@@ -64,42 +55,17 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 
 	bts, err := v.Marshal()
 	if err != nil {
-		return fmt.Errorf("failed to marshal VAA: %w", err)
-	}
+		err := fmt.Errorf("failed to marshal VAA: %w", err)
 
-	// translating the VAAv1 signers to senderIndexes to use.
-	signersID := make(map[SenderIndex]*Identity, len(gs.Keys))
-	for _, s := range v.Signatures {
-		if int(s.Index) >= len(gs.Keys) {
-			// shouldn't happen, since the signature was verified. but just in case.
-			return fmt.Errorf("signature index %d out of bounds for guardian set size %d", s.Index, len(gs.Keys))
-		}
-
-		id, err := t.GuardianStorage.fetchIdentityFromVaav1Pubkey(gs.Keys[s.Index])
-		if err != nil {
-			continue
-		}
-
-		signersID[id.CommunicationIndex] = id
-	}
-
-	var recommendations []uint32
-	if len(signersID) == len(v.Signatures) {
-		for _, id := range signersID {
-			recommendations = append(recommendations, id.CommunicationIndex.toProto())
-		}
-	} else {
-		t.logger.Error("leader is missing VAAv1 mapping to VAAv2, can't suggest specific committee",
-			zap.String("digest", fmt.Sprintf("%x", dgst)),
-		)
+		t.logger.Error("issue sending VAAv1 to others", zap.Error(err))
+		return err
 	}
 
 	send := Unicast{
 		Unicast: &tsscommv1.Unicast{
 			Content: &tsscommv1.Unicast_Vaav1{
 				Vaav1: &tsscommv1.VaaV1Info{
-					Marshaled:            bts,
-					RecommendedCommittee: recommendations,
+					Marshaled: bts,
 				},
 			},
 		},
@@ -113,7 +79,7 @@ func (t *Engine) WitnessNewVaa(v *vaa.VAA) (err error) {
 			zap.String("digest", fmt.Sprintf("%x", v.SigningDigest())),
 		)
 	default:
-		err = fmt.Errorf("network output channel buffer is full")
+		t.logger.Error("issue sending VAAv1 to others", zap.Error(errNetworkOutputChannelFull))
 	}
 
 	return nil
@@ -163,9 +129,38 @@ func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1) error {
 	}
 
 	signatureMeta := signingMeta{
-		isFromVaav1: true,
-		vaaV1Info:   v.Vaav1,
+		isFromVaav1:   true,
+		verifiedVAAv1: newVaa,
 	}
 
 	return t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signatureMeta)
+}
+
+var errCouldNotMapAllVaaV1Signers = fmt.Errorf("could not map all VAAv1 signers to senderIndexes")
+
+func (t *Engine) translateVaaV1Signers(v *vaa.VAA) (map[SenderIndex]*Identity, error) {
+	gs := t.gst.Get()
+	// translating the VAAv1 signers to senderIndexes to use.
+	signersID := make(map[SenderIndex]*Identity, len(gs.Keys))
+	for _, s := range v.Signatures {
+		if int(s.Index) >= len(gs.Keys) {
+			// shouldn't happen, since the signature was verified. but just in case.
+			return nil, fmt.Errorf("signature index %d out of bounds for guardian set size %d", s.Index, len(gs.Keys))
+		}
+
+		id, err := t.GuardianStorage.fetchIdentityFromVaav1Pubkey(gs.Keys[s.Index])
+		if err != nil {
+			continue
+		}
+
+		signersID[id.CommunicationIndex] = id
+	}
+
+	if len(signersID) != len(v.Signatures) {
+		// make into an error:
+		return nil, errCouldNotMapAllVaaV1Signers
+
+	}
+
+	return signersID, nil
 }

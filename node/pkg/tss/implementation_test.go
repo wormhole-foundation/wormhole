@@ -27,7 +27,6 @@ import (
 	"github.com/xlabs/multi-party-sig/protocols/frost"
 	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 	common "github.com/xlabs/tss-common"
-	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-lib/v2/party"
 	"google.golang.org/protobuf/proto"
 )
@@ -803,7 +802,7 @@ func TestRouteCheck(t *testing.T) {
 
 	e1.Start(ctx)
 	e1.fpCommChans.OutChannel <- &badtssMessage{}
-	e1.fpCommChans.ErrChannel <- common.NewTrackableError(errors.New("test"), "test", -1, nil, &tsscommon.TrackingID{})
+	e1.fpCommChans.ErrChannel <- common.NewTrackableError(errors.New("test"), "test", -1, nil, &common.TrackingID{})
 	e1.fpCommChans.ErrChannel <- nil
 
 	time.Sleep(time.Millisecond * 200)
@@ -1387,7 +1386,7 @@ func generateFakeMessageWithRandomContent(from, to *common.PartyID, rnd signingR
 		partiesState[i] = 255
 	}
 
-	trackingId := &tsscommon.TrackingID{
+	trackingId := &common.TrackingID{
 		Digest:       digest[:],
 		PartiesState: partiesState,
 		AuxilaryData: []byte{},
@@ -1784,7 +1783,7 @@ func TestSigCounter(t *testing.T) {
 
 		// test:
 		a.Equal(e1.sigCounter.digestToGuardiansLen(), 1)
-		e1.fpCommChans.SignatureOutputChannel <- &tsscommon.SignatureData{
+		e1.fpCommChans.SignatureOutputChannel <- &common.SignatureData{
 			Signature:         []byte{},
 			SignatureRecovery: []byte{},
 			R:                 []byte{},
@@ -1901,7 +1900,7 @@ func contains(lst []*Engine, e *Engine) bool {
 
 func TestTrackingIDSizeIsOkay(t *testing.T) {
 	dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	tid := tsscommon.TrackingID{
+	tid := common.TrackingID{
 		Digest:       dgst[:],
 		PartiesState: make([]byte, (maxParties+7)/8),
 		AuxilaryData: chainIDToBytes(vaa.ChainID(5)),
