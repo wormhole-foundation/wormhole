@@ -54,7 +54,7 @@ func main() {
 		panic("issue marshalling secrets" + err.Error())
 	}
 
-	if err := os.WriteFile(*lkgSecrets, secrets, 0644); err != nil {
+	if err := os.WriteFile(*lkgSecrets, secrets, 0600); err != nil {
 		panic("couldn't write to file" + err.Error())
 	}
 }

@@ -130,7 +130,7 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 		fname := path.Join(cnfgs.StorageLocation, "secrets.json")
 
 		lg.Info("Writing GuardianStorage to file", zap.String("file", fname))
-		if err := os.WriteFile(fname, toStore, 0777); err != nil {
+		if err := os.WriteFile(fname, toStore, 0600); err != nil {
 			lg.Fatal("failed to write GuardianStorage to file", zap.Error(err))
 		}
 

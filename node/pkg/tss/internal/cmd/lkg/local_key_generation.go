@@ -156,7 +156,7 @@ func simulateDKG(all []*dkgPlayer, threshold int) {
 			panic("")
 		}
 
-		if err := os.MkdirAll(all[i].whereToStore, 0777); err != nil {
+		if err := os.MkdirAll(all[i].whereToStore, 0600); err != nil {
 			panic("Failed to create directory: " + err.Error())
 		}
 
