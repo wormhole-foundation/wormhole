@@ -3,6 +3,7 @@
 package governor
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -21,6 +22,7 @@ func (gov *ChainGovernor) loadFromDB() error {
 // loadFromDBAlreadyLocked method loads transfers and pending data from the database and modifies the corresponding fields in the ChainGovernor.
 // These fields are slices of transfers or pendingTransfers and will be sorted by their Timestamp property.
 // Modifies the state of the database as a side-effect: 'transfers' that are older than 24 hours are deleted.
+// It assumes that the Governor's mutex is already locked.
 func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
@@ -65,45 +67,20 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	msg := &pending.Msg
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
-		gov.logger.Error("reloaded pending transfer for unsupported chain, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
-			zap.String("txID", msg.TxIDString()),
-			zap.Stringer("Timestamp", msg.Timestamp),
-			zap.Uint32("Nonce", msg.Nonce),
-			zap.Uint64("Sequence", msg.Sequence),
-			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
-			zap.Stringer("EmitterChain", msg.EmitterChain),
-			zap.Stringer("EmitterAddress", msg.EmitterAddress),
-		)
+		gov.logger.Error("reloaded pending transfer for unsupported chain, dropping it", msg.ZapFields()...)
 		return
 	}
 
 	if msg.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("reloaded pending transfer for unsupported emitter address, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
-			zap.String("txID", msg.TxIDString()),
-			zap.Stringer("Timestamp", msg.Timestamp),
-			zap.Uint32("Nonce", msg.Nonce),
-			zap.Uint64("Sequence", msg.Sequence),
-			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
-			zap.Stringer("EmitterChain", msg.EmitterChain),
-			zap.Stringer("EmitterAddress", msg.EmitterAddress),
-		)
+		gov.logger.Error("reloaded pending transfer for unsupported emitter address, dropping it", msg.ZapFields()...)
 		return
 	}
 
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
-		gov.logger.Error("failed to parse payload for reloaded pending transfer, dropping it",
-			zap.String("MsgID", msg.MessageIDString()),
-			zap.String("txID", msg.TxIDString()),
-			zap.Stringer("Timestamp", msg.Timestamp),
-			zap.Uint32("Nonce", msg.Nonce),
-			zap.Uint64("Sequence", msg.Sequence),
-			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
-			zap.Stringer("EmitterChain", msg.EmitterChain),
-			zap.Stringer("EmitterAddress", msg.EmitterAddress),
-			zap.Error(err),
+		gov.logger.Error(
+			fmt.Sprintf("failed to parse payload for reloaded pending transfer, dropping it %v", zap.Error(err)),
+			msg.ZapFields()...,
 		)
 		return
 	}
@@ -163,7 +140,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	gov.msgsSeen[hash] = transferEnqueued
 }
 
-// reloadTransfer method processes a db.Transfer and validates that it should be loaded into `gov`.
+// reloadTransfer method processes a [db.Transfer] and validates that it should be loaded into `gov`.
 // Modifies `gov` as a side-effect: when a valid transfer is loaded, the properties 'transfers' and 'msgsSeen' are
 // updated with information about the loaded transfer. In the case where a flow-canceling asset's transfer is loaded,
 // both chain entries (emitter and target) will be updated.
