@@ -105,7 +105,6 @@ query_server = cfg.get("query_server", ci)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
-    ci_settings ( readiness_timeout = '10m' )
 else:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
 
