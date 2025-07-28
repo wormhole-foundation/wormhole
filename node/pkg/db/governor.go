@@ -266,10 +266,6 @@ func oldTransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldTransferPrefix, t.MsgID))
 }
 
-func oldTransferMsgID(t *Transfer) []byte {
-	return []byte(fmt.Sprintf("%v%v", oldTransfer, t.MsgID))
-}
-
 func PendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", pendingPrefix, k.MessageIDString()))
 }
@@ -277,10 +273,6 @@ func PendingMsgID(k *common.MessagePublication) []byte {
 // Used only to delete old pending transfers.
 func oldPendingMsgID(k *common.MessagePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldPendingPrefix, k.MessageIDString()))
-}
-
-func oldPendingMsgID(k *common.MessagePublication) []byte {
-	return []byte(fmt.Sprintf("%v%v", oldPending, k.MessageIDString()))
 }
 
 func IsTransfer(keyBytes []byte) bool {
@@ -291,20 +283,12 @@ func isOldTransfer(keyBytes []byte) bool {
 	return (len(keyBytes) >= oldTransferLen+common.MinMsgIdLen) && (string(keyBytes[0:oldTransferLen]) == oldTransferPrefix)
 }
 
-func isOldTransfer(keyBytes []byte) bool {
-	return (len(keyBytes) >= oldTransferLen+minMsgIdLen) && (string(keyBytes[0:oldTransferLen]) == oldTransfer)
-}
-
 func IsPendingMsg(keyBytes []byte) bool {
 	return (len(keyBytes) >= pendingLen+common.MinMsgIdLen) && (string(keyBytes[0:pendingLen]) == pendingPrefix)
 }
 
 func isOldPendingMsg(keyBytes []byte) bool {
 	return (len(keyBytes) >= oldPendingLen+common.MinMsgIdLen) && (string(keyBytes[0:oldPendingLen]) == oldPendingPrefix)
-}
-
-func isOldPendingMsg(keyBytes []byte) bool {
-	return (len(keyBytes) >= oldPendingLen+minMsgIdLen) && (string(keyBytes[0:oldPendingLen]) == oldPending)
 }
 
 // This is called by the chain governor on start up to reload status.
