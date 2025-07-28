@@ -248,7 +248,9 @@ async function main() {
     ethereum: String(process.env.REGISTER_ETH_TOKEN_BRIDGE_VAA),
     bsc: String(process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA),
     algo: String(process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA),
+    terra: String(process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA),
     near: String(process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA),
+    terra2: String(process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA),
     aptos: String(process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA),
     sui: String(process.env.REGISTER_SUI_TOKEN_BRIDGE_VAA),
   };
@@ -470,6 +472,10 @@ async function main() {
       process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA,
       // ALGO
       process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA,
+      // TERRA
+      process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA,
+      // TERRA2
+      process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA,
       // NEAR
       process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA,
       // APTOS
@@ -588,7 +594,7 @@ async function main() {
         "01" + // action IbcReceiverActionUpdateChannelChain
         "0c20" + // target chain id wormchain
         "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d31" + // channel-1
-        "0fa0", // chain id CosmosHub (4000)
+        "0012", // chain id terra2 (18)
     },
   };
   updateChannelVaa.signatures = sign(

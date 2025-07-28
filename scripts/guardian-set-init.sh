@@ -98,6 +98,7 @@ aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress
 # invoke CLI commands to create registration VAAs
 solTokenBridgeVAA=$(worm generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
 ethTokenBridgeVAA=$(worm generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
+terraTokenBridgeVAA=$(worm generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
 bscTokenBridgeVAA=$(worm generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
 algoTokenBridgeVAA=$(worm generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
 nearTokenBridgeVAA=$(worm generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
@@ -147,6 +148,10 @@ upsert_env_file $envFile $ethTokenBridge $ethTokenBridgeVAA
 # ethereum nft bridge
 upsert_env_file $ethFile $ethNFTBridge $ethNFTBridgeVAA
 upsert_env_file $envFile $ethNFTBridge $ethNFTBridgeVAA
+
+# terra token bridge
+upsert_env_file $ethFile $terraTokenBridge $terraTokenBridgeVAA
+upsert_env_file $envFile $terraTokenBridge $terraTokenBridgeVAA
 
 # bsc token bridge
 upsert_env_file $ethFile $bscTokenBridge $bscTokenBridgeVAA

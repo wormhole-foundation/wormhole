@@ -210,7 +210,8 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// OBSOLETE: ChainIDTerra ChainID = 3
+	// WARNING: ChainIDTerra is only supported in devnet / Tilt.
+	ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon
@@ -234,7 +235,8 @@ const (
 	// ChainIDMoonbeam is the ChainID of Moonbeam
 	ChainIDMoonbeam ChainID = 16
 	// OBSOLETE: ChainIDNeon ChainID = 17
-	// OBSOLETE: ChainIDTerra2 ChainID = 18
+	// WARNING: ChainIDTerra2 is only supported in devnet / Tilt.
+	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
 	// ChainIDOsmosis is the ChainID of Osmosis

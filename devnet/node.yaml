@@ -95,6 +95,18 @@ spec:
             # - --accountantContract
             # - wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465
             # - --accountantCheckEnabled=true
+            # - --terraWS
+            # - ws://terra-terrad:26657/websocket
+            # - --terraLCD
+            # - http://terra-terrad:1317
+            # - --terraContract
+            # - terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au
+            # - --terra2WS
+            # - ws://terra2-terrad:26657/websocket
+            # - --terra2LCD
+            # - http://terra2-terrad:1317
+            # - --terra2Contract
+            # - terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au
             # - --algorandAppID
             # - "1004"
             # - --algorandIndexerRPC

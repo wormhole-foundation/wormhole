@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: terra2-terrad
+  name: terra2-terrad
+spec:
+  ports:
+    - name: rpc
+      port: 26657
+      protocol: TCP
+    - name: rest
+      port: 1317
+      protocol: TCP
+  selector:
+    app: terra2-terrad
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: terra2-terrad
+  name: terra2-terrad
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: terra2-terrad
+  template:
+    metadata:
+      labels:
+        app: terra2-terrad
+    spec:
+      containers:
+        - args:
+            - terrad
+            - start
+          image: terra2-image
+          name: terra2-terrad
+          ports:
+            - containerPort: 26657
+            - containerPort: 1317
+          readinessProbe:
+            httpGet:
+              port: 26657
+          resources: {}
+        - name: terra2-deploy
+          image: terra2-deploy
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/tools/deploy.sh && touch /app/tools/success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/tools/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      restartPolicy: Always
+  serviceName: terra2-terrad
