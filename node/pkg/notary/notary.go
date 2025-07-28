@@ -83,6 +83,7 @@ const (
 var (
 	ErrCannotRelease      = errors.New("notary: could not release message")
 	ErrAlreadyInitialized = errors.New("notary: message queues already initialized during database load")
+	ErrInvalidMsg         = errors.New("notary: message is invalid")
 )
 
 type (
@@ -247,6 +248,10 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
+	if msg == nil {
+		return ErrInvalidMsg
+	}
+
 	// Remove nanoseconds from time.Now(). They are not serialized in the binary
 	// representation. If we don't truncate nanoseconds here, then testing
 	// message equality before and after loading to the database will fail.
@@ -277,6 +282,10 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
+	if msg == nil {
+		return ErrInvalidMsg
+	}
+
 	// Store in in-memory slice. This should happen even if a database error occurs.
 	n.blackholed.Add(msg.VAAHash())
 
@@ -294,6 +303,10 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 // Blackhole adds a message to the blackholed list. Removes the message from the delayed list and database, if present.
 // Acquires the mutex and unlocks when complete.
 func (n *Notary) Blackhole(msg *common.MessagePublication) error {
+	if msg == nil {
+		return ErrInvalidMsg
+	}
+
 	err := n.removeDelayed(msg)
 	if err != nil {
 		return err
@@ -324,6 +337,9 @@ func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
 func (n *Notary) removeDelayed(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
+	if msg == nil {
+		return ErrInvalidMsg
+	}
 	removed, err := n.delayed.RemoveItem(msg)
 	if err != nil {
 		return err
@@ -346,14 +362,14 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 	result, err := n.database.LoadAll(logger)
 	if err != nil {
 		n.logger.Error(
-			"notary: load all call returned error",
+			"notary: LoadAll call returned error",
 			zap.Error(err),
 		)
 		return err
 	}
 	if result == nil {
 		n.logger.Error(
-			"notary: load all call produced nil result",
+			"notary: LoadAll call produced nil result",
 		)
 		return errors.New("nil result from database")
 	}
