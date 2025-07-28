@@ -43,6 +43,7 @@ func makeNewMsgPub(t *testing.T) *common.MessagePublication {
 	t.Helper()
 	msg := &common.MessagePublication{
 		// Required to mark this as a token transfer.
+		TxID:    []byte{0x01},
 		Payload: []byte{0x01},
 	}
 
@@ -307,6 +308,125 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 			readyMsgs := n.ReleaseReadyMessages()
 			require.Equal(t, tt.expectedReadyCount, len(readyMsgs), "ready length does not match")
 			require.Equal(t, tt.expectedDelayCount, n.delayed.Len(), "delayed length does not match")
+		})
+	}
+}
+
+func TestNotary_Forget(t *testing.T) {
+	tests := []struct { // description of this test case
+		name               string
+		msg                *common.MessagePublication
+		expectedDelayCount int
+		expectedBlackholed int
+	}{
+		{
+			"remove from delayed list",
+			makeNewMsgPub(t),
+			0,
+			0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.delayed = common.NewPendingMessageQueue()
+			n.blackholed = NewSet()
+
+			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 0, n.blackholed.Len())
+
+			err := n.delay(tt.msg, time.Hour)
+			require.NoError(t, err)
+
+			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, 0, n.blackholed.Len())
+
+			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
+			n.blackholed.Add(tt.msg.VAAHash())
+
+			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, 1, n.blackholed.Len())
+
+			err = n.forget(tt.msg)
+			require.NoError(t, err)
+
+			require.Equal(t, tt.expectedDelayCount, n.delayed.Len())
+			require.Equal(t, tt.expectedBlackholed, n.blackholed.Len())
+		})
+	}
+}
+
+func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
+	tests := []struct { // description of this test case
+		name               string
+		msg                *common.MessagePublication
+		expectedDelayCount int
+		expectedBlackholed int
+	}{
+		{
+			"remove from delayed list",
+			makeNewMsgPub(t),
+			0,
+			1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.delayed = common.NewPendingMessageQueue()
+			n.blackholed = NewSet()
+
+			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 0, n.blackholed.Len())
+
+			err := n.delay(tt.msg, time.Hour)
+			require.NoError(t, err)
+
+			require.Equal(t, 1, n.delayed.Len())
+			require.Equal(t, 0, n.blackholed.Len())
+
+			err = n.blackhole(tt.msg)
+			require.NoError(t, err)
+
+			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 1, n.blackholed.Len())
+		})
+	}
+}
+
+func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
+	tests := []struct { // description of this test case
+		name string
+		msg  *common.MessagePublication
+	}{
+		{
+			"delay fails if message is already blackholed",
+			makeNewMsgPub(t),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.delayed = common.NewPendingMessageQueue()
+			n.blackholed = NewSet()
+
+			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 0, n.blackholed.Len())
+
+			err := n.blackhole(tt.msg)
+			require.NoError(t, err)
+
+			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 1, n.blackholed.Len())
+
+			err = n.delay(tt.msg, time.Hour)
+			require.ErrorIs(t, err, ErrAlreadyBlackholed)
+
+			require.Equal(t, 0, n.delayed.Len())
+			require.Equal(t, 1, n.blackholed.Len())
 		})
 	}
 }

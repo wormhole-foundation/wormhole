@@ -81,8 +81,9 @@ const (
 )
 
 var (
-	ErrCannotRelease      = errors.New("notary: could not release message")
 	ErrAlreadyInitialized = errors.New("notary: message queues already initialized during database load")
+	ErrAlreadyBlackholed  = errors.New("notary: message is already blackholed")
+	ErrCannotRelease      = errors.New("notary: could not release message")
 	ErrInvalidMsg         = errors.New("notary: message is invalid")
 )
 
@@ -96,8 +97,7 @@ type (
 	Notary struct {
 		ctx    context.Context
 		logger *zap.Logger
-		// mutex guards database operations.
-		mutex sync.Mutex
+		mutex  sync.Mutex
 		// database persists information about delayed and black-holed messages.
 		database db.NotaryDBInterface
 
@@ -245,11 +245,16 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 // representation in the Notary.
 // Acquires the mutex lock and unlocks when complete.
 func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error {
+	if msg == nil {
+		return ErrInvalidMsg
+	}
+
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	if msg == nil {
-		return ErrInvalidMsg
+	// Ensure that the message can't be added to the delayed list or database if it's already blackholed.
+	if n.blackholed.Contains(msg.VAAHash()) {
+		return ErrAlreadyBlackholed
 	}
 
 	// Remove nanoseconds from time.Now(). They are not serialized in the binary
@@ -277,14 +282,14 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 }
 
 // blackhole adds a message publication to the blackholed in-memory set and stores it in the database.
+// It also removes the message from the delayed list and database, if present.
 // Acquires the mutex and unlocks when complete.
 func (n *Notary) blackhole(msg *common.MessagePublication) error {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
 
 	if msg == nil {
 		return ErrInvalidMsg
 	}
+	n.mutex.Lock()
 
 	// Store in in-memory slice. This should happen even if a database error occurs.
 	n.blackholed.Add(msg.VAAHash())
@@ -294,15 +299,22 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	if dbErr != nil {
 		return dbErr
 	}
+	// Unlock mutex before calling removeDelayed, which also acquires the mutex.
+	n.mutex.Unlock()
+
+	// When a message is blackholed, it should be removed from the delayed list and database.
+	err := n.removeDelayed(msg)
+	if err != nil {
+		return err
+	}
 
 	n.logger.Info("notary: blackholed message", msg.ZapFields()...)
 
 	return nil
 }
 
-// Blackhole adds a message to the blackholed list. Removes the message from the delayed list and database, if present.
-// Acquires the mutex and unlocks when complete.
-func (n *Notary) Blackhole(msg *common.MessagePublication) error {
+// forget removes a message from the database and from the delayed and blackholed lists.
+func (n *Notary) forget(msg *common.MessagePublication) error {
 	if msg == nil {
 		return ErrInvalidMsg
 	}
@@ -312,7 +324,7 @@ func (n *Notary) Blackhole(msg *common.MessagePublication) error {
 		return err
 	}
 
-	err = n.blackhole(msg)
+	err = n.removeBlackholed(msg)
 	if err != nil {
 		return err
 	}
@@ -327,6 +339,26 @@ func (n *Notary) IsBlackholed(msg *common.MessagePublication) bool {
 	return n.blackholed.Contains(msg.VAAHash())
 }
 
+// removeBlackholed removes a message from the blackholed list and database.
+func (n *Notary) removeBlackholed(msg *common.MessagePublication) error {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+	if msg == nil {
+		return ErrInvalidMsg
+	}
+
+	n.blackholed.Remove(msg.VAAHash())
+
+	err := n.database.DeleteBlackholed(msg)
+	if err != nil {
+		return err
+	}
+
+	n.logger.Info("notary: removed blackholed message", msg.ZapFields()...)
+
+	return nil
+}
+
 // Acquires the mutex and unlocks when complete.
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
 	n.mutex.Lock()
@@ -334,6 +366,7 @@ func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
 	return n.delayed.ContainsMessagePublication(msg)
 }
 
+// removeDelayed removes a message from the delayed list and database.
 func (n *Notary) removeDelayed(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
