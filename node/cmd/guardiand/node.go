@@ -6,12 +6,10 @@ import (
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
-	"os/signal"
 	"path"
 	"runtime"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
@@ -1107,14 +1105,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["ibcLCD"] = *ibcLCD
 	rpcMap["ibcWS"] = *ibcWS
 
-	// Handle SIGTERM
-	sigterm := make(chan os.Signal, 1)
-	signal.Notify(sigterm, syscall.SIGTERM)
-	go func() {
-		<-sigterm
-		logger.Info("Received sigterm. exiting.")
-		rootCtxCancel()
-	}()
+	common.ListenSysExit(logger, rootCtxCancel)
 
 	// log golang version
 	logger.Info("golang version", zap.String("golang_version", runtime.Version()))
