@@ -103,6 +103,7 @@ spec:
   selector:
     matchLabels:
       app: wormchain-deploy
+  serviceName: wormchain-deploy
   replicas: 1
   updateStrategy:
     type: RollingUpdate

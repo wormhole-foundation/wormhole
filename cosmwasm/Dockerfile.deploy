@@ -6,6 +6,11 @@ FROM const-gen AS const-export
 #  local cosmwasm image, built by tilt
 FROM cosmwasm_artifacts AS artifacts
 
+# Debian buster repos have been moved to archive.debian.org causing apt update to fail.
+# To fix this, we need to update the sources.list file.
+RUN sed -i s/deb.debian.org/archive.debian.org/g /etc/apt/sources.list
+RUN sed -i s/security.debian.org/archive.debian.org/g /etc/apt/sources.list
+
 # Contract deployment stage
 FROM node:16-buster-slim@sha256:93c9fc3550f5f7d159f282027228e90e3a7f8bf38544758024f005e82607f546
 
