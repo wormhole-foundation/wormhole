@@ -210,3 +210,19 @@ func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {
 		TokenBridgeAddr: eth_common.BytesToAddress([]byte{0x01}),
 	}
 }
+
+func TestConsistencyLevelMatches(t *testing.T) {
+	// Success cases.
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, vaa.ConsistencyLevelPublishImmediately))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, vaa.ConsistencyLevelSafe))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, vaa.ConsistencyLevelFinalized))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, 0))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, 42))
+
+	// Failure cases.
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, vaa.ConsistencyLevelSafe))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, vaa.ConsistencyLevelFinalized))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, vaa.ConsistencyLevelPublishImmediately))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, 0))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, 0))
+}

@@ -123,6 +123,16 @@ func verifyForEnv(env common.Environment, chainID vaa.ChainID) {
 					}
 					fmt.Println("\u2713")
 				}
+
+				if entry.Entry.CCLContractAddr != "" {
+					fmt.Printf("   Verifying custom consistency level contract address for %v %v ", env, entry.ChainID)
+					err := verifyCCLContractAddr(ctx, entry.Entry.PublicRPC, entry.Entry.CCLContractAddr)
+					if err != nil {
+						fmt.Printf("\u2717\n   ERROR: failed to verify custom consistency level contract for %v %v: %v\n", env, entry.ChainID, err)
+						os.Exit(1)
+					}
+					fmt.Println("\u2713")
+				}
 			}
 		}
 	}
@@ -176,6 +186,25 @@ func verifyContractAddr(ctx context.Context, url string, contractAddr string) er
 	}
 
 	_, err = caller.GetCurrentGuardianSetIndex(&ethBind.CallOpts{Context: timeout})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func verifyCCLContractAddr(ctx context.Context, url string, contractAddr string) error {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	rawClient, err := ethRpc.DialContext(timeout, url)
+	if err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+
+	client := ethClient.NewClient(rawClient)
+
+	_, err = evm.CCLReadContract(ctx, client, ethCommon.HexToAddress(contractAddr), ethCommon.Address{})
 	if err != nil {
 		return err
 	}
