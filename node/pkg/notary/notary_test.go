@@ -52,6 +52,7 @@ func makeNewMsgPub(t *testing.T) *common.MessagePublication {
 
 func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
 
+	// NOTE: This test should be exhaustive over VerificationState variants.
 	tests := map[string]struct {
 		verificationState common.VerificationState
 		verdict           Verdict
@@ -66,6 +67,10 @@ func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
 		},
 		"approve valid": {
 			common.Valid,
+			Approve,
+		},
+		"approve could not verify": {
+			common.CouldNotVerify,
 			Approve,
 		},
 		"blackhole rejected": {
@@ -104,6 +109,7 @@ func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
 }
 func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
 
+	// NOTE: This test should be exhaustive over VerificationState variants.
 	type expectedSizes struct {
 		delayed    int
 		blackholed int
@@ -122,6 +128,10 @@ func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
 		},
 		"NotApplicable has no effect": {
 			common.NotApplicable,
+			expectedSizes{},
+		},
+		"CouldNotVerify has no effect": {
+			common.CouldNotVerify,
 			expectedSizes{},
 		},
 		"Anomalous gets delayed": {
@@ -178,11 +188,15 @@ func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
 func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
 	n := makeTestNotary(t)
 
+	// NOTE: This test should be exhaustive over VerificationState variants.
 	tests := map[string]struct {
 		verificationState common.VerificationState
 	}{
 		"approve non-token transfer: NotVerified": {
 			common.NotVerified,
+		},
+		"approve non-token transfer: CouldNotVerify": {
+			common.CouldNotVerify,
 		},
 		"approve non-token transfer: Anomalous": {
 			common.Anomalous,
@@ -190,13 +204,22 @@ func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
 		"approve non-token transfer: Rejected": {
 			common.Rejected,
 		},
+		"approve non-token transfer: NotApplicable": {
+			common.NotApplicable,
+		},
+		"approve non-token transfer: Valid": {
+			common.Valid,
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			msg := makeNewMsgPub(t)
+
+			// Change the payload to something other than a token transfer.
 			msg.Payload = []byte{0x02}
 			require.False(t, vaa.IsTransfer(msg.Payload))
+
 			if msg.VerificationState() != common.NotVerified {
 				// SetVerificationState fails if the old status is equal to the new one.
 				err := msg.SetVerificationState(test.verificationState)
