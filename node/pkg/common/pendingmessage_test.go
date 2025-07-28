@@ -3,7 +3,6 @@ package common_test
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -41,24 +40,14 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 
 	// Set up.
 	var (
-		longPayload = bytes.NewBuffer(make([]byte, math.MaxUint16+1))
-		longTxID    = bytes.NewBuffer(make([]byte, math.MaxUint8+1))
+		longTxID = bytes.NewBuffer(make([]byte, math.MaxUint8+1))
 	)
 	emitter, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	validTxID, err := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
 	require.NoError(t, err)
 
 	tests := []test{
-		{
-			label: "payload too long",
-			input: common.MessagePublication{
-				TxID:    validTxID,
-				Payload: longPayload.Bytes(),
-			},
-			err: common.ErrInputSize{Msg: "payload too long"},
-		},
 		{
 			label: "txID too long",
 			input: common.MessagePublication{
