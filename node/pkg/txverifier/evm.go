@@ -174,7 +174,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		return false, nil
 	}
 
-	cacheEvaluation := NewReceiptEvaluation(receipt.BlockNumber.Uint64())
+	cacheEvaluation := NewReceiptEvaluation(summary.isSafe, receipt.BlockNumber.Uint64())
 	for msgID, isValid := range summary.msgPubResult {
 		cacheEvaluation.MsgResults[msgID] = isValid
 	}

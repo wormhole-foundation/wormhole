@@ -135,15 +135,15 @@ func (tv *TransferVerifier[ethClient, Connector]) MsgID(log *LogMessagePublished
 type receiptEvaluation struct {
 	// Whether the entire receipt itself is valid or not. It is possible for all of the messages in a receipt to be
 	// valid, but the receipt itself to be invalid.
-	Valid bool
+	IsSafe bool
 	// Whether individual messages in the receipt are valid or not.
 	MsgResults  map[msgID]bool
 	blockNumber uint64
 }
 
-func NewReceiptEvaluation(blockNumber uint64) receiptEvaluation {
+func NewReceiptEvaluation(isSafe bool, blockNumber uint64) receiptEvaluation {
 	return receiptEvaluation{
-		Valid:       false,
+		IsSafe:      isSafe,
 		MsgResults:  make(map[msgID]bool),
 		blockNumber: blockNumber,
 	}
