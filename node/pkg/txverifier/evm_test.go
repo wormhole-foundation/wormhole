@@ -465,8 +465,8 @@ func TestValidateReceipt(t *testing.T) {
 
 	tests := map[string]struct {
 		transferReceipt *TransferReceipt
-		expected    ReceiptSummary
-		shouldError bool
+		expected        ReceiptSummary
+		shouldError     bool
 	}{
 		"safe receipt: amounts match, deposit": {
 			transferReceipt: &TransferReceipt{
@@ -601,8 +601,7 @@ func TestValidateReceipt(t *testing.T) {
 						Amount:       big.NewInt(99),
 					},
 				},
-				Transfers: &[]*ERC20Transfer{
-				},
+				Transfers: &[]*ERC20Transfer{},
 				MessagePublications: &[]*LogMessagePublished{
 					// Transfer out WETH
 					{
@@ -809,7 +808,7 @@ func TestValidateReceipt(t *testing.T) {
 		},
 		"unsafe receipt: duplicate msgID for LogMessagePublished events": {
 			transferReceipt: &TransferReceipt{
-				Deposits: &[]*NativeDeposit{},
+				Deposits:  &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{},
 				// Sequence numbers are not unique, so the receipt is invalid
 				MessagePublications: &[]*LogMessagePublished{

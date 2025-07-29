@@ -41,16 +41,16 @@ func (i InvariantError) Error() string {
 	return fmt.Sprintf("invariant violated: %s", i.Msg)
 }
 
-// TransferIsValid processes a token transfer receipt based on a LogMessagePublished event. It fetches
-// the full transaction receipt associated with the txHash, and parses all
+// TransferIsValid processes a Message Publications representing a token transfer.
+// It fetches the full transaction receipt associated with the txHash and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
-// transfers and token deposits into the token bridge as inbound transfers. It then
+// transfers and token deposits/transfers into the token bridge as inbound transfers. It then
 // verifies that the sum of the inbound transfers is at least as much as the sum of
 // the outbound transfers.
 //
 // Return values:
 //
-//	true:  the token transfer's receipt is valid.
+//	true: the token transfer's in the messagepublication is valid.
 //	false and nil: the token transfer has violated an invariant and is unsafe.
 //	false and err: the receipt could not be properly processed or is not a token transfer.
 func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
@@ -89,11 +89,11 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Check if the message has already been verified. If so, skip receipt parsing and return the cached result.
-	if eval, exists := tv.evaluations[txHash]; exists {
+	if receiptEvaluation, exists := tv.evaluations[txHash]; exists {
 		tv.logger.Debug("skip: transaction hash already processed",
 			zap.String("txHash", txHash.String()))
 
-		if isValidTransfer, ok := eval.MsgResults[msgID]; ok {
+		if isValidTransfer, ok := receiptEvaluation.MsgResults[msgID]; ok {
 			return isValidTransfer, nil
 		}
 
@@ -150,24 +150,26 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Ensure that the amount coming in is at least as much as the amount requested out.
-	summary, processErr := tv.validateReceipt(transferReceipt)
+	summary, validateReceiptErr := tv.validateReceipt(transferReceipt)
 	tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
 	if summary == nil {
 		tv.logger.Warn("receipt summary is nil", zap.String("txHash", txHash.String()))
-		return false, processErr
+		return false, validateReceiptErr
 	}
 
-	if processErr != nil {
+	if validateReceiptErr != nil {
 		// Check if the error type is an invariant error. If not, it's just a parsing error. It's important to
 		// distinguish between parsing errors and invariant errors because the former indicates a bug in the code,
 		// while the latter indicates a bug in the token contract. These should be handled differently.
+
+		// If not an invariant error, it's a parsing error.
 		var invError *InvariantError
-		if !errors.As(processErr, &invError) {
-			return false, processErr
+		if !errors.As(validateReceiptErr, &invError) {
+			return false, validateReceiptErr
 		}
 
 		// This represents an invariant violation in token transfers.
-		tv.logger.Error("invariant violation", zap.Error(processErr), zap.String("receipt summary", summary.String()))
+		tv.logger.Error("invariant violation", zap.Error(validateReceiptErr), zap.String("receipt summary", summary.String()))
 		// The error is deliberately discarded in this case, but is logged above.
 		return false, nil
 	}
@@ -760,8 +762,8 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 	//
 
 	var (
-		allMsgsValid = true
-		receiptIsSolvent      = receiptSummary.isSolvent()
+		allMsgsValid     = true
+		receiptIsSolvent = receiptSummary.isSolvent()
 	)
 	if len(*receipt.MessagePublications) == 1 {
 		// Only one message publication exists in the receipt. Check for solvency.

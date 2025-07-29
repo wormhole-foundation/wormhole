@@ -137,14 +137,14 @@ type receiptEvaluation struct {
 	// valid, but the receipt itself to be invalid.
 	Valid bool
 	// Whether individual messages in the receipt are valid or not.
-	MsgResults     map[msgID]bool
+	MsgResults  map[msgID]bool
 	blockNumber uint64
 }
 
 func NewReceiptEvaluation(blockNumber uint64) receiptEvaluation {
 	return receiptEvaluation{
-		Valid: false,
-		MsgResults:     make(map[msgID]bool),
+		Valid:       false,
+		MsgResults:  make(map[msgID]bool),
 		blockNumber: blockNumber,
 	}
 }
