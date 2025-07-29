@@ -92,7 +92,6 @@ var (
 		vaa.ChainIDSeiEVM:    {Finalized: true, Safe: true, EvmChainID: 1329, PublicRPC: "https://evm-rpc.sei-apis.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
 		// vaa.ChainIDEclipse:    Not supported in the guardian.
 		// vaa.ChainIDBOB:        Not supported in the guardian.
-		vaa.ChainIDSnaxchain:  {Finalized: true, Safe: true, EvmChainID: 2192, PublicRPC: "https://mainnet.snaxchain.io", ContractAddr: "0xc1BA3CC4bFE724A08FbbFbF64F8db196738665f4"},
 		vaa.ChainIDUnichain:   {Finalized: true, Safe: true, EvmChainID: 130, PublicRPC: "https://unichain-rpc.publicnode.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
 		vaa.ChainIDWorldchain: {Finalized: true, Safe: true, EvmChainID: 480, PublicRPC: "https://worldchain-mainnet.g.alchemy.com/public", ContractAddr: "0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"},
 		vaa.ChainIDInk:        {Finalized: true, Safe: true, EvmChainID: 57073, PublicRPC: "https://rpc-qnd.inkonchain.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
@@ -140,7 +139,6 @@ var (
 		vaa.ChainIDSeiEVM:    {Finalized: true, Safe: true, EvmChainID: 1328, PublicRPC: "https://evm-rpc-testnet.sei-apis.com/", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		// vaa.ChainIDEclipse:     Not supported in the guardian.
 		// vaa.ChainIDBOB:         Not supported in the guardian.
-		vaa.ChainIDSnaxchain:       {Finalized: true, Safe: true, EvmChainID: 13001, PublicRPC: "https://testnet.snaxchain.io", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		vaa.ChainIDUnichain:        {Finalized: true, Safe: true, EvmChainID: 1301, PublicRPC: "https://unichain-sepolia-rpc.publicnode.com", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		vaa.ChainIDWorldchain:      {Finalized: true, Safe: true, EvmChainID: 4801, PublicRPC: "https://worldchain-sepolia.g.alchemy.com/public", ContractAddr: "0xe5E02cD12B6FcA153b0d7fF4bF55730AE7B3C93A"},
 		vaa.ChainIDInk:             {Finalized: true, Safe: true, EvmChainID: 763373, PublicRPC: "https://rpc-qnd-sepolia.inkonchain.com", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},

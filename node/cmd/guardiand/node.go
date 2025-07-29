@@ -185,9 +185,6 @@ var (
 	berachainRPC      *string
 	berachainContract *string
 
-	snaxchainRPC      *string
-	snaxchainContract *string
-
 	unichainRPC      *string
 	unichainContract *string
 
@@ -424,9 +421,6 @@ func init() {
 
 	berachainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "berachainRPC", "Berachain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	berachainContract = NodeCmd.Flags().String("berachainContract", "", "Berachain contract address")
-
-	snaxchainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "snaxchainRPC", "Snaxchain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	snaxchainContract = NodeCmd.Flags().String("snaxchainContract", "", "Snaxchain contract address")
 
 	unichainRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "unichainRPC", "Unichain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	unichainContract = NodeCmd.Flags().String("unichainContract", "", "Unichain contract address")
@@ -843,7 +837,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	*xlayerContract = checkEvmArgs(logger, *xlayerRPC, *xlayerContract, vaa.ChainIDXLayer)
 	*lineaContract = checkEvmArgs(logger, *lineaRPC, *lineaContract, vaa.ChainIDLinea)
 	*berachainContract = checkEvmArgs(logger, *berachainRPC, *berachainContract, vaa.ChainIDBerachain)
-	*snaxchainContract = checkEvmArgs(logger, *snaxchainRPC, *snaxchainContract, vaa.ChainIDSnaxchain)
 	*unichainContract = checkEvmArgs(logger, *unichainRPC, *unichainContract, vaa.ChainIDUnichain)
 	*worldchainContract = checkEvmArgs(logger, *worldchainRPC, *worldchainContract, vaa.ChainIDWorldchain)
 	*inkContract = checkEvmArgs(logger, *inkRPC, *inkContract, vaa.ChainIDInk)
@@ -1019,7 +1012,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["lineaRPC"] = *lineaRPC
 	rpcMap["berachainRPC"] = *berachainRPC
 	rpcMap["seiEvmRPC"] = *seiEvmRPC
-	rpcMap["snaxchainRPC"] = *snaxchainRPC
 	rpcMap["unichainRPC"] = *unichainRPC
 	rpcMap["worldchainRPC"] = *worldchainRPC
 	rpcMap["inkRPC"] = *inkRPC
@@ -1423,19 +1415,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			Contract:          *berachainContract,
 			CcqBackfillCache:  *ccqBackfillCache,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDBerachain),
-		}
-
-		watcherConfigs = append(watcherConfigs, wc)
-	}
-
-	if shouldStart(snaxchainRPC) {
-		wc := &evm.WatcherConfig{
-			NetworkID:         "snaxchain",
-			ChainID:           vaa.ChainIDSnaxchain,
-			Rpc:               *snaxchainRPC,
-			Contract:          *snaxchainContract,
-			CcqBackfillCache:  *ccqBackfillCache,
-			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSnaxchain),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)

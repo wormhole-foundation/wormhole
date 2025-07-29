@@ -282,8 +282,7 @@ const (
 	ChainIDEclipse ChainID = 41
 	// ChainIDBOB is the ChainID of BOB
 	ChainIDBOB ChainID = 42
-	// ChainIDSnaxchain is the ChainID of Snaxchain
-	ChainIDSnaxchain ChainID = 43
+	// OBSOLETE: ChainIDSnaxchain ChainID = 43
 	// ChainIDUnichain is the ChainID of Unichain
 	ChainIDUnichain ChainID = 44
 	// ChainIDWorldchain is the ChainID of Worldchain
