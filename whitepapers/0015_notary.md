@@ -1,16 +1,14 @@
 # Notary
 
-[TOC]
-
 ## Objective
 
 Provide a generalized message evaluation system that can assess the validity of Wormhole messages and make decisions about their processing based on verification state, with the ability to delay suspicious messages for manual review or permanently block malicious ones.
 
 ## Background
 
-As Wormhole has evolved from a simple token bridge to a generic cross-chain messaging protocol, the need for sophisticated message validation has grown. While the core Wormhole protocol ensures message authenticity through guardian signatures, it cannot inherently determine whether a message represents legitimate activity or is the result of an exploit, bug, or malicious behavior.
+The core Wormhole protocol ensures message authenticity through guardian signatures but it cannot inherently determine whether a message represents legitimate activity or is the result of an exploit, bug, or malicious behavior.
 
-The Transfer Verifier system was developed to validate the legitimacy of token transfer transactions by analyzing on-chain data and transaction receipts. However, this validation occurs at the chain watcher level and produces verification states that need to be acted upon consistently across the guardian network.
+The Transfer Verifier system was developed to validate the legitimacy of token transfer transactions by analyzing on-chain data and transaction receipts. However, this validation occurs at the chain watcher level and produces verification states that need to be acted upon elsewhere in the codebase. Transfer Verifier only adds a status to a message, but does not alter how that message is processed on the way to becoming a VAA.
 
 ## Goals
 
