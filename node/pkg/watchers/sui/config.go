@@ -47,5 +47,5 @@ func (wc *WatcherConfig) Create(
 		wc.TxVerifierEnabled,
 	)
 
-	return nil, watcher.Run, nil, nil
+	return watcher.Run, nil, nil
 }
