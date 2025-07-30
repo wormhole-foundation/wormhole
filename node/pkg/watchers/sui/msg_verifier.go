@@ -41,15 +41,13 @@ func (e *Watcher) verify(
 		// transaction digest.
 		valid, err := e.suiTxVerifier.ProcessDigest(ctx, txDigest, logger)
 
-		fmt.Println(valid, err)
-
-		if valid {
-			verificationState = common.Valid
-		} else if err != nil {
+		if err != nil {
 			// If an error was returned with valid = false, then it's a signal that an internal error occurred,
 			// and the validity of the transfer cannot be determined.
 			logger.Error("an internal tx verifier error occurred: ", zap.Error(err))
 			verificationState = common.NotApplicable
+		} else if valid {
+			verificationState = common.Valid
 		} else {
 			// If no error and validation failed, mark as Anomalous
 			verificationState = common.Anomalous
