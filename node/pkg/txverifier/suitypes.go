@@ -390,6 +390,10 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (vaa.ChainID, error) {
 		return 0, fmt.Errorf("Error extracting chain: %w", err)
 	}
 
+	if float64(uint16(chain)) != chain {
+		return 0, fmt.Errorf("failed to cast chain ID: %f", chain)
+	}
+
 	chainId, err := vaa.KnownChainIDFromNumber(uint16(chain))
 
 	if err != nil {
@@ -444,12 +448,3 @@ type WormholeMessage struct {
 	Sequence         *string `json:"sequence"`
 	Timestamp        *string `json:"timestamp"`
 }
-
-// FieldsData struct {
-// 	ConsistencyLevel *uint8  `json:"consistency_level"`
-// 	Nonce            *uint64 `json:"nonce"`
-// 	Payload          []byte  `json:"payload"`
-// 	Sender           *string `json:"sender"`
-// 	Sequence         *string `json:"sequence"`
-// 	Timestamp        *string `json:"timestamp"`
-// }
