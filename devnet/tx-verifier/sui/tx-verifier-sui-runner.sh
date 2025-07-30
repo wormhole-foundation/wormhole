@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Add the unsafe functions to the transfer_tokens module. Using sed, the `transfer_tokens_unsafe.move` content
 # can be added right after the module definition. Module imports seem to be hoisted, so there's no need to add
