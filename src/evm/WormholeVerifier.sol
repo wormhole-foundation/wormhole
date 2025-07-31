@@ -345,10 +345,10 @@ contract WormholeVerifier is EIP712Encoding {
       }
 
       function computeSchnorrChallenge(px, parity, digest, r, buffer) -> e {
+        mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_R), shl(SHIFT_GET_20, r))
         mstore(buffer, px)
         mstore8(add(buffer, OFFSET_SCHNORR_CHALLENGE_PARITY), parity)
         mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_DIGEST), digest)
-        mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_R), shl(SHIFT_GET_20, r))
         e := keccak256(buffer, LENGTH_SCHNORR_CHALLENGE)
       }
 
