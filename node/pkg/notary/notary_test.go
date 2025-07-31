@@ -17,7 +17,7 @@ import (
 
 type MockNotaryDB struct{}
 
-func (md MockNotaryDB) StoreBlackhole(m *common.MessagePublication) error   { return nil }
+func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error   { return nil }
 func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
 func (md MockNotaryDB) DeleteBlackholed(m *common.MessagePublication) error { return nil }
 func (md MockNotaryDB) DeleteDelayed(p *common.PendingMessage) error        { return nil }

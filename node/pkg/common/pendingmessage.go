@@ -13,6 +13,12 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+const ( 
+	// marshaledPendingMsgLenMin is the minimum length of a marshaled pending message.
+	// It includes 8 bytes for the timestamp.
+	marshaledPendingMsgLenMin = 8 + marshaledMsgLenMin
+)
+
 // PendingMessage is a wrapper type around a [MessagePublication] that includes the time for which it
 // should be released.
 type PendingMessage struct {
@@ -29,7 +35,7 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	// Compare with [PendingTransfer.Marshal].
-	//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
 	vaa.MustWrite(buf, binary.BigEndian, uint64(p.ReleaseTime.Unix()))
 
 	bz, err := p.Msg.MarshalBinary()
@@ -45,13 +51,13 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary implements BinaryUnmarshaler for [PendingMessage].
 func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 
-	if len(data) < marshaledMsgLenMin {
-		return ErrInputSize{Msg: "data too short"}
+	if len(data) < marshaledPendingMsgLenMin {
+		return ErrInputSize{Msg: "pending message too short"}
 	}
 
 	// Compare with [UnmarshalPendingTransfer].
 	p.ReleaseTime = time.Unix(
-		//nolint:gosec // uint64 and int64 have the same number of bytes, and Unix time won't be negative.
+		// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
 		int64(binary.BigEndian.Uint64(data[0:8])),
 		0,
 	)
@@ -76,12 +82,6 @@ func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 // timestamps must be greater. This should allow for constant-time lookups when
 // looking for messages to release.
 //
-// SECURITY:  Only the functions labelled Safe should be called directly. The other
-// functions must be public to satisfy the heap interface but do not perform
-// safety checks.
-// This follows the recommendations for using heap: heap.Pop() and heap.Push()
-// should be used rather than calling the below functions directly, and the
-// Safe functions do this.
 // See: https://pkg.go.dev/container/heap#Interface
 type pendingMessageHeap []*PendingMessage
 
@@ -95,7 +95,7 @@ func (h pendingMessageHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-// Push dangerously pushes a value to the heap. Use [pendingMessageHeap.SafePush] instead.
+// Push dangerously pushes a value to the heap. Use [pendingMessageHeap.Push] instead.
 func (h *pendingMessageHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
@@ -112,7 +112,7 @@ func (h *pendingMessageHeap) Push(x any) {
 	*h = append(*h, item)
 }
 
-// Pops dangerously pops a value from the heap. Use [pendingMessageHeap.SafePop] instead.
+// Pops dangerously pops a value from the heap. Use [pendingMessageHeap.Pop] instead.
 func (h *pendingMessageHeap) Pop() any {
 	old := *h
 	n := len(old)
@@ -138,7 +138,6 @@ func NewPendingMessageQueue() *PendingMessageQueue {
 }
 
 // Push adds an element to the heap. If msg is nil, nothing is added.
-// Returns nil if the heap is empty or if the value is not a *[PendingMessage].
 func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 	if pMsg == nil {
 		return
@@ -165,6 +164,7 @@ func (q *PendingMessageQueue) Len() int {
 	return q.heap.Len()
 }
 
+// Peek returns the element at the top of the heap without removing it.
 func (q *PendingMessageQueue) Peek() *PendingMessage {
 	if q.heap.Len() == 0 {
 		return nil

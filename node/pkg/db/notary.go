@@ -1,4 +1,3 @@
-// TODO explain the meaning of pending and blackholed.
 // SECURITY: The calling code is responsible for handling mutex operations when
 // working with this package.
 package db
@@ -14,7 +13,7 @@ import (
 )
 
 type NotaryDBInterface interface {
-	StoreBlackhole(m *common.MessagePublication) error
+	StoreBlackholed(m *common.MessagePublication) error
 	StoreDelayed(p *common.PendingMessage) error
 	DeleteBlackholed(m *common.MessagePublication) error
 	DeleteDelayed(p *common.PendingMessage) error
@@ -92,7 +91,7 @@ func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
 	return nil
 }
 
-func (d *NotaryDB) StoreBlackhole(m *common.MessagePublication) error {
+func (d *NotaryDB) StoreBlackholed(m *common.MessagePublication) error {
 	b, marshalErr := m.MarshalBinary()
 
 	if marshalErr != nil {

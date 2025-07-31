@@ -295,7 +295,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			// This is the main message processing loop. It is responsible for handling messages that are
 			// received on the message channel. Depending on the configuration, a message may be processed
 			// by the Notary, the Governor, and/or the Accountant.
-			// This loop effectively causes each of these components to be process messages in a modular
+			// This loop effectively causes each of these components to process messages in a modular
 			// manner. The Notary, Governor, and Accountant can be enabled or disabled independently.
 			// As a consequence of this loop, each of these components updates its internal state, tracking
 			// whether a message is ready to be processed from its perspective. This state is used by the
