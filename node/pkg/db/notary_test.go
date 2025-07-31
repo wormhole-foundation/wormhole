@@ -29,7 +29,7 @@ func TestStoreAndReloadData(t *testing.T) {
 	// Store messages.
 	delayErr := nDB.StoreDelayed(pendingMsg)
 	require.NoError(t, delayErr, fmt.Sprintf("failed to store delayed message: %v", delayErr))
-	blackholeErr := nDB.StoreBlackhole(&msg2)
+	blackholeErr := nDB.StoreBlackholed(&msg2)
 	require.NoError(t, blackholeErr, fmt.Sprintf("failed to store blackholed message: %v", blackholeErr))
 
 	// Retrieve both messages and ensure they're equal to what was stored.
