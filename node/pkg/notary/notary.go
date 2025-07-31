@@ -295,7 +295,7 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.blackholed.Add(msg.VAAHash())
 
 	// Store in database.
-	dbErr := n.database.StoreBlackhole(msg)
+	dbErr := n.database.StoreBlackholed(msg)
 	if dbErr != nil {
 		return dbErr
 	}
