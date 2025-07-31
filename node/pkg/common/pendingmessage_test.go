@@ -241,6 +241,37 @@ func TestPendingMessageQueue_RemoveItem(t *testing.T) {
 	}
 }
 
+// TestPendingMessageQueue_DangerousOperations ensures that dangerous operations
+// on the queue do not panic or cause unexpected behavior.
+func TestPendingMessageQueue_DangerousOperations(t *testing.T) {
+	q := common.NewPendingMessageQueue()
+
+	// Popping an empty queue should not panic or alter the queue.
+	element := q.Pop()
+	require.Nil(t, element)
+	require.Equal(t, 0, q.Len())
+	require.Equal(t, 3, q.Len())
+
+	// Peeking an empty queue should not panic or alter the queue.
+	element = q.Peek()
+	require.Nil(t, element)
+	require.Equal(t, 3, q.Len())
+
+	// Build some state for the next test.
+	msg1 := *makeTestPendingMessage(t)
+	msg2 := msg1
+	msg3 := msg1
+
+	q.Push(&msg1)
+	q.Push(&msg2)
+	q.Push(&msg3)
+	require.Equal(t, 3, q.Len())
+
+	// Add nil to the queue and ensure that it is ignored.
+	q.Push(nil)
+	require.Equal(t, 3, q.Len())
+}
+
 func assertSliceOrdering(t *testing.T, s []*common.PendingMessage) {
 	for i := range len(s) - 1 {
 		require.True(t, s[i].ReleaseTime.Before(s[i+1].ReleaseTime))
