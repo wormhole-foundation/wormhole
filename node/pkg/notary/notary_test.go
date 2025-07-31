@@ -2,7 +2,10 @@ package notary
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/big"
+	"math/rand/v2"
 	"slices"
 	"sync"
 	"testing"
@@ -11,13 +14,16 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+
+	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
 type MockNotaryDB struct{}
 
-func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error   { return nil }
+func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error  { return nil }
 func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
 func (md MockNotaryDB) DeleteBlackholed(m *common.MessagePublication) error { return nil }
 func (md MockNotaryDB) DeleteDelayed(p *common.PendingMessage) error        { return nil }
@@ -35,20 +41,6 @@ func makeTestNotary(t *testing.T) *Notary {
 		blackholed: NewSet(),
 		env:        common.GoTest,
 	}
-}
-
-// makeNewMsgPub returns a MessagePublication that has a token transfer payload
-// but otherwise has default values.
-func makeNewMsgPub(t *testing.T) *common.MessagePublication {
-	t.Helper()
-	msg := &common.MessagePublication{
-		// Required to mark this as a token transfer.
-		TxID:    []byte{0x01},
-		Payload: []byte{0x01},
-	}
-
-	require.True(t, vaa.IsTransfer(msg.Payload))
-	return msg
 }
 
 func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
@@ -87,7 +79,7 @@ func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			n := makeTestNotary(t)
-			msg := makeNewMsgPub(t)
+			msg := makeUniqueMessagePublication(t)
 
 			err := msg.SetVerificationState(test.verificationState)
 			if test.verificationState != common.NotVerified {
@@ -156,7 +148,7 @@ func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
 			// Set-up
 			var (
 				n   = makeTestNotary(t)
-				msg = makeNewMsgPub(t)
+				msg = makeUniqueMessagePublication(t)
 				err = msg.SetVerificationState(test.verificationState)
 			)
 			if test.verificationState != common.NotVerified {
@@ -215,7 +207,7 @@ func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			msg := makeNewMsgPub(t)
+			msg := makeUniqueMessagePublication(t)
 
 			// Change the payload to something other than a token transfer.
 			msg.Payload = []byte{0x02}
@@ -236,7 +228,6 @@ func TestNotary_ProcessMessageAlwaysApprovesNonTokenTransfers(t *testing.T) {
 
 func TestNotary_ProcessReadyMessages(t *testing.T) {
 
-	msg := makeNewMsgPub(t)
 	tests := []struct {
 		name               string                   // description of this test case
 		delayed            []*common.PendingMessage // initial messages in delayed queue
@@ -248,7 +239,7 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 			[]*common.PendingMessage{
 				{
 					ReleaseTime: time.Now().Add(time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 			},
 			1,
@@ -259,19 +250,19 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 			[]*common.PendingMessage{
 				{
 					ReleaseTime: time.Now().Add(-2 * time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 				{
 					ReleaseTime: time.Now().Add(time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 				{
 					ReleaseTime: time.Now().Add(-time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 				{
 					ReleaseTime: time.Now().Add(2 * time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 			},
 			2,
@@ -282,11 +273,11 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 			[]*common.PendingMessage{
 				{
 					ReleaseTime: time.Now().Add(-2 * time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 				{
 					ReleaseTime: time.Now().Add(-1 * time.Hour),
-					Msg:         *msg,
+					Msg:         *makeUniqueMessagePublication(t),
 				},
 			},
 			0,
@@ -299,9 +290,13 @@ func TestNotary_ProcessReadyMessages(t *testing.T) {
 			n := makeTestNotary(t)
 			n.delayed = common.NewPendingMessageQueue()
 
+			currentLength := n.delayed.Len()
 			for pMsg := range slices.Values(tt.delayed) {
 				require.NotNil(t, pMsg)
 				n.delayed.Push(pMsg)
+				// Ensure that the queue grows after each push.
+				require.Greater(t, n.delayed.Len(), currentLength)
+				currentLength = n.delayed.Len()
 			}
 			require.Equal(t, len(tt.delayed), n.delayed.Len())
 
@@ -321,7 +316,7 @@ func TestNotary_Forget(t *testing.T) {
 	}{
 		{
 			"remove from delayed list",
-			makeNewMsgPub(t),
+			makeUniqueMessagePublication(t),
 			0,
 			0,
 		},
@@ -366,7 +361,7 @@ func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
 	}{
 		{
 			"remove from delayed list",
-			makeNewMsgPub(t),
+			makeUniqueMessagePublication(t),
 			0,
 			1,
 		},
@@ -403,7 +398,7 @@ func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
 	}{
 		{
 			"delay fails if message is already blackholed",
-			makeNewMsgPub(t),
+			makeUniqueMessagePublication(t),
 		},
 	}
 	for _, tt := range tests {
@@ -429,4 +424,66 @@ func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
 			require.Equal(t, 1, n.blackholed.Len())
 		})
 	}
+}
+
+// Helper function that returns a valid PendingMessage. It creates identical messages publications
+// with different sequence numbers.
+func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
+	t.Helper()
+
+	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
+	require.NoError(t, err)
+
+	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	// Required as the Notary checks the emitter address.
+	tokenBridge := sdk.KnownTokenbridgeEmitters[vaa.ChainIDEthereum]
+	tokenBridgeAddress := vaa.Address(tokenBridge)
+	require.NoError(t, err)
+
+	payload := &vaa.TransferPayloadHdr{
+		Type:          0x01,
+		Amount:        big.NewInt(27000000000),
+		OriginAddress: originAddress,
+		OriginChain:   vaa.ChainIDEthereum,
+		TargetAddress: targetAddress,
+		TargetChain:   vaa.ChainIDPolygon,
+	}
+	payloadBytes := encodePayloadBytes(payload)
+
+	// #nosec: G404 -- Cryptographically secure pseudo-random number generator not needed.
+	var sequence = rand.Uint64()
+	msgpub := &common.MessagePublication{
+		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         sequence,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          payloadBytes,
+		ConsistencyLevel: 32,
+		Unreliable:       true,
+		IsReobservation:  true,
+		// verificationState is set to NotVerified by default.
+	}
+
+	return msgpub
+}
+
+func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
+	bz := make([]byte, 101)
+	bz[0] = payload.Type
+
+	amtBytes := payload.Amount.Bytes()
+	if len(amtBytes) > 32 {
+		panic("amount will not fit in 32 bytes!")
+	}
+	copy(bz[33-len(amtBytes):33], amtBytes)
+
+	copy(bz[33:65], payload.OriginAddress.Bytes())
+	binary.BigEndian.PutUint16(bz[65:67], uint16(payload.OriginChain))
+	copy(bz[67:99], payload.TargetAddress.Bytes())
+	binary.BigEndian.PutUint16(bz[99:101], uint16(payload.TargetChain))
+	return bz
 }

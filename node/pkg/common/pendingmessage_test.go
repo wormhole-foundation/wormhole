@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand/v2"
 	"slices"
 	"testing"
 	"time"
@@ -14,11 +15,12 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 func TestPendingMessage_RoundTripMarshal(t *testing.T) {
-	orig := makeTestPendingMessage(t)
+	orig := makeUniquePendingMessage(t)
 	var loaded common.PendingMessage
 
 	bz, writeErr := orig.MarshalBinary()
@@ -89,20 +91,34 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 
 }
 
+func TestPendingMessageQueue_NoDuplicates(t *testing.T) {
+	q := common.NewPendingMessageQueue()
+
+	// Create two messages with the same sequence number.
+	msg1 := *makeUniquePendingMessage(t)
+	msg2 := *makeUniquePendingMessage(t)
+	msg2.Msg.Sequence = msg1.Msg.Sequence
+
+	q.Push(&msg1)
+	require.Equal(t, 1, q.Len())
+
+	msg2.ReleaseTime = msg1.ReleaseTime.Add(time.Hour)
+	require.True(t, msg1.ReleaseTime.Before(msg2.ReleaseTime))
+
+	// Pushing the same message twice should not add it to the queue.
+	q.Push(&msg2)
+	require.Equal(t, 1, q.Len())
+}
+
 func TestPendingMessage_HeapInvariants(t *testing.T) {
 
-	msg1 := *makeTestPendingMessage(t)
-	msg2 := msg1
-	msg3 := msg1
+	msg1 := *makeUniquePendingMessage(t)
+	msg2 := *makeUniquePendingMessage(t)
+	msg3 := *makeUniquePendingMessage(t)
 
 	// Modify release times, in ascending (past-to-future) order: msg1 < msg2 < msg3
 	msg2.ReleaseTime = msg1.ReleaseTime.Add(time.Hour)
 	msg3.ReleaseTime = msg1.ReleaseTime.Add(time.Hour * 2)
-
-	// Give unique TxIDs
-	msg1.Msg.TxID = []byte{0x01}
-	msg2.Msg.TxID = []byte{0x02}
-	msg3.Msg.TxID = []byte{0x03}
 
 	require.True(t, msg1.ReleaseTime.Before(msg2.ReleaseTime))
 	require.True(t, msg2.ReleaseTime.Before(msg3.ReleaseTime))
@@ -158,7 +174,7 @@ func TestPendingMessage_HeapInvariants(t *testing.T) {
 			removed, err := q.RemoveItem(&msg2.Msg)
 			require.NoError(t, err)
 			require.NotNil(t, removed)
-			require.Equal(t, &msg2, removed)
+			require.Equal(t, &msg2, removed, "removed message does not match expected message")
 
 			require.Equal(t, len(tt.order)-1, q.Len())
 
@@ -174,9 +190,9 @@ func TestPendingMessage_HeapInvariants(t *testing.T) {
 func TestPendingMessageQueue_Peek(t *testing.T) {
 	q := common.NewPendingMessageQueue()
 
-	msg1 := *makeTestPendingMessage(t)
-	msg2 := msg1
-	msg3 := msg1
+	msg1 := *makeUniquePendingMessage(t)
+	msg2 := *makeUniquePendingMessage(t)
+	msg3 := *makeUniquePendingMessage(t)
 
 	// Modify release times, in ascending (past-to-future) order: msg1 < msg2 < msg3
 	msg2.ReleaseTime = msg1.ReleaseTime.Add(time.Hour)
@@ -196,8 +212,8 @@ func TestPendingMessageQueue_Peek(t *testing.T) {
 }
 
 func TestPendingMessageQueue_RemoveItem(t *testing.T) {
-	msgInQueue := makeTestPendingMessage(t).Msg
-	msgNotInQueue := makeTestPendingMessage(t).Msg
+	msgInQueue := makeUniquePendingMessage(t).Msg
+	msgNotInQueue := makeUniquePendingMessage(t).Msg
 	msgNotInQueue.TxID = []byte{0xff}
 
 	tests := []struct {
@@ -250,17 +266,16 @@ func TestPendingMessageQueue_DangerousOperations(t *testing.T) {
 	element := q.Pop()
 	require.Nil(t, element)
 	require.Equal(t, 0, q.Len())
-	require.Equal(t, 3, q.Len())
 
 	// Peeking an empty queue should not panic or alter the queue.
 	element = q.Peek()
 	require.Nil(t, element)
-	require.Equal(t, 3, q.Len())
+	require.Equal(t, 0, q.Len())
 
 	// Build some state for the next test.
-	msg1 := *makeTestPendingMessage(t)
-	msg2 := msg1
-	msg3 := msg1
+	msg1 := *makeUniquePendingMessage(t)
+	msg2 := *makeUniquePendingMessage(t)
+	msg3 := *makeUniquePendingMessage(t)
 
 	q.Push(&msg1)
 	q.Push(&msg2)
@@ -301,9 +316,11 @@ func consumeHeapAndAssertOrdering(t *testing.T, q *common.PendingMessageQueue) [
 			require.NotNil(t, next)
 		}
 
-		if next != nil {
-			require.True(t, earliest.ReleaseTime.Before(q.Peek().ReleaseTime))
+		if next == nil {
+			continue
 		}
+
+		require.True(t, earliest.ReleaseTime.Before(q.Peek().ReleaseTime))
 	}
 	return res
 }
@@ -325,8 +342,9 @@ func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
 	return bz
 }
 
-// helper function that returns a valid PendingMessage.
-func makeTestPendingMessage(t *testing.T) *common.PendingMessage {
+// Helper function that returns a valid PendingMessage. It creates identical messages publications
+// with different sequence numbers.
+func makeUniquePendingMessage(t *testing.T) *common.PendingMessage {
 	t.Helper()
 
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
@@ -335,7 +353,9 @@ func makeTestPendingMessage(t *testing.T) *common.PendingMessage {
 	targetAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
 
-	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	// Required as the Notary checks the emitter address.
+	tokenBridge := sdk.KnownTokenbridgeEmitters[vaa.ChainIDEthereum]
+	tokenBridgeAddress := vaa.Address(tokenBridge)
 	require.NoError(t, err)
 
 	payload := &vaa.TransferPayloadHdr{
@@ -349,11 +369,14 @@ func makeTestPendingMessage(t *testing.T) *common.PendingMessage {
 
 	payloadBytes := encodePayloadBytes(payload)
 
+	// Should be unique for each test with high probability.
+	// #nosec: G404 -- Cryptographically secure pseudo-random number generator not needed.
+	var sequence = rand.Uint64()
 	msgpub := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
-		Sequence:         789101112131415,
+		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDEthereum,
 		EmitterAddress:   tokenBridgeAddress,
 		Payload:          payloadBytes,
