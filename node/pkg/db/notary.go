@@ -120,10 +120,9 @@ type NotaryLoadResult struct {
 
 // LoadAll retrieves all keys from the database.
 func (d *NotaryDB) LoadAll(logger *zap.Logger) (*NotaryLoadResult, error) {
-	const defaultResultCapacity = 10
 	result := NotaryLoadResult{
-		Delayed:    make([]*common.PendingMessage, 0, defaultResultCapacity),
-		Blackholed: make([]*common.MessagePublication, 0, defaultResultCapacity),
+		Delayed:    make([]*common.PendingMessage, 0),
+		Blackholed: make([]*common.MessagePublication, 0),
 	}
 	viewErr := d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -160,8 +159,6 @@ func (d *NotaryDB) LoadAll(logger *zap.Logger) (*NotaryLoadResult, error) {
 				}
 				result.Delayed = append(result.Delayed, &pMsg)
 			case Unknown:
-				// Should only occur in case of an error.
-			default:
 				// The key-value store is shared across other modules and message types (e.g. Governor, Accountant).
 				// If another key is discovered, just ignore it.
 				logger.Debug("notary: load database ignoring unknown key type", zap.String("key", string(key)))
