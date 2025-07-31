@@ -2,10 +2,12 @@ package governor
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -31,6 +33,27 @@ func TestTokenListAddressSize(t *testing.T) {
 			assert.Equal(t, len(tokenConfigEntry.Addr), 64)
 		})
 	}
+}
+
+func TestTokensHaveGovernedChains(t *testing.T) {
+	chainList := ChainList()
+	chains := []vaa.ChainID{}
+	for _, chainConfigEntry := range chainList {
+		chains = append(chains, chainConfigEntry.EmitterChainID)
+	}
+
+	badTokens := []TokenConfigEntry{}
+	for _, tokenConfigEntry := range TokenList() {
+		if !slices.Contains(chains, vaa.ChainID(tokenConfigEntry.Chain)) {
+			badTokens = append(badTokens, tokenConfigEntry)
+		}
+	}
+	for _, tokenConfigEntry := range FlowCancelTokenList() {
+		if !slices.Contains(chains, vaa.ChainID(tokenConfigEntry.Chain)) {
+			badTokens = append(badTokens, tokenConfigEntry)
+		}
+	}
+	require.Empty(t, badTokens, "Some tokens are not governed by a chain: %v", badTokens)
 }
 
 // Flag a situation where a Governed chain does not have any governed assets. Often times when adding a mainnet chain,
