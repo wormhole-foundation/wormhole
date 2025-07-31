@@ -119,10 +119,9 @@ func (tv *TransferVerifier[ethClient, Connector]) MsgID(log *LogMessagePublished
 	if log == nil {
 		return msgID{}, errors.New("cannot create MsgID for log: LogMessagePublished is nil")
 	}
-	vaaAddr, err := vaa.StringToAddress(log.EventEmitter.String())
-	if err != nil {
-		return msgID{}, errors.New("cannot create MsgID for log: could not convert emitter address to vaa.Address")
-	}
+
+	// Should be a token bridge address for the LogMessagePublished events that are relvant.
+	vaaAddr := VAAAddrFrom(log.MsgSender)
 
 	return msgID{
 		EmitterChain:   tv.chainIds.wormholeChainId,
@@ -327,11 +326,9 @@ func (s *Subscription) Close() {
 type TransferLog interface {
 	// Amount after (de)normalization
 	TransferAmount() *big.Int
-	// The Transferror: EOA or contract that initiated the transfer. Not to be confused with msg.sender.
-	Sender() vaa.Address
 	// The Transferee. Ultimate recipient of funds.
 	Destination() vaa.Address
-	// Event emitter
+	// Event emitter (not to be confused with EmitterAddress in a VAA)
 	Emitter() common.Address // Emitter will always be an Ethereum address
 	// Chain where the token was minted
 	OriginChain() vaa.ChainID
@@ -355,12 +352,6 @@ func (d *NativeDeposit) TransferAmount() *big.Int {
 
 func (d *NativeDeposit) Destination() vaa.Address {
 	return VAAAddrFrom(d.Receiver)
-}
-
-// Deposit does not actually have a sender but this is required to implement the interface
-func (d *NativeDeposit) Sender() vaa.Address {
-	// Sender is not present in the Logs emitted for a Deposit
-	return ZERO_ADDRESS_VAA
 }
 
 func (d *NativeDeposit) Emitter() common.Address {
@@ -445,7 +436,7 @@ func (t *ERC20Transfer) TransferAmount() *big.Int {
 	return t.Amount
 }
 
-func (t *ERC20Transfer) Sender() vaa.Address {
+func (t *ERC20Transfer) Source() vaa.Address {
 	// Note that this value may return zero for receipt logs that are in
 	// fact Transfers emitted from e.g. UniswapV2 which have the same event
 	// signature as ERC20 Transfers.
@@ -544,7 +535,7 @@ func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (common.Ad
 
 // Abstraction over a LogMessagePublished event emitted by the core bridge.
 type LogMessagePublished struct {
-	// Which contract emitted the event.
+	// Which contract emitted the event. (not to be confused with EmitterAddress in a VAA)
 	EventEmitter common.Address
 	// Which address sent the transaction that triggered the message publication.
 	MsgSender common.Address
@@ -571,10 +562,12 @@ func (l *LogMessagePublished) Destination() (destination vaa.Address) {
 	return
 }
 
+// Event emitter (not to be confused with EmitterAddress in a VAA)
 func (l *LogMessagePublished) Emitter() common.Address {
 	return l.EventEmitter
 }
 
+// Message sender (should be token bridge)
 func (l *LogMessagePublished) Sender() vaa.Address {
 	return VAAAddrFrom(l.MsgSender)
 }
@@ -1024,10 +1017,6 @@ func validate[L TransferLog](tLog TransferLog) error {
 
 	switch log := tLog.(type) {
 	case *NativeDeposit:
-		// Deposit does not actually have a sender, so it should always be equal to the zero address.
-		if Cmp(log.Sender(), ZERO_ADDRESS_VAA) != 0 {
-			return &InvalidLogError{Msg: "sender address for Deposit must be 0"}
-		}
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "deposit emitter is not equal to its token address"}
 		}
@@ -1035,15 +1024,9 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
 	case *ERC20Transfer:
-		// Note: The token bridge transfers to the zero address in
-		// order to burn tokens for some kinds of transfers. For this
-		// reason, there is no validation here to check if Destination
-		// is the zero address.
-
-		// Note: Sender must not be checked to be non-zero here. The event
-		// hash for Transfer also shows up in other popular contracts
-		// (e.g. UniswapV2) and may have a valid reason to set this
-		// field to zero.
+		// Note: there are valid cases where the to or from address for a transfer is the zero address,
+		// e.g. when a contract is used to burn tokens. For this reason, there is no validation here to check
+		// these accounts against the zero address.
 
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "transfer emitter is not equal to its token address"}
@@ -1056,6 +1039,11 @@ func validate[L TransferLog](tLog TransferLog) error {
 		}
 		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
+		}
+
+		// It's invalid for the core bridge to send a message to itself.
+		if Cmp(log.Sender(), log.Emitter()) == 0 {
+			return &InvalidLogError{Msg: "msg.sender cannot be equal to emitter"}
 		}
 
 		// The following values are not exposed by the interface, so check them directly here.
