@@ -340,6 +340,9 @@ func (p *Processor) Run(ctx context.Context) error {
 					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 				case guardianNotary.Approve:
 					// no-op: process normally
+					p.logger.Debug("notary evaluated message as approved", k.ZapFields(zap.String("verdict", verdict.String()))...)
+				default:
+					p.logger.Error("notary returned unrecognized verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 				}
 			}
 
