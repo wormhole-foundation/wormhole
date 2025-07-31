@@ -29,6 +29,7 @@
 package notary
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"slices"
@@ -37,6 +38,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"go.uber.org/zap"
@@ -153,9 +155,14 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
-	// Only token transfers are currently supported.
-	if !vaa.IsTransfer(msg.Payload) {
-		return Approve, nil
+	if tokenBridge, ok := sdk.KnownTokenbridgeEmitters[msg.EmitterChain]; !ok {
+		n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
+		return Unknown, errors.New("unknown token bridge emitter")
+	} else {
+		// Only token transfers are currently supported and the transfer must be from the token bridge.
+		if !vaa.IsTransfer(msg.Payload) || !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
+			return Approve, nil
+		}
 	}
 
 	// Return early if the message has already been blackholed. This is important in case a message
@@ -175,11 +182,14 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	case common.Rejected:
 		err = n.blackhole(msg)
 		v = Blackhole
-	case common.CouldNotVerify, common.NotVerified, common.NotApplicable, common.Valid:
+	case common.Valid:
+		v = Approve
+	case common.CouldNotVerify, common.NotVerified, common.NotApplicable:
 		// NOTE: All other statuses are simply approved for now. In the future, it may be
 		// desirable to log a warning if a [common.NotVerified] message is handled here, with
 		// the idea that messages handled by the Notary must already have a non-default
 		// status.
+		n.logger.Debug("notary: got unexpected verification status for token transfer", msg.ZapFields()...)
 		v = Approve
 	}
 

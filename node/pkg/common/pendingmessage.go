@@ -13,10 +13,14 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-const ( 
+const (
 	// marshaledPendingMsgLenMin is the minimum length of a marshaled pending message.
 	// It includes 8 bytes for the timestamp.
 	marshaledPendingMsgLenMin = 8 + marshaledMsgLenMin
+)
+
+var (
+	ErrAlreadyExsits = errors.New("pending message queue: message publication is already queued")
 )
 
 // PendingMessage is a wrapper type around a [MessagePublication] that includes the time for which it
@@ -125,6 +129,7 @@ func (h *pendingMessageHeap) Pop() any {
 }
 
 // PendingMessageQueue is a min-heap that sorts [PendingMessage] in descending order of Timestamp.
+// It also prevents duplicate [MessagePublication]s from being added to the queue.
 type PendingMessageQueue struct {
 	// pendingMessageHeap exposes dangerous APIs as a necessary consequence of implementing [heap.Interface].
 	// Wrap it and expose only a safe API.
@@ -139,10 +144,9 @@ func NewPendingMessageQueue() *PendingMessageQueue {
 
 // Push adds an element to the heap. If msg is nil, nothing is added.
 func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
-	if pMsg == nil {
-		return
+	if pMsg != nil && !q.ContainsMessagePublication(&pMsg.Msg) {
+		heap.Push(&q.heap, pMsg)
 	}
-	heap.Push(&q.heap, pMsg)
 }
 
 // Pop removes the last element from the heap and returns its value.
@@ -180,14 +184,11 @@ func (q *PendingMessageQueue) RemoveItem(target *MessagePublication) (*PendingMe
 	if target == nil {
 		return nil, errors.New("pendingmessage: nil argument for RemoveItem")
 	}
-	if len(target.TxID) == 0 {
-		return nil, errors.New("pendingmessage: argument has empty TxID")
-	}
 
 	var removed *PendingMessage
 	for i, item := range q.heap {
-		// Assumption: TxIDs are unique across MessagePublications.
-		if bytes.Equal(item.Msg.TxID, target.TxID) {
+		// Assumption: MsgIDs are unique across MessagePublications.
+		if bytes.Equal(item.Msg.MessageID(), target.MessageID()) {
 			pMsg, ok := heap.Remove(&q.heap, i).(*PendingMessage)
 			if !ok {
 				return nil, errors.New("pendingmessage: item removed from heap is not PendingMessage")
@@ -213,8 +214,9 @@ func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublicat
 	if msgPub == nil {
 		return false
 	}
+	// Relies on MessageIDString to be unique.
 	return slices.ContainsFunc(q.heap, func(pMsg *PendingMessage) bool {
-		return pMsg.Msg.TxIDString() == msgPub.TxIDString()
+		return pMsg.Msg.MessageIDString() == msgPub.MessageIDString()
 	})
 }
 
