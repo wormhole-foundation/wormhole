@@ -14,7 +14,7 @@ import (
 
 var _ = strconv.Itoa(0)
 
-// StoreCodeCmd will upload code to be reused.
+// CmdAddWasmInstantiateAllowlist will upload code to be reused.
 func CmdAddWasmInstantiateAllowlist() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-wasm-instantiate-allowlist [bech32 contract addr] [codeId] [vaa-hex]",
