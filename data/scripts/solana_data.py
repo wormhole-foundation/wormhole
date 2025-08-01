@@ -43,10 +43,9 @@ solana_comparison_core_shim = ComputeUnitsVsImplementationChart(
 solana_comparison_shim = ComputeUnitsVsImplementationChart(
     title="Shim core vs VerificationV2 - Relative reductions from Shim core",
     labels=[
-        "shim verify - 2 txs",              "early VerificationV2 - 1 tx",        "VerificationV2 only digest - 1 tx"
+        "shim verify - 2 txs",              "VerificationV2 only digest - 1 tx"
     ],
-    compute=[
-                  D("337883"),                       D("53417"),                          D("33378")],
+    compute=[     D("337883"),                       D("33378")],
 
-    rent=[   D("0.000015040"),                           D("0"),                              D("0")]
+    rent=[   D("0.000015040"),                           D("0")]
 )

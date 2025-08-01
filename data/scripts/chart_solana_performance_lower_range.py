@@ -26,6 +26,15 @@ max_priority_price = max(priority_prices)
 max_sol_cost = D("0.00003")
 
 line_colors = ["blue", "gold", "red"]
+# Offsets for relative reduction annotations
+relative_reduction_offsets = [
+    (  0,        0),
+    (100,   max_sol_cost * D("0.03")),
+]
+implementation_label_offsets = [
+    (D("0.003") * max_priority_price,  0),
+    (D("0.003") * max_priority_price,  0),
+]
 
 # Plot one line per implementation
 for i, name in enumerate(solana_comparison_shim.labels):
@@ -44,6 +53,7 @@ for i, name in enumerate(solana_comparison_shim.labels):
     else:
         reduction = [ (D(1) - (sol_costs[i] / baseline_implementation_sol_costs[i])) * 100 for i in range(len(priority_prices))]
         segment_size = points // 5
+        relative_reduction_offset = relative_reduction_offsets[i]
         for j in range(segment_size // 2, len(priority_prices), segment_size):
             # Annotate reduction
             if reduction[j] < 0:
@@ -58,7 +68,7 @@ for i, name in enumerate(solana_comparison_shim.labels):
             ax.annotate(
                 f"{arrow}{abs(reduction[j]):.1f}%",
                 xy=(x, y),
-                xytext=(x - 100, y + (-1 if i == 2 else 1) * max_sol_cost * D("0.03")),
+                xytext=(x + relative_reduction_offset[0], y + relative_reduction_offset[1]),
                 fontsize=10,
                 color=color,
                 arrowprops=dict(arrowstyle='->', lw=0.8),
@@ -68,10 +78,12 @@ for i, name in enumerate(solana_comparison_shim.labels):
     # Add label at the end of each line
     x_label = priority_prices[-1]
     y_label = sol_costs[-1]
+    implementation_label_offset = implementation_label_offsets[i]
+    short_name = name.split(" - ")[0].replace(" ", "\n", count=1)
     ax.text(
-        x_label + (D("0.003") * max_priority_price),
-        y_label + ((-1 if i == 2 else i) * max_sol_cost * D("0.015")),
-        name.replace(" - ", "\n"),
+        x_label + implementation_label_offset[0],
+        y_label + implementation_label_offset[1],
+        short_name,
         fontsize=11, va='center'
     )
 
@@ -81,7 +93,7 @@ threshold_price = D(10_000)
 ax.axvline(threshold_price, color='red', linestyle='--', linewidth=1)
 ax.annotate(
     "We expect priority\nprices to be around\nhere typically",
-    xy=(threshold_price, 0),
+    xy=(threshold_price, ax.get_ylim()[1] * 0.15),
     xytext=(threshold_price + 2000, ax.get_ylim()[1] * 0.5),
     textcoords='data',
     arrowprops=dict(arrowstyle='->', lw=1),
@@ -89,7 +101,7 @@ ax.annotate(
     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5)
 )
 
-ax.set_xlim(priority_prices_lower_limit, max_priority_price * D("1.12"))
+ax.set_xlim(priority_prices_lower_limit, max_priority_price * D("1.14"))
 
 # Labels and legend
 ax.xaxis.set_major_formatter(x_formatter)

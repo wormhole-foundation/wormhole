@@ -26,6 +26,19 @@ max_priority_price = max(priority_prices)
 max_sol_cost = D("0.006")
 
 line_colors = ["green", "blue", "gold", "red"]
+# Offsets for relative reduction annotations
+relative_reduction_offsets = [
+    (       0,         0),
+    (-1000000,  max_sol_cost * D("0.035")),
+    (  100000,    max_sol_cost * D("0.030")),
+    (  100000,   -max_sol_cost * D("0.042")),
+]
+implementation_label_offsets = [
+    (D("0.003") * max_priority_price,  0),
+    (D("0.003") * max_priority_price,  0),
+    (D("0.003") * max_priority_price,  D("0.02") * max_sol_cost),
+    (D("0.003") * max_priority_price, -D("0.03") * max_sol_cost),
+]
 
 # Plot one line per implementation
 for i, name in enumerate(solana_comparison_core_shim.labels):
@@ -43,6 +56,7 @@ for i, name in enumerate(solana_comparison_core_shim.labels):
     else:
         reduction = [ (D(1) - (sol_costs[i] / baseline_implementation_sol_costs[i])) * 100 for i in range(len(priority_prices))]
         segment_size = points // 5
+        relative_reduction_offset = relative_reduction_offsets[i]
         for j in range(segment_size // 2, len(priority_prices), segment_size):
             # Annotate reduction
             if reduction[j] < 0:
@@ -57,7 +71,7 @@ for i, name in enumerate(solana_comparison_core_shim.labels):
             ax.annotate(
                 f"{arrow}{abs(reduction[j]):.1f}%",
                 xy=(x, y),
-                xytext=(x + 500, y + (-1 if i == 3 else 1) * max_sol_cost * D("0.035")),
+                xytext=(x + relative_reduction_offset[0], y + relative_reduction_offset[1]),
                 fontsize=10,
                 color=color,
                 arrowprops=dict(arrowstyle='->', lw=0.8),
@@ -67,10 +81,12 @@ for i, name in enumerate(solana_comparison_core_shim.labels):
     # Add label at the end of each line
     x_label = priority_prices[-1]
     y_label = sol_costs[-1]
+    implementation_label_offset = implementation_label_offsets[i]
+    short_name = name.split(" - ")[0].replace(" ", "\n", count=1)
     ax.text(
-        float(x_label + (D("0.003") * max_priority_price)),
-        float(y_label),
-        name.replace(" - ", "\n"),
+        x_label + implementation_label_offset[0],
+        y_label + implementation_label_offset[1],
+        short_name,
         fontsize=11, va='center'
     )
 
@@ -80,15 +96,15 @@ threshold_fee = D(10_000_000)
 ax.axvline(threshold_fee, color='red', linestyle='--', linewidth=1)
 ax.annotate(
     "Beyond this point,\nit's only meaningful under\nvery high network traffic",
-    xy=(threshold_fee, 0),
-    xytext=(threshold_fee + 2000, ax.get_ylim()[1] * 0.5),
+    xy=(threshold_fee, ax.get_ylim()[1] * 0.15),
+    xytext=(threshold_fee + 100000, ax.get_ylim()[1] * 0.4),
     textcoords='data',
     arrowprops=dict(arrowstyle='->', lw=1),
     fontsize=10,
     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=0.5)
 )
 
-ax.set_xlim(priority_prices_lower_limit, max_priority_price * D("1.12"))
+ax.set_xlim(priority_prices_lower_limit, max_priority_price * D("1.14"))
 
 # Labels and legend
 ax.xaxis.set_major_formatter(x_formatter)
