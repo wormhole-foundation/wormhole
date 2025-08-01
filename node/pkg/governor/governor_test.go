@@ -1146,6 +1146,348 @@ func TestFlowCancelProcessMsgForTimeFullCancel(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestFlowCancelProcessMsgForTimeReobservationsDoNotCancel(t *testing.T) {
+	// This test sends two transfers, both of which qualify for flow cancelling. However, the second
+	// transfer is also marked as a Reobservation, so it is disqualified.
+	// This test makes sure that the first transfer flow cancels, and the second does not.
+	var (
+		ctx = context.Background()
+
+		// Transfer data
+		recipientEthereum = "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"
+		recipientSui      = "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
+		transferTime      = time.Unix(int64(1654543099), 0)
+
+		// Token bridge data
+		tokenBridgeAddrStrEthereum = "0x0290fb167208af455bb137780163b7b7a9a10c16"                         //nolint:gosec
+		tokenBridgeAddrStrSui      = "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
+		tokenBridgeAddrStrSolana   = "0x0e0a589e6488147a94dcfa592b90fdd41152bb2ca77bf6016758a6f4df9d21b4" //nolint:gosec
+	)
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	gov.setDayLengthInMinutes(24 * 60)
+
+	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
+	// when the Origin chain of the asset does not match the emitter chain
+	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
+	var flowCancelTokenOriginAddress vaa.Address
+	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
+	require.NoError(t, err)
+
+	// Data for Ethereum
+	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
+	require.NoError(t, err)
+
+	// Data for Sui
+	tokenBridgeAddrSui, err := vaa.StringToAddress(tokenBridgeAddrStrSui)
+	require.NoError(t, err)
+
+	// Add chain entries to `gov`
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 10000, 0)
+	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSui, tokenBridgeAddrStrSui, 10000, 0)
+	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSolana, tokenBridgeAddrStrSolana, 10000, 0)
+	require.NoError(t, err)
+
+	// Add flow cancel asset and non-flow cancelable asset to the token entry for `gov`
+	err = gov.setTokenForTesting(vaa.ChainIDSolana, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
+	require.NoError(t, err)
+	assert.NotNil(t, gov.tokens[tokenKey{chain: vaa.ChainIDSolana, addr: flowCancelTokenOriginAddress}])
+
+	// Transfer from Ethereum to Sui via the token bridge
+	msg1 := common.MessagePublication{
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        transferTime,
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddrEthereum,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDSolana, // The origin asset for the token being transferred
+			flowCancelTokenOriginAddress.String(),
+			vaa.ChainIDSui, // destination chain of the transfer
+			recipientSui,
+			5000,
+		),
+	}
+
+	// Reobservation Transfer from Sui to Ethereum via the token bridge.
+	// Normally this would flow cancel, but reobservations cannot do this.
+	msg2 := common.MessagePublication{
+		TxID:             hashToTxID("0xabc123f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
+		Timestamp:        transferTime,
+		Nonce:            uint32(2),
+		Sequence:         uint64(2),
+		EmitterChain:     vaa.ChainIDSui,
+		EmitterAddress:   tokenBridgeAddrSui,
+		ConsistencyLevel: uint8(0), // Sui has a consistency level of 0 (instant)
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDSolana, // Asset is owned by Solana chain. That's all we care about here.
+			flowCancelTokenOriginAddress.String(),
+			vaa.ChainIDEthereum, // destination chain
+			recipientEthereum,
+			1000,
+		),
+		IsReobservation: true,
+	}
+
+	// Stage 0: No transfers sent
+	// Check chain entry configuration and starting values for Governor usage.
+	chainEntryEthereum, exists := gov.chains[vaa.ChainIDEthereum]
+	assert.True(t, exists)
+	assert.NotNil(t, chainEntryEthereum)
+
+	chainEntrySui, exists := gov.chains[vaa.ChainIDSui]
+	assert.True(t, exists)
+	assert.NotNil(t, chainEntrySui)
+
+	sumEth, ethTransfers, err := gov.TrimAndSumValue(chainEntryEthereum.transfers, transferTime)
+	assert.Zero(t, len(ethTransfers))
+	assert.Zero(t, sumEth)
+	require.NoError(t, err)
+
+	sumSui, suiTransfers, err := gov.TrimAndSumValue(chainEntrySui.transfers, transferTime)
+	assert.Zero(t, len(suiTransfers))
+	assert.Zero(t, sumSui)
+	require.NoError(t, err)
+
+	// Perform a FIRST transfer (Ethereum --> Sui)
+	result, err := gov.ProcessMsgForTime(&msg1, time.Now())
+	assert.True(t, result)
+	require.NoError(t, err)
+
+	numTransfers, valueTransfers, numPending, valuePending := gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 2, numTransfers)          // One for the positive and one for the negative
+	assert.Equal(t, int64(0), valueTransfers) // Zero net value due to flow-cancelling.
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	assert.Equal(t, 1, len(gov.msgsSeen))
+
+	// Check the state of the governor
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+	assert.Equal(t, int(1), len(chainEntryEthereum.transfers))
+	assert.Equal(t, int(1), len(chainEntrySui.transfers))
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(5000), sumEth) // Outbound on Ethereum
+	assert.Equal(t, int(1), len(ethTransfers))
+	require.NoError(t, err)
+
+	// Outbound check:
+	// - ensure that the sum of the transfers is equal to the value of the inverse transfer
+	// - ensure the actual governor usage is Zero (any negative value is converted to zero by TrimAndSumValueForChain)
+	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, 1, len(suiTransfers)) // A single NEGATIVE transfer
+	assert.Equal(t, int64(-5000), sumSui) // Ensure the inverse (negative) transfer is in the Sui chain Entry
+	require.NoError(t, err)
+	suiGovernorUsage, err := gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Zero(t, suiGovernorUsage) // Actual governor usage must not be negative.
+	require.NoError(t, err)
+
+	// Perform a SECOND transfer (Sui --> Ethereum). This does NOT flow cancel.
+	result, err = gov.ProcessMsgForTime(&msg2, time.Now())
+	assert.True(t, result)
+	require.NoError(t, err)
+
+	// Stage 2: Transfer sent from Sui to Ethereum.
+	// This transfer must not result in on Ethereum
+	numTransfers, valueTransfers, numPending, valuePending = gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 2, len(gov.msgsSeen))        // Two messages observed
+	assert.Equal(t, 3, numTransfers)             // Two for Ethereum (normal and inverse); one for Sui
+	assert.Equal(t, int64(1000), valueTransfers) // Just the outbound from Sui.
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	_, absValueTrans, _, _ := gov.getStatsForAllChains()
+	assert.Equal(t, uint64(5000*2+1000), absValueTrans) // Both ethereum transfers, Sui outbound transfer
+
+	// Check the state of the governor.
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+
+	assert.Equal(t, int(1), len(chainEntryEthereum.transfers)) // One outbound from Ethereum.
+	assert.Equal(t, int(2), len(chainEntrySui.transfers))      // One outbound, one flow-cancelling inbound from Ethereum.
+
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(5000), sumEth)
+	assert.Equal(t, int(1), len(ethTransfers))
+	require.NoError(t, err)
+
+	sumSui, suiTransfers, err = gov.TrimAndSumValue(chainEntrySui.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int(2), len(suiTransfers)) // One outbound, one flow-cancelling inbound from Ethereum.
+	assert.Equal(t, int64(-4000), sumSui)      // -5000 from Ethereum inverse added to 1000 from sending to Ethereum
+	require.NoError(t, err)
+
+	suiGovernorUsage, err = gov.TrimAndSumValueForChain(chainEntrySui, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, uint64(0), suiGovernorUsage) // Actual governor usage must not be negative.
+	require.NoError(t, err)
+}
+
+func TestFlowCancelCheckPendingMsgForTimeReobservationsDoNotCancel(t *testing.T) {
+	// This test sends two transfers, both of which qualify for flow cancelling. However, the second
+	// transfer is also marked as a Reobservation, so it is disqualified.
+	// This test makes sure that the first transfer flow cancels, and the second does not.
+	var (
+		ctx = context.Background()
+
+		// Transfer data
+		recipientSui = "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31"
+		transferTime = time.Unix(int64(1654543099), 0)
+
+		// Token bridge data
+		tokenBridgeAddrStrEthereum = "0x0290fb167208af455bb137780163b7b7a9a10c16"                         //nolint:gosec
+		tokenBridgeAddrStrSui      = "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9" //nolint:gosec
+		tokenBridgeAddrStrSolana   = "0x0e0a589e6488147a94dcfa592b90fdd41152bb2ca77bf6016758a6f4df9d21b4" //nolint:gosec
+	)
+	gov, err := newChainGovernorForTest(ctx)
+	require.NoError(t, err)
+	assert.NotNil(t, gov)
+
+	gov.setDayLengthInMinutes(24 * 60)
+
+	// Solana USDC used as the flow cancelling asset. This ensures that the flow cancel mechanism works
+	// when the Origin chain of the asset does not match the emitter chain
+	// NOTE: Replace this Chain:Address pair if the Flow Cancel Token List is modified
+	var flowCancelTokenOriginAddress vaa.Address
+	flowCancelTokenOriginAddress, err = vaa.StringToAddress("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")
+	require.NoError(t, err)
+
+	// Data for Ethereum
+	tokenBridgeAddrEthereum, err := vaa.StringToAddress(tokenBridgeAddrStrEthereum)
+	require.NoError(t, err)
+
+	// Add chain entries to `gov`.
+	// Set all daily limits to 1 so that all transfers are added to the pending list instead of being processed.
+	err = gov.setChainForTesting(vaa.ChainIDEthereum, tokenBridgeAddrStrEthereum, 1, 0)
+	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSui, tokenBridgeAddrStrSui, 1, 0)
+	require.NoError(t, err)
+	err = gov.setChainForTesting(vaa.ChainIDSolana, tokenBridgeAddrStrSolana, 1, 0)
+	require.NoError(t, err)
+
+	// Add flow cancel asset and non-flow cancelable asset to the token entry for `gov`
+	err = gov.setTokenForTesting(vaa.ChainIDSolana, flowCancelTokenOriginAddress.String(), "USDC", 1.0, true)
+	require.NoError(t, err)
+	assert.NotNil(t, gov.tokens[tokenKey{chain: vaa.ChainIDSolana, addr: flowCancelTokenOriginAddress}])
+
+	// Transfer from Ethereum to Sui via the token bridge
+	msg1 := common.MessagePublication{
+		TxID:             hashToTxID("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        transferTime,
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddrEthereum,
+		ConsistencyLevel: uint8(32),
+		Payload: buildMockTransferPayloadBytes(1,
+			vaa.ChainIDSolana, // The origin asset for the token being transferred
+			flowCancelTokenOriginAddress.String(),
+			vaa.ChainIDSui, // destination chain of the transfer
+			recipientSui,
+			5000,
+		),
+	}
+
+	// Copy the first message but change it to a Reobservation.
+	// Normally this would flow cancel, but reobservations cannot do this.
+	msg2 := msg1
+	msg2.IsReobservation = true
+	msg2.TxID = hashToTxID("0xabc123f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4065")
+	msg2.Nonce = uint32(2)
+	msg2.Sequence = uint64(2)
+
+	require.NotEqual(t, msg1, msg2)
+
+	// Stage 0: No transfers sent
+	// Check chain entry configuration and starting values for Governor usage.
+	chainEntryEthereum, exists := gov.chains[vaa.ChainIDEthereum]
+	assert.True(t, exists)
+	assert.NotNil(t, chainEntryEthereum)
+
+	chainEntrySui, exists := gov.chains[vaa.ChainIDSui]
+	assert.True(t, exists)
+	assert.NotNil(t, chainEntrySui)
+
+	sumEth, ethTransfers, err := gov.TrimAndSumValue(chainEntryEthereum.transfers, transferTime)
+	assert.Zero(t, len(ethTransfers))
+	assert.Zero(t, sumEth)
+	require.NoError(t, err)
+
+	sumSui, suiTransfers, err := gov.TrimAndSumValue(chainEntrySui.transfers, transferTime)
+	assert.Zero(t, len(suiTransfers))
+	assert.Zero(t, sumSui)
+	require.NoError(t, err)
+
+	// Perform a FIRST transfer
+	// Because the daily limit is low, this gets queued right away and returns (false, nil)
+	result, err := gov.ProcessMsgForTime(&msg1, time.Now())
+	require.False(t, result)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(gov.msgsSeen))
+
+	// Check the state of the governor
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+	assert.Equal(t, int(0), len(chainEntryEthereum.transfers))
+	assert.Equal(t, int(0), len(chainEntrySui.transfers))
+	assert.Equal(t, int(1), len(chainEntryEthereum.pending)) // The transfer was queued.
+	assert.Equal(t, int(0), len(chainEntrySui.pending))
+	sumEth, ethTransfers, err = gov.TrimAndSumValue(chainEntryEthereum.transfers, time.Unix(int64(transferTime.Unix()-1000), 0))
+	assert.Equal(t, int64(0), sumEth) // Outbound on Ethereum
+	assert.Equal(t, int(0), len(ethTransfers))
+	require.NoError(t, err)
+
+	// Increase the daily limit so that the transfer can be released from pending.
+	chainEntryEthereum.dailyLimit = 10_000
+	readyMsgs, err := gov.CheckPendingForTime(time.Now())
+	require.NoError(t, err)
+	require.Len(t, readyMsgs, 1)
+
+	// Stats check
+	numTransfers, valueTransfers, numPending, valuePending := gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 2, numTransfers)          // Two for Ethereum (normal and inverse)
+	assert.Equal(t, int64(0), valueTransfers) // The value of both cancel each other out.
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	_, absValueTrans, _, _ := gov.getStatsForAllChains()
+	assert.Equal(t, uint64(5000*2), absValueTrans) // Both ethereum transfers, Sui outbound transfer
+
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+
+	assert.Equal(t, int(1), len(chainEntryEthereum.transfers)) // One outbound from Ethereum.
+	assert.Equal(t, int(1), len(chainEntrySui.transfers))      // One flow-cancelling from Ethereum
+
+	// Perform a SECOND transfer. This does NOT flow cancel.
+	chainEntryEthereum.dailyLimit = 1 // make it get queued.
+	result, err = gov.ProcessMsgForTime(&msg2, time.Now())
+	require.NoError(t, err)
+	require.False(t, result)
+
+	chainEntryEthereum.dailyLimit = 10_000
+	readyMsgs, err = gov.CheckPendingForTime(time.Now())
+	require.NoError(t, err)
+	require.Len(t, readyMsgs, 1)
+
+	// Stats check
+	numTransfers, valueTransfers, numPending, valuePending = gov.getStatsForAllChainsCancelFlow()
+	assert.Equal(t, 3, numTransfers)             // Transfer 1: two transfers because of flow cancel. Transfer 2: just one more.
+	assert.Equal(t, int64(5000), valueTransfers) // Transfer 1: The value of both cancel each other out. Transfer 2: Adds its amount
+	assert.Equal(t, 0, numPending)
+	assert.Equal(t, uint64(0), valuePending)
+	_, absValueTrans, _, _ = gov.getStatsForAllChains()
+	assert.Equal(t, uint64(5000*2+5000), absValueTrans) // Transfer 1: doubles the amount (regular and inverse). Transfer 2: Adds its amount
+
+	chainEntryEthereum = gov.chains[vaa.ChainIDEthereum]
+	chainEntrySui = gov.chains[vaa.ChainIDSui]
+
+	assert.Equal(t, int(2), len(chainEntryEthereum.transfers)) // Two outbound from Ethereum.
+	assert.Equal(t, int(1), len(chainEntrySui.transfers))      // One flow-cancelling from Ethereum; the second ethereum transfer did not flow cancel
+}
+
 // Test the flow cancel mechanism at the resolution of the ProcessMsgForTime (VAA parsing)
 // This test checks a flow cancel scenario where the amounts don't completely cancel each other
 // out.
@@ -1339,7 +1681,7 @@ func TestFlowCancelProcessMsgForTimePartialCancel(t *testing.T) {
 	assert.True(t, result)
 	require.NoError(t, err)
 
-	// Stage 3: Asset withoout flow cancelling has also been sent
+	// Stage 3: Asset without flow cancelling has also been sent
 	numTrans, valueTrans, numPending, valuePending = gov.getStatsForAllChainsCancelFlow()
 	assert.Equal(t, 3, len(gov.msgsSeen))
 	assert.Equal(t, 5, numTrans)             // Only a single new transfer for the positive change
