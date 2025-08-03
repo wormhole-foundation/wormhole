@@ -5,7 +5,7 @@ import {
   RawSigner,
   TransactionBlock,
 } from "@mysten/sui.js";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
 import { MoveToml } from "./MoveToml";
@@ -19,10 +19,18 @@ export const buildPackage = (packagePath: string): SuiBuildOutput => {
   }
 
   return JSON.parse(
-    execSync(
-      `sui move build --dump-bytecode-as-base64 --path ${packagePath} 2> /dev/null`,
+    execFileSync(
+      "sui",
+      [
+        "move",
+        "build",
+        "--dump-bytecode-as-base64",
+        "--path",
+        packagePath
+      ],
       {
         encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"], // Redirect stderr to /dev/null
       }
     )
   );
