@@ -25,7 +25,7 @@ max_priority_price = max(priority_prices)
 # We could calculate this in time exactly if we weren't calculating the lines and charting at the same time
 max_sol_cost = D("0.00003")
 
-line_colors = ["blue", "gold", "red"]
+line_colors = ["blue", "red"]
 # Offsets for relative reduction annotations
 relative_reduction_offsets = [
     (  0,        0),

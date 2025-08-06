@@ -97,4 +97,4 @@ The costs for the Solana VerificationV2 implementation come from benchmark tests
 [EVM current vs VerificationV2 chart]: https://github.com/xLabs/core-bridge/blob/develop/data/performance-current-vs-verificationV2.svg?sanitize=true
 
 [Solana current vs VerificationV2 chart]:            https://github.com/xLabs/core-bridge/blob/develop/data/solana-performance-current-vs-new.svg?sanitize=true&v=2
-[Solana current vs VerificationV2, lower end chart]: https://github.com/xLabs/core-bridge/blob/develop/data/solana-performance-current-vs-new-lower-range.svg?sanitize=true&v=2
+[Solana current vs VerificationV2, lower end chart]: https://github.com/xLabs/core-bridge/blob/develop/data/solana-performance-current-vs-new-lower-range.svg?sanitize=true&v=3
