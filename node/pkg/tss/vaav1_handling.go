@@ -150,7 +150,7 @@ func (t *Engine) translateVaaV1Signers(v *vaa.VAA) (map[SenderIndex]*Identity, e
 
 		id, err := t.GuardianStorage.fetchIdentityFromVaav1Pubkey(gs.Keys[s.Index])
 		if err != nil {
-			continue
+			return nil, errCouldNotMapAllVaaV1Signers
 		}
 
 		signersID[id.CommunicationIndex] = id
@@ -159,7 +159,6 @@ func (t *Engine) translateVaaV1Signers(v *vaa.VAA) (map[SenderIndex]*Identity, e
 	if len(signersID) != len(v.Signatures) {
 		// make into an error:
 		return nil, errCouldNotMapAllVaaV1Signers
-
 	}
 
 	return signersID, nil
