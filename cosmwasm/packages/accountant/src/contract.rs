@@ -284,7 +284,7 @@ pub fn query_balance<C: CustomQuery>(deps: Deps<C>, key: account::Key) -> StdRes
 
 /// Query information for all accounts.
 pub fn query_all_accounts<C: CustomQuery>(
-    deps: Deps<C>,
+    deps: Deps<'_, C>,
     start_after: Option<account::Key>,
 ) -> impl Iterator<Item = StdResult<Account>> + '_ {
     let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
@@ -309,7 +309,7 @@ pub fn has_transfer<C: CustomQuery>(deps: Deps<C>, key: transfer::Key) -> bool {
 
 /// Query information for all transfers.
 pub fn query_all_transfers<C: CustomQuery>(
-    deps: Deps<C>,
+    deps: Deps<'_, C>,
     start_after: Option<transfer::Key>,
 ) -> impl Iterator<Item = StdResult<Transfer>> + '_ {
     let start = start_after.map(|key| Bound::Exclusive((key, PhantomData)));
@@ -326,7 +326,7 @@ pub fn query_modification<C: CustomQuery>(deps: Deps<C>, sequence: u64) -> StdRe
 
 /// Query information for all modifications.
 pub fn query_all_modifications<C: CustomQuery>(
-    deps: Deps<C>,
+    deps: Deps<'_, C>,
     start_after: Option<u64>,
 ) -> impl Iterator<Item = StdResult<Modification>> + '_ {
     let start = start_after.map(|seq| Bound::Exclusive((seq, PhantomData)));
