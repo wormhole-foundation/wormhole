@@ -268,6 +268,7 @@ func DoWithTimeout(f func() error, d time.Duration) error {
 }
 
 func spyServerRunnable(s *spyServer, logger *zap.Logger, listenAddr string) (supervisor.Runnable, *grpc.Server, error) {
+	//nolint:noctx // TODO: this should be refactored to use context.
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to listen: %w", err)
