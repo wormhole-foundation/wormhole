@@ -464,7 +464,7 @@ pub contract Wormhole {
                 signature_bytes_array[i as u32] = signature_bytes;
             }
         }
-
+        
         (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len)
     }
 
@@ -568,7 +568,7 @@ mod tests {
         assert(sig.s[0] == 0x3e, "S component should start with 0x3e");
     }
 
-#[test]
+    #[test]
     unconstrained fn test_verify_vaa_logic() {
         // Setup env, generate keys
         let mut env = TestEnvironment::new();
