@@ -755,6 +755,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			// try to connect to guardian-0
 			for {
+				//nolint:noctx // TODO: this should be refactored to use context.
 				_, err := net.LookupIP(firstGuardianName)
 				if err == nil {
 					break

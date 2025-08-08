@@ -169,7 +169,7 @@ fn execute_gateway_convert_and_transfer() {
         .unwrap();
     let coin = coin(1, tokenfactory_denom.clone());
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &[coin.clone()]);
+    let info = mock_info(WORMHOLE_USER_ADDR, std::slice::from_ref(&coin));
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
@@ -239,7 +239,7 @@ fn execute_gateway_convert_and_transfer_with_payload() {
         .unwrap();
     let coin = coin(1, tokenfactory_denom.clone());
 
-    let info = mock_info(WORMHOLE_USER_ADDR, &[coin.clone()]);
+    let info = mock_info(WORMHOLE_USER_ADDR, std::slice::from_ref(&coin));
     let env = mock_env();
     let recipient_chain = 2;
     let recipient = Binary::from_base64("AAAAAAAAAAAAAAAAjyagAl3Mxs/Aen04dWKAoQ4pWtc=").unwrap();
