@@ -212,6 +212,9 @@ var (
 	plumeRPC      *string
 	plumeContract *string
 
+	xrplEvmRPC      *string
+	xrplEvmContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -1528,6 +1531,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDPlume,
 			Rpc:              *plumeRPC,
 			Contract:         *plumeContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(xrplEvmRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "xrplevm",
+			ChainID:          vaa.ChainIDXRPLEVM,
+			Rpc:              *xrplEvmRPC,
+			Contract:         *xrplEvmContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
