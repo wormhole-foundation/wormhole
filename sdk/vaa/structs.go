@@ -311,6 +311,8 @@ const (
 	ChainIDAztec ChainID = 56
 	// ChainIdXRPLEVM is the ChainID of XRPL-EVM
 	ChainIDXRPLEVM ChainID = 57
+	// ChainIDQuai is the ChainID of Quai
+	ChainIDQuai ChainID = 58
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
