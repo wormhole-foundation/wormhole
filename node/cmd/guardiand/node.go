@@ -1538,7 +1538,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(xrplEvmRPC) {
 		wc := &evm.WatcherConfig{
-			NetworkID:        "plume",
+			NetworkID:        "xrplevm",
 			ChainID:          vaa.ChainIDXRPLEVM,
 			Rpc:              *xrplEvmRPC,
 			Contract:         *xrplEvmContract,
