@@ -153,6 +153,7 @@ var (
 		vaa.ChainIDOptimismSepolia: {Finalized: true, Safe: true, EvmChainID: 11155420, PublicRPC: "https://optimism-sepolia-rpc.publicnode.com", ContractAddr: "0x31377888146f3253211EFEf5c676D41ECe7D58Fe"},
 		vaa.ChainIDHolesky:         {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky", ContractAddr: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
 		vaa.ChainIDPolygonSepolia:  {Finalized: true, Safe: false, EvmChainID: 80002, PublicRPC: "https://polygon-amoy-bor-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
+		vaa.ChainIDQuaiTestnet:     {Finalized: true, Safe: true, EvmChainID: 15000, PublicRPC: "https://orchard.rpc.quai.network/cyprus1", ContractAddr: "0x004Accf29dD34f88E885e2BdFB1B0105059b3D08"},
 	}
 )
 

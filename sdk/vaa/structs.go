@@ -349,6 +349,8 @@ const (
 	// ChainIDPolygonSepolia is the ChainID of Polygon on Sepolia
 	ChainIDPolygonSepolia ChainID = 10007
 	// OBSOLETE: ChainIDMonadDevnet ChainID = 10008
+	// ChainIDQuaiTestnet is the ChainID of Quai Testnet
+	ChainIDQuaiTestnet ChainID = 15000
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER
