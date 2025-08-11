@@ -207,10 +207,9 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant LENGTH_BATCH_SCHNORR_UNIFORM_ENTRY  = 20 + 32 + 32;
 
   // Schnorr challenge information
-  uint256 private constant OFFSET_SCHNORR_CHALLENGE_PARITY = 32;
-  uint256 private constant OFFSET_SCHNORR_CHALLENGE_DIGEST = 32 + 1;
-  uint256 private constant OFFSET_SCHNORR_CHALLENGE_R      = 32 + 1 + 32;
-  uint256 private constant LENGTH_SCHNORR_CHALLENGE        = 32 + 1 + 32 + 20;
+  uint256 private constant OFFSET_SCHNORR_CHALLENGE_PUBKEY = 20;
+  uint256 private constant OFFSET_SCHNORR_CHALLENGE_DIGEST = 20 + 32;
+  uint256 private constant LENGTH_SCHNORR_CHALLENGE        = 20 + 32 + 32;
 
   // Ecrecover information
   address private constant ADDRESS_ECRECOVER = 0x0000000000000000000000000000000000000001;
@@ -345,9 +344,8 @@ contract WormholeVerifier is EIP712Encoding {
       }
 
       function computeSchnorrChallenge(px, parity, digest, r, buffer) -> e {
-        mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_R), shl(SHIFT_GET_20, r))
-        mstore(buffer, px)
-        mstore8(add(buffer, OFFSET_SCHNORR_CHALLENGE_PARITY), parity)
+        mstore(buffer, shl(SHIFT_GET_20, r))
+        mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_PUBKEY), or(shl(1, px), parity)) // TODO: We could save a few gas by passing in the raw pubkey directly
         mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_DIGEST), digest)
         e := keccak256(buffer, LENGTH_SCHNORR_CHALLENGE)
       }
@@ -610,10 +608,9 @@ contract WormholeVerifier is EIP712Encoding {
       }
 
       function computeSchnorrChallenge(px, parity, digest, r, buffer) -> e {
-        mstore(buffer, px)
-        mstore8(add(buffer, OFFSET_SCHNORR_CHALLENGE_PARITY), parity)
+        mstore(buffer, shl(SHIFT_GET_20, r))
+        mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_PUBKEY), or(shl(1, px), parity)) // TODO: We could save a few gas by passing in the raw pubkey directly
         mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_DIGEST), digest)
-        mstore(add(buffer, OFFSET_SCHNORR_CHALLENGE_R), shl(SHIFT_GET_20, r))
         e := keccak256(buffer, LENGTH_SCHNORR_CHALLENGE)
       }
 

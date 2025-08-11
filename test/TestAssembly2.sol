@@ -477,9 +477,9 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     bytes memory bigMultisigSignatures = signMultisig(bigEnvelope, guardianPrivateKeysSlice);
     bigMultisigVaa = newMultisigVaa(0, bigMultisigSignatures, bigEnvelope);
 
-    uint256 pk2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
-    address r2 = 0xD970AcFC9e8ff8BE38b0Fd6C4Fe4DD4DDB744cb4;
-    uint256 s2 = 0xfc201908d0a3aec1973711f48365deaa91180ef2771cb3744bccfc3ba77d6c77;
+    uint256 pk2 = 0xf779a04be48acabfbe8cb12e3c490139390615475a6207c1ff05494bcc5e57e9;
+    address r2 = 0x3B471F00A5557F3D8da3192ef7A5E07cE8be2b12;
+    uint256 s2 = 0x5908af479f7575f6880fa41e899353135420f60ccb3ceda366bb27f3b606963a;
     bigSchnorrVaa = newSchnorrVaa(1, r2, s2, bigEnvelope);
 
     schnorrPublicKeys = new uint256[](2);
@@ -844,9 +844,9 @@ contract TestAssembly2 is VerificationTestAPI {
     bytes memory bigMultisigSignatures = signMultisig(bigEnvelope, guardianPrivateKeysSlice);
     bigMultisigVaa = newMultisigVaa(0, bigMultisigSignatures, bigEnvelope);
 
-    uint256 pk2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
-    address r2 = 0xD970AcFC9e8ff8BE38b0Fd6C4Fe4DD4DDB744cb4;
-    uint256 s2 = 0xfc201908d0a3aec1973711f48365deaa91180ef2771cb3744bccfc3ba77d6c77;
+    uint256 pk2 = 0xf779a04be48acabfbe8cb12e3c490139390615475a6207c1ff05494bcc5e57e9;
+    address r2 = 0x3B471F00A5557F3D8da3192ef7A5E07cE8be2b12;
+    uint256 s2 = 0x5908af479f7575f6880fa41e899353135420f60ccb3ceda366bb27f3b606963a;
     bigSchnorrVaa = newSchnorrVaa(1, r2, s2, bigEnvelope);
 
     invalidMultisigVaa = new bytes(100);
