@@ -452,8 +452,11 @@ func init() {
 	convergeRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "convergeRPC", "converge RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	convergeContract = NodeCmd.Flags().String("convergeContract", "", "Converge contract address")
 
-	plumeRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plumeRPC", "plume RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	plumeRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plumeRPC", "Plume RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	plumeContract = NodeCmd.Flags().String("plumeContract", "", "Plume contract address")
+
+	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	xrplEvmContract = NodeCmd.Flags().String("xrplContract", "", "XRPLEVM contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
