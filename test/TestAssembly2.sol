@@ -53,7 +53,16 @@ import {
   GET_SCHNORR_SHARD_DATA
 } from "../src/evm/WormholeVerifier.sol";
 
+// Test data for schnorr keys/signatures
+uint256 constant PK1 = 0xc11b6c8b8e4ecc62ebf10437678eb70f17f1e53abdb3fa8df1912e3b3d11b5b9;
+address constant R1 = 0x41CF8d30EBCc800b655eAD15cC96014d36c4246B;
+uint256 constant S1 = 0xfb5fa64887c4a05818b02afa7483e5115f19a93739c4b9ce4e92bae191a2ef4b;
 
+uint256 constant PK2 = 0x55c79afbfe1347cd62a6af7cfb28c20d4cc83f64e258a3140928518b96b004fc;
+address constant R2 = 0xFcAB39377D2520DcC524Bc7C511F8C1cCAFf0F63;
+uint256 constant S2 = 0x02c8055d150c27f4af49cea577ac20afba682ed4eb60977f305d5b1b1c1a75cd;
+
+// Generic constants and structs
 uint256 constant LENGTH_WORD = 0x20;
 
 struct ShardData {
@@ -469,22 +478,16 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     bytes memory smallMultisigSignatures = signMultisig(smallEnvelope, guardianPrivateKeysSlice);
     smallMultisigVaa = newMultisigVaa(0, smallMultisigSignatures, smallEnvelope);
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
-    address r1 = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
-    uint256 s1 = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
-    smallSchnorrVaa = newSchnorrVaa(0, r1, s1, smallEnvelope);
+    smallSchnorrVaa = newSchnorrVaa(0, R1, S1, smallEnvelope);
 
     bytes memory bigMultisigSignatures = signMultisig(bigEnvelope, guardianPrivateKeysSlice);
     bigMultisigVaa = newMultisigVaa(0, bigMultisigSignatures, bigEnvelope);
 
-    uint256 pk2 = 0xf779a04be48acabfbe8cb12e3c490139390615475a6207c1ff05494bcc5e57e9;
-    address r2 = 0x3B471F00A5557F3D8da3192ef7A5E07cE8be2b12;
-    uint256 s2 = 0x5908af479f7575f6880fa41e899353135420f60ccb3ceda366bb27f3b606963a;
-    bigSchnorrVaa = newSchnorrVaa(1, r2, s2, bigEnvelope);
+    bigSchnorrVaa = newSchnorrVaa(1, R2, S2, bigEnvelope);
 
     schnorrPublicKeys = new uint256[](2);
-    schnorrPublicKeys[0] = pk1;
-    schnorrPublicKeys[1] = pk2;
+    schnorrPublicKeys[0] = PK1;
+    schnorrPublicKeys[1] = PK2;
 
     invalidVersionVaa = new bytes(100);
 
@@ -835,19 +838,13 @@ contract TestAssembly2 is VerificationTestAPI {
     bytes memory smallMultisigSignatures = signMultisig(smallEnvelope, guardianPrivateKeysSlice);
     smallMultisigVaa = newMultisigVaa(0, smallMultisigSignatures, smallEnvelope);
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
-    address r1 = address(0x636a8688ef4B82E5A121F7C74D821A5b07d695f3);
-    uint256 s1 = 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29;
-    smallSchnorrVaa = newSchnorrVaa(0, r1, s1, smallEnvelope);
+    smallSchnorrVaa = newSchnorrVaa(0, R1, S1, smallEnvelope);
 
     bytes memory bigEnvelope = new bytes(5000);
     bytes memory bigMultisigSignatures = signMultisig(bigEnvelope, guardianPrivateKeysSlice);
     bigMultisigVaa = newMultisigVaa(0, bigMultisigSignatures, bigEnvelope);
 
-    uint256 pk2 = 0xf779a04be48acabfbe8cb12e3c490139390615475a6207c1ff05494bcc5e57e9;
-    address r2 = 0x3B471F00A5557F3D8da3192ef7A5E07cE8be2b12;
-    uint256 s2 = 0x5908af479f7575f6880fa41e899353135420f60ccb3ceda366bb27f3b606963a;
-    bigSchnorrVaa = newSchnorrVaa(1, r2, s2, bigEnvelope);
+    bigSchnorrVaa = newSchnorrVaa(1, R2, S2, bigEnvelope);
 
     invalidMultisigVaa = new bytes(100);
     invalidMultisigVaa[0] = 0x01;
@@ -868,11 +865,11 @@ contract TestAssembly2 is VerificationTestAPI {
     require(schnorrShardsRaw.length == SHARD_COUNT*64);
 
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
-    bytes memory appendSchnorrKeyMessage1 = newAppendSchnorrKeyMessage(0, 0, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage1 = newAppendSchnorrKeyMessage(0, 0, PK1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope1 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage1);
     appendSchnorrKeyVaa1 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope1, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope1);
 
-    bytes memory appendSchnorrKeyMessage2 = newAppendSchnorrKeyMessage(1, 0, pk2, EXPIRATION_DELAY_SECONDS, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage2 = newAppendSchnorrKeyMessage(1, 0, PK2, EXPIRATION_DELAY_SECONDS, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope2 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage2);
     appendSchnorrKeyVaa2 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope2, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope2);
   }
@@ -1046,16 +1043,15 @@ contract TestAssembly2 is VerificationTestAPI {
   function test_appendMultipleSchnorrKey() public {
     pullGuardianSets(_wormholeVerifierV2, 1);
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
 
     uint32 schnorrKeyIndex = 2;
-    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, 0, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, 0, PK1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
     bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
 
     uint32 schnorrKeyIndex2 = 3;
-    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, 0, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, 0, PK1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope4 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage4);
     bytes memory appendSchnorrKeyVaa4 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope4, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope4);
 
@@ -1069,10 +1065,9 @@ contract TestAssembly2 is VerificationTestAPI {
     uint32 schnorrKeyIndex2 = 3;
     WormholeVerifier tempVerifier = new WormholeVerifier(_wormholeV1Mock, 0, schnorrKeyIndex2, 1, new bytes(0));
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
 
-    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, 0, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage4 = newAppendSchnorrKeyMessage(schnorrKeyIndex2, 0, PK1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope4 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage4);
     bytes memory appendSchnorrKeyVaa4 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope4, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope4);
 
@@ -1112,11 +1107,10 @@ contract TestAssembly2 is VerificationTestAPI {
   function testRevert_appendOldSchnorrKey() public {
     pullGuardianSets(_wormholeVerifierV2, 1);
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
 
     uint32 schnorrKeyIndex = 0;
-    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, 0, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, 0, PK1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
     bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
 
@@ -1134,10 +1128,9 @@ contract TestAssembly2 is VerificationTestAPI {
     uint32 schnorrKeyIndex = type(uint32).max;
     WormholeVerifier tempVerifier = new WormholeVerifier(_wormholeV1Mock, 0, schnorrKeyIndex, 1, new bytes(0));
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
 
-    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, 0, pk1, 0, schnorrShardDataHash);
+    bytes memory appendSchnorrKeyMessage3 = newAppendSchnorrKeyMessage(schnorrKeyIndex, 0, PK1, 0, schnorrShardDataHash);
     bytes memory appendSchnorrKeyEnvelope3 = newVaaEnvelope(uint32(block.timestamp), 0, CHAIN_ID_SOLANA, GOVERNANCE_ADDRESS, 0, 0, appendSchnorrKeyMessage3);
     bytes memory appendSchnorrKeyVaa3 = newMultisigVaa(0, signMultisig(appendSchnorrKeyEnvelope3, guardianPrivateKeysSet0), appendSchnorrKeyEnvelope3);
 
@@ -1153,8 +1146,6 @@ contract TestAssembly2 is VerificationTestAPI {
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
 
-    uint256 pk2 = 0x44c90dfbe2a454987a65ce9e6f522c9c5c9d1dfb3c3aaaadcd0ae4f5366a2922 << 1;
-
     bytes memory result = _wormholeVerifierV2.get(getCurrentSchnorrKey());
 
     (
@@ -1164,8 +1155,9 @@ contract TestAssembly2 is VerificationTestAPI {
       uint8 shardCount,
       uint32 guardianSet,
     ) = decodeGetCurrentSchnorrKey(result, 0);
+
     assertEq(schnorrKeyIndex, 1);
-    assertEq(schnorrKeyPubkey, pk2);
+    assertEq(schnorrKeyPubkey, PK2);
     assertEq(expirationTime, 0);
     assertEq(shardCount, SHARD_COUNT);
     assertEq(guardianSet, 0);
@@ -1201,8 +1193,6 @@ contract TestAssembly2 is VerificationTestAPI {
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa2, schnorrShardsRaw);
 
-    uint256 pk1 = 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c << 1;
-
     bytes memory result = _wormholeVerifierV2.get(getSchnorrKey(0));
 
     (
@@ -1211,7 +1201,8 @@ contract TestAssembly2 is VerificationTestAPI {
       uint8 shardCount,
       uint32 guardianSet,
     ) = decodeGetSchnorrKey(result, 0);
-    assertEq(schnorrKeyPubkey, pk1);
+
+    assertEq(schnorrKeyPubkey, PK1);
     assertEq(expirationTime, expirationTimeSet0);
     assertEq(shardCount, SHARD_COUNT);
     assertEq(guardianSet, 0);
