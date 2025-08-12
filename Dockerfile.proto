@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.cache \
 	tools/bin/buf lint && \
 	tools/bin/buf generate
 
-FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a9dd1e051a20 AS node-build
+FROM node:22.16-alpine3.22@sha256:41e4389f3d988d2ed55392df4db1420ad048ae53324a8e2b7c6d19508288107e as node-build
 
 COPY --from=go-tools /app /app
 
