@@ -140,10 +140,10 @@ type receiptEvaluation struct {
 	blockNumber uint64
 }
 
-func NewReceiptEvaluation(isSafe bool, blockNumber uint64) receiptEvaluation {
+func NewReceiptEvaluation(isSafe bool, msgResults map[msgID]bool, blockNumber uint64) receiptEvaluation {
 	return receiptEvaluation{
 		IsSafe:      isSafe,
-		MsgResults:  make(map[msgID]bool),
+		MsgResults:  msgResults,
 		blockNumber: blockNumber,
 	}
 }
@@ -537,7 +537,7 @@ func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (common.Ad
 type LogMessagePublished struct {
 	// Which contract emitted the event. (not to be confused with EmitterAddress in a VAA)
 	EventEmitter common.Address
-	// Which address sent the transaction that triggered the message publication.
+	// The address of the account that initiated the bridge transfer.
 	MsgSender common.Address
 	// The sequence of the message. Included here to help uniquely identify a message.
 	Sequence uint64
@@ -677,7 +677,7 @@ func (r *TransferReceipt) String() string {
 // are evaluated independently of each other.
 type ReceiptSummary struct {
 	// Whether the entire receipt, including all of its messages, is safe without any invariant violations.
-	// There may be safe individual messages in the receipt.
+	// There may be safe individual messages in the receipt even if this is false.
 	isSafe bool
 	// The sum of tokens transferred into the Token Bridge contract.
 	in map[string]*big.Int
@@ -687,6 +687,15 @@ type ReceiptSummary struct {
 	// Whether the transfer verifier determined a message to be safe or not.
 	// The key is the message ID [msgID] for the LogMessagePublished event.
 	msgPubResult map[msgID]bool
+}
+
+func (s *ReceiptSummary) allMsgsSafe() bool {
+	for _, isValid := range s.msgPubResult {
+		if !isValid {
+			return false
+		}
+	}
+	return true
 }
 
 // transferOut is a struct that contains the token ID and amount of a token that was requested to be transferred out of the bridge.
@@ -719,12 +728,17 @@ func (s *ReceiptSummary) String() (outStr string) {
 	for msgID, transferOut := range s.out {
 		outs += fmt.Sprintf("msgID=%s tokenID=%s amount=%s ", msgID.String(), transferOut.tokenID, transferOut.amount.String())
 	}
+	msgResults := ""
+	for msgID, isValid := range s.msgPubResult {
+		msgResults += fmt.Sprintf("msgID=%s isValid=%v ", msgID.String(), isValid)
+	}
 
 	outStr = fmt.Sprintf(
-		"receipt summary: logsProcessed=%d requestedIn={%s} requestedOut={%v}",
+		"receipt summary: logsProcessed=%d requestedIn={%s} requestedOut={%v} msgResults={%s}",
 		len(s.out),
 		ins,
 		outs,
+		msgResults,
 	)
 	return outStr
 }
@@ -1041,9 +1055,8 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
 
-		// It's invalid for the core bridge to send a message to itself.
 		if Cmp(log.Sender(), log.Emitter()) == 0 {
-			return &InvalidLogError{Msg: "msg.sender cannot be equal to emitter"}
+			return &InvalidLogError{Msg: "sender cannot be the same as emitter"}
 		}
 
 		// The following values are not exposed by the interface, so check them directly here.

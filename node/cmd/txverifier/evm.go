@@ -45,9 +45,9 @@ var ErrInvariant = errors.New("invariant violation")
 // sanityCheck represents a test case for the transfer verifier that can be replayed
 // against mainnet to ensure that the tool has not regressed.
 type sanityCheck struct {
-	txHash common.Hash
-	valid  bool
-	err    error
+	txHash   common.Hash
+	msgValid bool
+	err      error
 }
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
@@ -183,7 +183,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 			}
 
 			// Ensure that the right error type was returned
-			if valid != check.valid {
+			if valid != check.msgValid {
 				logger.Fatal(fmt.Sprintf("Sanity check %d failed (wrong result) for txHash %s", i, check.txHash))
 			}
 		}
