@@ -853,6 +853,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*mezoContract = checkEvmArgs(logger, *mezoRPC, *mezoContract, vaa.ChainIDMezo)
 	*convergeContract = checkEvmArgs(logger, *convergeRPC, *convergeContract, vaa.ChainIDConverge)
 	*plumeContract = checkEvmArgs(logger, *plumeRPC, *plumeContract, vaa.ChainIDPlume)
+	*xrplEvmContract = checkEvmArgs(logger, *xrplEvmRPC, *xrplEvmContract, vaa.ChainIDXRPLEVM)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
