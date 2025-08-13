@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"math/big"
 	"time"
@@ -39,11 +40,16 @@ const (
 var (
 	ErrChainIDNotSupported        = errors.New("chain ID is not supported")
 	ErrDepositWrongNumberOfTopics = errors.New("parsed Deposit event has wrong number of topics")
+	ErrEventWrongDataSize         = errors.New("unexpected data size from event")
 	ErrFailedToGetDecimals        = errors.New("failed to get decimals for token. decimals() result has insufficient length")
 	// Some events look like transfers based on the method signature, but aren't (e.g. NFT ERC721 transfers.)
 	ErrTransferIsNotERC20          = errors.New("parsed Transfer event is not an ERC20 transfer")
-	ErrEventWrongDataSize          = errors.New("unexpected data size from event")
 	ErrWrappedAssetResultBadLength = errors.New("isWrappedAsset() result has insufficient length")
+
+	// Invariant errors.
+	ErrInvariantReceiptInsolvent  = &InvariantError{Msg: "requested amount out is larger than the total amount in, or some outbound asset is not present in the inbound transfers"}
+	ErrInvariantMissingCollateral = &InvariantError{Msg: "transfer out request for tokens that were never deposited"}
+	ErrInvariantBadBalance        = &InvariantError{Msg: "requested amount out for this message is larger than the total amount in for this token. It may be a deflationary or rebasing asset. Review is required."}
 )
 
 // Function signatures
@@ -132,20 +138,20 @@ func (tv *TransferVerifier[ethClient, Connector]) MsgID(log *LogMessagePublished
 
 // receiptEvaluation contains the result of verifying all LogMessagePublished events in a single transaction receipt.
 type receiptEvaluation struct {
-	// Whether the entire receipt itself is valid or not. It is possible for all of the messages in a receipt to be
-	// valid, but the receipt itself to be invalid.
-	IsSafe bool
-	// Whether individual messages in the receipt are valid or not.
-	MsgResults  map[msgID]bool
+	ReceiptSummary
 	blockNumber uint64
 }
 
-func NewReceiptEvaluation(isSafe bool, msgResults map[msgID]bool, blockNumber uint64) receiptEvaluation {
+func NewReceiptEvaluation(summary *ReceiptSummary, blockNumber uint64) receiptEvaluation {
 	return receiptEvaluation{
-		IsSafe:      isSafe,
-		MsgResults:  msgResults,
-		blockNumber: blockNumber,
+		ReceiptSummary: *summary,
+		blockNumber:    blockNumber,
 	}
+}
+
+func (r *receiptEvaluation) msgInCache(msgID msgID) bool {
+	_, present := r.ReceiptSummary.msgPubResult[msgID]
+	return present
 }
 
 // TransferVerifier contains configuration values for verifying transfers.
@@ -676,9 +682,6 @@ func (r *TransferReceipt) String() string {
 // transfers requested in and out of the bridge. Message Publications within a receipt
 // are evaluated independently of each other.
 type ReceiptSummary struct {
-	// Whether the entire receipt, including all of its messages, is safe without any invariant violations.
-	// There may be safe individual messages in the receipt even if this is false.
-	isSafe bool
 	// The sum of tokens transferred into the Token Bridge contract.
 	in map[string]*big.Int
 	// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
@@ -687,6 +690,18 @@ type ReceiptSummary struct {
 	// Whether the transfer verifier determined a message to be safe or not.
 	// The key is the message ID [msgID] for the LogMessagePublished event.
 	msgPubResult map[msgID]bool
+	// If invariant errors occurred, they are stored here.
+	problems *Problems
+}
+
+func (s *ReceiptSummary) addProblem(invErr *InvariantError, kind InvariantViolationKind) {
+	if invErr == nil {
+		return
+	}
+	if s.problems == nil {
+		s.problems = &Problems{}
+	}
+	s.problems.add(invErr, kind)
 }
 
 func (s *ReceiptSummary) allMsgsSafe() bool {
@@ -696,6 +711,78 @@ func (s *ReceiptSummary) allMsgsSafe() bool {
 		}
 	}
 	return true
+}
+
+func (s *ReceiptSummary) InvariantErrors() string {
+	if len(*s.problems) == 0 {
+		return ""
+	}
+	var errs = make([]string, 2)
+	for _, p := range *s.problems {
+		errs = append(errs, p.String())
+	}
+	return strings.Join(errs, "\n")
+}
+
+// isSafe is true if and only if there are no problems in the summary, and the receipt contains at least one message.
+// Note: It is possible for all of the messages in a receipt to be safe, but the receipt itself to be unsafe.
+func (s *ReceiptSummary) isSafe() bool {
+	// If there are no problems, then the receipt is safe. Also check that there are messages in the receipt
+	// to avoid this method trivially returning true when the struct is empty.
+	return len(*s.problems) == 0 && len(s.msgPubResult) > 0
+}
+
+// msgSafe returns true if the message with the given ID is safe and the receipt is safe.
+// It's important to check both as the individual message may be valid even if the receipt is not.
+func (s *ReceiptSummary) msgSafe(msgID msgID) bool {
+	return s.msgPubResult[msgID] && s.isSafe()
+}
+
+type Problems []*ReceiptProblem
+
+func (p *Problems) add(invErr *InvariantError, kind InvariantViolationKind) {
+	if invErr == nil {
+		return
+	}
+	*p = append(*p, &ReceiptProblem{
+		violationKind: kind,
+		err:           *invErr,
+	})
+}
+
+type ReceiptProblem struct {
+	violationKind InvariantViolationKind
+	err           InvariantError
+}
+
+func (p *ReceiptProblem) String() string {
+	var kindStr string
+	switch p.violationKind {
+	case ReceiptInvariant:
+		kindStr = "receipt"
+	case MsgInvariant:
+		kindStr = "message"
+	}
+	return fmt.Sprintf("invariant violation: kind=%s details=%s", kindStr, p.err.Msg)
+}
+
+type InvariantViolationKind int
+
+const (
+	// ReceiptInvariant is the type of invariant violation that occurs when a receipt is deemed unsafe.
+	// Occurs if the receipt is not solvent.
+	ReceiptInvariant InvariantViolationKind = 1
+	// MsgInvariant is the type of invariant violation that occurs when an individual message is deemed unsafe.
+	MsgInvariant InvariantViolationKind= 2
+)
+
+// Custom error type used to signal that a core invariant of the token bridge has been violated.
+type InvariantError struct {
+	Msg string
+}
+
+func (i InvariantError) Error() string {
+	return fmt.Sprintf("invariant violated: %s", i.Msg)
 }
 
 // transferOut is a struct that contains the token ID and amount of a token that was requested to be transferred out of the bridge.
@@ -713,6 +800,7 @@ func NewReceiptSummary() *ReceiptSummary {
 		// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
 		out:          make(map[msgID]transferOut),
 		msgPubResult: make(map[msgID]bool),
+		problems:     &Problems{},
 	}
 }
 
@@ -1178,4 +1266,24 @@ func Cmp[some Bytes, other Bytes](a some, b other) int {
 		common.LeftPadBytes(a.Bytes(), EVM_WORD_LENGTH),
 		common.LeftPadBytes(b.Bytes(), EVM_WORD_LENGTH),
 	)
+}
+
+// ParseMsgID parses a string in the format "chainID/emitterAddress/sequence" into a msgID that is valid for this
+// TransferVerifier instance.
+func (tv *TransferVerifier[ethClient, Connector]) ParseMsgID(msgIDStr string) (msgID, error) {
+	validMsgID, err := NewMsgID(msgIDStr)
+	if err != nil {
+		return msgID{}, err
+	}
+
+	// Sanity check results: chainID and address must match the chain and token bridge address
+	// being monitored.
+	if validMsgID.EmitterChain != tv.chainIds.wormholeChainId {
+		return msgID{}, errors.New("msgID's emitter chain does not match the chain being monitored")
+	}
+	if Cmp(validMsgID.EmitterAddress, tv.Addresses.TokenBridgeAddr) != 0 {
+		return msgID{}, errors.New("msgID's emitter address does not match the token bridge address")
+	}
+
+	return validMsgID, nil
 }

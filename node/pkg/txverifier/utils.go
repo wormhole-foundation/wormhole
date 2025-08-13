@@ -45,8 +45,15 @@ func (m *msgID) String() string {
 	return fmt.Sprintf("%d/%s/%d", m.EmitterChain, m.EmitterAddress, m.Sequence)
 }
 
+func (m *msgID) Empty() bool {
+	return m.EmitterChain == 0 && m.EmitterAddress == ZERO_ADDRESS_VAA && m.Sequence == 0
+}
+
 // NewMsgID creates a new msgID from a string in the format "chainID/emitterAddress/sequence".
 func NewMsgID(in string) (msgID, error) {
+	if len(in) == 0 {
+		return msgID{}, errors.New("msgIDStr is empty")
+	}
 	parts := strings.Split(in, "/")
 	if len(parts) != 3 {
 		return msgID{}, errors.New("invalid msgID: must be in the format chainID/emitterAddress/sequence")
@@ -71,6 +78,11 @@ func NewMsgID(in string) (msgID, error) {
 	if err != nil {
 		return msgID{}, err
 	}
+
+	if chainID == vaa.ChainIDUnset || emitterAddress == ZERO_ADDRESS_VAA {
+		return msgID{}, errors.New("invalid msgID: chainID or emitterAddress is unset or zero")
+	}
+
 	return msgID{
 		EmitterChain:   chainID,
 		EmitterAddress: emitterAddress,
