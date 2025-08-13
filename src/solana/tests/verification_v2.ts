@@ -78,7 +78,7 @@ export const createAppendSchnorrKeyMessage = ({
 // }
 
 const testSchnorrKey = encoding.bignum.toBytes(
-  0xc11b6c8b8e4ecc62ebf10437678eb70f17f1e53abdb3fa8df1912e3b3d11b5b9cn, 32
+  0xc11b6c8b8e4ecc62ebf10437678eb70f17f1e53abdb3fa8df1912e3b3d11b5b9n, 32
 );
 
 const signatureTestMessage100Zeroed = {
