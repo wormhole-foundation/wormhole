@@ -78,12 +78,12 @@ export const createAppendSchnorrKeyMessage = ({
 // }
 
 const testSchnorrKey = encoding.bignum.toBytes(
-  0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770cn << 1n, 32
+  0xc11b6c8b8e4ecc62ebf10437678eb70f17f1e53abdb3fa8df1912e3b3d11b5b9cn, 32
 );
 
 const signatureTestMessage100Zeroed = {
-  r: encoding.hex.decode("0x636a8688ef4b82e5a121f7c74d821a5b07d695f3"),
-  s: encoding.hex.decode("0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29"),
+  r: encoding.hex.decode("0x41CF8d30EBCc800b655eAD15cC96014d36c4246B"),
+  s: encoding.hex.decode("0xfb5fa64887c4a05818b02afa7483e5115f19a93739c4b9ce4e92bae191a2ef4b"),
 }
 
 const invalidSignature = {
