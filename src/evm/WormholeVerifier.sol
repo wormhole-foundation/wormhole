@@ -722,12 +722,12 @@ contract WormholeVerifier is EIP712Encoding {
 
         // Verify the signatures
         let newBuffer := add(buffer, keyDataSize)
-        let entryInvalidIndex, entryInvalidMismatch, entryInvalidUsedSigner := checkMultisigSignature(digest, signaturesOffset, signatureCount, buffer, keyCount, newBuffer)
+        invalidIndex, invalidMismatch, invalidUsedSigner := checkMultisigSignature(digest, signaturesOffset, signatureCount, buffer, keyCount, newBuffer)
 
         // Validate the header
         let quorum := div(shl(1, keyCount), 3) // TODO: magic number
-        let entryInvalidSignatureCount := iszero(gt(signatureCount, quorum))
-        let entryInvalidExpirationTime := iszero(or(iszero(expirationTime), gt(expirationTime, timestamp())))
+        invalidSignatureCount := iszero(gt(signatureCount, quorum))
+        invalidExpirationTime := iszero(or(iszero(expirationTime), gt(expirationTime, timestamp())))
       }
 
       function verifySingleSchnorr(keyIndex, r, s, digest, buffer) -> invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch {
@@ -737,8 +737,8 @@ contract WormholeVerifier is EIP712Encoding {
         let expirationTime := decodeSchnorrExtraExpirationTime(extraData)
 
         // Verify the signature
-        let entryInvalidExpirationTime := iszero(or(iszero(expirationTime), gt(expirationTime, timestamp())))
-        let entryInvalidPubkey, entryInvalidSignature, entryInvalidMismatch := checkSchnorrSignature(px, parity, digest, r, s, buffer)
+        invalidExpirationTime := iszero(or(iszero(expirationTime), gt(expirationTime, timestamp())))
+        invalidPubkey, invalidSignature, invalidMismatch := checkSchnorrSignature(px, parity, digest, r, s, buffer)
       }
 
       function verifyBatch() {
