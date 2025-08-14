@@ -7,7 +7,7 @@ Wormhole is a mission-critical, high-stakes project. We optimize for quality ove
 and code reviews are our most important tools to accomplish that.
 
 - All new features must first be discussed in a GitHub issue before starting to implement them. For
-  complex features, it can be useful to submit a [formal design document](whitepapers/template.md).
+  complex features, it can be useful to open a thread on [GitHub Discussions](https://github.com/wormhole-foundation/wormhole/discussions).
 
 - Development happens on a long-lived development branch (`main` and `dev.v1`).
   Every change going into a development branch is reviewed individually (see below). Release branches may be used
@@ -27,8 +27,8 @@ and code reviews are our most important tools to accomplish that.
 - Pull requests that modify dependencies must be well-documented so that the benefits of updating can be weighed against
   security and compatibility concerns. Low-effort PRs that update dependencies without any documentation will be rejected.
 
-Documentation for the in-the-wild deployments lives in the
-[wormhole-networks](https://github.com/certusone/wormhole-networks) repository.
+Official documentation for the in-the-wild deployments lives on the
+[Wormhole documentation website](https://wormhole.com/docs/products/reference/chain-ids/).
 
 See [DEVELOP.md](./DEVELOP.md) for more information on how to run the development environment.
 
@@ -117,7 +117,7 @@ either build the integration, or work with an external team to build it.
 
 Please do not open a GitHub issue about new networks - this repository is only a reference implementation for
 Wormhole, just like go-ethereum is a reference implementation for Ethereum. Instead, reach out to the
-[Wormhole Network](https://wormholenetwork.com).
+[Wormhole Network](https://wormhole.com).
 
 ### Do you support \<random blockchain innovation\>?
 
@@ -203,9 +203,6 @@ Places to find out more about existing test coverage and how to run those tests:
 - **Solana Smart Contracts**
   - Tests: `./solana/bridge/program/tests/*.rs`
   - Run: `cd solana && make test`
-- **Terra Smart Contracts**
-  - Tests: `./terra/test/*`
-  - Run: `cd terra && make test`
 - **Cosmwasm Smart Contracts**
   - Tests: `./cosmwasm/test/*`
   - Run: `cd cosmwasm && make test`
