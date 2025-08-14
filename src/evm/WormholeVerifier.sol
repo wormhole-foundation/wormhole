@@ -193,6 +193,9 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant OFFSET_BATCH_DATA         = 4 + 1;
   uint256 private constant OFFSET_BATCH_UNIFORM_DATA = 4 + 1 + 4;
 
+  uint256 private constant LENGTH_BATCH_MINIMUM = 4 + 1 + 1;
+  uint256 private constant LENGTH_BATCH_UNIFORM_MINIMUM = 4 + 1 + 4 + 1;
+
   // Offsets relative to each entry's start
   uint256 private constant OFFSET_BATCH_MULTISIG_SIGNATURE_COUNT = 4;
   uint256 private constant OFFSET_BATCH_MULTISIG_SIGNATURES      = 4 + 1;
@@ -746,7 +749,8 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidSignatureCount := 0
         let invalidUsedSigner := 0
         let invalidIndex := 0
-        let invalidTotal := 0
+        let invalidMessageLength := lt(calldatasize(), LENGTH_BATCH_MINIMUM)
+        let invalidTotal := invalidMessageLength
 
         let buffer := mload(PTR_FREE_MEMORY)
         let offset := OFFSET_BATCH_DATA
@@ -784,7 +788,7 @@ contract WormholeVerifier is EIP712Encoding {
           }
         }
 
-        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidMessageLength := or(invalidMessageLength, iszero(eq(calldatasize(), offset)))
         invalidTotal := or(invalidTotal, invalidMessageLength)
 
         if invalidTotal {
@@ -810,7 +814,8 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidIndex := 0
         let invalidMismatch := 0
         let invalidUsedSigner := 0
-        let invalidTotal := 0
+        let invalidMessageLength := lt(calldatasize(), LENGTH_BATCH_MINIMUM)
+        let invalidTotal := invalidMessageLength
 
         let buffer := mload(PTR_FREE_MEMORY)
         let offset := OFFSET_BATCH_DATA
@@ -829,7 +834,7 @@ contract WormholeVerifier is EIP712Encoding {
           offset := add(digestOffset, LENGTH_WORD)
         }
 
-        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidMessageLength := or(invalidMessageLength, iszero(eq(calldatasize(), offset)))
         invalidTotal := or(invalidTotal, invalidMessageLength)
 
         if invalidTotal {
@@ -842,7 +847,8 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidPubkey := 0
         let invalidSignature := 0
         let invalidMismatch := 0
-        let invalidTotal := 0
+        let invalidMessageLength := lt(calldatasize(), LENGTH_BATCH_MINIMUM)
+        let invalidTotal := invalidMessageLength
 
         let buffer := mload(PTR_FREE_MEMORY)
         let offset := OFFSET_BATCH_DATA
@@ -859,7 +865,7 @@ contract WormholeVerifier is EIP712Encoding {
           invalidTotal := or(invalidExpirationTime, or(invalidPubkey, or(invalidSignature, invalidMismatch)))
         }
 
-        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidMessageLength := or(invalidMessageLength, iszero(eq(calldatasize(), offset)))
         invalidTotal := or(invalidTotal, invalidMessageLength)
 
         if invalidTotal {
@@ -877,10 +883,6 @@ contract WormholeVerifier is EIP712Encoding {
         let expirationTime := decodeMultisigKeyDataExpirationTime(keyDataEntry)
         let invalidExpirationTime := iszero(or(iszero(expirationTime), gt(expirationTime, timestamp())))
 
-        if invalidExpirationTime {
-          verificationFailed(MASK_VERIFY_RESULT_INVALID_EXPIRATION_TIME)
-        }
-
         // Load the key data contract
         let keyDataOffset := mload(PTR_FREE_MEMORY)
         let keyDataSize := getMultisigKeyDataFromContract(keyDataAddress, keyDataOffset)
@@ -892,7 +894,8 @@ contract WormholeVerifier is EIP712Encoding {
         let invalidIndex := 0
         let invalidMismatch := 0
         let invalidUsedSigner := 0
-        let invalidTotal := 0
+        let invalidMessageLength := lt(calldatasize(), LENGTH_BATCH_UNIFORM_MINIMUM)
+        let invalidTotal := or(invalidExpirationTime, invalidMessageLength)
         
         let buffer := add(keyDataOffset, keyDataSize)
         let offset := OFFSET_BATCH_UNIFORM_DATA
@@ -910,7 +913,7 @@ contract WormholeVerifier is EIP712Encoding {
           offset := add(digestOffset, LENGTH_WORD)
         }
 
-        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidMessageLength := or(invalidMessageLength, iszero(eq(calldatasize(), offset)))
         invalidTotal := or(invalidTotal, invalidMessageLength)
 
         if invalidTotal {
@@ -928,15 +931,12 @@ contract WormholeVerifier is EIP712Encoding {
         let expirationTime := decodeSchnorrExtraExpirationTime(extraData)
         let invalidExpirationTime := iszero(or(iszero(expirationTime), gt(expirationTime, timestamp())))
 
-        if invalidExpirationTime {
-          verificationFailed(MASK_VERIFY_RESULT_INVALID_EXPIRATION_TIME)
-        }
-
         // Validate the entries
         let invalidPubkey := 0
         let invalidSignature := 0
         let invalidMismatch := 0
-        let invalidTotal := 0
+        let invalidMessageLength := lt(calldatasize(), LENGTH_BATCH_UNIFORM_MINIMUM)
+        let invalidTotal := or(invalidExpirationTime, invalidMessageLength)
 
         let buffer := mload(PTR_FREE_MEMORY)
         let offset := OFFSET_BATCH_UNIFORM_DATA
@@ -951,7 +951,7 @@ contract WormholeVerifier is EIP712Encoding {
           invalidTotal := or(invalidPubkey, or(invalidSignature, invalidMismatch))
         }
 
-        let invalidMessageLength := iszero(eq(calldatasize(), offset))
+        invalidMessageLength := or(invalidMessageLength, iszero(eq(calldatasize(), offset)))
         invalidTotal := or(invalidTotal, invalidMessageLength)
 
         if invalidTotal {
