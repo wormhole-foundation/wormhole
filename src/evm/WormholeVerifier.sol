@@ -1419,14 +1419,14 @@ contract WormholeVerifier is EIP712Encoding {
 
   function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, bytes memory shardData) internal {
     uint256 shardCount = shardData.length >> 6;
-    for (uint i = 0; i < shardCount; ++i) {
+    for (uint8 i = 0; i < shardCount; ++i) {
       uint256 shardReadOffset = (i * 2 + 1) * LENGTH_WORD;
       uint256 idReadOffset = (i * 2 + 2) * LENGTH_WORD;
-      uint256 shardWriteOffset = SLOT_SCHNORR_SHARD_MAP_SHARD + i * LENGTH_WORD;
-      uint256 idWriteOffset = SLOT_SCHNORR_SHARD_MAP_ID + i * LENGTH_WORD;
+      uint256 shardWriteSlot = _slotShardMapShard(schnorrKeyIndex, i);
+      uint256 idWriteSlot = _slotShardMapId(schnorrKeyIndex, i);
       assembly ("memory-safe") {
-        sstore(shardWriteOffset, mload(add(shardData, shardReadOffset)))
-        sstore(idWriteOffset, mload(add(shardData, idReadOffset)))
+        sstore(shardWriteSlot, mload(add(shardData, shardReadOffset)))
+        sstore(idWriteSlot, mload(add(shardData, idReadOffset)))
       }
     }
   }
