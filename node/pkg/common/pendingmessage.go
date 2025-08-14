@@ -216,7 +216,7 @@ func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublicat
 	}
 	// Relies on MessageIDString to be unique.
 	return slices.ContainsFunc(q.heap, func(pMsg *PendingMessage) bool {
-		return pMsg.Msg.MessageIDString() == msgPub.MessageIDString()
+		return bytes.Equal(pMsg.Msg.MessageID(),msgPub.MessageID())
 	})
 }
 
