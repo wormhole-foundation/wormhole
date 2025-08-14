@@ -42,6 +42,8 @@ const expectedUSDDepeggs = [
   "5-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
   "5-000000000000000000000000ee327f889d5947c1dc1934bb208a1e792f953e96-frxETH", // Frax ETH
   "6-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "10-00000000000000000000000028a92dde19d9989f39a49905d7c9c2fac7799bdf-USDC",  // Fantom migrated their stack so old USDC is expected to be de-pegged
+  "10-0000000000000000000000002f733095b80a04b38b0d10cc884524a3d09b836a-USDC.e", // Fantom migrated their stack so old USDC is expected to be de-pegged
   "11-0000000000000000000000000000000000000000000100000000000000000081-aUSD", // Acala USD being converted to aSEED, dead token
   "13-0000000000000000000000005c74070fdea071359b86082bd9f9b3deaafbe32b-KDAI", // Klatyn DAI Depegged since December 2023
   "13-000000000000000000000000754288077d0ff82af7a5317c7cb8c444d421d103-oUSDC", // Orbit bridge Klatyn USDC, depegged since December 2023
@@ -55,7 +57,8 @@ const expectedUSDDepeggs = [
 ]
 
 // Chains that have been deprecated. Tokens on these chains will not be included in the token list.
-// See the Go SDK code to view deprecated chains.
+// Deprecated chain IDs are listed in the Go SDK:
+// https://github.com/wormhole-foundation/wormhole/blob/main/sdk/vaa/structs.go
 const deprecatedChains = [3,7,9,11,12,17,18,28,36,43];
 
 const axios = require("axios");
