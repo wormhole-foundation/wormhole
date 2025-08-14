@@ -773,7 +773,7 @@ const (
 	// Occurs if the receipt is not solvent.
 	ReceiptInvariant InvariantViolationKind = 1
 	// MsgInvariant is the type of invariant violation that occurs when an individual message is deemed unsafe.
-	MsgInvariant InvariantViolationKind= 2
+	MsgInvariant InvariantViolationKind = 2
 )
 
 // Custom error type used to signal that a core invariant of the token bridge has been violated.
