@@ -20,7 +20,7 @@ module wormhole::external_address {
         ExternalAddress { value }
     }
 
-    /// Create `ExternalAddress` of all zeros.`
+    /// Create `ExternalAddress` of all zeros.
     public fun default(): ExternalAddress {
         new(bytes32::default())
     }
@@ -36,7 +36,7 @@ module wormhole::external_address {
         bytes32::to_bytes(to_bytes32(ext))
     }
 
-    /// Destroy 'ExternalAddress` for underlying data.
+    /// Destroy `ExternalAddress` for underlying data.
     public fun to_bytes32(ext: ExternalAddress): Bytes32 {
         let ExternalAddress { value } = ext;
         value
