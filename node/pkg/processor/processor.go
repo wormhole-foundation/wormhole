@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -312,14 +311,11 @@ func (p *Processor) Run(ctx context.Context) error {
 				// NOTE: Always returns Approve for messages that are not token transfers.
 				verdict, err := p.notary.ProcessMsg(k)
 				if err != nil {
-					// Errors should only occur if there is an issue with database interaction.
-					// TODO: do we want the notary to return an error to the processor? It will
-					// trigger a restart. This method follows what the accountant does when it
-					// cannot process a message.
-					return errors.Join(
-						fmt.Errorf("processor: notary failed to process message `%s`", k.MessageIDString()),
-						err,
-					)
+					// TODO: The error is deliberately ignored so that the processor does not panic and restart.
+					// In contrast, the Accountant does not ignore the error and restarts the processor if it fails.
+					// The error-handling strategy can be revisited once the Notary is considered stable.
+					p.logger.Error("notary failed to process message", zap.Error(err), zap.String("messageID", k.MessageIDString()))
+					continue
 				}
 
 				// Based on the verdict, we can decide what to do with the message.
