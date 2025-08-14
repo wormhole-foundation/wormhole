@@ -99,7 +99,7 @@ func (h pendingMessageHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-// Push dangerously pushes a value to the heap. Use [pendingMessageHeap.Push] instead.
+// Push dangerously pushes a value to the heap.
 func (h *pendingMessageHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
@@ -116,7 +116,7 @@ func (h *pendingMessageHeap) Push(x any) {
 	*h = append(*h, item)
 }
 
-// Pops dangerously pops a value from the heap. Use [pendingMessageHeap.Pop] instead.
+// Pops dangerously pops a value from the heap.
 func (h *pendingMessageHeap) Pop() any {
 	old := *h
 	n := len(old)
