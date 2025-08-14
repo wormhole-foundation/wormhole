@@ -240,15 +240,17 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 			continue // Skip if Pop returns nil (shouldn't happen if Peek worked)
 		}
 
-		// Append return value.
-		readyMsgs = append(readyMsgs, &pMsg.Msg)
-
-		// Update database.
+		// Update database. Do this before adding the message to the ready list so that we don't
+		// accidentally add the same message twice if deleting the message from the database fails.
 		err := n.database.DeleteDelayed(pMsg)
 		if err != nil {
 			n.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
 			continue
 		}
+
+		// Append return value.
+		readyMsgs = append(readyMsgs, &pMsg.Msg)
+
 	}
 
 	n.logger.Debug(
