@@ -155,12 +155,21 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
+	// Only token transfers are currently supported.
+	if !vaa.IsTransfer(msg.Payload) {
+		n.logger.Debug("notary: automatically approving message publication because it is not a token transfer", msg.ZapFields()...)
+		return Approve, nil
+	}
+
 	if tokenBridge, ok := sdk.KnownTokenbridgeEmitters[msg.EmitterChain]; !ok {
+		// Return Unknown if the token bridge is not registered in the SDK.
 		n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
 		return Unknown, errors.New("unknown token bridge emitter")
 	} else {
-		// Only token transfers are currently supported and the transfer must be from the token bridge.
-		if !vaa.IsTransfer(msg.Payload) || !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
+		// Approve if the token transfer is not from the token bridge.
+		// For now, the notary only rules on token transfers from the token bridge.
+		if !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
+			n.logger.Debug("notary: automatically approving message publication because it is not from the token bridge", msg.ZapFields()...)
 			return Approve, nil
 		}
 	}
