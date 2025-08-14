@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -397,7 +396,7 @@ func (p *Processor) Run(ctx context.Context) error {
 
 				// Iterate over all ready messages. Hand-off to the Governor or the Accountant
 				// if they're enabled. If not, publish.
-				for msg := range slices.Values(readyMsgs) {
+				for _, msg := range readyMsgs {
 					// TODO: Much of this is duplicated from the msgC branch. It might be a good
 					// idea to refactor how we handle combinations of Notary, Governor, and Accountant being
 					// enabled.
