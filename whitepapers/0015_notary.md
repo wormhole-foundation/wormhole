@@ -16,7 +16,7 @@ The Notary system aims to:
 
 * Provide a standardized, coordinated response to Transfer Verifier results across all guardians
 * Enable temporary delays for suspicious messages to allow for manual review and investigation
-* Permanently block messages that have been definitively identified as malicious or not well-formed
+* Permanently block messages that have been definitively identified as malicious or malformed
 * Maintain a persistent record of delayed and blocked messages across guardian restarts
 * Support the broader Wormhole security model by providing an additional layer of protection
 * Operate as a general-purpose message evaluation framework that could be extended beyond token transfers
@@ -68,6 +68,8 @@ Similar to the Governor and Accountant systems, the Notary maintains a list of m
 
 ### Verdict Types and Behavior
 
+_All three statuses are mutually-exclusive, and no message should be duplicated within or across the containing data structures._
+
 #### Approve Verdict
 - Message proceeds immediately to VAA signing
 - No database storage required
@@ -78,6 +80,7 @@ Similar to the Governor and Accountant systems, the Notary maintains a list of m
 - Default delay period: 4 days (configurable via `DelayFor` constant)
 - Messages are automatically released after the delay period expires
 - Delayed messages can be manually promoted to blackholed status if determined to be malicious
+- Delayed messages can be manually removed from the delay queue if determined to be safe
 
 #### Blackhole Verdict
 - Message is permanently blocked from processing
@@ -155,7 +158,7 @@ All three systems:
 - **Scope**: Cross-chain token accounting
 - **Criteria**: Token balance consistency across chains
 - **Action**: Approve or reject based on accounting rules
-- **Focus**: Preventing unbacked token creation
+- **Focus**: Prevention of erroneous token unlocks, reducing the effectiveness of cross-chain exploits
 
 ### Message Release Mechanisms
 
@@ -173,11 +176,13 @@ The Notary provides multiple pathways for releasing delayed messages:
 - The Notary can be enabled or disabled independently of the Transfer Verifier and other security mechanisms.
 
 #### Monitoring and Alerting
+
 - Guardians should monitor Notary verdict distributions
 - Unusual patterns in delayed or blackholed messages may indicate attacks
 - Database growth should be limited, as delayed messages are automatically released and delete, and blackholed messages should be extremely rare.
 
 #### Manual Intervention
+
 - Delayed messages provide a window for manual review and investigation
 - Operators can analyze suspicious transfers and make informed decisions
 - Coordination between guardians may be necessary for consistent responses
