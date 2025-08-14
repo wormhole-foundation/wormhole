@@ -165,6 +165,7 @@ Reobservation
 Reobservations
 reobserved
 repoint
+revivelib
 rustup
 satoshi
 secp
@@ -180,6 +181,8 @@ solana
 Solana
 Solana's
 spydk
+Semgrep
+semgrep
 Starport
 statesync
 struct
