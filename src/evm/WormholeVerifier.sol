@@ -102,30 +102,32 @@ contract WormholeVerifier is EIP712Encoding {
   // Slot layout information
   uint256 private constant SLOT_MULTISIG_KEY_COUNT  = 1000;
   uint256 private constant SLOT_SCHNORR_KEY_COUNT   = 1001;
-  uint256 private constant SLOT_SCHNORR_SHARD_COUNT = 1002;
 
-  uint256 private constant SLOT_SCHNORR_KEY_DATA   = 1 << 48;
-  uint256 private constant SLOT_SCHNORR_EXTRA_DATA = 2 << 48;
-  uint256 private constant SLOT_SCHNORR_SHARD_DATA = 3 << 48;
-  uint256 private constant SLOT_MULTISIG_KEY_DATA  = 4 << 48;
-  uint256 private constant SLOT_NONCE_BITMAP       = 1 << 64;
+  // NOTE: The full 160 bit keyspace is broken into 64 bit sub-spaces, to make the keyspace more manageable.
+  //       The sizes of each sub-structure are two to the power of the number of bits listed
+  uint256 private constant SLOT_MULTISIG_KEY_DATA       = 1 << 64; // 32 bit keyspace (32 bit key index)
+  uint256 private constant SLOT_SCHNORR_KEY_DATA        = 2 << 64; // 32 bit keyspace (32 bit key index)
+  uint256 private constant SLOT_SCHNORR_EXTRA_DATA      = 3 << 64; // 32 bit keyspace (32 bit key index)
+  uint256 private constant SLOT_SCHNORR_SHARD_MAP_SHARD = 4 << 64; // 40 bit keyspace (32 bit key index, 8 bit signer index)
+  uint256 private constant SLOT_SCHNORR_SHARD_MAP_ID    = 5 << 64; // 40 bit keyspace (32 bit key index, 8 bit signer index)
+  uint256 private constant SLOT_SCHNORR_NONCE_BITMAP    = 6 << 64; // 64 bit keyspace (32 bit key index, 8 bit signer index, 32 bit nonce, -8 for bits per slot)
 
   // Schnorr key data information
-  uint256 private constant SHIFT_SCHNORR_KEY_PX = 1;
   uint256 private constant MASK_SCHNORR_KEY_PARITY = 1;
+  uint256 private constant SHIFT_SCHNORR_KEY_PX = 1;
 
   // Schnorr extra data information
-  uint256 private constant MASK_SCHNORR_EXTRA_EXPIRATION_TIME     = 0xFFFFFFFF;
-  uint256 private constant MASK_SCHNORR_EXTRA_SHARD_COUNT         = 0xFF;
-  uint256 private constant MASK_SCHNORR_EXTRA_SHARD_BASE          = 0xFFFFFFFFFF;
-  uint256 private constant MASK_SCHNORR_EXTRA_MULTISIG_KEY_INDEX  = 0xFFFFFFFF;
+  uint256 private constant MASK_SCHNORR_EXTRA_EXPIRATION_TIME    = 0xFFFFFFFF;
+  uint256 private constant MASK_SCHNORR_EXTRA_SHARD_COUNT        = 0xFF;
+  uint256 private constant MASK_SCHNORR_EXTRA_SHARD_BASE         = 0xFFFFFFFFFF;
+  uint256 private constant MASK_SCHNORR_EXTRA_MULTISIG_KEY_INDEX = 0xFFFFFFFF;
+
   uint256 private constant SHIFT_SCHNORR_EXTRA_SHARD_COUNT        = 32;
-  uint256 private constant SHIFT_SCHNORR_EXTRA_SHARD_BASE         = 32 + 8;
-  uint256 private constant SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX = 32 + 8 + 40;
+  uint256 private constant SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX = 32 + 8;
 
   // Multisig key data information
-  uint256 private constant SHIFT_MULTISIG_ENTRY_ADDRESS = 32;
   uint256 private constant MASK_MULTISIG_ENTRY_EXPIRATION_TIME = 0xFFFFFFFF;
+  uint256 private constant SHIFT_MULTISIG_ENTRY_ADDRESS = 32;
   
   uint256 private constant OFFSET_MULTISIG_CONTRACT_DATA = 1;
 
@@ -1008,7 +1010,7 @@ contract WormholeVerifier is EIP712Encoding {
         if (opcode == GET_CURRENT_SCHNORR_KEY_DATA) {
           uint32 index = _getSchnorrKeyCount() - 1;
           uint256 pubkey = _getSchnorrKeyData(index);
-          (uint32 expirationTime, uint8 shardCount, , uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
+          (uint32 expirationTime, uint8 shardCount, uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
 
           result = abi.encodePacked(result, index, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_CURRENT_MULTISIG_KEY_DATA) {
@@ -1021,7 +1023,7 @@ contract WormholeVerifier is EIP712Encoding {
           (index, offset) = data.asUint32CdUnchecked(offset);
 
           uint256 pubkey = _getSchnorrKeyData(index);
-          (uint32 expirationTime, uint8 shardCount, , uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
+          (uint32 expirationTime, uint8 shardCount, uint32 multisigKeyIndex) = _getSchnorrExtraData(index);
 
           result = abi.encodePacked(result, pubkey, expirationTime, shardCount, multisigKeyIndex);
         } else if (opcode == GET_MULTISIG_KEY_DATA) {
@@ -1096,7 +1098,7 @@ contract WormholeVerifier is EIP712Encoding {
     require(schnorrKeyIndex + 1 == _getSchnorrKeyCount(), UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX));
 
     // Get the shard data range associated with the schnorr key
-    (, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) = _getSchnorrExtraData(schnorrKeyIndex);
+    (, uint8 shardCount, uint32 multisigKeyIndex) = _getSchnorrExtraData(schnorrKeyIndex);
     require(signerIndex < shardCount, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX));
 
     (address[] memory keys,) = _getMultisigKeyData(multisigKeyIndex);
@@ -1113,7 +1115,7 @@ contract WormholeVerifier is EIP712Encoding {
     _useUnorderedNonce(schnorrKeyIndex, signerIndex, nonce, baseOffset);
 
     // Store the shard ID
-    _setSchnorrShardId(shardBase, signerIndex, shardId);
+    _setSchnorrShardId(schnorrKeyIndex, signerIndex, shardId);
 
     return offset;
   }
@@ -1343,31 +1345,28 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
-  function _getSchnorrExtraData(uint32 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint40 shardBase, uint32 multisigKeyIndex) {
+  function _getSchnorrExtraData(uint32 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint32 multisigKeyIndex) {
     uint256 extraDataSlot = SLOT_SCHNORR_EXTRA_DATA + index;
     uint256 storageWord;
     assembly ("memory-safe") { storageWord := sload(extraDataSlot) }
 
     expirationTime   = uint32( storageWord                                           & MASK_SCHNORR_EXTRA_EXPIRATION_TIME);
     shardCount       = uint8 ((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_COUNT)       & MASK_SCHNORR_EXTRA_SHARD_COUNT    );
-    shardBase        = uint40((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_BASE )       & MASK_SCHNORR_EXTRA_SHARD_BASE     );
     multisigKeyIndex = uint32( storageWord >> SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX                                     );
   }
 
   function _getSchnorrShardDataExport(uint32 index) internal view returns (uint8 shardCount, bytes memory shardData) {
-    uint40 shardBase;
-    (, shardCount, shardBase,) = _getSchnorrExtraData(index);
+    (, shardCount,) = _getSchnorrExtraData(index);
+    shardData = new bytes(shardCount << 6); // 32 bytes for the shard + 32 for the ID
 
-    // 32 bytes for the shard + 32 for the ID
-    uint256 entries = shardCount * 2;
-    shardData = new bytes(entries * LENGTH_WORD);
-
-    for (uint i = 0; i < entries; ++i) {
-      uint256 memoryOffset = (i + 1) * LENGTH_WORD;
-      uint256 readSlot = SLOT_SCHNORR_SHARD_DATA + shardBase + i * LENGTH_WORD;
+    for (uint8 i = 0; i < shardCount; ++i) {
+      uint256 shardWriteOffset = (i + 1) * LENGTH_WORD;
+      uint256 idWriteOffset = (i + 2) * LENGTH_WORD;
+      uint256 shardReadSlot = _slotShardMapShard(index, i);
+      uint256 idReadSlot = _slotShardMapId(index, i);
       assembly ("memory-safe") {
-        let entry := sload(readSlot)
-        mstore(add(shardData, memoryOffset), entry)
+        mstore(add(shardData, shardWriteOffset), sload(shardReadSlot))
+        mstore(add(shardData, idWriteOffset), sload(idReadSlot))
       }
     }
   }
@@ -1381,13 +1380,21 @@ contract WormholeVerifier is EIP712Encoding {
     assembly ("memory-safe") { sstore(schnorrDataSlot, newEntry) }
   }
 
-  function _setSchnorrShardId(uint40 shardBase, uint8 signerIndex, bytes32 newSchnorrId) internal {
-    uint256 shardIdSlot = SLOT_SCHNORR_SHARD_DATA + shardBase + (signerIndex * 2 + 1) * LENGTH_WORD;
+  function _setSchnorrShardId(uint32 keyIndex, uint8 signerIndex, bytes32 newSchnorrId) internal {
+    uint256 shardIdSlot = _slotShardMapId(keyIndex, signerIndex);
     assembly ("memory-safe") {
       sstore(shardIdSlot, newSchnorrId)
     }
   }
-  
+
+  function _slotShardMapShard(uint32 keyIndex, uint8 signerIndex) internal pure returns (uint256) {
+    return SLOT_SCHNORR_SHARD_MAP_SHARD | (keyIndex << 8) | signerIndex;
+  }
+
+  function _slotShardMapId(uint32 keyIndex, uint8 signerIndex) internal pure returns (uint256) {
+    return SLOT_SCHNORR_SHARD_MAP_ID | (keyIndex << 8) | signerIndex;
+  }
+
   function _appendSchnorrKeyData(
     uint256 pubkey,
     uint32 multisigKeyIndex,
@@ -1398,40 +1405,34 @@ contract WormholeVerifier is EIP712Encoding {
     uint256 pubkeySlot = SLOT_SCHNORR_KEY_DATA + keyIndex;
     assembly ("memory-safe") { sstore(pubkeySlot, pubkey) }
 
-    uint40 shardBase;
-    assembly ("memory-safe") { shardBase := sload(SLOT_SCHNORR_SHARD_COUNT) }
-
     // Append the extra data
     uint256 extraInfo =
         uint256(shardCount      ) << SHIFT_SCHNORR_EXTRA_SHARD_COUNT
-      | uint256(shardBase       ) << SHIFT_SCHNORR_EXTRA_SHARD_BASE
       | uint256(multisigKeyIndex) << SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX;
 
     uint256 extraDataSlot = SLOT_SCHNORR_EXTRA_DATA + keyIndex;
     assembly ("memory-safe") { sstore(extraDataSlot, extraInfo) }
 
     // Update the lengths
-    uint256 newShardBase = shardBase + (uint256(shardCount) << 1);
-    assembly ("memory-safe") { sstore(SLOT_SCHNORR_SHARD_COUNT, newShardBase) }
     _updateSchnorrKeyCount(keyIndex + 1);
   }
 
   function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, bytes memory shardData) internal {
-    (,, uint40 shardBase,) = _getSchnorrExtraData(schnorrKeyIndex);
-
-    uint256 entries = shardData.length / LENGTH_WORD;
-    for (uint i = 0; i < entries; ++i) {
-      uint256 memoryOffset = (i + 1) * LENGTH_WORD;
-      uint256 writeSlot = SLOT_SCHNORR_SHARD_DATA + shardBase + i * LENGTH_WORD;
+    uint256 shardCount = shardData.length >> 6;
+    for (uint i = 0; i < shardCount; ++i) {
+      uint256 shardReadOffset = (i * 2 + 1) * LENGTH_WORD;
+      uint256 idReadOffset = (i * 2 + 2) * LENGTH_WORD;
+      uint256 shardWriteOffset = SLOT_SCHNORR_SHARD_MAP_SHARD + i * LENGTH_WORD;
+      uint256 idWriteOffset = SLOT_SCHNORR_SHARD_MAP_ID + i * LENGTH_WORD;
       assembly ("memory-safe") {
-        let entry := mload(add(shardData, memoryOffset))
-        sstore(writeSlot, entry)
+        sstore(shardWriteOffset, mload(add(shardData, shardReadOffset)))
+        sstore(idWriteOffset, mload(add(shardData, idReadOffset)))
       }
     }
   }
 
   function _useUnorderedNonce(uint32 keyIndex, uint8 signerIndex, uint32 nonce, uint256 baseOffset) internal {
-    uint256 nonceSlot = SLOT_NONCE_BITMAP | (keyIndex << 32) | (signerIndex << 24) | (nonce >> 8);
+    uint256 nonceSlot = SLOT_SCHNORR_NONCE_BITMAP | (keyIndex << 32) | (signerIndex << 24) | (nonce >> 8);
     uint256 oldEntry;
     assembly ("memory-safe") { oldEntry := sload(nonceSlot) }
 
