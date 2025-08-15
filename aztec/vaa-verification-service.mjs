@@ -1,45 +1,135 @@
-// vaa-verification-service.mjs
+// vaa-verification-service.mjs - TESTNET VERSION (FIXED)
 import express from 'express';
-import { createPXEClient, waitForPXE, Contract, loadContractArtifact } from '@aztec/aztec.js';
-import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
+import { createPXEClient, waitForPXE, Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { deriveSigningKey } from '@aztec/stdlib/keys';
+import { GrumpkinScalar } from '@aztec/foundation/fields';
 import { readFileSync } from 'fs';
 import WormholeJson from "./contracts/target/wormhole_contracts-Wormhole.json" assert { type: "json" };
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 8080;
-const PXE_URL = process.env.AZTEC_PXE_URL || 'http://localhost:8090';
+const PORT = process.env.PORT || 3000;
 
-let pxe, wallet, wormholeContract, isReady = false;
+// TESTNET CONFIGURATION - UPDATED WITH FRESH DEPLOYMENT
+const PXE_URL = 'http://localhost:8080'
+const NODE_URL = 'https://aztec-alpha-testnet-fullnode.zkv.xyz/';
+const PRIVATE_KEY = '0x0e68a984193a040269c37938c99dc2f5ed365c22363bddc1828eb0404ddb89ae'; // Your testnet private key
+const CONTRACT_ADDRESS = '0x07d0c36d825f49fb36bb285f2d809260d945c171795a4584097a5e17a72f6540'; // Your deployed contract address on testnet
+const SALT = '0x29b450386f343ecf24465a83286969c8c2f13b22129437bf881acaf42d218dff'; // Salt used in deployment
 
-// Initialize Aztec
+let pxe, nodeClient, wormholeContract, isReady = false;
+
+// Initialize Aztec for Testnet
 async function init() {
-  console.log('🔄 Initializing Aztec connection...');
+  console.log('🔄 Initializing Aztec TESTNET connection...');
   
-  pxe = createPXEClient(PXE_URL);
-  await waitForPXE(pxe);
+  if (!PRIVATE_KEY) {
+    throw new Error('PRIVATE_KEY environment variable is required for testnet');
+  }
   
-  const wallets = await getInitialTestAccountsWallets(pxe);
-  wallet = wallets[0];
+  if (!CONTRACT_ADDRESS) {
+    throw new Error('CONTRACT_ADDRESS environment variable is required for testnet');
+  }
   
-  // Load contract address from your existing addresses.json
-  const addresses = JSON.parse(readFileSync('./packages/deploy/src/addresses.json', 'utf8'));
-  const contractArtifact = loadContractArtifact(WormholeJson);
-  wormholeContract = await Contract.at(addresses.wormhole, contractArtifact, wallet);
-  
-  isReady = true;
-  console.log(`✅ Connected to Wormhole contract: ${addresses.wormhole}`);
-  console.log(`✅ Using wallet: ${wallet.getAddress()}`);
+  try {
+    // Create PXE and Node clients
+    pxe = createPXEClient(PXE_URL);
+    await waitForPXE(pxe);
+    
+    nodeClient = createAztecNodeClient(NODE_URL);
+    console.log('✅ Connected to Aztec node and PXE');
+    
+    // Get contract instance from the node (Alex's simpler approach)
+    console.log('🔄 Fetching contract instance from node...');
+    const contractAddress = AztecAddress.fromString(CONTRACT_ADDRESS);
+    const contractInstance = await nodeClient.getContract(contractAddress);
+    
+    if (!contractInstance) {
+      throw new Error(`Contract instance not found at address ${CONTRACT_ADDRESS}`);
+    }
+    
+    console.log('✅ Contract instance retrieved from node');
+    console.log(`📍 Retrieved contract address: ${contractInstance.address}`);
+    console.log(`📍 Contract class ID: ${contractInstance.currentContractClassId}`);
+    
+    // Load contract artifact
+    const contractArtifact = loadContractArtifact(WormholeJson);
+    
+    // Register the contract with PXE (Alex's guidance)
+    console.log('🔄 Registering contract with PXE...');
+    await pxe.registerContract({
+      instance: contractInstance,
+      artifact: contractArtifact
+    });
+    
+    console.log('✅ Contract registered with PXE');
+    
+    // Create account using the deployed owner-wallet credentials
+    console.log('🔄 Setting up owner-wallet account...');
+    const secretKey = Fr.fromString(PRIVATE_KEY);
+    const salt = Fr.fromString(SALT);
+    const signingKey = deriveSigningKey(secretKey);
+    
+    console.log(`🔑 Using secret key: ${secretKey.toString()}`);
+    console.log(`🧂 Using salt: ${salt.toString()}`);
+    
+    // Create Schnorr account (this account is already deployed on testnet)
+    const schnorrAccount = await getSchnorrAccount(pxe, secretKey, signingKey, salt);
+    const accountAddress = schnorrAccount.getAddress();
+    console.log(`📍 Account address: ${accountAddress}`);
+    console.log(`📍 Expected address: 0x2bd5ee95d58d4505aae3c0e621fb65a4ec2205cbb5f0968a231c6e8855ea87c8`);
+    
+    // This account should already be registered with the PXE from the deployment
+    const registeredAccounts = await pxe.getRegisteredAccounts();
+    const isRegistered = registeredAccounts.some(acc => acc.address.equals(accountAddress));
+    
+    if (isRegistered) {
+      console.log('✅ Account found in PXE (from aztec-wallet deployment)');
+    } else {
+      console.log('⚠️  Account not in PXE, but it exists on testnet. Getting wallet anyway...');
+    }
+    
+    // Get wallet (this should work since the account exists on testnet)
+    const wallet = await schnorrAccount.register();
+    console.log(`✅ Using wallet: ${wallet.getAddress()}`);
+    
+    // Now create the contract object
+    console.log(`🔄 Creating contract instance at ${contractAddress.toString()}...`);
+    console.log(`📍 Contract artifact name: ${contractArtifact.name}`);
+    
+    try {
+      wormholeContract = await Contract.at(contractAddress, contractArtifact, wallet);
+      console.log(`✅ Contract instance created successfully`);
+      console.log(`📍 Final contract address: ${wormholeContract.address.toString()}`);
+      
+    } catch (error) {
+      console.error('❌ Failed to create contract instance:', error);
+      throw error;
+    }
+    
+    isReady = true;
+    console.log(`✅ Connected to Wormhole contract on TESTNET: ${CONTRACT_ADDRESS}`);
+    console.log(`✅ PXE URL: ${PXE_URL}`);
+    console.log(`✅ Node URL: ${NODE_URL}`);
+    
+  } catch (error) {
+    console.error('❌ Initialization failed:', error);
+    throw error;
+  }
 }
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: isReady ? 'healthy' : 'initializing',
+    network: 'testnet',
     timestamp: new Date().toISOString(),
     pxeUrl: PXE_URL,
-    walletAddress: wallet ? wallet.getAddress().toString() : 'not connected'
+    nodeUrl: NODE_URL,
+    contractAddress: CONTRACT_ADDRESS,
+    walletAddress: 'using PXE accounts'
   });
 });
 
@@ -48,7 +138,7 @@ app.post('/verify', async (req, res) => {
   if (!isReady) {
     return res.status(503).json({ 
       success: false, 
-      error: 'Service not ready - Aztec connection still initializing' 
+      error: 'Service not ready - Aztec testnet connection still initializing' 
     });
   }
 
@@ -74,65 +164,154 @@ app.post('/verify', async (req, res) => {
     const vaaArray = Array.from(paddedVAA);
     const actualLength = vaaBuffer.length;
     
-    console.log(`🔍 Verifying VAA (${vaaBuffer.length} bytes actual, ${paddedVAA.length} bytes padded)`);
+    console.log(`🔍 Verifying VAA on TESTNET (${vaaBuffer.length} bytes actual, ${paddedVAA.length} bytes padded)`);
+    console.log(`📍 Contract: ${CONTRACT_ADDRESS}`);
+    console.log(`📍 Contract object address: ${wormholeContract.address.toString()}`);
+    console.log(`📍 Wallet address: ${wormholeContract.wallet.getAddress().toString()}`);
     
     // Call verify_vaa function with padded bytes and actual length
+    console.log('🔄 Calling contract method verify_vaa...');
     const tx = await wormholeContract.methods
       .verify_vaa(vaaArray, actualLength)
       .send()
       .wait();
     
-    console.log(`✅ VAA verified successfully: ${tx.txHash}`);
+    console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
     
     res.json({
       success: true,
+      network: 'testnet',
       txHash: tx.txHash,
-      message: 'VAA verified successfully',
+      contractAddress: CONTRACT_ADDRESS,
+      message: 'VAA verified successfully on Aztec testnet',
       processedAt: new Date().toISOString()
     });
     
   } catch (error) {
-    console.error('❌ VAA verification failed:', error.message);
+    console.error('❌ VAA verification failed on TESTNET:', error.message);
     res.status(500).json({
       success: false,
+      network: 'testnet',
       error: error.message,
       processedAt: new Date().toISOString()
     });
   }
 });
 
-// Test endpoint with sample data
+// Test endpoint with Jorge's real Arbitrum Sepolia VAA
 app.post('/test', async (req, res) => {
-  const sampleVAA = "01000000000000015f00081f2c84eb31fb19ea3f0161648c447d86d77bd709056" +
-    "2b58880120000000000000000000000000000000000000000000000000000000000" +
-    "0000000000000000000000000000000000144b90000000000000009c80000000000" +
-    "0000000000000000000000000000000000000000000000000000000000000000000" +
-    "0000000000000000000000000000000000000000000000000000000000000000000" +
-    "0000000020000000000000000000000000000000000000000000000000000000000" +
-    "0000000000000000000000000000000000000000000000000000000000000000000" +
-    "0000000000000000000000000000000000000000000000000e48656c6c6f20576f" +
-    "726d686f6c6521";
+  // Jorge's real VAA from Arbitrum Sepolia that uses Guardian 0x13947Bd48b18E53fdAeEe77F3473391aC727C638
+  // This VAA contains "Hello Wormhole!" message and has been verified on Wormholescan
+  // Link: https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc?network=Testnet&view=advanced
+  const realVAA = "010000000001004682bc4d5ff2e54dc2ee5e0eb64f5c6c07aa449ac539abc63c2be5c306a48f233e9300170a82adf3c3b7f43f23176fb079174a58d67d142477f646675d86eb6301684bfad4499602d22713000000000000000000000000697f31e074bf2c819391d52729f95506e0a72ffb0000000000000000c8000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000e48656c6c6f20576f726d686f6c6521000000000000000000000000000000000000";
   
-  req.body = { vaaBytes: sampleVAA };
+  console.log('🧪 Testing with Jorge\'s real Arbitrum Sepolia VAA on TESTNET');
+  console.log('📍 Guardian: 0x13947Bd48b18E53fdAeEe77F3473391aC727C638');
+  console.log('📍 Signature: 0x4682bc4d5ff2e54dc2ee5e0eb64f5c6c07aa449ac539abc63c2be5c306a48f233e9300170a82adf3c3b7f43f23176fb079174a58d67d142477f646675d86eb6301');
+  console.log('📍 Expected message hash: 0xe64320fba193c98f2d0acf3a8c7479ec9b163192bfc19d4024497d4e4159758c');
+  console.log('📍 WormholeScan: https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc?network=Testnet&view=advanced');
   
-  // Reuse the verify endpoint logic
-  const verifyHandler = app._router.stack.find(layer => 
-    layer.route && layer.route.path === '/verify'
-  ).route.stack[0].handle;
+  // Debug contract state before calling verify
+  console.log('🔍 Pre-verification debug:');
+  console.log(`   - Service ready: ${isReady}`);
+  console.log(`   - Contract object exists: ${!!wormholeContract}`);
+  if (wormholeContract) {
+    console.log(`   - Contract address: ${wormholeContract.address.toString()}`);
+    console.log(`   - Expected address: ${CONTRACT_ADDRESS}`);
+  }
   
-  return verifyHandler(req, res);
+  // Set up request body and call verify logic directly
+  const testReq = { 
+    body: { vaaBytes: realVAA },
+    // Add debug flag
+    isTest: true
+  };
+  
+  // Call verify logic directly instead of using the router
+  if (!isReady) {
+    return res.status(503).json({ 
+      success: false, 
+      error: 'Service not ready - Aztec testnet connection still initializing' 
+    });
+  }
+
+  try {
+  const { vaaBytes } = testReq.body;
+  
+  // Convert hex to buffer
+  const hexString = vaaBytes.startsWith('0x') ? vaaBytes.slice(2) : vaaBytes;
+  const vaaBuffer = Buffer.from(hexString, 'hex');
+  
+  // Debug the VAA data
+  console.log('🔍 VAA Debug Info:');
+  console.log(`   Raw hex length: ${hexString.length}`);
+  console.log(`   Buffer length: ${vaaBuffer.length}`);
+  console.log(`   First 20 bytes: ${vaaBuffer.slice(0, 20).toString('hex')}`);
+  console.log(`   Last 20 bytes: ${vaaBuffer.slice(-20).toString('hex')}`);
+  
+  // Back to padded version (contract expects fixed size)
+  const paddedVAA = Buffer.alloc(2000);
+  vaaBuffer.copy(paddedVAA, 0, 0, Math.min(vaaBuffer.length, 2000));
+  const vaaArray = Array.from(paddedVAA);
+  const actualLength = vaaBuffer.length;
+  
+  console.log('🔍 Using PADDED version (contract expects fixed size):');
+  console.log(`   Padded array length: ${vaaArray.length}`);
+  console.log(`   Actual VAA length param: ${actualLength}`);
+  console.log(`   First few padded elements: [${vaaArray.slice(0, 10).join(', ')}]`);
+  console.log(`   Elements around actual length: [${vaaArray.slice(actualLength-5, actualLength+10).join(', ')}]`);
+  
+  console.log(`🔍 Verifying VAA on TESTNET (${vaaBuffer.length} bytes actual, ${paddedVAA.length} bytes padded)`);
+  console.log(`📍 Contract: ${CONTRACT_ADDRESS}`);
+  console.log(`📍 Contract object address: ${wormholeContract.address.toString()}`);
+  console.log(`📍 Wallet address: ${wormholeContract.wallet.getAddress().toString()}`);
+  
+  // Call verify_vaa function with padded bytes and actual length
+  console.log('🔄 Calling contract method verify_vaa with PADDED data...');
+  const tx = await wormholeContract.methods
+    .verify_vaa(vaaArray, actualLength)
+    .send()
+    .wait();
+  
+  console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
+  
+  res.json({
+    success: true,
+    network: 'testnet',
+    txHash: tx.txHash,
+    contractAddress: CONTRACT_ADDRESS,
+    message: 'VAA verified successfully on Aztec testnet (TEST ENDPOINT)',
+    processedAt: new Date().toISOString()
+  });
+  } catch (error) {
+    console.error('❌ VAA verification failed on TESTNET:', error.message);
+    console.error('❌ Full error:', error);
+    res.status(500).json({
+      success: false,
+      network: 'testnet',
+      error: error.message,
+      processedAt: new Date().toISOString()
+    });
+  }
 });
 
 // Start server
 init().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 VAA Verification Service running on port ${PORT}`);
+    console.log(`🌐 Network: TESTNET`);
+    console.log(`📡 PXE: ${PXE_URL}`);
+    console.log(`📡 Node: ${NODE_URL}`);
+    console.log(`📄 Contract: ${CONTRACT_ADDRESS}`);
     console.log('Available endpoints:');
     console.log('  GET  /health - Health check');
-    console.log('  POST /verify - Verify VAA');
-    console.log('  POST /test   - Test with sample data');
+    console.log('  POST /verify - Verify VAA on testnet');
+    console.log('  POST /test   - Test with Jorge\'s real Arbitrum Sepolia VAA');
   });
 }).catch(error => {
-  console.error('❌ Failed to start service:', error);
+  console.error('❌ Failed to start testnet service:', error);
+  console.log('\n📝 Required environment variables:');
+  console.log('  PRIVATE_KEY=your_testnet_private_key');
+  console.log('  CONTRACT_ADDRESS=your_deployed_contract_address');
   process.exit(1);
 });
