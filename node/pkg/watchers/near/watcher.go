@@ -292,6 +292,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 		ContractAddress: e.wormholeAccount,
 	})
 
+	// Get the node version for troubleshooting
+	e.logVersion(ctx, logger)
+
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
 	// start metrics reporter
@@ -349,4 +352,23 @@ func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, d
 			return nil
 		})
 	return nil
+}
+
+// logVersion retrieves the NEAR node version and logs it
+func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://www.quicknode.com/docs/near/status
+	networkName := "near"
+	version, err := e.nearAPI.GetVersion(ctx)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", version),
+		zap.String("network", networkName),
+	)
 }
