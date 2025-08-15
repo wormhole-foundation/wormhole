@@ -125,6 +125,12 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 		return
 	}
 
+	// Mock the status request to return a version
+	if bytes.Contains(origReqBody, []byte("\"method\": \"status\"")) {
+		_, _ = w.Write([]byte(`{"id": "dontcare", "jsonrpc": "2.0", "result": {"version": "1.0.0"}}`))
+		return
+	}
+
 	reqBody := s.RewriteReq(origReqBody)
 	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
