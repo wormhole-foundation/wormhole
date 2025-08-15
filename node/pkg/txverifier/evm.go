@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -84,9 +85,11 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		msgID = validMsgID
 	}
 
-	// Check if the message has already been verified, and if so, return the cached result.
+	// Check to see if the receipt is cached.
 	if receiptEvaluation, exists := tv.evaluations[txHash]; exists {
-		if !receiptEvaluation.msgInCache(msgID) {
+
+		// Check if the message has already been verified, and if so, return the cached result.
+		if !checkWholeReceipt && !receiptEvaluation.msgInCache(msgID) {
 			// Should never happen, probably indicates a bug in the code.
 			tv.logger.Warn(
 				ErrCachedReceiptHasNoDataForMessage.Error(),
@@ -777,6 +780,7 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			ReceiptInvariant,
 		)
 	}
+	tv.logger.Debug("receipt summary after solvency check", zap.String("summary", receiptSummary.String()))
 	if len(*receipt.MessagePublications) == 1 {
 		// Only one message publication exists in the receipt. Check for solvency.
 		// There is only one message publication in the receipt, but we don't have the msgID to do a lookup.
@@ -807,6 +811,8 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 				receiptSummary.msgPubResult[msgID] = false
 				receiptSummary.addProblem(ErrInvariantMissingCollateral, MsgInvariant)
 			} else {
+				tv.logger.Debug("got amountIn", zap.String("tokenID", transferOut.tokenID), zap.String("amount", amountIn.String()))
+				tv.logger.Debug(fmt.Sprintf("receiptSummary.in: %v", receiptSummary.in))
 				// At the resolution of a single message, check whether its outbound transfer is larger than the inbound transfer.
 				// If the rest of the receipt is valid, then we can mark that individual messages are invalid
 				// while still allowing other messages in the receipt to be processed.
@@ -817,16 +823,11 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 				// in a strange way in the token contract, the amount out may be greater than the amount sent in
 				// and hence break the invariant testing below.
 
-				msgIsSolvent := amountIn.Cmp(transferOut.amount) > 0
+				// Check if the transfer out is less than or equal to the amount in.
+				// If so, the message is solvent.
+				msgIsSolvent := transferOut.amount.Cmp(amountIn) <= 0
 				if !msgIsSolvent {
 					invErr := ErrInvariantBadBalance
-
-					tv.logger.Debug("Adding problem",
-						zap.Error(invErr),
-						zap.String("msgID", msgID.String()),
-						zap.String("tokenID", transferOut.tokenID),
-						zap.String("amountIn", amountIn.String()),
-						zap.String("amountOut", transferOut.amount.String()))
 
 					receiptSummary.addProblem(invErr, MsgInvariant)
 
@@ -862,6 +863,17 @@ func (receiptSummary *ReceiptSummary) isSolvent() bool {
 	if len(receiptSummary.out) == 0 {
 		return false
 	}
+
+	// Track individual token balances separately from the summary's totals so that we can
+	// safely subtract from the totals while iterating over the outbound transfers.
+
+	// Important: the map is manually deep copied to avoid mutating the summary's `in` map.
+	// the map hold pointers to big.Ints, so we need to make a copy of their values.
+	tokenBalances := make(map[string]*big.Int)
+	for tokenID, amount := range receiptSummary.in {
+		tokenBalances[tokenID] = new(big.Int).Set(amount)
+	}
+
 	for _, transferOut := range receiptSummary.out {
 		if amountIn, exists := receiptSummary.in[transferOut.tokenID]; !exists {
 			// Some outbound asset is not present in the inbound transfers.
@@ -871,6 +883,14 @@ func (receiptSummary *ReceiptSummary) isSolvent() bool {
 			if transferOut.amount.Cmp(amountIn) == 1 {
 				return false
 			}
+			tokenBalances[transferOut.tokenID].Sub(tokenBalances[transferOut.tokenID], transferOut.amount)
+		}
+	}
+
+	for _, adjustedTotal := range tokenBalances {
+		// If any token balance is less than zero, then the entire receipt is insolvent.
+		if adjustedTotal.Cmp(big.NewInt(0)) < 0 {
+			return false
 		}
 	}
 
