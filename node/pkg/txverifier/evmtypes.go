@@ -717,14 +717,15 @@ func (s *ReceiptSummary) InvariantErrors() string {
 	if len(*s.problems) == 0 {
 		return ""
 	}
-	var errs = make([]string, 2)
+	// Preallocate a single value
+	var errs = make([]string, 1)
 	for _, p := range *s.problems {
 		errs = append(errs, p.String())
 	}
 	return strings.Join(errs, "\n")
 }
 
-// isSafe is true if and only if there are no problems in the summary, and the receipt contains at least one message.
+// isSafe is true if and only if there are no Problems in the ReceiptSummary, and the receipt contains at least one message.
 // Note: It is possible for all of the messages in a receipt to be safe, but the receipt itself to be unsafe.
 func (s *ReceiptSummary) isSafe() bool {
 	// If there are no problems, then the receipt is safe. Also check that there are messages in the receipt
@@ -822,7 +823,7 @@ func (s *ReceiptSummary) String() (outStr string) {
 	}
 
 	outStr = fmt.Sprintf(
-		"receipt summary: logsProcessed=%d requestedIn={%s} requestedOut={%v} msgResults={%s}",
+		"receipt summary: logsProcessed=%d collateralIn={%s} requestedOut={%v} msgResults={%s}",
 		len(s.out),
 		ins,
 		outs,
