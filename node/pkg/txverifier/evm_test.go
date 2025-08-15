@@ -465,7 +465,7 @@ func TestValidateReceipt(t *testing.T) {
 	tests := map[string]struct {
 		transferReceipt *TransferReceipt
 		expected        ReceiptSummary
-		shouldError     bool
+		insolventAssets []string
 	}{
 		"safe receipt: amounts match, deposit": {
 			transferReceipt: &TransferReceipt{
@@ -1014,8 +1014,96 @@ func TestValidateReceipt(t *testing.T) {
 					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: {fmt.Sprintf("%s-%s", usdcAddrVAA, "2"), big.NewInt(2)},
 				},
 				msgPubResult: map[msgID]bool{
-					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
-					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
+					// The messages are valid considered on their own, but have been overridden to be invalid by the receipt,
+					// since the movement of assets in the receipt is not solvent.
+					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
+					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
+				},
+				problems: &Problems{
+					// The receipt is insolvent because more was transferred out than was requested in.
+					&ReceiptProblem{
+						violationKind: ReceiptInvariant,
+						err:           *ErrInvariantReceiptInsolvent,
+					},
+					// No message invariants are checked because individually they seem to be valid.
+				},
+			},
+		},
+		"unsafe receipt: two invalid messages mixed in with one valid message": {
+			transferReceipt: &TransferReceipt{
+				Deposits: &[]*NativeDeposit{
+					{
+						TokenAddress: nativeAddrGeth,
+						TokenChain:   NATIVE_CHAIN_ID,
+						Receiver:     tokenBridgeAddr,
+						Amount:       big.NewInt(10),
+					},
+				},
+				Transfers: &[]*ERC20Transfer{
+					{
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						Amount:       big.NewInt(20),
+						OriginAddr:   usdcAddrVAA,
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					// Two USDC transfers out, both look fine individually but exceed the amount in.
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     1,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(20),
+						},
+					},
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     2,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: usdcAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(20),
+						},
+					},
+					// Valid request for WETH.
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						Sequence:     3,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							OriginAddress: nativeAddrVAA,
+							TargetAddress: eoaAddrVAA,
+							TokenChain:    2,
+							Amount:        big.NewInt(10),
+						},
+					},
+				},
+			},
+			expected: ReceiptSummary{
+				in: map[string]*big.Int{
+					fmt.Sprintf("%s-%s", nativeAddrVAA, "2"): big.NewInt(10),
+					fmt.Sprintf("%s-%s", usdcAddrVAA, "2"):   big.NewInt(20),
+				},
+				out: map[msgID]transferOut{
+					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: {fmt.Sprintf("%s-%s", usdcAddrVAA, "2"), big.NewInt(20)},
+					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: {fmt.Sprintf("%s-%s", usdcAddrVAA, "2"), big.NewInt(20)},
+					{Sequence: 3, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: {fmt.Sprintf("%s-%s", nativeAddrVAA, "2"), big.NewInt(10)},
+				},
+				msgPubResult: map[msgID]bool{
+					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
+					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
+					{Sequence: 3, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
 				problems: &Problems{
 					// The receipt is insolvent because more was transferred out than was requested in.
@@ -1159,16 +1247,18 @@ func TestValidateReceipt(t *testing.T) {
 					assert.True(t, receiptInvariantFound, "single message receipts should only give a single receipt invariant")
 				}
 
-				// Mesage invariants are only checked when there are multiple message publications.
+				// Message invariants are only checked when there are multiple message publications.
 				if len(summary.msgPubResult) > 2 {
-					var msgInvariantFound bool
+					var receiptInvariantFound bool
 					for _, problem := range *summary.problems {
 						if problem.violationKind == ReceiptInvariant {
-							msgInvariantFound = true
+							receiptInvariantFound = true
 							break
 						}
 					}
-					assert.True(t, msgInvariantFound, "problems must contain a message invariant if isSafe is false the receipt contains more than one message")
+					assert.True(t, receiptInvariantFound, "problems must contain a message invariant if isSafe is false the receipt contains more than one message")
+					require.NotEmpty(t, summary.insolventAssets(), "insolventAssets must not be empty if there is a receipt invariant violation")
+					require.False(t, summary.allMsgsSafe(), "allMsgsSafe should be false if there is a receipt invariant violation (the code should manually invalidate messages with insolvent assets)")
 				}
 			}
 		})

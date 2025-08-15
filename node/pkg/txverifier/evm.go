@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -773,19 +775,20 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 	// There is one fundamental invariant that must be satisfied for the receipt to be valid:
 	// the sum of the outbound transfers must be at least as much as the sum of the inbound transfers.
 
-	receiptIsSolvent := receiptSummary.isSolvent()
-	if !receiptIsSolvent {
+	insolventAssets := receiptSummary.insolventAssets()
+	if len(insolventAssets) > 0 {
+		tv.logger.Warn("receipt has insolvent assets", zap.Strings("insolventAssets", insolventAssets))
 		receiptSummary.addProblem(
 			ErrInvariantReceiptInsolvent,
 			ReceiptInvariant,
 		)
 	}
 	tv.logger.Debug("receipt summary after solvency check", zap.String("summary", receiptSummary.String()))
-	if len(*receipt.MessagePublications) == 1 {
+	if len(*receipt.MessagePublications) == 1 && len(insolventAssets) > 0 {
 		// Only one message publication exists in the receipt. Check for solvency.
 		// There is only one message publication in the receipt, but we don't have the msgID to do a lookup.
 		for msgID := range receiptSummary.out {
-			receiptSummary.msgPubResult[msgID] = receiptIsSolvent
+			receiptSummary.msgPubResult[msgID] = false
 		}
 	} else {
 		// Multiple message publications exist in the receipt. This is a more complex case and changes the
@@ -844,25 +847,50 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 				receiptSummary.msgPubResult[msgID] = msgIsSolvent
 			}
 		}
+	}
 
+	// Post-processing: if the receipt has insolvent assets, then mark the messages that involve those assets as invalid.
+	// It's possible that the above processing marks individual messages as valid, but the receipt as a whole is not solvent.
+	// To avoid processing these messages individually in the future, we mark them as invalid here.
+	if len(insolventAssets) > 0 {
+		for _, msgPub := range *receipt.MessagePublications {
+			msgID, err := tv.MsgID(msgPub)
+
+			// Parsing error.
+			if err != nil {
+				return nil, err
+			}
+
+			// Explicitly use int representation of the chain ID to avoid it being converted to its chain name
+			// via the String() method.
+			tokenID := fmt.Sprintf("%s-%d", msgPub.OriginAddress(), uint16(msgPub.OriginChain()))
+			tv.logger.Debug("insolvent assets", zap.String("assets", strings.Join(insolventAssets, ",")))
+			tv.logger.Debug("tokenID", zap.String("tokenID", tokenID))
+			if slices.Contains(insolventAssets, tokenID) {
+				tv.logger.Info("marking message as invalid because it assets is insolvent", zap.String("msgID", msgID.String()), zap.String("tokenID", tokenID))
+				receiptSummary.msgPubResult[msgID] = false
+			}
+		}
 	}
 
 	tv.logger.Debug("evaluated receipt safety:",
 		zap.Int("invariantErrors count", len(*receiptSummary.problems)),
 		zap.Bool("allMsgsSafe?", receiptSummary.allMsgsSafe()),
-		zap.Bool("receiptIsSolvent?", receiptIsSolvent),
+		zap.Bool("receiptIsSolvent?", len(insolventAssets) == 0),
 		zap.Bool("receipt isSafe?", receiptSummary.isSafe()),
 	)
 
 	return receiptSummary, nil
 }
 
-// isSolvent() reports whether the sum of the outbound transfers is at least as much as the sum of the inbound transfers.
+// insolventAssets() reports whether the sum of the outbound transfers is at least as much as the sum of the inbound transfers.
 // It is used to examine the solvency of the entire receipt, without considering individual messages.
-func (receiptSummary *ReceiptSummary) isSolvent() bool {
+func (receiptSummary *ReceiptSummary) insolventAssets() []string {
 	if len(receiptSummary.out) == 0 {
-		return false
+		return []string{}
 	}
+
+	var insolventAssets []string
 
 	// Track individual token balances separately from the summary's totals so that we can
 	// safely subtract from the totals while iterating over the outbound transfers.
@@ -877,24 +905,28 @@ func (receiptSummary *ReceiptSummary) isSolvent() bool {
 	for _, transferOut := range receiptSummary.out {
 		if amountIn, exists := receiptSummary.in[transferOut.tokenID]; !exists {
 			// Some outbound asset is not present in the inbound transfers.
-			return false
+			insolventAssets = append(insolventAssets, transferOut.tokenID)
 		} else {
 			// Some asset is insolvent.
 			if transferOut.amount.Cmp(amountIn) == 1 {
-				return false
+				insolventAssets = append(insolventAssets, transferOut.tokenID)
 			}
 			tokenBalances[transferOut.tokenID].Sub(tokenBalances[transferOut.tokenID], transferOut.amount)
 		}
 	}
 
-	for _, adjustedTotal := range tokenBalances {
+	for tokenID, adjustedTotal := range tokenBalances {
 		// If any token balance is less than zero, then the entire receipt is insolvent.
 		if adjustedTotal.Cmp(big.NewInt(0)) < 0 {
-			return false
+			insolventAssets = append(insolventAssets, tokenID)
 		}
 	}
 
-	return true
+	// Remove duplicates.
+	slices.Sort(insolventAssets)
+	insolventAssets = slices.Compact(insolventAssets)
+
+	return insolventAssets
 }
 
 // parseLogMessagePublishedPayload parses the details of a transfer from a
