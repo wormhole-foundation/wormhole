@@ -733,10 +733,9 @@ func (s *ReceiptSummary) isSafe() bool {
 	return len(*s.problems) == 0 && len(s.msgPubResult) > 0
 }
 
-// msgSafe returns true if the message with the given ID is safe and the receipt is safe.
-// It's important to check both as the individual message may be valid even if the receipt is not.
+// msgSafe returns true if the message with the given ID is safe.
 func (s *ReceiptSummary) msgSafe(msgID msgID) bool {
-	return s.msgPubResult[msgID] && s.isSafe()
+	return s.msgPubResult[msgID]
 }
 
 type Problems []*ReceiptProblem
