@@ -174,11 +174,11 @@ func NewConfigFromEnv() Config {
 		SourceChainID:          uint16(getEnvIntOrDefault("SOURCE_CHAIN_ID", 56)), // Aztec
 		DestChainID:            uint16(getEnvIntOrDefault("DEST_CHAIN_ID", 2)),    // Arbitrum
 		AztecPXEURL:            getEnvOrDefault("AZTEC_PXE_URL", "http://localhost:8090"),
-		AztecWalletAddress:     getEnvOrDefault("AZTEC_WALLET_ADDRESS", "0x2dcd8d5c4b3871aed58e131fda974277cda239cb0dbe0772241f22e0dfd6b290"),
+		AztecWalletAddress:     getEnvOrDefault("AZTEC_WALLET_ADDRESS", "0x2408037e05b36a6a35e246edad65443e147a538d15b7386ed68d475b5091ba1b"),
 		ArbitrumRPCURL:         getEnvOrDefault("ARBITRUM_RPC_URL", "http://localhost:8545"),
 		PrivateKey:             getEnvOrDefault("PRIVATE_KEY", "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"),
 		WormholeContract:       getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
-		AztecTargetContract:    getEnvOrDefault("AZTEC_TARGET_CONTRACT", "0x05df722820bcf49e50ad40a6e8697be711bc373ad9f93610f9c7fe7f605571a5"),
+		AztecTargetContract:    getEnvOrDefault("AZTEC_TARGET_CONTRACT", "0x07d0c36d825f49fb36bb285f2d809260d945c171795a4584097a5e17a72f6540"),
 		ArbitrumTargetContract: getEnvOrDefault("ARBITRUM_TARGET_CONTRACT", "0x009cbB8f91d392856Cb880d67c806Aa731E3d686"),
 		EmitterAddress:         getEnvOrDefault("EMITTER_ADDRESS", "0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad"),
 		VerificationServiceURL: getEnvOrDefault("VERIFICATION_SERVICE_URL", "http://localhost:8080"), // ADD

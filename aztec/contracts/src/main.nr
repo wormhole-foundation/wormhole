@@ -57,14 +57,14 @@ aztec-wallet send mint_to_private \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5 \
+    --contract-address 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679 \
     --args accounts:owner-wallet accounts:owner-wallet 10000
 6a. Mint public tokens:
 aztec-wallet send mint_to_public \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5 \
+    --contract-address 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679 \
     --args accounts:owner-wallet 10000
 7. Deploy the Wormhole contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
@@ -73,7 +73,7 @@ aztec-wallet deploy \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --alias wormhole \
     wormhole_contracts-Wormhole.json \
-    --args 56 56 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5 --no-wait --init init*/
+    --args 56 56 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679 --no-wait --init init*/
 
 #[aztec]
 pub contract Wormhole {
@@ -251,7 +251,7 @@ pub contract Wormhole {
             inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2
         };
         let token_address = AztecAddress {
-            inner: 0x2a539f6eded0df7a840311106cbabb691ad04e20756cca212cdb45efe56e3cf5
+            inner: 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679
         };
 
         let _ = Token::at(token_address).transfer_in_private(
@@ -463,7 +463,7 @@ pub contract Wormhole {
                 signature_bytes_array[i as u32] = signature_bytes;
             }
         }
-
+        
         (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len)
     }
 
@@ -496,4 +496,128 @@ pub contract Wormhole {
         assert(verified_count >= required_signatures, "Insufficient valid signatures");
     }
 
+    #[utility]
+    unconstrained fn test_verify_vaa_logic(bytes: [u8; 2000], actual_length: u32) -> bool {
+        // This function replicates the verify_vaa logic but without the private context requirement
+        
+        // Use the same unconstrained verification as verify_vaa does internally
+        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len) = unsafe {
+            verify_vaa_unconstrained(bytes, actual_length)
+        };
+
+        let required_signatures = 1;
+        let mut verified_count = 0;
+
+        // Test the ECDSA verification logic (this is where the SIGABRT might happen)
+        for i in 0..13 {
+            if i < signatures_len {
+                let is_valid = std::ecdsa_secp256k1::verify_signature(
+                    pub_keys_x[i as u32],
+                    pub_keys_y[i as u32],
+                    signature_bytes_array[i as u32],
+                    hash
+                );
+
+                if is_valid {
+                    verified_count += 1;
+                }
+            }
+        }
+
+        verified_count >= required_signatures
+    }
+
+    #[utility]
+    unconstrained fn _experimental_test_verify_vaa_logic(bytes: [u8; 2000], actual_length: u32) -> bool {
+        test_verify_vaa_logic(bytes, actual_length)
+    }
+}
+
+mod tests {
+    use dep::aztec::test::helpers::test_environment::TestEnvironment;
+    use dep::aztec::test::helpers::cheatcodes;
+    use dep::aztec::protocol_types::traits::FromField;
+    use crate::{Wormhole, structs::Signature};
+    use dep::aztec::prelude::AztecAddress;
+
+    #[test]
+    unconstrained fn test_signature_extraction() {
+        let signature_bytes: [u8; 66] = [
+            0x00, // Guardian index
+            // R component (32 bytes) 
+            0x46, 0x82, 0xbc, 0x4d, 0x5f, 0xf2, 0xe5, 0x4d, 0xc2, 0xee, 0x5e, 0x0e, 0xb6, 0x4f, 0x5c, 0x6c,
+            0x07, 0xaa, 0x44, 0x9a, 0xc5, 0x39, 0xab, 0xc6, 0x3c, 0x2b, 0xe5, 0xc3, 0x06, 0xa4, 0x8f, 0x23,
+            // S component (32 bytes)
+            0x3e, 0x93, 0x00, 0x17, 0x0a, 0x82, 0xad, 0xf3, 0xc3, 0xb7, 0xf4, 0x3f, 0x23, 0x17, 0x6f, 0xb0,
+            0x79, 0x17, 0x4a, 0x58, 0xd6, 0x7d, 0x14, 0x24, 0x77, 0xf6, 0x46, 0x67, 0x5d, 0x86, 0xeb, 0x63,
+            // Recovery ID
+            0x01
+        ];
+
+        let sig = Signature::from_bytes(signature_bytes);
+        
+        assert(sig.guardian_index == 0, "Guardian index should be 0");
+        assert(sig.r[0] == 0x46, "R component should start with 0x46");
+        assert(sig.s[0] == 0x3e, "S component should start with 0x3e");
+    }
+
+    #[test]
+    unconstrained fn test_verify_vaa_logic() {
+        // Setup env, generate keys
+        let mut env = TestEnvironment::new();
+
+        cheatcodes::reset(); // Reset TXE state
+        cheatcodes::oracle_reset(); // Reset oracle state
+
+        // Deploy contract - need to specify all 3 parameters for deploy
+        let dummy_owner = AztecAddress::from_field(1);
+        let wormhole_address = AztecAddress::from_field(
+            0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2,
+        );
+        let token_address = AztecAddress::from_field(
+            0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893,
+        );
+
+        let contract_address = env
+            .deploy_self("Wormhole")
+            .with_public_void_initializer(
+                dummy_owner,
+                Wormhole::interface().init(56, 56, wormhole_address, token_address),
+            )
+            .to_address();
+
+        let mut vaa_bytes: [u8; 2000] = [0; 2000];
+        let actual_length = 221;
+
+        // Wh's VAA bytes, fetched from https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc
+        let wh_vaa:[u8; 221] = [
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x46, 0x82, 0xbc, 0x4d, 0x5f, 0xf2, 0xe5,
+            0x4d, 0xc2, 0xee, 0x5e, 0x0e, 0xb6, 0x4f, 0x5c, 0x6c, 0x07, 0xaa, 0x44, 0x9a, 0xc5,
+            0x39, 0xab, 0xc6, 0x3c, 0x2b, 0xe5, 0xc3, 0x06, 0xa4, 0x8f, 0x23, 0x3e, 0x93, 0x00,
+            0x17, 0x0a, 0x82, 0xad, 0xf3, 0xc3, 0xb7, 0xf4, 0x3f, 0x23, 0x17, 0x6f, 0xb0, 0x79,
+            0x17, 0x4a, 0x58, 0xd6, 0x7d, 0x14, 0x24, 0x77, 0xf6, 0x46, 0x67, 0x5d, 0x86, 0xeb,
+            0x63, 0x01, 0x68, 0x4b, 0xfa, 0xd4, 0x49, 0x96, 0x02, 0xd2, 0x27, 0x13, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x69, 0x7f, 0x31, 0xe0,
+            0x74, 0xbf, 0x2c, 0x81, 0x93, 0x91, 0xd5, 0x27, 0x29, 0xf9, 0x55, 0x06, 0xe0, 0xa7,
+            0x2f, 0xfb, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f,
+            0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        ];
+    
+
+        for i in 0..221 {
+            vaa_bytes[i] = wh_vaa[i];
+        }
+
+        // Call the utility function using simulate_utility
+        let result: bool = env.simulate_utility(Wormhole::at(contract_address)
+            ._experimental_test_verify_vaa_logic(vaa_bytes, actual_length));
+
+        assert(result == true, "VAA verification logic should succeed for Wh's VAA");
+    }
 }
