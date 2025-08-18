@@ -19,6 +19,32 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+func TestPendingMessageQueue_Push(t *testing.T) {
+	tests := []struct { // description of this test case
+		name string
+		msg  *common.PendingMessage
+	}{
+		{
+			"push message to queue",
+			makeUniquePendingMessage(t),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			q := common.NewPendingMessageQueue()
+
+			require.Equal(t, 0, q.Len())
+			require.Nil(t, q.Peek())
+
+			// Push a message to the queue
+			q.Push(tt.msg)
+			require.Equal(t, 1, q.Len())
+			require.Equal(t, tt.msg, q.Peek())
+		})
+	}
+}
+
 func TestPendingMessage_RoundTripMarshal(t *testing.T) {
 	orig := makeUniquePendingMessage(t)
 	var loaded common.PendingMessage
@@ -171,7 +197,7 @@ func TestPendingMessage_HeapInvariants(t *testing.T) {
 			}
 			require.Equal(t, len(tt.order), q.Len())
 
-			removed, err := q.RemoveItem(&msg2.Msg)
+			removed, err := q.RemoveItem(msg2.Msg.MessageID())
 			require.NoError(t, err)
 			require.NotNil(t, removed)
 			require.Equal(t, &msg2, removed, "removed message does not match expected message")
@@ -240,7 +266,7 @@ func TestPendingMessageQueue_RemoveItem(t *testing.T) {
 
 			q.Push(&common.PendingMessage{Msg: msgInQueue})
 
-			got, gotErr := q.RemoveItem(tt.target)
+			got, gotErr := q.RemoveItem(tt.target.MessageID())
 			require.NoError(t, gotErr)
 
 			if tt.want != nil {

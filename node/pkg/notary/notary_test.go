@@ -25,8 +25,8 @@ type MockNotaryDB struct{}
 
 func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error  { return nil }
 func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
-func (md MockNotaryDB) DeleteBlackholed(m *common.MessagePublication) error { return nil }
-func (md MockNotaryDB) DeleteDelayed(p *common.PendingMessage) error        { return nil }
+func (md MockNotaryDB) DeleteBlackholed(msgID []byte) error                 { return nil }
+func (md MockNotaryDB) DeleteDelayed(msgID []byte) error                    { return nil }
 func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) { return nil, nil }
 
 func makeTestNotary(t *testing.T) *Notary {
@@ -341,7 +341,7 @@ func TestNotary_Forget(t *testing.T) {
 			require.Equal(t, 0, n.blackholed.Len())
 
 			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
-			n.blackholed.Add(tt.msg.VAAHash())
+			n.blackholed.Add(tt.msg.MessageID())
 
 			require.Equal(t, 1, n.delayed.Len())
 			require.Equal(t, 1, n.blackholed.Len())
@@ -425,6 +425,45 @@ func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
 
 			require.Equal(t, 0, n.delayed.Len())
 			require.Equal(t, 1, n.blackholed.Len())
+		})
+	}
+}
+
+func TestNotary_releaseChangesReleaseTime(t *testing.T) {
+	tests := []struct { // description of this test case
+		name                string
+		msg                 *common.MessagePublication
+		expectedReleaseTime time.Time
+	}{
+		{
+			"release changes release time",
+			makeUniqueMessagePublication(t),
+			time.Now().Add(time.Hour),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.delayed = common.NewPendingMessageQueue()
+			n.blackholed = NewSet()
+
+			require.Equal(t, 0, n.delayed.Len())
+
+			// Delay a message; ensure no messages are ready
+			delayErr := n.delay(tt.msg, time.Hour)
+			require.NoError(t, delayErr)
+			require.Equal(t, 1, n.delayed.Len())
+			require.Empty(t, n.ReleaseReadyMessages())
+			require.Equal(t, 1, n.delayed.Len())
+
+			// Release the message
+			releaseErr := n.release(tt.msg.MessageID())
+			require.NoError(t, releaseErr)
+
+			// Check that a new message is ready
+			require.Len(t, n.ReleaseReadyMessages(), 1)
+			require.Equal(t, 0, n.delayed.Len())
 		})
 	}
 }

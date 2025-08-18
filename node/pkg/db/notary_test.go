@@ -41,6 +41,37 @@ func TestStoreAndReloadData(t *testing.T) {
 	require.Equal(t, &msg2, res.Blackholed[0])
 }
 
+func TestDeleteDelayed(t *testing.T) {
+	// Set-up.
+	dbPath := t.TempDir()
+	database := OpenDb(zap.NewNop(), &dbPath)
+	defer database.Close()
+	defer os.Remove(dbPath)
+	nDB := NotaryDB{db: database.db}
+
+	// Build messages.
+	msg1 := makeNewMsgPub(t)
+	msg2 := *msg1
+	pendingMsg := makeNewPendingMsg(t, msg1)
+
+	// Store messages.
+	delayErr := nDB.StoreDelayed(pendingMsg)
+	require.NoError(t, delayErr, fmt.Sprintf("failed to store delayed message: %v", delayErr))
+	blackholeErr := nDB.StoreBlackholed(&msg2)
+	require.NoError(t, blackholeErr, fmt.Sprintf("failed to store blackholed message: %v", blackholeErr))
+
+	// Delete the delayed message.
+	delErr := nDB.DeleteDelayed(pendingMsg.Msg.MessageID())
+	require.NoError(t, delErr, fmt.Sprintf("failed to delete delayed message: %v", delErr))
+
+	// Ensure that the message is no longer in the delayed list.
+	res, loadErr := nDB.LoadAll(zap.NewNop())
+	require.NoError(t, loadErr)
+	require.Equal(t, 0, len(res.Delayed))
+	require.Equal(t, 1, len(res.Blackholed))
+	require.Equal(t, &msg2, res.Blackholed[0])
+}
+
 func TestKeysForStoredMessagesV1(t *testing.T) {
 	msg1 := makeNewMsgPub(t)
 	pMsg := makeNewPendingMsg(t, msg1)
@@ -48,13 +79,13 @@ func TestKeysForStoredMessagesV1(t *testing.T) {
 	require.Equal(
 		t,
 		[]byte("NOTARY:DELAY:V1:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
-		delayKey(pMsg),
+		delayKey(pMsg.Msg.MessageID()),
 	)
 
 	require.Equal(
 		t,
 		[]byte("NOTARY:BLACKHOLE:V1:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
-		blackholeKey(msg1),
+		blackholeKey(msg1.MessageID()),
 	)
 }
 

@@ -368,6 +368,8 @@ message ReobserveWithEndpointResponse {
   uint32 num_observations = 1;
 }
 
+// Governor messages.
+
 message ChainGovernorStatusRequest {}
 
 message ChainGovernorStatusResponse {
@@ -405,6 +407,42 @@ message ChainGovernorResetReleaseTimerResponse {
   string response = 1;
 }
 
+// Notary messages.
+
+message NotaryBlackholeDelayedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryBlackholeDelayedMessageResponse {
+  string response = 1;
+}
+
+message NotaryReleaseDelayedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryReleaseDelayedMessageResponse {
+  string response = 1;
+}
+
+message NotaryRemoveBlackholedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryRemoveBlackholedMessageResponse {
+  string response = 1;
+}
+
+message NotaryResetReleaseTimerRequest {
+  string vaa_id = 1;
+  uint32 num_days = 2;
+}
+
+message NotaryResetReleaseTimerResponse {
+  string response = 1;
+}
+
+// Pythnet messages.
 message PurgePythNetVaasRequest {
   uint64 days_old = 1;
   bool log_only = 2;
