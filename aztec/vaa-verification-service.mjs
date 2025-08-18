@@ -1,11 +1,11 @@
 // vaa-verification-service.mjs - TESTNET VERSION (FIXED)
 import express from 'express';
-import { createPXEClient, waitForPXE, Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
+import { Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { deriveSigningKey } from '@aztec/stdlib/keys';
-import { GrumpkinScalar } from '@aztec/foundation/fields';
-import { readFileSync } from 'fs';
-import WormholeJson from "./contracts/target/wormhole_contracts-Wormhole.json" assert { type: "json" };
+import { createPXEService, getPXEServiceConfig } from '@aztec/pxe/server';
+import { createStore } from "@aztec/kv-store/lmdb"
+import WormholeJson from "./contracts/target/wormhole_contracts-Wormhole.json" with { type: "json" };
 
 const app = express();
 app.use(express.json());
@@ -13,10 +13,9 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 // TESTNET CONFIGURATION - UPDATED WITH FRESH DEPLOYMENT
-const PXE_URL = 'http://localhost:8080'
 const NODE_URL = 'https://aztec-alpha-testnet-fullnode.zkv.xyz/';
 const PRIVATE_KEY = '0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55'; // owner-wallet secret key
-const CONTRACT_ADDRESS = '0x06b42652260967fcc4a703e24bd2e6bdeff7f39ce797d2d9050b59900ece7995'; // Fresh Wormhole contract
+const CONTRACT_ADDRESS = '0x056caaae572291ef60cfc40f094c0307c776931b3b6fa60d9dc0945435c5bf44'; // Fresh Wormhole contract
 const SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'; // Salt used in deployment
 
 let pxe, nodeClient, wormholeContract, isReady = false;
@@ -35,11 +34,20 @@ async function init() {
   
   try {
     // Create PXE and Node clients
-    pxe = createPXEClient(PXE_URL);
-    await waitForPXE(pxe);
-    
     nodeClient = createAztecNodeClient(NODE_URL);
-    console.log('✅ Connected to Aztec node and PXE');
+    const store = await createStore('pxe', {
+      dataDirectory: 'store',
+      dataStoreMapSizeKB: 1e6,
+    });
+    const config = getPXEServiceConfig();
+
+    const l1Contracts = await nodeClient.getL1ContractAddresses();
+    const configWithContracts = {
+      ...config,
+      l1Contracts,
+    };
+    pxe = await createPXEService(nodeClient, configWithContracts, { store });
+    console.log('✅ Connected PXE to Aztec node and initialized');
     
     // Get contract instance from the node (Alex's simpler approach)
     console.log('🔄 Fetching contract instance from node...');
@@ -111,7 +119,6 @@ async function init() {
     
     isReady = true;
     console.log(`✅ Connected to Wormhole contract on TESTNET: ${CONTRACT_ADDRESS}`);
-    console.log(`✅ PXE URL: ${PXE_URL}`);
     console.log(`✅ Node URL: ${NODE_URL}`);
     
   } catch (error) {
@@ -126,7 +133,6 @@ app.get('/health', (req, res) => {
     status: isReady ? 'healthy' : 'initializing',
     network: 'testnet',
     timestamp: new Date().toISOString(),
-    pxeUrl: PXE_URL,
     nodeUrl: NODE_URL,
     contractAddress: CONTRACT_ADDRESS,
     walletAddress: 'using PXE accounts'
@@ -300,7 +306,6 @@ init().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 VAA Verification Service running on port ${PORT}`);
     console.log(`🌐 Network: TESTNET`);
-    console.log(`📡 PXE: ${PXE_URL}`);
     console.log(`📡 Node: ${NODE_URL}`);
     console.log(`📄 Contract: ${CONTRACT_ADDRESS}`);
     console.log('Available endpoints:');
