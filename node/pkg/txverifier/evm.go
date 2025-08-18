@@ -784,30 +784,25 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 		)
 	}
 	tv.logger.Debug("receipt summary after solvency check", zap.String("summary", receiptSummary.String()))
-	if len(*receipt.MessagePublications) == 1 && len(insolventAssets) > 0 {
+
+	if len(*receipt.MessagePublications) == 1 {
 		// Only one message publication exists in the receipt. Check for solvency.
 		// There is only one message publication in the receipt, but we don't have the msgID to do a lookup.
 		for msgID := range receiptSummary.out {
-			receiptSummary.msgPubResult[msgID] = false
+			receiptSummary.msgPubResult[msgID] = len(insolventAssets) == 0
 		}
 	} else {
 		// Multiple message publications exist in the receipt. This is a more complex case and changes the
 		// invariants that must be satisfied.
 		//
 		// Individual messages can be evaluated independently of each other and the receipt as a whole.
-		// A message is valid if and only if the amount of its outbound asset is less than or equal to the amount
-		// of the corresponding inbound asset.
+		// This allows for a more nuanced evaluation of the validity of the receipt and enables valid messages to be
+		// identified and processed even if the receipt as a whole contains invalid messages.
+		// This prevents a scenario where an attacker could submit a malicious message that would invalidate the entire
+		// receipt.
 		//
-		// Taking all of the above into account, there are two important edge-cases to consider:
-		// - Each individual message might be satisfied by the inbound amount, but the sum of the inbound transfers
-		//   could be less than the sum of the outbound transfers. In this case, the messages ARE valid but the receipt
-		//   is NOT valid. For example, if the inbound sum is 10 tokens and there are two messages each of 10 tokens,
-		//   then each individual message is valid but the receipt is not.
-		// - It must not be possible for an attacker to bundle or front-run transactions such that they issue
-		//   an invalid message that interferes with legitimate messages. For example, a rebasing token might
-		//   break the Token Bridge's invariant. If an attacker initiates a transfer of a rebasing asset along with another user's
-		//   transfer (e.g. in the case of a contract that allows permissionless claims), then the whole receipt
-		//   might be marked as invalid if we're not careful.
+		// A group of messages is valid if and only if the amount of its outbound asset is less than or equal to the amount
+		// of the corresponding inbound asset. If this is not the case, all messages involving the outbound asset are invalid.
 		for msgID, transferOut := range receiptSummary.out {
 			if amountIn, exists := receiptSummary.in[transferOut.tokenID]; !exists {
 				// This is never OK, even in the edge cases documented above.
@@ -903,28 +898,21 @@ func (receiptSummary *ReceiptSummary) insolventAssets() []string {
 	}
 
 	for _, transferOut := range receiptSummary.out {
-		if amountIn, exists := receiptSummary.in[transferOut.tokenID]; !exists {
+		if _, exists := receiptSummary.in[transferOut.tokenID]; !exists {
 			// Some outbound asset is not present in the inbound transfers.
 			insolventAssets = append(insolventAssets, transferOut.tokenID)
 		} else {
-			// Some asset is insolvent.
-			if transferOut.amount.Cmp(amountIn) == 1 {
-				insolventAssets = append(insolventAssets, transferOut.tokenID)
-			}
+			// Subtract the transfer out amount from the total balance.
 			tokenBalances[transferOut.tokenID].Sub(tokenBalances[transferOut.tokenID], transferOut.amount)
 		}
 	}
 
+	// If any token balance is less than zero, then the entire receipt is insolvent.
 	for tokenID, adjustedTotal := range tokenBalances {
-		// If any token balance is less than zero, then the entire receipt is insolvent.
 		if adjustedTotal.Cmp(big.NewInt(0)) < 0 {
 			insolventAssets = append(insolventAssets, tokenID)
 		}
 	}
-
-	// Remove duplicates.
-	slices.Sort(insolventAssets)
-	insolventAssets = slices.Compact(insolventAssets)
 
 	return insolventAssets
 }
