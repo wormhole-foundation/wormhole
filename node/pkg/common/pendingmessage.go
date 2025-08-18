@@ -140,11 +140,17 @@ func NewPendingMessageQueue() *PendingMessageQueue {
 	return q
 }
 
-// Push adds an element to the heap. If msg is nil, nothing is added.
+// Push adds an element to the heap. If the pending message's message ID is invalid, or if it already exists in the queue, nothing is added.
 func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 	// noop if the message is nil or already in the queue.
-	if pMsg == nil || q.ContainsMessagePublication(&pMsg.Msg) {
+	if pMsg == nil {
 		return
+	}
+	if len(pMsg.Msg.MessageID()) < MinMsgIdLen {
+		return
+	}
+	if q.FetchMessagePublication(pMsg.Msg.MessageID()) == nil {
+		heap.Push(&q.heap, pMsg)
 	}
 
 	q.mu.Lock()
@@ -185,10 +191,10 @@ func (q *PendingMessageQueue) Peek() *PendingMessage {
 	return &last
 }
 
-// RemoveItem removes target MessagePublication from the heap. Returns the element that was removed or nil
+// RemoveItem removes target MessagePublication with the message ID from the heap. Returns the element that was removed or nil
 // if the item was not found. No error is returned if the item was not found.
-func (q *PendingMessageQueue) RemoveItem(target *MessagePublication) (*PendingMessage, error) {
-	if target == nil {
+func (q *PendingMessageQueue) RemoveItem(msgID []byte) (*PendingMessage, error) {
+	if msgID == nil {
 		return nil, errors.New("pendingmessage: nil argument for RemoveItem")
 	}
 
@@ -198,7 +204,7 @@ func (q *PendingMessageQueue) RemoveItem(target *MessagePublication) (*PendingMe
 	var removed *PendingMessage
 	for i, item := range q.heap {
 		// Assumption: MsgIDs are unique across MessagePublications.
-		if bytes.Equal(item.Msg.MessageID(), target.MessageID()) {
+		if bytes.Equal(item.Msg.MessageID(), msgID) {
 			pMsg, ok := heap.Remove(&q.heap, i).(*PendingMessage)
 			if !ok {
 				return nil, errors.New("pendingmessage: item removed from heap is not PendingMessage")
@@ -223,17 +229,22 @@ func (q *PendingMessageQueue) Contains(pMsg *PendingMessage) bool {
 	return slices.Contains(q.heap, pMsg)
 }
 
-// ContainsMessagePublication determines whether the queue contains a [MessagePublication] (not a [PendingMessage]).
-func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublication) bool {
-	if msgPub == nil {
-		return false
+// FetchMessagePublication returns a [MessagePublication] with the given ID if it exists in the queue, and nil
+// otherwise.
+func (q *PendingMessageQueue) FetchMessagePublication(msgID []byte) (msgPub *MessagePublication) {
+	if len(msgID) == 0 {
+		return nil
 	}
 
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
 	// Relies on MessageIDString to be unique.
-	return slices.ContainsFunc(q.heap, func(pMsg *PendingMessage) bool {
-		return bytes.Equal(pMsg.Msg.MessageID(), msgPub.MessageID())
-	})
+	for _, pMsg := range q.heap {
+		if bytes.Equal(pMsg.Msg.MessageID(), msgID) {
+			return &pMsg.Msg
+		}
+	}
+
+	return nil
 }
