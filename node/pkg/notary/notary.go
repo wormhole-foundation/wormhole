@@ -52,7 +52,7 @@ type (
 const (
 	Unknown Verdict = iota
 	// Approve means a message should be processed normally. All messages that are not Token Transfers
-	// must always be Approve, as the Notary does not support other messasge types.
+	// must always be Approve, as the Notary does not support other message types.
 	Approve
 	// Approved means a message should be temporarily delayed so that it can be manually inspected.
 	Delay
@@ -79,7 +79,8 @@ const (
 	// How long a message should be held in the pending list before being processed.
 	// The value should be long enough to allow for manual review and classification
 	// by the Guardians.
-	DelayFor = time.Hour * 24 * 4
+	DefaultDelay = time.Hour * 24 * 4
+	MaxDelay     = time.Hour * 24 * 30
 )
 
 var (
@@ -87,11 +88,12 @@ var (
 	ErrAlreadyBlackholed  = errors.New("notary: message is already blackholed")
 	ErrCannotRelease      = errors.New("notary: could not release message")
 	ErrInvalidMsg         = errors.New("notary: message is invalid")
+	ErrMsgNotFound        = errors.New("notary: message not found")
 )
 
 type (
 	// A set corresponding to message publications. The elements of the set must be the results of
-	// the function [common.MessagePublication.VAAHashUnchecked].
+	// the function [common.MessagePublication.MessageIDString()].
 	msgPubSet struct {
 		elements map[string]struct{}
 	}
@@ -152,7 +154,7 @@ func (n *Notary) Run() error {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
-	// NOTE: Only token transfers originated on Ethereum are currently supported.
+	// NOTE: Only token transfers that originated on Ethereum are currently supported.
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
@@ -182,7 +184,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	// Return early if the message has already been blackholed. This is important in case a message
 	// is reobserved or otherwise processed here more than once. An Anomalous message that becomes
 	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
-	if n.blackholed.Contains(msg.VAAHash()) {
+	if n.blackholed.Contains(msg.MessageID()) {
 		n.logger.Warn("notary: got message publication that is already blackholed",
 			msg.ZapFields(zap.String("verdict", v.String()))...,
 		)
@@ -191,7 +193,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 
 	switch msg.VerificationState() {
 	case common.Anomalous:
-		err = n.delay(msg, DelayFor)
+		err = n.delay(msg, DefaultDelay)
 		v = Delay
 	case common.Rejected:
 		err = n.blackhole(msg)
@@ -247,7 +249,7 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 
 		// Update database. Do this before adding the message to the ready list so that we don't
 		// accidentally add the same message twice if deleting the message from the database fails.
-		err := n.database.DeleteDelayed(pMsg)
+		err := n.database.DeleteDelayed(pMsg.Msg.MessageID())
 		if err != nil {
 			n.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
 			continue
@@ -279,7 +281,7 @@ func (n *Notary) delay(msg *common.MessagePublication, dur time.Duration) error 
 	defer n.mutex.Unlock()
 
 	// Ensure that the message can't be added to the delayed list or database if it's already blackholed.
-	if n.blackholed.Contains(msg.VAAHash()) {
+	if n.blackholed.Contains(msg.MessageID()) {
 		return ErrAlreadyBlackholed
 	}
 
@@ -318,7 +320,7 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.mutex.Lock()
 
 	// Store in in-memory slice. This should happen even if a database error occurs.
-	n.blackholed.Add(msg.VAAHash())
+	n.blackholed.Add(msg.MessageID())
 
 	// Store in database.
 	dbErr := n.database.StoreBlackholed(msg)
@@ -329,7 +331,7 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	n.mutex.Unlock()
 
 	// When a message is blackholed, it should be removed from the delayed list and database.
-	err := n.removeDelayed(msg)
+	err := n.removeDelayed(msg.MessageID())
 	if err != nil {
 		return err
 	}
@@ -345,12 +347,12 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 		return ErrInvalidMsg
 	}
 
-	err := n.removeDelayed(msg)
+	err := n.removeDelayed(msg.MessageID())
 	if err != nil {
 		return err
 	}
 
-	err = n.removeBlackholed(msg)
+	err = n.removeBlackholed(msg.MessageID())
 	if err != nil {
 		return err
 	}
@@ -362,25 +364,25 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 func (n *Notary) IsBlackholed(msg *common.MessagePublication) bool {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
-	return n.blackholed.Contains(msg.VAAHash())
+	return n.blackholed.Contains(msg.MessageID())
 }
 
 // removeBlackholed removes a message from the blackholed list and database.
-func (n *Notary) removeBlackholed(msg *common.MessagePublication) error {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
-	if msg == nil {
+func (n *Notary) removeBlackholed(msgID []byte) error {
+	if len(msgID) == 0 {
 		return ErrInvalidMsg
 	}
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
 
-	n.blackholed.Remove(msg.VAAHash())
+	n.blackholed.Remove(msgID)
 
-	err := n.database.DeleteBlackholed(msg)
+	err := n.database.DeleteBlackholed(msgID)
 	if err != nil {
 		return err
 	}
 
-	n.logger.Info("notary: removed blackholed message", msg.ZapFields()...)
+	n.logger.Info("notary: removed blackholed message", zap.String("msgID", string(msgID)))
 
 	return nil
 }
@@ -389,23 +391,61 @@ func (n *Notary) removeBlackholed(msg *common.MessagePublication) error {
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
-	return n.delayed.ContainsMessagePublication(msg)
+	return n.delayed.FetchMessagePublication(msg.MessageID()) != nil
+}
+
+// release sets the duration of an existing delayed message to zero so that it will be published on the next cycle.
+func (n *Notary) release(msgID []byte) error {
+	if len(msgID) == 0 {
+		return ErrInvalidMsg
+	}
+	return n.setDuration(msgID, time.Duration(0))
+}
+
+// setDuration sets the duration of an existing delayed message to a new value.
+func (n *Notary) setDuration(msgID []byte, duration time.Duration) error {
+	if len(msgID) == 0 {
+		return ErrInvalidMsg
+	}
+
+	n.mutex.Lock()
+	msgPub := n.delayed.FetchMessagePublication(msgID)
+	n.mutex.Unlock()
+
+	if msgPub == nil {
+		return ErrMsgNotFound
+	}
+
+	// Remove existing message from the delayed list and database.
+	removeErr := n.removeDelayed(msgID)
+	if removeErr != nil {
+		return removeErr
+	}
+
+	// Add message to the delayed list and database with the new duration.
+	delayErr := n.delay(msgPub, duration)
+	if delayErr != nil {
+		return delayErr
+	}
+	return nil
 }
 
 // removeDelayed removes a message from the delayed list and database.
-func (n *Notary) removeDelayed(msg *common.MessagePublication) error {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
-	if msg == nil {
+func (n *Notary) removeDelayed(msgID []byte) error {
+	if len(msgID) == 0 {
 		return ErrInvalidMsg
 	}
-	removed, err := n.delayed.RemoveItem(msg)
+
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	removed, err := n.delayed.RemoveItem(msgID)
 	if err != nil {
 		return err
 	}
 
 	if removed != nil {
-		err := n.database.DeleteDelayed(removed)
+		err := n.database.DeleteDelayed(removed.Msg.MessageID())
 		if err != nil {
 			return err
 		}
@@ -457,7 +497,7 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 
 	if len(result.Blackholed) > 0 {
 		for result := range slices.Values(result.Blackholed) {
-			blackholed.Add(result.VAAHash())
+			blackholed.Add(result.MessageID())
 		}
 	}
 
@@ -474,6 +514,7 @@ func (n *Notary) loadFromDB(logger *zap.Logger) error {
 
 // NewSet creates and initializes a new Set
 func NewSet() *msgPubSet {
+	// Keys are the message IDs, which are strings as []byte is not a valid type for a map key.
 	return &msgPubSet{
 		elements: make(map[string]struct{}),
 	}
@@ -484,26 +525,26 @@ func (s *msgPubSet) Len() int {
 }
 
 // Add adds an element to the set
-func (s *msgPubSet) Add(element string) {
+func (s *msgPubSet) Add(element []byte) {
 	if s == nil {
 		return // Protect against nil receiver
 	}
-	s.elements[element] = struct{}{}
+	s.elements[string(element)] = struct{}{}
 }
 
 // Contains checks if an element is in the set
-func (s *msgPubSet) Contains(element string) bool {
+func (s *msgPubSet) Contains(element []byte) bool {
 	if s == nil {
 		return false // Protect against nil receiver
 	}
-	_, exists := s.elements[element]
+	_, exists := s.elements[string(element)]
 	return exists
 }
 
 // Remove removes an element from the set
-func (s *msgPubSet) Remove(element string) {
+func (s *msgPubSet) Remove(element []byte) {
 	if s == nil {
 		return // Protect against nil receiver
 	}
-	delete(s.elements, element)
+	delete(s.elements, string(element))
 }
