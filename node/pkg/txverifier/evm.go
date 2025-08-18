@@ -105,7 +105,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 			return true, nil
 		}
 
-		//  Return true if the message is safe. (This function also checks that the receipt is safe.)
+		//  Return true if the message is safe.
 		return receiptEvaluation.ReceiptSummary.msgSafe(msgID), nil
 	}
 
