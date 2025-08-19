@@ -502,7 +502,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"safe receipt: amounts match, transfer": {
@@ -543,7 +542,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"safe receipt: amount in is greater than amount out, deposit": {
@@ -582,7 +580,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"safe receipt: amount in is greater than amount out, transfer": {
@@ -622,7 +619,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"safe receipt: two deposits": {
@@ -670,7 +666,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"safe receipt: two transfers": {
@@ -723,7 +718,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"safe receipt: two separate assets, one deposit and one transfer": {
@@ -789,7 +783,6 @@ func TestValidateReceipt(t *testing.T) {
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{},
 			},
 		},
 		"unsafe receipt: amount in too low, deposit": {
@@ -827,12 +820,6 @@ func TestValidateReceipt(t *testing.T) {
 				},
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
-				},
-				problems: &Problems{
-					&ReceiptProblem{
-						violationKind: ReceiptInvariant,
-						err:           *ErrInvariantReceiptInsolvent,
-					},
 				},
 			},
 		},
@@ -874,12 +861,6 @@ func TestValidateReceipt(t *testing.T) {
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
 				},
-				problems: &Problems{
-					&ReceiptProblem{
-						violationKind: ReceiptInvariant,
-						err:           *ErrInvariantReceiptInsolvent,
-					},
-				},
 			},
 		},
 		"unsafe receipt: transfer out after transferring a different token": {
@@ -920,13 +901,6 @@ func TestValidateReceipt(t *testing.T) {
 				},
 				msgPubResult: map[msgID]bool{
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
-				},
-				problems: &Problems{
-					&ReceiptProblem{
-						violationKind: ReceiptInvariant,
-						// A receipt error is expected here. Message invariants are checked only when there are multiple message publications.
-						err: *ErrInvariantReceiptInsolvent,
-					},
 				},
 			},
 		},
@@ -1019,14 +993,6 @@ func TestValidateReceipt(t *testing.T) {
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
 					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
 				},
-				problems: &Problems{
-					// The receipt is insolvent because more was transferred out than was requested in.
-					&ReceiptProblem{
-						violationKind: ReceiptInvariant,
-						err:           *ErrInvariantReceiptInsolvent,
-					},
-					// No message invariants are checked because individually they seem to be valid.
-				},
 			},
 		},
 		"unsafe receipt: two invalid messages mixed in with one valid message": {
@@ -1105,14 +1071,6 @@ func TestValidateReceipt(t *testing.T) {
 					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
 					{Sequence: 3, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{
-					// The receipt is insolvent because more was transferred out than was requested in.
-					&ReceiptProblem{
-						violationKind: ReceiptInvariant,
-						err:           *ErrInvariantReceiptInsolvent,
-					},
-					// No message invariants are checked because individually they seem to be valid.
-				},
 			},
 		},
 		"unsafe receipt: one valid message, one invalid message": {
@@ -1170,18 +1128,6 @@ func TestValidateReceipt(t *testing.T) {
 					{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: false,
 					{Sequence: 2, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: VAAAddrFrom(tokenBridgeAddr)}: true,
 				},
-				problems: &Problems{
-					// WETH (native) is missing collateral
-					&ReceiptProblem{
-						violationKind: MsgInvariant,
-						err:           *ErrInvariantMissingCollateral,
-					},
-					// The receipt is insolvent because more was transferred out than was requested in for WETH.
-					&ReceiptProblem{
-						violationKind: ReceiptInvariant,
-						err:           *ErrInvariantReceiptInsolvent,
-					},
-				},
 			},
 		},
 	}
@@ -1193,7 +1139,7 @@ func TestValidateReceipt(t *testing.T) {
 
 			// Only occurs if the receipt could not be parsed.
 			if err != nil {
-				assert.Nil(t, summary, "summary must be nil when a non-invariant error is returned")
+				assert.Nil(t, summary, "summary must be nil when an error is returned")
 				return
 			}
 
@@ -1203,63 +1149,31 @@ func TestValidateReceipt(t *testing.T) {
 			require.Equal(t, len(test.expected.out), len(summary.out), "out map should have the same number of entries as expected")
 			require.Equal(t, len(test.expected.msgPubResult), len(summary.msgPubResult), "msgPubResult map should have the same number of entries as expected")
 
+			// Compare the number of valid and invalid messages.
+			var (
+				expectedValidCount   = 0
+				expectedInvalidCount = 0
+				invalidCount         = summary.invalidMessageCount()
+				validCount           = len(summary.msgPubResult) - invalidCount
+			)
+			for _, valid := range test.expected.msgPubResult {
+				if valid {
+					expectedValidCount++
+				} else {
+					expectedInvalidCount++
+				}
+			}
+			require.Equal(t, expectedValidCount, validCount, "valid message count should match expected")
+			require.Equal(t, expectedInvalidCount, invalidCount, "invalid message count should match expected")
+
 			if summary.isSafe() {
 				// If the receipt is safe, allMsgsSafe should be true.
 				// (Note: the inverse is not true, because a receipt can be unsafe but all messages are safe.)
 				assert.True(t, summary.allMsgsSafe(), "allMsgsSafe should be true if and only if isSafe is true")
-				require.Empty(t, summary.problems, "problems should be empty if isSafe is true")
 			} else {
-				// Assert an invariant error exists.
-				assert.Equal(t, len(*test.expected.problems), len(*summary.problems),
-					fmt.Sprintf(
-						"summary should have the same number of problems as expected, got: %s summary: %v",
-						summary.InvariantErrors(),
-						summary,
-					),
-				)
-				require.NotEmpty(t, summary.problems, "problems must not be empty if isSafe is false")
-				require.NotEmpty(t, test.expected.problems, "bad test: expected problems must not be empty for unsafe receipts")
-
-				if summary.allMsgsSafe() {
-					var receiptInvariantFound bool
-					for _, problem := range *summary.problems {
-						if problem.violationKind == ReceiptInvariant {
-							receiptInvariantFound = true
-							break
-						}
-					}
-					assert.True(t, receiptInvariantFound, "problems must contain a receipt invariant if isSafe is false and allMsgsSafe is true")
-				}
-
-				// Bad receipts with a single message publication should only give a receipt invariant.
-				if len(summary.msgPubResult) == 1 {
-					// Check for a single problem.
-					require.Equal(t, len(*summary.problems), 1, "single message receipts should only give a single receipt invariant")
-
-					// Ensure that the problem is a receipt invariant.
-					var receiptInvariantFound bool
-					for _, problem := range *summary.problems {
-						if problem.violationKind == ReceiptInvariant {
-							receiptInvariantFound = true
-							break
-						}
-					}
-					assert.True(t, receiptInvariantFound, "single message receipts should only give a single receipt invariant")
-				}
-
-				// Message invariants are only checked when there are multiple message publications.
-				if len(summary.msgPubResult) > 2 {
-					var receiptInvariantFound bool
-					for _, problem := range *summary.problems {
-						if problem.violationKind == ReceiptInvariant {
-							receiptInvariantFound = true
-							break
-						}
-					}
-					assert.True(t, receiptInvariantFound, "problems must contain a message invariant if isSafe is false the receipt contains more than one message")
-					require.NotEmpty(t, summary.insolventAssets(), "insolventAssets must not be empty if there is a receipt invariant violation")
-					require.False(t, summary.allMsgsSafe(), "allMsgsSafe should be false if there is a receipt invariant violation (the code should manually invalidate messages with insolvent assets)")
-				}
+				assert.False(t, summary.allMsgsSafe(), "allMsgsSafe should be true if and only if isSafe is true")
+				require.NotEmpty(t, summary.insolventAssets(), "insolventAssets must not be empty if there is a receipt invariant violation")
+				require.False(t, summary.allMsgsSafe(), "allMsgsSafe should be false if there is a receipt invariant violation (the code should manually invalidate messages with insolvent assets)")
 			}
 		})
 	}

@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"math/big"
 	"time"
@@ -137,6 +136,7 @@ func (tv *TransferVerifier[ethClient, Connector]) MsgID(log *LogMessagePublished
 }
 
 // receiptEvaluation contains the result of verifying all LogMessagePublished events in a single transaction receipt.
+// It wraps the ReceiptSummary and also includes the block number at which the receipt was processed.
 type receiptEvaluation struct {
 	ReceiptSummary
 	blockNumber uint64
@@ -690,20 +690,9 @@ type ReceiptSummary struct {
 	// Whether the transfer verifier determined a message to be safe or not.
 	// The key is the message ID [msgID] for the LogMessagePublished event.
 	msgPubResult map[msgID]bool
-	// If invariant errors occurred, they are stored here.
-	problems *Problems
 }
 
-func (s *ReceiptSummary) addProblem(invErr *InvariantError, kind InvariantViolationKind) {
-	if invErr == nil {
-		return
-	}
-	if s.problems == nil {
-		s.problems = &Problems{}
-	}
-	s.problems.add(invErr, kind)
-}
-
+// allMsgsSafe returns true if all messages in the receipt are safe.
 func (s *ReceiptSummary) allMsgsSafe() bool {
 	for _, isValid := range s.msgPubResult {
 		if !isValid {
@@ -713,16 +702,14 @@ func (s *ReceiptSummary) allMsgsSafe() bool {
 	return true
 }
 
-func (s *ReceiptSummary) InvariantErrors() string {
-	if len(*s.problems) == 0 {
-		return ""
+func (s *ReceiptSummary) invalidMessageCount() int {
+	count := 0
+	for _, isValid := range s.msgPubResult {
+		if !isValid {
+			count++
+		}
 	}
-	// Preallocate a single value
-	var errs = make([]string, 1)
-	for _, p := range *s.problems {
-		errs = append(errs, p.String())
-	}
-	return strings.Join(errs, "\n")
+	return count
 }
 
 // isSafe is true if and only if there are no Problems in the ReceiptSummary, and the receipt contains at least one message.
@@ -730,51 +717,13 @@ func (s *ReceiptSummary) InvariantErrors() string {
 func (s *ReceiptSummary) isSafe() bool {
 	// If there are no problems, then the receipt is safe. Also check that there are messages in the receipt
 	// to avoid this method trivially returning true when the struct is empty.
-	return len(*s.problems) == 0 && len(s.msgPubResult) > 0
+	return len(s.msgPubResult) > 0 && s.allMsgsSafe()
 }
 
-// msgSafe returns true if the message with the given ID is safe.
-func (s *ReceiptSummary) msgSafe(msgID msgID) bool {
+// isMsgSafe returns true if the message with the given ID is safe.
+func (s *ReceiptSummary) isMsgSafe(msgID msgID) bool {
 	return s.msgPubResult[msgID]
 }
-
-type Problems []*ReceiptProblem
-
-func (p *Problems) add(invErr *InvariantError, kind InvariantViolationKind) {
-	if invErr == nil {
-		return
-	}
-	*p = append(*p, &ReceiptProblem{
-		violationKind: kind,
-		err:           *invErr,
-	})
-}
-
-type ReceiptProblem struct {
-	violationKind InvariantViolationKind
-	err           InvariantError
-}
-
-func (p *ReceiptProblem) String() string {
-	var kindStr string
-	switch p.violationKind {
-	case ReceiptInvariant:
-		kindStr = "receipt"
-	case MsgInvariant:
-		kindStr = "message"
-	}
-	return fmt.Sprintf("invariant violation: kind=%s details=%s", kindStr, p.err.Msg)
-}
-
-type InvariantViolationKind int
-
-const (
-	// ReceiptInvariant is the type of invariant violation that occurs when a receipt is deemed unsafe.
-	// Occurs if the receipt is not solvent.
-	ReceiptInvariant InvariantViolationKind = 1
-	// MsgInvariant is the type of invariant violation that occurs when an individual message is deemed unsafe.
-	MsgInvariant InvariantViolationKind = 2
-)
 
 // Custom error type used to signal that a core invariant of the token bridge has been violated.
 type InvariantError struct {
@@ -800,7 +749,6 @@ func NewReceiptSummary() *ReceiptSummary {
 		// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
 		out:          make(map[msgID]transferOut),
 		msgPubResult: make(map[msgID]bool),
-		problems:     &Problems{},
 	}
 }
 

@@ -106,7 +106,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		}
 
 		//  Return true if the message is safe.
-		return receiptEvaluation.ReceiptSummary.msgSafe(msgID), nil
+		return receiptEvaluation.ReceiptSummary.isMsgSafe(msgID), nil
 	}
 
 	// Get the full transaction receipt for this txHash if it was not provided as an argument.
@@ -175,7 +175,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 
 	if !summary.isSafe() {
 		// This represents an invariant violation, either in the receipt as a whole or in a single message.
-		tv.logger.Error(summary.InvariantErrors())
+		tv.logger.Error("receipt is not solvent", zap.String("txHash", txHash.String()), zap.Int("invalidMsgCount", summary.invalidMessageCount()), zap.String("insolventAssets", strings.Join(summary.insolventAssets(), ",")))
 	}
 
 	// Cache receipt/message validations results (except for parsing errors, as they may be transient).
@@ -188,7 +188,7 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Get the result of the message's validation.
-	msgSafe := summary.msgSafe(msgID)
+	msgSafe := summary.isMsgSafe(msgID)
 	tv.logger.Debug("msgIsValid results", zap.String("msg", msgID.String()), zap.Bool("msgSafe", msgSafe))
 
 	return msgSafe, nil
@@ -778,10 +778,6 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 	insolventAssets := receiptSummary.insolventAssets()
 	if len(insolventAssets) > 0 {
 		tv.logger.Warn("receipt has insolvent assets", zap.Strings("insolventAssets", insolventAssets))
-		receiptSummary.addProblem(
-			ErrInvariantReceiptInsolvent,
-			ReceiptInvariant,
-		)
 	}
 	tv.logger.Debug("receipt summary after solvency check", zap.String("summary", receiptSummary.String()))
 
@@ -807,7 +803,6 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			if amountIn, exists := receiptSummary.in[transferOut.tokenID]; !exists {
 				// This is never OK, even in the edge cases documented above.
 				receiptSummary.msgPubResult[msgID] = false
-				receiptSummary.addProblem(ErrInvariantMissingCollateral, MsgInvariant)
 			} else {
 				tv.logger.Debug("got amountIn", zap.String("tokenID", transferOut.tokenID), zap.String("amount", amountIn.String()))
 				tv.logger.Debug(fmt.Sprintf("receiptSummary.in: %v", receiptSummary.in))
@@ -826,8 +821,6 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 				msgIsSolvent := transferOut.amount.Cmp(amountIn) <= 0
 				if !msgIsSolvent {
 					invErr := ErrInvariantBadBalance
-
-					receiptSummary.addProblem(invErr, MsgInvariant)
 
 					tv.logger.Warn(
 						invErr.Error(),
@@ -862,15 +855,14 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			tv.logger.Debug("insolvent assets", zap.String("assets", strings.Join(insolventAssets, ",")))
 			tv.logger.Debug("tokenID", zap.String("tokenID", tokenID))
 			if slices.Contains(insolventAssets, tokenID) {
-				tv.logger.Info("marking message as invalid because it assets is insolvent", zap.String("msgID", msgID.String()), zap.String("tokenID", tokenID))
+				tv.logger.Info("marking message as invalid because it contains an insolvent asset", zap.String("msgID", msgID.String()), zap.String("tokenID", tokenID))
 				receiptSummary.msgPubResult[msgID] = false
 			}
 		}
 	}
 
 	tv.logger.Debug("evaluated receipt safety:",
-		zap.Int("invariantErrors count", len(*receiptSummary.problems)),
-		zap.Bool("allMsgsSafe?", receiptSummary.allMsgsSafe()),
+		zap.Int("invalidMessageCount", receiptSummary.invalidMessageCount()),
 		zap.Bool("receiptIsSolvent?", len(insolventAssets) == 0),
 		zap.Bool("receipt isSafe?", receiptSummary.isSafe()),
 	)
