@@ -215,6 +215,12 @@ var (
 	xrplEvmRPC      *string
 	xrplEvmContract *string
 
+	plasmaRPC      *string
+	plasmaContract *string
+
+	creditCoinRPC      *string
+	creditCoinContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -457,6 +463,12 @@ func init() {
 
 	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xrplEvmContract = NodeCmd.Flags().String("xrplEvmContract", "", "XRPLEVM contract address")
+
+	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "PlasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	plasmaContract = NodeCmd.Flags().String("plasmaContract", "", "Plasma contract address")
+
+	creditCoinRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "CreditCoinRPC", "CREDITCOIN RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	creditCoinContract = NodeCmd.Flags().String("creditCoinContract", "", "CreditCoin contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -854,6 +866,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	*convergeContract = checkEvmArgs(logger, *convergeRPC, *convergeContract, vaa.ChainIDConverge)
 	*plumeContract = checkEvmArgs(logger, *plumeRPC, *plumeContract, vaa.ChainIDPlume)
 	*xrplEvmContract = checkEvmArgs(logger, *xrplEvmRPC, *xrplEvmContract, vaa.ChainIDXRPLEVM)
+	*plasmaContract = checkEvmArgs(logger, *plasmaRPC, *plasmaContract, vaa.ChainIDPlasma)
+	*creditCoinContract = checkEvmArgs(logger, *creditCoinRPC, *creditCoinContract, vaa.ChainIDCreditCoin)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1029,6 +1043,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["mezoRPC"] = *mezoRPC
 	rpcMap["convergeRPC"] = *convergeRPC
 	rpcMap["plumeRPC"] = *plumeRPC
+	rpcMap["xrplevmRPC"] = *xrplEvmRPC
+	rpcMap["plasmaRPC"] = *plasmaRPC
+	rpcMap["creditcoinRPC"] = *creditCoinRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1546,6 +1563,28 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDXRPLEVM,
 			Rpc:              *xrplEvmRPC,
 			Contract:         *xrplEvmContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(plasmaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "plasma",
+			ChainID:          vaa.ChainIDPlasma,
+			Rpc:              *plasmaRPC,
+			Contract:         *plasmaContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(creditCoinRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "creditcoin",
+			ChainID:          vaa.ChainIDCreditCoin,
+			Rpc:              *creditCoinRPC,
+			Contract:         *creditCoinContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
