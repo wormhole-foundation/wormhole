@@ -6,6 +6,7 @@ import { deriveSigningKey } from '@aztec/stdlib/keys';
 import { createPXEService, getPXEServiceConfig } from '@aztec/pxe/server';
 import { createStore } from "@aztec/kv-store/lmdb"
 import WormholeJson from "./contracts/target/wormhole_contracts-Wormhole.json" with { type: "json" };
+import { ProxyLogger, captureProfile } from './utils.mjs';
 
 const app = express();
 app.use(express.json());
@@ -15,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 // TESTNET CONFIGURATION - UPDATED WITH FRESH DEPLOYMENT
 const NODE_URL = 'https://aztec-alpha-testnet-fullnode.zkv.xyz/';
 const PRIVATE_KEY = '0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55'; // owner-wallet secret key
-const CONTRACT_ADDRESS = '0x056caaae572291ef60cfc40f094c0307c776931b3b6fa60d9dc0945435c5bf44'; // Fresh Wormhole contract
+const CONTRACT_ADDRESS = '0x165a7b53077842115b49d379e6f0d8b6a9e483cf0fbd6a8421edd57a7be05cfa'; // Fresh Wormhole contract
 const SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'; // Salt used in deployment
 
 let pxe, nodeClient, wormholeContract, isReady = false;
@@ -46,7 +47,14 @@ async function init() {
       ...config,
       l1Contracts,
     };
-    pxe = await createPXEService(nodeClient, configWithContracts, { store });
+    ProxyLogger.create();
+    const proxyLogger = ProxyLogger.getInstance();
+    pxe = await createPXEService(nodeClient, configWithContracts, { 
+      store,  
+      loggers: {
+        prover: proxyLogger.createLogger('pxe:bb:wasm:bundle:proxied'),
+      } 
+    });
     console.log('✅ Connected PXE to Aztec node and initialized');
     
     // Get contract instance from the node (Alex's simpler approach)
@@ -274,10 +282,15 @@ app.post('/test', async (req, res) => {
   
   // Call verify_vaa function with padded bytes and actual length
   console.log('🔄 Calling contract method verify_vaa with PADDED data...');
-  const tx = await wormholeContract.methods
-    .verify_vaa(vaaArray, actualLength)
-    .send()
-    .wait();
+  const interaction = await wormholeContract.methods
+      .verify_vaa(vaaArray, actualLength);
+
+  console.log('🔄 Capturing interaction profile...');
+
+  await captureProfile('verify_vaa', interaction);
+
+  console.log('🔄 Sending transaction...');
+  await interaction.send().wait();
   
   console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
   

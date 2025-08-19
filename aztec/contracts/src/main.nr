@@ -405,7 +405,7 @@ pub contract Wormhole {
         WormholeStorage::get_provider(storage.state.read())
     }
 
-    #[utility]
+    #[contract_library_method]
     unconstrained fn verify_vaa_unconstrained(
         bytes: [u8; 2000],
         actual_length: u32,
@@ -497,44 +497,6 @@ pub contract Wormhole {
 
         assert(verified_count >= required_signatures, "Insufficient valid signatures");
     }
-
-    #[utility]
-    unconstrained fn test_verify_vaa_logic(bytes: [u8; 2000], actual_length: u32) -> bool {
-        // This function replicates the verify_vaa logic but without the private context requirement
-
-        // Use the same unconstrained verification as verify_vaa does internally
-        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len) =
-            unsafe { verify_vaa_unconstrained(bytes, actual_length) };
-
-        let required_signatures = 1;
-        let mut verified_count = 0;
-
-        // Test the ECDSA verification logic (this is where the SIGABRT might happen)
-        for i in 0..13 {
-            if i < signatures_len {
-                let is_valid = std::ecdsa_secp256k1::verify_signature(
-                    pub_keys_x[i as u32],
-                    pub_keys_y[i as u32],
-                    signature_bytes_array[i as u32],
-                    hash,
-                );
-
-                if is_valid {
-                    verified_count += 1;
-                }
-            }
-        }
-
-        verified_count >= required_signatures
-    }
-
-    #[utility]
-    unconstrained fn _experimental_test_verify_vaa_logic(
-        bytes: [u8; 2000],
-        actual_length: u32,
-    ) -> bool {
-        test_verify_vaa_logic(bytes, actual_length)
-    }
 }
 
 mod tests {
@@ -573,7 +535,6 @@ mod tests {
         let mut env = TestEnvironment::new();
 
         cheatcodes::reset(); // Reset TXE state
-        cheatcodes::oracle_reset(); // Reset oracle state
 
         // Deploy contract - need to specify all 3 parameters for deploy
         let dummy_owner = AztecAddress::from_field(1);
@@ -619,10 +580,9 @@ mod tests {
             vaa_bytes[i] = wh_vaa[i];
         }
 
-        // Call the utility function using simulate_utility
-        let result: bool = env.simulate_utility(Wormhole::at(contract_address)
-            ._experimental_test_verify_vaa_logic(vaa_bytes, actual_length));
-
-        assert(result == true, "VAA verification logic should succeed for Wh's VAA");
+        let _ = env.call_private_void(
+            dummy_owner,
+            Wormhole::at(contract_address).verify_vaa(vaa_bytes, actual_length),
+        );
     }
 }
