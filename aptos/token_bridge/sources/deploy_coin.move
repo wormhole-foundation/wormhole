@@ -1,7 +1,7 @@
 // This module is for dynamically deploying a module/CoinType on-chain,
 // as opposed to submitting a tx from off-chain to publish a module containing the CoinType.
 //
-// Specifically, we wish to dynamically deploy the the following module
+// Specifically, we wish to dynamically deploy the following module
 //
 // module deployer::coin {
 //      struct T has key {}

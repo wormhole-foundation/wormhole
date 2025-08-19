@@ -1291,7 +1291,7 @@ fn handle_initiate_transfer_token(
             // ongoing transfer in progress here, otherwise we would override
             // its state.  This could happen if the asset's TransferFrom handler
             // sends us an InitiateTransfer message, which would be executed
-            // before the reply handler due the the depth-first semantics of
+            // before the reply handler due the depth-first semantics of
             // message execution.  A simple protection mechanism is to require
             // that there's no execution in progress. The reply handler takes
             // care of clearing out this temporary storage when done.

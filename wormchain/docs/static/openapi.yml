@@ -12375,7 +12375,7 @@ paths:
                     bonded shares
 
                     multiplied by exchange rate.
-                description: validators defines the the validators' info of a delegator.
+                description: validators defines the validators' info of a delegator.
               pagination:
                 type: object
                 properties:
@@ -43408,7 +43408,7 @@ definitions:
             exchange rate. Voting power can be calculated as total bonded shares
 
             multiplied by exchange rate.
-        description: validators defines the the validators' info of a delegator.
+        description: validators defines the validators' info of a delegator.
       pagination:
         type: object
         properties:
