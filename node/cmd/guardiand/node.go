@@ -456,7 +456,7 @@ func init() {
 	plumeContract = NodeCmd.Flags().String("plumeContract", "", "Plume contract address")
 
 	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
-	xrplEvmContract = NodeCmd.Flags().String("xrplContract", "", "XRPLEVM contract address")
+	xrplEvmContract = NodeCmd.Flags().String("xrplEvmContract", "", "XRPLEVM contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
