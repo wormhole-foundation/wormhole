@@ -207,6 +207,8 @@ contract WormholeVerifier is EIP712Encoding {
   uint256 private constant OFFSET_BATCH_SCHNORR_ENTRY_DIGEST = 4 + 20 + 32;
   uint256 private constant LENGTH_BATCH_SCHNORR_ENTRY        = 4 + 20 + 32 + 32;
 
+  uint256 private constant LENGTH_VERSIONED_BATCH_SCHNORR_ENTRY = 1 + 4 + 20 + 32 + 32;
+
   uint256 private constant OFFSET_BATCH_SCHNORR_UNIFORM_S      = 20;
   uint256 private constant OFFSET_BATCH_SCHNORR_UNIFORM_DIGEST = 20 + 32;
   uint256 private constant LENGTH_BATCH_SCHNORR_UNIFORM_ENTRY  = 20 + 32 + 32;
@@ -770,7 +772,7 @@ contract WormholeVerifier is EIP712Encoding {
             // Verify the signature
             invalidExpirationTime, invalidPubkey, invalidSignature, invalidMismatch := verifySingleSchnorr(keyIndex, r, s, digest, buffer)
             invalidTotal := or(invalidExpirationTime, or(invalidPubkey, or(invalidSignature, invalidMismatch)))
-            offset := add(offset, LENGTH_BATCH_SCHNORR_ENTRY)
+            offset := add(offset, LENGTH_VERSIONED_BATCH_SCHNORR_ENTRY)
           }
           case 0x01 {
             // Decode the multisig header and digest
@@ -801,11 +803,13 @@ contract WormholeVerifier is EIP712Encoding {
           let flagInvalidSignatureCount := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNATURE_COUNT, invalidSignatureCount)
           let flagInvalidUsedSigner := shl(SHIFT_VERIFY_RESULT_SIGNER_USED, invalidUsedSigner)
           let flagInvalidIndex := shl(SHIFT_VERIFY_RESULT_INVALID_SIGNER_INDEX, invalidIndex)
+          let flagInvalidMessageLength := shl(SHIFT_VERIFY_RESULT_INVALID_MESSAGE_LENGTH, invalidMessageLength)
 
           let flags1 := or(flagInvalidExpirationTime, flagInvalidPubkey)
           let flags2 := or(flagInvalidSignature, flagInvalidMismatch)
-          let flags3 := or(or(flagInvalidSignatureCount, flagInvalidUsedSigner), flagInvalidIndex)
-          verificationFailed(or(flags1, or(flags2, flags3)))
+          let flags3 := or(flagInvalidSignatureCount, flagInvalidUsedSigner)
+          let flags4 := or(flagInvalidIndex, flagInvalidMessageLength)
+          verificationFailed(or(flags1, or(flags2, or(flags3, flags4))))
         }
       }
 
@@ -1360,8 +1364,9 @@ contract WormholeVerifier is EIP712Encoding {
     shardData = new bytes(shardCount << 6); // 32 bytes for the shard + 32 for the ID
 
     for (uint8 i = 0; i < shardCount; ++i) {
-      uint256 shardWriteOffset = (i + 1) * LENGTH_WORD;
-      uint256 idWriteOffset = (i + 2) * LENGTH_WORD;
+      uint256 twiceIndex = i << 1; // To adjust for the fact that we're storing pairs of words
+      uint256 shardWriteOffset = (twiceIndex + 1) * LENGTH_WORD; // Offset by 1 to skip the array length word
+      uint256 idWriteOffset = (twiceIndex + 2) * LENGTH_WORD;
       uint256 shardReadSlot = _slotShardMapShard(index, i);
       uint256 idReadSlot = _slotShardMapId(index, i);
       assembly ("memory-safe") {
