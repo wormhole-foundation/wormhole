@@ -78,10 +78,6 @@ type ErrInputSize struct {
 func (e ErrInputSize) Error() string {
 	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgLenMin, e.got)
 }
-=======
-	HashLength    = 32
-	AddressLength = 32
-)
 
 // MaxSafeInputSize defines the maximum safe size for untrusted input from `io` Readers.
 // It should be configured so that it can comfortably contain all valid reads while
@@ -89,7 +85,6 @@ func (e ErrInputSize) Error() string {
 const MaxSafeInputSize = 128 * 1024 * 1024 // 128MB (arbitrary)
 
 var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
->>>>>>> b312bdd7 (node: create SafeRead function to replace io.ReadAll)
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.

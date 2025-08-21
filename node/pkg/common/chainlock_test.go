@@ -3,8 +3,8 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
-	"math"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"testing"
