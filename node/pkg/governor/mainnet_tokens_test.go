@@ -46,6 +46,8 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 		vaa.ChainIDMezo: true,
 		// TODO: Remove this once we have governed tokens for XRPLEVM.
 		vaa.ChainIDXRPLEVM: true,
+		// TODO: Remove this once we have governed tokens for Linea.
+		vaa.ChainIDLinea: true,
 	}
 	if len(ignoredChains) > 0 {
 		ignoredOutput := []string{}
