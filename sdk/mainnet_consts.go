@@ -180,6 +180,7 @@ var KnownAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDMantle, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDXLayer, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDWorldchain, Addr: "0000000000000000000000001520cc9e779c56dab5866bebfb885c86840c33d3"},
+	{ChainId: vaa.ChainIDXRPLEVM, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 }
 
 // KnownWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum
