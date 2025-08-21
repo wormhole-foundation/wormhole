@@ -35,20 +35,20 @@ const (
 )
 
 func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
-	bytes := make([]byte, 101)
-	bytes[0] = payload.Type
+	bz := make([]byte, 101)
+	bz[0] = payload.Type
 
 	amtBytes := payload.Amount.Bytes()
 	if len(amtBytes) > 32 {
 		panic("amount will not fit in 32 bytes!")
 	}
-	copy(bytes[33-len(amtBytes):33], amtBytes)
+	copy(bz[33-len(amtBytes):33], amtBytes)
 
-	copy(bytes[33:65], payload.OriginAddress.Bytes())
-	binary.BigEndian.PutUint16(bytes[65:67], uint16(payload.OriginChain))
-	copy(bytes[67:99], payload.TargetAddress.Bytes())
-	binary.BigEndian.PutUint16(bytes[99:101], uint16(payload.TargetChain))
-	return bytes
+	copy(bz[33:65], payload.OriginAddress.Bytes())
+	binary.BigEndian.PutUint16(bz[65:67], uint16(payload.OriginChain))
+	copy(bz[67:99], payload.TargetAddress.Bytes())
+	binary.BigEndian.PutUint16(bz[99:101], uint16(payload.TargetChain))
+	return bz
 }
 
 // makeTestMsgPub is a helper function that generates a Message Publication.
@@ -94,11 +94,11 @@ func TestRoundTripMarshal(t *testing.T) {
 	orig := makeTestMsgPub(t)
 	var loaded MessagePublication
 
-	bytes, writeErr := orig.MarshalBinary()
+	bz, writeErr := orig.MarshalBinary()
 	require.NoError(t, writeErr)
-	t.Logf("marshaled bytes: %x", bytes)
+	t.Logf("marshaled bytes: %x", bz)
 
-	readErr := loaded.UnmarshalBinary(bytes)
+	readErr := loaded.UnmarshalBinary(bz)
 	require.NoError(t, readErr)
 
 	require.Equal(t, *orig, loaded)
@@ -405,10 +405,10 @@ func TestDeprecatedSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 		verificationState: Anomalous,
 	}
 
-	bytes, err := msg1.Marshal()
+	bz, err := msg1.Marshal()
 	require.NoError(t, err)
 
-	msg2, err := UnmarshalMessagePublication(bytes)
+	msg2, err := UnmarshalMessagePublication(bz)
 	require.NoError(t, err)
 
 	require.Equal(t, msg1.TxID, msg2.TxID)
@@ -463,10 +463,10 @@ func TestSerializeAndDeserializeOfMessagePublicationWithEmptyTxID(t *testing.T) 
 		ConsistencyLevel: 32,
 	}
 
-	bytes, err := msg1.Marshal()
+	bz, err := msg1.Marshal()
 	require.NoError(t, err)
 
-	msg2, err := UnmarshalMessagePublication(bytes)
+	msg2, err := UnmarshalMessagePublication(bz)
 	require.NoError(t, err)
 	assert.Equal(t, msg1, msg2)
 
@@ -510,10 +510,10 @@ func TestSerializeAndDeserializeOfMessagePublicationWithArbitraryTxID(t *testing
 		ConsistencyLevel: 32,
 	}
 
-	bytes, err := msg1.Marshal()
+	bz, err := msg1.Marshal()
 	require.NoError(t, err)
 
-	msg2, err := UnmarshalMessagePublication(bytes)
+	msg2, err := UnmarshalMessagePublication(bz)
 	require.NoError(t, err)
 	assert.Equal(t, msg1, msg2)
 
@@ -571,10 +571,10 @@ func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T)
 		ConsistencyLevel: 32,
 	}
 
-	bytes, err := msg1.Marshal()
+	bz, err := msg1.Marshal()
 	require.NoError(t, err)
 
-	msg2, err := UnmarshalMessagePublication(bytes)
+	msg2, err := UnmarshalMessagePublication(bz)
 	require.NoError(t, err)
 
 	assert.Equal(t, msg1, msg2)
@@ -612,11 +612,11 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 		ConsistencyLevel: 32,
 	}
 
-	bytes, err := msg1.MarshalJSON()
+	bz, err := msg1.MarshalJSON()
 	require.NoError(t, err)
 
 	var msg2 MessagePublication
-	err = msg2.UnmarshalJSON(bytes)
+	err = msg2.UnmarshalJSON(bz)
 	require.NoError(t, err)
 	assert.Equal(t, *msg1, msg2)
 
@@ -658,11 +658,11 @@ func TestMarshalUnmarshalJSONOfMessagePublicationWithArbitraryTxID(t *testing.T)
 		ConsistencyLevel: 32,
 	}
 
-	bytes, err := msg1.MarshalJSON()
+	bz, err := msg1.MarshalJSON()
 	require.NoError(t, err)
 
 	var msg2 MessagePublication
-	err = msg2.UnmarshalJSON(bytes)
+	err = msg2.UnmarshalJSON(bz)
 	require.NoError(t, err)
 	assert.Equal(t, *msg1, msg2)
 
