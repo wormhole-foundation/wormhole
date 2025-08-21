@@ -132,7 +132,7 @@ func TestWatermark(t *testing.T) {
 
 	// Start the nodes
 	for _, g := range gs {
-		startGuardian(t, ctx, g)
+		startGuardian(t, ctx, g, []string{})
 	}
 
 	// Wait ~20s to let the nodes gossip.
@@ -168,7 +168,98 @@ func TestWatermark(t *testing.T) {
 	}
 }
 
-func startGuardian(t *testing.T, ctx context.Context, g *G) {
+func TestManualProtectedPeers(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	protectedPeers := []string{}
+
+	// Create 4 protected nodes
+	var guardianset = &node_common.GuardianSet{}
+	var gs [4]*G
+	for i := range gs {
+		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
+		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i) // #nosec G115 -- This is safe as the inputs are constants
+		gs[i].networkID = "/wormhole/localdev"
+
+		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].guardianSigner.PublicKey(ctx)))
+
+		id, err := p2ppeer.IDFromPublicKey(gs[i].priv.GetPublic())
+		require.NoError(t, err)
+		protectedPeers = append(protectedPeers, id.String()) // Protect all nodes
+
+		// Set bootstrap to the first node
+		bootstrapId, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
+		require.NoError(t, err)
+
+		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, bootstrapId.String())
+
+		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+	}
+
+	// Create 4 random nodes that will not be protected
+	var randomGs [4]*G
+	for i := range randomGs {
+		randomGs[i] = NewG(t, fmt.Sprintf("r%d", i))
+		randomGs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + 10 + i) // #nosec G115 -- This is safe as the inputs are constants
+		randomGs[i].networkID = "/wormhole/localdev"
+
+		// Set bootstrap to the first protected node
+		bootstrapId, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
+		require.NoError(t, err)
+
+		// Use the real booststrap peer of the protected nodes
+		randomGs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, bootstrapId.String())
+
+		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
+	}
+
+	// Start the nodes with the manual list of protected peers
+	for i, g := range gs {
+		gs[i].gst.Set(guardianset) // Set guardian set
+		startGuardian(t, ctx, g, protectedPeers)
+	}
+
+	// Start the random nodes
+	for _, g := range randomGs {
+		startGuardian(t, ctx, g, []string{})
+	}
+
+	// Wait ~20s to let the nodes gossip.
+	time.Sleep(20 * time.Second)
+
+	for guardianIndex, guardian := range gs {
+		// check that every legitimate node is protected on all other nodes.
+		for otherGuardianIndex, otherGuardian := range gs {
+			g1addr, err := p2ppeer.IDFromPublicKey(otherGuardian.priv.GetPublic())
+			require.NoError(t, err)
+			isProtected := guardian.components.ConnMgr.IsProtected(g1addr, "configured")
+
+			// A node cannot be protected on itself
+			if guardianIndex == otherGuardianIndex {
+				continue
+			}
+			assert.Truef(t, isProtected, "every node should be manually protected but %d was not", guardianIndex)
+
+			isProtectedHb := guardian.components.ConnMgr.IsProtected(g1addr, "heartbeat")
+			assert.Truef(t, isProtectedHb, "every node should be heartbeat protected but %d was not", guardianIndex)
+		}
+	}
+
+	for randomGsIndex, randomGuardian := range randomGs {
+		// check that random nodes are not protected on the legitimate nodes.
+		for guardianIndex, guardian := range gs {
+			g1addr, err := p2ppeer.IDFromPublicKey(randomGuardian.priv.GetPublic())
+			require.NoError(t, err)
+			isProtected := guardian.components.ConnMgr.IsProtected(g1addr, "configured")
+			assert.Falsef(t, isProtected, "random node %d should not be manually protected on node %d but was", randomGsIndex, guardianIndex)
+			isProtectedHb := guardian.components.ConnMgr.IsProtected(g1addr, "heartbeat")
+			assert.Falsef(t, isProtectedHb, "random node %d should not be heartbeat protected on node %d but was", randomGsIndex, guardianIndex)
+		}
+	}
+}
+
+func startGuardian(t *testing.T, ctx context.Context, g *G, protectedPeers []string) {
 	t.Helper()
 	params, err := NewRunParams(
 		g.bootstrapPeers,
@@ -196,7 +287,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			"",                // query bootstrap peers
 			0,                 // query port
 			"",                // query allowed peers),
-			[]string{},        // protected peers
+			protectedPeers,    // protected peers
 			[]string{},        // ccq protected peers
 			[]string{},        // featureFlags
 			[]func() string{}, // featureFlagFuncs

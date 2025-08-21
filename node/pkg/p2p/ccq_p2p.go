@@ -98,7 +98,13 @@ func (ccq *ccqP2p) run(
 
 	if len(protectedPeers) != 0 {
 		for _, peerId := range protectedPeers {
-			components.ConnMgr.Protect(peer.ID(peerId), "configured")
+			decodedPeerId, err := peer.Decode(peerId)
+			if err != nil {
+				ccq.logger.Error("error decoding protected ccq peer ID", zap.String("peerId", peerId), zap.Error(err))
+				continue
+			}
+			ccq.logger.Info("protecting ccq peer", zap.String("peerId", peerId))
+			components.ConnMgr.Protect(decodedPeerId, "configured")
 		}
 	}
 
