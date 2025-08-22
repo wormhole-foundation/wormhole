@@ -71,8 +71,6 @@ fi
 
 . ./$ENV_FILE
 
-exit 1
-
 [[ -z $INIT_EVM_CHAIN_ID ]] && { echo "Missing INIT_EVM_CHAIN_ID"; exit 1; }
 [[ -z $MNEMONIC ]] && { echo "Missing MNEMONIC"; exit 1; }
 
@@ -125,7 +123,9 @@ else
 fi
 
 if [ "$network" = testnet ]; then
-  worm submit $(worm generate upgrade -c "$chain" -a "$new_implementation" -m "$module" -g "$guardian_secret") -n "$network"
+  vaa=$(worm generate upgrade -c "$chain" -a "$new_implementation" -m "$module" -g "$guardian_secret")
+  echo "Upgrade VAA for $chain: $vaa"
+  worm submit $vaa -n "$network"
 else
   echo "../scripts/contract-upgrade-governance.sh -c $chain -m $verify_module -a $new_implementation"
 fi
