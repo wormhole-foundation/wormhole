@@ -128,7 +128,7 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 		}
 
 		// create path of dirs using cnfgs.StorageLocation:
-		if err := os.MkdirAll(cnfgs.StorageLocation, 0755); err != nil {
+		if err := os.MkdirAll(cnfgs.StorageLocation, 0700); err != nil {
 			lg.Fatal("failed to create storage directory", zap.Error(err))
 		}
 
