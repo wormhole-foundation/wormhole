@@ -725,9 +725,11 @@ func createX509Cert(dnsName string) *x509.Certificate {
 
 func TestFetchPartyId(t *testing.T) {
 	a := assert.New(t)
-	engines := load5GuardiansSetupForBroadcastChecks(a)
+	engines, err := loadGuardians(5, "tss5")
+	a.NoError(err)
+
 	e1 := engines[0]
-	id, err := e1.FetchIdentity(e1.GuardianStorage.IdentitiesKeep.peerCerts[0])
+	id, err := e1.FetchIdentity(e1.Self.Cert)
 	a.NoError(err)
 	a.True(e1.Self.Pid.Equals(id.Pid))
 

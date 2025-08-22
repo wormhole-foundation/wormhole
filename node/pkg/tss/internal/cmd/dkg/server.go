@@ -127,6 +127,11 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 			lg.Fatal("failed to marshal GuardianStorage", zap.Error(err))
 		}
 
+		// create path of dirs using cnfgs.StorageLocation:
+		if err := os.MkdirAll(cnfgs.StorageLocation, 0755); err != nil {
+			lg.Fatal("failed to create storage directory", zap.Error(err))
+		}
+
 		fname := path.Join(cnfgs.StorageLocation, "secrets.json")
 
 		lg.Info("Writing GuardianStorage to file", zap.String("file", fname))

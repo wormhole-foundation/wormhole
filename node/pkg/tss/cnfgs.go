@@ -15,6 +15,7 @@ import (
 	"github.com/xlabs/multi-party-sig/pkg/math/curve"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
 	common "github.com/xlabs/tss-common"
+	"github.com/xlabs/tss-lib/v2/party"
 )
 
 func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
@@ -45,7 +46,10 @@ func (s *GuardianStorage) attemptLoadTssSecrets() error {
 	buff := bytes.NewBuffer(s.TSSSecrets)
 	dec := gob.NewDecoder(buff)
 
-	cnf := frost.EmptyConfig(curve.Secp256k1{})
+	cnf := &party.TSSSecrets{
+		Config: frost.EmptyConfig(curve.Secp256k1{}),
+	}
+
 	if err := dec.Decode(cnf); err != nil {
 		return fmt.Errorf("error unmarshalling TSSSecrets: %v", err)
 	}
@@ -54,7 +58,7 @@ func (s *GuardianStorage) attemptLoadTssSecrets() error {
 		return fmt.Errorf("number of verification shares does not match number of guardians")
 	}
 
-	s.frostconf = cnf
+	s.frostconf = cnf.Config
 
 	return nil
 }
@@ -180,6 +184,10 @@ func (s *GuardianStorage) fillAndValidateStoredIdentities() error {
 
 		id.CommunicationIndex = SenderIndex(i)
 		id.networkname = id.portAndHostToNetName()
+
+		if bytes.Equal(id.KeyPEM, s.Self.KeyPEM) {
+			s.Self = id.Copy() // ensuring Self is set up correctly.
+		}
 	}
 
 	return nil

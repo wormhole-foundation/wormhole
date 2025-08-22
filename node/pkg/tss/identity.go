@@ -3,6 +3,7 @@ package tss
 import (
 	"crypto/ecdsa"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -109,10 +110,18 @@ func (ids *IdentitiesKeep) fetchIdentityFromKeyPEM(pk PEM) (*Identity, error) {
 	return ids.fetchIdentityFromIndex(SenderIndex(pos))
 }
 
+var (
+	errNilCert            = errors.New("nil certificate")
+	errUnsupportedKeyType = errors.New("unsupported public key type")
+)
+
 // FetchIdentity implements ReliableTSS.
 func (ids *IdentitiesKeep) FetchIdentity(cert *x509.Certificate) (*Identity, error) {
-	var id *Identity
+	if cert == nil {
+		return nil, errNilCert
+	}
 
+	var id *Identity
 	switch key := cert.PublicKey.(type) {
 	case *ecdsa.PublicKey:
 		publicKeyPem, err := internal.PublicKeyToPem(key)
@@ -131,7 +140,7 @@ func (ids *IdentitiesKeep) FetchIdentity(cert *x509.Certificate) (*Identity, err
 			return nil, fmt.Errorf("error fetching identity from public key bytes: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported public key type")
+		return nil, errUnsupportedKeyType
 	}
 
 	return id, nil
