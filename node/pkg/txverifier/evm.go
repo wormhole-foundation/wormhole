@@ -21,7 +21,6 @@ const (
 	RECONNECT_DELAY = 5 * time.Second
 )
 
-// TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
 var (
 	ErrCachedReceiptHasNoDataForMessage = errors.New("cached receipt has no data for this message")
 	ErrCouldNotGetNativeDetails         = errors.New("could not parse native details for transfer")
@@ -31,7 +30,6 @@ var (
 	ErrNoMsgsFromTokenBridge            = errors.New("no messages published from Token Bridge")
 	ErrNotTransfer                      = errors.New("payload is not a token transfer")
 	ErrParsedReceiptIsNil               = errors.New("nil receipt after parsing")
-	ErrReceiptHasNoMsgPub               = errors.New("receipt has no LogMessagePublished events")
 	ErrTxHashIsZeroAddr                 = errors.New("txHash is the zero address")
 )
 
@@ -762,9 +760,16 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 		// Record that tokens were requested out of the bridge for this message.
 		if _, exists := receiptSummary.out[msgID]; !exists {
 			receiptSummary.out[msgID] = transferOut{key, message.TransferAmount()}
+			// Ensure that each message ID is populated in the map.
+			receiptSummary.msgPubResult[msgID] = true
 		} else {
 			return nil, errors.New("duplicate message ID in receipt's LogMessagePublished events")
 		}
+	}
+
+	// Sanity check: the receipt summary should have the same number of messages as the receipt.
+	if len(receiptSummary.msgPubResult) == 0 || len(*receipt.MessagePublications) != len(receiptSummary.msgPubResult) {
+		return nil, ErrInvalidReceiptArgument
 	}
 
 	tv.logger.Debug("done building receipt summary", zap.String("summary", receiptSummary.String()))
@@ -774,13 +779,14 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 	//
 	// There is one fundamental invariant that must be satisfied for the receipt to be valid:
 	// the sum of the outbound transfers must be at least as much as the sum of the inbound transfers.
-
 	insolventAssets := receiptSummary.insolventAssets()
 	if len(insolventAssets) > 0 {
 		tv.logger.Warn("receipt has insolvent assets", zap.Strings("insolventAssets", insolventAssets))
 	}
 	tv.logger.Debug("receipt summary after solvency check", zap.String("summary", receiptSummary.String()))
 
+	// At this stage, each msgPubResult is true. If insolvent assets are detected, then the msgPubResult
+	// will be set to false.
 	if len(*receipt.MessagePublications) == 1 {
 		// Only one message publication exists in the receipt. Check for solvency.
 		// There is only one message publication in the receipt, but we don't have the msgID to do a lookup.
@@ -788,51 +794,11 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			receiptSummary.msgPubResult[msgID] = len(insolventAssets) == 0
 		}
 	} else {
-		// Multiple message publications exist in the receipt. This is a more complex case and changes the
-		// invariants that must be satisfied.
-		//
-		// Individual messages can be evaluated independently of each other and the receipt as a whole.
-		// This allows for a more nuanced evaluation of the validity of the receipt and enables valid messages to be
-		// identified and processed even if the receipt as a whole contains invalid messages.
-		// This prevents a scenario where an attacker could submit a malicious message that would invalidate the entire
-		// receipt.
-		//
-		// A group of messages is valid if and only if the amount of its outbound asset is less than or equal to the amount
-		// of the corresponding inbound asset. If this is not the case, all messages involving the outbound asset are invalid.
+		// Multi-message case.
 		for msgID, transferOut := range receiptSummary.out {
-			if amountIn, exists := receiptSummary.in[transferOut.tokenID]; !exists {
+			if _, exists := receiptSummary.in[transferOut.tokenID]; !exists {
 				// This is never OK, even in the edge cases documented above.
 				receiptSummary.msgPubResult[msgID] = false
-			} else {
-				tv.logger.Debug("got amountIn", zap.String("tokenID", transferOut.tokenID), zap.String("amount", amountIn.String()))
-				tv.logger.Debug(fmt.Sprintf("receiptSummary.in: %v", receiptSummary.in))
-				// At the resolution of a single message, check whether its outbound transfer is larger than the inbound transfer.
-				// If the rest of the receipt is valid, then we can mark that individual messages are invalid
-				// while still allowing other messages in the receipt to be processed.
-
-				// TODO: We may want to add an allow-list for fee-on-transfer and rebasing tokens, or else
-				// they will fail validation here. The reason is that the Core Bridge's amount out is a function
-				// of the Token Bridge calling `balanceOf()` when a token transfer occurs. If this method is implemented
-				// in a strange way in the token contract, the amount out may be greater than the amount sent in
-				// and hence break the invariant testing below.
-
-				// Check if the transfer out is less than or equal to the amount in.
-				// If so, the message is solvent.
-				msgIsSolvent := transferOut.amount.Cmp(amountIn) <= 0
-				if !msgIsSolvent {
-					invErr := ErrInvariantBadBalance
-
-					tv.logger.Warn(
-						invErr.Error(),
-						zap.String("msgID", msgID.String()),
-						zap.String("tokenID", transferOut.tokenID),
-						zap.String("amountIn", amountIn.String()),
-						zap.String("amountOut", transferOut.amount.String()),
-					)
-
-				}
-
-				receiptSummary.msgPubResult[msgID] = msgIsSolvent
 			}
 		}
 	}
