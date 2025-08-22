@@ -82,6 +82,22 @@ func NewBlockFromBytes(bytes []byte) (Block, error) {
 	}, nil
 }
 
+func VersionFromBytes(bytes []byte) (string, error) {
+	if !gjson.ValidBytes(bytes) {
+		return "", errors.New("invalid json")
+	}
+
+	json := gjson.ParseBytes(bytes)
+
+	version := jsonGetString(json, "result.version")
+
+	if version == "" {
+		return "", errors.New("invalid json")
+	}
+
+	return version, nil
+}
+
 func (b Block) Timestamp() uint64 {
 	ts_nanosec := jsonGetUint(b.json, "result.header.timestamp")
 	return ts_nanosec / 1000000000
