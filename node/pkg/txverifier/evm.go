@@ -31,15 +31,6 @@ var (
 	ErrTxHashIsZeroAddr         = errors.New("txHash is the zero address")
 )
 
-// Custom error type used to signal that a core invariant of the token bridge has been violated.
-type InvariantError struct {
-	Msg string
-}
-
-func (i InvariantError) Error() string {
-	return fmt.Sprintf("invariant violated: %s", i.Msg)
-}
-
 // TransferIsValid processes a token transfer receipt based on a LogMessagePublished event. It fetches
 // the full transaction receipt associated with the txHash, and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
