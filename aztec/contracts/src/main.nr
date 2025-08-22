@@ -1,5 +1,4 @@
 use dep::aztec::macros::aztec;
-use dep::std;
 mod structs;
 
 /**
@@ -40,12 +39,12 @@ aztec-wallet register-contract \
 aztec-wallet deploy-account \
     --node-url $NODE_URL \
     --from owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
 4b. Deploy the receiver wallet:
 aztec-wallet deploy-account \
     --node-url $NODE_URL \
     --from receiver-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
 5. Deploy the Token contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
     --node-url $NODE_URL \
@@ -59,14 +58,14 @@ aztec-wallet send mint_to_private \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893 \
+    --contract-address 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 \
     --args accounts:owner-wallet accounts:owner-wallet 10000
 6a. Mint public tokens:
 aztec-wallet send mint_to_public \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893 \
+    --contract-address 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 \
     --args accounts:owner-wallet 10000
 7. Deploy the Wormhole contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
@@ -74,8 +73,9 @@ aztec-wallet deploy \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --alias wormhole \
-    wormhole_contracts-Wormhole.json \
-    --args 56 56 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893 --no-wait --init init*/
+    target/wormhole_contracts-Wormhole.json \
+    --args 56 56 0x2bd5ee95d58d4505aae3c0e621fb65a4ec2205cbb5f0968a231c6e8855ea87c8 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 --no-wait --init init
+*/
 
 #[aztec]
 pub contract Wormhole {
@@ -246,10 +246,10 @@ pub contract Wormhole {
         assert(1 <= message_fee, "insufficient fee");
 
         let receiver_address = AztecAddress {
-            inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2,
+            inner: 0x2f73c9b19222c2a7931c6cba01eedbbabb51e01b405fe4e0cabe0de91c275d0e,
         };
         let token_address = AztecAddress {
-            inner: 0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893,
+            inner: 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
         };
 
         let _ = Token::at(token_address)
@@ -480,19 +480,35 @@ pub contract Wormhole {
         let required_signatures = 1;
         let mut verified_count = 0;
 
-        for i in 0..13 {
-            if i < signatures_len {
-                let is_valid = std::ecdsa_secp256k1::verify_signature(
-                    pub_keys_x[i as u32],
-                    pub_keys_y[i as u32],
-                    signature_bytes_array[i as u32],
-                    hash,
-                );
+        // Testnet VAA verification only utilizes a single guardian.
 
-                if is_valid {
-                    verified_count += 1;
-                }
-            }
+        // TODO: Uncomment this when ECDSA verification in loop is implemented.
+        // See issue: https://github.com/noir-lang/noir/pull/8993
+        
+        // for i in 0..13 {
+        //     if i < signatures_len {
+        //        let is_valid = std::ecdsa_secp256k1::verify_signature(
+        //            pub_keys_x[i as u32],
+        //            pub_keys_y[i as u32],
+        //            signature_bytes_array[i as u32],
+        //            hash,
+        //        );
+
+        //        if is_valid {
+        //            verified_count += 1;
+        //        }
+        //    }
+        //}
+
+        let is_valid = std::ecdsa_secp256k1::verify_signature(
+            pub_keys_x[0 as u32],
+            pub_keys_y[0 as u32],
+            signature_bytes_array[0 as u32],
+            hash,
+        );
+
+        if is_valid {
+            verified_count += 1;
         }
 
         assert(verified_count >= required_signatures, "Insufficient valid signatures");
@@ -542,7 +558,7 @@ mod tests {
             0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2,
         );
         let token_address = AztecAddress::from_field(
-            0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893,
+            0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
         );
 
         let contract_address = env
