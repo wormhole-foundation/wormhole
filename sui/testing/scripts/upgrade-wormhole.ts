@@ -9,7 +9,7 @@ import {
   Ed25519Keypair,
   testnetConnection,
 } from "@mysten/sui.js";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { resolve } from "path";
 import * as fs from "fs";
 
@@ -102,9 +102,10 @@ function buildForBytecodeAndDigest(packagePath: string) {
     dependencies: string[];
     digest: number[];
   } = JSON.parse(
-    execSync(
-      `sui move build --dump-bytecode-as-base64 -p ${packagePath} 2> /dev/null`,
-      { encoding: "utf-8" }
+    execFileSync(
+      "sui",
+      ["move", "build", "--dump-bytecode-as-base64", "-p", packagePath],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }
     )
   );
   return {
