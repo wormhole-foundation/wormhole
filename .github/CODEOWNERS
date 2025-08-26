@@ -96,6 +96,10 @@
 
 /node/pkg/watchers @evan-gray @panoel
 
+## Guardian Dependency Upgrades (go.mod) 
+/node/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
+/sdk/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
+
 ## Hacks / Tools
 
 /node/hack/ @panoel @evan-gray
