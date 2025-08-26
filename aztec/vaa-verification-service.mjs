@@ -1,10 +1,12 @@
 // vaa-verification-service.mjs - TESTNET VERSION (FIXED)
 import express from 'express';
-import { Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
+import { SponsoredFeePaymentMethod, getContractInstanceFromDeployParams, Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { deriveSigningKey } from '@aztec/stdlib/keys';
 import { createPXEService, getPXEServiceConfig } from '@aztec/pxe/server';
 import { createStore } from "@aztec/kv-store/lmdb"
+import { SPONSORED_FPC_SALT } from '@aztec/constants';
+import { SponsoredFPCContract } from "@aztec/noir-contracts.js/SponsoredFPC";
 import WormholeJson from "./contracts/target/wormhole_contracts-Wormhole.json" with { type: "json" };
 import { ProxyLogger, captureProfile } from './utils.mjs';
 
@@ -19,7 +21,14 @@ const PRIVATE_KEY = '0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3
 const CONTRACT_ADDRESS = '0x277e4b8fd9893fdc1fdd30c8da931cce3226450047649738387321665405e1f0'; // Fresh Wormhole contract
 const SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'; // Salt used in deployment
 
-let pxe, nodeClient, wormholeContract, isReady = false;
+let pxe, nodeClient, wormholeContract, paymentMethod, isReady = false;
+
+// Helper function to get the SponsoredFPC instance
+async function getSponsoredFPCInstance() {
+  return await getContractInstanceFromDeployParams(SponsoredFPCContract.artifact, {
+    salt: new Fr(SPONSORED_FPC_SALT),
+  });
+}
 
 // Initialize Aztec for Testnet
 async function init() {
@@ -57,6 +66,13 @@ async function init() {
     });
     console.log('✅ Connected PXE to Aztec node and initialized');
     
+    const sponsoredFPC = await getSponsoredFPCInstance();
+    await pxe.registerContract({
+      instance: sponsoredFPC,
+      artifact: SponsoredFPCContract.artifact,
+    });
+    paymentMethod = new SponsoredFeePaymentMethod(sponsoredFPC.address);
+
     // Get contract instance from the node (Alex's simpler approach)
     console.log('🔄 Fetching contract instance from node...');
     const contractAddress = AztecAddress.fromString(CONTRACT_ADDRESS);
@@ -110,7 +126,7 @@ async function init() {
     // Get wallet (this should work since the account exists on testnet)
     const wallet = await schnorrAccount.register();
     console.log(`✅ Using wallet: ${wallet.getAddress()}`);
-    
+
     // Now create the contract object
     console.log(`🔄 Creating contract instance at ${contractAddress.toString()}...`);
     console.log(`📍 Contract artifact name: ${contractArtifact.name}`);
@@ -187,7 +203,7 @@ app.post('/verify', async (req, res) => {
     console.log('🔄 Calling contract method verify_vaa...');
     const tx = await wormholeContract.methods
       .verify_vaa(vaaArray, actualLength)
-      .send()
+      .send({ fee: { paymentMethod } })
       .wait();
     
     console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
@@ -290,7 +306,7 @@ app.post('/test', async (req, res) => {
   await captureProfile('verify_vaa', interaction);
 
   console.log('🔄 Sending transaction...');
-  await interaction.send().wait();
+  await interaction.send({ fee: { paymentMethod } }).wait();
   
   console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
   
