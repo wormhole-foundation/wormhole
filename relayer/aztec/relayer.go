@@ -178,7 +178,7 @@ func NewConfigFromEnv() Config {
 		ArbitrumRPCURL:         getEnvOrDefault("ARBITRUM_RPC_URL", "http://localhost:8545"),
 		PrivateKey:             getEnvOrDefault("PRIVATE_KEY", "0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55"),
 		WormholeContract:       getEnvOrDefault("WORMHOLE_CONTRACT", "0x1b35884f8ba9371419d00ae228da9ff839edfe8fe6a804fdfcd430e0dc7e40db"),
-		AztecTargetContract:    getEnvOrDefault("AZTEC_TARGET_CONTRACT", "0x06b42652260967fcc4a703e24bd2e6bdeff7f39ce797d2d9050b59900ece7995"),
+		AztecTargetContract:    getEnvOrDefault("AZTEC_TARGET_CONTRACT", "0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06"),
 		ArbitrumTargetContract: getEnvOrDefault("ARBITRUM_TARGET_CONTRACT", "0x009cbB8f91d392856Cb880d67c806Aa731E3d686"),
 		EmitterAddress:         getEnvOrDefault("EMITTER_ADDRESS", "0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad"),
 		VerificationServiceURL: getEnvOrDefault("VERIFICATION_SERVICE_URL", "http://localhost:8080"), // ADD
