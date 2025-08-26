@@ -86,10 +86,10 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	}
 
 	// Check to see if the receipt is cached.
-	if receiptEvaluation, exists := tv.evaluations[txHash]; exists {
+	if evaluation, exists := tv.evaluations[txHash]; exists {
 
 		// Check if the message has already been verified, and if so, return the cached result.
-		if !checkWholeReceipt && !receiptEvaluation.msgInCache(msgID) {
+		if !checkWholeReceipt && !evaluation.msgInCache(msgID) {
 			// Should never happen, probably indicates a bug in the code.
 			tv.logger.Warn(
 				ErrCachedReceiptHasNoDataForMessage.Error(),
@@ -99,12 +99,12 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		}
 
 		// Return true if the entire receipt is safe.
-		if receiptEvaluation.ReceiptSummary.isSafe() {
+		if evaluation.ReceiptSummary.isSafe() {
 			return true, nil
 		}
 
 		//  Return true if the message is safe.
-		return receiptEvaluation.ReceiptSummary.isMsgSafe(msgID), nil
+		return evaluation.ReceiptSummary.isMsgSafe(msgID), nil
 	}
 
 	// Get the full transaction receipt for this txHash if it was not provided as an argument.
