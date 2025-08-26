@@ -467,7 +467,7 @@ pub contract Wormhole {
                 signature_bytes_array[i as u32] = signature_bytes;
             }
         }
-
+        
         (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len)
     }
 

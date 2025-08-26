@@ -126,7 +126,6 @@ async function init() {
     // Get wallet (this should work since the account exists on testnet)
     const wallet = await schnorrAccount.register();
     console.log(`✅ Using wallet: ${wallet.getAddress()}`);
-
     // Now create the contract object
     console.log(`🔄 Creating contract instance at ${contractAddress.toString()}...`);
     console.log(`📍 Contract artifact name: ${contractArtifact.name}`);
