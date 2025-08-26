@@ -1,8 +1,9 @@
 {
   "dependencies": {
-    "@aztec/accounts": "1.2.0",
-    "@aztec/noir-contracts.js": "1.2.0",
-    "@aztec/stdlib": "1.2.0",
+    "@aztec/accounts": "1.2.1",
+    "@aztec/noir-contracts.js": "1.2.1",
+    "@aztec/pxe": "1.2.1",
+    "@aztec/stdlib": "1.2.1",
     "express": "^4.18.2",
     "js-sha3": "^0.9.3",
     "secp256k1": "^5.0.1"

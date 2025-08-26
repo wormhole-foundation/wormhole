@@ -5,9 +5,12 @@ mod structs;
 To deploy on testnet, use the following commands (following the tutorial):
 1. Set the environment variable for the node URL:
 export NODE_URL=https://aztec-alpha-testnet-fullnode.zkv.xyz
-export SPONSORED_FPC_ADDRESS=0x19b5539ca1b104d4c3705de94e4555c9630def411f025e023a13189d0c56f8f22. Create a new wallets:
+export SPONSORED_FPC_ADDRESS=0x19b5539ca1b104d4c3705de94e4555c9630def411f025e023a13189d0c56f8f22. 
+export OWNER_SK=0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55
+2. Create a new wallets:
 2a. Create a new wallet for the owner:
 aztec-wallet create-account \
+    -sk $OWNER_SK \
     --register-only \
     --node-url $NODE_URL \
     --alias owner-wallet
@@ -36,14 +39,12 @@ aztec-wallet register-contract \
 aztec-wallet deploy-account \
     --node-url $NODE_URL \
     --from owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --register-class
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
 4b. Deploy the receiver wallet:
 aztec-wallet deploy-account \
     --node-url $NODE_URL \
     --from receiver-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --register-class
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
 5. Deploy the Token contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
     --node-url $NODE_URL \
@@ -57,14 +58,14 @@ aztec-wallet send mint_to_private \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679 \
+    --contract-address 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 \
     --args accounts:owner-wallet accounts:owner-wallet 10000
 6a. Mint public tokens:
 aztec-wallet send mint_to_public \
     --node-url $NODE_URL \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679 \
+    --contract-address 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 \
     --args accounts:owner-wallet 10000
 7. Deploy the Wormhole contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
 aztec-wallet deploy \
@@ -72,34 +73,35 @@ aztec-wallet deploy \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --alias wormhole \
-    wormhole_contracts-Wormhole.json \
-    --args 56 56 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679 --no-wait --init init*/
+    target/wormhole_contracts-Wormhole.json \
+    --args 56 56 0x2bd5ee95d58d4505aae3c0e621fb65a4ec2205cbb5f0968a231c6e8855ea87c8 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 --no-wait --init init
+*/
 
 #[aztec]
 pub contract Wormhole {
-    use crate::structs::{Provider, Guardian, WormholeStorage, Signature};
+    use crate::structs::{Guardian, Provider, Signature, WormholeStorage};
     use dep::keccak256::keccak256;
 
     use dep::aztec::{
-        macros::{
-            functions::{initializer, public, private, internal, utility},
-            storage::storage,
-        },
-        prelude::{Map, PublicMutable, AztecAddress},
-        protocol_types::traits::ToField
+        macros::{functions::{initializer, internal, private, public, utility}, storage::storage},
+        prelude::{AztecAddress, Map, PublicMutable},
+        protocol_types::traits::ToField,
     };
 
-    use dep::token::Token; 
+    use dep::token::Token;
 
     #[utility]
-    unconstrained fn parse_vaa_unconstrained(bytes: [u8; 2000], actual_length: u32) -> (u32, u8, [[u8; 66]; 13], [u8; 1860], u32) {
-        let guardian_set_index: u32 = (bytes[1] as u32) << 24 | 
-                                    (bytes[2] as u32) << 16 | 
-                                    (bytes[3] as u32) << 8 | 
-                                    (bytes[4] as u32);
-        
+    unconstrained fn parse_vaa_unconstrained(
+        bytes: [u8; 2000],
+        actual_length: u32,
+    ) -> (u32, u8, [[u8; 66]; 13], [u8; 1860], u32) {
+        let guardian_set_index: u32 = (bytes[1] as u32) << 24
+            | (bytes[2] as u32) << 16
+            | (bytes[3] as u32) << 8
+            | (bytes[4] as u32);
+
         let signatures_len = bytes[5];
-        
+
         // Parse signatures
         let mut signatures = [[0; 66]; 13];
         for i in 0..13 {
@@ -116,10 +118,10 @@ pub contract Wormhole {
 
         // Calculate where the body starts
         let body_start: u32 = 6 + (signatures_len as u32 * 66);
-        
+
         // Calculate actual body length
         let body_length: u32 = actual_length - body_start;
-        
+
         let mut body_bytes = [0; 1860];
         for i in 0..1860 {
             if i < body_length {
@@ -131,20 +133,22 @@ pub contract Wormhole {
     }
 
     #[utility]
-    unconstrained fn compute_vaa_hash_unconstrained(body_bytes: [u8; 1860], body_length: u32) -> [u8; 32] {
+    unconstrained fn compute_vaa_hash_unconstrained(
+        body_bytes: [u8; 1860],
+        body_length: u32,
+    ) -> [u8; 32] {
         // Extract only the actual body content
         let mut actual_body = [0; 1860];
         for i in 0..body_length {
             actual_body[i] = body_bytes[i];
         }
-        
+
         // Double hash as per Wormhole spec
         let hash: [u8; 32] = keccak256(actual_body, body_length);
         let double_hash: [u8; 32] = keccak256(hash, 32);
-        
+
         double_hash
     }
-
 
     #[storage]
     struct Storage<Context> {
@@ -179,13 +183,10 @@ pub contract Wormhole {
     fn init(
         chain_id: u16,
         evm_chain_id: u16,
-        wormhole_address: AztecAddress, 
-        token_address: AztecAddress, 
+        wormhole_address: AztecAddress,
+        token_address: AztecAddress,
     ) {
-        let provider: Provider = Provider {
-            chain_id,
-            evm_chain_id,
-        };
+        let provider: Provider = Provider { chain_id, evm_chain_id };
         storage.state.write(WormholeStorage::init(provider));
         storage.wormhole_address.write(wormhole_address);
         storage.token_address.write(token_address);
@@ -195,7 +196,7 @@ pub contract Wormhole {
     #[public]
     fn publish_message_in_public(
         nonce: u64,
-        payloads: [[u8; 31]; 8], 
+        payloads: [[u8; 31]; 8],
         message_fee: u128,
         consistency: u8,
         from: AztecAddress,
@@ -206,21 +207,18 @@ pub contract Wormhole {
         let receiver_address = storage.wormhole_address.read();
         let token_address = storage.token_address.read();
 
-        let _ = Token::at(token_address).transfer_in_public(
-            from,
-            receiver_address, 
-            message_fee,
-            token_nonce,  
-        ).call(&mut context);
+        let _ = Token::at(token_address)
+            .transfer_in_public(from, receiver_address, message_fee, token_nonce)
+            .call(&mut context);
 
         let sequence = storage.sequences.at(context.msg_sender()).read();
         storage.sequences.at(context.msg_sender()).write(sequence + 1);
 
         let msg: [Field; 13] = [
-            context.msg_sender().to_field(), 
-            sequence as Field,  
+            context.msg_sender().to_field(),
+            sequence as Field,
             nonce as Field,
-            consistency as Field, 
+            consistency as Field,
             context.timestamp() as Field,
             Field::from_le_bytes(payloads[0]),
             Field::from_le_bytes(payloads[1]),
@@ -239,50 +237,41 @@ pub contract Wormhole {
     #[private]
     fn publish_message_in_private(
         nonce: u64,
-        payloads: [[u8; 31]; 8], 
+        payloads: [[u8; 31]; 8],
         message_fee: u128,
         consistency: u8,
-        from: AztecAddress, 
+        from: AztecAddress,
         token_nonce: Field,
     ) {
         assert(1 <= message_fee, "insufficient fee");
 
         let receiver_address = AztecAddress {
-            inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2
+            inner: 0x2f73c9b19222c2a7931c6cba01eedbbabb51e01b405fe4e0cabe0de91c275d0e,
         };
         let token_address = AztecAddress {
-            inner: 0x16f316fc07f54dae025ea95f492a190be50cfd7a4d4d4fef3d1c81970d2da679
+            inner: 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
         };
 
-        let _ = Token::at(token_address).transfer_in_private(
-            from,
-            receiver_address, 
-            message_fee,
-            token_nonce,  
-        ).call(&mut context);
+        let _ = Token::at(token_address)
+            .transfer_in_private(from, receiver_address, message_fee, token_nonce)
+            .call(&mut context);
 
-        Wormhole::at(context.this_address())._publish_message(
-            nonce, 
-            payloads, 
-            consistency
-        ).enqueue(&mut context);
+        Wormhole::at(context.this_address())._publish_message(nonce, payloads, consistency).enqueue(
+            &mut context,
+        );
     }
 
     #[public]
     #[internal]
-    fn _publish_message(
-        nonce: u64,
-        payloads: [[u8; 31]; 8], 
-        consistency: u8,
-    ) -> u64 {
+    fn _publish_message(nonce: u64, payloads: [[u8; 31]; 8], consistency: u8) -> u64 {
         let sequence = storage.sequences.at(context.msg_sender()).read();
         storage.sequences.at(context.msg_sender()).write(sequence + 1);
 
         let msg: [Field; 13] = [
-            context.msg_sender().to_field(), 
-            sequence as Field,  
+            context.msg_sender().to_field(),
+            sequence as Field,
             nonce as Field,
-            consistency as Field, 
+            consistency as Field,
             context.timestamp() as Field,
             Field::from_le_bytes(payloads[0]),
             Field::from_le_bytes(payloads[1]),
@@ -300,97 +289,97 @@ pub contract Wormhole {
 
     // Keep all your guardian setters exactly as they are
     #[public]
-    fn set_guardian1(guardian: Guardian, index: u32) { 
+    fn set_guardian1(guardian: Guardian, index: u32) {
         storage.guardian_1.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian2(guardian: Guardian, index: u32) { 
+    fn set_guardian2(guardian: Guardian, index: u32) {
         storage.guardian_2.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian3(guardian: Guardian, index: u32) { 
+    fn set_guardian3(guardian: Guardian, index: u32) {
         storage.guardian_3.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian4(guardian: Guardian, index: u32) { 
+    fn set_guardian4(guardian: Guardian, index: u32) {
         storage.guardian_4.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian5(guardian: Guardian, index: u32) { 
+    fn set_guardian5(guardian: Guardian, index: u32) {
         storage.guardian_5.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian6(guardian: Guardian, index: u32) { 
+    fn set_guardian6(guardian: Guardian, index: u32) {
         storage.guardian_6.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian7(guardian: Guardian, index: u32) { 
+    fn set_guardian7(guardian: Guardian, index: u32) {
         storage.guardian_7.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian8(guardian: Guardian, index: u32) { 
+    fn set_guardian8(guardian: Guardian, index: u32) {
         storage.guardian_8.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian9(guardian: Guardian, index: u32) { 
+    fn set_guardian9(guardian: Guardian, index: u32) {
         storage.guardian_9.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian10(guardian: Guardian, index: u32) { 
+    fn set_guardian10(guardian: Guardian, index: u32) {
         storage.guardian_10.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian11(guardian: Guardian, index: u32) { 
+    fn set_guardian11(guardian: Guardian, index: u32) {
         storage.guardian_11.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian12(guardian: Guardian, index: u32) { 
+    fn set_guardian12(guardian: Guardian, index: u32) {
         storage.guardian_12.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian13(guardian: Guardian, index: u32) { 
+    fn set_guardian13(guardian: Guardian, index: u32) {
         storage.guardian_13.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian14(guardian: Guardian, index: u32) { 
+    fn set_guardian14(guardian: Guardian, index: u32) {
         storage.guardian_14.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian15(guardian: Guardian, index: u32) { 
+    fn set_guardian15(guardian: Guardian, index: u32) {
         storage.guardian_15.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian16(guardian: Guardian, index: u32) { 
+    fn set_guardian16(guardian: Guardian, index: u32) {
         storage.guardian_16.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian17(guardian: Guardian, index: u32) { 
+    fn set_guardian17(guardian: Guardian, index: u32) {
         storage.guardian_17.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian18(guardian: Guardian, index: u32) { 
+    fn set_guardian18(guardian: Guardian, index: u32) {
         storage.guardian_18.at(index).write(guardian);
     }
 
     #[public]
-    fn set_guardian19(guardian: Guardian, index: u32) { 
+    fn set_guardian19(guardian: Guardian, index: u32) {
         storage.guardian_19.at(index).write(guardian);
     }
 
@@ -416,24 +405,39 @@ pub contract Wormhole {
         WormholeStorage::get_provider(storage.state.read())
     }
 
-    #[utility]
-    unconstrained fn verify_vaa_unconstrained(bytes: [u8; 2000], actual_length: u32) -> ([[u8; 32]; 13], [[u8; 32]; 13], [[u8; 64]; 13], [u8; 32], u8) {
+    #[contract_library_method]
+    unconstrained fn verify_vaa_unconstrained(
+        bytes: [u8; 2000],
+        actual_length: u32,
+    ) -> ([[u8; 32]; 13], [[u8; 32]; 13], [[u8; 64]; 13], [u8; 32], u8) {
         let version = bytes[0];
         assert(version == 1, "VM version incompatible");
-        
-        let (_, signatures_len, signatures, body_bytes, body_length) = parse_vaa_unconstrained(bytes, actual_length);
+
+        let (_, signatures_len, signatures, body_bytes, body_length) =
+            parse_vaa_unconstrained(bytes, actual_length);
 
         assert(signatures_len >= 1, "Need at least 1 signature");
         assert(signatures_len <= 13, "Too many signatures");
 
         // Compute the VAA hash
         let hash = compute_vaa_hash_unconstrained(body_bytes, body_length);
-        
+
         let guardian = crate::structs::Guardian::new(
-                [0x13, 0x94, 0x7b, 0xd4, 0x8b, 0x18, 0xe5, 0x3f, 0xda, 0xee, 0xe7, 0x7f, 0x34, 0x73, 0x39, 0x1a, 0xc7, 0x27, 0xc6, 0x38],
-                [0xfa, 0x9d, 0x6b, 0x47, 0x04, 0x3b, 0x15, 0xb4, 0xb3, 0x3c, 0xf0, 0x5b, 0xb1, 0xde, 0x0f, 0x13, 0xda, 0x70, 0x31, 0x36, 0xb2, 0xcd, 0x15, 0x73, 0x24, 0xeb, 0x61, 0x5e, 0xc9, 0xee, 0x95, 0x12],
-                [0x38, 0xc6, 0x7b, 0x54, 0xd0, 0x3e, 0x3c, 0x18, 0x2e, 0x0e, 0x77, 0xb8, 0x5f, 0x88, 0x3c, 0xcd, 0x74, 0xdd, 0xdf, 0xc5, 0x90, 0x10, 0xfb, 0xf4, 0x75, 0xa0, 0xbe, 0xe6, 0x59, 0x3c, 0xe2, 0xbd]
-            );
+            [
+                0x13, 0x94, 0x7b, 0xd4, 0x8b, 0x18, 0xe5, 0x3f, 0xda, 0xee, 0xe7, 0x7f, 0x34, 0x73,
+                0x39, 0x1a, 0xc7, 0x27, 0xc6, 0x38,
+            ],
+            [
+                0xfa, 0x9d, 0x6b, 0x47, 0x04, 0x3b, 0x15, 0xb4, 0xb3, 0x3c, 0xf0, 0x5b, 0xb1, 0xde,
+                0x0f, 0x13, 0xda, 0x70, 0x31, 0x36, 0xb2, 0xcd, 0x15, 0x73, 0x24, 0xeb, 0x61, 0x5e,
+                0xc9, 0xee, 0x95, 0x12,
+            ],
+            [
+                0x38, 0xc6, 0x7b, 0x54, 0xd0, 0x3e, 0x3c, 0x18, 0x2e, 0x0e, 0x77, 0xb8, 0x5f, 0x88,
+                0x3c, 0xcd, 0x74, 0xdd, 0xdf, 0xc5, 0x90, 0x10, 0xfb, 0xf4, 0x75, 0xa0, 0xbe, 0xe6,
+                0x59, 0x3c, 0xe2, 0xbd,
+            ],
+        );
 
         // Prepare arrays for constrained verification
         let mut pub_keys_x = [[0; 32]; 13];
@@ -469,93 +473,73 @@ pub contract Wormhole {
 
     #[private]
     fn verify_vaa(bytes: [u8; 2000], actual_length: u32) {
-
         // Safety: verify_vaa_unconstrained performs parsing and validation that doesn't need constraints
-        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len) = unsafe {
-            verify_vaa_unconstrained(bytes, actual_length)
-        };
+        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len) =
+            unsafe { verify_vaa_unconstrained(bytes, actual_length) };
 
         let required_signatures = 1;
         let mut verified_count = 0;
 
-        for i in 0..13 {
-            if i < signatures_len {
-                let is_valid = std::ecdsa_secp256k1::verify_signature(
-                    pub_keys_x[i as u32],
-                    pub_keys_y[i as u32],
-                    signature_bytes_array[i as u32],
-                    hash
-                );
+        // Testnet VAA verification only utilizes a single guardian.
 
-                if is_valid {
-                    verified_count += 1;
-                }
-            }
+        // TODO: Uncomment this when ECDSA verification in loop is implemented.
+        // See issue: https://github.com/noir-lang/noir/pull/8993
+        
+        // for i in 0..13 {
+        //     if i < signatures_len {
+        //        let is_valid = std::ecdsa_secp256k1::verify_signature(
+        //            pub_keys_x[i as u32],
+        //            pub_keys_y[i as u32],
+        //            signature_bytes_array[i as u32],
+        //            hash,
+        //        );
+
+        //        if is_valid {
+        //            verified_count += 1;
+        //        }
+        //    }
+        //}
+
+        let is_valid = std::ecdsa_secp256k1::verify_signature(
+            pub_keys_x[0 as u32],
+            pub_keys_y[0 as u32],
+            signature_bytes_array[0 as u32],
+            hash,
+        );
+
+        if is_valid {
+            verified_count += 1;
         }
 
         assert(verified_count >= required_signatures, "Insufficient valid signatures");
     }
-
-    #[utility]
-    unconstrained fn test_verify_vaa_logic(bytes: [u8; 2000], actual_length: u32) -> bool {
-        // This function replicates the verify_vaa logic but without the private context requirement
-        
-        // Use the same unconstrained verification as verify_vaa does internally
-        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len) = unsafe {
-            verify_vaa_unconstrained(bytes, actual_length)
-        };
-
-        let required_signatures = 1;
-        let mut verified_count = 0;
-
-        // Test the ECDSA verification logic (this is where the SIGABRT might happen)
-        for i in 0..13 {
-            if i < signatures_len {
-                let is_valid = std::ecdsa_secp256k1::verify_signature(
-                    pub_keys_x[i as u32],
-                    pub_keys_y[i as u32],
-                    signature_bytes_array[i as u32],
-                    hash
-                );
-
-                if is_valid {
-                    verified_count += 1;
-                }
-            }
-        }
-
-        verified_count >= required_signatures
-    }
-
-    #[utility]
-    unconstrained fn _experimental_test_verify_vaa_logic(bytes: [u8; 2000], actual_length: u32) -> bool {
-        test_verify_vaa_logic(bytes, actual_length)
-    }
 }
 
 mod tests {
-    use dep::aztec::test::helpers::test_environment::TestEnvironment;
-    use dep::aztec::test::helpers::cheatcodes;
-    use dep::aztec::protocol_types::traits::FromField;
-    use crate::{Wormhole, structs::Signature};
+    use crate::{structs::Signature, Wormhole};
     use dep::aztec::prelude::AztecAddress;
+    use dep::aztec::protocol_types::traits::FromField;
+    use dep::aztec::test::helpers::cheatcodes;
+    use dep::aztec::test::helpers::test_environment::TestEnvironment;
 
     #[test]
     unconstrained fn test_signature_extraction() {
         let signature_bytes: [u8; 66] = [
             0x00, // Guardian index
-            // R component (32 bytes) 
-            0x46, 0x82, 0xbc, 0x4d, 0x5f, 0xf2, 0xe5, 0x4d, 0xc2, 0xee, 0x5e, 0x0e, 0xb6, 0x4f, 0x5c, 0x6c,
-            0x07, 0xaa, 0x44, 0x9a, 0xc5, 0x39, 0xab, 0xc6, 0x3c, 0x2b, 0xe5, 0xc3, 0x06, 0xa4, 0x8f, 0x23,
+            // R component (32 bytes)
+            0x46, 0x82, 0xbc, 0x4d, 0x5f, 0xf2, 0xe5, 0x4d, 0xc2, 0xee, 0x5e, 0x0e, 0xb6, 0x4f,
+            0x5c, 0x6c, 0x07, 0xaa, 0x44, 0x9a, 0xc5, 0x39, 0xab, 0xc6, 0x3c, 0x2b, 0xe5, 0xc3,
+            0x06, 0xa4, 0x8f, 0x23,
             // S component (32 bytes)
-            0x3e, 0x93, 0x00, 0x17, 0x0a, 0x82, 0xad, 0xf3, 0xc3, 0xb7, 0xf4, 0x3f, 0x23, 0x17, 0x6f, 0xb0,
-            0x79, 0x17, 0x4a, 0x58, 0xd6, 0x7d, 0x14, 0x24, 0x77, 0xf6, 0x46, 0x67, 0x5d, 0x86, 0xeb, 0x63,
+            0x3e, 0x93, 0x00, 0x17, 0x0a, 0x82, 0xad, 0xf3, 0xc3, 0xb7, 0xf4, 0x3f, 0x23, 0x17,
+            0x6f, 0xb0, 0x79, 0x17, 0x4a, 0x58, 0xd6, 0x7d, 0x14, 0x24, 0x77, 0xf6, 0x46, 0x67,
+            0x5d, 0x86, 0xeb, 0x63,
             // Recovery ID
-            0x01
+            0x01,
         ];
 
         let sig = Signature::from_bytes(signature_bytes);
-        
+
         assert(sig.guardian_index == 0, "Guardian index should be 0");
         assert(sig.r[0] == 0x46, "R component should start with 0x46");
         assert(sig.s[0] == 0x3e, "S component should start with 0x3e");
@@ -567,7 +551,6 @@ mod tests {
         let mut env = TestEnvironment::new();
 
         cheatcodes::reset(); // Reset TXE state
-        cheatcodes::oracle_reset(); // Reset oracle state
 
         // Deploy contract - need to specify all 3 parameters for deploy
         let dummy_owner = AztecAddress::from_field(1);
@@ -575,7 +558,7 @@ mod tests {
             0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2,
         );
         let token_address = AztecAddress::from_field(
-            0x064b4335b72b2fbe61ad2b3863de9d99f715cd15c790d979db5c4f1801dd0893,
+            0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
         );
 
         let contract_address = env
@@ -590,7 +573,7 @@ mod tests {
         let actual_length = 221;
 
         // Wh's VAA bytes, fetched from https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc
-        let wh_vaa:[u8; 221] = [
+        let wh_vaa: [u8; 221] = [
             0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x46, 0x82, 0xbc, 0x4d, 0x5f, 0xf2, 0xe5,
             0x4d, 0xc2, 0xee, 0x5e, 0x0e, 0xb6, 0x4f, 0x5c, 0x6c, 0x07, 0xaa, 0x44, 0x9a, 0xc5,
             0x39, 0xab, 0xc6, 0x3c, 0x2b, 0xe5, 0xc3, 0x06, 0xa4, 0x8f, 0x23, 0x3e, 0x93, 0x00,
@@ -606,18 +589,16 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f,
             0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
-    
 
         for i in 0..221 {
             vaa_bytes[i] = wh_vaa[i];
         }
 
-        // Call the utility function using simulate_utility
-        let result: bool = env.simulate_utility(Wormhole::at(contract_address)
-            ._experimental_test_verify_vaa_logic(vaa_bytes, actual_length));
-
-        assert(result == true, "VAA verification logic should succeed for Wh's VAA");
+        let _ = env.call_private_void(
+            dummy_owner,
+            Wormhole::at(contract_address).verify_vaa(vaa_bytes, actual_length),
+        );
     }
 }
