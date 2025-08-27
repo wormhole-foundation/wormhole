@@ -4283,9 +4283,14 @@ dependencies = [
  "solana-sdk",
  "solitaire",
  "spl-token",
+ "token-metadata-parser",
  "wasm-bindgen",
  "wormhole-bridge-solana",
 ]
+
+[[package]]
+name = "token-metadata-parser"
+version = "0.1.0"
 
 [[package]]
 name = "token_bridge_client"
