@@ -91,6 +91,7 @@ pub enum TokenBridgeError {
     InvalidVAA,
     NonexistentTokenMetadataAccount,
     NotMetadataV1Account,
+    WrongMetadataAccount,
 }
 
 impl From<TokenBridgeError> for SolitaireError {
