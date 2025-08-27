@@ -66,7 +66,7 @@ func NewMsgID(in string) (msgID, error) {
 
 	supported := IsSupported(chainID)
 	if !supported {
-		return msgID{}, err
+		return msgID{}, fmt.Errorf("chainID %d (%s) is does not have a Transfer Verifier implementation or is not supported", chainID, chainID.String())
 	}
 
 	emitterAddress, err := vaa.StringToAddress(parts[1])
