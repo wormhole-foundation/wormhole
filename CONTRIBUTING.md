@@ -152,3 +152,9 @@ Places to find out more about existing test coverage and how to run those tests:
   - Run: `cd algorand && make test`
 
 The best place to understand how we invoke these tests via GitHub Actions on every commit can be found via `./.github/workflows/*.yml` and the best place to observe the results of these builds can be found via [https://github.com/wormhole-foundation/wormhole/actions](https://github.com/wormhole-foundation/wormhole/actions).
+
+## Working with LLMs/Agents
+
+The repository contains an [AGENTS.md](./AGENTS.md) file that can be used to direct LLMs to work effectively with the repository.
+Rather than adding a custom markdown file for the wide range of LLM tools that exist, we've opted to use AGENTS.md
+as it is relatively general (https://agents.md/). Its contents can be copied into e.g. CLAUDE.md or cursor rules etc. depending on the developer's taste.
