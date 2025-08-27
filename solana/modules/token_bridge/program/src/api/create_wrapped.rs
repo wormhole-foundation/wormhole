@@ -205,6 +205,7 @@ pub fn update_accounts(
     // Checks in this method are redundant with what occurs in `update_metadata_accounts_v2`, but we want to make
     // sure that the account we are deserializing is legitimate.
     let metadata = deserialize_and_verify_metadata(
+        accs.mint.info(),
         &accs.spl_metadata,
         SplTokenMetaDerivationData {
             mint: *accs.mint.info().key,
