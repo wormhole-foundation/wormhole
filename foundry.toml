@@ -20,3 +20,4 @@ remappings = [
 runs = 10000
 # seed = "0x3e1"
 dictionary_weight = 60
+max_test_rejects = 6553600

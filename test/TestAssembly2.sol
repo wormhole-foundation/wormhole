@@ -1380,14 +1380,7 @@ contract FuzzTest is Test {
     // Only want to update a single entry if it's possible.
     index = uint16(bound(index, 0, mutated.length - 1)); 
 
-    // Bounds check to avoid out-of-bounds write crash. Should never happen though.
-    if (index >= mutated.length) {
-      return; 
-    }
-
-    if(mutated[index] == change){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutated[index] != change);
 
     mutated[index] = change;
 
@@ -1403,12 +1396,12 @@ contract FuzzTest is Test {
     index = uint16(bound(index, 0, mutated.length - 1)); 
     index2 = uint16(bound(index2, 0, mutated.length - 1));
 
-    if(mutated[index] == change || mutated[index2] == change2){ // If the change is the same, then do something else. Don't want false positives
-      return; 
-    }
+    vm.assume(mutated[index] != change);
+    vm.assume(mutated[index2] != change2);
+    vm.assume(index != index2);
 
-    mutated[index] = change;
-    mutated[index2] = change2;
+    mutated[index] = change; 
+    mutated[index2] = change2; 
 
     vm.expectRevert();
     verifier.verify(mutated);
@@ -1423,14 +1416,7 @@ contract FuzzTest is Test {
     // Add restraint of being larger than 4 so that we don't modify the selector
     index = uint16(bound(index, 4, mutated.length - 1)); 
 
-    // Bounds check to avoid out-of-bounds write crash. Should never happen though.
-    if (index >= mutated.length) {
-      return; 
-    }
-
-    if(mutated[index] == change){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutated[index] != change);
 
     mutated[index] = change;
 
@@ -1446,12 +1432,12 @@ contract FuzzTest is Test {
     index = uint16(bound(index, 4, mutated.length - 1)); 
     index2 = uint16(bound(index2, 4, mutated.length - 1));
 
-    if(mutated[index] == change || mutated[index2] == change2){ // If the change is the same, then do something else. Don't want false positives
-      return; 
-    }
+    vm.assume(mutated[index] != change);
+    vm.assume(mutated[index2] != change2);
+    vm.assume(index != index2);
 
-    mutated[index] = change;
-    mutated[index2] = change2;
+    mutated[index] = change; 
+    mutated[index2] = change2; 
 
     (bool success, bytes memory result) = address(verifier).call(mutated);
     require(!success, string(result));
@@ -1464,14 +1450,7 @@ contract FuzzTest is Test {
     // Only want to update a single entry if it's possible.
     index = uint16(bound(index, 0, mutated.length - 1)); 
 
-    // Bounds check to avoid out-of-bounds write
-    if (index >= mutated.length) {
-      return; 
-    }
-
-    if(mutated[index] == change){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutated[index] != change);
 
     mutated[index] = change;
 
@@ -1484,17 +1463,12 @@ contract FuzzTest is Test {
     bytes memory mutated = handler.bigSchnorrVaa();
 
     // Only want to update a single entry if it's possible.
-    index = uint16(bound(index, 0, mutated.length));
-    index2 = uint16(bound(index2, 0, mutated.length));
+    index = uint16(bound(index, 0, mutated.length - 1));
+    index2 = uint16(bound(index2, 0, mutated.length - 1));
 
-    // Bounds check to avoid out-of-bounds write
-    if (index >= mutated.length || index2 >= mutated.length) {
-      return; 
-    }
-
-    if(mutated[index] == change || mutated[index2] == change2){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutated[index] != change);
+    vm.assume(mutated[index2] != change2);
+    vm.assume(index != index2);
 
     mutated[index] = change;
     mutated[index2] = change2;
@@ -1511,14 +1485,7 @@ contract FuzzTest is Test {
     // Add restraint of being larger than 4 so that we don't modify the selector
     index = uint16(bound(index, 4, mutated.length - 1)); 
 
-    // Bounds check to avoid out-of-bounds write crash. Should never happen though.
-    if (index >= mutated.length) {
-      return; 
-    }
-
-    if(mutated[index] == change){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutated[index] != change);
 
     mutated[index] = change;
 
@@ -1534,9 +1501,9 @@ contract FuzzTest is Test {
     index = uint16(bound(index, 4, mutated.length - 1)); 
     index2 = uint16(bound(index2, 4, mutated.length - 1));
 
-    if(mutated[index] == change || mutated[index2] == change2){ // If the change is the same, then do something else. Don't want false positives
-      return; 
-    }
+    vm.assume(mutated[index] != change);
+    vm.assume(mutated[index2] != change2);
+    vm.assume(index != index2);
 
     mutated[index] = change;
     mutated[index2] = change2;
@@ -1545,7 +1512,7 @@ contract FuzzTest is Test {
     require(!success, string(result));
   }
 
-  // Fuzz 
+  // Fuzz Append Key
   function testFuzzUpdateAppend(bytes calldata data) public{
     //bytes1 inputType = 0x00; 
     bytes1 callType = 0x01;
@@ -1573,14 +1540,7 @@ contract FuzzTest is Test {
     // Only want to update a single entry if it's possible.
     index = uint16(bound(index, 0, mutatedMessage.length - 1)); 
 
-    // Bounds check to avoid out-of-bounds write
-    if (index >= mutatedMessage.length) {
-      return; 
-    }
-
-    if(mutatedMessage[index] == change){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutatedMessage[index] != change);
 
     mutatedMessage[index] = change;
 
@@ -1606,14 +1566,9 @@ contract FuzzTest is Test {
     index = uint16(bound(index, 0, mutatedMessage.length - 1)); 
     index2 = uint16(bound(index2, 0, mutatedMessage.length - 1)); 
 
-    // Bounds check to avoid out-of-bounds write
-    if (index >= mutatedMessage.length || index2 >= mutatedMessage.length) {
-      return; 
-    }
-
-    if(mutatedMessage[index] == change || mutatedMessage[index2] == change2){ // If the change is the same, then do something else. Done to stop false positives.
-      return; 
-    }
+    vm.assume(mutatedMessage[index] != change);
+    vm.assume(mutatedMessage[index2] != change2);
+    vm.assume(index != index2);
 
     mutatedMessage[index] = change;
     mutatedMessage[index2] = change2;
