@@ -49,41 +49,13 @@ export const createAppendSchnorrKeyMessage = ({
   shardDataHash: randomBytes(32),
 })
 
-// Signature for 100 zero bytes body VAA with `testSchnorrKey` hashed only once
-// ContractSig{
-//   pkX                : 0x1cafae803bf91a2e5494162625d34fda2f69db7c1f3589938647bc2abd4a0a0f
-//   pkyparity          : 0
-//   msghash            : 0x913fb9e1f6f1c6d910fd574a5cad8857aa43bfba24e401ada4f56090d4d997a7
-//   s                  : 0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c
-//   nonceTimesGAddress : 0xe46df5bea4597cef7d3c6eff36356a3f0ba33a56
-// }
-
-// const testSchnorrKey = encoding.bignum.toBytes(
-//   0x1cafae803bf91a2e5494162625d34fda2f69db7c1f3589938647bc2abd4a0a0fn << 1n, 32
-// );
-
-// const signatureTestMessage100Zeroed = {
-//   r: encoding.hex.decode("0xE46Df5BEa4597CEF7D3c6EfF36356A3F0bA33a56"),
-//   s: encoding.hex.decode("0x1c2d1ca6fd3830e653d2abfc57956f3700059a661d8cabae684ea1bc62294e4c"),
-// }
-
-
-// Signature for 100 zero bytes body VAA with `testSchnorrKey` hashed twice
-// ContractSig{
-//   pkX                : 0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770c
-//   pkyparity          : 0
-//   msghash            : 0x258752639c534fd7fb6b52e5e3ba32ed9e8de081c966fd895992f63464869309
-//   s                  : 0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29
-//   nonceTimesGAddress : 0x636a8688ef4b82e5a121f7c74d821a5b07d695f3
-// }
-
 const testSchnorrKey = encoding.bignum.toBytes(
-  0x79380e24c7cbb0f88706dd035135020063aab3e7f403398ff7f995af0b8a770cn << 1n, 32
+  0xc11b6c8b8e4ecc62ebf10437678eb70f17f1e53abdb3fa8df1912e3b3d11b5b9n, 32
 );
 
 const signatureTestMessage100Zeroed = {
-  r: encoding.hex.decode("0x636a8688ef4b82e5a121f7c74d821a5b07d695f3"),
-  s: encoding.hex.decode("0xaa6d485b7d7b536442ea7777127d35af43ac539a491c0d85ee0f635eb7745b29"),
+  r: encoding.hex.decode("0x41CF8d30EBCc800b655eAD15cC96014d36c4246B"),
+  s: encoding.hex.decode("0xfb5fa64887c4a05818b02afa7483e5115f19a93739c4b9ce4e92bae191a2ef4b"),
 }
 
 const invalidSignature = {

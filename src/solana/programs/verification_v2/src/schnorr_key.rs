@@ -60,11 +60,10 @@ impl SchnorrKey {
     let r = signature.r;
     let s = signature.s;
 
-    let mut message_challenge = [0u8; 85];
-    message_challenge[0..32].copy_from_slice(&px.to_big_endian());
-    message_challenge[32] = parity as u8;
-    message_challenge[33..65].copy_from_slice(digest);
-    message_challenge[65..85].copy_from_slice(&r);
+    let mut message_challenge = [0u8; 84];
+    message_challenge[0..20].copy_from_slice(&r);
+    message_challenge[20..52].copy_from_slice(&self.key.to_big_endian());
+    message_challenge[52..84].copy_from_slice(digest);
 
     let e = U256::from_big_endian(&hash(&message_challenge).to_bytes());
 
