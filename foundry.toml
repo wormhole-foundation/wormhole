@@ -15,3 +15,8 @@ remappings = [
     "wormhole-sdk/=lib/wormhole-solidity-sdk/src/",
     "core-bridge/=src/",
 ]
+
+[fuzz]
+runs = 10000
+# seed = "0x3e1"
+dictionary_weight = 60
