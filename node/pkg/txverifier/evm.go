@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,42 +21,40 @@ const (
 	RECONNECT_DELAY = 5 * time.Second
 )
 
-// TODO: More errors should be converted into sentinel errors instead of being created and returned in-line.
 var (
-	ErrCouldNotGetNativeDetails = errors.New("could not parse native details for transfer")
-	ErrDepositFromWrongAddress  = errors.New("parsed Deposit event has wrong address")
-	ErrInvalidReceiptArgument   = errors.New("invalid TransferReceipt argument")
-	ErrInvalidUpsertArgument    = errors.New("nil argument passed to upsert")
-	ErrNoMsgsFromTokenBridge    = errors.New("no messages published from Token Bridge")
-	ErrNotTransfer              = errors.New("payload is not a token transfer")
-	ErrParsedReceiptIsNil       = errors.New("nil receipt after parsing")
-	ErrReceiptHasNoMsgPub       = errors.New("receipt has no LogMessagePublished events")
-	ErrTxHashIsZeroAddr         = errors.New("txHash is the zero address")
+	ErrCachedReceiptHasNoDataForMessage = errors.New("cached receipt has no data for this message")
+	ErrCouldNotGetNativeDetails         = errors.New("could not parse native details for transfer")
+	ErrDepositFromWrongAddress          = errors.New("parsed Deposit event has wrong address")
+	ErrInvalidReceiptArgument           = errors.New("invalid TransferReceipt argument")
+	ErrInvalidUpsertArgument            = errors.New("nil argument passed to upsert")
+	ErrNoMsgsFromTokenBridge            = errors.New("no messages published from Token Bridge")
+	ErrNotTransfer                      = errors.New("payload is not a token transfer")
+	ErrParsedReceiptIsNil               = errors.New("nil receipt after parsing")
+	ErrTxHashIsZeroAddr                 = errors.New("txHash is the zero address")
 )
 
-// Custom error type used to signal that a core invariant of the token bridge has been violated.
-type InvariantError struct {
-	Msg string
-}
-
-func (i InvariantError) Error() string {
-	return fmt.Sprintf("invariant violated: %s", i.Msg)
-}
-
-// TransferIsValid processes a token transfer receipt based on a LogMessagePublished event. It fetches
-// the full transaction receipt associated with the txHash, and parses all
+// TransferIsValid processes a Message Publication representing a token transfer.
+// It fetches the full transaction receipt associated with the txHash and parses all
 // events emitted in the transaction, tracking LogMessagePublished events as outbound
-// transfers and token deposits into the token bridge as inbound transfers. It then
+// transfers and token deposits/transfers into the token bridge as inbound transfers. It then
 // verifies that the sum of the inbound transfers is at least as much as the sum of
 // the outbound transfers.
 //
 // Return values:
 //
-//	true:  the token transfer's receipt is valid.
-//	false and nil: the token transfer has violated an invariant and is unsafe.
+//	true, nil: the token transfer in the Message Publication is valid.
+//	false and nil: the Message Publication has violated an invariant.
 //	false and err: the receipt could not be properly processed or is not a token transfer.
+//	true and err: Should never happen.
 func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	ctx context.Context,
+	// The message ID is a combination of the emitter chain, emitter address, and sequence.
+	// It is identical to the VAA's "message ID" that will eventually be created based on the
+	// MessagePublication. See the Go SDK for more information.
+	//
+	// If empty, the code will return true if all of the messages are valid, and false otherwise.
+	// This should only be done for testing.
+	msgIDStr string,
 	txHash common.Hash,
 	// If nil, this code will fetch the receipt using the TransferVerifier's connector.
 	receipt *geth.Receipt,
@@ -69,11 +70,41 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 	tv.logger.Debug("detected LogMessagePublished event",
 		zap.String("txHash", txHash.String()))
 
-	// Caching: record used/inspected tx hash.
-	if eval, exists := tv.evaluations[txHash]; exists {
-		tv.logger.Debug("skip: transaction hash already processed",
-			zap.String("txHash", txHash.String()))
-		return eval.Result, nil
+	// Remains empty if the caller wants to check all messages in a receipt and the receipt itself.
+	checkWholeReceipt := msgIDStr == ""
+
+	// Get the specific message ID if provided.
+	var msgID msgID
+	if !checkWholeReceipt {
+		// Validate the validMsgID parameter if provided.
+		validMsgID, err := tv.ParseMsgID(msgIDStr)
+		if err != nil {
+			return false, err
+		}
+
+		msgID = validMsgID
+	}
+
+	// Check to see if the receipt is cached.
+	if evaluation, exists := tv.evaluations[txHash]; exists {
+
+		// Check if the message has already been verified, and if so, return the cached result.
+		if !checkWholeReceipt && !evaluation.msgInCache(msgID) {
+			// Should never happen, probably indicates a bug in the code.
+			tv.logger.Warn(
+				ErrCachedReceiptHasNoDataForMessage.Error(),
+				zap.String("msgID", msgID.String()),
+			)
+			return false, ErrCachedReceiptHasNoDataForMessage
+		}
+
+		// Return true if the entire receipt is safe.
+		if evaluation.ReceiptSummary.isSafe() {
+			return true, nil
+		}
+
+		//  Return true if the message is safe.
+		return evaluation.ReceiptSummary.isMsgSafe(msgID), nil
 	}
 
 	// Get the full transaction receipt for this txHash if it was not provided as an argument.
@@ -86,8 +117,6 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 			return false, txReceiptErr
 		}
 	}
-
-	eval := evaluation{Receipt: receipt}
 
 	// Caching: if the new receipt is newer than the last one, update the last block number.
 	// This is important to prevent the Transfer Verifier from recording a block number that is older
@@ -122,36 +151,45 @@ func (tv *TransferVerifier[ethClient, Connector]) TransferIsValid(
 		return false, updateErr
 	}
 
-	// Ensure that the amount coming in is at least as much as the amount requested out.
-	summary, processErr := tv.validateReceipt(transferReceipt)
-	if summary != nil {
-		tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
+	// Evaluate the receipt. This returns a summary of the receipt and a list of invariant errors,
+	// if any. If the receipt is valid, the summary will be non-nil and the invariant errors will be nil.
+	// If a receipt is valid, then all of its messages are valid and the receipt is safe.
+	// If a receipt is invalid, then some of its messages are invalid and the receipt is not safe.
+	summary, validateReceiptErr := tv.validateReceipt(transferReceipt)
+	tv.logger.Debug("finished processing receipt", zap.String("txHash", txHash.String()), zap.String("summary", summary.String()))
 
-		if summary.logsProcessed == 0 {
-			tv.logger.Warn("receipt logs empty for tx", zap.String("txHash", txHash.Hex()))
-		}
-	} else {
-		tv.logger.Debug("finished processing receipt (but summary is nil)", zap.String("txHash", txHash.String()))
+	if summary == nil {
+		tv.logger.Warn("receipt summary is nil", zap.String("txHash", txHash.String()))
+		return false, validateReceiptErr
 	}
 
-	if processErr != nil {
-		// Check if the error type is an invariant error. If not, it's just a parsing error.
-		var invError *InvariantError
-		if !errors.As(processErr, &invError) {
-			return false, processErr
-		}
-
-		// This represents an invariant violation in token transfers.
-		tv.logger.Error("invariant violation", zap.Error(processErr), zap.String("receipt summary", summary.String()))
-		// The error is deliberately discarded in this case, but is logged above.
-		return false, nil
+	// Check for parsing errors, which are bugs in the code.
+	if validateReceiptErr != nil {
+		// If we have a parsing error, we can't make any claims about the validity of the message.
+		// To be safe, fail closed by returning false.
+		// Results are not cached, as the parsing error may be transient.
+		return false, validateReceiptErr
 	}
 
-	// Cache successful results.
-	eval.Result = true
-	tv.addToCache(txHash, &eval)
+	if !summary.isSafe() {
+		// This represents an invariant violation, either in the receipt as a whole or in a single message.
+		tv.logger.Error("receipt is not solvent", zap.String("txHash", txHash.String()), zap.Int("invalidMsgCount", summary.invalidMessageCount()), zap.String("insolventAssets", strings.Join(summary.insolventAssets(), ",")))
+	}
 
-	return true, nil
+	// Cache receipt/message validations results (except for parsing errors, as they may be transient).
+	cacheEvaluation := NewReceiptEvaluation(summary, receipt.BlockNumber.Uint64())
+	tv.addToCache(txHash, &cacheEvaluation)
+
+	if checkWholeReceipt {
+		// Should only be done for testing.
+		return summary.isSafe(), nil
+	}
+
+	// Get the result of the message's validation.
+	msgSafe := summary.isMsgSafe(msgID)
+	tv.logger.Debug("msgIsValid results", zap.String("msg", msgID.String()), zap.Bool("msgSafe", msgSafe))
+
+	return msgSafe, nil
 }
 
 // pruneCache removes cached evaluations and RPC calls.
@@ -160,17 +198,17 @@ func (tv *TransferVerifier[ethClient, Connector]) pruneCache() {
 	var numPrunedEvals int
 
 	// Iterate over recorded transaction hashes, and clear receipts older than `pruneDelta` blocks
-	for hash, eval := range tv.evaluations {
-		if eval.Receipt != nil && eval.Receipt.BlockNumber != nil {
-			if eval.Receipt.BlockNumber.Uint64() < tv.lastBlockNumber-tv.pruneHeightDelta {
+	for txHash, eval := range tv.evaluations {
+		if eval != nil {
+			if eval.blockNumber < tv.lastBlockNumber-tv.pruneHeightDelta {
 				numPrunedEvals++
-				delete(tv.evaluations, hash)
+				delete(tv.evaluations, txHash)
 			}
 		} else {
 			// NOTE: Kind of sloppy to delete these right away, but we shouldn't be caching
 			// many nil receipts anyway.
 			numPrunedEvals++
-			delete(tv.evaluations, hash)
+			delete(tv.evaluations, txHash)
 		}
 	}
 
@@ -251,7 +289,7 @@ func (tv *TransferVerifier[ethClient, Connector]) updateReceiptDetails(
 		return ErrInvalidReceiptArgument
 	}
 
-	invalidErr := receipt.Validate()
+	invalidErr := receipt.SanityCheck()
 	if invalidErr != nil {
 		return errors.Join(
 			ErrInvalidReceiptArgument,
@@ -569,6 +607,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			messagePublications = append(messagePublications, &LogMessagePublished{
 				EventEmitter:    log.Address,
 				MsgSender:       logMessagePublished.Sender,
+				Sequence:        logMessagePublished.Sequence,
 				TransferDetails: transferDetails,
 			})
 
@@ -612,7 +651,7 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 		return nil, ErrInvalidReceiptArgument
 	}
 
-	invalidErr := receipt.Validate()
+	invalidErr := receipt.SanityCheck()
 	if invalidErr != nil {
 		return nil, errors.Join(
 			ErrInvalidReceiptArgument,
@@ -624,14 +663,14 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 		zap.String("receipt", receipt.String()),
 	)
 
-	summary := NewReceiptSummary()
-
 	if len(*receipt.Deposits) == 0 && len(*receipt.Transfers) == 0 {
 		// This should result in an invariant error below but this is helpful context.
 		tv.logger.Warn("receipt is a token transfer but has no deposits or transfers",
 			zap.String("receipt", receipt.String()),
 		)
 	}
+
+	receiptSummary := NewReceiptSummary()
 
 	// Process NativeDeposits
 	for _, deposit := range *receipt.Deposits {
@@ -653,7 +692,7 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			return nil, errors.New("couldn't get key for deposit")
 		}
 
-		upsertErr := upsert(&summary.in, key, deposit.TransferAmount())
+		upsertErr := upsert(&receiptSummary.in, key, deposit.TransferAmount())
 		if upsertErr != nil {
 			return nil, upsertErr
 		}
@@ -681,7 +720,7 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			return nil, errors.New("couldn't get key for transfer")
 		}
 
-		upsertErr := upsert(&summary.in, key, transfer.TransferAmount())
+		upsertErr := upsert(&receiptSummary.in, key, transfer.TransferAmount())
 		if upsertErr != nil {
 			return nil, upsertErr
 		}
@@ -693,7 +732,15 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 
 	// Process LogMessagePublished events.
 	for _, message := range *receipt.MessagePublications {
-		td := message.TransferDetails
+
+		// It's invalid for the core bridge to send a message to itself.
+		// This check is already done in validate() but doing it here
+		// allows us to use TransferVerifier's logger.
+		if Cmp(message.Sender(), message.Emitter()) == 0 {
+			tv.logger.Error("msg.sender cannot be equal to emitter",
+				zap.String("message", message.String()),
+			)
+		}
 
 		validateErr := validate[*LogMessagePublished](message)
 		if validateErr != nil {
@@ -705,62 +752,127 @@ func (tv *TransferVerifier[evmClient, connector]) validateReceipt(
 			tv.logger.Debug("skip: irrelevant LogMessagePublished event")
 			continue
 		}
-
-		upsertErr := upsert(&summary.out, key, message.TransferAmount())
-		if upsertErr != nil {
-			return nil, upsertErr
+		msgID, err := tv.MsgID(message)
+		if err != nil {
+			return nil, err
 		}
 
-		tv.logger.Debug("successfully parsed a LogMessagePublished event payload",
-			zap.String("tokenAddress", td.OriginAddress.String()),
-			zap.String("tokenChain", td.TokenChain.String()),
-			zap.String("amount", td.Amount.String()))
-
-		summary.logsProcessed++
-	}
-
-	tv.logger.Debug("done building receipt summary", zap.String("summary", summary.String()))
-
-	// Aggregate errors together in case there are multiple instances of invariants being broken
-	// in this receipt.
-	var invariantErrors error
-	for key, amountOut := range summary.out {
-		if amountIn, exists := summary.in[key]; !exists {
-			invariantErrors = errors.Join(invariantErrors, &InvariantError{Msg: "transfer-out request for tokens that were never deposited"})
+		// Record that tokens were requested out of the bridge for this message.
+		if _, exists := receiptSummary.out[msgID]; !exists {
+			receiptSummary.out[msgID] = transferOut{key, message.TransferAmount()}
+			// Ensure that each message ID is populated in the map.
+			receiptSummary.msgPubResult[msgID] = true
 		} else {
-			// TODO: We may want to add an allow-list for fee-on-transfer and rebasing tokens, or else
-			// they will fail validation here. The reason is that the Core Bridge's amount out is a function
-			// of the Token Bridge calling `balanceOf()` when a token transfer occurs. If this method is implemented
-			// in a strange way in the token contract, the amount out may be greater than the amount sent in
-			// and hence break the invariant testing below.
-			if amountOut.Cmp(amountIn) == 1 {
-				tv.logger.Warn(
-					"requested amount out is larger than amount in for this token. It may be a deflationary or rebasing asset. Review is required.",
-					zap.String("key", key),
-					zap.String("amountIn", amountIn.String()),
-					zap.String("amountOut", amountOut.String()),
-				)
-				invariantErrors = errors.Join(invariantErrors, &InvariantError{Msg: "requested amount out is larger than amount in"})
-			}
-
-			// Normally the amounts should be equal. This case indicates
-			// an unusual transfer or else a bug in the program.
-			if amountOut.Cmp(amountIn) == -1 {
-				tv.logger.Warn("requested amount in is larger than amount out.",
-					zap.String("key", key),
-					zap.String("amountIn", amountIn.String()),
-					zap.String("amountOut", amountOut.String()),
-				)
-			}
-
-			tv.logger.Debug("bridge request validated",
-				zap.String("key", key),
-				zap.String("amountOut", amountOut.String()),
-				zap.String("amountIn", amountIn.String()))
+			return nil, errors.New("duplicate message ID in receipt's LogMessagePublished events")
 		}
 	}
 
-	return summary, invariantErrors
+	// Sanity check: the receipt summary should have the same number of messages as the receipt.
+	if len(receiptSummary.msgPubResult) == 0 || len(*receipt.MessagePublications) != len(receiptSummary.msgPubResult) {
+		return nil, ErrInvalidReceiptArgument
+	}
+
+	tv.logger.Debug("done building receipt summary", zap.String("summary", receiptSummary.String()))
+
+	// This is the core evaluation algorithm that determines whether the receipt is valid, and whether the
+	// individual messages in the receipt are valid.
+	//
+	// There is one fundamental invariant that must be satisfied for the receipt to be valid:
+	// the sum of the outbound transfers must be at least as much as the sum of the inbound transfers.
+	insolventAssets := receiptSummary.insolventAssets()
+	if len(insolventAssets) > 0 {
+		tv.logger.Warn("receipt has insolvent assets", zap.Strings("insolventAssets", insolventAssets))
+	}
+	tv.logger.Debug("receipt summary after solvency check", zap.String("summary", receiptSummary.String()))
+
+	// At this stage, each msgPubResult is true. If insolvent assets are detected, then the msgPubResult
+	// will be set to false.
+	if len(*receipt.MessagePublications) == 1 {
+		// Only one message publication exists in the receipt. Check for solvency.
+		// There is only one message publication in the receipt, but we don't have the msgID to do a lookup.
+		for msgID := range receiptSummary.out {
+			receiptSummary.msgPubResult[msgID] = len(insolventAssets) == 0
+		}
+	} else {
+		// Multi-message case.
+		for msgID, transferOut := range receiptSummary.out {
+			if _, exists := receiptSummary.in[transferOut.tokenID]; !exists {
+				// This is never OK, even in the edge cases documented above.
+				receiptSummary.msgPubResult[msgID] = false
+			}
+		}
+	}
+
+	// Post-processing: if the receipt has insolvent assets, then mark the messages that involve those assets as invalid.
+	// It's possible that the above processing marks individual messages as valid, but the receipt as a whole is not solvent.
+	// To avoid processing these messages individually in the future, we mark them as invalid here.
+	if len(insolventAssets) > 0 {
+		for _, msgPub := range *receipt.MessagePublications {
+			msgID, err := tv.MsgID(msgPub)
+
+			// Parsing error.
+			if err != nil {
+				return nil, err
+			}
+
+			// Explicitly use int representation of the chain ID to avoid it being converted to its chain name
+			// via the String() method.
+			tokenID := fmt.Sprintf("%s-%d", msgPub.OriginAddress(), uint16(msgPub.OriginChain()))
+			tv.logger.Debug("insolvent assets", zap.String("assets", strings.Join(insolventAssets, ",")))
+			tv.logger.Debug("tokenID", zap.String("tokenID", tokenID))
+			if slices.Contains(insolventAssets, tokenID) {
+				tv.logger.Info("marking message as invalid because it contains an insolvent asset", zap.String("msgID", msgID.String()), zap.String("tokenID", tokenID))
+				receiptSummary.msgPubResult[msgID] = false
+			}
+		}
+	}
+
+	tv.logger.Debug("evaluated receipt safety:",
+		zap.Int("invalidMessageCount", receiptSummary.invalidMessageCount()),
+		zap.Bool("receiptIsSolvent?", len(insolventAssets) == 0),
+		zap.Bool("receipt isSafe?", receiptSummary.isSafe()),
+	)
+
+	return receiptSummary, nil
+}
+
+// insolventAssets() reports whether the sum of the outbound transfers is at least as much as the sum of the inbound transfers.
+// It is used to examine the solvency of the entire receipt, without considering individual messages.
+func (receiptSummary *ReceiptSummary) insolventAssets() []string {
+	if len(receiptSummary.out) == 0 {
+		return []string{}
+	}
+
+	var insolventAssets []string
+
+	// Track individual token balances separately from the summary's totals so that we can
+	// safely subtract from the totals while iterating over the outbound transfers.
+
+	// Important: the map is manually deep copied to avoid mutating the summary's `in` map.
+	// the map hold pointers to big.Ints, so we need to make a copy of their values.
+	tokenBalances := make(map[string]*big.Int)
+	for tokenID, amount := range receiptSummary.in {
+		tokenBalances[tokenID] = new(big.Int).Set(amount)
+	}
+
+	for _, transferOut := range receiptSummary.out {
+		if _, exists := receiptSummary.in[transferOut.tokenID]; !exists {
+			// Some outbound asset is not present in the inbound transfers.
+			insolventAssets = append(insolventAssets, transferOut.tokenID)
+		} else {
+			// Subtract the transfer out amount from the total balance.
+			tokenBalances[transferOut.tokenID].Sub(tokenBalances[transferOut.tokenID], transferOut.amount)
+		}
+	}
+
+	// If any token balance is less than zero, then the entire receipt is insolvent.
+	for tokenID, adjustedTotal := range tokenBalances {
+		if adjustedTotal.Cmp(big.NewInt(0)) < 0 {
+			insolventAssets = append(insolventAssets, tokenID)
+		}
+	}
+
+	return insolventAssets
 }
 
 // parseLogMessagePublishedPayload parses the details of a transfer from a
@@ -789,7 +901,7 @@ func parseLogMessagePublishedPayload(
 
 func (tv *TransferVerifier[ethClient, Connector]) addToCache(
 	txHash common.Hash,
-	evaluation *evaluation,
+	evaluation *receiptEvaluation,
 ) {
 	if _, exists := tv.evaluations[txHash]; !exists {
 		tv.evaluations[txHash] = evaluation

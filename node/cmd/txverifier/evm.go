@@ -45,9 +45,9 @@ var ErrInvariant = errors.New("invariant violation")
 // sanityCheck represents a test case for the transfer verifier that can be replayed
 // against mainnet to ensure that the tool has not regressed.
 type sanityCheck struct {
-	txHash common.Hash
-	valid  bool
-	err    error
+	txHash   common.Hash
+	msgValid bool
+	err      error
 }
 
 // Function to initialize the configuration for the TransferVerifierCmdEvm flags.
@@ -159,7 +159,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 		// be tested using the integration tests in Tilt.
 		for i, check := range sanityChecks {
 			logger.Info(fmt.Sprintf("Running sanity check %d for txHash %s", i, check.txHash))
-			valid, err := transferVerifier.TransferIsValid(ctx, check.txHash, nil)
+			valid, err := transferVerifier.TransferIsValid(ctx, "", check.txHash, nil)
 			logger.Debug("done processing", zap.Bool("result", valid), zap.String("txHash", check.txHash.String()))
 
 			if err != nil {
@@ -183,7 +183,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 			}
 
 			// Ensure that the right error type was returned
-			if valid != check.valid {
+			if valid != check.msgValid {
 				logger.Fatal(fmt.Sprintf("Sanity check %d failed (wrong result) for txHash %s", i, check.txHash))
 			}
 		}
@@ -194,7 +194,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 	// Single-shot mode: process a single transaction hash, then quit.
 	if len(*hash) > 0 {
 		receiptHash := common.HexToHash(*hash)
-		result, err := transferVerifier.TransferIsValid(ctx, receiptHash, nil)
+		result, err := transferVerifier.TransferIsValid(ctx, "", receiptHash, nil)
 		if err != nil {
 			logger.Error("could not verify transfer", zap.Error(err))
 			os.Exit(1)
@@ -223,7 +223,7 @@ func runTransferVerifierEvm(cmd *cobra.Command, args []string) {
 
 		// Process observed LogMessagePublished events
 		case vLog := <-sub.Events():
-			valid, err := transferVerifier.TransferIsValid(ctx, vLog.Raw.TxHash, nil)
+			valid, err := transferVerifier.TransferIsValid(ctx, "", vLog.Raw.TxHash, nil)
 			if err != nil {
 				logger.Debug("could not validate",
 					zap.Error(err),
