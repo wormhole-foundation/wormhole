@@ -1277,8 +1277,6 @@ contract TestAssembly2 is VerificationTestAPI {
     _wormholeVerifierV2.verify(smallSchnorrVaa);
   }
 }
-<<<<<<< HEAD
-=======
 
 
 
@@ -1302,7 +1300,6 @@ contract FuzzTest is Test {
   }
 
   function testFuzzVerifySingleSchnorr(bytes calldata data) public{
-    //bytes1 inputType = 0x00; 
     bytes1 version = 0x02; 
     bytes4 keyIndex = 0x00000001;
     bytes memory data_now = abi.encodePacked(version, keyIndex, data);
@@ -1318,7 +1315,7 @@ contract FuzzTest is Test {
     verifier.verify(data_now);
   }
 
-  // VerifyBatch Multisig type
+  // VerifyBatch with the Multisig type
   function testFuzzVerifyBatchMultisig(bytes calldata data) public {
     bytes1 inputType = 0x00; 
     bytes1 version = 0x01; 
@@ -1329,7 +1326,7 @@ contract FuzzTest is Test {
     require(!success, string(result));
   }
 
-  // VerifyBatch Schnorr type
+  // VerifyBatch with the Schnorr type
   function testFuzzVerifyBatchSchnorr(bytes calldata data) public {
     bytes1 inputType = 0x00; 
     bytes1 version = 0x02; 
@@ -1375,7 +1372,7 @@ contract FuzzTest is Test {
     require(!success, string(result));  
   }
 
-  // Edit one bytes from a legitimate VAA on verifyMultisig
+  // Edit one byte from a legitimate VAA on verifyMultisig
   function testFuzzSmartVerifyMultisig(uint16 index, bytes1 change) public {
     
     bytes memory mutated = handler.smallMultisigVaa();
@@ -1548,7 +1545,8 @@ contract FuzzTest is Test {
     require(!success, string(result));
   }
 
-  function testFuzzDumbUpdateAppend(bytes calldata data) public{
+  // Fuzz 
+  function testFuzzUpdateAppend(bytes calldata data) public{
     //bytes1 inputType = 0x00; 
     bytes1 callType = 0x01;
     bytes1 version = 0x01; 
@@ -1558,6 +1556,7 @@ contract FuzzTest is Test {
     verifier.update(data_now);
   }
 
+  // Edit a single byte of the message and see if it still passes.
   function testFuzzSmartUpdateAppend(uint16 index, bytes1 change) public {
 
     bytes memory shards = handler.schnorrShardsRaw(); 
@@ -1589,6 +1588,7 @@ contract FuzzTest is Test {
     verifier.update(mutatedMessage);
   }
 
+  // Edit two bytes of the valid message and see if it stills passes.
   function testFuzzSmartUpdateAppendDouble(uint16 index, bytes1 change, uint16 index2, bytes1 change2) public {
 
     bytes memory shards = handler.schnorrShardsRaw(); 
@@ -1622,4 +1622,3 @@ contract FuzzTest is Test {
     verifier.update(mutatedMessage);
   }
 }
->>>>>>> 732e124 (Add fuzz tests)
