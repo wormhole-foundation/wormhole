@@ -536,6 +536,7 @@ func (t *Engine) fpListener() {
 
 		case warn := <-t.fpCommChans.WarningChannel:
 			t.handleFPWarning(warn)
+
 		case sig := <-t.fpCommChans.SignatureOutputChannel:
 			t.handleFpSignature(sig)
 
@@ -569,7 +570,7 @@ func (t *Engine) handleFPWarning(warn *party.Warning) {
 	}
 
 	t.logger.Warn(
-		fmt.Sprintf("warning received from tss-lib.FullParty: %s", warn.Message),
+		fmt.Sprintf("tss-lib.FullParty: %s", warn.Message),
 		flds...,
 	)
 }

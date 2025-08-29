@@ -2006,7 +2006,7 @@ func TestHandleFPWarning_IntegrationStyle_UsesEngineBootstrap(t *testing.T) {
 		t.Fatalf("engine expected 1 log after message-only warn, got %d", logs.Len())
 	}
 	entry := logs.All()[0]
-	wantMsg := fmt.Sprintf("warning received from tss-lib.FullParty: %s", msgOnly.Message)
+	wantMsg := fmt.Sprintf("tss-lib.FullParty: %s", msgOnly.Message)
 	if entry.Message != wantMsg {
 		t.Fatalf("engine got log message %q, want %q", entry.Message, wantMsg)
 	}
@@ -2055,7 +2055,7 @@ func TestHandleFPWarning_IntegrationStyle_UsesEngineBootstrap(t *testing.T) {
 		t.Fatalf("engine expected trackingId mismatch: got %q, want %q", got["trackingId"], "trk-123")
 	}
 
-	// lst but not least, adding a valid culprit:
+	// last but not least, adding a valid culprit:
 	core, logs = observer.New(zapcore.WarnLevel)
 	e.logger = zap.New(core)
 	w.PossibleCulprit = e.Self.Pid

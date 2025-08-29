@@ -203,8 +203,8 @@ func validateBroadcastCorrectForm(e *tsscommv1.Echo) error {
 
 var (
 	errNilEcho           = errors.New("echo is nil")
-	errEchoDigestBadSize = errors.New("digest is not in correct size")
-	errEchoSessionUUID   = errors.New("echo sessionUUID is not in correct size")
+	errEchoDigestBadSize = errors.New("digest is not the correct size")
+	errEchoSessionUUID   = errors.New("echo sessionUUID is not the correct size")
 )
 
 func validateHashEchoMessageCorrectForm(v *tsscommv1.SignedMessage_HashEcho) error {
