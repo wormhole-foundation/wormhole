@@ -19,12 +19,14 @@
     "@types/bn.js": "^5.1.0",
     "@types/chai": "^4.3.0",
     "@types/mocha": "^10.0.10",
+    "@types/yargs": "^17.0.33",
     "chai": "^4.5.0",
     "diff": "^7.0.0",
     "mocha": "^11.1.0",
     "prettier": "^2.6.2",
     "toml": "^3.0.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "yargs": "^18.0.0"
   }
 }
