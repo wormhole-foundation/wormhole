@@ -1022,7 +1022,12 @@ contract WormholeVerifier is EIP712Encoding {
           uint32 index = _getMultisigKeyCount() - 1;
           (address[] memory keys,) = _getMultisigKeyData(index);
 
-          result = abi.encodePacked(result, uint32(index), uint8(keys.length), keys);
+          result = abi.encodePacked(result, index, uint8(keys.length), keys);
+        } else if (opcode == GET_CURRENT_SCHNORR_SHARD_DATA) {
+          uint32 index = _getSchnorrKeyCount() - 1;
+          (uint8 shardCount, bytes memory shardData) = _getSchnorrShardDataExport(schnorrKeyIndex);
+
+          result = abi.encodePacked(result, index, shardCount, shardData);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
           uint32 index;
           (index, offset) = data.asUint32CdUnchecked(offset);
