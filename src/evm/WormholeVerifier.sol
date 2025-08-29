@@ -59,11 +59,12 @@ uint256 constant MASK_UPDATE_RESULT_INVALID_DATA_LENGTH         = 1 << 32;
 uint256 constant MASK_UPDATE_RESULT_MULTISIG_KEY_INDEX_MISMATCH = 1 << 33;
 
 // Get opcodes
-uint8 constant GET_CURRENT_SCHNORR_KEY_DATA  = 0;
-uint8 constant GET_CURRENT_MULTISIG_KEY_DATA = 1;
-uint8 constant GET_SCHNORR_KEY_DATA          = 2;
-uint8 constant GET_MULTISIG_KEY_DATA         = 3;
-uint8 constant GET_SCHNORR_SHARD_DATA        = 4;
+uint8 constant GET_CURRENT_SCHNORR_KEY_DATA   = 0;
+uint8 constant GET_CURRENT_MULTISIG_KEY_DATA  = 1;
+uint8 constant GET_SCHNORR_KEY_DATA           = 2;
+uint8 constant GET_MULTISIG_KEY_DATA          = 3;
+uint8 constant GET_SCHNORR_SHARD_DATA         = 4;
+uint8 constant GET_CURRENT_SCHNORR_SHARD_DATA = 5;
 
 // Get error flags
 uint256 constant MASK_GET_RESULT_INVALID_OPCODE      = 1 << 16;
@@ -1025,7 +1026,7 @@ contract WormholeVerifier is EIP712Encoding {
           result = abi.encodePacked(result, index, uint8(keys.length), keys);
         } else if (opcode == GET_CURRENT_SCHNORR_SHARD_DATA) {
           uint32 index = _getSchnorrKeyCount() - 1;
-          (uint8 shardCount, bytes memory shardData) = _getSchnorrShardDataExport(schnorrKeyIndex);
+          (uint8 shardCount, bytes memory shardData) = _getSchnorrShardDataExport(index);
 
           result = abi.encodePacked(result, index, shardCount, shardData);
         } else if (opcode == GET_SCHNORR_KEY_DATA) {
