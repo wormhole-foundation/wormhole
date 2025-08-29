@@ -84,7 +84,9 @@ func (c *activeSigCounter) add(trackId *common.TrackingID, guardian *common.Part
 
 	c.digestToGuardians[sgkey][strPartyId] = struct{}{}
 	c.guardianToDigests[strPartyId][sgkey] = struct{}{}
-	c.firstSeen[sgkey] = time.Now()
+	if _, ok := c.firstSeen[sgkey]; !ok {
+		c.firstSeen[sgkey] = time.Now()
+	}
 
 	return true
 }
