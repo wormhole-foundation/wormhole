@@ -108,8 +108,8 @@ var (
 	// NOTE: Only add a chain here if the watcher should allow it in Testnet.
 	// NOTE: If you change this data, be sure and run the tests described at the top of this file!
 	testnetChainConfig = EnvMap{
-		// For Ethereum testnet we actually use Holeksy since Goerli is deprecated.
-		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky", ContractAddr: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
+		// As of 2025 February we use Sepolia as the default Ethereum testnet, given that Goerli is being deprecated.
+		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDBSC:      {Finalized: true, Safe: true, EvmChainID: 97, PublicRPC: "https://bsc-testnet-rpc.publicnode.com", ContractAddr: "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"},
 
 		// Polygon supports polling for finalized but not safe: https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
@@ -150,7 +150,9 @@ var (
 		vaa.ChainIDConverge:        {Finalized: true, Safe: true, EvmChainID: 52085145, PublicRPC: "https://rpc-converge-testnet-1.t.conduit.xyz", ContractAddr: "0x556B259cFaCd9896B2773310080c7c3bcE90Ff01"},
 		vaa.ChainIDPlume:           {Finalized: true, Safe: true, EvmChainID: 98867, PublicRPC: "https://testnet-rpc.plume.org", ContractAddr: "0x81705b969cDcc6FbFde91a0C6777bE0EF3A75855"},
 		vaa.ChainIDXRPLEVM:         {Finalized: true, Safe: true, EvmChainID: 1449000, PublicRPC: "https://rpc.testnet.xrplevm.org/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
-		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
+		
+		// Ethereum Sepolia is now the default for vaa.ChainIDEthereum instead
+		// vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},
 		vaa.ChainIDOptimismSepolia: {Finalized: true, Safe: true, EvmChainID: 11155420, PublicRPC: "https://optimism-sepolia-rpc.publicnode.com", ContractAddr: "0x31377888146f3253211EFEf5c676D41ECe7D58Fe"},
