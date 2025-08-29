@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	crand "crypto/rand"
+	"crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
@@ -24,10 +25,14 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/xlabs/multi-party-sig/pkg/round"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
 	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 	common "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-lib/v2/party"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -1958,4 +1963,124 @@ func TestDKG(t *testing.T) {
 	fmt.Println("DKG finished, configs:")
 
 	fmt.Println("")
+}
+
+func TestHandleFPWarning_IntegrationStyle_UsesEngineBootstrap(t *testing.T) {
+	// Create engines & give them their normal logger via your loader.
+	engines, err := loadGuardians(5, "tss5")
+	if err != nil {
+		t.Fatalf("loadGuardians failed: %v", err)
+	}
+
+	supctx := testutils.MakeSupervisorContext(context.Background())
+	ctx, cancel := context.WithTimeout(supctx, time.Minute)
+	defer cancel()
+
+	for _, e := range engines {
+		if err := e.Start(ctx); err != nil {
+			t.Fatalf("engine.Start failed: %v", err)
+		}
+	}
+
+	// swap in an observer logger so we can assert on logs.
+	e := engines[0]
+	core, logs := observer.New(zapcore.WarnLevel)
+	e.logger = zap.New(core) // replace the engine's logger with observed one
+
+	// 1) nil warning => no logs
+	e.handleFPWarning(nil)
+	if logs.Len() != 0 {
+		t.Fatalf("engine expected 0 logs for nil warning, got %d", logs.Len())
+	}
+
+	// 2) empty message => no logs
+	e.handleFPWarning(&party.Warning{Message: ""})
+	if logs.Len() != 0 {
+		t.Fatalf("engine expected 0 logs for empty message, got %d", logs.Len())
+	}
+
+	// 3) message only => single warn, no structured fields
+	msgOnly := &party.Warning{Message: "just a note"}
+	e.handleFPWarning(msgOnly)
+	if logs.Len() != 1 {
+		t.Fatalf("engine expected 1 log after message-only warn, got %d", logs.Len())
+	}
+	entry := logs.All()[0]
+	wantMsg := fmt.Sprintf("warning received from tss-lib.FullParty: %s", msgOnly.Message)
+	if entry.Message != wantMsg {
+		t.Fatalf("engine got log message %q, want %q", entry.Message, wantMsg)
+	}
+	if len(entry.Context) != 0 {
+		t.Fatalf("engine expected no fields for message-only warn, got %v", entry.Context)
+	}
+
+	// 4) protocol + round + nil culprit => fields for protocol, round; no possibleCulprit
+	core, logs = observer.New(zapcore.WarnLevel)
+	e.logger = zap.New(core)
+
+	dgst := sha512.Sum512_256([]byte("123"))
+	tid := &common.TrackingID{
+		Digest:       dgst[:],
+		PartiesState: nil,
+		AuxilaryData: []byte{dgst[0]},
+	}
+	w := &party.Warning{
+		Message:      "something happened",
+		Protocol:     common.ProtocolType("frost"),
+		SessionRound: round.Number(7),
+		TrackingID:   tid,
+		// PossibleCulprit is nil on purpose → fetch should fail/skip, so field omitted
+	}
+	e.handleFPWarning(w)
+
+	if logs.Len() != 1 {
+		t.Fatalf("engine expected 1 log, got %d", logs.Len())
+	}
+	entry = logs.All()[0]
+	if entry.Level != zapcore.WarnLevel {
+		t.Fatalf("engine expected warn level, got %v", entry.Level)
+	}
+	got := observerToMap(entry)
+
+	if got["protocol"] != "frost" {
+		t.Fatalf("engine expected protocol field mismatch: got %q, want %q", got["protocol"], "frost")
+	}
+	if got["round"] != "7" {
+		t.Fatalf("engine expected round field mismatch: got %q, want %q", got["round"], "7")
+	}
+	if _, ok := got["possibleCulprit"]; ok {
+		t.Fatalf("engine expected possibleCulprit to be absent when lookup fails or culprit is nil")
+	}
+	if got["trackingId"] != w.TrackingID.ToString() {
+		t.Fatalf("engine expected trackingId mismatch: got %q, want %q", got["trackingId"], "trk-123")
+	}
+
+	// lst but not least, adding a valid culprit:
+	core, logs = observer.New(zapcore.WarnLevel)
+	e.logger = zap.New(core)
+	w.PossibleCulprit = e.Self.Pid
+	e.handleFPWarning(w)
+	if logs.Len() != 1 {
+		t.Fatalf("engine expected 1 log, got %d", logs.Len())
+	}
+	got = observerToMap(logs.All()[0])
+	if got["possibleCulprit"] != e.Self.Hostname {
+		t.Fatalf("engine expected possibleCulprit field mismatch: got %q, want %q", got["possibleCulprit"], e.Self.Hostname)
+	}
+	// if got["trackingId"] != "trk-123" {
+	//     t.Fatalf("engine %d: trackingId mismatch: got %q, want %q", i, got["trackingId"], "trk-123")
+	// }
+}
+
+func observerToMap(entry observer.LoggedEntry) map[string]string {
+	got := map[string]string{}
+	for _, f := range entry.Context {
+		switch f.Type {
+		case zapcore.StringType:
+			got[f.Key] = f.String
+		case zapcore.Int64Type: // zap.Int encodes as int64
+			got[f.Key] = fmt.Sprintf("%d", f.Integer)
+		}
+	}
+	return got
 }

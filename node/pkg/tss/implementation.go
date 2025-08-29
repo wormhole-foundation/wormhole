@@ -406,6 +406,7 @@ func NewReliableTSS(storage *GuardianStorage) (ReliableTSS, error) {
 			OutChannel:             make(chan common.ParsedMessage, expectedMsgs),
 			SignatureOutputChannel: make(chan *common.SignatureData, storage.maxSimultaneousSignatures),
 			ErrChannel:             make(chan *common.Error, storage.maxSimultaneousSignatures),
+			WarningChannel:         make(chan *party.Warning, storage.maxSimultaneousSignatures),
 			KeygenOutputChannel:    make(chan *party.TSSSecrets, 1), // shouldn't output often.
 		},
 
@@ -533,6 +534,8 @@ func (t *Engine) fpListener() {
 		case err := <-t.fpCommChans.ErrChannel:
 			t.handleFpError(err)
 
+		case warn := <-t.fpCommChans.WarningChannel:
+			t.handleFPWarning(warn)
 		case sig := <-t.fpCommChans.SignatureOutputChannel:
 			t.handleFpSignature(sig)
 
@@ -540,6 +543,35 @@ func (t *Engine) fpListener() {
 			t.cleanup(maxTTL)
 		}
 	}
+}
+
+func (t *Engine) handleFPWarning(warn *party.Warning) {
+	if warn == nil || warn.Message == "" {
+		return
+	}
+
+	flds := []zap.Field{}
+
+	if warn.TrackingID != nil {
+		flds = append(flds, zap.String("trackingId", warn.TrackingID.ToString()))
+	}
+
+	if warn.Protocol != "" {
+		flds = append(flds, zap.String("protocol", string(warn.Protocol)))
+	}
+
+	if warn.SessionRound != 0 {
+		flds = append(flds, zap.Int("round", int(warn.SessionRound)))
+	}
+
+	if id, err := t.GuardianStorage.fetchIdentityFromPartyID(warn.PossibleCulprit); err == nil {
+		flds = append(flds, zap.String("possibleCulprit", id.Hostname))
+	}
+
+	t.logger.Warn(
+		fmt.Sprintf("warning received from tss-lib.FullParty: %s", warn.Message),
+		flds...,
+	)
 }
 
 func (t *Engine) handleFpSignature(sig *common.SignatureData) {
