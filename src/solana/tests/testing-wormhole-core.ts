@@ -1,5 +1,5 @@
 import anchor from '@coral-xyz/anchor';
-import { Connection, Keypair, PublicKey, Signer } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, Signer, Transaction } from '@solana/web3.js';
 import {
   Chain,
   deserializeLayout,
@@ -7,7 +7,7 @@ import {
   Network,
   signAndSendWait,
 } from '@wormhole-foundation/sdk-connect';
-import { SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
+import { AnySolanaAddress, SolanaAddress, SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
 import { SolanaWormholeCore, utils as coreUtils } from '@wormhole-foundation/sdk-solana-core';
 import {
   serialize as serializeVaa,
@@ -124,7 +124,7 @@ export class TestingWormholeCore<N extends Network> {
     payer: Keypair,
     source: { chain: Chain; emitterAddress: UniversalAddress },
     message: Uint8Array,
-  ): Promise<PublicKey> {
+  ) {
     const seq = this.sequence++;
     const timestamp = Math.round(Date.now() / 1000);
 
@@ -138,11 +138,67 @@ export class TestingWormholeCore<N extends Network> {
     );
     const vaa = this.guardians.addSignatures(published, [0]);
 
+    let signatureSet: Keypair | undefined;
+
+    this.client.postVaa = async function *postVaa(sender: AnySolanaAddress, vaa: VAA) {
+      const postedVaaAddress = coreUtils.derivePostedVaaKey(
+        this.coreBridge.programId,
+        Buffer.from(vaa.hash),
+      );
+
+      // no need to do anything else, this vaa is posted
+      const isPosted = await this.connection.getAccountInfo(postedVaaAddress);
+      if (isPosted) return;
+
+      const senderAddr = new SolanaAddress(sender).unwrap();
+      signatureSet = Keypair.generate();
+
+      const verifySignaturesInstructions =
+        await coreUtils.createVerifySignaturesInstructions(
+          this.connection,
+          this.coreBridge.programId,
+          senderAddr,
+          vaa,
+          signatureSet.publicKey,
+        );
+
+      // Create a new transaction for every 2 instructions
+      for (let i = 0; i < verifySignaturesInstructions.length; i += 2) {
+        const verifySigTx = new Transaction().add(
+          ...verifySignaturesInstructions.slice(i, i + 2),
+        );
+        verifySigTx.feePayer = senderAddr;
+        yield this["createUnsignedTx"](
+          { transaction: verifySigTx, signers: [signatureSet] },
+          'Core.VerifySignature',
+          true,
+        );
+      }
+
+      // Finally create the VAA posting transaction
+      const postVaaTx = new Transaction().add(
+        coreUtils.createPostVaaInstruction(
+          this.connection,
+          this.coreBridge.programId,
+          senderAddr,
+          vaa,
+          signatureSet.publicKey,
+        ),
+      );
+      postVaaTx.feePayer = senderAddr;
+
+      yield this["createUnsignedTx"]({ transaction: postVaaTx }, 'Core.PostVAA');
+    }
+
     const txs = this.client.postVaa(payer.publicKey, vaa);
     const signer = new SolanaSendSigner(this.client.connection, 'Solana', payer, false, {});
     await signAndSendWait(txs, signer);
+    if (signatureSet === undefined) throw new Error("Something failed with the signature set");
 
-    return coreUtils.derivePostedVaaKey(this.client.coreBridge.programId, Buffer.from(vaa.hash));
+    return {
+      postedVaa: coreUtils.derivePostedVaaKey(this.client.coreBridge.programId, Buffer.from(vaa.hash)),
+      signatureSet: signatureSet.publicKey,
+    };
   }
 
   private findPda(...seeds: Array<Buffer | Uint8Array>) {

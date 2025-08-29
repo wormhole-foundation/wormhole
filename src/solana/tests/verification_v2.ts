@@ -18,6 +18,7 @@ interface SchnorrKeyMessage {
   keyIndex: number;
   publicKey: Uint8Array;
   previousSetExpirationTime: number;
+  expectedMssIndex?: number;
 }
 
 interface InitSchnorrKey extends SchnorrKeyMessage {
@@ -42,10 +43,12 @@ export const createAppendSchnorrKeyMessage = ({
   keyIndex,
   publicKey,
   previousSetExpirationTime,
+  expectedMssIndex = 0,
 }: SchnorrKeyMessage) => serializeLayout(appendSchnorrKeyMessageLayout, {
   schnorrKeyIndex: keyIndex,
   schnorrKey: publicKey,
   expirationDelaySeconds: previousSetExpirationTime,
+  expectedMssIndex,
   shardDataHash: randomBytes(32),
 })
 
@@ -164,18 +167,20 @@ describe("VerificationV2", function() {
         message = Uint8Array.from([...message, ...extraMessageData])
       }
 
-      const postedVaaAddress = await postVaaV1(message)
+      const {postedVaa: postedVaaAddress, signatureSet} = await postVaaV1(message)
 
       let ix
       if (test.operation === "InitSchnorrKey") {
         ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
           vaa: postedVaaAddress,
+          signatureSet,
           newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
           oldSchnorrKey: null,
         }).instruction()
       } else {
         ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
           vaa: postedVaaAddress,
+          signatureSet,
           newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
           oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
         }).instruction()
@@ -333,6 +338,18 @@ describe("VerificationV2", function() {
       },
       expectFailureHandler: expectInvalidSchnorrKey,
     },
+    {
+      name: "Fails to append Schnorr key before the new guardian set is submitted",
+      test: {
+        operation: "AppendSchnorrKey",
+        keyIndex: testKeyIndex + 1,
+        publicKey: testSchnorrKey,
+        previousSetExpirationTime: guardianSetExpirationTime,
+        oldKeyIndex: testKeyIndex,
+        expectedMssIndex: 1,
+      },
+      expectFailureHandler: expectInvalidGuardianSet,
+    },
   ] satisfies AddKeyTest[]).map((test) => addKeyTest(test));
 
   [{
@@ -364,10 +381,11 @@ describe("VerificationV2", function() {
   }].map(({name, emitter, test, expectFailureHandler}) => it(name, async () => {
     let message = createAppendSchnorrKeyMessage(test)
 
-    const postedVaaAddress = await postVaaV1(message, undefined, emitter)
+    const {postedVaa: postedVaaAddress, signatureSet} = await postVaaV1(message, undefined, emitter)
 
     let ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
       vaa: postedVaaAddress,
+      signatureSet,
       newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
       oldSchnorrKey: deriveSchnorrKeyPda(test.oldKeyIndex)[0],
     }).instruction()
@@ -387,10 +405,11 @@ describe("VerificationV2", function() {
       previousSetExpirationTime: guardianSetExpirationTime,
     })
 
-    const postedVaaAddress = await postVaaV1(message, fakeCoreV1)
+    const {postedVaa: postedVaaAddress, signatureSet} = await postVaaV1(message, fakeCoreV1)
 
     const ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
       vaa: postedVaaAddress,
+      signatureSet,
       newSchnorrKey: deriveSchnorrKeyPda(newKeyIndex)[0],
       oldSchnorrKey: deriveSchnorrKeyPda(testKeyIndex)[0],
     }).instruction()
@@ -521,6 +540,10 @@ function expectInvalidSchnorrKey(error: Error) {
 
 function expectNewKeyIndexNotDirectSuccessor(error: Error) {
   expectAtLeastOneLog(error, "Error Code: NewKeyIndexNotDirectSuccessor.")
+}
+
+function expectInvalidGuardianSet(error: Error) {
+  expectAtLeastOneLog(error, "Error Code: InvalidGuardianSet.")
 }
 
 function expectAllocateAccountError(account: string) {

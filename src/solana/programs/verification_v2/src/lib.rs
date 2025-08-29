@@ -11,7 +11,7 @@ use anchor_lang::prelude::*;
 #[cfg(feature = "idl-build")]
 use anchor_lang::IdlBuild;
 
-use wormhole_anchor_sdk::wormhole::{constants::CHAIN_ID_SOLANA, PostedVaa};
+use wormhole_anchor_sdk::wormhole::{constants::CHAIN_ID_SOLANA, PostedVaa, SignatureSetData};
 
 use vaa::{VAA, VAAHeader, VAASchnorrSignature};
 use append_schnorr_key_message::AppendSchnorrKeyMessage;
@@ -27,6 +27,8 @@ pub const DIGEST_SIZE: usize = 32;
 pub enum VerificationV2Error {
   InvalidGovernanceChainId,
   InvalidGovernanceAddress,
+  InvalidSignatureSet,
+  InvalidGuardianSet,
   InvalidOldSchnorrKey,
   SchnorrKeyExpired,
   InvalidAccounts,
@@ -54,8 +56,13 @@ pub struct AppendSchnorrKey<'info> {
       @ VerificationV2Error::InvalidGovernanceChainId,
     constraint = vaa.meta.emitter_address == GOVERNANCE_ADDRESS
       @ VerificationV2Error::InvalidGovernanceAddress,
+    constraint = vaa.meta.signature_set == signature_set.key()
+      @ VerificationV2Error::InvalidSignatureSet,
   )]
   pub vaa: Account<'info, PostedVaa::<AppendSchnorrKeyMessage>>,
+
+  /// CHECK: need to deserialize manually because Anchor 0.31.1 does not support empty discriminators.
+  pub signature_set: UncheckedAccount<'info>,
 
   #[account(
     init_if_needed,
@@ -102,6 +109,16 @@ pub mod verification_v2 {
       (ctx.accounts.latest_key.account == Pubkey::default()),
       ctx.accounts.old_schnorr_key.is_none(),
       VerificationV2Error::InvalidAccounts,
+    );
+
+    // ctx.accounts.signature_set.try_borrow_data()?
+    let buf = ctx.accounts.signature_set.try_borrow_data()?;
+    let signature_set_data: Vec<u8> = buf.to_vec();
+    let signature_set: SignatureSetData = AccountDeserialize::try_deserialize_unchecked(&mut signature_set_data.as_slice())?;
+    require_gte!(
+      signature_set.guardian_set_index,
+      ctx.accounts.vaa.data().expected_mss_index,
+      VerificationV2Error::InvalidGuardianSet,
     );
 
     // Check that the index is increasing from the previous index

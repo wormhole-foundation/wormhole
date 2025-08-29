@@ -8,6 +8,7 @@ use crate::hex;
 #[derive(Clone)]
 pub struct AppendSchnorrKeyMessage {
   pub schnorr_key_index: u32,
+  pub expected_mss_index: u32,
   pub schnorr_key: SchnorrKey,
   pub expiration_delay_seconds: u32,
 }
@@ -32,6 +33,7 @@ impl AnchorDeserialize for AppendSchnorrKeyMessage {
     let action = reader.read_u8()?;
 
     let schnorr_key_index = reader.read_u32::<BigEndian>()?;
+    let expected_mss_index = reader.read_u32::<BigEndian>()?;
     let schnorr_key = SchnorrKey::deserialize_reader(reader)?;
     let expiration_delay_seconds = reader.read_u32::<BigEndian>()?;
 
@@ -56,6 +58,7 @@ impl AnchorDeserialize for AppendSchnorrKeyMessage {
 
     Ok(Self {
       schnorr_key_index,
+      expected_mss_index,
       schnorr_key,
       expiration_delay_seconds,
     })

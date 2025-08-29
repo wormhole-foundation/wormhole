@@ -32,6 +32,7 @@ export const appendSchnorrKeyMessageLayout = [
   {name: "module",                 binary: "bytes",           custom: MODULE_VERIFICATION_V2, omit: true},
   {name: "action",                 binary: "uint",  size:  1, custom: 1,                      omit: true},
   {name: "schnorrKeyIndex",        binary: "uint",  size:  4},
+  {name: "expectedMssIndex",       binary: "uint",  size:  4},
   {name: "schnorrKey",             binary: "bytes", size: 32},
   {name: "expirationDelaySeconds", binary: "uint",  size:  4},
   {name: "shardDataHash",          binary: "bytes", size: 32},
