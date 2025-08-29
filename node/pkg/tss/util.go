@@ -3,6 +3,7 @@ package tss
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -198,13 +199,23 @@ func validateBroadcastCorrectForm(e *tsscommv1.Echo) error {
 	return nil
 }
 
+var (
+	errNilEcho           = errors.New("echo is nil")
+	errEchoDigestBadSize = errors.New("digest is not in correct size")
+	errEchoSessionUUID   = errors.New("echo sessionUUID is not in correct size")
+)
+
 func validateHashEchoMessageCorrectForm(v *tsscommv1.SignedMessage_HashEcho) error {
+	if v == nil || v.HashEcho == nil {
+		return errNilEcho
+	}
+
 	if len(v.HashEcho.OriginalContetDigest) != len(digest{}) {
-		return fmt.Errorf("hashEcho digest is not in correct size")
+		return errEchoDigestBadSize
 	}
 
 	if len(v.HashEcho.SessionUuid) != len(uuid{}) {
-		return fmt.Errorf("hashEcho sessionUuid is not in correct size")
+		return errEchoSessionUUID
 	}
 
 	return nil
@@ -308,6 +319,10 @@ func outOfChannelOrDone[T any](ctx context.Context, c chan T) (T, error) {
 }
 
 func (st *GuardianStorage) validateTrackingIDForm(tid *common.TrackingID) error {
+	if tid == nil {
+		return fmt.Errorf("trackingID is nil")
+	}
+
 	if len(tid.Digest) != party.DigestSize {
 		return fmt.Errorf("trackingID digest is not in correct size")
 	}

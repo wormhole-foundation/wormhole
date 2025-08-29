@@ -2084,3 +2084,39 @@ func observerToMap(entry observer.LoggedEntry) map[string]string {
 	}
 	return got
 }
+
+func TestHandleIncomingTssMessage_NilHashEcho(t *testing.T) {
+	a := assert.New(t)
+	engines := load5GuardiansSetupForBroadcastChecks(a)
+	e1 := engines[0]
+	receiver := engines[4]
+
+	// Start the receiver engine
+	supctx := testutils.MakeSupervisorContext(context.Background())
+	ctx, cancel := context.WithCancel(supctx)
+	defer cancel()
+	a.NoError(receiver.Start(ctx))
+
+	// Create a valid SignedMessage, but with Content as a HashEcho with nil value
+	signedMsg := &tsscommv1.SignedMessage{
+		Sender:    uint32(e1.Self.CommunicationIndex),
+		Signature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},            // dummy signature
+		Content:   &tsscommv1.SignedMessage_HashEcho{HashEcho: nil}, // <-- nil HashEcho
+	}
+
+	// Wrap in Echo and PropagatedMessage
+	echo := &tsscommv1.Echo{
+		Message: signedMsg,
+	}
+	incoming := &IncomingMessage{
+		Source: e1.Self,
+		Content: &tsscommv1.PropagatedMessage{
+			Message: &tsscommv1.PropagatedMessage_Echo{
+				Echo: echo,
+			},
+		},
+	}
+
+	// Results in a panic, because the HashEcho is nil.
+	_ = receiver.handleIncomingTssMessage(incoming)
+}
