@@ -108,7 +108,7 @@ var (
 	// NOTE: Only add a chain here if the watcher should allow it in Testnet.
 	// NOTE: If you change this data, be sure and run the tests described at the top of this file!
 	testnetChainConfig = EnvMap{
-		// As of 2025 February we use Sepolia as the default Ethereum testnet, given that Holesky is being deprecated.
+		// As of 2025 September we use Sepolia as the default Ethereum testnet, given that Holesky is being deprecated.
 		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDBSC:      {Finalized: true, Safe: true, EvmChainID: 97, PublicRPC: "https://bsc-testnet-rpc.publicnode.com", ContractAddr: "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"},
 
