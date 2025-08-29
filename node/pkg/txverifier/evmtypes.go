@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"math/big"
 	"time"
@@ -197,11 +196,8 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	// Fetch EVM chain ID from the connector and attempt to convert it to a Wormhole chain ID.
-	evmChainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
-	if parseErr != nil {
-		return nil, fmt.Errorf("failed to parse chainId from string returned by connector client: %w", parseErr)
-	}
+	// Convert chainId to uint64
+	evmChainId := chainIdFromClient.Uint64()
 
 	wormholeChainId, unregisteredErr := TryWormholeChainIdFromNative(evmChainId)
 	if unregisteredErr != nil {
