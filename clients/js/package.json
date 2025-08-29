@@ -15,7 +15,7 @@
   "repository": "https://github.com/certusone/wormhole/tree/main/clients/js",
   "scripts": {
     "start": "npm run build && node ./build/main.js",
-    "build": "esbuild src/main.ts --bundle --outfile=build/main.js --minify --platform=node --target=node16",
+    "build": "esbuild src/main.ts --bundle --outfile=build/main.js --minify --platform=node --target=node22",
     "check": "tsc --noEmit",
     "docs": "npx tsx src/doc.ts",
     "prepublishOnly": "npm run check",
@@ -55,7 +55,7 @@
     "buffer-layout": "^1.2.2",
     "config": "^3.3.7",
     "dotenv": "^10.0.0",
-    "esbuild": "0.17.18",
+    "esbuild": "0.25.5",
     "ethers": "^5.6.8",
     "js-base64": "^3.6.1",
     "near-api-js": "^1.0.0",

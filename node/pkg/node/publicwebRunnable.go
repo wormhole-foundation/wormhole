@@ -136,6 +136,7 @@ func publicwebServiceRunnable(
 				return fmt.Errorf("no valid systemd listeners, got: %s", strings.Join(all, ","))
 			}
 		} else {
+			//nolint:noctx // TODO: this should be refactored to use context.
 			listener, err = net.Listen("tcp", listenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to listen: %v", err)

@@ -18,6 +18,7 @@ import (
 
 func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) supervisor.Runnable {
 	return func(ctx context.Context) error {
+		//nolint:noctx // TODO: this should be refactored to use context.
 		l, err := net.Listen("tcp", listenAddr)
 
 		if err != nil {

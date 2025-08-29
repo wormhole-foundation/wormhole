@@ -122,6 +122,8 @@ var knownTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDWorldchain: "000000000000000000000000c309275443519adca74c9136b02A38eF96E3a1f6",
 	vaa.ChainIDInk:        "0000000000000000000000003Ff72741fd67D6AD0668d93B41a09248F4700560",
 	vaa.ChainIDMezo:       "000000000000000000000000F97B81E513f53c7a6B57Bd0b103a6c295b3096C5",
+	vaa.ChainIDXRPLEVM:    "00000000000000000000000047F5195163270345fb4d7B9319Eda8C64C75E278",
+	vaa.ChainIDLinea:      "000000000000000000000000167E0752de62cb76EFc0Fbb165Bd342c6e2Bb251",
 }
 
 // KnownNFTBridgeEmitters is a list of well-known mainnet emitters for the NFT bridge.
@@ -179,6 +181,7 @@ var KnownAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDMantle, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDXLayer, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 	{ChainId: vaa.ChainIDWorldchain, Addr: "0000000000000000000000001520cc9e779c56dab5866bebfb885c86840c33d3"},
+	{ChainId: vaa.ChainIDXRPLEVM, Addr: "00000000000000000000000027428dd2d3dd32a4d7f7c497eaaa23130d894911"},
 }
 
 // KnownWrappedNativeAddress is a map of wrapped native addresses by chain ID, e.g. WETH for Ethereum

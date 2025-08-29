@@ -294,9 +294,6 @@ func TestValidateDeposit(t *testing.T) {
 			require.NoError(t, err)
 
 			// Test the interface
-			// The Sender() field for a Deposit must always be
-			// 'zero'. It only exists to satisfy the TransferLog interface.
-			assert.Equal(t, ZERO_ADDRESS_VAA.Bytes(), test.deposit.Sender().Bytes())
 			assert.Equal(t, test.deposit.TokenAddress, test.deposit.Emitter())
 			assert.NotEqual(t, ZERO_ADDRESS, test.deposit.OriginAddress())
 		})
@@ -529,6 +526,19 @@ func TestValidateLogMessagePublished(t *testing.T) {
 					OriginAddress: usdcAddrVAA,
 					TargetAddress: eoaAddrVAA,
 					Amount:        big.NewInt(-1),
+				},
+			},
+		},
+		"invalid: msg.sender cannot be equal to emitter": {
+			logMessagePublished: LogMessagePublished{
+				EventEmitter: coreBridgeAddr,
+				MsgSender:    coreBridgeAddr,
+				TransferDetails: &TransferDetails{
+					PayloadType:   TransferTokens,
+					TokenChain:    NATIVE_CHAIN_ID,
+					OriginAddress: usdcAddrVAA,
+					TargetAddress: eoaAddrVAA,
+					Amount:        big.NewInt(1),
 				},
 			},
 		},

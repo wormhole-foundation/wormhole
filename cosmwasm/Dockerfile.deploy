@@ -7,7 +7,7 @@ FROM const-gen AS const-export
 FROM cosmwasm_artifacts AS artifacts
 
 # Contract deployment stage
-FROM node:16-buster-slim@sha256:93c9fc3550f5f7d159f282027228e90e3a7f8bf38544758024f005e82607f546
+FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb
 
 RUN apt update && apt install netcat curl jq -y
 
