@@ -108,8 +108,8 @@ var (
 	// NOTE: Only add a chain here if the watcher should allow it in Testnet.
 	// NOTE: If you change this data, be sure and run the tests described at the top of this file!
 	testnetChainConfig = EnvMap{
-		// For Ethereum testnet we actually use Holeksy since Goerli is deprecated.
-		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky", ContractAddr: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
+		// As of 2025 September we use Sepolia as the default Ethereum testnet, given that Holesky is being deprecated.
+		vaa.ChainIDEthereum: {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDBSC:      {Finalized: true, Safe: true, EvmChainID: 97, PublicRPC: "https://bsc-testnet-rpc.publicnode.com", ContractAddr: "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"},
 
 		// Polygon supports polling for finalized but not safe: https://forum.polygon.technology/t/optimizing-decentralized-apps-ux-with-milestones-a-significantly-accelerated-finality-solution/13154
