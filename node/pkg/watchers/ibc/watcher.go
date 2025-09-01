@@ -165,16 +165,9 @@ func NewWatcher(
 		}
 
 		chainMap[ce.chainID] = ce
-
-		if feats == "" {
-			feats = "ibc:"
-		} else {
-			feats += "|"
-		}
-		feats += ce.chainID.String()
 	}
 
-	setFeatures(feats)
+	setFeatures("ibc")
 
 	return &Watcher{
 		wsUrl:                 wsUrl,
@@ -429,7 +422,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 			}
 
 			readiness.SetReady(common.ReadinessIBCSyncing)
-			setFeatures(w.baseFeatures + ":" + abciInfo.Result.Response.Version)
+			setFeatures("ibc:" + abciInfo.Result.Response.Version)
 		}
 	}
 }
@@ -677,7 +670,7 @@ func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, obs
 		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	ce.msgC <- evt.Msg
+	ce.msgC <- evt.Msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 	if evt.Msg.IsReobservation {
 		watchers.ReobservationsByChain.WithLabelValues(evt.Msg.EmitterChain.String(), "std").Inc()

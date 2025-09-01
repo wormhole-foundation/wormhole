@@ -2192,8 +2192,6 @@ github.com/mbilski/exhaustivestruct v1.2.0/go.mod h1:OeTBVxQWoEmB2J2JCHmXWPJ0aks
 github.com/mgechev/dots v0.0.0-20210922191527-e955255bf517/go.mod h1:KQ7+USdGKfpPjXk4Ga+5XxQM4Lm4e3gAogrreFAYpOg=
 github.com/mgechev/revive v1.2.1/go.mod h1:+Ro3wqY4vakcYNtkBWdZC7dBg1xSB6sp054wWwmeFm0=
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
-github.com/mgutz/str v1.2.0 h1:4IzWSdIz9qPQWLfKZ0rJcV0jcUDpxvP4JVZ4GXQyvSw=
-github.com/mgutz/str v1.2.0/go.mod h1:w1v0ofgLaJdoD0HpQ3fycxKD1WtxpjSo151pK/31q6w=
 github.com/microcosm-cc/bluemonday v1.0.1/go.mod h1:hsXNsILzKxV+sX77C5b8FSuKF00vh2OMYv+xgHpAMF4=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/miekg/dns v1.1.26/go.mod h1:bPDLeHnStXmXAq1m/Ch/hvfNHr14JKNPMBo3VZKjuso=
@@ -3139,12 +3137,6 @@ github.com/xlabs/multi-party-sig v0.0.2-0.20250627061502-fad331e9a67c h1:LZTmpTg
 github.com/xlabs/multi-party-sig v0.0.2-0.20250627061502-fad331e9a67c/go.mod h1:nj+lVandXi5A95tOft+8vXS07oWsa4ff/PU8sLKGOjA=
 github.com/xlabs/tss-common v0.0.0-20250627061221-0a6547e8e6da h1:2RPJnBGFo4Ztq/Kcyd13auoplbYgv02V889g+x3mY3c=
 github.com/xlabs/tss-common v0.0.0-20250627061221-0a6547e8e6da/go.mod h1:EBXV5kup1GsnVpEknaxXXpid87uN6Mh7NboAZhV+HNM=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250702103806-fae0ba9d5dd9 h1:gcUdBJeH55lS1oJx4B+GJusNFgZUI1GMlXX27Em8Fak=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250702103806-fae0ba9d5dd9/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250703104052-373f1f6003b2 h1:/BDi8evVnYKPsBD+q42MK4O6HlCLA+mLr2kYfCFpShs=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250703104052-373f1f6003b2/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250829083729-7c7edbc7a7db h1:abGFN4qbtkGF40kSpjd2vMbb70ZFo4j7R+E27TEzkIA=
-github.com/xlabs/tss-lib/v2 v2.0.0-20250829083729-7c7edbc7a7db/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
 github.com/xlabs/tss-lib/v2 v2.0.0-20250829113339-90f991af90c5 h1:iQPdofsVpgJH5D+yjd4UI1FJFiQYnq6zGcyp2BtulWI=
 github.com/xlabs/tss-lib/v2 v2.0.0-20250829113339-90f991af90c5/go.mod h1:zT0JYCjyHxljZv4694iAvbRz2qxhkKR3usWHqlPdsSw=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=
@@ -4331,8 +4323,6 @@ gopkg.in/fsnotify.v1 v1.4.7/go.mod h1:Tz8NjZHkW78fSQdbUxIjBTcgA1z1m8ZHf0WmKUhAMy
 gopkg.in/gcfg.v1 v1.2.0/go.mod h1:yesOnuUOFQAhST5vPY4nbZsb/huCgGGXlipJsBn0b3o=
 gopkg.in/gcfg.v1 v1.2.3/go.mod h1:yesOnuUOFQAhST5vPY4nbZsb/huCgGGXlipJsBn0b3o=
 gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2/go.mod h1:Xk6kEKp8OKb+X14hQBKWaSkCsqBpgog8nAV2xsGOxlo=
-gopkg.in/godo.v2 v2.0.9 h1:jnbznTzXVk0JDKOxN3/LJLDPYJzIl0734y+Z0cEJb4A=
-gopkg.in/godo.v2 v2.0.9/go.mod h1:wgvPPKLsWN0hPIJ4JyxvFGGbIW3fJMSrXhdvSuZ1z/8=
 gopkg.in/inf.v0 v0.9.1 h1:73M5CoZyi3ZLMOyDlQh031Cx6N9NDJ2Vvfl76EDAgDc=
 gopkg.in/inf.v0 v0.9.1/go.mod h1:cWUDdTG/fYaXco+Dcufb5Vnc6Gp2YChqWtbxRZE0mXw=
 gopkg.in/ini.v1 v1.51.0/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=

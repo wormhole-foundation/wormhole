@@ -1,7 +1,7 @@
 [package]
 name = "TokenBridge"
 version = "0.2.0"
-published-at = "0x562760fc51d90d4ae1835bac3e91e0e6987d3497b06f066941d3e51f6e8d76d0"
+published-at = "0x71a0a23c9496d90f294fd3d3e383dd21df8819667cc6e94107ac39c8bb98ccd9"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"

@@ -199,6 +199,12 @@ var (
 			Help: "Total number of times a write to the batch observation publish channel failed",
 		}, []string{"channel"})
 
+	vaaPublishChannelOverflow = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_vaa_publish_channel_overflow",
+			Help: "Total number of times a write to the vaa publish channel failed",
+		})
+
 	timeToHandleObservation = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "wormhole_time_to_handle_observation_us",

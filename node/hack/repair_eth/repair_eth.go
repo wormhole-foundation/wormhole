@@ -38,11 +38,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDBSC:       "https://api.bscscan.com/api",
 	vaa.ChainIDAvalanche: "https://api.snowtrace.io/api",
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
-	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
-	vaa.ChainIDAurora:    "https://explorer.mainnet.aurora.dev/api",
 	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
-	vaa.ChainIDKarura:    "https://blockscout.karura.network/api",
-	vaa.ChainIDAcala:     "https://blockscout.acala.network/api",
 	// NOTE: Not sure what should be here for Klaytn, since they use: https://scope.klaytn.com/
 	vaa.ChainIDCelo:       "https://celoscan.xyz/api",
 	vaa.ChainIDMoonbeam:   "https://api-moonbeam.moonscan.io",
@@ -51,13 +47,13 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDBase:       "https://api.basescan.org",
 	vaa.ChainIDScroll:     "https://api.scrollscan.com",
 	vaa.ChainIDMantle:     "https://api.mantlescan.xyz/",
-	vaa.ChainIDBlast:      "https://api.blastscan.io",
 	vaa.ChainIDXLayer:     "", // TODO: Does X Layer have an etherscan API endpoint?
 	vaa.ChainIDBerachain:  "https://api.berascan.com/",
 	vaa.ChainIDSeiEVM:     "", // TODO: Does SeiEVM have an etherscan API endpoint?
 	vaa.ChainIDUnichain:   "https://api.uniscan.xyz/",
 	vaa.ChainIDWorldchain: "https://api.worldscan.org",
 	vaa.ChainIDInk:        "", // TODO: Does Ink have an etherscan API endpoint?
+	vaa.ChainIDMezo:       "", // TODO: only known block explorer API for Mezo uses blockscout
 }
 
 var (
@@ -86,10 +82,10 @@ func addUserAgent(req *http.Request) *http.Request {
 }
 
 func usesBlockscout(chainId vaa.ChainID) bool {
-	return chainId == vaa.ChainIDOasis || chainId == vaa.ChainIDAurora || chainId == vaa.ChainIDKarura || chainId == vaa.ChainIDAcala
+	return false
 }
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
@@ -97,7 +93,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	}
 
 	c := nodev1.NewNodePrivilegedServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
 type logEntry struct {
@@ -140,9 +136,9 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 	var err error
 	if usesBlockscout(chainId) {
 		// This is the BlockScout based explorer leg
-		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
+		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
-		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
+		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
 	}
 	if err != nil {
 		panic(err)
@@ -283,11 +279,12 @@ func main() {
 
 	missingMessages := make(map[eth_common.Address]map[uint64]bool)
 
-	conn, err, admin := getAdminClient(ctx, *adminRPC)
-	defer conn.Close()
+	conn, admin, err := getAdminClient(ctx, *adminRPC)
 	if err != nil {
+		conn.Close()
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	// A polygon VAA that was not reobserved before the blocks aged out of guardian rpc nodes
 	ignoreAddress, _ := vaa.StringToAddress("0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde")

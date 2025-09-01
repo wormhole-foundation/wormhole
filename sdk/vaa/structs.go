@@ -6,6 +6,7 @@ import (
 	"encoding"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -105,8 +106,11 @@ type (
 const (
 	ConsistencyLevelPublishImmediately = uint8(200)
 	ConsistencyLevelSafe               = uint8(201)
+	ConsistencyLevelFinalized          = uint8(202)
+	ConsistencyLevelCustom             = uint8(203)
 )
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (a Address) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
@@ -130,153 +134,13 @@ func (a Address) Bytes() []byte {
 	return a[:]
 }
 
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (a SignatureData) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%s"`, a)), nil
 }
 
 func (a SignatureData) String() string {
 	return hex.EncodeToString(a[:])
-}
-
-func (c ChainID) String() string {
-	switch c {
-	case ChainIDUnset:
-		return "unset"
-	case ChainIDSolana:
-		return "solana"
-	case ChainIDEthereum:
-		return "ethereum"
-	case ChainIDTerra:
-		return "terra"
-	case ChainIDBSC:
-		return "bsc"
-	case ChainIDPolygon:
-		return "polygon"
-	case ChainIDAvalanche:
-		return "avalanche"
-	case ChainIDOasis:
-		return "oasis"
-	case ChainIDAlgorand:
-		return "algorand"
-	case ChainIDAurora:
-		return "aurora"
-	case ChainIDFantom:
-		return "fantom"
-	case ChainIDKarura:
-		return "karura"
-	case ChainIDAcala:
-		return "acala"
-	case ChainIDKlaytn:
-		return "klaytn"
-	case ChainIDCelo:
-		return "celo"
-	case ChainIDNear:
-		return "near"
-	case ChainIDMoonbeam:
-		return "moonbeam"
-	case ChainIDTerra2:
-		return "terra2"
-	case ChainIDInjective:
-		return "injective"
-	case ChainIDOsmosis:
-		return "osmosis"
-	case ChainIDSui:
-		return "sui"
-	case ChainIDAptos:
-		return "aptos"
-	case ChainIDArbitrum:
-		return "arbitrum"
-	case ChainIDOptimism:
-		return "optimism"
-	case ChainIDGnosis:
-		return "gnosis"
-	case ChainIDPythNet:
-		return "pythnet"
-	case ChainIDXpla:
-		return "xpla"
-	case ChainIDBtc:
-		return "btc"
-	case ChainIDBase:
-		return "base"
-	case ChainIDFileCoin:
-		return "filecoin"
-	case ChainIDSei:
-		return "sei"
-	case ChainIDRootstock:
-		return "rootstock"
-	case ChainIDScroll:
-		return "scroll"
-	case ChainIDMantle:
-		return "mantle"
-	case ChainIDBlast:
-		return "blast"
-	case ChainIDXLayer:
-		return "xlayer"
-	case ChainIDLinea:
-		return "linea"
-	case ChainIDBerachain:
-		return "berachain"
-	case ChainIDSeiEVM:
-		return "seievm"
-	case ChainIDEclipse:
-		return "eclipse"
-	case ChainIDBOB:
-		return "bob"
-	case ChainIDSnaxchain:
-		return "snaxchain"
-	case ChainIDUnichain:
-		return "unichain"
-	case ChainIDWorldchain:
-		return "worldchain"
-	case ChainIDInk:
-		return "ink"
-	case ChainIDHyperEVM:
-		return "hyperevm"
-	case ChainIDMonad:
-		return "monad"
-	case ChainIDMovement:
-		return "movement"
-	case ChainIDMezo:
-		return "mezo"
-	case ChainIDFogo:
-		return "fogo"
-	case ChainIDWormchain:
-		return "wormchain"
-	case ChainIDCosmoshub:
-		return "cosmoshub"
-	case ChainIDEvmos:
-		return "evmos"
-	case ChainIDKujira:
-		return "kujira"
-	case ChainIDNeutron:
-		return "neutron"
-	case ChainIDCelestia:
-		return "celestia"
-	case ChainIDStargaze:
-		return "stargaze"
-	case ChainIDSeda:
-		return "seda"
-	case ChainIDDymension:
-		return "dymension"
-	case ChainIDProvenance:
-		return "provenance"
-	case ChainIDNoble:
-		return "noble"
-	case ChainIDSepolia:
-		return "sepolia"
-	case ChainIDArbitrumSepolia:
-		return "arbitrum_sepolia"
-	case ChainIDBaseSepolia:
-		return "base_sepolia"
-	case ChainIDOptimismSepolia:
-		return "optimism_sepolia"
-	case ChainIDHolesky:
-		return "holesky"
-	case ChainIDPolygonSepolia:
-		return "polygon_sepolia"
-	default:
-		return fmt.Sprintf("unknown chain ID: %d", c)
-	}
 }
 
 // ChainIDFromNumber converts an unsigned integer into a ChainID. This function only determines whether the input is valid
@@ -293,7 +157,6 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 	case int8, uint8, int16, uint16:
 		// Because these values have been checked to be non-negative, we can return early with a simple conversion.
 		return ChainID(n), nil
-
 	}
 	// Use intermediate uint64 to safely handle conversion and allow comparison with MaxUint16.
 	// This is safe to do because the negative case is already handled.
@@ -302,7 +165,6 @@ func ChainIDFromNumber[N number](n N) (ChainID, error) {
 		return ChainIDUnset, fmt.Errorf("chainID must be less than or equal to %d but got %d", math.MaxUint16, n)
 	}
 	return ChainID(n), nil
-
 }
 
 // KnownChainIDFromNumber converts an unsigned integer into a known ChainID. It is a wrapper function for ChainIDFromNumber
@@ -321,14 +183,12 @@ func KnownChainIDFromNumber[N number](n N) (ChainID, error) {
 	}
 
 	return ChainIDUnset, fmt.Errorf("no known ChainID for input %d", n)
-
 }
 
 // StringToKnownChainID converts from a string representation of a chain into a ChainID that is registered in the SDK.
 // The argument can be either a numeric string representation of a number or a known chain name such as "solana".
 // Inputs of unknown ChainIDs, including 0, will result in an error.
 func StringToKnownChainID(s string) (ChainID, error) {
-
 	// Try to convert from chain name first, and return early if it's found.
 	id, err := ChainIDFromString(s)
 	if err == nil {
@@ -345,219 +205,6 @@ func StringToKnownChainID(s string) (ChainID, error) {
 	return KnownChainIDFromNumber(u16)
 }
 
-// ChainIDFromString converts from a chain's full name (e.g. "solana") to its corresponding ChainID.
-func ChainIDFromString(s string) (ChainID, error) {
-	s = strings.ToLower(s)
-
-	switch s {
-	case "solana":
-		return ChainIDSolana, nil
-	case "ethereum":
-		return ChainIDEthereum, nil
-	case "terra":
-		return ChainIDTerra, nil
-	case "bsc":
-		return ChainIDBSC, nil
-	case "polygon":
-		return ChainIDPolygon, nil
-	case "avalanche":
-		return ChainIDAvalanche, nil
-	case "oasis":
-		return ChainIDOasis, nil
-	case "algorand":
-		return ChainIDAlgorand, nil
-	case "aurora":
-		return ChainIDAurora, nil
-	case "fantom":
-		return ChainIDFantom, nil
-	case "karura":
-		return ChainIDKarura, nil
-	case "acala":
-		return ChainIDAcala, nil
-	case "klaytn":
-		return ChainIDKlaytn, nil
-	case "celo":
-		return ChainIDCelo, nil
-	case "near":
-		return ChainIDNear, nil
-	case "moonbeam":
-		return ChainIDMoonbeam, nil
-	case "terra2":
-		return ChainIDTerra2, nil
-	case "injective":
-		return ChainIDInjective, nil
-	case "osmosis":
-		return ChainIDOsmosis, nil
-	case "sui":
-		return ChainIDSui, nil
-	case "aptos":
-		return ChainIDAptos, nil
-	case "arbitrum":
-		return ChainIDArbitrum, nil
-	case "optimism":
-		return ChainIDOptimism, nil
-	case "gnosis":
-		return ChainIDGnosis, nil
-	case "pythnet":
-		return ChainIDPythNet, nil
-	case "xpla":
-		return ChainIDXpla, nil
-	case "btc":
-		return ChainIDBtc, nil
-	case "base":
-		return ChainIDBase, nil
-	case "filecoin":
-		return ChainIDFileCoin, nil
-	case "sei":
-		return ChainIDSei, nil
-	case "rootstock":
-		return ChainIDRootstock, nil
-	case "scroll":
-		return ChainIDScroll, nil
-	case "mantle":
-		return ChainIDMantle, nil
-	case "blast":
-		return ChainIDBlast, nil
-	case "xlayer":
-		return ChainIDXLayer, nil
-	case "linea":
-		return ChainIDLinea, nil
-	case "berachain":
-		return ChainIDBerachain, nil
-	case "seievm":
-		return ChainIDSeiEVM, nil
-	case "eclipse":
-		return ChainIDEclipse, nil
-	case "bob":
-		return ChainIDBOB, nil
-	case "snaxchain":
-		return ChainIDSnaxchain, nil
-	case "unichain":
-		return ChainIDUnichain, nil
-	case "worldchain":
-		return ChainIDWorldchain, nil
-	case "ink":
-		return ChainIDInk, nil
-	case "hyperevm":
-		return ChainIDHyperEVM, nil
-	case "monad":
-		return ChainIDMonad, nil
-	case "movement":
-		return ChainIDMovement, nil
-	case "mezo":
-		return ChainIDMezo, nil
-	case "fogo":
-		return ChainIDFogo, nil
-	case "wormchain":
-		return ChainIDWormchain, nil
-	case "cosmoshub":
-		return ChainIDCosmoshub, nil
-	case "evmos":
-		return ChainIDEvmos, nil
-	case "kujira":
-		return ChainIDKujira, nil
-	case "neutron":
-		return ChainIDNeutron, nil
-	case "celestia":
-		return ChainIDCelestia, nil
-	case "stargaze":
-		return ChainIDStargaze, nil
-	case "seda":
-		return ChainIDSeda, nil
-	case "dymension":
-		return ChainIDDymension, nil
-	case "provenance":
-		return ChainIDProvenance, nil
-	case "noble":
-		return ChainIDNoble, nil
-	case "sepolia":
-		return ChainIDSepolia, nil
-	case "arbitrum_sepolia":
-		return ChainIDArbitrumSepolia, nil
-	case "base_sepolia":
-		return ChainIDBaseSepolia, nil
-	case "optimism_sepolia":
-		return ChainIDOptimismSepolia, nil
-	case "holesky":
-		return ChainIDHolesky, nil
-	case "polygon_sepolia":
-		return ChainIDPolygonSepolia, nil
-	default:
-		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
-	}
-}
-
-func GetAllNetworkIDs() []ChainID {
-	return []ChainID{
-		ChainIDSolana,
-		ChainIDEthereum,
-		ChainIDTerra,
-		ChainIDBSC,
-		ChainIDPolygon,
-		ChainIDAvalanche,
-		ChainIDOasis,
-		ChainIDAlgorand,
-		ChainIDAurora,
-		ChainIDFantom,
-		ChainIDKarura,
-		ChainIDAcala,
-		ChainIDKlaytn,
-		ChainIDCelo,
-		ChainIDNear,
-		ChainIDMoonbeam,
-		ChainIDTerra2,
-		ChainIDInjective,
-		ChainIDOsmosis,
-		ChainIDSui,
-		ChainIDAptos,
-		ChainIDArbitrum,
-		ChainIDOptimism,
-		ChainIDGnosis,
-		ChainIDPythNet,
-		ChainIDXpla,
-		ChainIDBtc,
-		ChainIDBase,
-		ChainIDFileCoin,
-		ChainIDSei,
-		ChainIDRootstock,
-		ChainIDScroll,
-		ChainIDMantle,
-		ChainIDBlast,
-		ChainIDXLayer,
-		ChainIDLinea,
-		ChainIDBerachain,
-		ChainIDSeiEVM,
-		ChainIDEclipse,
-		ChainIDBOB,
-		ChainIDSnaxchain,
-		ChainIDUnichain,
-		ChainIDWorldchain,
-		ChainIDInk,
-		ChainIDHyperEVM,
-		ChainIDMonad,
-		ChainIDMovement,
-		ChainIDMezo,
-		ChainIDFogo,
-		ChainIDWormchain,
-		ChainIDCosmoshub,
-		ChainIDEvmos,
-		ChainIDKujira,
-		ChainIDNeutron,
-		ChainIDCelestia,
-		ChainIDStargaze,
-		ChainIDSeda,
-		ChainIDDymension,
-		ChainIDProvenance,
-		ChainIDNoble,
-		ChainIDSepolia,
-		ChainIDArbitrumSepolia,
-		ChainIDBaseSepolia,
-		ChainIDOptimismSepolia,
-		ChainIDHolesky,
-		ChainIDPolygonSepolia,
-	}
-}
-
 // NOTE: Please keep these in numerical order.
 const (
 	ChainIDUnset ChainID = 0
@@ -565,7 +212,7 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// ChainIDTerra is the ChainID of Terra
+	// WARNING: ChainIDTerra is only supported in devnet / Tilt.
 	ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
@@ -573,18 +220,14 @@ const (
 	ChainIDPolygon ChainID = 5
 	// ChainIDAvalanche is the ChainID of Avalanche
 	ChainIDAvalanche ChainID = 6
-	// ChainIDOasis is the ChainID of Oasis
-	ChainIDOasis ChainID = 7
+	// OBSOLETE: ChainIDOasis ChainID = 7
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
-	// ChainIDAurora is the ChainID of Aurora
-	ChainIDAurora ChainID = 9
+	// OBSOLETE: ChainIDAurora ChainID = 9
 	// ChainIDFantom is the ChainID of Fantom
 	ChainIDFantom ChainID = 10
-	// ChainIDKarura is the ChainID of Karura
-	ChainIDKarura ChainID = 11
-	// ChainIDAcala is the ChainID of Acala
-	ChainIDAcala ChainID = 12
+	// OBSOLETE: ChainIDKarura ChainID = 11
+	// OBSOLETE: ChainIDAcala ChainID = 12
 	// ChainIDKlaytn is the ChainID of Klaytn
 	ChainIDKlaytn ChainID = 13
 	// ChainIDCelo is the ChainID of Celo
@@ -594,7 +237,7 @@ const (
 	// ChainIDMoonbeam is the ChainID of Moonbeam
 	ChainIDMoonbeam ChainID = 16
 	// OBSOLETE: ChainIDNeon ChainID = 17
-	// ChainIDTerra2 is the ChainID of Terra 2
+	// WARNING: ChainIDTerra2 is only supported in devnet / Tilt.
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
@@ -613,9 +256,8 @@ const (
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
 	// NOTE: 27 belongs to a chain that was never deployed.
-	// ChainIDXpla is the ChainID of Xpla
-	ChainIDXpla ChainID = 28
-	//ChainIDBtc is the ChainID of Bitcoin
+	// OBSOLETE: ChainIDXpla ChainID = 28
+	// ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
 	// ChainIDBase is the ChainID of Base
 	ChainIDBase ChainID = 30
@@ -629,8 +271,7 @@ const (
 	ChainIDScroll ChainID = 34
 	// ChainIDMantle is the ChainID of Mantle
 	ChainIDMantle ChainID = 35
-	// ChainIDBlast is the ChainID of Blast
-	ChainIDBlast ChainID = 36
+	// OBSOLETE: ChainIDBlast ChainID = 36
 	// ChainIDXLayer is the ChainID of XLayer
 	ChainIDXLayer ChainID = 37
 	// ChainIDLinea is the ChainID of Linea
@@ -643,8 +284,7 @@ const (
 	ChainIDEclipse ChainID = 41
 	// ChainIDBOB is the ChainID of BOB
 	ChainIDBOB ChainID = 42
-	// ChainIDSnaxchain is the ChainID of Snaxchain
-	ChainIDSnaxchain ChainID = 43
+	// OBSOLETE: ChainIDSnaxchain ChainID = 43
 	// ChainIDUnichain is the ChainID of Unichain
 	ChainIDUnichain ChainID = 44
 	// ChainIDWorldchain is the ChainID of Worldchain
@@ -661,9 +301,20 @@ const (
 	ChainIDMezo ChainID = 50
 	// ChainIDFogo is the ChainID of Fogo
 	ChainIDFogo ChainID = 51
-	//ChainIDWormchain is the ChainID of Wormchain
+	// ChainIDSonic is the ChainID of Sonic
+	ChainIDSonic ChainID = 52
+	// ChainIDConverge is the ChainID of Converge
+	ChainIDConverge ChainID = 53
+	// ChainIDCodex is the ChainID of Codex
+	ChainIDCodex ChainID = 54
+	// ChainIdPlume is the ChainID of Plume
+	ChainIDPlume ChainID = 55
+	// ChainIdAztec is the ChainID of Aztec
+	ChainIDAztec ChainID = 56
+	// ChainIdXRPLEVM is the ChainID of XRPL-EVM
+	ChainIDXRPLEVM ChainID = 57
 
-	// Wormchain is in it's own range.
+	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
 
 	// The IBC chains start at 4000.
@@ -687,9 +338,9 @@ const (
 	ChainIDProvenance ChainID = 4008
 	// ChainIDNoble is the ChainID of Noble
 	ChainIDNoble ChainID = 4009
-	// ChainIDSepolia is the ChainID of Sepolia
 
 	// The Testnet only chains start at 10000.
+	// ChainIDSepolia is the ChainID of Sepolia
 	ChainIDSepolia ChainID = 10002
 	// ChainIDArbitrumSepolia is the ChainID of Arbitrum on Sepolia
 	ChainIDArbitrumSepolia ChainID = 10003
@@ -747,6 +398,9 @@ var SupportedVAAVersions = map[uint8]bool{VaaVersion1: true, TSSVaaVersion: true
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2, etc
+// parameter. This function should probably be reworked as a method of the VAA type.
+//
+//nolint:unparam // TODO: The argument data is not used here. Instead data is read from the VAA
 func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
@@ -861,7 +515,7 @@ func DeprecatedSigningDigest(bz []byte) common.Hash {
 func MessageSigningDigest(prefix []byte, data []byte) (common.Hash, error) {
 	if len(prefix) < 32 {
 		// Prefixes must be at least 32 bytes
-		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_key.md
+		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_signer.md
 		return common.Hash([32]byte{}), errors.New("prefix must be at least 32 bytes")
 	}
 	return crypto.Keccak256Hash(prefix[:], data), nil
@@ -892,7 +546,6 @@ func verifySignature(vaa_digest []byte, signature *Signature, address common.Add
 // Should not be public as other message types should be verified using a message prefix.
 // Returns false when the signatures or addresses are empty.
 func verifySignatures(vaa_digest []byte, signatures []*Signature, addresses []common.Address) bool {
-
 	// An empty set is neither valid nor invalid, it's just specified incorrectly.
 	// To help with backward-compatibility, return false instead of changing the function
 	// signature to return an error.
@@ -1269,4 +922,14 @@ func BytesToHash(b []byte) (common.Hash, error) {
 
 	hash = common.BytesToHash(b)
 	return hash, nil
+}
+
+// DebugString returns a pretty-formatted JSON string representation of the VAA.
+func (v *VAA) DebugString() (string, error) {
+	jsonBytes, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal VAA to JSON for debugging: %w", err)
+	}
+
+	return string(jsonBytes), nil
 }

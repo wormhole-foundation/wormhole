@@ -17,8 +17,6 @@ type WatcherConfig struct {
 	Rpc                    string             // RPC URL
 	Contract               string             // hex representation of the contract address
 	GuardianSetUpdateChain bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
-	L1FinalizerRequired    watchers.NetworkID // (optional)
-	l1Finalizer            interfaces.L1Finalizer
 	CcqBackfillCache       bool
 	TxVerifierEnabled      bool
 }
@@ -31,14 +29,7 @@ func (wc *WatcherConfig) GetChainID() vaa.ChainID {
 	return wc.ChainID
 }
 
-func (wc *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
-	return wc.L1FinalizerRequired
-}
-
-func (wc *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
-	wc.l1Finalizer = l1finalizer
-}
-
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
 func (wc *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -46,7 +37,7 @@ func (wc *WatcherConfig) Create(
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	setC chan<- *common.GuardianSet,
 	env common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) {
+) (supervisor.Runnable, interfaces.Reobserver, error) {
 
 	// only actually use the guardian set channel if wc.GuardianSetUpdateChain == true
 	var setWriteC chan<- *common.GuardianSet = nil
@@ -68,6 +59,5 @@ func (wc *WatcherConfig) Create(
 		wc.CcqBackfillCache,
 		wc.TxVerifierEnabled,
 	)
-	watcher.SetL1Finalizer(wc.l1Finalizer)
-	return watcher, watcher.Run, watcher, nil
+	return watcher.Run, watcher, nil
 }

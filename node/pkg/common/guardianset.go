@@ -177,7 +177,7 @@ func (st *GuardianSetState) SetHeartbeat(addr common.Address, peerId peer.ID, hb
 
 	v[peerId] = hb
 	if st.updateC != nil {
-		st.updateC <- hb
+		WriteToChannelWithoutBlocking(st.updateC, hb, "heartbeat")
 	}
 	return nil
 }

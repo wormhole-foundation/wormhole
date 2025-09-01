@@ -19,7 +19,7 @@ func (s *SolanaWatcher) handleReobservationRequest(chainId vaa.ChainID, txID []b
 		acc := solana.PublicKeyFromBytes(txID)
 		s.logger.Info("received observation request with account id", zap.String("account", acc.String()))
 		rCtx, cancel := context.WithTimeout(s.ctx, rpcTimeout)
-		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, true)
+		numObservations, _ = s.fetchMessageAccount(rCtx, rpcClient, acc, 0, true, solana.Signature{})
 		cancel()
 	} else if len(txID) == SolanaSignatureLen { // Request by transaction ID
 		signature := solana.SignatureFromBytes(txID)

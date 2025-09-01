@@ -6,6 +6,7 @@ algod
 Algorand
 algosdk
 alist
+amazonkms
 Aptos
 arbitrum
 authorisation
@@ -29,6 +30,8 @@ celestia
 Celestia
 celo
 certusone
+chainid
+ChainID
 Chainlink
 Coinspect
 collateralization
@@ -52,6 +55,7 @@ ethcrypto
 ethersproject
 ETHRPC
 evmos
+evmtypes
 fogo
 Fogo
 forgeable
@@ -109,6 +113,7 @@ Linea
 localnet
 localterra
 lockfiles
+marshal
 merkle
 Metaplex
 mezo
@@ -143,6 +148,7 @@ protobuf
 protos
 prototxt
 pubkey
+publicrpc
 pushbytes
 pushint
 pytest
@@ -154,11 +160,15 @@ readyz
 regen
 reinit
 reobservation
+reobservations
+Reobservation
+Reobservations
 reobserved
 repoint
 rustup
 satoshi
 secp
+SECQ
 seda
 seievm
 Sepolia
@@ -177,6 +187,7 @@ structs
 subdenom
 subdenoms
 Subdenoms
+suitypes
 supermajority
 superminority
 tendermint
@@ -197,6 +208,7 @@ undercollateralization
 unforgeable
 unichain
 Unichain
+unmarshal
 unnormalize
 untampered
 utest
@@ -219,5 +231,6 @@ wormscan
 wormscanurl
 xlayer
 xpla
+XFER
 XPLA
 Zellic

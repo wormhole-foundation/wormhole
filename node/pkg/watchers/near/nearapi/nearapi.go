@@ -113,7 +113,7 @@ func (n NearApiImpl) GetBlock(ctx context.Context, blockId string) (Block, error
 
 	// SECURITY defense-in-depth
 	if newBlock.Header.Hash != blockId {
-		return Block{}, errors.New("Returned block hash does not equal queried block hash")
+		return Block{}, errors.New("returned block hash does not equal queried block hash")
 	}
 
 	return newBlock, err
@@ -133,7 +133,7 @@ func (n NearApiImpl) GetBlockByHeight(ctx context.Context, blockHeight uint64) (
 
 	// SECURITY defense-in-depth
 	if newBlock.Header.Height != blockHeight {
-		return Block{}, errors.New("Returned block height not equal queried block height")
+		return Block{}, errors.New("returned block height not equal queried block height")
 	}
 	return newBlock, nil
 }
@@ -163,7 +163,7 @@ func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chu
 	// SECURITY defense-in-depth
 	if newChunk.Hash != chunkHeader.Hash {
 		fmt.Printf("queried hash=%s, return_hash=%s", chunkHeader.Hash, newChunk.Hash)
-		return Chunk{}, errors.New("Returned chunk hash does not equal queried chunk hash")
+		return Chunk{}, errors.New("returned chunk hash does not equal queried chunk hash")
 	}
 	return newChunk, nil
 }

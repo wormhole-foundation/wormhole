@@ -39,7 +39,7 @@ func TestDeterministicEcdsaKeyByIndex(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(fmt.Sprint(tc.index), func(t *testing.T) {
-			privKey := InsecureDeterministicEcdsaKeyByIndex(crypto.S256(), tc.index)
+			privKey := InsecureDeterministicEcdsaKeyByIndex(tc.index)
 			got := crypto.FromECDSA(privKey)
 			assert.Equal(t, tc.privKeyHex, hex.EncodeToString(got))
 		})

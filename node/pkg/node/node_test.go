@@ -257,15 +257,19 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true, false, ""),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", func() string { return "" }, []string{}, []string{}, []string{}),
+			GuardianOptionQueryHandler(false, ""), // disable queries
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
 			GuardianOptionAdminService(cfg.adminSocket, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", cfg.statusPort)),
-			GuardianOptionAlternatePublisher([]byte{}, []string{}),
+			GuardianOptionAlternatePublisher([]byte{}, []string{}), // disable alternate publisher
 			GuardianOptionProcessor(networkID),
+
 			GuardianOptionTSSNetwork(fmt.Sprintf("[::]:%d", cfg.tssNetworkPort)),
+
+			// Keep this last so that all of its dependencies are met.
+			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", false, []string{}, []string{}, []string{}),
 		}
 
 		guardianNode := NewGuardianNode(
@@ -978,9 +982,8 @@ func TestWatcherConfigs(t *testing.T) {
 						ChainID:   vaa.ChainIDSolana,
 					},
 					&mock.WatcherConfig{
-						NetworkID:           "mock2",
-						ChainID:             vaa.ChainIDEthereum,
-						L1FinalizerRequired: "mock1",
+						NetworkID: "mock2",
+						ChainID:   vaa.ChainIDEthereum,
 					},
 				}, nil),
 			},
@@ -1002,19 +1005,6 @@ func TestWatcherConfigs(t *testing.T) {
 			},
 			err: "NetworkID already configured: mock",
 		},
-		{
-			name: "watcher-noL1",
-			opts: []*GuardianOption{
-				GuardianOptionWatchers([]watchers.WatcherConfig{
-					&mock.WatcherConfig{
-						NetworkID:           "mock",
-						ChainID:             vaa.ChainIDSolana,
-						L1FinalizerRequired: "something-that-does-not-exist",
-					},
-				}, nil),
-			},
-			err: "L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs.",
-		},
 	}
 	runGuardianConfigTests(t, tc)
 }
@@ -1033,7 +1023,7 @@ func TestGuardianConfigs(t *testing.T) {
 					nil,   // nttWormchainConn
 				),
 			},
-			err: "Check the order of your options.",
+			err: ComponentDependencyError{componentName: "accountant", dependencyName: "db"}.Error(),
 		},
 		{
 			name: "double-configuration",
@@ -1041,7 +1031,7 @@ func TestGuardianConfigs(t *testing.T) {
 				GuardianOptionDatabase(nil),
 				GuardianOptionDatabase(nil),
 			},
-			err: "Component db is already configured and cannot be configured a second time",
+			err: ComponentAlreadyConfiguredError{componentName: "db"}.Error(),
 		},
 	}
 	runGuardianConfigTests(t, tc)
@@ -1101,6 +1091,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				if tc.err == "" {
 					assert.Equal(t, tc.err, r)
 				}
+				// Check that the string logged by the fatal hook contains the error message.
 				assert.Contains(t, r, tc.err)
 				rootCtxCancel()
 			case <-rootCtx.Done():
@@ -1241,7 +1232,7 @@ func BenchmarkCrypto(b *testing.B) {
 
 	b.Run("eth_crypto (secp256k1)", func(b *testing.B) {
 
-		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(eth_crypto.S256(), 0)
+		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(0)
 
 		b.Run("sign", func(b *testing.B) {
 			msgs := signingMsgs(b.N)

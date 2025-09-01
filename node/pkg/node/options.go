@@ -22,7 +22,6 @@ import (
 	tsscomm "github.com/certusone/wormhole/node/pkg/tss/comm"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
-	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -39,7 +38,7 @@ type GuardianOption struct {
 }
 
 // GuardianOptionP2P configures p2p networking.
-// Dependencies: Accountant, Governor
+// Dependencies: See below.
 func GuardianOptionP2P(
 	p2pKey libp2p_crypto.PrivKey,
 	networkId string,
@@ -52,14 +51,14 @@ func GuardianOptionP2P(
 	ccqPort uint,
 	ccqAllowedPeers string,
 	gossipAdvertiseAddress string,
-	ibcFeaturesFunc func() string,
+	ibcEnabled bool,
 	protectedPeers []string,
 	ccqProtectedPeers []string,
 	featureFlags []string,
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
-		dependencies: []string{"accountant", "governor", "gateway-relayer"},
+		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "query"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
@@ -78,9 +77,14 @@ func GuardianOptionP2P(
 			// Add the gossip advertisement address
 			components.GossipAdvertiseAddress = gossipAdvertiseAddress
 
-			var alternatePublisherFeaturesFunc func() string
-			if g.alternatePublisher != nil {
-				alternatePublisherFeaturesFunc = g.alternatePublisher.GetFeatures
+			// Get the static feature flags and add them to what was passed in.
+			featureFlags = getStaticFeatureFlags(g, featureFlags)
+
+			// Create the list of dynamic feature flag functions.
+			featureFlagFuncs := []func() string{}
+			if ibcEnabled {
+				// IBC has a dynamic feature flag because it reports the Wormchain version.
+				featureFlagFuncs = append(featureFlagFuncs, ibc.GetFeatures)
 			}
 
 			params, err := p2p.NewRunParams(
@@ -103,9 +107,7 @@ func GuardianOptionP2P(
 					g.gov,
 					disableHeartbeatVerify,
 					components,
-					ibcFeaturesFunc,
-					(g.gatewayRelayer != nil), // gatewayRelayerEnabled,
-					(g.queryHandler != nil),   // ccqEnabled,
+					(g.queryHandler != nil), // ccqEnabled,
 					g.signedQueryReqC.writeC,
 					g.queryResponsePublicationC.readC,
 					ccqBootstrapPeers,
@@ -114,9 +116,8 @@ func GuardianOptionP2P(
 					protectedPeers,
 					ccqProtectedPeers,
 					featureFlags,
+					featureFlagFuncs,
 				),
-				p2p.WithProcessorFeaturesFunc(processor.GetFeatures),
-				p2p.WithAlternatePublisherFeaturesFunc(alternatePublisherFeaturesFunc),
 			)
 			if err != nil {
 				return err
@@ -397,7 +398,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.String("txID", msg.TxIDString()),
 									zap.Time("timestamp", msg.Timestamp))
 							} else {
-								g.msgC.writeC <- msg
+								g.msgC.writeC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 							}
 						}
 					}
@@ -423,13 +424,13 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("watcherChainId", chainId),
 								)
 							}
-							g.queryResponseC.writeC <- response
+							g.queryResponseC.writeC <- response //nolint:channelcheck // This channel is buffered, if it backs up we'll stop processing queries until it clears
 						}
 					}
 				}(chainQueryResponseC[chainId], chainId)
 			}
 
-			configuredWatchers := make(map[watchers.NetworkID]interfaces.L1Finalizer)
+			configuredWatchers := make(map[watchers.NetworkID]struct{})
 
 			for _, wc := range watcherConfigs {
 				if _, ok := configuredWatchers[wc.GetNetworkID()]; ok {
@@ -445,24 +446,14 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					g.chainQueryReqC[wc.GetChainID()] = make(chan *query.PerChainQueryInternal, query.QueryRequestBufferSize)
 				}
 
-				if wc.RequiredL1Finalizer() != "" {
-					l1watcher, ok := configuredWatchers[wc.RequiredL1Finalizer()]
-					if !ok || l1watcher == nil {
-						logger.Fatal("L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs. The L1 must be configured before this one.",
-							zap.String("ChainID", wc.GetChainID().String()),
-							zap.String("L1ChainID", string(wc.RequiredL1Finalizer())))
-					}
-					wc.SetL1Finalizer(l1watcher)
-				}
-
-				l1finalizer, runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
+				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
 					return fmt.Errorf("error creating watcher: %w", err)
 				}
 
 				g.runnablesWithScissors[watcherName] = runnable
-				configuredWatchers[wc.GetNetworkID()] = l1finalizer
+				configuredWatchers[wc.GetNetworkID()] = struct{}{}
 
 				if reobserver != nil {
 					g.reobservers[wc.GetChainID()] = reobserver
@@ -620,12 +611,12 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 }
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
-// Dependencies: db, governor, accountant
+// Dependencies: See below.
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"db", "governor", "accountant", "gateway-relayer", "alternate-publisher"},
+		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -670,4 +661,35 @@ func GuardianOptionTSSNetwork(
 
 			return nil
 		}}
+}
+
+// getStaticFeatureFlags creates the list of feature flags that do not change after initialization and adds them to the ones passed in.
+// Note: Any objects referenced here should be listed as dependencies in `GuardianOptionP2P`.
+func getStaticFeatureFlags(g *G, featureFlags []string) []string {
+	if g.gov != nil {
+		flag := "gov"
+		if g.gov.IsFlowCancelEnabled() {
+			flag = "gov:fc"
+		}
+		featureFlags = append(featureFlags, flag)
+	}
+
+	if g.acct != nil {
+		featureFlags = append(featureFlags, g.acct.FeatureString())
+	}
+
+	if g.queryHandler != nil {
+		featureFlags = append(featureFlags, "ccq")
+	}
+
+	if g.gatewayRelayer != nil {
+		featureFlags = append(featureFlags, "gwrelayer")
+	}
+
+	if g.alternatePublisher != nil {
+		featureFlags = append(featureFlags, g.alternatePublisher.GetFeatures())
+	}
+
+	return featureFlags
+
 }

@@ -44,7 +44,7 @@ fn missing_observations() {
 
     let o = create_observation();
     let digest = o.digest().unwrap();
-    let data = to_binary(&[o.clone()]).unwrap();
+    let data = to_binary(std::slice::from_ref(&o)).unwrap();
     let signatures = sign_observations(&wh, &data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
@@ -95,7 +95,7 @@ fn different_observations() {
         .unwrap() as usize;
 
     let first = create_observation();
-    let first_data = to_binary(&[first.clone()]).unwrap();
+    let first_data = to_binary(std::slice::from_ref(&first)).unwrap();
     let first_signatures = sign_observations(&wh, &first_data);
 
     // Don't submit enough signatures for the transfer to reach quorum.
@@ -167,7 +167,7 @@ fn guardian_set_change() {
         .unwrap() as usize;
 
     let o = create_observation();
-    let data = to_binary(&[o.clone()]).unwrap();
+    let data = to_binary(std::slice::from_ref(&o)).unwrap();
     let signatures = sign_observations(&wh, &data);
 
     // Don't submit enough signatures for the transfer to reach quorum.

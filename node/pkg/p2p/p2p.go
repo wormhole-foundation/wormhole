@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -503,6 +504,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 		// Start up heartbeating if it is enabled.
 		if params.nodeName != "" {
+			slices.Sort(params.featureFlags)
 			go func() {
 				ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx))
 
@@ -530,43 +532,16 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								networks = append(networks, v)
 							}
 
-							features := make([]string, 0)
-							if params.processorFeaturesFunc != nil {
-								flag := params.processorFeaturesFunc()
-								if flag != "" {
-									features = append(features, flag)
+							features := make([]string, len(params.featureFlags))
+							copy(features, params.featureFlags)
+							if len(params.featureFlagFuncs) != 0 {
+								for _, f := range params.featureFlagFuncs {
+									flag := f()
+									if flag != "" {
+										features = append(features, flag)
+									}
 								}
-							}
-							if params.alternatePublisherFeaturesFunc != nil {
-								flag := params.alternatePublisherFeaturesFunc()
-								if flag != "" {
-									features = append(features, flag)
-								}
-							}
-							if params.gov != nil {
-								if params.gov.IsFlowCancelEnabled() {
-									features = append(features, "governor:fc")
-								} else {
-									features = append(features, "governor")
-								}
-							}
-							if params.acct != nil {
-								features = append(features, params.acct.FeatureString())
-							}
-							if params.ibcFeaturesFunc != nil {
-								ibcFlags := params.ibcFeaturesFunc()
-								if ibcFlags != "" {
-									features = append(features, ibcFlags)
-								}
-							}
-							if params.gatewayRelayerEnabled {
-								features = append(features, "gwrelayer")
-							}
-							if params.ccqEnabled {
-								features = append(features, "ccq")
-							}
-							if len(params.featureFlags) != 0 {
-								features = append(features, params.featureFlags...)
+								slices.Sort(features)
 							}
 
 							heartbeat := &gossipv1.Heartbeat{
@@ -686,7 +661,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 					// Send to local observation request queue (the loopback message is ignored)
 					if params.obsvReqRecvC != nil {
-						params.obsvReqRecvC <- msg
+						common.WriteToChannelWithoutBlocking(params.obsvReqRecvC, msg, "obs_req_internal")
 					}
 
 					if controlPubsubTopic == nil {
@@ -711,7 +686,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := controlSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on control topic: %w", err)
+						errC <- fmt.Errorf("failed to receive pubsub message on control topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
 						return
 					}
 
@@ -846,11 +821,11 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorConfig:
 						if params.signedGovCfgRecvC != nil {
-							params.signedGovCfgRecvC <- m.SignedChainGovernorConfig
+							common.WriteToChannelWithoutBlocking(params.signedGovCfgRecvC, m.SignedChainGovernorConfig, "gov_config_gossip_internal")
 						}
 					case *gossipv1.GossipMessage_SignedChainGovernorStatus:
 						if params.signedGovStatusRecvC != nil {
-							params.signedGovStatusRecvC <- m.SignedChainGovernorStatus
+							common.WriteToChannelWithoutBlocking(params.signedGovStatusRecvC, m.SignedChainGovernorStatus, "gov_status_gossip_internal")
 						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
@@ -869,7 +844,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := attestationSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on attestation topic: %w", err)
+						errC <- fmt.Errorf("failed to receive pubsub message on attestation topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
 						return
 					}
 
@@ -927,7 +902,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				for {
 					envelope, err := vaaSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 					if err != nil {
-						errC <- fmt.Errorf("failed to receive pubsub message on vaa topic: %w", err)
+						errC <- fmt.Errorf("failed to receive pubsub message on vaa topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
 						return
 					}
 
@@ -1030,7 +1005,7 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *commo
 
 	digest := heartbeatDigest(s.Heartbeat)
 
-	// SECURITY: see whitepapers/0009_guardian_key.md
+	// SECURITY: see whitepapers/0009_guardian_signer.md
 	if len(heartbeatMessagePrefix)+len(s.Heartbeat) < 34 {
 		return nil, fmt.Errorf("invalid message: too short")
 	}
@@ -1088,7 +1063,7 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 		pk = gs.Keys[idx]
 	}
 
-	// SECURITY: see whitepapers/0009_guardian_key.md
+	// SECURITY: see whitepapers/0009_guardian_signer.md
 	if len(signedObservationRequestPrefix)+len(s.ObservationRequest) < 34 {
 		return nil, fmt.Errorf("invalid observation request: too short")
 	}

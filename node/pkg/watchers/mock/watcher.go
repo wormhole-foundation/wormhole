@@ -20,10 +20,6 @@ func NewWatcherRunnable(
 		logger := supervisor.Logger(ctx)
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-		if c.L1FinalizerRequired != "" && c.l1Finalizer == nil {
-			logger.Fatal("Mock watcher: L1FinalizerRequired but not set.")
-		}
-
 		logger.Info("Mock Watcher running.")
 
 		for {
@@ -33,9 +29,9 @@ func NewWatcherRunnable(
 				return nil
 			case observation := <-c.MockObservationC:
 				logger.Info("message observed", observation.ZapFields(zap.String("digest", observation.CreateDigest()))...)
-				msgC <- observation
+				msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 			case gs := <-c.MockSetC:
-				setC <- gs
+				setC <- gs //nolint:channelcheck // Will only block this mock watcher
 			case o := <-obsvReqC:
 				hash := eth_common.BytesToHash(o.TxHash)
 				logger.Info("Received obsv request", zap.String("log_msg_type", "obsv_req_received"), zap.String("tx_hash", hash.Hex()))
@@ -43,15 +39,9 @@ func NewWatcherRunnable(
 				if ok {
 					msg2 := *msg
 					msg2.IsReobservation = true
-					msgC <- &msg2
+					msgC <- &msg2 //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 				}
 			}
 		}
 	}
-}
-
-type MockL1Finalizer struct{}
-
-func (f MockL1Finalizer) GetLatestFinalizedBlockNumber() uint64 {
-	return 0
 }

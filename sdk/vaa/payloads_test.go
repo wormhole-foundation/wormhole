@@ -455,3 +455,14 @@ func TestBodyRecoverChainIdModuleTooLong(t *testing.T) {
 	require.ErrorContains(t, err, "failed to left pad module: payload longer than 32 bytes")
 	assert.Nil(t, buf)
 }
+
+func TestBodyCoreBridgeSetMessageFeeSerialize(t *testing.T) {
+	expected := "00000000000000000000000000000000000000000000000000000000436f72650304560000000000000000000000000000000000000000000000000000000000000123"
+	bodyCoreBridgeSetMessageFee := BodyCoreBridgeSetMessageFee{
+		ChainID:    0x456,
+		MessageFee: uint256.NewInt(0x123),
+	}
+	buf, err := bodyCoreBridgeSetMessageFee.Serialize()
+	require.NoError(t, err)
+	assert.Equal(t, expected, hex.EncodeToString(buf))
+}

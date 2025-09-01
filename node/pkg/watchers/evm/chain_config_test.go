@@ -34,7 +34,7 @@ func TestGetEvmChainID(t *testing.T) {
 		{env: common.MainNet, input: vaa.ChainIDBSC, output: 56},
 		{env: common.TestNet, input: vaa.ChainIDUnset, err: ErrNotFound},
 		{env: common.TestNet, input: vaa.ChainIDSepolia, output: 11155111},
-		{env: common.TestNet, input: vaa.ChainIDEthereum, output: 17000},
+		{env: common.TestNet, input: vaa.ChainIDEthereum, output: 11155111},
 		{env: common.GoTest, input: vaa.ChainIDEthereum, err: ErrInvalidEnv},
 	}
 
@@ -126,7 +126,7 @@ func TestGetContractAddr(t *testing.T) {
 		{env: common.MainNet, input: vaa.ChainIDBSC, output: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"},
 		{env: common.TestNet, input: vaa.ChainIDUnset, err: ErrNotFound},
 		{env: common.TestNet, input: vaa.ChainIDSepolia, output: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
-		{env: common.TestNet, input: vaa.ChainIDEthereum, output: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
+		{env: common.TestNet, input: vaa.ChainIDEthereum, output: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		{env: common.GoTest, input: vaa.ChainIDEthereum, err: ErrInvalidEnv},
 	}
 

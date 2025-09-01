@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
@@ -10,9 +9,17 @@ import (
 	"github.com/spf13/viper"
 )
 
+// ConfigOptions is used to configure the loading of config parameters by "guardiand node".
 type ConfigOptions struct {
-	FilePath  string
-	FileName  string
+	// FilePath is the path to the config file to be loaded, including the file name and extension.
+	// If this is specified (either as fully qualified or relative), config parameters will be loaded
+	// from that file, in addition to from environment variables and command line arguments.
+	// The file may be any of the types supported by Viper (such as .yaml or .json).
+	FilePath string
+
+	// EnvPrefix is the prefix to be added to environment variables to load variables that
+	// override config file settings. For instance, setting it to "GUARDIAND" will cause it
+	// to look for variables like "GUARDIAND_ETHRPC".
 	EnvPrefix string
 }
 
@@ -24,12 +31,9 @@ type ConfigOptions struct {
 func InitFileConfig(cmd *cobra.Command, options ConfigOptions) error {
 	v := viper.New()
 
-	v.SetConfigName(options.FileName)
-	v.AddConfigPath(options.FilePath)
-
-	if err := v.ReadInConfig(); err != nil {
-		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFoundError) {
+	if options.FilePath != "" {
+		v.SetConfigFile(options.FilePath)
+		if err := v.ReadInConfig(); err != nil {
 			return err
 		}
 	}

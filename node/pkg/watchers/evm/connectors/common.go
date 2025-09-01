@@ -87,7 +87,7 @@ func (sub *PollSubscription) Err() <-chan error {
 func (sub *PollSubscription) Unsubscribe() {
 	sub.errOnce.Do(func() {
 		select {
-		case sub.quit <- ErrUnsubscribed:
+		case sub.quit <- ErrUnsubscribed: //nolint:channelcheck // We only do a single write.
 			<-sub.unsubDone
 		case <-sub.unsubDone:
 		}

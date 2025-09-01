@@ -136,6 +136,7 @@ func publicwebServiceRunnable(
 				return fmt.Errorf("no valid systemd listeners, got: %s", strings.Join(all, ","))
 			}
 		} else {
+			//nolint:noctx // TODO: this should be refactored to use context.
 			listener, err = net.Listen("tcp", listenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to listen: %v", err)
@@ -147,9 +148,9 @@ func publicwebServiceRunnable(
 		go func() {
 			logger.Info("publicweb server listening", zap.String("addr", srv.Addr))
 			if tlsHostname != "" {
-				errC <- srv.ServeTLS(listener, "", "")
+				errC <- srv.ServeTLS(listener, "", "") //nolint:channelcheck // Only does one write
 			} else {
-				errC <- srv.Serve(listener)
+				errC <- srv.Serve(listener) //nolint:channelcheck // Only does one write
 			}
 		}()
 		select {

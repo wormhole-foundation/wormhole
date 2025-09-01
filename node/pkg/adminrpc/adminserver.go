@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,7 +25,6 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"golang.org/x/exp/slices"
 
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -42,7 +42,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-const maxResetReleaseTimerDays = 7
+const maxResetReleaseTimerDays = 30
 const ecdsaSignatureLength = 65
 
 var (
@@ -663,6 +663,37 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 	return v, nil
 }
 
+func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	chainId, err := vaa.KnownChainIDFromNumber[uint32](req.ChainId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert chain id: %w", err)
+	}
+
+	new_fee_big := big.NewInt(0)
+	new_fee_big, ok := new_fee_big.SetString(req.MessageFee, 10)
+	if !ok {
+		return nil, errors.New("invalid new fee")
+	}
+	new_fee, overflow := uint256.FromBig(new_fee_big)
+	if overflow {
+		return nil, errors.New("new fee overflow")
+	}
+	if new_fee_big.Cmp(big.NewInt(0)) < 0 {
+		return nil, errors.New("new fee cannot be negative")
+	}
+
+	body, err := vaa.BodyCoreBridgeSetMessageFee{
+		ChainID:    chainId,
+		MessageFee: new_fee,
+	}.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+	return v, nil
+}
+
 func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	governanceContract := ethcommon.HexToAddress(evmCall.GovernanceContract)
 	targetContract := ethcommon.HexToAddress(evmCall.TargetContract)
@@ -771,6 +802,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = evmCallToVaa(payload.EvmCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_SolanaCall:
 		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_CoreBridgeSetMessageFee:
+		v, err = coreBridgeSetMessageFeeToVaa(payload.CoreBridgeSetMessageFee, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
 		err = fmt.Errorf("unsupported VAA type: %T", payload)
 	}
@@ -807,7 +840,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 
 		vaaInjectionsTotal.Inc()
 
-		s.injectC <- &common.MessagePublication{
+		s.injectC <- &common.MessagePublication{ //nolint:channelcheck // Only blocks this command
 			TxID:             ethcommon.Hash{}.Bytes(),
 			Timestamp:        v.Timestamp,
 			Nonce:            v.Nonce,
@@ -907,7 +940,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			// Inject into the gossip signed VAA receive path.
 			// This has the same effect as if the VAA was received from the network
 			// (verifying signature, storing in local DB...).
-			s.signedInC <- &gossipv1.SignedVAAWithQuorum{
+			s.signedInC <- &gossipv1.SignedVAAWithQuorum{ //nolint:channelcheck // Only blocks this command
 				Vaa: vaaBytes,
 			}
 
@@ -1056,7 +1089,7 @@ func (s *nodePrivilegedService) ChainGovernorReleasePendingVAA(ctx context.Conte
 	}, nil
 }
 
-func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(ctx context.Context, req *nodev1.ChainGovernorResetReleaseTimerRequest) (*nodev1.ChainGovernorResetReleaseTimerResponse, error) {
+func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(_ context.Context, req *nodev1.ChainGovernorResetReleaseTimerRequest) (*nodev1.ChainGovernorResetReleaseTimerResponse, error) {
 	if s.governor == nil {
 		return nil, fmt.Errorf("chain governor is not enabled")
 	}

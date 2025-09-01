@@ -266,7 +266,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 			if job.hasWormholeMsg {
 				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime) //nolint:channelcheck // Only pauses this watcher
 			}
 		}
 
@@ -324,7 +324,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) error {
 	if int(e.transactionProcessingQueueCounter.Load())+len(e.transactionProcessingQueue) > queueSize {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-		return fmt.Errorf("NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.")
+		return fmt.Errorf("NEAR transactionProcessingQueue exceeds max queue size, skipping transaction")
 	}
 
 	common.RunWithScissors(ctx, e.errC, "scheduledThread",
@@ -343,7 +343,7 @@ func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, d
 				select {
 				case <-ctx.Done():
 					return nil
-				case e.transactionProcessingQueue <- job:
+				case e.transactionProcessingQueue <- job: //nolint:channelcheck // Only blocking this go routine.
 				}
 			}
 			return nil

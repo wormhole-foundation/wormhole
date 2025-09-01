@@ -45,10 +45,7 @@ func TestTelemetryWithPrivate(t *testing.T) {
 	var expectedCounter int64 = 0
 
 	externalLogger := &externalLoggerMock{eventCounter: &eventCounter}
-	tm, err := NewExternalLogger(true, externalLogger)
-	if err != nil {
-		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-	}
+	tm := NewExternalLogger(true, externalLogger)
 	defer tm.Close()
 	logger = tm.WrapLogger(logger)
 
@@ -85,10 +82,7 @@ func TestTelemetryWithOutPrivate(t *testing.T) {
 	var eventCounter atomic.Int64
 
 	externalLogger := &externalLoggerMock{eventCounter: &eventCounter}
-	tm, err := NewExternalLogger(false, externalLogger)
-	if err != nil {
-		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-	}
+	tm := NewExternalLogger(false, externalLogger)
 	defer tm.Close()
 	logger = tm.WrapLogger(logger)
 

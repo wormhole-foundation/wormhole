@@ -22,171 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChainIDFromString(t *testing.T) {
-	type test struct {
-		input  string
-		output ChainID
-	}
-
-	// Positive Test Cases
-	p_tests := []test{
-		{input: "solana", output: ChainIDSolana},
-		{input: "ethereum", output: ChainIDEthereum},
-		{input: "terra", output: ChainIDTerra},
-		{input: "bsc", output: ChainIDBSC},
-		{input: "polygon", output: ChainIDPolygon},
-		{input: "avalanche", output: ChainIDAvalanche},
-		{input: "oasis", output: ChainIDOasis},
-		{input: "algorand", output: ChainIDAlgorand},
-		{input: "aurora", output: ChainIDAurora},
-		{input: "fantom", output: ChainIDFantom},
-		{input: "karura", output: ChainIDKarura},
-		{input: "acala", output: ChainIDAcala},
-		{input: "klaytn", output: ChainIDKlaytn},
-		{input: "celo", output: ChainIDCelo},
-		{input: "near", output: ChainIDNear},
-		{input: "moonbeam", output: ChainIDMoonbeam},
-		{input: "terra2", output: ChainIDTerra2},
-		{input: "injective", output: ChainIDInjective},
-		{input: "osmosis", output: ChainIDOsmosis},
-		{input: "sui", output: ChainIDSui},
-		{input: "aptos", output: ChainIDAptos},
-		{input: "arbitrum", output: ChainIDArbitrum},
-		{input: "optimism", output: ChainIDOptimism},
-		{input: "gnosis", output: ChainIDGnosis},
-		{input: "pythnet", output: ChainIDPythNet},
-		{input: "xpla", output: ChainIDXpla},
-		{input: "btc", output: ChainIDBtc},
-		{input: "base", output: ChainIDBase},
-		{input: "filecoin", output: ChainIDFileCoin},
-		{input: "sei", output: ChainIDSei},
-		{input: "rootstock", output: ChainIDRootstock},
-		{input: "scroll", output: ChainIDScroll},
-		{input: "mantle", output: ChainIDMantle},
-		{input: "blast", output: ChainIDBlast},
-		{input: "xlayer", output: ChainIDXLayer},
-		{input: "linea", output: ChainIDLinea},
-		{input: "berachain", output: ChainIDBerachain},
-		{input: "eclipse", output: ChainIDEclipse},
-		{input: "bob", output: ChainIDBOB},
-		{input: "seievm", output: ChainIDSeiEVM},
-		{input: "snaxchain", output: ChainIDSnaxchain},
-		{input: "unichain", output: ChainIDUnichain},
-		{input: "worldchain", output: ChainIDWorldchain},
-		{input: "ink", output: ChainIDInk},
-		{input: "hyperevm", output: ChainIDHyperEVM},
-		{input: "monad", output: ChainIDMonad},
-		{input: "movement", output: ChainIDMovement},
-		{input: "mezo", output: ChainIDMezo},
-		{input: "fogo", output: ChainIDFogo},
-		{input: "wormchain", output: ChainIDWormchain},
-		{input: "cosmoshub", output: ChainIDCosmoshub},
-		{input: "evmos", output: ChainIDEvmos},
-		{input: "kujira", output: ChainIDKujira},
-		{input: "neutron", output: ChainIDNeutron},
-		{input: "celestia", output: ChainIDCelestia},
-		{input: "stargaze", output: ChainIDStargaze},
-		{input: "seda", output: ChainIDSeda},
-		{input: "dymension", output: ChainIDDymension},
-		{input: "provenance", output: ChainIDProvenance},
-		{input: "noble", output: ChainIDNoble},
-		{input: "sepolia", output: ChainIDSepolia},
-		{input: "arbitrum_sepolia", output: ChainIDArbitrumSepolia},
-		{input: "base_sepolia", output: ChainIDBaseSepolia},
-		{input: "optimism_sepolia", output: ChainIDOptimismSepolia},
-		{input: "holesky", output: ChainIDHolesky},
-		{input: "polygon_sepolia", output: ChainIDPolygonSepolia},
-
-		{input: "Solana", output: ChainIDSolana},
-		{input: "Ethereum", output: ChainIDEthereum},
-		{input: "Terra", output: ChainIDTerra},
-		{input: "Bsc", output: ChainIDBSC},
-		{input: "Polygon", output: ChainIDPolygon},
-		{input: "Avalanche", output: ChainIDAvalanche},
-		{input: "Oasis", output: ChainIDOasis},
-		{input: "Algorand", output: ChainIDAlgorand},
-		{input: "Aurora", output: ChainIDAurora},
-		{input: "Fantom", output: ChainIDFantom},
-		{input: "Karura", output: ChainIDKarura},
-		{input: "Acala", output: ChainIDAcala},
-		{input: "Klaytn", output: ChainIDKlaytn},
-		{input: "Celo", output: ChainIDCelo},
-		{input: "Near", output: ChainIDNear},
-		{input: "Moonbeam", output: ChainIDMoonbeam},
-		{input: "Terra2", output: ChainIDTerra2},
-		{input: "Injective", output: ChainIDInjective},
-		{input: "Osmosis", output: ChainIDOsmosis},
-		{input: "Sui", output: ChainIDSui},
-		{input: "Aptos", output: ChainIDAptos},
-		{input: "Arbitrum", output: ChainIDArbitrum},
-		{input: "Optimism", output: ChainIDOptimism},
-		{input: "Gnosis", output: ChainIDGnosis},
-		{input: "Pythnet", output: ChainIDPythNet},
-		{input: "XPLA", output: ChainIDXpla},
-		{input: "BTC", output: ChainIDBtc},
-		{input: "Base", output: ChainIDBase},
-		{input: "filecoin", output: ChainIDFileCoin},
-		{input: "Sei", output: ChainIDSei},
-		{input: "Rootstock", output: ChainIDRootstock},
-		{input: "Scroll", output: ChainIDScroll},
-		{input: "Mantle", output: ChainIDMantle},
-		{input: "Blast", output: ChainIDBlast},
-		{input: "XLayer", output: ChainIDXLayer},
-		{input: "Linea", output: ChainIDLinea},
-		{input: "Berachain", output: ChainIDBerachain},
-		{input: "SeiEVM", output: ChainIDSeiEVM},
-		{input: "Eclipse", output: ChainIDEclipse},
-		{input: "BOB", output: ChainIDBOB},
-		{input: "Snaxchain", output: ChainIDSnaxchain},
-		{input: "Unichain", output: ChainIDUnichain},
-		{input: "Worldchain", output: ChainIDWorldchain},
-		{input: "Ink", output: ChainIDInk},
-		{input: "HyperEVM", output: ChainIDHyperEVM},
-		{input: "Monad", output: ChainIDMonad},
-		{input: "Movement", output: ChainIDMovement},
-		{input: "Mezo", output: ChainIDMezo},
-		{input: "Fogo", output: ChainIDFogo},
-		{input: "Wormchain", output: ChainIDWormchain},
-		{input: "Cosmoshub", output: ChainIDCosmoshub},
-		{input: "Evmos", output: ChainIDEvmos},
-		{input: "Kujira", output: ChainIDKujira},
-		{input: "Neutron", output: ChainIDNeutron},
-		{input: "Celestia", output: ChainIDCelestia},
-		{input: "Stargaze", output: ChainIDStargaze},
-		{input: "Seda", output: ChainIDSeda},
-		{input: "Dymension", output: ChainIDDymension},
-		{input: "Provenance", output: ChainIDProvenance},
-		{input: "Noble", output: ChainIDNoble},
-		{input: "Sepolia", output: ChainIDSepolia},
-		{input: "Arbitrum_Sepolia", output: ChainIDArbitrumSepolia},
-		{input: "Base_Sepolia", output: ChainIDBaseSepolia},
-		{input: "Optimism_Sepolia", output: ChainIDOptimismSepolia},
-		{input: "Holesky", output: ChainIDHolesky},
-		{input: "Polygon_Sepolia", output: ChainIDPolygonSepolia},
-	}
-
-	// Negative Test Cases
-	n_tests := []test{
-		{input: "Unknown", output: ChainIDUnset},
-	}
-
-	for _, tc := range p_tests {
-		t.Run(tc.input, func(t *testing.T) {
-			chainId, err := ChainIDFromString(tc.input)
-			assert.Equal(t, tc.output, chainId)
-			assert.NoError(t, err)
-		})
-	}
-
-	for _, tc := range n_tests {
-		t.Run(tc.input, func(t *testing.T) {
-			chainId, err := ChainIDFromString(tc.input)
-			assert.Equal(t, tc.output, chainId)
-			assert.NotNil(t, err)
-		})
-	}
-}
-
 func TestAddress_MarshalJSON(t *testing.T) {
 	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 	expected := "223030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303422"
@@ -296,93 +131,9 @@ func TestMinVAALength(t *testing.T) {
 	assert.Equal(t, minVAALength, 57)
 }
 
-func TestChainId_String(t *testing.T) {
-	type test struct {
-		input  ChainID
-		output string
-	}
-
-	tests := []test{
-		{input: 0, output: "unset"},
-		{input: 1, output: "solana"},
-		{input: 2, output: "ethereum"},
-		{input: 3, output: "terra"},
-		{input: 4, output: "bsc"},
-		{input: 5, output: "polygon"},
-		{input: 6, output: "avalanche"},
-		{input: 7, output: "oasis"},
-		{input: 8, output: "algorand"},
-		{input: 9, output: "aurora"},
-		{input: 10, output: "fantom"},
-		{input: 11, output: "karura"},
-		{input: 12, output: "acala"},
-		{input: 13, output: "klaytn"},
-		{input: 14, output: "celo"},
-		{input: 15, output: "near"},
-		{input: 16, output: "moonbeam"},
-		// 17 (Neon) is obsolete.
-		{input: 18, output: "terra2"},
-		{input: 19, output: "injective"},
-		{input: 20, output: "osmosis"},
-		{input: 21, output: "sui"},
-		{input: 22, output: "aptos"},
-		{input: 23, output: "arbitrum"},
-		{input: 24, output: "optimism"},
-		{input: 25, output: "gnosis"},
-		{input: 26, output: "pythnet"},
-		// NOTE: 27 belongs to a chain that was never deployed.
-		{input: 28, output: "xpla"},
-		{input: 29, output: "btc"},
-		{input: 30, output: "base"},
-		{input: 31, output: "filecoin"},
-		{input: 32, output: "sei"},
-		{input: 33, output: "rootstock"},
-		{input: 34, output: "scroll"},
-		{input: 35, output: "mantle"},
-		{input: 36, output: "blast"},
-		{input: 37, output: "xlayer"},
-		{input: 38, output: "linea"},
-		{input: 39, output: "berachain"},
-		{input: 40, output: "seievm"},
-		{input: 41, output: "eclipse"},
-		{input: 42, output: "bob"},
-		{input: 43, output: "snaxchain"},
-		{input: 44, output: "unichain"},
-		{input: 45, output: "worldchain"},
-		{input: 46, output: "ink"},
-		{input: 47, output: "hyperevm"},
-		{input: 48, output: "monad"},
-		{input: 49, output: "movement"},
-		{input: 3104, output: "wormchain"},
-		{input: 4000, output: "cosmoshub"},
-		{input: 4001, output: "evmos"},
-		{input: 4002, output: "kujira"},
-		{input: 4003, output: "neutron"},
-		{input: 4004, output: "celestia"},
-		{input: 4005, output: "stargaze"},
-		{input: 4006, output: "seda"},
-		{input: 4007, output: "dymension"},
-		{input: 4008, output: "provenance"},
-		{input: 4009, output: "noble"},
-		{input: 10002, output: "sepolia"},
-		{input: 10003, output: "arbitrum_sepolia"},
-		{input: 10004, output: "base_sepolia"},
-		{input: 10005, output: "optimism_sepolia"},
-		{input: 10006, output: "holesky"},
-		{input: 10007, output: "polygon_sepolia"},
-		{input: 10000, output: "unknown chain ID: 10000"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.output, func(t *testing.T) {
-			assert.Equal(t, ChainID(tc.input).String(), tc.output)
-		})
-	}
-}
-
 func getVaa() VAA {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	payload := []byte{97, 97, 97, 97, 97, 97}
+	governanceEmitter := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	return VAA{
 		Version:          uint8(1),
@@ -399,8 +150,8 @@ func getVaa() VAA {
 }
 
 func getEmptyPayloadVaa() VAA {
-	var payload = []byte{}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+	payload := []byte{}
+	governanceEmitter := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	return VAA{
 		Version:          uint8(1),
@@ -548,85 +299,117 @@ func TestVerifySignatures(t *testing.T) {
 	}
 
 	tests := []test{
-		{label: "NoSignerZero",
+		{
+			label:      "NoSignerZero",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "NoSignerOne",
+			result:     false,
+		},
+		{
+			label:      "NoSignerOne",
 			keyOrder:   []*ecdsa.PrivateKey{},
 			addrs:      addrs,
 			indexOrder: []uint8{1},
-			result:     false},
-		{label: "SingleZero",
+			result:     false,
+		},
+		{
+			label:      "SingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "RogueSingleOne",
+			result:     true,
+		},
+		{
+			label:      "RogueSingleOne",
 			keyOrder:   []*ecdsa.PrivateKey{privKey4},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "RogueSingleZero",
+			result:     false,
+		},
+		{
+			label:      "RogueSingleZero",
 			keyOrder:   []*ecdsa.PrivateKey{privKey4},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     false},
-		{label: "SingleOne",
+			result:     false,
+		},
+		{
+			label:      "SingleOne",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0},
-			result:     true},
-		{label: "MultiUniqSignerMonotonicIndex",
+			result:     true,
+		},
+		{
+			label:      "MultiUniqSignerMonotonicIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 2},
-			result:     true},
-		{label: "MultiMisOrderedSignerMonotonicIndex",
+			result:     true,
+		},
+		{
+			label:      "MultiMisOrderedSignerMonotonicIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey3, privKey2, privKey1},
 			addrs:      addrs,
-			indexOrder: []uint8{0, 1, 2}, result: false},
-		{label: "MultiUniqSignerNonMonotonic",
+			indexOrder: []uint8{0, 1, 2}, result: false,
+		},
+		{
+			label:      "MultiUniqSignerNonMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 2, 1},
-			result:     false},
-		{label: "MultiUniqSignerFullSameIndex0",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerFullSameIndex0",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiUniqSignerFullSameIndex1",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerFullSameIndex1",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiUniqSignerPartialSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiUniqSignerPartialSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey3},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 1},
-			result:     false},
-		{label: "MultiSameSignerPartialSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerPartialSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey2},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 1},
-			result:     false},
-		{label: "MultiSameSignerNonMonotonic",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerNonMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey2, privKey2},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 2, 1},
-			result:     false},
-		{label: "MultiSameSignerFullSameIndex",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerFullSameIndex",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey1, privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 0, 0},
-			result:     false},
-		{label: "MultiSameSignerMonotonic",
+			result:     false,
+		},
+		{
+			label:      "MultiSameSignerMonotonic",
 			keyOrder:   []*ecdsa.PrivateKey{privKey1, privKey1, privKey1},
 			addrs:      addrs,
 			indexOrder: []uint8{0, 1, 2},
-			result:     false},
+			result:     false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -802,7 +585,6 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 }
 
 func TestStringToAddress(t *testing.T) {
-
 	type Test struct {
 		label     string
 		rawAddr   string
@@ -811,29 +593,43 @@ func TestStringToAddress(t *testing.T) {
 	}
 
 	tests := []Test{
-		{label: "simple",
+		{
+			label:     "simple",
 			rawAddr:   "0000000000000000000000000000000000000000000000000000000000000004",
 			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
-			errString: ""},
-		{label: "zero-padding",
+			errString: "",
+		},
+		{
+			label:     "zero-padding",
 			rawAddr:   "04",
 			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
-			errString: ""},
-		{label: "trim-0x", rawAddr: "0x04",
+			errString: "",
+		},
+		{
+			label: "trim-0x", rawAddr: "0x04",
 			addr:      Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
-			errString: ""},
-		{label: "20byte eth-style address", rawAddr: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+			errString: "",
+		},
+		{
+			label: "20byte eth-style address", rawAddr: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
 			addr:      Address{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x90, 0xfb, 0x16, 0x72, 0x8, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78, 0x1, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0xc, 0x16},
-			errString: ""},
-		{label: "too long",
+			errString: "",
+		},
+		{
+			label:     "too long",
 			rawAddr:   "0x0000000000000000000000000000000000000000000000000000000000000000000004",
-			errString: "value must be no more than 32 bytes"},
-		{label: "too short",
+			errString: "value must be no more than 32 bytes",
+		},
+		{
+			label:     "too short",
 			rawAddr:   "4",
-			errString: "value must be at least 1 byte"},
-		{label: "empty string",
+			errString: "value must be at least 1 byte",
+		},
+		{
+			label:     "empty string",
 			rawAddr:   "",
-			errString: "value must be at least 1 byte"},
+			errString: "value must be at least 1 byte",
+		},
 	}
 
 	for _, tc := range tests {
@@ -891,7 +687,8 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 	}
 
 	tests := []Test{
-		{label: "valid vaa",
+		{
+			label:          "valid vaa",
 			vaa:            "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
 			payloadType:    1,
 			emitterChainId: ChainIDEthereum,
@@ -903,15 +700,18 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 			amount:         725000000,
 			errString:      "",
 		},
-		{label: "unsupported payload type",
+		{
+			label:     "unsupported payload type",
 			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f02000000000000000000000000000000000000000000000000000000002b369f40000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e000221c175fcd8e3a19fe2e0deae96534f0f4e6a896f4df0e3ec5345fe27ac3f63f000010000000000000000000000000000000000000000000000000000000000000000",
 			errString: "unsupported payload type",
 		},
-		{label: "buffer too short",
+		{
+			label:     "buffer too short",
 			vaa:       "01000000000100e424aef95296cb0f2185f351086c7c0b9cd031d1288f0537d04ab20d5fc709416224b2bd9a8010a81988aa9cb38b378eb915f88b67e32a765928d948dc02077e00000102584a8d000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000f0f01",
 			errString: "buffer too short",
 		},
-		{label: "empty string",
+		{
+			label:     "empty string",
 			vaa:       "",
 			errString: "VAA is too short",
 		},
@@ -959,7 +759,6 @@ func TestDecodeTransferPayloadHdr(t *testing.T) {
 					assert.Equal(t, tc.errString, err.Error())
 				}
 			}
-
 		})
 	}
 }
@@ -1186,7 +985,6 @@ func TestChainIDFromNumber(t *testing.T) {
 }
 
 func TestStringToKnownChainID(t *testing.T) {
-
 	happy := []struct {
 		name     string
 		input    string

@@ -65,7 +65,7 @@ func NewGuardianSignerFromUri(ctx context.Context, signerUri string, unsafeDevMo
 	case FileSignerType:
 		guardianSigner, err = NewFileSigner(ctx, unsafeDevMode, signerKeyConfig)
 	case AmazonKmsSignerType:
-		guardianSigner, err = NewAmazonKmsSigner(ctx, unsafeDevMode, signerKeyConfig)
+		guardianSigner, err = NewAmazonKmsSigner(ctx, signerKeyConfig)
 	default:
 		return nil, errors.New("unsupported guardian signer type")
 	}
