@@ -7,13 +7,12 @@
 package publicrpcv1
 
 import (
-	reflect "reflect"
-	sync "sync"
-
 	v1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
 )
 
 const (
