@@ -17,7 +17,7 @@ const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
 const WORMHOLE_STATE_ID =
-  "0x69ae41bdef4770895eb4e7aaefee5e4673acc08f6917b4856cf55549c4573ca8";
+  "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790";
 
 async function main() {
   const guardianPrivateKey = process.env.TESTNET_GUARDIAN_PRIVATE_KEY;
@@ -42,11 +42,11 @@ async function main() {
   const dstWormholePath = resolve(`${__dirname}/wormhole`);
 
   // Stage build(s).
-  setUpWormholeDirectory(srcWormholePath, dstWormholePath);
+  // setUpWormholeDirectory(srcWormholePath, dstWormholePath);
 
   // Build for digest.
   const { modules, dependencies, digest } =
-    buildForBytecodeAndDigest(dstWormholePath);
+    buildForBytecodeAndDigest(srcWormholePath);
 
   // We will use the signed VAA when we execute the upgrade.
   const guardians = new mock.MockGuardians(0, [guardianPrivateKey]);
@@ -76,17 +76,17 @@ async function main() {
   console.log("tx effects", JSON.stringify(upgradeResults.effects!));
   console.log("tx events", JSON.stringify(upgradeResults.events!));
 
-  // TODO: grab new package ID from the events above. Do not rely on the RPC
-  // call because it may give you a stale package ID after the upgrade.
+  // sleep for 5 seconds to ensure the upgrade is processed
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  // const migrateResults = await migrateWormhole(
-  //   wallet,
-  //   WORMHOLE_STATE_ID,
-  //   signedVaa
-  // );
-  // console.log("tx digest", migrateResults.digest);
-  // console.log("tx effects", JSON.stringify(migrateResults.effects!));
-  // console.log("tx events", JSON.stringify(migrateResults.events!));
+  const migrateResults = await migrateWormhole(
+    wallet,
+    WORMHOLE_STATE_ID,
+    signedVaa
+  );
+  console.log("tx digest", migrateResults.digest);
+  console.log("tx effects", JSON.stringify(migrateResults.effects!));
+  console.log("tx events", JSON.stringify(migrateResults.events!));
 
   // Clean up.
   cleanUpPackageDirectory(dstWormholePath);

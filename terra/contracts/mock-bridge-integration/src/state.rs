@@ -14,10 +14,10 @@ pub struct Config {
     pub token_bridge_contract: HumanAddr,
 }
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<Config> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<'_, Config> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<'_, Config> {
     singleton_read(storage, CONFIG_KEY)
 }

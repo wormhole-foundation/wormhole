@@ -872,9 +872,8 @@ func TestWatcherConfigs(t *testing.T) {
 						ChainID:   vaa.ChainIDSolana,
 					},
 					&mock.WatcherConfig{
-						NetworkID:           "mock2",
-						ChainID:             vaa.ChainIDEthereum,
-						L1FinalizerRequired: "mock1",
+						NetworkID: "mock2",
+						ChainID:   vaa.ChainIDEthereum,
 					},
 				}, nil),
 			},
@@ -895,19 +894,6 @@ func TestWatcherConfigs(t *testing.T) {
 				}, nil),
 			},
 			err: "NetworkID already configured: mock",
-		},
-		{
-			name: "watcher-noL1",
-			opts: []*GuardianOption{
-				GuardianOptionWatchers([]watchers.WatcherConfig{
-					&mock.WatcherConfig{
-						NetworkID:           "mock",
-						ChainID:             vaa.ChainIDSolana,
-						L1FinalizerRequired: "something-that-does-not-exist",
-					},
-				}, nil),
-			},
-			err: "L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs.",
 		},
 	}
 	runGuardianConfigTests(t, tc)

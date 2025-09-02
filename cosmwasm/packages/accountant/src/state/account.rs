@@ -87,7 +87,7 @@ impl PrimaryKey<'_> for Key {
     type Suffix = TokenAddress;
     type SuperSuffix = (u16, TokenAddress);
 
-    fn key(&self) -> Vec<CwKey> {
+    fn key(&self) -> Vec<CwKey<'_>> {
         self.chain_id
             .key()
             .into_iter()

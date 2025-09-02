@@ -46,7 +46,7 @@ func verify(
 	if evm_verifier.Cmp(localMsg.EmitterAddress, verifier.Addrs().TokenBridgeAddr) != 0 {
 		newState = common.NotApplicable
 	} else {
-		newState = state(ctx, txHash, receipt, verifier)
+		newState = state(ctx, localMsg, txHash, receipt, verifier)
 	}
 
 	// Update the state of the message.
@@ -60,10 +60,10 @@ func verify(
 }
 
 // state returns a verification state based on the results of querying the Transfer Verifier.
-func state(ctx context.Context, txHash eth_common.Hash, receipt *types.Receipt, tv evm_verifier.TransferVerifierInterface) common.VerificationState {
-	// Verify the transfer by analyzing the transaction receipt. This is a defense-in-depth mechanism
-	// to protect against fraudulent message emissions.
-	valid, err := tv.TransferIsValid(ctx, txHash, receipt)
+func state(ctx context.Context, msg *common.MessagePublication, txHash eth_common.Hash, receipt *types.Receipt, tv evm_verifier.TransferVerifierInterface) common.VerificationState {
+	// Verify the transfer represented by the message by analyzing the transaction receipt.
+	// This is a defense-in-depth mechanism to protect against fraudulent message emissions.
+	valid, err := tv.TransferIsValid(ctx, msg.MessageIDString(), txHash, receipt)
 
 	// The receipt couldn't be processed properly for some reason.
 	if err != nil {

@@ -104,6 +104,8 @@ type (
 const (
 	ConsistencyLevelPublishImmediately = uint8(200)
 	ConsistencyLevelSafe               = uint8(201)
+	ConsistencyLevelFinalized          = uint8(202)
+	ConsistencyLevelCustom             = uint8(203)
 )
 
 //nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
@@ -208,7 +210,7 @@ const (
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum ChainID = 2
-	// ChainIDTerra is the ChainID of Terra
+	// WARNING: ChainIDTerra is only supported in devnet / Tilt.
 	ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
 	ChainIDBSC ChainID = 4
@@ -216,18 +218,14 @@ const (
 	ChainIDPolygon ChainID = 5
 	// ChainIDAvalanche is the ChainID of Avalanche
 	ChainIDAvalanche ChainID = 6
-	// ChainIDOasis is the ChainID of Oasis
-	ChainIDOasis ChainID = 7
+	// OBSOLETE: ChainIDOasis ChainID = 7
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
-	// ChainIDAurora is the ChainID of Aurora
-	ChainIDAurora ChainID = 9
+	// OBSOLETE: ChainIDAurora ChainID = 9
 	// ChainIDFantom is the ChainID of Fantom
 	ChainIDFantom ChainID = 10
-	// ChainIDKarura is the ChainID of Karura
-	ChainIDKarura ChainID = 11
-	// ChainIDAcala is the ChainID of Acala
-	ChainIDAcala ChainID = 12
+	// OBSOLETE: ChainIDKarura ChainID = 11
+	// OBSOLETE: ChainIDAcala ChainID = 12
 	// ChainIDKlaytn is the ChainID of Klaytn
 	ChainIDKlaytn ChainID = 13
 	// ChainIDCelo is the ChainID of Celo
@@ -237,7 +235,7 @@ const (
 	// ChainIDMoonbeam is the ChainID of Moonbeam
 	ChainIDMoonbeam ChainID = 16
 	// OBSOLETE: ChainIDNeon ChainID = 17
-	// ChainIDTerra2 is the ChainID of Terra 2
+	// WARNING: ChainIDTerra2 is only supported in devnet / Tilt.
 	ChainIDTerra2 ChainID = 18
 	// ChainIDInjective is the ChainID of Injective
 	ChainIDInjective ChainID = 19
@@ -256,8 +254,7 @@ const (
 	// ChainIDPythNet is the ChainID of PythNet
 	ChainIDPythNet ChainID = 26
 	// NOTE: 27 belongs to a chain that was never deployed.
-	// ChainIDXpla is the ChainID of Xpla
-	ChainIDXpla ChainID = 28
+	// OBSOLETE: ChainIDXpla ChainID = 28
 	// ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
 	// ChainIDBase is the ChainID of Base
@@ -272,8 +269,7 @@ const (
 	ChainIDScroll ChainID = 34
 	// ChainIDMantle is the ChainID of Mantle
 	ChainIDMantle ChainID = 35
-	// ChainIDBlast is the ChainID of Blast
-	ChainIDBlast ChainID = 36
+	// OBSOLETE: ChainIDBlast ChainID = 36
 	// ChainIDXLayer is the ChainID of XLayer
 	ChainIDXLayer ChainID = 37
 	// ChainIDLinea is the ChainID of Linea
@@ -286,8 +282,7 @@ const (
 	ChainIDEclipse ChainID = 41
 	// ChainIDBOB is the ChainID of BOB
 	ChainIDBOB ChainID = 42
-	// ChainIDSnaxchain is the ChainID of Snaxchain
-	ChainIDSnaxchain ChainID = 43
+	// OBSOLETE: ChainIDSnaxchain ChainID = 43
 	// ChainIDUnichain is the ChainID of Unichain
 	ChainIDUnichain ChainID = 44
 	// ChainIDWorldchain is the ChainID of Worldchain
@@ -313,6 +308,10 @@ const (
 	ChainIDCodex ChainID = 54
 	// ChainIdPlume is the ChainID of Plume
 	ChainIDPlume ChainID = 55
+	// ChainIdAztec is the ChainID of Aztec
+	ChainIDAztec ChainID = 56
+	// ChainIdXRPLEVM is the ChainID of XRPL-EVM
+	ChainIDXRPLEVM ChainID = 57
 	// ChainIDAztec is the ChainID of Aztec
 	ChainIDAztec ChainID = 56
 

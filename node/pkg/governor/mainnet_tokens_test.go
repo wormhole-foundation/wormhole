@@ -40,12 +40,14 @@ func TestTokenListAddressSize(t *testing.T) {
 func TestGovernedChainHasGovernedAssets(t *testing.T) {
 	// Add a chain ID to this set if it genuinely has no native assets that should be governed.
 	ignoredChains := map[vaa.ChainID]bool{
-		// TODO: Remove this once we have governed tokens for Snax.
-		vaa.ChainIDSnaxchain: true,
 		// Wormchain is an abstraction over IBC-connected chains so no assets are "native" to it
 		vaa.ChainIDWormchain: true,
 		// TODO: Remove this once we have governed tokens for Mezo.
 		vaa.ChainIDMezo: true,
+		// TODO: Remove this once we have governed tokens for XRPLEVM.
+		vaa.ChainIDXRPLEVM: true,
+		// TODO: Remove this once we have governed tokens for Linea.
+		vaa.ChainIDLinea: true,
 	}
 	if len(ignoredChains) > 0 {
 		ignoredOutput := []string{}
