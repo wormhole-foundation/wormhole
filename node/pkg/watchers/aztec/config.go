@@ -87,5 +87,5 @@ func (c *WatcherConfig) Create(
 	runnable := NewWatcherRunnable(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
 
 	// Aztec does not implement a Reobserver, so we return nil for that interface
-	return runnable, nil, nil
+	return runnable, nil, nil //nolint:unparam
 }
