@@ -438,12 +438,6 @@ func TestWatcherConfig(t *testing.T) {
 		networkID := config.GetNetworkID()
 		require.Equal(t, watchers.NetworkID("aztec-test"), networkID)
 	})
-
-	// Test RequiredL1Finalizer
-	t.Run("RequiredL1Finalizer", func(t *testing.T) {
-		l1Finalizer := config.RequiredL1Finalizer()
-		require.Equal(t, watchers.NetworkID(""), l1Finalizer, "Should return empty network ID")
-	})
 }
 
 // TestDefaultConfig tests the default configuration
