@@ -75,6 +75,8 @@ func (c *WatcherConfig) GetNetworkID() watchers.NetworkID {
 }
 
 // Create implements the watchers.WatcherConfig interface
+//
+//nolint:unparam // Aztec doesn't implement Reobserver, so we always return nil
 func (c *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -87,5 +89,5 @@ func (c *WatcherConfig) Create(
 	runnable := NewWatcherRunnable(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
 
 	// Aztec does not implement a Reobserver, so we return nil for that interface
-	return runnable, nil, nil //nolint:unparam
+	return runnable, nil, nil
 }
