@@ -84,7 +84,6 @@ const (
 	ChainID_CHAIN_ID_PLUME            ChainID = 55
 	ChainID_CHAIN_ID_AZTEC            ChainID = 56
 	ChainID_CHAIN_ID_XRPLEVM          ChainID = 57
-	ChainID_CHAIN_ID_AZTEC            ChainID = 56
 	ChainID_CHAIN_ID_WORMCHAIN        ChainID = 3104
 	ChainID_CHAIN_ID_COSMOSHUB        ChainID = 4000
 	ChainID_CHAIN_ID_EVMOS            ChainID = 4001
@@ -156,7 +155,6 @@ var (
 		55:    "CHAIN_ID_PLUME",
 		56:    "CHAIN_ID_AZTEC",
 		57:    "CHAIN_ID_XRPLEVM",
-		56:    "CHAIN_ID_AZTEC",
 		3104:  "CHAIN_ID_WORMCHAIN",
 		4000:  "CHAIN_ID_COSMOSHUB",
 		4001:  "CHAIN_ID_EVMOS",
@@ -225,7 +223,6 @@ var (
 		"CHAIN_ID_PLUME":            55,
 		"CHAIN_ID_AZTEC":            56,
 		"CHAIN_ID_XRPLEVM":          57,
-		"CHAIN_ID_AZTEC":            56,
 		"CHAIN_ID_WORMCHAIN":        3104,
 		"CHAIN_ID_COSMOSHUB":        4000,
 		"CHAIN_ID_EVMOS":            4001,
