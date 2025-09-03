@@ -62,6 +62,7 @@ contract EIP712Encoding is IERC5267 {
     uint256 ethChainId,
     address verifyingContract
   ) internal pure returns (bytes32) {
+    /// forge-lint: disable-start(asm-keccak256)
     return keccak256(abi.encode(
       EIP712_DOMAIN_TYPE_HASH,
       EIP712_NAME_HASH,
@@ -69,6 +70,7 @@ contract EIP712Encoding is IERC5267 {
       ethChainId,
       verifyingContract
     ));
+    /// forge-lint: disable-end(asm-keccak256)
   }
 
   function getRegisterGuardianDigest(
@@ -76,13 +78,17 @@ contract EIP712Encoding is IERC5267 {
     uint256 nonce,
     bytes32 guardianId
   ) public view returns (bytes32) {
+    /// forge-lint: disable-start(asm-keccak256)
     bytes32 idHash = keccak256(abi.encode(
       REGISTER_TYPE_HASH,
       thresholdKeyIndex,
       nonce,
       guardianId
     ));
+    /// forge-lint: disable-end(asm-keccak256)
 
+    /// forge-lint: disable-start(asm-keccak256)
     return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), idHash));
+    /// forge-lint: disable-end(asm-keccak256)
   }
 }

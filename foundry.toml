@@ -16,8 +16,24 @@ remappings = [
     "core-bridge/=src/",
 ]
 
+[profile.benchmark]
+verbosity = 4
+match-test = "test_benchmark"
+
+
 [fuzz]
 runs = 10000
 # seed = "0x3e1"
 dictionary_weight = 60
 max_test_rejects = 6553600
+
+
+[lint]
+
+# We disabled "incorrect-shift" since it considers `0x32629d58 << (256 - 32)` to be an incorrectly ordered shift.
+# We disabled  "mixed-case-variable" because it considers parsedVM to be incorrectly cased: `(CoreBridgeVM memory parsedVM,`
+# We also disabled other stylistic lint rules since they don't make sense for our test files:
+# - screaming-snake-case-const
+# - screaming-snake-case-immutable
+# - mixed-case-function
+exclude_lints = ["mixed-case-function", "incorrect-shift", "screaming-snake-case-immutable", "mixed-case-variable", "screaming-snake-case-const"]

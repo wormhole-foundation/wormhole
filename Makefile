@@ -19,7 +19,7 @@ test: test-evm test-solana
 clean: clean-evm clean-solana
 
 LIB_DEPS = foundry-rs/forge-std
-LIB_DEPS += wormhole-foundation/wormhole-solidity-sdk@a7c8786
+LIB_DEPS += wormhole-foundation/wormhole-solidity-sdk@75feab111329628bd649c219d73e465d7c3f5da2
 
 # dynamically generate install rule for each lib dependency and add to depdenencies
 $(foreach dep,$(LIB_DEPS), $(eval $(call install_lib_evm,$(dep))))
@@ -38,7 +38,7 @@ clean-evm:
 	rm -rf lib
 
 dependencies-solana-ts:
-	cd src/solana; npm ci
+	npm ci --prefix src/solana
 
 build-solana:
 	cd src/solana; anchor build

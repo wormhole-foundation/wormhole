@@ -1219,6 +1219,7 @@ contract WormholeVerifier is EIP712Encoding {
       bytes memory shardData;
       (shardData, offset) = data.sliceMemUnchecked(offset, uint256(shardCount) << 6);
 
+      /// forge-lint: disable-next-line(asm-keccak256)
       bytes32 expectedHash = keccak256(shardData);
       require(expectedHash == initialShardDataHash, UpdateFailed(offset | MASK_UPDATE_RESULT_SHARD_DATA_MISMATCH));
 
