@@ -8,7 +8,6 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -20,26 +19,16 @@ type WatcherFactory struct {
 	ChainID   vaa.ChainID
 }
 
-// NewWatcherFromConfig creates a new Aztec watcher from config values
-func NewWatcherFromConfig(
+// NewWatcherRunnable creates a new Aztec watcher runnable
+func NewWatcherRunnable(
 	chainID vaa.ChainID,
 	networkID string,
 	rpcURL string,
 	contractAddress string,
 	msgC chan<- *common.MessagePublication,
 	_ <-chan *gossipv1.ObservationRequest,
-) (interfaces.L1Finalizer, supervisor.Runnable) {
-	// Create a logger
-	logger := zap.L().Named("aztec")
-
-	// Create a shared L1Verifier instance
-	l1Verifier, err := NewAztecFinalityVerifier(context.Background(), rpcURL, logger.Named("finality"))
-	if err != nil {
-		// Log error but continue - we'll retry in the runnable
-		logger.Error("Failed to create L1Verifier at startup, will retry in runnable", zap.Error(err))
-	}
-
-	// Create a runnable that uses the L1Verifier
+) supervisor.Runnable {
+	// Create a runnable
 	runnable := supervisor.Runnable(func(ctx context.Context) error {
 		logger := supervisor.Logger(ctx)
 		logger.Info("Starting Aztec watcher",
@@ -58,17 +47,10 @@ func NewWatcherFromConfig(
 			return fmt.Errorf("failed to create block fetcher: %v", err)
 		}
 
-		// If L1Verifier creation failed earlier, create it now
-		if l1Verifier == nil {
-			var initErr error
-			// Use the ctx parameter here instead of context.Background()
-			l1Verifier, initErr = NewAztecFinalityVerifier(ctx, rpcURL, logger.Named("aztec_finality"))
-			if initErr != nil {
-				return fmt.Errorf("failed to create L1Verifier: %v", initErr)
-			}
-		} else if l1v, ok := l1Verifier.(*aztecFinalityVerifier); ok {
-			// Update the logger in the existing L1Verifier
-			l1v.logger = logger.Named("aztec_finality")
+		// Create L1Verifier - this is used internally by the watcher
+		l1Verifier, err := NewAztecFinalityVerifier(ctx, rpcURL, logger.Named("aztec_finality"))
+		if err != nil {
+			return fmt.Errorf("failed to create L1Verifier: %v", err)
 		}
 
 		// Create the observation manager
@@ -92,7 +74,7 @@ func NewWatcherFromConfig(
 		return watcher.Run(ctx)
 	})
 
-	return l1Verifier, runnable
+	return runnable
 }
 
 // Create a factory instance that can be used in the main application

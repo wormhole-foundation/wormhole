@@ -31,51 +31,51 @@ pub struct ConfigInfo {
     pub wrapped_asset_code_id: u64,
 }
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<'_, ConfigInfo> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<'_, ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn bridge_deposit(storage: &mut dyn Storage) -> Bucket<Uint128> {
+pub fn bridge_deposit(storage: &mut dyn Storage) -> Bucket<'_, Uint128> {
     bucket(storage, BRIDGE_DEPOSITS)
 }
 
-pub fn bridge_deposit_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
+pub fn bridge_deposit_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Uint128> {
     bucket_read(storage, BRIDGE_DEPOSITS)
 }
 
-pub fn bridge_contracts(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
+pub fn bridge_contracts(storage: &mut dyn Storage) -> Bucket<'_, Vec<u8>> {
     bucket(storage, BRIDGE_CONTRACTS)
 }
 
-pub fn bridge_contracts_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
+pub fn bridge_contracts_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Vec<u8>> {
     bucket_read(storage, BRIDGE_CONTRACTS)
 }
 
-pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<'_, HumanAddr> {
     bucket(storage, WRAPPED_ASSET_KEY)
 }
 
-pub fn wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+pub fn wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<'_, HumanAddr> {
     bucket_read(storage, WRAPPED_ASSET_KEY)
 }
 
-pub fn wrapped_asset_seq(storage: &mut dyn Storage) -> Bucket<u64> {
+pub fn wrapped_asset_seq(storage: &mut dyn Storage) -> Bucket<'_, u64> {
     bucket(storage, WRAPPED_ASSET_SEQ_KEY)
 }
 
-pub fn wrapped_asset_seq_read(storage: &mut dyn Storage) -> ReadonlyBucket<u64> {
+pub fn wrapped_asset_seq_read(storage: &mut dyn Storage) -> ReadonlyBucket<'_, u64> {
     bucket_read(storage, WRAPPED_ASSET_SEQ_KEY)
 }
 
-pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
+pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<'_, Vec<u8>> {
     bucket(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
-pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
+pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Vec<u8>> {
     bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
@@ -94,7 +94,7 @@ pub struct TransferState {
     pub token_canonical: CanonicalAddr,
 }
 
-pub fn wrapped_transfer_tmp(storage: &mut dyn Storage) -> Singleton<TransferState> {
+pub fn wrapped_transfer_tmp(storage: &mut dyn Storage) -> Singleton<'_, TransferState> {
     singleton(storage, TRANSFER_TMP_KEY)
 }
 

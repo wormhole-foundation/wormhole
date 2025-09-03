@@ -74,19 +74,9 @@ func (c *WatcherConfig) GetNetworkID() watchers.NetworkID {
 	return c.NetworkID
 }
 
-// RequiredL1Finalizer implements the watchers.WatcherConfig interface
-// Return an empty network ID since Aztec handles its own L1/L2 finality checks
-func (c *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
-	return ""
-}
-
-// SetL1Finalizer implements the watchers.WatcherConfig interface
-// This is a no-op for Aztec since we use our own internal L1Verifier instead
-func (c *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
-	// No-op: we use our own internal L1Verifier/L1Finalizer
-}
-
-// Create implements the watchers.WatcherConfig interface with the updated signature
+// Create implements the watchers.WatcherConfig interface
+//
+//nolint:unparam // Aztec doesn't implement Reobserver, so we always return nil
 func (c *WatcherConfig) Create(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -94,11 +84,10 @@ func (c *WatcherConfig) Create(
 	_ chan<- *query.PerChainQueryResponseInternal,
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
-) (interfaces.L1Finalizer, supervisor.Runnable, interfaces.Reobserver, error) { //nolint:unparam // Aztec watcher does not implement Reobserver interface
-	// Create the runnable and L1Finalizer
-	l1Finalizer, runnable := NewWatcherFromConfig(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
+) (supervisor.Runnable, interfaces.Reobserver, error) {
+	// Create the runnable (L1Finalizer is handled internally by the watcher)
+	runnable := NewWatcherRunnable(c.ChainID, string(c.NetworkID), c.Rpc, c.Contract, msgC, obsvReqC)
 
-	// Return the L1Verifier as an L1Finalizer along with the runnable
 	// Aztec does not implement a Reobserver, so we return nil for that interface
-	return l1Finalizer, runnable, nil, nil
+	return runnable, nil, nil
 }

@@ -6,15 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/ethereum/go-ethereum/rpc"
 	"go.uber.org/zap"
 )
 
-// L1Verifier defines the interface for verifying finality
 type L1Verifier interface {
-	// Include interfaces.L1Finalizer as an embedded interface
-	interfaces.L1Finalizer
+	// Get the latest finalized block number
+	GetLatestFinalizedBlockNumber() uint64
 
 	// Get the latest finalized block from Aztec
 	GetFinalizedBlock(ctx context.Context) (*FinalizedBlock, error)

@@ -235,7 +235,7 @@ def build_node_yaml():
                     "--aztecRPC",
                     "http://aztec-sandbox:8090",
                     "--aztecContract",
-                    "0x1320a7c89797e4506b683fcc547acb7f02a809bd1b3a967a3dfe18b7d3f38669",
+                    "0x0848d2af89dfd7c0e171238f9216399e61e908cd31b0222a920f1bf621a16ed6",
                 ]
 
             if sui:
@@ -708,6 +708,12 @@ if ci_tests:
         labels = ["tx-verifier-evm"],
         trigger_mode = trigger_mode,
         resource_deps = ["eth-devnet"],
+    )
+    k8s_resource(
+        "custom-consistency-level-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
 
 if terra_classic:

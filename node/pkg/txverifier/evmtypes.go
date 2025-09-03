@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"math/big"
 	"time"
@@ -39,11 +38,16 @@ const (
 var (
 	ErrChainIDNotSupported        = errors.New("chain ID is not supported")
 	ErrDepositWrongNumberOfTopics = errors.New("parsed Deposit event has wrong number of topics")
+	ErrEventWrongDataSize         = errors.New("unexpected data size from event")
 	ErrFailedToGetDecimals        = errors.New("failed to get decimals for token. decimals() result has insufficient length")
 	// Some events look like transfers based on the method signature, but aren't (e.g. NFT ERC721 transfers.)
 	ErrTransferIsNotERC20          = errors.New("parsed Transfer event is not an ERC20 transfer")
-	ErrEventWrongDataSize          = errors.New("unexpected data size from event")
 	ErrWrappedAssetResultBadLength = errors.New("isWrappedAsset() result has insufficient length")
+
+	// Invariant errors.
+	ErrInvariantReceiptInsolvent  = &InvariantError{Msg: "requested amount out is larger than the total amount in, or some outbound asset is not present in the inbound transfers"}
+	ErrInvariantMissingCollateral = &InvariantError{Msg: "transfer out request for tokens that were never deposited"}
+	ErrInvariantBadBalance        = &InvariantError{Msg: "requested amount out for this message is larger than the total amount in for this token. It may be a deflationary or rebasing asset. Review is required."}
 )
 
 // Function signatures
@@ -97,7 +101,12 @@ type chainIds struct {
 }
 
 type TransferVerifierInterface interface {
-	TransferIsValid(ctx context.Context, txHash common.Hash, receipt *types.Receipt) (bool, error)
+	TransferIsValid(
+		ctx context.Context,
+		msgID string,
+		txHash common.Hash,
+		receipt *types.Receipt,
+	) (bool, error)
 	Addrs() *TVAddresses
 }
 
@@ -105,11 +114,43 @@ func (tv *TransferVerifier[ethClient, Connector]) Addrs() *TVAddresses {
 	return tv.Addresses
 }
 
-type evaluation struct {
-	// The go-ethereum receipt.
-	Receipt *types.Receipt
-	// Whether the transfer verifier determined this receipt safe or not
-	Result bool
+// MsgID returns a human-readable emitter_chain/emitter_address/sequence tuple that corresponds to a LogMessagePublished event,
+// which in turn maps onto a unique MessagePublication elsewhere in the Guardian code and finally
+// will become a VAA ID.
+// Implemented as a method on the TransferVerifier type in order to correctly capture the chain ID of the Wormhole chain
+// being monitored.
+func (tv *TransferVerifier[ethClient, Connector]) MsgID(log *LogMessagePublished) (msgID, error) {
+	if log == nil {
+		return msgID{}, errors.New("cannot create MsgID for log: LogMessagePublished is nil")
+	}
+
+	// Should be a token bridge address for the LogMessagePublished events that are relvant.
+	vaaAddr := VAAAddrFrom(log.MsgSender)
+
+	return msgID{
+		EmitterChain:   tv.chainIds.wormholeChainId,
+		EmitterAddress: vaaAddr,
+		Sequence:       log.Sequence,
+	}, nil
+}
+
+// receiptEvaluation contains the result of verifying all LogMessagePublished events in a single transaction receipt.
+// It wraps the ReceiptSummary and also includes the block number at which the receipt was processed.
+type receiptEvaluation struct {
+	ReceiptSummary
+	blockNumber uint64
+}
+
+func NewReceiptEvaluation(summary *ReceiptSummary, blockNumber uint64) receiptEvaluation {
+	return receiptEvaluation{
+		ReceiptSummary: *summary,
+		blockNumber:    blockNumber,
+	}
+}
+
+func (r *receiptEvaluation) msgInCache(msgID msgID) bool {
+	_, present := r.ReceiptSummary.msgPubResult[msgID]
+	return present
 }
 
 // TransferVerifier contains configuration values for verifying transfers.
@@ -124,7 +165,8 @@ type TransferVerifier[E evmClient, C connector] struct {
 	// Corresponds to an ethClient from go-ethereum
 	client E
 	// Mapping to track the transactions that have been processed. Indexed by a log's txHash.
-	evaluations map[common.Hash]*evaluation
+	// An evaluation may contain multiple results, one for each relevant LogMessagePublished event.
+	evaluations map[common.Hash]*receiptEvaluation
 
 	// The last block number that the program has processed.
 	// Used to determine the size of historic receipts to keep in memory.
@@ -154,11 +196,8 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	// Fetch EVM chain ID from the connector and attempt to convert it to a Wormhole chain ID.
-	evmChainId, parseErr := strconv.ParseUint(chainIdFromClient.String(), 10, 16)
-	if parseErr != nil {
-		return nil, fmt.Errorf("failed to parse chainId from string returned by connector client: %w", parseErr)
-	}
+	// Convert chainId to uint64
+	evmChainId := chainIdFromClient.Uint64()
 
 	wormholeChainId, unregisteredErr := TryWormholeChainIdFromNative(evmChainId)
 	if unregisteredErr != nil {
@@ -178,7 +217,7 @@ func NewTransferVerifier(ctx context.Context, connector connectors.Connector, tv
 		logger:              *logger,
 		evmConnector:        connector,
 		client:              connector.Client(),
-		evaluations:         make(map[common.Hash]*evaluation),
+		evaluations:         make(map[common.Hash]*receiptEvaluation),
 		lastBlockNumber:     0,
 		pruneHeightDelta:    pruneHeightDelta,
 		isWrappedCache:      make(map[string]bool),
@@ -289,11 +328,9 @@ func (s *Subscription) Close() {
 type TransferLog interface {
 	// Amount after (de)normalization
 	TransferAmount() *big.Int
-	// The Transferror: EOA or contract that initiated the transfer. Not to be confused with msg.sender.
-	Sender() vaa.Address
 	// The Transferee. Ultimate recipient of funds.
 	Destination() vaa.Address
-	// Event emitter
+	// Event emitter (not to be confused with EmitterAddress in a VAA)
 	Emitter() common.Address // Emitter will always be an Ethereum address
 	// Chain where the token was minted
 	OriginChain() vaa.ChainID
@@ -317,12 +354,6 @@ func (d *NativeDeposit) TransferAmount() *big.Int {
 
 func (d *NativeDeposit) Destination() vaa.Address {
 	return VAAAddrFrom(d.Receiver)
-}
-
-// Deposit does not actually have a sender but this is required to implement the interface
-func (d *NativeDeposit) Sender() vaa.Address {
-	// Sender is not present in the Logs emitted for a Deposit
-	return ZERO_ADDRESS_VAA
 }
 
 func (d *NativeDeposit) Emitter() common.Address {
@@ -407,7 +438,7 @@ func (t *ERC20Transfer) TransferAmount() *big.Int {
 	return t.Amount
 }
 
-func (t *ERC20Transfer) Sender() vaa.Address {
+func (t *ERC20Transfer) Source() vaa.Address {
 	// Note that this value may return zero for receipt logs that are in
 	// fact Transfers emitted from e.g. UniswapV2 which have the same event
 	// signature as ERC20 Transfers.
@@ -506,19 +537,22 @@ func parseERC20TransferEvent(logTopics []common.Hash, logData []byte) (common.Ad
 
 // Abstraction over a LogMessagePublished event emitted by the core bridge.
 type LogMessagePublished struct {
-	// Which contract emitted the event.
+	// Which contract emitted the event. (not to be confused with EmitterAddress in a VAA)
 	EventEmitter common.Address
-	// Which address sent the transaction that triggered the message publication.
+	// The address of the account that initiated the bridge transfer.
 	MsgSender common.Address
+	// The sequence of the message. Included here to help uniquely identify a message.
+	Sequence uint64
 	// Abstraction over fields encoded in the event's Data field which in turn contains the transfer's payload.
 	TransferDetails *TransferDetails
 	// Note: these fields are non-exhaustive. Data not needed for Transfer Verification is not encoded here.
 }
 
 func (l *LogMessagePublished) String() string {
-	return fmt.Sprintf("LogMessagePublished: {emitter=%s sender=%s transferDetails=%s}",
+	return fmt.Sprintf("LogMessagePublished: {emitter=%s sender=%s sequence=%d transferDetails=%s}",
 		l.EventEmitter,
 		l.MsgSender,
+		l.Sequence,
 		l.TransferDetails,
 	)
 }
@@ -530,10 +564,12 @@ func (l *LogMessagePublished) Destination() (destination vaa.Address) {
 	return
 }
 
+// Event emitter (not to be confused with EmitterAddress in a VAA)
 func (l *LogMessagePublished) Emitter() common.Address {
 	return l.EventEmitter
 }
 
+// Message sender (should be token bridge)
 func (l *LogMessagePublished) Sender() vaa.Address {
 	return VAAAddrFrom(l.MsgSender)
 }
@@ -571,7 +607,7 @@ type TransferReceipt struct {
 	MessagePublications *[]*LogMessagePublished
 }
 
-// Validate ensures that a parsed TransferReceipt struct is well-formed (i.e.
+// SanityCheck ensures that a parsed TransferReceipt struct is well-formed (i.e.
 // structurally valid, even if the semantic contents of the TransferReceipt
 // would be evaluated as "bad" from a security perspective.
 //
@@ -580,7 +616,7 @@ type TransferReceipt struct {
 // - The MessagePublications fields must have at least one element.
 // As as result, this function should only be used near the end of parsing and processing
 // when all the logs have been parsed and used to populate the TransferReceipt instance.
-func (r *TransferReceipt) Validate() (err error) {
+func (r *TransferReceipt) SanityCheck() (err error) {
 	if r == nil {
 		return ErrInvalidReceiptArgument
 	}
@@ -639,23 +675,76 @@ func (r *TransferReceipt) String() string {
 }
 
 // Summary of a processed TransferReceipt. Contains information about relevant
-// transfers requested in and out of the bridge.
+// transfers requested in and out of the bridge. Message Publications within a receipt
+// are evaluated independently of each other.
 type ReceiptSummary struct {
-	// Number of LogMessagePublished events in the receipt
-	logsProcessed int
 	// The sum of tokens transferred into the Token Bridge contract.
 	in map[string]*big.Int
 	// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
-	out map[string]*big.Int
+	// The key is the msgID for the LogMessagePublished event.
+	out map[msgID]transferOut
+	// Whether the transfer verifier determined a message to be safe or not.
+	// The key is the message ID [msgID] for the LogMessagePublished event.
+	msgPubResult map[msgID]bool
+}
+
+// allMsgsSafe returns true if all messages in the receipt are safe.
+func (s *ReceiptSummary) allMsgsSafe() bool {
+	for _, isValid := range s.msgPubResult {
+		if !isValid {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *ReceiptSummary) invalidMessageCount() int {
+	count := 0
+	for _, isValid := range s.msgPubResult {
+		if !isValid {
+			count++
+		}
+	}
+	return count
+}
+
+// isSafe is true if and only if there are no Problems in the ReceiptSummary, and the receipt contains at least one message.
+// Note: It is possible for all of the messages in a receipt to be safe, but the receipt itself to be unsafe.
+func (s *ReceiptSummary) isSafe() bool {
+	// If there are no problems, then the receipt is safe. Also check that there are messages in the receipt
+	// to avoid this method trivially returning true when the struct is empty.
+	return len(s.msgPubResult) > 0 && s.allMsgsSafe()
+}
+
+// isMsgSafe returns true if the message with the given ID is safe.
+func (s *ReceiptSummary) isMsgSafe(msgID msgID) bool {
+	return s.msgPubResult[msgID]
+}
+
+// Custom error type used to signal that a core invariant of the token bridge has been violated.
+type InvariantError struct {
+	Msg string
+}
+
+func (i InvariantError) Error() string {
+	return fmt.Sprintf("invariant violated: %s", i.Msg)
+}
+
+// transferOut is a struct that contains the token ID and amount of a token that was requested to be transferred out of the bridge.
+type transferOut struct {
+	// The token ID of the token that was transferred out.
+	// Format is "originAddress-originChain".
+	tokenID string
+	amount  *big.Int
 }
 
 func NewReceiptSummary() *ReceiptSummary {
 	return &ReceiptSummary{
-		logsProcessed: 0,
 		// The sum of tokens transferred into the Token Bridge contract.
 		in: make(map[string]*big.Int),
 		// The sum of tokens parsed from the core bridge's LogMessagePublished payload.
-		out: make(map[string]*big.Int),
+		out:          make(map[msgID]transferOut),
+		msgPubResult: make(map[msgID]bool),
 	}
 }
 
@@ -663,20 +752,25 @@ func (s *ReceiptSummary) String() (outStr string) {
 
 	ins := ""
 
-	for key, amountIn := range s.in {
-		ins += fmt.Sprintf("%s=%s", key, amountIn.String())
+	for tokenID, amountIn := range s.in {
+		ins += fmt.Sprintf("tokenID=%s amount=%s", tokenID, amountIn.String())
 	}
 
 	outs := ""
-	for key, amountOut := range s.out {
-		outs += fmt.Sprintf("%s=%s ", key, amountOut.String())
+	for msgID, transferOut := range s.out {
+		outs += fmt.Sprintf("msgID=%s tokenID=%s amount=%s ", msgID.String(), transferOut.tokenID, transferOut.amount.String())
+	}
+	msgResults := ""
+	for msgID, isValid := range s.msgPubResult {
+		msgResults += fmt.Sprintf("msgID=%s isValid=%v ", msgID.String(), isValid)
 	}
 
 	outStr = fmt.Sprintf(
-		"receipt summary: logsProcessed=%d requestedIn={%s} requestedOut={%s}",
-		s.logsProcessed,
+		"receipt summary: logsProcessed=%d collateralIn={%s} requestedOut={%v} msgResults={%s}",
+		len(s.out),
 		ins,
 		outs,
+		msgResults,
 	)
 	return outStr
 }
@@ -888,7 +982,8 @@ func (tv *TransferVerifier[ethClient, Connector]) isWrappedAsset(
 	return wrapped, nil
 }
 
-// Determine whether a log is relevant for the addresses passed into TVAddresses. Returns a string of the form "address-chain" for relevant entries.
+// relevant determines whether a log is relevant for the addresses passed into TVAddresses. Returns a string of the form "address-chain" for relevant entries.
+// The empty string is returned if the log is not relevant.
 func relevant[L TransferLog](tLog TransferLog, tv *TVAddresses) (key string, relevant bool) {
 
 	switch log := tLog.(type) {
@@ -929,7 +1024,7 @@ func relevant[L TransferLog](tLog TransferLog, tv *TVAddresses) (key string, rel
 	return fmt.Sprintf(KEY_FORMAT, tLog.OriginAddress(), tLog.OriginChain()), true
 }
 
-// Custom error type indicating an issue in issue in a type that implements the
+// InvalidLogError is a custom error type indicating an issue in a type that implements the
 // TransferLog interface. Used to ensure that a TransferLog is well-formed.
 // Typically indicates a bug in the code.
 type InvalidLogError struct {
@@ -968,10 +1063,6 @@ func validate[L TransferLog](tLog TransferLog) error {
 
 	switch log := tLog.(type) {
 	case *NativeDeposit:
-		// Deposit does not actually have a sender, so it should always be equal to the zero address.
-		if Cmp(log.Sender(), ZERO_ADDRESS_VAA) != 0 {
-			return &InvalidLogError{Msg: "sender address for Deposit must be 0"}
-		}
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "deposit emitter is not equal to its token address"}
 		}
@@ -979,15 +1070,9 @@ func validate[L TransferLog](tLog TransferLog) error {
 			return &InvalidLogError{Msg: "destination is not set"}
 		}
 	case *ERC20Transfer:
-		// Note: The token bridge transfers to the zero address in
-		// order to burn tokens for some kinds of transfers. For this
-		// reason, there is no validation here to check if Destination
-		// is the zero address.
-
-		// Note: Sender must not be checked to be non-zero here. The event
-		// hash for Transfer also shows up in other popular contracts
-		// (e.g. UniswapV2) and may have a valid reason to set this
-		// field to zero.
+		// Note: there are valid cases where the to or from address for a transfer is the zero address,
+		// e.g. when a contract is used to burn tokens. For this reason, there is no validation here to check
+		// these accounts against the zero address.
 
 		if Cmp(log.Emitter(), log.TokenAddress) != 0 {
 			return &InvalidLogError{Msg: "transfer emitter is not equal to its token address"}
@@ -1000,6 +1085,10 @@ func validate[L TransferLog](tLog TransferLog) error {
 		}
 		if Cmp(log.Destination(), ZERO_ADDRESS_VAA) == 0 {
 			return &InvalidLogError{Msg: "destination is not set"}
+		}
+
+		if Cmp(log.Sender(), log.Emitter()) == 0 {
+			return &InvalidLogError{Msg: "sender cannot be the same as emitter"}
 		}
 
 		// The following values are not exposed by the interface, so check them directly here.
@@ -1121,4 +1210,24 @@ func Cmp[some Bytes, other Bytes](a some, b other) int {
 		common.LeftPadBytes(a.Bytes(), EVM_WORD_LENGTH),
 		common.LeftPadBytes(b.Bytes(), EVM_WORD_LENGTH),
 	)
+}
+
+// ParseMsgID parses a string in the format "chainID/emitterAddress/sequence" into a msgID that is valid for this
+// TransferVerifier instance.
+func (tv *TransferVerifier[ethClient, Connector]) ParseMsgID(msgIDStr string) (msgID, error) {
+	validMsgID, err := NewMsgID(msgIDStr)
+	if err != nil {
+		return msgID{}, err
+	}
+
+	// Sanity check results: chainID and address must match the chain and token bridge address
+	// being monitored.
+	if validMsgID.EmitterChain != tv.chainIds.wormholeChainId {
+		return msgID{}, errors.New("msgID's emitter chain does not match the chain being monitored")
+	}
+	if Cmp(validMsgID.EmitterAddress, tv.Addresses.TokenBridgeAddr) != 0 {
+		return msgID{}, errors.New("msgID's emitter address does not match the token bridge address")
+	}
+
+	return validMsgID, nil
 }

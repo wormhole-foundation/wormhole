@@ -71,71 +71,71 @@ pub struct ConfigInfo {
     pub native_decimals: u8,
 }
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<'_, ConfigInfo> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<'_, ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn config_read_legacy(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfoLegacy> {
+pub fn config_read_legacy(storage: &dyn Storage) -> ReadonlySingleton<'_, ConfigInfoLegacy> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn bridge_deposit(storage: &mut dyn Storage) -> Bucket<Uint128> {
+pub fn bridge_deposit(storage: &mut dyn Storage) -> Bucket<'_, Uint128> {
     bucket(storage, BRIDGE_DEPOSITS)
 }
 
-pub fn bridge_deposit_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
+pub fn bridge_deposit_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Uint128> {
     bucket_read(storage, BRIDGE_DEPOSITS)
 }
 
-pub fn bridge_contracts(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
+pub fn bridge_contracts(storage: &mut dyn Storage) -> Bucket<'_, Vec<u8>> {
     bucket(storage, BRIDGE_CONTRACTS)
 }
 
-pub fn bridge_contracts_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
+pub fn bridge_contracts_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Vec<u8>> {
     bucket_read(storage, BRIDGE_CONTRACTS)
 }
 
-pub fn wrapped_asset(storage: &mut dyn Storage, chain: u16) -> Bucket<WrappedCW20> {
+pub fn wrapped_asset(storage: &mut dyn Storage, chain: u16) -> Bucket<'_, WrappedCW20> {
     Bucket::multilevel(storage, &[WRAPPED_ASSET_KEY, &chain.to_be_bytes()])
 }
 
-pub fn wrapped_asset_read(storage: &dyn Storage, chain: u16) -> ReadonlyBucket<WrappedCW20> {
+pub fn wrapped_asset_read(storage: &dyn Storage, chain: u16) -> ReadonlyBucket<'_, WrappedCW20> {
     ReadonlyBucket::multilevel(storage, &[WRAPPED_ASSET_KEY, &chain.to_be_bytes()])
 }
 
-pub fn wrapped_asset_seq(storage: &mut dyn Storage, chain: u16) -> Bucket<u64> {
+pub fn wrapped_asset_seq(storage: &mut dyn Storage, chain: u16) -> Bucket<'_, u64> {
     Bucket::multilevel(storage, &[WRAPPED_ASSET_SEQ_KEY, &chain.to_be_bytes()])
 }
 
-pub fn wrapped_asset_seq_read(storage: &mut dyn Storage, chain: u16) -> ReadonlyBucket<u64> {
+pub fn wrapped_asset_seq_read(storage: &mut dyn Storage, chain: u16) -> ReadonlyBucket<'_, u64> {
     ReadonlyBucket::multilevel(storage, &[WRAPPED_ASSET_SEQ_KEY, &chain.to_be_bytes()])
 }
 
-pub fn is_wrapped_asset(storage: &mut dyn Storage) -> Bucket<()> {
+pub fn is_wrapped_asset(storage: &mut dyn Storage) -> Bucket<'_, ()> {
     bucket(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
-pub fn is_wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<()> {
+pub fn is_wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<'_, ()> {
     bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
-pub fn bank_token_hashes(storage: &mut dyn Storage) -> Bucket<String> {
+pub fn bank_token_hashes(storage: &mut dyn Storage) -> Bucket<'_, String> {
     bucket(storage, BANK_TOKEN_HASHES_KEY)
 }
 
-pub fn bank_token_hashes_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
+pub fn bank_token_hashes_read(storage: &dyn Storage) -> ReadonlyBucket<'_, String> {
     bucket_read(storage, BANK_TOKEN_HASHES_KEY)
 }
 
-pub fn native_c20_hashes(storage: &mut dyn Storage) -> Bucket<Addr> {
+pub fn native_c20_hashes(storage: &mut dyn Storage) -> Bucket<'_, Addr> {
     bucket(storage, NATIVE_CW20_HASHES_KEY)
 }
 
-pub fn native_c20_hashes_read(storage: &dyn Storage) -> ReadonlyBucket<Addr> {
+pub fn native_c20_hashes_read(storage: &dyn Storage) -> ReadonlyBucket<'_, Addr> {
     bucket_read(storage, NATIVE_CW20_HASHES_KEY)
 }
 
@@ -153,7 +153,7 @@ pub struct TransferState {
     pub token_address: Addr,
 }
 
-pub fn wrapped_transfer_tmp(storage: &mut dyn Storage) -> Singleton<TransferState> {
+pub fn wrapped_transfer_tmp(storage: &mut dyn Storage) -> Singleton<'_, TransferState> {
     singleton(storage, TRANSFER_TMP_KEY)
 }
 

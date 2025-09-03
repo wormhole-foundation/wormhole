@@ -24,18 +24,10 @@ func (c ChainID) String() string {
 		return "polygon"
 	case ChainIDAvalanche:
 		return "avalanche"
-	case ChainIDOasis:
-		return "oasis"
 	case ChainIDAlgorand:
 		return "algorand"
-	case ChainIDAurora:
-		return "aurora"
 	case ChainIDFantom:
 		return "fantom"
-	case ChainIDKarura:
-		return "karura"
-	case ChainIDAcala:
-		return "acala"
 	case ChainIDKlaytn:
 		return "klaytn"
 	case ChainIDCelo:
@@ -62,8 +54,6 @@ func (c ChainID) String() string {
 		return "gnosis"
 	case ChainIDPythNet:
 		return "pythnet"
-	case ChainIDXpla:
-		return "xpla"
 	case ChainIDBtc:
 		return "btc"
 	case ChainIDBase:
@@ -78,8 +68,6 @@ func (c ChainID) String() string {
 		return "scroll"
 	case ChainIDMantle:
 		return "mantle"
-	case ChainIDBlast:
-		return "blast"
 	case ChainIDXLayer:
 		return "xlayer"
 	case ChainIDLinea:
@@ -92,8 +80,6 @@ func (c ChainID) String() string {
 		return "eclipse"
 	case ChainIDBOB:
 		return "bob"
-	case ChainIDSnaxchain:
-		return "snaxchain"
 	case ChainIDUnichain:
 		return "unichain"
 	case ChainIDWorldchain:
@@ -118,6 +104,10 @@ func (c ChainID) String() string {
 		return "codex"
 	case ChainIDPlume:
 		return "plume"
+	case ChainIDAztec:
+		return "aztec"
+	case ChainIDXRPLEVM:
+		return "xrplevm"
 	case ChainIDWormchain:
 		return "wormchain"
 	case ChainIDCosmoshub:
@@ -152,8 +142,6 @@ func (c ChainID) String() string {
 		return "holesky"
 	case ChainIDPolygonSepolia:
 		return "polygon_sepolia"
-	case ChainIDAztec:
-		return "aztec"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -176,18 +164,10 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDPolygon, nil
 	case "avalanche":
 		return ChainIDAvalanche, nil
-	case "oasis":
-		return ChainIDOasis, nil
 	case "algorand":
 		return ChainIDAlgorand, nil
-	case "aurora":
-		return ChainIDAurora, nil
 	case "fantom":
 		return ChainIDFantom, nil
-	case "karura":
-		return ChainIDKarura, nil
-	case "acala":
-		return ChainIDAcala, nil
 	case "klaytn":
 		return ChainIDKlaytn, nil
 	case "celo":
@@ -214,8 +194,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDGnosis, nil
 	case "pythnet":
 		return ChainIDPythNet, nil
-	case "xpla":
-		return ChainIDXpla, nil
 	case "btc":
 		return ChainIDBtc, nil
 	case "base":
@@ -230,8 +208,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDScroll, nil
 	case "mantle":
 		return ChainIDMantle, nil
-	case "blast":
-		return ChainIDBlast, nil
 	case "xlayer":
 		return ChainIDXLayer, nil
 	case "linea":
@@ -244,8 +220,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDEclipse, nil
 	case "bob":
 		return ChainIDBOB, nil
-	case "snaxchain":
-		return ChainIDSnaxchain, nil
 	case "unichain":
 		return ChainIDUnichain, nil
 	case "worldchain":
@@ -270,6 +244,10 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDCodex, nil
 	case "plume":
 		return ChainIDPlume, nil
+	case "aztec":
+		return ChainIDAztec, nil
+	case "xrplevm":
+		return ChainIDXRPLEVM, nil
 	case "wormchain":
 		return ChainIDWormchain, nil
 	case "cosmoshub":
@@ -304,8 +282,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDHolesky, nil
 	case "polygon_sepolia":
 		return ChainIDPolygonSepolia, nil
-	case "aztec":
-		return ChainIDAztec, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -320,12 +296,8 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDBSC,
 		ChainIDPolygon,
 		ChainIDAvalanche,
-		ChainIDOasis,
 		ChainIDAlgorand,
-		ChainIDAurora,
 		ChainIDFantom,
-		ChainIDKarura,
-		ChainIDAcala,
 		ChainIDKlaytn,
 		ChainIDCelo,
 		ChainIDNear,
@@ -339,7 +311,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimism,
 		ChainIDGnosis,
 		ChainIDPythNet,
-		ChainIDXpla,
 		ChainIDBtc,
 		ChainIDBase,
 		ChainIDFileCoin,
@@ -347,14 +318,12 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDRootstock,
 		ChainIDScroll,
 		ChainIDMantle,
-		ChainIDBlast,
 		ChainIDXLayer,
 		ChainIDLinea,
 		ChainIDBerachain,
 		ChainIDSeiEVM,
 		ChainIDEclipse,
 		ChainIDBOB,
-		ChainIDSnaxchain,
 		ChainIDUnichain,
 		ChainIDWorldchain,
 		ChainIDInk,
@@ -367,6 +336,8 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDConverge,
 		ChainIDCodex,
 		ChainIDPlume,
+		ChainIDAztec,
+		ChainIDXRPLEVM,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,
@@ -384,6 +355,5 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimismSepolia,
 		ChainIDHolesky,
 		ChainIDPolygonSepolia,
-		ChainIDAztec,
 	}
 }
