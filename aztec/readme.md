@@ -36,6 +36,10 @@ This MVP showcases:
   ```
 
 ## 1. Deploy Contracts to Testnet
+
+You have two options for deployment:
+
+### Option A: Automated Deployment (Recommended)
 ```bash
 cd contracts
 ./deploy.sh
@@ -45,6 +49,9 @@ The deployment script will:
 - Deploy a test token contract
 - Deploy the Wormhole VAA verification contract
 - Configure everything for testing
+
+### Option B: Manual Deployment
+For step-by-step manual deployment with full control, see [`contracts/DEPLOYMENT.md`](./contracts/DEPLOYMENT.md).
 
 ## 2. Start the Verification Service
 ```bash

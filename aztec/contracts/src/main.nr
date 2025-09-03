@@ -1,80 +1,18 @@
 use dep::aztec::macros::aztec;
 mod structs;
 
-/**
-To deploy on testnet, use the following commands (following the tutorial):
-1. Set the environment variable for the node URL:
-export NODE_URL=https://aztec-alpha-testnet-fullnode.zkv.xyz
-export SPONSORED_FPC_ADDRESS=0x19b5539ca1b104d4c3705de94e4555c9630def411f025e023a13189d0c56f8f22. 
-export OWNER_SK=0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55
-2. Create a new wallets:
-2a. Create a new wallet for the owner:
-aztec-wallet create-account \
-    -sk $OWNER_SK \
-    --register-only \
-    --node-url $NODE_URL \
-    --alias owner-wallet
-2b. Create a new wallet for the receiver:
-aztec-wallet create-account \
-    --register-only \
-    --node-url $NODE_URL \
-    --alias receiver-wallet
-3. Register owner account with FPC:
-3a. Register the owner wallet with the FPC:
-aztec-wallet register-contract \
-    --node-url $NODE_URL \
-    --from owner-wallet \
-    --alias sponsoredfpc \
-    $SPONSORED_FPC_ADDRESS SponsoredFPC \
-    --salt 0
-3b. Register the receiver wallet with the FPC:
-aztec-wallet register-contract \
-    --node-url $NODE_URL \
-    --from receiver-wallet \
-    --alias sponsoredfpc \
-    $SPONSORED_FPC_ADDRESS SponsoredFPC \
-    --salt 0
-4. Deploy accounts (may get error `Timeout awaiting isMined` but that is fine continue with the next step):
-4a. Deploy the owner wallet:
-aztec-wallet deploy-account \
-    --node-url $NODE_URL \
-    --from owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
-4b. Deploy the receiver wallet:
-aztec-wallet deploy-account \
-    --node-url $NODE_URL \
-    --from receiver-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
-5. Deploy the Token contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
-aztec-wallet deploy \
-    --node-url $NODE_URL \
-    --from accounts:owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --alias token \
-    TokenContract \
-    --args accounts:owner-wallet WormToken WORM 18 --no-wait
-6. Mint tokens to public & private now to call the upcoming functions:
-aztec-wallet send mint_to_private \
-    --node-url $NODE_URL \
-    --from accounts:owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 \
-    --args accounts:owner-wallet accounts:owner-wallet 10000
-6a. Mint public tokens:
-aztec-wallet send mint_to_public \
-    --node-url $NODE_URL \
-    --from accounts:owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --contract-address 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 \
-    --args accounts:owner-wallet 10000
-7. Deploy the Wormhole contract (wait for it to be mined on testnet check txhash at http://aztecscan.xyz/):
-aztec-wallet deploy \
-    --node-url $NODE_URL \
-    --from accounts:owner-wallet \
-    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
-    --alias wormhole \
-    target/wormhole_contracts-Wormhole.json \
-    --args 56 56 0x2bd5ee95d58d4505aae3c0e621fb65a4ec2205cbb5f0968a231c6e8855ea87c8 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06 --no-wait --init init
+/*
+Aztec Wormhole contract for the Wormhole bridge on Aztec testnet.
+
+This contract is responsible for:
+- Parsing and verifying Wormhole VAA messages
+- Managing guardian sets and their expiration
+- Publishing messages to the Wormhole network
+- Receiving messages from the Wormhole network
+
+To deploy this contract, follow the instructions in the deploy.md file, or use the deploy.sh script.
+
+TODO: Fix hardcoded addresses in private functions.
 */
 
 #[aztec]
@@ -154,7 +92,7 @@ pub contract Wormhole {
     struct Storage<Context> {
         state: PublicMutable<WormholeStorage, Context>,
         sequences: Map<AztecAddress, PublicMutable<u64, Context>, Context>,
-        wormhole_address: PublicMutable<AztecAddress, Context>,
+        receiver_address: PublicMutable<AztecAddress, Context>,
         token_address: PublicMutable<AztecAddress, Context>,
         guardian_1: Map<u32, PublicMutable<Guardian, Context>, Context>,
         guardian_2: Map<u32, PublicMutable<Guardian, Context>, Context>,
@@ -183,12 +121,12 @@ pub contract Wormhole {
     fn init(
         chain_id: u16,
         evm_chain_id: u16,
-        wormhole_address: AztecAddress,
+        receiver_address: AztecAddress,
         token_address: AztecAddress,
     ) {
         let provider: Provider = Provider { chain_id, evm_chain_id };
         storage.state.write(WormholeStorage::init(provider));
-        storage.wormhole_address.write(wormhole_address);
+        storage.receiver_address.write(receiver_address);
         storage.token_address.write(token_address);
         storage.current_guardian_set_index.at(0).write(18_446_744_073_709_551_615);
     }
@@ -204,7 +142,7 @@ pub contract Wormhole {
     ) -> u64 {
         assert(storage.state.read().message_fee <= message_fee, "insufficient fee");
 
-        let receiver_address = storage.wormhole_address.read();
+        let receiver_address = storage.receiver_address.read();
         let token_address = storage.token_address.read();
 
         let _ = Token::at(token_address)
@@ -245,6 +183,8 @@ pub contract Wormhole {
     ) {
         assert(1 <= message_fee, "insufficient fee");
 
+        // NOTE: These addresses are hardcoded because private functions cannot access PublicMutable storage.
+        // They must be updated to match the deployed contract addresses before compilation.
         let receiver_address = AztecAddress {
             inner: 0x2f73c9b19222c2a7931c6cba01eedbbabb51e01b405fe4e0cabe0de91c275d0e,
         };
@@ -554,8 +494,8 @@ mod tests {
 
         // Deploy contract - need to specify all 3 parameters for deploy
         let dummy_owner = AztecAddress::from_field(1);
-        let wormhole_address = AztecAddress::from_field(
-            0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2,
+        let receiver_address = AztecAddress::from_field(
+            0x2f73c9b19222c2a7931c6cba01eedbbabb51e01b405fe4e0cabe0de91c275d0e,
         );
         let token_address = AztecAddress::from_field(
             0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
@@ -565,14 +505,16 @@ mod tests {
             .deploy_self("Wormhole")
             .with_public_void_initializer(
                 dummy_owner,
-                Wormhole::interface().init(56, 56, wormhole_address, token_address),
+                Wormhole::interface().init(56, 56, receiver_address, token_address),
             )
             .to_address();
 
         let mut vaa_bytes: [u8; 2000] = [0; 2000];
         let actual_length = 221;
 
-        // Wh's VAA bytes, fetched from https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc
+        // NOTE: This is a real Wormhole VAA from Arbitrum Sepolia testnet.
+        // VAA bytes, fetched from https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc
+        // This VAA contains the message "Hello Wormhole!" and is used to test VAA verification logic.
         let wh_vaa: [u8; 221] = [
             0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x46, 0x82, 0xbc, 0x4d, 0x5f, 0xf2, 0xe5,
             0x4d, 0xc2, 0xee, 0x5e, 0x0e, 0xb6, 0x4f, 0x5c, 0x6c, 0x07, 0xaa, 0x44, 0x9a, 0xc5,
