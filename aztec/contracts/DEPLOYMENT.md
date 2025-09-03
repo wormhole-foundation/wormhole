@@ -40,8 +40,8 @@ If you prefer to deploy manually or need more control over the process, follow t
 export NODE_URL=https://aztec-alpha-testnet-fullnode.zkv.xyz
 export SPONSORED_FPC_ADDRESS=0x19b5539ca1b104d4c3705de94e4555c9630def411f025e023a13189d0c56f8f22
 
-# Owner private key (generate a new 64-byte private key for security)
-export OWNER_SK=<your_owner_private_key>
+# Owner private key 
+export OWNER_SK=0x9015e46f2e11a7784351ed72fc440d54d06a4a61c88b124f59892b27f9b91301
 ```
 
 ## Wallet Creation

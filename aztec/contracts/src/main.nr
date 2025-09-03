@@ -186,10 +186,10 @@ pub contract Wormhole {
         // NOTE: These addresses are hardcoded because private functions cannot access PublicMutable storage.
         // They must be updated to match the deployed contract addresses before compilation.
         let receiver_address = AztecAddress {
-            inner: 0x2f73c9b19222c2a7931c6cba01eedbbabb51e01b405fe4e0cabe0de91c275d0e,
+            inner: 0x0d071eec273fa0c82825d9c5d2096965a40bcc33ae942714cf6c683af9632504,
         };
         let token_address = AztecAddress {
-            inner: 0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
+            inner: 0x037e5d19d6d27e2fb7c947cfe7c36459e27d35e46dd59f5f47373a64ff491d2c,
         };
 
         let _ = Token::at(token_address)
@@ -495,10 +495,10 @@ mod tests {
         // Deploy contract - need to specify all 3 parameters for deploy
         let dummy_owner = AztecAddress::from_field(1);
         let receiver_address = AztecAddress::from_field(
-            0x2f73c9b19222c2a7931c6cba01eedbbabb51e01b405fe4e0cabe0de91c275d0e,
+            0x0d071eec273fa0c82825d9c5d2096965a40bcc33ae942714cf6c683af9632504,
         );
         let token_address = AztecAddress::from_field(
-            0x13babb369e8c237a78ed507fe7cc44336a5178ffd02312a979c1fa0921f02a06,
+            0x037e5d19d6d27e2fb7c947cfe7c36459e27d35e46dd59f5f47373a64ff491d2c,
         );
 
         let contract_address = env

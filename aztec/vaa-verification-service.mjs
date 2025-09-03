@@ -17,8 +17,8 @@ const PORT = process.env.PORT || 3000;
 
 // TESTNET CONFIGURATION - UPDATED WITH FRESH DEPLOYMENT
 const NODE_URL = 'https://aztec-alpha-testnet-fullnode.zkv.xyz/';
-const PRIVATE_KEY = '0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55'; // owner-wallet secret key. TODO: change and move to .env
-const CONTRACT_ADDRESS = '0x277e4b8fd9893fdc1fdd30c8da931cce3226450047649738387321665405e1f0'; // Fresh Wormhole contract
+const PRIVATE_KEY = '0x9015e46f2e11a7784351ed72fc440d54d06a4a61c88b124f59892b27f9b91301'; // owner-wallet secret key. TODO: change and move to .env
+const CONTRACT_ADDRESS = '0x0848d2af89dfd7c0e171238f9216399e61e908cd31b0222a920f1bf621a16ed6'; // Fresh Wormhole contract
 const SALT = '0x0000000000000000000000000000000000000000000000000000000000000000'; // Salt used in deployment
 
 let pxe, nodeClient, wormholeContract, paymentMethod, isReady = false;
@@ -111,7 +111,6 @@ async function init() {
     const schnorrAccount = await getSchnorrAccount(pxe, secretKey, signingKey, salt);
     const accountAddress = schnorrAccount.getAddress();
     console.log(`📍 Account address: ${accountAddress}`);
-    console.log(`📍 Expected address: 0x2bd5ee95d58d4505aae3c0e621fb65a4ec2205cbb5f0968a231c6e8855ea87c8`);
     
     // This account should already be registered with the PXE from the deployment
     const registeredAccounts = await pxe.getRegisteredAccounts();
@@ -234,7 +233,7 @@ app.post('/test', async (req, res) => {
   // Link: https://wormholescan.io/#/tx/0xf93fd41efeb09ff28174824d4abf6dbc06ac408953a9975aa4a403d434051efc?network=Testnet&view=advanced
   const realVAA = "010000000001004682bc4d5ff2e54dc2ee5e0eb64f5c6c07aa449ac539abc63c2be5c306a48f233e9300170a82adf3c3b7f43f23176fb079174a58d67d142477f646675d86eb6301684bfad4499602d22713000000000000000000000000697f31e074bf2c819391d52729f95506e0a72ffb0000000000000000c8000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000e48656c6c6f20576f726d686f6c6521000000000000000000000000000000000000";
   
-  console.log('🧪 Testing with Jorge\'s real Arbitrum Sepolia VAA on TESTNET');
+  console.log('🧪 Testing with real Arbitrum Sepolia VAA on TESTNET');
   console.log('📍 Guardian: 0x13947Bd48b18E53fdAeEe77F3473391aC727C638');
   console.log('📍 Signature: 0x4682bc4d5ff2e54dc2ee5e0eb64f5c6c07aa449ac539abc63c2be5c306a48f233e9300170a82adf3c3b7f43f23176fb079174a58d67d142477f646675d86eb6301');
   console.log('📍 Expected message hash: 0xe64320fba193c98f2d0acf3a8c7479ec9b163192bfc19d4024497d4e4159758c');
