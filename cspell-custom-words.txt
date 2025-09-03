@@ -121,6 +121,7 @@ Mezo
 mindshare
 mlock
 moby
+nargo
 monad
 Monad
 moonscan
@@ -179,6 +180,7 @@ SnaxChain
 solana
 Solana
 Solana's
+sponsoredfpc
 spydk
 Starport
 statesync
@@ -234,5 +236,3 @@ xpla
 XFER
 XPLA
 Zellic
-nargo
-sponsoredfpc
