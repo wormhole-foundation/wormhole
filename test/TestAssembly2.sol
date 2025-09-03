@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.27;
 
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 
 import {CHAIN_ID_SOLANA, CHAIN_ID_ETHEREUM} from "wormhole-solidity-sdk/constants/Chains.sol";
@@ -11,8 +11,6 @@ import {ICoreBridge, CoreBridgeVM, GuardianSet, GuardianSignature} from "wormhol
 import {VaaLib} from "wormhole-solidity-sdk/libraries/VaaLib.sol";
 import {CoreBridgeLib} from "wormhole-solidity-sdk/libraries/CoreBridge.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";
-
-import {EIP712Encoding} from "../src/evm/EIP712Encoding.sol";
 
 import {
   WormholeVerifier,

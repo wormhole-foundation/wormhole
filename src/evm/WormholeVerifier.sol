@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.25;
 
-import {console} from "forge-std/console.sol";
-
 import {CoreBridgeVM, ICoreBridge, GuardianSet} from "wormhole-solidity-sdk/interfaces/ICoreBridge.sol";
 import {CHAIN_ID_SOLANA} from "wormhole-solidity-sdk/constants/Chains.sol";
 import {BytesParsing} from "wormhole-solidity-sdk/libraries/BytesParsing.sol";

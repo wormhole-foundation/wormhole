@@ -2,10 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import {eagerOr} from "wormhole-sdk/Utils.sol";
-import {BytesParsing} from "wormhole-sdk/libraries/BytesParsing.sol";
-import {VaaLib} from "wormhole-sdk/libraries/VaaLib.sol";
-
 bytes32 constant REGISTER_TYPE_HASH = keccak256(
   "GuardianRegister(uint32 guardianSet,uint256 nonce,bytes32 id)"
 );
