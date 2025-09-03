@@ -144,13 +144,13 @@ jobs:
       with:
         path: |
           ~/.foundry/bin
-        key: foundry-cli-${{ runner.os }}-build-1.2.3
+        key: foundry-cli-${{ runner.os }}-build-1.3.4
     - name: Install Foundry
       if: ${{ steps.cache-foundry-tool.outputs.cache-hit != 'true' }}
       run: |
-        wget https://github.com/foundry-rs/foundry/releases/download/v1.2.3/foundry_v1.2.3_linux_amd64.tar.gz
+        wget https://github.com/foundry-rs/foundry/releases/download/v1.3.4/foundry_v1.3.4_linux_amd64.tar.gz
         mkdir -p ~/.foundry/bin
-        tar -xvf foundry_v1.2.3_linux_amd64.tar.gz --directory ~/.foundry/bin
+        tar -xvf foundry_v1.3.4_linux_amd64.tar.gz --directory ~/.foundry/bin
         chmod +x ~/.foundry/bin/*
       shell: bash
     - name: Update PATH
