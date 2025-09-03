@@ -33,11 +33,6 @@ contract EIP712Encoding is IERC5267 {
   bytes32 constant EIP712_NAME_HASH = keccak256(bytes(EIP712_NAME));
   bytes32 constant EIP712_VERSION_HASH = keccak256(bytes(EIP712_VERSION));
 
-  bytes32 private immutable _domainSeparator;
-
-  constructor () {
-    _domainSeparator = getDomainSeparator(block.chainid, address(this));
-  }
 
   function eip712Domain() external view returns (
     bytes1 fields,
@@ -60,7 +55,7 @@ contract EIP712Encoding is IERC5267 {
   }
 
   function DOMAIN_SEPARATOR() public view returns (bytes32) {
-    return _domainSeparator;
+    return getDomainSeparator(block.chainid, address(this));
   }
 
   function getDomainSeparator(
@@ -88,6 +83,6 @@ contract EIP712Encoding is IERC5267 {
       guardianId
     ));
 
-    return keccak256(abi.encodePacked("\x19\x01", _domainSeparator, idHash));
+    return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR(), idHash));
   }
 }
