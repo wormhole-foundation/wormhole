@@ -121,11 +121,11 @@ Mezo
 mindshare
 mlock
 moby
-nargo
 monad
 Monad
 moonscan
 moretags
+nargo
 Neodyme
 nhooyr
 obsv
