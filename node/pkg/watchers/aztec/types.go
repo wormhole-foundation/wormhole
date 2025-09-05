@@ -37,8 +37,8 @@ type BlockInfo struct {
 
 // FinalizedBlock represents a finalized block's information
 type FinalizedBlock struct {
-	Number int
-	Hash   string
+	Number int    `json:"number"`
+	Hash   string `json:"hash,omitempty"` // Made optional since it can be missing
 }
 
 // L2Tips represents the response from the node_getL2Tips RPC method
@@ -53,7 +53,7 @@ type L2Tips struct {
 	} `json:"proven"`
 	Finalized struct {
 		Number int    `json:"number"`
-		Hash   string `json:"hash"`
+		Hash   string `json:"hash,omitempty"` // Made optional since it's missing in your response
 	} `json:"finalized"`
 }
 
@@ -101,8 +101,7 @@ type BlockHeader struct {
 }
 
 type ContentCommitment struct {
-	NumTxs    string `json:"numTxs"`
-	BlobsHash string `json:"blobsHash"`
+	BlobsHash string `json:"blobsHash"` // Removed NumTxs as it's not in your response
 	InHash    string `json:"inHash"`
 	OutHash   string `json:"outHash"`
 }
@@ -126,9 +125,9 @@ type MerkleTree struct {
 type GlobalVariables struct {
 	ChainID      string  `json:"chainId"`
 	Version      string  `json:"version"`
-	BlockNumber  string  `json:"blockNumber"`
+	BlockNumber  int     `json:"blockNumber"` // Changed from string to int to match your response
 	SlotNumber   string  `json:"slotNumber"`
-	Timestamp    string  `json:"timestamp"`
+	Timestamp    string  `json:"timestamp"` // Keep as string since it comes as "1757107392"
 	Coinbase     string  `json:"coinbase"`
 	FeeRecipient string  `json:"feeRecipient"`
 	GasFees      GasFees `json:"gasFees"`
@@ -144,21 +143,35 @@ type BlockBody struct {
 }
 
 type TxEffect struct {
-	RevertCode        int               `json:"revertCode"`
-	TxHash            string            `json:"txHash"`
-	TransactionFee    string            `json:"transactionFee"`
-	NoteHashes        []string          `json:"noteHashes"`
-	Nullifiers        []string          `json:"nullifiers"`
-	L2ToL1Msgs        []string          `json:"l2ToL1Msgs"`
-	PublicDataWrites  []PublicDataWrite `json:"publicDataWrites"`
-	PrivateLogs       []interface{}     `json:"privateLogs"`
-	PublicLogs        []interface{}     `json:"publicLogs"`
-	ContractClassLogs []interface{}     `json:"contractClassLogs"`
+	RevertCode        int                `json:"revertCode"`
+	TxHash            string             `json:"txHash"`
+	TransactionFee    string             `json:"transactionFee"`
+	NoteHashes        []string           `json:"noteHashes"`
+	Nullifiers        []string           `json:"nullifiers"`
+	L2ToL1Msgs        []string           `json:"l2ToL1Msgs"`
+	PublicDataWrites  []PublicDataWrite  `json:"publicDataWrites"`
+	PrivateLogs       []PrivateLog       `json:"privateLogs"`       // Changed from interface{} to proper type
+	PublicLogs        []PublicLog        `json:"publicLogs"`        // Changed from interface{} to proper type
+	ContractClassLogs []ContractClassLog `json:"contractClassLogs"` // Changed from interface{} to proper type
 }
 
 type PublicDataWrite struct {
 	LeafSlot string `json:"leafSlot"`
 	Value    string `json:"value"`
+}
+
+// Added proper types for logs based on your block response
+type PrivateLog struct {
+	Fields        []string `json:"fields"`
+	EmittedLength int      `json:"emittedLength"`
+}
+
+type ContractClassLog struct {
+	ContractAddress string `json:"contractAddress"`
+	Fields          struct {
+		Fields []string `json:"fields"`
+	} `json:"fields"`
+	EmittedLength int `json:"emittedLength"`
 }
 
 type LogId struct {
