@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: aztec-sandbox
-          image: aztecprotocol/aztec:1.0.0-staging.6
+          image: aztecprotocol/aztec:1.2.1
           command: ["bash"]
           args:
             - -c

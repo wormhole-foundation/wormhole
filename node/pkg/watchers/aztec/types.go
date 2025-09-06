@@ -19,11 +19,10 @@ type LogParameters struct {
 	Sequence         uint64
 	Nonce            uint32
 	ConsistencyLevel uint8
-	// Extracted from payload
-	ArbitrumAddress []byte
-	ArbitrumChainID uint16
-	Amount          uint64 // Added this field
-	TxID            string
+	ArbitrumAddress  []byte
+	ArbitrumChainID  uint16
+	Amount           uint64
+	TxID             string
 }
 
 // BlockInfo enhanced to include block hash and parent hash
@@ -32,13 +31,13 @@ type BlockInfo struct {
 	Timestamp         uint64
 	archiveRoot       string
 	parentArchiveRoot string
-	TxHashesByIndex   map[int]string // Map of transaction hashes by their index in the block
+	TxHashesByIndex   map[int]string
 }
 
 // FinalizedBlock represents a finalized block's information
 type FinalizedBlock struct {
-	Number int
-	Hash   string
+	Number int    `json:"number"`
+	Hash   string `json:"hash,omitempty"`
 }
 
 // L2Tips represents the response from the node_getL2Tips RPC method
@@ -53,11 +52,10 @@ type L2Tips struct {
 	} `json:"proven"`
 	Finalized struct {
 		Number int    `json:"number"`
-		Hash   string `json:"hash"`
+		Hash   string `json:"hash,omitempty"`
 	} `json:"finalized"`
 }
 
-// L2TipsResponse represents the JSON-RPC response containing L2Tips
 type L2TipsResponse struct {
 	JsonRPC string `json:"jsonrpc"`
 	ID      int    `json:"id"`
@@ -101,7 +99,6 @@ type BlockHeader struct {
 }
 
 type ContentCommitment struct {
-	NumTxs    string `json:"numTxs"`
 	BlobsHash string `json:"blobsHash"`
 	InHash    string `json:"inHash"`
 	OutHash   string `json:"outHash"`
@@ -126,7 +123,7 @@ type MerkleTree struct {
 type GlobalVariables struct {
 	ChainID      string  `json:"chainId"`
 	Version      string  `json:"version"`
-	BlockNumber  string  `json:"blockNumber"`
+	BlockNumber  int     `json:"blockNumber"`
 	SlotNumber   string  `json:"slotNumber"`
 	Timestamp    string  `json:"timestamp"`
 	Coinbase     string  `json:"coinbase"`
@@ -144,21 +141,34 @@ type BlockBody struct {
 }
 
 type TxEffect struct {
-	RevertCode        int               `json:"revertCode"`
-	TxHash            string            `json:"txHash"`
-	TransactionFee    string            `json:"transactionFee"`
-	NoteHashes        []string          `json:"noteHashes"`
-	Nullifiers        []string          `json:"nullifiers"`
-	L2ToL1Msgs        []string          `json:"l2ToL1Msgs"`
-	PublicDataWrites  []PublicDataWrite `json:"publicDataWrites"`
-	PrivateLogs       []interface{}     `json:"privateLogs"`
-	PublicLogs        []interface{}     `json:"publicLogs"`
-	ContractClassLogs []interface{}     `json:"contractClassLogs"`
+	RevertCode        int                `json:"revertCode"`
+	TxHash            string             `json:"txHash"`
+	TransactionFee    string             `json:"transactionFee"`
+	NoteHashes        []string           `json:"noteHashes"`
+	Nullifiers        []string           `json:"nullifiers"`
+	L2ToL1Msgs        []string           `json:"l2ToL1Msgs"`
+	PublicDataWrites  []PublicDataWrite  `json:"publicDataWrites"`
+	PrivateLogs       []PrivateLog       `json:"privateLogs"`
+	PublicLogs        []PublicLog        `json:"publicLogs"`
+	ContractClassLogs []ContractClassLog `json:"contractClassLogs"`
 }
 
 type PublicDataWrite struct {
 	LeafSlot string `json:"leafSlot"`
 	Value    string `json:"value"`
+}
+
+type PrivateLog struct {
+	Fields        []string `json:"fields"`
+	EmittedLength int      `json:"emittedLength"`
+}
+
+type ContractClassLog struct {
+	ContractAddress string `json:"contractAddress"`
+	Fields          struct {
+		Fields []string `json:"fields"`
+	} `json:"fields"`
+	EmittedLength int `json:"emittedLength"`
 }
 
 type LogId struct {
