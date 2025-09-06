@@ -56,7 +56,6 @@ type L2Tips struct {
 	} `json:"finalized"`
 }
 
-// L2TipsResponse represents the JSON-RPC response containing L2Tips
 type L2TipsResponse struct {
 	JsonRPC string `json:"jsonrpc"`
 	ID      int    `json:"id"`
