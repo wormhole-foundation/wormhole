@@ -19,11 +19,10 @@ type LogParameters struct {
 	Sequence         uint64
 	Nonce            uint32
 	ConsistencyLevel uint8
-	// Extracted from payload
-	ArbitrumAddress []byte
-	ArbitrumChainID uint16
-	Amount          uint64 // Added this field
-	TxID            string
+	ArbitrumAddress  []byte
+	ArbitrumChainID  uint16
+	Amount           uint64
+	TxID             string
 }
 
 // BlockInfo enhanced to include block hash and parent hash
@@ -32,13 +31,13 @@ type BlockInfo struct {
 	Timestamp         uint64
 	archiveRoot       string
 	parentArchiveRoot string
-	TxHashesByIndex   map[int]string // Map of transaction hashes by their index in the block
+	TxHashesByIndex   map[int]string
 }
 
 // FinalizedBlock represents a finalized block's information
 type FinalizedBlock struct {
 	Number int    `json:"number"`
-	Hash   string `json:"hash,omitempty"` // Made optional since it can be missing
+	Hash   string `json:"hash,omitempty"`
 }
 
 // L2Tips represents the response from the node_getL2Tips RPC method
@@ -53,7 +52,7 @@ type L2Tips struct {
 	} `json:"proven"`
 	Finalized struct {
 		Number int    `json:"number"`
-		Hash   string `json:"hash,omitempty"` // Made optional since it's missing in your response
+		Hash   string `json:"hash,omitempty"`
 	} `json:"finalized"`
 }
 
@@ -101,7 +100,7 @@ type BlockHeader struct {
 }
 
 type ContentCommitment struct {
-	BlobsHash string `json:"blobsHash"` // Removed NumTxs as it's not in your response
+	BlobsHash string `json:"blobsHash"`
 	InHash    string `json:"inHash"`
 	OutHash   string `json:"outHash"`
 }
@@ -125,9 +124,9 @@ type MerkleTree struct {
 type GlobalVariables struct {
 	ChainID      string  `json:"chainId"`
 	Version      string  `json:"version"`
-	BlockNumber  int     `json:"blockNumber"` // Changed from string to int to match your response
+	BlockNumber  int     `json:"blockNumber"`
 	SlotNumber   string  `json:"slotNumber"`
-	Timestamp    string  `json:"timestamp"` // Keep as string since it comes as "1757107392"
+	Timestamp    string  `json:"timestamp"`
 	Coinbase     string  `json:"coinbase"`
 	FeeRecipient string  `json:"feeRecipient"`
 	GasFees      GasFees `json:"gasFees"`
@@ -150,9 +149,9 @@ type TxEffect struct {
 	Nullifiers        []string           `json:"nullifiers"`
 	L2ToL1Msgs        []string           `json:"l2ToL1Msgs"`
 	PublicDataWrites  []PublicDataWrite  `json:"publicDataWrites"`
-	PrivateLogs       []PrivateLog       `json:"privateLogs"`       // Changed from interface{} to proper type
-	PublicLogs        []PublicLog        `json:"publicLogs"`        // Changed from interface{} to proper type
-	ContractClassLogs []ContractClassLog `json:"contractClassLogs"` // Changed from interface{} to proper type
+	PrivateLogs       []PrivateLog       `json:"privateLogs"`
+	PublicLogs        []PublicLog        `json:"publicLogs"`
+	ContractClassLogs []ContractClassLog `json:"contractClassLogs"`
 }
 
 type PublicDataWrite struct {
