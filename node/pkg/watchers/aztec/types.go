@@ -159,7 +159,6 @@ type PublicDataWrite struct {
 	Value    string `json:"value"`
 }
 
-// Added proper types for logs based on your block response
 type PrivateLog struct {
 	Fields        []string `json:"fields"`
 	EmittedLength int      `json:"emittedLength"`
