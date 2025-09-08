@@ -308,3 +308,98 @@ func upsert(
 	}
 	return nil
 }
+
+type MsgIdToRequestOutOfBridge map[string]*RequestOutOfBridge
+
+// Represents a request to move assets out of the Sui token bridge
+type RequestOutOfBridge struct {
+	AssetKey string
+	Amount   *big.Int
+
+	// Validation parameters
+	DepositMade    bool // True of `assetKey` was deposited into the bridge
+	DepositSolvent bool // True if `assetKey` is considered solvent
+}
+
+type AssetKeyToTransferIntoBridge map[string]*TransferIntoBridge
+
+// Represents a transfer of assets into the Sui token bridge
+type TransferIntoBridge struct {
+	Amount  *big.Int
+	Solvent bool
+}
+
+// validateSolvency checks wether or not the transfers into the brigde are sufficient to cover the
+// requests to transfer assets out of the bridge.
+//   - if an asset is considered involvent, all requests out of the bridge for that asset are marked
+//     as invalid.
+//   - if an asset is considered solvent, all requests out of the bridge for that asset are marked
+//     as valid.
+//
+// The typical case where this would be important is when multiple bridge transfers are requested in
+// the same transaction. If the transfers are of different assets, it's important that one asset's
+// insolvency does not affect the validity of other bridge transfers.
+func validateSolvency(
+	requests MsgIdToRequestOutOfBridge,
+	transfers AssetKeyToTransferIntoBridge,
+) (MsgIdToRequestOutOfBridge, error) {
+	resolved := make(MsgIdToRequestOutOfBridge)
+
+	insolventAssetKeys := []string{}
+
+	// Check that all requests and transfers have non-nil amounts.
+	// This function assumes that amounts are non-nil, so an error is returned if
+	// any amount is nil. An empty resolution map is also returned.
+	for msgIdStr, request := range requests {
+		if request.Amount == nil {
+			return resolved, fmt.Errorf("nil amount in request out of bridge for msgID %s", msgIdStr)
+		}
+	}
+
+	for assetKey, transfer := range transfers {
+		if transfer.Amount == nil {
+			return resolved, fmt.Errorf("nil amount in transfer into bridge for assetKey %s", assetKey)
+		}
+	}
+
+	// First pass: check if assets were deposited for the requests out of the bridge,
+	// and substract the requested amounts from the transfers into the bridge.
+	for _, request := range requests {
+		transfer, exists := transfers[request.AssetKey]
+		if !exists {
+			// No transfer into the bridge for this asset. Set depositMade to false.
+			request.DepositMade = false
+			continue
+		}
+
+		// Mark that a deposit was made for this asset.
+		request.DepositMade = true
+
+		// Subtract the requested amount from the transfer amount
+		transfer.Amount = new(big.Int).Sub(transfer.Amount, request.Amount)
+
+		// The moment the transfer amount goes negative, the asset is insolvent.
+		if transfer.Amount.Sign() < 0 {
+			insolventAssetKeys = append(insolventAssetKeys, request.AssetKey)
+		}
+	}
+
+	// Second pass: check each request's assetKey against the list of insolvent assets.
+	// If the assetKey is not in the list, then mark the request as solvent.
+	for msgIdStr, request := range requests {
+		if !request.DepositMade {
+			// No deposit was made for this asset. Mark as insolvent.
+			request.DepositSolvent = false
+		} else if slices.Contains(insolventAssetKeys, request.AssetKey) {
+			// Asset is insolvent.
+			request.DepositSolvent = false
+		} else {
+			// Asset is solvent.
+			request.DepositSolvent = true
+		}
+
+		resolved[msgIdStr] = request
+	}
+
+	return resolved, nil
+}
