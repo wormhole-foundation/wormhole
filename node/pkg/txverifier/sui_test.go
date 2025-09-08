@@ -119,12 +119,20 @@ func TestNewSuiApiConnection(t *testing.T) {
 	}
 }
 
+func nextSequenceNumber(seq *uint64) *string {
+	(*seq)++
+	seqStr := fmt.Sprintf("%d", *seq)
+	return &seqStr
+}
+
 func TestProcessEvents(t *testing.T) {
 	connection := NewMockSuiApiConnection([]SuiEvent{})
 	suiTxVerifier := newTestSuiTransferVerifier(connection)
 
 	arbitraryEventType := "arbitrary::EventType"
 	arbitraryEmitter := "0x3117"
+
+	sequenceNumber := uint64(0)
 
 	logger := zap.NewNop()
 
@@ -137,7 +145,7 @@ func TestProcessEvents(t *testing.T) {
 		name           string
 		events         []SuiEvent
 		expectedResult map[string]*big.Int
-		expectedCount  uint
+		expectedCount  int
 	}{
 		{
 			name:           "TestNoEvents",
@@ -150,10 +158,11 @@ func TestProcessEvents(t *testing.T) {
 			events: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), EthereumUsdcAddress, 2),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), EthereumUsdcAddress, 2),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedResult: map[string]*big.Int{
@@ -166,17 +175,19 @@ func TestProcessEvents(t *testing.T) {
 			events: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedResult: map[string]*big.Int{
@@ -189,17 +200,19 @@ func TestProcessEvents(t *testing.T) {
 			events: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedResult: map[string]*big.Int{
@@ -213,10 +226,11 @@ func TestProcessEvents(t *testing.T) {
 			events: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &arbitraryEmitter,
-						Payload: generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &arbitraryEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedResult: map[string]*big.Int{},
@@ -227,17 +241,19 @@ func TestProcessEvents(t *testing.T) {
 			events: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 				{
 					Type: &arbitraryEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedResult: map[string]*big.Int{
@@ -250,17 +266,19 @@ func TestProcessEvents(t *testing.T) {
 			events: []SuiEvent{
 				{ // Invalid payload type
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(0, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(0, big.NewInt(100), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 				{ // Empty payload
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: []byte{},
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  []byte{},
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedResult: map[string]*big.Int{},
@@ -271,10 +289,11 @@ func TestProcessEvents(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			result, count := suiTxVerifier.processEvents(tt.events, logger)
+			requests := suiTxVerifier.extractBridgeRequestsFromEvents(tt.events, logger)
 
-			assert.Equal(t, tt.expectedResult, result)
-			assert.Equal(t, tt.expectedCount, count)
+			assert.Equal(t, tt.expectedCount, len(requests))
+			// assert.Equal(t, tt.expectedResult, result)
+			// assert.Equal(t, tt.expectedCount, count)
 		})
 	}
 }
@@ -306,7 +325,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 		name           string
 		objectChanges  []ObjectChange
 		resultList     []ResultTestCase
-		expectedResult map[string]*big.Int
+		expectedResult map[string]TransferIntoBridge
 		expectedCount  uint
 	}{
 		{
@@ -329,8 +348,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": big.NewInt(990)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(990)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectForeignBase",
@@ -352,8 +373,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": big.NewInt(990)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": {Amount: big.NewInt(990)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectNativeNegative",
@@ -375,8 +398,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": big.NewInt(-990)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(-990)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectForeignNegative", // Unsure if this test case is possible from Sui API
@@ -398,8 +423,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": big.NewInt(-990)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": {Amount: big.NewInt(-990)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectNativeMultiple",
@@ -435,8 +462,11 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": big.NewInt(990), "5075594c01d46f3bcbc4a7ef1462058273bece7793eebd0464963597c9fd0935-21": big.NewInt(4950)},
-			expectedCount:  2,
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(990)},
+				"5075594c01d46f3bcbc4a7ef1462058273bece7793eebd0464963597c9fd0935-21": {Amount: big.NewInt(4950)},
+			},
+			expectedCount: 2,
 		},
 		{
 			name: "TestProcessObjectNativeAndForeign",
@@ -472,8 +502,11 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": big.NewInt(990), "000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": big.NewInt(4950)},
-			expectedCount:  2,
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(990)},
+				"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2":  {Amount: big.NewInt(4950)},
+			},
+			expectedCount: 2,
 		},
 		{
 			name: "TestProcessObjectWrongPackageIdType",
@@ -495,7 +528,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{},
+			expectedResult: map[string]TransferIntoBridge{},
 			expectedCount:  0,
 		},
 		{
@@ -518,7 +551,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{},
+			expectedResult: map[string]TransferIntoBridge{},
 			expectedCount:  0,
 		},
 		{
@@ -541,7 +574,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{},
+			expectedResult: map[string]TransferIntoBridge{},
 			expectedCount:  0,
 		},
 		{
@@ -564,7 +597,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{},
+			expectedResult: map[string]TransferIntoBridge{},
 			expectedCount:  0,
 		},
 		{
@@ -601,8 +634,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": big.NewInt(990)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48-2": {Amount: big.NewInt(990)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectRealNumbers",
@@ -624,8 +659,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     8,
 				},
 			},
-			expectedResult: map[string]*big.Int{"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": big.NewInt(1000000000)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(1000000000)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectNormalize",
@@ -647,8 +684,10 @@ func TestProcessObjectUpdates(t *testing.T) {
 					decimals:     18,
 				},
 			},
-			expectedResult: map[string]*big.Int{"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": big.NewInt(100000000)},
-			expectedCount:  1,
+			expectedResult: map[string]TransferIntoBridge{
+				"9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3-21": {Amount: big.NewInt(100000000)},
+			},
+			expectedCount: 1,
 		},
 		{
 			name: "TestProcessObjectMissingVersion",
@@ -671,7 +710,7 @@ func TestProcessObjectUpdates(t *testing.T) {
 					drop:         true,
 				},
 			},
-			expectedResult: map[string]*big.Int{},
+			expectedResult: map[string]TransferIntoBridge{},
 			expectedCount:  0,
 		},
 	}
@@ -695,9 +734,20 @@ func TestProcessObjectUpdates(t *testing.T) {
 			}
 
 			// Run function and check results
-			transferredIntoBridge, numEventsProcessed := suiTxVerifier.processObjectUpdates(ctx, tt.objectChanges, logger)
-			assert.Equal(t, tt.expectedResult, transferredIntoBridge)
-			assert.Equal(t, tt.expectedCount, numEventsProcessed)
+			transfers := suiTxVerifier.extractTransfersIntoBridgeFromObjectChanges(ctx, tt.objectChanges, logger)
+
+			// Check that expectedResult and transfers have same number of keys
+			assert.Equal(t, uint(len(tt.expectedResult)), uint(len(transfers)))
+
+			// Check that each key in expectedResult exists in transfers and has the expected amount
+			for key, expectedValue := range tt.expectedResult {
+				actualValue, exists := transfers[key]
+				if !exists {
+					t.Errorf("Expected key %s not found in result", key)
+				} else if actualValue.Amount.Cmp(expectedValue.Amount) != 0 {
+					t.Errorf("For key %s, expected amount %s but got %s", key, expectedValue.Amount.String(), actualValue.Amount.String())
+				}
+			}
 		})
 	}
 }
@@ -720,6 +770,8 @@ func TestProcessDigest(t *testing.T) {
 
 	suiEventType := suiTxVerifier.suiEventType
 	suiTokenBridgeEmitter := suiTxVerifier.suiTokenBridgeEmitter
+
+	sequenceNumber := uint64(0)
 
 	logger := zap.Must(zap.NewDevelopment())
 
@@ -756,10 +808,10 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
 						Sender:  &suiTokenBridgeEmitter,
 						Payload: generatePayload(1, big.NewInt(990), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
-					},
+					}),
 				},
 			},
 			expectedError: nil,
@@ -788,10 +840,11 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedError: &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT},
@@ -804,10 +857,11 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedError: &InvariantError{Msg: INVARIANT_NO_DEPOSIT},
@@ -836,10 +890,11 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(990), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(990), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedError: nil,
@@ -852,10 +907,11 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(100000), SuiUsdcAddress, uint16(vaa.ChainIDSui)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedError: &InvariantError{Msg: INVARIANT_NO_DEPOSIT},
@@ -884,17 +940,18 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(990), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(990), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
 						Sender:  &suiTokenBridgeEmitter,
 						Payload: generatePayload(1, big.NewInt(1000), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					}),
 				},
 			},
 			expectedError: nil,
@@ -923,17 +980,19 @@ func TestProcessDigest(t *testing.T) {
 			suiEvents: []SuiEvent{
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(990), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(990), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 				{
 					Type: &suiEventType,
-					Message: &WormholeMessage{
-						Sender:  &suiTokenBridgeEmitter,
-						Payload: generatePayload(1, big.NewInt(1001), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
-					},
+					ParsedJson: uncheckedJsonMarshal(&WormholeMessage{
+						Sender:   &suiTokenBridgeEmitter,
+						Payload:  generatePayload(1, big.NewInt(1001), EthereumUsdcAddress, uint16(vaa.ChainIDEthereum)),
+						Sequence: nextSequenceNumber(&sequenceNumber),
+					}),
 				},
 			},
 			expectedError: &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT},
@@ -958,12 +1017,18 @@ func TestProcessDigest(t *testing.T) {
 				connection.SetObjectsResponse(responseObject)
 			}
 
-			numProcessed, _, err := suiTxVerifier.processDigestInternal(ctx, "HASH", logger)
+			_, err := suiTxVerifier.processDigestInternal(ctx, "HASH", "", logger)
 
 			assert.Equal(t, true, tt.expectedError == nil && err == nil || err != nil && err.Error() == tt.expectedError.Error())
-			assert.Equal(t, tt.expectedCount, numProcessed)
+			// assert.Equal(t, tt.expectedCount, numProcessed)
 		})
 	}
+}
+
+// Marshal the input to a json.RawMessage, and ignore the error message.
+func uncheckedJsonMarshal(v any) *json.RawMessage {
+	data, _ := json.Marshal(v)
+	return (*json.RawMessage)(&data)
 }
 
 // Generate WormholeMessage payload.

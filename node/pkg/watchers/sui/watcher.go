@@ -218,10 +218,12 @@ func NewWatcher(
 			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDSui])
 		}
 
+		// It's necessary to prefix the addresses with "0x", since the constants are defined without it and
+		// addresses/object ids returned from the JSON RPC are "0x" prefixed.
 		suiTxVerifier = txverifier.NewSuiTransferVerifier(
-			suiCoreBridgeAddress,
-			suiTokenBridgeEmitter,
-			suiTokenBridgeAddress,
+			"0x"+suiCoreBridgeAddress,
+			"0x"+suiTokenBridgeEmitter,
+			"0x"+suiTokenBridgeAddress,
 			txverifier.NewSuiApiConnection(suiRPC),
 		)
 	}
