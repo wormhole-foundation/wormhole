@@ -66,29 +66,37 @@ func (s *SuiTransferVerifier) GetEventFilter() string {
 	}`, s.suiCoreContract, suiModule, s.suiEventType)
 }
 
-// processEvents takes a list of events and processes them to determine the amount requested out of the bridge. It returns a mapping
-// that maps the token address and chain ID to the amount requested out of the bridge. It does not return an error, because any faulty
-// events can be skipped, since they would likely fail being processed by the guardian as well. Debug level logging can be used to
-// reveal any potential locations where errors are occurring.
-func (s *SuiTransferVerifier) processEvents(events []SuiEvent, logger *zap.Logger) (requestedOutOfBridge map[string]*big.Int, numEventsProcessed uint) {
-	// Initialize the map to store the amount requested out of the bridge
-	requestedOutOfBridge = make(map[string]*big.Int)
+// extractBridgeRequestsFromEvents iterates through all events, and tries to identify `WormholeMessage` events emitted by the token bridge.
+// These events are parsed and collected in a `MsgIdToRequestOutOfBridge` object, mapping message IDs to requests out of the bridge. This
+// function does not return errors, as any issues encountered during processing of individual events result in those events being skipped.
+func (s *SuiTransferVerifier) extractBridgeRequestsFromEvents(events []SuiEvent, logger *zap.Logger) MsgIdToRequestOutOfBridge {
+	requests := make(MsgIdToRequestOutOfBridge)
 
-	// Filter events that have the sui token bridge emitter as the sender in the message. The events indicate
-	// how much is going to leave the network.
 	for _, event := range events {
+		var wormholeMessage WormholeMessage
+
+		// Parse the ParsedJson field into a WormholeMessage. This is done explicitly to avoid any unnecessary
+		// error logging for events that can't be deserialized into `WormholeMessage` instances. If an event's
+		// ParsedJson cannot be unmarshaled into a WormholeMessage, it is simply skipped.
+		if event.ParsedJson != nil {
+			err := json.Unmarshal(*event.ParsedJson, &wormholeMessage)
+			if err != nil {
+				// If an error ocurrs, the ParsedJson is rejected as an event that is not emitted by the bridge
+				continue
+			}
+		}
 
 		// If any of these event parameters are nil, skip the event
-		if event.Message == nil || event.Message.Sender == nil || event.Type == nil {
+		if wormholeMessage.Sender == nil || wormholeMessage.Sequence == nil || event.Type == nil {
 			continue
 		}
 
 		// Only process the event if it is a WormholeMessage event from the token bridge emitter
-		if *event.Type == s.suiEventType && *event.Message.Sender == s.suiTokenBridgeEmitter {
+		if *event.Type == s.suiEventType && *wormholeMessage.Sender == s.suiTokenBridgeEmitter {
 
 			// Parse the wormhole message. vaa.IsTransfer can be omitted, since this is done
 			// inside `DecodeTransferPayloadHdr` already.
-			hdr, err := vaa.DecodeTransferPayloadHdr(event.Message.Payload)
+			hdr, err := vaa.DecodeTransferPayloadHdr(wormholeMessage.Payload)
 
 			// If there is an error decoding the payload, skip the event. One reason for a potential
 			// failure in decoding is that an attestation of a token was requested.
@@ -97,35 +105,42 @@ func (s *SuiTransferVerifier) processEvents(events []SuiEvent, logger *zap.Logge
 				continue
 			}
 
-			// Add the key if it does not exist yet
-			key := fmt.Sprintf(KEY_FORMAT, hdr.OriginAddress.String(), hdr.OriginChain)
-			if _, exists := requestedOutOfBridge[key]; !exists {
-				requestedOutOfBridge[key] = big.NewInt(0)
+			// The sender address is prefixed with "0x", but the message ID format does not include that prefix.
+			senderWithout0x := strings.TrimPrefix(*wormholeMessage.Sender, "0x")
+
+			msgIDStr := fmt.Sprintf("%d/%s/%s", vaa.ChainIDSui, senderWithout0x, *wormholeMessage.Sequence)
+			assetKey := fmt.Sprintf(KEY_FORMAT, hdr.OriginAddress.String(), hdr.OriginChain)
+
+			logger.Debug("Found request out of bridge",
+				zap.String("msgID", msgIDStr),
+				zap.String("assetKey", assetKey),
+				zap.String("amount", hdr.Amount.String()),
+			)
+
+			requests[msgIDStr] = &RequestOutOfBridge{
+				AssetKey:       assetKey,
+				Amount:         hdr.Amount,
+				DepositMade:    false,
+				DepositSolvent: false,
 			}
-
-			// Add the amount requested out of the bridge
-			requestedOutOfBridge[key] = new(big.Int).Add(requestedOutOfBridge[key], hdr.Amount)
-
-			numEventsProcessed++
 		} else {
 			logger.Debug("Event does not match the criteria",
 				zap.String("event type", *event.Type),
-				zap.String("event sender", *event.Message.Sender),
+				zap.String("event sender", *wormholeMessage.Sender),
+				zap.String("expected event type", s.suiEventType),
+				zap.String("expected event sender", s.suiTokenBridgeEmitter),
 			)
 		}
 	}
 
-	return requestedOutOfBridge, numEventsProcessed
+	return requests
 }
 
-// processObjectUpdates iterates through all object changes present in the PTB. It searches for tokens
-// that belong to the token bridge, and then calculates the balance difference between the token object's
-// previous version and current version.
-//
-// The `transferredIntoBridge` return value is a mapping from token address to transfer delta, indicating
-// the amount of funds deposited into the token bridge in this transaction block.
-func (s *SuiTransferVerifier) processObjectUpdates(ctx context.Context, objectChanges []ObjectChange, logger *zap.Logger) (transferredIntoBridge map[string]*big.Int, numChangesProcessed uint) {
-	transferredIntoBridge = make(map[string]*big.Int)
+// extractTransfersIntoBridgeFromChanges iterates through all object changes, and tries to identify token transfers into the bridge.
+// These transfers are accumulated in an `AssetKeyToTransferIntoBridge` object, which is returned to the caller. The default behaviour
+// of this function is to fail-close, meaning that any errors that occur during processing result in the offending object change being ignored.
+func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx context.Context, objectChanges []ObjectChange, logger *zap.Logger) AssetKeyToTransferIntoBridge {
+	transfers := make(AssetKeyToTransferIntoBridge)
 
 	for _, objectChange := range objectChanges {
 		// Check that the type information is correct. Doing it here means it's not necessary to do it
@@ -181,45 +196,46 @@ func (s *SuiTransferVerifier) processObjectUpdates(ctx context.Context, objectCh
 		normalized := normalize(balanceChange, decimals)
 
 		// Add the key if it does not exist yet
-		key := fmt.Sprintf(KEY_FORMAT, address, chain)
+		assetKey := fmt.Sprintf(KEY_FORMAT, address, chain)
 
-		// Add the normalized amount to the transferredIntoBridge map
-		// Intentionally use 'Set' instead of 'Add' because there should only be a single objectChange per token
-		var amount big.Int
-		transferredIntoBridge[key] = amount.Set(normalized)
+		if _, exists := transfers[assetKey]; !exists {
+			// logger.Debug("First time seeing transfer into bridge for asset", zap.String("assetKey", assetKey))
+			transfers[assetKey] = &TransferIntoBridge{
+				Amount:  big.NewInt(0),
+				Solvent: false,
+			}
+		}
 
-		// Increment the number of changes processed
-		numChangesProcessed++
+		// Add the amount transferred into the bridge
+		logger.Debug("Adding transfer into bridge", zap.String("assetKey", assetKey), zap.String("amount", normalized.String()))
+		transfers[assetKey].Amount = new(big.Int).Add(transfers[assetKey].Amount, normalized)
 	}
 
-	return transferredIntoBridge, numChangesProcessed
+	return transfers
 }
 
-func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, logger *zap.Logger) (bool, error) {
-	_, verified, err := s.ProcessDigestWithCount(ctx, digest, logger)
-	return verified, err
-}
-
-func (s *SuiTransferVerifier) ProcessDigestWithCount(ctx context.Context, digest string, logger *zap.Logger) (uint, bool, error) {
-	count, verified, err := s.processDigestInternal(ctx, digest, logger)
+func (s *SuiTransferVerifier) ProcessDigest(ctx context.Context, digest string, msgIdStr string, logger *zap.Logger) (bool, error) {
+	verified, err := s.processDigestInternal(ctx, digest, msgIdStr, logger)
 
 	// check if the error is an invariant violation
 	var invariantError *InvariantError
 	if errors.As(err, &invariantError) {
 		logger.Error("Sui txverifier invariant violated", zap.String("txdigest", digest), zap.String("invariant", invariantError.Msg))
-		return count, false, nil
+		return false, nil
 	} else {
-		return count, verified, err
+		return verified, err
 	}
 }
 
 // Return conditions:
 //
-//	_, true, nil - verification succeeded
-//	_, false, nil - verification failed
-//	_, false, err - verification could not be performed due to an internal error
-func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest string, logger *zap.Logger) (uint, bool, error) {
-	logger.Debug("processing digest", zap.String("txDigest", digest))
+//	true, nil - verification succeeded
+//	false, nil - verification failed
+//	false, err - verification failed due to an internal error or invariant violation
+//
+// NOTE: it is up to the caller to check if the error is an invariant violation, and handle it accordingly.
+func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest string, msgIdStr string, logger *zap.Logger) (bool, error) {
+	logger.Debug("processing digest", zap.String("txDigest", digest), zap.String("msgId", msgIdStr))
 
 	// Get the transaction block
 	txBlock, err := s.suiApiConnection.GetTransactionBlock(ctx, digest)
@@ -229,47 +245,82 @@ func (s *SuiTransferVerifier) processDigestInternal(ctx context.Context, digest 
 			zap.String("txDigest", digest),
 			zap.Error(err),
 		)
-		return 0, false, ErrFailedToRetrieveTxBlock
+		return false, ErrFailedToRetrieveTxBlock
 	}
 
-	// Process all events, indicating funds that are leaving the chain
-	requestedOutOfBridge, numEventsProcessed := s.processEvents(txBlock.Result.Events, logger)
+	// Extract bridge requests from events
+	bridgeOutRequests := s.extractBridgeRequestsFromEvents(txBlock.Result.Events, logger)
 
-	if numEventsProcessed == 0 {
+	if len(bridgeOutRequests) == 0 {
+		logger.Debug("No relevant events found in transaction block", zap.String("txDigest", digest))
 		// No valid events were identified, so the digest does not require further processing.
-		return 0, true, nil
+		return true, nil
 	}
 
 	// Process all object changes, specifically looking for transfers into the token bridge
-	transferredIntoBridge, numChangesProcessed := s.processObjectUpdates(ctx, txBlock.Result.ObjectChanges, logger)
+	transfersIntoBridge := s.extractTransfersIntoBridgeFromObjectChanges(ctx, txBlock.Result.ObjectChanges, logger)
 
-	for key, amountOut := range requestedOutOfBridge {
+	// Validate solvency using the requests out of the bridge vs the transfers into the bridge.
+	resolved, err := validateSolvency(bridgeOutRequests, transfersIntoBridge)
 
-		if _, exists := transferredIntoBridge[key]; !exists {
-			// This implies that a token leaving the bridge was never deposited into it.
-			invariantError := &InvariantError{Msg: INVARIANT_NO_DEPOSIT}
-
-			return 0, false, invariantError
-		}
-
-		amountIn := transferredIntoBridge[key]
-
-		if amountOut.Cmp(amountIn) > 0 {
-			// Implies that more tokens are being requested out of the bridge than were deposited into it.
-			invariantError := &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT}
-
-			return 0, false, invariantError
-		}
-
-		logger.Info("bridge request processed",
-			zap.String("tokenAddress-chain", key),
-			zap.String("amountOut", amountOut.String()),
-			zap.String("amountIn", amountIn.String()))
+	if err != nil {
+		logger.Error("Error validating solvency", zap.Error(err))
+		return false, err
 	}
 
-	logger.Debug("Digest processed", zap.String("txDigest", digest), zap.Uint("numEventsProcessed", numEventsProcessed), zap.Uint("numChangesProcessed", numChangesProcessed))
+	// If msgIdStr is found in the resolved map, check only that request. Otherwise, check all requests.
+	if request, exists := resolved[msgIdStr]; exists {
 
-	return numEventsProcessed, true, nil
+		// Checking for nil, since the map value is a pointer.
+		if request == nil {
+			logger.Debug("No matching request found for message ID", zap.String("msgId", msgIdStr))
+			// No matching request was found for the given message ID.
+			return false, fmt.Errorf("no matching request found for message ID %s", msgIdStr)
+		}
+
+		if !request.DepositMade {
+			logger.Debug("No deposit made for request out of bridge",
+				zap.String("msgId", msgIdStr),
+				zap.String("assetKey", request.AssetKey),
+				zap.String("amount", request.Amount.String()))
+			// A deposit was not made for the given message ID.
+			return false, &InvariantError{Msg: INVARIANT_NO_DEPOSIT}
+		}
+
+		if !request.DepositSolvent {
+			logger.Debug("Deposit for request out of bridge was insolvent",
+				zap.String("msgId", msgIdStr),
+				zap.String("assetKey", request.AssetKey),
+				zap.String("amount", request.Amount.String()))
+			// A deposit was not solvent for the given message ID.
+			return false, &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT}
+		}
+
+		logger.Debug("Request for message ID is valid", zap.String("msgId", msgIdStr))
+	} else {
+		// Any request that is not valid causes the entire transaction to be considered invalid.
+		for msgIdStrLoc, request := range resolved {
+			if !request.DepositMade {
+				logger.Debug("No deposit made for request out of bridge",
+					zap.String("assetKey", request.AssetKey),
+					zap.String("amount", request.Amount.String()))
+				// A request was not fulfilled by a deposit into the bridge.
+				return false, &InvariantError{Msg: INVARIANT_NO_DEPOSIT}
+			}
+
+			if !request.DepositSolvent {
+				logger.Debug("Deposit for request out of bridge was insolvent",
+					zap.String("assetKey", request.AssetKey),
+					zap.String("amount", request.Amount.String()))
+				// A request was not solvent.
+				return false, &InvariantError{Msg: INVARIANT_INSUFFICIENT_DEPOSIT}
+			}
+
+			logger.Debug("Request for message ID is valid", zap.String("msgId", msgIdStrLoc))
+		}
+	}
+
+	return true, nil
 }
 
 type SuiApiResponse interface {

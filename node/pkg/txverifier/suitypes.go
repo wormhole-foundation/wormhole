@@ -67,8 +67,8 @@ type SuiEvent struct {
 	Sender            *string `json:"sender"`
 	Type              *string `json:"type"`
 	// Bcs               *string          `json:"bcs"`
-	Timestamp *string          `json:"timestampMs"`
-	Message   *WormholeMessage `json:"parsedJson"`
+	Timestamp  *string          `json:"timestampMs"`
+	ParsedJson *json.RawMessage `json:"parsedJson"`
 }
 
 // The response object for sui_GetTransactionBlock
