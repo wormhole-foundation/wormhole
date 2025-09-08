@@ -46,12 +46,12 @@ Instead:
 
 - When initially installing OR pulling what has been changed: `npm ci`. 
 If you do not do this, you may not get exactly what is specified in the file, inadvertently update dependencies, or even pull exploits down to your machine! **Never use `npm install` for this use case**.
-- When needing to add or update a package: `npm i <package>@<version>` or `bun add <package>@<version>`. If you do not do this, you may inadvertently update other packages (see 2) or fail to update the lock file.
-- When needing to remove a package: `npm r <package>`. If you do not do this, you may inadvertently update other packages (see 2) or fail to update the lock file.
+- When needing to add or update a package: `npm i <package>@<version>`. If you do not do this, you may inadvertently update other packages or fail to update the lock file.
+- When needing to remove a package: `npm r <package>`. If you do not do this, you may inadvertently update other packages or fail to update the lock file.
 
 Always commit your `package-lock.json`.
 
-Using specific versions improves security because packages version cannot be overwritten after they are released.
+Using specific versions improves security because package versions cannot be overwritten after they are released.
 
 #### Dockerfile workflow
 
