@@ -39,17 +39,16 @@ func (e *Watcher) verify(
 	} else {
 		// Validate the transfers in the transaction block associated with the
 		// transaction digest.
-		valid, err := e.suiTxVerifier.ProcessDigest(ctx, txDigest, logger)
+		valid, err := e.suiTxVerifier.ProcessDigest(ctx, txDigest, localMsg.MessageIDString(), logger)
 
 		if err != nil {
-			// If an error was returned with valid = false, then it's a signal that an internal error occurred,
-			// and the validity of the transfer cannot be determined.
-			logger.Error("an internal tx verifier error occurred: ", zap.Error(err))
-			verificationState = common.NotApplicable
+			logger.Error("an internal Sui tx verifier error occurred: ", zap.Error(err))
+			verificationState = common.CouldNotVerify
 		} else if valid {
 			verificationState = common.Valid
 		} else {
-			// If no error and validation failed, mark as Anomalous
+			// If no error and validation failed, mark as Anomalous. For Sui transfers, Anomalous is used, since there are
+			// more edge cases that need to be considered and covered before outright rejecting a transfer.
 			verificationState = common.Anomalous
 		}
 	}
