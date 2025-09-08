@@ -133,7 +133,7 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	// Create a new SuiTransferVerifier
 	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreContract, *suiTokenBridgeEmitter, *suiTokenBridgeContract, suiApiConnection)
 
-	// Proccess a single digest and exit
+	// Process a single digest and exit
 	if *suiDigest != "" {
 		logger.Info("Processing single digest", zap.String("txDigeset", *suiDigest))
 		valid, err := suiTransferVerifier.ProcessDigest(ctx, *suiDigest, "", logger)
