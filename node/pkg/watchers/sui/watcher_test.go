@@ -98,7 +98,7 @@ func Test_JSONParseMultipleMsgs(t *testing.T) {
 
 	for _, chunk := range res.Result {
 		// chunk is a SuiResult
-		if "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage" != *chunk.Type {
+		if *chunk.Type != "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage" {
 			continue
 		}
 		var fields FieldsData
