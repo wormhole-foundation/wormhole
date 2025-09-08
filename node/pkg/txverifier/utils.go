@@ -363,7 +363,7 @@ func validateSolvency(
 	}
 
 	// First pass: check if assets were deposited for the requests out of the bridge,
-	// and substract the requested amounts from the transfers into the bridge.
+	// and subtract the requested amounts from the transfers into the bridge.
 	for _, request := range requests {
 		transfer, exists := transfers[request.AssetKey]
 		if !exists {
