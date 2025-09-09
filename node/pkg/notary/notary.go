@@ -54,7 +54,7 @@ const (
 	// Approve means a message should be processed normally. All messages that are not Token Transfers
 	// must always be Approve, as the Notary does not support other messasge types.
 	Approve
-	// Approved means a message should be temporarily delayed so that it can be manually inspected.
+	// Delay means a message should be temporarily delayed so that it can be manually inspected.
 	Delay
 	// Blackhole means a message should be permanently blocked from being processed.
 	Blackhole
