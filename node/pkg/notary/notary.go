@@ -323,6 +323,9 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	// Store in database.
 	dbErr := n.database.StoreBlackholed(msg)
 	if dbErr != nil {
+		// Ensure the mutex is unlocked before returning.
+		// Not using defer for unlocking here because removeDelayed acquires the mutex.
+		n.mutex.Unlock()
 		return dbErr
 	}
 	// Unlock mutex before calling removeDelayed, which also acquires the mutex.
