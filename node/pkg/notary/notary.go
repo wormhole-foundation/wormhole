@@ -253,6 +253,14 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 			continue
 		}
 
+		// If the message is in the delayed queue, it should not be in the blackholed queue.
+		// This is a sanity check to ensure that the blackholed queue is not published,
+		// but it should never happen.
+		if n.IsBlackholed(&pMsg.Msg) {
+			n.logger.Error("notary: got blackholed message in delayed queue", pMsg.Msg.ZapFields()...)
+			continue
+		}
+
 		// Append return value.
 		readyMsgs = append(readyMsgs, &pMsg.Msg)
 
