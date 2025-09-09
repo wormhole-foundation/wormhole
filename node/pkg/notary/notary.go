@@ -152,10 +152,13 @@ func (n *Notary) Run() error {
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
-	// NOTE: Only token transfers originated on Ethereum are currently supported.
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
+	// NOTE: Only token transfers originated on Ethereum are currently considered.
+	// For the initial implementation, the Notary only rules on messages based
+	// on the Transfer Verifier. However, there is no technical barrier to 
+	// supporting other message types.
 	if msg.EmitterChain != vaa.ChainIDEthereum {
 		n.logger.Debug("notary: automatically approving message publication because it is not from Ethereum", msg.ZapFields()...)
 		return Approve, nil
