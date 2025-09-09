@@ -184,7 +184,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
 	if n.IsBlackholed(msg) {
 		n.logger.Warn("notary: got message publication that is already blackholed",
-			msg.ZapFields(zap.String("verdict", v.String()))...,
+			msg.ZapFields(zap.String("verdict", Blackhole.String()))...,
 		)
 		return Blackhole, nil
 	}
