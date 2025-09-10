@@ -116,9 +116,9 @@ pub fn attest_token(
     };
 
     // Assign metadata if an SPL Metadata account exists for the SPL token in question.
-    if !accs.spl_metadata.data_is_empty() {
-        let metadata =
-            deserialize_and_verify_metadata(accs.mint.info(), &accs.spl_metadata, (&*accs).into())?;
+    if let Some(metadata) =
+        deserialize_and_verify_metadata(accs.mint.info(), &accs.spl_metadata, (&*accs).into())?
+    {
         payload.name = metadata.data.name.clone();
         payload.symbol = metadata.data.symbol;
     }
