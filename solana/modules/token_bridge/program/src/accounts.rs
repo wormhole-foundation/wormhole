@@ -159,7 +159,7 @@ pub fn deserialize_and_verify_metadata(
     mint: &Info,
     metadata: &Info,
     derivation_data: SplTokenMetaDerivationData,
-) -> Result<spl_token_metadata::state::Metadata> {
+) -> Result<Option<spl_token_metadata::state::Metadata>> {
     let mint_metadata = token_metadata_parser::parse_token2022_metadata(
         token_metadata_parser::Pubkey::new(mint.key.to_bytes()),
         &mint.data.borrow(),
@@ -187,7 +187,9 @@ pub fn deserialize_and_verify_metadata(
         // 1.
         token_metadata_parser::MintMetadata::Embedded(token_metadata) => {
             // token-2022 mint with embedded metadata
-            return Ok(convert_token2022_to_metaplex_metadata(&token_metadata));
+            Ok(Some(convert_token2022_to_metaplex_metadata(
+                &token_metadata,
+            )))
         }
         // 2.
         token_metadata_parser::MintMetadata::External(pointer) => {
@@ -202,27 +204,31 @@ pub fn deserialize_and_verify_metadata(
                 // Standard Metaplex metadata verification and parsing
                 // Verify pda.
                 metadata.verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
-            // 2b.
-            } else {
-                // fall through
             }
+            deserialize_metaplex_formatted_metadata_account(metadata)
         }
         // 3.
         token_metadata_parser::MintMetadata::None => {
+            // Account must belong to Metaplex Token Metadata program.
+            if *metadata.owner != Pubkey::default() && *metadata.owner != spl_token_metadata::id() {
+                return Err(TokenBridgeError::WrongAccountOwner.into());
+            }
             // Standard Metaplex metadata verification and parsing
             // Verify pda.
             metadata.verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
+            deserialize_metaplex_formatted_metadata_account(metadata)
         }
     }
+}
 
-    // There must be account data for token's metadata.
+/// Deserialises a Metaplex formatted metadata account. Here we assume that the
+/// metadata account has been checked to be the correct account for the mint.
+/// As such, if it's empty, it just means there is no metadata.
+fn deserialize_metaplex_formatted_metadata_account(
+    metadata: &Info,
+) -> Result<Option<spl_token_metadata::state::Metadata>> {
     if metadata.data_is_empty() {
-        return Err(TokenBridgeError::NonexistentTokenMetadataAccount.into());
-    }
-
-    // Account must belong to Metaplex Token Metadata program.
-    if *metadata.owner != spl_token_metadata::id() {
-        return Err(TokenBridgeError::WrongAccountOwner.into());
+        return Ok(None);
     }
 
     // Account must be the expected Metadata length.
@@ -238,7 +244,7 @@ pub fn deserialize_and_verify_metadata(
     match spl_token_metadata::utils::meta_deser_unchecked(&mut data) {
         Ok(deserialized) => {
             if deserialized.key == MetadataV1 {
-                Ok(deserialized)
+                Ok(Some(deserialized))
             } else {
                 Err(TokenBridgeError::NotMetadataV1Account.into())
             }
