@@ -210,7 +210,8 @@ pub fn update_accounts(
         SplTokenMetaDerivationData {
             mint: *accs.mint.info().key,
         },
-    )?;
+    )?
+    .unwrap();
 
     // Normalize token metadata's name and symbol.
     let new_data_v2 = spl_token_metadata::state::DataV2 {
