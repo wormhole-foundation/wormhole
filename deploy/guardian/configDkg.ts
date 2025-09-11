@@ -37,7 +37,7 @@ const createConfigFile = (filePath: string, tlsKeyPath: string, participants: nu
     Port: port,
   };
 
-  const rawKey = fs.readFileSync(filePath);
+  const rawKey = fs.readFileSync(tlsKeyPath);
 
   const defaultConfig: Config = {
     NumParticipants: participants,
@@ -136,7 +136,7 @@ yargs(hideBin(process.argv))
       });
     },
     (argv) => {
-      createConfigFile(path.resolve(argv.path), argv.tlsKey, argv.participants, argv.threshold, argv.selfPeer);
+      createConfigFile(path.resolve(argv.path), path.resolve(argv.tlsKey), argv.participants, argv.threshold, argv.selfPeer);
     }
   )
   .command(
