@@ -106,7 +106,7 @@ const signCertificate = (certificatePath: string, hostname: string, port: number
 
 yargs(hideBin(process.argv))
   .command(
-    'create-config --self-peer <own peer message> --participants <number> --threshold <number> --tls-key <path to key file> <path to config file>',
+    'create-config <path>',
     'Creates a DKG config file',
     (yargs) => {
       return yargs.positional('path', {
@@ -160,7 +160,7 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
-    'sign-certificate --guardian-key <path to key> <path to certificate> <hostname> <port>',
+    'sign-certificate <path> <hostname> <port>',
     'Signs the TLS certificate with the v1 guardian key and encodes it for use with DKG and TSS guardian configuration.',
     (yargs) => {
       return yargs.positional('path', {
