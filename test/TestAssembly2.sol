@@ -147,7 +147,7 @@ abstract contract VerificationMessageBuilder {
 abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
   using BytesParsing for bytes;
 
-  function newKeySet(uint256 count) internal view returns (uint256[] memory privateKeys, address[] memory publicKeys) {
+  function newKeySet(uint256 count) internal returns (uint256[] memory privateKeys, address[] memory publicKeys) {
     privateKeys = new uint256[](count);
     publicKeys = new address[](count);
 
