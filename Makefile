@@ -10,7 +10,7 @@ $(call tolib,$(1)):
 endef
 
 .DEFAULT_GOAL = build
-.PHONY: build* test* clean* dependencies*
+.PHONY: build* test* clean* dependencies* verifiable-build*
 
 build: build-evm build-solana build-solana-ts
 
@@ -27,6 +27,9 @@ $(foreach dep,$(LIB_DEPS), $(eval $(call install_lib_evm,$(dep))))
 
 build-evm: dependencies-evm
 	forge build
+
+verifiable-build-evm: dependencies-evm
+	mkdir -p verifiable-evm-build && docker build  --file ./Dockerfile.evm . --tag verification-v2-evm-build --output type=local,dest=verifiable-evm-build
 
 test-evm: dependencies-evm
 	forge test
