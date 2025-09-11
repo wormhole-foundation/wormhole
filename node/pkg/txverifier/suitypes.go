@@ -162,7 +162,8 @@ func (r SuiTryMultiGetPastObjectsResponse) GetBalanceChange() (*big.Int, error) 
 	// relies on the original value of newBalance.
 	difference := newBalance.Sub(newBalance, oldBalance)
 
-	// If the asset is wrapped, it means that the balance was burned, so the difference should be negative.
+	// If the asset is wrapped, it means that the balance should have been burned, implying a reduction
+	// in total supply. Hence, the difference is negative and the sign needs to be inverted.
 	if isWrapped {
 		difference.Neg(difference)
 	}

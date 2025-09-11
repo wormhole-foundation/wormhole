@@ -317,7 +317,7 @@ type RequestOutOfBridge struct {
 	Amount   *big.Int
 
 	// Validation parameters
-	DepositMade    bool // True of `assetKey` was deposited into the bridge
+	DepositMade    bool // True if `assetKey` was deposited into the bridge
 	DepositSolvent bool // True if `assetKey` is considered solvent
 }
 
@@ -329,9 +329,9 @@ type TransferIntoBridge struct {
 	Solvent bool
 }
 
-// validateSolvency checks wether or not the transfers into the brigde are sufficient to cover the
+// validateSolvency checks whether or not the transfers into the brigde are sufficient to cover the
 // requests to transfer assets out of the bridge.
-//   - if an asset is considered involvent, all requests out of the bridge for that asset are marked
+//   - if an asset is considered insolvent, all requests out of the bridge for that asset are marked
 //     as invalid.
 //   - if an asset is considered solvent, all requests out of the bridge for that asset are marked
 //     as valid.
