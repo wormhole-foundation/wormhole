@@ -1,0 +1,21 @@
+{
+  "name": "deploy",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {},
+  "author": "",
+  "license": "Apache-2.0",
+  "description": "",
+  "dependencies": {
+    "@wormhole-foundation/sdk": "^3.4.7",
+    "viem": "^2.37.3",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.1",
+    "@types/yargs": "^17.0.33",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

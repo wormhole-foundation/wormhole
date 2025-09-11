@@ -1,0 +1,132 @@
+{
+  "guardianSet": {
+    "initialMultisigKeyCount": 0,
+    "initialSchnorrKeyCount": 0,
+    "initialMultisigKeyPullLimit": 1,
+    "appendSchnorrKeyVaa": ""
+  },
+  "evm": {
+    "compilerOutput": "../verifiable-evm-build/WormholeVerifier.output.json",
+    "chains": [
+      {
+        "description": "BSC Testnet",
+        "eip155ChainId": 97,
+        "chainId": 4,
+        "rpc": "https://data-seed-prebsc-2-s1.bnbchain.org:8545",
+        "coreV1Address": "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"
+      },
+      {
+        "description": "Avalanche testnet fuji",
+        "eip155ChainId": 43113,
+        "chainId": 6,
+        "rpc": "https://api.avax-test.network/ext/bc/C/rpc",
+        "coreV1Address": "0x7bbcE28e64B3F8b84d876Ab298393c38ad7aac4C"
+      },
+      {
+        "description": "Fantom",
+        "eip155ChainId": 4002,
+        "chainId": 10,
+        "rpc": "https://fantom-testnet.publicnode.com",
+        "coreV1Address": "0x1BB3B4119b7BA9dfad76B0545fb3F531383c3bB7"
+      },
+      {
+        "description": "Celo Testnet",
+        "eip155ChainId": 44787,
+        "chainId": 14,
+        "rpc": "https://alfajores-forno.celo-testnet.org",
+        "coreV1Address": "0x88505117CA88e7dd2eC6EA1E13f0948db2D50D56"
+      },
+      {
+        "description": "Moonbase Alpha",
+        "eip155ChainId": 1287,
+        "chainId": 16,
+        "rpc": "https://rpc.testnet.moonbeam.network",
+        "coreV1Address": "0xa5B7D85a8f27dd7907dc8FdC21FA5657D5E2F901"
+      },
+      {
+        "description": "Berachain Bepolia",
+        "eip155ChainId": 80069,
+        "chainId": 39,
+        "rpc": "https://bepolia.rpc.berachain.com",
+        "coreV1Address": "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"
+      },
+      {
+        "description": "SeiEVM",
+        "eip155ChainId": 1328,
+        "chainId": 40,
+        "rpc": "https://evm-rpc-testnet.sei-apis.com",
+        "coreV1Address": "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"
+      },
+      {
+        "description": "Unichain Sepolia",
+        "eip155ChainId": 1301,
+        "chainId": 44,
+        "rpc": "https://sepolia.unichain.org",
+        "coreV1Address": "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"
+      },
+      {
+        "description": "Ink",
+        "eip155ChainId": 763373,
+        "chainId": 46,
+        "rpc": "https://rpc-gel-sepolia.inkonchain.com",
+        "coreV1Address": "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"
+      },
+      {
+        "description": "Monad Testnet",
+        "eip155ChainId": 10143,
+        "chainId": 48,
+        "rpc": "https://monad-testnet.drpc.org",
+        "coreV1Address": "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"
+      },
+      {
+        "description": "Mezo",
+        "eip155ChainId": 31611,
+        "chainId": 50,
+        "rpc": "https://mezo-testnet.drpc.org",
+        "coreV1Address": "0x268557122Ffd64c85750d630b716471118F323c8"
+      },
+      {
+        "description": "XPRL-EVM",
+        "eip155ChainId": 1449000,
+        "chainId": 57,
+        "rpc": "https://rpc.testnet.xrplevm.org",
+        "coreV1Address": "0xaBf89de706B583424328B54dD05a8fC986750Da8"
+      },
+      {
+        "description": "Ethereum Sepolia",
+        "eip155ChainId": 11155111,
+        "chainId": 10002,
+        "rpc": "https://ethereum-sepolia.publicnode.com",
+        "coreV1Address": "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"
+      },
+      {
+        "description": "Arbitrum Sepolia",
+        "eip155ChainId": 421614,
+        "chainId": 10003,
+        "rpc": "https://arbitrum-sepolia-rpc.publicnode.com",
+        "coreV1Address": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"
+      },
+      {
+        "description": "Base Sepolia",
+        "eip155ChainId": 84532,
+        "chainId": 10004,
+        "rpc": "https://sepolia.base.org",
+        "coreV1Address": "0x79A1027a6A159502049F10906D333EC57E95F083"
+      },
+      {
+        "description": "Optimism Sepolia",
+        "eip155ChainId": 11155420,
+        "chainId": 10005,
+        "rpc": "https://sepolia.optimism.io",
+        "coreV1Address": "0x31377888146f3253211EFEf5c676D41ECe7D58Fe"
+      },
+      {
+        "description": "Polygon Sepolia",
+        "eip155ChainId": 80002,
+        "chainId": 10007,
+        "rpc": "https://polygon-amoy-bor-rpc.publicnode.com",
+        "coreV1Address": "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"
+      }
+    ]
+  }
+}
