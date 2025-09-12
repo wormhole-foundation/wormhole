@@ -313,7 +313,7 @@ const (
 	ChainIDXRPLEVM ChainID = 57
 	// ChainIDPlasma is the ChainID of Plasma
 	ChainIDPlasma ChainID = 58
-	// ChainIDPlasma is the ChainID of Plasma
+	// ChainIDCreditCoin is the ChainID of CreditCoin
 	ChainIDCreditCoin ChainID = 59
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
