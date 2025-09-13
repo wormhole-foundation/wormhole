@@ -331,6 +331,12 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		defer func() {
+			// close connect
+			for _, conn := range h.Network().Conns() {
+				logger.Info("Closing connection", zap.String("peer", conn.RemotePeer().String()))
+				conn.Close()
+			}
+
 			if err := h.Close(); err != nil {
 				logger.Error("error closing the host", zap.Error(err))
 			}
