@@ -102,6 +102,7 @@ var (
 		// vaa.ChainIDConverge: Not in Mainnet yet
 		vaa.ChainIDPlume:   {Finalized: true, Safe: true, EvmChainID: 98866, PublicRPC: "https://rpc.plume.org", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDXRPLEVM: {Finalized: true, Safe: true, EvmChainID: 1440000, PublicRPC: "https://rpc.xrplevm.org/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		vaa.ChainIDQuai:    {Finalized: true, Safe: true, EvmChainID: 9, PublicRPC: "https://rpc.quai.network/cyprus1", ContractAddr: "0x004Accf29dD34f88E885e2BdFB1B0105059b3D08"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
@@ -156,6 +157,7 @@ var (
 		vaa.ChainIDOptimismSepolia: {Finalized: true, Safe: true, EvmChainID: 11155420, PublicRPC: "https://optimism-sepolia-rpc.publicnode.com", ContractAddr: "0x31377888146f3253211EFEf5c676D41ECe7D58Fe"},
 		vaa.ChainIDHolesky:         {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky", ContractAddr: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
 		vaa.ChainIDPolygonSepolia:  {Finalized: true, Safe: false, EvmChainID: 80002, PublicRPC: "https://polygon-amoy-bor-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
+		vaa.ChainIDQuai:            {Finalized: true, Safe: true, EvmChainID: 15000, PublicRPC: "https://orchard.rpc.quai.network/cyprus1", ContractAddr: "0x004Accf29dD34f88E885e2BdFB1B0105059b3D08"},
 	}
 )
 
