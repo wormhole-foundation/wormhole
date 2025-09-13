@@ -666,10 +666,9 @@ export class Deployer {
             // Run current program
             const pythonCommand = 'python3.10'
             const preArgs = overrideArgs ?? []
-            const args = [...preArgs, ...outputPaths]
-            const cmd = `${pythonCommand} "${pytealSourceFile}" ${args.join(' ')}`
-             console.log(`Running command ${cmd}`)
-            const logs = await util.promisify(child_process.exec)(cmd)
+            const args = [pytealSourceFile, ...preArgs, ...outputPaths]
+            console.log(`Running command: ${pythonCommand} ${args.map(a => JSON.stringify(a)).join(' ')}`)
+            const logs = await util.promisify(child_process.execFile)(pythonCommand, args)
             if (logs.stderr && logs.stderr.length > 0) {
                 throw Error(`Could not compile file: ${pytealSourceFile} with ${pythonCommand}.\nError: ${logs.stderr}`)
             }
