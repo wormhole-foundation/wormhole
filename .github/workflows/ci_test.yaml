@@ -102,8 +102,8 @@ jobs:
       shell: bash
     - name: Update PATH
       run: |
-        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-        echo "$HOME/bin/anchor" >> $GITHUB_PATH
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+        echo "$HOME/bin/anchor" >> "$GITHUB_PATH"
       shell: bash
     # We create the Solana CLI keypair to avoid errors and/or interactive keygen prompts
     - name: Create keypair
@@ -135,7 +135,7 @@ jobs:
       id: solidity-deps-hash
       run: |
         HASH=$(grep "^LIB_DEPS" Makefile | sha256sum | cut --delimiter=" " --fields=1)
-        echo "hash=$HASH" >> $GITHUB_OUTPUT
+        echo "hash=$HASH" >> "$GITHUB_OUTPUT"
     - name: Cache Solidity build
       uses: actions/cache@v4
       with:
@@ -161,7 +161,7 @@ jobs:
       shell: bash
     - name: Update PATH
       run: |
-        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+        echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
       shell: bash
     - name: Run EVM tests
       run: make test-evm
