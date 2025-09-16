@@ -464,10 +464,10 @@ func init() {
 	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xrplEvmContract = NodeCmd.Flags().String("xrplEvmContract", "", "XRPLEVM contract address")
 
-	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "PlasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	plasmaContract = NodeCmd.Flags().String("plasmaContract", "", "Plasma contract address")
 
-	creditCoinRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "CreditCoinRPC", "CREDITCOIN RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	creditCoinRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "creditCoinRPC", "CREDITCOIN RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	creditCoinContract = NodeCmd.Flags().String("creditCoinContract", "", "CreditCoin contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
