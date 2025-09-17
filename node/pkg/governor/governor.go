@@ -466,7 +466,7 @@ func (gov *ChainGovernor) initConfig() error {
 
 // Returns true if the message can be published, false if it has been added to the pending list.
 func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
-	publish, err := gov.ProcessMsgForTime(msg, time.Now())
+	publish, err := gov.processMsgForTime(msg, time.Now())
 	if err != nil {
 		gov.logger.Error("failed to process VAA: %v", zap.Error(err))
 		return false
@@ -475,7 +475,7 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 	return publish
 }
 
-// ProcessMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// processMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
 // Returns true if:
 // - the message is not governed
 // - the transfer is complete and has already been observed
@@ -484,7 +484,7 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 // - ensure MessagePublication is not nil
 // - check that the MessagePublication is governed
 // - check that the message is not a duplicate of one we've seen before.
-func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
+func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
 	if msg == nil {
 		return false, fmt.Errorf("msg is nil")
 	}
@@ -502,7 +502,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return true, nil
 	}
 
-	hash := gov.HashFromMsg(msg)
+	hash := gov.hashFromMsg(msg)
 	xferComplete, alreadySeen := gov.msgsSeen[hash]
 	if alreadySeen {
 		if !xferComplete {
@@ -524,7 +524,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// Get all outgoing transfers for `emitterChainEntry` that happened within the last 24 hours
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := gov.TrimAndSumValueForChain(emitterChainEntry, startTime)
+	prevTotalValue, err := gov.trimAndSumValueForChain(emitterChainEntry, startTime)
 	if err != nil {
 		gov.logger.Error("Error when attempting to trim and sum transfers",
 			zap.String("msgID", msg.MessageIDString()),
@@ -747,10 +747,10 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 // CheckPending is a wrapper method for CheckPendingForTime. It is called by the processor with the purpose of releasing
 // queued transfers.
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
-	return gov.CheckPendingForTime(time.Now())
+	return gov.checkPendingForTime(time.Now())
 }
 
-// CheckPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
+// checkPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
 // moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
 // A transfer is ready to be released when one of the following conditions holds:
 //   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
@@ -761,7 +761,7 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 //
 // WARNING: When this function returns an error, it propagates to the `processor` which in turn interprets this as a
 // signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
-func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
+func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -784,7 +784,7 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
-			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
+			prevTotalValue, err := gov.trimAndSumValueForChain(ce, startTime)
 			if err != nil {
 				gov.logger.Error("error when attempting to trim and sum transfers", zap.Error(err))
 				gov.logger.Error("refusing to release transfers for this chain until the sum can be correctly calculated",
@@ -1026,7 +1026,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	return true, nil
 }
 
-// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
+// trimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
@@ -1039,7 +1039,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 // chain appearing at maximum capacity from the perspective of the Governor, and therefore cause new transfers to be
 // queued until space opens up.
 // SECURITY Invariant: The `sum` return value should never be less than 0
-func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
+func (gov *ChainGovernor) trimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
 	if chainEntry == nil {
 		// We don't expect this to happen but this prevents a nil pointer deference
 		return 0, errors.New("TrimAndSumValeForChain parameter chainEntry must not be nil")
@@ -1047,7 +1047,7 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startT
 	// Sum the value of all transfers for this chain. This sum can be negative if flow-cancelling is enabled
 	// and the incoming value of flow-cancelling assets exceeds the summed value of all outgoing assets.
 	var sumValue int64
-	sumValue, chainEntry.transfers, err = gov.TrimAndSumValue(chainEntry.transfers, startTime)
+	sumValue, chainEntry.transfers, err = gov.trimAndSumValue(chainEntry.transfers, startTime)
 	if err != nil {
 		// Return the daily limit as the sum so that any further transfers will be queued.
 		return chainEntry.dailyLimit, err
@@ -1061,14 +1061,14 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startT
 	return uint64(sumValue), nil
 }
 
-// TrimAndSumValue iterates over a slice of transfer structs. It filters out transfers that have Timestamp values that
+// trimAndSumValue iterates over a slice of transfer structs. It filters out transfers that have Timestamp values that
 // are earlier than the parameter `startTime`. The function then iterates over the remaining transfers, sums their Value,
 // and returns the sum and the filtered transfers.
 // As a side-effect, this function deletes transfers from the database if their Timestamp is before `startTime`.
 // The `transfers` slice must be sorted by Timestamp. We expect this to be the case as transfers are added to the
 // Governor in chronological order as they arrive. Note that `Timestamp` is created by the Governor; it is not read
 // from the actual on-chain transaction.
-func (gov *ChainGovernor) TrimAndSumValue(transfers []transfer, startTime time.Time) (int64, []transfer, error) {
+func (gov *ChainGovernor) trimAndSumValue(transfers []transfer, startTime time.Time) (int64, []transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}
@@ -1113,7 +1113,7 @@ func (tk tokenKey) String() string {
 	return tk.chain.String() + ":" + tk.addr.String()
 }
 
-func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
+func (gov *ChainGovernor) hashFromMsg(msg *common.MessagePublication) string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
 	digest := v.SigningDigest()
 	return hex.EncodeToString(digest.Bytes())
