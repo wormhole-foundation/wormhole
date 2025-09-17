@@ -193,9 +193,11 @@ pub fn complete_native_with_payload(
         amount *= 10u64.pow((accs.mint.decimals - 8) as u32);
     }
 
+    let token_program = accs.mint.info().owner;
+
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
+        token_program,
         accs.custody.info().key,
         accs.to.info().key,
         accs.custody_signer.key,
@@ -298,9 +300,11 @@ pub fn complete_wrapped_with_payload(
 
     claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
+    let token_program = accs.mint.info().owner;
+
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(
-        &spl_token::id(),
+        token_program,
         accs.mint.info().key,
         accs.to.info().key,
         accs.mint_authority.key,

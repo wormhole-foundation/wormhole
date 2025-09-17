@@ -19,6 +19,7 @@ instructions = []
 
 [dependencies]
 wormhole-bridge-solana = { path = "../../../bridge/program", features = ["no-entrypoint", "cpi"] }
+token-metadata-parser = { path = "../token_metadata_parser" }
 borsh = "=0.9.3"
 bstr = "0.2.16"
 byteorder = "1.4.3"
