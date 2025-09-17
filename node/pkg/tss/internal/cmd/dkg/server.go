@@ -45,7 +45,7 @@ func main() {
 	srvr := createServer(gst, keygen)
 	go func() {
 		if err := srvr.Run(ctx); err != nil {
-			logger.Error("Failed to run server", zap.Error(err))
+			logger.Fatal("Server stopped", zap.Error(err))
 
 			cancel() // stop the context if the server fails to run
 		}
@@ -66,11 +66,12 @@ func main() {
 
 func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianStorage, cnfgs *cmd.SetupConfigs) {
 	for i := range 10 { // The loop should converge after 2~3 iterations.
-		logger.Info("Making DKG Attemp", zap.Int("attempt", i))
+		logger.Info("Starting new DKG session", zap.Int("session", i))
 
 		resChn, err := keygen.StartDKG(party.DkgTask{
 			Threshold: gst.Threshold,
-			Seed:      sha256.Sum256([]byte("dkg seed:" + strconv.Itoa(i))),
+			// TODO: This affects the trackingID, (not the randomness of the DKG). consider adding more entropy here.
+			Seed: sha256.Sum256([]byte("dkg seed:" + strconv.Itoa(i))),
 		})
 
 		if err != nil {
@@ -85,7 +86,7 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 
 			return
 		case <-time.After(time.Second * 20):
-			logger.Error("FAILED DKG. Starting an additional session")
+			logger.Info("No progress. Retrying...", zap.Int("session", i))
 
 			continue
 		}
