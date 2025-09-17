@@ -90,13 +90,20 @@ type IdentitiesKeep struct {
 	// maps and slices to ensure quick lookups.
 	pemkeyToIndex      map[string]int
 	vaav1PubToIdentity map[ethcommon.Address]int
+	partyidToIndex     map[string]int
 	peerCerts          []*x509.Certificate
 	partyIds           []*common.PartyID
 }
 
-// TODO: consider moving the following functions to the identity/identities responsibility.
+var errUnknownPartyID = fmt.Errorf("unknown partyID")
+
 func (ids *IdentitiesKeep) fetchIdentityFromPartyID(senderPid *common.PartyID) (*Identity, error) {
-	return ids.fetchIdentityFromKeyPEM(PEM(senderPid.GetID()))
+	pos, ok := ids.partyidToIndex[string(senderPid.GetID())]
+	if !ok {
+		return nil, errUnknownPartyID
+	}
+
+	return ids.fetchIdentityFromIndex(SenderIndex(pos))
 }
 
 var errUnknownPubkey = fmt.Errorf("unknown public key")

@@ -118,11 +118,13 @@ func (s *GuardianStorage) SetInnerFields() error {
 	s.IdentitiesKeep.partyIds = make([]*common.PartyID, numGuardians)
 	s.IdentitiesKeep.pemkeyToIndex = make(map[string]int)
 	s.IdentitiesKeep.vaav1PubToIdentity = make(map[ethcommon.Address]int)
+	s.IdentitiesKeep.partyidToIndex = make(map[string]int)
 	// Since the guardians are sorted by key, we can use their position as their index.
 	for i := range numGuardians {
 		s.IdentitiesKeep.peerCerts[i] = s.IdentitiesKeep.Identities[i].Cert
 		s.IdentitiesKeep.partyIds[i] = s.IdentitiesKeep.Identities[i].Pid
 		s.IdentitiesKeep.pemkeyToIndex[string(s.IdentitiesKeep.Identities[i].KeyPEM)] = i
+		s.IdentitiesKeep.partyidToIndex[string(s.IdentitiesKeep.Identities[i].Pid.GetID())] = i
 
 		if s.IdentitiesKeep.Identities[i].VAAv1PubKey != nil {
 			s.IdentitiesKeep.vaav1PubToIdentity[*(s.IdentitiesKeep.Identities[i].VAAv1PubKey)] = i

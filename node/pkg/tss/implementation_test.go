@@ -610,7 +610,7 @@ func TestBadInputs(t *testing.T) {
 		bts, err := v.Marshal()
 		a.NoError(err)
 
-		engine.LeaderIdentity = PEM(engine.Self.Pid.GetID())
+		engine.LeaderIdentity = engine.Self.KeyPEM
 
 		t.Run("Bad Version", func(t *testing.T) {
 			err = engine.handleUnicastVaaV1(&tsscommv1.Unicast_Vaav1{
@@ -826,7 +826,7 @@ func TestDefaultSameLeader(t *testing.T) {
 	for _, e := range engines {
 		a.Equal(e.LeaderIdentity, leader)
 
-		if bytes.Equal(PEM(e.Self.Pid.GetID()), leader) {
+		if bytes.Equal(e.Self.KeyPEM, leader) {
 			a.True(e.isleader)
 		} else {
 			a.False(e.isleader)
@@ -1049,7 +1049,7 @@ func TestNoFaultsFlow(t *testing.T) {
 
 		engines[0].isleader = true
 		for _, engine := range engines {
-			engine.LeaderIdentity = PEM(engines[0].Self.Pid.GetID())
+			engine.LeaderIdentity = PEM(engines[0].Self.KeyPEM)
 			engine.SetGuardianSetState(gst)
 			a.NoError(engine.Start(ctx))
 		}
@@ -1112,7 +1112,7 @@ func TestNoFaultsFlow(t *testing.T) {
 		defer cancel()
 
 		for _, engine := range engines {
-			engine.LeaderIdentity = PEM(e.Self.Pid.GetID())
+			engine.LeaderIdentity = PEM(e.Self.KeyPEM)
 			engine.SetGuardianSetState(gst)
 			a.NoError(engine.Start(ctx))
 		}

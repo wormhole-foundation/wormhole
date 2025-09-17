@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"crypto/ecdsa"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 
 	engine "github.com/certusone/wormhole/node/pkg/tss"
@@ -68,9 +70,11 @@ func (cnfg *SetupConfigs) IntoMaps() (keyToEngineIdentity map[string]*engine.Ide
 			return nil, nil, err
 		}
 
+		pidbytes := sha512.Sum512_256(bts)
+		pid := hex.EncodeToString(pidbytes[:]) // just to make sure it's valid hex.
 		keyToEngineIdentity[string(bts)] = &engine.Identity{
 			Pid: &common.PartyID{
-				ID: string(bts),
+				ID: string(pid),
 			},
 			KeyPEM:             bts,
 			CertPem:            peer.TlsX509,
@@ -92,15 +96,18 @@ func (cnfg *SetupConfigs) IntoMaps() (keyToEngineIdentity map[string]*engine.Ide
 // then sets the communication index according to the sorted order.
 func SortIdentities(unsortedIdentities map[string]*engine.Identity) []*engine.Identity {
 	pids := make([]*common.PartyID, 0, len(unsortedIdentities))
+	pidsToCertKey := make(map[string]string, len(unsortedIdentities))
 	for _, p := range unsortedIdentities {
 		pids = append(pids, p.Pid)
+		pidsToCertKey[string(p.Pid.GetID())] = string(p.KeyPEM)
 	}
 
 	sortedPids := common.SortPartyIDs(pids)
 
 	sortedIDS := make([]*engine.Identity, len(sortedPids))
 	for i, pid := range sortedPids {
-		sortedIDS[i] = unsortedIdentities[string(pid.GetID())]
+		key := pidsToCertKey[string(pid.GetID())]
+		sortedIDS[i] = unsortedIdentities[key]
 		sortedIDS[i].CommunicationIndex = engine.SenderIndex(i)
 	}
 
