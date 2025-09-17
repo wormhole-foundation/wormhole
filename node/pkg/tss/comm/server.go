@@ -185,14 +185,12 @@ func (s *server) send(msg tss.Sendable) {
 
 func (s *server) enqueueRedialRequest(rqst redialRequest) {
 	select {
-	case <-s.ctx.Done():
-		return
 	case s.requestRedial <- rqst:
 		s.logger.Debug("requested redial", zap.String("hostname", rqst.hostname))
 
 		return
 	default:
-		s.logger.Warn("couldn't send request to redial", zap.String("hostname", rqst.hostname))
+		s.logger.Debug("channel to request redial blocked dropping redial request to", zap.String("hostname", rqst.hostname))
 	}
 }
 
