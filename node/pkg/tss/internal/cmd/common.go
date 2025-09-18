@@ -71,7 +71,9 @@ func (cnfg *SetupConfigs) IntoMaps() (keyToEngineIdentity map[string]*engine.Ide
 		}
 
 		pidbytes := sha512.Sum512_256(bts)
-		pid := hex.EncodeToString(pidbytes[:]) // just to make sure it's valid hex.
+		// convert the byte array to a string representation for use as the party ID
+		pid := hex.EncodeToString(pidbytes[:])
+
 		keyToEngineIdentity[string(bts)] = &engine.Identity{
 			Pid: &common.PartyID{
 				ID: string(pid),

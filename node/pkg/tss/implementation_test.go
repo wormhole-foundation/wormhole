@@ -1049,7 +1049,7 @@ func TestNoFaultsFlow(t *testing.T) {
 
 		engines[0].isleader = true
 		for _, engine := range engines {
-			engine.LeaderIdentity = PEM(engines[0].Self.KeyPEM)
+			engine.LeaderIdentity = engines[0].Self.KeyPEM
 			engine.SetGuardianSetState(gst)
 			a.NoError(engine.Start(ctx))
 		}
@@ -1112,7 +1112,7 @@ func TestNoFaultsFlow(t *testing.T) {
 		defer cancel()
 
 		for _, engine := range engines {
-			engine.LeaderIdentity = PEM(e.Self.KeyPEM)
+			engine.LeaderIdentity = e.Self.KeyPEM
 			engine.SetGuardianSetState(gst)
 			a.NoError(engine.Start(ctx))
 		}

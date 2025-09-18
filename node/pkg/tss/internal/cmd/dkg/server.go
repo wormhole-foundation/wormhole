@@ -70,8 +70,7 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 
 		resChn, err := keygen.StartDKG(party.DkgTask{
 			Threshold: gst.Threshold,
-			// TODO: This affects the trackingID, (not the randomness of the DKG). consider adding more entropy here.
-			Seed: sha256.Sum256([]byte("dkg seed:" + strconv.Itoa(i))),
+			Seed:      sha256.Sum256([]byte("dkg seed:" + strconv.Itoa(i))),
 		})
 
 		if err != nil {
