@@ -120,38 +120,17 @@ linters:
         - .+/http\.Client$
         - .+/prometheus.+
     gocritic:
-      disable-all: true
-    # disabled-checks:
-    #   - exitAfterDefer
-    #   - assignOp
-    #   - ifElseChain
-    #   - elseif
-      enabled-checks:
-        - argOrder
-        - badCall
-        - badCond
-        - badLock
-        - badRegexp
-        - badSorting
-        - builtinShadow
-        - builtinShadowDecl
-        - caseOrder
-        - dupArg
-        - dupBranchBody
-        - dupCase
-        - dupSubExpr
-        - externalErrorReassign
-        - importShadow
-        - mapKey
-        - newDeref
-        - offBy1
-        - regexpPattern
-        - sloppyReassign
-        - truncateCmp
-        - uncheckedInlineErr
-        - weakCond
-      # performance lints
-        - indexAlloc
+      disabled-checks:
+        - assignOp
+        - appendAssign
+        - captLocal # We should probably enable this one
+        - commentFormatting # We should probably enable this one
+        - elseif
+        - exitAfterDefer
+        - ifElseChain
+        - sloppyLen
+        - underef
+        - unslice
     nolintlint:
       # Disable to ensure that all nolint directives actually have an effect.
       # Default: false
