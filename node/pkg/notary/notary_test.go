@@ -35,7 +35,7 @@ func makeTestNotary(t *testing.T) *Notary {
 	return &Notary{
 		ctx:        context.Background(),
 		logger:     zap.NewNop(),
-		mutex:      sync.Mutex{},
+		mutex:      sync.RWMutex{},
 		database:   MockNotaryDB{},
 		delayed:    &common.PendingMessageQueue{},
 		blackholed: NewSet(),

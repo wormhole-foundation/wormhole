@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -17,10 +18,6 @@ const (
 	// marshaledPendingMsgLenMin is the minimum length of a marshaled pending message.
 	// It includes 8 bytes for the timestamp.
 	marshaledPendingMsgLenMin = 8 + marshaledMsgLenMin
-)
-
-var (
-	ErrAlreadyExsits = errors.New("pending message queue: message publication is already queued")
 )
 
 // PendingMessage is a wrapper type around a [MessagePublication] that includes the time for which it
@@ -128,12 +125,13 @@ func (h *pendingMessageHeap) Pop() any {
 	return last
 }
 
-// PendingMessageQueue is a min-heap that sorts [PendingMessage] in descending order of Timestamp.
+// PendingMessageQueue is a thread-safe min-heap that sorts [PendingMessage] in descending order of Timestamp.
 // It also prevents duplicate [MessagePublication]s from being added to the queue.
 type PendingMessageQueue struct {
 	// pendingMessageHeap exposes dangerous APIs as a necessary consequence of implementing [heap.Interface].
 	// Wrap it and expose only a safe API.
 	heap pendingMessageHeap
+	mu   sync.RWMutex
 }
 
 func NewPendingMessageQueue() *PendingMessageQueue {
@@ -144,9 +142,15 @@ func NewPendingMessageQueue() *PendingMessageQueue {
 
 // Push adds an element to the heap. If msg is nil, nothing is added.
 func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
-	if pMsg != nil && !q.ContainsMessagePublication(&pMsg.Msg) {
-		heap.Push(&q.heap, pMsg)
+	// noop if the message is nil or already in the queue.
+	if pMsg == nil || q.ContainsMessagePublication(&pMsg.Msg) {
+		return
 	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	heap.Push(&q.heap, pMsg)
 }
 
 // Pop removes the last element from the heap and returns its value.
@@ -155,6 +159,9 @@ func (q *PendingMessageQueue) Pop() *PendingMessage {
 	if q.heap.Len() == 0 {
 		return nil
 	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
 	last, ok := heap.Pop(&q.heap).(*PendingMessage)
 	if !ok {
@@ -185,6 +192,9 @@ func (q *PendingMessageQueue) RemoveItem(target *MessagePublication) (*PendingMe
 		return nil, errors.New("pendingmessage: nil argument for RemoveItem")
 	}
 
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	var removed *PendingMessage
 	for i, item := range q.heap {
 		// Assumption: MsgIDs are unique across MessagePublications.
@@ -206,6 +216,10 @@ func (q *PendingMessageQueue) Contains(pMsg *PendingMessage) bool {
 	if pMsg == nil {
 		return false
 	}
+
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
 	return slices.Contains(q.heap, pMsg)
 }
 
@@ -214,25 +228,29 @@ func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublicat
 	if msgPub == nil {
 		return false
 	}
+
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
 	// Relies on MessageIDString to be unique.
 	return slices.ContainsFunc(q.heap, func(pMsg *PendingMessage) bool {
 		return bytes.Equal(pMsg.Msg.MessageID(), msgPub.MessageID())
 	})
 }
 
-// RangeElements provides a way to iterate over the queue. Because queue is a
-// min-heap, the last item that can be accessed via Pop will have the earliest timestamp.
-func (q *PendingMessageQueue) Iter() func(yield func(index int, value *PendingMessage) bool) {
-	// implements the range-over function pattern.
-	return func(yield func(index int, value *PendingMessage) bool) {
-		if q == nil {
-			return // Safely handle nil pointers
-		}
-
-		for i, v := range q.heap {
-			if !yield(i, v) {
-				break
-			}
-		}
-	}
-}
+// // RangeElements provides a way to iterate over the queue. Because queue is a
+// // min-heap, the last item that can be accessed via Pop will have the earliest timestamp.
+// func (q *PendingMessageQueue) Iter() func(yield func(index int, value *PendingMessage) bool) {
+// 	// implements the range-over function pattern.
+// 	return func(yield func(index int, value *PendingMessage) bool) {
+// 		if q == nil {
+// 			return // Safely handle nil pointers
+// 		}
+//
+// 		for i, v := range q.heap {
+// 			if !yield(i, v) {
+// 				break
+// 			}
+// 		}
+// 	}
+// }

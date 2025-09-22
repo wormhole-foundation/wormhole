@@ -99,20 +99,16 @@ type (
 	Notary struct {
 		ctx    context.Context
 		logger *zap.Logger
-		mutex  sync.Mutex
+		mutex  sync.RWMutex
 		// database persists information about delayed and black-holed messages.
+		// Must be guarded by a read-write mutex.
 		database db.NotaryDBInterface
 
-		// Define slices to manage delayed and black-holed message publications.
-		//
-		// These fields are private so that this package is responsible for managing its own
-		// state.
-		//
-		// In particular, the following invariants must hold:
-		// - When a message is released, it must be deleted from the database.
-
+		// Min-heap queue of delayed messages (MessagePublication + Timestamp for release)
 		delayed *common.PendingMessageQueue
+
 		// All of the messages that have been black-holed due to being rejected by the Transfer Verifier.
+		// [msgPubSet] is not thread-safe so this field must be guarded by a read-write mutex.
 		blackholed *msgPubSet
 
 		// env reports whether the guardian is running in production or a test environment.
@@ -129,7 +125,7 @@ func NewNotary(
 	return &Notary{
 		ctx:    ctx,
 		logger: logger,
-		mutex:  sync.Mutex{},
+		mutex:  sync.RWMutex{},
 		// Get the underlying database connection from the Guardian.
 		database:   db.NewNotaryDB(guardianDB.Conn()),
 		delayed:    common.NewPendingMessageQueue(),
@@ -359,6 +355,8 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 		return ErrInvalidMsg
 	}
 
+	// Both of the following methods lock and unlock the mutex.
+
 	err := n.removeDelayed(msg)
 	if err != nil {
 		return err
@@ -373,11 +371,9 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 }
 
 // IsBlackholed returns true if the message is in the blackholed list.
-// Acquires the mutex and unlocks when complete.
-// This function should be preferred over calling n.blackholed.Contains(msg.VAAHash()) directly.
 func (n *Notary) IsBlackholed(msg *common.MessagePublication) bool {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
+	n.mutex.RLock()
+	defer n.mutex.RUnlock()
 	return n.blackholed.Contains(msg.VAAHash())
 }
 
@@ -402,10 +398,9 @@ func (n *Notary) removeBlackholed(msg *common.MessagePublication) error {
 	return nil
 }
 
-// Acquires the mutex and unlocks when complete.
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
+	// The notary's mutex is not used here because the pending message queue
+	// uses its own read mutex for this method.
 	return n.delayed.ContainsMessagePublication(msg)
 }
 
