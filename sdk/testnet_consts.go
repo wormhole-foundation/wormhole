@@ -101,17 +101,6 @@ var KnownTestnetAutomaticRelayerEmitters = []struct {
 	{ChainId: vaa.ChainIDBaseSepolia, Addr: "00000000000000000000000093BAD53DDfB6132b0aC8E37f6029163E63372cEE"},
 }
 
-// KnownTestnetCoreContracts is a map of known core contract addresses.
-var KnownTestnetCoreContracts = map[vaa.ChainID]string{
-	vaa.ChainIDSui: "31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790",
-}
-
-// KnownTestnetTokenBridgeContracts is a map of known token bridge contract addresses. In some cases,
-// there might be a difference between the emitter address and the token bridge contract (such as for Sui).
-var KnownTestnetTokenBridgeContracts = map[vaa.ChainID]string{
-	vaa.ChainIDSui: "a6a3da85bbe05da5bfd953708d56f1a3a023e7fb58e5a824a3d4de3791e8f690",
-}
-
 // KnownTestnetWrappedNativeAddresses is a list of addresses for deployments of wrapped native asssets (e.g. WETH) on various testnets.
 var KnownTestnetWrappedNativeAddresses = map[vaa.ChainID]string{
 	// WETH
