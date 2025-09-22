@@ -2,10 +2,10 @@ package txverifier
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/telemetry"
@@ -15,9 +15,6 @@ import (
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-
-	"github.com/wormhole-foundation/wormhole/sdk"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 const (
@@ -28,13 +25,12 @@ const (
 // CLI args
 var (
 	suiRPC                  *string
-	suiCoreContract         *string
-	suiTokenBridgeEmitter   *string
-	suiTokenBridgeContract  *string
+	suiCoreContract         string
+	suiTokenBridgeEmitter   string
+	suiTokenBridgeAddress   string
 	suiProcessInitialEvents *bool
-	suiMainnet              *bool
+	suiEnvironment          *string
 	suiDigest               *string
-	suiExecuteHappyList     *bool
 )
 
 var TransferVerifierCmdSui = &cobra.Command{
@@ -46,29 +42,61 @@ var TransferVerifierCmdSui = &cobra.Command{
 // CLI parameters
 func init() {
 	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui RPC url")
-	suiCoreContract = TransferVerifierCmdSui.Flags().String("suiCoreContract", "", "Sui core contract address")
-	suiTokenBridgeEmitter = TransferVerifierCmdSui.Flags().String("suiTokenBridgeEmitter", "", "Token bridge emitter on Sui")
-	suiTokenBridgeContract = TransferVerifierCmdSui.Flags().String("suiTokenBridgeContract", "", "Token bridge contract on Sui")
 	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
-	suiMainnet = TransferVerifierCmdSui.Flags().Bool("suiMainnet", false, "This flag sets the Sui-related package and object IDs to mainnet defaults, but will be overridden by any additional arguments")
 	suiDigest = TransferVerifierCmdSui.Flags().String("suiDigest", "", "If provided, perform transaction verification on this single digest")
-	suiExecuteHappyList = TransferVerifierCmdSui.Flags().Bool("suiExecuteHappyList", false, "If provided, run the happy list of digests through the verifier and exit")
+	suiEnvironment = TransferVerifierCmdSui.Flags().String("suiEnvironment", "mainnet", "The Sui environment to connect to. Supported values: mainnet, testnet and devnet")
 }
 
 // Analyse the commandline arguments and prepare the net effect of package and object IDs
 func resolveSuiConfiguration() {
 
-	// if Mainnet is specified, set the empty configuration arguments to mainnet defaults
-	if *suiMainnet {
-		if *suiCoreContract == "" {
-			*suiCoreContract = "0x" + sdk.KnownMainnetCoreContracts[vaa.ChainIDSui]
-		}
-		if *suiTokenBridgeContract == "" {
-			*suiTokenBridgeContract = "0x" + sdk.KnownMainnetTokenBridgeContracts[vaa.ChainIDSui]
-		}
-		if *suiTokenBridgeEmitter == "" {
-			*suiTokenBridgeEmitter = "0x" + hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
-		}
+	var suiStateObjectId string
+	var suiCoreStateObjectId string
+	switch *suiEnvironment {
+	case "mainnet":
+		suiCoreStateObjectId = "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c"
+		suiStateObjectId = txverifier.SuiMainnetStateObjectId
+	case "testnet":
+		suiCoreStateObjectId = "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790"
+		suiStateObjectId = txverifier.SuiTestnetStateObjectId
+	case "devnet":
+		suiCoreStateObjectId = "0x5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0"
+		suiStateObjectId = txverifier.SuiDevnetStateObjectId
+	}
+
+	// Create the Sui Api connection, and query the state object to get the token bridge address and emitter.
+	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
+
+	// Get core bridge parameters
+	coreBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), suiCoreStateObjectId)
+
+	if err != nil {
+		panic(err)
+	}
+
+	objectType, err := coreBridgeStateObject.Type()
+	objectTypeParts := strings.Split(objectType, "::")
+
+	if err != nil || len(objectTypeParts) < 3 {
+		panic("Error getting core bridge object type")
+	}
+	suiCoreContract = objectTypeParts[0]
+
+	// Get token bridge parameters
+	tokenBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), suiStateObjectId)
+
+	if err != nil {
+		panic(err)
+	}
+
+	suiTokenBridgeEmitter, err = tokenBridgeStateObject.TokenBridgeEmitter()
+	if err != nil {
+		panic(err)
+	}
+
+	suiTokenBridgeAddress, err = tokenBridgeStateObject.TokenBridgePackageId()
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -113,25 +141,25 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	}
 
 	// Verify CLI parameters
-	if *suiRPC == "" || *suiCoreContract == "" || *suiTokenBridgeEmitter == "" || *suiTokenBridgeContract == "" {
+	if *suiRPC == "" || suiCoreContract == "" || suiTokenBridgeEmitter == "" || suiTokenBridgeAddress == "" {
 		logger.Fatal("One or more CLI parameters are empty",
 			zap.String("suiRPC", *suiRPC),
-			zap.String("suiCoreContract", *suiCoreContract),
-			zap.String("suiTokenBridgeEmitter", *suiTokenBridgeEmitter),
-			zap.String("suiTokenBridgeContract", *suiTokenBridgeContract))
+			zap.String("suiCoreContract", suiCoreContract),
+			zap.String("suiTokenBridgeEmitter", suiTokenBridgeEmitter),
+			zap.String("suiTokenBridgeContract", suiTokenBridgeAddress))
 	}
 
 	logger.Info("Starting Sui transfer verifier")
 	logger.Debug("Sui rpc connection", zap.String("url", *suiRPC))
-	logger.Debug("Sui core contract", zap.String("address", *suiCoreContract))
-	logger.Debug("Sui token bridge contract", zap.String("address", *suiTokenBridgeContract))
-	logger.Debug("token bridge event emitter", zap.String("object id", *suiTokenBridgeEmitter))
+	logger.Debug("Sui core contract", zap.String("address", suiCoreContract))
+	logger.Debug("Sui token bridge contract", zap.String("address", suiTokenBridgeAddress))
+	logger.Debug("token bridge event emitter", zap.String("object id", suiTokenBridgeEmitter))
 	logger.Debug("process initial events", zap.Bool("processInitialEvents", *suiProcessInitialEvents))
 
 	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
 
 	// Create a new SuiTransferVerifier
-	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreContract, *suiTokenBridgeEmitter, *suiTokenBridgeContract, suiApiConnection)
+	suiTransferVerifier := txverifier.NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeAddress, suiApiConnection)
 
 	// Process a single digest and exit
 	if *suiDigest != "" {
@@ -144,17 +172,6 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 
 		logger.Info("Validation completed", zap.Bool("valid", valid))
 
-		return
-	}
-
-	// Process the happy list of digests and exit
-	if *suiExecuteHappyList {
-		logger.Info("Processing happy list of digests")
-		for _, txDigest := range happyList {
-			valid, err := suiTransferVerifier.ProcessDigest(ctx, txDigest, "", logger)
-			logger.Info("Processed digest from happy list", zap.String("txDigest", txDigest), zap.Bool("valid", valid), zap.Error(err))
-		}
-		logger.Info("Finished processing happy list of digests")
 		return
 	}
 
@@ -252,57 +269,4 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 
 		}
 	}
-}
-
-var happyList = []string{
-	"7fTxK1F1EqZzaavr5Hz8LuYSjQSQvJb69nYo5pJBeRGy",
-	"8p1hWau231AW5iWd6JiK36mt4qypBaVENKNLiqBZuBBj",
-	"89M7fBZX31rgm5vPGwrHeRUbb1KqFSN7jiXVxmAXho9Q",
-	"DUnWTgqBphH1US6De88F4p5B5tZeLP2J7ZFcQDG6VdVW",
-	"EDVymS6bxJcmoES5R5px8ejdv5Tukq3P9ehTeAcutAQq",
-	"368Hq6VktWZHRyWSqDSxFagDqkoi4ZhH9qwtMegC7nCB",
-	"zx6iBhajnWVPjnm76cxA1bZ86GS1sXhS84ioy1Ds9Tt",
-	"J4LFaMfB2qCHQPGqiYmki6rLEUyqPhYTj5pDcjJZSCpe",
-	"EZ1hVx16UobNrybgJ7m5t47qb2ALNwHpdKsiTayoBJbK",
-	"4TGB8jK1pgZG33CJoDbhwzeLRz9iEJiGHsUk1uLxF6rZ",
-	"CbSiEKrcjbDCCQbz2CBJNT1BsDfx9Ykg8wfYb48rvCsT",
-	"3sVEd4bDg9TbxN2qiscUMgdkrTYUaJG97SoEHu9unBJb",
-	"9xumNMjpA5zEtTd71C2VaeznQ4g79FJhEyBcMeH7VqUx",
-	"7T9bng9aDDVKRzQjp4L8bBks4aZzPj3QSDa7Jqf8yugz",
-	"7ckV4P6dML5Dh6BW2cEQYXHiqbeqCX2CEzJfYHSYj2c6",
-	"8TYRkSXEZFJzbyt7A74saBs2wt5Bf1Cq8yn8jjqhu7om",
-	"FyCdoRe1LAY1jBy5EKPgEa33Erpu9TuUZFXcq6JiipG1",
-	"2UM5xGZuRPz1mVNCiy8z6hxqhjo1nuDaaDCLsk7LnvWK",
-	"FFFi1Ci7XzjzaV2StDccbvRgy2HEtgigWtzRgMDgfrW2",
-	"3LShMH6R4em5thqL3Wa99FNNpjjT8C2ewwLrrkfvDrZG",
-	"6bQ2HEFtXEbPkJ6p5RGVZA5RaZyyo5VBUrkxf6QDi8re",
-	"56cDPLhrNGSLmn3n2ETbxecpg1UhU6wpzQP2BmuPQB3U",
-	"5YnHQrRMzvU7dK6fxKL3C7akS9zZdgtMZiFZAjp7SMUg",
-	"3U27U9cgyeoiiZgVyhppBN9UNoQdArTL6d5MZJo8126Y",
-	"FHaZNqW1WZiosWSVwQHBNk385RHhdgUx5CEZ43Yspj6A",
-	"DagnqqMwEHgFCchkEyQ9k54vUqnxfxRe1cYrxZn7nF2J",
-	"89ZvDFFwG53EgeEGbTDaHYke88j8soK3sGPgapTusxvW",
-	"6Koh9cuBSAjWmfbWymZGDFYa25bK5sMj7hsvPfzdjo8G",
-	"9YVyLU8nRCZLkhzrDVvJ9QCF4MGcDFidiNQ22TjAHsCd",
-	"D6v93VqGya6dxTvYimSxW6Xft1owzKy6wqUoh2c2B4HB",
-	"8nRwuTQwEoL5nfs7UdQfPS1cTkpcynuJDFEnMFTG7cmL",
-	"8dMGuvxZ1vRQdSQ8NJz19UYuwVXeWKDLsqjP2ENUK2nL",
-	"7z1yxGjZSeGjnbRuTMCaS99Ht5pYn7ZMiiUXpKtUEAUh",
-	"4Yu9wf7DdAwsQRTXB4M7VKnKuaW1CKErwNnL7nMatcpC",
-	"EmkXb29jH6wNKeT81tqhcipZ5fjCCe5Zs2wAvbsRBtf7",
-	"3hLiPHqs6CcuVE76ARQiUV2kQzdriJ4g3PPiVTMkYpZ3",
-	"FJWrzpCAXeYy6bWFa8Vffgu4wWnUNMS2xSLQ7AFY8K22",
-	"HwURG9SdcR6uFze6Jkiw5wE2JqQnG9YRRTHkLYUg45PC",
-	"DR4ZjKJkwfnZ3o9hkTAncAj1FtkNSpEs1FG8Vw27nFAD",
-	"9MY9BZnfsKhoWsEAcqavBDJXMon5n4vYbR3thC1J7LDs",
-	"HJueR6bzQDF1zvQrupuN2pp1pyAtLF9VpNsPyinJKvuE",
-	"Gr4YeUujWrgKxaDH6RC4S8pigxKuoMciDzSKuryAXiCZ",
-	"BA8NHJSQpg8oz1weQt96BgYC6w3HbUpfgyNs5tv3niPj",
-	"W8NoZXsAXkfCck7n5KBu4byj3CnLf5P91sz3E2MYfBS",
-	"AX8YKn7erVLR9Uie7a5wXgouafvaRMgqXCH6cLpdjJas",
-	"F3NKSeDKZ8pVN4nPUhF7WaYM5sVdN3Jujx39eeK6e5Sa",
-	"EJvG3PEuYDzhTAc2rxdV4Lg9k1HcSTeMJP8KiFngVvq",
-	"CcTGnoavNH55KYpMAYq55kyaWZvR7GpKBY2SKTS2FEFa",
-	"34Epseb53i6XmkXJzY5SQRX6ZoT26Rw3oe2TtW6r1DCB",
-	"2Eu6GDTEWDoPFjn5DTYHEeMn437AHF4dqchXzo2aEn5U",
 }
