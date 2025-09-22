@@ -37,7 +37,7 @@ func (wc *WatcherConfig) Create(
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
 	var devMode = (env == common.UnsafeDevNet)
 
-	watcher := NewWatcher(
+	watcher, err := NewWatcher(
 		wc.Rpc,
 		wc.SuiMoveEventType,
 		devMode,
@@ -47,5 +47,5 @@ func (wc *WatcherConfig) Create(
 		wc.TxVerifierEnabled,
 	)
 
-	return watcher.Run, nil, nil
+	return watcher.Run, nil, err
 }
