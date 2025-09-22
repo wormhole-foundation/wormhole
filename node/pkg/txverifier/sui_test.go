@@ -108,6 +108,10 @@ func (mock *MockSuiApiConnection) TryMultiGetPastObjects(ctx context.Context, ob
 	return SuiTryMultiGetPastObjectsResponse{}, fmt.Errorf("Can't find entry")
 }
 
+func (mock *MockSuiApiConnection) GetObject(ctx context.Context, objectId string) (SuiGetObjectResponse, error) {
+	return SuiGetObjectResponse{}, nil
+}
+
 func TestNewSuiApiConnection(t *testing.T) {
 	sampleUrl := "http://localhost:8080"
 
