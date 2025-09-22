@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -19,7 +18,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
-	"github.com/wormhole-foundation/wormhole/sdk"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
@@ -190,7 +188,7 @@ func NewWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	env common.Environment,
 	txVerifierEnabled bool,
-) *Watcher {
+) (*Watcher, error) {
 	maxBatchSize := 10
 	descOrder := true
 
@@ -201,31 +199,56 @@ func NewWatcher(
 		var suiCoreBridgeAddress string
 		var suiTokenBridgeAddress string
 		var suiTokenBridgeEmitter string
+		var suiStateObjectId string
+
+		// Split the suiMoveEventType into its components. If the format is incorrect, return an error.
+		eventTypeComponents := strings.Split(suiMoveEventType, "::")
+		if len(eventTypeComponents) != 3 {
+			return nil, fmt.Errorf("suiMoveEventType is not in the correct format, expected <package_id>::<module_name>::<event_name>, got: %s", suiMoveEventType)
+		}
+
+		suiCoreBridgeAddress = eventTypeComponents[0]
 
 		switch env {
 		case common.MainNet:
-			suiCoreBridgeAddress = sdk.KnownMainnetCoreContracts[vaa.ChainIDSui]
-			suiTokenBridgeAddress = sdk.KnownMainnetTokenBridgeContracts[vaa.ChainIDSui]
-			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
+			suiStateObjectId = txverifier.SuiMainnetStateObjectId
 		case common.TestNet:
-			suiCoreBridgeAddress = sdk.KnownTestnetCoreContracts[vaa.ChainIDSui]
-			suiTokenBridgeAddress = sdk.KnownTestnetTokenBridgeContracts[vaa.ChainIDSui]
-			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownTestnetTokenbridgeEmitters[vaa.ChainIDSui])
-
+			suiStateObjectId = txverifier.SuiTestnetStateObjectId
 		case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
-			suiCoreBridgeAddress = sdk.KnownDevnetCoreContracts[vaa.ChainIDSui]
-			suiTokenBridgeAddress = sdk.KnownDevnetTokenBridgeContracts[vaa.ChainIDSui]
-			suiTokenBridgeEmitter = hex.EncodeToString(sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDSui])
+			suiStateObjectId = txverifier.SuiDevnetStateObjectId
 		}
 
-		// It's necessary to prefix the addresses with "0x", since the constants are defined without it and
-		// addresses/object ids returned from the JSON RPC are "0x" prefixed.
+		// Create the Sui Api connection, and query the state object to get the token bridge address and emitter.
+		suiApiConnection := txverifier.NewSuiApiConnection(suiRPC)
+
+		// Retrieve the state object, and extract the token bridge emitter and token bridge address. If any
+		// of these operations fail, return an error. Failure here implies an invalid state object ID, which
+		// is a result of a full token bridge redeployment, or a Sui Api error, which would have other
+		// operational implications for the watcher beyond the transfer verifier.
+		stateObject, err := suiApiConnection.GetObject(context.Background(), suiStateObjectId)
+
+		if err != nil {
+			return nil, err
+		}
+
+		suiTokenBridgeEmitter, err = stateObject.TokenBridgeEmitter()
+		if err != nil {
+			return nil, err
+		}
+
+		suiTokenBridgeAddress, err = stateObject.TokenBridgePackageId()
+		if err != nil {
+			return nil, err
+		}
+
+		// Create the new suiTxVerifier
 		suiTxVerifier = txverifier.NewSuiTransferVerifier(
-			"0x"+suiCoreBridgeAddress,
-			"0x"+suiTokenBridgeEmitter,
-			"0x"+suiTokenBridgeAddress,
-			txverifier.NewSuiApiConnection(suiRPC),
+			suiCoreBridgeAddress,
+			suiTokenBridgeEmitter,
+			suiTokenBridgeAddress,
+			suiApiConnection,
 		)
+
 	}
 
 	return &Watcher{
@@ -244,7 +267,7 @@ func NewWatcher(
 		postTimeout:       time.Second * 5,
 		suiTxVerifier:     suiTxVerifier,
 		txVerifierEnabled: txVerifierEnabled,
-	}
+	}, nil
 }
 
 func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, isReobservation bool) error {
@@ -326,6 +349,8 @@ func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiR
 		IsReobservation:  isReobservation,
 	}
 
+	// Verifies the observation through the Sui transaction verifier, if enabled, followed
+	// by publishing the observation to the message channel.
 	err = e.verifyAndPublish(ctx, observation, *body.ID.TxDigest, logger)
 
 	if err != nil {
@@ -358,7 +383,7 @@ func (e *Watcher) verifyAndPublish(
 		msg = &verifiedMsg
 	}
 
-	e.msgChan <- msg
+	e.msgChan <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	suiMessagesConfirmed.Inc()
 	if msg.IsReobservation {
