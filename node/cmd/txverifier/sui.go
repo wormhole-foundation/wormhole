@@ -31,6 +31,9 @@ var (
 	suiProcessInitialEvents *bool
 	suiEnvironment          *string
 	suiDigest               *string
+
+	suiCoreBridgeStateObjectId  *string
+	suiTokenBridgeStateObjectId *string
 )
 
 var TransferVerifierCmdSui = &cobra.Command{
@@ -45,30 +48,37 @@ func init() {
 	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
 	suiDigest = TransferVerifierCmdSui.Flags().String("suiDigest", "", "If provided, perform transaction verification on this single digest")
 	suiEnvironment = TransferVerifierCmdSui.Flags().String("suiEnvironment", "mainnet", "The Sui environment to connect to. Supported values: mainnet, testnet and devnet")
+	suiCoreBridgeStateObjectId = TransferVerifierCmdSui.Flags().String("suiCoreBridgeStateObjectId", "", "The Sui Core Bridge state object ID. If not provided, the default for the selected environment will be used.")
+	suiTokenBridgeStateObjectId = TransferVerifierCmdSui.Flags().String("suiTokenBridgeStateObjectId", "", "The Sui Token Bridge state object ID. If not provided, the default for the selected environment will be used.")
+}
+
+func setIfEmpty(param *string, value string) {
+	if *param == "" {
+		*param = value
+	}
 }
 
 // Analyse the commandline arguments and prepare the net effect of package and object IDs
 func resolveSuiConfiguration() {
 
-	var suiStateObjectId string
-	var suiCoreStateObjectId string
+	// Only set the state object IDs from the static defaults if they weren't overridden
 	switch *suiEnvironment {
 	case "mainnet":
-		suiCoreStateObjectId = "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c"
-		suiStateObjectId = txverifier.SuiMainnetStateObjectId
+		setIfEmpty(suiCoreBridgeStateObjectId, "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c")
+		setIfEmpty(suiTokenBridgeStateObjectId, txverifier.SuiMainnetStateObjectId)
 	case "testnet":
-		suiCoreStateObjectId = "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790"
-		suiStateObjectId = txverifier.SuiTestnetStateObjectId
+		setIfEmpty(suiCoreBridgeStateObjectId, "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790")
+		setIfEmpty(suiTokenBridgeStateObjectId, txverifier.SuiTestnetStateObjectId)
 	case "devnet":
-		suiCoreStateObjectId = "0x5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0"
-		suiStateObjectId = txverifier.SuiDevnetStateObjectId
+		setIfEmpty(suiCoreBridgeStateObjectId, "0x5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0")
+		setIfEmpty(suiTokenBridgeStateObjectId, txverifier.SuiDevnetStateObjectId)
 	}
 
 	// Create the Sui Api connection, and query the state object to get the token bridge address and emitter.
 	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
 
 	// Get core bridge parameters
-	coreBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), suiCoreStateObjectId)
+	coreBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), *suiCoreBridgeStateObjectId)
 
 	if err != nil {
 		panic(err)
@@ -83,7 +93,7 @@ func resolveSuiConfiguration() {
 	suiCoreContract = objectTypeParts[0]
 
 	// Get token bridge parameters
-	tokenBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), suiStateObjectId)
+	tokenBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), *suiTokenBridgeStateObjectId)
 
 	if err != nil {
 		panic(err)
