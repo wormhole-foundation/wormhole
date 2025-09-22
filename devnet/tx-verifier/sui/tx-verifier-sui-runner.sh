@@ -188,9 +188,7 @@ echo "[*] starting the sui transfer verifier"
 /guardiand transfer-verifier \
     sui \
     --suiRPC "${RPC}" \
-    --suiCoreContract "${core_bridge_package_id}" \
-    --suiTokenBridgeContract "${token_bridge_package_id}" \
-    --suiTokenBridgeEmitter "${token_bridge_emitter_cap}" \
+    --suiEnvironment=devnet \
     --logLevel=debug \
     --suiProcessInitialEvents=true \
     2> /tmp/error.log &
