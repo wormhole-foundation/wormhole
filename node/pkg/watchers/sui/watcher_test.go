@@ -62,6 +62,10 @@ func (m *MockSuiApiConnection) TryMultiGetPastObjects(ctx context.Context, objec
 	return m.tryMultiGetPastObjectsResponse[key], nil
 }
 
+func (m *MockSuiApiConnection) GetObject(ctx context.Context, objectId string) (txverifier.SuiGetObjectResponse, error) {
+	return txverifier.SuiGetObjectResponse{}, nil
+}
+
 func Test_JSONParseOneWHMSg(t *testing.T) {
 	// JSON with only the first result (contains all of the fields in `FieldsData` - parses successfully)
 	msg := []byte("{\"jsonrpc\":\"2.0\",\"result\":[{\"id\":{\"txDigest\":\"2Z4A1ND5JL8c5ma9WMzFXUvpVqnwoQdYuaX4RwnLyMXU\",\"eventSeq\":\"0\"},\"packageId\":\"0x826915f8ca6d11597dfe6599b8aa02a4c08bd8d39674855254a06ee83fe7220e\",\"transactionModule\":\"lending_portal_v2\",\"sender\":\"0xccce7bbffaf1b9e9e8ca88a68a08fec11f568a697023f475f99efb7bcee951cf\",\"type\":\"0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a::publish_message::WormholeMessage\",\"parsedJson\":{\"consistency_level\":0,\"nonce\":0,\"payload\":[0,1,0,34,0,0,204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207,2,0,133,0,0,0,0,0,0,0,0,10,202,0,0,0,10,122,53,130,0,0,76,0,0,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,50,58,58,115,117,105,58,58,83,85,73,0,34,0,0,204,206,123,191,250,241,185,233,232,202,136,166,138,8,254,193,31,86,138,105,112,35,244,117,249,158,251,123,206,233,81,207,2],\"sender\":\"0xdd1ca0bd0b9e449ff55259e5bcf7e0fc1b8b7ab49aabad218681ccce7b202bd6\",\"sequence\":\"2768\",\"timestamp\":\"1693091880\"},\"bcs\":\"J8cfJrtMWT2kg6uBgWQmd8T9k9cSibQg65ufpgxugVM2ghgC8bb1vvqoXmETiMvfb9DJLEDKy2pnvAYivyWJfz8zKSn5u7EfDbMntpszG7D4gsNNu9cU2rMUi4aF7DXnv6QAp5hoaHvJymehRwXkncHfjZ7zKsZ8cUtSKJh6S6YjHMRZ67s1PPwGEVwUdQt5S3WhQdag3tuySe8FDrUWgJfbBawyUKLdbNcR1aXFtBiPu6jQ51BF7sv13x9hp2nbs5EUMYjnN1ykK4YQaKx55eY7TQcxVCRzPrEARSkMjB8VgqefLNpwiCRdq\"}],\"id\":1}")

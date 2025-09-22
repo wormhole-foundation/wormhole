@@ -24,6 +24,12 @@ var (
 var (
 	suiModule    = "publish_message"
 	suiEventName = "WormholeMessage"
+
+	// The state objects used for the different environments. These are used to extract the token bridge
+	// package ID as well as the emitter address.
+	SuiMainnetStateObjectId = "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
+	SuiTestnetStateObjectId = "0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da"
+	SuiDevnetStateObjectId  = "0x830ed228c6f1bcb40003bb49af3277df2cbf933d63a6bcdcb0ba4580a1a7654e"
 )
 
 type SuiTransferVerifier struct {
@@ -409,4 +415,11 @@ func (s *SuiApiConnection) TryMultiGetPastObjects(ctx context.Context, objectId 
 		]`, objectId, version, objectId, previousVersion)
 
 	return suiApiRequest[SuiTryMultiGetPastObjectsResponse](ctx, s.rpc, method, params)
+}
+
+func (s *SuiApiConnection) GetObject(ctx context.Context, objectId string) (SuiGetObjectResponse, error) {
+	method := "sui_getObject"
+	params := fmt.Sprintf(`["%s", {"showContent": true}]`, objectId)
+
+	return suiApiRequest[SuiGetObjectResponse](ctx, s.rpc, method, params)
 }
