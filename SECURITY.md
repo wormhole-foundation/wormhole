@@ -8,7 +8,6 @@ The following document describes various aspects of the Wormhole security progra
 - [Trust Assumptions](#Trust-Assumptions)
 - [White Hat Hacking](#White-Hat-Hacking)
 - [Chain Integrators](#Chain-Integrators)
-- [Social Media Monitoring](#Social-Media-Monitoring)
 - [Incident Response](#Incident-Response)
 - [Emergency Shutdown](#Emergency-Shutdown)
 - [Security Monitoring](#Security-Monitoring)
@@ -93,14 +92,6 @@ Additionally, ensure:
 - That Wormhole has the full upgrade authority on relevant bridge contracts to act quickly in the case of a security incident.
 - You have an established incident response program in place, with established patterns and playbooks to ensure deterministic outcomes for containment.
 - When security issues do occur, please make sure that the chain makes every attempt to inform affected parties and leads with transparency.
-
-## Social Media Monitoring
-
-The Wormhole project maintains a social media monitoring program to stay abreast of important ecosystem developments.
-
-These developments include monitoring services like Twitter for key phrases and patterns such that the Wormhole project is informed of a compromise or vulnerability in a dependency that could negatively affect Wormhole, its users, or the chains that Wormhole is connected to.
-
-In the case of a large ecosystem development that requires response, the Wormhole project will engage its security incident response program.
 
 ## Incident Response
 
