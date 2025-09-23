@@ -427,8 +427,9 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 
 	_, err = c.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
 		ObservationRequest: &gossipv1.ObservationRequest{
-			ChainId: uint32(chainID),
-			TxHash:  txHash,
+			ChainId:   uint32(chainID),
+			TxHash:    txHash,
+			Timestamp: time.Now().UnixNano(),
 		},
 	})
 	if err != nil {

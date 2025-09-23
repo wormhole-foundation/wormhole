@@ -471,8 +471,9 @@ func main() {
 
 			_, err = admin.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
 				ObservationRequest: &gossipv1.ObservationRequest{
-					ChainId: uint32(chainID),
-					TxHash:  tx.Bytes(),
+					ChainId:   uint32(chainID),
+					TxHash:    tx.Bytes(),
+					Timestamp: time.Now().UnixNano(),
 				}})
 			if err != nil {
 				log.Fatalf("SendObservationRequest: %v", err)
