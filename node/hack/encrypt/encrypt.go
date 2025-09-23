@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"log"
 	"os"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func main() {
-	in, err := io.ReadAll(os.Stdin)
+	in, err := common.SafeRead(os.Stdin)
 	if err != nil {
 		log.Fatalf("failed to read stdin: %v", err)
 	}

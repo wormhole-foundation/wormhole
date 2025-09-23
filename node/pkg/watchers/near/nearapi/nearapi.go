@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/mr-tron/base58"
 )
 
@@ -86,7 +86,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 
 			if err == nil {
 				defer resp.Body.Close()
-				result, err := io.ReadAll(resp.Body)
+				result, err := common.SafeRead(resp.Body)
 				if resp.StatusCode == 200 {
 					return result, err
 				}

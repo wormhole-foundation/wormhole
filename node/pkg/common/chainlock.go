@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"time"
 
@@ -77,6 +78,13 @@ type ErrInputSize struct {
 func (e ErrInputSize) Error() string {
 	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgLenMin, e.got)
 }
+
+// MaxSafeInputSize defines the maximum safe size for untrusted input from `io` Readers.
+// It should be configured so that it can comfortably contain all valid reads while
+// providing a strict upper bound to prevent unlimited reads.
+const MaxSafeInputSize = 128 * 1024 * 1024 // 128MB (arbitrary)
+
+var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
@@ -594,4 +602,30 @@ func (msg *MessagePublication) VAAHash() string {
 // but here we want to validate that the value is strictly either 0x00 or 0x01.
 func validBinaryBool(b byte) bool {
 	return b == 0x00 || b == 0x01
+}
+
+// SafeRead reads from r with a size limit to prevent memory exhaustion attacks.
+// It returns an error if the input exceeds MaxSafeInputSize.
+func SafeRead(r io.Reader) ([]byte, error) {
+	// Create a LimitReader that allows reading up to MaxSafeInputSize + 1 bytes.
+	// The extra byte is specifically to detect if the input stream *exceeds* MaxSafeInputSize.
+	lr := io.LimitReader(r, MaxSafeInputSize+1)
+
+	//nolint:forbidigo // SafeRead is intended as a convenient and safe wrapper for ReadAll.
+	b, err := io.ReadAll(lr)
+	if err != nil {
+		// Propagate any actual read errors from the underlying reader.
+		return nil, err
+	}
+
+	// If the length of the read bytes is greater than MaxSafeInputSize,
+	// it means the original reader contained more data than allowed.
+	// In this case, we return an error instead of silently truncating.
+	if len(b) > MaxSafeInputSize {
+		return nil, ErrInputTooLarge
+	}
+
+	// If err was nil and len(b) <= MaxSafeInputSize, it means we read all
+	// available input (or up to the limit) without exceeding the maximum.
+	return b, nil
 }

@@ -17,6 +17,7 @@ linters:
     # Enum and maps used on switch statements are exhaustive
     - exhaustive
     - exhaustruct
+    - forbidigo
     - forcetypeassert
     - gocritic
     - gosec
@@ -119,6 +120,12 @@ linters:
         - .+/cobra\.Command$
         - .+/http\.Client$
         - .+/prometheus.+
+    forbidigo:
+      forbid:
+        - pattern: 'io\.ReadAll'
+          msg: "method can cause DoS for large user-controlled inputs. Use common.SafeRead instead."
+      exclude-godoc-examples: true
+      analyze-types: true
     gocritic:
       disable-all: true
     # disabled-checks:
