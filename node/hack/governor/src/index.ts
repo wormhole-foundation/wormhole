@@ -26,35 +26,40 @@ const usdPeggedStablecoins = [
   "FEI",   // Fei
 ];
 const expectedUSDDepeggs = [
+  "1-689ac099ef657e5d3b7efaf1e36ab8b897e2746232d8a9261b3e49b35c1dead4-xUSD", // Synthetic USD is inactive and deactivated
+  "1-aa77c1f5d0d2c07ce7075e31d348ca1c0965bb287be13984dec1c5615bf22665-CUSD", // Coin98 Dollar has been depegged since March 2024
+  "2-00000000000000000000000000c5ca160a968f47e7272a0cfcda36428f386cb6-USDEBT", // US Debt Meme coin
+  "2-000000000000000000000000309627af60f0926daa6041b8279484312f2bf060-USDB", // USDB (USD Bancor) has been deactivated
+  "2-0000000000000000000000003432b6a60d23ca0dfca7761b7ab56459d9c964d0-FXS", // Frax Share
   "2-00000000000000000000000045804880de22913dafe09f4980848ece6ecbaf78-PAXG", // This is PaxGold and not pegged to $1
   "2-000000000000000000000000d13cfd3133239a3c73a9e535a5c4dadee36b395c-VAI", // This is Vaiot, not the VAI stablecoin
-  "5-000000000000000000000000ee327f889d5947c1dc1934bb208a1e792f953e96-frxETH", // Frax ETH
-  "23-0000000000000000000000009d2f299715d94d8a7e6f5eaa8e654e8c74a988a7-FXS", // Frax Share
-  "2-0000000000000000000000003432b6a60d23ca0dfca7761b7ab56459d9c964d0-FXS", // Frax Share
-  "23-00000000000000000000000051318b7d00db7acc4026c88c3952b66278b6a67f-PLS", // Plutus DAO
-  "3-0100000000000000000000000000000000000000000000000000000075757364-UST", // Terra USD
-  "2-000000000000000000000000dfdb7f72c1f195c5951a234e8db9806eb0635346-NFD", // Feisty Doge NFT
-  "2-00000000000000000000000000c5ca160a968f47e7272a0cfcda36428f386cb6-USDEBT", // US Debt Meme coin
-  "4-00000000000000000000000011a38e06699b238d6d9a0c7a01f3ac63a07ad318-USDFI", // USDFI is a protocol, not a stablecoin,
-  "2-000000000000000000000000309627af60f0926daa6041b8279484312f2bf060-USDB", // USDB (USD Bancor) has been deactivated
   "2-000000000000000000000000df574c24545e5ffecb9a659c229253d4111d87e1-HUSD", // HUSD has been depegged for a number of years now
+  "2-000000000000000000000000dfdb7f72c1f195c5951a234e8db9806eb0635346-NFD", // Feisty Doge NFT
+  "4-00000000000000000000000011a38e06699b238d6d9a0c7a01f3ac63a07ad318-USDFI", // USDFI is a protocol, not a stablecoin,
   "4-00000000000000000000000023e8a70534308a4aaf76fb8c32ec13d17a3bd89e-lUSD", // Previously exploited version of Linear Finance LUSD
+  "4-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
   "4-000000000000000000000000de7d1ce109236b12809c45b23d22f30dba0ef424-USDS", // Dead token called Spice USD
+  "5-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "5-000000000000000000000000ee327f889d5947c1dc1934bb208a1e792f953e96-frxETH", // Frax ETH
+  "6-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "10-00000000000000000000000028a92dde19d9989f39a49905d7c9c2fac7799bdf-USDC",  // Fantom migrated their stack so old USDC is expected to be de-pegged
+  "10-0000000000000000000000002f733095b80a04b38b0d10cc884524a3d09b836a-USDC.e", // Fantom migrated their stack so old USDC is expected to be de-pegged
   "11-0000000000000000000000000000000000000000000100000000000000000081-aUSD", // Acala USD being converted to aSEED, dead token
-  "12-0000000000000000000000000000000000000000000100000000000000000001-aUSD", // Same as above
   "13-0000000000000000000000005c74070fdea071359b86082bd9f9b3deaafbe32b-KDAI", // Klatyn DAI Depegged since December 2023
   "13-000000000000000000000000754288077d0ff82af7a5317c7cb8c444d421d103-oUSDC", // Orbit bridge Klatyn USDC, depegged since December 2023
   "13-000000000000000000000000cee8faf64bb97a73bb51e115aa89c17ffa8dd167-oUSDT", // Orbit bridge Klatyn USDT, depegged since December 2023
-  "16-000000000000000000000000ffffffff52c56a9257bb97f4b2b6f7b2d624ecda-xcaUSD", // Acala USD being converted to aSEED, dead token
-  "1-689ac099ef657e5d3b7efaf1e36ab8b897e2746232d8a9261b3e49b35c1dead4-xUSD", // Synthetic USD is inactive and deactivated
   "16-000000000000000000000000818ec0a7fe18ff94269904fced6ae3dae6d6dc0b-USDC", // Multichain bridge USDC Moonbeam has no volume and thus the extended depeg is expected
-  "4-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
-  "5-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
-  "6-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
+  "16-000000000000000000000000ffffffff52c56a9257bb97f4b2b6f7b2d624ecda-xcaUSD", // Acala USD being converted to aSEED, dead token
+  "23-00000000000000000000000051318b7d00db7acc4026c88c3952b66278b6a67f-PLS", // Plutus DAO
+  "23-0000000000000000000000009d2f299715d94d8a7e6f5eaa8e654e8c74a988a7-FXS", // Frax Share
   "24-000000000000000000000000323665443cef804a3b5206103304bd4872ea4253-USDV", // Verified USD has been depegged since February 2025
-  "1-aa77c1f5d0d2c07ce7075e31d348ca1c0965bb287be13984dec1c5615bf22665-CUSD", // Coin98 Dollar has been depegged since March 2024
 
 ]
+
+// Chains that have been deprecated. Tokens on these chains will not be included in the token list.
+// Deprecated chain IDs are listed in the Go SDK:
+// https://github.com/wormhole-foundation/wormhole/blob/main/sdk/vaa/structs.go
+const deprecatedChains = [3,7,9,11,12,17,18,28,36,43];
 
 const axios = require("axios");
 const fs = require("fs");
@@ -156,7 +161,14 @@ axios
           }
           if (includeIt) {
             includedTokens.delete(key);
+
             let chainId = parseInt(chain) as ChainId;
+
+            // Skip deprecated chains
+            if (deprecatedChains.includes(chainId)) {
+              continue;
+            }
+
             let wormholeAddr: string;
             if (chainId == CHAIN_ID_ALGORAND) {
               if (
