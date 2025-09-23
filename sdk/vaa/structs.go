@@ -315,6 +315,8 @@ const (
 	ChainIDPlasma ChainID = 58
 	// ChainIDCreditCoin is the ChainID of CreditCoin
 	ChainIDCreditCoin ChainID = 59
+	// ChainIDStacks is the ChainID of Stacks
+	ChainIDStacks ChainID = 60
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
