@@ -237,20 +237,3 @@ func (q *PendingMessageQueue) ContainsMessagePublication(msgPub *MessagePublicat
 		return bytes.Equal(pMsg.Msg.MessageID(), msgPub.MessageID())
 	})
 }
-
-// // RangeElements provides a way to iterate over the queue. Because queue is a
-// // min-heap, the last item that can be accessed via Pop will have the earliest timestamp.
-// func (q *PendingMessageQueue) Iter() func(yield func(index int, value *PendingMessage) bool) {
-// 	// implements the range-over function pattern.
-// 	return func(yield func(index int, value *PendingMessage) bool) {
-// 		if q == nil {
-// 			return // Safely handle nil pointers
-// 		}
-//
-// 		for i, v := range q.heap {
-// 			if !yield(i, v) {
-// 				break
-// 			}
-// 		}
-// 	}
-// }
