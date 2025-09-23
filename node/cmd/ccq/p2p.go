@@ -67,7 +67,13 @@ func runP2P(
 
 	if len(protectedPeers) != 0 {
 		for _, peerId := range protectedPeers {
-			components.ConnMgr.Protect(peer.ID(peerId), "configured")
+			decodedPeerId, err := peer.Decode(peerId)
+			if err != nil {
+				logger.Error("error decoding protected ccq ID", zap.String("peerId", peerId), zap.Error(err))
+				continue
+			}
+			logger.Info("protecting ccq peer", zap.String("peerId", peerId))
+			components.ConnMgr.Protect(decodedPeerId, "configured")
 		}
 	}
 

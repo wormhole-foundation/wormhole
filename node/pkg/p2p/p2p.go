@@ -338,8 +338,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 		if len(params.protectedPeers) != 0 {
 			for _, peerId := range params.protectedPeers {
+				decodedPeerId, err := peer.Decode(peerId)
+				if err != nil {
+					logger.Error("error decoding protected peer ID", zap.String("peerId", peerId), zap.Error(err))
+					continue
+				}
 				logger.Info("protecting peer", zap.String("peerId", peerId))
-				params.components.ConnMgr.Protect(peer.ID(peerId), "configured")
+				params.components.ConnMgr.Protect(decodedPeerId, "configured")
 			}
 		}
 
