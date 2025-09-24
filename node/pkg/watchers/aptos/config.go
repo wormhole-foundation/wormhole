@@ -11,11 +11,14 @@ import (
 )
 
 type WatcherConfig struct {
-	NetworkID watchers.NetworkID // human readable name
-	ChainID   vaa.ChainID        // ChainID
-	Rpc       string
-	Account   string
-	Handle    string
+	NetworkID    watchers.NetworkID // human readable name
+	ChainID      vaa.ChainID        // ChainID
+	Rpc          string
+	Account      string
+	Handle       string
+	IndexerRpc   string
+	IndexerToken string
+	UseIndexer   bool // true for indexer mode, false for legacy mode
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -35,5 +38,5 @@ func (wc *WatcherConfig) Create(
 	_ chan<- *common.GuardianSet,
 	_ common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
-	return NewWatcher(wc.ChainID, wc.NetworkID, wc.Rpc, wc.Account, wc.Handle, msgC, obsvReqC).Run, nil, nil
+	return NewWatcher(wc.ChainID, wc.NetworkID, wc.Rpc, wc.Account, wc.Handle, wc.IndexerRpc, wc.IndexerToken, wc.UseIndexer, msgC, obsvReqC).Run, nil, nil
 }

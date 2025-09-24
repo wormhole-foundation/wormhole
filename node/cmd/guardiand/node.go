@@ -138,9 +138,11 @@ var (
 	accountantNttKeyPath       *string
 	accountantNttKeyPassPhrase *string
 
-	aptosRPC     *string
-	aptosAccount *string
-	aptosHandle  *string
+	aptosRPC          *string
+	aptosAccount      *string
+	aptosHandle       *string
+	aptosIndexerRPC   *string
+	aptosIndexerToken *string
 
 	movementRPC     *string
 	movementAccount *string
@@ -389,6 +391,8 @@ func init() {
 	aptosRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
 	aptosHandle = NodeCmd.Flags().String("aptosHandle", "", "aptos handle")
+	aptosIndexerRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosIndexerRPC", "Aptos Indexer RPC URL", "", []string{"http", "https"})
+	aptosIndexerToken = NodeCmd.Flags().String("aptosIndexerToken", "", "Aptos Indexer access token")
 
 	movementRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "movementRPC", "Movement RPC URL", "", []string{"http", "https"})
 	movementAccount = NodeCmd.Flags().String("movementAccount", "", "movement account")
@@ -925,8 +929,24 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Both --nearContract and --nearRPC must be set or both unset")
 	}
 
-	if !argsConsistent([]string{*aptosAccount, *aptosRPC, *aptosHandle}) {
-		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
+	// Validate Aptos configuration - support both legacy and indexer modes
+	aptosBasic := []string{*aptosRPC, *aptosAccount, *aptosHandle}
+
+	if !argsConsistent(aptosBasic) {
+		logger.Fatal("Either --aptosRPC, --aptosAccount, and --aptosHandle must all be set together or all unset")
+	}
+
+	// If Aptos is enabled, validate indexer configuration
+	if *aptosRPC != "" {
+		// Only aptosIndexerRPC is required for indexer mode, token is optional
+		useIndexerMode := *aptosIndexerRPC != ""
+
+		// Log which mode will be used
+		if useIndexerMode {
+			logger.Info("Aptos watcher will run in indexer mode (GraphQL + REST)")
+		} else {
+			logger.Info("Aptos watcher will run in legacy mode (REST API only)")
+		}
 	}
 
 	if !argsConsistent([]string{*movementAccount, *movementRPC, *movementHandle}) {
@@ -1658,12 +1678,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	if shouldStart(aptosRPC) {
+		// Determine if we should use indexer mode (only aptosIndexerRPC required)
+		useIndexer := *aptosIndexerRPC != ""
+
 		wc := &aptos.WatcherConfig{
-			NetworkID: "aptos",
-			ChainID:   vaa.ChainIDAptos,
-			Rpc:       *aptosRPC,
-			Account:   *aptosAccount,
-			Handle:    *aptosHandle,
+			NetworkID:    "aptos",
+			ChainID:      vaa.ChainIDAptos,
+			Rpc:          *aptosRPC,
+			Account:      *aptosAccount,
+			Handle:       *aptosHandle,
+			IndexerRpc:   *aptosIndexerRPC,
+			IndexerToken: *aptosIndexerToken,
+			UseIndexer:   useIndexer,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
