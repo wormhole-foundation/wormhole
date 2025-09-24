@@ -5,9 +5,10 @@ import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
 import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 
-import compilerOutput from "../../verifiable-evm-build/WormholeVerifier.output.json" with {type: "json"};
 import { waitForTransactionReceipt } from "viem/actions";
 import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
+// TODO: replace this with readFile + JSON.parse
+import compilerOutput from "../../verifiable-evm-build/WormholeVerifier.output.json" with {type: "json"};
 
 // ICoreBridge coreBridge,
 // uint32 initialMultisigKeyCount,
@@ -69,7 +70,7 @@ async function main() {
   const account = privateKeyToAccount(signer);
   const contractOutput = compilerOutput.contracts["src/evm/WormholeVerifier.sol"].WormholeVerifier;
   const abi = contractOutput.abi;
-  const bytecode = contractOutput.evm.bytecode.object;
+  const bytecode = `0x${contractOutput.evm.bytecode.object}`;
   if (typeof bytecode !== "string" || !isHex(bytecode)) throw new Error("Unexpected bytecode format.");
 
   const configFile = await readFile(args.configFile, "utf8");
@@ -104,6 +105,7 @@ async function main() {
       config.guardianSet.initialMultisigKeyCount,
       config.guardianSet.initialSchnorrKeyCount,
       config.guardianSet.initialMultisigKeyPullLimit,
+      config.guardianSet.appendSchnorrKeyVaa,
     ];
     const txid = await walletClient.deployContract({
       abi,

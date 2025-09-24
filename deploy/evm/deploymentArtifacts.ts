@@ -34,8 +34,12 @@ class ContractAddresses {
 
   private constructor(env: string) {
     this.path = `./config/${env}/contracts.json`;
-    const contractsFile = fs.readFileSync(this.path, "utf8");
-    this.contracts = JSON.parse(contractsFile);
+    if (fs.existsSync(this.path)) {
+      const contractsFile = fs.readFileSync(this.path, "utf8");
+      this.contracts = JSON.parse(contractsFile);
+    } else {
+      this.contracts = {};
+    }
   }
 
   updateContracts(newContracts: ContractsJson) {
