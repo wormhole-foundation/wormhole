@@ -73,6 +73,7 @@ const updateConfigFile = (filePath: string, message: string) => {
 
   const peers = config.Peers;
   peers.push({ Hostname: hostname, TlsX509: certificate, Port: port});
+  // TODO: sort by guardian index instead
   peers.sort((a, b) => lexCompare(a.TlsX509, b.TlsX509));
 
   fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
@@ -110,7 +111,7 @@ yargs(hideBin(process.argv))
     'Creates a DKG config file',
     (yargs) => {
       return yargs.positional('path', {
-        describe: 'Path to create the config file',
+        describe: 'Path to create the config file. This is where the output of the command will be written to.',
         type: 'string',
         demandOption: true,
       })
