@@ -319,6 +319,8 @@ const (
 	ChainIDStacks ChainID = 60
 	// ChainIDStellar is the ChainID of Stellar
 	ChainIDStellar ChainID = 61
+	// ChainIDTON is the ChainID of TON
+	ChainIDTON ChainID = 62
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
