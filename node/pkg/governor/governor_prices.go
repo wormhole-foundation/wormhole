@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 	"math/rand"
 	"net/http"
@@ -270,7 +269,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 		}
 	}()
 
-	responseData, err := io.ReadAll(response.Body)
+	responseData, err := common.SafeRead(response.Body)
 	if err != nil {
 		return result, fmt.Errorf("failed to read CoinGecko response: %w", err)
 	}

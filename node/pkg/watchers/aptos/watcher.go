@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"time"
@@ -276,7 +275,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
+	body, err := common.SafeRead(res.Body)
 	if err != nil {
 		return nil, err
 	}

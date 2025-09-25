@@ -223,8 +223,9 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						zap.Int("numSignatures", len(s.signatures)),
 					)
 					req := &gossipv1.ObservationRequest{
-						ChainId: uint32(s.ourObservation.GetEmitterChain()),
-						TxHash:  s.txHash,
+						ChainId:   uint32(s.ourObservation.GetEmitterChain()),
+						TxHash:    s.txHash,
+						Timestamp: time.Now().UnixNano(),
 					}
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))

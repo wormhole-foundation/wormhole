@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/big"
 	"math/rand"
@@ -1296,7 +1295,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	defer results.Body.Close()
 
 	// Collect the results
-	resBody, err := io.ReadAll(results.Body)
+	resBody, err := common.SafeRead(results.Body)
 	if err != nil {
 		fmt.Printf("GetAndObserveMissingVAAs: could not read response body: %s\n", err)
 		return nil, err

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"strings"
@@ -198,7 +197,7 @@ func parseConfigFile(fileName string, env common.Environment) (PermissionsMap, e
 	}
 	defer jsonFile.Close()
 
-	byteValue, err := io.ReadAll(jsonFile)
+	byteValue, err := common.SafeRead(jsonFile)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to read permissions file "%s": %w`, fileName, err)
 	}
