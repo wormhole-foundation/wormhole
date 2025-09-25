@@ -59,8 +59,7 @@ pub enum ParseError {
 
 const BASE_MINT_LEN: usize = 82;
 const BASE_MINT_LEN_V2: usize = 165;
-const ACCOUNT_TYPE_OFFSET: usize = BASE_MINT_LEN;
-const ACCOUNT_TYPE_OFFSET_V2: usize = BASE_MINT_LEN_V2;
+const ACCOUNT_TYPE_OFFSET: usize = BASE_MINT_LEN_V2;
 const ACCOUNT_TYPE_MINT: u8 = 1;
 
 // TLV header sizes
@@ -78,29 +77,40 @@ pub fn parse_token2022_metadata(
     mint_account: Pubkey,
     mint_account_data: &[u8],
 ) -> Result<MintMetadata, ParseError> {
+    // mint accounts are at least 82 bytes long, so we reject
     if mint_account_data.len() < BASE_MINT_LEN {
         return Err(ParseError::NotAMintAccount);
     }
+
+    // if exactly 82 bytes, it's either an spl token, or a token2022 with no extensions. this is valid
     if mint_account_data.len() == BASE_MINT_LEN {
         return Ok(MintMetadata::None); // no extensions
     }
 
-    let (account_type_offset, start_offset) = if mint_account_data.len() > BASE_MINT_LEN_V2 {
-        (ACCOUNT_TYPE_OFFSET_V2, ACCOUNT_TYPE_OFFSET_V2 + 1)
-    } else {
-        // Older layout
-        (ACCOUNT_TYPE_OFFSET, ACCOUNT_TYPE_OFFSET + 1)
-    };
+    // if the mint has extensions, it's at least 166 bytes long. Anything in between is invalid.
+    if mint_account_data.len() <= BASE_MINT_LEN_V2 {
+        return Err(ParseError::NotAMintAccount);
+    }
 
-    // AccountType byte (present when extensions are initialized)
+    // by this point, we know the mint has extensions. the layout here is:
+    // 83..=165 padded with zeros (we verify here)
+    if !mint_account_data[BASE_MINT_LEN..ACCOUNT_TYPE_OFFSET]
+        .iter()
+        .all(|&b| b == 0)
+    {
+        return Err(ParseError::NotAMintAccount);
+    }
+
+    // 166th byte is 1.
     let acct_type = *mint_account_data
-        .get(account_type_offset)
+        .get(ACCOUNT_TYPE_OFFSET)
         .ok_or(ParseError::UnexpectedEnd)?;
     if acct_type != ACCOUNT_TYPE_MINT {
         return Err(ParseError::NotMintAccountType);
     }
 
-    let mut offset = start_offset;
+    // the rest is the extensions in TLV format
+    let mut offset = ACCOUNT_TYPE_OFFSET + 1;
     let mut pointer: Option<MetadataPointer> = None;
     let mut meta: Option<TokenMetadata> = None;
 
@@ -338,6 +348,112 @@ mod tests {
         }
     }
 
+    /// Generate a random ExtensionType that has a known size.
+    /// The only variable-length extension is TokenMetadata, which we skip.
+    fn random_sized_extension() -> ExtensionType {
+        use rand::Rng;
+        use std::convert::TryFrom;
+        loop {
+            let ext_u16: u16 = rand::rng().random_range(0..=27);
+            if let Ok(ext_type) = ExtensionType::try_from(ext_u16) {
+                if ext_type != ExtensionType::TokenMetadata {
+                    return ext_type;
+                }
+            }
+        }
+    }
+
+    // In a previous version of this code, I misintepreted the mint account
+    // extension layout, and thought that mint accounts can be _between_ 82
+    // bytes (no extension) and 165 bytes (token account).
+    //
+    // It turns out that if the mint account has *any* extensions, it will
+    // be padded out with 0s to 165, then a single 1 byte account type
+    // discriminator is inserted, then the extensions follow.
+    //
+    // To verify this, we perform two tests:
+    // 1. generate a random set of extensions and verify the calculated size is either 82 or > 165.
+    // 2. create a mint account with a single small extension (MetadataPointer) and verify its size + the account discriminator.
+    #[test]
+    fn test_fuzz_mint_size() {
+        use rand::Rng;
+
+        let mut rng = rand::rng();
+        for _ in 0..1000 {
+            let len: usize = rng.random_range(0..=3);
+            // now generate `len` random extensions from the ExtensionType enum.
+            // ExtensionType is repr(u16), so we can generate a random u16 and
+            // cast it to ExtensionType, then filter out invalid values.
+            let mut extensions = Vec::new();
+            for _ in 0..len {
+                extensions.push(random_sized_extension());
+            }
+            let account_size =
+                ExtensionType::try_calculate_account_len::<Mint>(&extensions).unwrap();
+            assert!(account_size == 82 || account_size > 165);
+        }
+    }
+
+    #[test]
+    fn test_mint_with_small_extension() {
+        // |------------------+--------------|
+        // | field            | size (bytes) |
+        // |------------------+--------------|
+        // | base             |          165 |
+        // | account type     |            1 |
+        // | extension type   |            2 |
+        // | extension length |            2 |
+        // | metadata pointer |           64 |
+        // |------------------+--------------|
+        // | total            |          234 |
+
+        let mint_address = SolanaPubkey::new_unique();
+        let metadata_address = SolanaPubkey::new_unique();
+        let authority = SolanaPubkey::new_unique();
+
+        // Calculate account size needed for the extension
+        let extension_types = vec![ExtensionType::MetadataPointer];
+        let account_size =
+            ExtensionType::try_calculate_account_len::<Mint>(&extension_types).unwrap();
+
+        assert_eq!(account_size, 234);
+
+        // Create account data buffer
+        let mut mint_data = vec![0; account_size];
+
+        // Initialize the mint account with extensions
+        let mut state =
+            StateWithExtensionsMut::<Mint>::unpack_uninitialized(&mut mint_data).unwrap();
+
+        // Set up base mint data
+        state.base = Mint {
+            mint_authority: COption::Some(authority),
+            supply: 1000000,
+            decimals: 6,
+            is_initialized: true,
+            freeze_authority: COption::None,
+        };
+
+        // Initialize MetadataPointer extension (pointing to self)
+        let metadata_pointer_extension = state.init_extension::<MetadataPointer>(true).unwrap();
+        metadata_pointer_extension.authority = OptionalNonZeroPubkey(authority);
+        metadata_pointer_extension.metadata_address = OptionalNonZeroPubkey(metadata_address);
+
+        // Pack the base state and initialize account type
+        state.pack_base();
+        state.init_account_type().unwrap();
+
+        let result = parse_token2022_metadata(convert_pubkey(mint_address), &mint_data).unwrap();
+
+        // Since metadata pointer points elsewhere, we should get external metadata
+        match &result {
+            MintMetadata::External(addr) => {
+                assert_eq!(addr.metadata_address, convert_pubkey(metadata_address));
+            }
+            _ => panic!("Expected external metadata"),
+        }
+    }
+
     #[test]
     fn test_basic_mint_no_extensions() {
         // Test basic 82-byte mint with no extensions
@@ -362,12 +478,11 @@ mod tests {
             Err(ParseError::NotAMintAccount)
         );
 
-        // Test wrong account type
-        let mut wrong_type_data = vec![0u8; 100];
-        wrong_type_data[82] = 2; // Wrong account type (should be 1 for Mint)
+        // Test wrong account length
+        let wrong_type_data = vec![0u8; 100];
         assert_eq!(
             parse_token2022_metadata(dummy_mint, &wrong_type_data),
-            Err(ParseError::NotMintAccountType)
+            Err(ParseError::NotAMintAccount)
         );
     }
 
