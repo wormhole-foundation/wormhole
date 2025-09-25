@@ -1,0 +1,26 @@
+##############################################################################
+# Rustfmt configuration – project-wide style guide
+#
+# Docs: https://rust-lang.github.io/rustfmt
+##############################################################################
+
+# --- Imports ----------------------------------------------------------------
+reorder_imports            = true          # Alphabetise & group `use` items.
+imports_granularity        = "Crate"       # Merge paths that share the same crate
+                                            # → e.g. `use std::{fmt, io};`
+condense_wildcard_suffixes = true          # Prefer `use foo::{self, Bar};`
+                                            # over two separate lines.
+
+# --- Readability ------------------------------------------------------------
+max_width                  = 100           # Hard column limit for all code
+wrap_comments              = true          # Break comments to fit on the line
+format_code_in_doc_comments= true          # Rust-format code blocks in docs
+use_field_init_shorthand   = true          # `{ x, y }` instead of `{ x: x, y: y }`
+trailing_comma             = "Vertical"    # Comma-terminate every multi-line list
+
+# ---------- Implementation order -------------------------------------------
+reorder_impl_items         = true          # Deterministic ordering inside impl blocks
+
+# --- Misc -------------------------------------------------------------------
+edition                    = "2024"        # Controls the edition of the Rust Style Guide
+                                           # to use for formatting (RFC 3338)
