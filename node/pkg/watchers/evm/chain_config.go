@@ -97,8 +97,8 @@ var (
 		vaa.ChainIDWorldchain: {Finalized: true, Safe: true, EvmChainID: 480, PublicRPC: "https://worldchain-mainnet.g.alchemy.com/public", ContractAddr: "0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"},
 		vaa.ChainIDInk:        {Finalized: true, Safe: true, EvmChainID: 57073, PublicRPC: "https://rpc-qnd.inkonchain.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
 		vaa.ChainIDHyperEVM:   {Finalized: true, Safe: true, EvmChainID: 999, PublicRPC: "https://rpc.hyperliquid.xyz/evm", ContractAddr: "0x7C0faFc4384551f063e05aee704ab943b8B53aB3"},
-		// vaa.ChainIDMonad:      Not in Mainnet yet.
-		vaa.ChainIDMezo: {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		vaa.ChainIDMonad:      {Finalized: true, Safe: true, EvmChainID: 143, PublicRPC: "https://rpc.monad.xyz", ContractAddr: "0x194B123c5E96B9b2E49763619985790Dc241CAC0"},
+		vaa.ChainIDMezo:       {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		// vaa.ChainIDConverge: Not in Mainnet yet
 		vaa.ChainIDPlume:   {Finalized: true, Safe: true, EvmChainID: 98866, PublicRPC: "https://rpc.plume.org", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDXRPLEVM: {Finalized: true, Safe: true, EvmChainID: 1440000, PublicRPC: "https://rpc.xrplevm.org/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
