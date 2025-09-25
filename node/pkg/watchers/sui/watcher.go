@@ -26,6 +26,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+
+	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
 )
 
 type (
@@ -45,6 +47,10 @@ type (
 		loopDelay                 time.Duration
 		queryEventsCmd            string
 		postTimeout               time.Duration
+
+		// Sui transaction verifier
+		suiTxVerifier     *txverifier.SuiTransferVerifier
+		txVerifierEnabled bool
 	}
 
 	SuiEventResponse struct {
@@ -166,6 +172,11 @@ var (
 			Name: "wormhole_sui_current_height",
 			Help: "Current Sui block height",
 		})
+	suiTransferVerifierFailures = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_sui_txverifier_failures",
+			Help: "Total number of messages that failed transfer verification",
+		})
 )
 
 // NewWatcher creates a new Sui appid watcher
@@ -175,9 +186,71 @@ func NewWatcher(
 	unsafeDevMode bool,
 	messageEvents chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-) *Watcher {
+	env common.Environment,
+	txVerifierEnabled bool,
+) (*Watcher, error) {
 	maxBatchSize := 10
 	descOrder := true
+
+	var suiTxVerifier *txverifier.SuiTransferVerifier
+
+	if txVerifierEnabled {
+
+		var suiCoreBridgeAddress string
+		var suiTokenBridgeAddress string
+		var suiTokenBridgeEmitter string
+		var suiStateObjectId string
+
+		// Split the suiMoveEventType into its components. If the format is incorrect, return an error.
+		eventTypeComponents := strings.Split(suiMoveEventType, "::")
+		if len(eventTypeComponents) != 3 {
+			return nil, fmt.Errorf("suiMoveEventType is not in the correct format, expected <package_id>::<module_name>::<event_name>, got: %s", suiMoveEventType)
+		}
+
+		suiCoreBridgeAddress = eventTypeComponents[0]
+
+		switch env {
+		case common.MainNet:
+			suiStateObjectId = txverifier.SuiMainnetStateObjectId
+		case common.TestNet:
+			suiStateObjectId = txverifier.SuiTestnetStateObjectId
+		case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
+			suiStateObjectId = txverifier.SuiDevnetStateObjectId
+		}
+
+		// Create the Sui Api connection, and query the state object to get the token bridge address and emitter.
+		suiApiConnection := txverifier.NewSuiApiConnection(suiRPC)
+
+		// Retrieve the state object, and extract the token bridge emitter and token bridge address. If any
+		// of these operations fail, return an error. Failure here implies an invalid state object ID, which
+		// is a result of a full token bridge redeployment, or a Sui Api error, which would have other
+		// operational implications for the watcher beyond the transfer verifier.
+		stateObject, err := suiApiConnection.GetObject(context.Background(), suiStateObjectId)
+
+		if err != nil {
+			return nil, err
+		}
+
+		suiTokenBridgeEmitter, err = stateObject.TokenBridgeEmitter()
+		if err != nil {
+			return nil, err
+		}
+
+		suiTokenBridgeAddress, err = stateObject.TokenBridgePackageId()
+		if err != nil {
+			return nil, err
+		}
+
+		// Create the new suiTxVerifier
+		suiTxVerifier = txverifier.NewSuiTransferVerifier(
+			suiCoreBridgeAddress,
+			suiTokenBridgeEmitter,
+			suiTokenBridgeAddress,
+			suiApiConnection,
+		)
+
+	}
+
 	return &Watcher{
 		suiRPC:                    suiRPC,
 		suiMoveEventType:          suiMoveEventType,
@@ -191,11 +264,13 @@ func NewWatcher(
 		loopDelay:                 time.Second, // SUI produces a checkpoint every ~3 seconds
 		queryEventsCmd: fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "suix_queryEvents", "params": [{ "MoveEventType": "%s" }, null, %d, %t]}`,
 			suiMoveEventType, maxBatchSize, descOrder),
-		postTimeout: time.Second * 5,
-	}
+		postTimeout:       time.Second * 5,
+		suiTxVerifier:     suiTxVerifier,
+		txVerifierEnabled: txVerifierEnabled,
+	}, nil
 }
 
-func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservation bool) error {
+func (e *Watcher) inspectBody(ctx context.Context, logger *zap.Logger, body SuiResult, isReobservation bool) error {
 	if body.ID.TxDigest == nil {
 		return errors.New("missing TxDigest field")
 	}
@@ -274,23 +349,50 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 		IsReobservation:  isReobservation,
 	}
 
+	// Verifies the observation through the Sui transaction verifier, if enabled, followed
+	// by publishing the observation to the message channel.
+	err = e.verifyAndPublish(ctx, observation, *body.ID.TxDigest, logger)
+
+	if err != nil {
+		suiTransferVerifierFailures.Inc()
+		logger.Error("Message publication error",
+			zap.String("TxDigest", *body.ID.TxDigest),
+			zap.Error(err))
+	}
+
+	return nil
+}
+
+func (e *Watcher) verifyAndPublish(
+	ctx context.Context,
+	msg *common.MessagePublication,
+	txDigest string,
+	logger *zap.Logger,
+) error {
+	if msg == nil {
+		return errors.New("MessagePublication is nil")
+	}
+
+	if e.suiTxVerifier != nil {
+		verifiedMsg, err := e.verify(ctx, msg, txDigest, logger)
+
+		if err != nil {
+			return err
+		}
+
+		msg = &verifiedMsg
+	}
+
+	e.msgChan <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+
 	suiMessagesConfirmed.Inc()
-	if isReobservation {
+	if msg.IsReobservation {
 		watchers.ReobservationsByChain.WithLabelValues("sui", "std").Inc()
 	}
 
 	logger.Info("message observed",
-		zap.String("txHash", observation.TxIDString()),
-		zap.Time("timestamp", observation.Timestamp),
-		zap.Uint32("nonce", observation.Nonce),
-		zap.Uint64("sequence", observation.Sequence),
-		zap.Stringer("emitter_chain", observation.EmitterChain),
-		zap.Stringer("emitter_address", observation.EmitterAddress),
-		zap.Binary("payload", observation.Payload),
-		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
+		msg.ZapFields()...,
 	)
-
-	e.msgChan <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }
@@ -343,7 +445,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if len(dataWithEvents) > 0 {
 					for idx := len(dataWithEvents) - 1; idx >= 0; idx-- {
 						event := dataWithEvents[idx]
-						err = e.inspectBody(logger, event.result, false)
+						err = e.inspectBody(ctx, logger, event.result, false)
 						if err != nil {
 							logger.Error("inspectBody Error", zap.Error(err))
 							continue
@@ -436,7 +538,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				for i, chunk := range res.Result {
-					err := e.inspectBody(logger, chunk, true)
+					err := e.inspectBody(ctx, logger, chunk, true)
 					if err != nil {
 						logger.Info("sui_fetch_obvs_req skipping event data in result", zap.String("txhash", tx58), zap.Int("index", i), zap.Error(err))
 					}
