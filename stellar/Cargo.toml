@@ -1,0 +1,28 @@
+[workspace]
+resolver = "3"
+members = [
+  "contracts/wormhole-interface",
+  "contracts/wormhole-contract",
+]
+
+[workspace.package]
+edition = "2024"
+
+[workspace.dependencies]
+soroban-sdk = "23.0.2"
+wormhole-interface = { path = "contracts/wormhole-interface" }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+# For more information about this profile see https://soroban.stellar.org/docs/basic-tutorials/logging#cargotoml-profile
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
