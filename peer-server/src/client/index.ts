@@ -4,6 +4,7 @@ import {
   SelfConfig,
   validateOrFail,
   SelfConfigSchema,
+  Peer,
 } from "../shared/types.js";
 import { PeerClient } from "./client.js";
 
@@ -52,23 +53,25 @@ class ConfigClient {
     }
   }
 
-  private savePeerConfig(peers: Record<string, any>, threshold: number): void {
+  private savePeerConfig(peers: Peer[], threshold: number): void {
     const outputPath = path.resolve("peer_config.json");
 
     try {
       // Convert to array and sort by guardian address for consistency
-      const peerArray = Object.entries(peers)
-        .map(([guardianAddress, peer]) => ({
-          guardianAddress,
-          ...peer
-        }))
-        .sort((a, b) => a.guardianAddress.localeCompare(b.guardianAddress));
-
       const outputData = {
-        peers: peerArray,
-        totalCount: peerArray.length,
-        threshold: threshold,
-        generatedAt: new Date().toISOString()
+        Peers: peers
+          .map((peer) => ({
+            Hostname: peer.hostname,
+            TlsX509: peer.tlsX509,
+            Port: new URL(peer.hostname).port,
+          })),
+        Self: {
+          Hostname: this.config.peer.hostname,
+          TlsX509: this.config.peer.tlsX509,
+          Port: new URL(this.config.peer.hostname).port,
+        },
+        NumParticipants: peers.length,
+        WantedThreshold: threshold,
       };
 
       fs.writeFileSync(outputPath, JSON.stringify(outputData, null, 2), 'utf-8');

@@ -33,7 +33,13 @@ export class PeerServer {
     // Get all peers (returns array of peer data)
     this.app.get('/peers', async (req, res) => {
       try {
-        const peers = this.allPeers;
+        // Sort peers by guardian index
+        const peers = this.allPeers.sort((a, b) => {
+          const aIndex = this.wormholeData.guardians.indexOf(a.guardianAddress);
+          const bIndex = this.wormholeData.guardians.indexOf(b.guardianAddress);
+          return aIndex - bIndex;
+        })
+
         res.json({
           peers,
           threshold: this.config.threshold,
