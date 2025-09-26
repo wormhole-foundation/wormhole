@@ -12,6 +12,7 @@ use solitaire::{
     processors::seeded::{
         AccountOwner,
         Owned,
+        SingleOwned,
     },
 };
 use spl_token::state::{
@@ -45,6 +46,9 @@ impl Owned for EndpointRegistration {
     }
 }
 
+impl SingleOwned for EndpointRegistration {
+}
+
 #[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct WrappedMeta {
     pub chain: ChainID,
@@ -56,6 +60,9 @@ impl Owned for WrappedMeta {
     fn owner(&self) -> AccountOwner {
         AccountOwner::This
     }
+}
+
+impl SingleOwned for WrappedMeta {
 }
 
 pack_type!(SplMint, Mint, AccountOwner::Other(spl_token::id()));
