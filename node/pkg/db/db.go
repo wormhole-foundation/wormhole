@@ -236,3 +236,8 @@ func (d *Database) FindEmitterSequenceGap(prefix VAAID) (resp []uint64, firstSeq
 	}
 	return
 }
+
+// Conn returns a pointer to the underlying database connection.
+func (d *Database) Conn() *badger.DB {
+	return d.db
+}
