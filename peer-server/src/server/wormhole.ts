@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { WormholeGuardianData, ServerConfig } from '../shared/types.js';
+import { inspect } from 'util';
 
 // Core Bridge ABI based on ICoreBridge interface
 const CORE_BRIDGE_ABI = [
@@ -26,10 +27,10 @@ export async function getWormholeGuardianData(
     // Load current guardian set - returns a struct/tuple
     const currentSetResult = await contract.getGuardianSet(currentGuardianSetIndex);
 
-    console.log(`Loaded current guardian set with ${currentSetResult.keys.length} guardians`);
+    console.log(`Loaded current guardian set with ${currentSetResult[0].length} guardians`);
 
     return {
-      guardians: currentSetResult.keys
+      guardians: currentSetResult[0]
     };
   } catch (error) {
     console.error('Failed to fetch Wormhole guardian data:', error);

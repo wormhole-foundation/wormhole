@@ -2,14 +2,15 @@
   "name": "peer-server",
   "version": "1.0.0",
   "description": "Minimal Node.js REST server for peer management with Ethereum integration",
-  "main": "src/index.ts",
+  "main": "src/server/index.ts",
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "tsx src/index.ts",
-    "dev": "tsx --watch src/index.ts",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "start:server": "tsx src/server/index.ts",
+    "dev:server": "tsx --watch src/server/index.ts",
+    "start:client": "tsx src/client/index.ts",
+    "dev:client": "tsx --watch src/client/index.ts",
+    "test": "vitest"
   },
   "dependencies": {
     "cors": "^2.8.5",
