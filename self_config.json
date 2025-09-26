@@ -1,0 +1,9 @@
+{
+  "guardianIndex": 0,
+  "serverUrl": "http://localhost:3000",
+  "peer": {
+    "Hostname": "guardian-0.wormhole.com",
+    "TlsX509": "-----BEGIN CERTIFICATE-----\nMIICiTCCAg+gAwIBAgIJAJ8l8zMz8zMzMAOGA1UEBhMCVVMxCzAJBgNVBAgTAkNB\nMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMRowGAYDVQQKExFXb3JtaG9sZSBQcm90\nb2NvbCBMYWIxFjAUBgNVBAMTDXdvcG1ob2xlLmxhYjAeFw0yNTAxMDEwMDAwMDBa\nFw0yNjAxMDEwMDAwMDBaMBgxFjAUBgNVBAMMDXdvcG1ob2xlLmxhYjCCASIwDQYJ\nKoZIhvcNAQEBBQADggEPADCCAQoCggEBALl2Z2V5c2V0dGVzdCBjZXJ0aWZpY2F0\nZSB0ZXN0aW5nIGRhdGEgZm9yIHdvcm1ob2xlIGxhYiB0ZXN0aW5nIHB1cnBvc2Vz\nIG9ubHkgdGhpcyBpcyBub3QgYSByZWFsIGNlcnRpZmljYXRlIGFuZCBzaG91bGQg\nbm90IGJlIHVzZWQgaW4gcHJvZHVjdGlvbiB3b3JtaG9sZSBsYWIgdGVzdGluZy4K\n-----END CERTIFICATE-----",
+    "Port": 8999
+  }
+}

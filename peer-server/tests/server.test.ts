@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-import { PeerServer } from '../src/server.js';
-import { loadConfig } from '../src/index.js';
-import { Display } from '../src/display.js';
-import { WormholeGuardianData, ServerConfig, PeerRegistration, Peer } from '../src/types.js';
+import { PeerServer } from '../src/server/server.js';
+import { loadConfig } from '../src/server/index.js';
+import { Display } from '../src/server/display.js';
+import { WormholeGuardianData, ServerConfig, PeerRegistration, Peer } from '../src/shared/types.js';
 import { ethers } from 'ethers';
 import path from 'path';
 
@@ -21,25 +21,25 @@ class MockDisplay extends Display {
 }
 
 // Generate 19 random guardian wallets for testing
-const testGuardianWallets: ethers.Wallet[] = [];
+const testGuardianWallets: ethers.HDNodeWallet[] = [];
 const testGuardianAddresses: string[] = [];
 
 for (let i = 0; i < 19; i++) {
   const wallet = ethers.Wallet.createRandom();
-  testGuardianWallets.push(wallet);
+  testGuardianWallets.push(wallet as ethers.HDNodeWallet);
   testGuardianAddresses.push(wallet.address);
 }
 
 // Utility function to create a peer registration with a valid signature
 async function createPeerRegistration(
-  wallet: ethers.Wallet,
+  wallet: ethers.HDNodeWallet,
   peer: Peer,
   guardianIndex: number = 0
 ): Promise<PeerRegistration> {
   const messageHash = ethers.keccak256(
     ethers.solidityPacked(
-      ['string', 'string', 'uint256'],
-      [peer.Hostname, peer.TlsX509, peer.Port]
+      ['string', 'string'],
+      [peer.hostname, peer.tlsX509]
     )
   );
   const signature = await wallet.signMessage(ethers.getBytes(messageHash));
@@ -61,7 +61,7 @@ describe('PeerServer', () => {
 
   // Mock guardian data for testing using generated wallets
   const mockWormholeData: WormholeGuardianData = {
-    keys: testGuardianAddresses
+    guardians: testGuardianAddresses
   };
 
   beforeEach(async () => {
@@ -75,20 +75,20 @@ describe('PeerServer', () => {
   });
 
   describe('GET /peers', () => {
-    it('should return empty object when no peers exist', async () => {
+    it('should return empty peers object when no peers exist', async () => {
       const response = await request(app)
         .get('/peers')
         .expect(200);
 
-      expect(response.body).toEqual({});
+      expect(response.body).toEqual({ peers: [], threshold: 13, totalExpectedGuardians: 19 });
     });
 
     it('should return all peers mapped by guardian keys', async () => {
       // Add a test peer first with valid signature using one of our generated guardians
       const peer: Peer = {
-        Hostname: 'test.example.com',
-        TlsX509: 'test-cert',
-        Port: 8080
+        guardianAddress: '', // Will be set by server
+        hostname: 'test.example.com',
+        tlsX509: 'test-cert',
       };
 
       // Use the first generated guardian wallet to create and sign the peer registration
@@ -104,21 +104,26 @@ describe('PeerServer', () => {
         .get('/peers')
         .expect(200);
 
-      // Should be an object with guardian key mapping to peer data
+      // Should be an array with peer data and threshold
       expect(typeof response.body).toBe('object');
-      expect(response.body[testGuardianWallet.address]).toBeDefined();
-      expect(response.body[testGuardianWallet.address].Hostname).toBe(peer.Hostname);
-      expect(response.body[testGuardianWallet.address].TlsX509).toBe(peer.TlsX509);
-      expect(response.body[testGuardianWallet.address].Port).toBe(peer.Port);
+      expect(Array.isArray(response.body.peers)).toBe(true);
+      expect(response.body.threshold).toBe(13);
+      expect(response.body.totalExpectedGuardians).toBe(19);
+      expect(response.body.peers).toHaveLength(1);
+      
+      const submittedPeer = response.body.peers.find((p: any) => p.guardianAddress === testGuardianWallet.address);
+      expect(submittedPeer).toBeDefined();
+      expect(submittedPeer.hostname).toBe(peer.hostname);
+      expect(submittedPeer.tlsX509).toBe(peer.tlsX509);
     });
   });
 
   describe('POST /peers', () => {
     it('should add a new peer with valid signatures', async () => {
       const peer: Peer = {
-        Hostname: 'newpeer.example.com',
-        TlsX509: 'new-cert-data',
-        Port: 9090
+        guardianAddress: '', // Will be set by server
+        hostname: 'newpeer.example.com',
+        tlsX509: 'new-cert-data',
       };
 
       // Use the first generated guardian wallet to create and sign the peer registration
@@ -130,17 +135,16 @@ describe('PeerServer', () => {
         .send(peerRegistration)
         .expect(201);
 
-      expect(response.body.peer.Hostname).toBe(peer.Hostname);
-      expect(response.body.peer.TlsX509).toBe(peer.TlsX509);
-      expect(response.body.peer.Port).toBe(peer.Port);
-      expect(response.body.guardianAddress.toLowerCase()).toBe(testGuardianWallet.address.toLowerCase());
+      expect(response.body.peer.hostname).toBe(peer.hostname);
+      expect(response.body.peer.tlsX509).toBe(peer.tlsX509);
+      expect(response.body.peer.guardianAddress.toLowerCase()).toBe(testGuardianWallet.address.toLowerCase());
     });
 
     it('should reject peer registration with missing fields', async () => {
       const incompleteRegistration = {
         peer: {
-          Hostname: 'incomplete.example.com'
-          // Missing TlsX509 and Port
+          hostname: 'incomplete.example.com'
+          // Missing tlsX509 and port
         }
         // Missing signature
       };
@@ -155,9 +159,9 @@ describe('PeerServer', () => {
 
     it('should reject peer registration with invalid signatures', async () => {
       const peer: Peer = {
-        Hostname: 'invalid.example.com',
-        TlsX509: 'invalid-cert',
-        Port: 8080
+        guardianAddress: '', // Will be set by server
+        hostname: 'invalid.example.com',
+        tlsX509: 'invalid-cert',
       };
 
       const invalidRegistration: PeerRegistration = {
@@ -178,9 +182,9 @@ describe('PeerServer', () => {
 
     it('should reject peer registration with missing signature', async () => {
       const peer: Peer = {
-        Hostname: 'nosigs.example.com',
-        TlsX509: 'nosigs-cert',
-        Port: 8080
+        guardianAddress: '', // Will be set by server
+        hostname: 'nosigs.example.com',
+        tlsX509: 'nosigs-cert',
       };
 
       const noSigRegistration = {
@@ -196,4 +200,5 @@ describe('PeerServer', () => {
       expect(response.body.error).toContain('Missing required fields');
     });
   });
+
 });

@@ -15,7 +15,9 @@
     "cors": "^2.8.5",
     "ethers": "^6.8.1",
     "express": "^4.18.2",
-    "sqlite3": "^5.1.6"
+    "node-fetch": "^3.3.2",
+    "sqlite3": "^5.1.6",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -25,7 +27,7 @@
     "supertest": "^6.3.3",
     "tsx": "^4.20.5",
     "typescript": "^5.2.2",
-    "vitest": "^1.0.0"
+    "vitest": "^1.6.1"
   },
   "keywords": [
     "peer",

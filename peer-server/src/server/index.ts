@@ -1,7 +1,7 @@
 import { PeerServer } from './server.js';
 import { getWormholeGuardianData } from './wormhole.js';
 import { Display } from './display.js';
-import { ServerConfig } from './types.js';
+import { ServerConfig, ServerConfigSchema, validateOrFail } from '../shared/types.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -17,27 +17,9 @@ export function loadConfig(configPath?: string): ServerConfig {
     const configData = fs.readFileSync(configFile, 'utf8');
     const config = JSON.parse(configData);
 
-    if (typeof config.port !== 'number' || config.port <= 0 || config.port > 65535) {
-      throw new Error('Invalid or missing port in config file');
-    }
-
-    if (!config.ethereum || typeof config.ethereum.rpcUrl !== 'string') {
-      throw new Error('Invalid or missing ethereum.rpcUrl in config file');
-    }
-
-    if (!config.wormholeContractAddress || typeof config.wormholeContractAddress !== 'string') {
-      throw new Error('Invalid or missing wormholeContractAddress in config file');
-    }
-
-    return {
-      port: config.port,
-      ethereum: {
-        rpcUrl: config.ethereum.rpcUrl,
-        chainId: config.ethereum.chainId || 1
-      },
-      wormholeContractAddress: config.wormholeContractAddress
-    };
-  } catch (error) {
+    // Validate configuration using Zod schema
+    return validateOrFail(ServerConfigSchema, config, `Invalid configuration in ${configFile}`);
+  } catch (error: any) {
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid JSON in config file: ${configFile}`);
     }

@@ -9,8 +9,9 @@
     "composite": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "types": ["node"]
   },
-  "include": ["evm", "guardian"],
+  "include": ["evm", "guardian", "../peer-server/src/client/configClient.ts"],
   "files": ["../verifiable-evm-build/*.json"]
 }
