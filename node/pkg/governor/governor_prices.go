@@ -54,7 +54,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	}
 
 	if run {
-		if err := supervisor.Run(ctx, "govpricer", gov.PriceQuery); err != nil {
+		if err := supervisor.Run(ctx, "govpricer", gov.priceQuery); err != nil {
 			return err
 		}
 	}
@@ -113,8 +113,8 @@ func createCoinGeckoQuery(ids string, coinGeckoApiKey string) string {
 	return query
 }
 
-// PriceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
-func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
+// priceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
+func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// Do a query immediately, then once each interval.
 	// We ignore the error because an error would already have been logged, and we don't want to bring down the
 	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
