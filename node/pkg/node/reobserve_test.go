@@ -99,8 +99,9 @@ func TestReobservationRequest(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		ChainId:   1,
+		TxHash:    []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	ctx.obsvReqC <- req
@@ -116,8 +117,9 @@ func TestDuplicateReobservation(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		ChainId:   1,
+		TxHash:    []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	ctx.obsvReqC <- req
@@ -138,8 +140,9 @@ func TestMultipleReobservations(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		ChainId:   1,
+		TxHash:    []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	ctx.obsvReqC <- req
@@ -171,8 +174,9 @@ func TestReobserveUnknownChainId(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: uint32(len(ctx.chainObsvReqC)) + 1, // #nosec G115 -- This is safe as it's 10 + 1
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		ChainId:   uint32(len(ctx.chainObsvReqC)) + 1, // #nosec G115 -- This is safe as it's 10 + 1
+		TxHash:    []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	ctx.obsvReqC <- req
@@ -186,8 +190,9 @@ func TestReobservationCacheEviction(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		ChainId:   1,
+		TxHash:    []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	ctx.obsvReqC <- req
@@ -233,8 +238,9 @@ func TestBlockingSend(t *testing.T) {
 	defer cancel()
 
 	req := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		ChainId:   1,
+		TxHash:    []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	// Send one reobservation request but don't drain it from the chain-specific channel.
@@ -242,8 +248,9 @@ func TestBlockingSend(t *testing.T) {
 
 	// Now send another request for the same chain id but different tx hash.  This should get dropped.
 	req2 := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0x96, 0xe3, 0x94, 0xec, 0x5a, 0x00, 0xfc, 0x8b},
+		ChainId:   1,
+		TxHash:    []byte{0x96, 0xe3, 0x94, 0xec, 0x5a, 0x00, 0xfc, 0x8b},
+		Timestamp: time.Now().UnixNano(),
 	}
 	ctx.obsvReqC <- req2
 

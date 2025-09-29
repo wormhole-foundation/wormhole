@@ -754,8 +754,9 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 					queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
 					_, err := adminCs[adminRpcGuardianIndex].SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
-							ChainId: uint32(testCase.msg.EmitterChain),
-							TxHash:  testCase.msg.TxID,
+							ChainId:   uint32(testCase.msg.EmitterChain),
+							TxHash:    testCase.msg.TxID,
+							Timestamp: time.Now().UnixNano(),
 						},
 					})
 					queryCancel()

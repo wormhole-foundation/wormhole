@@ -15,12 +15,12 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/tidwall/gjson"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -45,7 +45,7 @@ func getValidatorIndexForChain(chainId vaa.ChainID, onlyafter time.Time) (map[ui
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
+	body, err := common.SafeRead(res.Body)
 	if err != nil {
 		return nil, err
 	}

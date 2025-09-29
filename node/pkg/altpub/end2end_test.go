@@ -6,13 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -222,7 +222,7 @@ func (s *Server) run() {
 
 // handleSignedObservationBatch is the handler for a signed observation.
 func (s *Server) handleSignedObservationBatch(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	body, err := common.SafeRead(r.Body)
 	r.Body.Close()
 	if err != nil {
 		s.logger.Fatal("error extracting body", zap.Error(err))

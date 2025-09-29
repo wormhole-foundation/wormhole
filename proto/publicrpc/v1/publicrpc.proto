@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package publicrpc.v1;
 
-option go_package = "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1;publicrpcv1";
-
-import "gossip/v1/gossip.proto";
 import "google/api/annotations.proto";
+import "gossip/v1/gossip.proto";
+
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1;publicrpcv1";
 
 enum ChainID {
   CHAIN_ID_UNSPECIFIED = 0;
@@ -66,6 +66,10 @@ enum ChainID {
   CHAIN_ID_PLUME = 55;
   CHAIN_ID_AZTEC = 56;
   CHAIN_ID_XRPLEVM = 57;
+  CHAIN_ID_PLASMA = 58;
+  CHAIN_ID_CREDITCOIN = 59;
+  CHAIN_ID_STACKS = 60;
+  CHAIN_ID_STELLAR = 61;
   CHAIN_ID_WORMCHAIN = 3104;
   CHAIN_ID_COSMOSHUB = 4000;
   CHAIN_ID_EVMOS = 4001;
@@ -101,48 +105,33 @@ service PublicRPCService {
   // GetLastHeartbeats returns the last heartbeat received for each guardian node in the
   // node's active guardian set. Heartbeats received by nodes not in the guardian set are ignored.
   // The heartbeat value is null if no heartbeat has yet been received.
-  rpc GetLastHeartbeats (GetLastHeartbeatsRequest) returns (GetLastHeartbeatsResponse) {
-    option (google.api.http) = {
-      get: "/v1/heartbeats"
-    };
+  rpc GetLastHeartbeats(GetLastHeartbeatsRequest) returns (GetLastHeartbeatsResponse) {
+    option (google.api.http) = {get: "/v1/heartbeats"};
   }
 
-  rpc GetSignedVAA (GetSignedVAARequest) returns (GetSignedVAAResponse) {
-    option (google.api.http) = {
-      get: "/v1/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"
-    };
+  rpc GetSignedVAA(GetSignedVAARequest) returns (GetSignedVAAResponse) {
+    option (google.api.http) = {get: "/v1/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"};
   }
 
-  rpc GetCurrentGuardianSet (GetCurrentGuardianSetRequest) returns (GetCurrentGuardianSetResponse) {
-    option (google.api.http) = {
-      get: "/v1/guardianset/current"
-    };
+  rpc GetCurrentGuardianSet(GetCurrentGuardianSetRequest) returns (GetCurrentGuardianSetResponse) {
+    option (google.api.http) = {get: "/v1/guardianset/current"};
   }
 
-  rpc GovernorGetAvailableNotionalByChain (GovernorGetAvailableNotionalByChainRequest) returns (GovernorGetAvailableNotionalByChainResponse) {
-    option (google.api.http) = {
-      get: "/v1/governor/available_notional_by_chain"
-    };
+  rpc GovernorGetAvailableNotionalByChain(GovernorGetAvailableNotionalByChainRequest) returns (GovernorGetAvailableNotionalByChainResponse) {
+    option (google.api.http) = {get: "/v1/governor/available_notional_by_chain"};
   }
 
-  rpc GovernorGetEnqueuedVAAs (GovernorGetEnqueuedVAAsRequest) returns (GovernorGetEnqueuedVAAsResponse) {
-    option (google.api.http) = {
-      get: "/v1/governor/enqueued_vaas"
-    };
+  rpc GovernorGetEnqueuedVAAs(GovernorGetEnqueuedVAAsRequest) returns (GovernorGetEnqueuedVAAsResponse) {
+    option (google.api.http) = {get: "/v1/governor/enqueued_vaas"};
   }
 
-  rpc GovernorIsVAAEnqueued (GovernorIsVAAEnqueuedRequest) returns (GovernorIsVAAEnqueuedResponse) {
-    option (google.api.http) = {
-      get: "/v1/governor/is_vaa_enqueued/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"
-    };
+  rpc GovernorIsVAAEnqueued(GovernorIsVAAEnqueuedRequest) returns (GovernorIsVAAEnqueuedResponse) {
+    option (google.api.http) = {get: "/v1/governor/is_vaa_enqueued/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"};
   }
 
-  rpc GovernorGetTokenList (GovernorGetTokenListRequest) returns (GovernorGetTokenListResponse) {
-    option (google.api.http) = {
-      get: "/v1/governor/token_list"
-    };
+  rpc GovernorGetTokenList(GovernorGetTokenListRequest) returns (GovernorGetTokenListResponse) {
+    option (google.api.http) = {get: "/v1/governor/token_list"};
   }
-
 }
 
 message GetSignedVAARequest {
@@ -153,8 +142,7 @@ message GetSignedVAAResponse {
   bytes vaa_bytes = 1;
 }
 
-message GetLastHeartbeatsRequest {
-}
+message GetLastHeartbeatsRequest {}
 
 message GetLastHeartbeatsResponse {
   message Entry {
@@ -175,8 +163,7 @@ message GetLastHeartbeatsResponse {
   repeated Entry entries = 1;
 }
 
-message GetCurrentGuardianSetRequest {
-}
+message GetCurrentGuardianSetRequest {}
 
 message GetCurrentGuardianSetResponse {
   GuardianSet guardian_set = 1;
@@ -189,8 +176,7 @@ message GuardianSet {
   repeated string addresses = 2;
 }
 
-message GovernorGetAvailableNotionalByChainRequest {
-}
+message GovernorGetAvailableNotionalByChainRequest {}
 
 message GovernorGetAvailableNotionalByChainResponse {
   message Entry {
@@ -205,8 +191,7 @@ message GovernorGetAvailableNotionalByChainResponse {
   repeated Entry entries = 1;
 }
 
-message GovernorGetEnqueuedVAAsRequest {
-}
+message GovernorGetEnqueuedVAAsRequest {}
 
 message GovernorGetEnqueuedVAAsResponse {
   message Entry {
@@ -230,8 +215,7 @@ message GovernorIsVAAEnqueuedResponse {
   bool is_enqueued = 1;
 }
 
-message GovernorGetTokenListRequest {
-}
+message GovernorGetTokenListRequest {}
 
 message GovernorGetTokenListResponse {
   message Entry {

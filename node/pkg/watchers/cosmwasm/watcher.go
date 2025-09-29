@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -213,7 +212,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 					continue
 				}
-				blocksBody, err := io.ReadAll(resp.Body)
+				blocksBody, err := common.SafeRead(resp.Body)
 				if err != nil {
 					logger.Error("query latest block response read error", zap.String("network", networkName), zap.Error(err))
 					errC <- err //nolint:channelcheck // The watcher will exit anyway
@@ -266,7 +265,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
 				}
-				txBody, err := io.ReadAll(resp.Body)
+				txBody, err := common.SafeRead(resp.Body)
 				if err != nil {
 					logger.Error("query tx response read error", zap.String("network", networkName), zap.Error(err))
 					resp.Body.Close()

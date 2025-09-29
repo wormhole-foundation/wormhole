@@ -89,6 +89,7 @@ var signedObservationRequestPrefix = []byte("signed_observation_request|")
 
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
+var observationRequestMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
@@ -338,8 +339,13 @@ func Run(params *RunParams) func(ctx context.Context) error {
 
 		if len(params.protectedPeers) != 0 {
 			for _, peerId := range params.protectedPeers {
+				decodedPeerId, err := peer.Decode(peerId)
+				if err != nil {
+					logger.Error("error decoding protected peer ID", zap.String("peerId", peerId), zap.Error(err))
+					continue
+				}
 				logger.Info("protecting peer", zap.String("peerId", peerId))
-				params.components.ConnMgr.Protect(peer.ID(peerId), "configured")
+				params.components.ConnMgr.Protect(decodedPeerId, "configured")
 			}
 		}
 
@@ -1087,6 +1093,15 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 	}
 
 	// TODO: implement per-guardian rate limiting
+
+	// Perform timestamp validation
+	// Since this is a version upgrade, we need to accept a timestamp of 0.
+	// Shortly after all have upgraded, we will remove this conditional check.
+	if h.Timestamp != 0 {
+		if time.Until(time.Unix(0, h.Timestamp)).Abs() > observationRequestMaxTimeDifference {
+			return nil, fmt.Errorf("reobservation request is too old or too far into the future")
+		}
+	}
 
 	return &h, nil
 }

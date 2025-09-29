@@ -7,11 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
 	"strings"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -238,7 +238,7 @@ func suiApiRequest[T SuiApiResponse](rpc string, method string, params string) (
 	defer resp.Body.Close()
 
 	// Read the response
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return defaultT, fmt.Errorf("cannot read response: %w", err)
 	}
