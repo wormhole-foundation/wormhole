@@ -1,17 +1,14 @@
-// SPDX-License-Identifier: Apache 2
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.21;
 
 import "../interfaces/IWormhole.sol";
 import "./interfaces/ICustomConsistencyLevel.sol";
 import "./libraries/ConfigMakers.sol";
 
-string constant testCustomConsistencyLevelVersion = "TestCustomConsistencyLevel-0.0.1";
-
 /// @title TestCustomConsistencyLevel
-/// @author Wormhole Project Contributors.
-/// @notice The TestCustomConsistencyLevel contract can be used to test the custom consistency level functionality.
+/// @notice Harness to exercise CustomConsistencyLevel end-to-end.
 contract TestCustomConsistencyLevel {
-    string public constant VERSION = testCustomConsistencyLevelVersion;
+    string public constant VERSION = "TestCustomConsistencyLevel-0.0.1";
 
     ICustomConsistencyLevel public immutable customConsistencyLevel;
     IWormhole public immutable wormhole;
@@ -25,23 +22,30 @@ contract TestCustomConsistencyLevel {
     ) {
         wormhole = IWormhole(_wormhole);
         customConsistencyLevel = ICustomConsistencyLevel(_customConsistencyLevel);
-        ICustomConsistencyLevel(_customConsistencyLevel).configure(
+
+        // configure validated, canonicalized word
+        customConsistencyLevel.configure(
             ConfigMakers.makeAdditionalBlocksConfig(_consistencyLevel, _blocks)
         );
     }
 
-    // ==================== External Interface ===============================================
-
+    /// Update configuration via the same canonical maker
     function configure(uint8 _consistencyLevel, uint16 _blocks) external {
         customConsistencyLevel.configure(
             ConfigMakers.makeAdditionalBlocksConfig(_consistencyLevel, _blocks)
         );
     }
 
+    /// Publish a message respecting the Wormhole message fee and caller-provided consistency
     function publishMessage(
+        uint8 consistencyLevel,
         string memory str
     ) external payable returns (uint64 sequence) {
-        nonce++;
-        sequence = wormhole.publishMessage(nonce, bytes(str), 203);
+        // Enforce the Wormhole fee contractually
+        require(msg.value == wormhole.messageFee(), "incorrect message fee");
+
+        unchecked { ++nonce; }
+        // Forward exactly what the caller specifies; avoid magic numbers like 203
+        sequence = wormhole.publishMessage{value: msg.value}(nonce, bytes(str), consistencyLevel);
     }
 }
