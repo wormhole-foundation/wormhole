@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.21;
+pragma solidity ^0.8.0;
 
 import "./interfaces/ICustomConsistencyLevel.sol";
 
@@ -31,7 +31,7 @@ contract CustomConsistencyLevel is ICustomConsistencyLevel {
     }
 
     /// @inheritdoc ICustomConsistencyLevel
-    function configurationOf(address emitter) external view override returns (bytes32) {
+    function getConfiguration(address emitter) external view override returns (bytes32) {
         return _configurations[emitter];
     }
 }

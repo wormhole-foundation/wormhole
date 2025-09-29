@@ -20,5 +20,5 @@ interface ICustomConsistencyLevel {
     /// @return The configuration.
     function getConfiguration(
         address emitterAddress
-    ) external returns (bytes32);
+    ) external view returns (bytes32);
 }

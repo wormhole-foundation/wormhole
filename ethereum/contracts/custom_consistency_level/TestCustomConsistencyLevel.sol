@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.21;
+pragma solidity ^0.8.0;
 
 import "../interfaces/IWormhole.sol";
 import "./interfaces/ICustomConsistencyLevel.sol";
@@ -10,7 +10,7 @@ import "./libraries/ConfigMakers.sol";
 contract TestCustomConsistencyLevel {
     string public constant VERSION = "TestCustomConsistencyLevel-0.0.1";
 
-    ICustomConsistencyLevel public immutable customConsistencyLevel;
+    ICustomConsistencyLevel public customConsistencyLevel;
     IWormhole public immutable wormhole;
     uint32 public nonce;
 
