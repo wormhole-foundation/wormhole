@@ -1,4 +1,9 @@
-use dep::aztec::{protocol_types::traits::{Deserialize, Packable, Serialize}, prelude::AztecAddress};
+use dep::aztec::{
+    protocol_types::{
+        address::AztecAddress,
+        traits::{Deserialize, Packable, Serialize},
+    },
+};
 use std::meta::derive;
 
 #[derive(Deserialize, Packable, Serialize)]

@@ -22,8 +22,11 @@ pub contract Wormhole {
 
     use dep::aztec::{
         macros::{functions::{initializer, internal, private, public, utility}, storage::storage},
-        prelude::{AztecAddress, Map, PublicMutable},
-        protocol_types::traits::ToField,
+        state_vars::{map::Map, public_mutable::PublicMutable},
+        protocol_types::{
+            address::AztecAddress,
+            traits::ToField,
+        },
     };
 
     use dep::token::Token;
@@ -145,9 +148,12 @@ pub contract Wormhole {
         let receiver_address = storage.receiver_address.read();
         let token_address = storage.token_address.read();
 
-        let _ = Token::at(token_address)
-            .transfer_in_public(from, receiver_address, message_fee, token_nonce)
-            .call(&mut context);
+        // Only transfer tokens if fee is greater than 0
+        if message_fee > 0 {
+            let _ = Token::at(token_address)
+                .transfer_in_public(from, receiver_address, message_fee, token_nonce)
+                .call(&mut context);
+        }
 
         let sequence = storage.sequences.at(context.msg_sender()).read();
         storage.sequences.at(context.msg_sender()).write(sequence + 1);
@@ -181,7 +187,7 @@ pub contract Wormhole {
         from: AztecAddress,
         token_nonce: Field,
     ) {
-        assert(1 <= message_fee, "insufficient fee");
+        assert(0 <= message_fee, "insufficient fee");
 
         // NOTE: These addresses are hardcoded because private functions cannot access PublicMutable storage.
         // They must be updated to match the deployed contract addresses before compilation.
@@ -192,9 +198,12 @@ pub contract Wormhole {
             inner: 0x037e5d19d6d27e2fb7c947cfe7c36459e27d35e46dd59f5f47373a64ff491d2c,
         };
 
-        let _ = Token::at(token_address)
-            .transfer_in_private(from, receiver_address, message_fee, token_nonce)
-            .call(&mut context);
+        // Only transfer tokens if fee is greater than 0
+        if message_fee > 0 {
+            let _ = Token::at(token_address)
+                .transfer_in_private(from, receiver_address, message_fee, token_nonce)
+                .call(&mut context);
+        }
 
         Wormhole::at(context.this_address())._publish_message(nonce, payloads, consistency).enqueue(
             &mut context,
@@ -346,7 +355,7 @@ pub contract Wormhole {
     }
 
     #[contract_library_method]
-    unconstrained fn verify_vaa_unconstrained(
+    pub unconstrained fn verify_vaa_unconstrained(
         bytes: [u8; 2000],
         actual_length: u32,
     ) -> ([[u8; 32]; 13], [[u8; 32]; 13], [[u8; 64]; 13], [u8; 32], u8) {
@@ -457,13 +466,14 @@ pub contract Wormhole {
 
 mod tests {
     use crate::{structs::Signature, Wormhole};
-    use dep::aztec::prelude::AztecAddress;
-    use dep::aztec::protocol_types::traits::FromField;
-    use dep::aztec::test::helpers::cheatcodes;
+    use dep::aztec::protocol_types::{
+        address::AztecAddress,
+        traits::FromField,
+    };
     use dep::aztec::test::helpers::test_environment::TestEnvironment;
 
     #[test]
-    unconstrained fn test_signature_extraction() {
+    pub unconstrained fn test_signature_extraction() {
         let signature_bytes: [u8; 66] = [
             0x00, // Guardian index
             // R component (32 bytes)
@@ -486,11 +496,9 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn test_verify_vaa_logic() {
+    pub unconstrained fn test_verify_vaa_logic() {
         // Setup env, generate keys
         let mut env = TestEnvironment::new();
-
-        cheatcodes::reset(); // Reset TXE state
 
         // Deploy contract - need to specify all 3 parameters for deploy
         let dummy_owner = AztecAddress::from_field(1);
@@ -502,12 +510,11 @@ mod tests {
         );
 
         let contract_address = env
-            .deploy_self("Wormhole")
-            .with_public_void_initializer(
+            .deploy("Wormhole")
+            .with_public_initializer(
                 dummy_owner,
                 Wormhole::interface().init(56, 56, receiver_address, token_address),
-            )
-            .to_address();
+            );
 
         let mut vaa_bytes: [u8; 2000] = [0; 2000];
         let actual_length = 221;
@@ -538,7 +545,7 @@ mod tests {
             vaa_bytes[i] = wh_vaa[i];
         }
 
-        let _ = env.call_private_void(
+        env.call_private(
             dummy_owner,
             Wormhole::at(contract_address).verify_vaa(vaa_bytes, actual_length),
         );
