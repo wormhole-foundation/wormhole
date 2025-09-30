@@ -1,6 +1,6 @@
 // vaa-verification-service.mjs - TESTNET VERSION (FIXED)
 import express from 'express';
-import { SponsoredFeePaymentMethod, getContractInstanceFromDeployParams, Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
+import { SponsoredFeePaymentMethod, getContractInstanceFromInstantiationParams, Contract, loadContractArtifact, createAztecNodeClient, Fr, AztecAddress } from '@aztec/aztec.js';
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { deriveSigningKey } from '@aztec/stdlib/keys';
 import { createPXEService, getPXEServiceConfig } from '@aztec/pxe/server';
@@ -19,8 +19,8 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// TESTNET CONFIGURATION - UPDATED WITH FRESH DEPLOYMENT
-const NODE_URL = process.env.NODE_URL || 'https://aztec-alpha-testnet-fullnode.zkv.xyz/';
+// TESTNET CONFIGURATION
+const NODE_URL = process.env.NODE_URL || 'https://aztec-testnet-fullnode.zkv.xyz/';
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // owner-wallet secret key from .env
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x1359b34037191f7800ead068c2244911171b35caf456f9c6b808eaa6698cb0b6'; // Fresh Wormhole contract
 const SALT = process.env.SALT || '0x0000000000000000000000000000000000000000000000000000000000000000'; // Salt used in deployment
@@ -29,7 +29,7 @@ let pxe, nodeClient, wormholeContract, paymentMethod, isReady = false;
 
 // Helper function to get the SponsoredFPC instance
 async function getSponsoredFPCInstance() {
-  return await getContractInstanceFromDeployParams(SponsoredFPCContract.artifact, {
+  return await getContractInstanceFromInstantiationParams(SponsoredFPCContract.artifact, {
     salt: new Fr(SPONSORED_FPC_SALT),
   });
 }
@@ -205,7 +205,10 @@ app.post('/verify', async (req, res) => {
     console.log('🔄 Calling contract method verify_vaa...');
     const tx = await wormholeContract.methods
       .verify_vaa(vaaArray, actualLength)
-      .send({ fee: { paymentMethod } })
+      .send({ 
+        from: wormholeContract.wallet.getAddress(),
+        fee: { paymentMethod } 
+      })
       .wait();
     
     console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
@@ -303,12 +306,14 @@ app.post('/test', async (req, res) => {
   const interaction = await wormholeContract.methods
       .verify_vaa(vaaArray, actualLength);
 
-  console.log('🔄 Capturing interaction profile...');
-
-  await captureProfile('verify_vaa', interaction);
+  //console.log('🔄 Capturing interaction profile...');
+  //await captureProfile('verify_vaa', interaction);
 
   console.log('🔄 Sending transaction...');
-  await interaction.send({ fee: { paymentMethod } }).wait();
+  const tx = await interaction.send({ 
+    from: wormholeContract.wallet.getAddress(),
+    fee: { paymentMethod } 
+  }).wait();
   
   console.log(`✅ VAA verified successfully on TESTNET: ${tx.txHash}`);
   
