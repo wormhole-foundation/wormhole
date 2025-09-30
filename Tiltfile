@@ -235,7 +235,7 @@ def build_node_yaml():
                     "--aztecRPC",
                     "http://aztec-sandbox:8090",
                     "--aztecContract",
-                    "0x0848d2af89dfd7c0e171238f9216399e61e908cd31b0222a920f1bf621a16ed6",
+                    "0x1359b34037191f7800ead068c2244911171b35caf456f9c6b808eaa6698cb0b6",
                 ]
 
             if sui:
