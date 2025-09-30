@@ -483,7 +483,7 @@ impl WormholeStorage {
             provider: provider,
             guardian_set_index: 0,
             guardian_set_expiry: 86400,
-            message_fee: 1,
+            message_fee: 0,
             emitter_registry: EmitterRegistry::new(),
         }
     }
