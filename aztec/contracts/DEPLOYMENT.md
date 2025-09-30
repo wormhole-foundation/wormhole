@@ -41,7 +41,7 @@ export NODE_URL=https://aztec-alpha-testnet-fullnode.zkv.xyz
 export SPONSORED_FPC_ADDRESS=0x299f255076aa461e4e94a843f0275303470a6b8ebe7cb44a471c66711151e529
 # FPC address valid as of v2.0.3, get the latest address via % aztec get-canonical-sponsored-fpc-address
 
-# Owner private key 
+# Owner private key (32-byte)
 export OWNER_SK=<contract_owner_private_key>
 ```
 
@@ -174,7 +174,7 @@ aztec-wallet send mint_to_private \
     --from accounts:owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --contract-address $TOKEN_CONTRACT_ADDRESS \
-    --args accounts:owner-wallet accounts:owner-wallet 10000
+    --args accounts:owner-wallet 10000
 ```
 
 #### 7b. Mint Public Tokens
@@ -200,8 +200,9 @@ aztec-wallet send mint_to_public \
 - Ownership can be transferred by the current owner
 
 ```bash
-# Compile the contract
+# Compile the contract (v2.0.2+ requires two steps)
 aztec-nargo compile
+aztec-postprocess-contract
 ```
 
 ### 9. Deploy Wormhole Contract
@@ -252,7 +253,7 @@ jq --arg wormhole "$WORMHOLE_CONTRACT_ADDRESS" '.wormhole = $wormhole' addresses
 
 ### 11. Owner Functions
 
-After deployment, the contract owner can use these functions:
+After deployment, the following functions can be used:
 
 #### 11a. Check Current Owner
 ```bash
@@ -326,15 +327,6 @@ aztec-wallet call get_scheduled_token_address \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --contract-address $WORMHOLE_CONTRACT_ADDRESS
 ```
-
-## Verification
-
-After deployment, verify that:
-- Both contracts are deployed successfully
-- Token minting operations completed
-- All transactions are confirmed on AztecScan
-- Owner functions work correctly
-- Address changes are properly scheduled with delays
 
 ## Troubleshooting
 
