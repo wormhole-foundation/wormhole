@@ -37,7 +37,7 @@ If you prefer to deploy manually or need more control over the process, follow t
 
 ```bash
 # Testnet configuration
-export NODE_URL=https://aztec-alpha-testnet-fullnode.zkv.xyz
+export NODE_URL=https://aztec-testnet-fullnode.zkv.xyz
 export SPONSORED_FPC_ADDRESS=0x299f255076aa461e4e94a843f0275303470a6b8ebe7cb44a471c66711151e529
 # FPC address valid as of v2.0.3, get the latest address via % aztec get-canonical-sponsored-fpc-address
 
