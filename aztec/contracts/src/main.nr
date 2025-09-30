@@ -31,66 +31,10 @@ pub contract Wormhole {
 
     use dep::token::Token;
 
-    #[utility]
-    unconstrained fn parse_vaa_unconstrained(
-        bytes: [u8; 2000],
-        actual_length: u32,
-    ) -> (u32, u8, [[u8; 66]; 13], [u8; 1860], u32) {
-        let guardian_set_index: u32 = (bytes[1] as u32) << 24
-            | (bytes[2] as u32) << 16
-            | (bytes[3] as u32) << 8
-            | (bytes[4] as u32);
-
-        let signatures_len = bytes[5];
-
-        // Parse signatures
-        let mut signatures = [[0; 66]; 13];
-        for i in 0..13 {
-            if i < signatures_len {
-                let sig_start: u32 = 6 + (i as u32 * 66);
-                for j in 0..66 {
-                    let byte_index: u32 = sig_start + j as u32;
-                    if byte_index < actual_length {
-                        signatures[i as u32][j] = bytes[byte_index];
-                    }
-                }
-            }
-        }
-
-        // Calculate where the body starts
-        let body_start: u32 = 6 + (signatures_len as u32 * 66);
-
-        // Calculate actual body length
-        let body_length: u32 = actual_length - body_start;
-
-        let mut body_bytes = [0; 1860];
-        for i in 0..1860 {
-            if i < body_length {
-                body_bytes[i] = bytes[body_start + i];
-            }
-        }
-
-        (guardian_set_index, signatures_len, signatures, body_bytes, body_length)
-    }
-
-    #[utility]
-    unconstrained fn compute_vaa_hash_unconstrained(
-        body_bytes: [u8; 1860],
-        body_length: u32,
-    ) -> [u8; 32] {
-        // Extract only the actual body content
-        let mut actual_body = [0; 1860];
-        for i in 0..body_length {
-            actual_body[i] = body_bytes[i];
-        }
-
-        // Double hash as per Wormhole spec
-        let hash: [u8; 32] = keccak256(actual_body, body_length);
-        let double_hash: [u8; 32] = keccak256(hash, 32);
-
-        double_hash
-    }
-
+    // ============================================================================
+    // STORAGE STRUCTURE
+    // ============================================================================
+    
     #[storage]
     struct Storage<Context> {
         state: PublicMutable<WormholeStorage, Context>,
@@ -119,6 +63,10 @@ pub contract Wormhole {
         current_guardian_set_index: Map<u32, PublicMutable<u64, Context>, Context>,
     }
 
+    // ============================================================================
+    // CONTRACT INITIALIZATION
+    // ============================================================================
+    
     #[public]
     #[initializer]
     fn init(
@@ -134,6 +82,10 @@ pub contract Wormhole {
         storage.current_guardian_set_index.at(0).write(18_446_744_073_709_551_615);
     }
 
+    // ============================================================================
+    // CORE FUNCTIONALITY - MESSAGE PUBLISHING
+    // ============================================================================
+    
     #[public]
     fn publish_message_in_public(
         nonce: u64,
@@ -236,7 +188,184 @@ pub contract Wormhole {
         sequence
     }
 
-    // Keep all your guardian setters exactly as they are
+    // ============================================================================
+    // CORE FUNCTIONALITY - VAA VERIFICATION
+    // ============================================================================
+    
+    #[utility]
+    unconstrained fn parse_vaa_unconstrained(
+        bytes: [u8; 2000],
+        actual_length: u32,
+    ) -> (u32, u8, [[u8; 66]; 13], [u8; 1860], u32) {
+        let guardian_set_index: u32 = (bytes[1] as u32) << 24
+            | (bytes[2] as u32) << 16
+            | (bytes[3] as u32) << 8
+            | (bytes[4] as u32);
+
+        let signatures_len = bytes[5];
+
+        // Parse signatures
+        let mut signatures = [[0; 66]; 13];
+        for i in 0..13 {
+            if i < signatures_len {
+                let sig_start: u32 = 6 + (i as u32 * 66);
+                for j in 0..66 {
+                    let byte_index: u32 = sig_start + j as u32;
+                    if byte_index < actual_length {
+                        signatures[i as u32][j] = bytes[byte_index];
+                    }
+                }
+            }
+        }
+
+        // Calculate where the body starts
+        let body_start: u32 = 6 + (signatures_len as u32 * 66);
+
+        // Calculate actual body length
+        let body_length: u32 = actual_length - body_start;
+
+        let mut body_bytes = [0; 1860];
+        for i in 0..1860 {
+            if i < body_length {
+                body_bytes[i] = bytes[body_start + i];
+            }
+        }
+
+        (guardian_set_index, signatures_len, signatures, body_bytes, body_length)
+    }
+
+    #[utility]
+    unconstrained fn compute_vaa_hash_unconstrained(
+        body_bytes: [u8; 1860],
+        body_length: u32,
+    ) -> [u8; 32] {
+        // Extract only the actual body content
+        let mut actual_body = [0; 1860];
+        for i in 0..body_length {
+            actual_body[i] = body_bytes[i];
+        }
+
+        // Double hash as per Wormhole spec
+        let hash: [u8; 32] = keccak256(actual_body, body_length);
+        let double_hash: [u8; 32] = keccak256(hash, 32);
+
+        double_hash
+    }
+
+    #[contract_library_method]
+    pub unconstrained fn verify_vaa_unconstrained(
+        bytes: [u8; 2000],
+        actual_length: u32,
+    ) -> ([[u8; 32]; 13], [[u8; 32]; 13], [[u8; 64]; 13], [u8; 32], u8) {
+        let version = bytes[0];
+        assert(version == 1, "VM version incompatible");
+
+        let (_, signatures_len, signatures, body_bytes, body_length) =
+            parse_vaa_unconstrained(bytes, actual_length);
+
+        assert(signatures_len >= 1, "Need at least 1 signature");
+        assert(signatures_len <= 13, "Too many signatures");
+
+        // Compute the VAA hash
+        let hash = compute_vaa_hash_unconstrained(body_bytes, body_length);
+
+        let guardian = crate::structs::Guardian::new(
+            [
+                0x13, 0x94, 0x7b, 0xd4, 0x8b, 0x18, 0xe5, 0x3f, 0xda, 0xee, 0xe7, 0x7f, 0x34, 0x73,
+                0x39, 0x1a, 0xc7, 0x27, 0xc6, 0x38,
+            ],
+            [
+                0xfa, 0x9d, 0x6b, 0x47, 0x04, 0x3b, 0x15, 0xb4, 0xb3, 0x3c, 0xf0, 0x5b, 0xb1, 0xde,
+                0x0f, 0x13, 0xda, 0x70, 0x31, 0x36, 0xb2, 0xcd, 0x15, 0x73, 0x24, 0xeb, 0x61, 0x5e,
+                0xc9, 0xee, 0x95, 0x12,
+            ],
+            [
+                0x38, 0xc6, 0x7b, 0x54, 0xd0, 0x3e, 0x3c, 0x18, 0x2e, 0x0e, 0x77, 0xb8, 0x5f, 0x88,
+                0x3c, 0xcd, 0x74, 0xdd, 0xdf, 0xc5, 0x90, 0x10, 0xfb, 0xf4, 0x75, 0xa0, 0xbe, 0xe6,
+                0x59, 0x3c, 0xe2, 0xbd,
+            ],
+        );
+
+        // Prepare arrays for constrained verification
+        let mut pub_keys_x = [[0; 32]; 13];
+        let mut pub_keys_y = [[0; 32]; 13];
+        let mut signature_bytes_array = [[0; 64]; 13];
+
+        for i in 0..13 {
+            if i < signatures_len {
+                let sig = Signature::from_bytes(signatures[i as u32]);
+                let guardian_idx = sig.guardian_index;
+
+                assert(guardian_idx < 19, "guardian index out of bounds");
+
+                // Get public key components as byte arrays
+                let pub_key_x = guardian.get_pub_key_x();
+                let pub_key_y = guardian.get_pub_key_y();
+
+                pub_keys_x[i as u32] = pub_key_x;
+                pub_keys_y[i as u32] = pub_key_y;
+
+                // Prepare signature bytes
+                let mut signature_bytes = [0; 64];
+                for j in 0..32 {
+                    signature_bytes[j] = sig.r[j];
+                    signature_bytes[32 + j] = sig.s[j];
+                }
+                signature_bytes_array[i as u32] = signature_bytes;
+            }
+        }
+        
+        (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len)
+    }
+
+    #[private]
+    fn verify_vaa(bytes: [u8; 2000], actual_length: u32) {
+        // Safety: verify_vaa_unconstrained performs parsing and validation that doesn't need constraints
+        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, _signatures_len) =
+            unsafe { verify_vaa_unconstrained(bytes, actual_length) };
+
+        let required_signatures = 1;
+        let mut verified_count = 0;
+
+        // Testnet VAA verification only utilizes a single guardian.
+
+        // TODO: Uncomment this when ECDSA verification in loop is implemented.
+        // See issue: https://github.com/noir-lang/noir/pull/8993
+        
+        // for i in 0..13 {
+        //     if i < signatures_len {
+        //        let is_valid = std::ecdsa_secp256k1::verify_signature(
+        //            pub_keys_x[i as u32],
+        //            pub_keys_y[i as u32],
+        //            signature_bytes_array[i as u32],
+        //            hash,
+        //        );
+
+        //        if is_valid {
+        //            verified_count += 1;
+        //        }
+        //    }
+        //}
+
+        let is_valid = std::ecdsa_secp256k1::verify_signature(
+            pub_keys_x[0 as u32],
+            pub_keys_y[0 as u32],
+            signature_bytes_array[0 as u32],
+            hash,
+        );
+
+        if is_valid {
+            verified_count += 1;
+        }
+
+        assert(verified_count >= required_signatures, "Insufficient valid signatures");
+    }
+
+    // ============================================================================
+    // GUARDIAN MANAGEMENT
+    // ============================================================================
+    
+    // Individual guardian setters
     #[public]
     fn set_guardian1(guardian: Guardian, index: u32) {
         storage.guardian_1.at(index).write(guardian);
@@ -332,6 +461,10 @@ pub contract Wormhole {
         storage.guardian_19.at(index).write(guardian);
     }
 
+    // ============================================================================
+    // GOVERNANCE FUNCTIONS
+    // ============================================================================
+    
     #[public]
     fn expire_guardian_set(index: u32) {
         storage.current_guardian_set_index.at(index).write(context.timestamp() + 86400);
@@ -354,114 +487,6 @@ pub contract Wormhole {
         WormholeStorage::get_provider(storage.state.read())
     }
 
-    #[contract_library_method]
-    pub unconstrained fn verify_vaa_unconstrained(
-        bytes: [u8; 2000],
-        actual_length: u32,
-    ) -> ([[u8; 32]; 13], [[u8; 32]; 13], [[u8; 64]; 13], [u8; 32], u8) {
-        let version = bytes[0];
-        assert(version == 1, "VM version incompatible");
-
-        let (_, signatures_len, signatures, body_bytes, body_length) =
-            parse_vaa_unconstrained(bytes, actual_length);
-
-        assert(signatures_len >= 1, "Need at least 1 signature");
-        assert(signatures_len <= 13, "Too many signatures");
-
-        // Compute the VAA hash
-        let hash = compute_vaa_hash_unconstrained(body_bytes, body_length);
-
-        let guardian = crate::structs::Guardian::new(
-            [
-                0x13, 0x94, 0x7b, 0xd4, 0x8b, 0x18, 0xe5, 0x3f, 0xda, 0xee, 0xe7, 0x7f, 0x34, 0x73,
-                0x39, 0x1a, 0xc7, 0x27, 0xc6, 0x38,
-            ],
-            [
-                0xfa, 0x9d, 0x6b, 0x47, 0x04, 0x3b, 0x15, 0xb4, 0xb3, 0x3c, 0xf0, 0x5b, 0xb1, 0xde,
-                0x0f, 0x13, 0xda, 0x70, 0x31, 0x36, 0xb2, 0xcd, 0x15, 0x73, 0x24, 0xeb, 0x61, 0x5e,
-                0xc9, 0xee, 0x95, 0x12,
-            ],
-            [
-                0x38, 0xc6, 0x7b, 0x54, 0xd0, 0x3e, 0x3c, 0x18, 0x2e, 0x0e, 0x77, 0xb8, 0x5f, 0x88,
-                0x3c, 0xcd, 0x74, 0xdd, 0xdf, 0xc5, 0x90, 0x10, 0xfb, 0xf4, 0x75, 0xa0, 0xbe, 0xe6,
-                0x59, 0x3c, 0xe2, 0xbd,
-            ],
-        );
-
-        // Prepare arrays for constrained verification
-        let mut pub_keys_x = [[0; 32]; 13];
-        let mut pub_keys_y = [[0; 32]; 13];
-        let mut signature_bytes_array = [[0; 64]; 13];
-
-        for i in 0..13 {
-            if i < signatures_len {
-                let sig = Signature::from_bytes(signatures[i as u32]);
-                let guardian_idx = sig.guardian_index;
-
-                assert(guardian_idx < 19, "guardian index out of bounds");
-
-                // Get public key components as byte arrays
-                let pub_key_x = guardian.get_pub_key_x();
-                let pub_key_y = guardian.get_pub_key_y();
-
-                pub_keys_x[i as u32] = pub_key_x;
-                pub_keys_y[i as u32] = pub_key_y;
-
-                // Prepare signature bytes
-                let mut signature_bytes = [0; 64];
-                for j in 0..32 {
-                    signature_bytes[j] = sig.r[j];
-                    signature_bytes[32 + j] = sig.s[j];
-                }
-                signature_bytes_array[i as u32] = signature_bytes;
-            }
-        }
-        
-        (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len)
-    }
-
-    #[private]
-    fn verify_vaa(bytes: [u8; 2000], actual_length: u32) {
-        // Safety: verify_vaa_unconstrained performs parsing and validation that doesn't need constraints
-        let (pub_keys_x, pub_keys_y, signature_bytes_array, hash, signatures_len) =
-            unsafe { verify_vaa_unconstrained(bytes, actual_length) };
-
-        let required_signatures = 1;
-        let mut verified_count = 0;
-
-        // Testnet VAA verification only utilizes a single guardian.
-
-        // TODO: Uncomment this when ECDSA verification in loop is implemented.
-        // See issue: https://github.com/noir-lang/noir/pull/8993
-        
-        // for i in 0..13 {
-        //     if i < signatures_len {
-        //        let is_valid = std::ecdsa_secp256k1::verify_signature(
-        //            pub_keys_x[i as u32],
-        //            pub_keys_y[i as u32],
-        //            signature_bytes_array[i as u32],
-        //            hash,
-        //        );
-
-        //        if is_valid {
-        //            verified_count += 1;
-        //        }
-        //    }
-        //}
-
-        let is_valid = std::ecdsa_secp256k1::verify_signature(
-            pub_keys_x[0 as u32],
-            pub_keys_y[0 as u32],
-            signature_bytes_array[0 as u32],
-            hash,
-        );
-
-        if is_valid {
-            verified_count += 1;
-        }
-
-        assert(verified_count >= required_signatures, "Insufficient valid signatures");
-    }
 }
 
 mod tests {
