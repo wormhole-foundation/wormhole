@@ -192,15 +192,12 @@ aztec-wallet send mint_to_public \
 
 **Important**: The Wormhole contract must be compiled before deployment. If you've made any changes to the contract source code, compile it first:
 
-**Note**: The contract contains hardcoded addresses in the `publish_message_in_private` function because private functions cannot access public storage. These addresses are automatically updated by the deployment script to match your deployed token and receiver addresses. If you're deploying manually, you may need to update these addresses in `src/main.nr` before compilation.
+**Note**: The contract now uses `DelayedPublicMutable` storage for addresses, eliminating the need for hardcoded addresses in private functions. The addresses are now properly managed through the contract's storage system with appropriate access controls and delays.
 
-**Note**: This limitation is expected to be resolved in a future Noir language update, which will eliminate the need for hardcoded addresses.
-
-**IMPORTANT**: There are 2 places where hardcoded addresses must be updated:
-1. In the `publish_message_in_private` function (at the top of `src/main.nr`)
-2. In the `test_verify_vaa_logic` test function (in the same file)
-
-Both locations must use the same addresses to ensure consistency between the actual contract logic and the test functions.
+**Important**: The contract includes owner-based access control:
+- Only the contract owner can change addresses
+- Address changes have a 87,000 second (~1 day) delay
+- Ownership can be transferred by the current owner
 
 ```bash
 # Compile the contract
@@ -216,14 +213,20 @@ aztec-wallet deploy \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
     --alias wormhole \
     target/wormhole_contracts-Wormhole.json \
-    --args 56 56 $RECEIVER_ADDRESS $TOKEN_CONTRACT_ADDRESS --no-wait --init init
+    --args 56 56 accounts:owner-wallet $RECEIVER_ADDRESS $TOKEN_CONTRACT_ADDRESS --no-wait --init init
 ```
 
 **Note**: The `init()` function parameters are:
 - `chain_id` (56): Aztec testnet chain ID
 - `evm_chain_id` (56): EVM chain ID mapping  
+- `owner` (accounts:owner-wallet): Contract owner address (has admin privileges)
 - `receiver_address` ($RECEIVER_ADDRESS): Address that receives message fees
 - `token_address` ($TOKEN_CONTRACT_ADDRESS): Token contract for fee payments
+
+**Important**: The owner address is the wallet that deployed the contract and has exclusive rights to:
+- Change the receiver address (with 87,000 second delay)
+- Change the token address (with 87,000 second delay)  
+- Transfer ownership to another address
 
 The receiver address is the fee collector address, not the Wormhole contract address itself.
 
@@ -245,12 +248,93 @@ jq --arg wormhole "$WORMHOLE_CONTRACT_ADDRESS" '.wormhole = $wormhole' addresses
 
 **Important**: Wait for the transaction to be mined. You can check the transaction status at [AztecScan](http://aztecscan.xyz/).
 
+## Post-Deployment Management
+
+### 11. Owner Functions
+
+After deployment, the contract owner can use these functions:
+
+#### 11a. Check Current Owner
+```bash
+aztec-wallet call get_owner \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+```
+
+#### 11b. Check Current Addresses
+```bash
+# Check receiver address
+aztec-wallet call get_receiver_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+
+# Check token address
+aztec-wallet call get_token_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+```
+
+#### 11c. Change Addresses (Owner Only)
+```bash
+# Change receiver address (takes effect after 87,000 seconds)
+aztec-wallet send set_receiver_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS \
+    --args <new_receiver_address>
+
+# Change token address (takes effect after 87,000 seconds)
+aztec-wallet send set_token_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS \
+    --args <new_token_address>
+```
+
+#### 11d. Transfer Ownership
+```bash
+# Transfer ownership to another address
+aztec-wallet send transfer_ownership \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS \
+    --args <new_owner_address>
+```
+
+#### 11e. Check Scheduled Changes
+```bash
+# Check scheduled receiver address change
+aztec-wallet call get_scheduled_receiver_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+
+# Check scheduled token address change
+aztec-wallet call get_scheduled_token_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+```
+
 ## Verification
 
 After deployment, verify that:
 - Both contracts are deployed successfully
 - Token minting operations completed
 - All transactions are confirmed on AztecScan
+- Owner functions work correctly
+- Address changes are properly scheduled with delays
 
 ## Troubleshooting
 

@@ -22,7 +22,7 @@ pub contract Wormhole {
 
     use dep::aztec::{
         macros::{functions::{initializer, internal, private, public, utility}, storage::storage},
-        state_vars::{map::Map, public_mutable::PublicMutable},
+        state_vars::{map::Map, public_mutable::PublicMutable, delayed_public_mutable::DelayedPublicMutable},
         protocol_types::{
             address::AztecAddress,
             traits::ToField,
@@ -34,13 +34,14 @@ pub contract Wormhole {
     // ============================================================================
     // STORAGE STRUCTURE
     // ============================================================================
-    
+
     #[storage]
     struct Storage<Context> {
         state: PublicMutable<WormholeStorage, Context>,
         sequences: Map<AztecAddress, PublicMutable<u64, Context>, Context>,
-        receiver_address: PublicMutable<AztecAddress, Context>,
-        token_address: PublicMutable<AztecAddress, Context>,
+        owner: PublicMutable<AztecAddress, Context>,
+        receiver_address: DelayedPublicMutable<AztecAddress, 87000, Context>, // Delay slightly over 1 day.
+        token_address: DelayedPublicMutable<AztecAddress, 87000, Context>, // Delay slightly over 1 day.
         guardian_1: Map<u32, PublicMutable<Guardian, Context>, Context>,
         guardian_2: Map<u32, PublicMutable<Guardian, Context>, Context>,
         guardian_3: Map<u32, PublicMutable<Guardian, Context>, Context>,
@@ -66,26 +67,28 @@ pub contract Wormhole {
     // ============================================================================
     // CONTRACT INITIALIZATION
     // ============================================================================
-    
+
     #[public]
     #[initializer]
     fn init(
         chain_id: u16,
         evm_chain_id: u16,
+        owner: AztecAddress,
         receiver_address: AztecAddress,
         token_address: AztecAddress,
     ) {
         let provider: Provider = Provider { chain_id, evm_chain_id };
         storage.state.write(WormholeStorage::init(provider));
-        storage.receiver_address.write(receiver_address);
-        storage.token_address.write(token_address);
+        storage.owner.write(owner);
+        storage.receiver_address.schedule_value_change(receiver_address);
+        storage.token_address.schedule_value_change(token_address);
         storage.current_guardian_set_index.at(0).write(18_446_744_073_709_551_615);
     }
 
     // ============================================================================
     // CORE FUNCTIONALITY - MESSAGE PUBLISHING
     // ============================================================================
-    
+
     #[public]
     fn publish_message_in_public(
         nonce: u64,
@@ -97,8 +100,8 @@ pub contract Wormhole {
     ) -> u64 {
         assert(storage.state.read().message_fee <= message_fee, "insufficient fee");
 
-        let receiver_address = storage.receiver_address.read();
-        let token_address = storage.token_address.read();
+        let receiver_address = storage.receiver_address.get_current_value();
+        let token_address = storage.token_address.get_current_value();
 
         // Only transfer tokens if fee is greater than 0
         if message_fee > 0 {
@@ -141,14 +144,8 @@ pub contract Wormhole {
     ) {
         assert(0 <= message_fee, "insufficient fee");
 
-        // NOTE: These addresses are hardcoded because private functions cannot access PublicMutable storage.
-        // They must be updated to match the deployed contract addresses before compilation.
-        let receiver_address = AztecAddress {
-            inner: 0x0d071eec273fa0c82825d9c5d2096965a40bcc33ae942714cf6c683af9632504,
-        };
-        let token_address = AztecAddress {
-            inner: 0x037e5d19d6d27e2fb7c947cfe7c36459e27d35e46dd59f5f47373a64ff491d2c,
-        };
+        let receiver_address = storage.receiver_address.get_current_value();
+        let token_address = storage.token_address.get_current_value();
 
         // Only transfer tokens if fee is greater than 0
         if message_fee > 0 {
@@ -464,7 +461,7 @@ pub contract Wormhole {
     // ============================================================================
     // GOVERNANCE FUNCTIONS
     // ============================================================================
-    
+
     #[public]
     fn expire_guardian_set(index: u32) {
         storage.current_guardian_set_index.at(index).write(context.timestamp() + 86400);
@@ -485,6 +482,63 @@ pub contract Wormhole {
     #[public]
     fn get_provider() -> Provider {
         WormholeStorage::get_provider(storage.state.read())
+    }
+
+    // ============================================================================
+    // ACCESS CONTROL
+    // ============================================================================
+    
+    #[public]
+    #[internal]
+    fn _assert_is_owner() {
+        assert(storage.owner.read().eq(context.msg_sender()), "caller is not owner");
+    }
+
+    // ============================================================================
+    // ADDRESS MANAGEMENT FUNCTIONS
+    // ============================================================================
+    
+    #[public]
+    fn set_receiver_address(new_receiver_address: AztecAddress) {
+        _assert_is_owner();
+        storage.receiver_address.schedule_value_change(new_receiver_address);
+    }
+
+    #[public]
+    fn set_token_address(new_token_address: AztecAddress) {
+        _assert_is_owner();
+        storage.token_address.schedule_value_change(new_token_address);
+    }
+
+    #[public]
+    fn get_receiver_address() -> AztecAddress {
+        storage.receiver_address.get_current_value()
+    }
+
+    #[public]
+    fn get_token_address() -> AztecAddress {
+        storage.token_address.get_current_value()
+    }
+
+    #[public]
+    fn get_scheduled_receiver_address() -> (AztecAddress, u64) {
+        storage.receiver_address.get_scheduled_value()
+    }
+
+    #[public]
+    fn get_scheduled_token_address() -> (AztecAddress, u64) {
+        storage.token_address.get_scheduled_value()
+    }
+
+    #[public]
+    fn get_owner() -> AztecAddress {
+        storage.owner.read()
+    }
+
+    #[public]
+    fn transfer_ownership(new_owner: AztecAddress) {
+        _assert_is_owner();
+        storage.owner.write(new_owner);
     }
 
 }
@@ -538,7 +592,7 @@ mod tests {
             .deploy("Wormhole")
             .with_public_initializer(
                 dummy_owner,
-                Wormhole::interface().init(56, 56, receiver_address, token_address),
+                Wormhole::interface().init(56, 56, dummy_owner, receiver_address, token_address),
             );
 
         let mut vaa_bytes: [u8; 2000] = [0; 2000];
