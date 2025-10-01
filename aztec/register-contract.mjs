@@ -3,7 +3,7 @@ import { createPXEClient, waitForPXE, loadContractArtifact, AztecAddress, Fr, Po
 import WormholeJson from "./contracts/target/wormhole_contracts-Wormhole.json" with { type: "json" };
 
 const PXE_URL = process.env.PXE_URL || 'http://localhost:8080';
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x1359b34037191f7800ead068c2244911171b35caf456f9c6b808eaa6698cb0b6';
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x0e61ae3f9f51ae20042f48674e2bf1c19cde5c916ae3a5ed114d84c873cc9a8f';
 
 async function registerDeployedContract() {
   console.log('🔗 Connecting to PXE...');

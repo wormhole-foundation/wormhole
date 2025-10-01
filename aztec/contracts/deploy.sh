@@ -15,7 +15,7 @@ MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration variables with defaults
-DEFAULT_NODE_URL="https://aztec-alpha-testnet-fullnode.zkv.xyz"
+DEFAULT_NODE_URL="https://aztec-testnet-fullnode.zkv.xyz"
 DEFAULT_SPONSORED_FPC_ADDRESS="0x19b5539ca1b104d4c3705de94e4555c9630def411f025e023a13189d0c56f8f22"
 DEFAULT_OWNER_SK="0x0ff5c4c050588f4614255a5a4f800215b473e442ae9984347b3a727c3bb7ca55"
 
@@ -704,6 +704,11 @@ compile_contract_with_retry() {
         compile_output=$(aztec-nargo compile 2>&1) || compile_exit_code=$?
         
         if [ $compile_exit_code -eq 0 ]; then
+            # v2.0.2+ requires postprocessing step
+            compile_output=$(aztec-postprocess-contract 2>&1) || compile_exit_code=$?
+        fi
+        
+        if [ $compile_exit_code -eq 0 ]; then
             success "Contract compilation completed successfully"
             echo "$compile_output"
             return 0
@@ -773,6 +778,7 @@ compile_contract_with_retry() {
                 echo "Please check the compilation errors above and fix them manually."
                 echo "You can then run the script again or compile manually with:"
                 echo "  aztec-nargo compile"
+                echo "  aztec-postprocess-contract"
                 exit 1
             fi
         fi
