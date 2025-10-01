@@ -408,7 +408,6 @@ func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, err
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	
 	currLen := n.blackholed.Len()
 	n.blackholed.Remove(msgID)
 	removeOccurred := n.blackholed.Len() < currLen
@@ -432,7 +431,6 @@ func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, err
 	} else {
 		n.logger.Info("notary: removed blackholed message from database", deletedMsgPub.ZapFields()...)
 	}
-
 
 	return deletedMsgPub, nil
 }
