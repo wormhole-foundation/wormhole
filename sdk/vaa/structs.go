@@ -299,6 +299,7 @@ const (
 	ChainIDMezo ChainID = 50
 	// ChainIDFogo is the ChainID of Fogo
 	ChainIDFogo ChainID = 51
+	// ChainIDWormchain is the ChainID of Wormchain and it is in it's own range.
 	// ChainIDSonic is the ChainID of Sonic
 	ChainIDSonic ChainID = 52
 	// ChainIDConverge is the ChainID of Converge

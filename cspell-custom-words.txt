@@ -125,6 +125,7 @@ monad
 Monad
 moonscan
 moretags
+nargo
 Neodyme
 nhooyr
 obsv
@@ -140,6 +141,7 @@ permissionlessly
 Polkachu
 Polkadot
 Positionals
+postprocess
 prefunded
 promauto
 proto
@@ -179,6 +181,7 @@ SnaxChain
 solana
 Solana
 Solana's
+sponsoredfpc
 spydk
 Starport
 statesync

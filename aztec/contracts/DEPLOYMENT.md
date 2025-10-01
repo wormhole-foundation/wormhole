@@ -1,0 +1,335 @@
+# Aztec Testnet Deployment Guide
+
+This guide walks through deploying the Wormhole contract and Token contract on the Aztec testnet.
+
+## Prerequisites
+
+- Aztec CLI tools installed
+- Access to Aztec testnet
+- Basic understanding of Aztec wallet operations
+
+## Alternative: Automated Deployment Script
+
+For a fully automated deployment experience, you can use the `deploy.sh` script instead of following this manual guide:
+
+```bash
+# Make the script executable
+chmod +x deploy.sh
+
+# Run the automated deployment wizard
+./deploy.sh
+```
+
+The `deploy.sh` script provides:
+- Interactive configuration wizard
+- Automatic error handling and retry logic
+- Built-in dependency checking
+- Automatic contract address extraction and updates
+- Comprehensive logging and status reporting
+
+## Manual Deployment Steps
+
+If you prefer to deploy manually or need more control over the process, follow the steps below:
+
+## Environment Setup
+
+### 1. Set Environment Variables
+
+```bash
+# Testnet configuration
+export NODE_URL=https://aztec-testnet-fullnode.zkv.xyz
+export SPONSORED_FPC_ADDRESS=0x299f255076aa461e4e94a843f0275303470a6b8ebe7cb44a471c66711151e529
+# FPC address valid as of v2.0.3, get the latest address via % aztec get-canonical-sponsored-fpc-address
+
+# Owner private key (32-byte)
+export OWNER_SK=<contract_owner_private_key>
+```
+
+## Wallet Creation
+
+### 2. Create Wallets
+
+#### 2a. Create Owner Wallet
+
+```bash
+aztec-wallet create-account \
+    -sk $OWNER_SK \
+    --register-only \
+    --node-url $NODE_URL \
+    --alias owner-wallet
+```
+
+**Note**: The owner wallet will be used to deploy the contract. You may want to record this address for your own reference, though it's not required for the deployment process.
+
+#### 2b. Create Receiver Wallet
+
+```bash
+aztec-wallet create-account \
+    --register-only \
+    --node-url $NODE_URL \
+    --alias receiver-wallet
+```
+
+**Important**: The receiver wallet is used as a **fee collector** for Wormhole messages. This wallet will receive all fees paid when publishing cross-chain messages.
+
+#### 2c. Set Receiver Address Variable and Update addresses.json
+
+```bash
+# Extract the receiver address from the wallet creation logs
+export RECEIVER_ADDRESS=<receiver_address_from_step_2b>
+
+# Update the addresses.json file with the receiver address
+jq --arg receiver "$RECEIVER_ADDRESS" '.receiver = $receiver' addresses.json > addresses.json.tmp && mv addresses.json.tmp addresses.json
+```
+
+## FPC Registration
+
+### 3. Register Wallets with FPC
+
+#### 3a. Register Owner Wallet
+
+```bash
+aztec-wallet register-contract \
+    --node-url $NODE_URL \
+    --from owner-wallet \
+    --alias sponsoredfpc \
+    $SPONSORED_FPC_ADDRESS SponsoredFPC \
+    --salt 0
+```
+
+#### 3b. Register Receiver Wallet
+
+```bash
+aztec-wallet register-contract \
+    --node-url $NODE_URL \
+    --from receiver-wallet \
+    --alias sponsoredfpc \
+    $SPONSORED_FPC_ADDRESS SponsoredFPC \
+    --salt 0
+```
+
+## Account Deployment
+
+### 4. Deploy Accounts
+
+> **Note**: You may encounter `Timeout awaiting isMined` errors, but this is normal. Continue with the next step.
+
+#### 4a. Deploy Owner Wallet
+
+```bash
+aztec-wallet deploy-account \
+    --node-url $NODE_URL \
+    --from owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
+```
+
+#### 4b. Deploy Receiver Wallet
+
+```bash
+aztec-wallet deploy-account \
+    --node-url $NODE_URL \
+    --from receiver-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
+```
+
+## Contract Deployment
+
+### 5. Deploy Token Contract
+
+```bash
+aztec-wallet deploy \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --alias token \
+    TokenContract \
+    --args accounts:owner-wallet WormToken WORM 18 --no-wait
+```
+
+**Important**: Wait for the transaction to be mined and capture the token contract address from the logs. You can check the transaction status at [AztecScan](http://aztecscan.xyz/).
+
+### 6. Set Token Contract Address and Update addresses.json
+
+#### 6a. Set Token Contract Address
+
+```bash
+# Set the token contract address (extract from step 5 deployment logs)
+export TOKEN_CONTRACT_ADDRESS=<token_contract_address_from_step_5>
+```
+
+#### 6b. Update addresses.json
+
+```bash
+# Update the addresses.json file with the new token address
+jq --arg token "$TOKEN_CONTRACT_ADDRESS" '.token = $token' addresses.json > addresses.json.tmp && mv addresses.json.tmp addresses.json
+```
+
+### 7. Mint Initial Tokens
+
+#### 7a. Mint Private Tokens
+
+```bash
+aztec-wallet send mint_to_private \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $TOKEN_CONTRACT_ADDRESS \
+    --args accounts:owner-wallet 10000
+```
+
+#### 7b. Mint Public Tokens
+
+```bash
+aztec-wallet send mint_to_public \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $TOKEN_CONTRACT_ADDRESS \
+    --args accounts:owner-wallet 10000
+```
+
+### 8. Compile the Wormhole Contract
+
+**Important**: The Wormhole contract must be compiled before deployment. If you've made any changes to the contract source code, compile it first:
+
+**Note**: The contract now uses `DelayedPublicMutable` storage for addresses, eliminating the need for hardcoded addresses in private functions. The addresses are now properly managed through the contract's storage system with appropriate access controls and delays.
+
+**Important**: The contract includes owner-based access control:
+- Only the contract owner can change addresses
+- Address changes have a 87,000 second (~1 day) delay
+- Ownership can be transferred by the current owner
+
+```bash
+# Compile the contract (v2.0.2+ requires two steps)
+aztec-nargo compile
+aztec-postprocess-contract
+```
+
+### 9. Deploy Wormhole Contract
+
+```bash
+aztec-wallet deploy \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --alias wormhole \
+    target/wormhole_contracts-Wormhole.json \
+    --args 56 56 accounts:owner-wallet $RECEIVER_ADDRESS $TOKEN_CONTRACT_ADDRESS --no-wait --init init
+```
+
+**Note**: The `init()` function parameters are:
+- `chain_id` (56): Aztec testnet chain ID
+- `evm_chain_id` (56): EVM chain ID mapping  
+- `owner` (accounts:owner-wallet): Contract owner address (has admin privileges)
+- `receiver_address` ($RECEIVER_ADDRESS): Address that receives message fees
+- `token_address` ($TOKEN_CONTRACT_ADDRESS): Token contract for fee payments
+
+**Important**: The owner address is the wallet that deployed the contract and has exclusive rights to:
+- Change the receiver address (with 87,000 second delay)
+- Change the token address (with 87,000 second delay)  
+- Transfer ownership to another address
+
+The receiver address is the fee collector address, not the Wormhole contract address itself.
+
+### 10. Capture Wormhole Contract address and update addresses.json
+
+#### 10a. Set Wormhole Contract Address
+
+```bash
+# Set the wormhole contract address (extract from step 9 deployment logs)
+export WORMHOLE_CONTRACT_ADDRESS=<wormhole_contract_address_from_step_9>
+```
+
+#### 10b. Update addresses.json
+
+```bash
+# Update the addresses.json file with the new wormhole address
+jq --arg wormhole "$WORMHOLE_CONTRACT_ADDRESS" '.wormhole = $wormhole' addresses.json > addresses.json.tmp && mv addresses.json.tmp addresses.json
+```
+
+**Important**: Wait for the transaction to be mined. You can check the transaction status at [AztecScan](http://aztecscan.xyz/).
+
+## Post-Deployment Management
+
+### 11. Owner Functions
+
+After deployment, the following functions can be used:
+
+#### 11a. Check Current Owner
+```bash
+aztec-wallet call get_owner \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+```
+
+#### 11b. Check Current Addresses
+```bash
+# Check receiver address
+aztec-wallet call get_receiver_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+
+# Check token address
+aztec-wallet call get_token_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+```
+
+#### 11c. Change Addresses (Owner Only)
+```bash
+# Change receiver address (takes effect after 87,000 seconds)
+aztec-wallet send set_receiver_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS \
+    --args <new_receiver_address>
+
+# Change token address (takes effect after 87,000 seconds)
+aztec-wallet send set_token_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS \
+    --args <new_token_address>
+```
+
+#### 11d. Transfer Ownership
+```bash
+# Transfer ownership to another address
+aztec-wallet send transfer_ownership \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS \
+    --args <new_owner_address>
+```
+
+#### 11e. Check Scheduled Changes
+```bash
+# Check scheduled receiver address change
+aztec-wallet call get_scheduled_receiver_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+
+# Check scheduled token address change
+aztec-wallet call get_scheduled_token_address \
+    --node-url $NODE_URL \
+    --from accounts:owner-wallet \
+    --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc \
+    --contract-address $WORMHOLE_CONTRACT_ADDRESS
+```
+
+## Troubleshooting
+
+- **Timeout errors**: These are common on testnet and usually resolve themselves
+- **Transaction failures**: Check AztecScan for detailed error messages
+- **Network issues**: Ensure you're connected to the correct testnet node
