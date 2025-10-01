@@ -60,9 +60,9 @@ func TestPendingMessage_RoundTripMarshal(t *testing.T) {
 func TestPendingMessage_MarshalError(t *testing.T) {
 
 	type test struct {
-		label string
-		input common.MessagePublication
-		errMsg   string
+		label  string
+		input  common.MessagePublication
+		errMsg string
 	}
 
 	// Set up.
