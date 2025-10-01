@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 )
@@ -72,7 +72,7 @@ func (c *retryableHTTPClient) DoRequest(ctx context.Context, url string, payload
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := common.SafeRead(resp.Body)
 		c.logger.Warn("Non-200 status code",
 			zap.String("url", url),
 			zap.Int("status", resp.StatusCode),
@@ -81,7 +81,7 @@ func (c *retryableHTTPClient) DoRequest(ctx context.Context, url string, payload
 	}
 
 	// Read the response
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response: %v", err)
 	}

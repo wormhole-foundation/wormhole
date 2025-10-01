@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -90,7 +89,7 @@ func setupMockAztecServer(_ *testing.T) *httptest.Server {
 			Params json.RawMessage `json:"params"`
 		}
 
-		body, err := io.ReadAll(r.Body)
+		body, err := common.SafeRead(r.Body)
 		if err != nil {
 			http.Error(w, "Failed to read body", http.StatusBadRequest)
 			return
