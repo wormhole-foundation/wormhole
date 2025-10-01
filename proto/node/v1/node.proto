@@ -414,7 +414,8 @@ message NotaryBlackholeDelayedMessageRequest {
 }
 
 message NotaryBlackholeDelayedMessageResponse {
-  string response = 1;
+  string vaa_id = 1;
+  string response = 2;
 }
 
 message NotaryReleaseDelayedMessageRequest {
@@ -422,7 +423,8 @@ message NotaryReleaseDelayedMessageRequest {
 }
 
 message NotaryReleaseDelayedMessageResponse {
-  string response = 1;
+  string vaa_id = 1;
+  string response = 2;
 }
 
 message NotaryRemoveBlackholedMessageRequest {
@@ -430,7 +432,8 @@ message NotaryRemoveBlackholedMessageRequest {
 }
 
 message NotaryRemoveBlackholedMessageResponse {
-  string response = 1;
+  string vaa_id = 1;
+  string response = 2;
 }
 
 message NotaryResetReleaseTimerRequest {
@@ -439,7 +442,8 @@ message NotaryResetReleaseTimerRequest {
 }
 
 message NotaryResetReleaseTimerResponse {
-  string response = 1;
+  string vaa_id = 1;
+  string response = 2;
 }
 
 // Pythnet messages.

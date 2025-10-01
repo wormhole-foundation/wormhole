@@ -80,7 +80,8 @@ const (
 	// The value should be long enough to allow for manual review and classification
 	// by the Guardians.
 	DefaultDelay = time.Hour * 24 * 4
-	MaxDelay     = time.Hour * 24 * 30
+	MaxDelayDays = 30
+	MaxDelay     = time.Hour * 24 * MaxDelayDays
 )
 
 var (
@@ -248,10 +249,14 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 
 		// Update database. Do this before adding the message to the ready list so that we don't
 		// accidentally add the same message twice if deleting the message from the database fails.
-		err := n.database.DeleteDelayed(pMsg.Msg.MessageID())
+		deletedPendingMsg, err := n.database.DeleteDelayed(pMsg.Msg.MessageID())
 		if err != nil {
 			n.logger.Error("delete pending message from notary database", pMsg.Msg.ZapFields(zap.Error(err))...)
 			continue
+		}
+
+		if deletedPendingMsg == nil {
+			n.logger.Warn("notary: delete pending message from notary database: deleted value was nil")
 		}
 
 		// If the message is in the delayed queue, it should not be in the blackholed queue.
@@ -340,10 +345,19 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	// Unlock mutex before calling removeDelayed, which also acquires the mutex.
 	n.mutex.Unlock()
 
-	// When a message is blackholed, it should be removed from the delayed list and database.
-	err := n.removeDelayed(msg.MessageID())
-	if err != nil {
-		return err
+	// When a message is blackholed, it should be removed from the delayed list and database if it exists.
+	// The fetch call isn't strictly necessary, but it makes the code easier to reason
+	// about given that removeDelayed can return nil even if an error does not occur.
+	if n.delayed.FetchMessagePublication(msg.MessageID()) != nil {
+		removedPendingMsg, err := n.removeDelayed(msg.MessageID())
+		if err != nil {
+			return err
+		}
+
+		// Shouldn't happen, but checked for completeness.
+		if removedPendingMsg == nil {
+			return errors.New("notary: removeDelayed returned nil for removedPendingMsg")
+		}
 	}
 
 	n.logger.Info("notary: blackholed message", msg.ZapFields()...)
@@ -357,14 +371,18 @@ func (n *Notary) forget(msg *common.MessagePublication) error {
 		return ErrInvalidMsg
 	}
 
-	err := n.removeDelayed(msg.MessageID())
+	removedPendingMsg, err := n.removeDelayed(msg.MessageID())
 	if err != nil {
 		return err
 	}
 
-	err = n.removeBlackholed(msg.MessageID())
+	removedMsgPub, err := n.removeBlackholed(msg.MessageID())
 	if err != nil {
 		return err
+	}
+
+	if removedPendingMsg == nil && removedMsgPub == nil {
+		n.logger.Info("notary: call to forget did not result in any changes", msg.ZapFields()...)
 	}
 
 	return nil
@@ -378,24 +396,42 @@ func (n *Notary) IsBlackholed(msgID []byte) bool {
 }
 
 // removeBlackholed removes a message from the blackholed list and database.
+// Returns the message that was removed or nil if an error occurred.
 // Acquires the mutex and unlocks when complete.
-func (n *Notary) removeBlackholed(msgID []byte) error {
+func (n *Notary) removeBlackholed(msgID []byte) (*common.MessagePublication, error) {
 	if len(msgID) == 0 {
-		return ErrInvalidMsg
+		return nil, ErrInvalidMsg
 	}
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
+	
+	currLen := n.blackholed.Len()
 	n.blackholed.Remove(msgID)
+	removeOccurred := n.blackholed.Len() < currLen
 
-	err := n.database.DeleteBlackholed(msgID)
-	if err != nil {
-		return err
+	// Log if the message was not removed, then continue to try to delete it from the database
+	// for consistency.
+	if !removeOccurred {
+		n.logger.Info("notary: call to removeBlackholed did not remove a message", zap.String("msgID", string(msgID)))
+	} else {
+		n.logger.Info("notary: removed blackholed message from in-memory set", zap.String("msgID", string(msgID)))
 	}
 
-	n.logger.Info("notary: removed blackholed message", zap.String("msgID", string(msgID)))
+	deletedMsgPub, err := n.database.DeleteBlackholed(msgID)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil
+	// No-op if the message is not in the database.
+	if deletedMsgPub == nil {
+		return nil, nil
+	} else {
+		n.logger.Info("notary: removed blackholed message from database", deletedMsgPub.ZapFields()...)
+	}
+
+
+	return deletedMsgPub, nil
 }
 
 func (n *Notary) IsDelayed(msg *common.MessagePublication) bool {
@@ -427,23 +463,35 @@ func (n *Notary) setDuration(msgID []byte, duration time.Duration) error {
 	}
 
 	// Remove existing message from the delayed list and database.
-	removeErr := n.removeDelayed(msgID)
+	deletedPendingMsg, removeErr := n.removeDelayed(msgID)
 	if removeErr != nil {
 		return removeErr
 	}
 
-	// Add message to the delayed list and database with the new duration.
+	// Shouldn't happen, but log it for completeness.
+	if deletedPendingMsg == nil {
+		n.logger.Warn("notary: no pending message was removed during call to setDuration")
+	}
+
+	// Add the message back to the delayed list and database with the new duration.
 	delayErr := n.delay(msgPub, duration)
 	if delayErr != nil {
 		return delayErr
 	}
+
+	n.logger.Info("notary: duration set for message", msgPub.ZapFields()...)
 	return nil
 }
 
 // removeDelayed removes a message from the delayed list and database.
-func (n *Notary) removeDelayed(msgID []byte) error {
+// This is a convenience function and should be equivalent to calling
+// RemoveItem and DeleteDelayed separately for the same message ID.
+//
+// Returns the removed message.
+// Returns nil on error or if the message was not found.
+func (n *Notary) removeDelayed(msgID []byte) (*common.PendingMessage, error) {
 	if len(msgID) == 0 {
-		return ErrInvalidMsg
+		return nil, ErrInvalidMsg
 	}
 
 	n.mutex.Lock()
@@ -451,16 +499,21 @@ func (n *Notary) removeDelayed(msgID []byte) error {
 
 	removed, err := n.delayed.RemoveItem(msgID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if removed != nil {
-		err := n.database.DeleteDelayed(removed.Msg.MessageID())
-		if err != nil {
-			return err
-		}
+	deletedPendingMsg, err := n.database.DeleteDelayed(msgID)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	// no-op if the message is in neither the delayed list nor the database,
+	// and no errors occurred.
+	if removed == nil && deletedPendingMsg == nil {
+		return nil, nil
+	}
+
+	return removed, nil
 }
 
 // loadFromDB reads all the database entries.

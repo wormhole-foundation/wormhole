@@ -41,7 +41,9 @@ func TestStoreAndReloadData(t *testing.T) {
 	require.Equal(t, &msg2, res.Blackholed[0])
 }
 
-func TestDeleteDelayed(t *testing.T) {
+// TestDelete tests the deletion of a message from the notary's database.
+// It covers the deletion of both delayed and blackholed messages.
+func TestDelete(t *testing.T) {
 	// Set-up.
 	dbPath := t.TempDir()
 	database := OpenDb(zap.NewNop(), &dbPath)
@@ -60,16 +62,34 @@ func TestDeleteDelayed(t *testing.T) {
 	blackholeErr := nDB.StoreBlackholed(&msg2)
 	require.NoError(t, blackholeErr, fmt.Sprintf("failed to store blackholed message: %v", blackholeErr))
 
+	// Ensure that the messages were stored.
+	res, loadErr := nDB.LoadAll(zap.NewNop())
+	require.NoError(t, loadErr)
+	require.Equal(t, 1, len(res.Delayed))
+	require.Equal(t, 1, len(res.Blackholed))
+	require.Equal(t, &msg2, res.Blackholed[0])
+
 	// Delete the delayed message.
-	delErr := nDB.DeleteDelayed(pendingMsg.Msg.MessageID())
-	require.NoError(t, delErr, fmt.Sprintf("failed to delete delayed message: %v", delErr))
+	deletedPendingMsg, delErr := nDB.DeleteDelayed(pendingMsg.Msg.MessageID())
+	require.NoError(t, delErr)
+	require.Equal(t, pendingMsg, deletedPendingMsg)
 
 	// Ensure that the message is no longer in the delayed list.
-	res, loadErr := nDB.LoadAll(zap.NewNop())
+	res, loadErr = nDB.LoadAll(zap.NewNop())
 	require.NoError(t, loadErr)
 	require.Equal(t, 0, len(res.Delayed))
 	require.Equal(t, 1, len(res.Blackholed))
 	require.Equal(t, &msg2, res.Blackholed[0])
+
+	// Delete the blackholed message.
+	deletedBlackholedMsgPub, delErr := nDB.DeleteBlackholed(msg2.MessageID())
+	require.NoError(t, delErr, fmt.Sprintf("failed to delete blackholed message: %v", delErr))
+	require.Equal(t, &msg2, deletedBlackholedMsgPub)
+
+	// Ensure that the message is no longer in the blackholed list.
+	res, loadErr = nDB.LoadAll(zap.NewNop())
+	require.NoError(t, loadErr)
+	require.Equal(t, 0, len(res.Blackholed))
 }
 
 func TestKeysForStoredMessagesV1(t *testing.T) {
