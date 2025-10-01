@@ -3,8 +3,6 @@ package common_test
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"math/rand/v2"
@@ -25,7 +23,7 @@ func TestPendingMessageQueue_Push(t *testing.T) {
 		msg  *common.PendingMessage
 	}{
 		{
-			"push message to queue",
+			"single message",
 			makeUniquePendingMessage(t),
 		},
 	}
@@ -37,9 +35,10 @@ func TestPendingMessageQueue_Push(t *testing.T) {
 			require.Equal(t, 0, q.Len())
 			require.Nil(t, q.Peek())
 
-			// Push a message to the queue
 			q.Push(tt.msg)
+
 			require.Equal(t, 1, q.Len())
+			// Ensure the first message is at the top of the queue
 			require.Equal(t, tt.msg, q.Peek())
 		})
 	}
@@ -63,7 +62,7 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 	type test struct {
 		label string
 		input common.MessagePublication
-		err   error
+		errMsg   string
 	}
 
 	// Set up.
@@ -81,7 +80,7 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 			input: common.MessagePublication{
 				TxID: longTxID.Bytes(),
 			},
-			err: common.ErrInputSize{Msg: "TxID too long"},
+			errMsg: "wrong size: TxID too long",
 		},
 		{
 			label: "txID too short",
@@ -97,7 +96,7 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 				Unreliable:       true,
 				IsReobservation:  true,
 			},
-			err: common.ErrInputSize{Msg: "TxID too short"},
+			errMsg: "wrong size: TxID too short",
 		},
 	}
 
@@ -109,8 +108,7 @@ func TestPendingMessage_MarshalError(t *testing.T) {
 			}
 
 			bz, writeErr := pMsg.MarshalBinary()
-			require.Error(t, writeErr)
-			require.True(t, errors.Is(writeErr, tc.err), fmt.Sprintf("got wrong error type: %v", writeErr))
+			require.ErrorContains(t, writeErr, tc.errMsg)
 			require.Nil(t, bz)
 		})
 	}
@@ -131,7 +129,7 @@ func TestPendingMessageQueue_NoDuplicates(t *testing.T) {
 	msg2.ReleaseTime = msg1.ReleaseTime.Add(time.Hour)
 	require.True(t, msg1.ReleaseTime.Before(msg2.ReleaseTime))
 
-	// Pushing the same message twice should not add it to the queue.
+	// Pushing two messages with the same Message ID should not add a duplicate.
 	q.Push(&msg2)
 	require.Equal(t, 1, q.Len())
 }
