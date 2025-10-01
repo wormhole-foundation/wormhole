@@ -124,7 +124,7 @@ func (d *NotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
 
 	// Sanity check that the message ID matches the one that was deleted.
 	if !bytes.Equal(pendingMsg.Msg.MessageID(), msgID) {
-		return &pendingMsg, errors.New("notary: delete pending message from notary database: removed message publication had different message ID compared to query!")
+		return &pendingMsg, errors.New("notary: delete pending message from notary database: removed message publication had different message ID compared to query")
 	}
 
 	return &pendingMsg, nil
@@ -148,7 +148,7 @@ func (d *NotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, e
 
 	// Sanity check that the message ID matches the one that was deleted.
 	if !bytes.Equal(msgPub.MessageID(), msgID) {
-		return &msgPub, errors.New("notary: delete blackholed message from notary database: removed message publication had different message ID compared to query!")
+		return &msgPub, errors.New("notary: delete blackholed message from notary database: removed message publication had different message ID compared to query")
 	}
 
 	return &msgPub, nil
