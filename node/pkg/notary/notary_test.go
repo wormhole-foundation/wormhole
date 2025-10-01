@@ -27,11 +27,13 @@ import (
 // Where possible, these should be tested in the Notary database's own unit tests, not here.
 type MockNotaryDB struct{}
 
-func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error  { return nil }
-func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
-func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error)  { return nil, nil }
-func (md MockNotaryDB) DeleteDelayed(msgID []byte)  (*common.PendingMessage, error)  { return nil, nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) { return nil, nil }
+func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error { return nil }
+func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error        { return nil }
+func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
+	return nil, nil
+}
+func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
+func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()

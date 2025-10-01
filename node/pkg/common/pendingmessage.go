@@ -37,7 +37,7 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal pending message: %w", err)
 	}
-	
+
 	buf := new(bytes.Buffer)
 	// Compare with [PendingTransfer.Marshal].
 	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
@@ -146,7 +146,7 @@ func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 	if len(pMsg.Msg.MessageID()) < MinMsgIdLen {
 		return
 	}
-	// FetchMessagePublication acquires and releases a read lock, so we don't need to write lock 
+	// FetchMessagePublication acquires and releases a read lock, so we don't need to write lock
 	// until we're inside the if statement.
 	if q.FetchMessagePublication(pMsg.Msg.MessageID()) == nil {
 		q.mu.Lock()

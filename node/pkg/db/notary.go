@@ -112,7 +112,7 @@ func (d *NotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var pendingMsg common.PendingMessage
 	unmarshalErr := pendingMsg.UnmarshalBinary(deleted)
 	if unmarshalErr != nil {
@@ -126,7 +126,7 @@ func (d *NotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
 	if !bytes.Equal(pendingMsg.Msg.MessageID(), msgID) {
 		return &pendingMsg, errors.New("notary: delete pending message from notary database: removed message publication had different message ID compared to query!")
 	}
-	
+
 	return &pendingMsg, nil
 }
 
@@ -136,7 +136,7 @@ func (d *NotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, e
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var msgPub common.MessagePublication
 	unmarshalErr := msgPub.UnmarshalBinary(deleted)
 	if unmarshalErr != nil {
@@ -150,8 +150,7 @@ func (d *NotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, e
 	if !bytes.Equal(msgPub.MessageID(), msgID) {
 		return &msgPub, errors.New("notary: delete blackholed message from notary database: removed message publication had different message ID compared to query!")
 	}
-	
-	
+
 	return &msgPub, nil
 }
 
@@ -249,21 +248,21 @@ func (d *NotaryDB) update(key []byte, data []byte) error {
 // deleteEntry deletes a key-value pair from the database and returns the value that was deleted.
 func (d *NotaryDB) deleteEntry(key []byte) ([]byte, error) {
 	var deletedValue []byte
-	
+
 	if updateErr := d.db.Update(func(txn *badger.Txn) error {
 		// Get the item first
 		item, getErr := txn.Get(key)
 		if getErr != nil {
 			return getErr
 		}
-		
+
 		// Copy the value before deleting
 		valueCopy, copyErr := item.ValueCopy(nil)
 		if copyErr != nil {
 			return copyErr
 		}
 		deletedValue = valueCopy
-		
+
 		// Now delete the key
 		deleteErr := txn.Delete(key)
 		return deleteErr
