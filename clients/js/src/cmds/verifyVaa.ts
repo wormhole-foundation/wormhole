@@ -37,9 +37,10 @@ export const handler = async (
   }
 
   const provider = new ethers.providers.JsonRpcProvider(
-    argv.rpc || (network === "Testnet"
-      ? NETWORKS[network].Sepolia.rpc
-      : NETWORKS[network].Ethereum.rpc)
+    argv.rpc ||
+      (network === "Testnet"
+        ? NETWORKS[network].Sepolia.rpc
+        : NETWORKS[network].Ethereum.rpc)
   );
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.parseAndVerifyVM(buf);
