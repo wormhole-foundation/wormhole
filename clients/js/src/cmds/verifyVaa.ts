@@ -17,7 +17,11 @@ export const builder = (y: typeof yargs) =>
       type: "string",
       demandOption: true,
     })
-    .option("network", NETWORK_OPTIONS);
+    .option("network", NETWORK_OPTIONS)
+    .option("rpc", {
+      describe: "Custom RPC endpoint (overrides network default)",
+      type: "string",
+    });
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
@@ -33,9 +37,9 @@ export const handler = async (
   }
 
   const provider = new ethers.providers.JsonRpcProvider(
-    network === "Testnet"
+    argv.rpc || (network === "Testnet"
       ? NETWORKS[network].Sepolia.rpc
-      : NETWORKS[network].Ethereum.rpc
+      : NETWORKS[network].Ethereum.rpc)
   );
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.parseAndVerifyVM(buf);
