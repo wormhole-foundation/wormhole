@@ -21,12 +21,16 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
+// MockNotaryDB is a mock implementation of the NotaryDB interface.
+// It returns nil for all operations, so it can be used to test the Notary's
+// core logic but certain DB-related operations are not covered.
+// Where possible, these should be tested in the Notary database's own unit tests, not here.
 type MockNotaryDB struct{}
 
 func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error  { return nil }
 func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
-func (md MockNotaryDB) DeleteBlackholed(msgID []byte) error                 { return nil }
-func (md MockNotaryDB) DeleteDelayed(msgID []byte) error                    { return nil }
+func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error)  { return nil, nil }
+func (md MockNotaryDB) DeleteDelayed(msgID []byte)  (*common.PendingMessage, error)  { return nil, nil }
 func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) { return nil, nil }
 
 func makeTestNotary(t *testing.T) *Notary {
@@ -346,8 +350,8 @@ func TestNotary_Forget(t *testing.T) {
 			require.Equal(t, 1, n.delayed.Len())
 			require.Equal(t, 1, n.blackholed.Len())
 
-			err = n.forget(tt.msg)
-			require.NoError(t, err)
+			forgetErr := n.forget(tt.msg)
+			require.NoError(t, forgetErr)
 
 			require.Equal(t, tt.expectedDelayCount, n.delayed.Len())
 			require.Equal(t, tt.expectedBlackholed, n.blackholed.Len())
@@ -385,8 +389,8 @@ func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
 			require.Equal(t, 1, n.delayed.Len())
 			require.Equal(t, 0, n.blackholed.Len())
 
-			err = n.blackhole(tt.msg)
-			require.NoError(t, err)
+			blackholeErr := n.blackhole(tt.msg)
+			require.NoError(t, blackholeErr)
 
 			require.Equal(t, 0, n.delayed.Len())
 			require.Equal(t, 1, n.blackholed.Len())

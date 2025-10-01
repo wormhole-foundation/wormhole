@@ -33,19 +33,16 @@ func (p PendingMessage) Compare(other PendingMessage) int {
 
 // MarshalBinary implements BinaryMarshaler for [PendingMessage].
 func (p *PendingMessage) MarshalBinary() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	// Compare with [PendingTransfer.Marshal].
-	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
-	vaa.MustWrite(buf, binary.BigEndian, uint64(p.ReleaseTime.Unix()))
-
-	bz, err := p.Msg.MarshalBinary()
+	msgPubBz, err := p.Msg.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("marshal pending message: %w", err)
 	}
-
-	vaa.MustWrite(buf, binary.BigEndian, bz)
-
+	
+	buf := new(bytes.Buffer)
+	// Compare with [PendingTransfer.Marshal].
+	// #nosec G115  -- int64 and uint64 have the same number of bytes, and Unix time won't be negative.
+	vaa.MustWrite(buf, binary.BigEndian, uint64(p.ReleaseTime.Unix()))
+	buf.Write(msgPubBz)
 	return buf.Bytes(), nil
 }
 
@@ -53,7 +50,7 @@ func (p *PendingMessage) MarshalBinary() ([]byte, error) {
 func (p *PendingMessage) UnmarshalBinary(data []byte) error {
 
 	if len(data) < marshaledPendingMsgLenMin {
-		return ErrInputSize{Msg: "pending message too short"}
+		return ErrInputSize{Msg: "pending message too short", Want: marshaledPendingMsgLenMin, Got: len(data)}
 	}
 
 	// Compare with [UnmarshalPendingTransfer].
@@ -149,14 +146,14 @@ func (q *PendingMessageQueue) Push(pMsg *PendingMessage) {
 	if len(pMsg.Msg.MessageID()) < MinMsgIdLen {
 		return
 	}
+	// FetchMessagePublication acquires and releases a read lock, so we don't need to write lock 
+	// until we're inside the if statement.
 	if q.FetchMessagePublication(pMsg.Msg.MessageID()) == nil {
+		q.mu.Lock()
 		heap.Push(&q.heap, pMsg)
+		defer q.mu.Unlock()
 	}
 
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	heap.Push(&q.heap, pMsg)
 }
 
 // Pop removes the last element from the heap and returns its value.
