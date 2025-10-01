@@ -329,23 +329,10 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 	if msg == nil {
 		return ErrInvalidMsg
 	}
-	n.mutex.Lock()
 
-	// Store in in-memory slice. This should happen even if a database error occurs.
-	n.blackholed.Add(msg.MessageID())
+	// Check if the message is already in the delayed list. If so, remove it, before
+	// adding it to the blackholed list.
 
-	// Store in database.
-	dbErr := n.database.StoreBlackholed(msg)
-	if dbErr != nil {
-		// Ensure the mutex is unlocked before returning.
-		// Not using defer for unlocking here because removeDelayed acquires the mutex.
-		n.mutex.Unlock()
-		return dbErr
-	}
-	// Unlock mutex before calling removeDelayed, which also acquires the mutex.
-	n.mutex.Unlock()
-
-	// When a message is blackholed, it should be removed from the delayed list and database if it exists.
 	// The fetch call isn't strictly necessary, but it makes the code easier to reason
 	// about given that removeDelayed can return nil even if an error does not occur.
 	if n.delayed.FetchMessagePublication(msg.MessageID()) != nil {
@@ -358,6 +345,22 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 		if removedPendingMsg == nil {
 			return errors.New("notary: removeDelayed returned nil for removedPendingMsg")
 		}
+	}
+
+	// Now blackhole the message
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	// Store in in-memory slice. This should happen even if a database error occurs.
+	n.blackholed.Add(msg.MessageID())
+
+	// Store in database.
+	dbErr := n.database.StoreBlackholed(msg)
+	if dbErr != nil {
+		// Ensure the mutex is unlocked before returning.
+		// Not using defer for unlocking here because removeDelayed acquires the mutex.
+		n.mutex.Unlock()
+		return dbErr
 	}
 
 	n.logger.Info("notary: blackholed message", msg.ZapFields()...)
