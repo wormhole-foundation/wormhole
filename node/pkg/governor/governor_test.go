@@ -649,19 +649,14 @@ func newChainGovernorForTestWithLogger(t *testing.T, ctx context.Context, logger
 	gov := NewChainGovernor(logger, &db, common.GoTest, true, "")
 
 	err := gov.Run(ctx)
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, gov)
 
 	emitterAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	tokenAddr, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	gov.initConfigForTest(
 		vaa.ChainIDEthereum,
@@ -673,9 +668,6 @@ func newChainGovernorForTestWithLogger(t *testing.T, ctx context.Context, logger
 		1774.62,
 		8,
 	)
-
-	require.NoError(t, err)
-	require.NotNil(t, gov)
 
 	return gov
 }
