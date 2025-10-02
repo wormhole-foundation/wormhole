@@ -12,11 +12,16 @@ import (
 
 var (
 	ErrDelayExceedsMax = errors.New("notary: delay exceeds maximum")
+	ErrInvalidMsgID    = errors.New("the message ID must be specified as \"chainId/emitterAddress/seqNum\"")
 )
 
 // BlackholeDelayedMsg adds a message publication to the blackholed in-memory set and stores it in the database.
 // It also removes the message from the delayed list and database.
 func (n *Notary) BlackholeDelayedMsg(msgID string) error {
+
+	if len(msgID) < common.MinMsgIdLen {
+		return ErrInvalidMsgID
+	}
 
 	var (
 		msgPub *common.MessagePublication
@@ -38,6 +43,9 @@ func (n *Notary) BlackholeDelayedMsg(msgID string) error {
 
 // ReleaseDelayedMsg removes a message from the delayed list and publishes it immediately.
 func (n *Notary) ReleaseDelayedMsg(msgID string) error {
+	if len(msgID) < common.MinMsgIdLen {
+		return ErrInvalidMsgID
+	}
 	err := n.release([]byte(msgID))
 	if err != nil {
 		return err
@@ -49,6 +57,9 @@ func (n *Notary) ReleaseDelayedMsg(msgID string) error {
 // RemoveBlackholedMsg removes a message from the blackholed list and adds it to the delayed list with a delay of zero,
 // so that it will be published on the next cycle.
 func (n *Notary) RemoveBlackholedMsg(msgID string) error {
+	if len(msgID) < common.MinMsgIdLen {
+		return ErrInvalidMsgID
+	}
 
 	removedMsgPub, removeErr := n.removeBlackholed([]byte(msgID))
 	if removeErr != nil {
@@ -65,6 +76,10 @@ func (n *Notary) RemoveBlackholedMsg(msgID string) error {
 
 // ResetReleaseTimer resets the release timer for a delayed message.
 func (n *Notary) ResetReleaseTimer(msgID string, delayDays uint32) error {
+	if len(msgID) < common.MinMsgIdLen {
+		return ErrInvalidMsgID
+	}
+
 	if delayDays > MaxDelayDays {
 		return ErrDelayExceedsMax
 	}
