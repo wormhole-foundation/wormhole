@@ -71,7 +71,7 @@ type (
 	ChainConfigEntry struct {
 		EmitterChainID vaa.ChainID
 		// The notional USD value that can leave the chain during the period
-		// defined by the sliding window. Formerly referred to as the 'daily limit'
+		// defined by the sliding window. (Formerly referred to as the 'daily limit'.)
 		USDLimit           uint64
 		BigTransactionSize uint64
 	}
