@@ -26,6 +26,7 @@ linters:
     - loggercheck
     # Check for simple misspellings of words. 
     - misspell
+    - nilerr
     - noctx
     # Require explanations for nolint comments
     - nolintlint
