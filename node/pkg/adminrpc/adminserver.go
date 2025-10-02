@@ -1128,27 +1128,21 @@ func (s *nodePrivilegedService) NotaryBlackholeDelayedMessage(ctx context.Contex
 		return nil, ErrNotaryNotEnabled
 	}
 
-	if len(req.VaaId) == 0 {
-		return nil, ErrInvalidMsgID
-	}
-
 	err := s.notary.BlackholeDelayedMsg(req.VaaId)
 	if err != nil {
 		return nil, err
 	}
 
 	return &nodev1.NotaryBlackholeDelayedMessageResponse{
+		VaaId:    req.VaaId,
 		Response: "Blackholed message",
 	}, nil
 }
 
+// NotaryReleaseDelayedMessage removes a message from the delayed list and publishes it immediately.
 func (s *nodePrivilegedService) NotaryReleaseDelayedMessage(ctx context.Context, req *nodev1.NotaryReleaseDelayedMessageRequest) (*nodev1.NotaryReleaseDelayedMessageResponse, error) {
 	if s.notary == nil {
 		return nil, ErrNotaryNotEnabled
-	}
-
-	if len(req.VaaId) == 0 {
-		return nil, ErrInvalidMsgID
 	}
 
 	err := s.notary.ReleaseDelayedMsg(req.VaaId)
@@ -1157,17 +1151,16 @@ func (s *nodePrivilegedService) NotaryReleaseDelayedMessage(ctx context.Context,
 	}
 
 	return &nodev1.NotaryReleaseDelayedMessageResponse{
+		VaaId:    req.VaaId,
 		Response: "Released message",
 	}, nil
 }
 
+// NotaryRemoveBlackholedMessage removes a message from the blackholed list and adds it to the delayed list with a delay of zero,
+// so that it will be published on the next cycle.
 func (s *nodePrivilegedService) NotaryRemoveBlackholedMessage(ctx context.Context, req *nodev1.NotaryRemoveBlackholedMessageRequest) (*nodev1.NotaryRemoveBlackholedMessageResponse, error) {
 	if s.notary == nil {
 		return nil, ErrNotaryNotEnabled
-	}
-
-	if len(req.VaaId) == 0 {
-		return nil, ErrInvalidMsgID
 	}
 
 	err := s.notary.RemoveBlackholedMsg(req.VaaId)
@@ -1176,9 +1169,12 @@ func (s *nodePrivilegedService) NotaryRemoveBlackholedMessage(ctx context.Contex
 	}
 
 	return &nodev1.NotaryRemoveBlackholedMessageResponse{
+		VaaId:    req.VaaId,
 		Response: "Removed message",
 	}, nil
 }
+
+// Miscellaneous commands
 
 func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev1.PurgePythNetVaasRequest) (*nodev1.PurgePythNetVaasResponse, error) {
 	prefix := guardianDB.VAAID{EmitterChain: vaa.ChainIDPythNet}
