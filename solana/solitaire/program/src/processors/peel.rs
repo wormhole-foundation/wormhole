@@ -217,6 +217,11 @@ impl<
                         return Err(SolitaireError::InvalidOwner(*ctx.info.owner));
                     }
                 }
+                AccountOwner::OneOf(vs) => {
+                    if !vs.contains(ctx.info.owner) {
+                        return Err(SolitaireError::InvalidOwner(*ctx.info.owner));
+                    }
+                }
                 AccountOwner::Any => {}
             };
         }
