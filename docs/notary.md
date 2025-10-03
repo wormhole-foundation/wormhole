@@ -2,6 +2,18 @@
 
 Below are admin controls surfaced to the Guardians for the Notary system. The Notary is responsible for evaluating message publications and determining how they should be processed, providing three possible verdicts: Approve, Delay, or Blackhole (Reject).
 
+## Default Behavior / Enabling the Notary
+
+The Notary feature is disabled by default. Guardians can enable it by passing the following flag to the `guardiand` command when starting it up:
+
+```bash
+--notaryEnabled=true
+```
+
+When enabled, the Notary will evaluate all incoming message publications and apply the appropriate verdict based on the message status and content.
+
+_NOTE: Currently, the Notary has no effect on message publication processing unless Transfer Verifier is also enabled._
+
 ## Notary Overview
 
 The Notary evaluates incoming message publications and categorizes them:
@@ -104,7 +116,7 @@ Where:
 - `0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585` is the emitter address  
 - `12345` is the sequence number
 
-## Default Behavior
+## Default Delay Timing
 
 The Notary system uses a default delay of 4 days (96 hours) for anomalous messages that require manual review. The maximum delay that can be set is 30 days.
 
