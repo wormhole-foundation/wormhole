@@ -86,11 +86,18 @@ func init() {
 	AdminCmd.AddCommand(DumpRPCs)
 	AdminCmd.AddCommand(SendObservationRequest)
 	AdminCmd.AddCommand(ReobserveWithEndpoint)
+	// Chain governor commands
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
 	AdminCmd.AddCommand(ClientChainGovernorDropPendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorReleasePendingVAACmd)
 	AdminCmd.AddCommand(ClientChainGovernorResetReleaseTimerCmd)
+	// Notary commands
+	AdminCmd.AddCommand(NotaryBlackholeDelayedMessage)
+	AdminCmd.AddCommand(NotaryReleaseDelayedMessage)
+	AdminCmd.AddCommand(NotaryRemoveBlackholedMessage)
+	AdminCmd.AddCommand(NotaryResetReleaseTimer)
+	// Other commands
 	AdminCmd.AddCommand(PurgePythNetVaasCmd)
 	AdminCmd.AddCommand(SignExistingVaaCmd)
 	AdminCmd.AddCommand(SignExistingVaasFromCSVCmd)
@@ -221,6 +228,36 @@ var Keccak256Hash = &cobra.Command{
 	Run:   runKeccak256Hash,
 	Args:  cobra.ExactArgs(0),
 }
+
+// Notary commands
+var (
+	NotaryBlackholeDelayedMessage = &cobra.Command{
+		Use:   "notary-blackhole-delayed-message [MESSAGE_ID]",
+		Short: "Moves the specified VAA (chain/emitter/seq) from the Notary's delayed list to the blackholed list",
+		Run:   runNotaryBlackholeDelayedMessage,
+		Args:  cobra.ExactArgs(1),
+	}
+
+	NotaryReleaseDelayedMessage = &cobra.Command{
+		Use:   "notary-release-delayed-message [MESSAGE_ID]",
+		Short: "Releases the specified VAA (chain/emitter/seq) from the Notary's delayed list, publishing it immediately",
+		Run:   runNotaryReleaseDelayedMessage,
+		Args:  cobra.ExactArgs(1),
+	}
+
+	NotaryRemoveBlackholedMessage = &cobra.Command{
+		Use:   "notary-remove-blackholed-message [MESSAGE_ID]",
+		Short: "Removes the specified VAA (chain/emitter/seq) from the Notary's blackholed list and adds it to the delayed list with a delay of zero",
+		Run:   runNotaryRemoveBlackholedMessage,
+		Args:  cobra.ExactArgs(1),
+	}
+	NotaryResetReleaseTimer = &cobra.Command{
+		Use:   "notary-reset-release-timer [MESSAGE_ID] [DELAY_DAYS]",
+		Short: "Resets the release timer for a notary pending VAA to supplied number of days.",
+		Run:   runNotaryResetReleaseTimer,
+		Args:  cobra.ExactArgs(2),
+	}
+)
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -838,4 +875,86 @@ func runKeccak256Hash(cmd *cobra.Command, args []string) {
 	}
 	digest := hash.Sum([]byte{})
 	fmt.Printf("%s", hex.EncodeToString(digest))
+}
+
+func runNotaryBlackholeDelayedMessage(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.NotaryBlackholeDelayedMessageRequest{
+		VaaId: args[0],
+	}
+	resp, err := c.NotaryBlackholeDelayedMessage(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run NotaryBlackholeDelayedMessage RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runNotaryReleaseDelayedMessage(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.NotaryReleaseDelayedMessageRequest{
+		VaaId: args[0],
+	}
+	resp, err := c.NotaryReleaseDelayedMessage(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run NotaryReleaseDelayedMessage RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runNotaryRemoveBlackholedMessage(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	msg := nodev1.NotaryRemoveBlackholedMessageRequest{
+		VaaId: args[0],
+	}
+	resp, err := c.NotaryRemoveBlackholedMessage(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run NotaryRemoveBlackholedMessage RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
+}
+
+func runNotaryResetReleaseTimer(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	delayDays, err := strconv.ParseUint(args[1], 10, 8)
+	if err != nil {
+		log.Fatalf("invalid delay days: %v", err)
+	}
+
+	msg := nodev1.NotaryResetReleaseTimerRequest{
+		VaaId:   args[0],
+		NumDays: uint32(delayDays), // protobuf does not support uint8
+	}
+	resp, err := c.NotaryResetReleaseTimer(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run NotaryResetReleaseTimer RPC: %s", err)
+	}
+
+	fmt.Println(resp.Response)
 }
