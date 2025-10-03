@@ -47,6 +47,18 @@ service NodePrivilegedService {
   // ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
   rpc ChainGovernorResetReleaseTimer (ChainGovernorResetReleaseTimerRequest) returns (ChainGovernorResetReleaseTimerResponse);
 
+  // NotaryBlackholeDelayedMessage blacklists a VAA from the notary pending list.
+  rpc NotaryBlackholeDelayedMessage (NotaryBlackholeDelayedMessageRequest) returns (NotaryBlackholeDelayedMessageResponse);
+
+  // NotaryReleaseDelayedMessage releases a VAA from the notary pending list, publishing it immediately.
+  rpc NotaryReleaseDelayedMessage (NotaryReleaseDelayedMessageRequest) returns (NotaryReleaseDelayedMessageResponse);
+
+  // NotaryRemoveBlackholedMessage removes a VAA from the notary's blackholed list and adds it to the pending list with a release timer of 0.
+  rpc NotaryRemoveBlackholedMessage (NotaryRemoveBlackholedMessageRequest) returns (NotaryRemoveBlackholedMessageResponse);
+
+  // NotaryResetReleaseTimer resets the release timer for a notary pending VAA to supplied number of days.
+  rpc NotaryResetReleaseTimer (NotaryResetReleaseTimerRequest) returns (NotaryResetReleaseTimerResponse);
+
   // PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
   rpc PurgePythNetVaas (PurgePythNetVaasRequest) returns (PurgePythNetVaasResponse);
 
@@ -368,6 +380,8 @@ message ReobserveWithEndpointResponse {
   uint32 num_observations = 1;
 }
 
+// Governor messages.
+
 message ChainGovernorStatusRequest {}
 
 message ChainGovernorStatusResponse {
@@ -405,6 +419,46 @@ message ChainGovernorResetReleaseTimerResponse {
   string response = 1;
 }
 
+// Notary messages.
+
+message NotaryBlackholeDelayedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryBlackholeDelayedMessageResponse {
+  string vaa_id = 1;
+  string response = 2;
+}
+
+message NotaryReleaseDelayedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryReleaseDelayedMessageResponse {
+  string vaa_id = 1;
+  string response = 2;
+}
+
+message NotaryRemoveBlackholedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryRemoveBlackholedMessageResponse {
+  string vaa_id = 1;
+  string response = 2;
+}
+
+message NotaryResetReleaseTimerRequest {
+  string vaa_id = 1;
+  uint32 num_days = 2;
+}
+
+message NotaryResetReleaseTimerResponse {
+  string vaa_id = 1;
+  string response = 2;
+}
+
+// Pythnet messages.
 message PurgePythNetVaasRequest {
   uint64 days_old = 1;
   bool log_only = 2;

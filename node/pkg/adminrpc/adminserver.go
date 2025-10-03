@@ -27,6 +27,7 @@ import (
 
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/mr-tron/base58"
@@ -45,6 +46,11 @@ const maxResetReleaseTimerDays = 30
 const ecdsaSignatureLength = 65
 
 var (
+	ErrNotaryNotEnabled = errors.New("notary is not enabled")
+	ErrInvalidMsgID     = errors.New("the message ID must be specified as \"chainId/emitterAddress/seqNum\"")
+)
+
+var (
 	vaaInjectionsTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_vaa_injections_total",
@@ -60,6 +66,7 @@ type nodePrivilegedService struct {
 	logger          *zap.Logger
 	signedInC       chan<- *gossipv1.SignedVAAWithQuorum
 	governor        *governor.ChainGovernor
+	notary          *notary.Notary
 	evmConnector    connectors.Connector
 	gsCache         sync.Map
 	guardianSigner  guardiansigner.GuardianSigner
@@ -1025,6 +1032,8 @@ func (s *nodePrivilegedService) ReobserveWithEndpoint(ctx context.Context, req *
 	return &nodev1.ReobserveWithEndpointResponse{NumObservations: numObservations}, nil
 }
 
+// Governor commands
+
 func (s *nodePrivilegedService) ChainGovernorStatus(ctx context.Context, req *nodev1.ChainGovernorStatusRequest) (*nodev1.ChainGovernorStatusResponse, error) {
 	if s.governor == nil {
 		return nil, fmt.Errorf("chain governor is not enabled")
@@ -1110,6 +1119,62 @@ func (s *nodePrivilegedService) ChainGovernorResetReleaseTimer(_ context.Context
 		Response: resp,
 	}, nil
 }
+
+// Notary commands
+
+// NotaryBlackholeDelayedMessage blacklists a message from the Notary. It succeeds only if the message is found in the Notary's delayed list.
+func (s *nodePrivilegedService) NotaryBlackholeDelayedMessage(ctx context.Context, req *nodev1.NotaryBlackholeDelayedMessageRequest) (*nodev1.NotaryBlackholeDelayedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	err := s.notary.BlackholeDelayedMsg(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryBlackholeDelayedMessageResponse{
+		VaaId:    req.VaaId,
+		Response: "Blackholed message",
+	}, nil
+}
+
+// NotaryReleaseDelayedMessage removes a message from the delayed list and publishes it immediately.
+func (s *nodePrivilegedService) NotaryReleaseDelayedMessage(ctx context.Context, req *nodev1.NotaryReleaseDelayedMessageRequest) (*nodev1.NotaryReleaseDelayedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	err := s.notary.ReleaseDelayedMsg(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryReleaseDelayedMessageResponse{
+		VaaId:    req.VaaId,
+		Response: "Released message",
+	}, nil
+}
+
+// NotaryRemoveBlackholedMessage removes a message from the blackholed list and adds it to the delayed list with a delay of zero,
+// so that it will be published on the next cycle.
+func (s *nodePrivilegedService) NotaryRemoveBlackholedMessage(ctx context.Context, req *nodev1.NotaryRemoveBlackholedMessageRequest) (*nodev1.NotaryRemoveBlackholedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	err := s.notary.RemoveBlackholedMsg(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryRemoveBlackholedMessageResponse{
+		VaaId:    req.VaaId,
+		Response: "Removed message",
+	}, nil
+}
+
+// Miscellaneous commands
 
 func (s *nodePrivilegedService) PurgePythNetVaas(ctx context.Context, req *nodev1.PurgePythNetVaasRequest) (*nodev1.PurgePythNetVaasResponse, error) {
 	prefix := guardianDB.VAAID{EmitterChain: vaa.ChainIDPythNet}
