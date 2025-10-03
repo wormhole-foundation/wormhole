@@ -1,17 +1,18 @@
 import { deserializeLayout, encoding, Layout } from "@wormhole-foundation/sdk";
 
-const guardianPrivateKeyArmor = "WORMHOLE GUARDIAN PRIVATE KEY";
-const tlsKeyArmor             = "PRIVATE KEY";
-const tlsCertificateArmor     = "CERTIFICATE";
+export const guardianPrivateKeyArmor = "WORMHOLE GUARDIAN PRIVATE KEY";
+export const tlsKeyArmor             = "PRIVATE KEY";
+export const tlsCertificateArmor     = "CERTIFICATE";
 
-type ParseResult = { valid: false } | { valid: true; headers: string[]; body: string };
+export type ParseResult = { valid: false } | { valid: true; headers: string[]; body: string };
 
 /**
  * We use this to parse two kinds of armored files: PEM and PGP.
  */
-function parseArmor(input: string, type: string): ParseResult {
+export function parseArmor(input: string, type: string): ParseResult {
   const lines = input.trim().split(/\r?\n/);
-  const message = lines.slice(1, lines.length - 2);
+  const message = lines.slice(1, lines.length - 1);
+
   let headers: string[] | undefined, body;
   for (let i = 0; i < message.length; ++i) {
     const line = message[i];
@@ -21,33 +22,36 @@ function parseArmor(input: string, type: string): ParseResult {
     body = message.slice(i + 1).join("").trim();
     break;
   }
+
   if (headers === undefined) headers = [];
   if (body === undefined)    body = message.join("").trim();
+  
+  const valid = lines[0] === `-----BEGIN ${type}-----` &&
+    lines[lines.length - 1] === `-----END ${type}-----`;
 
   return {
-    valid: lines[0] === `-----BEGIN ${type}-----` &&
-      lines[lines.length - 1] === `-----END ${type}-----`,
+    valid,
     headers,
     body,
   };
 }
 
-function checkTlsKey(input: string) {
+export function checkTlsKey(input: string) {
   return parseArmor(input, tlsKeyArmor).valid;
 }
 
-function checkTlsCertificate(input: string) {
+export function checkTlsCertificate(input: string) {
   return parseArmor(input, tlsCertificateArmor).valid;
 }
 
 
-const wormholeKeyLayout = [
+export const wormholeKeyLayout = [
   { name: "tagKey", binary: "uint",  size: 1, custom: 0x0A, omit: true},
   { name: "key",    binary: "bytes", lengthSize: 1 }
 ] as const satisfies Layout;
 
 
-function parseGuardianKey(input: string) {
+export function parseGuardianKey(input: string) {
   const parsed = parseArmor(input, guardianPrivateKeyArmor);
 
   if (!parsed.valid) throw new Error(`Guardian private key armor invalid!`);

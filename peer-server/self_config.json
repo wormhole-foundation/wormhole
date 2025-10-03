@@ -1,9 +1,9 @@
 {
-  "guardianPrivateKey": "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+  "guardianPrivateKeyPath": "./test_guardian_key.pri",
   "guardianIndex": 0,
   "serverUrl": "http://127.0.0.1:3000",
   "peer": {
-    "hostname": "your guardian/dkg hostname",
-    "tlsX509": "your certificate as a string"
+    "hostname": "test.example.com",
+    "tlsX509": "./test_cert.pem"
   }
 }

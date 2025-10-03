@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { readFileSync } from 'fs';
+import { checkTlsCertificate, parseGuardianKey } from './parseCrypto';
 
 // Zod validation schemas (these also serve as type definitions)
 export const BasePeerSchema = z.object({
@@ -20,11 +22,45 @@ export const PeerRegistrationSchema = z.object({
   signature: PeerSignatureSchema
 });
 
+// Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
   guardianIndex: z.number().int().min(0, "Guardian index must be non-negative"),
-  guardianPrivateKey: z.string().min(1, "Guardian private key cannot be empty"),
+  guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty"),
   serverUrl: z.string().url("Server URL must be a valid HTTP(S) URL"),
-  peer: BasePeerSchema
+  peer: BasePeerSchema,
+}).transform((data) => {
+  // Load and validate guardian private key
+  let guardianPrivateKey: string;
+  try {
+    const keyContents = readFileSync(data.guardianPrivateKeyPath, 'utf-8');
+    const keyBytes = parseGuardianKey(keyContents); // Extract and validate the key
+    // Convert to hex format for ethers.Wallet
+    guardianPrivateKey = '0x' + Buffer.from(keyBytes).toString('hex');
+  } catch (error: any) {
+    throw new Error(`Failed to read or validate guardian private key from ${data.guardianPrivateKeyPath}: ${error.message}`);
+  }
+
+  // Load and validate TLS certificate
+  let tlsX509: string;
+  try {
+    const certContents = readFileSync(data.peer.tlsX509, 'utf-8');
+    if (!checkTlsCertificate(certContents)) {
+      throw new Error("Invalid TLS X509 certificate format");
+    }
+    tlsX509 = certContents;
+  } catch (error: any) {
+    throw new Error(`Failed to read or validate TLS X509 certificate from ${data.peer.tlsX509}: ${error.message}`);
+  }
+
+  return {
+    guardianIndex: data.guardianIndex,
+    guardianPrivateKey,
+    serverUrl: data.serverUrl,
+    peer: {
+      hostname: data.peer.hostname,
+      tlsX509
+    }
+  };
 });
 
 export const ServerConfigSchema = z.object({
