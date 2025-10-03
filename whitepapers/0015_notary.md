@@ -8,7 +8,7 @@ Provide a generalized message evaluation system that can assess the validity of 
 
 The core Wormhole protocol ensures message authenticity through Guardian signatures but it cannot inherently determine whether a message represents legitimate activity or is the result of an exploit, bug, or malicious behavior.
 
-The Transfer Verifier system was developed to validate the invariants of wrapped token transfers by analyzing on-chain data and transaction receipts (or other on-chain artifacts). However, this validation occurs at the chain watcher level and produces verification states that need to be acted upon elsewhere in the codebase. Transfer Verifier only returns an accept/reject result when provided with a wrapped token transfer messages, but does not alter how that message is processed on the way to becoming a VAA.
+The Transfer Verifier system was developed to validate the invariants of Wrapped Token Transfers by analyzing on-chain data and transaction receipts (or other on-chain artifacts). However, this validation occurs at the chain watcher level and produces verification states that need to be acted upon elsewhere in the codebase. Transfer Verifier only returns an accept/reject result when provided with a Wrapped Token Transfer messages, but does not alter how that message is processed on the way to becoming a VAA.
 
 ## Goals
 
@@ -73,7 +73,7 @@ _All three statuses are mutually-exclusive, and no message should be duplicated 
 #### Approve Verdict
 - Message proceeds immediately to VAA signing
 - No database storage required
-- Used for all non-token-transfer messages and verified transfers
+- Used for all non-wrapped-token-transfer messages and verified wrapped token transfers
 
 #### Delay Verdict  
 - Message is stored in both database and in-memory queue with release timestamp
@@ -204,7 +204,7 @@ Each Guardian maintains its own Notary state independently. While this provides 
 
 ### Manual Override Risks
 The ability to manually manage delayed and blackholed messages provides operational flexibility but also introduces the risk of human error or malicious operator behavior.
-However, a VAA will only be crated for a message if supermajority of Guardians decide to process the message, as usual.
+However, a VAA will only be created for a message if a supermajority of Guardians decide to process the message, as usual.
 
 ## Future Enhancements
 
