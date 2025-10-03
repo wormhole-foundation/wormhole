@@ -6,7 +6,7 @@ Provide a generalized message evaluation system that can assess the validity of 
 
 ## Background
 
-The core Wormhole protocol ensures message authenticity through guardian signatures but it cannot inherently determine whether a message represents legitimate activity or is the result of an exploit, bug, or malicious behavior.
+The core Wormhole protocol ensures message authenticity through Guardian signatures but it cannot inherently determine whether a message represents legitimate activity or is the result of an exploit, bug, or malicious behavior.
 
 The Transfer Verifier system was developed to validate the invariants of wrapped token transfers by analyzing on-chain data and transaction receipts (or other on-chain artifacts). However, this validation occurs at the chain watcher level and produces verification states that need to be acted upon elsewhere in the codebase. Transfer Verifier only returns an accept/reject result when provided with a wrapped token transfer messages, but does not alter how that message is processed on the way to becoming a VAA.
 
@@ -17,7 +17,7 @@ The Notary system aims to:
 * Provide a standardized, coordinated response to Transfer Verifier results across all Guardians
 * Enable temporary delays for suspicious messages to allow for manual review and investigation
 * Maintain a list of messages that are confirmed to be malicious or malformed
-* Maintain a persistent record of delayed and blocked messages across guardian restarts
+* Maintain a persistent record of delayed and blocked messages across Guardian restarts
 * Support the broader Wormhole security model by providing an additional layer of protection
 * Operate as a general-purpose message evaluation framework that could be extended beyond Wrapped Token Transfers
 
@@ -27,12 +27,12 @@ The Notary system aims to:
 * Modify or alter message content - the Notary only suggests processing decisions
 * Provide automatic resolution of suspicious messages - manual intervention is required
 * Support message types other than Wrapped Token Transfers (in the initial implementation)
-* Synchronize state between guardians - each guardian maintains its own Notary state
+* Synchronize state between Guardians - each Guardian maintains its own Notary state
 * Take action on hacks or illegitimate messages that originate from outside of the Wormhole network
 
 ## Overview
 
-The Notary operates as a message evaluation layer within each guardian node, positioned between the message observation phase and the VAA signing phase. It receives messages from the watchers that have already been processed by the Transfer Verifier (if enabled) and makes decisions based on their verification state.
+The Notary operates as a message evaluation layer within each Guardian node, positioned between the message observation phase and the VAA signing phase. It receives messages from the watchers that have already been processed by the Transfer Verifier (if enabled) and makes decisions based on their verification state.
 
 The system implements three possible verdicts:
 
@@ -40,14 +40,14 @@ The system implements three possible verdicts:
 2. **Delay** - Messages should be temporarily held for manual review (default: 4 days)
 3. **Blackhole** - Messages should be permanently blocked from processing
 
-The Notary maintains persistent storage of delayed and blackholed messages, ensuring consistent behavior across guardian restarts and providing operators with the ability to manage problematic messages.
+The Notary maintains persistent storage of delayed and blackholed messages, ensuring consistent behavior across Guardian restarts and providing operators with the ability to manage problematic messages.
 
 
 ## Detailed Design
 
 ### Architecture
 
-The Notary is implemented as a Go package (`node/pkg/notary`) that integrates with the guardian's message processing pipeline. It consists of:
+The Notary is implemented as a Go package (`node/pkg/notary`) that integrates with the Guardian's message processing pipeline. It consists of:
 
 * **Core Notary struct** - Main processing logic and state management
 * **Database interface** - Persistent storage for delayed and blackholed messages  
@@ -124,7 +124,7 @@ The Notary builds upon the Transfer Verifier system but serves a different purpo
 - Consumes Transfer Verifier results
 - Makes recommendations based on the verification state of the messages
 - Manages its own list of delayed and blackholed messages
-- Operates at the guardian processor level
+- Operates at the Guardian processor level
 
 This separation allows a separation of concerns:
 - the Transfer Verifier focuses on analysis
@@ -137,9 +137,9 @@ The Notary shares architectural similarities with the Governor and Accountant sy
 
 #### Common Patterns
 All three systems:
-- Operate as message filters in the guardian processing pipeline
+- Operate as message filters in the Guardian processing pipeline
 - Can instruct the processor to delay or block message processing based on their evaluation criteria
-- Maintain persistent state across guardian restarts
+- Maintain persistent state across Guardian restarts
 - Provide manual override capabilities for operators
 
 #### Key Differences
@@ -200,7 +200,7 @@ An attacker who can cause the Transfer Verifier to mark legitimate messages as "
 Guardians can also intervene manually to release delayed messages, or disable the Notary entirely which would prevent the delay from occurring even if the Transfer Verifier continues to yield incorrect verification states.
 
 ### State Consistency
-Each guardian maintains its own Notary state independently. While this provides resilience against single points of failure, it means guardians might have slightly different views of delayed/blackholed messages.
+Each Guardian maintains its own Notary state independently. While this provides resilience against single points of failure, it means Guardians might have slightly different views of delayed/blackholed messages.
 
 ### Manual Override Risks
 The ability to manually manage delayed and blackholed messages provides operational flexibility but also introduces the risk of human error or malicious operator behavior.
