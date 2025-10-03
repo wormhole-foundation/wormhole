@@ -657,7 +657,8 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	// - This will cause the summed value of Sui to decrease.
 	emitterChainEntry.transfers = append(emitterChainEntry.transfers, transfer)
 
-	if gov.flowCancelEnabled {
+	// Reobservation messages must not flow cancel.
+	if gov.flowCancelEnabled && !msg.IsReobservation {
 		_, err = gov.tryAddFlowCancelTransfer(&transfer)
 		if err != nil {
 			// Don't interrupt the control flow when a flow cancel fails. Instead, fail open and allow
@@ -750,8 +751,8 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
 
-// CheckPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
-// moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
+// CheckPendingForTime checks whether any pending messages are ready to be released. If so, modifies the chain entry's `pending` and `transfers` slices by
+// moving `dbTransfer` elements from `pending` to `transfers`. Returns a slice of Messages that will be published.
 // A transfer is ready to be released when one of the following conditions holds:
 //   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
 //     the Governor's current capacity)
@@ -906,7 +907,11 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 						ce.transfers = append(ce.transfers, transfer)
 
 						gov.msgsSeen[pe.hash] = transferComplete
-						if gov.flowCancelEnabled {
+
+						// Add a flow cancel transfer, if applicable.
+						// Reobservation messages must not flow cancel.
+						if gov.flowCancelEnabled && !pe.dbData.Msg.IsReobservation {
+
 							// The point here is to add a flow-cancelling transfer to the governor's pending queue if applicable.
 							// If the function returns (false, nil), just ignore it.
 							// Note that the inverse, flow-cancelling transfers are not stored in the database; they only
