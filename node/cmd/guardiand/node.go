@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/watchers/tvm"
 	"net"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
@@ -238,6 +239,9 @@ var (
 
 	polygonSepoliaRPC      *string
 	polygonSepoliaContract *string
+
+	tonConfigURL *string
+	tonContract  *string
 
 	logLevel                *string
 	publicRpcLogDetailStr   *string
@@ -526,6 +530,9 @@ func init() {
 	subscribeToVAAs = NodeCmd.Flags().Bool("subscribeToVAAs", false, "Guardiand should subscribe to incoming signed VAAs, set to true if running a public RPC node")
 
 	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
+
+	tonConfigURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "tonConfigURL", "Ton config URL", "https://ton.org/global.config.json", []string{"http", "https"})
+	tonContract = NodeCmd.Flags().String("tonContract", "", "Ton contract address")
 }
 
 var (
@@ -941,6 +948,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*tonConfigURL, *tonContract}) {
+		logger.Fatal("Either --tonConfigURL and --tonContract must all be set or all unset")
+	}
+
 	if !*chainGovernorEnabled && *coinGeckoApiKey != "" {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
@@ -1046,6 +1057,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["xrplevmRPC"] = *xrplEvmRPC
 	rpcMap["plasmaRPC"] = *plasmaRPC
 	rpcMap["creditcoinRPC"] = *creditCoinRPC
+	rpcMap["tonConfigURL"] = *tonConfigURL
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1857,6 +1869,17 @@ func runNode(cmd *cobra.Command, args []string) {
 				Contract:          *polygonSepoliaContract,
 				CcqBackfillCache:  *ccqBackfillCache,
 				TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDPolygonSepolia),
+			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+
+		if shouldStart(tonConfigURL) {
+			wc := &tvm.WatcherConfig{
+				NetworkID:       "TON",
+				ChainID:         vaa.ChainIDTON,
+				ContractAddress: *tonContract,
+				ConfigURL:       *tonConfigURL,
 			}
 
 			watcherConfigs = append(watcherConfigs, wc)

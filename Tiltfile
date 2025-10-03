@@ -66,6 +66,7 @@ config.define_bool("solana_watcher", False, "Enable Solana watcher on guardian")
 config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
+config.define_bool("ton", False, "Enable TON component")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
@@ -92,6 +93,7 @@ pythnet = cfg.get("pythnet", False)
 solana_watcher = cfg.get("solana_watcher", solana or pythnet)
 terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
+ton = cfg.get("ton", ci)
 wormchain = cfg.get("wormchain", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
@@ -314,6 +316,14 @@ def build_node_yaml():
                     "http://near:3030",
                     "--nearContract",
                     "wormhole.test.near"
+                ]
+
+            if ton:
+                container["command"] += [
+                    "--tonConfigURL",
+                    "https://ton.org/testnet-global.config.json",
+                    "--tonContract",
+                    "EQBJjO0MsE60REHkAoKBWts9y_tH0mow08qQ__aX-kXLHKll"
                 ]
 
             if wormchain:

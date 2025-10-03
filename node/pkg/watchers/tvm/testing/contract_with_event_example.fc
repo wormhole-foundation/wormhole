@@ -1,0 +1,31 @@
+#include "imports/stdlib.fc";
+
+slice parse_sender_address (cell in_msg_full) inline {
+    var cs = in_msg_full.begin_parse();
+    var flags = cs~load_uint(4);
+    slice sender_address = cs~load_msg_addr();
+    return sender_address;
+}
+
+() recv_internal (int balance, int msg_value, cell in_msg_full, slice in_msg_body) {
+    slice sender_address = parse_sender_address(in_msg_full);
+
+    cell msg_body = begin_cell()
+        .store_uint(0xee3a207e, 32)
+        .store_slice(sender_address)
+        .store_uint(22,64)
+        .store_uint(22,32)
+        .store_ref(begin_cell().store_uint(1,8).end_cell())
+        .store_uint(1,8)
+        .end_cell();
+
+    var msg = begin_cell()
+        .store_uint (12, 4) ;; ext_out_msg_info$11 src:MsgAddressInt ()
+        .store_uint (1, 2)
+        .store_uint (256, 9)
+        .store_uint(random(), 256)
+        .store_uint(0, 64 + 32 + 2) ;; created_lt, created_at, init:Maybe, body:Either
+        .store_slice(msg_body.begin_parse())
+        .end_cell();
+    send_raw_message(msg, 0);
+}
