@@ -1,0 +1,36 @@
+{
+    "private": true,
+    "name": "@wormhole-foundation/contracts-ton",
+    "version": "0.0.1",
+    "scripts": {
+        "bp": "blueprint",
+        "start": "blueprint run",
+        "build": "blueprint build",
+        "test": "jest --verbose",
+        "coverage": "blueprint test --coverage",
+        "gas:compare": "blueprint test --gas-report",
+        "gas:snapshot": "blueprint snapshot"
+    },
+    "dependencies": {
+        "@ton/core": "~0"
+    },
+    "devDependencies": {
+        "@tact-lang/compiler": ">=1.6.13 <2.0.0",
+        "@ton-community/func-js": ">=0.10.0",
+        "@ton/blueprint": ">=0.40.0",
+        "@ton/crypto": "^3.3.0",
+        "@ton/sandbox": ">=0.37.0",
+        "@ton/test-utils": ">=0.11.0",
+        "@ton/tolk-js": ">=1.0.0",
+        "@ton/ton": ">=15.3.1 <16.0.0",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^22.17.2",
+        "ecpair": "^3.0.0",
+        "jest": "^30.0.5",
+        "prettier": "^3.6.2",
+        "tiny-secp256k1": "^2.2.4",
+        "ts-jest": "^29.4.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.2"
+    }
+}
