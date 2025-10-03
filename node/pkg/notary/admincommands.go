@@ -75,7 +75,7 @@ func (n *Notary) RemoveBlackholedMsg(msgID string) error {
 }
 
 // ResetReleaseTimer resets the release timer for a delayed message.
-func (n *Notary) ResetReleaseTimer(msgID string, delayDays uint32) error {
+func (n *Notary) ResetReleaseTimer(msgID string, delayDays uint8) error {
 	if len(msgID) < common.MinMsgIdLen {
 		return ErrInvalidMsgID
 	}

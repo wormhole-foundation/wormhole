@@ -46,6 +46,14 @@ type NodePrivilegedServiceClient interface {
 	ChainGovernorReleasePendingVAA(ctx context.Context, in *ChainGovernorReleasePendingVAARequest, opts ...grpc.CallOption) (*ChainGovernorReleasePendingVAAResponse, error)
 	// ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
 	ChainGovernorResetReleaseTimer(ctx context.Context, in *ChainGovernorResetReleaseTimerRequest, opts ...grpc.CallOption) (*ChainGovernorResetReleaseTimerResponse, error)
+	// NotaryBlackholeDelayedMessage blacklists a VAA from the notary pending list.
+	NotaryBlackholeDelayedMessage(ctx context.Context, in *NotaryBlackholeDelayedMessageRequest, opts ...grpc.CallOption) (*NotaryBlackholeDelayedMessageResponse, error)
+	// NotaryReleaseDelayedMessage releases a VAA from the notary pending list, publishing it immediately.
+	NotaryReleaseDelayedMessage(ctx context.Context, in *NotaryReleaseDelayedMessageRequest, opts ...grpc.CallOption) (*NotaryReleaseDelayedMessageResponse, error)
+	// NotaryRemoveBlackholedMessage removes a VAA from the notary's blackholed list and adds it to the pending list with a release timer of 0.
+	NotaryRemoveBlackholedMessage(ctx context.Context, in *NotaryRemoveBlackholedMessageRequest, opts ...grpc.CallOption) (*NotaryRemoveBlackholedMessageResponse, error)
+	// NotaryResetReleaseTimer resets the release timer for a notary pending VAA to supplied number of days.
+	NotaryResetReleaseTimer(ctx context.Context, in *NotaryResetReleaseTimerRequest, opts ...grpc.CallOption) (*NotaryResetReleaseTimerResponse, error)
 	// PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
 	PurgePythNetVaas(ctx context.Context, in *PurgePythNetVaasRequest, opts ...grpc.CallOption) (*PurgePythNetVaasResponse, error)
 	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
@@ -145,6 +153,42 @@ func (c *nodePrivilegedServiceClient) ChainGovernorResetReleaseTimer(ctx context
 	return out, nil
 }
 
+func (c *nodePrivilegedServiceClient) NotaryBlackholeDelayedMessage(ctx context.Context, in *NotaryBlackholeDelayedMessageRequest, opts ...grpc.CallOption) (*NotaryBlackholeDelayedMessageResponse, error) {
+	out := new(NotaryBlackholeDelayedMessageResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/NotaryBlackholeDelayedMessage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodePrivilegedServiceClient) NotaryReleaseDelayedMessage(ctx context.Context, in *NotaryReleaseDelayedMessageRequest, opts ...grpc.CallOption) (*NotaryReleaseDelayedMessageResponse, error) {
+	out := new(NotaryReleaseDelayedMessageResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/NotaryReleaseDelayedMessage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodePrivilegedServiceClient) NotaryRemoveBlackholedMessage(ctx context.Context, in *NotaryRemoveBlackholedMessageRequest, opts ...grpc.CallOption) (*NotaryRemoveBlackholedMessageResponse, error) {
+	out := new(NotaryRemoveBlackholedMessageResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/NotaryRemoveBlackholedMessage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodePrivilegedServiceClient) NotaryResetReleaseTimer(ctx context.Context, in *NotaryResetReleaseTimerRequest, opts ...grpc.CallOption) (*NotaryResetReleaseTimerResponse, error) {
+	out := new(NotaryResetReleaseTimerResponse)
+	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/NotaryResetReleaseTimer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *nodePrivilegedServiceClient) PurgePythNetVaas(ctx context.Context, in *PurgePythNetVaasRequest, opts ...grpc.CallOption) (*PurgePythNetVaasResponse, error) {
 	out := new(PurgePythNetVaasResponse)
 	err := c.cc.Invoke(ctx, "/node.v1.NodePrivilegedService/PurgePythNetVaas", in, out, opts...)
@@ -213,6 +257,14 @@ type NodePrivilegedServiceServer interface {
 	ChainGovernorReleasePendingVAA(context.Context, *ChainGovernorReleasePendingVAARequest) (*ChainGovernorReleasePendingVAAResponse, error)
 	// ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
 	ChainGovernorResetReleaseTimer(context.Context, *ChainGovernorResetReleaseTimerRequest) (*ChainGovernorResetReleaseTimerResponse, error)
+	// NotaryBlackholeDelayedMessage blacklists a VAA from the notary pending list.
+	NotaryBlackholeDelayedMessage(context.Context, *NotaryBlackholeDelayedMessageRequest) (*NotaryBlackholeDelayedMessageResponse, error)
+	// NotaryReleaseDelayedMessage releases a VAA from the notary pending list, publishing it immediately.
+	NotaryReleaseDelayedMessage(context.Context, *NotaryReleaseDelayedMessageRequest) (*NotaryReleaseDelayedMessageResponse, error)
+	// NotaryRemoveBlackholedMessage removes a VAA from the notary's blackholed list and adds it to the pending list with a release timer of 0.
+	NotaryRemoveBlackholedMessage(context.Context, *NotaryRemoveBlackholedMessageRequest) (*NotaryRemoveBlackholedMessageResponse, error)
+	// NotaryResetReleaseTimer resets the release timer for a notary pending VAA to supplied number of days.
+	NotaryResetReleaseTimer(context.Context, *NotaryResetReleaseTimerRequest) (*NotaryResetReleaseTimerResponse, error)
 	// PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
 	PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error)
 	// SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
@@ -254,6 +306,18 @@ func (UnimplementedNodePrivilegedServiceServer) ChainGovernorReleasePendingVAA(c
 }
 func (UnimplementedNodePrivilegedServiceServer) ChainGovernorResetReleaseTimer(context.Context, *ChainGovernorResetReleaseTimerRequest) (*ChainGovernorResetReleaseTimerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChainGovernorResetReleaseTimer not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) NotaryBlackholeDelayedMessage(context.Context, *NotaryBlackholeDelayedMessageRequest) (*NotaryBlackholeDelayedMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NotaryBlackholeDelayedMessage not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) NotaryReleaseDelayedMessage(context.Context, *NotaryReleaseDelayedMessageRequest) (*NotaryReleaseDelayedMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NotaryReleaseDelayedMessage not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) NotaryRemoveBlackholedMessage(context.Context, *NotaryRemoveBlackholedMessageRequest) (*NotaryRemoveBlackholedMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NotaryRemoveBlackholedMessage not implemented")
+}
+func (UnimplementedNodePrivilegedServiceServer) NotaryResetReleaseTimer(context.Context, *NotaryResetReleaseTimerRequest) (*NotaryResetReleaseTimerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NotaryResetReleaseTimer not implemented")
 }
 func (UnimplementedNodePrivilegedServiceServer) PurgePythNetVaas(context.Context, *PurgePythNetVaasRequest) (*PurgePythNetVaasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurgePythNetVaas not implemented")
@@ -442,6 +506,78 @@ func _NodePrivilegedService_ChainGovernorResetReleaseTimer_Handler(srv interface
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodePrivilegedService_NotaryBlackholeDelayedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotaryBlackholeDelayedMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).NotaryBlackholeDelayedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/NotaryBlackholeDelayedMessage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).NotaryBlackholeDelayedMessage(ctx, req.(*NotaryBlackholeDelayedMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodePrivilegedService_NotaryReleaseDelayedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotaryReleaseDelayedMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).NotaryReleaseDelayedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/NotaryReleaseDelayedMessage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).NotaryReleaseDelayedMessage(ctx, req.(*NotaryReleaseDelayedMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodePrivilegedService_NotaryRemoveBlackholedMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotaryRemoveBlackholedMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).NotaryRemoveBlackholedMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/NotaryRemoveBlackholedMessage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).NotaryRemoveBlackholedMessage(ctx, req.(*NotaryRemoveBlackholedMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodePrivilegedService_NotaryResetReleaseTimer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotaryResetReleaseTimerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodePrivilegedServiceServer).NotaryResetReleaseTimer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/node.v1.NodePrivilegedService/NotaryResetReleaseTimer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodePrivilegedServiceServer).NotaryResetReleaseTimer(ctx, req.(*NotaryResetReleaseTimerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NodePrivilegedService_PurgePythNetVaas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PurgePythNetVaasRequest)
 	if err := dec(in); err != nil {
@@ -556,6 +692,22 @@ var NodePrivilegedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChainGovernorResetReleaseTimer",
 			Handler:    _NodePrivilegedService_ChainGovernorResetReleaseTimer_Handler,
+		},
+		{
+			MethodName: "NotaryBlackholeDelayedMessage",
+			Handler:    _NodePrivilegedService_NotaryBlackholeDelayedMessage_Handler,
+		},
+		{
+			MethodName: "NotaryReleaseDelayedMessage",
+			Handler:    _NodePrivilegedService_NotaryReleaseDelayedMessage_Handler,
+		},
+		{
+			MethodName: "NotaryRemoveBlackholedMessage",
+			Handler:    _NodePrivilegedService_NotaryRemoveBlackholedMessage_Handler,
+		},
+		{
+			MethodName: "NotaryResetReleaseTimer",
+			Handler:    _NodePrivilegedService_NotaryResetReleaseTimer_Handler,
 		},
 		{
 			MethodName: "PurgePythNetVaas",

@@ -47,6 +47,18 @@ service NodePrivilegedService {
   // ChainGovernorResetReleaseTimer resets the release timer for a chain governor pending VAA to the configured maximum.
   rpc ChainGovernorResetReleaseTimer (ChainGovernorResetReleaseTimerRequest) returns (ChainGovernorResetReleaseTimerResponse);
 
+  // NotaryBlackholeDelayedMessage blacklists a VAA from the notary pending list.
+  rpc NotaryBlackholeDelayedMessage (NotaryBlackholeDelayedMessageRequest) returns (NotaryBlackholeDelayedMessageResponse);
+
+  // NotaryReleaseDelayedMessage releases a VAA from the notary pending list, publishing it immediately.
+  rpc NotaryReleaseDelayedMessage (NotaryReleaseDelayedMessageRequest) returns (NotaryReleaseDelayedMessageResponse);
+
+  // NotaryRemoveBlackholedMessage removes a VAA from the notary's blackholed list and adds it to the pending list with a release timer of 0.
+  rpc NotaryRemoveBlackholedMessage (NotaryRemoveBlackholedMessageRequest) returns (NotaryRemoveBlackholedMessageResponse);
+
+  // NotaryResetReleaseTimer resets the release timer for a notary pending VAA to supplied number of days.
+  rpc NotaryResetReleaseTimer (NotaryResetReleaseTimerRequest) returns (NotaryResetReleaseTimerResponse);
+
   // PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
   rpc PurgePythNetVaas (PurgePythNetVaasRequest) returns (PurgePythNetVaasResponse);
 
