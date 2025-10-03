@@ -184,7 +184,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	// Return early if the message has already been blackholed. This is important in case a message
 	// is reobserved or otherwise processed here more than once. An Anomalous message that becomes
 	// delayed and later blackholed should not be able to be re-added to the Delayed queue.
-	if n.blackholed.Contains(msg.MessageID()) {
+	if n.IsBlackholed(msg.MessageID()) {
 		n.logger.Warn("notary: got message publication that is already blackholed",
 			msg.ZapFields(zap.String("verdict", Blackhole.String()))...,
 		)
