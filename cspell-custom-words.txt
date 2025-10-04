@@ -19,6 +19,9 @@ behaviour
 Berachain
 bigset
 Bigtable
+Blackhole
+blackhole
+blackholed
 borsh
 bscscan
 BUILDKIT
