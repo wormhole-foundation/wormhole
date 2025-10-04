@@ -43,7 +43,7 @@ func (gov *ChainGovernor) initConfigForTest(
 	decimals, _ := decimalsFloat.Int(nil)
 	key := tokenKey{chain: tokenChainID, addr: tokenAddr}
 
-	gov.tokens[key] = &tokenEntry{price: price, decimals: decimals, symbol: tokenSymbol, token: key}
+	gov.tokens[key] = &tokenEntry{price: price, scalingFactor: decimals, symbol: tokenSymbol, token: key}
 }
 
 func (gov *ChainGovernor) setDayLengthInMinutes(minimum int) {
@@ -89,17 +89,19 @@ func (gov *ChainGovernor) setTokenForTesting(
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
+	const Decimals = 8
+
 	tokenAddr, err := vaa.StringToAddress(tokenAddrStr)
 	if err != nil {
 		return err
 	}
 
 	bigPrice := big.NewFloat(price)
-	decimalsFloat := big.NewFloat(math.Pow(10.0, float64(8)))
-	decimals, _ := decimalsFloat.Int(nil)
+	scalingFactorFloat := big.NewFloat(math.Pow(10.0, float64(Decimals)))
+	scalingFactor, _ := scalingFactorFloat.Int(nil)
 
 	key := tokenKey{chain: tokenChainID, addr: tokenAddr}
-	te := &tokenEntry{cfgPrice: bigPrice, price: bigPrice, decimals: decimals, symbol: symbol, coinGeckoId: symbol, token: key, flowCancels: flowCancels}
+	te := &tokenEntry{cfgPrice: bigPrice, price: bigPrice, scalingFactor: scalingFactor, symbol: symbol, coinGeckoId: symbol, token: key, flowCancels: flowCancels}
 	gov.tokens[key] = te
 	cge, cgExists := gov.tokensByCoinGeckoId[te.coinGeckoId]
 	if !cgExists {
