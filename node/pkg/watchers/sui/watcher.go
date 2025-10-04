@@ -583,7 +583,7 @@ func (e *Watcher) getLatestCheckpointSN(ctx context.Context, logger *zap.Logger)
 	if pErr != nil {
 		logger.Error("Failed to ParseInt")
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
-		return 0, fmt.Errorf("sui_getLatestCheckpointSequenceNumber failed to ParseInt, error: %w", err)
+		return 0, fmt.Errorf("sui_getLatestCheckpointSequenceNumber failed to ParseInt, error: %w", pErr)
 	}
 	return height, nil
 }
