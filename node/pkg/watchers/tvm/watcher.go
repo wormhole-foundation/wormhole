@@ -62,6 +62,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 	logger.Info("Starting watcher",
 		zap.String("watcher_name", "ton"),
 		zap.String("networkID", w.chainID.String()),
+		zap.String("configURL", w.tonConfigURL),
+		zap.String("contractAddress", w.contractAddress.String()),
 	)
 
 	outChan := make(chan *tlb.Transaction)
@@ -107,7 +109,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				logger.Info("TON transaction received",
 					zap.String("chainID", w.chainID.String()),
 					zap.String("component", "TxSubscriber"),
-					zap.String("address", string(tx.AccountAddr)),
+					zap.String("address", hex.EncodeToString(tx.AccountAddr)),
 					zap.String("tx_hash", hex.EncodeToString(tx.Hash)),
 					zap.Uint64("lt", tx.LT),
 					zap.Uint32("now", tx.Now),

@@ -323,7 +323,7 @@ def build_node_yaml():
                     "--tonConfigURL",
                     "https://ton.org/testnet-global.config.json",
                     "--tonContract",
-                    "EQBJjO0MsE60REHkAoKBWts9y_tH0mow08qQ__aX-kXLHKll"
+                    "kQAz5rRlycWBC9dCI8aCx-mQBsOhjsMIdoOmIm_q_yyBTUG4"
                 ]
 
             if wormchain:

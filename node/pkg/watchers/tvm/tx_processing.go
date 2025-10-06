@@ -65,16 +65,12 @@ func (ts *TxSubscriber) Work(ctx context.Context) (err error) {
 
 	go ts.tonClient.SubscribeOnTransactions(ctx, ts.addr, ts.lt, ts.outChan)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 const (
-	OpcodeMessagePublished = 0xee3a207e
+	OpcodeMessagePublished = 0xA237A664
 )
 
 // event::message_published#ee3a207e sender:MsgAddressInt sequence:uint64 nonce:uint32 payload:^Cell consistency_level:uint8
@@ -119,44 +115,43 @@ func (w *Watcher) inspectBody(logger *zap.Logger, tx *tlb.Transaction, isReobser
 		return fmt.Errorf("findMessagePublishedEvent: %w", err)
 	}
 
-	if messagePublishEvents != nil {
-		for _, messagePublishEvent := range messagePublishEvents {
-			emitterAddress, err := vaa.StringToAddress(hex.EncodeToString(messagePublishEvent.EmitterAddress.Data()))
-			if err != nil {
-				return fmt.Errorf("vaa.StringToAddress(messagePublishEvent.EmitterAddress): %w", err)
-			}
-
-			observation := &common.MessagePublication{
-				TxID:             messagePublishEvent.TransactionID,
-				Timestamp:        time.Unix(int64(tx.Now), 0),
-				Nonce:            messagePublishEvent.Nonce,
-				Sequence:         messagePublishEvent.Sequence,
-				EmitterChain:     w.chainID,
-				EmitterAddress:   emitterAddress,
-				Payload:          []byte(messagePublishEvent.Payload.String()),
-				ConsistencyLevel: messagePublishEvent.ConsistencyLevel,
-				IsReobservation:  isReobservation,
-			}
-
-			// messagesConfirmed.Inc()
-			if isReobservation {
-				watchers.ReobservationsByChain.WithLabelValues("ton", "std").Inc()
-			}
-
-			logger.Info("TON MESSAGE OBSERVED",
-				zap.String("txHash", observation.TxIDString()),
-				zap.Time("timestamp", observation.Timestamp),
-				zap.Uint32("nonce", observation.Nonce),
-				zap.Uint64("sequence", observation.Sequence),
-				zap.Stringer("emitter_chain", observation.EmitterChain),
-				zap.Stringer("emitter_address", observation.EmitterAddress),
-				zap.String("payload_hex", hex.EncodeToString(observation.Payload)),
-				zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
-				zap.Bool("is_reobservation", isReobservation),
-			)
-
-			w.msgChan <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+	for _, messagePublishEvent := range messagePublishEvents {
+		emitterAddress, err := vaa.StringToAddress(hex.EncodeToString(messagePublishEvent.EmitterAddress.Data()))
+		if err != nil {
+			return fmt.Errorf("vaa.StringToAddress(messagePublishEvent.EmitterAddress): %w", err)
 		}
+
+		observation := &common.MessagePublication{
+			TxID:             messagePublishEvent.TransactionID,
+			Timestamp:        time.Unix(int64(tx.Now), 0),
+			Nonce:            messagePublishEvent.Nonce,
+			Sequence:         messagePublishEvent.Sequence,
+			EmitterChain:     w.chainID,
+			EmitterAddress:   emitterAddress,
+			Payload:          []byte(messagePublishEvent.Payload.String()),
+			ConsistencyLevel: messagePublishEvent.ConsistencyLevel,
+			IsReobservation:  isReobservation,
+		}
+
+		// messagesConfirmed.Inc()
+		if isReobservation {
+			watchers.ReobservationsByChain.WithLabelValues("ton", "std").Inc()
+		}
+
+		logger.Info("message published",
+			zap.String("chainID", w.chainID.String()),
+			zap.String("txHash", observation.TxIDString()),
+			zap.Time("timestamp", observation.Timestamp),
+			zap.Uint32("nonce", observation.Nonce),
+			zap.Uint64("sequence", observation.Sequence),
+			zap.Stringer("emitter_chain", observation.EmitterChain),
+			zap.Stringer("emitter_address", observation.EmitterAddress),
+			zap.String("payload_hex", hex.EncodeToString(observation.Payload)),
+			zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
+			zap.Bool("is_reobservation", isReobservation),
+		)
+
+		w.msgChan <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	}
 
 	return nil
@@ -179,10 +174,9 @@ func (w *Watcher) findMessagePublishedEvents(tx *tlb.Transaction) ([]*MessagePub
 	}
 	externalMessages := make([]*MessagePublishedEvent, 0)
 
-	fmt.Println(len(messages))
 	for _, msg := range messages {
-		extMsg := msg.AsExternalOut()
-		if extMsg != nil {
+		if msg.MsgType == tlb.MsgTypeExternalOut {
+			extMsg := msg.AsExternalOut()
 			msgBody := extMsg.Payload().BeginParse()
 			opcode, err := msgBody.LoadUInt(32)
 			if err != nil {
