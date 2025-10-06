@@ -148,7 +148,37 @@ func (n *Notary) Run() error {
 
 	n.logger.Info("notary ready")
 
+	// Spawn a goroutine to periodically update prometheus gauge metrics
+	go n.updateMetrics()
+
 	return nil
+}
+
+// updateMetrics runs periodically to update gauge metrics for queue sizes
+func (n *Notary) updateMetrics() {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
+	// Update metrics immediately on start
+	n.updateGauges()
+
+	for {
+		select {
+		case <-n.ctx.Done():
+			return
+		case <-ticker.C:
+			n.updateGauges()
+		}
+	}
+}
+
+// updateGauges updates the prometheus gauge metrics
+func (n *Notary) updateGauges() {
+	n.mutex.RLock()
+	defer n.mutex.RUnlock()
+
+	notaryDelayedMessagesGauge.Set(float64(n.delayed.Len()))
+	notaryBlackholedMessagesGauge.Set(float64(n.blackholed.Len()))
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
@@ -186,6 +216,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		if tokenBridge, ok := tbEmitters[msg.EmitterChain]; !ok {
 			// Return Unknown if the token bridge is not registered in the SDK.
 			n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
+			notaryErrors.WithLabelValues("unknown_token_bridge").Inc()
 			return Unknown, errors.New("unknown token bridge emitter")
 		} else {
 			// Approve if the token transfer is not from the token bridge.
@@ -294,6 +325,7 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 		zap.Int("delayedCount", n.delayed.Len()),
 	)
 
+	notaryMessagesReleased.Add(float64(len(readyMsgs)))
 	return readyMsgs
 }
 
