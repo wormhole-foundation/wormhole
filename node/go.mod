@@ -384,3 +384,5 @@ replace github.com/CosmWasm/wasmd v0.30.0 => github.com/wormhole-foundation/wasm
 replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole
 
 replace github.com/certusone/wormhole/node/pkg/txverifier => ./pkg/txverifier
+
+replace github.com/xssnick/tonutils-go => github.com/RSquad/tonutils-go v0.0.0
