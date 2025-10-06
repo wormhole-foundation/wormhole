@@ -3,6 +3,7 @@
 package db
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -15,8 +16,8 @@ import (
 type NotaryDBInterface interface {
 	StoreBlackholed(m *common.MessagePublication) error
 	StoreDelayed(p *common.PendingMessage) error
-	DeleteBlackholed(m *common.MessagePublication) error
-	DeleteDelayed(p *common.PendingMessage) error
+	DeleteBlackholed(msgID []byte) (*common.MessagePublication, error)
+	DeleteDelayed(msgID []byte) (*common.PendingMessage, error)
 	LoadAll(logger *zap.Logger) (*NotaryLoadResult, error)
 }
 
@@ -83,7 +84,7 @@ func (d *NotaryDB) StoreDelayed(p *common.PendingMessage) error {
 		return errors.Join(ErrMarshal, marshalErr)
 	}
 
-	key := delayKey(p)
+	key := delayKey(p.Msg.MessageID())
 	if updateErr := d.update(key, b); updateErr != nil {
 		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
@@ -98,19 +99,59 @@ func (d *NotaryDB) StoreBlackholed(m *common.MessagePublication) error {
 		return errors.Join(ErrMarshal, marshalErr)
 	}
 
-	key := blackholeKey(m)
+	key := blackholeKey(m.MessageID())
 	if updateErr := d.update(key, b); updateErr != nil {
 		return &DBError{Op: OpUpdate, Key: key, Err: updateErr}
 	}
 	return nil
 }
 
-func (d *NotaryDB) DeleteDelayed(p *common.PendingMessage) error {
-	return d.deleteEntry(delayKey(p))
+// DeleteDelayed deletes a delayed message from the database and returns the value that was deleted.
+func (d *NotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) {
+	deleted, err := d.deleteEntry(delayKey(msgID))
+	if err != nil {
+		return nil, err
+	}
+
+	var pendingMsg common.PendingMessage
+	unmarshalErr := pendingMsg.UnmarshalBinary(deleted)
+	if unmarshalErr != nil {
+		return nil, errors.Join(
+			ErrUnmarshal,
+			unmarshalErr,
+		)
+	}
+
+	// Sanity check that the message ID matches the one that was deleted.
+	if !bytes.Equal(pendingMsg.Msg.MessageID(), msgID) {
+		return &pendingMsg, errors.New("notary: delete pending message from notary database: removed message publication had different message ID compared to query")
+	}
+
+	return &pendingMsg, nil
 }
 
-func (d *NotaryDB) DeleteBlackholed(m *common.MessagePublication) error {
-	return d.deleteEntry(blackholeKey(m))
+// DeleteBlackholed deletes a blackholed message from the database and returns the value that was deleted.
+func (d *NotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
+	deleted, err := d.deleteEntry(blackholeKey(msgID))
+	if err != nil {
+		return nil, err
+	}
+
+	var msgPub common.MessagePublication
+	unmarshalErr := msgPub.UnmarshalBinary(deleted)
+	if unmarshalErr != nil {
+		return nil, errors.Join(
+			ErrUnmarshal,
+			unmarshalErr,
+		)
+	}
+
+	// Sanity check that the message ID matches the one that was deleted.
+	if !bytes.Equal(msgPub.MessageID(), msgID) {
+		return &msgPub, errors.New("notary: delete blackholed message from notary database: removed message publication had different message ID compared to query")
+	}
+
+	return &msgPub, nil
 }
 
 type NotaryLoadResult struct {
@@ -204,25 +245,46 @@ func (d *NotaryDB) update(key []byte, data []byte) error {
 	return nil
 }
 
-func (d *NotaryDB) deleteEntry(key []byte) error {
+// deleteEntry deletes a key-value pair from the database and returns the value that was deleted.
+func (d *NotaryDB) deleteEntry(key []byte) ([]byte, error) {
+	var deletedValue []byte
+
 	if updateErr := d.db.Update(func(txn *badger.Txn) error {
+		// Get the item first
+		item, getErr := txn.Get(key)
+		if getErr != nil {
+			return getErr
+		}
+
+		// Copy the value before deleting
+		valueCopy, copyErr := item.ValueCopy(nil)
+		if copyErr != nil {
+			return copyErr
+		}
+		deletedValue = valueCopy
+
+		// Now delete the key
 		deleteErr := txn.Delete(key)
 		return deleteErr
 	}); updateErr != nil {
-		return &DBError{Op: OpDelete, Key: key, Err: updateErr}
+		return nil, &DBError{Op: OpDelete, Key: key, Err: updateErr}
 	}
 
-	return nil
+	if len(deletedValue) == 0 {
+		return nil, &DBError{Op: OpDelete, Key: key, Err: errors.New("notary: delete operation did not return a value")}
+	}
+
+	return deletedValue, nil
 }
 
 // delayKey returns a unique prefix for pending messages to be stored in the Notary's database.
-func delayKey(p *common.PendingMessage) []byte {
-	return key(delayedPrefix, p.Msg.MessageIDString())
+func delayKey(msgID []byte) []byte {
+	return key(delayedPrefix, string(msgID))
 }
 
 // blackholeKey returns a unique prefix for blackholed message publications to be stored in the Notary's database.
-func blackholeKey(m *common.MessagePublication) []byte {
-	return key(blackholePrefix, m.MessageIDString())
+func blackholeKey(msgID []byte) []byte {
+	return key(blackholePrefix, string(msgID))
 }
 
 // key returns a unique prefix for different data types stored in the Notary's database.
