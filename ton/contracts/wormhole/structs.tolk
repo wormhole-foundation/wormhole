@@ -51,14 +51,6 @@ fun VM.parse(c: cell): (VM, uint256) {
     return (vm, hash);
 }
 
-fun VM.hash(self): uint256 {
-    return 0;
-}
-
-fun VM.validate(self) {
-    assert(self.version == VERSION) throw ERROR_INVALID_VM_VERSION;
-}
-
 fun verifyVmSignatures(vmHash: uint256, guardianSet: GuardianSet, signatures: map<uint8, Signature>): bool {
     return true;
 }

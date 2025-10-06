@@ -12,6 +12,7 @@ import {
     Slice,
     TupleItem,
 } from '@ton/core';
+import { Opcodes } from './Constants';
 
 export type GuardianSet = {
     keys: Buffer[];
@@ -82,15 +83,6 @@ export function wormholeConfigToCell(config: WormholeConfig): Cell {
         .endCell();
 }
 
-export const Opcodes = {
-    OP_PUBLISH_MESSAGE: 0x1ce51423,
-    OP_PARSE_AND_VERIFY_VM: 0xabfc7db9,
-};
-
-export const Events = {
-    EVENT_PUBLISH_MESSAGE: 0x50acea3e,
-};
-
 export class Wormhole implements Contract {
     constructor(
         readonly address: Address,
@@ -148,6 +140,7 @@ export class Wormhole implements Contract {
             value: bigint;
             queryId?: bigint | number;
             encodedVM: Cell;
+            tail: Cell;
         },
     ) {
         await provider.internal(via, {
@@ -157,6 +150,7 @@ export class Wormhole implements Contract {
                 .storeUint(Opcodes.OP_PARSE_AND_VERIFY_VM, 32)
                 .storeUint(BigInt(opts.queryId ?? 0), 64)
                 .storeRef(opts.encodedVM)
+                .storeRef(opts.tail)
                 .endCell(),
         });
     }

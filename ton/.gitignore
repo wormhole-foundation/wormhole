@@ -30,3 +30,6 @@ coverage
 
 # gas snapshots
 .snapshot
+
+# scaffold plugin artifacts
+dapp

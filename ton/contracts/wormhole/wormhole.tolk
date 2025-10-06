@@ -4,7 +4,6 @@ import "../libraries/errors";
 import "../libraries/tonmsg";
 import "events";
 import "structs";
-import "opcodes";
 import "messages";
 
 // this struct defines storage layout of the contract
@@ -51,7 +50,7 @@ fun onPublishMessage(sender: address, msgValue: coins, params: PublishMessage) {
 
     val sequence = storage.useSequence(sender);
 
-    val event = PublishMessageEvent {
+    val event = MessagePublishedEvent {
         sender: sender,
         sequence: sequence,
         nonce: params.nonce,
@@ -91,11 +90,13 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         PublishMessage => {
             onPublishMessage(in.senderAddress, in.valueCoins, msg);
-            sendChange(in.senderAddress, OP_PUBLISH_MESSAGE, msg.queryId, msg.tail);
+            val answer = PublishMessageAnswer{ queryId: msg.queryId, tail: msg.tail };
+            sendChange(in.senderAddress, OP_PUBLISH_MESSAGE, answer);
         }
         ParseAndVerifyVM => {
             onParseAndVerifyVM(msg);
-            sendChange(in.senderAddress, OP_PARSE_AND_VERIFY_VM, msg.queryId, true);
+            val answer = ParseAndVerifyVMAnswer{ queryId: msg.queryId, valid: true, encodedVaa: msg.encodedVM, tail: msg.tail };
+            sendChange(in.senderAddress, OP_PARSE_AND_VERIFY_VM, answer);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others

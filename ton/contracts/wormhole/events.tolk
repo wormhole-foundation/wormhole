@@ -1,7 +1,7 @@
 
-const EVENT_PUBLISH_MESSAGE = stringCrc32("event::wormhole::publish_message");
+const EVENT_PUBLISH_MESSAGE = stringCrc32("event::message_published");
 
-struct (0x50ACEA3E) PublishMessageEvent {
+struct (0xA237A664) MessagePublishedEvent {
     sender: address
     sequence: uint64
     nonce: uint32

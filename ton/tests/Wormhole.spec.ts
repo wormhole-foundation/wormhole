@@ -1,11 +1,13 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { Cell, toNano, beginCell, Dictionary } from '@ton/core';
-import { Wormhole, GuardianSetDictionaryValue, Events, SignatureDictionaryValue } from '../wrappers/Wormhole';
+import { Wormhole, GuardianSetDictionaryValue, SignatureDictionaryValue } from '../wrappers/Wormhole';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
-import { makeRandomKeyPair, toXOnly } from './TestUtils';
+import { Crypto, Time } from './TestUtils';
 import { findTransactionRequired } from '@ton/test-utils';
 import { randomBytes } from 'crypto';
+import { Events, Opcodes, toAnswer } from '../wrappers/Constants';
+import { createEmptyGuardianSet, generateVAACell } from '../wrappers/Structs';
 
 const NUM_GUARDIANS = 19;
 const NUM_SIGNATURES = 13;
@@ -22,39 +24,17 @@ describe('Wormhole', () => {
     let publisher: SandboxContract<TreasuryContract>;
     let wormhole: SandboxContract<Wormhole>;
 
-    const keys = new Array(NUM_GUARDIANS).fill(0).map(() => makeRandomKeyPair());
-
-    const generateVM = (signaturesCount: number) => {
-        // Create a test VM that follows the contract's parsing order
-        const signaturesDict = Dictionary.empty(Dictionary.Keys.Uint(8), SignatureDictionaryValue);
-        for (let i = 0; i < signaturesCount; i++) {
-            signaturesDict.set(i, { signature: randomBytes(65), guardianIndex: i });
-        }
-        const vmData = beginCell()
-            .storeUint(1, 8) // version
-            .storeUint(0, 32) // guardianSetIndex
-            .storeUint(signaturesDict.size, 8) // signaturesCount
-            .storeDict(signaturesDict)
-            .storeUint(Math.floor(Date.now() / 1000), 32) // timestamp
-            .storeUint(123, 32) // nonce
-            .storeUint(2, 16) // emitterChainId
-            .storeUint(0, 256) // emitterAddress
-            .storeUint(1, 64) // sequence
-            .storeUint(1, 8) // consistencyLevel
-            .storeRef(beginCell().storeStringTail('test payload').endCell()) // payload
-            .endCell();
-        return vmData;
-    };
+    const keys = new Array(NUM_GUARDIANS).fill(0).map(() => Crypto.makeRandomKeyPair());
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
         deployer = await blockchain.treasury('deployer');
         publisher = await blockchain.treasury('publisher');
 
-        const publicKeys = keys.map((key) => toXOnly(key.keyPair.publicKey as Buffer));
+        const publicKeys = keys.map((key) => Crypto.toXOnly(key.keyPair.publicKey as Buffer));
 
-        const guardianSets = Dictionary.empty(Dictionary.Keys.Uint(8), GuardianSetDictionaryValue);
-        guardianSets.set(0, { keys: publicKeys, expirationTime: Math.floor(Date.now() / 1000) + 60 });
+        const guardianSets = createEmptyGuardianSet();
+        guardianSets.set(0, { keys: publicKeys, expirationTime: Time.now(60) });
         wormhole = blockchain.openContract(
             Wormhole.createFromConfig(
                 {
@@ -88,7 +68,7 @@ describe('Wormhole', () => {
     });
 
     it('should succeed verifyVM', async () => {
-        const vmData = generateVM(NUM_SIGNATURES);
+        const vmData = generateVAACell(NUM_SIGNATURES);
         const result = await wormhole.getVerifyVM(vmData);
         expect(result).toBe(true);
     });
@@ -130,7 +110,7 @@ describe('Wormhole', () => {
         const event = trans.outMessages.values().find((msg) => msg.info.type === 'external-out');
         expect(event).toBeDefined();
         const eventBody = event!.body.beginParse();
-        expect(eventBody.loadUint(32)).toBe(Events.EVENT_PUBLISH_MESSAGE);
+        expect(eventBody.loadUint(32)).toBe(Events.EVENT_MESSAGE_PUBLISHED);
         expect(eventBody.loadAddress().toString()).toBe(publisher.address.toString());
         expect(eventBody.loadUintBig(64)).toBe(0n);
         expect(eventBody.loadUint(32)).toBe(789);
@@ -161,16 +141,24 @@ describe('Wormhole', () => {
 
     it('should send parse and verify VM', async () => {
         const verifier = await blockchain.treasury('verifier');
-        const vmData = generateVM(NUM_SIGNATURES);
+        const vmData = generateVAACell(NUM_SIGNATURES);
         const verifyResult = await wormhole.sendParseAndVerifyVM(verifier.getSender(), {
             value: toNano(0.1),
             queryId: 1,
             encodedVM: vmData,
+            tail: beginCell().endCell(),
         });
         expect(verifyResult.transactions).toHaveTransaction({
             from: verifier.address,
             to: wormhole.address,
             success: true,
+            op: Opcodes.OP_PARSE_AND_VERIFY_VM,
+        });
+        expect(verifyResult.transactions).toHaveTransaction({
+            from: wormhole.address,
+            to: verifier.address,
+            success: true,
+            op: toAnswer(Opcodes.OP_PARSE_AND_VERIFY_VM),
         });
     });
 });
