@@ -263,7 +263,7 @@ func (w *Watcher) ccqBackfillGetBlocks(ctx context.Context, initialBlockNum uint
 	blocks := Blocks{}
 	for i := range results {
 		if results[i].err != nil {
-			return nil, fmt.Errorf("failed to get block: %w", err)
+			return nil, fmt.Errorf("failed to get block: %w", results[i].err)
 		}
 
 		m := &results[i].result
