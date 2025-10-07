@@ -42,7 +42,6 @@ The system implements three possible verdicts:
 
 The Notary maintains persistent storage of delayed and blackholed messages, ensuring consistent behavior across Guardian restarts and providing operators with the ability to manage problematic messages.
 
-
 ## Detailed Design
 
 ### Architecture
@@ -57,12 +56,12 @@ The Notary is implemented as a Go package (`node/pkg/notary`) that integrates wi
 
 When a message reaches the Notary:
 
-1. **Type Check** - Only token transfer messages are evaluated; all others are automatically approved
+1. **Type Check** - Only Wrapped Token Transfer messages are evaluated; all others are automatically approved
 2. **Blackhole Check** - If the message is already blackholed, return Blackhole verdict immediately
 3. **Verification State Evaluation** - Based on the Transfer Verifier's assessment:
    - `Valid`, `NotVerified`, `NotApplicable`, `CouldNotVerify` → **Approve**
    - `Anomalous` → **Delay** (4 days default)
-   - `Rejected` → **Blackhole** (permanent)
+   - `Rejected` → **Delay** (4 days default)
 
 Similar to the Governor and Accountant systems, the Notary maintains a list of messages which the Processor can consult to determine if a message should be processed into a VAA or not. It cannot directly block or delay messages.
 
@@ -86,7 +85,8 @@ _All three statuses are mutually-exclusive, and no message should be duplicated 
 - Message is permanently blocked from processing (though ultimately it is the Processor that actually takes this action)
 - Stored in database for persistence across restarts
 - Cannot be automatically released - requires manual intervention
-- Currently only used for messages definitively identified as malicious by Transfer Verifier
+- Used for messages manually determined to be malicious after investigation
+- Could potentially be applied automatically to certain verification states in future implementations
 
 ### Database Schema
 
@@ -162,12 +162,24 @@ All three systems:
 - **Action**: Approve or reject based on accounting rules
 - **Focus**: Prevention of erroneous token unlocks, reducing the effectiveness of cross-chain exploits
 
+#### Sequential Processing and Cumulative Delays
+
+Messages flow through the Notary, Governor, and Accountant sequentially. Each system independently evaluates messages and maintains its own delay queue. When a message's delay period expires in one system, it proceeds to the next system for evaluation.
+
+This sequential architecture means delays can accumulate. In the worst case, a single message could be:
+1. Delayed 4 days by the Notary (e.g., for a "Rejected" verification state)
+2. Then delayed 24 hours by the Governor (if it exceeds value thresholds)
+3. Then potentially delayed or rejected by the Accountant (based on accounting rules)
+
+The total delay for a message can therefore exceed the individual delay periods of any single system. Operators should consider this cumulative effect when monitoring delayed messages and planning manual interventions.
+
 ### Operational Considerations
 
-#### Modularity
+#### Deployment Considerations
 
 - The Notary is designed to be modular with respect to the node. It can be disabled via a configuration flag.
 - The Notary can be enabled or disabled independently of the Transfer Verifier and other security mechanisms.
+- Messages marked as "Rejected" by the Transfer Verifier are delayed rather than blackholed to minimize tampering with VAAs and to provide a cautious rollout. Future implementations may blackhole such messages automatically.
 
 _The Notary's initial implementation only acts on results from the Transfer Verifier; if Transfer Verifier is not enabled
 the Notary will approve all messages. (This is because the Notary works based on the Verification State of a Message
@@ -193,10 +205,10 @@ Possible actions include:
 ## Security Considerations
 
 ### Trust Model
-The Notary inherits the security properties of the Transfer Verifier system it depends on. If the Transfer Verifier is compromised or produces incorrect results, the Notary will make decisions based on that flawed information.
+The Notary inherits the security properties of the Transfer Verifier system it depends on. If the Transfer Verifier is compromised or produces incorrect results, the Notary will make decisions based on that flawed information. The current approach of delaying rather than immediately blackholing rejected messages provides additional safety against false positives.
 
 ### Denial of Service
-An attacker who can cause the Transfer Verifier to mark legitimate messages as "Anomalous" could cause widespread delays in message processing for Wrapped Token Transfers. However, messages are automatically released after the delay period, limiting the impact.
+An attacker who can cause the Transfer Verifier to mark legitimate messages as "Anomalous" or "Rejected" could cause widespread delays in message processing for Wrapped Token Transfers. However, messages are automatically released after the delay period, limiting the impact.
 Guardians can also intervene manually to release delayed messages, or disable the Notary entirely which would prevent the delay from occurring even if the Transfer Verifier continues to yield incorrect verification states.
 
 ### State Consistency
