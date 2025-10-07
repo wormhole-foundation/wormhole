@@ -83,6 +83,9 @@ const (
 	DefaultDelay = time.Hour * 24 * 4
 	MaxDelayDays = 30
 	MaxDelay     = time.Hour * 24 * MaxDelayDays
+
+	// The ticker interval for the notary's periodic metrics update.
+	metricsUpdateInterval = time.Minute * 15
 )
 
 var (
@@ -156,7 +159,7 @@ func (n *Notary) Run() error {
 
 // updateMetrics runs periodically to update gauge metrics for queue sizes
 func (n *Notary) updateMetrics() {
-	ticker := time.NewTicker(time.Hour)
+	ticker := time.NewTicker(metricsUpdateInterval)
 	defer ticker.Stop()
 
 	// Update metrics immediately on start
@@ -174,6 +177,13 @@ func (n *Notary) updateMetrics() {
 
 // updateGauges updates the prometheus gauge metrics
 func (n *Notary) updateGauges() {
+
+	// Only update gauges if the notary is ready.
+	if n.blackholed == nil || n.delayed == nil {
+		n.logger.Info("Notary is not ready yet, skipping gauges update")
+		return
+	}
+
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 
@@ -632,7 +642,12 @@ func NewSet() *msgPubSet {
 	}
 }
 
+// Len returns the number of elements in the set. Returns 0 if the set is nil.
 func (s *msgPubSet) Len() int {
+	if s == nil {
+		return 0
+	}
+
 	return len(s.elements)
 }
 
