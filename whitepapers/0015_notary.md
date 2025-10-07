@@ -205,7 +205,7 @@ Possible actions include:
 ## Security Considerations
 
 ### Trust Model
-The Notary inherits the security properties of the Transfer Verifier system it depends on. If the Transfer Verifier is compromised or produces incorrect results, the Notary will make decisions based on that flawed information. The current approach of delaying rather than immediately blackholing rejected messages provides additional safety against false positives.
+The Notary inherits the security properties of the Transfer Verifier system it depends on. If the Transfer Verifier is compromised or produces incorrect results, the Notary will make decisions based on that flawed information. The current approach of delaying rejected messages (instead of giving them Blackhole status) provides additional safety against false positives.
 
 ### Denial of Service
 An attacker who can cause the Transfer Verifier to mark legitimate messages as "Anomalous" or "Rejected" could cause widespread delays in message processing for Wrapped Token Transfers. However, messages are automatically released after the delay period, limiting the impact.
