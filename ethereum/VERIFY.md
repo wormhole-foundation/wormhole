@@ -1,39 +1,109 @@
-# Contract verification
+# Contract Verification
 
-The various EVM explorer sites (etherscan, bscscan, etc.) support contract
+The various EVM explorer sites (Etherscan, Blockscout, etc.) support contract
 verification. This essentially entails uploading the source code to the site,
 and they verify that the uploaded source code compiles to the same bytecode
 that's actually deployed. This enables the explorer to properly parse the
 transaction payloads according to the contract ABI.
 
-This document outlines the process of verification. In general, you will need an
-API key for the relevant explorer (this can be obtained by creating an account)
-and to know at which address the contract code lives. The API key is expected to
-be set in the `ETHERSCAN_API_KEY` environment variable for all APIs (not just
-etherscan, bit of a misnomer).
+## Automated Verification (Recommended)
 
-Our contracts are structured as a separate proxy and an implementation. Both of
-these components need to be verified, but the proxy contract only needs this
-once, since it's not going to change. The implementation contract needs to be
-verified each time it's upgraded.
+The easiest way to verify contracts is during deployment by setting `VERIFY_ARGS`
+in your `.env` file. The deployment scripts will automatically verify all contracts
+using Forge's `verify-contract` parameters ([docs](https://getfoundry.sh/forge/reference/verify-contract/)).
 
-## Verifying the proxy contract (first time)
+### Etherscan-compatible explorers
 
-The proxy contract is called `TokenBridge`. To verify it on e.g. Ethereum, at contract address `0x3ee18B2214AFF97000D974cf647E7C347E8fa585`, run
+For Etherscan and other Etherscan-compatible explorers:
 
 ```bash
-forge verify-contract --etherscan-api-key $ETHERSCAN_API_KEY --verifier-url "https://api.etherscan.io/api" 0x3ee18B2214AFF97000D974cf647E7C347E8fa585 contracts/bridge/TokenBridge.sol:TokenBridge --watch
+VERIFY_ARGS="--verify --verifier etherscan --etherscan-api-key <YOUR_API_KEY>"
 ```
 
-## Verifying the implementation contract (on each upgrade)
+### Blockscout explorers
 
-To verify the actual implementation, at address `0x381752f5458282d317d12c30d2bd4d6e1fd8841e`, run
+For Blockscout-based explorers:
 
 ```bash
-forge verify-contract --etherscan-api-key $ETHERSCAN_API_KEY --verifier-url "https://api.etherscan.io/api" 0x381752f5458282d317d12c30d2bd4d6e1fd8841e contracts/bridge/BridgeImplementation.sol:BridgeImplementation --watch
+VERIFY_ARGS="--verify --verifier blockscout --verifier-url https://explorer.example.com/api"
 ```
 
-As a final step, when first registering the proxy contract, we need to verify
-that it's a proxy that points to the implementation we just verified. This can
-be done on ethereum at https://etherscan.io/proxyContractChecker
-(other evm scanner sites have an identical page).
+Then run the deployment scripts as described in the README. All contracts will be
+verified automatically during deployment.
+
+## Manual Verification
+
+If you need to verify contracts manually (e.g., after an upgrade or if automated
+verification failed), you can use the `forge verify-contract` command.
+
+### Contract Structure
+
+Our contracts are structured as a separate proxy and implementation. Both components
+need to be verified:
+- **Proxy contract**: Only needs verification once (doesn't change)
+- **Implementation contract**: Needs verification after each upgrade
+
+### Verifying Core Contracts
+
+#### Wormhole (Proxy)
+
+```bash
+forge verify-contract \
+  --etherscan-api-key <YOUR_API_KEY> \
+  --verifier-url "https://api.etherscan.io/api" \
+  <WORMHOLE_ADDRESS> \
+  contracts/Wormhole.sol:Wormhole \
+  --watch
+```
+
+#### Implementation (Core)
+
+```bash
+forge verify-contract \
+  --etherscan-api-key <YOUR_API_KEY> \
+  --verifier-url "https://api.etherscan.io/api" \
+  <IMPLEMENTATION_ADDRESS> \
+  contracts/Implementation.sol:Implementation \
+  --watch
+```
+
+### Verifying TokenBridge Contracts
+
+#### TokenBridge (Proxy)
+
+```bash
+forge verify-contract \
+  --etherscan-api-key <YOUR_API_KEY> \
+  --verifier-url "https://api.etherscan.io/api" \
+  <TOKEN_BRIDGE_ADDRESS> \
+  contracts/bridge/TokenBridge.sol:TokenBridge \
+  --watch
+```
+
+#### BridgeImplementation
+
+```bash
+forge verify-contract \
+  --etherscan-api-key <YOUR_API_KEY> \
+  --verifier-url "https://api.etherscan.io/api" \
+  <TOKEN_BRIDGE_IMPLEMENTATION_ADDRESS> \
+  contracts/bridge/BridgeImplementation.sol:BridgeImplementation \
+  --watch
+```
+
+### Verifying Proxy Configuration
+
+As a final step when first registering a proxy contract, verify that the proxy
+points to the correct implementation. This can be done through the explorer's
+proxy verification page:
+
+- **Ethereum**: https://etherscan.io/proxyContractChecker
+- Other explorers have similar pages (look for "Is this a proxy?" link on the contract page)
+
+## Notes
+
+- Replace `<YOUR_API_KEY>` with your actual API key for the explorer
+- Replace `<WORMHOLE_ADDRESS>`, `<IMPLEMENTATION_ADDRESS>`, etc. with actual deployed addresses
+- Replace `--verifier-url` with the appropriate API URL for your chain's explorer
+- For Blockscout explorers, use `--verifier blockscout` instead of `--verifier etherscan` and include `--verifier-url`
+- The `--watch` flag monitors verification status until completion

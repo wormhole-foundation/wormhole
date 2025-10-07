@@ -17,9 +17,16 @@ To build the contracts:
 
 #### Create the ENV file
 
-Before you can deploy the contracts, you need to create a file in `ethereum/env` with a name like `.env.blast` for mainnet
-or `.env.blast.testnet` for testnet. Substitute the appropriate chain name (as it will be in the worm client) and use the
-mentioned one as an example.
+Before you can deploy the contracts, copy the appropriate template from `ethereum/env`:
+- For testnet: copy `.env.template.testnet` to `.env.{chain_name}.testnet`
+- For mainnet: copy `.env.template.mainnet` to `.env.{chain_name}.mainnet`
+
+For example:
+```shell
+ethereum/env$ cp .env.template.testnet .env.blast.testnet
+```
+
+Then edit the file to fill in the required values for your deployment.
 
 #### Create a symbolic link
 
@@ -34,6 +41,14 @@ ethereum$ MNEMONIC=<redacted> ./sh/deployCoreBridge.sh
 ```
 
 #### Deploy the TokenBridge contract
+
+After deploying the Core contract, add the `WORMHOLE_ADDRESS` from the previous output to your env file, then deploy the TokenBridge:
+
+```shell
+ethereum$ MNEMONIC=<redacted> ./sh/deployTokenBridge.sh
+```
+
+Alternatively, you can pass `WORMHOLE_ADDRESS` directly on the command line:
 
 ```shell
 ethereum$ MNEMONIC=<redacted> WORMHOLE_ADDRESS=<from_the_previous_command> ./sh/deployTokenBridge.sh
@@ -54,7 +69,7 @@ ethereum$ MNEMONIC=<redacted> ./sh/deployTokenBridgeShutdown.sh
 #### Deploy the Custom Consistency Level contract
 
 ```shell
-ethereum$ RPC_URL= MNEMONIC= EVM_CHAIN_ID= ./sh/deployCustomConsistencyLevel.sh
+ethereum$ MNEMONIC=<redacted> ./sh/deployCustomConsistencyLevel.sh
 ```
 
 #### Generate Flattened Source
