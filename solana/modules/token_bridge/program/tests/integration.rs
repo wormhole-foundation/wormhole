@@ -54,7 +54,7 @@ const GOVERNANCE_KEY: [u8; 64] = [
     88, 97, 199,
 ];
 
-const CHAIN_ID_SOLANA: u16 = 1;
+const OUR_CHAIN_ID: u16 = 1;
 const CHAIN_ID_ETH: u16 = 2;
 
 struct Context {
@@ -583,9 +583,9 @@ async fn transfer_native_with_payload_in() {
     let payload = PayloadTransferWithPayload {
         amount: U256::from(100u128),
         token_address: mint.pubkey().to_bytes(),
-        token_chain: CHAIN_ID_SOLANA,
+        token_chain: OUR_CHAIN_ID,
         to: token_authority.pubkey().to_bytes(),
-        to_chain: CHAIN_ID_SOLANA,
+        to_chain: OUR_CHAIN_ID,
         from_address,
         payload,
     };

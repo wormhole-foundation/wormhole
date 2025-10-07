@@ -25,7 +25,7 @@ use bridge::{
         Claim,
     },
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -97,7 +97,7 @@ pub fn create_wrapped(
     data: CreateWrappedData,
 ) -> Result<()> {
     // Do not process attestations sourced from the current chain.
-    if accs.vaa.token_chain == CHAIN_ID_SOLANA {
+    if accs.vaa.token_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 

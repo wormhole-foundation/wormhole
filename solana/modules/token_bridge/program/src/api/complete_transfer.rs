@@ -23,7 +23,7 @@ use bridge::{
         Claim,
     },
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::account_info::AccountInfo;
 use solitaire::{
@@ -107,7 +107,7 @@ pub fn complete_native(
     if accs.vaa.token_chain != 1 {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
@@ -234,7 +234,7 @@ pub fn complete_wrapped(
     }
 
     // Verify VAA
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {

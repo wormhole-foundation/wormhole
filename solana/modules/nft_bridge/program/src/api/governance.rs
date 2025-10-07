@@ -147,7 +147,7 @@ pub fn register_chain(
     verify_governance(&accs.vaa)?;
     claim::consume(ctx, accs.payer.key, &mut accs.claim, &accs.vaa)?;
 
-    if accs.vaa.chain == CHAIN_ID_SOLANA {
+    if accs.vaa.chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 
