@@ -31,8 +31,8 @@ require (
 	github.com/tendermint/tendermint v0.34.24
 	github.com/tidwall/gjson v1.15.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.32.0
-	golang.org/x/sys v0.29.0
+	golang.org/x/crypto v0.28.0
+	golang.org/x/sys v0.26.0
 	golang.org/x/time v0.5.0
 	google.golang.org/api v0.126.0
 	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5 // indirect
@@ -256,7 +256,6 @@ require (
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
-	github.com/oasisprotocol/curve25519-voi v0.0.0-20220328075252-7dd334e3daae // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/onsi/ginkgo/v2 v2.20.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -355,11 +354,11 @@ require (
 	go.uber.org/ratelimit v0.2.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/mod v0.21.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/term v0.25.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/tools v0.26.0 // indirect
 	gonum.org/v1/gonum v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -385,4 +384,4 @@ replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sd
 
 replace github.com/certusone/wormhole/node/pkg/txverifier => ./pkg/txverifier
 
-replace github.com/xssnick/tonutils-go => github.com/RSquad/tonutils-go v0.0.0
+replace github.com/xssnick/tonutils-go => github.com/RSquad/tonutils-go v1.14.1-wormhole
