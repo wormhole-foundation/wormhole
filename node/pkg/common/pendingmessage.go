@@ -174,7 +174,12 @@ func (q *PendingMessageQueue) Pop() *PendingMessage {
 	return last
 }
 
+// Len returns the number of elements in the queue. Returns 0 if the queue is nil.
 func (q *PendingMessageQueue) Len() int {
+	if q == nil {
+		return 0
+	}
+
 	return q.heap.Len()
 }
 
