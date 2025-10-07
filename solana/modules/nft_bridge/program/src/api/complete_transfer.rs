@@ -24,7 +24,7 @@ use bridge::{
         Claim,
     },
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -112,10 +112,10 @@ pub fn complete_native(
     if token_id_bytes != accs.mint.info().key.to_bytes() {
         return Err(InvalidMint.into());
     }
-    if accs.vaa.token_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.token_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
@@ -223,7 +223,7 @@ pub fn complete_wrapped(
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify VAA
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
@@ -358,7 +358,7 @@ pub fn complete_wrapped_meta(
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify VAA
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 

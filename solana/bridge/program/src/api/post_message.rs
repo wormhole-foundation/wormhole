@@ -16,7 +16,7 @@ use crate::{
     types::ConsistencyLevel,
     IsSigned::*,
     MessageData,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     msg,
@@ -227,7 +227,7 @@ fn post_message_internal<'b>(
     // Initialize transfer
     trace!("Setting Message Details");
     message.submission_time = clock.unix_timestamp as u32;
-    message.emitter_chain = CHAIN_ID_SOLANA;
+    message.emitter_chain = OUR_CHAIN_ID;
     message.emitter_address = emitter.key.to_bytes();
     message.nonce = data.nonce;
     message.payload = data.payload;

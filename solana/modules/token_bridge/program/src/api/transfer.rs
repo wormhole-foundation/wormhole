@@ -26,7 +26,7 @@ use bridge::{
     api::PostMessageData,
     types::ConsistencyLevel,
     vaa::SerializePayload,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use primitive_types::U256;
 use solana_program::{
@@ -111,7 +111,7 @@ pub fn transfer_native(
     data: TransferNativeData,
 ) -> Result<()> {
     // Prevent transferring to the same chain.
-    if data.target_chain == CHAIN_ID_SOLANA {
+    if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 
@@ -135,7 +135,7 @@ pub fn transfer_native(
     let payload = PayloadTransfer {
         amount: U256::from(amount),
         token_address: accs.mint.info().key.to_bytes(),
-        token_chain: CHAIN_ID_SOLANA,
+        token_chain: OUR_CHAIN_ID,
         to: data.target_address,
         to_chain: data.target_chain,
         fee: U256::from(fee),
@@ -312,7 +312,7 @@ pub fn transfer_wrapped(
     data: TransferWrappedData,
 ) -> Result<()> {
     // Prevent transferring to the same chain.
-    if data.target_chain == CHAIN_ID_SOLANA {
+    if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 
