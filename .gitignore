@@ -24,9 +24,7 @@ devnet-consts.json
 !/terra/artifacts/cw20_base.wasm
 /cosmwasm/artifacts/
 !/cosmwasm/artifacts/cw20_base.wasm
-/solana/artifacts-testnet/
-/solana/artifacts-devnet/
-/solana/artifacts-mainnet/
+/solana/artifacts-*
 /ethereum/out/
 /ethereum/cache/
 sui.log.*
