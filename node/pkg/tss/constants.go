@@ -9,8 +9,6 @@ import (
 	"github.com/xlabs/multi-party-sig/protocols/frost/keygen"
 	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 
-	"github.com/xlabs/tss-lib/v2/party"
-
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -53,10 +51,20 @@ const (
 	auxiliaryDataSize = int(unsafe.Sizeof(vaa.ChainID(0)))
 	maxParties        = 256
 
-	// TrackingID  1byte of protocolID + 32 bytes digest + auxiliaryDataSize + bitmap state of parties
-	// *2 for hex encoding of Digest, auxiliaryData and bitmap
-	// +3 bytes for '-' between each field.
-	trackingIDHexStrSize = int(unsafe.Sizeof(uint8(0))) + 2*(party.DigestSize+(maxParties+7)/8+(auxiliaryDataSize)) + 3
+	// hex string sizes use 2x since each byte is represented by 2 hex characters
+	// e.g. 0xFF = "FF"
+	auxiliaryDataStrHexSize  = 2 * auxiliaryDataSize
+	maxPartiesStrHexSize     = 2 * (maxParties / 8) // divided by 8 since it's a bitmap
+	digestStrHexSize         = 2 * digestSize
+	protocolTypeSize         = int(unsafe.Sizeof(uint8(0))) // uint8 currently
+	numdashesInTrackingIDStr = 3
+	// TrackingID  is a string composed of: protocolType-Digest-AuxiliaryData-MaxParties
+	// where:
+	// *protocolType is 1 byte (uint8)
+	// *Digest is 32 bytes (sha256)
+	// *AuxiliaryData is 2 bytes (emitterChain)
+	// *MaxParties is 32 bytes (bitmap of max parties, currently set to 256 max parties)
+	trackingIDHexStrSize = protocolTypeSize + digestStrHexSize + auxiliaryDataStrHexSize + maxPartiesStrHexSize + numdashesInTrackingIDStr
 
 	defaultMaxLiveSignatures = 20000
 
