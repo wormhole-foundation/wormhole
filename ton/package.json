@@ -25,6 +25,7 @@
         "@ton/ton": ">=15.3.1 <16.0.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^22.17.2",
+        "blueprint-scaffold": "^1.1.5",
         "ecpair": "^3.0.0",
         "jest": "^30.0.5",
         "prettier": "^3.6.2",
