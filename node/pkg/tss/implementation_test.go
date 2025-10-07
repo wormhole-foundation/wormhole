@@ -236,7 +236,7 @@ func makeHashEcho(e *Engine, parsed common.ParsedMessage, in *IncomingMessage) *
 		OriginalContetDigest: dgst[:],
 	}
 
-	outgoing.toBroadcastMsg().Message.Content = &tsscommv1.SignedMessage_HashEcho{hshEcho}
+	outgoing.toBroadcastMsg().Message.Content = &tsscommv1.SignedMessage_HashEcho{HashEcho: hshEcho}
 	return outgoing
 
 }
@@ -793,7 +793,7 @@ func (b *badtssMessage) WireBytes() ([]byte, *common.MessageRouting, error) {
 	return nil, nil, errors.New("bad message")
 }
 func (b *badtssMessage) GetProtocol() common.ProtocolType {
-	return common.ProtocolFROST
+	return common.ProtocolFROSTSign
 }
 
 func TestRouteCheck(t *testing.T) {
@@ -1010,9 +1010,9 @@ func TestNoFaultsFlow(t *testing.T) {
 		cID := vaa.ChainID(1)
 
 		e := getSigningGuardian(a, engines, party.SigningTask{
-			Digest:       dgst,
-			Faulties:     []*common.PartyID{},
-			AuxilaryData: chainIDToBytes(cID),
+			Digest:        dgst,
+			Faulties:      []*common.PartyID{},
+			AuxiliaryData: chainIDToBytes(cID),
 		})
 
 		for _, engine := range engines {
@@ -1216,9 +1216,9 @@ func TestFT(t *testing.T) {
 		digests := make([]party.SigningTask, n)
 		for i := 0; i < n; i++ {
 			digests[i] = party.SigningTask{
-				Digest:       [32]byte{byte(i + 1)},
-				Faulties:     nil,
-				AuxilaryData: chainIDToBytes(chainId),
+				Digest:        [32]byte{byte(i + 1)},
+				Faulties:      nil,
+				AuxiliaryData: chainIDToBytes(chainId),
 			}
 		}
 
@@ -1280,9 +1280,9 @@ func TestFT(t *testing.T) {
 
 		cID := vaa.ChainID(1)
 		tsk := party.SigningTask{
-			Digest:       party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
-			Faulties:     []*common.PartyID{},
-			AuxilaryData: chainIDToBytes(cID),
+			Digest:        party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			Faulties:      []*common.PartyID{},
+			AuxiliaryData: chainIDToBytes(cID),
 		}
 
 		engines, err := loadGuardians(5, "tss5")
@@ -1394,9 +1394,9 @@ func generateFakeMessageWithRandomContent(from, to *common.PartyID, rnd signingR
 	}
 
 	trackingId := &common.TrackingID{
-		Digest:       digest[:],
-		PartiesState: partiesState,
-		AuxilaryData: []byte{},
+		Digest:        digest[:],
+		PartiesState:  partiesState,
+		AuxiliaryData: []byte{},
 	}
 
 	rndmBigNumber := &big.Int{}
@@ -1675,8 +1675,8 @@ func TestSigCounter(t *testing.T) {
 
 		cID := vaa.ChainID(0)
 		tsks := []party.SigningTask{
-			party.SigningTask{party.Digest{1}, []*common.PartyID{}, chainIDToBytes(cID)},
-			party.SigningTask{party.Digest{2}, []*common.PartyID{}, chainIDToBytes(cID)},
+			party.SigningTask{Digest: party.Digest{1}, Faulties: []*common.PartyID{}, AuxiliaryData: chainIDToBytes(cID)},
+			party.SigningTask{Digest: party.Digest{2}, Faulties: []*common.PartyID{}, AuxiliaryData: chainIDToBytes(cID)},
 		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1 := getSigningGuardian(a, engines, tsks...)
@@ -1715,7 +1715,7 @@ func TestSigCounter(t *testing.T) {
 		// Tests might fail due to change of the GuardianStorage files
 		cID := vaa.ChainID(0)
 		tsks := []party.SigningTask{
-			party.SigningTask{party.Digest{1}, []*common.PartyID{}, chainIDToBytes(cID)},
+			party.SigningTask{Digest: party.Digest{1}, Faulties: []*common.PartyID{}, AuxiliaryData: chainIDToBytes(cID)},
 		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1 := getSigningGuardian(a, engines, tsks...)
@@ -1762,7 +1762,7 @@ func TestSigCounter(t *testing.T) {
 		// Tests might fail due to change of the GuardianStorage files
 		cID := vaa.ChainID(0)
 		tsks := []party.SigningTask{
-			party.SigningTask{party.Digest{1}, []*common.PartyID{}, chainIDToBytes(cID)},
+			party.SigningTask{Digest: party.Digest{1}, Faulties: []*common.PartyID{}, AuxiliaryData: chainIDToBytes(cID)},
 		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1 := getSigningGuardian(a, engines, tsks...)
@@ -1811,8 +1811,8 @@ func TestSigCounter(t *testing.T) {
 
 		cID := vaa.ChainID(0)
 		tsks := []party.SigningTask{
-			party.SigningTask{party.Digest{1}, []*common.PartyID{}, chainIDToBytes(cID)},
-			party.SigningTask{party.Digest{2}, []*common.PartyID{}, chainIDToBytes(cID)},
+			party.SigningTask{Digest: party.Digest{1}, Faulties: []*common.PartyID{}, AuxiliaryData: chainIDToBytes(cID)},
+			party.SigningTask{Digest: party.Digest{2}, Faulties: []*common.PartyID{}, AuxiliaryData: chainIDToBytes(cID)},
 		}
 		engines := load5GuardiansSetupForBroadcastChecks(a)
 		e1 := getSigningGuardian(a, engines, tsks...)
@@ -1908,13 +1908,13 @@ func contains(lst []*Engine, e *Engine) bool {
 func TestTrackingIDSizeIsOkay(t *testing.T) {
 	dgst := party.Digest{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	tid := common.TrackingID{
-		Digest:       dgst[:],
-		PartiesState: make([]byte, (maxParties+7)/8),
-		AuxilaryData: chainIDToBytes(vaa.ChainID(5)),
+		Digest:        dgst[:],
+		PartiesState:  make([]byte, (maxParties+7)/8),
+		AuxiliaryData: chainIDToBytes(vaa.ChainID(5)),
 	}
 
 	tidstr := tid.ToString()
-	assert.Equal(t, len(tidstr), trackingIDHexStrSize)
+	assert.Equal(t, trackingIDHexStrSize, len(tidstr))
 }
 
 func TestDKG(t *testing.T) {
@@ -2020,9 +2020,9 @@ func TestHandleFPWarning_IntegrationStyle_UsesEngineBootstrap(t *testing.T) {
 
 	dgst := sha512.Sum512_256([]byte("123"))
 	tid := &common.TrackingID{
-		Digest:       dgst[:],
-		PartiesState: nil,
-		AuxilaryData: []byte{dgst[0]},
+		Digest:        dgst[:],
+		PartiesState:  nil,
+		AuxiliaryData: []byte{dgst[0]},
 	}
 	w := &party.Warning{
 		Message:      "something happened",

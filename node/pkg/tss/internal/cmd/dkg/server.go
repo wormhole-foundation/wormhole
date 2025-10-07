@@ -90,11 +90,13 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 			continue
 		}
 
+		crv := tssConfigs.PublicKey.Curve()
+
 		lg := logger.With(zap.String("TrackingID", tssConfigs.TrackingID.ToString()))
 
 		lg.Info("completed a DKG session")
 
-		pkMarshal, err := tssConfigs.PublicKey.Clone().MarshalBinary()
+		pkMarshal, err := crv.MarshalPoint(tssConfigs.PublicKey.Clone())
 		if err != nil {
 			lg.Fatal("failed to marshal public key", zap.Error(err))
 		}

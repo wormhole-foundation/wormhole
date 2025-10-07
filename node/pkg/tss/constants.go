@@ -53,11 +53,10 @@ const (
 	auxiliaryDataSize = int(unsafe.Sizeof(vaa.ChainID(0)))
 	maxParties        = 256
 
-	// TrackingID = DigestSize  + auxiliaryDataSize + bitmap state of parties
-	trackindIDSize = party.DigestSize + (maxParties+7)/8 + (auxiliaryDataSize)
-	// *2 for hex encoding
-	// 2 bytes for '-' between each field.
-	trackingIDHexStrSize = 2*(trackindIDSize) + 2
+	// TrackingID  1byte of protocolID + 32 bytes digest + auxiliaryDataSize + bitmap state of parties
+	// *2 for hex encoding of Digest, auxiliaryData and bitmap
+	// +3 bytes for '-' between each field.
+	trackingIDHexStrSize = int(unsafe.Sizeof(uint8(0))) + 2*(party.DigestSize+(maxParties+7)/8+(auxiliaryDataSize)) + 3
 
 	defaultMaxLiveSignatures = 20000
 

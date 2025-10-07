@@ -18,6 +18,14 @@ import (
 	"github.com/xlabs/tss-lib/v2/party"
 )
 
+func init() {
+	// gob registrations for possible curve.Scalar/curve.Point implementations.
+	// gob has trouble unmarshalling interface types without a one to one mapping to a concrete type.
+	gob.Register(&curve.Secp256k1Scalar{})
+	gob.Register(&curve.Secp256k1Point{})
+	gob.Register(&party.TSSSecrets{})
+}
+
 func (s *GuardianStorage) unmarshalFromJSON(storageData []byte) error {
 	if err := json.Unmarshal(storageData, &s); err != nil {
 		return err

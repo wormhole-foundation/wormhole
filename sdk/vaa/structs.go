@@ -682,12 +682,8 @@ func (v *VAA) tssValidation(pk curve.Point) error {
 		return errors.New("TSS VAA must have exactly one signature")
 	}
 
-	frostsig, err := sign.EmptySignature(curve.Secp256k1{})
-	if err != nil {
-		return fmt.Errorf("failed to create empty TSS signature: %w", err)
-	}
-
-	if err := frostsig.UnmarshalBinary(v.Signatures[0].Signature[:]); err != nil {
+	frostsig := sign.Signature{}
+	if err := frostsig.UnmarshalBinary(curve.Secp256k1{}, v.Signatures[0].Signature[:]); err != nil {
 		return fmt.Errorf("failed to unmarshal TSS signature: %w", err)
 	}
 

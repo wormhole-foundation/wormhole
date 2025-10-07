@@ -334,14 +334,14 @@ func (st *GuardianStorage) validateTrackingIDForm(tid *common.TrackingID) error 
 		return fmt.Errorf("trackingID partiesState is too short")
 	}
 
-	// TODO: expecting auxilaryData to be set.
+	// TODO: expecting AuxiliaryData to be set.
 
 	return nil
 }
 
 func extractChainIDFromTrackingID(tid *common.TrackingID) vaa.ChainID {
 	bts := [2]byte{}
-	copy(bts[:], tid.AuxilaryData)
+	copy(bts[:], tid.AuxiliaryData)
 
 	return vaa.ChainID(binary.BigEndian.Uint16(bts[:]))
 }

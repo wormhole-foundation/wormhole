@@ -312,9 +312,9 @@ func (t *Engine) getSigPrepInfo(chainID vaa.ChainID, d party.Digest) (sigPrepara
 // prepareThenAnounceNewDigest updates the inner state of the engine before announcing to others about a new digest seen.
 func (t *Engine) prepareThenAnounceNewDigest(d party.Digest, chainID vaa.ChainID, consistencyLvl uint8, mt signingMeta) error {
 	signinginfo, err := t.fp.GetSigningInfo(party.SigningTask{
-		Digest:       d,
-		Faulties:     []*common.PartyID{}, // no faulties
-		AuxilaryData: chainIDToBytes(chainID),
+		Digest:        d,
+		Faulties:      []*common.PartyID{}, // no faulties
+		AuxiliaryData: chainIDToBytes(chainID),
 	})
 
 	if err != nil {
@@ -339,8 +339,8 @@ func makeSigningRequest(d party.Digest, faulties []*common.PartyID, chainID vaa.
 	return party.SigningTask{
 		Digest: d,
 		// indicating the reviving guardian will be given a chance to join the protocol.
-		Faulties:     faulties,
-		AuxilaryData: chainIDToBytes(chainID),
+		Faulties:      faulties,
+		AuxiliaryData: chainIDToBytes(chainID),
 	}
 }
 func NewKeyGenerator(storage *GuardianStorage) (KeyGenerator, error) {
