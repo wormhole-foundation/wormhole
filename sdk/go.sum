@@ -35,8 +35,8 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
-github.com/xlabs/multi-party-sig v0.0.2-0.20251006064349-41c2b72e2bf3 h1:45e/qY0CScA0CXFGqt+ExXOhI5UTTZ6mLrGfRUKsY2Q=
-github.com/xlabs/multi-party-sig v0.0.2-0.20251006064349-41c2b72e2bf3/go.mod h1:NpqmP2W7AAEany+2usJbi0eadzytXVSoucwK1SQ89cs=
+github.com/xlabs/multi-party-sig v0.0.2-0.20251008145440-ef00c6484b73 h1:MP649hemhNYpdOA/l6hXfqd8bwyBB8FPdZzCGlyo1SU=
+github.com/xlabs/multi-party-sig v0.0.2-0.20251008145440-ef00c6484b73/go.mod h1:NpqmP2W7AAEany+2usJbi0eadzytXVSoucwK1SQ89cs=
 github.com/xlabs/tss-common v0.0.0-20251006064114-b1fcd9c2ce8e h1:5PRcFPXMXmvPL4IBEA+h7Evvd2HziSMdcFKuXtiqugg=
 github.com/xlabs/tss-common v0.0.0-20251006064114-b1fcd9c2ce8e/go.mod h1:EBXV5kup1GsnVpEknaxXXpid87uN6Mh7NboAZhV+HNM=
 github.com/zeebo/assert v1.1.0 h1:hU1L1vLTHsnO8x8c9KAR5GmM5QscxHg5RNU5z5qbUWY=

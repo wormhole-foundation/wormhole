@@ -61,7 +61,7 @@ require (
 	github.com/prometheus/common v0.60.0
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
-	github.com/xlabs/multi-party-sig v0.0.2-0.20251006064349-41c2b72e2bf3
+	github.com/xlabs/multi-party-sig v0.0.2-0.20251008145440-ef00c6484b73
 	github.com/xlabs/tss-common v0.0.0-20251006064114-b1fcd9c2ce8e
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e
@@ -393,7 +393,7 @@ require (
 	github.com/gogo/status v1.1.1
 	github.com/test-go/testify v1.1.4
 	// github.com/xlabs/tss-lib/v2 v2.0.0-20241224083831-c218006b15e3
-	github.com/xlabs/tss-lib/v2 v2.0.0-20251006085444-29d4f5cfa6d4
+	github.com/xlabs/tss-lib/v2 v2.0.0-20251008162257-d741b8e3b429
 )
 
 replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43 // done in the TSS-LIB.
