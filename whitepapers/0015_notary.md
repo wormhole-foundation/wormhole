@@ -158,20 +158,25 @@ All three systems:
 
 **Accountant**:
 - **Scope**: Cross-chain token accounting
-- **Criteria**: Token balance consistency across chains
-- **Action**: Approve or reject based on accounting rules
+- **Criteria**: Token balance consistency across chains via smart contract validation
+- **Action**: Hold messages pending smart contract approval; approved messages proceed, unapproved messages remain pending indefinitely
 - **Focus**: Prevention of erroneous token unlocks, reducing the effectiveness of cross-chain exploits
 
 #### Sequential Processing and Cumulative Delays
 
-Messages flow through the Notary, Governor, and Accountant sequentially. Each system independently evaluates messages and maintains its own delay queue. When a message's delay period expires in one system, it proceeds to the next system for evaluation.
+Messages flow through the Notary, Governor, and Accountant sequentially. Each system independently evaluates messages and maintains its own queue. When a message is released by one system, it proceeds to the next system for evaluation.
 
-This sequential architecture means delays can accumulate. In the worst case, a single message could be:
-1. Delayed 4 days by the Notary (e.g., for a "Rejected" verification state)
-2. Then delayed 24 hours by the Governor (if it exceeds value thresholds)
-3. Then potentially delayed or rejected by the Accountant (based on accounting rules)
+This sequential architecture means delays can accumulate:
+1. **Notary**: Delays messages for a fixed period (4 days for "Rejected" or "Anomalous" states)
+2. **Governor**: Delays messages for a fixed period (24 hours if value thresholds are exceeded)
+3. **Accountant**: Holds messages indefinitely pending smart contract approval; messages proceed only when approved
 
-The total delay for a message can therefore exceed the individual delay periods of any single system. Operators should consider this cumulative effect when monitoring delayed messages and planning manual interventions.
+In the worst case, and assuming all three modules are enabled, a single message could experience:
+- 4 days delayed by the Notary
+- Then 24 hours delayed by the Governor
+- Then an indefinite hold by the Accountant until smart contract approval
+
+The Accountant's indefinite hold means total message delay is unbounded if smart contract approval is delayed or never received. Operators should monitor pending messages across all three systems and plan manual interventions accordingly.
 
 ### Operational Considerations
 
