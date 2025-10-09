@@ -283,7 +283,7 @@ pub struct TransferWrapped<'b> {
 impl<'a> From<&TransferWrapped<'a>> for WrappedDerivationData {
     fn from(accs: &TransferWrapped<'a>) -> Self {
         WrappedDerivationData {
-            token_chain: 1,
+            token_chain: OUR_CHAIN_ID,
             token_address: accs.mint.info().key.to_bytes(),
         }
     }

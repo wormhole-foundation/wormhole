@@ -20,7 +20,8 @@ use bridge::{
     },
     DeserializePayload,
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    CHAIN_ID_GOVERNANCE,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -44,8 +45,8 @@ where
 {
     let expected_emitter = std::env!("EMITTER_ADDRESS");
     let current_emitter = format!("{}", Pubkey::new_from_array(vaa.meta().emitter_address));
-    // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
-    if expected_emitter != current_emitter || vaa.meta().emitter_chain != CHAIN_ID_SOLANA {
+    // Fail if the emitter is not the known governance key, or the emitting chain is not the governance chain.
+    if expected_emitter != current_emitter || vaa.meta().emitter_chain != CHAIN_ID_GOVERNANCE {
         Err(InvalidGovernanceKey.into())
     } else {
         Ok(())

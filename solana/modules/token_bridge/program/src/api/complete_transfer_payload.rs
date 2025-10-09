@@ -166,7 +166,7 @@ pub fn complete_native_with_payload(
     if accs.vaa.token_address != accs.mint.info().key.to_bytes() {
         return Err(InvalidMint.into());
     }
-    if accs.vaa.token_chain != 1 {
+    if accs.vaa.token_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to_chain != OUR_CHAIN_ID {
