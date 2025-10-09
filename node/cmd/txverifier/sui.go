@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -306,7 +305,7 @@ func pullDigestsFromWormholeScan(ctx context.Context, logger *zap.Logger) ([]str
 
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := common.SafeRead(resp.Body)
 
 	var wsResp WormholeScanResponse
 	err = json.Unmarshal(body, &wsResp)
@@ -314,7 +313,7 @@ func pullDigestsFromWormholeScan(ctx context.Context, logger *zap.Logger) ([]str
 		return nil, err
 	}
 
-	var digests []string
+	digests := make([]string, 0, len(wsResp.Operation))
 	for _, operation := range wsResp.Operation {
 		digests = append(digests, operation.SourceChain.Transaction.TxHash)
 	}
