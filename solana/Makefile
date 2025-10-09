@@ -1,3 +1,8 @@
+# Chain ids
+# ---------
+CHAIN_ID_solana=1
+CHAIN_ID_fogo=51
+
 # Solana addresses
 # ----------------
 
@@ -72,7 +77,7 @@ check-svmchain-name:
 artifacts-$(SVM)-$(NETWORK): $(SOURCE_FILES)
 	echo $@
 	@echo "Building artifacts for ${SVM} ${NETWORK} (${bridge_ADDRESS_$${SVM}_${NETWORK}})"
-	DOCKER_BUILDKIT=1 docker build -f Dockerfile --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_${SVM}_${NETWORK}} -o $@ .
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_${SVM}_${NETWORK}} --build-arg CHAIN_ID=${CHAIN_ID_${SVM}} -o $@ .
 	cd $@ && ls | xargs sha256sum > checksums.txt
 
 payer-$(SVM)-$(NETWORK).json:
@@ -123,6 +128,7 @@ clippy: $(SOURCE_FILES)
 
 test: $(SOURCE_FILES) check-svmchain-name
 	DOCKER_BUILDKIT=1 docker build -f Dockerfile --build-arg BRIDGE_ADDRESS=${bridge_ADDRESS_${SVM}_devnet} \
+		--build-arg CHAIN_ID=${CHAIN_ID_${SVM}} \
 		--build-arg EMITTER_ADDRESS=CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr -o target/deploy .
 	BPF_OUT_DIR=$(realpath $(dir $(firstword $(MAKEFILE_LIST))))/target/deploy \
 		cargo test --workspace \
@@ -131,6 +137,7 @@ test: $(SOURCE_FILES) check-svmchain-name
 .PHONY: build
 # Build for local use (not for deployment)
 build: check-network check-svmchain-name
+	CHAIN_ID=${CHAIN_ID_${SVM}} \
 	BRIDGE_ADDRESS=${bridge_ADDRESS_${SVM}_${NETWORK}} \
 	EMITTER_ADDRESS=11111111111111111111111111111115 \
 	cargo build

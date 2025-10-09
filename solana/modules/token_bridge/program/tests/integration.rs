@@ -5,6 +5,7 @@ use bridge::{
         PostedVAADerivationData,
     },
     SerializePayload,
+    OUR_CHAIN_ID,
 };
 use libsecp256k1::SecretKey;
 use primitive_types::U256;
@@ -54,7 +55,6 @@ const GOVERNANCE_KEY: [u8; 64] = [
     88, 97, 199,
 ];
 
-const OUR_CHAIN_ID: u16 = 1;
 const CHAIN_ID_ETH: u16 = 2;
 
 struct Context {

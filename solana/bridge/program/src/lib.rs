@@ -5,8 +5,40 @@
 use solitaire::*;
 
 pub const MAX_LEN_GUARDIAN_KEYS: usize = 19;
-pub const OUR_CHAIN_ID: u16 = 1;
+pub const OUR_CHAIN_ID: u16 = parse_u16_const(env!("CHAIN_ID"));
 pub const CHAIN_ID_GOVERNANCE: u16 = 1;
+
+/// A const fn to parse a u16 from a string at compile time.
+/// A newer version of std includes a const parser function, but we depend on an
+/// old version, which doesn't.
+/// For good measure, we include a couple of static asserts below to make sure it works.
+pub const fn parse_u16_const(s: &str) -> u16 {
+    let b = s.as_bytes();
+    let mut i = 0;
+
+    let mut acc: u16 = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c >= b'0' && c <= b'9' {
+            let d = (c - b'0') as u16;
+            acc = acc * 10 + d;
+            i += 1;
+        } else {
+            break;
+        }
+    }
+
+    if acc == 0 {
+        panic!("Invalid chain id");
+    }
+
+    acc
+}
+
+const _: () = {
+    assert!(parse_u16_const("1") == 1);
+    assert!(parse_u16_const("65535") == 65535);
+};
 
 #[cfg(feature = "instructions")]
 pub mod instructions;

@@ -159,7 +159,7 @@ def command_with_dlv(argv):
     ] + argv[1:]
 
 def generate_bootstrap_peers(num_guardians, port_num):
-    # Improve the chances of the guardians discovering each other in tilt by making them all bootstrap peers. 
+    # Improve the chances of the guardians discovering each other in tilt by making them all bootstrap peers.
     # The devnet guardian uses deterministic P2P peer IDs based on the guardian index. The peer IDs here
     # were generated using `DeterministicP2PPrivKeyByIndex` in `node/pkg/devnet/deterministic_p2p_key.go`.
     peer_ids = [
@@ -181,7 +181,7 @@ def generate_bootstrap_peers(num_guardians, port_num):
         "12D3KooW9yvKfP5HgVaLnNaxWywo3pLAEypk7wjUcpgKwLznk5gQ",
         "12D3KooWRuYVGEsecrJJhZsSoKf1UNdBVYKFCmFLNj9ucZiSQCYj",
         "12D3KooWGEcD5sW5osB6LajkHGqiGc3W8eKfYwnJVVqfujkpLWX2",
-        "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY" 
+        "12D3KooWQYz2inBsgiBoqNtmEn1qeRBr9B8cdishFuBgiARcfMcY"
     ]
     bootstrap = ""
     for idx in range(num_guardians):
@@ -216,7 +216,7 @@ def build_node_yaml():
                     bootstrapPeers,
                     "--ccqP2pBootstrap",
                     ccqBootstrapPeers,
-                ]            
+                ]
 
             if aptos:
                 container["command"] += [
@@ -485,7 +485,7 @@ if solana or pythnet:
         dockerfile = "solana/Dockerfile",
         target = "builder",
         ignore = ["./solana/*/target", "./solana/tests"],
-        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
+        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o", "CHAIN_ID": "1"},
     )
 
     # solana local devnet
@@ -658,7 +658,7 @@ if ci_tests:
                     "BOOTSTRAP_PEERS", str(ccqBootstrapPeers)),
                     "MAX_WORKERS", max_workers))
     )
-    
+
     # separate resources to parallelize docker builds
     k8s_resource(
         "sdk-ci-tests",
