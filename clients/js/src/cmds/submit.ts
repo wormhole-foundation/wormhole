@@ -161,7 +161,7 @@ async function executeSubmit(
       contractAddress,
       rpc
     );
-  } else if (chain === "Solana" || chain === "Pythnet") {
+  } else if (chainToPlatform(chain) === "Solana") {
     await execute_solana(parsedVaa, buf, network, chain);
   } else if (chain === "Algorand") {
     await execute_algorand(

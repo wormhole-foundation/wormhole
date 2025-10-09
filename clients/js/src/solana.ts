@@ -68,9 +68,6 @@ export async function execute_solana(
   }
 
   const nftContract = contracts.nftBridge.get(network, chain);
-  if (!nftContract) {
-    throw new Error(`NFT bridge address not defined for ${chain} ${network}`);
-  }
 
   const tbContract = contracts.tokenBridge.get(network, chain);
   if (!tbContract) {
@@ -79,7 +76,7 @@ export async function execute_solana(
 
   const bridgeId = new web3s.PublicKey(coreContract);
   const tokenBridgeId = new web3s.PublicKey(tbContract);
-  const nftBridgeId = new web3s.PublicKey(nftContract);
+  const nftBridgeId = nftContract ? new web3s.PublicKey(nftContract) : undefined;
 
   let ix: web3s.TransactionInstruction;
   switch (v.payload.module) {

@@ -359,7 +359,7 @@ function parseAddress(chain: Chain, address: string): string {
     return "0x" + evm_address(address);
   } else if (chainToPlatform(chain) === "Cosmwasm") {
     return "0x" + toHex(fromBech32(address).data).padStart(64, "0");
-  } else if (chain === "Solana" || chain === "Pythnet") {
+  } else if (chainToPlatform(chain) === "Solana") {
     return "0x" + toHex(base58.decode(address)).padStart(64, "0");
   } else if (chain === "Algorand") {
     // TODO: is there a better native format for algorand?

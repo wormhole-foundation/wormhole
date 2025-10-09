@@ -517,7 +517,7 @@ const Testnet = {
     chain_id: undefined,
   },
   Fogo: {
-    rpc: "https://testnet.fogo.io",
+    rpc: "https://testnet-alt.fogo.io",
     key: getEnvVar("FOGO_KEY_TESTNET"),
   },
   Unichain: {
