@@ -25,31 +25,39 @@ var (
 	suiModule    = "publish_message"
 	suiEventName = "WormholeMessage"
 
-	// The state objects used for the different environments. These are used to extract the token bridge
-	// package ID as well as the emitter address.
-	SuiMainnetStateObjectId = "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9"
-	SuiTestnetStateObjectId = "0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da"
-	SuiDevnetStateObjectId  = "0x830ed228c6f1bcb40003bb49af3277df2cbf933d63a6bcdcb0ba4580a1a7654e"
+	// The Sui transfer verifier needs the original token bridge package Id to address the token registry correctly.
+	// The token registry holds the balances for all assets, wrapped and native. If the token registry on chain is
+	// ever moved/upgraded, these values will need to be updated.
+	SuiOriginalTokenBridgePackageIds = map[common.Environment]string{
+		// Obtained from the mainnet state object at 0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9
+		common.MainNet: "0x26efee2b51c911237888e5dc6702868abca3c7ac12c53f76ef8eba0697695e3d",
+		// Obtained from the testnet state object at 0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da
+		common.TestNet: "0x562760fc51d90d4ae1835bac3e91e0e6987d3497b06f066941d3e51f6e8d76d0",
+		// Obtained from tilt output when deploying the token bridge to devnet
+		common.UnsafeDevNet:   "0xa6a3da85bbe05da5bfd953708d56f1a3a023e7fb58e5a824a3d4de3791e8f690",
+		common.GoTest:         "0xa6a3da85bbe05da5bfd953708d56f1a3a023e7fb58e5a824a3d4de3791e8f690",
+		common.AccountantMock: "0xa6a3da85bbe05da5bfd953708d56f1a3a023e7fb58e5a824a3d4de3791e8f690",
+	}
 )
 
 type SuiTransferVerifier struct {
 	// Used to create the event filter.
-	suiCoreContract string
+	suiCoreBridgePackageId string
 	// Used to check the emitter of the `WormholeMessage` event.
 	suiTokenBridgeEmitter string
 	// Used to match the owning package of native and wrapped asset types.
-	suiTokenBridgeContract string
-	suiEventType           string
-	suiApiConnection       SuiApiInterface
+	suiTokenBridgePackageId string
+	suiEventType            string
+	suiApiConnection        SuiApiInterface
 }
 
-func NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeContract string, suiApiConnection SuiApiInterface) *SuiTransferVerifier {
+func NewSuiTransferVerifier(suiCoreBridgePackageId, suiTokenBridgeEmitter, suiTokenBridgePackageId string, suiApiConnection SuiApiInterface) *SuiTransferVerifier {
 	return &SuiTransferVerifier{
-		suiCoreContract:        suiCoreContract,
-		suiTokenBridgeEmitter:  suiTokenBridgeEmitter,
-		suiTokenBridgeContract: suiTokenBridgeContract,
-		suiEventType:           fmt.Sprintf("%s::%s::%s", suiCoreContract, suiModule, suiEventName),
-		suiApiConnection:       suiApiConnection,
+		suiCoreBridgePackageId:  suiCoreBridgePackageId,
+		suiTokenBridgeEmitter:   suiTokenBridgeEmitter,
+		suiTokenBridgePackageId: suiTokenBridgePackageId,
+		suiEventType:            fmt.Sprintf("%s::%s::%s", suiCoreBridgePackageId, suiModule, suiEventName),
+		suiApiConnection:        suiApiConnection,
 	}
 }
 
@@ -69,7 +77,7 @@ func (s *SuiTransferVerifier) GetEventFilter() string {
 			"module":"%s",
 			"type":"%s"
 		}
-	}`, s.suiCoreContract, suiModule, s.suiEventType)
+	}`, s.suiCoreBridgePackageId, suiModule, s.suiEventType)
 }
 
 // extractBridgeRequestsFromEvents iterates through all events, and tries to identify `WormholeMessage` events emitted by the token bridge.
@@ -152,7 +160,7 @@ func (s *SuiTransferVerifier) extractTransfersIntoBridgeFromObjectChanges(ctx co
 		// Check that the type information is correct. Doing it here means it's not necessary to do it
 		// again, even in the case where `GetObject` is used for a single object instead of getting past
 		// objects.
-		if !objectChange.ValidateTypeInformation(s.suiTokenBridgeContract) {
+		if !objectChange.ValidateTypeInformation(s.suiTokenBridgePackageId) {
 			continue
 		}
 
@@ -415,11 +423,4 @@ func (s *SuiApiConnection) TryMultiGetPastObjects(ctx context.Context, objectId 
 		]`, objectId, version, objectId, previousVersion)
 
 	return suiApiRequest[SuiTryMultiGetPastObjectsResponse](ctx, s.rpc, method, params)
-}
-
-func (s *SuiApiConnection) GetObject(ctx context.Context, objectId string) (SuiGetObjectResponse, error) {
-	method := "sui_getObject"
-	params := fmt.Sprintf(`["%s", {"showContent": true}]`, objectId)
-
-	return suiApiRequest[SuiGetObjectResponse](ctx, s.rpc, method, params)
 }

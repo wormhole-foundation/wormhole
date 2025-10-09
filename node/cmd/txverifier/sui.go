@@ -2,15 +2,21 @@ package txverifier
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	txverifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/certusone/wormhole/node/pkg/version"
+	"github.com/wormhole-foundation/wormhole/sdk"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/spf13/cobra"
@@ -24,16 +30,16 @@ const (
 
 // CLI args
 var (
-	suiRPC                  *string
-	suiCoreContract         string
-	suiTokenBridgeEmitter   string
-	suiTokenBridgeAddress   string
-	suiProcessInitialEvents *bool
-	suiEnvironment          *string
-	suiDigest               *string
+	suiRPC                       *string
+	suiProcessOnChainEvents      *bool
+	suiProcessWormholeScanEvents *bool
+	suiEnvironment               *string
+	suiDigest                    *string
 
-	suiCoreBridgeStateObjectId  *string
-	suiTokenBridgeStateObjectId *string
+	// Sui package IDs and emitter addresses
+	suiCoreBridgePackageId  *string
+	suiTokenBridgeEmitter   *string
+	suiTokenBridgePackageId *string
 )
 
 var TransferVerifierCmdSui = &cobra.Command{
@@ -45,11 +51,14 @@ var TransferVerifierCmdSui = &cobra.Command{
 // CLI parameters
 func init() {
 	suiRPC = TransferVerifierCmdSui.Flags().String("suiRPC", "", "Sui RPC url")
-	suiProcessInitialEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessInitialEvents", false, "Indicate whether the Sui transfer verifier should process the initial events it fetches")
+	suiProcessOnChainEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessOnChainEvents", false, "Indicate whether the Sui transfer verifier should process on-chain events")
+	suiProcessWormholeScanEvents = TransferVerifierCmdSui.Flags().Bool("suiProcessWormholeScanEvents", false, "Indicate whether the Sui transfer verifier should process WormholeScan events")
 	suiDigest = TransferVerifierCmdSui.Flags().String("suiDigest", "", "If provided, perform transaction verification on this single digest")
 	suiEnvironment = TransferVerifierCmdSui.Flags().String("suiEnvironment", "mainnet", "The Sui environment to connect to. Supported values: mainnet, testnet and devnet")
-	suiCoreBridgeStateObjectId = TransferVerifierCmdSui.Flags().String("suiCoreBridgeStateObjectId", "", "The Sui Core Bridge state object ID. If not provided, the default for the selected environment will be used.")
-	suiTokenBridgeStateObjectId = TransferVerifierCmdSui.Flags().String("suiTokenBridgeStateObjectId", "", "The Sui Token Bridge state object ID. If not provided, the default for the selected environment will be used.")
+
+	suiCoreBridgePackageId = TransferVerifierCmdSui.Flags().String("suiCoreBridgePackageId", "", "The Sui Core Bridge package ID. If not provided, the default for the selected environment will be used.")
+	suiTokenBridgeEmitter = TransferVerifierCmdSui.Flags().String("suiTokenBridgeEmitter", "", "The Sui Token Bridge emitter address. If not provided, the default for the selected environment will be used.")
+	suiTokenBridgePackageId = TransferVerifierCmdSui.Flags().String("suiTokenBridgePackageId", "", "The Sui Token Bridge package ID. If not provided, the default for the selected environment will be used.")
 }
 
 func setIfEmpty(param *string, value string) {
@@ -61,52 +70,21 @@ func setIfEmpty(param *string, value string) {
 // Analyse the commandline arguments and prepare the net effect of package and object IDs
 func resolveSuiConfiguration() {
 
-	// Only set the state object IDs from the static defaults if they weren't overridden
+	// Set the package IDs and emitter address based on the environment, if they are not provided
+	// as CLI args.
 	switch *suiEnvironment {
 	case "mainnet":
-		setIfEmpty(suiCoreBridgeStateObjectId, "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c")
-		setIfEmpty(suiTokenBridgeStateObjectId, txverifier.SuiMainnetStateObjectId)
+		setIfEmpty(suiCoreBridgePackageId, "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a")
+		setIfEmpty(suiTokenBridgePackageId, txverifier.SuiOriginalTokenBridgePackageIds[common.MainNet])
+		setIfEmpty(suiTokenBridgeEmitter, "0x"+hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui]))
 	case "testnet":
-		setIfEmpty(suiCoreBridgeStateObjectId, "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790")
-		setIfEmpty(suiTokenBridgeStateObjectId, txverifier.SuiTestnetStateObjectId)
+		setIfEmpty(suiCoreBridgePackageId, "0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94")
+		setIfEmpty(suiTokenBridgePackageId, txverifier.SuiOriginalTokenBridgePackageIds[common.TestNet])
+		setIfEmpty(suiTokenBridgeEmitter, "0x"+hex.EncodeToString(sdk.KnownTestnetTokenbridgeEmitters[vaa.ChainIDSui]))
 	case "devnet":
-		setIfEmpty(suiCoreBridgeStateObjectId, "0x5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0")
-		setIfEmpty(suiTokenBridgeStateObjectId, txverifier.SuiDevnetStateObjectId)
-	}
-
-	// Create the Sui Api connection, and query the state object to get the token bridge address and emitter.
-	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
-
-	// Get core bridge parameters
-	coreBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), *suiCoreBridgeStateObjectId)
-
-	if err != nil {
-		panic(err)
-	}
-
-	objectType, err := coreBridgeStateObject.Type()
-	objectTypeParts := strings.Split(objectType, "::")
-
-	if err != nil || len(objectTypeParts) < 3 {
-		panic("Error getting core bridge object type")
-	}
-	suiCoreContract = objectTypeParts[0]
-
-	// Get token bridge parameters
-	tokenBridgeStateObject, err := suiApiConnection.GetObject(context.Background(), *suiTokenBridgeStateObjectId)
-
-	if err != nil {
-		panic(err)
-	}
-
-	suiTokenBridgeEmitter, err = tokenBridgeStateObject.TokenBridgeEmitter()
-	if err != nil {
-		panic(err)
-	}
-
-	suiTokenBridgeAddress, err = tokenBridgeStateObject.TokenBridgePackageId()
-	if err != nil {
-		panic(err)
+		setIfEmpty(suiCoreBridgePackageId, "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8")
+		setIfEmpty(suiTokenBridgePackageId, txverifier.SuiOriginalTokenBridgePackageIds[common.UnsafeDevNet])
+		setIfEmpty(suiTokenBridgeEmitter, "0x"+hex.EncodeToString(sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDSui]))
 	}
 }
 
@@ -151,25 +129,26 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 	}
 
 	// Verify CLI parameters
-	if *suiRPC == "" || suiCoreContract == "" || suiTokenBridgeEmitter == "" || suiTokenBridgeAddress == "" {
+	if *suiRPC == "" || *suiCoreBridgePackageId == "" || *suiTokenBridgeEmitter == "" || *suiTokenBridgePackageId == "" {
 		logger.Fatal("One or more CLI parameters are empty",
 			zap.String("suiRPC", *suiRPC),
-			zap.String("suiCoreContract", suiCoreContract),
-			zap.String("suiTokenBridgeEmitter", suiTokenBridgeEmitter),
-			zap.String("suiTokenBridgeContract", suiTokenBridgeAddress))
+			zap.String("suiCoreBridgePackageId", *suiCoreBridgePackageId),
+			zap.String("suiTokenBridgeEmitter", *suiTokenBridgeEmitter),
+			zap.String("suiTokenBridgePackageId", *suiTokenBridgePackageId))
 	}
 
 	logger.Info("Starting Sui transfer verifier")
 	logger.Debug("Sui rpc connection", zap.String("url", *suiRPC))
-	logger.Debug("Sui core contract", zap.String("address", suiCoreContract))
-	logger.Debug("Sui token bridge contract", zap.String("address", suiTokenBridgeAddress))
-	logger.Debug("token bridge event emitter", zap.String("object id", suiTokenBridgeEmitter))
-	logger.Debug("process initial events", zap.Bool("processInitialEvents", *suiProcessInitialEvents))
+	logger.Debug("Sui core bridge package ID", zap.String("packageId", *suiCoreBridgePackageId))
+	logger.Debug("Sui token bridge package ID", zap.String("packageId", *suiTokenBridgePackageId))
+	logger.Debug("Sui token bridge emitter", zap.String("address", *suiTokenBridgeEmitter))
+	logger.Debug("process on-chain events", zap.Bool("processOnChainEvents", *suiProcessOnChainEvents))
+	logger.Debug("process WormholeScan events", zap.Bool("processWormholeScanEvents", *suiProcessWormholeScanEvents))
 
 	suiApiConnection := txverifier.NewSuiApiConnection(*suiRPC)
 
 	// Create a new SuiTransferVerifier
-	suiTransferVerifier := txverifier.NewSuiTransferVerifier(suiCoreContract, suiTokenBridgeEmitter, suiTokenBridgeAddress, suiApiConnection)
+	suiTransferVerifier := txverifier.NewSuiTransferVerifier(*suiCoreBridgePackageId, *suiTokenBridgeEmitter, *suiTokenBridgePackageId, suiApiConnection)
 
 	// Process a single digest and exit
 	if *suiDigest != "" {
@@ -183,6 +162,21 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 		logger.Info("Validation completed", zap.Bool("valid", valid))
 
 		return
+	}
+
+	if *suiProcessWormholeScanEvents {
+		digests, err := pullDigestsFromWormholeScan(ctx, logger)
+		if err != nil {
+			logger.Fatal("Error pulling digests from WormholeScan", zap.Error(err))
+		}
+		// TODO: check the result of each digest against an expected outcome. Some digests
+		// link to token attestations, which the transfer verifier doesn't handle.
+		for _, digest := range digests {
+			_, err := suiTransferVerifier.ProcessDigest(ctx, digest, "", logger)
+			if err != nil {
+				logger.Error(err.Error())
+			}
+		}
 	}
 
 	// Get the event filter
@@ -214,8 +208,8 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 
 	// If specified, process the initial events. This is useful for running a number of digests
 	// through the verifier before starting live processing.
-	if *suiProcessInitialEvents {
-		logger.Info("Processing initial events")
+	if *suiProcessOnChainEvents {
+		logger.Info("Processing on-chain events")
 		for _, event := range initialEvents {
 			if event.ID.TxDigest != nil {
 				_, err = suiTransferVerifier.ProcessDigest(ctx, *event.ID.TxDigest, "", logger)
@@ -275,8 +269,56 @@ func runTransferVerifierSui(cmd *cobra.Command, args []string) {
 				logger.Info("Processed new event", zap.String("txDigest", txDigest))
 			}
 
-			logger.Info("New events processed", zap.Int("latestTimestamp", latestTimestamp), zap.Int("txDigestCount", len(txDigests)))
+			if len(txDigests) > 0 {
+				logger.Info("New events processed", zap.Int("latestTimestamp", latestTimestamp), zap.Int("txDigestCount", len(txDigests)))
+			}
 
 		}
 	}
+}
+
+type WormholeScanResponse struct {
+	Operation []struct {
+		SourceChain struct {
+			Transaction struct {
+				TxHash string `json:"txHash"`
+			} `json:"transaction"`
+		} `json:"sourceChain"`
+	} `json:"operations"`
+}
+
+// Pulls a bunch of transaction digests from Wormholescan to run through the transfer verifier.
+// https://api.wormholescan.io/api/v1/operations?sourceChain=21&appId=PORTAL_TOKEN_BRIDGE
+func pullDigestsFromWormholeScan(ctx context.Context, logger *zap.Logger) ([]string, error) {
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.wormholescan.io/api/v1/operations?sourceChain=21&appId=PORTAL_TOKEN_BRIDGE", nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var wsResp WormholeScanResponse
+	err = json.Unmarshal(body, &wsResp)
+	if err != nil {
+		return nil, err
+	}
+
+	var digests []string
+	for _, operation := range wsResp.Operation {
+		digests = append(digests, operation.SourceChain.Transaction.TxHash)
+	}
+
+	logger.Info("Pulled digests from WormholeScan", zap.Int("count", len(digests)))
+	return digests, nil
 }
