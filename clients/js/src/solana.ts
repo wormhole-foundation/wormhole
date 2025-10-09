@@ -38,6 +38,7 @@ import {
   platformToChains,
 } from "@wormhole-foundation/sdk-base";
 import { hexToUint8Array, tryNativeToUint8Array } from "./sdk/array";
+import { castChainIdToOldSdk } from "./utils";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -277,7 +278,7 @@ export async function transferSolana(
       payerAddress,
       BigInt(amount),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain)
+      castChainIdToOldSdk(chainToChainId(dstChain))
     );
   } else {
     // find the associated token account
@@ -296,7 +297,7 @@ export async function transferSolana(
       tokenAddress, // mintAddress
       BigInt(amount),
       tryNativeToUint8Array(dstAddress, chainToChainId(dstChain)),
-      chainToChainId(dstChain)
+      castChainIdToOldSdk(chainToChainId(dstChain))
     );
   }
 
@@ -372,7 +373,7 @@ export async function queryRegistrationsSolana(
 
           const endpoint = deriveEndpointKey(
             programId,
-            chainToChainId(cstr),
+            castChainIdToOldSdk(chainToChainId(cstr)),
             hexToUint8Array(emitter_addr)
           );
 

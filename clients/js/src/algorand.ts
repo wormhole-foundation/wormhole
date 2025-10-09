@@ -168,6 +168,7 @@ export async function transferAlgorand(
     assetId,
     BigInt(amount),
     recipient,
+    // @ts-ignore: legacy chain ids
     toChainId(dstChain),
     BigInt(0)
   );

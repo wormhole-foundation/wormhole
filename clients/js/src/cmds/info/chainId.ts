@@ -1,6 +1,6 @@
 import yargs from "yargs";
 import { chainToChain } from "../../utils";
-import { chainToChainId } from "@wormhole-foundation/sdk";
+import { chainToChainId } from "@wormhole-foundation/sdk-base";
 
 export const command = "chain-id <chain>";
 export const desc =

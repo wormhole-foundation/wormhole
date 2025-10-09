@@ -8,9 +8,7 @@ import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
 import { execute_solana } from "../solana";
-import { execute_terra } from "../terra";
 import { assertKnownPayload, parse, Payload, VAA } from "../vaa";
-import { execute_xpla } from "../xpla";
 import { NETWORKS } from "../consts";
 import { chainToChain, getNetwork } from "../utils";
 import {
@@ -24,7 +22,7 @@ import {
   chains,
   contracts,
   toChain,
-} from "@wormhole-foundation/sdk";
+} from "@wormhole-foundation/sdk-base";
 
 export const command = "submit <vaa>";
 export const desc = "Execute a VAA";
@@ -163,8 +161,6 @@ async function executeSubmit(
       contractAddress,
       rpc
     );
-  } else if (chain === "Terra" || chain === "Terra2") {
-    await execute_terra(parsedVaa.payload, buf, network, chain);
   } else if (chain === "Solana" || chain === "Pythnet") {
     await execute_solana(parsedVaa, buf, network, chain);
   } else if (chain === "Algorand") {
@@ -177,8 +173,6 @@ async function executeSubmit(
     await execute_near(parsedVaa.payload, vaaHex, network);
   } else if (chain === "Injective") {
     await execute_injective(parsedVaa.payload, buf, network);
-  } else if (chain === "Xpla") {
-    await execute_xpla(parsedVaa.payload, buf, network);
   } else if (chain === "Sei") {
     await submitSei(parsedVaa.payload, buf, network, rpc);
   } else if (chain === "Sui") {

@@ -4,7 +4,7 @@ import {
   isValidSuiAddress as isValidFullSuiAddress,
   normalizeSuiAddress,
 } from "@mysten/sui.js";
-import { Chain, chainToChainId } from "@wormhole-foundation/sdk";
+import { Chain, chainToChainId } from "@wormhole-foundation/sdk-base";
 
 export async function getForeignAssetSui(
   provider: JsonRpcProvider,
