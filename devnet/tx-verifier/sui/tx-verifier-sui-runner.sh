@@ -189,10 +189,11 @@ echo "[*] starting the sui transfer verifier"
     sui \
     --suiRPC "${RPC}" \
     --suiEnvironment=devnet \
-    --suiCoreBridgeStateObjectId=$core_bridge_state \
-    --suiTokenBridgeStateObjectId=$token_bridge_state \
+    --suiCoreBridgePackageId $core_bridge_package_id \
+    --suiTokenBridgeEmitter $token_bridge_emitter_cap \
+    --suiTokenBridgePackageId $token_bridge_package_id \
     --logLevel=debug \
-    --suiProcessInitialEvents=true \
+    --suiProcessOnChainEvents \
     2> /tmp/error.log &
 
 echo "[*] running testcases post-start"
