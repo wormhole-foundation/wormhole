@@ -3969,8 +3969,7 @@ dependencies = [
 [[package]]
 name = "spl-token"
 version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc67166ef99d10c18cb5e9c208901e6d8255c6513bb1f877977eba48e6cc4fb"
+source = "git+https://github.com/wormhole-foundation/spl-token.git?rev=7ae1b55#7ae1b553adb5889e57e7afb054e557ab7dd0d873"
 dependencies = [
  "arrayref",
  "num-derive",
@@ -4284,9 +4283,14 @@ dependencies = [
  "solana-sdk",
  "solitaire",
  "spl-token",
+ "token-metadata-parser",
  "wasm-bindgen",
  "wormhole-bridge-solana",
 ]
+
+[[package]]
+name = "token-metadata-parser"
+version = "0.1.0"
 
 [[package]]
 name = "token_bridge_client"
