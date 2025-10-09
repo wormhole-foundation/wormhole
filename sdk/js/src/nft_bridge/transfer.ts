@@ -40,7 +40,13 @@ export async function transferFromEth(
   const recipientChainId = coalesceChainId(recipientChain);
   //TODO: should we check if token attestation exists on the target chain
   const token = NFTImplementation__factory.connect(tokenAddress, signer);
-  await (await token.approve(nftBridgeAddress, tokenID, overrides)).wait();
+
+  // Request approval, if the bridge address doesn't have approval already
+  const currentOwner = await token.ownerOf(tokenID)
+  const isApprovedForAll = await token.isApprovedForAll(currentOwner, nftBridgeAddress)
+  const isApproved = await token.getApproved(tokenID)
+  if (!isApprovedForAll && !isApproved) await (await token.approve(nftBridgeAddress, tokenID, overrides)).wait();
+  
   const bridge = NFTBridge__factory.connect(nftBridgeAddress, signer);
   const v = await bridge.transferNFT(
     tokenAddress,
