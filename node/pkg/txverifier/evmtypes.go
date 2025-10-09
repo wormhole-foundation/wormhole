@@ -721,15 +721,6 @@ func (s *ReceiptSummary) isMsgSafe(msgID msgID) bool {
 	return s.msgPubResult[msgID]
 }
 
-// Custom error type used to signal that a core invariant of the token bridge has been violated.
-type InvariantError struct {
-	Msg string
-}
-
-func (i InvariantError) Error() string {
-	return fmt.Sprintf("invariant violated: %s", i.Msg)
-}
-
 // transferOut is a struct that contains the token ID and amount of a token that was requested to be transferred out of the bridge.
 type transferOut struct {
 	// The token ID of the token that was transferred out.
