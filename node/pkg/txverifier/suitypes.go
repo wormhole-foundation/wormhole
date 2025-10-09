@@ -17,7 +17,6 @@ type SuiApiInterface interface {
 	QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
 	GetTransactionBlock(ctx context.Context, txDigest string) (SuiGetTransactionBlockResponse, error)
 	TryMultiGetPastObjects(ctx context.Context, objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
-	GetObject(ctx context.Context, objectId string) (SuiGetObjectResponse, error)
 }
 
 // This struct defines the standard properties that get returned from the RPC.
@@ -52,62 +51,6 @@ func (e SuiApiStandardResponse) GetError() error {
 type SuiQueryEventsResponse struct {
 	SuiApiStandardResponse
 	Result SuiQueryEventsResult `json:"result"`
-}
-
-type SuiGetObjectResponse struct {
-	SuiApiStandardResponse
-	Result *json.RawMessage `json:"result"`
-}
-
-func (s SuiGetObjectResponse) TokenBridgePackageId() (string, error) {
-	if s.Result == nil {
-		return "", fmt.Errorf("sui_getObject response is nil, indicating an invalid state object ID or api error")
-	}
-
-	path := "data.content.fields.token_registry.type"
-	packageId, err := extractFromJsonPath[string](*s.Result, path)
-
-	if err != nil {
-		return "", fmt.Errorf("Error extracting token registry package ID: %w", err)
-	}
-
-	// The packageId is of the form "<package_id>::token_registry::TokenRegistry"
-	// We need to extract the <package_id> part.
-	parts := strings.Split(packageId, "::")
-	if len(parts) != 3 {
-		return "", fmt.Errorf("Error parsing package ID: %s", packageId)
-	}
-	return parts[0], nil
-}
-
-func (s SuiGetObjectResponse) TokenBridgeEmitter() (string, error) {
-	if s.Result == nil {
-		return "", fmt.Errorf("sui_getObject response is nil, indicating an invalid state object ID or api error")
-	}
-
-	path := "data.content.fields.emitter_cap.fields.id.id"
-	emitterId, err := extractFromJsonPath[string](*s.Result, path)
-
-	if err != nil {
-		return "", fmt.Errorf("Error extracting emitter ID: %w", err)
-	}
-
-	return emitterId, nil
-}
-
-func (s SuiGetObjectResponse) Type() (string, error) {
-	if s.Result == nil {
-		return "", fmt.Errorf("sui_getObject response is nil, indicating an invalid state object ID or api error")
-	}
-
-	path := "data.content.type"
-	objectType, err := extractFromJsonPath[string](*s.Result, path)
-
-	if err != nil {
-		return "", fmt.Errorf("Error extracting object type: %w", err)
-	}
-
-	return objectType, nil
 }
 
 type SuiQueryEventsResult struct {

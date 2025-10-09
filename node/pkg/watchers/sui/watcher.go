@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -24,6 +25,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/mr-tron/base58"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
@@ -196,10 +198,16 @@ func NewWatcher(
 
 	if txVerifierEnabled {
 
-		var suiCoreBridgeAddress string
-		var suiTokenBridgeAddress string
+		// Extracted from the suiMoveEventType passed to guardiand as CLI arg
+		var suiCoreBridgePackageId string
+
+		//	Read from a hardcoded map in the txverifier package, based on the environment
+		//	NOTE: this is the original package ID, not the current one. The original package ID is used to address
+		//	the token registry that holds the wrapped and native assets of the bridge.
+		var suiTokenBridgePackageId string
+
+		// Read from the sdk, based on the environment
 		var suiTokenBridgeEmitter string
-		var suiStateObjectId string
 
 		// Split the suiMoveEventType into its components. If the format is incorrect, return an error.
 		eventTypeComponents := strings.Split(suiMoveEventType, "::")
@@ -207,45 +215,29 @@ func NewWatcher(
 			return nil, fmt.Errorf("suiMoveEventType is not in the correct format, expected <package_id>::<module_name>::<event_name>, got: %s", suiMoveEventType)
 		}
 
-		suiCoreBridgeAddress = eventTypeComponents[0]
+		suiCoreBridgePackageId = eventTypeComponents[0]
 
+		// Retrieve the token bridge package ID and token bridge emitter address, based on the environment
 		switch env {
 		case common.MainNet:
-			suiStateObjectId = txverifier.SuiMainnetStateObjectId
+			suiTokenBridgePackageId = txverifier.SuiOriginalTokenBridgePackageIds[common.MainNet]
+			suiTokenBridgeEmitter = "0x" + hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
 		case common.TestNet:
-			suiStateObjectId = txverifier.SuiTestnetStateObjectId
+			suiTokenBridgePackageId = txverifier.SuiOriginalTokenBridgePackageIds[common.TestNet]
+			suiTokenBridgeEmitter = "0x" + hex.EncodeToString(sdk.KnownTestnetTokenbridgeEmitters[vaa.ChainIDSui])
 		case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
-			suiStateObjectId = txverifier.SuiDevnetStateObjectId
+			suiTokenBridgePackageId = txverifier.SuiOriginalTokenBridgePackageIds[common.UnsafeDevNet]
+			suiTokenBridgeEmitter = "0x" + hex.EncodeToString(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSui])
 		}
 
 		// Create the Sui Api connection, and query the state object to get the token bridge address and emitter.
 		suiApiConnection := txverifier.NewSuiApiConnection(suiRPC)
 
-		// Retrieve the state object, and extract the token bridge emitter and token bridge address. If any
-		// of these operations fail, return an error. Failure here implies an invalid state object ID, which
-		// is a result of a full token bridge redeployment, or a Sui Api error, which would have other
-		// operational implications for the watcher beyond the transfer verifier.
-		stateObject, err := suiApiConnection.GetObject(context.Background(), suiStateObjectId)
-
-		if err != nil {
-			return nil, err
-		}
-
-		suiTokenBridgeEmitter, err = stateObject.TokenBridgeEmitter()
-		if err != nil {
-			return nil, err
-		}
-
-		suiTokenBridgeAddress, err = stateObject.TokenBridgePackageId()
-		if err != nil {
-			return nil, err
-		}
-
 		// Create the new suiTxVerifier
 		suiTxVerifier = txverifier.NewSuiTransferVerifier(
-			suiCoreBridgeAddress,
+			suiCoreBridgePackageId,
 			suiTokenBridgeEmitter,
-			suiTokenBridgeAddress,
+			suiTokenBridgePackageId,
 			suiApiConnection,
 		)
 
