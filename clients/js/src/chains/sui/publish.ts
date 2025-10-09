@@ -11,7 +11,7 @@ import { resolve } from "path";
 import { MoveToml } from "./MoveToml";
 import { SuiBuildOutput } from "./types";
 import { executeTransactionBlock } from "./utils";
-import { Network } from "@wormhole-foundation/sdk";
+import { Network } from "@wormhole-foundation/sdk-base";
 
 export const buildPackage = (packagePath: string): SuiBuildOutput => {
   if (!fs.existsSync(packagePath)) {
