@@ -33,7 +33,7 @@ const (
 	postMessageInstructionID = 0x01
 )
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
@@ -41,7 +41,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	}
 
 	c := nodev1.NewNodePrivilegedServiceClient(conn)
-	return conn, err, c
+	return conn, c, err
 }
 
 func main() {
@@ -50,11 +50,12 @@ func main() {
 	ctx := context.Background()
 	sr := rpc.New(*solanaRPC)
 
-	conn, err, admin := getAdminClient(ctx, *adminRPC)
-	defer conn.Close()
+	conn, admin, err := getAdminClient(ctx, *adminRPC)
 	if err != nil {
+		conn.Close()
 		log.Fatalf("failed to get admin client: %v", err)
 	}
+	defer conn.Close()
 
 	for _, emitter := range sdk.KnownEmitters {
 		if emitter.ChainID != vaa.ChainIDSolana {
@@ -203,8 +204,9 @@ func main() {
 
 					_, err = admin.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
-							ChainId: uint32(vaa.ChainIDSolana),
-							TxHash:  acc[:],
+							ChainId:   uint32(vaa.ChainIDSolana),
+							TxHash:    acc[:],
+							Timestamp: time.Now().UnixNano(),
 						}})
 					if err != nil {
 						log.Fatalf("SendObservationRequest: %v", err)

@@ -30,6 +30,8 @@ celestia
 Celestia
 celo
 certusone
+chainid
+ChainID
 Chainlink
 Coinspect
 collateralization
@@ -53,6 +55,7 @@ ethcrypto
 ethersproject
 ETHRPC
 evmos
+evmtypes
 fogo
 Fogo
 forgeable
@@ -110,6 +113,7 @@ Linea
 localnet
 localterra
 lockfiles
+marshal
 merkle
 Metaplex
 mezo
@@ -144,6 +148,7 @@ protobuf
 protos
 prototxt
 pubkey
+publicrpc
 pushbytes
 pushint
 pytest
@@ -155,6 +160,9 @@ readyz
 regen
 reinit
 reobservation
+reobservations
+Reobservation
+Reobservations
 reobserved
 repoint
 rustup
@@ -179,6 +187,7 @@ structs
 subdenom
 subdenoms
 Subdenoms
+suitypes
 supermajority
 superminority
 tendermint
@@ -199,6 +208,7 @@ undercollateralization
 unforgeable
 unichain
 Unichain
+unmarshal
 unnormalize
 untampered
 utest
@@ -210,6 +220,7 @@ vimdiff
 vphash
 wasmhooks
 wasms
+WebSocket
 WORKDIR
 worldchain
 WorldChain
@@ -221,5 +232,6 @@ wormscan
 wormscanurl
 xlayer
 xpla
+XFER
 XPLA
 Zellic

@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -15,8 +16,79 @@ import (
 // Constants
 const (
 	MAX_DECIMALS = 8
-	KEY_FORMAT   = "%s-%d"
+	// A pair of origin address and origin chain to identify assets moving in and out of the bridge.
+	KEY_FORMAT = "%s-%d"
+
+	// CacheMaxSize is the maximum number of entries that should be in any of the caches.
+	CacheMaxSize = 100
+
+	// CacheDeleteCount specifies the number of entries to delete from a cache once it reaches CacheMaxSize.
+	// Must be less than CacheMaxSize.
+	CacheDeleteCount = 10
 )
+
+// msgID is a unique identifier the corresponds to a VAA's "message ID".
+// i.e.emitter_chain/emitter_address/sequence tuple. In this package, it is used
+// to identify a single LogMessagePublished event, which in turn maps onto a unique
+// MessagePublication elsewhere in the Guardian code.
+type msgID struct {
+	// Sequence of the VAA
+	Sequence uint64
+	// EmitterChain the VAA was emitted on
+	EmitterChain vaa.ChainID
+	// EmitterAddress of the contract that emitted the Message
+	EmitterAddress vaa.Address
+}
+
+// MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
+func (m *msgID) String() string {
+	return fmt.Sprintf("%d/%s/%d", m.EmitterChain, m.EmitterAddress, m.Sequence)
+}
+
+func (m *msgID) Empty() bool {
+	return m.EmitterChain == 0 && m.EmitterAddress == ZERO_ADDRESS_VAA && m.Sequence == 0
+}
+
+// NewMsgID creates a new msgID from a string in the format "chainID/emitterAddress/sequence".
+func NewMsgID(in string) (msgID, error) {
+	if len(in) == 0 {
+		return msgID{}, errors.New("msgIDStr is empty")
+	}
+	parts := strings.Split(in, "/")
+	if len(parts) != 3 {
+		return msgID{}, errors.New("invalid msgID: must be in the format chainID/emitterAddress/sequence")
+	}
+
+	chainID, err := vaa.StringToKnownChainID(parts[0])
+	if err != nil {
+		return msgID{}, err
+	}
+
+	supported := IsSupported(chainID)
+	if !supported {
+		return msgID{}, fmt.Errorf("chainID %d (%s) is does not have a Transfer Verifier implementation or is not supported", chainID, chainID.String())
+	}
+
+	emitterAddress, err := vaa.StringToAddress(parts[1])
+	if err != nil {
+		return msgID{}, err
+	}
+
+	sequence, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return msgID{}, err
+	}
+
+	if chainID == vaa.ChainIDUnset || emitterAddress == ZERO_ADDRESS_VAA {
+		return msgID{}, errors.New("invalid msgID: chainID or emitterAddress is unset or zero")
+	}
+
+	return msgID{
+		EmitterChain:   chainID,
+		EmitterAddress: emitterAddress,
+		Sequence:       sequence,
+	}, nil
+}
 
 // Extracts the value at the given path from the JSON object, and casts it to
 // type T. If the path does not exist in the object, an error is returned.
@@ -113,6 +185,11 @@ func SupportedChains() []vaa.ChainID {
 	}
 }
 
+// IsSupported returns true if the chain ID is supported by the Transfer Verifier.
+func IsSupported(cid vaa.ChainID) bool {
+	return slices.Contains(SupportedChains(), cid)
+}
+
 // ValidateChains validates that a slice of uints correspond to chain IDs with a Transfer Verifier implementation.
 // Returns a slice of the input values converted into valid, known ChainIDs.
 // Returns nil when an error occurs.
@@ -148,4 +225,67 @@ func ValidateChains(
 	}
 
 	return enabled, nil
+}
+
+// deleteEntries deletes CacheDeleteCount entries at random from a pointer to a map.
+// Only trims if the length of the cache is greater than CacheMaxSize.
+// Returns the number of keys deleted.
+func deleteEntries[K comparable, V any](cachePointer *map[K]V) (int, error) {
+	if cachePointer == nil {
+		return 0, errors.New("nil pointer to map passed to deleteEntries()")
+	}
+
+	if *cachePointer == nil {
+		return 0, errors.New("nil map passed (pointer points to a nil map)")
+	}
+
+	cache := *cachePointer
+	currentLen := len(cache)
+	// Bounds check
+	// NOTE: cache length must be greater than or equal to CacheMaxSize.
+	if currentLen <= CacheMaxSize {
+		return 0, nil
+	}
+
+	// Delete either a fixed number of entries or else delete enough so that the cache
+	// will be at CacheMaxSize after the operation.
+	deleteCount := max(CacheDeleteCount, currentLen-CacheMaxSize)
+
+	// Allocate array that stores keys to delete.
+	keysToDelete := make([]K, deleteCount)
+
+	// Iterate over the map (non-deterministic) and pick some keys to delete.
+	var i int
+	for key := range cache {
+		keysToDelete[i] = key
+		i++
+		if i >= len(keysToDelete) {
+			break
+		}
+	}
+
+	// Delete the keys from the map.
+	for _, key := range keysToDelete {
+		delete(cache, key)
+	}
+
+	return i, nil
+}
+
+// upsert inserts a new key and value into a map or update the value if the key already exists.
+func upsert(
+	dict *map[string]*big.Int,
+	key string,
+	amount *big.Int,
+) error {
+	if dict == nil || *dict == nil || amount == nil {
+		return ErrInvalidUpsertArgument
+	}
+	d := *dict
+	if _, exists := d[key]; !exists {
+		d[key] = new(big.Int).Set(amount)
+	} else {
+		d[key] = new(big.Int).Add(d[key], amount)
+	}
+	return nil
 }

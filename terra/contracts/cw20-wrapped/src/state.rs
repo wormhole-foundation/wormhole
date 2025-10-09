@@ -14,10 +14,10 @@ pub struct WrappedAssetInfo {
     pub bridge: CanonicalAddr, // Bridge address, authorized to mint and burn wrapped tokens
 }
 
-pub fn wrapped_asset_info(storage: &mut dyn Storage) -> Singleton<WrappedAssetInfo> {
+pub fn wrapped_asset_info(storage: &mut dyn Storage) -> Singleton<'_, WrappedAssetInfo> {
     singleton(storage, KEY_WRAPPED_ASSET)
 }
 
-pub fn wrapped_asset_info_read(storage: &dyn Storage) -> ReadonlySingleton<WrappedAssetInfo> {
+pub fn wrapped_asset_info_read(storage: &dyn Storage) -> ReadonlySingleton<'_, WrappedAssetInfo> {
     singleton_read(storage, KEY_WRAPPED_ASSET)
 }

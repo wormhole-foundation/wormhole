@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 	"math/rand"
 	"net/http"
@@ -55,7 +54,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	}
 
 	if run {
-		if err := supervisor.Run(ctx, "govpricer", gov.PriceQuery); err != nil {
+		if err := supervisor.Run(ctx, "govpricer", gov.priceQuery); err != nil {
 			return err
 		}
 	}
@@ -114,8 +113,8 @@ func createCoinGeckoQuery(ids string, coinGeckoApiKey string) string {
 	return query
 }
 
-// PriceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
-func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
+// priceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
+func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// Do a query immediately, then once each interval.
 	// We ignore the error because an error would already have been logged, and we don't want to bring down the
 	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
@@ -158,7 +157,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				throttle <- 1
+				throttle <- 1 //nolint:channelcheck // We want this to block for throttling
 			case <-ctx.Done():
 				return
 			}
@@ -270,7 +269,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 		}
 	}()
 
-	responseData, err := io.ReadAll(response.Body)
+	responseData, err := common.SafeRead(response.Body)
 	if err != nil {
 		return result, fmt.Errorf("failed to read CoinGecko response: %w", err)
 	}

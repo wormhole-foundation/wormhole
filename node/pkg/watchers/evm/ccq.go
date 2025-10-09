@@ -572,7 +572,7 @@ func (w *Watcher) ccqHandleEthCallWithFinalityQueryRequest(ctx context.Context, 
 	if safeMode {
 		latestBlockNum = w.getLatestSafeBlockNumber()
 	} else {
-		latestBlockNum = w.GetLatestFinalizedBlockNumber()
+		latestBlockNum = w.getLatestFinalizedBlockNumber()
 	}
 
 	// Make sure the block has reached requested finality.

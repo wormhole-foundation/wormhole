@@ -116,13 +116,13 @@ impl PrimaryKey<'_> for TokenAddress {
     type Suffix = Self;
     type SuperSuffix = Self;
 
-    fn key(&self) -> Vec<Key> {
+    fn key(&self) -> Vec<Key<'_>> {
         vec![Key::Ref(&**self)]
     }
 }
 
 impl Prefixer<'_> for TokenAddress {
-    fn prefix(&self) -> Vec<Key> {
+    fn prefix(&self) -> Vec<Key<'_>> {
         vec![Key::Ref(&**self)]
     }
 }

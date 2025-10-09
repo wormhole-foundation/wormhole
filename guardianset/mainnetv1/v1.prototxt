@@ -1,0 +1,117 @@
+timestamp:  1612308418
+
+guardian_set: {
+  # idx = 0
+  guardians:  {
+    pubkey:  "0x187727CdD17C8142FE9b29A066F577548423aF0e"
+    name:    "P2P Validator"
+  }
+
+  # idx = 1
+  guardians:  {
+    pubkey:  "0xE4276d2Ef965B37A492C5F0f85e9A558f82895BD"
+    name:    "Everstake"
+  }
+
+  # idx = 2
+  guardians:  {
+    pubkey:  "0x854E8bE1eE471e70a152b3FBB093057efBb9e20F"
+    name:    "Dokia Capital"
+  }
+
+  # idx = 3
+  guardians:  {
+    pubkey:  "0x43f98818f1f0e93A921C2A74ED868213946A3580"
+    name:    "Staking Facilities"
+  }
+
+  # idx = 4
+  guardians:  {
+    pubkey:  "0x79071C82011B4a542C7d67f290Ef4181CE6B2b0f"
+    name:    "Chorus One"
+  }
+
+  # idx = 5
+  guardians:  {
+    pubkey:  "0x7580aA7e036dC199bF0E152C71004716AE0AA747"
+    name:    "Certus One"
+  }
+
+  # idx = 6
+  guardians:  {
+    pubkey:  "0xe7aF00E4B5F69B8E8e49adBE7b1A2b6BDd81f346"
+    name:    "Chainlayer"
+  }
+
+  # idx = 7
+  guardians:  {
+    pubkey:  "0xc155a290149Bb2f58332abA8DC31217df483501e"
+    name:    "Staking Fund"
+  }
+
+  # idx = 8
+  guardians:  {
+    pubkey:  "0xF73c0e6f9A242B3564F9e65Fbd94Fcbc332a0deB"
+    name:    "01Node"
+  }
+
+  # idx = 9
+  guardians:  {
+    pubkey:  "0x1Fca1307C7BeEf596f209cf393f3d50d41e4a0F9"
+    name:    "Morphism"
+  }
+
+  # idx = 10
+  guardians:  {
+    pubkey:  "0xf51a742452E9c2B4bD131a934C10f97b80455669"
+    name:    "Hashquark"
+  }
+
+  # idx = 11
+  guardians:  {
+    pubkey:  "0xe0718fca4Dc271f4EF43Ff624a6b730A339eF104"
+    name:    "Melea Trust"
+  }
+
+  # idx = 12
+  guardians:  {
+    pubkey:  "0x1bb88a04DDa307Bc4f5e97c4856c068D1A4182a8"
+    name:    "Moonlet"
+  }
+
+  # idx = 13
+  guardians:  {
+    pubkey:  "0x5cF8ca288D9077160Ff9D6583b63aa20EFF40B7d"
+    name:    "Forbole"
+  }
+
+  # idx = 14
+  guardians:  {
+    pubkey:  "0xDe2E046412ebcc6563831AA7A9B2104E0c58B351"
+    name:    "Jump Trading"
+  }
+
+  # idx = 15
+  guardians:  {
+    pubkey:  "0x4ed7ABB1408F91058BFeDac3CAeCB03F8ec22C1b"
+    name:    "Smith MCF"
+  }
+
+  # idx = 16
+  guardians:  {
+    pubkey:  "0xE3727bBc8342F631eC9A20d8A6FB44fe97C6dFcd"
+    name:    "Chainode Tech"
+  }
+
+  # idx = 17
+  guardians:  {
+    pubkey:  "0x9F09C8E49757486e98887b49373620290D963729"
+    name:    "syncnode"
+  }
+
+  # idx = 18
+  guardians:  {
+    pubkey:  "0xe263fDFeDF000121046578253312861e83f28bD5"
+    name:    "inotel"
+  }
+}

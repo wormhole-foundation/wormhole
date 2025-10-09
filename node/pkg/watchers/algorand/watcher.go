@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"time"
@@ -185,7 +186,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 			zap.Uint8("consistency_level", observation.ConsistencyLevel),
 		)
 
-		e.msgC <- observation
+		e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 	}
 }
 
@@ -225,6 +226,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 		return err
 	}
+
+	// Get the node version for troubleshooting
+	e.logVersion(ctx, logger, algodClient)
 
 	status, err := algodClient.StatusAfterBlock(0).Do(ctx)
 	if err != nil {
@@ -321,4 +325,35 @@ func (e *Watcher) Run(ctx context.Context) error {
 			readiness.SetReady(e.readinessSync)
 		}
 	}
+}
+
+// logVersion calls the versions rpc and logs the node version information.
+func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger, client *algod.Client) {
+	networkName := "algorand"
+
+	// From: https://developer.algorand.org/docs/rest-apis/algod/v2/#get-versions
+	versionRPC := client.Versions()
+	versionResult, err := versionRPC.Do(ctx)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	// Marshal the BuildVersions struct into raw json to log cleanly.
+	version, err := json.Marshal(&versionResult.Build)
+	if err != nil {
+		logger.Error("problem retrieving node version when marshalling build info",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("network", networkName),
+		zap.String("version", string(version)),
+	)
 }

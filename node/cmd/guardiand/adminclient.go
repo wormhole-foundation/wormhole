@@ -175,7 +175,7 @@ var ClientChainGovernorReleasePendingVAACmd = &cobra.Command{
 
 var ClientChainGovernorResetReleaseTimerCmd = &cobra.Command{
 	Use:   "governor-reset-release-timer [VAA_ID] <num_days>",
-	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 7), defaulting to one day if num_days is omitted",
+	Short: "Resets the release timer for a chain governor pending VAA, extending it to num_days (up to a maximum of 30), defaulting to one day if num_days is omitted",
 	Run:   runChainGovernorResetReleaseTimer,
 	Args:  cobra.RangeArgs(1, 2),
 }
@@ -427,8 +427,9 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 
 	_, err = c.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
 		ObservationRequest: &gossipv1.ObservationRequest{
-			ChainId: uint32(chainID),
-			TxHash:  txHash,
+			ChainId:   uint32(chainID),
+			TxHash:    txHash,
+			Timestamp: time.Now().UnixNano(),
 		},
 	})
 	if err != nil {

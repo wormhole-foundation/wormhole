@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/big"
 	"math/rand"
@@ -42,7 +41,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-const maxResetReleaseTimerDays = 7
+const maxResetReleaseTimerDays = 30
 const ecdsaSignatureLength = 65
 
 var (
@@ -840,7 +839,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 
 		vaaInjectionsTotal.Inc()
 
-		s.injectC <- &common.MessagePublication{
+		s.injectC <- &common.MessagePublication{ //nolint:channelcheck // Only blocks this command
 			TxID:             ethcommon.Hash{}.Bytes(),
 			Timestamp:        v.Timestamp,
 			Nonce:            v.Nonce,
@@ -940,7 +939,7 @@ func (s *nodePrivilegedService) fetchMissing(
 			// Inject into the gossip signed VAA receive path.
 			// This has the same effect as if the VAA was received from the network
 			// (verifying signature, storing in local DB...).
-			s.signedInC <- &gossipv1.SignedVAAWithQuorum{
+			s.signedInC <- &gossipv1.SignedVAAWithQuorum{ //nolint:channelcheck // Only blocks this command
 				Vaa: vaaBytes,
 			}
 
@@ -1296,7 +1295,7 @@ func (s *nodePrivilegedService) GetAndObserveMissingVAAs(ctx context.Context, re
 	defer results.Body.Close()
 
 	// Collect the results
-	resBody, err := io.ReadAll(results.Body)
+	resBody, err := common.SafeRead(results.Body)
 	if err != nil {
 		fmt.Printf("GetAndObserveMissingVAAs: could not read response body: %s\n", err)
 		return nil, err

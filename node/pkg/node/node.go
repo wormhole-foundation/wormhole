@@ -11,6 +11,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -36,6 +37,10 @@ const (
 	// per second during normal operations. However, since some messages get published immediately, we need to allow extra room.
 	inboundBatchObservationBufferSize = 1000
 
+	// inboundMessageBufferSize configures the size of the msgC channel used to publish new observations from the watcher to the processor.
+	// This channel is shared across all the watchers so we don't want to hang up other watchers while the processor is handling an observation from one.
+	inboundMessageBufferSize = 1000
+
 	// inboundSignedVaaBufferSize configures the size of the signedInC channel that contains VAAs from other Guardians.
 	// One VAA takes roughly 0.01ms to process if we already have one in the database and 2ms if we don't.
 	// So in the worst case the entire queue can be processed in 2s.
@@ -53,6 +58,23 @@ const (
 	observationRequestPerChainBufferSize = 100
 )
 
+type ComponentAlreadyConfiguredError struct {
+	componentName string
+}
+
+func (e ComponentAlreadyConfiguredError) Error() string {
+	return fmt.Sprintf("component %s is already configured and cannot be configured a second time", e.componentName)
+}
+
+type ComponentDependencyError struct {
+	componentName  string
+	dependencyName string
+}
+
+func (e ComponentDependencyError) Error() string {
+	return fmt.Sprintf("component %s requires %s to be configured first, check the order of your options", e.componentName, e.dependencyName)
+}
+
 type PrometheusCtxKey struct{}
 
 type G struct {
@@ -69,6 +91,7 @@ type G struct {
 	gst                *common.GuardianSetState
 	acct               *accountant.Accountant
 	gov                *governor.ChainGovernor
+	notary             *notary.Notary
 	gatewayRelayer     *gwrelayer.GatewayRelayer
 	queryHandler       *query.QueryHandler
 	publicrpcServer    *grpc.Server
@@ -126,7 +149,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
-	g.msgC = makeChannelPair[*common.MessagePublication](0)
+	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
@@ -156,20 +179,20 @@ func (g *G) applyOptions(ctx context.Context, logger *zap.Logger, options []*Gua
 	for _, option := range options {
 		// check that this component has not been configured yet
 		if _, ok := configuredComponents[option.name]; ok {
-			return fmt.Errorf("Component %s is already configured and cannot be configured a second time.", option.name)
+			return ComponentAlreadyConfiguredError{componentName: option.name}
 		}
 
 		// check that all dependencies have been met
 		for _, dep := range option.dependencies {
 			if _, ok := configuredComponents[dep]; !ok {
-				return fmt.Errorf("Component %s requires %s to be configured first. Check the order of your options.", option.name, dep)
+				return ComponentDependencyError{componentName: option.name, dependencyName: dep}
 			}
 		}
 
 		// run the config
 		err := option.f(ctx, logger, g)
 		if err != nil {
-			return fmt.Errorf("Error applying option for component %s: %w", option.name, err)
+			return fmt.Errorf("error applying option for component %s: %w", option.name, err)
 		}
 
 		// mark the component as configured
@@ -211,6 +234,13 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			logger.Info("Starting governor")
 			if err := g.gov.Run(ctx); err != nil {
 				logger.Fatal("failed to create chain governor", zap.Error(err))
+			}
+		}
+
+		if g.notary != nil {
+			logger.Info("starting notary")
+			if err := g.notary.Run(); err != nil {
+				logger.Fatal("failed to create notary", zap.Error(err))
 			}
 		}
 

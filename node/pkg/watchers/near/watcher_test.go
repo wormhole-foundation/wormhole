@@ -321,8 +321,9 @@ func TestWatcherReobservation(t *testing.T) {
 		},
 		obsvReq: []gossipv1.ObservationRequest{
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  txHashBytes,
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    txHashBytes,
+				Timestamp: time.Now().UnixNano(),
 			},
 		},
 	}
@@ -478,24 +479,29 @@ func TestWatcherSynthetic(t *testing.T) {
 		},
 		obsvReq: []gossipv1.ObservationRequest{
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("TX0_wrong_block_________________"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("TX0_wrong_block_________________"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("TX0_wrong_sequence______________"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("TX0_wrong_sequence______________"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("_____________________________TX1"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("_____________________________TX1"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("_____________________________TX2"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("_____________________________TX2"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("_____________________________TX3"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("_____________________________TX3"),
+				Timestamp: time.Now().UnixNano(),
 			},
 		},
 	}
@@ -560,24 +566,29 @@ func TestWatcherUnfinalized(t *testing.T) {
 		},
 		obsvReq: []gossipv1.ObservationRequest{
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("TX0_wrong_block_________________"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("TX0_wrong_block_________________"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("TX0_wrong_sequence______________"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("TX0_wrong_sequence______________"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("_____________________________TX1"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("_____________________________TX1"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("_____________________________TX2"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("_____________________________TX2"),
+				Timestamp: time.Now().UnixNano(),
 			},
 			{
-				ChainId: uint32(vaa.ChainIDNear),
-				TxHash:  []byte("_____________________________TX3"),
+				ChainId:   uint32(vaa.ChainIDNear),
+				TxHash:    []byte("_____________________________TX3"),
+				Timestamp: time.Now().UnixNano(),
 			},
 		},
 	}

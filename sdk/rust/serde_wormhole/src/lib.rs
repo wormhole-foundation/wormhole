@@ -278,12 +278,14 @@ mod tests {
         payload: P,
     }
 
+    #[allow(dead_code)]
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
     struct GuardianAddress<'a> {
         #[serde(borrow, with = "serde_bytes")]
         bytes: Cow<'a, [u8]>,
     }
 
+    #[allow(dead_code)]
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
     struct GuardianSetInfo<'a> {
         #[serde(borrow)]
@@ -295,6 +297,7 @@ mod tests {
         new_contract: u64,
     }
 
+    #[allow(dead_code)]
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
     struct GuardianSetUpgrade<'a> {
         new_guardian_set_index: u32,
@@ -302,6 +305,7 @@ mod tests {
         new_guardian_set: GuardianSetInfo<'a>,
     }
 
+    #[allow(dead_code)]
     #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
     struct SetFee {
         high: u128,

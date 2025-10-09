@@ -266,7 +266,7 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry, wormchainC
 // handleMissingObservation submits a local reobservation request. It relies on the reobservation code to throttle requests.
 func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
 	acct.logger.Warn("contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
-	msg := &gossipv1.ObservationRequest{ChainId: uint32(mo.ChainId), TxHash: mo.TxHash}
+	msg := &gossipv1.ObservationRequest{ChainId: uint32(mo.ChainId), TxHash: mo.TxHash, Timestamp: time.Now().UnixNano()}
 
 	select {
 	case acct.obsvReqWriteC <- msg:

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"time"
@@ -89,6 +88,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 		zap.String("account", e.aptosAccount),
 		zap.String("handle", e.aptosHandle),
 	)
+
+	// Get the node version for troubleshooting
+	e.logVersion(logger)
 
 	// SECURITY: the API guarantees that we only get the events from the right
 	// contract
@@ -276,7 +278,7 @@ func (e *Watcher) retrievePayload(s string) ([]byte, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
+	body, err := common.SafeRead(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -375,5 +377,44 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
 	)
 
-	e.msgC <- observation
+	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
+}
+
+// logVersion retrieves the Aptos node version and logs it
+func (e *Watcher) logVersion(logger *zap.Logger) {
+	// From https://www.alchemy.com/docs/node/aptos/aptos-api-endpoints/aptos-api-endpoints/v-1
+	networkName := "aptos"
+	versionsEndpoint := fmt.Sprintf("%s/v1", e.aptosRPC)
+
+	body, err := e.retrievePayload(versionsEndpoint)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	if !gjson.Valid(string(body)) {
+		logger.Error("problem retrieving node version",
+			zap.String("invalid json", string(body)),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	version := gjson.GetBytes(body, "git_hash").String()
+
+	if version == "" {
+		logger.Error("problem retrieving node version",
+			zap.String("empty version", version),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("network", networkName),
+		zap.String("version", version),
+	)
 }

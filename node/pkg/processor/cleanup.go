@@ -223,15 +223,20 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						zap.Int("numSignatures", len(s.signatures)),
 					)
 					req := &gossipv1.ObservationRequest{
-						ChainId: uint32(s.ourObservation.GetEmitterChain()),
-						TxHash:  s.txHash,
+						ChainId:   uint32(s.ourObservation.GetEmitterChain()),
+						TxHash:    s.txHash,
+						Timestamp: time.Now().UnixNano(),
 					}
 					if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 						p.logger.Warn("failed to broadcast re-observation request", zap.String("message_id", s.LoggingID()), zap.Error(err))
 					}
 					if s.ourMsg != nil {
 						// This is the case for immediately published messages (as well as anything still pending from before the cutover).
-						p.gossipAttestationSendC <- s.ourMsg
+						select {
+						case p.gossipAttestationSendC <- s.ourMsg:
+						default:
+							batchObservationChannelOverflow.WithLabelValues("gossipResend").Inc()
+						}
 					} else {
 						p.postObservationToBatch(s.ourObs)
 					}

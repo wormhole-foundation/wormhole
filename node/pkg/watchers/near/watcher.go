@@ -266,7 +266,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 
 			if job.hasWormholeMsg {
 				// report how long it took to process this transaction
-				e.eventChanTxProcessedDuration <- time.Since(job.creationTime)
+				e.eventChanTxProcessedDuration <- time.Since(job.creationTime) //nolint:channelcheck // Only pauses this watcher
 			}
 		}
 
@@ -291,6 +291,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.wormholeAccount,
 	})
+
+	// Get the node version for troubleshooting
+	e.logVersion(ctx, logger)
 
 	logger.Info("Near watcher connecting to RPC node ", zap.String("url", e.nearRPC))
 
@@ -324,7 +327,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, delay time.Duration) error {
 	if int(e.transactionProcessingQueueCounter.Load())+len(e.transactionProcessingQueue) > queueSize {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
-		return fmt.Errorf("NEAR transactionProcessingQueue exceeds max queue size. Skipping transaction.")
+		return fmt.Errorf("NEAR transactionProcessingQueue exceeds max queue size, skipping transaction")
 	}
 
 	common.RunWithScissors(ctx, e.errC, "scheduledThread",
@@ -343,10 +346,29 @@ func (e *Watcher) schedule(ctx context.Context, job *transactionProcessingJob, d
 				select {
 				case <-ctx.Done():
 					return nil
-				case e.transactionProcessingQueue <- job:
+				case e.transactionProcessingQueue <- job: //nolint:channelcheck // Only blocking this go routine.
 				}
 			}
 			return nil
 		})
 	return nil
+}
+
+// logVersion retrieves the NEAR node version and logs it
+func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://www.quicknode.com/docs/near/status
+	networkName := "near"
+	version, err := e.nearAPI.GetVersion(ctx)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", version),
+		zap.String("network", networkName),
+	)
 }

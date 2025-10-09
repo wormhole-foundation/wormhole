@@ -85,11 +85,11 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 	// Publish the initial finalized and safe blocks so we have a starting point for reobservation requests.
 	for idx, block := range lastBlocks {
 		b.logger.Info(fmt.Sprintf("publishing initial %s block", b.batchData[idx].finality), zap.Uint64("initial_block", block.Number.Uint64()))
-		sink <- block
+		sink <- block //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 		if b.generateSafe && b.batchData[idx].finality == Finalized {
 			safe := block.Copy(Safe)
 			b.logger.Info("publishing generated initial safe block", zap.Uint64("initial_block", safe.Number.Uint64()))
-			sink <- safe
+			sink <- safe //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 		}
 	}
 
@@ -106,7 +106,7 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 					errCount++
 					b.logger.Error("batch polling encountered an error", zap.Int("errCount", errCount), zap.Error(err))
 					if errCount > 3 {
-						errC <- fmt.Errorf("polling encountered too many errors: %w", err)
+						errC <- fmt.Errorf("polling encountered too many errors: %w", err) //nolint:channelcheck // The watcher will exit anyway
 						return nil
 					}
 				} else if errCount != 0 {
@@ -122,7 +122,7 @@ func (b *BatchPollConnector) SubscribeForBlocks(ctx context.Context, errC chan e
 					b.logger.Error("new latest header block number is nil")
 					continue
 				}
-				sink <- &NewBlock{
+				sink <- &NewBlock{ //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 					Number:   ev.Number,
 					Time:     ev.Time,
 					Hash:     ev.Hash(),
@@ -197,9 +197,9 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlo
 							errorFound = true
 							break
 						}
-						sink <- block
+						sink <- block //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 						if b.generateSafe && b.batchData[idx].finality == Finalized {
-							sink <- block.Copy(Safe)
+							sink <- block.Copy(Safe) //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 						}
 						lastPublishedBlock = block
 					}
@@ -210,9 +210,9 @@ func (b *BatchPollConnector) pollBlocks(ctx context.Context, sink chan<- *NewBlo
 
 			if !errorFound {
 				// The original value of newBlocks is still good.
-				sink <- newBlock
+				sink <- newBlock //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 				if b.generateSafe && b.batchData[idx].finality == Finalized {
-					sink <- newBlock.Copy(Safe)
+					sink <- newBlock.Copy(Safe) //nolint:channelcheck // This channel is buffered, if it backs up, we will just stop polling until it clears
 				}
 			} else {
 				newBlocks[idx] = lastPublishedBlock

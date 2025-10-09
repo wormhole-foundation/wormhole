@@ -54,20 +54,20 @@ const maxEnqueuedTime = time.Hour * 24
 
 type (
 	// Layout of the config data for each token
-	tokenConfigEntry struct {
-		chain       uint16
-		addr        string
-		symbol      string
-		coinGeckoId string
-		decimals    int64
-		price       float64
+	TokenConfigEntry struct {
+		Chain       uint16
+		Addr        string
+		Symbol      string
+		CoinGeckoId string
+		Decimals    int64
+		Price       float64
 	}
 
 	// Layout of the config data for each chain
-	chainConfigEntry struct {
-		emitterChainID     vaa.ChainID
-		dailyLimit         uint64
-		bigTransactionSize uint64
+	ChainConfigEntry struct {
+		EmitterChainID     vaa.ChainID
+		DailyLimit         uint64
+		BigTransactionSize uint64
 	}
 
 	// Key to the map of the tokens being monitored
@@ -291,9 +291,9 @@ func (gov *ChainGovernor) initConfig() error {
 	defer gov.mutex.Unlock()
 
 	gov.dayLengthInMinutes = 24 * 60
-	configChains := chainList()
-	configTokens := tokenList()
-	flowCancelTokens := []tokenConfigEntry{}
+	configChains := ChainList()
+	configTokens := TokenList()
+	flowCancelTokens := []TokenConfigEntry{}
 	flowCancelCorridors := []corridor{}
 
 	if gov.env == common.UnsafeDevNet {
@@ -314,17 +314,17 @@ func (gov *ChainGovernor) initConfig() error {
 	}
 
 	for _, ct := range configTokens {
-		addr, err := vaa.StringToAddress(ct.addr)
+		addr, err := vaa.StringToAddress(ct.Addr)
 		if err != nil {
-			return fmt.Errorf("invalid address: %s", ct.addr)
+			return fmt.Errorf("invalid address: %s", ct.Addr)
 		}
 
-		cfgPrice := big.NewFloat(ct.price)
+		cfgPrice := big.NewFloat(ct.Price)
 		initialPrice := new(big.Float)
 		initialPrice.Set(cfgPrice)
 
 		// Transfers have a maximum of eight decimal places.
-		dec := ct.decimals
+		dec := ct.Decimals
 		if dec > 8 {
 			dec = 8
 		}
@@ -333,18 +333,18 @@ func (gov *ChainGovernor) initConfig() error {
 		decimals, _ := decimalsFloat.Int(nil)
 
 		// Some Solana tokens don't have the symbol set. In that case, use the chain and token address as the symbol.
-		symbol := ct.symbol
+		symbol := ct.Symbol
 		if symbol == "" {
-			symbol = fmt.Sprintf("%d:%s", ct.chain, ct.addr)
+			symbol = fmt.Sprintf("%d:%s", ct.Chain, ct.Addr)
 		}
 
-		key := tokenKey{chain: vaa.ChainID(ct.chain), addr: addr}
+		key := tokenKey{chain: vaa.ChainID(ct.Chain), addr: addr}
 		te := &tokenEntry{
 			cfgPrice:    cfgPrice,
 			price:       initialPrice,
 			decimals:    decimals,
 			symbol:      symbol,
-			coinGeckoId: ct.coinGeckoId,
+			coinGeckoId: ct.CoinGeckoId,
 			token:       key,
 		}
 		te.updatePrice()
@@ -367,7 +367,7 @@ func (gov *ChainGovernor) initConfig() error {
 				zap.String("coinGeckoId", te.coinGeckoId),
 				zap.String("price", te.price.String()),
 				zap.Int64("decimals", dec),
-				zap.Int64("origDecimals", ct.decimals),
+				zap.Int64("origDecimals", ct.Decimals),
 			)
 		}
 	}
@@ -376,11 +376,11 @@ func (gov *ChainGovernor) initConfig() error {
 	// correspond to the entries in the Flow Cancel Tokens List
 	if gov.flowCancelEnabled {
 		for _, flowCancelConfigEntry := range flowCancelTokens {
-			addr, err := vaa.StringToAddress(flowCancelConfigEntry.addr)
+			addr, err := vaa.StringToAddress(flowCancelConfigEntry.Addr)
 			if err != nil {
 				return err
 			}
-			key := tokenKey{chain: vaa.ChainID(flowCancelConfigEntry.chain), addr: addr}
+			key := tokenKey{chain: vaa.ChainID(flowCancelConfigEntry.Chain), addr: addr}
 
 			// Only add flow cancelling for tokens that are already configured for rate-limiting.
 			if _, ok := gov.tokens[key]; ok {
@@ -389,8 +389,8 @@ func (gov *ChainGovernor) initConfig() error {
 				gov.logger.Debug("token present in flow cancel list but absent from main token list:",
 					zap.Stringer("chain", key.chain),
 					zap.Stringer("addr", key.addr),
-					zap.String("symbol", flowCancelConfigEntry.symbol),
-					zap.String("coinGeckoId", flowCancelConfigEntry.coinGeckoId),
+					zap.String("symbol", flowCancelConfigEntry.Symbol),
+					zap.String("coinGeckoId", flowCancelConfigEntry.CoinGeckoId),
 				)
 			}
 		}
@@ -411,26 +411,26 @@ func (gov *ChainGovernor) initConfig() error {
 		var emitterAddr vaa.Address
 		var err error
 
-		emitterAddrBytes, exists := (*emitterMap)[cc.emitterChainID]
+		emitterAddrBytes, exists := (*emitterMap)[cc.EmitterChainID]
 		if !exists {
-			return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.emitterChainID)
+			return fmt.Errorf("failed to look up token bridge emitter address for chain: %v", cc.EmitterChainID)
 		}
 
 		emitterAddr, err = vaa.BytesToAddress(emitterAddrBytes)
 		if err != nil {
-			return fmt.Errorf("failed to convert emitter address for chain: %v", cc.emitterChainID)
+			return fmt.Errorf("failed to convert emitter address for chain: %v", cc.EmitterChainID)
 		}
 
 		ce := &chainEntry{
-			emitterChainId:          cc.emitterChainID,
+			emitterChainId:          cc.EmitterChainID,
 			emitterAddr:             emitterAddr,
-			dailyLimit:              cc.dailyLimit,
-			bigTransactionSize:      cc.bigTransactionSize,
-			checkForBigTransactions: cc.bigTransactionSize != 0,
+			dailyLimit:              cc.DailyLimit,
+			bigTransactionSize:      cc.BigTransactionSize,
+			checkForBigTransactions: cc.BigTransactionSize != 0,
 		}
 
 		if gov.env != common.GoTest {
-			gov.logger.Info("will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
+			gov.logger.Info("will monitor chain:", zap.Stringer("emitterChainId", cc.EmitterChainID),
 				zap.Stringer("emitterAddr", ce.emitterAddr),
 				zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)),
 				zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
@@ -438,7 +438,7 @@ func (gov *ChainGovernor) initConfig() error {
 			)
 		}
 
-		gov.chains[cc.emitterChainID] = ce
+		gov.chains[cc.EmitterChainID] = ce
 	}
 
 	if len(gov.chains) == 0 {
@@ -466,7 +466,7 @@ func (gov *ChainGovernor) initConfig() error {
 
 // Returns true if the message can be published, false if it has been added to the pending list.
 func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
-	publish, err := gov.ProcessMsgForTime(msg, time.Now())
+	publish, err := gov.processMsgForTime(msg, time.Now())
 	if err != nil {
 		gov.logger.Error("failed to process VAA: %v", zap.Error(err))
 		return false
@@ -475,7 +475,7 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 	return publish
 }
 
-// ProcessMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
+// processMsgForTime handles an incoming message (transfer) and registers it in the chain entries for the Governor.
 // Returns true if:
 // - the message is not governed
 // - the transfer is complete and has already been observed
@@ -484,7 +484,7 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 // - ensure MessagePublication is not nil
 // - check that the MessagePublication is governed
 // - check that the message is not a duplicate of one we've seen before.
-func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
+func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
 	if msg == nil {
 		return false, fmt.Errorf("msg is nil")
 	}
@@ -502,7 +502,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 		return true, nil
 	}
 
-	hash := gov.HashFromMsg(msg)
+	hash := gov.hashFromMsg(msg)
 	xferComplete, alreadySeen := gov.msgsSeen[hash]
 	if alreadySeen {
 		if !xferComplete {
@@ -524,7 +524,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	// Get all outgoing transfers for `emitterChainEntry` that happened within the last 24 hours
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
-	prevTotalValue, err := gov.TrimAndSumValueForChain(emitterChainEntry, startTime)
+	prevTotalValue, err := gov.trimAndSumValueForChain(emitterChainEntry, startTime)
 	if err != nil {
 		gov.logger.Error("Error when attempting to trim and sum transfers",
 			zap.String("msgID", msg.MessageIDString()),
@@ -744,13 +744,13 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	return true, ce, token, payload, nil
 }
 
-// CheckPending is a wrapper method for CheckPendingForTime. It is called by the processor with the purpose of releasing
-// queued transfers.
+// CheckPending is a wrapper method for CheckPendingForTime that uses time.Now as the release time.
+// Returns a slice of MessagePublications that are ready to be published.
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
-	return gov.CheckPendingForTime(time.Now())
+	return gov.checkPendingForTime(time.Now())
 }
 
-// CheckPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
+// checkPendingForTime checks whether a pending message is ready to be released, and if so, modifies the chain entry's `pending` and `transfers` slices by
 // moving a `dbTransfer` element from `pending` to `transfers`. Returns a slice of Messages that will be published.
 // A transfer is ready to be released when one of the following conditions holds:
 //   - The 'release time' duration has passed since `now` (i.e. the transfer has been queued for 24 hours, regardless of
@@ -761,7 +761,7 @@ func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
 //
 // WARNING: When this function returns an error, it propagates to the `processor` which in turn interprets this as a
 // signal to RESTART THE PROCESSOR. Therefore, errors returned by this function effectively act as panics.
-func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
+func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -780,12 +780,11 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 		ce, ok := gov.chains[chainId]
 		if !ok {
 			gov.logger.Error("chainId not found in gov.chains", zap.Stringer("chainId", chainId))
-
 		}
 		// Keep going as long as we find something that will fit.
 		for {
 			foundOne := false
-			prevTotalValue, err := gov.TrimAndSumValueForChain(ce, startTime)
+			prevTotalValue, err := gov.trimAndSumValueForChain(ce, startTime)
 			if err != nil {
 				gov.logger.Error("error when attempting to trim and sum transfers", zap.Error(err))
 				gov.logger.Error("refusing to release transfers for this chain until the sum can be correctly calculated",
@@ -870,7 +869,8 @@ func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessageP
 					msgsToPublish = append(msgsToPublish, &pe.dbData.Msg)
 
 					if countsTowardsTransfers {
-						dbTransfer := guardianDB.Transfer{Timestamp: now,
+						dbTransfer := guardianDB.Transfer{
+							Timestamp:      now,
 							Value:          value,
 							OriginChain:    pe.token.token.chain,
 							OriginAddress:  pe.token.token.addr,
@@ -1026,7 +1026,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 	return true, nil
 }
 
-// TrimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
+// trimAndSumValueForChain calculates the `sum` of `Transfer`s for a given chain `chainEntry`. In effect, it represents a
 // chain's "Governor Usage" for a given 24 hour period.
 // This sum may be reduced by the sum of 'flow cancelling' transfers: that is, transfers of an allow-listed token
 // that have the `emitter` as their destination chain.
@@ -1039,7 +1039,7 @@ func (gov *ChainGovernor) tryAddFlowCancelTransfer(transfer *transfer) (bool, er
 // chain appearing at maximum capacity from the perspective of the Governor, and therefore cause new transfers to be
 // queued until space opens up.
 // SECURITY Invariant: The `sum` return value should never be less than 0
-func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
+func (gov *ChainGovernor) trimAndSumValueForChain(chainEntry *chainEntry, startTime time.Time) (sum uint64, err error) {
 	if chainEntry == nil {
 		// We don't expect this to happen but this prevents a nil pointer deference
 		return 0, errors.New("TrimAndSumValeForChain parameter chainEntry must not be nil")
@@ -1047,7 +1047,7 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startT
 	// Sum the value of all transfers for this chain. This sum can be negative if flow-cancelling is enabled
 	// and the incoming value of flow-cancelling assets exceeds the summed value of all outgoing assets.
 	var sumValue int64
-	sumValue, chainEntry.transfers, err = gov.TrimAndSumValue(chainEntry.transfers, startTime)
+	sumValue, chainEntry.transfers, err = gov.trimAndSumValue(chainEntry.transfers, startTime)
 	if err != nil {
 		// Return the daily limit as the sum so that any further transfers will be queued.
 		return chainEntry.dailyLimit, err
@@ -1059,17 +1059,16 @@ func (gov *ChainGovernor) TrimAndSumValueForChain(chainEntry *chainEntry, startT
 	}
 
 	return uint64(sumValue), nil
-
 }
 
-// TrimAndSumValue iterates over a slice of transfer structs. It filters out transfers that have Timestamp values that
+// trimAndSumValue iterates over a slice of transfer structs. It filters out transfers that have Timestamp values that
 // are earlier than the parameter `startTime`. The function then iterates over the remaining transfers, sums their Value,
 // and returns the sum and the filtered transfers.
 // As a side-effect, this function deletes transfers from the database if their Timestamp is before `startTime`.
 // The `transfers` slice must be sorted by Timestamp. We expect this to be the case as transfers are added to the
 // Governor in chronological order as they arrive. Note that `Timestamp` is created by the Governor; it is not read
 // from the actual on-chain transaction.
-func (gov *ChainGovernor) TrimAndSumValue(transfers []transfer, startTime time.Time) (int64, []transfer, error) {
+func (gov *ChainGovernor) trimAndSumValue(transfers []transfer, startTime time.Time) (int64, []transfer, error) {
 	if len(transfers) == 0 {
 		return 0, transfers, nil
 	}
@@ -1114,7 +1113,7 @@ func (tk tokenKey) String() string {
 	return tk.chain.String() + ":" + tk.addr.String()
 }
 
-func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
+func (gov *ChainGovernor) hashFromMsg(msg *common.MessagePublication) string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
 	digest := v.SigningDigest()
 	return hex.EncodeToString(digest.Bytes())

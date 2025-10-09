@@ -126,7 +126,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 					return err
 				}
 			}
-			sub.ch <- message{vaaBytes: vaaBytes}
+			sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
 			continue
 		}
 
@@ -146,7 +146,7 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 						return err
 					}
 				}
-				sub.ch <- message{vaaBytes: vaaBytes}
+				sub.ch <- message{vaaBytes: vaaBytes} //nolint:channelcheck // Don't want to drop incoming VAAs
 			}
 		}
 
@@ -252,7 +252,7 @@ func newSpyServer(logger *zap.Logger) *spyServer {
 func DoWithTimeout(f func() error, d time.Duration) error {
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- f()
+		errChan <- f() //nolint:channelcheck // Has timeout below
 		close(errChan)
 	}()
 	t := time.NewTimer(d)
@@ -268,6 +268,7 @@ func DoWithTimeout(f func() error, d time.Duration) error {
 }
 
 func spyServerRunnable(s *spyServer, logger *zap.Logger, listenAddr string) (supervisor.Runnable, *grpc.Server, error) {
+	//nolint:noctx // TODO: this should be refactored to use context.
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to listen: %w", err)

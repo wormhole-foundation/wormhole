@@ -17,7 +17,9 @@ spec:
           image: tx-verifier-evm
           env:
             - name: ERROR_PATTERN
-              value: "invalid receipt: no deposits and no transfers"
+              # NOTE: This value must match the string used in the invariant violation branch
+              # of the Transfer Verifier CLI tool.
+              value: "invariant violation"
             - name: ERROR_LOG_PATH
               value: "/tmp/error.log"
             - name: RPC_URL

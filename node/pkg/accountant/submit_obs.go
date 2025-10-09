@@ -21,8 +21,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const batchSize = 10
-const delayInMS = 100 * time.Millisecond
+const (
+	batchSize    = 10
+	batchTimeout = 100 * time.Millisecond
+)
 
 // baseWorker is the entry point for the base accountant worker.
 func (acct *Accountant) baseWorker(ctx context.Context) error {
@@ -63,7 +65,7 @@ func (acct *Accountant) worker(ctx context.Context, isNTT bool) error {
 // handleBatch reads a batch of events from the channel, either until a timeout occurs or the batch is full,
 // and submits them to the smart contract.
 func (acct *Accountant) handleBatch(ctx context.Context, subChan chan *common.MessagePublication, wormchainConn AccountantWormchainConn, contract string, prefix []byte, tag string) error {
-	ctx, cancel := context.WithTimeout(ctx, delayInMS)
+	ctx, cancel := context.WithTimeout(ctx, batchTimeout)
 	defer cancel()
 
 	msgs, err := common.ReadFromChannelWithTimeout[*common.MessagePublication](ctx, subChan, batchSize)

@@ -13,6 +13,7 @@ import (
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -21,7 +22,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
-	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -255,6 +255,22 @@ func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGe
 		}}
 }
 
+// GuardianOptionNotary enables or disables the Notary.
+// Dependencies: db
+func GuardianOptionNotary(notaryEnabled bool) *GuardianOption {
+	return &GuardianOption{
+		name:         "notary",
+		dependencies: []string{"db"},
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			if notaryEnabled {
+				g.notary = notary.NewNotary(ctx, logger, g.db, g.env)
+			} else {
+				logger.Info("notary is disabled")
+			}
+			return nil
+		}}
+}
+
 // GuardianOptionGatewayRelayer configures the Gateway Relayer module. If the gateway relayer smart contract is configured, we will instantiate
 // the GatewayRelayer and signed VAAs will be passed to it for processing when they are published. It will forward payload three transfers destined
 // for the specified contract on wormchain to that contract.
@@ -398,7 +414,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.String("txID", msg.TxIDString()),
 									zap.Time("timestamp", msg.Timestamp))
 							} else {
-								g.msgC.writeC <- msg
+								g.msgC.writeC <- msg //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 							}
 						}
 					}
@@ -424,13 +440,13 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 									zap.Stringer("watcherChainId", chainId),
 								)
 							}
-							g.queryResponseC.writeC <- response
+							g.queryResponseC.writeC <- response //nolint:channelcheck // This channel is buffered, if it backs up we'll stop processing queries until it clears
 						}
 					}
 				}(chainQueryResponseC[chainId], chainId)
 			}
 
-			configuredWatchers := make(map[watchers.NetworkID]interfaces.L1Finalizer)
+			configuredWatchers := make(map[watchers.NetworkID]struct{})
 
 			for _, wc := range watcherConfigs {
 				if _, ok := configuredWatchers[wc.GetNetworkID()]; ok {
@@ -446,24 +462,14 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					g.chainQueryReqC[wc.GetChainID()] = make(chan *query.PerChainQueryInternal, query.QueryRequestBufferSize)
 				}
 
-				if wc.RequiredL1Finalizer() != "" {
-					l1watcher, ok := configuredWatchers[wc.RequiredL1Finalizer()]
-					if !ok || l1watcher == nil {
-						logger.Fatal("L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs. The L1 must be configured before this one.",
-							zap.String("ChainID", wc.GetChainID().String()),
-							zap.String("L1ChainID", string(wc.RequiredL1Finalizer())))
-					}
-					wc.SetL1Finalizer(l1watcher)
-				}
-
-				l1finalizer, runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
+				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
 					return fmt.Errorf("error creating watcher: %w", err)
 				}
 
 				g.runnablesWithScissors[watcherName] = runnable
-				configuredWatchers[wc.GetNetworkID()] = l1finalizer
+				configuredWatchers[wc.GetNetworkID()] = struct{}{}
 
 				if reobserver != nil {
 					g.reobservers[wc.GetChainID()] = reobserver
@@ -625,8 +631,8 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
-		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor"},
+		// governor, accountant, and notary may be set to nil, but that choice needs to be made before the processor is configured
+		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor", "notary"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -644,6 +650,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.gov,
 				g.acct,
 				g.acctC.readC,
+				g.notary,
 				g.gatewayRelayer,
 				networkId,
 				g.alternatePublisher,

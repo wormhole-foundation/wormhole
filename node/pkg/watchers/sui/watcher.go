@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -198,10 +197,10 @@ func NewWatcher(
 
 func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservation bool) error {
 	if body.ID.TxDigest == nil {
-		return errors.New("Missing TxDigest field")
+		return errors.New("missing TxDigest field")
 	}
 	if body.Type == nil {
-		return errors.New("Missing Type field")
+		return errors.New("missing Type field")
 	}
 
 	// There may be moveEvents caught without these params.
@@ -247,7 +246,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 			zap.String("log_msg_type", "tx_processing_error"),
 			zap.String("txHash", *body.ID.TxDigest),
 		)
-		return errors.New("Transaction hash is not 32 bytes")
+		return errors.New("transaction hash is not 32 bytes")
 	}
 
 	txHashEthFormat := eth_common.BytesToHash(txHashBytes)
@@ -291,7 +290,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult, isReobservatio
 		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
 	)
 
-	e.msgChan <- observation
+	e.msgChan <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }
@@ -309,6 +308,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 		zap.String("suiMoveEventType", e.suiMoveEventType),
 		zap.Bool("unsafeDevMode", e.unsafeDevMode),
 	)
+
+	// Get the node version for troubleshooting
+	e.logVersion(ctx, logger)
 
 	// Get the latest checkpoint sequence number.  This will be the starting point for the watcher.
 	latest, err := e.getLatestCheckpointSN(ctx, logger)
@@ -581,7 +583,7 @@ func (e *Watcher) getLatestCheckpointSN(ctx context.Context, logger *zap.Logger)
 	if pErr != nil {
 		logger.Error("Failed to ParseInt")
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
-		return 0, fmt.Errorf("sui_getLatestCheckpointSequenceNumber failed to ParseInt, error: %w", err)
+		return 0, fmt.Errorf("sui_getLatestCheckpointSequenceNumber failed to ParseInt, error: %w", pErr)
 	}
 	return height, nil
 }
@@ -641,10 +643,50 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to post: %w", err)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to read: %w", err)
 	}
 	resp.Body.Close()
 	return body, nil
+}
+
+// logVersion retrieves the Sui protocol version and logs it
+func (w *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// We can't get the exact build, but we can get the protocol version.
+	// From: https://www.quicknode.com/docs/sui/suix_getLatestSuiSystemState
+	networkName := "sui"
+	payload := `{"jsonrpc":"2.0", "id": 1, "method": "suix_getLatestSuiSystemState", "params": []}`
+
+	type getLatestSuiSystemStateResponse struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Result  struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		} `json:"result"`
+		ID int `json:"id"`
+	}
+	var result getLatestSuiSystemStateResponse
+
+	body, err := w.createAndExecReq(ctx, payload)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", result.Result.ProtocolVersion),
+		zap.String("network", "sui"),
+	)
 }

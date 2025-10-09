@@ -238,7 +238,7 @@ func (n *node) runGroup(runnables map[string]Runnable) error {
 	// Schedule execution of group members.
 	go func() {
 		for name := range runnables {
-			n.sup.pReq <- &processorRequest{
+			n.sup.pReq <- &processorRequest{ //nolint:channelcheck // Will only block this go routine
 				schedule: &processorRequestSchedule{
 					dn: dns[name],
 				},

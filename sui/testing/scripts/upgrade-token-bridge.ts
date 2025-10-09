@@ -17,9 +17,9 @@ const GOVERNANCE_EMITTER =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
 const TOKEN_BRIDGE_STATE_ID =
-  "0x32422cb2f929b6a4e3f81b4791ea11ac2af896b310f3d9442aa1fe924ce0bab4";
+  "0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da";
 const WORMHOLE_STATE_ID =
-  "0x69ae41bdef4770895eb4e7aaefee5e4673acc08f6917b4856cf55549c4573ca8";
+  "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790";
 
 async function main() {
   const guardianPrivateKey = process.env.TESTNET_GUARDIAN_PRIVATE_KEY;
@@ -69,22 +69,22 @@ async function main() {
   const signedVaa = guardians.addSignatures(published, [0]);
   console.log("Upgrade VAA:", signedVaa.toString("hex"));
 
-  // // And execute upgrade with governance VAA.
-  // const upgradeResults = await upgradeTokenBridge(
-  //   wallet,
-  //   TOKEN_BRIDGE_STATE_ID,
-  //   WORMHOLE_STATE_ID,
-  //   modules,
-  //   dependencies,
-  //   signedVaa
-  // );
+  // And execute upgrade with governance VAA.
+  const upgradeResults = await upgradeTokenBridge(
+    wallet,
+    TOKEN_BRIDGE_STATE_ID,
+    WORMHOLE_STATE_ID,
+    modules,
+    dependencies,
+    signedVaa
+  );
 
-  // console.log("tx digest", upgradeResults.digest);
-  // console.log("tx effects", JSON.stringify(upgradeResults.effects!));
-  // console.log("tx events", JSON.stringify(upgradeResults.events!));
+  console.log("tx digest", upgradeResults.digest);
+  console.log("tx effects", JSON.stringify(upgradeResults.effects!));
+  console.log("tx events", JSON.stringify(upgradeResults.events!));
 
-  // TODO: grab new package ID from the events above. Do not rely on the RPC
-  // call because it may give you a stale package ID after the upgrade.
+  // sleep 5 seconds
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   const migrateResults = await migrateTokenBridge(
     wallet,

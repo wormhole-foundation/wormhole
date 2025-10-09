@@ -142,12 +142,12 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	var pubEvent NearWormholePublishEvent
 	if err := json.Unmarshal([]byte(eventJsonStr), &pubEvent); err != nil {
 		logger.Error("Wormhole publish event malformed", zap.String("error_type", "malformed_wormhole_event"), zap.String("json", eventJsonStr))
-		return errors.New("Wormhole publish event malformed")
+		return errors.New("wormhole publish event malformed")
 	}
 
 	if pubEvent.Standard != "wormhole" || pubEvent.Event != "publish" || pubEvent.Emitter == "" || pubEvent.Seq <= 0 || pubEvent.BlockHeight == 0 {
 		logger.Error("Wormhole publish event malformed", zap.String("error_type", "malformed_wormhole_event"), zap.String("json", eventJsonStr))
-		return errors.New("Wormhole publish event malformed")
+		return errors.New("wormhole publish event malformed")
 	}
 
 	successValueUint64, err := successValueToUint64(successValue)
@@ -162,7 +162,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 			zap.Uint64("int(SuccessValue)", successValueUint64),
 			zap.Uint64("log.seq", pubEvent.Seq),
 		)
-		return errors.New("Wormhole publish event.seq does not match SuccessValue")
+		return errors.New("wormhole publish event.seq does not match SuccessValue")
 	}
 
 	// SECURITY: For defense-in-depth, check that the block height from the event matches the block height from the RPC node
@@ -174,7 +174,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 			zap.Uint64("event.block", pubEvent.BlockHeight),
 			zap.Uint64("receipt_outcome[x].block_height", outcomeBlockHeader.Height),
 		)
-		return errors.New("Wormhole publish event.block does not equal receipt_outcome[x].block_height")
+		return errors.New("wormhole publish event.block does not equal receipt_outcome[x].block_height")
 	}
 
 	// SECURITY: extract emitter address and ensure that it has the correct format
@@ -192,7 +192,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 			zap.String("json", eventJsonStr),
 			zap.String("field", "emitter"),
 		)
-		return errors.New("Wormhole publish event malformed")
+		return errors.New("wormhole publish event malformed")
 	}
 
 	// Assemble the Message Publication Event
@@ -211,7 +211,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 			zap.String("log_msg_type", "tx_processing_error"),
 			zap.String("txHash", job.txHash),
 		)
-		return errors.New("Transaction hash is not 32 bytes")
+		return errors.New("transaction hash is not 32 bytes")
 	}
 
 	var txHashEthFormat = eth_common.BytesToHash(txHashBytes)
@@ -229,7 +229,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 			zap.String("field", "data"),
 			zap.String("data", pubEvent.Data),
 		)
-		return errors.New("Wormhole publish event malformed")
+		return errors.New("wormhole publish event malformed")
 	}
 
 	// SECURITY the timestamp of an observation is the timestamp of the block in which the wormhole core receipt has been finalized.
@@ -254,7 +254,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 	// tell everyone about it
 	job.hasWormholeMsg = true
 
-	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED
+	e.eventChan <- EVENT_NEAR_MESSAGE_CONFIRMED //nolint:channelcheck // Only pauses this watcher
 
 	logger.Info("message observed",
 		zap.String("log_msg_type", "wormhole_event_success"),
@@ -268,7 +268,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job 
 		zap.Uint8("consistency_level", observation.ConsistencyLevel),
 	)
 
-	e.msgC <- observation
+	e.msgC <- observation //nolint:channelcheck // The channel to the processor is buffered and shared across chains, if it backs up we should stop processing new observations
 
 	return nil
 }

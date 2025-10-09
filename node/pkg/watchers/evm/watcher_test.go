@@ -199,12 +199,30 @@ type MockTransferVerifier[E ethclient.Client, C connectors.Connector] struct {
 	success bool
 }
 
-// Mock ProcessEvent function that simulates the evaluation made by the Transfer Verifier.
-func (m *MockTransferVerifier[E, C]) ProcessEvent(_ context.Context, _ eth_common.Hash, _ *types.Receipt) bool {
-	return m.success
+// TransferIsValid simulates the evaluation made by the Transfer Verifier.
+// Always returns nil. The error should be non-nil only when a parsing or RPC error occurs.
+// For now, these are not included in the unit tests.
+func (m *MockTransferVerifier[E, C]) TransferIsValid(_ context.Context, _ string, _ eth_common.Hash, _ *types.Receipt) (bool, error) {
+	return m.success, nil
 }
 func (m *MockTransferVerifier[E, C]) Addrs() *txverifier.TVAddresses {
 	return &txverifier.TVAddresses{
 		TokenBridgeAddr: eth_common.BytesToAddress([]byte{0x01}),
 	}
+}
+
+func TestConsistencyLevelMatches(t *testing.T) {
+	// Success cases.
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, vaa.ConsistencyLevelPublishImmediately))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, vaa.ConsistencyLevelSafe))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, vaa.ConsistencyLevelFinalized))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, 0))
+	assert.True(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, 42))
+
+	// Failure cases.
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, vaa.ConsistencyLevelSafe))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, vaa.ConsistencyLevelFinalized))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelFinalized, vaa.ConsistencyLevelPublishImmediately))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelPublishImmediately, 0))
+	assert.False(t, consistencyLevelMatches(vaa.ConsistencyLevelSafe, 0))
 }

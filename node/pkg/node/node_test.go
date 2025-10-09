@@ -189,6 +189,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionWatchers(watcherConfigs, nil),
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true, false, ""),
+			GuardianOptionNotary(true),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
 			GuardianOptionQueryHandler(false, ""), // disable queries
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
@@ -754,8 +755,9 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 					queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
 					_, err := adminCs[adminRpcGuardianIndex].SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
-							ChainId: uint32(testCase.msg.EmitterChain),
-							TxHash:  testCase.msg.TxID,
+							ChainId:   uint32(testCase.msg.EmitterChain),
+							TxHash:    testCase.msg.TxID,
+							Timestamp: time.Now().UnixNano(),
 						},
 					})
 					queryCancel()
@@ -872,9 +874,8 @@ func TestWatcherConfigs(t *testing.T) {
 						ChainID:   vaa.ChainIDSolana,
 					},
 					&mock.WatcherConfig{
-						NetworkID:           "mock2",
-						ChainID:             vaa.ChainIDEthereum,
-						L1FinalizerRequired: "mock1",
+						NetworkID: "mock2",
+						ChainID:   vaa.ChainIDEthereum,
 					},
 				}, nil),
 			},
@@ -896,19 +897,6 @@ func TestWatcherConfigs(t *testing.T) {
 			},
 			err: "NetworkID already configured: mock",
 		},
-		{
-			name: "watcher-noL1",
-			opts: []*GuardianOption{
-				GuardianOptionWatchers([]watchers.WatcherConfig{
-					&mock.WatcherConfig{
-						NetworkID:           "mock",
-						ChainID:             vaa.ChainIDSolana,
-						L1FinalizerRequired: "something-that-does-not-exist",
-					},
-				}, nil),
-			},
-			err: "L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs.",
-		},
 	}
 	runGuardianConfigTests(t, tc)
 }
@@ -927,7 +915,7 @@ func TestGuardianConfigs(t *testing.T) {
 					nil,   // nttWormchainConn
 				),
 			},
-			err: "Check the order of your options.",
+			err: ComponentDependencyError{componentName: "accountant", dependencyName: "db"}.Error(),
 		},
 		{
 			name: "double-configuration",
@@ -935,7 +923,7 @@ func TestGuardianConfigs(t *testing.T) {
 				GuardianOptionDatabase(nil),
 				GuardianOptionDatabase(nil),
 			},
-			err: "Component db is already configured and cannot be configured a second time",
+			err: ComponentAlreadyConfiguredError{componentName: "db"}.Error(),
 		},
 	}
 	runGuardianConfigTests(t, tc)
@@ -989,6 +977,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				if tc.err == "" {
 					assert.Equal(t, tc.err, r)
 				}
+				// Check that the string logged by the fatal hook contains the error message.
 				assert.Contains(t, r, tc.err)
 				rootCtxCancel()
 			case <-rootCtx.Done():
