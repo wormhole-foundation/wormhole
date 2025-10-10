@@ -165,4 +165,10 @@ export class Wormhole implements Contract {
         const result = await provider.get('verifyVM', args);
         return result.stack.readBoolean();
     }
+
+    async getSequence(provider: ContractProvider, sender: Address): Promise<number> {
+        const args: TupleItem[] = [{ type: 'slice', cell: beginCell().storeAddress(sender).endCell() }];
+        const result = await provider.get('getSequence', args);
+        return result.stack.readNumber();
+    }
 }

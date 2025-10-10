@@ -9,7 +9,10 @@
         "test": "jest --verbose",
         "coverage": "blueprint test --coverage",
         "gas:compare": "blueprint test --gas-report",
-        "gas:snapshot": "blueprint snapshot"
+        "gas:snapshot": "blueprint snapshot",
+        "deploy:core": "blueprint run deployWormhole --mnemonic --testnet",
+        "deploy:integrator": "blueprint run deployIntegrator --mnemonic --testnet",
+        "dapp": "npx blueprint scaffold"
     },
     "dependencies": {
         "@ton/core": "~0"

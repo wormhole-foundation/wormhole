@@ -15,10 +15,12 @@ const OP_SEND_COMMENT = stringCrc32("op::integrator::send_comment");
 const OP_RELAY_COMMENT = stringCrc32("op::integrator::Relay_comment");
 
 const ERROR_INVALID_TAIL = 1000;
+const CHAIN_ID_TON = 62;
 
 
 struct Storage {
     wormholeAddress: address
+    nonce: uint32
     id: uint16
 }
 
@@ -35,9 +37,9 @@ fun Storage.save(self) {
 // Call on source chain to send a comment
 struct (0x222A627E) SendComment {
     queryId: uint64
-    nonce: uint32
     consistencyLevel: uint8
-    to: address
+    chainId: uint16
+    to: uint256
     comment: cell
 }
 
@@ -48,7 +50,8 @@ struct (0x327587B5) RelayComment {
 }
 
 struct CommentVaa {
-    to: address
+    chainId: uint16
+    to: uint256
     comment: cell
 }
 
@@ -65,14 +68,18 @@ fun onInternalMessage(in: InMessage) {
             var storage = lazy Storage.load();
             val payload = PublishMessage {
                 queryId: msg.queryId,
-                nonce: msg.nonce,
+                nonce: storage.nonce,
                 consistencyLevel: msg.consistencyLevel,
                 payload: CommentVaa {
+                    chainId: msg.chainId,
                     to: msg.to,
                     comment: msg.comment
                 }.toCell(),
                 tail: beginCell().storeUint(0x11223344, 32).endCell()
             };
+
+            storage.nonce += 1;
+            storage.save();
             
             call(storage.wormholeAddress, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE, payload);
         }
@@ -90,13 +97,12 @@ fun onInternalMessage(in: InMessage) {
             call(storage.wormholeAddress, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE, payload);
         }
         ParseAndVerifyVMAnswer => {
-            debug.printString("ParseAndVerifyVMAnswer");
             emit(VAAValidatedByCoreEvent{ valid: msg.valid });
             val (vaa, vaaHash) = VM.parse(msg.encodedVaa);
-            debug.printString("decoded vaa");
             val comment = CommentVaa.fromCell(vaa.payload);
-            debug.printString("decoded comment");
-            call(comment.to, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE, (0x00000000 as uint32, comment.comment));
+            assert(comment.chainId == CHAIN_ID_TON) throw ERROR_INVALID_CHAIN_ID;
+            val toAddress = buildAddress(0, comment.to);
+            call(toAddress, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE, (0x00000000 as uint32, comment.comment));
         }
         else => {
             assert (in.body.isEmpty()) throw ERROR_UNKNOWN_OPCODE;

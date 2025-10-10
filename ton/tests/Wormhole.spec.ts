@@ -67,6 +67,11 @@ describe('Wormhole', () => {
         expect(fee).toBe(toNano('0.1'));
     });
 
+    it('should succeed getSequence', async () => {
+        const sequence = await wormhole.getSequence(publisher.address);
+        expect(sequence).toBe(0);
+    });
+
     it('should succeed verifyVM', async () => {
         const vmData = generateVAACell(NUM_SIGNATURES);
         const result = await wormhole.getVerifyVM(vmData);
@@ -97,11 +102,16 @@ describe('Wormhole', () => {
             from: publisher.address,
             to: wormhole.address,
             success: true,
+            value: messageFee + toNano(0.1),
         });
         expect(publishResult.transactions).toHaveTransaction({
             from: wormhole.address,
             to: publisher.address,
             success: true,
+            value: (x?: bigint) => {
+                // check that wormhole reserves message feeParseAndVerifyVMAnswer
+                return x! < toNano(0.1) && x! > toNano(0.08);
+            },
         });
 
         const trans = findTransactionRequired(publishResult.transactions, {
@@ -116,6 +126,9 @@ describe('Wormhole', () => {
         expect(eventBody.loadUint(32)).toBe(789);
         expect(eventBody.loadUint(8)).toBe(1);
         expect(eventBody.loadRef().hash().toString('hex')).toBe(payload.hash().toString('hex'));
+
+        const sequence = await wormhole.getSequence(publisher.address);
+        expect(sequence).toBe(1);
     });
 
     it('should fail to send publish message with insufficient fee', async () => {

@@ -2,19 +2,24 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 import { Opcodes } from './Constants';
 
 export type IntegratorConfig = {
-    id: number;
     wormholeAddress: Address;
+    nonce: number;
+    id: number;
 };
 
 export function integratorConfigToCell(config: IntegratorConfig): Cell {
-    return beginCell().storeAddress(config.wormholeAddress).storeUint(config.id, 16).endCell();
+    return beginCell()
+        .storeAddress(config.wormholeAddress)
+        .storeUint(config.nonce, 32)
+        .storeUint(config.id, 16)
+        .endCell();
 }
 
 export type CommentOpts = {
     queryId: number;
-    nonce: number;
     consistencyLevel: number;
-    to: Address;
+    chainId: number;
+    to: Buffer;
     comment: string;
 };
 
@@ -47,15 +52,18 @@ export class Integrator implements Contract {
     }
 
     async sendComment(provider: ContractProvider, via: Sender, value: bigint, opts: CommentOpts) {
+        if (opts.to.length !== 32) {
+            throw new Error('address must be 32 bytes');
+        }
         await provider.internal(via, {
             value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.OP_SEND_COMMENT, 32)
                 .storeUint(opts.queryId, 64)
-                .storeUint(opts.nonce, 32)
                 .storeUint(opts.consistencyLevel, 8)
-                .storeAddress(opts.to)
+                .storeUint(opts.chainId, 16)
+                .storeBuffer(opts.to, 32)
                 .storeStringRefTail(opts.comment)
                 .endCell(),
         });

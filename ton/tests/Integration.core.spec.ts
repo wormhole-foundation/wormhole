@@ -6,8 +6,7 @@ import { compile } from '@ton/blueprint';
 import { Wormhole } from '../wrappers/Wormhole';
 import { Crypto, Random, Time, Event } from './TestUtils';
 import { createEmptyGuardianSet, decodeCommentPayload, generateVAACell } from '../wrappers/Structs';
-import { findTransactionRequired } from '@ton/test-utils';
-import { Events, Opcodes, toAnswer } from '../wrappers/Constants';
+import { Events, Opcodes, toAnswer, TON_CHAIN_ID } from '../wrappers/Constants';
 
 const NUM_GUARDIANS = 19;
 
@@ -69,6 +68,7 @@ describe('Integrator', () => {
             Integrator.createFromConfig(
                 {
                     id: Random.id(16),
+                    nonce: 0,
                     wormholeAddress: wormhole.address,
                 },
                 integratorCode,
@@ -95,9 +95,9 @@ describe('Integrator', () => {
         // blockchain and integrator are ready to use
         const result = await integrator.sendComment(user.getSender(), toNano(0.15), {
             queryId: 0xdeadbeef,
-            nonce: 0xbadf00d,
             consistencyLevel: 0,
-            to: recipient.address,
+            chainId: TON_CHAIN_ID,
+            to: recipient.address.hash,
             comment,
         });
         expect(result.transactions).toHaveTransaction({
@@ -131,7 +131,7 @@ describe('Integrator', () => {
         );
         commentPayloadCell = eventBody.loadRef();
         const commentPayload = decodeCommentPayload(commentPayloadCell);
-        expect(commentPayload.to.toString()).toBe(recipient.address.toString());
+        expect(commentPayload.to.toString('hex')).toBe(recipient.address.hash.toString('hex'));
         expect(commentPayload.comment).toBe(comment);
     });
 

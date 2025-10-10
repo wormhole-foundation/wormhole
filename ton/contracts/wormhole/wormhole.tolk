@@ -1,5 +1,6 @@
 tolk 1.1
 
+import "@stdlib/gas-payments";
 import "../libraries/errors";
 import "../libraries/tonmsg";
 import "events";
@@ -49,6 +50,7 @@ fun onPublishMessage(sender: address, msgValue: coins, params: PublishMessage) {
     assert(msgValue > storage.messageFee) throw ERROR_INSUFFICIENT_FEE;
 
     val sequence = storage.useSequence(sender);
+    storage.save();
 
     val event = MessagePublishedEvent {
         sender: sender,
@@ -58,6 +60,11 @@ fun onPublishMessage(sender: address, msgValue: coins, params: PublishMessage) {
         payload: params.payload
     };
     emit(event);
+
+    reserveToncoinsOnBalance(
+        storage.messageFee + contract.getStoragePaidPayment(), 
+        RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE
+    );
 }
 
 @inline
@@ -69,6 +76,7 @@ fun quorum(numGuardians: uint8): uint8 {
 fun onParseAndVerifyVM(params: ParseAndVerifyVM) {
     var storage = lazy Storage.load();
     val (vm, vmHash) = VM.parse(params.encodedVM);
+    assert(vm.version == VERSION) throw ERROR_INVALID_VM_VERSION;
     val value = storage.guardianSets.get(vm.guardianSetIndex);
     assert(value.isFound) throw ERROR_INVALID_GUARDIAN_SET;
     val guardianSet = value.loadValue();
@@ -91,7 +99,9 @@ fun onInternalMessage(in: InMessage) {
         PublishMessage => {
             onPublishMessage(in.senderAddress, in.valueCoins, msg);
             val answer = PublishMessageAnswer{ queryId: msg.queryId, tail: msg.tail };
-            sendChange(in.senderAddress, OP_PUBLISH_MESSAGE, answer);
+            // we've reserved balance before tx + messageFee + storageFee, so send 
+            // all remaining balance back to the sender
+            sendRemaining(in.senderAddress, OP_PUBLISH_MESSAGE, answer);
         }
         ParseAndVerifyVM => {
             onParseAndVerifyVM(msg);
@@ -119,4 +129,14 @@ get fun verifyVM(vmCell: cell): bool {
 get fun messageFee(): int {
     val storage = lazy Storage.load();
     return storage.messageFee;
+}
+
+get fun getSequence(sender: address): int {
+    val storage = lazy Storage.load();
+    val value = storage.sequences.get(sender);
+    if (value.isFound) {
+        return value.loadValue();
+    } else {
+        return 0;
+    }
 }

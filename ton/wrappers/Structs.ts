@@ -3,6 +3,12 @@ import { GuardianSet, GuardianSetDictionaryValue, Signature, SignatureDictionary
 import { randomBytes } from 'crypto';
 import { TON_CHAIN_ID } from './Constants';
 
+export type CommentPayload = {
+    chainId: number;
+    to: Buffer;
+    comment: string;
+};
+
 export const createEmptyGuardianSet = (): Dictionary<number, GuardianSet> => {
     return Dictionary.empty(Dictionary.Keys.Uint(8), GuardianSetDictionaryValue);
 };
@@ -37,7 +43,7 @@ export const generateVAACell = (signaturesCount: number, payload?: Cell) => {
     return vmData;
 };
 
-export const decodeCommentPayload = (payload: Cell): { to: Address; comment: string } => {
+export const decodeCommentPayload = (payload: Cell): CommentPayload => {
     const slice = payload.beginParse();
-    return { to: slice.loadAddress(), comment: slice.loadStringRefTail() };
+    return { chainId: slice.loadUint(16), to: slice.loadBuffer(32), comment: slice.loadStringRefTail() };
 };

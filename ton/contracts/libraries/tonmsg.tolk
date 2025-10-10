@@ -17,6 +17,22 @@ fun sendChange<TPayload>(
 }
 
 @inline
+fun sendRemaining<TPayload>(
+    to: address, 
+    opcode: uint32, 
+    payload: TPayload,
+) {
+    val answerOpcode: uint32 = opcode | ANSWER_BIT;
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: to,
+        body: (answerOpcode, payload)
+    });
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
+@inline
 fun emit<TPayload>(payload: TPayload) {
     val extOutMsg = createExternalLogMessage({
         dest: createAddressNone(),
@@ -33,4 +49,15 @@ fun call<TPayload>(to: address, amount: coins, mode: uint8, payload: TPayload) {
         body: payload
     });
     msg.send(mode);
+}
+
+@inline
+fun buildAddress(workchain: int8, hash: uint256): address {
+    return beginCell()
+        .storeUint(2, 2) // addr_std$10
+        .storeUint(0, 1) // anycast:(Maybe Anycast)
+        .storeUint(workchain, 8) // workchain_id:int8
+        .storeUint(hash, 256) // address:bits256
+        .endCell()
+        .beginParse() as address;
 }
