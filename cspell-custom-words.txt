@@ -19,6 +19,7 @@ behaviour
 Berachain
 bigset
 Bigtable
+Blockscout
 borsh
 bscscan
 BUILDKIT
