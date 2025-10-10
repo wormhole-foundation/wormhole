@@ -128,7 +128,7 @@ func (w *Watcher) inspectBody(logger *zap.Logger, tx *tlb.Transaction, isReobser
 			Sequence:         messagePublishEvent.Sequence,
 			EmitterChain:     w.chainID,
 			EmitterAddress:   emitterAddress,
-			Payload:          []byte(messagePublishEvent.Payload.String()),
+			Payload:          messagePublishEvent.Payload.ToBOC(),
 			ConsistencyLevel: messagePublishEvent.ConsistencyLevel,
 			IsReobservation:  isReobservation,
 		}
