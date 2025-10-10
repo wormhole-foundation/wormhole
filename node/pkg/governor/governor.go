@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -48,14 +49,17 @@ import (
 const (
 	transferComplete = true
 	transferEnqueued = false
-)
 
-const maxEnqueuedTime = time.Hour * 24
+	// maxEnqueuedTime is the maximum time that a transfer can be queued before it is released.
+	maxEnqueuedTime = time.Hour * 24
+)
 
 type (
 	// Layout of the config data for each token
 	TokenConfigEntry struct {
-		Chain       uint16
+		// Chain is the Wormhole chain ID of the token's source chain (where the token was minted).
+		Chain uint16
+		// Addr is the token's address on the source chain in Wormhole normalized format.
 		Addr        string
 		Symbol      string
 		CoinGeckoId string
@@ -126,6 +130,11 @@ type (
 		second vaa.ChainID
 	}
 )
+
+func (e *TokenConfigEntry) String() string {
+	// ignore decimals and price
+	return fmt.Sprintf("%d:%s:%s:%s", e.Chain, e.Addr, e.Symbol, e.CoinGeckoId)
+}
 
 // valid checks whether a corridor is valid. A corridor is invalid if both chain IDs are equal.
 func (p *corridor) valid() bool {
@@ -313,18 +322,31 @@ func (gov *ChainGovernor) initConfig() error {
 		gov.flowCancelCorridors = flowCancelCorridors
 	}
 
-	for _, ct := range configTokens {
-		addr, err := vaa.StringToAddress(ct.Addr)
+	for _, token := range configTokens {
+		addr, err := vaa.StringToAddress(token.Addr)
 		if err != nil {
-			return fmt.Errorf("invalid address: %s", ct.Addr)
+			return fmt.Errorf("invalid address: %s", token.Addr)
 		}
 
-		cfgPrice := big.NewFloat(ct.Price)
+		// Ignore tokens with a chain that is not configured in the chains list.
+		// Ideally this should never happen, but it's possible that a token is added to the config
+		// without a corresponding chain entry.
+		if !slices.ContainsFunc(configChains, func(c ChainConfigEntry) bool {
+			return c.EmitterChainID == vaa.ChainID(token.Chain)
+		}) {
+			gov.logger.Info(
+				"ignoring token with chain not configured in chains list",
+				zap.String("token", token.String()),
+			)
+			continue
+		}
+
+		cfgPrice := big.NewFloat(token.Price)
 		initialPrice := new(big.Float)
 		initialPrice.Set(cfgPrice)
 
 		// Transfers have a maximum of eight decimal places.
-		dec := ct.Decimals
+		dec := token.Decimals
 		if dec > 8 {
 			dec = 8
 		}
@@ -333,18 +355,18 @@ func (gov *ChainGovernor) initConfig() error {
 		decimals, _ := decimalsFloat.Int(nil)
 
 		// Some Solana tokens don't have the symbol set. In that case, use the chain and token address as the symbol.
-		symbol := ct.Symbol
+		symbol := token.Symbol
 		if symbol == "" {
-			symbol = fmt.Sprintf("%d:%s", ct.Chain, ct.Addr)
+			symbol = fmt.Sprintf("%d:%s", token.Chain, token.Addr)
 		}
 
-		key := tokenKey{chain: vaa.ChainID(ct.Chain), addr: addr}
+		key := tokenKey{chain: vaa.ChainID(token.Chain), addr: addr}
 		te := &tokenEntry{
 			cfgPrice:    cfgPrice,
 			price:       initialPrice,
 			decimals:    decimals,
 			symbol:      symbol,
-			coinGeckoId: ct.CoinGeckoId,
+			coinGeckoId: token.CoinGeckoId,
 			token:       key,
 		}
 		te.updatePrice()
@@ -367,7 +389,7 @@ func (gov *ChainGovernor) initConfig() error {
 				zap.String("coinGeckoId", te.coinGeckoId),
 				zap.String("price", te.price.String()),
 				zap.Int64("decimals", dec),
-				zap.Int64("origDecimals", ct.Decimals),
+				zap.Int64("origDecimals", token.Decimals),
 			)
 		}
 	}
