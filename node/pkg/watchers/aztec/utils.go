@@ -33,7 +33,10 @@ func GetJSONRPCError(body []byte) (bool, *ErrRPCError) {
 		} `json:"error,omitempty"`
 	}
 
-	if err := json.Unmarshal(body, &errorCheck); err != nil || errorCheck.Error == nil {
+	if err := json.Unmarshal(body, &errorCheck); err != nil {
+		return false, nil
+	}
+	if errorCheck.Error == nil {
 		return false, nil
 	}
 
