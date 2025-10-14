@@ -88,15 +88,14 @@ const DEFAULT_EXPIRATION_TIME = 86400;
     displayHelp();
     process.exit(1);
   }
-  
-  for (const guardian of guardianSet) {
-    if (guardian.startsWith("0x")) {
-      console.error("GUARDIAN_SET must contain only non-0x prefixed hex addresses");
-      displayHelp();
-      process.exit(1);
-    }
-  }
+
   const guardianSetBuffer = guardianSet.map((guardian) => Buffer.from(guardian, "hex"));
+
+  if (guardianSetBuffer.some((address) => address.length !== 20)) {
+    console.error("GUARDIAN_SET must only contain non-0x prefixed, 20-byte long hex addresses");
+    displayHelp();
+    process.exit(1);
+  }
 
   const ix = createInitializeInstruction(
     coreBridgeAddress,
