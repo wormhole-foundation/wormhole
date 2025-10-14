@@ -1,17 +1,19 @@
-# Solana Wormhole Contract Deployment
+# SVM (Solana and Fogo) Wormhole Contract Deployment
 
-This readme describes the steps for building, verifying, and deploying Solana smart contracts for Wormhole.
+This readme describes the steps for building, verifying, and deploying SVM (Solana and Fogo) smart contracts for Wormhole.
 
 **WARNING**: *This process is only Linux host compatible at this time.*
 
 ## Verify Tilt
 
-Before building Solana contracts, ensure that the specific commit you will be building from passes in tilt.  This ensures the basic functionality of the Solana smart contracts that you are about to build and deploy.
+Before building SVM contracts, ensure that the specific commit you will be building from passes in tilt.  This ensures the basic functionality of the SVM smart contracts that you are about to build and deploy.
 
 
 ## Build Contracts
 
-The following command can be used to build contracts for Solana contracts via Docker.
+The following command can be used to build contracts for SVM contracts via Docker.
+
+SVM Options: [`fogo | solana`]
 
 Build Target Options: [`mainnet`|`testnet`|`devnet`]
 
@@ -19,39 +21,44 @@ These network names correspond to the naming convention used by wormhole
 elsewhere. This means that `mainnet` corresponds to Solana `mainnet-beta`,
 `testnet` corresponds to Solana `devnet`, and `devnet` is Solana `localhost`.
 
+Fogo follows the same conventions.
+
 ```console
-wormhole/solana $ make NETWORK=BUILD_TARGET artifacts
+wormhole/solana $ make NETWORK=BUILD_TARGET SVM=<fogo | solana> artifacts
 ```
-Example: `make NETWORK=testnet artifacts`
+Example: `make NETWORK=testnet SVM=solana artifacts`
 
 
-Upon completion, the compiled bytecode for the Solana contracts will be placed into an artifacts directory with a convention of `artifacts-BUILD_TARGET` (eg. `artifacts-testnet`)
+Upon completion, the compiled bytecode for the selected SVM contracts will be placed into an artifacts directory with a convention of `artifacts-SVM-BUILD_TARGET` (eg. `artifacts-solana-testnet`)
 
 The contract addresses are compiled into the binaries, which is why these build
 outputs are kept separate. The deploy script below makes sure that only the
 right binaries can be deployed to each network.
 
-You may set the build target in the `NETWORK` environment variable, and then
+You may set the SVM and build target in the `NETWORK` and `SVM` environment variables, and then
 omit it from all of the subsequent commands.
 Example:
 ```console
 export NETWORK=testnet
+export SVM=solana
 make artifacts
 ```
 
 ## Verify Checksums
 
-Now that you have built the Solana Contracts, you should ask a peer to build using the same process and compare the equivalent checksums.txt files to make sure the contract bytecode(s) are deterministic.
+Now that you have built the SVM Contracts, you should ask a peer to build using the same process and compare the equivalent checksums.txt files to make sure the contract bytecode(s) are deterministic.
 
 Verify Target Options: [`mainnet`|`testnet`|`devnet`]
 
+SVM Options: [`fogo | solana`]
+
 ```console
-wormhole/solana $ cat artifacts-VERIFY_TARGET/checksums.txt
+wormhole/solana $ cat artifacts-SVM-VERIFY_TARGET/checksums.txt
 ```
-Example: `cat artifacts-testnet/checksums.txt`
+Example: `cat artifacts-solana-testnet/checksums.txt`
 
 
-Once you have verified the Solana contracts are deterministic with a peer, you can now move to the deploy step.
+Once you have verified the SVM contracts are deterministic with a peer, you can now move to the deploy step.
 
 ## Deploy Contracts
 
@@ -59,14 +66,16 @@ Now that you have built and verified checksums, you can now deploy one or more r
 
 Deploy Target Options: [`mainnet`|`testnet`|`devnet`]
 
-You will need to define a `payer-DEPLOY_TARGET.json` for the relevant deploy target (eg. `payer-testnet.json`).  This will contain the relevant wallet private key that you will be using to deploy the contracts.
+SVM Options: [`fogo | solana`]
+
+You will need to define a `payer-SVM-DEPLOY_TARGET.json` for the relevant deploy target (eg. `payer-solana-testnet.json`).  This will contain the relevant wallet private key that you will be using to deploy the contracts.
 
 ```console
-wormhole/solana $ make NETWORK=DEPLOY_TARGET deploy/bridge
-wormhole/solana $ make NETWORK=DEPLOY_TARGET deploy/token_bridge
-wormhole/solana $ make NETWORK=DEPLOY_TARGET deploy/nft_bridge
+wormhole/solana $ make NETWORK=DEPLOY_TARGET SVM=<fogo | solana>   deploy/bridge
+wormhole/solana $ make NETWORK=DEPLOY_TARGET SVM=<fogo | solana>   deploy/token_bridge
+wormhole/solana $ make NETWORK=DEPLOY_TARGET SVM=<fogo | solana>   deploy/nft_bridge
 ```
-Example: `make NETWORK=testnet deploy/bridge`
+Example: `make NETWORK=testnet SVM=solana deploy/bridge`
 
 For each deployed contract, you will get an account address for that relevant account address for the deployment, make note of these so you can use them in the next step for on-chain verification.
 

@@ -11,6 +11,7 @@ RUN cargo install wasm-pack --vers 0.9.1
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+ENV CHAIN_ID=1
 
 COPY rust-toolchain .
 COPY bridge bridge

@@ -249,6 +249,10 @@ Since there is no way for a token bridge endpoint to know which other chain alre
 native asset on its chain, there may be transfers initiated for assets that don't have wrapped assets set up yet on the
 target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time).
 
+The name and symbol fields of the Transfer payload are not guaranteed to be valid UTF8 strings.
+Implementations might truncate longer strings at the 32 byte mark, which may result in invalid UTF8 bytes at the end.
+Thus, any client wishing to present these as strings must validate them first, potentially dropping the garbage at the end.
+
 <!-- Local Variables: -->
 <!-- fill-column: 120 -->
 <!-- End: -->

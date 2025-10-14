@@ -107,6 +107,7 @@ jobs:
       RUSTFLAGS: -Dwarnings
       EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
       BRIDGE_ADDRESS: Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+      CHAIN_ID: 1
 
     steps:
       - uses: actions/checkout@v3

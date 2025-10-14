@@ -30,6 +30,7 @@ RUN solana config set --url "http://solana-devnet:8899"
 
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+ENV CHAIN_ID=1
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=target \

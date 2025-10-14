@@ -143,6 +143,11 @@ case "$chain_name" in
     explorer="https://explorer.solana.com/address/"
     extra=""
     ;;
+  fogo)
+    chain=51
+    explorer="https://explorer.fogo.io/address/"
+    extra=""
+    ;;
   pythnet)
     chain=26
     explorer="https://explorer.solana.com/address/"
@@ -307,13 +312,13 @@ function evm_artifact() {
 function solana_artifact() {
   case "$module" in
   bridge|core)
-    echo "artifacts-mainnet/bridge.so"
+    echo "artifacts-$chain_name-mainnet/bridge.so"
     ;;
   token_bridge)
-    echo "artifacts-mainnet/token_bridge.so"
+    echo "artifacts-$chain_name-mainnet/token_bridge.so"
     ;;
   nft_bridge)
-    echo "artifacts-mainnet/nft_bridge.so"
+    echo "artifacts-$chain_name-mainnet/nft_bridge.so"
     ;;
   *) echo "unknown module $module" >&2
      usage
@@ -455,15 +460,15 @@ if [ "$evm" = true ]; then
 	\`\`\`
 
 EOF
-elif [ "$chain_name" = "solana" ] || [ "$chain_name" = "pythnet" ]; then
+elif [ "$chain_name" = "solana" ] || [ "$chain_name" = "fogo" ] || [ "$chain_name" = "pythnet" ]; then
   cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
 	wormhole/solana $ make clean
-	wormhole/solana $ make NETWORK=mainnet artifacts
+	wormhole/solana $ make NETWORK=mainnet SVM=$chain_name artifacts
 	\`\`\`
 
-	This command will compile all the contracts into the \`artifacts-mainnet\` directory using Docker to ensure that the build artifacts are deterministic.
+	This command will compile all the contracts into the \`artifacts-$chain_name-mainnet\` directory using Docker to ensure that the build artifacts are deterministic.
 
 	## Verify
 	Contract at [$explorer$address]($explorer$address)
@@ -474,7 +479,7 @@ elif [ "$chain_name" = "solana" ] || [ "$chain_name" = "pythnet" ]; then
 
 	\`\`\`shell
 	# $module
-	wormhole/solana$ ./verify -n mainnet $(solana_artifact) $address
+	wormhole/solana$ ./verify -n mainnet -s $chain_name $(solana_artifact) $address
 	\`\`\`
 EOF
 elif [ "$chain_name" = "near" ]; then

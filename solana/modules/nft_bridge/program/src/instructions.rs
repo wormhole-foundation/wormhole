@@ -44,7 +44,7 @@ use bridge::{
     },
     api::ForeignAddress,
     PostVAAData,
-    CHAIN_ID_SOLANA,
+    CHAIN_ID_GOVERNANCE,
 };
 use primitive_types::U256;
 use solana_program::{
@@ -467,7 +467,7 @@ pub fn upgrade_contract(
     let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
-            emitter_chain: CHAIN_ID_SOLANA,
+            emitter_chain: CHAIN_ID_GOVERNANCE,
             sequence,
         },
         &program_id,

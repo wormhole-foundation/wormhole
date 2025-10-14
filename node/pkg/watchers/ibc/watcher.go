@@ -530,6 +530,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 
 	str, err = attributes.GetAsString("action")
 	if err != nil || str != "receive_publish" {
+		//nolint:nilerr // Returning nil here just means that no `receive_publish` action exists. We don't want to continue processing in this case.
 		return nil, nil
 	}
 
