@@ -330,6 +330,8 @@ Options:
       --version  Show version number                                   [boolean]
   -v, --vaa      vaa in hex format                           [string] [required]
   -n, --network  Network    [required] [choices: "mainnet", "testnet", "devnet"]
+  -c, --chain    Chain to verify on (e.g., Sepolia, ArbitrumSepolia,
+                 BaseSepolia)                                           [string]
       --rpc      Custom RPC endpoint (overrides network default)        [string]
 ```
 </details>
