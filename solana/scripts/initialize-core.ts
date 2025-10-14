@@ -90,7 +90,7 @@ const DEFAULT_EXPIRATION_TIME = 86400;
   }
   
   for (const guardian of guardianSet) {
-    if (!guardian.startsWith("0x")) {
+    if (guardian.startsWith("0x")) {
       console.error("GUARDIAN_SET must contain only non-0x prefixed hex addresses");
       displayHelp();
       process.exit(1);

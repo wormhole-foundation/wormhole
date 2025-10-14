@@ -65,4 +65,4 @@ function displayHelp() {
   transaction.add(ix);
   const tx = await provider.sendAndConfirm(transaction);
   console.log(tx);
-});
+})();
