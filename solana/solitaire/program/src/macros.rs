@@ -110,15 +110,27 @@ macro_rules! solitaire {
 }
 
 #[macro_export]
-macro_rules! pack_type {
-    ($name:ident, $embed:ty, $owner:expr) => {
+macro_rules! pack_type_impl {
+    // We take a "unpacker" as an input, which specifies how to unpack the embedded type.
+    // In most cases, this should be just be
+    // `solana_program::program_pack::Pack`, but in some cases (like token-2022
+    // mints) it may be a custom trait that provides an `unpack` method. This is
+    // because `Pack` does a strict length check on the account, whereas
+    // token-2022 mints with extensions might be longer.
+    //
+    // NOTE: we only use this on the deserialisation side, but we keep the call for serialisation
+    // as solana_program::program_pack::Pack::pack_into_slice. We could generalise that side too, but in
+    // reality, that code is never invoked, because solitaire will persist (and
+    // thus serialise) accounts that are owned by the current program.
+    // `pack_type!` on the other hands is only used for solitaire-ising external accounts.
+    ($name:ident, $embed:ty, $owner:expr, $unpacker:path) => {
         #[repr(transparent)]
         pub struct $name(pub $embed);
 
         impl BorshDeserialize for $name {
             fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
                 let acc = $name(
-                    solana_program::program_pack::Pack::unpack(buf)
+                    <$embed as $unpacker>::unpack(buf)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
                 );
                 // We need to clear the buf to show to Borsh that we've read all data
@@ -155,6 +167,33 @@ macro_rules! pack_type {
             fn default() -> Self {
                 $name(<$embed>::default())
             }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! pack_type {
+    ($name:ident, $embed:ty, AccountOwner::OneOf($owner:expr)) => {
+        solitaire::pack_type_impl!(
+            $name,
+            $embed,
+            AccountOwner::OneOf($owner),
+            solana_program::program_pack::Pack
+        );
+
+        impl solitaire::processors::seeded::MultiOwned for $name {
+        }
+    };
+    ($name:ident, $embed:ty, $owner:expr) => {
+        solitaire::pack_type_impl!($name, $embed, $owner, solana_program::program_pack::Pack);
+
+        impl solitaire::processors::seeded::SingleOwned for $name {
+        }
+    };
+    ($name:ident, $embed:ty, AccountOwner::OneOf($owner:expr), $unpacker:ident) => {
+        solitaire::pack_type_impl!($name, $embed, AccountOwner::OneOf($owner), $unpacker);
+
+        impl solitaire::processors::seeded::MultiOwned for $name {
         }
     };
 }

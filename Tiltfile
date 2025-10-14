@@ -497,7 +497,7 @@ if solana or pythnet:
         dockerfile = "solana/Dockerfile",
         target = "builder",
         ignore = ["./solana/*/target", "./solana/tests"],
-        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
+        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o", "CHAIN_ID": "1"},
     )
 
     # solana local devnet
