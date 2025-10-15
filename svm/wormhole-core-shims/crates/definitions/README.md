@@ -4,7 +4,7 @@ Definitions relating to Wormhole SVM programs. These definitions include finding
 PDA addresses (and corresponding bump seeds), various consts (like program IDs),
 and other things that define these program accounts and data.
 
-The crate is parameterised over a set of program IDs (the Wormhole program, the
+The crate is parameterized over a set of program IDs (the Wormhole program, the
 post-vaa shim program, and the verify-vaa shim program). Since this crate may be
 used in many different scenarios, and many different SVM networks, we expose
 feature flags to control which program IDs are used to derive the other constants.
