@@ -7,8 +7,6 @@ pub mod env;
 pub mod solana;
 pub mod zero_copy;
 
-pub use env::*;
-
 #[cfg(all(feature = "from-env", feature = "solana"))]
 compile_error!("Features 'from-env' and 'solana' are mutually exclusive.");
 
