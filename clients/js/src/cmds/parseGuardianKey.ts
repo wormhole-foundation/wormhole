@@ -1,10 +1,10 @@
 import { deserializeLayout, encoding, Layout } from "@wormhole-foundation/sdk";
 import yargs from "yargs";
 
-const wormholeKeyLayout = [
+const wormholeKeyLayout: Layout = [
   { name: "tagKey", binary: "uint", size: 1, custom: 0x0a, omit: true },
   { name: "key", binary: "bytes", lengthSize: 1 },
-] as const satisfies Layout;
+] as const;
 
 export const command = "parse-guardian-key <key>";
 export const desc = "Parse a base64 encoded Wormhole guardian private key";
@@ -20,7 +20,9 @@ export const handler = async (
 ) => {
   try {
     const whKey = encoding.b64.decode(argv.key);
-    const result = deserializeLayout(wormholeKeyLayout, whKey, { consumeAll: false });
+    const result = deserializeLayout(wormholeKeyLayout, whKey, {
+      consumeAll: false,
+    });
     const { key } = result[0];
 
     console.log("Successfully deserialized guardian key:");
@@ -31,4 +33,3 @@ export const handler = async (
     process.exit(1);
   }
 };
-
