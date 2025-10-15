@@ -41,7 +41,7 @@ mod defs {
             pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
                 env_pubkey!("POST_MESSAGE_SHIM_PROGRAM_ID");
 
-            pub const VERIFY_VAA_SHIM_PROGRAM_ID_ARRAY: [u8;32] =
+            pub const VERIFY_VAA_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
                 env_pubkey!("VERIFY_VAA_SHIM_PROGRAM_ID");
 
             derive_consts!();
