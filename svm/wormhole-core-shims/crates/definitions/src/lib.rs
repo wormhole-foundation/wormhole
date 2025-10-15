@@ -322,9 +322,10 @@ macro_rules! derive_consts {
 fn available_ids() {
     let _ = crate::solana::mainnet::CORE_BRIDGE_PROGRAM_ID;
     let _ = crate::solana::devnet::CORE_BRIDGE_PROGRAM_ID;
-    let _ = crate::solana::mainnet::CORE_BRIDGE_PROGRAM_ID;
+    let _ = crate::solana::localnet::CORE_BRIDGE_PROGRAM_ID;
     // defaults to mainnet (for backwards compatibility)
     let _ = crate::solana::CORE_BRIDGE_PROGRAM_ID;
+    #[cfg(any(feature = "solana", feature = "from-env"))]
     let _ = crate::CORE_BRIDGE_PROGRAM_ID;
 }
 
