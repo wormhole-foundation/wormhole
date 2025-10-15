@@ -191,6 +191,9 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 }
 
 /// Trait to encode and decode the SVM finality of a message.
+/// The byte encoding corresponds to the "commitment level" field in the VAA.
+/// See https://wormhole.com/docs/products/reference/consistency-levels/
+///
 /// Different SVM runtimes may have different finality options, so we just
 /// provide this conversion trait between u8s.
 /// We also define the "standard" finality options ([`standard_finality`]) which are
@@ -198,7 +201,7 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 /// If you use this crate with a chain that support different finality modes,
 /// either just use `u8`, or define a a custom enum and an impl of this trait.
 pub trait EncodeFinality: Sized + Copy {
-    /// Encode SVM finality into a byte.
+/// Encode SVM finality into a byte.
     fn encode(&self) -> u8;
 
     /// Decode SVM finality from a byte.
