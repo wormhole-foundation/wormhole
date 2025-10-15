@@ -9,6 +9,9 @@ pub mod zero_copy;
 
 pub use env::*;
 
+#[cfg(all(feature = "from-env", feature = "solana"))]
+compile_error!("Features 'from-env' and 'solana' are mutually exclusive.");
+
 // We define the constants (chain id + addresses) here.
 // - For 'solana', we just re-export the definitions in the solana module.
 // - For 'from-env', we pick these up from environment variables and parse (+
