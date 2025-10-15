@@ -235,6 +235,19 @@ Options:
 </details>
 
 <details>
+<summary> parse-guardian-key <key> </summary>
+
+```sh
+Positionals:
+  key  Base64 encoded guardian private key                              [string]
+
+Options:
+  --help     Show help                                                 [boolean]
+  --version  Show version number                                       [boolean]
+```
+</details>
+
+<details>
 <summary> recover <digest> <signature> </summary>
 
 ```sh
