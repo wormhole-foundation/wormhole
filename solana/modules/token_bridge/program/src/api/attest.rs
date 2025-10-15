@@ -16,7 +16,7 @@ use bridge::{
     api::PostMessageData,
     types::ConsistencyLevel,
     vaa::SerializePayload,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -109,15 +109,16 @@ pub fn attest_token(
     // Create Asset Metadata
     let mut payload = PayloadAssetMeta {
         token_address: accs.mint.info().key.to_bytes(),
-        token_chain: CHAIN_ID_SOLANA,
+        token_chain: OUR_CHAIN_ID,
         decimals: accs.mint.decimals,
         symbol: "".to_string(),
         name: "".to_string(),
     };
 
     // Assign metadata if an SPL Metadata account exists for the SPL token in question.
-    if !accs.spl_metadata.data_is_empty() {
-        let metadata = deserialize_and_verify_metadata(&accs.spl_metadata, (&*accs).into())?;
+    if let Some(metadata) =
+        deserialize_and_verify_metadata(accs.mint.info(), &accs.spl_metadata, (&*accs).into())?
+    {
         payload.name = metadata.data.name.clone();
         payload.symbol = metadata.data.symbol;
     }

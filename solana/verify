@@ -5,24 +5,31 @@ set -euo pipefail
 function usage() {
 cat<<-EOF >&2
 	Usage:
-	  $(basename "$0") [-h] [-n network] <.so file> <account address> -- Verify that the deployed on-chain bytecode matches the local object file
+	  $(basename "$0") [-h] [-n network] [-s svm] <.so file> <account address> -- Verify that the deployed on-chain bytecode matches the local object file
 
 	  where:
 	      -h  show this help text
 	      -n  set the network (mainnet, testnet, devnet. defaults to \$NETWORK if set)
+	      -s  set the svm (solana, fogo. defaults to \$SVM if set)
 EOF
 exit 1
 }
 
 network=""
-if [[ -n $NETWORK ]]; then
-  network=$NETWORK
+if [[ -n "${NETWORK:-}" ]]; then
+  network="$NETWORK"
 fi
-while getopts ':hn:' option; do
+svm=""
+if [[ -n "${SVM:-}" ]]; then
+  svm="$SVM"
+fi
+while getopts ':n:s:h' option; do
   case "$option" in
     h) usage
        ;;
     n) network=$OPTARG
+       ;;
+    s) svm=$OPTARG
        ;;
     :) printf "missing argument for -%s\n" "$OPTARG" >&2
        usage
@@ -34,11 +41,28 @@ while getopts ':hn:' option; do
 done
 shift $((OPTIND - 1))
 
-case "$network" in
-  mainnet) moniker="m";;
-  testnet) moniker="d";;
-  devnet)  moniker="l";;
-  *) printf "Network not set. Specify with -n\n" >&2
+# Set moniker based on SVM and network
+case "$svm" in
+  solana)
+    case "$network" in
+      mainnet) moniker="m";;
+      testnet) moniker="d";;
+      devnet)  moniker="l";;
+      *) printf "Network not set. Specify with -n\n" >&2
+         usage
+         ;;
+    esac
+    ;;
+  fogo)
+    case "$network" in
+      mainnet) moniker="https://mainnet.fogo.io";;
+      testnet) moniker="https://testnet-alt.fogo.io";;
+      *) printf "Fogo only supports mainnet and testnet. Specify with -n\n" >&2
+         usage
+         ;;
+    esac
+    ;;
+  *) printf "SVM not set. Specify with -s\n" >&2
      usage
      ;;
 esac

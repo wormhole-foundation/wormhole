@@ -24,6 +24,7 @@ use bridge::{
     api::PostMessageData,
     types::ConsistencyLevel,
     vaa::SerializePayload,
+    OUR_CHAIN_ID,
 };
 use primitive_types::U256;
 use solana_program::{
@@ -171,7 +172,7 @@ pub fn transfer_native(
     // and encode the mint in the token_id.
     let payload = PayloadTransfer {
         token_address: [1u8; 32],
-        token_chain: 1,
+        token_chain: OUR_CHAIN_ID,
         to: data.target_address,
         to_chain: data.target_chain,
         symbol: metadata.data.symbol,

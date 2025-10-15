@@ -25,7 +25,7 @@ use bridge::{
         Claim,
     },
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -34,6 +34,7 @@ use solana_program::{
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
+        CreatableWithOwner,
         Seeded,
     },
     CreationLamports::Exempt,
@@ -96,7 +97,7 @@ pub fn create_wrapped(
     data: CreateWrappedData,
 ) -> Result<()> {
     // Do not process attestations sourced from the current chain.
-    if accs.vaa.token_chain == CHAIN_ID_SOLANA {
+    if accs.vaa.token_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 
@@ -130,9 +131,17 @@ pub fn create_accounts(
     accs: &mut CreateWrapped,
     _data: CreateWrappedData,
 ) -> Result<()> {
+    // wrapped accounts use legacy spl
+    let token_program = spl_token::id();
+
     // Create mint account
-    accs.mint
-        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
+    accs.mint.create_with_owner(
+        &token_program,
+        &((&*accs).into()),
+        ctx,
+        accs.payer.key,
+        Exempt,
+    )?;
 
     // Initialize mint
     let init_ix = spl_token::instruction::initialize_mint(
@@ -196,11 +205,13 @@ pub fn update_accounts(
     // Checks in this method are redundant with what occurs in `update_metadata_accounts_v2`, but we want to make
     // sure that the account we are deserializing is legitimate.
     let metadata = deserialize_and_verify_metadata(
+        accs.mint.info(),
         &accs.spl_metadata,
         SplTokenMetaDerivationData {
             mint: *accs.mint.info().key,
         },
-    )?;
+    )?
+    .unwrap();
 
     // Normalize token metadata's name and symbol.
     let new_data_v2 = spl_token_metadata::state::DataV2 {

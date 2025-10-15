@@ -340,6 +340,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, (w.env == common.UnsafeDevNet))
 	}
 
+	// Get the node version for troubleshooting
+	w.logVersion(ctx, logger)
+
 	errC := make(chan error)
 
 	// Subscribe to new message publications. We don't use a timeout here because the LogPollConnector
@@ -1003,6 +1006,24 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 			t.Reset(RetryInterval)
 		}
 	}
+}
+
+// logVersion runs the web3_clientVersion rpc and logs the node version
+func (w *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://ethereum.org/en/developers/docs/apis/json-rpc/#web3_clientversion
+	var version string
+	if err := w.ethConn.RawCallContext(ctx, &version, "web3_clientVersion"); err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", w.networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", version),
+		zap.String("network", w.networkName),
+	)
 }
 
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.
