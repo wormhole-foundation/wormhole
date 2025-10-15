@@ -193,7 +193,7 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 /// Trait to encode and decode the SVM finality of a message.
 /// Different SVM runtimes may have different finality options, so we just
 /// provide this conversion trait between u8s.
-/// We also define the "standard" finality options ([`std_finality`]) which are
+/// We also define the "standard" finality options ([`standard_finality`]) which are
 /// the available ones on Solana.
 /// If you use this crate with a chain that support different finality modes,
 /// either just use `u8`, or define a a custom enum and an impl of this trait.
@@ -215,7 +215,7 @@ impl EncodeFinality for u8 {
     }
 }
 
-pub mod std_finality {
+pub mod standard_finality {
     /// Finality of the message (which is when the Wormhole guardians will attest to
     /// this message's observation).
     ///
@@ -250,8 +250,8 @@ pub mod std_finality {
     }
 }
 
-#[cfg(feature = "std-finality")]
-pub use std_finality::*;
+#[cfg(feature = "standard-finality")]
+pub use standard_finality::*;
 
 /// Trait that defines an arbitrary discriminator for deserializing data. This
 /// discriminator acts as a prefix to identify which kind of data is encoded.

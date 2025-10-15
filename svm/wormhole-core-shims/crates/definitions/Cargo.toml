@@ -12,7 +12,7 @@ version.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = [ "std-finality" ]
+default = [ "standard-finality" ]
 borsh = ["dep:borsh"]
 
 ### Network types
@@ -21,10 +21,10 @@ localnet = []
 from-env = []
 
 ### Standard finality definition
-std-finality = []
+standard-finality = []
 
 ### Specific networks
-solana = [ "std-finality" ]
+solana = [ "standard-finality" ]
 
 [dependencies]
 const-crypto = "0.3.0"
