@@ -121,3 +121,41 @@ func TestTokenListEmptyCoinGeckoId(t *testing.T) {
 		assert.Greater(t, len(tokenConfigEntry.CoinGeckoId), 0)
 	}
 }
+
+// TestManualTokensNotInGeneratedList ensures that tokens in the manual list are not duplicated in the generated list.
+// The manual list should only be used to fill gaps in automated token addition. If a token appears in both lists,
+// it should be removed from the manual list since it's already covered by the generated list.
+func TestManualTokensNotInGeneratedList(t *testing.T) {
+	manualTokens := manualTokenList()
+	generatedTokens := generatedMainnetTokenList()
+
+	// Build a map of generated tokens for O(1) lookup efficiency
+	// Key format: "chain:address" to uniquely identify each token
+	generatedTokenMap := make(map[string]TokenConfigEntry)
+	for _, token := range generatedTokens {
+		key := fmt.Sprintf("%v:%v", token.Chain, token.Addr)
+		generatedTokenMap[key] = token
+	}
+
+	// Check each manual token against the generated list
+	var duplicates []string
+	for _, manualToken := range manualTokens {
+		key := fmt.Sprintf("%v:%v", manualToken.Chain, manualToken.Addr)
+		if generatedToken, exists := generatedTokenMap[key]; exists {
+			duplicates = append(duplicates,
+				fmt.Sprintf("Chain %v (%s), Address %s, Symbol %s (manual) / %s (generated)",
+					manualToken.Chain,
+					vaa.ChainID(manualToken.Chain).String(),
+					manualToken.Addr,
+					manualToken.Symbol,
+					generatedToken.Symbol))
+		}
+	}
+
+	if len(duplicates) > 0 {
+		assert.Fail(t, fmt.Sprintf("Found %d token(s) in both manual and generated lists. "+
+			"These should be removed from manual_tokens.go:\n%s",
+			len(duplicates),
+			strings.Join(duplicates, "\n")))
+	}
+}
