@@ -253,6 +253,7 @@ func createTestMessagePublication() *common.MessagePublication {
 	}
 	payloadBytes := encodePayloadBytes(payload)
 
+	//#nosec G404: this value is only used in devnet mode and only for synthetic data. Cryptographic randomness is not required.
 	sequence := rand.Uint64()
 	msgPub := &common.MessagePublication{
 		TxID:             eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063").Bytes(),
