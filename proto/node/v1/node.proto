@@ -59,6 +59,24 @@ service NodePrivilegedService {
   // NotaryResetReleaseTimer resets the release timer for a notary pending VAA to supplied number of days.
   rpc NotaryResetReleaseTimer (NotaryResetReleaseTimerRequest) returns (NotaryResetReleaseTimerResponse);
 
+  // NotaryInjectDelayedMessage creates a synthetic delayed message for testing (dev mode only).
+  rpc NotaryInjectDelayedMessage (NotaryInjectDelayedMessageRequest) returns (NotaryInjectDelayedMessageResponse);
+
+  // NotaryInjectBlackholedMessage creates a synthetic blackholed message for testing (dev mode only).
+  rpc NotaryInjectBlackholedMessage (NotaryInjectBlackholedMessageRequest) returns (NotaryInjectBlackholedMessageResponse);
+
+  // NotaryGetDelayedMessage retrieves details about a delayed message.
+  rpc NotaryGetDelayedMessage (NotaryGetDelayedMessageRequest) returns (NotaryGetDelayedMessageResponse);
+
+  // NotaryGetBlackholedMessage retrieves details about a blackholed message.
+  rpc NotaryGetBlackholedMessage (NotaryGetBlackholedMessageRequest) returns (NotaryGetBlackholedMessageResponse);
+
+  // NotaryListDelayedMessages lists all delayed message IDs.
+  rpc NotaryListDelayedMessages (NotaryListDelayedMessagesRequest) returns (NotaryListDelayedMessagesResponse);
+
+  // NotaryListBlackholedMessages lists all blackholed message IDs.
+  rpc NotaryListBlackholedMessages (NotaryListBlackholedMessagesRequest) returns (NotaryListBlackholedMessagesResponse);
+
   // PurgePythNetVaas deletes PythNet VAAs from the database that are more than the specified number of days old.
   rpc PurgePythNetVaas (PurgePythNetVaasRequest) returns (PurgePythNetVaasResponse);
 
@@ -456,6 +474,56 @@ message NotaryResetReleaseTimerRequest {
 message NotaryResetReleaseTimerResponse {
   string vaa_id = 1;
   string response = 2;
+}
+
+message NotaryInjectDelayedMessageRequest {
+  uint32 delay_days = 1;
+}
+
+message NotaryInjectDelayedMessageResponse {
+  string vaa_id = 1;
+  string response = 2;
+}
+
+message NotaryInjectBlackholedMessageRequest {
+}
+
+message NotaryInjectBlackholedMessageResponse {
+  string vaa_id = 1;
+  string response = 2;
+}
+
+message NotaryGetDelayedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryGetDelayedMessageResponse {
+  string vaa_id = 1;
+  string release_time = 2;
+  string message_details = 3;
+}
+
+message NotaryGetBlackholedMessageRequest {
+  string vaa_id = 1;
+}
+
+message NotaryGetBlackholedMessageResponse {
+  string vaa_id = 1;
+  string message_details = 2;
+}
+
+message NotaryListDelayedMessagesRequest {
+}
+
+message NotaryListDelayedMessagesResponse {
+  repeated string vaa_ids = 1;
+}
+
+message NotaryListBlackholedMessagesRequest {
+}
+
+message NotaryListBlackholedMessagesResponse {
+  repeated string vaa_ids = 1;
 }
 
 // Pythnet messages.

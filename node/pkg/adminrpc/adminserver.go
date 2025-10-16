@@ -82,6 +82,7 @@ func NewPrivService(
 	logger *zap.Logger,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	gov *governor.ChainGovernor,
+	notary *notary.Notary,
 	evmConnector connectors.Connector,
 	guardianSigner guardiansigner.GuardianSigner,
 	guardianAddress ethcommon.Address,
@@ -96,6 +97,7 @@ func NewPrivService(
 		logger:          logger,
 		signedInC:       signedInC,
 		governor:        gov,
+		notary:          notary,
 		evmConnector:    evmConnector,
 		guardianSigner:  guardianSigner,
 		guardianAddress: guardianAddress,
@@ -1171,6 +1173,121 @@ func (s *nodePrivilegedService) NotaryRemoveBlackholedMessage(ctx context.Contex
 	return &nodev1.NotaryRemoveBlackholedMessageResponse{
 		VaaId:    req.VaaId,
 		Response: "Removed message",
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryResetReleaseTimer(ctx context.Context, req *nodev1.NotaryResetReleaseTimerRequest) (*nodev1.NotaryResetReleaseTimerResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	if req.NumDays > maxResetReleaseTimerDays {
+		return nil, fmt.Errorf("delay days exceeds maximum of %d", maxResetReleaseTimerDays)
+	}
+
+	err := s.notary.ResetReleaseTimer(req.VaaId, uint8(req.NumDays))
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryResetReleaseTimerResponse{
+		VaaId:    req.VaaId,
+		Response: fmt.Sprintf("Reset release timer to %d days", req.NumDays),
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryInjectDelayedMessage(ctx context.Context, req *nodev1.NotaryInjectDelayedMessageRequest) (*nodev1.NotaryInjectDelayedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	msgID, err := s.notary.InjectDelayedMessage(req.DelayDays)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryInjectDelayedMessageResponse{
+		VaaId:    msgID,
+		Response: "Injected delayed message",
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryInjectBlackholedMessage(ctx context.Context, req *nodev1.NotaryInjectBlackholedMessageRequest) (*nodev1.NotaryInjectBlackholedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	msgID, err := s.notary.InjectBlackholedMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryInjectBlackholedMessageResponse{
+		VaaId:    msgID,
+		Response: "Injected blackholed message",
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryGetDelayedMessage(ctx context.Context, req *nodev1.NotaryGetDelayedMessageRequest) (*nodev1.NotaryGetDelayedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	pendingMsg, err := s.notary.GetDelayedMessage(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryGetDelayedMessageResponse{
+		VaaId:          req.VaaId,
+		ReleaseTime:    pendingMsg.ReleaseTime.String(),
+		MessageDetails: pendingMsg.Msg.MessageIDString(),
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryGetBlackholedMessage(ctx context.Context, req *nodev1.NotaryGetBlackholedMessageRequest) (*nodev1.NotaryGetBlackholedMessageResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	msgPub, err := s.notary.GetBlackholedMessage(req.VaaId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodev1.NotaryGetBlackholedMessageResponse{
+		VaaId:          req.VaaId,
+		MessageDetails: msgPub.MessageIDString(),
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryListDelayedMessages(ctx context.Context, req *nodev1.NotaryListDelayedMessagesRequest) (*nodev1.NotaryListDelayedMessagesResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	msgIDs, err := s.notary.ListDelayedMessages()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list delayed messages: %w", err)
+	}
+
+	return &nodev1.NotaryListDelayedMessagesResponse{
+		VaaIds: msgIDs,
+	}, nil
+}
+
+func (s *nodePrivilegedService) NotaryListBlackholedMessages(ctx context.Context, req *nodev1.NotaryListBlackholedMessagesRequest) (*nodev1.NotaryListBlackholedMessagesResponse, error) {
+	if s.notary == nil {
+		return nil, ErrNotaryNotEnabled
+	}
+
+	msgIDs, err := s.notary.ListBlackholedMessages()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list blackholed messages: %w", err)
+	}
+
+	return &nodev1.NotaryListBlackholedMessagesResponse{
+		VaaIds: msgIDs,
 	}, nil
 }
 

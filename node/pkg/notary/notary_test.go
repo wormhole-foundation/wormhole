@@ -2,7 +2,6 @@ package notary
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -517,21 +516,4 @@ func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
 	}
 
 	return msgpub
-}
-
-func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
-	bz := make([]byte, 101)
-	bz[0] = payload.Type
-
-	amtBytes := payload.Amount.Bytes()
-	if len(amtBytes) > 32 {
-		panic("amount will not fit in 32 bytes!")
-	}
-	copy(bz[33-len(amtBytes):33], amtBytes)
-
-	copy(bz[33:65], payload.OriginAddress.Bytes())
-	binary.BigEndian.PutUint16(bz[65:67], uint16(payload.OriginChain))
-	copy(bz[67:99], payload.TargetAddress.Bytes())
-	binary.BigEndian.PutUint16(bz[99:101], uint16(payload.TargetChain))
-	return bz
 }
