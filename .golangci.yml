@@ -23,6 +23,7 @@ linters:
     - gosec
     - govet
     - ineffassign
+    - iotamixing
     - loggercheck
     # Check for simple misspellings of words. 
     - misspell
