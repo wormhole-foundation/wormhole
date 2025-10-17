@@ -65,8 +65,8 @@ func verify(
 		newState = state(ctx, localMsg, txHash, receipt, verifier)
 	}
 
-	// Track non-default verification states for analytics
-	if newState != common.NotVerified && newState != common.Valid {
+	// Track unusual states for analytics
+	if newState != common.NotVerified && newState != common.Valid && newState != common.NotApplicable {
 		emitterChainStr := fmt.Sprintf("%d", localMsg.EmitterChain)
 		msgVerificationStates.WithLabelValues(newState.String(), emitterChainStr).Inc()
 	}
