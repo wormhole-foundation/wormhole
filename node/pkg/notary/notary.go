@@ -189,12 +189,12 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	}
 
 	switch msg.VerificationState() {
-	case common.Anomalous:
+	// Both Anomalous and Rejected messages are delayed. In the future, we could consider blackholing
+	// rejected messages, but for now, we are choosing the cautious approach of delaying VAA production
+	// rather than rejecting them permanently.
+	case common.Anomalous, common.Rejected:
 		err = n.delay(msg, DelayFor)
 		v = Delay
-	case common.Rejected:
-		err = n.blackhole(msg)
-		v = Blackhole
 	case common.Valid:
 		v = Approve
 	case common.CouldNotVerify, common.NotVerified, common.NotApplicable:

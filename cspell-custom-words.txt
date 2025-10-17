@@ -19,6 +19,9 @@ behaviour
 Berachain
 bigset
 Bigtable
+Blackhole
+blackhole
+blackholed
 borsh
 bscscan
 BUILDKIT
@@ -223,6 +226,7 @@ vimdiff
 vphash
 wasmhooks
 wasms
+WebSocket
 WORKDIR
 worldchain
 WorldChain

@@ -66,9 +66,10 @@ func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
 			common.CouldNotVerify,
 			Approve,
 		},
-		"blackhole rejected": {
+		// Blackhole verdict is not being used for Rejected messages in the initial implementation
+		"delay rejected": {
 			common.Rejected,
-			Blackhole,
+			Delay,
 		},
 		"delay anomalous": {
 			common.Anomalous,
@@ -134,11 +135,13 @@ func TestNotary_ProcessMsgUpdatesCollections(t *testing.T) {
 				blackholed: 0,
 			},
 		},
-		"Rejected gets blackholed": {
+
+		// Blackhole verdict is not being used for Rejected messages in the initial implementation
+		"Rejected gets delayed": {
 			common.Rejected,
 			expectedSizes{
-				delayed:    0,
-				blackholed: 1,
+				delayed:    1,
+				blackholed: 0,
 			},
 		},
 	}

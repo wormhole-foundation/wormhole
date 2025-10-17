@@ -102,8 +102,8 @@ func parseProtoFile() ([]ProtoEntry, error) {
 	// This traverses the parsed Go code looking for constant declarations
 	// that have the type "ChainID"
 	ast.Inspect(node, func(n ast.Node) bool {
-		switch x := n.(type) {
-		case *ast.GenDecl:
+		x, ok := n.(*ast.GenDecl)
+		if ok {
 			if x.Tok == token.CONST {
 				for _, spec := range x.Specs {
 					if vspec, ok := spec.(*ast.ValueSpec); ok {

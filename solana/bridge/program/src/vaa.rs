@@ -10,7 +10,7 @@ use crate::{
     },
     PostedVAAData,
     Result,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use byteorder::{
     BigEndian,
@@ -74,7 +74,7 @@ pub trait SerializeGovernancePayload: SerializePayload {
         let module = module.as_bytes();
         c.write_all(module)?;
         c.write_u8(Self::ACTION)?;
-        c.write_u16::<BigEndian>(CHAIN_ID_SOLANA)?;
+        c.write_u16::<BigEndian>(OUR_CHAIN_ID)?;
         Ok(())
     }
 }
@@ -95,7 +95,7 @@ pub trait DeserializeGovernancePayload: DeserializePayload + SerializeGovernance
         }
 
         let chain = c.read_u16::<BigEndian>()?;
-        if chain != CHAIN_ID_SOLANA && chain != 0 {
+        if chain != OUR_CHAIN_ID && chain != 0 {
             return Err(InvalidGovernanceChain.into());
         }
 

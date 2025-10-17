@@ -14,7 +14,6 @@ import {
   type ContractInstanceWithAddress,
   type ContractMethod,
   type ContractStorageLayout,
-  type ContractNotes,
   decodeFromAbi,
   DeployMethod,
   EthAddress,
@@ -26,7 +25,6 @@ import {
   loadContractArtifact,
   loadContractArtifactForPublic,
   type NoirCompiledContract,
-  NoteSelector,
   Point,
   type PublicKey,
   PublicKeys,
@@ -70,14 +68,14 @@ export class WormholeContract extends ContractBase {
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(wallet: Wallet, chain_id: (bigint | number), evm_chain_id: (bigint | number), wormhole_address: AztecAddressLike, token_address: AztecAddressLike) {
+  public static deploy(wallet: Wallet, chain_id: (bigint | number), evm_chain_id: (bigint | number), owner: AztecAddressLike, receiver_address: AztecAddressLike, token_address: AztecAddressLike) {
     return new DeployMethod<WormholeContract>(PublicKeys.default(), wallet, WormholeContractArtifact, WormholeContract.at, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public keys hash to derive the address.
    */
-  public static deployWithPublicKeys(publicKeys: PublicKeys, wallet: Wallet, chain_id: (bigint | number), evm_chain_id: (bigint | number), wormhole_address: AztecAddressLike, token_address: AztecAddressLike) {
+  public static deployWithPublicKeys(publicKeys: PublicKeys, wallet: Wallet, chain_id: (bigint | number), evm_chain_id: (bigint | number), owner: AztecAddressLike, receiver_address: AztecAddressLike, token_address: AztecAddressLike) {
     return new DeployMethod<WormholeContract>(publicKeys, wallet, WormholeContractArtifact, WormholeContract.at, Array.from(arguments).slice(2));
   }
 
@@ -115,7 +113,7 @@ export class WormholeContract extends ContractBase {
   }
   
 
-  public static get storage(): ContractStorageLayout<'state' | 'sequences' | 'wormhole_address' | 'token_address' | 'guardian_1' | 'guardian_2' | 'guardian_3' | 'guardian_4' | 'guardian_5' | 'guardian_6' | 'guardian_7' | 'guardian_8' | 'guardian_9' | 'guardian_10' | 'guardian_11' | 'guardian_12' | 'guardian_13' | 'guardian_14' | 'guardian_15' | 'guardian_16' | 'guardian_17' | 'guardian_18' | 'guardian_19' | 'current_guardian_set_index'> {
+  public static get storage(): ContractStorageLayout<'state' | 'sequences' | 'owner' | 'receiver_address' | 'token_address' | 'guardian_1' | 'guardian_2' | 'guardian_3' | 'guardian_4' | 'guardian_5' | 'guardian_6' | 'guardian_7' | 'guardian_8' | 'guardian_9' | 'guardian_10' | 'guardian_11' | 'guardian_12' | 'guardian_13' | 'guardian_14' | 'guardian_15' | 'guardian_16' | 'guardian_17' | 'guardian_18' | 'guardian_19' | 'current_guardian_set_index'> {
       return {
         state: {
       slot: new Fr(1n),
@@ -123,84 +121,78 @@ export class WormholeContract extends ContractBase {
 sequences: {
       slot: new Fr(7n),
     },
-wormhole_address: {
+owner: {
       slot: new Fr(8n),
     },
-token_address: {
+receiver_address: {
       slot: new Fr(9n),
     },
-guardian_1: {
-      slot: new Fr(10n),
-    },
-guardian_2: {
-      slot: new Fr(11n),
-    },
-guardian_3: {
-      slot: new Fr(12n),
-    },
-guardian_4: {
+token_address: {
       slot: new Fr(13n),
     },
-guardian_5: {
-      slot: new Fr(14n),
-    },
-guardian_6: {
-      slot: new Fr(15n),
-    },
-guardian_7: {
-      slot: new Fr(16n),
-    },
-guardian_8: {
+guardian_1: {
       slot: new Fr(17n),
     },
-guardian_9: {
+guardian_2: {
       slot: new Fr(18n),
     },
-guardian_10: {
+guardian_3: {
       slot: new Fr(19n),
     },
-guardian_11: {
+guardian_4: {
       slot: new Fr(20n),
     },
-guardian_12: {
+guardian_5: {
       slot: new Fr(21n),
     },
-guardian_13: {
+guardian_6: {
       slot: new Fr(22n),
     },
-guardian_14: {
+guardian_7: {
       slot: new Fr(23n),
     },
-guardian_15: {
+guardian_8: {
       slot: new Fr(24n),
     },
-guardian_16: {
+guardian_9: {
       slot: new Fr(25n),
     },
-guardian_17: {
+guardian_10: {
       slot: new Fr(26n),
     },
-guardian_18: {
+guardian_11: {
       slot: new Fr(27n),
     },
-guardian_19: {
+guardian_12: {
       slot: new Fr(28n),
     },
-current_guardian_set_index: {
+guardian_13: {
       slot: new Fr(29n),
+    },
+guardian_14: {
+      slot: new Fr(30n),
+    },
+guardian_15: {
+      slot: new Fr(31n),
+    },
+guardian_16: {
+      slot: new Fr(32n),
+    },
+guardian_17: {
+      slot: new Fr(33n),
+    },
+guardian_18: {
+      slot: new Fr(34n),
+    },
+guardian_19: {
+      slot: new Fr(35n),
+    },
+current_guardian_set_index: {
+      slot: new Fr(36n),
     }
-      } as ContractStorageLayout<'state' | 'sequences' | 'wormhole_address' | 'token_address' | 'guardian_1' | 'guardian_2' | 'guardian_3' | 'guardian_4' | 'guardian_5' | 'guardian_6' | 'guardian_7' | 'guardian_8' | 'guardian_9' | 'guardian_10' | 'guardian_11' | 'guardian_12' | 'guardian_13' | 'guardian_14' | 'guardian_15' | 'guardian_16' | 'guardian_17' | 'guardian_18' | 'guardian_19' | 'current_guardian_set_index'>;
+      } as ContractStorageLayout<'state' | 'sequences' | 'owner' | 'receiver_address' | 'token_address' | 'guardian_1' | 'guardian_2' | 'guardian_3' | 'guardian_4' | 'guardian_5' | 'guardian_6' | 'guardian_7' | 'guardian_8' | 'guardian_9' | 'guardian_10' | 'guardian_11' | 'guardian_12' | 'guardian_13' | 'guardian_14' | 'guardian_15' | 'guardian_16' | 'guardian_17' | 'guardian_18' | 'guardian_19' | 'current_guardian_set_index'>;
     }
     
-
-  public static get notes(): ContractNotes<'UintNote'> {
-    return {
-      UintNote: {
-          id: new NoteSelector(0),
-        }
-    } as ContractNotes<'UintNote'>;
-  }
-  
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public declare methods: {
@@ -211,20 +203,29 @@ current_guardian_set_index: {
     /** expire_guardian_set(index: integer) */
     expire_guardian_set: ((index: (bigint | number)) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
-    /** get_guardian_by_index_unconstrained(guardian_idx: integer, guardians: array) */
-    get_guardian_by_index_unconstrained: ((guardian_idx: (bigint | number), guardians: { address: { value0: (bigint | number), value1: (bigint | number), value2: (bigint | number), value3: (bigint | number), value4: (bigint | number), value5: (bigint | number), value6: (bigint | number), value7: (bigint | number), value8: (bigint | number), value9: (bigint | number), value10: (bigint | number), value11: (bigint | number), value12: (bigint | number), value13: (bigint | number), value14: (bigint | number), value15: (bigint | number), value16: (bigint | number), value17: (bigint | number), value18: (bigint | number), value19: (bigint | number), pub_key_x0: (bigint | number), pub_key_x1: (bigint | number), pub_key_x2: (bigint | number), pub_key_x3: (bigint | number), pub_key_x4: (bigint | number), pub_key_x5: (bigint | number), pub_key_x6: (bigint | number), pub_key_x7: (bigint | number), pub_key_x8: (bigint | number), pub_key_x9: (bigint | number), pub_key_x10: (bigint | number), pub_key_x11: (bigint | number), pub_key_x12: (bigint | number), pub_key_x13: (bigint | number), pub_key_x14: (bigint | number), pub_key_x15: (bigint | number), pub_key_x16: (bigint | number), pub_key_x17: (bigint | number), pub_key_x18: (bigint | number), pub_key_x19: (bigint | number), pub_key_x20: (bigint | number), pub_key_x21: (bigint | number), pub_key_x22: (bigint | number), pub_key_x23: (bigint | number), pub_key_x24: (bigint | number), pub_key_x25: (bigint | number), pub_key_x26: (bigint | number), pub_key_x27: (bigint | number), pub_key_x28: (bigint | number), pub_key_x29: (bigint | number), pub_key_x30: (bigint | number), pub_key_x31: (bigint | number), pub_key_y0: (bigint | number), pub_key_y1: (bigint | number), pub_key_y2: (bigint | number), pub_key_y3: (bigint | number), pub_key_y4: (bigint | number), pub_key_y5: (bigint | number), pub_key_y6: (bigint | number), pub_key_y7: (bigint | number), pub_key_y8: (bigint | number), pub_key_y9: (bigint | number), pub_key_y10: (bigint | number), pub_key_y11: (bigint | number), pub_key_y12: (bigint | number), pub_key_y13: (bigint | number), pub_key_y14: (bigint | number), pub_key_y15: (bigint | number), pub_key_y16: (bigint | number), pub_key_y17: (bigint | number), pub_key_y18: (bigint | number), pub_key_y19: (bigint | number), pub_key_y20: (bigint | number), pub_key_y21: (bigint | number), pub_key_y22: (bigint | number), pub_key_y23: (bigint | number), pub_key_y24: (bigint | number), pub_key_y25: (bigint | number), pub_key_y26: (bigint | number), pub_key_y27: (bigint | number), pub_key_y28: (bigint | number), pub_key_y29: (bigint | number), pub_key_y30: (bigint | number), pub_key_y31: (bigint | number) } }[]) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
-
-    /** get_hardcoded_guardians() */
-    get_hardcoded_guardians: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+    /** get_owner() */
+    get_owner: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
     /** get_provider() */
     get_provider: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
+    /** get_receiver_address() */
+    get_receiver_address: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
+    /** get_scheduled_receiver_address() */
+    get_scheduled_receiver_address: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
+    /** get_scheduled_token_address() */
+    get_scheduled_token_address: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
+    /** get_token_address() */
+    get_token_address: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
     /** guardian_set_expired(index: integer) */
     guardian_set_expired: ((index: (bigint | number)) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
-    /** init(chain_id: integer, evm_chain_id: integer, wormhole_address: struct, token_address: struct) */
-    init: ((chain_id: (bigint | number), evm_chain_id: (bigint | number), wormhole_address: AztecAddressLike, token_address: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+    /** init(chain_id: integer, evm_chain_id: integer, owner: struct, receiver_address: struct, token_address: struct) */
+    init: ((chain_id: (bigint | number), evm_chain_id: (bigint | number), owner: AztecAddressLike, receiver_address: AztecAddressLike, token_address: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
     /** parse_vaa_unconstrained(bytes: array, actual_length: integer) */
     parse_vaa_unconstrained: ((bytes: (bigint | number)[], actual_length: (bigint | number)) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
@@ -301,14 +302,20 @@ current_guardian_set_index: {
     /** set_provider(provider: struct) */
     set_provider: ((provider: { chain_id: (bigint | number), evm_chain_id: (bigint | number) }) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
+    /** set_receiver_address(new_receiver_address: struct) */
+    set_receiver_address: ((new_receiver_address: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
+    /** set_token_address(new_token_address: struct) */
+    set_token_address: ((new_token_address: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
     /** sync_private_state() */
     sync_private_state: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
 
+    /** transfer_ownership(new_owner: struct) */
+    transfer_ownership: ((new_owner: AztecAddressLike) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
+
     /** verify_vaa(bytes: array, actual_length: integer) */
     verify_vaa: ((bytes: (bigint | number)[], actual_length: (bigint | number)) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
-
-    /** verify_vaa_unconstrained(bytes: array, actual_length: integer) */
-    verify_vaa_unconstrained: ((bytes: (bigint | number)[], actual_length: (bigint | number)) => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
   };
 
   

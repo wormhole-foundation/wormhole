@@ -21,7 +21,9 @@ RUN mkdir -p /opt/solana/deps
 
 ARG EMITTER_ADDRESS="11111111111111111111111111111115"
 ARG BRIDGE_ADDRESS
+ARG CHAIN_ID
 RUN [ -n "${BRIDGE_ADDRESS}" ]
+RUN [ -n "${CHAIN_ID}" ]
 
 # Build Wormhole Solana programs
 RUN --mount=type=cache,target=target,id=build \
