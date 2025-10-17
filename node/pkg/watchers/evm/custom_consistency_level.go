@@ -47,8 +47,7 @@ type (
 	}
 
 	// NothingSpecial means there is no custom handling enabled for this emitter.
-	NothingSpecial struct {
-	}
+	NothingSpecial struct{}
 
 	// AdditionalBlocks means this emitter is configured for the additional blocks custom handling.
 	AdditionalBlocks struct {
@@ -69,14 +68,10 @@ type CCLMap map[vaa.ChainID]string
 
 var (
 	// cclMainnetMap specifies the custom consistency level contracts for each mainnet chain.
-	cclMainnetMap = CCLMap{
-		vaa.ChainIDLinea: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
-	}
+	cclMainnetMap = CCLMap{}
 
 	// cclTestnetMap specifies the custom consistency level contracts for each testnet chain.
-	cclTestnetMap = CCLMap{
-		vaa.ChainIDLinea: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
-	}
+	cclTestnetMap = CCLMap{}
 
 	// cclDevnetMap specifies the custom consistency level contracts for each devnet chain.
 	cclDevnetMap = CCLMap{
