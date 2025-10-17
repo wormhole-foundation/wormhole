@@ -470,6 +470,7 @@ fn create_account_reliably(
 
             // Safety: The capacity of this vector is 36. This data will be
             // overwritten for the next CPI call.
+            #[allow(clippy::ptr_offset_with_cast)]
             unsafe {
                 core::ptr::write_bytes(
                     cpi_data
