@@ -321,6 +321,8 @@ const (
 	ChainIDStellar ChainID = 61
 	// ChainIDTON is the ChainID of TON
 	ChainIDTON ChainID = 62
+	// ChainIDTON is the ChainID of Mantra
+	ChainIDMantra ChainID = 63
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
