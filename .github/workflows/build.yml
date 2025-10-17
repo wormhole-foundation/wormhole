@@ -344,18 +344,24 @@ jobs:
   rust-lint-and-tests:
     runs-on: ubuntu-24.04
     env:
+      # Deny all warnings. Since we also build with stable, this causes newly-added clippy lints to fail when new Rust
+      # versions are released. This means that the CI runs will occasionally fail as new warnings are flagged in the
+      # codebase, but it's a good way to force us to keep the codebase in good shape.
       RUSTFLAGS: -Dwarnings
     strategy:
       matrix:
         manifest:
+          # CosmWasm
           - path: cosmwasm/Cargo.toml
             args: "--workspace --locked --exclude 'shutdown-*'"
           - path: cosmwasm/Cargo.toml
             args: "-p 'shutdown-*' --no-default-features --locked"
-          - path: terra/Cargo.toml
-            args: "--workspace --locked"
+          # Rust SDK
           - path: sdk/rust/Cargo.toml
             args: "--all-features --all-targets"
+          # SVM directory (shims code)
+          - path: svm/wormhole-core-shims/Cargo.toml
+            args: "--workspace --locked"
     name: rust-lint-and-tests (${{ matrix.manifest.path }})
     steps:
       - name: Check out source
