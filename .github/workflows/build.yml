@@ -337,16 +337,21 @@ jobs:
           # CosmWasm
           - path: cosmwasm/Cargo.toml
             args: "--workspace --locked --exclude 'shutdown-*'"
+            test_args: ""
           - path: cosmwasm/Cargo.toml
             args: "-p 'shutdown-*' --no-default-features --locked"
+            test_args: ""
           # Rust SDK
           - path: sdk/rust/Cargo.toml
             args: "--all-features --all-targets"
+            test_args: ""
           # SVM directory (shims code)
           - path: svm/wormhole-core-shims/Cargo.toml
             args: "--workspace --all-features"
+            test_args: ""
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
+            test_args: "--lib"  # Skip doctests; anchor interfaces lack solana_program dependency
     name: rust-lint-and-tests (${{ matrix.manifest.path }})
     steps:
       - name: Check out source
@@ -402,7 +407,7 @@ jobs:
         run: cargo clippy ${{ matrix.manifest.args }} --tests --manifest-path ${{ matrix.manifest.path }}
 
       - name: Run unit tests
-        run: cargo test ${{ matrix.manifest.args }} --manifest-path ${{ matrix.manifest.path }}
+        run: cargo test ${{ matrix.manifest.args }} ${{ matrix.manifest.test_args }} --manifest-path ${{ matrix.manifest.path }}
 
   docker:
     runs-on: ubuntu-latest
