@@ -344,7 +344,7 @@ jobs:
             args: "--all-features --all-targets"
           # SVM directory (shims code)
           - path: svm/wormhole-core-shims/Cargo.toml
-            args: "--workspace"
+            args: "--workspace --all-features"
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
     name: rust-lint-and-tests (${{ matrix.manifest.path }})
