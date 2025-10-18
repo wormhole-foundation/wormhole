@@ -1,5 +1,5 @@
 import yargs from "yargs";
-import { chains } from "@wormhole-foundation/sdk";
+import { chains } from "@wormhole-foundation/sdk-base";
 
 export const command = "chains";
 export const desc = "Print the list of supported chains";

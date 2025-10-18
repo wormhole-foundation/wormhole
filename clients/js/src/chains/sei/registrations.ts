@@ -1,6 +1,6 @@
 import { getCosmWasmClient } from "@sei-js/core";
 import { NETWORKS } from "../../consts/networks";
-import { Chain, Network, chains, contracts } from "@wormhole-foundation/sdk";
+import { Chain, Network, chains, contracts } from "@wormhole-foundation/sdk-base";
 
 export async function queryRegistrationsSei(
   network: Network,
