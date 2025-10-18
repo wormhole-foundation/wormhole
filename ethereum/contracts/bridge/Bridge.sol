@@ -79,6 +79,9 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 arbiterFee,
         uint32 nonce
     ) public payable returns (uint64 sequence) {
+        require(recipient != bytes32(0), "invalid recipient");
+        require(recipientChain != 0, "invalid chain");
+        
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransfer(
@@ -111,6 +114,9 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint32 nonce,
         bytes memory payload
     ) public payable returns (uint64 sequence) {
+        require(recipient != bytes32(0), "invalid recipient");
+        require(recipientChain != 0, "invalid chain");
+        
         BridgeStructs.TransferResult
             memory transferResult = _wrapAndTransferETH(0);
         sequence = logTransferWithPayload(
@@ -171,6 +177,9 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 arbiterFee,
         uint32 nonce
     ) public payable nonReentrant returns (uint64 sequence) {
+        require(recipient != bytes32(0), "invalid recipient");
+        require(recipientChain != 0, "invalid chain");
+        
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
@@ -208,6 +217,9 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint32 nonce,
         bytes memory payload
     ) public payable nonReentrant returns (uint64 sequence) {
+        require(recipient != bytes32(0), "invalid recipient");
+        require(recipientChain != 0, "invalid chain");
+        
         BridgeStructs.TransferResult memory transferResult = _transferTokens(
             token,
             amount,
