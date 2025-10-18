@@ -75,6 +75,10 @@ lint(){
 
     cd "${ROOT}/sdk"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+
+    cd "${ROOT}/custom-rules"
+    make build
+    make run
 }
 
 DOCKER="false"
