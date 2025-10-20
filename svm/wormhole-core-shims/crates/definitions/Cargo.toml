@@ -12,17 +12,22 @@ version.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = []
+default = [ "standard-finality" ]
 borsh = ["dep:borsh"]
 
 ### Network types
 testnet = []
 localnet = []
+from-env = []
+
+### Standard finality definition
+standard-finality = []
 
 ### Specific networks
-solana = []
+solana = [ "standard-finality" ]
 
 [dependencies]
+const-crypto = "0.3.0"
 borsh = { optional = true, workspace = true }
 cfg-if.workspace = true
 sha2-const-stable.workspace = true
