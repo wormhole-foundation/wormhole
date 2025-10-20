@@ -230,34 +230,34 @@ func (e *Watcher) runLegacyMode(ctx context.Context, logger *zap.Logger) error {
 
 			// the endpoint returns an array of events, ordered by sequence
 			// id (ASC)
-			// Check if the array is empty
 
+			// Check if the array is empty. It will be empty most of the time until there are new events.
 			if !events.Exists() || !events.IsArray() || len(events.Array()) == 0 {
-				logger.Warn("No new events found")
-				continue
-			}
-			for _, event := range events.Array() {
-				eventSequence := event.Get("sequence_number")
-				if !eventSequence.Exists() {
-					continue
-				}
+				logger.Debug("No new events found")
+			} else {
+				for _, event := range events.Array() {
+					eventSequence := event.Get("sequence_number")
+					if !eventSequence.Exists() {
+						continue
+					}
 
-				eventSeq := eventSequence.Uint()
-				if nextSequence == 0 && eventSeq != 0 {
-					// Avoid publishing an old observation on startup. This does not block the first message on a new chain (when eventSeq would be zero).
+					eventSeq := eventSequence.Uint()
+					if nextSequence == 0 && eventSeq != 0 {
+						// Avoid publishing an old observation on startup. This does not block the first message on a new chain (when eventSeq would be zero).
+						nextSequence = eventSeq + 1
+						continue
+					}
+
+					// this is interesting in the last iteration, whereby we
+					// find the next sequence that comes after the array
 					nextSequence = eventSeq + 1
-					continue
-				}
 
-				// this is interesting in the last iteration, whereby we
-				// find the next sequence that comes after the array
-				nextSequence = eventSeq + 1
-
-				data := event.Get("data")
-				if !data.Exists() {
-					continue
+					data := event.Get("data")
+					if !data.Exists() {
+						continue
+					}
+					e.observeData(logger, data, eventSeq, false)
 				}
-				e.observeData(logger, data, eventSeq, false)
 			}
 
 			health, err := e.retrievePayload(aptosHealth)
@@ -428,43 +428,42 @@ func (e *Watcher) runIndexerMode(ctx context.Context, logger *zap.Logger) error 
 			}
 			// Check if the array is empty
 			if len(messages.Array()) == 0 {
-				logger.Warn("No new events found in indexer response")
-				continue
-			}
+				logger.Debug("No new events found in indexer response")
+			} else {
+				// Walk through the array of events
+				for _, msg := range messages.Array() {
+					version := msg.Get("version")
+					sequenceNum := msg.Get("sequence_num")
+					if !version.Exists() || !sequenceNum.Exists() {
+						continue
+					}
 
-			// Walk through the array of events
-			for _, msg := range messages.Array() {
-				version := msg.Get("version")
-				sequenceNum := msg.Get("sequence_num")
-				if !version.Exists() || !sequenceNum.Exists() {
-					continue
-				}
-
-				versionNum := version.Uint()
-				aptosSeqNum := sequenceNum.Uint()
-				logger.Debug("Found event from indexer",
-					zap.Uint64("version", versionNum),
-					zap.Uint64("sequence_num", aptosSeqNum))
-
-				if nextSequence == 0 && aptosSeqNum != 0 {
-					// Avoid publishing an old observation on startup. This does not block the first message on a new chain (when eventSeq would be zero).
-					nextSequence = aptosSeqNum + 1
-					continue
-				}
-
-				// Process the transaction and extract WormholeMessage events
-				// isReobservation=false
-				if err := e.processTransactionVersion(logger, versionNum, false); err != nil {
-					logger.Error("Failed to process transaction",
+					versionNum := version.Uint()
+					aptosSeqNum := sequenceNum.Uint()
+					logger.Debug("Found event from indexer",
 						zap.Uint64("version", versionNum),
-						zap.Uint64("sequence", aptosSeqNum),
-						zap.Error(err))
-					continue
-				}
+						zap.Uint64("sequence_num", aptosSeqNum))
 
-				// Update nextSequence to track progress using the Aptos sequence_num
-				if aptosSeqNum > nextSequence {
-					nextSequence = aptosSeqNum
+					if nextSequence == 0 && aptosSeqNum != 0 {
+						// Avoid publishing an old observation on startup. This does not block the first message on a new chain (when eventSeq would be zero).
+						nextSequence = aptosSeqNum + 1
+						continue
+					}
+
+					// Process the transaction and extract WormholeMessage events
+					// isReobservation=false
+					if err := e.processTransactionVersion(logger, versionNum, false); err != nil {
+						logger.Error("Failed to process transaction",
+							zap.Uint64("version", versionNum),
+							zap.Uint64("sequence", aptosSeqNum),
+							zap.Error(err))
+						continue
+					}
+
+					// Update nextSequence to track progress using the Aptos sequence_num
+					if aptosSeqNum > nextSequence {
+						nextSequence = aptosSeqNum
+					}
 				}
 			}
 

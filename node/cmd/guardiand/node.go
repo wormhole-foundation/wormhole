@@ -930,10 +930,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate Aptos configuration - support both legacy and indexer modes
-	aptosBasic := []string{*aptosRPC, *aptosAccount, *aptosHandle}
-
-	if !argsConsistent(aptosBasic) {
-		logger.Fatal("Either --aptosRPC, --aptosAccount, and --aptosHandle must all be set together or all unset")
+	if !argsConsistent([]string{*aptosAccount, *aptosRPC, *aptosHandle}) {
+		logger.Fatal("Either --aptosAccount, --aptosRPC and --aptosHandle must all be set or all unset")
 	}
 
 	// If Aptos is enabled, validate indexer configuration
