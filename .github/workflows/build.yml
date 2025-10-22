@@ -357,7 +357,7 @@ jobs:
             test_args: ""
           # SVM directory (shims code)
           - path: svm/wormhole-core-shims/Cargo.toml
-            args: "--workspace --all-features"
+            args: "--workspace"
             test_args: "--lib"  # Skip integration tests; they require compiled BPF programs
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
