@@ -274,6 +274,8 @@ func (c ChainID) String() string {
 		return "holesky"
 	case ChainIDPolygonSepolia:
 		return "polygon_sepolia"
+	case ChainIDStacks:
+		return "stacks"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -482,6 +484,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDHolesky, nil
 	case "polygon_sepolia":
 		return ChainIDPolygonSepolia, nil
+	case "stacks":
+		return ChainIDStacks, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -555,6 +559,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimismSepolia,
 		ChainIDHolesky,
 		ChainIDPolygonSepolia,
+		ChainIDStacks,
 	}
 }
 
@@ -661,8 +666,9 @@ const (
 	ChainIDMezo ChainID = 50
 	// ChainIDFogo is the ChainID of Fogo
 	ChainIDFogo ChainID = 51
+	// ChainIDStacks is the ChainID of Stacks
+	ChainIDStacks ChainID = 52
 	//ChainIDWormchain is the ChainID of Wormchain
-
 	// Wormchain is in it's own range.
 	ChainIDWormchain ChainID = 3104
 

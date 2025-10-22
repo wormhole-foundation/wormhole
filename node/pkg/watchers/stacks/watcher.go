@@ -1,0 +1,599 @@
+package stacks
+
+import (
+	"bytes"
+	"context"
+	"encoding/hex"
+	"fmt"
+	"math"
+	"math/big"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/readiness"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
+)
+
+/// OVERVIEW
+// The Stacks watcher monitors the Stacks blockchain for cross-chain Wormhole message events.
+// It uses Bitcoin blocks (burn blocks) as the anchor point for confirmation and processes
+// Stacks blocks that are anchored to confirmed Bitcoin blocks.
+//
+// Core Components and Process Flow:
+// - Public Methods:
+//    - Run: Main entry point that starts the block poller and observation request handler
+//    - Reobserve: Implements reobservation support for previously emitted messages
+//
+// - Execution Flow:
+//    - runBlockPoller: Polls for new Bitcoin blocks and processes confirmed blocks
+//    - process...: (`processCoreEvent` is the main/final function)
+//      - Bitcoin Block → Stacks Blocks → Transactions → Events → Message Data
+//
+// API Interaction, aka fetch methods are in `fetch.go`.
+
+// Safe overflow checking constants for BigInt validation
+var (
+	maxUint32BigInt = big.NewInt(math.MaxUint32)
+	maxUint64BigInt = new(big.Int).SetUint64(math.MaxUint64)
+	maxUint8BigInt  = big.NewInt(math.MaxUint8)
+)
+
+type (
+	Watcher struct {
+		rpcURL        string
+		rpcAuthToken  string
+		stateContract string
+
+		bitcoinBlockPollInterval time.Duration
+
+		msgC          chan<- *common.MessagePublication
+		obsvReqC      <-chan *gossipv1.ObservationRequest
+		readinessSync readiness.Component
+
+		nakamotoBitcoinHeight atomic.Uint64 // We can't process blocks before this height
+
+		stableBitcoinHeight    atomic.Uint64
+		latestBitcoinHeight    atomic.Uint64
+		processedBitcoinHeight atomic.Uint64
+	}
+
+	MessageData struct {
+		EmitterAddress   vaa.Address
+		Nonce            uint32
+		Sequence         uint64
+		ConsistencyLevel uint8
+		Payload          []byte
+	}
+)
+
+func NewWatcher(
+	rpcURL string,
+	rpcAuthToken string,
+	contract string,
+	bitcoinBlockPollInterval time.Duration,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
+) *Watcher {
+	w := &Watcher{
+		rpcURL:                   rpcURL,
+		rpcAuthToken:             rpcAuthToken,
+		stateContract:            contract,
+		bitcoinBlockPollInterval: bitcoinBlockPollInterval,
+		msgC:                     msgC,
+		obsvReqC:                 obsvReqC,
+		readinessSync:            common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDStacks),
+	}
+
+	w.latestBitcoinHeight.Store(0)
+	w.processedBitcoinHeight.Store(0)
+
+	return w
+}
+
+/// WATCHER PUBLIC METHODS
+
+func (w *Watcher) Run(ctx context.Context) error {
+	logger := supervisor.Logger(ctx)
+
+	logger.Info("Starting Stacks watcher",
+		zap.String("rpc_url", w.rpcURL),
+		zap.String("contract", w.stateContract))
+
+	errC := make(chan error)
+
+	// Start block poller
+	common.RunWithScissors(ctx, errC, "stacksBlockPoller", w.runBlockPoller)
+
+	// Handle observation requests
+	common.RunWithScissors(ctx, errC, "stacksObsvReqWorker", func(ctx context.Context) error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case req := <-w.obsvReqC:
+				logger.Info("received observation request",
+					zap.String("tx_hash", hex.EncodeToString(req.TxHash)))
+				continue
+			}
+		}
+	})
+
+	// Set initial readiness state
+	readiness.SetReady(w.readinessSync)
+
+	// Wait for error or context cancellation
+	select {
+	case <-ctx.Done():
+		logger.Info("context cancelled, stopping Stacks watcher")
+		return nil
+	case err := <-errC:
+		return err
+	}
+}
+
+// Reobserve implements the interfaces.Reobserver interface.
+func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byte, customEndpoint string) (uint32, error) {
+	logger := supervisor.Logger(ctx)
+
+	// Verify this request is for our chain
+	if chainID != vaa.ChainIDStacks {
+		return 0, fmt.Errorf("unexpected chain ID: %v", chainID)
+	}
+
+	txIdString := hex.EncodeToString(txID)
+	logger.Info("Received reobservation request",
+		zap.String("tx_id", txIdString),
+		zap.String("custom_endpoint", customEndpoint))
+
+	// Process the transaction
+	err := w.processStacksTxId(ctx, txIdString, logger)
+	if err != nil {
+		logger.Error("Failed to reobserve transaction",
+			zap.String("tx_hash", txIdString),
+			zap.Error(err))
+		return 0, err
+	}
+
+	// Return 1 to indicate we processed the request
+	return 1, nil
+}
+
+/// RUN
+
+// Polls for new Bitcoin (burn) blocks and processes confirmed blocks
+func (w *Watcher) runBlockPoller(ctx context.Context) error {
+	logger := supervisor.Logger(ctx)
+
+	logger.Info("Starting Stacks block poller",
+		zap.String("rpc_url", w.rpcURL),
+		zap.String("contract", w.stateContract),
+		zap.Duration("poll_interval", w.bitcoinBlockPollInterval))
+
+	poxInfo, err := w.fetchPoxInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch PoX info: %w", err)
+	}
+
+	var nakamotoEpoch *StacksV2PoxEpoch
+	for _, epoch := range poxInfo.Epochs {
+		if epoch.EpochID == "Epoch30" {
+			nakamotoEpoch = &epoch
+			break
+		}
+	}
+
+	if nakamotoEpoch == nil {
+		return fmt.Errorf("failed to find Nakamoto epoch (Epoch30) in PoX info")
+	}
+
+	w.nakamotoBitcoinHeight.Store(nakamotoEpoch.StartHeight)
+
+	nodeInfo, err := w.fetchNodeInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch node info: %w", err)
+	}
+
+	// Set to stable or nakamoto height, whichever is higher
+	// Act as if all blocks up to the stable burn block height have been processed
+	if nakamotoEpoch.StartHeight > nodeInfo.StableBurnBlockHeight {
+		w.processedBitcoinHeight.Store(nakamotoEpoch.StartHeight)
+	} else {
+		w.processedBitcoinHeight.Store(nodeInfo.StableBurnBlockHeight)
+	}
+
+	logger.Info("Initialized Stacks watcher with stable Bitcoin (burn) block",
+		zap.Uint64("stable_bitcoin_block_height", nodeInfo.StableBurnBlockHeight))
+
+	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDStacks, &gossipv1.Heartbeat_Network{
+		Height:          int64(nodeInfo.StableBurnBlockHeight),
+		ContractAddress: w.stateContract,
+	})
+
+	timer := time.NewTimer(w.bitcoinBlockPollInterval)
+	defer timer.Stop()
+
+	// Poll loop
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
+			nodeInfo, err := w.fetchNodeInfo(ctx)
+			if err != nil {
+				logger.Error("Failed to fetch node info",
+					zap.Error(err))
+				timer.Reset(w.bitcoinBlockPollInterval)
+				continue
+			}
+
+			previousStableBitcoinHeight := w.stableBitcoinHeight.Load()
+
+			// We have a new stable Bitcoin (burn) block height
+			if nodeInfo.StableBurnBlockHeight > previousStableBitcoinHeight {
+				logger.Info("Found new stable Bitcoin (burn) block",
+					zap.Uint64("previous_stable_height", previousStableBitcoinHeight),
+					zap.Uint64("stable_height", nodeInfo.StableBurnBlockHeight))
+
+				w.stableBitcoinHeight.Store(nodeInfo.StableBurnBlockHeight)
+
+				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDStacks, &gossipv1.Heartbeat_Network{
+					Height:          int64(nodeInfo.StableBurnBlockHeight),
+					ContractAddress: w.stateContract,
+				})
+
+				bitcoinFromHeight := w.processedBitcoinHeight.Load() + 1
+
+				logger.Info("Processing Bitcoin (burn) blocks",
+					zap.Uint64("from_height", bitcoinFromHeight),
+					zap.Uint64("to_height", nodeInfo.StableBurnBlockHeight))
+
+				// Processing loop
+				for height := bitcoinFromHeight; height <= nodeInfo.StableBurnBlockHeight; height++ {
+					tenure, err := w.fetchTenureBlocksByBurnHeight(ctx, height)
+					if err != nil {
+						logger.Error("Failed to fetch Bitcoin (burn) block",
+							zap.Uint64("height", height),
+							zap.Error(err))
+						break
+					}
+
+					if err := w.processBitcoinBlock(ctx, tenure, logger); err != nil {
+						logger.Error("Failed to process Bitcoin (burn) block",
+							zap.Uint64("height", height),
+							zap.Error(err))
+						break
+					}
+
+					w.processedBitcoinHeight.Store(height)
+				}
+			}
+
+			timer.Reset(w.bitcoinBlockPollInterval)
+		}
+	}
+}
+
+/// PROCESS
+
+// Processes all Stacks blocks anchored to the given Bitcoin (burn) block
+func (w *Watcher) processBitcoinBlock(ctx context.Context, tenureBlocks *StacksV3TenureBlocksResponse, logger *zap.Logger) error {
+	logger.Info("Processing Bitcoin (burn) block",
+		zap.Uint64("bitcoin_block_height", tenureBlocks.BurnBlockHeight),
+		zap.String("bitcoin_block_hash", tenureBlocks.BurnBlockHash))
+
+	// Process each Stacks block anchored to this burn block
+	for _, block := range tenureBlocks.StacksBlocks {
+		logger.Info("Processing Stacks block", zap.String("stacks_block_id", block.BlockId))
+
+		// Fetch and process the Stacks block
+		if err := w.processStacksBlock(ctx, block.BlockId, logger); err != nil {
+			logger.Error("Failed to process Stacks block",
+				zap.String("stacks_block_id", block.BlockId),
+				zap.Error(err))
+			// Continue processing other blocks even if one fails
+		}
+	}
+
+	// Update processed burn height
+	w.processedBitcoinHeight.Store(tenureBlocks.BurnBlockHeight)
+
+	return nil
+}
+
+// Fetches and processes all transactions in a Stacks block
+func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logger *zap.Logger) error {
+	replay, err := w.fetchStacksBlockReplay(ctx, blockHash)
+	if err != nil {
+		return fmt.Errorf("failed to fetch Stacks block replay: %w", err)
+	}
+
+	for _, tx := range replay.Transactions {
+		if err := w.processStacksTransaction(ctx, &tx, replay, logger); err != nil {
+			logger.Error("Failed to process transaction",
+				zap.String("tx_id", tx.TxId),
+				zap.Error(err))
+			// Continue processing other transactions even if one fails
+		}
+	}
+
+	return nil
+}
+
+// Processes a single transaction from a Stacks block
+func (w *Watcher) processStacksTransaction(ctx context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, logger *zap.Logger) error {
+	logger.Info("Processing Stacks transaction", zap.String("tx_id", tx.TxId))
+
+	// abort_by_response
+	if !isTransactionResultSuccessful(tx.Result) {
+		return fmt.Errorf("transaction %s failed due to response: %v", tx.TxId, tx.Result)
+	}
+
+	// abort_by_post_condition
+	if tx.VmError != nil {
+		return fmt.Errorf("transaction %s failed due to runtime error: %s", tx.TxId, *tx.VmError)
+	}
+
+	// success
+
+	wormholeEvents := 0
+	for _, event := range tx.Events {
+		// Skip events that don't match our criteria
+		if event.Type != "contract_event" ||
+			event.ContractEvent == nil ||
+			event.ContractEvent.ContractIdentifier != w.stateContract ||
+			event.ContractEvent.Topic != "print" {
+			continue
+		}
+
+		logger.Info("Found Wormhole message event",
+			zap.String("tx_id", tx.TxId),
+			zap.Uint64("event_index", event.EventIndex))
+
+		hexStr := strings.TrimPrefix(event.ContractEvent.RawValue, "0x")
+		hexBytes, err := hex.DecodeString(hexStr)
+		if err != nil {
+			logger.Error("Failed to decode raw value hex",
+				zap.String("tx_id", tx.TxId),
+				zap.Uint64("event_index", event.EventIndex),
+				zap.String("hex", event.ContractEvent.RawValue),
+				zap.Error(err))
+			continue
+		}
+
+		clarityValue, err := DecodeClarityValue(bytes.NewReader(hexBytes))
+		if err != nil {
+			logger.Error("Failed to decode clarity value",
+				zap.String("tx_id", tx.TxId),
+				zap.Uint64("event_index", event.EventIndex),
+				zap.Error(err))
+			continue
+		}
+
+		logger.Debug("Decoded clarity value",
+			zap.String("tx_id", tx.TxId),
+			zap.Uint64("event_index", event.EventIndex),
+			zap.String("type", fmt.Sprintf("%T", clarityValue)))
+
+		// Process the core event
+		if err := w.processCoreEvent(clarityValue, replay.Timestamp); err == nil {
+			wormholeEvents++
+		} else {
+			logger.Error("Failed to process core event",
+				zap.String("tx_id", tx.TxId),
+				zap.Uint64("event_index", event.EventIndex),
+				zap.Error(err))
+			// Continue processing other events even if one fails
+		}
+	}
+
+	logger.Info("Finished processing transaction events",
+		zap.String("tx_id", tx.TxId),
+		zap.Int("wormhole_events_processed", wormholeEvents))
+
+	return nil
+}
+
+// Processes a single transaction by its txid (used for reobservations)
+func (w *Watcher) processStacksTxId(ctx context.Context, txId string, logger *zap.Logger) error {
+	logger.Info("Processing transaction by txid", zap.String("tx_id", txId))
+
+	transaction, err := w.fetchStacksTransactionByTxId(ctx, txId)
+	if err != nil {
+		return fmt.Errorf("failed to fetch transaction: %w", err)
+	}
+
+	replay, err := w.fetchStacksBlockReplay(ctx, transaction.IndexBlockHash)
+	if err != nil {
+		return fmt.Errorf("failed to fetch block replay: %w", err)
+	}
+
+	stableBitcoinBlockHeight := w.stableBitcoinHeight.Load()
+	if replay.BlockHeight > stableBitcoinBlockHeight {
+		return fmt.Errorf("block replay height %d is greater than stable Bitcoin (burn) block height %d", replay.BlockHeight, stableBitcoinBlockHeight)
+	}
+
+	var tx *StacksV3TenureBlockTransaction
+	for i := range replay.Transactions {
+		if replay.Transactions[i].TxId == txId {
+			tx = &replay.Transactions[i]
+			break
+		}
+	}
+
+	if tx == nil {
+		return fmt.Errorf("transaction %s not found in block replay", txId)
+	}
+
+	// Process the transaction using the same processing function used in polling
+	if err := w.processStacksTransaction(ctx, tx, replay, logger); err != nil {
+		return fmt.Errorf("failed to process transaction: %w", err)
+	}
+
+	logger.Info("Successfully processed transaction for reobservation",
+		zap.String("tx_id", txId))
+
+	return nil
+}
+
+// Processes a core contract event tuple and extracts message fields
+func (w *Watcher) processCoreEvent(clarityValue ClarityValue, timestamp uint64) error {
+	// Cast to tuple
+	eventTuple, isTuple := clarityValue.(*Tuple)
+	if !isTuple {
+		return fmt.Errorf("expected tuple type but got %T", clarityValue)
+	}
+
+	// Extract the event name
+	eventName, err := extractEventName(eventTuple)
+	if err != nil {
+		return fmt.Errorf("failed to extract event name: %w", err)
+	}
+
+	// Check if this is a post-message event
+	if eventName != "post-message" {
+		return fmt.Errorf("expected 'post-message' event but got '%s'", eventName)
+	}
+
+	// Extract the core message fields
+	msgData, err := extractMessageData(eventTuple)
+	if err != nil {
+		return fmt.Errorf("failed to extract message data: %w", err)
+	}
+
+	// Create the complete MessagePublication
+	msgPub := &common.MessagePublication{
+		Timestamp:        time.Unix(int64(timestamp), 0),
+		Nonce:            msgData.Nonce,
+		Sequence:         msgData.Sequence,
+		EmitterChain:     vaa.ChainIDStacks,
+		EmitterAddress:   msgData.EmitterAddress,
+		Payload:          msgData.Payload,
+		ConsistencyLevel: msgData.ConsistencyLevel,
+	}
+
+	// Submit the message to the channel for processing
+	w.msgC <- msgPub
+
+	return nil
+}
+
+/// HELPERS
+
+func isTransactionResultSuccessful(result map[string]interface{}) bool {
+	if result == nil {
+		return false
+	}
+
+	response, ok := result["Response"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	committed, ok := response["committed"].(bool)
+	return ok && committed
+}
+
+// Extracts the event name from an event tuple
+func extractEventName(eventTuple *Tuple) (string, error) {
+	eventNameVal, ok := eventTuple.Values["event"]
+	if !ok {
+		return "", fmt.Errorf("missing 'event' field in tuple")
+	}
+
+	// Check if event is a StringASCII or StringUTF8
+	var eventName string
+	if strVal, ok := eventNameVal.(*StringASCII); ok {
+		eventName = strVal.Value
+	} else if strVal, ok := eventNameVal.(*StringUTF8); ok {
+		eventName = strVal.Value
+	} else {
+		return "", fmt.Errorf("'event' field is not a string type: %T", eventNameVal)
+	}
+
+	return eventName, nil
+}
+
+// Extracts core message fields from an event tuple
+func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
+	// Get the data field which should contain the message
+	dataVal, ok := eventTuple.Values["data"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'data' field in tuple")
+	}
+
+	// Cast data to tuple
+	msgTuple, ok := dataVal.(*Tuple)
+	if !ok {
+		return nil, fmt.Errorf("'data' field is not a tuple: %T", dataVal)
+	}
+
+	// Extract message fields
+	emitterVal, ok := msgTuple.Values["emitter"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'emitter' field in message")
+	}
+
+	emitterBuffer, ok := emitterVal.(*ClarityBuffer)
+	if !ok || emitterBuffer.Length != 32 {
+		return nil, fmt.Errorf("'emitter' field is not a 32-byte buffer: %T", emitterVal)
+	}
+
+	// Convert buffer to wormhole address
+	emitterAddr := vaa.Address{}
+	copy(emitterAddr[:], emitterBuffer.Data[:])
+
+	nonceVal, ok := msgTuple.Values["nonce"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'nonce' field in message")
+	}
+
+	nonceUint, ok := nonceVal.(*UInt128)
+	if !ok || nonceUint.Value.Cmp(maxUint32BigInt) > 0 {
+		return nil, fmt.Errorf("invalid 'nonce' field: %T", nonceVal)
+	}
+
+	sequenceVal, ok := msgTuple.Values["sequence"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'sequence' field in message")
+	}
+
+	sequenceUint, ok := sequenceVal.(*UInt128)
+	if !ok || sequenceUint.Value.Cmp(maxUint64BigInt) > 0 {
+		return nil, fmt.Errorf("invalid 'sequence' field: %T", sequenceVal)
+	}
+
+	consistencyLevelVal, ok := msgTuple.Values["consistency-level"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'consistency-level' field in message")
+	}
+
+	consistencyLevelUint, ok := consistencyLevelVal.(*UInt128)
+	if !ok || consistencyLevelUint.Value.Cmp(maxUint8BigInt) > 0 {
+		return nil, fmt.Errorf("invalid 'consistency-level' field: %T", consistencyLevelVal)
+	}
+
+	payloadVal, ok := msgTuple.Values["payload"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'payload' field in message")
+	}
+
+	payload, ok := payloadVal.(*ClarityBuffer)
+	if !ok || payload.Length > 8192 {
+		return nil, fmt.Errorf("invalid 'payload' field: %T", payloadVal)
+	}
+
+	// Return just the core message fields
+	return &MessageData{
+		EmitterAddress:   emitterAddr,
+		Nonce:            uint32(nonceUint.Value.Uint64()),
+		Sequence:         sequenceUint.Value.Uint64(),
+		ConsistencyLevel: uint8(consistencyLevelUint.Value.Uint64()),
+		Payload:          payload.Data,
+	}, nil
+}

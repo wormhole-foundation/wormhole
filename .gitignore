@@ -34,3 +34,4 @@ sui/examples/wrapped_coin
 *.prof
 # Only used for internal testing
 *.testnet.yaml
+vendor
