@@ -357,7 +357,7 @@ jobs:
             test_args: ""
           # SVM directory (shims code)
           - path: svm/wormhole-core-shims/Cargo.toml
-            args: "--workspace"
+            args: "--workspace --no-default-features --features solana" # The crate by default requires environment variables. If solana is specified, mainnet values are used.
             test_args: "--lib"  # Skip integration tests; they require compiled BPF programs
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
