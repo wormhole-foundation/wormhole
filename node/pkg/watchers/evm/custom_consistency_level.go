@@ -70,12 +70,15 @@ type CCLMap map[vaa.ChainID]string
 var (
 	// cclMainnetMap specifies the custom consistency level contracts for each mainnet chain.
 	cclMainnetMap = CCLMap{
-		vaa.ChainIDLinea: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDEthereum: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDLinea:    "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
 	}
 
 	// cclTestnetMap specifies the custom consistency level contracts for each testnet chain.
 	cclTestnetMap = CCLMap{
-		vaa.ChainIDLinea: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDEthereum: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDSepolia:  "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDLinea:    "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
 	}
 
 	// cclDevnetMap specifies the custom consistency level contracts for each devnet chain.
