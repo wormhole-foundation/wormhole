@@ -216,6 +216,15 @@ jobs:
 
       - name: Run tests via docker
         run: cd sui && make test-docker
+  # NOTE: While Terra2 is deprecated, this job may be related to testing CosmWasm functionality in Wormchain.
+  terra-2:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "22"
+      - run: cd cosmwasm/deployment/terra2 && make test
   cosmwasm:
     runs-on: ubuntu-24.04
     steps:
@@ -334,6 +343,7 @@ jobs:
     strategy:
       matrix:
         manifest:
+          # NOTE: The `test_args` flag is used to forward job-specific flags to Rust tests while allowing us to use the matrix strategy for configuring jobs.
           # CosmWasm
           - path: cosmwasm/Cargo.toml
             args: "--workspace --locked --exclude 'shutdown-*'"
