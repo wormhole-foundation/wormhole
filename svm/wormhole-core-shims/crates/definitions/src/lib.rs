@@ -284,7 +284,7 @@ macro_rules! derive_consts {
 
         pub const CORE_BRIDGE_FEE_COLLECTOR_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::FEE_COLLECTOR_SEED],
+                &[$crate::FEE_COLLECTOR_SEED],
                 &CORE_BRIDGE_PROGRAM_ID_ARRAY,
             );
 
@@ -295,7 +295,7 @@ macro_rules! derive_consts {
 
         pub const CORE_BRIDGE_CONFIG_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::CORE_BRIDGE_CONFIG_SEED],
+                &[$crate::CORE_BRIDGE_CONFIG_SEED],
                 &CORE_BRIDGE_PROGRAM_ID_ARRAY,
             );
 
@@ -309,7 +309,7 @@ macro_rules! derive_consts {
 
         const POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::EVENT_AUTHORITY_SEED],
+                &[$crate::EVENT_AUTHORITY_SEED],
                 &POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY,
             );
 
