@@ -1,0 +1,106 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stacks-signer-config
+data:
+  config.toml: |
+    # stacks-signer config
+    stacks_private_key = "41634762d89dfa09133a4a8e9c1378d0161d29cd0a9433b51f1e3d32947a73dc01"
+    node_host = "stacks-node:20443"
+    endpoint = "0.0.0.0:30000"
+    network = "testnet"
+    auth_password = "12345"
+    db_path = "/data/signer/stacks-signer.sqlite"
+    metrics_endpoint = "0.0.0.0:9153"
+
+---
+# Stacks Signer 1 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: stacks-signer
+  labels:
+    app: stacks-signer
+spec:
+  ports:
+    - name: signer
+      port: 30000
+      targetPort: 30000
+      protocol: TCP
+    - name: metrics
+      port: 9153
+      targetPort: 9153
+      protocol: TCP
+  selector:
+    app: stacks-signer
+
+---
+# Stacks Signer Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stacks-signer
+  labels:
+    app: stacks-signer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stacks-signer
+  template:
+    metadata:
+      labels:
+        app: stacks-signer
+    spec:
+      containers:
+        - name: stacks-signer
+          image: stacks-signer
+          ports:
+            - containerPort: 30000
+              name: signer
+              protocol: TCP
+            - containerPort: 9153
+              name: metrics
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /data/config.toml
+              subPath: config.toml
+            - name: signer-data
+              mountPath: /data/signer
+          command:
+            - /bin/bash
+            - -c
+            - |
+              mkdir -p /data/signer
+              cd /data/
+              exec stacks-signer run --config config.toml 2>&1
+          readinessProbe:
+            tcpSocket:
+              port: 30000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 10
+          livenessProbe:
+            tcpSocket:
+              port: 30000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+      volumes:
+        - name: config
+          configMap:
+            name: stacks-signer-config
+        - name: signer-data
+          emptyDir: {}
