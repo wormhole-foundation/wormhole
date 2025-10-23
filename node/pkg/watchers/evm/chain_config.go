@@ -97,11 +97,13 @@ var (
 		vaa.ChainIDWorldchain: {Finalized: true, Safe: true, EvmChainID: 480, PublicRPC: "https://worldchain-mainnet.g.alchemy.com/public", ContractAddr: "0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"},
 		vaa.ChainIDInk:        {Finalized: true, Safe: true, EvmChainID: 57073, PublicRPC: "https://rpc-qnd.inkonchain.com", ContractAddr: "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"},
 		vaa.ChainIDHyperEVM:   {Finalized: true, Safe: true, EvmChainID: 999, PublicRPC: "https://rpc.hyperliquid.xyz/evm", ContractAddr: "0x7C0faFc4384551f063e05aee704ab943b8B53aB3"},
-		// vaa.ChainIDMonad:      Not in Mainnet yet.
-		vaa.ChainIDMezo: {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		vaa.ChainIDMonad:      {Finalized: true, Safe: true, EvmChainID: 143, PublicRPC: "https://rpc.monad.xyz", ContractAddr: "0x194B123c5E96B9b2E49763619985790Dc241CAC0"},
+		vaa.ChainIDMezo:       {Finalized: true, Safe: true, EvmChainID: 31612, PublicRPC: "https://jsonrpc-mezo.boar.network/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		// vaa.ChainIDConverge: Not in Mainnet yet
 		vaa.ChainIDPlume:   {Finalized: true, Safe: true, EvmChainID: 98866, PublicRPC: "https://rpc.plume.org", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDXRPLEVM: {Finalized: true, Safe: true, EvmChainID: 1440000, PublicRPC: "https://rpc.xrplevm.org/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		// vaa.ChainIDPlasma: {Finalized: true, Safe: true, EvmChainID: _, PublicRPC: "", ContractAddr: ""},
+		vaa.ChainIDCreditCoin: {Finalized: true, Safe: true, EvmChainID: 102030, PublicRPC: "https://mainnet3.creditcoin.network", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
@@ -150,6 +152,8 @@ var (
 		vaa.ChainIDConverge:        {Finalized: true, Safe: true, EvmChainID: 52085145, PublicRPC: "https://rpc-converge-testnet-1.t.conduit.xyz", ContractAddr: "0x556B259cFaCd9896B2773310080c7c3bcE90Ff01"},
 		vaa.ChainIDPlume:           {Finalized: true, Safe: true, EvmChainID: 98867, PublicRPC: "https://testnet-rpc.plume.org", ContractAddr: "0x81705b969cDcc6FbFde91a0C6777bE0EF3A75855"},
 		vaa.ChainIDXRPLEVM:         {Finalized: true, Safe: true, EvmChainID: 1449000, PublicRPC: "https://rpc.testnet.xrplevm.org/", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		vaa.ChainIDPlasma:          {Finalized: true, Safe: true, EvmChainID: 9746, PublicRPC: "https://testnet-rpc.plasma.to", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		vaa.ChainIDCreditCoin:      {Finalized: true, Safe: true, EvmChainID: 102031, PublicRPC: "https://rpc.cc3-testnet.creditcoin.network", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		vaa.ChainIDSepolia:         {Finalized: true, Safe: true, EvmChainID: 11155111, PublicRPC: "https://ethereum-sepolia-rpc.publicnode.com", ContractAddr: "0x4a8bc80Ed5a4067f1CCf107057b8270E0cC11A78"},
 		vaa.ChainIDArbitrumSepolia: {Finalized: true, Safe: true, EvmChainID: 421614, PublicRPC: "https://arbitrum-sepolia-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
 		vaa.ChainIDBaseSepolia:     {Finalized: true, Safe: true, EvmChainID: 84532, PublicRPC: "https://base-sepolia-rpc.publicnode.com", ContractAddr: "0x79A1027a6A159502049F10906D333EC57E95F083"},

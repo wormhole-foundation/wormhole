@@ -313,6 +313,16 @@ const (
 	ChainIDAztec ChainID = 56
 	// ChainIdXRPLEVM is the ChainID of XRPL-EVM
 	ChainIDXRPLEVM ChainID = 57
+	// ChainIDPlasma is the ChainID of Plasma
+	ChainIDPlasma ChainID = 58
+	// ChainIDCreditCoin is the ChainID of CreditCoin
+	ChainIDCreditCoin ChainID = 59
+	// ChainIDStacks is the ChainID of Stacks
+	ChainIDStacks ChainID = 60
+	// ChainIDStellar is the ChainID of Stellar
+	ChainIDStellar ChainID = 61
+	// ChainIDTON is the ChainID of TON
+	ChainIDTON ChainID = 62
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104

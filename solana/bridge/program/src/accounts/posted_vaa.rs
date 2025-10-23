@@ -4,7 +4,10 @@ use borsh::{
     BorshSerialize,
 };
 use solitaire::{
-    processors::seeded::Seeded,
+    processors::seeded::{
+        Seeded,
+        SingleOwned,
+    },
     AccountOwner,
     AccountState,
     Data,
@@ -92,6 +95,9 @@ impl Owned for PostedVAAData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::This
     }
+}
+
+impl SingleOwned for PostedVAAData {
 }
 
 #[cfg(feature = "cpi")]

@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/mr-tron/base58"
 )
 
@@ -42,6 +42,7 @@ type (
 		GetFinalBlock(ctx context.Context) (Block, error)
 		GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chunk, error)
 		GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error)
+		GetVersion(ctx context.Context) (string, error)
 	}
 	NearApiImpl struct {
 		nearRPC NearRpc
@@ -86,7 +87,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 
 			if err == nil {
 				defer resp.Body.Close()
-				result, err := io.ReadAll(resp.Body)
+				result, err := common.SafeRead(resp.Body)
 				if resp.StatusCode == 200 {
 					return result, err
 				}
@@ -174,6 +175,21 @@ func (n NearApiImpl) GetChunk(ctx context.Context, chunkHeader ChunkHeader) (Chu
 func (n NearApiImpl) GetTxStatus(ctx context.Context, txHash string, senderAccountId string) ([]byte, error) {
 	s := fmt.Sprintf(`{"id": "dontcare", "jsonrpc": "2.0", "method": "tx", "params": ["%s", "%s"]}`, txHash, senderAccountId)
 	return n.nearRPC.Query(ctx, s)
+}
+
+func (n NearApiImpl) GetVersion(ctx context.Context) (string, error) {
+	s := `{"id": "dontcare", "jsonrpc": "2.0", "method": "status"}`
+	versionBytes, err := n.nearRPC.Query(ctx, s)
+	if err != nil {
+		return "", err
+	}
+
+	version, err := VersionFromBytes(versionBytes)
+	if err != nil {
+		return "", err
+	}
+
+	return version, nil
 }
 
 func IsWellFormedHash(hash string) error {

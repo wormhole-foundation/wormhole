@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"time"
 
@@ -54,7 +55,6 @@ const (
 )
 
 var (
-	ErrBinaryWrite              = errors.New("failed to write binary data")
 	ErrInvalidBinaryBool        = errors.New("invalid binary bool (neither 0x00 nor 0x01)")
 	ErrInvalidVerificationState = errors.New("invalid verification state")
 )
@@ -70,13 +70,39 @@ func (e ErrUnexpectedEndOfRead) Error() string {
 
 // ErrInputSize is returned when the input size is not the expected size during marshaling.
 type ErrInputSize struct {
-	msg string
-	got int
+	Msg string
+	Got int
 }
 
 func (e ErrInputSize) Error() string {
-	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.msg, marshaledMsgLenMin, e.got)
+	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.Msg, marshaledMsgLenMin, e.Got)
 }
+
+// MaxSafeInputSize defines the maximum safe size for untrusted input from `io` Readers.
+// It should be configured so that it can comfortably contain all valid reads while
+// providing a strict upper bound to prevent unlimited reads.
+const MaxSafeInputSize = 128 * 1024 * 1024 // 128MB (arbitrary)
+
+var ErrInputTooLarge = errors.New("input data exceeds maximum allowed size")
+
+var (
+	ErrBinaryWrite         = errors.New("failed to write binary data")
+	ErrTxIDTooLong         = errors.New("field TxID too long")
+	ErrTxIDTooShort        = errors.New("field TxID too short")
+	ErrInvalidPayload      = errors.New("field payload too long")
+	ErrDataTooShort        = errors.New("data too short")
+	ErrTimestampTooShort   = errors.New("data too short for timestamp")
+	ErrNonceTooShort       = errors.New("data too short for nonce")
+	ErrSequenceTooShort    = errors.New("data too short for sequence")
+	ErrConsistencyTooShort = errors.New("data too short for consistency level")
+	ErrChainTooShort       = errors.New("data too short for emitter chain")
+	ErrAddressTooShort     = errors.New("data too short for emitter address")
+	ErrReobsTooShort       = errors.New("data too short for IsReobservation")
+	ErrUnreliableTooShort  = errors.New("data too short for Unreliable")
+	ErrVerStateTooShort    = errors.New("data too short for verification state")
+	ErrPayloadLenTooShort  = errors.New("data too short for payload length")
+	ErrPayloadTooShort     = errors.New("data too short for payload")
+)
 
 // The `VerificationState` is the result of applying transfer verification to the transaction associated with the `MessagePublication`.
 // While this could likely be extended to additional security controls in the future, it is only used for `txverifier` at present.
@@ -238,11 +264,11 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Check preconditions
 	txIDLen := len(msg.TxID)
 	if txIDLen > TxIDSizeMax {
-		return nil, ErrInputSize{msg: "TxID too long"}
+		return nil, ErrInputSize{Msg: "TxID too long"}
 	}
 
 	if txIDLen < TxIDLenMin {
-		return nil, ErrInputSize{msg: "TxID too short"}
+		return nil, ErrInputSize{Msg: "TxID too short"}
 	}
 
 	payloadLen := len(msg.Payload)
@@ -399,7 +425,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
 	if len(data) < marshaledMsgLenMin {
-		return ErrInputSize{msg: "data too short", got: len(data)}
+		return ErrInputSize{Msg: "data too short", Got: len(data)}
 	}
 
 	mp := &MessagePublication{}
@@ -415,7 +441,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Bounds checks. TxID length should be at least TxIDLenMin, but not larger than the length of the data.
 	// The second check is to avoid panics.
 	if int(txIDLen) < TxIDLenMin || int(txIDLen) > len(data) {
-		return ErrInputSize{msg: "TxID length is invalid"}
+		return ErrInputSize{Msg: "TxID length is invalid"}
 	}
 
 	// Read TxID
@@ -427,7 +453,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Concretely, we're checking that the data is at least long enough to contain information for all of
 	// the fields except for the Payload itself.
 	if len(data)-pos < fixedFieldsLen {
-		return ErrInputSize{msg: "data too short after reading TxID", got: len(data)}
+		return ErrInputSize{Msg: "data too short after reading TxID", Got: len(data)}
 	}
 
 	// Timestamp
@@ -489,13 +515,13 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// exceed this limit and cause a runtime panic when passed to make([]byte, payloadLen).
 	// This bounds check prevents such panics by rejecting oversized payload lengths early.
 	if payloadLen > PayloadLenMax {
-		return ErrInputSize{msg: "payload length too large", got: len(data)}
+		return ErrInputSize{Msg: "payload length too large", Got: len(data)}
 	}
 
 	// Check if we have enough data for the payload
 	// #nosec G115 -- payloadLen is read from data, bounds checked above
 	if len(data) < pos+int(payloadLen) {
-		return ErrInputSize{msg: "invalid payload length"}
+		return ErrInputSize{Msg: "invalid payload length"}
 	}
 
 	// Read payload
@@ -594,4 +620,30 @@ func (msg *MessagePublication) VAAHash() string {
 // but here we want to validate that the value is strictly either 0x00 or 0x01.
 func validBinaryBool(b byte) bool {
 	return b == 0x00 || b == 0x01
+}
+
+// SafeRead reads from r with a size limit to prevent memory exhaustion attacks.
+// It returns an error if the input exceeds MaxSafeInputSize.
+func SafeRead(r io.Reader) ([]byte, error) {
+	// Create a LimitReader that allows reading up to MaxSafeInputSize + 1 bytes.
+	// The extra byte is specifically to detect if the input stream *exceeds* MaxSafeInputSize.
+	lr := io.LimitReader(r, MaxSafeInputSize+1)
+
+	//nolint:forbidigo // SafeRead is intended as a convenient and safe wrapper for ReadAll.
+	b, err := io.ReadAll(lr)
+	if err != nil {
+		// Propagate any actual read errors from the underlying reader.
+		return nil, err
+	}
+
+	// If the length of the read bytes is greater than MaxSafeInputSize,
+	// it means the original reader contained more data than allowed.
+	// In this case, we return an error instead of silently truncating.
+	if len(b) > MaxSafeInputSize {
+		return nil, ErrInputTooLarge
+	}
+
+	// If err was nil and len(b) <= MaxSafeInputSize, it means we read all
+	// available input (or up to the limit) without exceeding the maximum.
+	return b, nil
 }

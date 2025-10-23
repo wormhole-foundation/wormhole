@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"go.uber.org/zap"
 )
 
@@ -48,7 +49,7 @@ func panicIfError(e error) {
 }
 
 func serveCache(w http.ResponseWriter, req *http.Request, cacheDir string) (string, error) {
-	reqBody, err := io.ReadAll(req.Body)
+	reqBody, err := common.SafeRead(req.Body)
 	if err != nil {
 		return "", errors.New("error reading request")
 	}
@@ -72,7 +73,7 @@ func returnFile(w http.ResponseWriter, fileName string) {
 }
 
 func (s *ForwardingCachingServer) ProxyReq(_ *zap.Logger, req *http.Request) (*http.Request, error) {
-	reqBody, err := io.ReadAll(req.Body)
+	reqBody, err := common.SafeRead(req.Body)
 
 	if err != nil {
 		return nil, err
@@ -118,9 +119,15 @@ func (s *ForwardingCachingServer) RewriteReq(reqBody []byte) []byte {
 }
 
 func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	origReqBody, err := io.ReadAll(req.Body)
+	origReqBody, err := common.SafeRead(req.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Mock the status request to return a version
+	if bytes.Contains(origReqBody, []byte("\"method\": \"status\"")) {
+		_, _ = w.Write([]byte(`{"id": "dontcare", "jsonrpc": "2.0", "result": {"version": "1.0.0"}}`))
 		return
 	}
 
@@ -156,7 +163,7 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 			return
 		}
 		defer resp.Body.Close()
-		respBody, err := io.ReadAll(resp.Body)
+		respBody, err := common.SafeRead(resp.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return

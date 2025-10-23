@@ -107,6 +107,7 @@ jobs:
       RUSTFLAGS: -Dwarnings
       EMITTER_ADDRESS: CiByUvEcx7w2HA4VHcPCBUAFQ73Won9kB36zW9VjirSr
       BRIDGE_ADDRESS: Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+      CHAIN_ID: 1
 
     steps:
       - uses: actions/checkout@v3
@@ -297,7 +298,7 @@ jobs:
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.3.1
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
       - name: Run linters
         run: make generate && golangci-lint --version && ./scripts/lint.sh -g lint
       - name: Ensure generated proto matches

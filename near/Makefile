@@ -53,10 +53,7 @@ contracts/token-bridge/target/wasm32-unknown-unknown/release/near_token_bridge.w
 contracts/wormhole/target/wasm32-unknown-unknown/release/near_wormhole.wasm: contracts/wormhole/src/*.rs contracts/wormhole/Cargo.toml
 	cd contracts/wormhole; cargo build --target wasm32-unknown-unknown --release
 
-package-lock.json: package.json
-	npm install
-
-node_modules: package-lock.json
+node_modules:
 	touch -m node_modules
 	npm ci
 

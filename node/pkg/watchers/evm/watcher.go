@@ -166,6 +166,7 @@ type (
 	pendingMessage struct {
 		message          *common.MessagePublication
 		height           uint64
+		effectiveCL      uint8
 		additionalBlocks uint64
 	}
 )
@@ -339,6 +340,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	if w.ccqConfig.TimestampCacheSupported {
 		w.ccqTimestampCache = NewBlocksByTimestamp(BTS_MAX_BLOCKS, (w.env == common.UnsafeDevNet))
 	}
+
+	// Get the node version for troubleshooting
+	w.logVersion(ctx, logger)
 
 	errC := make(chan error)
 
@@ -522,7 +526,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				w.pendingMu.Lock()
 				for key, pLock := range w.pending {
 					// Don't process the observation if it is waiting on a different consistency level.
-					if !consistencyLevelMatches(thisConsistencyLevel, pLock.message.ConsistencyLevel) {
+					if !consistencyLevelMatches(thisConsistencyLevel, pLock.effectiveCL) {
 						continue
 					}
 
@@ -840,8 +844,9 @@ func (w *Watcher) postMessage(
 	}
 
 	pendingEntry := &pendingMessage{
-		message: msg,
-		height:  ev.Raw.BlockNumber,
+		message:     msg,
+		height:      ev.Raw.BlockNumber,
+		effectiveCL: ev.ConsistencyLevel, // Initially from event; may be overridden by CCL contract
 	}
 
 	if msg.ConsistencyLevel == vaa.ConsistencyLevelCustom {
@@ -859,8 +864,9 @@ func (w *Watcher) postMessage(
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint64("blockTime", blockTime),
 		zap.Uint32("Nonce", ev.Nonce),
-		zap.Uint8("OrigConsistencyLevel", ev.ConsistencyLevel),
-		zap.Uint8("ConsistencyLevel", pendingEntry.message.ConsistencyLevel),
+		zap.Uint8("OrigConsistencyLevel", ev.ConsistencyLevel),               // What was in the event
+		zap.Uint8("ConsistencyLevel", pendingEntry.message.ConsistencyLevel), // What goes into the observation
+		zap.Uint8("effectiveCL", pendingEntry.effectiveCL),                   // What was in the contract
 		zap.Uint64("AdditionalBlocks", pendingEntry.additionalBlocks),
 	)
 
@@ -1003,6 +1009,24 @@ func (w *Watcher) waitForBlockTime(ctx context.Context, logger *zap.Logger, errC
 			t.Reset(RetryInterval)
 		}
 	}
+}
+
+// logVersion runs the web3_clientVersion rpc and logs the node version
+func (w *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://ethereum.org/en/developers/docs/apis/json-rpc/#web3_clientversion
+	var version string
+	if err := w.ethConn.RawCallContext(ctx, &version, "web3_clientVersion"); err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", w.networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", version),
+		zap.String("network", w.networkName),
+	)
 }
 
 // msgIdFromLogEvent formats the message ID (chain/emitterAddress/seqNo) from a log event.

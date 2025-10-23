@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -390,7 +389,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 			if err != nil {
 				return fmt.Errorf("failed to query latest block: %w", err)
 			}
-			body, err := io.ReadAll(resp.Body)
+			body, err := common.SafeRead(resp.Body)
 			resp.Body.Close()
 			if err != nil {
 				return fmt.Errorf("failed to read latest block body: %w", err)
@@ -455,7 +454,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 				w.logger.Error("query tx response error", zap.String("chain", ce.chainName), zap.Error(err))
 				continue
 			}
-			txBody, err := io.ReadAll(resp.Body)
+			txBody, err := common.SafeRead(resp.Body)
 			if err != nil {
 				w.logger.Error("query tx response read error", zap.String("chain", ce.chainName), zap.Error(err))
 				resp.Body.Close()
@@ -531,6 +530,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 
 	str, err = attributes.GetAsString("action")
 	if err != nil || str != "receive_publish" {
+		//nolint:nilerr // Returning nil here just means that no `receive_publish` action exists. We don't want to continue processing in this case.
 		return nil, nil
 	}
 
@@ -747,7 +747,7 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read failed: %w", err)
 	}

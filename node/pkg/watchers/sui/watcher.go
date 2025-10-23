@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -310,6 +309,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 		zap.Bool("unsafeDevMode", e.unsafeDevMode),
 	)
 
+	// Get the node version for troubleshooting
+	e.logVersion(ctx, logger)
+
 	// Get the latest checkpoint sequence number.  This will be the starting point for the watcher.
 	latest, err := e.getLatestCheckpointSN(ctx, logger)
 	if err != nil {
@@ -581,7 +583,7 @@ func (e *Watcher) getLatestCheckpointSN(ctx context.Context, logger *zap.Logger)
 	if pErr != nil {
 		logger.Error("Failed to ParseInt")
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
-		return 0, fmt.Errorf("sui_getLatestCheckpointSequenceNumber failed to ParseInt, error: %w", err)
+		return 0, fmt.Errorf("sui_getLatestCheckpointSequenceNumber failed to ParseInt, error: %w", pErr)
 	}
 	return height, nil
 }
@@ -641,10 +643,50 @@ func (w *Watcher) createAndExecReq(ctx context.Context, payload string) ([]byte,
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to post: %w", err)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		return retVal, fmt.Errorf("createAndExecReq failed to read: %w", err)
 	}
 	resp.Body.Close()
 	return body, nil
+}
+
+// logVersion retrieves the Sui protocol version and logs it
+func (w *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// We can't get the exact build, but we can get the protocol version.
+	// From: https://www.quicknode.com/docs/sui/suix_getLatestSuiSystemState
+	networkName := "sui"
+	payload := `{"jsonrpc":"2.0", "id": 1, "method": "suix_getLatestSuiSystemState", "params": []}`
+
+	type getLatestSuiSystemStateResponse struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Result  struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		} `json:"result"`
+		ID int `json:"id"`
+	}
+	var result getLatestSuiSystemStateResponse
+
+	body, err := w.createAndExecReq(ctx, payload)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", result.Result.ProtocolVersion),
+		zap.String("network", "sui"),
+	)
 }

@@ -5,13 +5,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"golang.org/x/crypto/openpgp/armor" //nolint:staticcheck // Package is deprecated but we need it in the codebase still.
 )
@@ -49,7 +49,7 @@ func NewFileSigner(_ context.Context, unsafeDevMode bool, signerKeyPath string) 
 		return nil, fmt.Errorf("invalid block type: %s", p.Type)
 	}
 
-	b, err := io.ReadAll(p.Body)
+	b, err := common.SafeRead(p.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}

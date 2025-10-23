@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -39,7 +38,7 @@ func LoadArmoredKey(filename string, blockType string, unsafeDevMode bool) (*ecd
 		return nil, fmt.Errorf("invalid block type: %s", p.Type)
 	}
 
-	b, err := io.ReadAll(p.Body)
+	b, err := SafeRead(p.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}

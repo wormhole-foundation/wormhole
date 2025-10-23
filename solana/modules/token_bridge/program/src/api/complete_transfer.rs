@@ -23,7 +23,7 @@ use bridge::{
         Claim,
     },
     PayloadMessage,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use solana_program::account_info::AccountInfo;
 use solitaire::{
@@ -104,10 +104,10 @@ pub fn complete_native(
     if accs.vaa.token_address != accs.mint.info().key.to_bytes() {
         return Err(InvalidMint.into());
     }
-    if accs.vaa.token_chain != 1 {
+    if accs.vaa.token_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
@@ -133,9 +133,11 @@ pub fn complete_native(
         .checked_sub(fee)
         .ok_or(SolitaireError::InsufficientFunds)?;
 
+    let token_program = accs.mint.info().owner;
+
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
+        token_program,
         accs.custody.info().key,
         accs.to.info().key,
         accs.custody_signer.key,
@@ -144,9 +146,11 @@ pub fn complete_native(
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
+    let token_program = accs.mint.info().owner;
+
     // Transfer fees
     let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
+        token_program,
         accs.custody.info().key,
         accs.to_fees.info().key,
         accs.custody_signer.key,
@@ -230,7 +234,7 @@ pub fn complete_wrapped(
     }
 
     // Verify VAA
-    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+    if accs.vaa.to_chain != OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
     if accs.vaa.to != accs.to.info().key.to_bytes() {
@@ -249,9 +253,11 @@ pub fn complete_wrapped(
         .checked_sub(accs.vaa.fee.as_u64())
         .ok_or(SolitaireError::InsufficientFunds)?;
 
+    let token_program = accs.mint.info().owner;
+
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(
-        &spl_token::id(),
+        token_program,
         accs.mint.info().key,
         accs.to.info().key,
         accs.mint_authority.key,
@@ -262,7 +268,7 @@ pub fn complete_wrapped(
 
     // Mint fees
     let mint_ix = spl_token::instruction::mint_to(
-        &spl_token::id(),
+        token_program,
         accs.mint.info().key,
         accs.to_fees.info().key,
         accs.mint_authority.key,

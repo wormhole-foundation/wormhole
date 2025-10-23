@@ -11,6 +11,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -95,6 +96,7 @@ type G struct {
 	gst                *common.GuardianSetState
 	acct               *accountant.Accountant
 	gov                *governor.ChainGovernor
+	notary             *notary.Notary
 	gatewayRelayer     *gwrelayer.GatewayRelayer
 	queryHandler       *query.QueryHandler
 	publicrpcServer    *grpc.Server
@@ -251,6 +253,13 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			logger.Info("Starting governor")
 			if err := g.gov.Run(ctx); err != nil {
 				logger.Fatal("failed to create chain governor", zap.Error(err))
+			}
+		}
+
+		if g.notary != nil {
+			logger.Info("starting notary")
+			if err := g.notary.Run(); err != nil {
+				logger.Fatal("failed to create notary", zap.Error(err))
 			}
 		}
 

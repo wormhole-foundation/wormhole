@@ -97,6 +97,7 @@ message SignedObservationRequest {
 message ObservationRequest {
   uint32 chain_id = 1;
   bytes tx_hash = 2;
+  int64 timestamp = 3; 
 }
 
 // This message is published every five minutes.

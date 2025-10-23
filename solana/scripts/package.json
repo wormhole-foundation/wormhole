@@ -2,6 +2,7 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.10.18",
     "@coral-xyz/anchor": "^0.31.0",
+    "@solana/web3.js": "^1.98.4",
     "tsx": "^4.19.3"
   },
   "overrides": {

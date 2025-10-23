@@ -1,0 +1,21 @@
+[package]
+name = "token-metadata-parser"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "token_metadata_parser"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dev-dependencies]
+spl-token-2022 = "9.0"
+spl-token-metadata-interface = "0.7"
+spl-pod = "0.5"
+solana-program = "2.1"
+solana-sdk = "2.1"
+hex = "0.4"
+rand = "0.9.2"
