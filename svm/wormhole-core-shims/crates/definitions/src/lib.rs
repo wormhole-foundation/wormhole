@@ -201,7 +201,7 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 /// If you use this crate with a chain that support different finality modes,
 /// either just use `u8`, or define a a custom enum and an impl of this trait.
 pub trait EncodeFinality: Sized + Copy {
-/// Encode SVM finality into a byte.
+    /// Encode SVM finality into a byte.
     fn encode(&self) -> u8;
 
     /// Decode SVM finality from a byte.
@@ -283,7 +283,10 @@ macro_rules! derive_consts {
             solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_PROGRAM_ID_ARRAY);
 
         pub const CORE_BRIDGE_FEE_COLLECTOR_PDA: ([u8; 32], u8) =
-            const_crypto::ed25519::derive_program_address(&[crate::FEE_COLLECTOR_SEED], &CORE_BRIDGE_PROGRAM_ID_ARRAY);
+            const_crypto::ed25519::derive_program_address(
+                &[$crate::FEE_COLLECTOR_SEED],
+                &CORE_BRIDGE_PROGRAM_ID_ARRAY,
+            );
 
         pub const CORE_BRIDGE_FEE_COLLECTOR: solana_program::pubkey::Pubkey =
             solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_FEE_COLLECTOR_PDA.0);
@@ -292,7 +295,7 @@ macro_rules! derive_consts {
 
         pub const CORE_BRIDGE_CONFIG_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::CORE_BRIDGE_CONFIG_SEED],
+                &[$crate::CORE_BRIDGE_CONFIG_SEED],
                 &CORE_BRIDGE_PROGRAM_ID_ARRAY,
             );
 
@@ -306,7 +309,7 @@ macro_rules! derive_consts {
 
         const POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::EVENT_AUTHORITY_SEED],
+                &[$crate::EVENT_AUTHORITY_SEED],
                 &POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY,
             );
 

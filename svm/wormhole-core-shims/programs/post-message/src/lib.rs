@@ -220,6 +220,7 @@ fn process_post_message(accounts: &[AccountInfo]) -> ProgramResult {
         // Safety: The capacity of this vector is 60. This data will be
         // overwritten for the next CPI call.
         unsafe {
+            #[allow(clippy::ptr_offset_with_cast)]
             core::ptr::write_bytes(
                 cpi_data
                     .as_mut_ptr()
