@@ -139,6 +139,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"OptimismSepolia", vaa.ChainIDOptimismSepolia},
 		{"Holesky", vaa.ChainIDHolesky},
 		{"PolygonSepolia", vaa.ChainIDPolygonSepolia},
+		// The special or bespoke chains (20000 range) are not included here.
 	}
 
 	if len(only) > 0 {

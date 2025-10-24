@@ -152,6 +152,8 @@ func (c ChainID) String() string {
 		return "holesky"
 	case ChainIDPolygonSepolia:
 		return "polygon_sepolia"
+	case ChainIDHyperCore:
+		return "hypercore"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -302,6 +304,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDHolesky, nil
 	case "polygon_sepolia":
 		return ChainIDPolygonSepolia, nil
+	case "hypercore":
+		return ChainIDHyperCore, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -380,5 +384,6 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDOptimismSepolia,
 		ChainIDHolesky,
 		ChainIDPolygonSepolia,
+		ChainIDHyperCore,
 	}
 }
