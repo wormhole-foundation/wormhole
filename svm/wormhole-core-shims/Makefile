@@ -22,7 +22,15 @@ build: solana-install
 		echo "Error: SVM must be defined" >&2; \
 		exit 1; \
 	fi
-	solana-verify build -- --features "$(BUILD_FEATURES)"
+	@if [ "$(SVM)" = "from-env" ]; then \
+		if [ -z "$(ENV_CONFIG)" ]; then \
+			echo "Error: ENV_CONFIG must be defined when passing in chain and program ids from environment" >&2; \
+			exit 1; \
+		fi; \
+		solana-verify build -- --features "$(BUILD_FEATURES)" --config "$(ENV_CONFIG)"; \
+	else \
+		solana-verify build -- --features "$(BUILD_FEATURES)"; \
+	fi
 	solana-verify get-executable-hash target/deploy/wormhole_post_message_shim.so
 	solana-verify get-executable-hash target/deploy/wormhole_verify_vaa_shim.so
 
