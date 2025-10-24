@@ -11,10 +11,11 @@ import (
 )
 
 type WatcherConfig struct {
-	NetworkID        watchers.NetworkID // human readable name
-	ChainID          vaa.ChainID        // ChainID
-	Rpc              string
-	SuiMoveEventType string
+	NetworkID         watchers.NetworkID // human readable name
+	ChainID           vaa.ChainID
+	Rpc               string
+	SuiMoveEventType  string
+	TxVerifierEnabled bool
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -36,5 +37,15 @@ func (wc *WatcherConfig) Create(
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
 	var devMode = (env == common.UnsafeDevNet)
 
-	return NewWatcher(wc.Rpc, wc.SuiMoveEventType, devMode, msgC, obsvReqC).Run, nil, nil
+	watcher, err := NewWatcher(
+		wc.Rpc,
+		wc.SuiMoveEventType,
+		devMode,
+		msgC,
+		obsvReqC,
+		env,
+		wc.TxVerifierEnabled,
+	)
+
+	return watcher.Run, nil, err
 }
