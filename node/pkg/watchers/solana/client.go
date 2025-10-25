@@ -402,6 +402,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		}
 	}
 
+	// Get the node version for troubleshooting
+	s.logVersion(ctx, logger)
+
 	common.RunWithScissors(ctx, s.errC, "SolanaWatcher", func(ctx context.Context) error {
 		timer := time.NewTicker(pollInterval)
 		defer timer.Stop()
@@ -1168,6 +1171,24 @@ func (s *SolanaWatcher) checkCommitment(commitment rpc.CommitmentType, isReobser
 		}
 	}
 	return true
+}
+
+// logVersion runs the getVersion rpc and logs the node version.
+func (s *SolanaWatcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://docs.solana.com/api/http#getversion
+	v, err := s.rpcClient.GetVersion(ctx)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", s.networkName),
+		)
+		return
+	}
+	logger.Info("node version",
+		zap.String("network", s.networkName),
+		zap.Int64("feature_set", v.FeatureSet),
+		zap.String("version", v.SolanaCore),
+	)
 }
 
 // isPossibleWormholeMessage searches the logs on a transaction to see if it contains a Wormhole core PostMessage.

@@ -26,7 +26,7 @@ use bridge::{
     api::PostMessageData,
     types::ConsistencyLevel,
     vaa::SerializePayload,
-    CHAIN_ID_SOLANA,
+    OUR_CHAIN_ID,
 };
 use primitive_types::U256;
 use solana_program::{
@@ -45,6 +45,7 @@ use solana_program::{
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
+        CreatableWithOwner,
         Seeded,
     },
     CreationLamports::Exempt,
@@ -110,7 +111,7 @@ pub fn transfer_native(
     data: TransferNativeData,
 ) -> Result<()> {
     // Prevent transferring to the same chain.
-    if data.target_chain == CHAIN_ID_SOLANA {
+    if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 
@@ -134,7 +135,7 @@ pub fn transfer_native(
     let payload = PayloadTransfer {
         amount: U256::from(amount),
         token_address: accs.mint.info().key.to_bytes(),
-        token_chain: CHAIN_ID_SOLANA,
+        token_chain: OUR_CHAIN_ID,
         to: data.target_address,
         to_chain: data.target_chain,
         fee: U256::from(fee),
@@ -203,11 +204,13 @@ pub fn verify_and_execute_native_transfers(
         }
     }
 
+    let token_program = mint.info().owner;
+
     if !custody.is_initialized() {
-        custody.create(derivation_data, ctx, payer.key, Exempt)?;
+        custody.create_with_owner(token_program, derivation_data, ctx, payer.key, Exempt)?;
 
         let init_ix = spl_token::instruction::initialize_account(
-            &spl_token::id(),
+            token_program,
             custody.info().key,
             mint.info().key,
             custody_signer.key,
@@ -222,9 +225,12 @@ pub fn verify_and_execute_native_transfers(
     // Untruncate the amount to drop the remainder so we don't  "burn" user's funds.
     let amount_trunc: u64 = amount * trunc_divisor;
 
+    // the token program is the owner of the mint account (either spl or token2022)
+    let token_program = mint.info().owner;
+
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
+        token_program,
         from.info().key,
         custody.info().key,
         authority_signer.key,
@@ -277,7 +283,7 @@ pub struct TransferWrapped<'b> {
 impl<'a> From<&TransferWrapped<'a>> for WrappedDerivationData {
     fn from(accs: &TransferWrapped<'a>) -> Self {
         WrappedDerivationData {
-            token_chain: 1,
+            token_chain: OUR_CHAIN_ID,
             token_address: accs.mint.info().key.to_bytes(),
         }
     }
@@ -306,7 +312,7 @@ pub fn transfer_wrapped(
     data: TransferWrappedData,
 ) -> Result<()> {
     // Prevent transferring to the same chain.
-    if data.target_chain == CHAIN_ID_SOLANA {
+    if data.target_chain == OUR_CHAIN_ID {
         return Err(InvalidChain.into());
     }
 
@@ -397,9 +403,11 @@ pub fn verify_and_execute_wrapped_transfers(
     // Verify that meta is correct
     wrapped_meta.verify_derivation(ctx.program_id, derivation_data)?;
 
+    let token_program = mint.info().owner;
+
     // Burn tokens
     let burn_ix = spl_token::instruction::burn(
-        &spl_token::id(),
+        token_program,
         from.info().key,
         mint.info().key,
         authority_signer.key,

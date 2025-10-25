@@ -70,12 +70,15 @@ type CCLMap map[vaa.ChainID]string
 var (
 	// cclMainnetMap specifies the custom consistency level contracts for each mainnet chain.
 	cclMainnetMap = CCLMap{
-		vaa.ChainIDLinea: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDEthereum: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDLinea:    "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
 	}
 
 	// cclTestnetMap specifies the custom consistency level contracts for each testnet chain.
 	cclTestnetMap = CCLMap{
-		vaa.ChainIDLinea: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDEthereum: "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDSepolia:  "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
+		vaa.ChainIDLinea:    "0x6A4B4A882F5F0a447078b4Fd0b4B571A82371ec2",
 	}
 
 	// cclDevnetMap specifies the custom consistency level contracts for each devnet chain.
@@ -138,7 +141,7 @@ func (w *Watcher) cclEnable(ctx context.Context) error {
 func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage, emitterAddr ethCommon.Address) {
 	if !w.cclEnabled {
 		w.cclLogger.Error("received an observation with custom handling but the feature is not enabled, treating as finalized", zap.String("msgId", pe.message.MessageIDString()))
-		pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
+		pe.effectiveCL = vaa.ConsistencyLevelFinalized
 		return
 	}
 
@@ -153,14 +156,16 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 	r, err := w.cclReadAndParseConfig(parentCtx, emitterAddr)
 	if err != nil {
 		w.cclLogger.Error("failed to look up config for custom handling, treating as finalized", zap.String("msgId", pe.message.MessageIDString()), zap.Error(err))
-		pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
+		// If one guardian has an error reading the config, but others do not, they will produce different VAA hashes.
+		// To avoid that, we set the effectiveCL to finalized, but leave the message.ConsistencyLevel as Custom.
+		pe.effectiveCL = vaa.ConsistencyLevelFinalized
 		return
 	}
 
 	switch req := r.(type) {
 	case *NothingSpecial:
 		w.cclLogger.Info("received an observation with the nothing special specifier, treating as finalized", zap.String("msgId", pe.message.MessageIDString()))
-		pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
+		pe.effectiveCL = vaa.ConsistencyLevelFinalized
 	case *AdditionalBlocks:
 		if req.consistencyLevel != vaa.ConsistencyLevelFinalized && req.consistencyLevel != vaa.ConsistencyLevelSafe && req.consistencyLevel != vaa.ConsistencyLevelPublishImmediately {
 			w.cclLogger.Error("received an observation with an additional blocks specifier but the configured consistency level is invalid, treating as finalized",
@@ -168,7 +173,7 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 				zap.Uint8("consistencyLevel", req.consistencyLevel),
 				zap.Uint16("additionalBlocks", req.additionalBlocks),
 			)
-			pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
+			pe.effectiveCL = vaa.ConsistencyLevelFinalized
 			return
 		}
 
@@ -177,11 +182,11 @@ func (w *Watcher) cclHandleMessage(parentCtx context.Context, pe *pendingMessage
 			zap.Uint8("consistencyLevel", req.consistencyLevel),
 			zap.Uint16("additionalBlocks", req.additionalBlocks),
 		)
-		pe.message.ConsistencyLevel = req.consistencyLevel
+		pe.effectiveCL = req.consistencyLevel
 		pe.additionalBlocks = uint64(req.additionalBlocks)
 	default:
 		w.cclLogger.Error("invalid custom handling type, treating as finalized", zap.Stringer("emitterAddress", emitterAddr), zap.Uint8("reqType", uint8(req.Type())), zap.Error(err))
-		pe.message.ConsistencyLevel = vaa.ConsistencyLevelFinalized
+		pe.effectiveCL = vaa.ConsistencyLevelFinalized
 	}
 }
 

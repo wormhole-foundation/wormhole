@@ -51,7 +51,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 			pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
 
 			if pubErr != nil {
-				w.logger.Error("Error when publishing message", zap.Error(err))
+				w.logger.Error("Error when publishing message", zap.Error(pubErr))
 			} else {
 				numObservations++
 			}
@@ -79,7 +79,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 				pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
 
 				if pubErr != nil {
-					w.logger.Error("Error when publishing message", zap.Error(err))
+					w.logger.Error("Error when publishing message", zap.Error(pubErr))
 					// Avoid increasing the observations metrics for messages that weren't published.
 					continue
 				}
@@ -125,7 +125,7 @@ func (w *Watcher) handleReobservationRequest(ctx context.Context, chainId vaa.Ch
 			pubErr := w.verifyAndPublish(msg, ctx, eth_common.BytesToHash(msg.TxID), receipt)
 
 			if pubErr != nil {
-				w.logger.Error("Error when publishing message", zap.Error(err))
+				w.logger.Error("Error when publishing message", zap.Error(pubErr))
 			} else {
 				numObservations++
 			}

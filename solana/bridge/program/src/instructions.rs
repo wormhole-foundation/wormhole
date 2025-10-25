@@ -44,7 +44,7 @@ use crate::{
     UpgradeContractData,
     UpgradeGuardianSetData,
     VerifySignaturesData,
-    CHAIN_ID_GOVERANCE,
+    CHAIN_ID_GOVERNANCE,
 };
 
 pub fn initialize(
@@ -254,7 +254,7 @@ pub fn upgrade_contract(
     let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
-            emitter_chain: CHAIN_ID_GOVERANCE,
+            emitter_chain: CHAIN_ID_GOVERNANCE,
             sequence,
         },
         &program_id,
@@ -308,7 +308,7 @@ pub fn upgrade_guardian_set(
     let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
-            emitter_chain: CHAIN_ID_GOVERANCE,
+            emitter_chain: CHAIN_ID_GOVERNANCE,
             sequence,
         },
         &program_id,
@@ -357,7 +357,7 @@ pub fn set_fees(
     let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
-            emitter_chain: CHAIN_ID_GOVERANCE,
+            emitter_chain: CHAIN_ID_GOVERNANCE,
             sequence,
         },
         &program_id,
@@ -392,7 +392,7 @@ pub fn transfer_fees(
     let claim = Claim::<'_>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
-            emitter_chain: CHAIN_ID_GOVERANCE,
+            emitter_chain: CHAIN_ID_GOVERNANCE,
             sequence,
         },
         &program_id,

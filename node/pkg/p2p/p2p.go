@@ -535,6 +535,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							for _, v := range DefaultRegistry.networkStats {
 								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
+								lastVaaTs := DefaultRegistry.GetLastObservationSignedAtTimestamp(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
+								v.LastObservationSignedAt = lastVaaTs
 								networks = append(networks, v)
 							}
 
