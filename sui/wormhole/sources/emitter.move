@@ -132,7 +132,7 @@ module wormhole::emitter_tests {
 
         // And check emitter cap's address.
         let expected =
-            @0x75c3360eb19fd2c20fbba5e2da8cf1a39cdb1ee913af3802ba330b852e459e05;
+            @0xeefed4f2b7f6ad5f65d6ea2eef50b4f1d1e98c39ca8eecbc9736da801b8387e6;
         assert!(object::id_to_address(&object::id(&cap)) == expected, 0);
 
         // Clean up.
