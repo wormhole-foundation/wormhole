@@ -13,7 +13,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -54,18 +56,57 @@ var hostnames = []string{
 const saveFile = "./lkg/lkg.json"
 const specificKeysFolder = "5-servers"
 
-type LKGConfig SetupConfigs
+var prepareForLocalDKG = false
+
+type dkgTest struct {
+	hostnames  []string
+	saveFolder string
+
+	forLocalDKG               bool
+	storeIntoInternalTestData bool
+}
+
+func getCurrentFilePath(t *testing.T) string {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Unable to get the current test file path")
+	}
+
+	// The path returned by runtime.Caller might be relative.
+	// We use filepath.Abs to ensure we get the absolute path.
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		t.Fatalf("Unable to get the absolute path: %v", err)
+	}
+
+	// remove the filename to get the directory
+	return filepath.Dir(absPath)
+}
 
 func TestMain(t *testing.T) {
 	t.Skip("skipping main test, use specific tests instead")
 
-	t.Run("CreateLKGConfigs", createLKGConfigs)
+	tt := dkgTest{
+		hostnames:   hostnames,
+		saveFolder:  path.Join("dkg"),
+		forLocalDKG: true,
+	}
+	t.Run("CreateDKGConfigs", tt.createDKGConfigs)
 
-	t.Run("shoveKeysToPosition", shoveKeys)
+	//get file location:
 
-	t.Run("storeGuardiansForTest", storeTestGuardians)
+	tt = dkgTest{
+		hostnames:                 hostnames,
+		saveFolder:                path.Join(getCurrentFilePath(t), "dkg"), // workingdir
+		forLocalDKG:               true,
+		storeIntoInternalTestData: true,
+	}
+	t.Run("RunDKG", tt.RunDKG)
+	// t.Run("shoveKeysToPosition", shoveKeys)
 
-	t.Run("scpSecretsToServers", sendToServers)
+	// t.Run("storeGuardiansForTest", storeTestGuardians)
+
+	// t.Run("scpSecretsToServers", sendToServers)
 }
 
 func storeTestGuardians(t *testing.T) {
@@ -201,12 +242,12 @@ func sendToServers(t *testing.T) {
 	fmt.Println("done sending files")
 }
 
-func loadConfigs(t *testing.T) LKGConfig {
+func loadConfigs(t *testing.T) SetupConfigs {
 	bts, err := os.ReadFile(saveFile)
 	if err != nil {
 		t.Fatalf("failed to read file: %v", err)
 	}
-	var cnfg LKGConfig
+	var cnfg SetupConfigs
 	if err := json.Unmarshal(bts, &cnfg); err != nil {
 		t.Fatalf("failed to unmarshal config: %v", err)
 	}
@@ -263,14 +304,10 @@ func shoveKeys(t *testing.T) {
 	// })
 }
 
-func createLKGConfigs(t *testing.T) {
-	if _, err := os.Stat(saveFile); err == nil {
-		t.Fatalf("lkg.json already exists in lkg dir")
-	} else if !os.IsNotExist(err) {
-		t.Fatalf("unexpected error: %v", err)
-	}
+func (d dkgTest) createDKGConfigs(t *testing.T) {
+	hostnames := d.hostnames
 
-	cnfg := LKGConfig{
+	mainCnf := SetupConfigs{
 		NumParticipants: len(hostnames),
 		WantedThreshold: 2*(len(hostnames)/3) + 1,
 		Peers:           make([]Identifier, len(hostnames)),
@@ -279,22 +316,136 @@ func createLKGConfigs(t *testing.T) {
 	}
 
 	for i, hostname := range hostnames {
+		port := 8998
+		if d.forLocalDKG {
+			port += i
+			hostname = "localhost"
+			mainCnf.SaveLocation[i] = fmt.Sprintf("guardian%d", i)
+		}
 		sk, cert := createTLSCert(hostname)
-		cnfg.Peers[i] = Identifier{
+		mainCnf.Peers[i] = Identifier{
 			Hostname: hostname,
 			TlsX509:  cert,
+			Port:     port,
 		}
-		cnfg.SaveLocation[i] = extractRegion(hostname)
-		cnfg.Secrets[i] = internal.PrivateKeyToPem(sk)
+
+		mainCnf.Secrets[i] = internal.PrivateKeyToPem(sk)
 	}
 
-	bts, err := json.MarshalIndent(cnfg, "", "  ")
+	for i := range hostnames {
+		output := fmt.Sprintf("guardian%d", i)
+		cnfg := SetupConfigs{
+			NumParticipants: mainCnf.NumParticipants,
+			WantedThreshold: mainCnf.WantedThreshold,
+			Self:            mainCnf.Peers[i],
+			SelfSecret:      mainCnf.Secrets[i],
+			StorageLocation: output,
+			Peers:           mainCnf.Peers,
+		}
+
+		bts, err := json.MarshalIndent(cnfg, "", "  ")
+		if err != nil {
+			t.Fatalf("failed to marshal config: %v", err)
+		}
+
+		if err := os.MkdirAll(d.saveFolder, 0777); err != nil {
+			t.Fatalf("failed to create directory: %v", err)
+		}
+
+		savepath := path.Join(d.saveFolder, strconv.Itoa(i)+".json")
+		if err := os.WriteFile(savepath, bts, 0644); err != nil {
+			t.Fatalf("failed to write file: %v", err)
+		}
+	}
+}
+
+func (d dkgTest) RunDKG(t *testing.T) {
+	errs := make(chan error, len(d.hostnames))
+
+	initialWd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("failed to marshal config: %v", err)
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(initialWd); err != nil {
+			t.Fatalf("failed to restore working directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(d.saveFolder); err != nil {
+		t.Fatalf("failed to change working directory: %v", err)
 	}
 
-	if err := os.WriteFile(saveFile, bts, 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
+	for i := range d.hostnames {
+		serverPath := "server.go"
+		configPath := strconv.Itoa(i) + ".json"
+		// call go run ./dkg --config=<configPath>
+
+		args := []string{
+			"run",
+			serverPath,
+			"-cnfg", configPath,
+		}
+
+		// in parallel
+		cmd := exec.Command("go", args...)
+
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("failed to start command: %v", err)
+		}
+
+		fmt.Println("running command:", cmd.String())
+
+		go func(cmd *exec.Cmd, index int) {
+			// Wait for command to finish and send error (if any) back to the main goroutine.
+			if err := cmd.Wait(); err != nil {
+				errs <- fmt.Errorf("command %d failed: %v", index, err)
+				return
+			}
+			errs <- nil
+		}(cmd, i)
+	}
+
+	fmt.Println("all commands started, waiting for results...")
+	time.Sleep(time.Second)
+	// collect results and fail from the test goroutine if any command failed
+	for i := 0; i < len(d.hostnames); i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("failed running dkg: %v", err)
+		}
+	}
+
+	if !d.storeIntoInternalTestData {
+		return
+	}
+	// store the guardians into internal/testutils/testdata/dkg5
+	mainFolder := "tss5"
+	resultDir := path.Join("..", "..", "..", "..", "internal", "testutils", "testdata", mainFolder)
+	cleanResultFolder(t, resultDir)
+
+	for i := range d.hostnames {
+		saveLocation := fmt.Sprintf("guardian%d", i)
+		_path := path.Join(d.saveFolder, saveLocation, "secrets.json")
+
+		//read the file into a GuardianStorage struct
+		gst, err := engine.NewGuardianStorageFromFile(_path)
+		if err != nil {
+			t.Fatalf("failed to read guardian storage from file: %v", err)
+		}
+
+		// store into result dir:
+		filename := fmt.Sprintf("guardian%d.json", i)
+		filepath := path.Join(resultDir, filename)
+		bts, err := json.MarshalIndent(gst, "", "  ")
+		if err != nil {
+			t.Fatalf("failed to marshal guardian storage: %v", err)
+		}
+		if err := os.WriteFile(filepath, bts, 0644); err != nil {
+			t.Fatalf("failed to write guardian storage to file: %v", err)
+		}
 	}
 }
 
