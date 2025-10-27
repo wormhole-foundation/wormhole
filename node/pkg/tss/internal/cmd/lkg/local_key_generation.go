@@ -21,9 +21,10 @@ import (
 	"github.com/xlabs/multi-party-sig/pkg/math/sample"
 	"github.com/xlabs/multi-party-sig/pkg/party"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
+	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 )
 
-var cnfgPath = flag.String("cnfg", "", "path to config file in json format used to run the protocol")
+var cnfgPath = flag.String("cnfg", "/workspaces/wormhole/node/pkg/tss/internal/cmd/lkg/lkg.json", "path to config file in json format used to run the protocol")
 
 func main() {
 	flag.Parse()
@@ -62,7 +63,8 @@ type dkgPlayer struct {
 	self *engine.Identity
 	ids  engine.IdentitiesKeep
 
-	selfCert []byte
+	selfCert   []byte
+	certKeyPEM []byte
 
 	// same for all guardians // generated here.
 	loadDistributionKey []byte
@@ -90,9 +92,8 @@ func Run(cnfg *cmd.SetupConfigs) {
 // this function simulates the results of running a DKG protocol.
 func simulateDKG(all []*dkgPlayer, threshold int) {
 	group := curve.Secp256k1{}
-	secret := sample.Scalar(rand.Reader, group)
-	f := polynomial.NewPolynomial(group, threshold, secret)
-	publicKey := secret.ActOnBase()
+
+	publicKey, f := makefrostKey(group, threshold)
 
 	privateShares := make(map[party.ID]curve.Scalar, len(all))
 	for _, p := range all {
@@ -135,7 +136,7 @@ func simulateDKG(all []*dkgPlayer, threshold int) {
 			Configurations: engine.Configurations{},
 			Self:           p.self,
 			TlsX509:        p.selfCert,
-			PrivateKey:     nil, // each guardian stores this by themselves.
+			PrivateKey:     p.certKeyPEM,
 			IdentitiesKeep: p.ids,
 			Threshold:      threshold,
 			// SavedSecretParameters: ,
@@ -156,17 +157,30 @@ func simulateDKG(all []*dkgPlayer, threshold int) {
 			panic("")
 		}
 
-		if err := os.MkdirAll(all[i].whereToStore, 0600); err != nil {
+		if err := os.MkdirAll(all[i].whereToStore, 0700); err != nil {
 			panic("Failed to create directory: " + err.Error())
 		}
 
 		fname := path.Join(all[i].whereToStore, "secrets.json")
 
-		if err := os.WriteFile(fname, bts, 0777); err != nil {
+		if err := os.WriteFile(fname, bts, 0600); err != nil {
 			panic("Failed to write to disk: " + err.Error())
 		}
 	}
 
+}
+
+func makefrostKey(group curve.Secp256k1, threshold int) (curve.Point, *polynomial.Polynomial) {
+	for range 128 {
+		secret := sample.Scalar(rand.Reader, group)
+		f := polynomial.NewPolynomial(group, threshold, secret)
+		publicKey := secret.ActOnBase()
+		if sign.PublicKeyValidForContract(publicKey) {
+			return publicKey, f
+		}
+	}
+
+	panic("could not generate a valid frost key after 128 attempts")
 }
 
 func setupPlayers(cnfg *cmd.SetupConfigs) ([]*dkgPlayer, error) {
@@ -203,12 +217,13 @@ func setupPlayers(cnfg *cmd.SetupConfigs) ([]*dkgPlayer, error) {
 
 		// peerContext := tss.NewPeerContext(sortedPids)
 
-		gspecific := mp[string(id.Pid.GetID())]
+		gspecific := mp[string(id.KeyPEM)]
 
 		p := &dkgPlayer{
 			self:                id,
 			whereToStore:        cnfg.SaveLocation[index],
 			selfCert:            gspecific.TlsX509,
+			certKeyPEM:          cnfg.Secrets[index],
 			loadDistributionKey: tmp,
 
 			ids: engine.IdentitiesKeep{

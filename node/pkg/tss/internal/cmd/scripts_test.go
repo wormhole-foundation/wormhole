@@ -93,61 +93,25 @@ func TestMain(t *testing.T) {
 	}
 	t.Run("CreateDKGConfigs", tt.createDKGConfigs)
 
-	//get file location:
-
 	tt = dkgTest{
-		hostnames:                 hostnames,
+		hostnames: hostnames,
+		// for ease of debug, not using full path.
 		saveFolder:                path.Join(getCurrentFilePath(t), "dkg"), // workingdir
 		forLocalDKG:               true,
 		storeIntoInternalTestData: true,
 	}
 	t.Run("RunDKG", tt.RunDKG)
-	// t.Run("shoveKeysToPosition", shoveKeys)
 
-	// t.Run("storeGuardiansForTest", storeTestGuardians)
+	tt = dkgTest{
+		hostnames: hostnames,
+		// for ease of debug, not using full path.
+		saveFolder:                path.Join(getCurrentFilePath(t), "lkg"), // workingdir
+		forLocalDKG:               false,
+		storeIntoInternalTestData: false,
+	}
+	t.Run("CreateLKGConfigs", tt.createLKGConfigs)
 
 	// t.Run("scpSecretsToServers", sendToServers)
-}
-
-func storeTestGuardians(t *testing.T) {
-	cnfg := loadConfigs(t)
-
-	mainFolder := "tss5"
-	resultDir := path.Join("..", "..", "..", "internal", "testutils", "testdata", mainFolder)
-	cleanResultFolder(t, resultDir)
-
-	// if err := os.MkdirAll(_path, 0755); err != nil {
-	// 	t.Fatalf("failed to create directory: %v", err)
-	// }
-	for i := range cnfg.Peers {
-		// guardian := cnfg.Peers[i]
-		saveLocation := cnfg.SaveLocation[i]
-		if saveLocation == "" {
-			t.Fatalf("guardian %d has empty WhereToSaveSecrets", i)
-		}
-
-		_path := path.Join("setkey", "keys", specificKeysFolder, saveLocation)
-		lkgpath := path.Join(_path, "secrets.json")
-
-		//read the file into a GuardianStorage struct
-		gst, err := engine.NewGuardianStorageFromFile(lkgpath)
-		if err != nil {
-			t.Fatalf("failed to read guardian storage from file: %v", err)
-		}
-
-		fileIndex := gst.Self.CommunicationIndex
-		fmt.Println("guardian index:", fileIndex)
-
-		bts, err := json.MarshalIndent(gst, "", "  ")
-		if err != nil {
-			t.Fatalf("failed to marshal guardian storage: %v", err)
-		}
-		guardianFileName := fmt.Sprintf("guardian%d.json", fileIndex)
-		guardianFilePath := path.Join(resultDir, guardianFileName)
-		if err := os.WriteFile(guardianFilePath, bts, 0644); err != nil {
-			t.Fatalf("failed to write guardian storage to file: %v", err)
-		}
-	}
 }
 
 func cleanResultFolder(t *testing.T, resultDir string) {
@@ -254,85 +218,24 @@ func loadConfigs(t *testing.T) SetupConfigs {
 	return cnfg
 }
 
-func shoveKeys(t *testing.T) {
-	cnfg := loadConfigs(t)
-	// TODO
-	// var secretkeypath = flag.String("key", "", "path to the secret key PEM file")
-	// var lkgSecrets = flag.String("lkg", "", "path to the LKG secrets json file")
+func (d dkgTest) createLKGConfigs(t *testing.T) {
+	cnfg := d.createLKG(t)
 
-	for i := range cnfg.Peers {
-
-		saveLocation := cnfg.SaveLocation[i]
-		if saveLocation == "" {
-			t.Fatalf("guardian %d has empty WhereToSaveSecrets", i)
-		}
-
-		_path := path.Join(".", "setkey", "keys", specificKeysFolder, saveLocation)
-
-		secretKey := cnfg.Secrets[i]
-		keypath := path.Join(_path, "key.pem")
-		if err := os.WriteFile(
-			keypath,
-			secretKey,
-			0644,
-		); err != nil {
-			t.Fatalf("failed to write file: %v", err)
-		}
-
-		lkgpath := path.Join(_path, "secrets.json")
-
-		args := []string{
-			"run", "./setkey",
-			"--key=" + keypath,
-			"--lkg=" + lkgpath,
-		}
-
-		cmd := exec.Command("go", args...)
-
-		// Link the binary's stdout/stderr to your Go program's output
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("failed to run command: %v", err)
-		}
+	// store
+	bts, err := json.MarshalIndent(cnfg, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
 	}
 
-	// setkey.Main([]string{
-	// 	"-key", "../lkg/lkg.json",
-	// 	"-lkg", saveFile,
-	// })
+	if err := os.WriteFile(path.Join(d.saveFolder, "lkg.json"), bts, 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 }
 
 func (d dkgTest) createDKGConfigs(t *testing.T) {
-	hostnames := d.hostnames
+	mainCnf := d.createLKG(t)
 
-	mainCnf := SetupConfigs{
-		NumParticipants: len(hostnames),
-		WantedThreshold: 2*(len(hostnames)/3) + 1,
-		Peers:           make([]Identifier, len(hostnames)),
-		Secrets:         make([]engine.PEM, len(hostnames)),
-		SaveLocation:    make([]string, len(hostnames)),
-	}
-
-	for i, hostname := range hostnames {
-		port := 8998
-		if d.forLocalDKG {
-			port += i
-			hostname = "localhost"
-			mainCnf.SaveLocation[i] = fmt.Sprintf("guardian%d", i)
-		}
-		sk, cert := createTLSCert(hostname)
-		mainCnf.Peers[i] = Identifier{
-			Hostname: hostname,
-			TlsX509:  cert,
-			Port:     port,
-		}
-
-		mainCnf.Secrets[i] = internal.PrivateKeyToPem(sk)
-	}
-
-	for i := range hostnames {
+	for i := range d.hostnames {
 		output := fmt.Sprintf("guardian%d", i)
 		cnfg := SetupConfigs{
 			NumParticipants: mainCnf.NumParticipants,
@@ -357,6 +260,38 @@ func (d dkgTest) createDKGConfigs(t *testing.T) {
 			t.Fatalf("failed to write file: %v", err)
 		}
 	}
+}
+
+func (d dkgTest) createLKG(t *testing.T) SetupConfigs {
+	hostnames := d.hostnames
+
+	mainCnf := SetupConfigs{
+		NumParticipants: len(hostnames),
+		WantedThreshold: 2*(len(hostnames)/3) + 1,
+		Peers:           make([]Identifier, len(hostnames)),
+		Secrets:         make([]engine.PEM, len(hostnames)),
+		SaveLocation:    make([]string, len(hostnames)),
+	}
+
+	for i, hostname := range hostnames {
+		port := 8998
+		if d.forLocalDKG {
+			port += i
+			hostname = "localhost"
+			mainCnf.SaveLocation[i] = fmt.Sprintf("guardian%d", i)
+		} else {
+			mainCnf.SaveLocation[i] = extractRegion(hostname)
+		}
+		sk, cert := createTLSCert(hostname)
+		mainCnf.Peers[i] = Identifier{
+			Hostname: hostname,
+			TlsX509:  cert,
+			Port:     port,
+		}
+
+		mainCnf.Secrets[i] = internal.PrivateKeyToPem(sk)
+	}
+	return mainCnf
 }
 
 func (d dkgTest) RunDKG(t *testing.T) {
