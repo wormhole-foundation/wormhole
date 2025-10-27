@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
+	"strconv"
 
 	tsscommv1 "github.com/certusone/wormhole/node/pkg/proto/tsscomm/v1"
 	"github.com/certusone/wormhole/node/pkg/tss"
@@ -27,7 +29,41 @@ type DirectLink interface {
 	WaitForConnections(ctx context.Context) error
 }
 
-func NewServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableMessenger) (DirectLink, error) {
+func NewServer(logger *zap.Logger, tssMessenger tss.ReliableMessenger) (DirectLink, error) {
+	cert := tssMessenger.GetCertificate()
+	if cert == nil {
+		return nil, errors.New("tssMessenger returned nil certificate")
+	}
+
+	selfID, err := tssMessenger.FetchIdentity(cert.Leaf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch self identity from tssMessenger: %w", err)
+	}
+
+	port := selfID.Port
+	if port == 0 {
+		p, err := strconv.Atoi(tss.DefaultPort)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse default port: %w", err)
+		}
+
+		port = p
+	}
+
+	return newServer(fmt.Sprintf("[::]:%d", port), logger, tssMessenger)
+}
+
+func newServer(socketPath string, logger *zap.Logger, tssMessenger tss.ReliableMessenger) (DirectLink, error) {
+	if socketPath == "" {
+		return nil, errors.New("can't create DirectLink server: socketPath is empty")
+	}
+	if logger == nil {
+		return nil, errors.New("can't create DirectLink server: logger is nil")
+	}
+	if tssMessenger == nil {
+		return nil, errors.New("can't create DirectLink server: tssMessenger is nil")
+	}
+
 	peers := tssMessenger.GetPeers()
 	partyIds := make([]*tss.Identity, len(peers))
 	peerToCert := make(map[string]*x509.Certificate, len(peers))

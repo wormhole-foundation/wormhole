@@ -73,8 +73,7 @@ var (
 	guardianKeyPath   *string
 	guardianSignerUri *string
 
-	tssSecretsPath       *string
-	tssNetworkSocketPath *string
+	tssSecretsPath *string
 
 	ethRPC      *string
 	ethContract *string
@@ -326,7 +325,6 @@ func init() {
 	fogoShimContract = NodeCmd.Flags().String("fogoShimContract", "", "Address of the Fogo shim program")
 
 	tssSecretsPath = NodeCmd.Flags().String("tssSecret", "", "Path to guardian tss secrets (required)")
-	tssNetworkSocketPath = NodeCmd.Flags().String("tssNetworkPort", "[::]:8998", "Listen address for TSS server")
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
@@ -1919,7 +1917,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),
 		node.GuardianOptionProcessor(*p2pNetworkID),
-		node.GuardianOptionTSSNetwork(*tssNetworkSocketPath),
+		node.GuardianOptionTSSNetwork(),
 
 		// Keep this last so that all of its dependencies are met.
 		node.GuardianOptionP2P(

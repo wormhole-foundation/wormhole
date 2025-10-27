@@ -42,7 +42,7 @@ func main() {
 	keygen.Start(ctx)
 
 	logger.Info("Setting up server...")
-	srvr := createServer(gst, keygen)
+	srvr := createServer(keygen)
 	go func() {
 		if err := srvr.Run(ctx); err != nil {
 			logger.Fatal("Server stopped", zap.Error(err))
@@ -149,13 +149,8 @@ func run(ctx context.Context, keygen engine.KeyGenerator, gst *engine.GuardianSt
 	logger.Fatal("failed to complete DKG after 10 attempts, please check the logs for more details")
 }
 
-func createServer(gst *engine.GuardianStorage, keygen engine.KeyGenerator) comm.DirectLink {
-	socketpath := "[::]:" + strconv.Itoa(gst.Self.Port)
-	if gst.Self.Port == 0 {
-		socketpath = "[::]:" + engine.DefaultPort
-	}
-
-	srvr, err := comm.NewServer(socketpath, logger, keygen)
+func createServer(keygen engine.KeyGenerator) comm.DirectLink {
+	srvr, err := comm.NewServer(logger, keygen)
 	if err != nil {
 		logger.Fatal("failed to create a new server", zap.Error(err))
 	}

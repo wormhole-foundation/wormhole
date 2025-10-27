@@ -662,15 +662,13 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 		}}
 }
 
-func GuardianOptionTSSNetwork(
-	socketPath string,
-) *GuardianOption {
+func GuardianOptionTSSNetwork() *GuardianOption {
 	serviceName := "tsscomm"
 	return &GuardianOption{
 		name:         serviceName,
 		dependencies: []string{"processor"}, // TODO: I think it is dependant on it, since the TSS passes its signatures to the processor.
 		f: func(_ context.Context, logger *zap.Logger, g *G) error {
-			srvr, err := tsscomm.NewServer(socketPath, logger.Named(serviceName), g.tssEngine)
+			srvr, err := tsscomm.NewServer(logger.Named(serviceName), g.tssEngine)
 			if err != nil {
 				return fmt.Errorf("failed to create tsscomm server: %w", err)
 			}
