@@ -1,0 +1,4 @@
+[toolchain]
+# Version is arbitrary; chosen to be latest stable version at the time of creation
+channel = "1.90.0"
+components = ["rustfmt", "clippy"]
