@@ -70,12 +70,22 @@ func (e ErrUnexpectedEndOfRead) Error() string {
 
 // ErrInputSize is returned when the input size is not the expected size during marshaling.
 type ErrInputSize struct {
-	Msg string
-	Got int
+	Msg  string
+	Got  int
+	Want int
 }
 
 func (e ErrInputSize) Error() string {
-	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.Msg, marshaledMsgLenMin, e.Got)
+	if e.Got != 0 && e.Want != 0 {
+		return fmt.Sprintf("wrong size: %s. expected %d bytes, got %d", e.Msg, e.Want, e.Got)
+	}
+
+	if e.Got != 0 {
+		return fmt.Sprintf("wrong size: %s, got %d", e.Msg, e.Got)
+	}
+
+	return fmt.Sprintf("wrong size: %s", e.Msg)
+
 }
 
 // MaxSafeInputSize defines the maximum safe size for untrusted input from `io` Readers.
@@ -264,11 +274,11 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Check preconditions
 	txIDLen := len(msg.TxID)
 	if txIDLen > TxIDSizeMax {
-		return nil, ErrInputSize{Msg: "TxID too long"}
+		return nil, ErrInputSize{Msg: "TxID too long", Want: TxIDSizeMax, Got: txIDLen}
 	}
 
 	if txIDLen < TxIDLenMin {
-		return nil, ErrInputSize{Msg: "TxID too short"}
+		return nil, ErrInputSize{Msg: "TxID too short", Want: TxIDLenMin, Got: txIDLen}
 	}
 
 	payloadLen := len(msg.Payload)
@@ -425,7 +435,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
 	if len(data) < marshaledMsgLenMin {
-		return ErrInputSize{Msg: "data too short", Got: len(data)}
+		return ErrInputSize{Msg: "data too short", Got: len(data), Want: marshaledMsgLenMin}
 	}
 
 	mp := &MessagePublication{}
@@ -440,8 +450,12 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 
 	// Bounds checks. TxID length should be at least TxIDLenMin, but not larger than the length of the data.
 	// The second check is to avoid panics.
-	if int(txIDLen) < TxIDLenMin || int(txIDLen) > len(data) {
-		return ErrInputSize{Msg: "TxID length is invalid"}
+	if int(txIDLen) < TxIDLenMin {
+		return ErrInputSize{Msg: "TxID length is too short", Got: int(txIDLen), Want: TxIDLenMin}
+	}
+
+	if int(txIDLen) > len(data) {
+		return ErrInputSize{Msg: "TxID length is longer than bytes", Got: int(txIDLen)}
 	}
 
 	// Read TxID
