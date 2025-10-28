@@ -24,7 +24,7 @@ import (
 	"github.com/xlabs/multi-party-sig/protocols/frost/sign"
 )
 
-var cnfgPath = flag.String("cnfg", "/workspaces/wormhole/node/pkg/tss/internal/cmd/lkg/lkg.json", "path to config file in json format used to run the protocol")
+var cnfgPath = flag.String("cnfg", "", "path to config file in json format used to run the protocol")
 
 func main() {
 	flag.Parse()
