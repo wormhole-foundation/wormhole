@@ -3,15 +3,52 @@
 
 #[cfg(feature = "borsh")]
 pub mod borsh;
+pub mod env;
 pub mod solana;
 pub mod zero_copy;
 
-// NOTE: Expand this conditional as Wormhole supports more SVM networks.
-cfg_if::cfg_if! {
-    if #[cfg(feature = "solana")] {
-        pub use solana::*;
+#[cfg(all(feature = "from-env", feature = "solana"))]
+compile_error!("Features 'from-env' and 'solana' are mutually exclusive.");
+
+// We define the constants (chain id + addresses) here.
+// - For 'solana', we just re-export the definitions in the solana module.
+// - For 'from-env', we pick these up from environment variables and parse (+
+// validate) them into the right types via const functions.
+//
+// Consumers of this crate should mark 'from-env' as the default.
+mod defs {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "solana")] {
+            pub use crate::solana::*;
+        } else if #[cfg(feature = "from-env")] {
+            #[cfg(any(feature = "testnet"))]
+            panic!("The 'testnet' feature is meaningless without the 'solana' feature.");
+            #[cfg(any(feature = "localnet"))]
+            panic!("The 'localnet' feature is meaningless without the 'solana' feature.");
+
+            use super::*;
+            pub const CHAIN_ID: u16 = match u16::from_str_radix(env!("CHAIN_ID"), 10) {
+                Ok(c) => c,
+                Err(_err) => panic!("CHAIN_ID is not a valid u16")
+            };
+
+            pub const CORE_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
+            // we use the same variable name as the core contracts
+                env_pubkey!("BRIDGE_ADDRESS");
+
+            pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
+                env_pubkey!("POST_MESSAGE_SHIM_PROGRAM_ID");
+
+            pub const VERIFY_VAA_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
+                env_pubkey!("VERIFY_VAA_SHIM_PROGRAM_ID");
+
+            derive_consts!();
+        }
     }
 }
+
+#[allow(unused_imports)]
+pub use defs::*;
 
 pub use solana_program::keccak::{Hash, HASH_BYTES};
 
@@ -154,6 +191,15 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 }
 
 /// Trait to encode and decode the SVM finality of a message.
+/// The byte encoding corresponds to the "commitment level" field in the VAA.
+/// See https://wormhole.com/docs/products/reference/consistency-levels/
+///
+/// Different SVM runtimes may have different finality options, so we just
+/// provide this conversion trait between u8s.
+/// We also define the "standard" finality options ([`standard_finality`]) which are
+/// the available ones on Solana.
+/// If you use this crate with a chain that support different finality modes,
+/// either just use `u8`, or define a a custom enum and an impl of this trait.
 pub trait EncodeFinality: Sized + Copy {
     /// Encode SVM finality into a byte.
     fn encode(&self) -> u8;
@@ -162,9 +208,159 @@ pub trait EncodeFinality: Sized + Copy {
     fn decode(data: u8) -> Option<Self>;
 }
 
+impl EncodeFinality for u8 {
+    fn encode(&self) -> u8 {
+        *self
+    }
+
+    fn decode(data: u8) -> Option<Self> {
+        Some(data)
+    }
+}
+
+pub mod standard_finality {
+    /// Finality of the message (which is when the Wormhole guardians will attest to
+    /// this message's observation).
+    ///
+    /// On Solana, there are only two commitment levels that the Wormhole guardians
+    /// recognize.
+    #[cfg_attr(
+        feature = "borsh",
+        derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+    )]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[repr(u8)]
+    pub enum Finality {
+        /// Equivalent to observing after one slot.
+        Confirmed,
+
+        /// Equivalent to observing after 32 slots.
+        Finalized,
+    }
+
+    impl super::EncodeFinality for Finality {
+        fn encode(&self) -> u8 {
+            *self as u8
+        }
+
+        fn decode(data: u8) -> Option<Self> {
+            match data {
+                0 => Some(Self::Confirmed),
+                1 => Some(Self::Finalized),
+                _ => None,
+            }
+        }
+    }
+}
+
+#[cfg(feature = "standard-finality")]
+pub use standard_finality::*;
+
 /// Trait that defines an arbitrary discriminator for deserializing data. This
 /// discriminator acts as a prefix to identify which kind of data is encoded.
 /// For Anchor accounts and events, this discriminator is 8 bytes long.
 pub trait DataDiscriminator {
     const DISCRIMINATOR: &'static [u8];
+}
+
+/// Derive constants from the defined addresses. We use const functions here so
+/// we only need to define the program ids, and PDAs are derived at compile time
+/// and made available as consts.
+///
+/// We expose this as a macro, so that it can be invoked in multiple different scopes.
+/// Alternatively, we could just simply define the below constants at the
+/// top-level, but then they would only be available to the network that's
+/// specified as the feature flag.
+///
+/// This way, we can derive these constants within the solana network modules,
+/// such as 'solana::mainnet' and 'solana::devnet', and have both of them
+/// available, even when not compiling for solana mainnet or solana devnet.
+/// The network flags just define which of these is available at the top-level.
+#[macro_export]
+macro_rules! derive_consts {
+    () => {
+        pub const CORE_BRIDGE_PROGRAM_ID: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_PROGRAM_ID_ARRAY);
+
+        pub const CORE_BRIDGE_FEE_COLLECTOR_PDA: ([u8; 32], u8) =
+            const_crypto::ed25519::derive_program_address(
+                &[$crate::FEE_COLLECTOR_SEED],
+                &CORE_BRIDGE_PROGRAM_ID_ARRAY,
+            );
+
+        pub const CORE_BRIDGE_FEE_COLLECTOR: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_FEE_COLLECTOR_PDA.0);
+
+        pub const CORE_BRIDGE_FEE_COLLECTOR_BUMP: u8 = CORE_BRIDGE_FEE_COLLECTOR_PDA.1;
+
+        pub const CORE_BRIDGE_CONFIG_PDA: ([u8; 32], u8) =
+            const_crypto::ed25519::derive_program_address(
+                &[$crate::CORE_BRIDGE_CONFIG_SEED],
+                &CORE_BRIDGE_PROGRAM_ID_ARRAY,
+            );
+
+        pub const CORE_BRIDGE_CONFIG: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_CONFIG_PDA.0);
+
+        pub const CORE_BRIDGE_CONFIG_BUMP: u8 = CORE_BRIDGE_CONFIG_PDA.1;
+
+        pub const POST_MESSAGE_SHIM_PROGRAM_ID: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY);
+
+        const POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA: ([u8; 32], u8) =
+            const_crypto::ed25519::derive_program_address(
+                &[$crate::EVENT_AUTHORITY_SEED],
+                &POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY,
+            );
+
+        pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA.0);
+
+        pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP: u8 =
+            POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA.1;
+
+        pub const VERIFY_VAA_SHIM_PROGRAM_ID: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(VERIFY_VAA_SHIM_PROGRAM_ID_ARRAY);
+    };
+}
+
+#[allow(dead_code)]
+/// A test to make sure the expected IDs are available.
+fn available_ids() {
+    let _ = crate::solana::mainnet::CORE_BRIDGE_PROGRAM_ID;
+    let _ = crate::solana::devnet::CORE_BRIDGE_PROGRAM_ID;
+    let _ = crate::solana::localnet::CORE_BRIDGE_PROGRAM_ID;
+    // defaults to mainnet (for backwards compatibility)
+    let _ = crate::solana::CORE_BRIDGE_PROGRAM_ID;
+    #[cfg(any(feature = "solana", feature = "from-env"))]
+    let _ = crate::CORE_BRIDGE_PROGRAM_ID;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_core_bridge_fee_collector() {
+        let (expected, _) = crate::find_fee_collector_address(&CORE_BRIDGE_PROGRAM_ID);
+        assert_eq!(CORE_BRIDGE_FEE_COLLECTOR, expected);
+    }
+
+    #[test]
+    fn test_core_bridge_config() {
+        let (expected, _) = crate::find_core_bridge_config_address(&CORE_BRIDGE_PROGRAM_ID);
+        assert_eq!(CORE_BRIDGE_CONFIG, expected);
+    }
+
+    #[test]
+    fn test_post_message_shim_event_authority() {
+        let expected = crate::find_event_authority_address(&POST_MESSAGE_SHIM_PROGRAM_ID);
+        assert_eq!(
+            (
+                POST_MESSAGE_SHIM_EVENT_AUTHORITY,
+                POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP
+            ),
+            expected
+        );
+    }
 }

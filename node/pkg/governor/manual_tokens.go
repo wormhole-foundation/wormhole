@@ -4,11 +4,14 @@ package governor
 func manualTokenList() []TokenConfigEntry {
 	return []TokenConfigEntry{
 		{Chain: 2, Addr: "0000000000000000000000006c3ea9036406852006290770bedfcaba0e23a0e8", Symbol: "PYUSD", CoinGeckoId: "paypal-usd", Decimals: 6, Price: 1.00},
-		{Chain: 2, Addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},   // Near on ethereum
+		{Chain: 2, Addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34}, // Near on ethereum
+		{Chain: 2, Addr: "000000000000000000000000a3931d71877C0E7a3148CB7Eb4463524FEc27fbD", Symbol: "sUSDS", CoinGeckoId: "susds", Decimals: 18, Price: 1.07},
+		{Chain: 2, Addr: "000000000000000000000000CEDbEA37C8872c4171259Cdfd5255CB8923Cf8e7", Symbol: "XAN", CoinGeckoId: "anoma", Decimals: 18, Price: 0.03343},
 		{Chain: 8, Addr: "000000000000000000000000000000000000000000000000000000000004c5c1", Symbol: "USDt", CoinGeckoId: "tether", Decimals: 6, Price: 1.002}, // Addr: 312769, Notional: 22.31747085
 		{Chain: 13, Addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", Symbol: "KLEVA", CoinGeckoId: "kleva", Decimals: 18, Price: 0.086661},
 		{Chain: 13, Addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", Symbol: "WEMIX", CoinGeckoId: "wemix-token", Decimals: 18, Price: 1.74},
 		{Chain: 15, Addr: "0000000000000000000000000000000000000000000000000000000000000000", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},
+		{Chain: 30, Addr: "000000000000000000000000cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", Symbol: "CBBTC", CoinGeckoId: "coinbase-wrapped-btc", Decimals: 8, Price: 111336},
 		{Chain: 32, Addr: "01881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", Symbol: "SEI", CoinGeckoId: "sei-network", Decimals: 6, Price: 0.3},
 		// SCROLL (tokens over $50,000 24h volume)
 		{Chain: 34, Addr: "0000000000000000000000000018d96c579121a94307249d47f053e2d687b5e7", Symbol: "MVX", CoinGeckoId: "metavault-trade", Decimals: 18, Price: 2.06},

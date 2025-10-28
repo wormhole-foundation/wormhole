@@ -22,6 +22,8 @@ operations.
 
 The `#rpc-server-operators` channel is especially useful for setting up Solana RPC nodes.
 
+#### Prior to version 3:
+
 Your Solana RPC node needs the following parameters enabled:
 
 ```
@@ -33,6 +35,20 @@ Your Solana RPC node needs the following parameters enabled:
 which is required for Wormhole to find transactions.
 
 `--enable-cpi-and-log-storage` stores metadata about CPI calls.
+
+#### Migrating version 2.x to version 3:
+
+Remove
+
+```
+--enable-cpi-and-log-storage
+```
+
+Add
+
+```
+--enable-extended-tx-metadata-storage
+```
 
 Be aware that these require extra disk space!
 

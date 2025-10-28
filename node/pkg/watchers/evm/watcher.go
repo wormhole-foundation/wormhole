@@ -166,6 +166,7 @@ type (
 	pendingMessage struct {
 		message          *common.MessagePublication
 		height           uint64
+		effectiveCL      uint8
 		additionalBlocks uint64
 	}
 )
@@ -525,7 +526,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				w.pendingMu.Lock()
 				for key, pLock := range w.pending {
 					// Don't process the observation if it is waiting on a different consistency level.
-					if !consistencyLevelMatches(thisConsistencyLevel, pLock.message.ConsistencyLevel) {
+					if !consistencyLevelMatches(thisConsistencyLevel, pLock.effectiveCL) {
 						continue
 					}
 
@@ -843,8 +844,9 @@ func (w *Watcher) postMessage(
 	}
 
 	pendingEntry := &pendingMessage{
-		message: msg,
-		height:  ev.Raw.BlockNumber,
+		message:     msg,
+		height:      ev.Raw.BlockNumber,
+		effectiveCL: ev.ConsistencyLevel, // Initially from event; may be overridden by CCL contract
 	}
 
 	if msg.ConsistencyLevel == vaa.ConsistencyLevelCustom {
@@ -862,8 +864,9 @@ func (w *Watcher) postMessage(
 		zap.Stringer("blockHash", ev.Raw.BlockHash),
 		zap.Uint64("blockTime", blockTime),
 		zap.Uint32("Nonce", ev.Nonce),
-		zap.Uint8("OrigConsistencyLevel", ev.ConsistencyLevel),
-		zap.Uint8("ConsistencyLevel", pendingEntry.message.ConsistencyLevel),
+		zap.Uint8("OrigConsistencyLevel", ev.ConsistencyLevel),               // What was in the event
+		zap.Uint8("ConsistencyLevel", pendingEntry.message.ConsistencyLevel), // What goes into the observation
+		zap.Uint8("effectiveCL", pendingEntry.effectiveCL),                   // What was in the contract
 		zap.Uint64("AdditionalBlocks", pendingEntry.additionalBlocks),
 	)
 

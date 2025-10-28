@@ -216,15 +216,7 @@ jobs:
 
       - name: Run tests via docker
         run: cd sui && make test-docker
-
-  terra:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "22"
-      - run: cd terra && make test
+  # NOTE: While Terra2 is deprecated, this job may be related to testing CosmWasm functionality in Wormchain.
   terra-2:
     runs-on: ubuntu-24.04
     steps:
@@ -344,27 +336,59 @@ jobs:
   rust-lint-and-tests:
     runs-on: ubuntu-24.04
     env:
+      # Deny all warnings. Since we also build with stable, this causes newly-added clippy lints to fail when new Rust
+      # versions are released. This means that the CI runs will occasionally fail as new warnings are flagged in the
+      # codebase, but it's a good way to force us to keep the codebase in good shape.
       RUSTFLAGS: -Dwarnings
     strategy:
       matrix:
         manifest:
+          # NOTE: The `test_args` flag is used to forward job-specific flags to Rust tests while allowing us to use the matrix strategy for configuring jobs.
+          # CosmWasm
           - path: cosmwasm/Cargo.toml
             args: "--workspace --locked --exclude 'shutdown-*'"
+            test_args: ""
           - path: cosmwasm/Cargo.toml
             args: "-p 'shutdown-*' --no-default-features --locked"
-          - path: terra/Cargo.toml
-            args: "--workspace --locked"
+            test_args: ""
+          # Rust SDK
           - path: sdk/rust/Cargo.toml
             args: "--all-features --all-targets"
+            test_args: ""
+          # SVM directory (shims code)
+          - path: svm/wormhole-core-shims/Cargo.toml
+            args: "--workspace --no-default-features --features solana" # The crate by default requires environment variables. If solana is specified, mainnet values are used.
+            test_args: "--lib"  # Skip integration tests; they require compiled BPF programs
+          - path: svm/wormhole-core-shims/anchor/Cargo.toml
+            args: "--workspace"
+            test_args: "--lib"  # Skip doctests; anchor interfaces lack solana_program dependency
     name: rust-lint-and-tests (${{ matrix.manifest.path }})
     steps:
       - name: Check out source
         uses: actions/checkout@v3
 
+      - name: Get rust toolchain version
+        id: toolchain
+        env:
+          MANIFEST: ${{ matrix.manifest.path }}
+        run: |
+          WORKSPACE_DIR="$(dirname "${MANIFEST}")"
+          if [ -f "${WORKSPACE_DIR}/rust-toolchain.toml" ]; then
+            # Extract the Rust version from rust-toolchain.toml
+            # Searches for lines matching 'channel =' and extracts the quoted version string
+            # Example: 'channel = "1.83.0"' -> extracts "1.83.0" by:
+            #   $3 = third field ("1.83.0")
+            #   substr($3, 2, length($3)-2) = strips first and last character (the quotes)
+            RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' "${WORKSPACE_DIR}/rust-toolchain.toml")"
+          else
+            RUST_VERSION="stable"
+          fi
+          echo "::set-output name=version::${RUST_VERSION}"
+
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@55c7845fad90d0ae8b2e83715cb900e5e861e8cb
         with:
-          toolchain: stable
+          toolchain: ${{ steps.toolchain.outputs.version }}
           components: "clippy,rustfmt"
 
       - name: Create cache key
@@ -393,7 +417,7 @@ jobs:
         run: cargo clippy ${{ matrix.manifest.args }} --tests --manifest-path ${{ matrix.manifest.path }}
 
       - name: Run unit tests
-        run: cargo test ${{ matrix.manifest.args }} --manifest-path ${{ matrix.manifest.path }}
+        run: cargo test ${{ matrix.manifest.args }} ${{ matrix.manifest.test_args }} --manifest-path ${{ matrix.manifest.path }}
 
   docker:
     runs-on: ubuntu-latest
