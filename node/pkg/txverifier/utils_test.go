@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -72,6 +73,14 @@ func TestExtractFromJsonPath(t *testing.T) {
 			name:     "MalformedJson",
 			data:     json.RawMessage(`{"key1": {"key2": "value"`),
 			path:     "key1.key2",
+			expected: nil,
+			wantErr:  true,
+			typ:      "string",
+		},
+		{
+			name:     "DataIsNil",
+			data:     nil,
+			path:     "test",
 			expected: nil,
 			wantErr:  true,
 			typ:      "string",
@@ -524,6 +533,187 @@ func Test_deleteEntries_AddressKeys(t *testing.T) {
 				if got != expectedDeletions {
 					t.Errorf("deleteEntries() returned %v deletions, but actual deletions = %v",
 						got, expectedDeletions)
+				}
+			}
+		})
+	}
+}
+
+func Test_validateSolvency(t *testing.T) {
+	tests := []struct {
+		name             string
+		requests         MsgIdToRequestOutOfBridge
+		transfers        AssetKeyToTransferIntoBridge
+		wantErr          bool
+		invalidTransfers []string
+	}{
+		{
+			name: "SingleRequest_SingleAsset_Solvent",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(100),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers: AssetKeyToTransferIntoBridge{
+				"asset1": {
+					Amount: big.NewInt(200),
+				},
+			},
+			wantErr:          false,
+			invalidTransfers: []string{},
+		},
+		{
+			name: "SingleRequest_SingleAsset_Insolvent",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(300),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers: AssetKeyToTransferIntoBridge{
+				"asset1": {
+					Amount: big.NewInt(200),
+				},
+			},
+			wantErr:          false,
+			invalidTransfers: []string{"msg1"},
+		},
+		{
+			name: "MultipleRequests_MultipleAssets_MixedSolvency",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(100),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+				"msg2": {
+					AssetKey:       "asset2",
+					Amount:         big.NewInt(150),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+				"msg3": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(50),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers: AssetKeyToTransferIntoBridge{
+				"asset1": {
+					Amount: big.NewInt(120),
+				},
+				"asset2": {
+					Amount: big.NewInt(200),
+				},
+			},
+			wantErr: false,
+			// asset1 is insolvent because of msg1 and msg3
+			invalidTransfers: []string{"msg1", "msg3"},
+		},
+		{
+			name: "RequestWithNoMatchingTransfer",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(100),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers:        AssetKeyToTransferIntoBridge{},
+			wantErr:          false,
+			invalidTransfers: []string{"msg1"}, // no transfer for asset1
+		},
+		{
+			name:             "EmptyRequests",
+			requests:         MsgIdToRequestOutOfBridge{},
+			transfers:        AssetKeyToTransferIntoBridge{},
+			wantErr:          false,
+			invalidTransfers: []string{},
+		},
+		{
+			name: "EmptyTransfers",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(100),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers:        AssetKeyToTransferIntoBridge{},
+			wantErr:          false,
+			invalidTransfers: []string{"msg1"}, // no transfer for asset1
+		},
+		{
+			name:             "EmptyRequests",
+			requests:         MsgIdToRequestOutOfBridge{},
+			transfers:        AssetKeyToTransferIntoBridge{},
+			wantErr:          false,
+			invalidTransfers: []string{},
+		},
+		{
+			name: "RequestWithNilAmount",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         nil,
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers:        AssetKeyToTransferIntoBridge{},
+			wantErr:          true,
+			invalidTransfers: []string{},
+		},
+		{
+			name: "TransferWithNilAmount",
+			requests: MsgIdToRequestOutOfBridge{
+				"msg1": {
+					AssetKey:       "asset1",
+					Amount:         big.NewInt(100),
+					DepositMade:    false,
+					DepositSolvent: false, // will be updated by validateSolvency
+				},
+			},
+			transfers: AssetKeyToTransferIntoBridge{
+				"asset1": {
+					Amount: nil,
+				},
+			},
+			wantErr:          true,
+			invalidTransfers: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolved, err := validateSolvency(tt.requests, tt.transfers)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateSolvency() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			for msgIdStr, req := range resolved {
+				reqIsValid := req.DepositSolvent && req.DepositMade
+				shouldBeInvalid := slices.Contains(tt.invalidTransfers, msgIdStr)
+
+				if reqIsValid && !shouldBeInvalid {
+					// Valid and should be valid, all good.
+				} else if reqIsValid && shouldBeInvalid {
+					// Request was marked as valid, but should be invalid
+					t.Errorf("Expected message ID %s to be marked as invalid, but it was marked as valid", msgIdStr)
+				} else if !reqIsValid && !shouldBeInvalid {
+					// Request was marked as invalid, but should be valid
+					t.Errorf("Expected message ID %s to be marked as valid, but it was marked as invalid", msgIdStr)
 				}
 			}
 		})

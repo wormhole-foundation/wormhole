@@ -1,21 +1,22 @@
 package txverifier
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
-)
 
-const SUI_CHAIN_ID = 21
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
 
 // The SuiApi interface defines the functions that are required to interact with the Sui RPC.
 type SuiApiInterface interface {
-	QueryEvents(filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
-	GetTransactionBlock(txDigest string) (SuiGetTransactionBlockResponse, error)
-	TryMultiGetPastObjects(objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
+	QueryEvents(ctx context.Context, filter string, cursor string, limit int, descending bool) (SuiQueryEventsResponse, error)
+	GetTransactionBlock(ctx context.Context, txDigest string) (SuiGetTransactionBlockResponse, error)
+	TryMultiGetPastObjects(ctx context.Context, objectId string, version string, previousVersion string) (SuiTryMultiGetPastObjectsResponse, error)
 }
 
 // This struct defines the standard properties that get returned from the RPC.
@@ -66,8 +67,8 @@ type SuiEvent struct {
 	Sender            *string `json:"sender"`
 	Type              *string `json:"type"`
 	// Bcs               *string          `json:"bcs"`
-	Timestamp *string          `json:"timestampMs"`
-	Message   *WormholeMessage `json:"parsedJson"`
+	Timestamp  *string          `json:"timestampMs"`
+	ParsedJson *json.RawMessage `json:"parsedJson"`
 }
 
 // The response object for sui_GetTransactionBlock
@@ -130,37 +131,41 @@ func (o ObjectChange) ValidateTypeInformation(expectedPackageId string) (success
 // The response object for suix_tryMultiGetPastObjects
 type SuiTryMultiGetPastObjectsResponse struct {
 	SuiApiStandardResponse
-	Result []SuiTryMultiGetPastObjectsResult `json:"result"`
+	Result [2]SuiTryMultiGetPastObjectsResult `json:"result"`
 }
 
 // Gets the balance difference of the two result objects.
-func (r SuiTryMultiGetPastObjectsResponse) GetBalanceDiff() (*big.Int, error) {
+func (r SuiTryMultiGetPastObjectsResponse) GetBalanceChange() (*big.Int, error) {
 
 	if len(r.Result) != 2 {
-		return big.NewInt(0), fmt.Errorf("incorrect number of results received")
+		return nil, fmt.Errorf("incorrect number of objects in Result")
 	}
 
-	// Determine if the asset is wrapped or native
+	// Determine if the asset is wrapped or native. It's only necessary to check if one asset
+	// is wrapped, since `TryMultiGetPastObjects` queries only a single object ID.
 	isWrapped, err := r.Result[0].IsWrapped()
 	if err != nil {
-		return big.NewInt(0), fmt.Errorf("error in checking if object is wrapped: %w", err)
-	}
-
-	// TODO: Should we check that the other asset is also wrapped?
-	newBalance, err := r.Result[0].GetVersionBalance(isWrapped)
-	if err != nil {
-		return big.NewInt(0), fmt.Errorf("error in getting new balance: %w", err)
+		return nil, fmt.Errorf("Error checking if object is wrapped: %w", err)
 	}
 
 	oldBalance, err := r.Result[1].GetVersionBalance(isWrapped)
 	if err != nil {
-		return big.NewInt(0), fmt.Errorf("error in getting old balance: %w", err)
+		return nil, fmt.Errorf("Error getting old balance: %w", err)
 	}
 
+	newBalance, err := r.Result[0].GetVersionBalance(isWrapped)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting new balance: %w", err)
+	}
+
+	// NOTE: newBalance is also modified by this operation, so care should be taken if future changes
+	// relies on the original value of newBalance.
 	difference := newBalance.Sub(newBalance, oldBalance)
-	// If the asset is wrapped, it means that the balance was burned, so the difference should be negative.
+
+	// If the asset is wrapped, it means that the balance should have been burned, implying a reduction
+	// in total supply. Hence, the difference is negative and the sign needs to be inverted.
 	if isWrapped {
-		difference = difference.Mul(difference, big.NewInt(-1))
+		difference.Neg(difference)
 	}
 
 	return difference, nil
@@ -172,9 +177,9 @@ func (r SuiTryMultiGetPastObjectsResponse) GetDecimals() (uint8, error) {
 	decimals1, err1 := r.Result[1].GetDecimals()
 
 	if err0 != nil {
-		return 0, fmt.Errorf("error in getting decimals: %w", err0)
+		return 0, fmt.Errorf("Error getting decimals: %w", err0)
 	} else if err1 != nil {
-		return 0, fmt.Errorf("error in getting decimals: %w", err1)
+		return 0, fmt.Errorf("Error getting decimals: %w", err1)
 	} else if decimals0 != decimals1 {
 		return 0, fmt.Errorf("decimals do not match")
 	}
@@ -187,9 +192,9 @@ func (r SuiTryMultiGetPastObjectsResponse) GetTokenAddress() (string, error) {
 	tokenAddress1, err1 := r.Result[1].GetTokenAddress()
 
 	if err0 != nil {
-		return "", fmt.Errorf("error in getting token address: %w", err0)
+		return "", fmt.Errorf("Error getting token address: %w", err0)
 	} else if err1 != nil {
-		return "", fmt.Errorf("error in getting token address: %w", err1)
+		return "", fmt.Errorf("Error getting token address: %w", err1)
 	} else if tokenAddress0 != tokenAddress1 {
 		return "", fmt.Errorf("token addresses do not match")
 	}
@@ -197,14 +202,14 @@ func (r SuiTryMultiGetPastObjectsResponse) GetTokenAddress() (string, error) {
 	return tokenAddress0, nil
 }
 
-func (r SuiTryMultiGetPastObjectsResponse) GetTokenChain() (uint16, error) {
+func (r SuiTryMultiGetPastObjectsResponse) GetTokenChain() (vaa.ChainID, error) {
 	chain0, err0 := r.Result[0].GetTokenChain()
 	chain1, err1 := r.Result[1].GetTokenChain()
 
 	if err0 != nil {
-		return 0, fmt.Errorf("error in getting token chain: %w", err0)
+		return 0, fmt.Errorf("Error getting token chain: %w", err0)
 	} else if err1 != nil {
-		return 0, fmt.Errorf("error in getting token chain: %w", err1)
+		return 0, fmt.Errorf("Error getting token chain: %w", err1)
 	} else if chain0 != chain1 {
 		return 0, fmt.Errorf("token chain ids do not match")
 	}
@@ -244,9 +249,9 @@ func (r SuiTryMultiGetPastObjectsResponse) GetObjectType() (string, error) {
 	type1, err1 := r.Result[1].GetObjectType()
 
 	if err0 != nil {
-		return "", fmt.Errorf("error in getting token chain: %w", err0)
+		return "", fmt.Errorf("Error getting token chain: %w", err0)
 	} else if err1 != nil {
-		return "", fmt.Errorf("error in getting token chain: %w", err1)
+		return "", fmt.Errorf("Error getting token chain: %w", err1)
 	} else if type0 != type1 {
 		return "", fmt.Errorf("token chain ids do not match")
 	}
@@ -256,17 +261,17 @@ func (r SuiTryMultiGetPastObjectsResponse) GetObjectType() (string, error) {
 
 // The result object for suix_tryMultiGetPastObjects.
 type SuiTryMultiGetPastObjectsResult struct {
-	Status  string           `json:"status"`
-	Details *json.RawMessage `json:"details"`
+	Status  string          `json:"status"`
+	Details json.RawMessage `json:"details"`
 }
 
 // Check if the result object is wrapped.
 func (r SuiTryMultiGetPastObjectsResult) IsWrapped() (bool, error) {
 	path := "content.type"
-	objectType, err := extractFromJsonPath[string](*r.Details, path)
+	objectType, err := extractFromJsonPath[string](r.Details, path)
 
 	if err != nil {
-		return false, fmt.Errorf("error in extracting object type: %w", err)
+		return false, fmt.Errorf("Error extracting object type: %w", err)
 	}
 
 	return strings.Contains(objectType, "wrapped_asset::WrappedAsset"), nil
@@ -290,10 +295,10 @@ func (r SuiTryMultiGetPastObjectsResult) GetVersionBalance(isWrapped bool) (*big
 		path = pathNative
 	}
 
-	supply, err := extractFromJsonPath[string](*r.Details, path)
+	supply, err := extractFromJsonPath[string](r.Details, path)
 
 	if err != nil {
-		return supplyInt, fmt.Errorf("error in extracting wormhole balance: %w", err)
+		return supplyInt, fmt.Errorf("Error extracting wormhole balance: %w", err)
 	}
 
 	supplyInt, success := supplyInt.SetString(supply, 10)
@@ -311,17 +316,17 @@ func (r SuiTryMultiGetPastObjectsResult) GetDecimals() (uint8, error) {
 	// both store the decimals used for truncation in the NativeAsset or WrappedAsset's `decimals()` field
 	path := "content.fields.value.fields.decimals"
 
-	decimals, err := extractFromJsonPath[float64](*r.Details, path)
+	decimals, err := extractFromJsonPath[float64](r.Details, path)
 
 	if err != nil {
-		return 0, fmt.Errorf("error in extracting decimals: %w", err)
+		return 0, fmt.Errorf("Error extracting decimals: %w", err)
 	}
 
 	return uint8(decimals), nil
 }
 
 // Get the result object's token address. This will be the address of the token
-// on it's chain of origin.
+// on its origin chain.
 func (r SuiTryMultiGetPastObjectsResult) GetTokenAddress() (tokenAddress string, err error) {
 	var path string
 
@@ -334,7 +339,7 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenAddress() (tokenAddress string,
 	wrapped, err := r.IsWrapped()
 
 	if err != nil {
-		return "", fmt.Errorf("error in checking if object is wrapped: %w", err)
+		return "", fmt.Errorf("Error checking if object is wrapped: %w", err)
 	}
 
 	if wrapped {
@@ -343,21 +348,21 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenAddress() (tokenAddress string,
 		path = pathNative
 	}
 
-	data, err := extractFromJsonPath[[]interface{}](*r.Details, path)
+	data, err := extractFromJsonPath[[]interface{}](r.Details, path)
 
 	if err != nil {
-		return "", fmt.Errorf("error in extracting token address: %w", err)
+		return "", fmt.Errorf("Error extracting token address: %w", err)
 	}
 
 	// data is of type []interface{}, and each element is of type float64.
-	// We need to covnert each element to a byte, and then convert the []byte to a hex string.
+	// We need to convert each element to a byte, and then convert the []byte to a hex string.
 	addrBytes := make([]byte, len(data))
 
 	for i, v := range data {
 		if f, ok := v.(float64); ok {
 			addrBytes[i] = byte(f)
 		} else {
-			return "", fmt.Errorf("error in converting token data to float type")
+			return "", fmt.Errorf("Error converting token data to float type")
 		}
 	}
 
@@ -366,36 +371,46 @@ func (r SuiTryMultiGetPastObjectsResult) GetTokenAddress() (tokenAddress string,
 
 // Get the token's chain ID. This will be the chain ID of the network the token
 // originated from.
-func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (uint16, error) {
+func (r SuiTryMultiGetPastObjectsResult) GetTokenChain() (vaa.ChainID, error) {
 
 	wrapped, err := r.IsWrapped()
 
 	if err != nil {
-		return 0, fmt.Errorf("error in checking if object is wrapped: %w", err)
+		return 0, fmt.Errorf("Error checking if object is wrapped: %w", err)
 	}
 
 	if !wrapped {
-		return SUI_CHAIN_ID, nil
+		return vaa.ChainIDSui, nil
 	}
 
 	path := "content.fields.value.fields.info.fields.token_chain"
 
-	chain, err := extractFromJsonPath[float64](*r.Details, path)
+	chain, err := extractFromJsonPath[float64](r.Details, path)
 
 	if err != nil {
-		return 0, fmt.Errorf("error in extracting chain: %w", err)
+		return 0, fmt.Errorf("Error extracting chain: %w", err)
 	}
 
-	return uint16(chain), nil
+	if float64(uint16(chain)) != chain {
+		return 0, fmt.Errorf("failed to cast chain ID: %f", chain)
+	}
+
+	chainId, err := vaa.KnownChainIDFromNumber(uint16(chain))
+
+	if err != nil {
+		return 0, fmt.Errorf("Error converting chain to known chain id: %w", err)
+	}
+
+	return chainId, nil
 }
 
 func (r SuiTryMultiGetPastObjectsResult) GetObjectId() (string, error) {
 	path := "objectId"
 
-	objectId, err := extractFromJsonPath[string](*r.Details, path)
+	objectId, err := extractFromJsonPath[string](r.Details, path)
 
 	if err != nil {
-		return "", fmt.Errorf("error in extracting objectId: %w", err)
+		return "", fmt.Errorf("Error extracting objectId: %w", err)
 	}
 
 	return objectId, nil
@@ -404,10 +419,10 @@ func (r SuiTryMultiGetPastObjectsResult) GetObjectId() (string, error) {
 func (r SuiTryMultiGetPastObjectsResult) GetVersion() (string, error) {
 	path := "version"
 
-	version, err := extractFromJsonPath[string](*r.Details, path)
+	version, err := extractFromJsonPath[string](r.Details, path)
 
 	if err != nil {
-		return "", fmt.Errorf("error in extracting version: %w", err)
+		return "", fmt.Errorf("Error extracting version: %w", err)
 	}
 
 	return version, nil
@@ -416,19 +431,19 @@ func (r SuiTryMultiGetPastObjectsResult) GetVersion() (string, error) {
 func (r SuiTryMultiGetPastObjectsResult) GetObjectType() (string, error) {
 	path := "type"
 
-	version, err := extractFromJsonPath[string](*r.Details, path)
+	objectType, err := extractFromJsonPath[string](r.Details, path)
 
 	if err != nil {
-		return "", fmt.Errorf("error in extracting version: %w", err)
+		return "", fmt.Errorf("Error extracting type: %w", err)
 	}
 
-	return version, nil
+	return objectType, nil
 }
 
 // Definition of the WormholeMessage event
 type WormholeMessage struct {
 	ConsistencyLevel *uint8  `json:"consistency_level"`
-	Nonce            *uint64 `json:"nonce"`
+	Nonce            *uint32 `json:"nonce"`
 	Payload          []byte  `json:"payload"`
 	Sender           *string `json:"sender"`
 	Sequence         *string `json:"sequence"`
