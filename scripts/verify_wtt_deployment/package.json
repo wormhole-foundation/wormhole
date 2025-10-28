@@ -1,5 +1,5 @@
 {
-  "name": "verifytokenbridgedeployment",
+  "name": "@wormhole-foundation/verify-wtt-deployment",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
