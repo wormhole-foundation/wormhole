@@ -84,7 +84,7 @@ const (
 	MaxDelay     = time.Hour * 24 * MaxDelayDays
 
 	// The ticker interval for the notary's periodic metrics update.
-	metricsUpdateInterval = time.Minute * 15
+	metricsUpdateInterval = time.Second * 30
 )
 
 var (
