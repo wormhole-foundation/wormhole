@@ -474,7 +474,7 @@ func init() {
 	creditCoinRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "creditCoinRPC", "CREDITCOIN RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	creditCoinContract = NodeCmd.Flags().String("creditCoinContract", "", "CreditCoin contract address")
 
-	mocaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "MocaRPC", "MOCA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mocaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "MocaRPC", "Moca RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mocaContract = NodeCmd.Flags().String("mocaContract", "", "Moca contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
