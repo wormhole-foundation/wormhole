@@ -24,6 +24,7 @@ func getCounterValue(metric *prometheus.CounterVec, runnableName string) float64
 
 func throwNil(ctx context.Context) error {
 	var x *int = nil
+	//nolint:govet // This test function is specifically checking for nil errors, so being flagged for `nilness` is expected
 	*x = 5
 	return nil
 }

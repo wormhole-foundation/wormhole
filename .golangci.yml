@@ -141,6 +141,20 @@ linters:
         - sloppyLen
         - underef
         - unslice
+    govet:
+      # The following list includes all the linters that are disabled by default.
+      # Uncomment any of these to enable them:
+      enable:
+        # - atomicalign          # Check for non-64-bits-aligned arguments to sync/atomic functions
+        # - deepequalerrors      # Check for calls of reflect.DeepEqual on error values
+        # - fieldalignment       # Find structs that would use less memory if their fields were sorted
+        # - findcall             # Find calls to a particular function
+        - nilness              # Check for redundant or impossible nil comparisons
+        # - reflectvaluecompare  # Check for comparing reflect.Value values with == or reflect.DeepEqual
+        # - shadow               # Check for possible unintended shadowing of variables
+        # - sortslice            # Check the argument type of sort.Slice
+        # - timeformat           # Check for calls of (time.Time).Format or time.Parse with 2006-02-01
+        # - unusedwrite          # Check for unused writes
     nolintlint:
       # Disable to ensure that all nolint directives actually have an effect.
       # Default: false
