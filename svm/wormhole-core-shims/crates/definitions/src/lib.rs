@@ -383,7 +383,7 @@ fn available_ids() {
     let _ = crate::solana::localnet::CORE_BRIDGE_PROGRAM_ID;
     // defaults to mainnet (for backwards compatibility)
     let _ = crate::solana::CORE_BRIDGE_PROGRAM_ID;
-    #[cfg(any(feature = "solana", feature = "from-env"))]
+    #[cfg(all(any(feature = "solana", feature = "from-env"), feature = "core"))]
     let _ = crate::CORE_BRIDGE_PROGRAM_ID;
 }
 
