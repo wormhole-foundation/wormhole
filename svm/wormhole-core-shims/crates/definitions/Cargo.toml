@@ -16,7 +16,7 @@ default = ["core", "standard-finality"]
 borsh = ["dep:borsh"]
 
 core = []
-token-bridge = [] # TODO: add token bridge stuff
+token-bridge = []
 post-message-shim = []
 verify-vaa-shim = []
 

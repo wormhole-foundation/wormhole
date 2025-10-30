@@ -11,6 +11,12 @@ pub mod mainnet {
 
     crate::derive_core_consts!();
 
+    /// Token Bridge program ID on Solana mainnet.
+    pub const TOKEN_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
+        bs58::decode_pubkey("wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb");
+
+    crate::derive_token_bridge_consts!();
+
     /// Post message shim program ID on Solana mainnet.
     pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
         bs58::decode_pubkey("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
@@ -33,6 +39,12 @@ pub mod devnet {
 
     crate::derive_core_consts!();
 
+    /// Token Bridge program ID on Solana devnet.
+    pub const TOKEN_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
+        bs58::decode_pubkey("DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe");
+
+    crate::derive_token_bridge_consts!();
+
     /// Post message shim program ID on Solana devnet.
     pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
         bs58::decode_pubkey("EtZMZM22ViKMo4r5y4Anovs3wKQ2owUmDpjygnMMcdEX");
@@ -54,6 +66,12 @@ pub mod localnet {
         bs58::decode_pubkey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
 
     crate::derive_core_consts!();
+
+    /// Token Bridge program ID on Wormhole's Tilt (dev) network.
+    pub const TOKEN_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
+        bs58::decode_pubkey("B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE");
+
+    crate::derive_token_bridge_consts!();
 
     /// Post message shim program ID on Wormhole's Tilt (dev) network.
     pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =

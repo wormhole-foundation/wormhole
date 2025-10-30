@@ -37,6 +37,13 @@ mod defs {
             #[cfg(feature = "core")]
             derive_core_consts!();
 
+            #[cfg(feature = "token-bridge")]
+            pub const TOKEN_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
+                env_pubkey!("TOKEN_BRIDGE_ADDRESS");
+
+            #[cfg(feature = "token-bridge")]
+            derive_token_bridge_consts!();
+
             #[cfg(feature = "post-message-shim")]
             pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
                 env_pubkey!("POST_MESSAGE_SHIM_PROGRAM_ID");
@@ -344,6 +351,14 @@ macro_rules! derive_core_consts {
             solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_CONFIG_PDA.0);
 
         pub const CORE_BRIDGE_CONFIG_BUMP: u8 = CORE_BRIDGE_CONFIG_PDA.1;
+    };
+}
+
+#[macro_export]
+macro_rules! derive_token_bridge_consts {
+    () => {
+        pub const TOKEN_BRIDGE_PROGRAM_ID: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(TOKEN_BRIDGE_PROGRAM_ID_ARRAY);
     };
 }
 
