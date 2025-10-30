@@ -144,6 +144,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDXRPLEVM:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDPlasma:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDCreditCoin:      {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMoca:            {NumWorkers: 1, TimestampCacheSupported: true},
 }
 
 // GetPerChainConfig returns the config for the specified chain. If the chain is not configured it returns an empty struct,
