@@ -36,10 +36,11 @@ If you prefer to deploy manually or need more control over the process, follow t
 ### 1. Set Environment Variables
 
 ```bash
-# Testnet configuration
-export NODE_URL=https://aztec-testnet-fullnode.zkv.xyz
-export SPONSORED_FPC_ADDRESS=0x299f255076aa461e4e94a843f0275303470a6b8ebe7cb44a471c66711151e529
-# FPC address valid as of v2.0.3, get the latest address via % aztec get-canonical-sponsored-fpc-address
+# Devnet configuration
+export VERSION=3.0.0-devnet.2
+export NODE_URL=https://devnet.aztec-labs.com/
+aztec-up # pull the devnet image
+export SPONSORED_FPC_ADDRESS=$(aztec get-canonical-sponsored-fpc-address | awk '{print $NF}')
 
 # Owner private key (32-byte)
 export OWNER_SK=<contract_owner_private_key>
@@ -108,27 +109,36 @@ aztec-wallet register-contract \
     --salt 0
 ```
 
+#### 3c. Register Sponsored FPC Contract in Local PXE Cache
+
+Before deploying accounts with sponsored fees, make sure your PXE knows about the canonical SponsoredFPC contract. This avoids simulation errors like `No contract instance found for address ...` when the CLI attempts to use the sponsored fee payer.
+
+```bash
+aztec-wallet register-contract \
+    $SPONSORED_FPC_ADDRESS SponsoredFPC \
+    --node-url $NODE_URL \
+    --alias sponsoredfpc
+```
 ## Account Deployment
 
 ### 4. Deploy Accounts
 
 > **Note**: You may encounter `Timeout awaiting isMined` errors, but this is normal. Continue with the next step.
+> **Aztec 3.0.0-devnet.2 update**: `aztec-wallet deploy-account` now expects the account alias (or address) as a positional argument instead of the `--from` flag used in earlier versions.
 
 #### 4a. Deploy Owner Wallet
 
 ```bash
-aztec-wallet deploy-account \
+aztec-wallet deploy-account owner-wallet \
     --node-url $NODE_URL \
-    --from owner-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
 ```
 
 #### 4b. Deploy Receiver Wallet
 
 ```bash
-aztec-wallet deploy-account \
+aztec-wallet deploy-account receiver-wallet \
     --node-url $NODE_URL \
-    --from receiver-wallet \
     --payment method=fpc-sponsored,fpc=contracts:sponsoredfpc
 ```
 
@@ -200,9 +210,10 @@ aztec-wallet send mint_to_public \
 - Ownership can be transferred by the current owner
 
 ```bash
-# Compile the contract (v2.0.2+ requires two steps)
+# Compile the contract and generate artifacts
 aztec-nargo compile
 aztec-postprocess-contract
+aztec codegen ./src -o src/artifacts
 ```
 
 ### 9. Deploy Wormhole Contract

@@ -33,7 +33,11 @@ func GetJSONRPCError(body []byte) (bool, *ErrRPCError) {
 		} `json:"error,omitempty"`
 	}
 
-	if err := json.Unmarshal(body, &errorCheck); err != nil || errorCheck.Error == nil {
+	if err := json.Unmarshal(body, &errorCheck); err != nil {
+		// JSON parsing failed - this is not an RPC error, so return false, nil
+		return false, nil //nolint:nilerr // JSON parsing failure is not an RPC error, function contract requires nil for non-RPC errors
+	}
+	if errorCheck.Error == nil {
 		return false, nil
 	}
 
