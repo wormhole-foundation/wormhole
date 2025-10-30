@@ -386,7 +386,7 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 			zap.String("type", fmt.Sprintf("%T", clarityValue)))
 
 		// Process the core event
-		if err := w.processCoreEvent(clarityValue, replay.Timestamp); err == nil {
+		if err := w.processCoreEvent(clarityValue, tx.TxId, replay.Timestamp); err == nil {
 			wormholeEvents++
 		} else {
 			logger.Error("Failed to process core event",
@@ -447,7 +447,7 @@ func (w *Watcher) processStacksTxId(ctx context.Context, txId string, logger *za
 }
 
 // Processes a core contract event tuple and extracts message fields
-func (w *Watcher) processCoreEvent(clarityValue ClarityValue, timestamp uint64) error {
+func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, timestamp uint64) error {
 	// Cast to tuple
 	eventTuple, isTuple := clarityValue.(*Tuple)
 	if !isTuple {
@@ -471,6 +471,12 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, timestamp uint64) 
 		return fmt.Errorf("failed to extract message data: %w", err)
 	}
 
+	// Convert txId to bytes
+	txIdBytes, err := hex.DecodeString(strings.TrimPrefix(txId, "0x"))
+	if err != nil {
+		return fmt.Errorf("failed to decode transaction ID hex: %w", err)
+	}
+
 	// Convert timestamp to int64 with overflow check
 	if timestamp > maxInt64 {
 		return fmt.Errorf("timestamp %d exceeds maximum int64 value", timestamp)
@@ -478,13 +484,14 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, timestamp uint64) 
 
 	// Create the complete MessagePublication
 	msgPub := &common.MessagePublication{
+		TxID:             txIdBytes,
 		Timestamp:        time.Unix(int64(timestamp), 0), // #nosec G115 -- checked above
-		Nonce:            msgData.Nonce,
-		Sequence:         msgData.Sequence,
 		EmitterChain:     vaa.ChainIDStacks,
 		EmitterAddress:   msgData.EmitterAddress,
-		Payload:          msgData.Payload,
 		ConsistencyLevel: msgData.ConsistencyLevel,
+		Nonce:            msgData.Nonce,
+		Payload:          msgData.Payload,
+		Sequence:         msgData.Sequence,
 	}
 
 	// Submit the message to the channel for processing
