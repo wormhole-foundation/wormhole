@@ -33,16 +33,6 @@ type (
 		ContractEvent    *StacksContractEvent    `json:"contract_event,omitempty"`
 	}
 
-	StacksV3TenureInfoResponse struct {
-		ConsensusHash            string `json:"consensus_hash"`
-		TenureStartBlockId       string `json:"tenure_start_block_id"`
-		ParentConsensusHash      string `json:"parent_consensus_hash"`
-		ParentTenureStartBlockId string `json:"parent_tenure_start_block_id"`
-		TipBlockId               string `json:"tip_block_id"`
-		TipHeight                uint64 `json:"tip_height"`
-		RewardCycle              uint64 `json:"reward_cycle"`
-	}
-
 	StacksV3TenureBlock struct {
 		BlockId       string `json:"block_id"`
 		BlockHash     string `json:"block_hash"`
@@ -135,38 +125,6 @@ type (
 		Stackerdbs             []string               `json:"stackerdbs"`
 	}
 )
-
-// Fetches the latest Bitcoin (burn) block tenure information
-func (w *Watcher) fetchTenureInfo(ctx context.Context) (*StacksV3TenureInfoResponse, error) {
-	url := fmt.Sprintf("%s/v3/tenures/info", w.rpcURL)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch latest Bitcoin (burn) block: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var tenureInfo StacksV3TenureInfoResponse
-	if err := json.Unmarshal(body, &tenureInfo); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &tenureInfo, nil
-}
 
 // Fetches a tenure and its blocks by Bitcoin (burn) block height
 func (w *Watcher) fetchTenureBlocksByBurnHeight(ctx context.Context, height uint64) (*StacksV3TenureBlocksResponse, error) {
