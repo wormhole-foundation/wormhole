@@ -16,6 +16,7 @@ default = ["core", "standard-finality"]
 borsh = ["dep:borsh"]
 
 core = []
+chain-id = []
 token-bridge = []
 post-message-shim = []
 verify-vaa-shim = []

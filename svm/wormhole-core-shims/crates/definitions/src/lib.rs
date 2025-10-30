@@ -27,6 +27,8 @@ mod defs {
             panic!("The 'localnet' feature is meaningless without the 'solana' feature.");
 
             use super::*;
+
+            #[cfg(feature = "chain-id")]
             pub const CHAIN_ID: u16 = crate::utils::parse_u16_const(env!("CHAIN_ID"));
 
             #[cfg(feature = "core")]
