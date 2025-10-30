@@ -306,7 +306,6 @@ jobs:
       # Pinned version of the v6 tag, which is a lightweight and hence mutable tag
       - uses: streetsidesoftware/cspell-action@214db1e3138f326d33b7a6a51c92852e89ab0618
         with:
-          # NOTE: Keep this command in sync with `scripts/lint.sh`
           # For now, only lint markdown files
           files: "**/*.md"
           inline: warning
