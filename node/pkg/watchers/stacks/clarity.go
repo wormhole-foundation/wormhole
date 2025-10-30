@@ -53,12 +53,12 @@ type Int128 struct {
 }
 
 func (i *Int128) ClarityDecode(r *bytes.Reader) error {
-	bytes := make([]byte, 16)
-	_, err := io.ReadFull(r, bytes)
+	buf := make([]byte, 16)
+	_, err := io.ReadFull(r, buf)
 	if err != nil {
 		return err
 	}
-	i.Value = new(big.Int).SetBytes(bytes)
+	i.Value = new(big.Int).SetBytes(buf)
 	return nil
 }
 
@@ -67,12 +67,12 @@ type UInt128 struct {
 }
 
 func (u *UInt128) ClarityDecode(r *bytes.Reader) error {
-	bytes := make([]byte, 16)
-	_, err := io.ReadFull(r, bytes)
+	buf := make([]byte, 16)
+	_, err := io.ReadFull(r, buf)
 	if err != nil {
 		return err
 	}
-	u.Value = new(big.Int).SetBytes(bytes)
+	u.Value = new(big.Int).SetBytes(buf)
 	return nil
 }
 

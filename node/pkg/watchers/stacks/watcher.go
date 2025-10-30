@@ -42,6 +42,7 @@ var (
 	maxUint32BigInt = big.NewInt(math.MaxUint32)
 	maxUint64BigInt = new(big.Int).SetUint64(math.MaxUint64)
 	maxUint8BigInt  = big.NewInt(math.MaxUint8)
+	maxInt64        = uint64(math.MaxInt64)
 )
 
 type (
@@ -210,8 +211,14 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 	logger.Info("Initialized Stacks watcher with stable Bitcoin (burn) block",
 		zap.Uint64("stable_bitcoin_block_height", nodeInfo.StableBurnBlockHeight))
 
+	// Convert StableBurnBlockHeight to int64 with overflow check
+	stableHeight := nodeInfo.StableBurnBlockHeight
+	if stableHeight > maxInt64 {
+		return fmt.Errorf("stable burn block height %d exceeds maximum int64 value", stableHeight)
+	}
+
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDStacks, &gossipv1.Heartbeat_Network{
-		Height:          int64(nodeInfo.StableBurnBlockHeight),
+		Height:          int64(stableHeight), // #nosec G115 -- checked above
 		ContractAddress: w.stateContract,
 	})
 
@@ -242,8 +249,17 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 
 				w.stableBitcoinHeight.Store(nodeInfo.StableBurnBlockHeight)
 
+				// Convert StableBurnBlockHeight to int64 with overflow check
+				newStableHeight := nodeInfo.StableBurnBlockHeight
+				if newStableHeight > maxInt64 {
+					logger.Error("Stable burn block height exceeds maximum int64 value",
+						zap.Uint64("height", newStableHeight))
+					timer.Reset(w.bitcoinBlockPollInterval)
+					continue
+				}
+
 				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDStacks, &gossipv1.Heartbeat_Network{
-					Height:          int64(nodeInfo.StableBurnBlockHeight),
+					Height:          int64(newStableHeight), // #nosec G115 -- checked above
 					ContractAddress: w.stateContract,
 				})
 
@@ -263,13 +279,7 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 						break
 					}
 
-					if err := w.processBitcoinBlock(ctx, tenure, logger); err != nil {
-						logger.Error("Failed to process Bitcoin (burn) block",
-							zap.Uint64("height", height),
-							zap.Error(err))
-						break
-					}
-
+					w.processBitcoinBlock(ctx, tenure, logger)
 					w.processedBitcoinHeight.Store(height)
 				}
 			}
@@ -282,7 +292,7 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 /// PROCESS
 
 // Processes all Stacks blocks anchored to the given Bitcoin (burn) block
-func (w *Watcher) processBitcoinBlock(ctx context.Context, tenureBlocks *StacksV3TenureBlocksResponse, logger *zap.Logger) error {
+func (w *Watcher) processBitcoinBlock(ctx context.Context, tenureBlocks *StacksV3TenureBlocksResponse, logger *zap.Logger) {
 	logger.Info("Processing Bitcoin (burn) block",
 		zap.Uint64("bitcoin_block_height", tenureBlocks.BurnBlockHeight),
 		zap.String("bitcoin_block_hash", tenureBlocks.BurnBlockHash))
@@ -299,11 +309,6 @@ func (w *Watcher) processBitcoinBlock(ctx context.Context, tenureBlocks *StacksV
 			// Continue processing other blocks even if one fails
 		}
 	}
-
-	// Update processed burn height
-	w.processedBitcoinHeight.Store(tenureBlocks.BurnBlockHeight)
-
-	return nil
 }
 
 // Fetches and processes all transactions in a Stacks block
@@ -326,7 +331,7 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 }
 
 // Processes a single transaction from a Stacks block
-func (w *Watcher) processStacksTransaction(ctx context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, logger *zap.Logger) error {
+func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, logger *zap.Logger) error {
 	logger.Info("Processing Stacks transaction", zap.String("tx_id", tx.TxId))
 
 	// abort_by_response
@@ -466,9 +471,14 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, timestamp uint64) 
 		return fmt.Errorf("failed to extract message data: %w", err)
 	}
 
+	// Convert timestamp to int64 with overflow check
+	if timestamp > maxInt64 {
+		return fmt.Errorf("timestamp %d exceeds maximum int64 value", timestamp)
+	}
+
 	// Create the complete MessagePublication
 	msgPub := &common.MessagePublication{
-		Timestamp:        time.Unix(int64(timestamp), 0),
+		Timestamp:        time.Unix(int64(timestamp), 0), // #nosec G115 -- checked above
 		Nonce:            msgData.Nonce,
 		Sequence:         msgData.Sequence,
 		EmitterChain:     vaa.ChainIDStacks,
@@ -588,12 +598,16 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 		return nil, fmt.Errorf("invalid 'payload' field: %T", payloadVal)
 	}
 
+	// Extract values with safe conversions (already validated above against max values)
+	nonceValue := nonceUint.Value.Uint64()
+	consistencyLevelValue := consistencyLevelUint.Value.Uint64()
+
 	// Return just the core message fields
 	return &MessageData{
 		EmitterAddress:   emitterAddr,
-		Nonce:            uint32(nonceUint.Value.Uint64()),
+		Nonce:            uint32(nonceValue), // #nosec G115 -- validated against maxUint32BigInt above
 		Sequence:         sequenceUint.Value.Uint64(),
-		ConsistencyLevel: uint8(consistencyLevelUint.Value.Uint64()),
+		ConsistencyLevel: uint8(consistencyLevelValue), // #nosec G115 -- validated against maxUint8BigInt above
 		Payload:          payload.Data,
 	}, nil
 }
