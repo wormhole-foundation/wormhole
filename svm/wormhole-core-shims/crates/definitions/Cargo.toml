@@ -2,18 +2,23 @@
 name = "wormhole-svm-definitions"
 description = "Pubkeys and Account Definitions for Wormhole on SVM"
 readme = "README.md"
+version = "1.0.0"
 
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = [ "standard-finality" ]
+default = ["core", "standard-finality"]
 borsh = ["dep:borsh"]
+
+core = []
+token-bridge = [] # TODO: add token bridge stuff
+post-message-shim = []
+verify-vaa-shim = []
 
 ### Network types
 testnet = []
