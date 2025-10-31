@@ -27,6 +27,10 @@ bscscan
 BUILDKIT
 bytecodes
 callstack
+Blackhole
+Blackholed
+blackholing
+blackholed
 ccqlistener
 CCTP
 celestia
