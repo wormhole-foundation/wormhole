@@ -8,6 +8,22 @@ import (
 	evm_verifier "github.com/certusone/wormhole/node/pkg/txverifier"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	msgVerificationStates = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_unusual_msg_verification_states_total",
+			Help: "Total number of message verification state changes to unusual values",
+		}, []string{"verification_state", "emitter_chain"})
+
+	msgVerificationErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_msg_verification_errors_total",
+			Help: "Total number of message verification errors",
+		}, []string{"error_type", "emitter_chain"})
 )
 
 // verify evaluates a MessagePublication using the Transfer Verifier.
@@ -49,9 +65,18 @@ func verify(
 		newState = state(ctx, localMsg, txHash, receipt, verifier)
 	}
 
+	// Track unusual states for analytics
+	if newState != common.NotVerified && newState != common.Valid && newState != common.NotApplicable {
+		emitterChainStr := fmt.Sprintf("%d", localMsg.EmitterChain)
+		msgVerificationStates.WithLabelValues(newState.String(), emitterChainStr).Inc()
+	}
+
 	// Update the state of the message.
 	updateErr := localMsg.SetVerificationState(newState)
 	if updateErr != nil {
+		// Track verification errors
+		emitterChainStr := fmt.Sprintf("%d", localMsg.EmitterChain)
+		msgVerificationErrors.WithLabelValues("set_verification_state", emitterChainStr).Inc()
 		errMsg := fmt.Sprintf("could not set verification state for message with txID %s", localMsg.TxIDString())
 		return common.MessagePublication{}, fmt.Errorf("%s %w", errMsg, updateErr)
 	}

@@ -3,7 +3,7 @@ package notary
 // Admin commands for the Notary. This defines a public API for the Notary to be used by the Guardians.
 // This structure allows the admin-level commands to be implemented separately from the core Notary code.
 //
-// TODO: This file uses LoadAll() for reads which is not efficient. However, the DB is exists mostly to facilitate
+// TODO: This file uses LoadAll() for reads which is not efficient. However, the DB exists mostly to facilitate
 // loading data on Guardian restarts and write operations are much more common than reads, so a Get is not implemented
 // yet. (See also the Governor's use of the DB.) The read operations defined here are only used by admins and tests,
 // and the total number of delayed and blackholed messages should always be small, so the performance impact is
