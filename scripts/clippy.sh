@@ -20,16 +20,6 @@ cd "$(dirname "$0")/.." || exit
 # our CI configuration.
 echo "Running Rust linting with active toolchain: $(rustup show active-toolchain)"
 
-# Ensure clippy component is installed for current active toolchain
-# This will use the toolchain defined in rust-toolchain* files via rustup
-# echo "Ensuring clippy component is installed for toolchain: $(rustup show active-toolchain)"
-# rustup component add clippy --toolchain "$(rustup show active-toolchain | awk '{print $1}')"
-
-# Find each Cargo.toml under workspace (skip target dir, skip hidden)
-# For each crate, run `cargo clippy --all-targets -- -D warnings`
-# so that warnings become errors.
-# You may adjust flags (e.g., allow certain lints) as needed.
-
 # Skip:
 # - 3rd party crates
 # - Compiled code
