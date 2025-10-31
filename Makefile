@@ -33,7 +33,10 @@ generate: dirs
 
 .PHONY: lint
 lint:
+# Lints spelling and Go
 	bash scripts/lint.sh lint
+# Runs clippy for most Rust crates
+	bash scripts/clippy.sh
 
 .PHONY: node
 ## Build guardiand binary
