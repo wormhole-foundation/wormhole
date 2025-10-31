@@ -149,7 +149,7 @@ pub fn guardian_set_update_allowed_in_shutdown() -> StdResult<()> {
         .wrap()
         .query_wasm_smart(wormhole_contract.clone(), &QueryMsg::GuardianSetInfo {})?;
 
-    let new_guardian_keys = vec![
+    let new_guardian_keys = [
         SigningKey::from_bytes(&[
             93, 217, 189, 224, 168, 81, 157, 93, 238, 38, 143, 8, 182, 94, 69, 77, 232, 199, 238,
             206, 15, 135, 221, 58, 43, 74, 0, 129, 54, 198, 62, 226,
