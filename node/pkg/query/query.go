@@ -367,15 +367,15 @@ func handleQueryRequestsImpl(
 
 				// Build the list of per chain response publications and the overall query response publication.
 				responses := []*PerChainQueryResponse{}
-				for _, resp := range pq.responses {
-					if resp == nil {
-						qLogger.Error("unexpected null response in pending query!", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+				for _, pqResp := range pq.responses {
+					if pqResp == nil {
+						qLogger.Error("unexpected nil response in pending query!", zap.String("requestID", resp.RequestID))
 						continue
 					}
 
 					responses = append(responses, &PerChainQueryResponse{
-						ChainId:  resp.ChainId,
-						Response: resp.Response,
+						ChainId:  pqResp.ChainId,
+						Response: pqResp.Response,
 					})
 				}
 

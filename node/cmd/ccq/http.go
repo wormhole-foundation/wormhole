@@ -190,10 +190,10 @@ outer:
 		failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case res := <-pendingResponse.ch:
 		s.logger.Info("publishing response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
-		resBytes, err := res.Response.Marshal()
-		if err != nil {
-			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		resBytes, respMarshalErr := res.Response.Marshal()
+		if respMarshalErr != nil {
+			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(respMarshalErr))
+			http.Error(w, respMarshalErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
 			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 			break
@@ -205,8 +205,9 @@ outer:
 		signatures := make([]string, 0, len(res.Signatures))
 		for _, sig := range res.Signatures {
 			if sig.Index > math.MaxUint8 {
-				s.logger.Error("Signature index out of bounds", zap.Int("sig.Index", sig.Index))
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				boundsErr := "Signature index out of bounds"
+				s.logger.Error(boundsErr, zap.Int("sig.Index", sig.Index))
+				http.Error(w, boundsErr, http.StatusInternalServerError)
 				invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
 				failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 				break outer
@@ -216,13 +217,13 @@ outer:
 			signatures = append(signatures, signature)
 		}
 		w.Header().Add("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(&queryResponse{
+		encodeErr := json.NewEncoder(w).Encode(&queryResponse{
 			Signatures: signatures,
 			Bytes:      hex.EncodeToString(resBytes),
 		})
-		if err != nil {
-			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if encodeErr != nil {
+			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(encodeErr))
+			http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
 			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 			break
