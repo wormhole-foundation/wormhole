@@ -2,6 +2,7 @@ package governor
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -30,6 +31,26 @@ func TestTokenListAddressSize(t *testing.T) {
 		t.Run(testLabel, func(t *testing.T) {
 			assert.Equal(t, len(tokenConfigEntry.Addr), 64)
 		})
+	}
+}
+
+func TestTokenPositivePrices(t *testing.T) {
+	tokenConfigEntries := TokenList()
+
+	for tokenConfigEntry := range slices.Values(tokenConfigEntries) {
+		assert.Greater(t, tokenConfigEntry.Price, float64(0), "Token price must be greater than zero")
+	}
+}
+
+func TestTokenSensibleDecimals(t *testing.T) {
+	tokenConfigEntries := TokenList()
+	// This is the global maximum number of decimals among the tokens we have configured. (due to NEAR)
+	// A larger number may be fine but it's unusual, so it's worth flagging.
+	const maxDecimals = 24
+
+	for tokenConfigEntry := range slices.Values(tokenConfigEntries) {
+		assert.GreaterOrEqual(t, tokenConfigEntry.Decimals, uint8(0), "Token decimals must be greater than or equal to zero")
+		assert.LessOrEqual(t, tokenConfigEntry.Decimals, uint8(maxDecimals), fmt.Sprintf("Token decimals must be less than or equal to %d but got %d. details: %v", maxDecimals, tokenConfigEntry.Decimals, tokenConfigEntry))
 	}
 }
 
