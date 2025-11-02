@@ -16,7 +16,6 @@ func ChainList() []ChainConfigEntry {
 		{EmitterChainID: vaa.ChainIDPolygon, DailyLimit: 1_000_000, BigTransactionSize: 100_000},
 		{EmitterChainID: vaa.ChainIDAvalanche, DailyLimit: 1_000_000, BigTransactionSize: 100_000},
 		{EmitterChainID: vaa.ChainIDAlgorand, DailyLimit: 100_000, BigTransactionSize: 10_000},
-		{EmitterChainID: vaa.ChainIDFantom, DailyLimit: 0, BigTransactionSize: 0},
 		{EmitterChainID: vaa.ChainIDKlaytn, DailyLimit: 100_000, BigTransactionSize: 10_000},
 		{EmitterChainID: vaa.ChainIDCelo, DailyLimit: 10_000, BigTransactionSize: 10_000},
 		{EmitterChainID: vaa.ChainIDNear, DailyLimit: 100_000, BigTransactionSize: 10_000},
