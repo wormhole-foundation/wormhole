@@ -350,9 +350,6 @@ export class TestLib {
     if (chain === CHAIN_ID_OASIS) {
       return "0000000000000000000000005848c791e09901b40a9ef749f2a6735b418d7564";
     }
-    if (chain === CHAIN_ID_FANTOM) {
-      return "0000000000000000000000007C9Fc5741288cDFdD83CeB07f3ea7e22618D79D2";
-    }
     return "";
   }
 
@@ -374,9 +371,6 @@ export class TestLib {
     }
     if (chain === CHAIN_ID_OASIS) {
       return "00000000000000000000000004952D522Ff217f40B5Ef3cbF659EcA7b952a6c1";
-    }
-    if (chain === CHAIN_ID_FANTOM) {
-      return "000000000000000000000000A9c7119aBDa80d4a4E0C06C8F4d8cF5893234535";
     }
     return "";
   }
