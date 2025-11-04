@@ -377,7 +377,7 @@ mod test {
                 ]),
                 uri: "google.com".into(),
                 to: GOVERNANCE_EMITTER,
-                to_chain: Chain::Fantom,
+                to_chain: Chain::Klaytn,
             },
         };
 
