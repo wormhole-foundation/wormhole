@@ -464,8 +464,17 @@ func (gov *ChainGovernor) initConfig() error {
 	return nil
 }
 
-// Returns true if the message can be published, false if it has been added to the pending list.
+// Returns true if the message can be published, false if it has been added to the pending list
+// or if an error occurred.
 func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
+
+	// Fail early for checks that do not require referencing the governor's state.
+	if !vaa.IsTransfer(msg.Payload) {
+		// The Governor should not block transfers that are not wrapped token transfers.
+		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+		return true
+	}
+
 	publish, err := gov.processMsgForTime(msg, time.Now())
 	if err != nil {
 		gov.logger.Error("failed to process VAA: %v", zap.Error(err))
@@ -690,6 +699,15 @@ func (gov *ChainGovernor) corridorCanFlowCancel(corridor *corridor) bool {
 
 // IsGovernedMsg determines if the message applies to the governor. It grabs the lock.
 func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGoverned bool, err error) {
+
+	// Fail early for checks that do not require referencing the governor's state.
+	// This avoids locking the governor's mutex.
+	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+		return false, nil
+	}
+
+	// The remaining checks require referencing the governor's state, so we need to lock it.
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 	msgIsGoverned, _, _, _, err = gov.parseMsgAlreadyLocked(msg)
@@ -700,6 +718,13 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	msg *common.MessagePublication,
 ) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
+	// We only care about wrapped token transfers.
+	// The caller SHOULD check that the message is a wrapped token transfer before calling this method because it can be done without acquiring the Governor's lock. However, it is checked here for completeness.
+	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+		return false, nil, nil, nil, nil
+	}
+
 	// If we don't care about this chain, the VAA can be published.
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
@@ -721,16 +746,11 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 		return false, nil, nil, nil, nil
 	}
 
-	// We only care about transfers.
-	if !vaa.IsTransfer(msg.Payload) {
-		gov.logger.Info("ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
-		return false, nil, nil, nil, nil
-	}
-
-	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
-	if err != nil {
-		gov.logger.Error("failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
-		return false, nil, nil, nil, err
+	// Decode the payload. This is a prerequisite for the rest of the checks.
+	payload, decodeErr := vaa.DecodeTransferPayloadHdr(msg.Payload)
+	if decodeErr != nil {
+		gov.logger.Error("failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(decodeErr))
+		return false, nil, nil, nil, decodeErr
 	}
 
 	// If we don't care about this token, the VAA can be published.
