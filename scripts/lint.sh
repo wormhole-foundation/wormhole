@@ -62,6 +62,9 @@ lint(){
         cspell "*/**.*md"
     fi
     
+    # Check for parity between Go and Rust SDKs.
+    bash scripts/check-rust-chain-sync.sh
+    
     # === Go linting
     # Check for dependencies
     if ! command -v golangci-lint >/dev/null 2>&1; then
@@ -74,6 +77,7 @@ lint(){
 
     cd "${ROOT}/sdk"
     golangci-lint run --timeout=10m $GOLANGCI_LINT_ARGS ./...
+
 }
 
 DOCKER="false"
