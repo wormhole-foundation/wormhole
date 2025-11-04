@@ -141,13 +141,15 @@ fn parse_obsolete_line(line: &str) -> Option<(String, u16)> {
 
     // Find "ChainID" followed by "ChainID" and "=" and a number
     for i in 0..parts.len() {
-        if parts[i].starts_with("ChainID") && i + 3 < parts.len() {
-            if parts[i + 1] == "ChainID" && parts[i + 2] == "=" {
-                let const_name = parts[i];
-                let id_str = parts[i + 3].trim_end_matches(|c| !char::is_numeric(c));
-                if let Ok(id) = id_str.parse::<u16>() {
-                    return Some((ChainDef::extract_name(const_name), id));
-                }
+        if parts[i].starts_with("ChainID")
+            && i + 3 < parts.len()
+            && parts[i + 1] == "ChainID"
+            && parts[i + 2] == "="
+        {
+            let const_name = parts[i];
+            let id_str = parts[i + 3].trim_end_matches(|c| !char::is_numeric(c));
+            if let Ok(id) = id_str.parse::<u16>() {
+                return Some((ChainDef::extract_name(const_name), id));
             }
         }
     }
