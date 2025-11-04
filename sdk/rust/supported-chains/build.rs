@@ -138,7 +138,7 @@ fn parse_go_constants(go_source: &str) -> Vec<ChainDef> {
 /// Parse an obsolete chain line: "// OBSOLETE: ChainIDOasis ChainID = 7"
 fn parse_obsolete_line(line: &str) -> Option<(String, u16)> {
     let parts: Vec<&str> = line.split_whitespace().collect();
-    
+
     // Find "ChainID" followed by "ChainID" and "=" and a number
     for i in 0..parts.len() {
         if parts[i].starts_with("ChainID") && i + 3 < parts.len() {
@@ -157,7 +157,7 @@ fn parse_obsolete_line(line: &str) -> Option<(String, u16)> {
 /// Parse a chain constant line: "ChainIDSolana ChainID = 1"
 fn parse_chain_constant(line: &str) -> Option<(String, u16)> {
     let parts: Vec<&str> = line.split_whitespace().collect();
-    
+
     if parts.len() >= 4 && parts[1] == "ChainID" && parts[2] == "=" {
         let const_name = parts[0];
         let id_str = parts[3].trim_end_matches(|c| !char::is_numeric(c));
@@ -193,7 +193,7 @@ fn generate_rust_code(chains: &[ChainDef]) -> String {
 /// Generate the Chain enum definition
 fn generate_enum(chains: &[ChainDef]) -> String {
     let mut code = String::new();
-    
+
     code.push_str("#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]\n");
     code.push_str("pub enum Chain {\n");
     code.push_str("    /// In the wormhole wire format, 0 indicates that a message is for any destination chain\n");
@@ -223,7 +223,10 @@ fn generate_enum(chains: &[ChainDef]) -> String {
     if !obsolete_chains.is_empty() {
         code.push_str("\n    // Obsolete chains:\n");
         for chain in obsolete_chains {
-            code.push_str(&format!("    // OBSOLETE: {} was ID {}\n", chain.name, chain.id));
+            code.push_str(&format!(
+                "    // OBSOLETE: {} was ID {}\n",
+                chain.name, chain.id
+            ));
         }
     }
 
@@ -237,7 +240,7 @@ fn generate_enum(chains: &[ChainDef]) -> String {
 /// Generate From<u16> for Chain implementation
 fn generate_from_u16(chains: &[ChainDef]) -> String {
     let mut code = String::new();
-    
+
     code.push_str("impl From<u16> for Chain {\n");
     code.push_str("    fn from(other: u16) -> Chain {\n");
     code.push_str("        match other {\n");
@@ -250,7 +253,10 @@ fn generate_from_u16(chains: &[ChainDef]) -> String {
         .collect();
 
     for chain in active_chains {
-        code.push_str(&format!("            {} => Chain::{},\n", chain.id, chain.name));
+        code.push_str(&format!(
+            "            {} => Chain::{},\n",
+            chain.id, chain.name
+        ));
     }
 
     code.push_str("            c => Chain::Unknown(c),\n");
@@ -264,7 +270,7 @@ fn generate_from_u16(chains: &[ChainDef]) -> String {
 /// Generate From<Chain> for u16 implementation
 fn generate_into_u16(chains: &[ChainDef]) -> String {
     let mut code = String::new();
-    
+
     code.push_str("impl From<Chain> for u16 {\n");
     code.push_str("    fn from(other: Chain) -> u16 {\n");
     code.push_str("        match other {\n");
@@ -276,7 +282,10 @@ fn generate_into_u16(chains: &[ChainDef]) -> String {
         .collect();
 
     for chain in active_chains {
-        code.push_str(&format!("            Chain::{} => {},\n", chain.name, chain.id));
+        code.push_str(&format!(
+            "            Chain::{} => {},\n",
+            chain.name, chain.id
+        ));
     }
 
     code.push_str("            Chain::Unknown(c) => c,\n");
@@ -290,7 +299,7 @@ fn generate_into_u16(chains: &[ChainDef]) -> String {
 /// Generate Display trait implementation
 fn generate_display(chains: &[ChainDef]) -> String {
     let mut code = String::new();
-    
+
     code.push_str("impl fmt::Display for Chain {\n");
     code.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
     code.push_str("        match self {\n");
@@ -319,7 +328,7 @@ fn generate_display(chains: &[ChainDef]) -> String {
 /// Generate FromStr trait implementation with case-insensitive matching
 fn generate_from_str(chains: &[ChainDef]) -> String {
     let mut code = String::new();
-    
+
     code.push_str("impl FromStr for Chain {\n");
     code.push_str("    type Err = InvalidChainError;\n\n");
     code.push_str("    fn from_str(s: &str) -> Result<Self, Self::Err> {\n");
@@ -334,7 +343,7 @@ fn generate_from_str(chains: &[ChainDef]) -> String {
     for chain in active_chains {
         let lower = chain.name_lower();
         let upper = chain.name.to_uppercase();
-        
+
         // Handle special cases where lowercase/uppercase might differ significantly
         if chain.needs_special_case() {
             code.push_str(&format!(
@@ -372,30 +381,36 @@ fn generate_from_str(chains: &[ChainDef]) -> String {
 fn main() {
     // Path to the Go source file (relative to workspace root)
     let go_source_path = PathBuf::from("../../vaa/structs.go");
-    
+
     // Tell cargo to rerun if the Go source changes
     println!("cargo:rerun-if-changed={}", go_source_path.display());
-    
+
     // Read the Go source
     let go_source = fs::read_to_string(&go_source_path)
         .unwrap_or_else(|e| panic!("Failed to read Go source at {:?}: {}", go_source_path, e));
-    
+
     // Parse chain definitions
     let chains = parse_go_constants(&go_source);
-    
-    println!("cargo:warning=Parsed {} chain definitions from Go source", chains.len());
-    
+
+    println!(
+        "cargo:warning=Parsed {} chain definitions from Go source",
+        chains.len()
+    );
+
     // Generate Rust code
     let rust_code = generate_rust_code(&chains);
-    
+
     // Write to OUT_DIR
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let generated_file = out_dir.join("chains_generated.rs");
-    
+
     fs::write(&generated_file, rust_code)
         .unwrap_or_else(|e| panic!("Failed to write generated code: {}", e));
-    
-    println!("cargo:warning=Generated chains code at {:?}", generated_file);
+
+    println!(
+        "cargo:warning=Generated chains code at {:?}",
+        generated_file
+    );
 }
 
 #[cfg(test)]
@@ -434,17 +449,17 @@ const (
     ChainIDAlgorand ChainID = 8
 )
         "#;
-        
+
         let chains = parse_go_constants(input);
-        
+
         // Should have Unset, Solana, Ethereum, Oasis (obsolete), and Algorand
         assert_eq!(chains.len(), 5);
-        
+
         // Check Solana
         let solana = chains.iter().find(|c| c.name == "Solana").unwrap();
         assert_eq!(solana.id, 1);
         assert_eq!(solana.status, ChainStatus::Active);
-        
+
         // Check Oasis (obsolete)
         let oasis = chains.iter().find(|c| c.name == "Oasis").unwrap();
         assert_eq!(oasis.id, 7);

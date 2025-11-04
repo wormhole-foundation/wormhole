@@ -2,12 +2,6 @@
 
 Rust implementation of Wormhole core types and utilities.
 
-## Packages
-
-- **`supported-chains`** - Chain ID definitions and conversions
-- **`vaas-serde`** - VAA parsing and serialization
-- **`serde_wormhole`** - Serde data format for Wormhole payloads
-
 ## Code Generation
 
 The `supported-chains` crate auto-generates the `Chain` enum and trait implementations from the Go SDK source of truth at compile time.
@@ -68,4 +62,4 @@ cat target/debug/build/wormhole-supported-chains-*/out/chains_generated.rs
   - `ChainIDSolana ChainID = 1` → Active chain
   - `// OBSOLETE: ChainIDOasis ChainID = 7` → Maps to `Chain::Unknown(7)`
   - `// WARNING: ChainIDTerra...` → Includes with doc comment
-- Preserves exact casing from Go (e.g., `ChainIDBSC` → `Chain::BSC`)
+- Preserves exact casing from Go
