@@ -33,7 +33,7 @@ export const guardianAddress =  encoding.hex.encode(privateKeyToEvmAddress(encod
 /** A Wormhole Core wrapper allowing to write tests using this program in a local environment. */
 export class TestingWormholeCore<N extends Network> {
   public readonly signer: Signer;
-  public readonly client: SolanaWormholeCore<N, 'Solana'>;
+  public readonly client: SolanaWormholeCore<N, "Solana" | "Fogo">;
   private sequence = 0n;
   private readonly toProgram: PublicKey;
   private _guardians?: mocks.MockGuardians;
@@ -49,10 +49,11 @@ export class TestingWormholeCore<N extends Network> {
     network: N,
     testedProgram: PublicKey,
     contracts: Contracts,
+    chain: "Solana" | "Fogo" = "Solana",
   ) {
     this.signer = signer;
     this.toProgram = testedProgram;
-    this.client = new SolanaWormholeCore(network, 'Solana', connection, contracts);
+    this.client = new SolanaWormholeCore(network, chain, connection, contracts);
   }
 
   get guardians(): mocks.MockGuardians {
