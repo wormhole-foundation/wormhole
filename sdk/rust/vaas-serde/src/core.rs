@@ -377,7 +377,7 @@ mod test {
             sequence: 80_072_794,
             consistency_level: 0,
             payload: GovernancePacket {
-                chain: Chain::Fantom,
+                chain: Chain::Ethereum,
                 action: Action::ContractUpgrade {
                     new_contract: Address([
                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
