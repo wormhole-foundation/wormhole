@@ -11,9 +11,9 @@
     "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.2",
     "@noble/secp256k1": "^2.2.3",
-    "@wormhole-foundation/sdk-base": "^2.2.0",
-    "@wormhole-foundation/sdk-definitions": "^2.2.0",
-    "@wormhole-foundation/sdk-solana-core": "^2.2.0"
+    "@wormhole-foundation/sdk-base": "^3.11.0",
+    "@wormhole-foundation/sdk-definitions": "^3.11.0",
+    "@wormhole-foundation/sdk-solana-core": "^3.11.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
