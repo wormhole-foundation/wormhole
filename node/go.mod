@@ -50,7 +50,6 @@ require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/cosmos/cosmos-sdk v0.45.11
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-kit/kit v0.12.0
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.6.0
