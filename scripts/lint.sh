@@ -55,15 +55,14 @@ format(){
 }
 
 lint(){
+    # Performs Go-related linting.
+
     # === Spell check
     if ! command -v cspell >/dev/null 2>&1; then
         printf "%s\n" "cspell is not installed. Skipping spellcheck"
     else
         cspell "*/**.*md"
     fi
-    
-    # Check for parity between Go and Rust SDKs.
-    bash scripts/check-rust-chain-sync.sh
     
     # === Go linting
     # Check for dependencies
