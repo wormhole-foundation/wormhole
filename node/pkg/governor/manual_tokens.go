@@ -7,6 +7,7 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 2, Addr: "00000000000000000000000085f17cf997934a597031b2e18a9ab6ebd4b9f6a4", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34}, // Near on ethereum
 		{Chain: 2, Addr: "000000000000000000000000a3931d71877C0E7a3148CB7Eb4463524FEc27fbD", Symbol: "sUSDS", CoinGeckoId: "susds", Decimals: 18, Price: 1.07},
 		{Chain: 2, Addr: "000000000000000000000000CEDbEA37C8872c4171259Cdfd5255CB8923Cf8e7", Symbol: "XAN", CoinGeckoId: "anoma", Decimals: 18, Price: 0.03343},
+		{Chain: 2, Addr: "000000000000000000000000e355De6a6043b0580Ff5A26b46051A4809B12793", Symbol: "4EVER", CoinGeckoId: "4everland", Decimals: 18, Price: 0.001255},
 		{Chain: 8, Addr: "000000000000000000000000000000000000000000000000000000000004c5c1", Symbol: "USDt", CoinGeckoId: "tether", Decimals: 6, Price: 1.002}, // Addr: 312769, Notional: 22.31747085
 		{Chain: 13, Addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", Symbol: "KLEVA", CoinGeckoId: "kleva", Decimals: 18, Price: 0.086661},
 		{Chain: 13, Addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", Symbol: "WEMIX", CoinGeckoId: "wemix-token", Decimals: 18, Price: 1.74},
