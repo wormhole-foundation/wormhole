@@ -153,7 +153,7 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 		zap.String("custom_endpoint", customEndpoint))
 
 	// Process the transaction
-	err := w.processStacksTxId(ctx, txIdString, logger)
+	err := w.reobserveStacksTransactionByTxId(ctx, txIdString, logger)
 	if err != nil {
 		logger.Error("Failed to reobserve transaction",
 			zap.String("tx_hash", txIdString),
@@ -319,7 +319,7 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 	}
 
 	for _, tx := range replay.Transactions {
-		if err := w.processStacksTransaction(ctx, &tx, replay, logger); err != nil {
+		if err := w.processStacksTransaction(ctx, &tx, replay, false, logger); err != nil {
 			logger.Error("Failed to process transaction",
 				zap.String("tx_id", tx.TxId),
 				zap.Error(err))
@@ -331,7 +331,7 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 }
 
 // Processes a single transaction from a Stacks block
-func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, logger *zap.Logger) error {
+func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, isReobservation bool, logger *zap.Logger) error {
 	logger.Info("Processing Stacks transaction", zap.String("tx_id", tx.TxId))
 
 	// non-okay response
@@ -397,7 +397,7 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 			zap.String("type", fmt.Sprintf("%T", clarityValue)))
 
 		// Process the core event
-		if err := w.processCoreEvent(clarityValue, tx.TxId, replay.Timestamp); err == nil {
+		if err := w.processCoreEvent(clarityValue, tx.TxId, replay.Timestamp, isReobservation); err == nil {
 			wormholeEvents++
 		} else {
 			logger.Error("Failed to process core event",
@@ -416,7 +416,7 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 }
 
 // Processes a single transaction by its txid (used for reobservations)
-func (w *Watcher) processStacksTxId(ctx context.Context, txId string, logger *zap.Logger) error {
+func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId string, logger *zap.Logger) error {
 	logger.Info("Processing transaction by txid", zap.String("tx_id", txId))
 
 	transaction, err := w.fetchStacksTransactionByTxId(ctx, txId)
@@ -447,7 +447,7 @@ func (w *Watcher) processStacksTxId(ctx context.Context, txId string, logger *za
 	}
 
 	// Process the transaction using the same processing function used in polling
-	if err := w.processStacksTransaction(ctx, tx, replay, logger); err != nil {
+	if err := w.processStacksTransaction(ctx, tx, replay, true, logger); err != nil {
 		return fmt.Errorf("failed to process transaction: %w", err)
 	}
 
@@ -458,7 +458,7 @@ func (w *Watcher) processStacksTxId(ctx context.Context, txId string, logger *za
 }
 
 // Processes a core contract event tuple and extracts message fields
-func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, timestamp uint64) error {
+func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, timestamp uint64, isReobservation bool) error {
 	// Cast to tuple
 	eventTuple, isTuple := clarityValue.(*Tuple)
 	if !isTuple {
@@ -503,6 +503,7 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, times
 		Nonce:            msgData.Nonce,
 		Payload:          msgData.Payload,
 		Sequence:         msgData.Sequence,
+		IsReobservation:  isReobservation,
 	}
 
 	// Submit the message to the channel for processing
