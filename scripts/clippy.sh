@@ -30,6 +30,7 @@ echo "Running Rust linting with active toolchain: $(rustup show active-toolchain
 # but requires a little more work.
 find . -type f -name Cargo.toml \
    -not -path "./target/*" \
+   -not -path "./node_modules/*" \
    -not -path "./.cargo/*" \
    -not -path "$HOME/.cargo/*" \
    -not -path "./.git/*" \
