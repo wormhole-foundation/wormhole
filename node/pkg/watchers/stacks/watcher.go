@@ -359,7 +359,8 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 	wormholeEvents := 0
 	for _, event := range tx.Events {
 		// Skip events that don't match our criteria
-		if event.Type != "contract_event" ||
+		if !event.Committed ||
+			event.Type != "contract_event" ||
 			event.ContractEvent == nil ||
 			event.ContractEvent.ContractIdentifier != w.stateContract ||
 			event.ContractEvent.Topic != "print" {
