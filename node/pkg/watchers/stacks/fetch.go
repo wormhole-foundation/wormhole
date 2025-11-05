@@ -48,15 +48,17 @@ type (
 	}
 
 	StacksV3TenureBlockTransaction struct {
-		TxId          string                 `json:"txid"`
-		TxIndex       uint32                 `json:"tx_index"`
-		Data          map[string]interface{} `json:"data,omitempty"`           // Transaction data structure
-		Hex           string                 `json:"hex,omitempty"`            // Raw transaction hex
-		Result        map[string]interface{} `json:"result,omitempty"`         // Transaction execution result
-		StxBurned     uint64                 `json:"stx_burned,omitempty"`     // STX burned in transaction
-		ExecutionCost map[string]interface{} `json:"execution_cost,omitempty"` // Execution cost breakdown
-		Events        []StacksEvent          `json:"events,omitempty"`         // Transaction events
-		VmError       *string                `json:"vm_error,omitempty"`       // Runtime error message if transaction failed (null when successful)
+		TxId                 string                 `json:"txid"`
+		TxIndex              uint32                 `json:"tx_index"`
+		Data                 map[string]interface{} `json:"data,omitempty"`                   // Transaction data structure
+		Hex                  string                 `json:"hex,omitempty"`                    // Raw transaction hex
+		Result               map[string]interface{} `json:"result,omitempty"`                 // Transaction execution result
+		ResultHex            string                 `json:"result_hex,omitempty"`             // Transaction execution result in hex
+		StxBurned            uint64                 `json:"stx_burned,omitempty"`             // STX burned in transaction
+		ExecutionCost        map[string]interface{} `json:"execution_cost,omitempty"`         // Execution cost breakdown
+		Events               []StacksEvent          `json:"events,omitempty"`                 // Transaction events
+		PostConditionAborted bool                   `json:"post_condition_aborted,omitempty"` // Whether the post-condition was aborted
+		VmError              *string                `json:"vm_error,omitempty"`               // Runtime error message if transaction failed (null when successful)
 	}
 
 	StacksV3TenureBlockReplayResponse struct {

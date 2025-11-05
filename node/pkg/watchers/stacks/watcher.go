@@ -334,12 +334,22 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, logger *zap.Logger) error {
 	logger.Info("Processing Stacks transaction", zap.String("tx_id", tx.TxId))
 
+	// non-okay response
+	if !strings.HasPrefix(tx.ResultHex, "0x07") { // (ok) is 0x07...
+		return fmt.Errorf("transaction %s failed due to response hex: %s", tx.TxId, tx.ResultHex)
+	}
+
 	// abort_by_response
-	if !isTransactionResultSuccessful(tx.Result) {
+	if !isTransactionResultCommitted(tx.Result) {
 		return fmt.Errorf("transaction %s failed due to response: %v", tx.TxId, tx.Result)
 	}
 
 	// abort_by_post_condition
+	if tx.PostConditionAborted {
+		return fmt.Errorf("transaction %s failed due to post-condition aborted", tx.TxId)
+	}
+
+	// other runtime error
 	if tx.VmError != nil {
 		return fmt.Errorf("transaction %s failed due to runtime error: %s", tx.TxId, *tx.VmError)
 	}
@@ -502,18 +512,18 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, times
 
 /// HELPERS
 
-func isTransactionResultSuccessful(result map[string]interface{}) bool {
+func isTransactionResultCommitted(result map[string]interface{}) bool {
 	if result == nil {
 		return false
 	}
 
-	response, ok := result["Response"].(map[string]interface{})
-	if !ok {
+	response, parsed := result["Response"].(map[string]interface{})
+	if !parsed {
 		return false
 	}
 
-	committed, ok := response["committed"].(bool)
-	return ok && committed
+	committed, parsed := response["committed"].(bool)
+	return parsed && committed
 }
 
 // Extracts the event name from an event tuple
