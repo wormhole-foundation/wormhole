@@ -1416,7 +1416,7 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 	signature := [ecdsaSignatureLength]byte{}
 	copy(signature[:], sig)
 
-	newVAA.Signatures = append(v.Signatures, &vaa.Signature{
+	newVAA.Signatures = append(newVAA.Signatures, &vaa.Signature{
 		Index:     uint8(localGuardianIndex), // #nosec G115 -- The length of newGS is constrained to a uint8 above
 		Signature: signature,
 	})
