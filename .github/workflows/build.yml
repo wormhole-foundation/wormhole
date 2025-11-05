@@ -361,7 +361,7 @@ jobs:
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
             test_args: "--lib"  # Skip doctests; anchor interfaces lack solana_program dependency
-          # Token Mint parser for SVM token bridge
+          # Token Metadata parser for SVM token bridge
           - path: solana/modules/token_bridge/token_metadata_parser/Cargo.toml
             args: "--workspace"
             test_args: ""
