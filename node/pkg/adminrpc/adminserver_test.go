@@ -294,6 +294,24 @@ func TestSignExistingVAA_Valid(t *testing.T) {
 	require.Equal(t, v2, res.Vaa)
 }
 
+func TestSignExistingVAA_ValidMutatedSet(t *testing.T) {
+	signers, gsAddrs := generateGuardianSigners(5)
+	s := setupAdminServerForVAASigning(0, gsAddrs)
+
+	v := generateMockVAA(0, signers, t)
+
+	gsAddrs = append(gsAddrs[1:], s.guardianAddress) // We lose the first Guardian so the index changes for every Guardian
+	res, err := s.SignExistingVAA(context.Background(), &nodev1.SignExistingVAARequest{
+		Vaa:                 v,
+		NewGuardianAddrs:    addrsToHexStrings(gsAddrs),
+		NewGuardianSetIndex: 1,
+	})
+
+	require.NoError(t, err)
+	v2 := generateMockVAA(1, append(signers[1:], s.guardianSigner), t)
+	require.Equal(t, v2, res.Vaa)
+}
+
 const govGuardianSetIndex = uint32(4)
 
 var govTimestamp = time.Now()
