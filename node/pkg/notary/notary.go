@@ -168,16 +168,29 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		return Approve, nil
 	}
 
-	if tokenBridge, ok := sdk.KnownTokenbridgeEmitters[msg.EmitterChain]; !ok {
-		// Return Unknown if the token bridge is not registered in the SDK.
-		n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
-		return Unknown, errors.New("unknown token bridge emitter")
-	} else {
-		// Approve if the token transfer is not from the token bridge.
-		// For now, the notary only rules on token transfers from the token bridge.
-		if !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
-			n.logger.Debug("notary: automatically approving message publication because it is not from the token bridge", msg.ZapFields()...)
-			return Approve, nil
+	var tbEmitters = make(map[vaa.ChainID][]byte)
+	switch n.env {
+	case common.MainNet:
+		tbEmitters = sdk.KnownTokenbridgeEmitters
+	case common.TestNet:
+		tbEmitters = sdk.KnownTestnetTokenbridgeEmitters
+	default:
+		n.logger.Debug("skipping token bridge emitter check because environment is not mainnet or testnet")
+	}
+
+	// The devnet environment does not have token bridges configured for all the relevant chains that we want to test.
+	if n.env == common.MainNet || n.env == common.TestNet {
+		if tokenBridge, ok := tbEmitters[msg.EmitterChain]; !ok {
+			// Return Unknown if the token bridge is not registered in the SDK.
+			n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
+			return Unknown, errors.New("unknown token bridge emitter")
+		} else {
+			// Approve if the token transfer is not from the token bridge.
+			// For now, the notary only rules on token transfers from the token bridge.
+			if !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
+				n.logger.Debug("notary: automatically approving message publication because it is not from the token bridge", msg.ZapFields()...)
+				return Approve, nil
+			}
 		}
 	}
 
