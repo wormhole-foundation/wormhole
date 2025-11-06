@@ -174,6 +174,7 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		tbEmitters = sdk.KnownTokenbridgeEmitters
 	case common.TestNet:
 		tbEmitters = sdk.KnownTestnetTokenbridgeEmitters
+	case common.UnsafeDevNet, common.AccountantMock, common.GoTest:
 	default:
 		n.logger.Debug("skipping token bridge emitter check because environment is not mainnet or testnet")
 	}
