@@ -17,7 +17,6 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_unusual_msg_verification_states_total",
 			Help: "Total number of messages assessed as unusual by transfer verifier",
-
 		}, []string{"verification_state", "emitter_chain"})
 
 	msgVerificationErrors = promauto.NewCounterVec(

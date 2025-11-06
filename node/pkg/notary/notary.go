@@ -253,6 +253,12 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	n.logger.Debug("notary result",
 		msg.ZapFields(zap.String("verdict", v.String()))...,
 	)
+
+	// Track messages that receive non-Approve verdicts
+	if v != Approve {
+		NotaryTokenTransferNonApprove.WithLabelValues(v.String()).Inc()
+	}
+
 	return
 }
 
@@ -319,7 +325,7 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 		zap.Int("delayedCount", n.delayed.Len()),
 	)
 
-	notaryMessagesReleased.Add(float64(len(readyMsgs)))
+	notaryReleasedMessagesCounter.Add(float64(len(readyMsgs)))
 	return readyMsgs
 }
 

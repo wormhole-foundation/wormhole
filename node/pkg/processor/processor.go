@@ -323,9 +323,6 @@ func (p *Processor) Run(ctx context.Context) error {
 				case guardianNotary.Blackhole, guardianNotary.Delay:
 					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
 
-					// Track messages that receive non-Approve verdicts
-					guardianNotary.NotaryTokenTransferNonApprove.WithLabelValues(verdict.String()).Inc()
-
 					if verdict == guardianNotary.Blackhole {
 						// Black-holed messages should not be processed.
 						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
@@ -338,16 +335,11 @@ func (p *Processor) Run(ctx context.Context) error {
 				case guardianNotary.Unknown:
 					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 
-					// Track messages that receive non-Approve verdicts
-					guardianNotary.NotaryTokenTransferNonApprove.WithLabelValues(verdict.String()).Inc()
 				case guardianNotary.Approve:
 					// no-op: process normally
 					p.logger.Debug("notary evaluated message as approved", k.ZapFields(zap.String("verdict", verdict.String()))...)
 				default:
 					p.logger.Error("notary returned unrecognized verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
-
-					// Track messages that receive non-Approve verdicts
-					guardianNotary.NotaryTokenTransferNonApprove.WithLabelValues("unrecognized").Inc()
 				}
 			}
 
