@@ -7,7 +7,7 @@ import (
 
 // Prometheus metrics for notary events
 var (
-	notaryMessagesReleased = promauto.NewCounter(
+	notaryReleasedMessagesCounter = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_notary_messages_released_total",
 			Help: "Total number of delayed messages released by the notary",
