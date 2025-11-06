@@ -12,6 +12,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -46,6 +47,28 @@ func makeTestNotary(t *testing.T) *Notary {
 		blackholed: NewSet(),
 		env:        common.GoTest,
 	}
+}
+
+// TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
+// This test can be removed if the Notary is extended to support other chains.
+func TestNotary_AlwaysApproveNonTransferVerifierEmitters(t *testing.T) {
+	n := makeTestNotary(t)
+
+	msg := makeUniqueMessagePublication(t)
+
+	// Even a message with a suspicious state should be approved if the emitter chain does not have a transfer verifier.
+	msg.EmitterChain = vaa.ChainIDSolana      // Solana does not have a transfer verifier.
+	msg.SetVerificationState(common.Rejected) // Ordinarily, this should not get an Approve verdict.
+	require.False(t, txverifier.IsSupported(msg.EmitterChain))
+
+	verdict, err := n.ProcessMsg(msg)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		Approve,
+		verdict,
+		fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
+	)
 }
 
 func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
