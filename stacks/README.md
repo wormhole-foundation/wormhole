@@ -1,7 +1,5 @@
 # Stacks
 
-This directory contains Dockerfiles and scripts for building and testing the Stacks blockchain and related components.
-
 ## High-level architecture
 
 The Stacks watcher is a component that monitors the Stacks blockchain and processes transactions to find Wormhole message publication events.

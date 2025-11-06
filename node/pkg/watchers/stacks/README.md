@@ -58,7 +58,7 @@ The watcher interacts with the Stacks Node RPC API endpoints:
 
 ## Error Handling
 
-The watcher handles the following error conditions, however generally errors are ignored and subsequent blocks/transactions are still processed (since there is always the option to reobserve missed transactions).
+The watcher handles the following error conditions, however generally errors are ignored and subsequent blocks/transactions are still processed.
 
 - RPC connection failures - Will retry on the next polling interval
 - Block processing failures - Logs errors and continues with the next block
