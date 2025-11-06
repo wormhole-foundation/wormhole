@@ -1,5 +1,5 @@
 {
-  "name": "broadcaster",
+  "name": "@wormhole-foundation/stacks-broadcaster",
   "private": true,
   "version": "1.0.0",
   "description": "",

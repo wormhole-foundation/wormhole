@@ -1,15 +1,12 @@
 {
-  "name": "wormhole-stacks-tools",
+  "name": "@wormhole-foundation/stacks-integration-test",
   "version": "1.0.0",
-  "description": "TypeScript tools for testing Ethereum<>Stacks VAAs in a local setup",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
     "test": "vitest",
-    "test:integration": "vitest integration.test.ts",
-    "spy": "npx tsx integration/40-setup-spy-client.ts",
-    "monitor": "npx tsx integration/41-monitor-message-flow.ts"
+    "test:integration": "vitest integration.test.ts"
   },
   "author": "",
   "license": "ISC",
