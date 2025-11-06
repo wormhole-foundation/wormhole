@@ -52,23 +52,45 @@ func makeTestNotary(t *testing.T) *Notary {
 // TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
 // This test can be removed if the Notary is extended to support other chains.
 func TestNotary_AlwaysApproveNonTransferVerifierEmitters(t *testing.T) {
-	n := makeTestNotary(t)
+	// NOTE: This test should be exhaustive over VerificationState variants.
+	tests := map[string]struct {
+		verificationState common.VerificationState
+		emitterChain      vaa.ChainID
+	}{
+		"approve non-transfer verifier when Rejected": {
+			common.Rejected,
+			vaa.ChainIDSolana,
+		},
+		"approve non-transfer verifier when Anomalous": {
+			common.Anomalous,
+			vaa.ChainIDSolana,
+		},
+	}
 
-	msg := makeUniqueMessagePublication(t)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			n := makeTestNotary(t)
+			msg := makeUniqueMessagePublication(t)
 
-	// Even a message with a suspicious state should be approved if the emitter chain does not have a transfer verifier.
-	msg.EmitterChain = vaa.ChainIDSolana      // Solana does not have a transfer verifier.
-	msg.SetVerificationState(common.Rejected) // Ordinarily, this should not get an Approve verdict.
-	require.False(t, txverifier.IsSupported(msg.EmitterChain))
+			msg.EmitterChain = test.emitterChain
+			// Ensure the emitter chain does not have a transfer verifier.
+			require.False(t, txverifier.IsSupported(msg.EmitterChain))
 
-	verdict, err := n.ProcessMsg(msg)
-	require.NoError(t, err)
-	require.Equal(
-		t,
-		Approve,
-		verdict,
-		fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
-	)
+			err := msg.SetVerificationState(test.verificationState)
+			require.NoError(t, err)
+
+			require.True(t, vaa.IsTransfer(msg.Payload))
+
+			verdict, err := n.ProcessMsg(msg)
+			require.NoError(t, err)
+			require.Equal(
+				t,
+				Approve,
+				verdict,
+				fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
+			)
+		})
+	}
 }
 
 func TestNotary_ProcessMessageCorrectVerdict(t *testing.T) {
