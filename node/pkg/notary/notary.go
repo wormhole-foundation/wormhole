@@ -38,6 +38,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -154,17 +155,16 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
-	// NOTE: Only token transfers originated on Ethereum are currently considered.
 	// For the initial implementation, the Notary only rules on messages based
 	// on the Transfer Verifier. However, there is no technical barrier to
 	// supporting other message types.
-	if msg.EmitterChain != vaa.ChainIDEthereum {
-		n.logger.Debug("notary: automatically approving message publication because it is not from Ethereum", msg.ZapFields()...)
+	if !txverifier.IsSupported(msg.EmitterChain) {
+		n.logger.Debug("notary: automatically approving message: sent from a chain without a transfer verifier implementation", msg.ZapFields()...)
 		return Approve, nil
 	}
 
 	if !vaa.IsTransfer(msg.Payload) {
-		n.logger.Debug("notary: automatically approving message publication because it is not a token transfer", msg.ZapFields()...)
+		n.logger.Debug("notary: automatically approving message: it is not a wrapped token transfer", msg.ZapFields()...)
 		return Approve, nil
 	}
 
