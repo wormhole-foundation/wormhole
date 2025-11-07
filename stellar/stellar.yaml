@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stellar
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stellar
+  template:
+    metadata:
+      labels:
+        app: stellar
+    spec:
+      containers:
+        - name: stellar
+          image: stellar/quickstart:latest
+          command: ["/start"]
+          args: ["--local", "--enable-soroban-rpc"]
+          ports:
+            - containerPort: 8000
+              name: rpc
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "curl -X POST http://localhost:8000/soroban/rpc -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getLatestLedger\"}' | grep -q 'sequence'"
+            initialDelaySeconds: 45
+            periodSeconds: 5
+            failureThreshold: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stellar
+spec:
+  selector:
+    app: stellar
+  ports:
+    - name: rpc
+      port: 8000
+      targetPort: 8000
+    - name: horizon
+      port: 8001
+      targetPort: 8001

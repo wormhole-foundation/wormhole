@@ -17,6 +17,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
+	"github.com/certusone/wormhole/node/pkg/watchers/stellar"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
@@ -224,6 +225,9 @@ var (
 	sepoliaRPC      *string
 	sepoliaContract *string
 
+	stellarRPC      *string
+	stellarContract *string
+
 	holeskyRPC      *string
 	holeskyContract *string
 
@@ -369,6 +373,13 @@ func init() {
 
 	nearRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nearRPC", "Near RPC URL", "http://near:3030", []string{"http", "https"})
 	nearContract = NodeCmd.Flags().String("nearContract", "", "Near contract")
+
+	stellarRPC = node.RegisterFlagWithValidationOrFail(
+		NodeCmd, "stellarRPC", "Stellar (Soroban) RPC URL", "http://stellar.default.svc.cluster.local:8000/soroban/rpc", []string{"http", "https"},
+	)
+	stellarContract = NodeCmd.Flags().String(
+		"stellarContract", "CBWQUIB4R65Z2DGC263FQ7BBI7TGIGOLFTYMLE6QPWBD5QDOUVJY3AKR", "Wormhole core contract ID on Stellar (e.g., StrKey for Soroban core contract)",
+	)
 
 	wormchainURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "wormchainURL", "Wormhole-chain gRPC URL", "wormchain:9090", []string{""})
 
@@ -945,6 +956,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*stellarContract, *stellarRPC}) {
+		logger.Fatal("Either --stellarContract and --stellarRPC must both be set or both unset")
+	}
+
 	if !*chainGovernorEnabled && *coinGeckoApiKey != "" {
 		logger.Fatal("If coinGeckoApiKey is set, then chainGovernorEnabled must be set")
 	}
@@ -1013,6 +1028,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["avalancheRPC"] = *avalancheRPC
 	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
 	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+	rpcMap["stellarRPC"] = *stellarRPC
 	rpcMap["fantomRPC"] = *fantomRPC
 	rpcMap["klaytnRPC"] = *klaytnRPC
 	rpcMap["celoRPC"] = *celoRPC
@@ -1668,6 +1684,21 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:       *aptosRPC,
 			Account:   *aptosAccount,
 			Handle:    *aptosHandle,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(stellarRPC) {
+		wc := &stellar.WatcherConfig{
+			NetworkID:   "61",               // label (appears in logs)
+			ChainID:     vaa.ChainIDStellar, // TODO: use your actual Stellar ChainID constant
+			Rpc:         *stellarRPC,        // e.g., http://stellar:8000
+			Contract:    *stellarContract,   // Soroban core contract id (StrKey)
+			StartLedger: 0,                  // This is what stellar expects >= 7
+			// Optional: you can expose extra tuning knobs in WatcherConfig
+			// PollInterval:   700 * time.Millisecond,
+			// MaxLedgerRange: 512,
+			// RPCTimeout:     10 * time.Second,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}

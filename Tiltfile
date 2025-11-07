@@ -66,6 +66,7 @@ config.define_bool("solana_watcher", False, "Enable Solana watcher on guardian")
 config.define_bool("pythnet", False, "Enable PythNet component")
 config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
+config.define_bool("stellar", False, "Enable Stellar component")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guardian metrics")
@@ -85,6 +86,7 @@ ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
+stellar = cfg.get("stellar", ci)
 sui = cfg.get("sui", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
@@ -142,7 +144,16 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js", "./relayer"]
+    ignore=["./sdk/js", "./relayer"],
+
+    platform='linux/amd64',
+)
+
+k8s_yaml('stellar/stellar.yaml')
+k8s_resource(
+    'stellar', 
+    port_forwards=['8000:8000'],
+    resource_deps=[]
 )
 
 def command_with_dlv(argv):
@@ -234,6 +245,14 @@ def build_node_yaml():
                     "http://sui:9000",
                     "--suiMoveEventType",
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
+                ]
+
+            if stellar:
+                container["command"] += [
+                    "--stellarRPC",
+                    "http://stellar.default.svc.cluster.local:8000/soroban/rpc",
+                    "--stellarContract",
+                    "CBWQUIB4R65Z2DGC263FQ7BBI7TGIGOLFTYMLE6QPWBD5QDOUVJY3AKR",
                 ]
 
             if evm2:
@@ -385,6 +404,8 @@ if wormchain:
     guardian_resource_deps = guardian_resource_deps + ["wormchain", "wormchain-deploy"]
 if sui:
     guardian_resource_deps = guardian_resource_deps + ["sui"]
+if stellar:
+    guardian_resource_deps = guardian_resource_deps + ["stellar"]
 
 k8s_resource(
     "guardian",
