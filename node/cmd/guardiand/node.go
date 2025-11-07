@@ -118,8 +118,9 @@ var (
 	algorandAlgodToken   *string
 	algorandAppID        *uint64
 
-	nearRPC      *string
-	nearContract *string
+	nearRPC         *string
+	nearArchivalRPC *string
+	nearContract    *string
 
 	wormchainURL *string
 
@@ -371,6 +372,7 @@ func init() {
 	algorandAppID = NodeCmd.Flags().Uint64("algorandAppID", 0, "Algorand app id")
 
 	nearRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nearRPC", "Near RPC URL", "http://near:3030", []string{"http", "https"})
+	nearArchivalRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "nearArchivalRPC", "Near Archival RPC URL (optional, for historical data fallback)", "https://archival-rpc.mainnet.near.org", []string{"http", "https"})
 	nearContract = NodeCmd.Flags().String("nearContract", "", "Near contract")
 
 	wormchainURL = node.RegisterFlagWithValidationOrFail(NodeCmd, "wormchainURL", "Wormhole-chain gRPC URL", "wormchain:9090", []string{""})
@@ -1671,10 +1673,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	if shouldStart(nearRPC) {
 		wc := &near.WatcherConfig{
-			NetworkID: "near",
-			ChainID:   vaa.ChainIDNear,
-			Rpc:       *nearRPC,
-			Contract:  *nearContract,
+			NetworkID:   "near",
+			ChainID:     vaa.ChainIDNear,
+			Rpc:         *nearRPC,
+			ArchivalRpc: *nearArchivalRPC,
+			Contract:    *nearContract,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}

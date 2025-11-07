@@ -100,7 +100,7 @@ func (testCase *testCase) run(ctx context.Context) error {
 	msgC := make(chan *common.MessagePublication)
 	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
 	mainnet := true // we set mainnet to true because the testdata was collected on mainnet.
-	w := NewWatcher(mockHttpServer.URL, testCase.wormholeContract, msgC, obsvReqC, mainnet)
+	w := NewWatcher(mockHttpServer.URL, mockHttpServer.URL, testCase.wormholeContract, msgC, obsvReqC, mainnet)
 
 	// Run the watcher
 	if err := supervisor.Run(ctx, "nearwatch", w.Run); err != nil {

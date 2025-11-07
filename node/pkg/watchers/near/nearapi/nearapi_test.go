@@ -57,7 +57,7 @@ func TestNearApi(t *testing.T) {
 	mockServer := mockserver.NewForwardingCachingServer(logger, "https://rpc.mainnet.near.org", "mock/apitest/", nil)
 	mockHttpServer := httptest.NewServer(mockServer)
 
-	api := nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(mockHttpServer.URL))
+	api := nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(mockHttpServer.URL, mockHttpServer.URL))
 
 	// ---Test---
 	b1, err := api.GetBlock(ctx, "5uNbd6DTxC3kes7JS6o5LeE7e7rF8kXHZqpzYrtVJfmz")

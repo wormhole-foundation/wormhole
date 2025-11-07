@@ -33,8 +33,9 @@ type (
 		Query(ctx context.Context, s string) ([]byte, error)
 	}
 	HttpNearRpc struct {
-		nearRpc        string
-		nearHttpClient *http.Client
+		nearRpc         string
+		nearArchivalRpc string
+		nearHttpClient  *http.Client
 	}
 	NearApi interface {
 		GetBlock(ctx context.Context, blockId string) (Block, error)
@@ -49,7 +50,7 @@ type (
 	}
 )
 
-func NewHttpNearRpc(nearRPC string) HttpNearRpc {
+func NewHttpNearRpc(nearRPC string, nearArchivalRPC string) HttpNearRpc {
 	// Customize the Transport to have larger connection pool (default is only 2 per host)
 
 	//nolint:forcetypeassert // This should always succeed, and the function is only called on start-up.
@@ -61,7 +62,7 @@ func NewHttpNearRpc(nearRPC string) HttpNearRpc {
 		Transport: t,
 	}
 
-	return HttpNearRpc{nearRPC, httpClient}
+	return HttpNearRpc{nearRPC, nearArchivalRPC, httpClient}
 }
 
 func NewNearApiImpl(nearRpc NearRpc) NearApiImpl {
@@ -74,14 +75,21 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 
 	timer := time.NewTimer(time.Nanosecond)
 	var backoffMilliseconds int = 100
+	var retryAttempt int = 1
 
 	for {
 		select {
 		case <-timeout.Done():
 			return nil, errors.New("HTTP timeout")
 		case <-timer.C:
+			// Alternate between regular RPC (odd attempts) and archival RPC (even attempts)
+			rpcURL := n.nearRpc
+			if retryAttempt%2 == 0 {
+				rpcURL = n.nearArchivalRpc
+			}
+
 			// perform HTTP request
-			req, _ := http.NewRequestWithContext(timeout, http.MethodPost, n.nearRpc, bytes.NewBuffer([]byte(s)))
+			req, _ := http.NewRequestWithContext(timeout, http.MethodPost, rpcURL, bytes.NewBuffer([]byte(s)))
 			req.Header.Add("Content-Type", "application/json")
 			resp, err := n.nearHttpClient.Do(req)
 
@@ -93,6 +101,7 @@ func (n HttpNearRpc) Query(ctx context.Context, s string) ([]byte, error) {
 				}
 			}
 			// retry if there was a server error
+			retryAttempt++
 			backoffMilliseconds += int((float64(backoffMilliseconds)) * (rand.Float64() * 2.5)) //#nosec G404 no CSPRNG needed here for jitter computation
 			timer.Reset(time.Millisecond * time.Duration(backoffMilliseconds))
 		}
