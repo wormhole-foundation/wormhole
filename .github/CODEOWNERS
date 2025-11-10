@@ -101,8 +101,8 @@
 /node/pkg/watchers/evm/msg_verifier.go @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Guardian Dependency Upgrades (go.mod) 
-/node/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
-/sdk/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/sdk/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Notary
 
@@ -119,4 +119,4 @@
 
 ## Audit Reports
 
-/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t
+/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic

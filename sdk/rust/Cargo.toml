@@ -41,3 +41,35 @@ serde_repr = "0.1.7"
 sha3 = "0.10.4"
 base64 = "0.13"
 itoa = "1.0.1"
+
+[workspace.lints.clippy]
+# === Code Quality: Prevent incomplete/placeholder code ===
+todo = "deny"
+
+# === True Bugs: Compiler can prove these are wrong ===
+eq_op = "warn"                        # x == x, x != x, etc.
+modulo_one = "warn"                   # x % 1 (always returns 0)
+out_of_bounds_indexing = "warn"       # Compiler-checked out of bounds access
+
+# === Security Audit Support ===
+undocumented_unsafe_blocks = "warn"   # Document why unsafe is needed
+
+# === Potential Runtime Errors ===
+unchecked_duration_subtraction = "warn"  # Can panic on underflow
+panicking_overflow_checks = "warn"       # Overflow checks that panic in release
+if_let_mutex = "warn"                    # Can cause deadlocks
+
+# === Performance: Catch accidental inefficiencies ===
+or_fun_call = "warn"                     # Use .unwrap_or_else instead of .unwrap_or
+set_contains_or_insert = "warn"          # Use .entry() API instead
+stable_sort_primitive = "warn"           # Unstable sort is faster for primitives
+
+# === Logic Bugs ===
+suspicious_operation_groupings = "warn"  # Likely copy-paste errors
+
+# === Data Structure Misuse ===
+iter_over_hash_type = "warn"             # Non-deterministic iteration order
+non_send_fields_in_send_ty = "warn"      # Breaks thread safety
+
+# === SDK-specific: Help developers avoid common mistakes ===
+wildcard_dependencies = "warn"           # Prevent supply chain issues in published crates
