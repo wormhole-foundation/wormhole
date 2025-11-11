@@ -11,6 +11,5 @@
     "resolveJsonModule": true,
     "esModuleInterop": true
   },
-  "include": ["evm", "guardian"],
-  "files": ["../verifiable-evm-build/*.json"]
+  "include": ["evm", "guardian", "vaatool"],
 }

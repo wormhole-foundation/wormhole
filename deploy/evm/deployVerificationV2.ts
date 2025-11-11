@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { createWalletClient, defineChain, http, isHex } from "viem";
+import { Abi, createWalletClient, defineChain, http, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
@@ -7,8 +7,7 @@ import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sd
 
 import { waitForTransactionReceipt } from "viem/actions";
 import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
-// TODO: replace this with readFile + JSON.parse
-import compilerOutput from "../../verifiable-evm-build/WormholeVerifier.output.json" with {type: "json"};
+import { readFileSync } from "fs";
 
 // ICoreBridge coreBridge,
 // uint32 initialMultisigKeyCount,
@@ -47,6 +46,22 @@ interface Config {
   }
 }
 
+interface CompilerOutput {
+  contracts: {
+    "src/evm/WormholeVerifier.sol": {
+      WormholeVerifier: {
+        abi: Abi;
+        evm: { bytecode: { object: string } }
+      }
+    }
+  }
+}
+
+function getCompilerOutput(): CompilerOutput {
+  const path = "../../verifiable-evm-build/WormholeVerifier.output.json";
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
 
 async function main() {
   const parser = yargs(hideBin(process.argv))
@@ -68,6 +83,7 @@ async function main() {
   if (typeof signer !== "string" || !isHex(signer)) throw new Error("Unexpected signer file format.");
 
   const account = privateKeyToAccount(signer);
+  const compilerOutput = getCompilerOutput();
   const contractOutput = compilerOutput.contracts["src/evm/WormholeVerifier.sol"].WormholeVerifier;
   const abi = contractOutput.abi;
   const bytecode = `0x${contractOutput.evm.bytecode.object}`;
