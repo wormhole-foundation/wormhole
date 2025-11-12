@@ -49,7 +49,7 @@ async function verifyVaa(
       payloadOffset: result[3],
     };
   } catch (error: any) {
-    if (!("cause" in error || "raw" in error.cause)) {
+    if (!("cause" in error && "raw" in error.cause)) {
       return { verified: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
     const hexData = error.cause.raw as Hex;
