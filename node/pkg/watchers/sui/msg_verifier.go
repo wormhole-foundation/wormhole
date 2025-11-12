@@ -5,8 +5,24 @@ import (
 	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+)
+
+var (
+	msgVerificationStates = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_unusual_msg_verification_states_total",
+			Help: "Total number of message verification state changes to unusual values",
+		}, []string{"verification_state", "emitter_chain"})
+
+	msgVerificationErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_msg_verification_errors_total",
+			Help: "Total number of message verification errors",
+		}, []string{"error_type", "emitter_chain"})
 )
 
 func (e *Watcher) verify(
@@ -53,9 +69,18 @@ func (e *Watcher) verify(
 		}
 	}
 
+	// Track unusual states for analytics
+	if verificationState != common.NotVerified && verificationState != common.Valid && verificationState != common.NotApplicable {
+		emitterChainStr := fmt.Sprintf("%d", localMsg.EmitterChain)
+		msgVerificationStates.WithLabelValues(verificationState.String(), emitterChainStr).Inc()
+	}
+
 	// Update the state of the message.
 	updateErr := localMsg.SetVerificationState(verificationState)
 	if updateErr != nil {
+		// Track verification errors
+		emitterChainStr := fmt.Sprintf("%d", localMsg.EmitterChain)
+		msgVerificationErrors.WithLabelValues("set_verification_state", emitterChainStr).Inc()
 		errMsg := fmt.Sprintf("could not set verification state for message with txID %s", localMsg.TxIDString())
 		return common.MessagePublication{}, fmt.Errorf("%s %w", errMsg, updateErr)
 	}
