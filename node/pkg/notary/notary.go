@@ -181,8 +181,8 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		n.logger.Debug("skipping token bridge emitter check because environment is not mainnet or testnet")
 	}
 
-	// The devnet environment does not have token bridges configured for all the relevant chains that we want to test.
-	if n.env == common.MainNet || n.env == common.TestNet {
+	// Perform emitter checks when outside of unit tests or mock environments
+	if n.env == common.MainNet || n.env == common.TestNet || n.env == common.UnsafeDevNet {
 		if tokenBridge, ok := tbEmitters[msg.EmitterChain]; !ok {
 			// Return Unknown if the token bridge is not registered in the SDK.
 			n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
