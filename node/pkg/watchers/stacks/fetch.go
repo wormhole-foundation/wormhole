@@ -144,6 +144,14 @@ func (w *Watcher) fetchTenureBlocksByBurnHeight(ctx context.Context, height uint
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		// Burn block was skipped, return empty tenure blocks
+		return &StacksV3TenureBlocksResponse{
+			BurnBlockHeight: height,
+			StacksBlocks:    []StacksV3TenureBlock{},
+		}, nil
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
