@@ -11,10 +11,11 @@ import (
 )
 
 type WatcherConfig struct {
-	NetworkID watchers.NetworkID // human readable name
-	ChainID   vaa.ChainID        // ChainID
-	Rpc       string
-	Contract  string
+	NetworkID   watchers.NetworkID // human readable name
+	ChainID     vaa.ChainID        // ChainID
+	Rpc         string
+	ArchivalRpc string
+	Contract    string
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -35,5 +36,5 @@ func (wc *WatcherConfig) Create(
 	env common.Environment,
 ) (supervisor.Runnable, interfaces.Reobserver, error) {
 	var mainnet = (env == common.MainNet)
-	return NewWatcher(wc.Rpc, wc.Contract, msgC, obsvReqC, mainnet).Run, nil, nil
+	return NewWatcher(wc.Rpc, wc.ArchivalRpc, wc.Contract, msgC, obsvReqC, mainnet).Run, nil, nil
 }

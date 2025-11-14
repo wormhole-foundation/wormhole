@@ -67,6 +67,7 @@ type (
 		mainnet         bool
 		wormholeAccount string // name of the Wormhole Account on the NEAR blockchain
 		nearRPC         string
+		nearArchivalRPC string
 
 		// external channels
 		msgC          chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
@@ -94,6 +95,7 @@ type (
 // NewWatcher creates a new Near appid watcher
 func NewWatcher(
 	nearRPC string,
+	nearArchivalRPC string,
 	wormholeContract string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
@@ -103,6 +105,7 @@ func NewWatcher(
 		mainnet:                      mainnet,
 		wormholeAccount:              wormholeContract,
 		nearRPC:                      nearRPC,
+		nearArchivalRPC:              nearArchivalRPC,
 		msgC:                         msgC,
 		obsvReqC:                     obsvReqC,
 		readinessSync:                common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDNear),
@@ -285,7 +288,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	e.errC = make(chan error)
 
-	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
+	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC, e.nearArchivalRPC))
 	e.finalizer = newFinalizer(e.eventChan, e.nearAPI, e.mainnet)
 
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
