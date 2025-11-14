@@ -67,5 +67,9 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 46, Addr: "000000000000000000000000f1815bd50389c46847f0bda824ec8da914045d14", Symbol: "USDC.E", CoinGeckoId: "stargate-bridged-usdc-ink", Decimals: 6, Price: 1.00},
 		{Chain: 46, Addr: "000000000000000000000000ae4efbc7736f963982aacb17efa37fcbab924cb3", Symbol: "SOLVBTC", CoinGeckoId: "solv-btc", Decimals: 18, Price: 106222},
 		{Chain: 46, Addr: "000000000000000000000000c99f5c922dae05b6e2ff83463ce705ef7c91f077", Symbol: "XSOLVBTC", CoinGeckoId: "solv-protocol-solvbtc-bbn", Decimals: 18, Price: 105810},
+		// MATIC is 1:1 swappable with POL
+		{Chain: 2, Addr: "0000000000000000000000007d1afa7b718fb893db30a3abc0cfc608aacfebb0", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
+		{Chain: 4, Addr: "000000000000000000000000cc42724c6683b7e57334c4e856f4c9965ed682bd", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
+		{Chain: 16, Addr: "0000000000000000000000003405a1bd46b85c5c029483fbecf2f3e611026e45", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
 	}
 }
