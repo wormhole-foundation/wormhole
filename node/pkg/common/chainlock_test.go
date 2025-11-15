@@ -856,3 +856,111 @@ func TestSafeRead(t *testing.T) {
 		})
 	}
 }
+
+func TestMessagePublication_IsWTT(t *testing.T) {
+	// Using real mainnet and testnet token bridge emitter addresses as hex strings
+	const (
+		ethTokenBridgeHex        = "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"
+		solanaTokenBridgeHex     = "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5"
+		wrongEmitterHex          = "0000000000000000000000000000000000000000000000000000000000000001"
+		ethTestnetTokenBridgeHex = "000000000000000000000000f890982f9310df57d00f659cf4fd87e65aded8d7"
+	)
+
+	tests := []struct {
+		name           string
+		emitterChain   vaa.ChainID
+		emitterAddrHex string
+		payload        []byte
+		env            Environment
+		want           bool
+	}{
+		{
+			name:           "happy path - valid mainnet WTT from Ethereum",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: ethTokenBridgeHex,
+			payload:        []byte{0x01}, // Transfer payload type
+			env:            MainNet,
+			want:           true,
+		},
+		{
+			name:           "happy path - valid mainnet WTT from Solana with payload type 3",
+			emitterChain:   vaa.ChainIDSolana,
+			emitterAddrHex: solanaTokenBridgeHex,
+			payload:        []byte{0x03}, // Transfer with payload type
+			env:            MainNet,
+			want:           true,
+		},
+		{
+			name:           "failure - wrong payload type",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: ethTokenBridgeHex,
+			payload:        []byte{0x02}, // Not a transfer payload
+			env:            MainNet,
+			want:           false,
+		},
+		{
+			name:           "failure - chain without token bridge in environment",
+			emitterChain:   vaa.ChainIDCosmoshub,
+			emitterAddrHex: ethTokenBridgeHex,
+			payload:        []byte{0x01},
+			env:            MainNet,
+			want:           false,
+		},
+		{
+			name:           "failure - emitter address doesn't match token bridge",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: solanaTokenBridgeHex,
+			payload:        []byte{0x01},
+			env:            MainNet,
+			want:           false,
+		},
+		{
+			name:           "failure - test environment (GoTest)",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: ethTokenBridgeHex,
+			payload:        []byte{0x01},
+			env:            GoTest,
+			want:           false,
+		},
+		{
+			name:           "failure - mock environment (AccountantMock)",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: ethTokenBridgeHex,
+			payload:        []byte{0x01},
+			env:            AccountantMock,
+			want:           false,
+		},
+		{
+			name:           "failure - empty payload",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: ethTokenBridgeHex,
+			payload:        []byte{},
+			env:            MainNet,
+			want:           false,
+		},
+		{
+			name:           "valid testnet WTT from Ethereum",
+			emitterChain:   vaa.ChainIDEthereum,
+			emitterAddrHex: ethTestnetTokenBridgeHex,
+			payload:        []byte{0x01},
+			env:            TestNet,
+			want:           true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			emitterAddr, err := vaa.StringToAddress(tt.emitterAddrHex)
+			require.NoError(t, err)
+
+			msg := &MessagePublication{
+				EmitterChain:   tt.emitterChain,
+				EmitterAddress: emitterAddr,
+				Payload:        tt.payload,
+			}
+
+			got := msg.IsWTT(tt.env)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
