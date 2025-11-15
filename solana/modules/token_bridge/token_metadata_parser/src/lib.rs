@@ -254,18 +254,12 @@ pub fn parse_token2022_metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solana_program::{
-        program_option::COption,
-        pubkey::Pubkey as SolanaPubkey,
-    };
+    use solana_program::{program_option::COption, pubkey::Pubkey as SolanaPubkey};
     use spl_pod::optional_keys::OptionalNonZeroPubkey;
     use spl_token_2022::{
         extension::{
-            metadata_pointer::MetadataPointer,
-            transfer_fee::TransferFeeConfig,
-            BaseStateWithExtensionsMut,
-            ExtensionType,
-            StateWithExtensionsMut,
+            metadata_pointer::MetadataPointer, transfer_fee::TransferFeeConfig,
+            BaseStateWithExtensionsMut, ExtensionType, StateWithExtensionsMut,
         },
         state::Mint,
     };
