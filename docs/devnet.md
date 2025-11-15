@@ -21,20 +21,12 @@
 | Token Bridge       |    SOL    |                                                          B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE |                                                                                                                                                                     |
 | NFT Bridge         |    SOL    |                                                           NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA |                                                                                                                                                                     |
 | Migration Contract |    SOL    |                                                          Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK |                                                                                                                                                                     |
-| Test Wallet        |   Terra   |                                                          terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v | Mnemonic: `notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius`      |
-| Test CW20          |   Terra   |                                      terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp | Tokens minted to Test Wallet                                                                                                                                        |
-| Bridge Core        |   Terra   |                                      terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au |                                                                                                                                                                     |
-| Token Bridge       |   Terra   |                                      terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6 |                                                                                                                                                                     |
 | Test Wallet        |  Terra2   |                                                          terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v | Mnemonic: `notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius`      |
 | Test CW20          |  Terra2   |                                      terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp | Tokens minted to Test Wallet                                                                                                                                        |
 | Bridge Core        |  Terra2   |                                      terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au |                                                                                                                                                                     |
 | Token Bridge       |  Terra2   |                                      terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6 |                                                                                                                                                                     |
 | Governance Emitter | Universal | 0x0000000000000000000000000000000000000000000000000000000000000004 / 11111111111111111111111111111115 | Emitter Chain: 0x01                                                                                                                                                 |
 <!--  spell-checker: enable -->
-
-### Terra
-
-The terra testnet can be used just like a normal localterra network (can be selected in finder and station).
 
 ### Algorand
 
