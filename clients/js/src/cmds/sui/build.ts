@@ -4,7 +4,7 @@ import { buildCoin, getProvider } from "../../chains/sui";
 import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { checkBinary, getNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
-import { contracts } from "@wormhole-foundation/sdk";
+import { contracts } from "@wormhole-foundation/sdk-base";
 
 const README_URL =
   "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";
