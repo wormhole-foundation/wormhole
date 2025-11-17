@@ -860,8 +860,8 @@ func TestSafeRead(t *testing.T) {
 func TestMessagePublication_IsWTT(t *testing.T) {
 	// Using real mainnet and testnet token bridge emitter addresses as hex strings
 	const (
-		ethTokenBridgeHex        = "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"
-		
+		ethTokenBridgeHex = "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"
+
 		solanaTokenBridgeHex     = "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5" // #nosec G101 -- addresses, not secrets
 		wrongEmitterHex          = "0000000000000000000000000000000000000000000000000000000000000001"
 		ethTestnetTokenBridgeHex = "000000000000000000000000f890982f9310df57d00f659cf4fd87e65aded8d7"
