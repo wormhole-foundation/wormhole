@@ -160,12 +160,12 @@ func TestSignedObservation(t *testing.T) {
 			guardianAddress: gAddr[:],
 			expectSuccess:   true,
 		},
-		// Old protobuf version still works (initially, this will change)
+		// Timestamp must be initialized (non-zero)
 		{
 			timestamp:       0,
 			guardianSigner:  guardianSigner,
 			guardianAddress: gAddr[:],
-			expectSuccess:   true,
+			expectSuccess:   false,
 		},
 		// Invalid key signed the data
 		{
