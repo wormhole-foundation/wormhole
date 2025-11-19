@@ -69,7 +69,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Gateway Relayer
 
@@ -120,7 +120,7 @@
 ## Hacks / Tools
 
 /node/hack/ @panoel @evan-gray
-/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Documentation
 
