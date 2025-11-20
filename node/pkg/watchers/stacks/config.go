@@ -1,0 +1,46 @@
+package stacks
+
+import (
+	"time"
+
+	"github.com/certusone/wormhole/node/pkg/common"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers"
+	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
+
+// WatcherConfig defines the configuration for the Stacks watcher
+type WatcherConfig struct {
+	NetworkID     watchers.NetworkID // human readable name
+	ChainID       vaa.ChainID        // ChainID
+	RPCURL        string             // Stacks RPC URL
+	RPCAuthToken  string             // Stacks RPC Authorization Token
+	StateContract string             // Stacks contract address for the Wormhole core (state) contract
+
+	// Optional configurable parameters (zero values will use defaults)
+	BitcoinBlockPollInterval time.Duration `mapstructure:"bitcoinBlockPollInterval"` // How often to poll for new Bitcoin blocks
+}
+
+func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
+	return wc.NetworkID
+}
+
+func (wc *WatcherConfig) GetChainID() vaa.ChainID {
+	return wc.ChainID
+}
+
+//nolint:unparam // error is always nil here but the return type is required to satisfy the interface.
+func (wc *WatcherConfig) Create(
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
+	_ <-chan *query.PerChainQueryInternal, // queryReqC - not used for Stacks
+	_ chan<- *query.PerChainQueryResponseInternal, // queryResponseC - not used for Stacks
+	_ chan<- *common.GuardianSet, // setC - not used for Stacks
+	_ common.Environment, // env - not used for Stacks
+) (supervisor.Runnable, interfaces.Reobserver, error) {
+	watcher := NewWatcher(wc.RPCURL, wc.RPCAuthToken, wc.StateContract, wc.BitcoinBlockPollInterval, msgC, obsvReqC)
+	return watcher.Run, watcher, nil
+}

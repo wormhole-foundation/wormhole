@@ -1,0 +1,11 @@
+;; @desc Convert an uncompressed public key (64 bytes) into a compressed public key (33 bytes)
+(define-read-only (compute-compressed-public-key (uncompressed-public-key (buff 64)))
+  (let ((x-coordinate (unwrap-panic (slice? uncompressed-public-key u0 u32)))
+        (y-coordinate-parity (buff-to-uint-be (unwrap-panic (element-at? uncompressed-public-key u63)))))
+    (unwrap-panic (as-max-len? (concat (if (is-eq (mod y-coordinate-parity u2) u0) 0x02 0x03) x-coordinate) u33))))
+
+;; @desc Convert an uncompressed public key (64 bytes) into an eth address (20 bytes)
+(define-read-only (compute-eth-address (uncompressed-public-key (buff 64)))
+  (let ((x-coordinate (unwrap-panic (slice? uncompressed-public-key u0 u32)))
+        (y-coordinate-parity (buff-to-uint-be (unwrap-panic (element-at? uncompressed-public-key u63)))))
+    (unwrap-panic (as-max-len? (concat (if (is-eq (mod y-coordinate-parity u2) u0) 0x02 0x03) x-coordinate) u33))))

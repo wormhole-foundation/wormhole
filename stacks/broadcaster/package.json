@@ -1,0 +1,25 @@
+{
+  "name": "@wormhole-foundation/stacks-broadcaster",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@stacks/blockchain-api-client": "7.8.2",
+    "@stacks/common": "6.11.4-pr.36558cf.0",
+    "@stacks/encryption": "6.11.4-pr.36558cf.0",
+    "@stacks/network": "6.11.4-pr.36558cf.0",
+    "@stacks/stacking": "6.11.4-pr.36558cf.0",
+    "@stacks/transactions": "6.11.4-pr.36558cf.0",
+    "pino": "^8.19.0",
+    "pino-pretty": "^10.3.1"
+  },
+  "devDependencies": {
+    "@stacks/prettier-config": "^0.0.10",
+    "tsx": "4.7.1"
+  },
+  "prettier": "@stacks/prettier-config"
+}

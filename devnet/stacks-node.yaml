@@ -1,0 +1,328 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stacks-node-config
+data:
+  stacks-node.toml: |
+    # stacks-node hacknet miner config
+    # event observers:
+    #   - stacks-signer
+    [node]
+    name = "${MINER_NAME}"
+    rpc_bind = "0.0.0.0:20443"
+    p2p_bind = "0.0.0.0:20444"
+    prometheus_bind = "0.0.0.0:9153"
+    data_url = "http://${STACKS_NODE_IP}:20443"
+    p2p_address = "${STACKS_NODE_IP}:20443"
+    working_dir = "/data/chainstate"
+    seed = "${MINER_SEED}"
+    local_peer_seed = "${MINER_SEED}"
+    miner = true
+    stacker = true
+    wait_time_for_microblocks = 0
+    mine_microblocks = false
+    use_test_genesis_chainstate = true
+    pox_sync_sample_secs = 0
+    wait_time_for_blocks = 200
+    microblock_frequency = 1000
+    txindex = true
+
+    fault_injection_block_push_fail_probability = ${BLOCK_PUSH_FAIL_PROBABILITY}
+
+    [miner]
+    first_attempt_time_ms = 180_000
+    subsequent_attempt_time_ms = 360_000
+    microblock_attempt_time_ms = 10
+    mining_key = "${MINER_SEED}"
+    activated_vrf_key_path = "/data/chainstate/saved_vrf_key.json"
+    block_reward_recipient = "${REWARD_RECIPIENT}"
+
+    [connection_options]
+    public_ip_address = "${POD_IP}:20444"
+    auth_token = "12345"
+    timeout = 15
+    connect_timeout = 15
+    handshake_timeout = 15
+    idle_timeout = 15
+    dns_timeout = 15
+    private_neighbors = true
+
+    [burnchain]
+    rpc_port = ${BITCOIN_RPC_PORT}
+    peer_port = ${BITCOIN_PEER_PORT}
+    pox_prepare_length = ${POX_PREPARE_LENGTH}
+    pox_reward_length = ${POX_REWARD_LENGTH}
+    chain = "bitcoin"
+    mode = "nakamoto-neon"
+    poll_time_secs = 1
+    magic_bytes = "T3"
+    burn_fee_cap = 20_000
+    peer_host = "${BITCOIN_PEER_HOST}"
+    username = "${BITCOIN_RPC_USER}"
+    password = "${BITCOIN_RPC_PASS}"
+    wallet_name = "${BITCOIN_WALLET}"
+
+    # Add stacks-signer as an event observer
+    [[events_observer]]
+    endpoint = "${SIGNER_HOST}:${SIGNER_PORT}"
+    events_keys = ["stackerdb", "block_proposal", "burn_blocks"]
+    timeout_ms = 10_000
+
+    [[burnchain.epochs]]
+    start_height = 0
+    epoch_name = "1.0"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_20_HEIGHT}
+    epoch_name = "2.0"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_2_05_HEIGHT}
+    epoch_name = "2.05"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_21_HEIGHT}
+    epoch_name = "2.1"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_22_HEIGHT}
+    epoch_name = "2.2"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_23_HEIGHT}
+    epoch_name = "2.3"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_24_HEIGHT}
+    epoch_name = "2.4"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_25_HEIGHT}
+    epoch_name = "2.5"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_30_HEIGHT}
+    epoch_name = "3.0"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_31_HEIGHT}
+    epoch_name = "3.1"
+
+    [[burnchain.epochs]]
+    start_height = ${STACKS_32_HEIGHT}
+    epoch_name = "3.2"
+
+    [[ustx_balance]]
+    # PRIVATE KEY 714a5bf161a680ebb2670c5ea6e8bcd75f299eae234412af0cf12d21e11ae09901
+    address = "ST5ZW3BC07M4P27KFJ6JJ6PKTB1NW79SH0BVYB3W" # Stacks integration test account
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST2SBXRBJJTH7GV5J93HJ62W2NRRQ46XYBK92Y039" # Deployer Account
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    # This is a 2-3 multi-sig address controlled using the above three
+    # addresses. The resulting multi-sig address below was created using the SignerWallet struct.
+    address = "SN3R84XZYA63QS28932XQF3G1J8R9PC3W76P9CSQS"
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST24VB7FBXCBV6P0SRDSPSW0Y2J9XHDXNHW9Q8S7H" # Signer 1 Account
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST2XAK68AR2TKBQBFNYSK9KN2AY9CVA91A7CSK63Z" # Signer 2 Account
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST1J9R0VMA5GQTW65QVHW1KVSKD7MCGT27X37A551" # Signer 3 Account
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST1YEHRRYJ4GF9CYBFFN0ZVCXX1APSBEEQ5KEDN7M" # Stacker 1
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST1WNJTS9JM1JYGK758B10DBAMBZ0K23ADP392SBV" # Stacker 2
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST1MDWBDVDGAANEH9001HGXQA6XRNK7PX7A7X8M6R" # Stacker 3
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST332DWHNM323264X869MKXFZABSE5WZ60EA07TJ1" # Tester 1
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST2FY5WGSFA209NFHDT08NCB8Y9J3P1H19YR2D674" # Tester 2
+    amount = 10000000000000000
+
+    [[ustx_balance]]
+    address = "ST3SW0AXHXFDHGQY2XMMDHN6T7VPY395WS7ZRGQCD" # Tester 3
+    amount = 10000000000000000
+
+---
+# Stacks Miner 1 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: stacks-node
+  labels:
+    app: stacks-node
+spec:
+  ports:
+    - name: rpc
+      port: 20443
+      targetPort: 20443
+      protocol: TCP
+    - name: p2p
+      port: 20444
+      targetPort: 20444
+      protocol: TCP
+    - name: prometheus
+      port: 9153
+      targetPort: 9153
+      protocol: TCP
+  selector:
+    app: stacks-node
+
+---
+# Stacks Node StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: stacks-node
+  labels:
+    app: stacks-node
+spec:
+  serviceName: stacks-node
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stacks-node
+  template:
+    metadata:
+      labels:
+        app: stacks-node
+    spec:
+      containers:
+        - name: stacks-node
+          image: stacks-node
+          securityContext:
+            runAsUser: 0
+          ports:
+            - containerPort: 20443
+              name: rpc
+              protocol: TCP
+            - containerPort: 20444
+              name: p2p
+              protocol: TCP
+            - containerPort: 9153
+              name: prometheus
+              protocol: TCP
+          volumeMounts:
+            - name: config-template
+              mountPath: /data/config.toml.in
+              subPath: stacks-node.toml
+            - name: chainstate
+              mountPath: /data/chainstate
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MINER_NAME
+              value: "stacks-node"
+            - name: STACKS_NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MINER_SEED
+              value: "23ad69119000a241706486b9349556bdc6dfabdf9d9131b153a57c6b0330fb0d01"
+            - name: REWARD_RECIPIENT
+              value: "ST1XVSVQN0KP5SDYFNT8E5TXWVW0XZVQEDBMCJ3XM"
+            - name: BITCOIN_PEER_HOST
+              value: "bitcoin-node"
+            - name: BITCOIN_RPC_PORT
+              value: "18443"
+            - name: BITCOIN_PEER_PORT
+              value: "18444"
+            - name: BITCOIN_RPC_USER
+              value: "hacknet"
+            - name: BITCOIN_RPC_PASS
+              value: "hacknet"
+            - name: BITCOIN_WALLET
+              value: "stacks-miner-1"
+            - name: SIGNER_HOST
+              value: "stacks-signer"
+            - name: SIGNER_PORT
+              value: "30000"
+            - name: BLOCK_PUSH_FAIL_PROBABILITY
+              value: "0"
+            - name: STACKS_20_HEIGHT
+              value: "0"
+            - name: STACKS_2_05_HEIGHT
+              value: "203"
+            - name: STACKS_21_HEIGHT
+              value: "204"
+            - name: STACKS_22_HEIGHT
+              value: "206"
+            - name: STACKS_23_HEIGHT
+              value: "207"
+            - name: STACKS_24_HEIGHT
+              value: "208"
+            - name: STACKS_25_HEIGHT
+              value: "209"
+            - name: STACKS_30_HEIGHT
+              value: "232"
+            - name: STACKS_31_HEIGHT
+              value: "233"
+            - name: STACKS_32_HEIGHT
+              value: "234"
+            - name: POX_PREPARE_LENGTH
+              value: "5"
+            - name: POX_REWARD_LENGTH
+              value: "20"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              cd /data/
+              set -e
+              perl -pe 's/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/$ENV{$1}/ge' < config.toml.in > config.toml
+              exec stacks-node start --config config.toml 2>&1
+          readinessProbe:
+            httpGet:
+              path: /v2/info
+              port: 20443
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /v2/info
+              port: 20443
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2000m"
+            limits:
+              memory: "8Gi"
+              cpu: "4000m"
+      volumes:
+        - name: config-template
+          configMap:
+            name: stacks-node-config
+        - name: config
+          emptyDir: {}
+        - name: chainstate
+          emptyDir: {}

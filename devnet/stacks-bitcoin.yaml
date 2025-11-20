@@ -1,0 +1,605 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: bitcoin-config
+data:
+    bitcoin.conf: |
+        regtest=1 #chain=regtest
+
+        [regtest]
+        printtoconsole=1
+        disablewallet=0
+        txindex=1
+
+        # Specify a non-default location to store blockchain data.
+        datadir=/root/.bitcoin
+
+        # [network]
+        discover=0
+        dns=0
+        dnsseed=0
+        listenonion=0
+
+        # [rpc]
+        rpcserialversion=0
+        # Accept command line and JSON-RPC commands.
+        server=1
+        # Accept public REST requests.
+        rest=1
+        rpcbind=0.0.0.0:18443
+        rpcallowip=0.0.0.0/0
+        rpcallowip=::/0
+        rpcuser=hacknet
+        rpcpassword=hacknet
+        bind=0.0.0.0:18444
+
+        # [debug]
+        # Reduce verbose logging - disable bench, validation, and other noisy categories
+        debug=0
+        debugexclude=bench,validation,leveldb,estimatefee,mempool,http,rpc
+
+        # [wallet]
+        addresstype=legacy
+        changetype=legacy
+        fallbackfee=0.00001
+
+    miner.sh: |
+        #!/bin/env bash
+
+        # Removed 'set -e' to allow graceful error handling instead of immediate exit
+        trap "exit" INT TERM
+        trap "kill 0" EXIT
+
+        DEFAULT_TIMEOUT=$(($(date +%s) + 30)) # set the default mining timeout to the current epoch +30s
+        DEFINED_ADDRESSES=$(compgen -A variable | grep "STACKS.*.BTC_ADDR") # retrieve env vars matching STACKS*BTC_ADDRESS
+        DEFINED_WALLETS=$(compgen -A variable | grep "STACKS.*.BTC_WALLET") # retrieve env vars matching STACKS*BTC_WALLET
+        mapfile -t ADDRESSES < <(printf '%s\n' "$DEFINED_ADDRESSES" | tr ' ' '\n') # convert the compgen output to an array
+        mapfile -t WALLETS < <(printf '%s\n' "$DEFINED_WALLETS" | tr ' ' '\n') # convert the compgen output to an array
+        NUM_MINERS=${#ADDRESSES[@]} # use the same value for total miners throughout script
+        RESERVED_BLOCKS=100 # during initial block mining, reserve 100 blocks to mine at the end so the earlier blocks have received rewards by the epoch 2.0 block
+
+        function debug_log(){
+            # Debug logging with timestamp
+            local message="${1}"
+            local timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+            echo "$timestamp [DEBUG] $message"
+        }
+
+        function test_rpc_connection(){
+            # Test RPC connection to Bitcoin node
+            debug_log "Testing RPC connection to Bitcoin node..."
+            local result=""
+            result=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet ping 2>&1)
+            local exit_code=$?
+
+            if [ $exit_code -eq 0 ]; then
+                debug_log "RPC connection successful"
+                return 0
+            else
+                debug_log "RPC connection failed: $result"
+                return 1
+            fi
+        }
+
+        function get_height(){
+            # return the current block height, or -1 in case of error
+            bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet getblockcount 2>/dev/null || echo "-1"
+            true
+        }
+
+        function get_mining_info(){
+            # canary check for getmininginfo if `chain` == `regtest`. else return a failure
+            local mining_info=""
+            local chain=""
+            mining_info=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait getmininginfo 2> /dev/null)
+            chain=$(echo "${mining_info}" | awk '/chain/ { gsub(/[",]/,""); print $2}')
+            if [ "$chain" == "regtest" ];then
+                return 0
+            fi
+            return 1
+        }
+
+        function get_wallet_info(){
+            # returns if a wallet exists, with debug logging
+            echo "[func] Get wallet info"
+            local wallet=${1}
+            echo "    - checking for wallet (${wallet})"
+            debug_log "Attempting to get wallet info for: $wallet"
+
+            local result=""
+            result=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait -rpcwallet="${wallet}" getwalletinfo 2>&1)
+            local ret="$?"
+
+            if [ "$ret" -eq "0" ]; then
+                echo "    - successfully retrieved named wallet"
+                debug_log "Wallet $wallet exists and is accessible"
+                return 0
+            else
+                debug_log "Wallet $wallet not accessible: $result"
+                return $ret
+            fi
+        }
+
+        function create_wallet(){
+            # creates a wallet with a given name, handles already exists case
+            echo "[func] Create wallet"
+            local wallet=${1}
+            echo "    - creating wallet (${wallet}) as legacy wallet with load_on_startup=true"
+            debug_log "Executing createwallet command for: $wallet"
+
+            local result=""
+            result=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait -named createwallet wallet_name="${wallet}" descriptors=false load_on_startup=true 2>&1)
+            local exit_code=$?
+
+            debug_log "Createwallet result for $wallet: exit_code=$exit_code, output=$result"
+
+            if [ $exit_code -eq 0 ]; then
+                echo "    - successfully created wallet"
+                debug_log "Wallet $wallet created successfully"
+            elif echo "$result" | grep -q "already exists"; then
+                echo "    - wallet DB already exists, checking if it's a legacy wallet..."
+                debug_log "Wallet $wallet already exists on disk, attempting to load it"
+
+                # Try to load the existing wallet
+                local load_result=""
+                load_result=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait loadwallet "${wallet}" 2>&1)
+                local load_exit_code=$?
+
+                if [ $load_exit_code -eq 0 ]; then
+                    debug_log "Wallet $wallet loaded, checking if it's legacy or descriptor wallet"
+
+                    # Check if it's a descriptor wallet by trying importaddress
+                    local test_addr="bcrt1qtest123456789"  # dummy address for testing
+                    local import_test=""
+                    import_test=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwallet="${wallet}" importaddress "${test_addr}" "" false 2>&1)
+
+                    if echo "$import_test" | grep -q "Only legacy wallets"; then
+                        echo "    - existing wallet is a descriptor wallet, deleting and recreating as legacy..."
+                        debug_log "Wallet $wallet is descriptor wallet, will delete and recreate"
+
+                        # Unload the wallet first
+                        bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet unloadwallet "${wallet}" > /dev/null 2>&1
+
+                        # Delete wallet directory
+                        rm -rf "/root/.bitcoin/regtest/${wallet}"
+                        debug_log "Deleted descriptor wallet directory: /root/.bitcoin/regtest/${wallet}"
+
+                        # Retry creating as legacy wallet
+                        result=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait -named createwallet wallet_name="${wallet}" descriptors=false load_on_startup=true 2>&1)
+                        exit_code=$?
+
+                        if [ $exit_code -eq 0 ]; then
+                            echo "    - successfully created legacy wallet after deleting descriptor wallet"
+                            debug_log "Wallet $wallet recreated as legacy wallet"
+                        else
+                            echo "    - ERROR: failed to recreate wallet as legacy: $result"
+                            debug_log "Failed to recreate wallet $wallet: $result"
+                        fi
+                    else
+                        echo "    - existing wallet is already a legacy wallet, ready to use"
+                        debug_log "Wallet $wallet is already a legacy wallet"
+                    fi
+                else
+                    echo "    - warning: could not load existing wallet: $load_result"
+                    debug_log "Failed to load wallet $wallet: $load_result"
+                fi
+            else
+                echo "    - warning: wallet creation failed (exit code: $exit_code), output: $result"
+                debug_log "Wallet creation failed for $wallet, attempting to load existing wallet"
+                load_wallet "${wallet}"
+            fi
+        }
+
+        function load_wallet(){
+            # loads a wallet with a given name, handles errors gracefully
+            echo "[func] Load wallet"
+            local wallet=${1}
+            echo "    - loading wallet (${wallet})"
+            debug_log "Executing loadwallet command for: $wallet"
+
+            local result=""
+            result=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait loadwallet "${wallet}" 2>&1)
+            local exit_code=$?
+
+            debug_log "Loadwallet result for $wallet: exit_code=$exit_code, output=$result"
+
+            if [ $exit_code -eq 0 ]; then
+                echo "    - successfully loaded wallet"
+                debug_log "Wallet $wallet loaded successfully"
+            else
+                echo "    - warning: wallet loading failed (exit code: $exit_code), output: $result"
+                debug_log "Wallet loading failed for $wallet, continuing anyway (might already be loaded)"
+            fi
+        }
+
+        function unload_wallet(){
+            # unloads a wallet with a given name
+            echo "[func] Unload wallet"
+            local wallet=${1}
+            echo "    - unloading wallet (${wallet})"
+            bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait unloadwallet "${wallet}" > /dev/null 2>&1
+            echo "    - successfully unloaded wallet"
+        }
+
+        function import_address(){
+            # imports an address to a wallet so the miner can send the btc from the coinbase transaction
+            echo "[func] Import address"
+            local wallet=${1}
+            local address=${2}
+            echo "    - importing address (${address}) to wallet (${wallet})"
+
+            # Try importing address with timeout and error handling
+            local result=""
+            result=$(timeout 30 bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait -rpcwallet="${wallet}" importaddress "${address}" 2>&1)
+            local exit_code=$?
+
+            if [ $exit_code -eq 0 ]; then
+                echo "    - successfully imported address to wallet"
+            else
+                echo "    - warning: failed to import address (exit code: $exit_code), output: $result"
+                echo "    - continuing anyway as address might already be imported"
+            fi
+        }
+
+        function mine_bitcoin(){
+            # mines bitcoins to an address. this will be used to generate mining rewards for the stacks miners
+            local num_blocks=${1}
+            local address=${2}
+            bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet -rpcwait generatetoaddress "${num_blocks}" "${address}" > /dev/null 2>&1
+        }
+
+        function wait_until_height(){
+            # Sleep until bitcoind reaches a given height
+            echo "[func] wait until height"
+            local target=${1}
+            echo "    - waiting for bitcoin chain to reach height: ${target}"
+            while :; do
+                local height=""
+                height=$(get_height)
+                if [ "$height" -lt "0" ]; then
+                    echo "    - unable to determine blockheight. sleeping 5s"
+                    sleep 5
+                    continue
+                fi
+                if [ "$height" -ge "$target" ]; then
+                    echo "    - target height (${target}) reached. exiting function"
+                    return 0
+                fi
+                echo "    - target: ${target}, height: ${height}. sleeping 1s"
+                sleep 1
+            done
+        }
+
+        function get_stacks_epoch(){
+            # Determine current Stacks epoch based on Bitcoin block height
+            local height=${1}
+            if [ "$height" -ge "$STACKS_32_HEIGHT" ]; then
+                echo "3.2"
+            elif [ "$height" -ge "$STACKS_30_HEIGHT" ]; then
+                echo "3.0-Nakamoto"
+            elif [ "$height" -ge "$STACKS_25_HEIGHT" ]; then
+                echo "2.5"
+            elif [ "$height" -ge "$STACKS_2_05_HEIGHT" ]; then
+                echo "2.05"
+            else
+                echo "2.0"
+            fi
+        }
+
+        function get_mining_interval_for_height(){
+            # Get the mining interval based on current height
+            local height=${1}
+            if [ "$height" -ge "$STACKS_32_HEIGHT" ]; then
+                echo "$MINE_INTERVAL_EPOCH3"
+            elif [ "$height" -ge "$STACKS_25_HEIGHT" ]; then
+                echo "$MINE_INTERVAL_EPOCH25"
+            elif [ "$height" -ge "$STACKS_2_05_HEIGHT" ]; then
+                echo "$MINE_INTERVAL_EPOCH2_05"
+            else
+                echo "$MINE_INTERVAL"
+            fi
+        }
+
+        function log_height_and_epoch(){
+            # Log current height, epoch, and mining info
+            local height=${1}
+            local prefix=${2:-""}
+            local epoch=$(get_stacks_epoch "$height")
+            local interval=$(get_mining_interval_for_height "$height")
+            local timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+            echo "$timestamp ${prefix}Height: $height | Expected Epoch: $epoch | Mining interval: ${interval}s"
+        }
+
+        function build_miners(){
+            # Build the mining environment before actual mining starts
+            echo "[func] Build miners"
+            debug_log "Starting miner setup process"
+            echo "    - detected (${NUM_MINERS}) miner(s)"
+            debug_log "Detected $NUM_MINERS miners to set up"
+
+            echo "    - creating wallets and importing addresses"
+            for ((i=0; i<${NUM_MINERS}; i++)); do
+                local ADDRESS_ENV_VAR=${ADDRESSES[$i]}
+                local WALLET_ENV_VAR=${WALLETS[$i]}
+                local WALLET=${!WALLET_ENV_VAR}
+                local ADDRESS=${!ADDRESS_ENV_VAR}
+
+                echo "      - Setting up miner $((i+1))/$NUM_MINERS: wallet=${WALLET}, address=${ADDRESS}"
+                debug_log "Processing miner $((i+1)): env_var=$WALLET_ENV_VAR, wallet=$WALLET, address=$ADDRESS"
+
+                debug_log "Checking if wallet $WALLET exists..."
+                if ! get_wallet_info "${WALLET}"; then
+                    debug_log "Wallet $WALLET does not exist, creating it"
+                    create_wallet "${WALLET}"
+                else
+                    debug_log "Wallet $WALLET already exists and is accessible"
+                fi
+
+                debug_log "Importing address $ADDRESS to wallet $WALLET"
+                import_address "${WALLET}" "${ADDRESS}"
+
+                echo "      - Completed setup for miner $((i+1))/$NUM_MINERS (wallet remains loaded)"
+                debug_log "Finished processing miner $((i+1))"
+            done
+            echo "    - wallet setup complete"
+            debug_log "All miner wallets configured successfully"
+        }
+
+        echo "Starting Bitcoin mining service..."
+        debug_log "Bitcoin miner service initialization starting"
+
+        # Wait for Bitcoin node to be ready with connection testing
+        echo "Testing RPC connection and waiting for Bitcoin node to be ready..."
+        while true; do
+            debug_log "Testing RPC connection..."
+            if test_rpc_connection; then
+                debug_log "RPC connection successful, testing mining info..."
+                if get_mining_info; then
+                    debug_log "Bitcoin node is fully ready"
+                    break
+                else
+                    debug_log "RPC works but mining info not ready yet"
+                fi
+            else
+                debug_log "RPC connection not ready yet"
+            fi
+
+            CURRENT_HEIGHT=$(get_height)
+            log_height_and_epoch "$CURRENT_HEIGHT" "Waiting for Bitcoin node... "
+            sleep 5
+        done
+
+        echo "Bitcoin node is ready, building miners..."
+        debug_log "Proceeding to build miners"
+        build_miners
+
+        echo "Starting mining process..."
+        CURRENT_HEIGHT=$(get_height)
+        TARGET_HEIGHT=$((STACKS_2_05_HEIGHT - 1))
+
+        if [ "$CURRENT_HEIGHT" -lt "$TARGET_HEIGHT" ]; then
+            echo "Mining initial blocks from $CURRENT_HEIGHT to $TARGET_HEIGHT"
+            BLOCKS_TO_MINE=$((TARGET_HEIGHT - CURRENT_HEIGHT))
+            ADDRESS_INDEX=0
+
+            for ((i=0; i<${BLOCKS_TO_MINE}; i++)); do
+                CURRENT_HEIGHT=$(get_height)
+                log_height_and_epoch "$CURRENT_HEIGHT" "Initial mining ($((i+1))/$BLOCKS_TO_MINE) - "
+
+                # Rotate through miner addresses
+                ADDRESS_ENV_VAR=${ADDRESSES[$ADDRESS_INDEX]}
+                ADDRESS=${!ADDRESS_ENV_VAR}
+                mine_bitcoin 1 "${ADDRESS}"
+                ADDRESS_INDEX=$(((ADDRESS_INDEX + 1) % NUM_MINERS))
+
+                NEW_HEIGHT=$(get_height)
+                log_height_and_epoch "$NEW_HEIGHT" "Block mined! - "
+                sleep "${MINE_INTERVAL}"
+            done
+        fi
+
+        echo "Initial mining complete. Entering continuous mining mode..."
+
+        # Continuous mining with block height and epoch monitoring
+        ADDRESS_INDEX=0
+        while true; do
+            CURRENT_HEIGHT=$(get_height)
+
+            # Get mining interval for current height
+            INTERVAL=$(get_mining_interval_for_height "$CURRENT_HEIGHT")
+
+            # Rotate through miner addresses
+            ADDRESS_ENV_VAR=${ADDRESSES[$ADDRESS_INDEX]}
+            ADDRESS=${!ADDRESS_ENV_VAR}
+
+            mine_bitcoin 1 "${ADDRESS}"
+            ADDRESS_INDEX=$(((ADDRESS_INDEX + 1) % NUM_MINERS))
+
+            NEW_HEIGHT=$(get_height)
+            log_height_and_epoch "$NEW_HEIGHT" "Block mined! - "
+            sleep "${INTERVAL}"
+        done
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: bitcoin-node
+    labels:
+        app: bitcoin-node
+spec:
+    ports:
+        - name: rpc
+          port: 18443
+          targetPort: 18443
+          protocol: TCP
+        - name: p2p
+          port: 18444
+          targetPort: 18444
+          protocol: TCP
+    selector:
+        app: bitcoin-node
+
+---
+# Bitcoin Node StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+    name: bitcoin-node
+    labels:
+        app: bitcoin-node
+spec:
+    serviceName: bitcoin-node
+    replicas: 1
+    selector:
+        matchLabels:
+            app: bitcoin-node
+    template:
+        metadata:
+            labels:
+                app: bitcoin-node
+        spec:
+            containers:
+                - name: bitcoin-node
+                  image: bitcoin/bitcoin:25.2@sha256:14b4777166cba8de36b62ce72801038760a8f490122781b66d40592c8c69ebda
+                  ports:
+                      - containerPort: 18443
+                        name: rpc
+                        protocol: TCP
+                      - containerPort: 18444
+                        name: p2p
+                        protocol: TCP
+                  volumeMounts:
+                      - name: bitcoin-config
+                        mountPath: /root/.bitcoin/bitcoin.conf
+                        subPath: bitcoin.conf
+                      - name: bitcoin-data
+                        mountPath: /root/.bitcoin/regtest
+                  command:
+                      - /bin/bash
+                      - -c
+                      - |
+                          set -e
+                          bitcoind
+                  readinessProbe:
+                      exec:
+                          command:
+                              - /bin/sh
+                              - -c
+                              - bitcoin-cli -rpcwait getblockcount
+                      initialDelaySeconds: 10
+                      periodSeconds: 5
+                      timeoutSeconds: 3
+                      successThreshold: 1
+                      failureThreshold: 10
+                  livenessProbe:
+                      exec:
+                          command:
+                              - /bin/sh
+                              - -c
+                              - bitcoin-cli -rpcwait getblockcount
+                      initialDelaySeconds: 30
+                      periodSeconds: 30
+                      timeoutSeconds: 5
+                      failureThreshold: 3
+            volumes:
+                - name: bitcoin-config
+                  configMap:
+                      name: bitcoin-config
+                      defaultMode: 0755
+    volumeClaimTemplates:
+        - metadata:
+              name: bitcoin-data
+          spec:
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                  requests:
+                      storage: 10Gi
+---
+# Bitcoin Miner Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: bitcoin-miner
+    labels:
+        app: bitcoin-miner
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: bitcoin-miner
+    template:
+        metadata:
+            labels:
+                app: bitcoin-miner
+        spec:
+            containers:
+                - name: bitcoin-miner
+                  image: bitcoin/bitcoin:25.2@sha256:14b4777166cba8de36b62ce72801038760a8f490122781b66d40592c8c69ebda
+                  env:
+                      - name: STACKS_MINER_1_BTC_ADDR
+                        value: "moARgPEufCG3BXqpZLR9wLZZufzeASFjxY"
+                      - name: STACKS_MINER_1_BTC_WALLET
+                        value: "stacks-miner-1"
+                      - name: MINE_INTERVAL
+                        value: "2"
+                      - name: MINE_INTERVAL_EPOCH2_05
+                        value: "5"
+                      - name: MINE_INTERVAL_EPOCH25
+                        value: "5"
+                      - name: MINE_INTERVAL_EPOCH3
+                        value: "30"
+                      - name: STACKS_2_05_HEIGHT
+                        value: "203"
+                      - name: STACKS_25_HEIGHT
+                        value: "209"
+                      - name: STACKS_30_HEIGHT
+                        value: "232"
+                      - name: STACKS_32_HEIGHT
+                        value: "234"
+                      - name: PAUSE_HEIGHT
+                        value: "999999999999"
+                      - name: PAUSE_TIMER
+                        value: "86400000"
+                  volumeMounts:
+                      - name: bitcoin-config
+                        mountPath: /root/.bitcoin/bitcoin.conf
+                        subPath: bitcoin.conf
+                      - name: bitcoin-config
+                        mountPath: /miner.sh
+                        subPath: miner.sh
+                  command:
+                      - /bin/bash
+                      - -c
+                      - |
+                          chmod +x /miner.sh
+                          /miner.sh
+                  readinessProbe:
+                      exec:
+                          command:
+                              - /bin/sh
+                              - -c
+                              - |
+                                  HEIGHT=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet getblockcount 2>/dev/null || echo 0)
+                                  [ "$HEIGHT" -ge 100 ]
+                      initialDelaySeconds: 15
+                      periodSeconds: 5
+                      timeoutSeconds: 3
+                      successThreshold: 1
+                      failureThreshold: 60
+                  livenessProbe:
+                      exec:
+                          command:
+                              - /bin/sh
+                              - -c
+                              - bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet getblockcount
+                      initialDelaySeconds: 60
+                      periodSeconds: 30
+                      timeoutSeconds: 5
+                      failureThreshold: 3
+            volumes:
+                - name: bitcoin-config
+                  configMap:
+                      name: bitcoin-config
+                      defaultMode: 0755
