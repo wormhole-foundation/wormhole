@@ -442,17 +442,17 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 
 	transaction, err := w.fetchStacksTransactionByTxId(ctx, txId)
 	if err != nil {
-		return fmt.Errorf("failed to fetch transaction: %w", err)
+		return 0, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
 
 	replay, err := w.fetchStacksBlockReplay(ctx, transaction.IndexBlockHash)
 	if err != nil {
-		return fmt.Errorf("failed to fetch block replay: %w", err)
+		return 0, fmt.Errorf("failed to fetch block replay: %w", err)
 	}
 
 	stableBitcoinBlockHeight := w.stableBitcoinHeight.Load()
 	if replay.BlockHeight > stableBitcoinBlockHeight {
-		return fmt.Errorf("block replay height %d is greater than stable Bitcoin (burn) block height %d", replay.BlockHeight, stableBitcoinBlockHeight)
+		return 0, fmt.Errorf("block replay height %d is greater than stable Bitcoin (burn) block height %d", replay.BlockHeight, stableBitcoinBlockHeight)
 	}
 
 	var tx *StacksV3TenureBlockTransaction
@@ -464,12 +464,13 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 	}
 
 	if tx == nil {
-		return fmt.Errorf("transaction %s not found in block replay", txId)
+		return 0, fmt.Errorf("transaction %s not found in block replay", txId)
 	}
 
 	// Process the transaction using the same processing function used in polling
-	if count, err := w.processStacksTransaction(ctx, tx, replay, true, logger); err != nil {
-		return fmt.Errorf("failed to process transaction: %w", err)
+	count, err := w.processStacksTransaction(ctx, tx, replay, true, logger)
+	if err != nil {
+		return 0, fmt.Errorf("failed to process transaction: %w", err)
 	}
 
 	return count, nil
