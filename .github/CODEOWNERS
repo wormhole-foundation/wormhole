@@ -9,7 +9,7 @@
 /bitcoin/ @evan-gray
 /cosmwasm/ @mdulin2 @kcsongor
 /ethereum/ @gator-boi @kcsongor
-/ethereum/env/ @gator-boi @kcsongor @evan-gray
+/ethereum/env/ @gator-boi @kcsongor @evan-gray @fergarrui
 /relayer/ethereum @nonergodic @gator-boi
 /near/ @evan-gray @kcsongor
 /solana/ @kcsongor 
@@ -23,7 +23,7 @@
 /lp_ui/ @evan-gray @kev1n-peters
 /relayer/generic_relayer @nonergodic @gator-boi
 /scripts/ @evan-gray @kcsongor @djb15
-/sdk/ @evan-gray @kev1n-peters @panoel @SEJeff
+/sdk/ @evan-gray @kev1n-peters @panoel @SEJeff @fergarrui
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-query/ @evan-gray @kev1n-peters
@@ -42,6 +42,7 @@
 # Protobuf for node
 
 /proto/node/ @evan-gray @panoel
+/proto/publicrpc/ @evan-gray @panoel @fergarrui
 
 # Guardiand node
 
@@ -51,7 +52,7 @@
 
 ## Entrypoint / RPC
 
-/node/cmd/ @panoel @evan-gray
+/node/cmd/ @panoel @evan-gray @fergarrui
 
 ## Common
 /node/pkg/common/ @panoel @evan-gray
@@ -68,7 +69,7 @@
 
 ## Governor
 
-/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Gateway Relayer
 
@@ -81,6 +82,14 @@
 ## Consensus / Processor
 
 /node/pkg/processor/ @evan-gray @panoel
+
+## Proto
+
+/node/pkg/proto/ @evan-gray @panoel @fergarrui
+
+## Query
+
+/node/pkg/query/ @evan-gray @panoel @fergarrui
 
 ## Public RPC
 
@@ -97,12 +106,12 @@
 
 ## Watchers
 
-/node/pkg/watchers @evan-gray @panoel
+/node/pkg/watchers @evan-gray @panoel @fergarrui
 /node/pkg/watchers/evm/msg_verifier.go @djb15 @johnsaigle @mdulin2 @pleasew8t
 
 ## Guardian Dependency Upgrades (go.mod) 
-/node/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
-/sdk/go.mod @bemic @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/sdk/go.mod @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Notary
 
@@ -111,7 +120,7 @@
 ## Hacks / Tools
 
 /node/hack/ @panoel @evan-gray
-/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t
+/node/hack/governor @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Documentation
 
@@ -119,4 +128,4 @@
 
 ## Audit Reports
 
-/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t
+/audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic

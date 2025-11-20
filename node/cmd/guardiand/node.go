@@ -225,6 +225,9 @@ var (
 	creditCoinRPC      *string
 	creditCoinContract *string
 
+	mocaRPC      *string
+	mocaContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -477,6 +480,9 @@ func init() {
 
 	creditCoinRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "creditCoinRPC", "CREDITCOIN RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	creditCoinContract = NodeCmd.Flags().String("creditCoinContract", "", "CreditCoin contract address")
+
+	mocaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "MocaRPC", "Moca RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mocaContract = NodeCmd.Flags().String("mocaContract", "", "Moca contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -879,6 +885,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*xrplEvmContract = checkEvmArgs(logger, *xrplEvmRPC, *xrplEvmContract, vaa.ChainIDXRPLEVM)
 	*plasmaContract = checkEvmArgs(logger, *plasmaRPC, *plasmaContract, vaa.ChainIDPlasma)
 	*creditCoinContract = checkEvmArgs(logger, *creditCoinRPC, *creditCoinContract, vaa.ChainIDCreditCoin)
+	*mocaContract = checkEvmArgs(logger, *mocaRPC, *mocaContract, vaa.ChainIDMoca)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1601,6 +1608,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDCreditCoin,
 			Rpc:              *creditCoinRPC,
 			Contract:         *creditCoinContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(mocaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "moca",
+			ChainID:          vaa.ChainIDMoca,
+			Rpc:              *mocaRPC,
+			Contract:         *mocaContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)

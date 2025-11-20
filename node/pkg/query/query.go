@@ -144,6 +144,7 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDXRPLEVM:         {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDPlasma:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDCreditCoin:      {NumWorkers: 1, TimestampCacheSupported: true},
+	vaa.ChainIDMoca:            {NumWorkers: 1, TimestampCacheSupported: true},
 }
 
 // GetPerChainConfig returns the config for the specified chain. If the chain is not configured it returns an empty struct,
@@ -366,15 +367,15 @@ func handleQueryRequestsImpl(
 
 				// Build the list of per chain response publications and the overall query response publication.
 				responses := []*PerChainQueryResponse{}
-				for _, resp := range pq.responses {
-					if resp == nil {
-						qLogger.Error("unexpected null response in pending query!", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+				for _, pqResp := range pq.responses {
+					if pqResp == nil {
+						qLogger.Error("unexpected nil response in pending query!", zap.String("requestID", resp.RequestID))
 						continue
 					}
 
 					responses = append(responses, &PerChainQueryResponse{
-						ChainId:  resp.ChainId,
-						Response: resp.Response,
+						ChainId:  pqResp.ChainId,
+						Response: pqResp.Response,
 					})
 				}
 
