@@ -16,4 +16,4 @@ The Transfer Verifier feature is disabled by default. Guardians can enable it by
 
 This parameter is a comma-separated list of Wormhole Chain IDs for which transfer verification will be enabled.
 
-Only some chains support the Transfer Verifier.
+Only some chains support the Transfer Verifier. If an unsupported chain is specified, the node will not start. It will also display an error message stating that the chain does not have a Transfer Verifier implementation.
