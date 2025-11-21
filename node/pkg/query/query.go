@@ -113,7 +113,6 @@ var perChainConfig = map[vaa.ChainID]PerChainConfig{
 	vaa.ChainIDBSC:             {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDPolygon:         {NumWorkers: 5, TimestampCacheSupported: true},
 	vaa.ChainIDAvalanche:       {NumWorkers: 1, TimestampCacheSupported: true},
-	vaa.ChainIDFantom:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDKlaytn:          {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDCelo:            {NumWorkers: 1, TimestampCacheSupported: true},
 	vaa.ChainIDMoonbeam:        {NumWorkers: 1, TimestampCacheSupported: true},
