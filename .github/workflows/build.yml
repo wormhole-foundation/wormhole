@@ -432,6 +432,13 @@ jobs:
         uses: actions/checkout@v2
       - run: chmod 755 ./scripts/check-npm-package-scopes.sh
       - run: ./scripts/check-npm-package-scopes.sh
+  js-package-install-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v2
+      - run: chmod 755 ./scripts/lint-package-install.sh
+      - run: ./scripts/lint-package-install.sh
   prettier:
     runs-on: ubuntu-latest
     steps:

@@ -7,7 +7,7 @@ FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957
 RUN apt-get update && apt-get -y install \
   git python make curl netcat
 
-RUN npm i typescript -g
+RUN npm i typescript@5.9.3 -g
 
 USER 1000
 

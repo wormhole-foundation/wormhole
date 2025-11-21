@@ -83,7 +83,7 @@ If it doesn't work, this dockerfile may be a good starting point:
 ```docker
 RUN dnf update && dnf install -y python3 npm curl
 RUN dnf install -y gcc gcc-c++ make git
-RUN npm install -g typescript ts-node n
+RUN npm install -g typescript@5.9.3 ts-node@10.9.2 n@10.2.0
 RUN n stable
 
 RUN git clone https://github.com/wormhole-foundation/wormhole.git

@@ -6,7 +6,7 @@ RUN rustup update
 RUN apt-get update && apt-get install apt-utils && apt-get install -y python3 npm curl make --no-install-recommends
 RUN apt-get install -y build-essential git
 
-RUN npm i -g n
+RUN npm i -g n@10.2.0
 RUN n stable
 
 COPY node_builder.sh /tmp
