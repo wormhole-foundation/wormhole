@@ -140,8 +140,21 @@ export const builder = function (y: typeof yargs) {
               describe:
                 "Chain to upgrade. To see a list of supported chains, run `worm chains`",
               type: "string",
-              demandOption: true,
+              demandOption: false,
             } as const)
+            .option("chain-id", {
+              alias: "i",
+              describe:
+                "Chain to register. To see a list of supported chains, run `worm chains`",
+              type: "number",
+              demandOption: false,
+            } as const)
+            .option("platform", {
+              alias: "p",
+              describe: "Platform to encode the address by",
+              choices: platforms,
+              demandOption: false,
+            })
             .option("contract-address", {
               alias: "a",
               describe: "Contract to upgrade to",
@@ -155,13 +168,29 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const),
         (argv) => {
-          const chain = chainToChain(argv.chain);
+          if (!(argv.chain || (argv["chain-id"] && argv.platform))) {
+            throw new Error("chain or chain-id and platform are required");
+          }
           const module = argv["module"];
+          const chain = argv.chain
+            ? toChainId(chainToChain(argv.chain))
+            : argv["chain-id"];
+          if (chain === undefined) {
+            throw new Error("emitterChain is undefined");
+          }
+          let contractAddress = argv.platform
+            ? parseAddressByPlatform(argv.platform, argv["contract-address"])
+            : argv.chain
+            ? parseAddress(chainToChain(argv.chain), argv["contract-address"])
+            : undefined;
+          if (contractAddress === undefined) {
+            throw new Error("contractAddress is undefined");
+          }
           const payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
-            chain: toChainId(chain),
-            address: parseCodeAddress(chain, argv["contract-address"]),
+            chain: chain,
+            address: contractAddress,
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
