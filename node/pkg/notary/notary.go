@@ -38,6 +38,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/txverifier"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -154,30 +155,45 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 
 	n.logger.Debug("notary: processing message", msg.ZapFields()...)
 
-	// NOTE: Only token transfers originated on Ethereum are currently considered.
 	// For the initial implementation, the Notary only rules on messages based
 	// on the Transfer Verifier. However, there is no technical barrier to
 	// supporting other message types.
-	if msg.EmitterChain != vaa.ChainIDEthereum {
-		n.logger.Debug("notary: automatically approving message publication because it is not from Ethereum", msg.ZapFields()...)
+	if !txverifier.IsSupported(msg.EmitterChain) {
+		n.logger.Debug("notary: automatically approving message: sent from a chain without a transfer verifier implementation", msg.ZapFields()...)
 		return Approve, nil
 	}
 
 	if !vaa.IsTransfer(msg.Payload) {
-		n.logger.Debug("notary: automatically approving message publication because it is not a token transfer", msg.ZapFields()...)
+		n.logger.Debug("notary: automatically approving message: it is not a wrapped token transfer", msg.ZapFields()...)
 		return Approve, nil
 	}
 
-	if tokenBridge, ok := sdk.KnownTokenbridgeEmitters[msg.EmitterChain]; !ok {
-		// Return Unknown if the token bridge is not registered in the SDK.
-		n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
-		return Unknown, errors.New("unknown token bridge emitter")
-	} else {
-		// Approve if the token transfer is not from the token bridge.
-		// For now, the notary only rules on token transfers from the token bridge.
-		if !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
-			n.logger.Debug("notary: automatically approving message publication because it is not from the token bridge", msg.ZapFields()...)
-			return Approve, nil
+	var tbEmitters = make(map[vaa.ChainID][]byte)
+	switch n.env {
+	case common.MainNet:
+		tbEmitters = sdk.KnownTokenbridgeEmitters
+	case common.TestNet:
+		tbEmitters = sdk.KnownTestnetTokenbridgeEmitters
+	case common.UnsafeDevNet:
+		tbEmitters = sdk.KnownDevnetTokenbridgeEmitters
+	case common.AccountantMock, common.GoTest:
+	default:
+		n.logger.Debug("skipping token bridge emitter check because environment is not mainnet or testnet")
+	}
+
+	// Perform emitter checks when outside of unit tests or mock environments
+	if n.env == common.MainNet || n.env == common.TestNet || n.env == common.UnsafeDevNet {
+		if tokenBridge, ok := tbEmitters[msg.EmitterChain]; !ok {
+			// Return Unknown if the token bridge is not registered in the SDK.
+			n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
+			return Unknown, errors.New("unknown token bridge emitter")
+		} else {
+			// Approve if the token transfer is not from the token bridge.
+			// For now, the notary only rules on token transfers from the token bridge.
+			if !bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge) {
+				n.logger.Debug("notary: automatically approving message publication because it is not from the token bridge", msg.ZapFields()...)
+				return Approve, nil
+			}
 		}
 	}
 
