@@ -74,6 +74,7 @@ impl From<u16> for Chain {
             7 => Chain::Oasis,
             8 => Chain::Algorand,
             9 => Chain::Aurora,
+            // 10 => Chain::Fantom,
             11 => Chain::Karura,
             12 => Chain::Acala,
             13 => Chain::Klaytn,
