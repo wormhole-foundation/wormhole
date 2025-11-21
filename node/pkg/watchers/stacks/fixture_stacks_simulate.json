@@ -1,0 +1,105 @@
+{
+    "block_id": "8ba4f594878590a519935c6272456d31c479c398bcec88e1ad83c64468c999e5",
+    "block_hash": "1eaef849c3cb178279f27af3db595ad3914d23aece533f22912d1d87c22aae3a",
+    "parent_block_id": "190f786ff64ce61fdb25b75ab6fb2f4a36d2d0c85d9a732c0bdb64f4effc464f",
+    "consensus_hash": "c81f64866e26a6a6ee7d697f22eb55796d8c78a3",
+    "fees": 300,
+    "tx_merkle_root": "99178a7cf8fb09d864eb0e06ad541c0be69732e43efd3339ebfc71fc1ba38cb7",
+    "state_index_root": "84a43d0d714cf732cbf2717fc4c67516533c2192347ae90fe92b88bb4cb41706",
+    "timestamp": 1744604312,
+    "miner_signature": "006ab76f8943df0128658cbaaed10bc159fdb84e2a6e5bd2aa14495ddd4deee5917368a7cdf218629c91042cdfb12ac00a1017e6a811505b1d5c39788e2d0d2376",
+    "signer_signature": [
+        "000e47f34c25ee9e53f41dfaa1ed802b88c73fadcbdff52eb1d29fa5f8d7791d151a308319a3d96e87e2cb321d21f50fdd477490f034c754815e130113eb9cbd52",
+        "0045ada75fbb3b0064ac7861f9c08426f56babdcab4f822113890377e089c64d4334d0deba7a3cd4525f4250113f193bc50217018d338d229290b9e7f36b5d44e8"
+    ],
+    "transactions": [
+        {
+            "txid": "8f16abb34505ae2fa06834596c017274631b9a0a70236c68cbc8adb66c5e7724",
+            "tx_index": 0,
+            "data": {
+                "version": "Testnet",
+                "chain_id": 2147483648,
+                "auth": {
+                    "Standard": {
+                        "Singlesig": {
+                            "hash_mode": "P2PKH",
+                            "signer": "841f9b4dd30ae02fd816cc225c59d1b00b9c3a3a",
+                            "nonce": 312328,
+                            "tx_fee": 300,
+                            "key_encoding": "Compressed",
+                            "signature": "01f99efb9944afe7f0e7337998cdd1b0838e3fce534a78d54d1cd3c483e5bf857f38a1bc88d9bac2a3f0766a40f6113d42e16dfa572d3280898c0d7fe53afc32af"
+                        }
+                    }
+                },
+                "anchor_mode": "Any",
+                "post_condition_mode": "Deny",
+                "post_conditions": [],
+                "payload": {
+                    "TokenTransfer": [
+                        {
+                            "Standard": [
+                                26,
+                                [
+                                    180,
+                                    253,
+                                    174,
+                                    152,
+                                    182,
+                                    75,
+                                    156,
+                                    214,
+                                    201,
+                                    67,
+                                    111,
+                                    59,
+                                    150,
+                                    85,
+                                    88,
+                                    150,
+                                    106,
+                                    254,
+                                    137,
+                                    11
+                                ]
+                            ]
+                        },
+                        1000,
+                        "00000000000000000000000000000000000000000000000000000000000000000000"
+                    ]
+                }
+            },
+            "hex": "80800000000400841f9b4dd30ae02fd816cc225c59d1b00b9c3a3a000000000004c408000000000000012c0001f99efb9944afe7f0e7337998cdd1b0838e3fce534a78d54d1cd3c483e5bf857f38a1bc88d9bac2a3f0766a40f6113d42e16dfa572d3280898c0d7fe53afc32af03020000000000051ab4fdae98b64b9cd6c9436f3b965558966afe890b00000000000003e800000000000000000000000000000000000000000000000000000000000000000000",
+            "result": {
+                "Response": {
+                    "committed": true,
+                    "data": {
+                        "Bool": true
+                    }
+                }
+            },
+            "stx_burned": 0,
+            "execution_cost": {
+                "write_length": 0,
+                "write_count": 0,
+                "read_length": 0,
+                "read_count": 0,
+                "runtime": 0
+            },
+            "events": [
+                {
+                    "committed": true,
+                    "event_index": 0,
+                    "stx_transfer_event": {
+                        "amount": "1000",
+                        "memo": "00000000000000000000000000000000000000000000000000000000000000000000",
+                        "recipient": "ST2TFVBMRPS5SSNP98DQKQ5JNB2B6NZM91C4K3P7B",
+                        "sender": "ST221Z6TDTC5E0BYR2V624Q2ST6R0Q71T78WTAX6H"
+                    },
+                    "txid": "0x8f16abb34505ae2fa06834596c017274631b9a0a70236c68cbc8adb66c5e7724",
+                    "type": "stx_transfer_event"
+                }
+            ]
+        }
+    ],
+    "valid": true
+}

@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stacks-stacker
+  labels:
+    app: stacks-stacker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stacks-stacker
+  template:
+    metadata:
+      labels:
+        app: stacks-stacker
+    spec:
+      containers:
+        - name: stacker
+          image: stacks-stacker
+          env:
+            - name: STACKS_CORE_RPC_HOST
+              value: "stacks-node"
+            - name: STACKS_CORE_RPC_PORT
+              value: "20443"
+            - name: STACKING_CYCLES
+              value: "1"
+            - name: STACKING_KEYS
+              value: "41634762d89dfa09133a4a8e9c1378d0161d29cd0a9433b51f1e3d32947a73dc01"
+            - name: STACKING_SLOT_DISTRO
+              value: "2"
+            - name: STACKS_25_HEIGHT
+              value: "209"
+            - name: STACKS_30_HEIGHT
+              value: "232"
+            - name: POX_PREPARE_LENGTH
+              value: "5"
+            - name: POX_REWARD_LENGTH
+              value: "20"
+            - name: STACKING_INTERVAL
+              value: "2"
+            - name: POST_TX_WAIT
+              value: "10"
+            - name: SERVICE_NAME
+              value: "stacker"
