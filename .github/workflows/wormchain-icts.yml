@@ -28,7 +28,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v4
@@ -79,7 +79,7 @@ jobs:
           cache-dependency-path: interchaintest/go.sum
 
       - name: checkout chain
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Tarball Artifact
         uses: actions/download-artifact@v4
