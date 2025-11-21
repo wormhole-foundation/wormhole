@@ -1,4 +1,4 @@
-FROM node@sha256:101246ec9f5f803f58d6c1eb1d40477c7a99049718a5849ae78229cc6f9198b2 AS builder
+FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb AS builder
 
 RUN apt-get update && apt-get install -y curl gettext-base jq
 
