@@ -13,11 +13,19 @@
 [[ -z $MNEMONIC ]] && { echo "Missing MNEMONIC"; exit 1; }
 [[ -z $RPC_URL ]] && { echo "Missing RPC_URL"; exit 1; }
 
+if [[ -z $VERIFY_ARGS ]]; then
+	echo "============================================================================="
+	echo "WARNING: Verification disabled - contracts will NOT be verified"
+	echo "Set VERIFY_ARGS in .env to enable verification"
+	echo "Example: VERIFY_ARGS=\"--verify --verifier etherscan --etherscan-api-key <KEY>\""
+	echo "============================================================================="
+fi
+
 forge script ./forge-scripts/DeployCore.s.sol:DeployCore \
 	--sig "run(address[],uint16,uint16,bytes32,uint256)" $INIT_SIGNERS $INIT_CHAIN_ID $INIT_GOV_CHAIN_ID $INIT_GOV_CONTRACT $INIT_EVM_CHAIN_ID \
 	--rpc-url "$RPC_URL" \
 	--private-key "$MNEMONIC" \
-	--broadcast ${FORGE_ARGS}
+	--broadcast ${VERIFY_ARGS} ${FORGE_ARGS}
 
 returnInfo=$(cat ./broadcast/DeployCore.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 # Extract the address values from 'returnInfo'
