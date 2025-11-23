@@ -1,8 +1,11 @@
 #![no_std]
 #![allow(unused_variables)]
+#![allow(unused_variables)]
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
-use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, WormholeCoreInterface};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, BytesN, Env, Vec};
+use wormhole_interface::{
+    ConsistencyLevel, Error, GuardianSetInfo, WormholeCoreInterface, VAA,
+};
 
 #[contract]
 pub struct Wormhole;
