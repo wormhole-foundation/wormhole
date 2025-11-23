@@ -47,5 +47,4 @@ pub enum Error {
     InvalidRecipient = 52,
     TransferFailed = 53,
     InvalidFeeAmount = 54,
-
 }

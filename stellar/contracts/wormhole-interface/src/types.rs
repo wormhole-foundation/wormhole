@@ -5,7 +5,7 @@
 
 #![allow(missing_docs)]
 
-use soroban_sdk::{contracttype, Bytes, BytesN, Vec};
+use soroban_sdk::{Bytes, BytesN, Vec, contracttype};
 
 // ========== VAA Types ==========
 
@@ -96,4 +96,3 @@ pub struct PostedMessageData {
     /// Message payload data
     pub payload: Bytes,
 }
-

@@ -9,8 +9,12 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-soroban-sdk = { workspace = true }
+soroban-sdk = { workspace = true, features = ["alloc"] }  # Add features
+stellar-strkey = "0.0.14"  # Add this line
 wormhole-interface = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+base64 = "0.21"  # Add this
+serde_json = "1.0"  # Add this
+hex = "0.4"  # Add this
