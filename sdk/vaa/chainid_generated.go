@@ -120,6 +120,8 @@ func (c ChainID) String() string {
 		return "ton"
 	case ChainIDMoca:
 		return "moca"
+	case ChainIDMegaETH:
+		return "megaeth"
 	case ChainIDWormchain:
 		return "wormchain"
 	case ChainIDCosmoshub:
@@ -272,6 +274,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDTON, nil
 	case "moca":
 		return ChainIDMoca, nil
+	case "megaeth":
+		return ChainIDMegaETH, nil
 	case "wormchain":
 		return ChainIDWormchain, nil
 	case "cosmoshub":
@@ -368,6 +372,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDStellar,
 		ChainIDTON,
 		ChainIDMoca,
+		ChainIDMegaETH,
 		ChainIDWormchain,
 		ChainIDCosmoshub,
 		ChainIDEvmos,

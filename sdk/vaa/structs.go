@@ -323,6 +323,8 @@ const (
 	ChainIDTON ChainID = 62
 	// ChainIDMoca is the ChainID of Moca
 	ChainIDMoca ChainID = 63
+	// ChainIDMegaETH is the ChainID of MegaETH
+	ChainIDMegaETH ChainID = 64
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
