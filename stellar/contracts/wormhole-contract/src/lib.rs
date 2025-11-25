@@ -12,18 +12,19 @@ pub mod storage;
 pub mod utils;
 pub mod vaa;
 pub mod governance;
+pub mod initialize;
 
 #[contract]
 pub struct Wormhole;
 
 #[contractimpl]
 impl WormholeCoreInterface for Wormhole {
-    fn initialize(_env: Env, _initial_guardians: Vec<BytesN<20>>) -> Result<(), Error> {
-        todo!("Implementation in later PRs")
+    fn initialize(env: Env, initial_guardians: Vec<BytesN<20>>) -> Result<(), Error> {
+        initialize::initialize(&env, initial_guardians)
     }
 
-    fn is_initialized(_env: Env) -> bool {
-        todo!()
+    fn is_initialized(env: Env) -> bool {
+        initialize::is_initialized(&env)
     }
 
     /// Verify and validate a VAA (Verified Action Approval)
