@@ -1,8 +1,13 @@
+//! Wormhole Core Contract Implementation
+//!
+//! This crate contains the implementation of the Wormhole Core contract for Stellar/Soroban.
+//! External users should depend on the `wormhole-interface` crate, not this implementation.
+ 
 #![no_std]
 #![allow(unused_variables)]
 #![allow(unused_variables)]
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
+use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl, token};
 use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, WormholeCoreInterface};
 use crate::governance::action::GovernanceAction;
 
