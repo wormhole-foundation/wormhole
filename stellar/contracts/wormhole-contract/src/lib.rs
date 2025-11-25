@@ -124,15 +124,9 @@ impl WormholeCoreInterface for Wormhole {
         governance::is_governance_vaa_consumed(env, vaa_bytes)
     }
 
+    /// Get the Wormhole chain ID for Stellar
     fn get_chain_id(_env: Env) -> u32 {
-        todo!()
+        u32::from(wormhole_interface::CHAIN_ID_STELLAR)
     }
 
-    fn get_governance_chain_id(_env: Env) -> u32 {
-        todo!()
-    }
-
-    fn get_governance_emitter(_env: Env) -> BytesN<32> {
-        todo!()
-    }
 }
