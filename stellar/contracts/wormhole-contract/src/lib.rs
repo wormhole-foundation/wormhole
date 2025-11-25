@@ -25,12 +25,19 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn verify_vaa(_env: Env, _vaa_bytes: Bytes) -> Result<bool, Error> {
-        todo!()
+    /// Verify and validate a VAA (Verified Action Approval)
+    /// Returns true if the VAA is valid and properly signed by the current guardian set
+    fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<bool, Error> {
+        vaa::verify_vaa(env, vaa_bytes)
     }
 
-    fn parse_vaa(_env: Env, _vaa_bytes: Bytes) -> Result<VAA, Error> {
-        todo!()
+    /// Parse a VAA and return its components without verification
+    /// Useful for inspection and debugging
+    fn parse_vaa(
+        env: Env,
+        vaa_bytes: Bytes,
+    ) -> Result<wormhole_interface::VAA, Error> {
+        vaa::parse_vaa(&env, &vaa_bytes)
     }
 
     fn submit_contract_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
