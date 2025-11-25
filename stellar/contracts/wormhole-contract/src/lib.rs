@@ -2,21 +2,21 @@
 //!
 //! This crate contains the implementation of the Wormhole Core contract for Stellar/Soroban.
 //! External users should depend on the `wormhole-interface` crate, not this implementation.
- 
+
 #![no_std]
 #![allow(unused_variables)]
 #![allow(unused_variables)]
 
+use crate::governance::action::GovernanceAction;
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl, token};
 use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, WormholeCoreInterface};
-use crate::governance::action::GovernanceAction;
 
 pub mod constants;
+pub mod governance;
+pub mod initialize;
 pub mod storage;
 pub mod utils;
 pub mod vaa;
-pub mod governance;
-pub mod initialize;
 
 #[contract]
 pub struct Wormhole;
@@ -39,10 +39,7 @@ impl WormholeCoreInterface for Wormhole {
 
     /// Parse a VAA and return its components without verification
     /// Useful for inspection and debugging
-    fn parse_vaa(
-        env: Env,
-        vaa_bytes: Bytes,
-    ) -> Result<wormhole_interface::VAA, Error> {
+    fn parse_vaa(env: Env, vaa_bytes: Bytes) -> Result<wormhole_interface::VAA, Error> {
         vaa::parse_vaa(&env, &vaa_bytes)
     }
 
@@ -128,5 +125,4 @@ impl WormholeCoreInterface for Wormhole {
     fn get_chain_id(_env: Env) -> u32 {
         u32::from(wormhole_interface::CHAIN_ID_STELLAR)
     }
-
 }

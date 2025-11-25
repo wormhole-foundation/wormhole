@@ -1,11 +1,11 @@
 use crate::{
     constants::*,
-    governance::action::{parse_governance_header, validate_governance_header, GovernanceAction},
+    governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
     storage::StorageKey,
-    utils::{address_from_ed25519_pk_bytes, get_native_token_address, BytesReader},
+    utils::{BytesReader, address_from_ed25519_pk_bytes, get_native_token_address},
 };
 use core::convert::TryFrom;
-use soroban_sdk::{contractevent, token, Address, Bytes, BytesN, Env};
+use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
 use wormhole_interface::Error;
 
 /// Event published when fees are transferred out.
@@ -58,18 +58,12 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for TransferFeesPayload {
 
 impl TransferFeesPayload {
     fn validate(&self, env: &Env) -> Result<(), Error> {
-        validate_governance_header(
-            &self.module,
-            self.action,
-            self.chain,
-            ACTION_TRANSFER_FEES,
-        )?;
+        validate_governance_header(&self.module, self.action, self.chain, ACTION_TRANSFER_FEES)?;
 
         let native_token_address = get_native_token_address(env);
         let token_client = token::TokenClient::new(env, &native_token_address);
         let contract_address = env.current_contract_address();
-        let current_balance = u64::try_from(token_client.balance(&contract_address))
-            .unwrap_or(0);
+        let current_balance = u64::try_from(token_client.balance(&contract_address)).unwrap_or(0);
 
         if self.amount > current_balance {
             return Err(Error::InsufficientFees);
@@ -88,15 +82,16 @@ pub(crate) fn get_last_fee_transfer(env: &Env) -> Option<u64> {
     env.storage().persistent().get(&StorageKey::LastFeeTransfer)
 }
 
-
 fn set_last_fee_transfer(env: &Env, timestamp: u64) {
     env.storage()
         .persistent()
         .set(&StorageKey::LastFeeTransfer, &timestamp);
 
-    env.storage()
-        .persistent()
-        .extend_ttl(&StorageKey::LastFeeTransfer, STORAGE_TTL_THRESHOLD, STORAGE_TTL_EXTENSION);
+    env.storage().persistent().extend_ttl(
+        &StorageKey::LastFeeTransfer,
+        STORAGE_TTL_THRESHOLD,
+        STORAGE_TTL_EXTENSION,
+    );
 }
 
 pub(crate) struct TransferFeesAction;
@@ -130,4 +125,3 @@ impl GovernanceAction for TransferFeesAction {
         Ok(())
     }
 }
-

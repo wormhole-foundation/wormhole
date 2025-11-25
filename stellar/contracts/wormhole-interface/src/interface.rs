@@ -228,5 +228,4 @@ pub trait WormholeCoreInterface {
     /// # Returns
     /// Chain ID as u32
     fn get_chain_id(env: Env) -> u32;
-
 }

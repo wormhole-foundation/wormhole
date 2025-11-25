@@ -1,11 +1,11 @@
 use crate::{
     constants::*,
-    governance::action::{parse_governance_header, validate_governance_header, GovernanceAction},
+    governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
     storage::StorageKey,
     utils::BytesReader,
 };
 use core::convert::TryFrom;
-use soroban_sdk::{contractevent, Bytes, BytesN, Env};
+use soroban_sdk::{Bytes, BytesN, Env, contractevent};
 use wormhole_interface::Error;
 
 /// Event published when the message fee is updated.
@@ -68,15 +68,16 @@ pub(crate) fn get_message_fee(env: &Env) -> u64 {
         .unwrap_or(0)
 }
 
-
 fn set_message_fee(env: &Env, fee: u64) {
     env.storage()
         .persistent()
         .set(&StorageKey::MessageFee, &fee);
 
-    env.storage()
-        .persistent()
-        .extend_ttl(&StorageKey::MessageFee, STORAGE_TTL_THRESHOLD, STORAGE_TTL_EXTENSION);
+    env.storage().persistent().extend_ttl(
+        &StorageKey::MessageFee,
+        STORAGE_TTL_THRESHOLD,
+        STORAGE_TTL_EXTENSION,
+    );
 }
 
 pub(crate) struct SetMessageFeeAction;
@@ -96,4 +97,3 @@ impl GovernanceAction for SetMessageFeeAction {
         Ok(())
     }
 }
-
