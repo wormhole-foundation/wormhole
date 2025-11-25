@@ -11,6 +11,7 @@ pub mod constants;
 pub mod storage;
 pub mod utils;
 pub mod vaa;
+pub mod governance;
 
 #[contract]
 pub struct Wormhole;
