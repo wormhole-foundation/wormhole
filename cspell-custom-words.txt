@@ -117,6 +117,8 @@ localnet
 localterra
 lockfiles
 marshal
+megaETH
+MegaETH
 merkle
 Metaplex
 mezo
