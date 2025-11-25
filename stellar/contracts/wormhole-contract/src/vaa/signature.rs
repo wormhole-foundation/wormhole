@@ -1,6 +1,6 @@
 use crate::{utils::BytesReader, utils::pubkey_to_eth_address};
 use soroban_sdk::{contracttype, BytesN, Env};
-use wormhole_interface::Error;
+use wormhole_interface::WormholeError;
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -12,10 +12,10 @@ pub struct Signature {
 }
 
 impl Signature {
-    pub fn parse(env: &Env, reader: &mut BytesReader) -> Result<Self, Error> {
+    pub fn parse(env: &Env, reader: &mut BytesReader) -> Result<Self, WormholeError> {
         let guardian_index = u32::from(reader.read_u8()?);
-        let r = reader.read_bytes_n::<32>(env)?;
-        let s = reader.read_bytes_n::<32>(env)?;
+        let r = reader.read_bytes_n::<32>()?;
+        let s = reader.read_bytes_n::<32>()?;
         let v = u32::from(reader.read_u8()?);
 
         Ok(Signature {
@@ -31,7 +31,7 @@ impl Signature {
         env: &Env,
         message_hash: &soroban_sdk::crypto::Hash<32>,
         expected_address: &BytesN<20>,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool, WormholeError> {
         let mut sig_bytes = [0u8; 64];
         let r_array = self.r.to_array();
         let s_array = self.s.to_array();

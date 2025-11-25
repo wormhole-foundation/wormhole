@@ -2,10 +2,10 @@ mod signature;
 
 pub use signature::Signature;
 
-use crate::{governance, utils::BytesReader};
+use crate::utils::BytesReader;
 use core::convert::TryFrom;
 use soroban_sdk::{contracttype, Bytes, BytesN, Env, Vec};
-use wormhole_interface::Error;
+use wormhole_interface::WormholeError;
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -26,13 +26,13 @@ pub struct VAA {
 }
 
 impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
-    type Error = Error;
+    type Error = WormholeError;
 
     fn try_from(value: (&'a Env, &'a Bytes)) -> Result<Self, Self::Error> {
         let (env, vaa_bytes) = value;
 
         if vaa_bytes.len() < 6 {
-            return Err(Error::InvalidVAAFormat);
+            return Err(WormholeError::InvalidVAAFormat);
         }
 
         let mut reader = BytesReader::new(vaa_bytes);
@@ -50,7 +50,7 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
         let timestamp = reader.read_u32_be()?;
         let nonce = reader.read_u32_be()?;
         let emitter_chain = u32::from(reader.read_u16_be()?);
-        let emitter_address = reader.read_bytes_n::<32>(env)?;
+        let emitter_address = reader.read_bytes_n::<32>()?;
         let sequence = reader.read_u64_be()?;
         let consistency_level = u32::from(reader.read_u8()?);
         let payload = reader.remaining_bytes();
@@ -104,33 +104,25 @@ impl VAA {
     }
 
     /// Get the body bytes for hashing (everything after signatures)
-    pub(crate) fn get_body_bytes(vaa_bytes: &Bytes) -> Result<Bytes, Error> {
+    pub(crate) fn get_body_bytes(vaa_bytes: &Bytes) -> Result<Bytes, WormholeError> {
         if vaa_bytes.len() < 6 {
-            return Err(Error::InvalidVAAFormat);
+            return Err(WormholeError::InvalidVAAFormat);
         }
 
-        let num_sigs = u32::from(vaa_bytes.get(5).ok_or(Error::InvalidVAAFormat)?);
+        let num_sigs = u32::from(vaa_bytes.get(5).ok_or(WormholeError::InvalidVAAFormat)?);
         let body_offset = 6u32.saturating_add(66u32.saturating_mul(num_sigs));
 
         if body_offset >= vaa_bytes.len() {
-            return Err(Error::InvalidVAAFormat);
+            return Err(WormholeError::InvalidVAAFormat);
         }
 
         Ok(vaa_bytes.slice(body_offset..))
     }
 
     /// Verify this VAA's signatures against stored guardian sets
-    pub(crate) fn verify(&self, env: &Env) -> Result<bool, Error> {
-        let body_bytes = self.serialize_body(env);
-
-        let guardian_set_info = governance::guardian_set::get(env, self.guardian_set_index)?;
-
-        if let Some(expiry) = governance::guardian_set::get_expiry(env, self.guardian_set_index)
-            && env.ledger().timestamp() > expiry {
-                return Err(Error::GuardianSetExpired);
-            }
-
-        self.verify_signatures(env, &body_bytes, &guardian_set_info.keys)
+    pub(crate) fn verify(&self, env: &Env) -> Result<bool, WormholeError> {
+        // TODO: Implement when governance module is added
+        Err(WormholeError::GuardianSetNotFound)
     }
 
     /// Calculate the required quorum for a given number of guardians.
@@ -145,15 +137,15 @@ impl VAA {
         env: &Env,
         body_bytes: &Bytes,
         guardian_keys: &Vec<BytesN<20>>,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool, WormholeError> {
         let guardian_count = guardian_keys.len();
         if guardian_count == 0 {
-            return Err(Error::InvalidGuardianSetIndex);
+            return Err(WormholeError::InvalidGuardianSetIndex);
         }
 
         let required_sigs = VAA::calculate_quorum(guardian_count);
         if self.signatures.len() < required_sigs {
-            return Err(Error::InsufficientSignatures);
+            return Err(WormholeError::InsufficientSignatures);
         }
 
         let body_hash_bytes: Bytes = crate::utils::keccak256_hash(env, body_bytes).into();
@@ -164,24 +156,24 @@ impl VAA {
         for signature in self.signatures.iter() {
             if let Some(last_idx) = last_guardian_index
                 && signature.guardian_index <= last_idx {
-                    return Err(Error::SignaturesNotAscending);
+                    return Err(WormholeError::SignaturesNotAscending);
                 }
             last_guardian_index = Some(signature.guardian_index);
 
             if signature.guardian_index >= guardian_count {
-                return Err(Error::GuardianIndexOutOfBounds);
+                return Err(WormholeError::GuardianIndexOutOfBounds);
             }
 
             let guardian_key = guardian_keys
                 .get(signature.guardian_index)
-                .ok_or(Error::GuardianIndexOutOfBounds)?;
+                .ok_or(WormholeError::GuardianIndexOutOfBounds)?;
 
             if !signature.verify(
                 env,
                 &double_hash,
                 &guardian_key,
             )? {
-                return Err(Error::InvalidSignature);
+                return Err(WormholeError::InvalidSignature);
             }
         }
 
@@ -189,13 +181,13 @@ impl VAA {
     }
 }
 
-pub(crate) fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<bool, Error> {
+pub(crate) fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<bool, WormholeError> {
     let vaa = VAA::try_from((&env, &vaa_bytes))?;
     vaa.verify(&env)
 }
 
 /// Parse a VAA and convert to the interface type
-pub(crate) fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<wormhole_interface::VAA, Error> {
+pub(crate) fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<wormhole_interface::VAA, WormholeError> {
     let internal_vaa = VAA::try_from((env, vaa_bytes))?;
 
     // Convert internal signatures to interface signatures
@@ -218,7 +210,7 @@ pub(crate) fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<wormhole_interfa
         emitter_chain: internal_vaa.emitter_chain,
         emitter_address: internal_vaa.emitter_address,
         sequence: internal_vaa.sequence,
-        consistency_level: internal_vaa.consistency_level,
+        consistency_level: wormhole_interface::ConsistencyLevel::try_from(internal_vaa.consistency_level as u8)?,
         payload: internal_vaa.payload,
     })
 }

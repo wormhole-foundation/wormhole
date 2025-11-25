@@ -7,6 +7,7 @@ use wormhole_interface::{
 
 mod storage;
 mod utils;
+mod vaa;
 
 #[contract]
 pub struct Wormhole;
