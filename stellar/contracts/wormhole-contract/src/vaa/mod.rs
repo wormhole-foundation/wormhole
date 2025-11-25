@@ -120,8 +120,17 @@ impl VAA {
 
     /// Verify this VAA's signatures against stored guardian sets
     pub(crate) fn verify(&self, env: &Env) -> Result<bool, Error> {
-        // TODO: Implement when governance module is added
-        Err(Error::GuardianSetNotFound)
+        let body_bytes = self.serialize_body(env);
+
+        let guardian_set_info = governance::guardian_set::get(env, self.guardian_set_index)?;
+
+        if let Some(expiry) = governance::guardian_set::get_expiry(env, self.guardian_set_index)
+            && env.ledger().timestamp() > expiry
+        {
+            return Err(Error::GuardianSetExpired);
+        }
+
+        self.verify_signatures(env, &body_bytes, &guardian_set_info.keys)
     }
 
     /// Calculate the required quorum for a given number of guardians.
