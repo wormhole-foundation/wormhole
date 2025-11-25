@@ -14,6 +14,7 @@ use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, Wormhole
 pub mod constants;
 pub mod governance;
 pub mod initialize;
+pub mod message;
 pub mod storage;
 pub mod utils;
 pub mod vaa;
@@ -62,14 +63,18 @@ impl WormholeCoreInterface for Wormhole {
         governance::TransferFeesAction::submit(&env, vaa_bytes)
     }
 
+    /// Post a message to be attested by guardians
+    /// Caller must have approved to spend XLM for the fee, if fee is set as > 0
     fn post_message(
-        _env: Env,
-        _emitter: Address,
-        _nonce: u32,
-        _payload: Bytes,
-        _consistency_level: ConsistencyLevel,
+        env: Env,
+        emitter: Address,
+        nonce: u32,
+        payload: Bytes,
+        consistency_level: ConsistencyLevel,
     ) -> Result<u64, Error> {
-        todo!()
+        emitter.require_auth();
+
+        message::post_message_with_fee(&env, &emitter, nonce, payload, consistency_level)
     }
 
     /// Get the current guardian set index
@@ -90,12 +95,15 @@ impl WormholeCoreInterface for Wormhole {
         governance::guardian_set::get_expiry(&env, index)
     }
 
-    fn get_emitter_sequence(_env: Env, _emitter: Address) -> u64 {
-        todo!()
+    /// Get the sequence number for an emitter
+    fn get_emitter_sequence(env: Env, emitter: Address) -> u64 {
+        message::get_emitter_sequence(&env, &emitter)
     }
 
-    fn get_posted_message_hash(_env: Env, _emitter: Address, _sequence: u64) -> Option<BytesN<32>> {
-        todo!()
+    /// Get the hash of a posted message by emitter and sequence number.
+    /// Returns None if the message was not found.
+    fn get_posted_message_hash(env: Env, emitter: Address, sequence: u64) -> Option<BytesN<32>> {
+        message::get_posted_message_hash(&env, &emitter, sequence)
     }
 
     /// Get the current message fee in stroops
