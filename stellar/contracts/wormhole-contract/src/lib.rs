@@ -10,6 +10,7 @@ use wormhole_interface::{
 pub mod constants;
 pub mod storage;
 pub mod utils;
+pub mod vaa;
 
 #[contract]
 pub struct Wormhole;

@@ -2,7 +2,7 @@ mod signature;
 
 pub use signature::Signature;
 
-use crate::{governance, utils::BytesReader};
+use crate::utils::BytesReader;
 use core::convert::TryFrom;
 use soroban_sdk::{contracttype, Bytes, BytesN, Env, Vec};
 use wormhole_interface::Error;
@@ -121,16 +121,8 @@ impl VAA {
 
     /// Verify this VAA's signatures against stored guardian sets
     pub(crate) fn verify(&self, env: &Env) -> Result<bool, Error> {
-        let body_bytes = self.serialize_body(env);
-
-        let guardian_set_info = governance::guardian_set::get(env, self.guardian_set_index)?;
-
-        if let Some(expiry) = governance::guardian_set::get_expiry(env, self.guardian_set_index)
-            && env.ledger().timestamp() > expiry {
-                return Err(Error::GuardianSetExpired);
-            }
-
-        self.verify_signatures(env, &body_bytes, &guardian_set_info.keys)
+        // TODO: Implement when governance module is added
+        Err(Error::GuardianSetNotFound)
     }
 
     /// Calculate the required quorum for a given number of guardians.
