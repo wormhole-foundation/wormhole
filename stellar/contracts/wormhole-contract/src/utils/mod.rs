@@ -4,7 +4,7 @@ pub(crate) use bytes_reader::BytesReader;
 
 use crate::constants::NATIVE_TOKEN_ADDRESS;
 use soroban_sdk::{Address, Bytes, BytesN, Env, String};
-use stellar_strkey::{ed25519::PublicKey as StrEd25519, Strkey};
+use stellar_strkey::{Strkey, ed25519::PublicKey as StrEd25519};
 
 /// Compute keccak256 hash and return as BytesN<32>.
 ///

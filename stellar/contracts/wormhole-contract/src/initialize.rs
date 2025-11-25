@@ -5,7 +5,7 @@ use crate::{
     governance::guardian_set::{set_current_index, store},
     storage::StorageKey,
 };
-use soroban_sdk::{contractevent, BytesN, Env, Vec};
+use soroban_sdk::{BytesN, Env, Vec, contractevent};
 use wormhole_interface::{Error, GuardianSetInfo};
 
 /// Event published when the contract is initialized.
@@ -51,7 +51,9 @@ pub(crate) fn initialize(env: &Env, initial_guardians: Vec<BytesN<20>>) -> Resul
 
     // Set contract as its own admin for upgrades
     let contract_address = env.current_contract_address();
-    env.storage().instance().set(&StorageKey::Admin, &contract_address);
+    env.storage()
+        .instance()
+        .set(&StorageKey::Admin, &contract_address);
 
     // Create the initial guardian set (always index 0)
     let guardian_set = GuardianSetInfo {
@@ -69,8 +71,8 @@ pub(crate) fn initialize(env: &Env, initial_guardians: Vec<BytesN<20>>) -> Resul
     InitializeEvent {
         chain_id: u32::from(CHAIN_ID_STELLAR),
         guardian_count: initial_guardians.len(),
-    }.publish(env);
+    }
+    .publish(env);
 
     Ok(())
 }
-

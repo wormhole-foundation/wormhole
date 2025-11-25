@@ -1,5 +1,5 @@
 use crate::{utils::BytesReader, utils::pubkey_to_eth_address};
-use soroban_sdk::{contracttype, BytesN, Env};
+use soroban_sdk::{BytesN, Env, contracttype};
 use wormhole_interface::Error;
 
 #[contracttype]
@@ -39,9 +39,7 @@ impl Signature {
         sig_bytes[32..].copy_from_slice(&s_array);
         let sig = BytesN::<64>::from_array(env, &sig_bytes);
 
-        let recovered_pubkey = env
-            .crypto()
-            .secp256k1_recover(message_hash, &sig, self.v);
+        let recovered_pubkey = env.crypto().secp256k1_recover(message_hash, &sig, self.v);
 
         let eth_address = pubkey_to_eth_address(env, &recovered_pubkey);
 

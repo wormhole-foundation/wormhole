@@ -49,7 +49,8 @@ impl<'a> BytesReader<'a> {
     pub(crate) fn read_bytes_n<const N: usize>(&mut self, env: &Env) -> Result<BytesN<N>, Error> {
         let mut arr = [0u8; N];
         for i in 0..N {
-            arr[i] = self.bytes
+            arr[i] = self
+                .bytes
                 .get(self.cursor.saturating_add(u32::try_from(i).unwrap_or(0)))
                 .ok_or(Error::InvalidVAAFormat)?;
         }

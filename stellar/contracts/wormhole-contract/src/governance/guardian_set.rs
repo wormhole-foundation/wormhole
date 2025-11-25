@@ -1,12 +1,12 @@
 use crate::{
     constants::*,
-    governance::action::{parse_governance_header, validate_governance_header, GovernanceAction},
+    governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
     initialize,
     storage::StorageKey,
     utils::BytesReader,
 };
 use core::convert::TryFrom;
-use soroban_sdk::{contractevent, Bytes, BytesN, Env, Vec};
+use soroban_sdk::{Bytes, BytesN, Env, Vec, contractevent};
 use wormhole_interface::{Error, GuardianSetInfo};
 
 /// Event published when a guardian set upgrade is executed.
@@ -121,9 +121,11 @@ pub(crate) fn store(env: &Env, index: u32, set: GuardianSetInfo) -> Result<(), E
         .persistent()
         .set(&StorageKey::GuardianSet(index), &set);
 
-    env.storage()
-        .persistent()
-        .extend_ttl(&StorageKey::GuardianSet(index), STORAGE_TTL_THRESHOLD, STORAGE_TTL_EXTENSION);
+    env.storage().persistent().extend_ttl(
+        &StorageKey::GuardianSet(index),
+        STORAGE_TTL_THRESHOLD,
+        STORAGE_TTL_EXTENSION,
+    );
 
     Ok(())
 }
@@ -152,7 +154,8 @@ impl GovernanceAction for GuardianSetUpgradeAction {
     fn execute(env: &Env, vaa: &crate::vaa::VAA, payload: &Self::Payload) -> Result<(), Error> {
         let old_index = get_current_index(env);
 
-        let expiry_time = u64::from(vaa.timestamp).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));
+        let expiry_time =
+            u64::from(vaa.timestamp).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));
         set_expiry(env, old_index, expiry_time);
 
         let new_set = GuardianSetInfo {

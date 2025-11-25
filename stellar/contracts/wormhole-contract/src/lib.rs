@@ -2,17 +2,15 @@
 #![allow(unused_variables)]
 #![allow(unused_variables)]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, BytesN, Env, Vec};
-use wormhole_interface::{
-    ConsistencyLevel, Error, GuardianSetInfo, WormholeCoreInterface, VAA,
-};
+use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
+use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, WormholeCoreInterface};
 
 pub mod constants;
+pub mod governance;
+pub mod initialize;
 pub mod storage;
 pub mod utils;
 pub mod vaa;
-pub mod governance;
-pub mod initialize;
 
 #[contract]
 pub struct Wormhole;

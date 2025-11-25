@@ -4,7 +4,7 @@ pub use signature::Signature;
 
 use crate::utils::BytesReader;
 use core::convert::TryFrom;
-use soroban_sdk::{contracttype, Bytes, BytesN, Env, Vec};
+use soroban_sdk::{Bytes, BytesN, Env, Vec, contracttype};
 use wormhole_interface::Error;
 
 #[contracttype]
@@ -71,7 +71,6 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
 }
 
 impl VAA {
-
     /// Serialize the VAA body for hashing
     #[allow(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)]
     pub(crate) fn serialize_body(&self, env: &Env) -> Bytes {
@@ -128,7 +127,10 @@ impl VAA {
     /// Calculate the required quorum for a given number of guardians.
     /// Formula: (num_guardians * 2 / 3) + 1
     fn calculate_quorum(num_guardians: u32) -> u32 {
-        num_guardians.saturating_mul(2).saturating_div(3).saturating_add(1)
+        num_guardians
+            .saturating_mul(2)
+            .saturating_div(3)
+            .saturating_add(1)
     }
 
     /// Verify signatures against a specific guardian set
@@ -155,9 +157,10 @@ impl VAA {
 
         for signature in self.signatures.iter() {
             if let Some(last_idx) = last_guardian_index
-                && signature.guardian_index <= last_idx {
-                    return Err(Error::SignaturesNotAscending);
-                }
+                && signature.guardian_index <= last_idx
+            {
+                return Err(Error::SignaturesNotAscending);
+            }
             last_guardian_index = Some(signature.guardian_index);
 
             if signature.guardian_index >= guardian_count {
@@ -168,11 +171,7 @@ impl VAA {
                 .get(signature.guardian_index)
                 .ok_or(Error::GuardianIndexOutOfBounds)?;
 
-            if !signature.verify(
-                env,
-                &double_hash,
-                &guardian_key,
-            )? {
+            if !signature.verify(env, &double_hash, &guardian_key)? {
                 return Err(Error::InvalidSignature);
             }
         }
