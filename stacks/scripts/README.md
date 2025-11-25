@@ -7,7 +7,7 @@ Edit `.env`
 ```bash
 cd stacks/scripts
 npm install
-bun run deployTestnet.ts
+bun run deployCore.ts
 ```
 ## Other scripts
 
