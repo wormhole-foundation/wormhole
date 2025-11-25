@@ -7,11 +7,11 @@ use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, Wormhole
 use crate::governance::action::GovernanceAction;
 
 pub mod constants;
-pub mod governance;
-pub mod initialize;
 pub mod storage;
 pub mod utils;
 pub mod vaa;
+pub mod governance;
+pub mod initialize;
 
 #[contract]
 pub struct Wormhole;
