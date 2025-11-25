@@ -2,7 +2,7 @@ mod signature;
 
 pub use signature::Signature;
 
-use crate::utils::BytesReader;
+use crate::{governance::guardian_set, utils::BytesReader};
 use core::convert::TryFrom;
 use soroban_sdk::{Bytes, BytesN, Env, Vec, contracttype};
 use wormhole_interface::Error;
@@ -122,9 +122,9 @@ impl VAA {
     pub(crate) fn verify(&self, env: &Env) -> Result<bool, Error> {
         let body_bytes = self.serialize_body(env);
 
-        let guardian_set_info = governance::guardian_set::get(env, self.guardian_set_index)?;
+        let guardian_set_info = guardian_set::get(env, self.guardian_set_index)?;
 
-        if let Some(expiry) = governance::guardian_set::get_expiry(env, self.guardian_set_index)
+        if let Some(expiry) = guardian_set::get_expiry(env, self.guardian_set_index)
             && env.ledger().timestamp() > expiry
         {
             return Err(Error::GuardianSetExpired);
