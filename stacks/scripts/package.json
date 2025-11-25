@@ -1,5 +1,5 @@
 {
-  "name": "scripts",
+  "name": "@wormhole-foundation/scripts",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
