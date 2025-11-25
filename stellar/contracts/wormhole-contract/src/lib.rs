@@ -50,12 +50,14 @@ impl WormholeCoreInterface for Wormhole {
         governance::GuardianSetUpgradeAction::submit(&env, vaa_bytes)
     }
 
-    fn submit_set_message_fee(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
-        todo!()
+    /// Submit a set message fee governance VAA
+    fn submit_set_message_fee(env: Env, vaa_bytes: Bytes) -> Result<(), Error> {
+        governance::SetMessageFeeAction::submit(&env, vaa_bytes)
     }
 
-    fn submit_transfer_fees(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
-        todo!()
+    /// Submit a transfer fees governance VAA
+    fn submit_transfer_fees(env: Env, vaa_bytes: Bytes) -> Result<(), Error> {
+        governance::TransferFeesAction::submit(&env, vaa_bytes)
     }
 
     fn post_message(
@@ -94,16 +96,22 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn get_message_fee(_env: Env) -> u64 {
-        todo!()
+    /// Get the current message fee in stroops
+    fn get_message_fee(env: Env) -> u64 {
+        governance::get_message_fee(&env)
     }
 
-    fn get_last_fee_transfer(_env: Env) -> Option<u64> {
-        todo!()
+    /// Get the last fee transfer timestamp
+    fn get_last_fee_transfer(env: Env) -> Option<u64> {
+        governance::get_last_fee_transfer(&env)
     }
 
-    fn get_contract_balance(_env: Env) -> i128 {
-        todo!()
+    /// Get the contract's current XLM balance
+    fn get_contract_balance(env: Env) -> i128 {
+        let native_token_address = utils::get_native_token_address(&env);
+        let token_client = token::TokenClient::new(&env, &native_token_address);
+        let contract_address = env.current_contract_address();
+        token_client.balance(&contract_address)
     }
 
     /// Check if a governance VAA has been consumed (replay protection)
