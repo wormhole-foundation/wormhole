@@ -4,6 +4,7 @@
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
 use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, WormholeCoreInterface};
+use crate::governance::action::GovernanceAction;
 
 pub mod constants;
 pub mod governance;
@@ -44,8 +45,9 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn submit_guardian_set_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
-        todo!()
+    /// Submit a guardian set upgrade governance VAA
+    fn submit_guardian_set_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), Error> {
+        governance::GuardianSetUpgradeAction::submit(&env, vaa_bytes)
     }
 
     fn submit_set_message_fee(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
@@ -66,16 +68,22 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn get_current_guardian_set_index(_env: Env) -> u32 {
-        todo!()
+    /// Get the current guardian set index
+    fn get_current_guardian_set_index(env: Env) -> u32 {
+        governance::guardian_set::get_current_index(&env)
     }
 
-    fn get_guardian_set(_env: Env, _index: u32) -> Result<GuardianSetInfo, Error> {
-        todo!()
+    /// Get a guardian set by index
+    fn get_guardian_set(
+        env: Env,
+        index: u32,
+    ) -> Result<wormhole_interface::GuardianSetInfo, Error> {
+        governance::guardian_set::get(&env, index)
     }
 
-    fn get_guardian_set_expiry(_env: Env, _index: u32) -> Option<u64> {
-        todo!()
+    /// Get the expiry time for a guardian set
+    fn get_guardian_set_expiry(env: Env, index: u32) -> Option<u64> {
+        governance::guardian_set::get_expiry(&env, index)
     }
 
     fn get_emitter_sequence(_env: Env, _emitter: Address) -> u64 {
@@ -98,8 +106,9 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn is_governance_vaa_consumed(_env: Env, _vaa_bytes: Bytes) -> Result<bool, Error> {
-        todo!()
+    /// Check if a governance VAA has been consumed (replay protection)
+    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<bool, Error> {
+        governance::is_governance_vaa_consumed(env, vaa_bytes)
     }
 
     fn get_chain_id(_env: Env) -> u32 {
