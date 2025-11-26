@@ -249,6 +249,11 @@ type ChainGovernor struct {
 	// Pairs of chains for which flow canceling is enabled. Note that an asset may be flow canceling even if
 	// it was minted on a chain that is not configured to be an 'end' of any of the corridors.
 	flowCancelCorridors []corridor
+	// Dynamic token discovery: tokens discovered at runtime that are not in TokenList()
+	dynamicTokens              map[tokenKey]*tokenEntry // protected by `mutex`
+	dynamicTokensByCoinGeckoId map[string][]*tokenEntry // protected by `mutex`
+	// Queue of tokens pending CoinGecko price discovery
+	pendingTokenDiscovery map[tokenKey]bool // protected by `mutex`
 }
 
 func NewChainGovernor(
@@ -259,15 +264,18 @@ func NewChainGovernor(
 	coinGeckoApiKey string,
 ) *ChainGovernor {
 	return &ChainGovernor{
-		db:                  db,
-		logger:              logger.With(zap.String("component", "cgov")),
-		tokens:              make(map[tokenKey]*tokenEntry),
-		tokensByCoinGeckoId: make(map[string][]*tokenEntry),
-		chains:              make(map[vaa.ChainID]*chainEntry),
-		msgsSeen:            make(map[string]bool),
-		env:                 env,
-		flowCancelEnabled:   flowCancelEnabled,
-		coinGeckoApiKey:     coinGeckoApiKey,
+		db:                         db,
+		logger:                     logger.With(zap.String("component", "cgov")),
+		tokens:                     make(map[tokenKey]*tokenEntry),
+		tokensByCoinGeckoId:        make(map[string][]*tokenEntry),
+		chains:                     make(map[vaa.ChainID]*chainEntry),
+		msgsSeen:                   make(map[string]bool),
+		env:                        env,
+		flowCancelEnabled:          flowCancelEnabled,
+		coinGeckoApiKey:            coinGeckoApiKey,
+		dynamicTokens:              make(map[tokenKey]*tokenEntry),
+		dynamicTokensByCoinGeckoId: make(map[string][]*tokenEntry),
+		pendingTokenDiscovery:      make(map[tokenKey]bool),
 	}
 }
 
@@ -736,7 +744,8 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 	return
 }
 
-// parseMsgAlreadyLocked determines if the message applies to the governor and also returns data useful to the governor. It assumes the caller holds the lock.
+// parseMsgAlreadyLocked determines if the message applies to the governor and also returns data useful to the governor.
+// The caller must acquire the lock before calling this method.
 func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	msg *common.MessagePublication,
 ) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
@@ -748,21 +757,21 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	}
 
 	// If we don't care about this chain, the VAA can be published.
-	ce, exists := gov.chains[msg.EmitterChain]
-	if !exists {
+	ce, ok := gov.chains[msg.EmitterChain]
+	if !ok {
 		if msg.EmitterChain != vaa.ChainIDPythNet {
 			gov.logger.Info(
-				"ignoring vaa because the emitter chain is not configured",
+				"ignoring vaa because the emitter chain is not enabled in the governor",
 				zap.String("msgID", msg.MessageIDString()),
 			)
 		}
 		return false, nil, nil, nil, nil
 	}
 
-	// If we don't care about this emitter, the VAA can be published.
+	// If the emitter address is not equal to the token bridge, skip.
 	if msg.EmitterAddress != ce.emitterAddr {
 		gov.logger.Info(
-			"ignoring vaa because the emitter address is not configured",
+			"ignoring vaa because the emitter address is not the token bridge",
 			zap.String("msgID", msg.MessageIDString()),
 		)
 		return false, nil, nil, nil, nil
@@ -775,11 +784,37 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 		return false, nil, nil, nil, decodeErr
 	}
 
-	// If we don't care about this token, the VAA can be published.
-	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
-	token, exists := gov.tokens[tk]
-	if !exists {
-		gov.logger.Info("ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
+	// Check if we can get price information about this token - first in static list, then dynamic list
+	var (
+		tk = tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
+		// Whether the token key exists in either the static or dynamic list
+		isKnown = false
+	)
+
+	token, isKnown := gov.tokens[tk]
+	if !isKnown {
+		// Check dynamic tokens list
+		token, isKnown = gov.dynamicTokens[tk]
+	}
+
+	if !isKnown {
+		// Token not found in either list - attempt dynamic discovery
+		gov.logger.Info("token not in static or dynamic list, attempting discovery",
+			zap.String("msgID", msg.MessageIDString()),
+			zap.Stringer("chain", tk.chain),
+			zap.Stringer("addr", tk.addr))
+
+		// Queue this token for CoinGecko price discovery
+		// Mark it as pending so we don't spam the queue
+		if !gov.pendingTokenDiscovery[tk] {
+			gov.pendingTokenDiscovery[tk] = true
+			gov.logger.Info("queued token for dynamic discovery",
+				zap.Stringer("chain", tk.chain),
+				zap.Stringer("addr", tk.addr))
+		}
+
+		// For now, we don't govern unknown tokens - allow them through
+		gov.logger.Info("ignoring vaa because the token does not yet have available price information", zap.String("msgID", msg.MessageIDString()))
 		return false, nil, nil, nil, nil
 	}
 
