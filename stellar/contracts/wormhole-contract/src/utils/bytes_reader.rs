@@ -1,4 +1,4 @@
-use soroban_sdk::{Bytes, BytesN, Env};
+use soroban_sdk::{Bytes, BytesN};
 use wormhole_interface::WormholeError;
 
 /// A cursor-based reader for parsing bytes in big-endian format.
@@ -10,57 +10,67 @@ pub(crate) struct BytesReader<'a> {
 
 impl<'a> BytesReader<'a> {
     pub(crate) fn new(bytes: &'a Bytes) -> Self {
-        BytesReader { bytes, cursor: 0 }
+        Self { bytes, cursor: 0 }
     }
 
     pub(crate) fn remaining(&self) -> u32 {
         self.bytes.len().saturating_sub(self.cursor)
     }
 
+    fn require(&self, n: u32) -> Result<(), WormholeError> {
+        if self.remaining() < n {
+            Err(WormholeError::InvalidVAAFormat)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Reads a byte at offset from cursor without bouns checking.
+    /// Caller must ensure bounds via `require()` first.
+    fn get_unchecked(&self, offset: u32) -> u8 {
+        self.bytes.get(self.cursor + offset).unwrap()
+    }
+
     pub(crate) fn read_u8(&mut self) -> Result<u8, WormholeError> {
-        let value = self.bytes.get(self.cursor).ok_or(WormholeError::InvalidVAAFormat)?;
-        self.cursor = self.cursor.saturating_add(1);
+        self.require(1)?;
+        let value = self.get_unchecked(0);
+        self.cursor += 1;
+
         Ok(value)
     }
 
     pub(crate) fn read_u16_be(&mut self) -> Result<u16, WormholeError> {
-        let b1 = u16::from(self.read_u8()?);
-        let b2 = u16::from(self.read_u8()?);
-        Ok((b1 << 8) | b2)
+        self.require(2)?;
+        let value = u16::from(self.get_unchecked(0)) << 8 | u16::from(self.get_unchecked(1));
+        self.cursor += 2;
+
+        Ok(value)
     }
 
     pub(crate) fn read_u32_be(&mut self) -> Result<u32, WormholeError> {
-        let b1 = u32::from(self.read_u8()?);
-        let b2 = u32::from(self.read_u8()?);
-        let b3 = u32::from(self.read_u8()?);
-        let b4 = u32::from(self.read_u8()?);
-        Ok((b1 << 24) | (b2 << 16) | (b3 << 8) | b4)
+        self.require(4)?;
+        let value = (0..4).fold(0u32, |acc, i| (acc << 8) | u32::from(self.get_unchecked(i)));
+        self.cursor += 4;
+
+        Ok(value)
     }
 
     pub(crate) fn read_u64_be(&mut self) -> Result<u64, WormholeError> {
-        let mut result = 0u64;
-        for _ in 0..8 {
-            result = (result << 8) | u64::from(self.read_u8()?);
-        }
-        Ok(result)
+        self.require(8)?;
+        let value = (0..8).fold(0u64, |acc, i| (acc << 8) | u64::from(self.get_unchecked(i)));
+        self.cursor += 8;
+
+        Ok(value)
     }
 
-    #[allow(clippy::needless_range_loop)]
-    pub(crate) fn read_bytes_n<const N: usize>(&mut self, env: &Env) -> Result<BytesN<N>, WormholeError> {
-        let mut arr = [0u8; N];
-        for i in 0..N {
-            arr[i] = self.bytes
-                .get(self.cursor.saturating_add(u32::try_from(i).unwrap_or(0)))
-                .ok_or(WormholeError::InvalidVAAFormat)?;
-        }
-        self.cursor = self.cursor.saturating_add(u32::try_from(N).unwrap_or(0));
-        Ok(BytesN::from_array(env, &arr))
+    pub(crate) fn read_bytes_n<const N: usize>(&mut self) -> Result<BytesN<N>, WormholeError> {
+        let n = u32::try_from(N).map_err(|_| WormholeError::InvalidVAAFormat)?;
+        self.read_bytes(n)
+            .and_then(|bytes| bytes.try_into().map_err(|_| WormholeError::InvalidVAAFormat))
     }
 
     pub fn read_bytes(&mut self, len: u32) -> Result<Bytes, WormholeError> {
-        if self.remaining() < len {
-            return Err(WormholeError::InvalidVAAFormat);
-        }
+        self.require(len)?;
         let end = self.cursor.saturating_add(len);
         let slice = self.bytes.slice(self.cursor..end);
         self.cursor = end;
@@ -68,9 +78,7 @@ impl<'a> BytesReader<'a> {
     }
 
     pub(crate) fn skip(&mut self, n: u32) -> Result<(), WormholeError> {
-        if self.remaining() < n {
-            return Err(WormholeError::InvalidVAAFormat);
-        }
+        self.require(n)?;
         self.cursor = self.cursor.saturating_add(n);
         Ok(())
     }
@@ -134,10 +142,10 @@ mod tests {
         let bytes = Bytes::from_array(&env, &[0x01, 0x02, 0x03, 0x04]);
         let mut reader = BytesReader::new(&bytes);
 
-        let result: BytesN<3> = reader.read_bytes_n(&env).unwrap();
+        let result: BytesN<3> = reader.read_bytes_n().unwrap();
         assert_eq!(result.to_array(), [0x01, 0x02, 0x03]);
 
-        assert!(reader.read_bytes_n::<2>(&env).is_err());
+        assert!(reader.read_bytes_n::<2>().is_err());
     }
 
     #[test]
