@@ -12,7 +12,7 @@ var (
 	notaryDelayedMessagesGauge    prometheus.Gauge
 	notaryBlackholedMessagesGauge prometheus.Gauge
 	notaryErrors                  *prometheus.CounterVec
-	NotaryTokenTransferNonApprove *prometheus.CounterVec
+	notaryTokenTransferNonApprove *prometheus.CounterVec
 )
 
 // initMetrics registers all notary metrics with Prometheus.
@@ -49,7 +49,7 @@ func initMetrics(logger *zap.Logger) {
 			Help: "Total number of notary errors",
 		}, []string{"error_type"})
 
-	NotaryTokenTransferNonApprove = prometheus.NewCounterVec(
+	notaryTokenTransferNonApprove = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_notary_token_transfer_non_approve_total",
 			Help: "Total number of token transfers that received a non-Approve verdict from the notary",
@@ -61,6 +61,6 @@ func initMetrics(logger *zap.Logger) {
 		notaryDelayedMessagesGauge,
 		notaryBlackholedMessagesGauge,
 		notaryErrors,
-		NotaryTokenTransferNonApprove,
+		notaryTokenTransferNonApprove,
 	)
 }

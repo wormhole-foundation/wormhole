@@ -284,8 +284,8 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	)
 
 	// Track messages that receive non-Approve verdicts
-	if v != Approve && NotaryTokenTransferNonApprove != nil {
-		NotaryTokenTransferNonApprove.WithLabelValues(v.String()).Inc()
+	if v != Approve && notaryTokenTransferNonApprove != nil {
+		notaryTokenTransferNonApprove.WithLabelValues(v.String()).Inc()
 	}
 
 	return
