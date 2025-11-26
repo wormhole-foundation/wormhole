@@ -16,7 +16,7 @@ jobs:
     # in the future, we may want to run cheap lints, tests, and builds before firing up the expensive tilt test.
     # But for now, we'll kick-off everything at once
     # needs: [go-lint-and-tests, node, algorand, ethereum, terra, rust-lint-and-tests]
-    runs-on: tilt-kube-public
+    runs-on: ubuntu-latest
 
     # Cancel previous builds on the same branch/ref. Full runs are expensive
     # and capacity is limited, so we want to avoid running multiple builds
@@ -274,7 +274,7 @@ jobs:
   # Run Go linters
   node-lint:
     # The linter is slow enough that we want to run it on the self-hosted runner
-    runs-on: tilt-kube-public
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-lint-${{ github.ref }}
       cancel-in-progress: true
@@ -316,7 +316,7 @@ jobs:
   # Run Go tests
   node-tests:
     # The tests are slow enough that we want to run it on the self-hosted runner
-    runs-on: tilt-kube-public
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-test-${{ github.ref }}
       cancel-in-progress: true
