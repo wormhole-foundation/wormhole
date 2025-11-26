@@ -1,11 +1,9 @@
 import yargs from "yargs";
-import { getOriginalAsset, getProviderForChain } from "../../chains/generic";
+import { getOriginalAsset } from "../../chains/generic";
 import { RPC_OPTIONS } from "../../consts";
 import { getNetwork, chainToChain } from "../../utils";
-import { tryUint8ArrayToNative, uint8ArrayToHex } from "../../sdk/array";
-import { contracts, toChain } from "@wormhole-foundation/sdk-base";
-
-import { tryHexToNativeStringNear } from "@certusone/wormhole-sdk";
+import { tryUint8ArrayToNative } from "../../sdk/array";
+import { toChain } from "@wormhole-foundation/sdk-base";
 
 export const command = "origin <chain> <address>";
 export const desc = `Print the origin chain and address of the asset that corresponds to the given chain and address.`;
@@ -54,37 +52,14 @@ export const handler = async (
 	 *  at Object.I36 [as handler] (/Users/kinsyu/Documents/repos/wormhole/clients/js/build/main.js:839:40058)
 	 *  at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 	 */
-	if (chainName === "Near") {
-		const h = uint8ArrayToHex(res.assetAddress);
-		const provider = await getProviderForChain("Near", network, {
-			rpc: argv.rpc,
-		});
-		const chainName = toChain(res.chainId);
 
-		const tokenBridgeAddress = contracts.tokenBridge.get(network, chainName);
-		if (!tokenBridgeAddress) {
-			throw Error("Coudln't find Token Bridge address for Near");
-		}
-
-		const nearAddress = await tryHexToNativeStringNear(
-			provider,
-			tokenBridgeAddress,
-			h,
-		);
-
-		console.log({
-			...res,
-			assetAddress: nearAddress,
-		});
-	} else {
-		console.log({
-			...res,
-			assetAddress: tryUint8ArrayToNative(
-				res.assetAddress,
-				toChain(res.chainId),
-			),
-		});
-	}
+	console.log({
+		...res,
+		assetAddress: await tryUint8ArrayToNative(
+			res.assetAddress,
+			toChain(res.chainId),
+		),
+	});
 
 	console.warn = consoleWarnTemp;
 };
