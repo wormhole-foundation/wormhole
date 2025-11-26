@@ -46,22 +46,6 @@
 
 ;;;; Data maps
 
-;; Map to track "Wormhole Address"
-;; In Wormhole protocol, addresses are limited to 32 bytes in size
-;; Since a Stacks Contract principal can be much longer, we use `keccak256(address)` in Wormhole messages
-;; This allows us to use the protocol unmodified
-(define-map wormhole-to-stacks
-  (buff 32)  ;; keccak256(principal)
-  principal  ;; Contract emitting message
-)
-
-;; Inverse of `wormhole-to-stacks`
-;; Each entry in that map must have corresponding entry here
-(define-map stacks-to-wormhole
-  principal  ;; Contract emitting message
-  (buff 32)  ;; keccak256(principal)
-)
-
 ;; Map tracking sequence numbers for all contracts which have sent a Wormhole message
 (define-map emitter-sequence
   principal  ;; Contract emitting message
@@ -142,7 +126,7 @@
         (result (try! (consume-emitter-sequence emitter)))
         (message {
             emitter-principal: emitter,
-            emitter: (get wormhole-address result),
+            emitter: (get addr32 result),
             nonce: nonce,
             sequence: (get sequence result),
             consistency-level: consistency-level,
@@ -192,50 +176,22 @@
     (try! (check-caller-is-owner))
     (ok (map-set guardian-sets set-id guardian-set))))
 
-;; @desc Map "Wormhole address" to `principal` and vice versa
-;;       On success, returns tuple with the following fields:
-;;        - `created`: `true` if address was generated and added to cache
-;;        - `wormhole-address`: 32-byte Wormhole address
-(define-public (get-wormhole-address (p principal))
-  (begin
-    (try! (check-caller-is-owner))
-    (asserts! (is-standard p) ERR_STATE_INVALID_VALUE)
-    (ok (inner-get-wormhole-address p))))
-
 ;;;; Private functions
 
 ;; @desc Get next sequence # for emitter and mark it as used
-;;       On success, returns `(ok {wormhole-address, created, sequence})` and increments emitter's sequence
+;;       On success, returns `(ok {addr32, created, sequence})` and increments emitter's sequence
 ;;       On failure, returns `(err uint)` does not increment sequence
 (define-private (consume-emitter-sequence (emitter principal))
-  (let ((wormhole-address (inner-get-wormhole-address emitter))
+  (let ((registration (try! (contract-call? .addr32 register emitter)))
         (sequence (default-to u0 (emitter-sequence-get emitter))))
     ;; If `sequence` has reached its limit we cannot continue
     (asserts! (<= sequence MAX_VALUE_U64) ERR_STATE_OVERFLOW_SEQUENCE)
     (map-set emitter-sequence emitter (+ sequence u1))
     (ok (merge
-      wormhole-address
+      registration
       {
         sequence: sequence
       }))))
-
-;; @desc Unchecked version of `register-wormhole-address`
-(define-private (inner-get-wormhole-address (p principal))
-  (match (stacks-to-wormhole-get p)
-    ;; Wormhole address already in map
-    addr {
-      created: false,
-      wormhole-address: addr
-    }
-    ;; Not in map, compute address
-    (let ((p-as-string (contract-call? 'SP1E0XBN9T4B10E9QMR7XMFJPMA19D77WY3KP2QKC.self-listing-helper-v3 principal-to-string p))
-          (addr (keccak256 (string-ascii-to-buff p-as-string))))
-      (map-set wormhole-to-stacks addr p)
-      (map-set stacks-to-wormhole p addr)
-      {
-        created: true,
-        wormhole-address: addr
-      })))
 
 ;;;; Read-only functions
 
@@ -268,12 +224,6 @@
 ;;;; Read-only functions: <map_name>-get
 
 ;; These functions simply call `map-get?` on the given map
-
-(define-read-only (stacks-to-wormhole-get (p principal))
-  (map-get? stacks-to-wormhole p))
-
-(define-read-only (wormhole-to-stacks-get (hash (buff 32)))
-  (map-get? wormhole-to-stacks hash))
 
 (define-read-only (emitter-sequence-get (p principal))
   (map-get? emitter-sequence p))

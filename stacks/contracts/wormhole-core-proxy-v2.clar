@@ -80,11 +80,6 @@
     (try! (check-active-wormhole-core-contract core-contract))
     (contract-call? core-contract post-message-via-proxy payload nonce consistency-level-opt contract-caller)))
 
-(define-public (get-wormhole-address (core-contract <core-trait>) (p principal))
-  (begin
-    (try! (check-active-wormhole-core-contract core-contract))
-    (contract-call? core-contract get-wormhole-address p)))
-
 ;;;; Read-only functions
 
 (define-read-only (check-active-wormhole-core-contract (expected-core-contract <core-trait>))
