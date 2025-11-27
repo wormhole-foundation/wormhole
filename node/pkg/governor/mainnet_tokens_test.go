@@ -2,10 +2,12 @@ package governor
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -33,6 +35,27 @@ func TestTokenListAddressSize(t *testing.T) {
 	}
 }
 
+func TestTokensHaveGovernedChains(t *testing.T) {
+	chainList := ChainList()
+	chains := []vaa.ChainID{}
+	for _, chainConfigEntry := range chainList {
+		chains = append(chains, chainConfigEntry.EmitterChainID)
+	}
+
+	badTokens := []TokenConfigEntry{}
+	for _, tokenConfigEntry := range TokenList() {
+		if !slices.Contains(chains, vaa.ChainID(tokenConfigEntry.Chain)) {
+			badTokens = append(badTokens, tokenConfigEntry)
+		}
+	}
+	for _, tokenConfigEntry := range FlowCancelTokenList() {
+		if !slices.Contains(chains, vaa.ChainID(tokenConfigEntry.Chain)) {
+			badTokens = append(badTokens, tokenConfigEntry)
+		}
+	}
+	require.Empty(t, badTokens, "Some tokens are not governed by a chain: %v", badTokens)
+}
+
 // Flag a situation where a Governed chain does not have any governed assets. Often times when adding a mainnet chain,
 // a list of tokens will be added so that they can be governed. (These tokens are sourced by CoinGecko or manually
 // populated.) While this is not a hard requirement, it may represent that a developer has forgotten to take the step
@@ -50,8 +73,6 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 		vaa.ChainIDLinea: true,
 		// TODO: Remove this once we have governed tokens for Fogo.
 		vaa.ChainIDFogo: true,
-		// TODO: Remove this once we have governed tokens for Monad.
-		vaa.ChainIDMonad: true,
 	}
 	if len(ignoredChains) > 0 {
 		ignoredOutput := []string{}

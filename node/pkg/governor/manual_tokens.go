@@ -67,5 +67,14 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 46, Addr: "000000000000000000000000f1815bd50389c46847f0bda824ec8da914045d14", Symbol: "USDC.E", CoinGeckoId: "stargate-bridged-usdc-ink", Decimals: 6, Price: 1.00},
 		{Chain: 46, Addr: "000000000000000000000000ae4efbc7736f963982aacb17efa37fcbab924cb3", Symbol: "SOLVBTC", CoinGeckoId: "solv-btc", Decimals: 18, Price: 106222},
 		{Chain: 46, Addr: "000000000000000000000000c99f5c922dae05b6e2ff83463ce705ef7c91f077", Symbol: "XSOLVBTC", CoinGeckoId: "solv-protocol-solvbtc-bbn", Decimals: 18, Price: 105810},
+		// MONAD (tokens over $500,000 24h volume)
+		{Chain: 48, Addr: "0000000000000000000000003bd359C1119dA7Da1D913D1C4D2B7c461115433A", Symbol: "WMON", CoinGeckoId: "wrapped-monad", Decimals: 18, Price: 0.03481},
+		{Chain: 48, Addr: "000000000000000000000000754704bc059f8c67012fed69bc8a327a5aafb603", Symbol: "USDC", CoinGeckoId: "usd-coin", Decimals: 6, Price: 1.00},
+		{Chain: 48, Addr: "00000000000000000000000000000000eFE302BEAA2b3e6e1b18d08D69a9012a", Symbol: "AUSD", CoinGeckoId: "agora-dollar", Decimals: 6, Price: 1.00},
+		{Chain: 48, Addr: "000000000000000000000000e7cd86e13AC4309349F30B3435a9d337750fC82D", Symbol: "USDT0", CoinGeckoId: "usdt0", Decimals: 6, Price: 1.00},
+		// MATIC is 1:1 swappable with POL
+		{Chain: 2, Addr: "0000000000000000000000007d1afa7b718fb893db30a3abc0cfc608aacfebb0", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
+		{Chain: 4, Addr: "000000000000000000000000cc42724c6683b7e57334c4e856f4c9965ed682bd", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
+		{Chain: 16, Addr: "0000000000000000000000003405a1bd46b85c5c029483fbecf2f3e611026e45", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
 	}
 }
