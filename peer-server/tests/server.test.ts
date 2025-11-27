@@ -48,7 +48,6 @@ async function createPeerRegistration(
     peer,
     signature: {
       signature,
-      guardianIndex
     }
   };
 }
@@ -87,7 +86,9 @@ describe('PeerServer', () => {
       // Add a test peer first with valid signature using one of our generated guardians
       const peer: Peer = {
         guardianAddress: '', // Will be set by server
+        guardianIndex: 0,
         hostname: 'test.example.com',
+        port: 1,
         tlsX509: 'test-cert',
       };
 
@@ -122,7 +123,9 @@ describe('PeerServer', () => {
     it('should add a new peer with valid signatures', async () => {
       const peer: Peer = {
         guardianAddress: '', // Will be set by server
+        guardianIndex: 0,
         hostname: 'newpeer.example.com',
+        port: 1,
         tlsX509: 'new-cert-data',
       };
 
@@ -160,7 +163,9 @@ describe('PeerServer', () => {
     it('should reject peer registration with invalid signatures', async () => {
       const peer: Peer = {
         guardianAddress: '', // Will be set by server
+        guardianIndex: 0,
         hostname: 'invalid.example.com',
+        port: 1,
         tlsX509: 'invalid-cert',
       };
 
@@ -168,7 +173,6 @@ describe('PeerServer', () => {
         peer,
         signature: {
           signature: '0xinvalidsignature',
-          guardianIndex: 0
         }
       };
 
@@ -183,7 +187,9 @@ describe('PeerServer', () => {
     it('should reject peer registration with missing signature', async () => {
       const peer: Peer = {
         guardianAddress: '', // Will be set by server
+        guardianIndex: 0,
         hostname: 'nosigs.example.com',
+        port: 1,
         tlsX509: 'nosigs-cert',
       };
 

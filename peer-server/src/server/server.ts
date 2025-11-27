@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { ethers } from 'ethers';
 import { Display } from './display.js';
-import { Peer, PeerRegistration, ServerConfig, WormholeGuardianData } from '../shared/types.js';
+import { Guardian, Peer, PeerRegistration, PeerRegistrationSchema, ServerConfig, validate, validateOrFail, WormholeGuardianData } from '../shared/types.js';
 
 export class PeerServer {
   private app: express.Application;
@@ -54,28 +54,21 @@ export class PeerServer {
     // Add a new peer with signature validation
     this.app.post('/peers', async (req, res) => {
       try {
-        const peerRegistration: PeerRegistration = req.body;
-
-        // Basic validation
-        if (!peerRegistration.peer || !peerRegistration.signature) {
-          return res.status(400).json({
-            error: 'Missing required fields: peer, signature'
-          });
+        const validationResult = validate(PeerRegistrationSchema, req.body, "Invalid peer registration");
+        if (!validationResult.success) {
+          return res.status(400).json({ error: validationResult.error });
         }
+        const peerRegistration = validationResult.data;
 
-        const { hostname, tlsX509 } = peerRegistration.peer;
-        if (!hostname || !tlsX509 || hostname.trim() === '' || tlsX509.trim() === '') {
-          return res.status(400).json({
-            error: 'Missing required peer fields: Hostname, TlsX509, Port'
-          });
-        }
+        const { hostname, port, tlsX509 } = peerRegistration.peer;
 
         // Validate guardian signature and get guardian address
-        const guardianAddress = this.validateGuardianSignature(peerRegistration);
-        if (!guardianAddress) {
+        const guardian = this.validateGuardianSignature(peerRegistration);
+        if (!guardian) {
           return res.status(401).json({ error: 'Invalid guardian signature' });
         }
 
+        const { guardianAddress, guardianIndex } = guardian;
         // Check if this guardian has already submitted
         if (this.guardianPeers.find(peer => peer.guardianAddress === guardianAddress)) {
           this.display.log(`Guardian ${guardianAddress} attempted resubmission - ignoring`);
@@ -89,8 +82,10 @@ export class PeerServer {
 
         // Store peer data for this guardian
         const peer: Peer = { 
-          guardianAddress: guardianAddress, 
+          guardianAddress,
+          guardianIndex,
           hostname, 
+          port,
           tlsX509,
         };
         this.guardianPeers.push(peer);
@@ -104,7 +99,7 @@ export class PeerServer {
         );
 
         res.status(201).json({
-          peer: { guardianAddress, hostname, tlsX509 },
+          peer: { guardianAddress, guardianIndex, hostname, port, tlsX509 },
           threshold: this.config.threshold
         });
       } catch (error) {
@@ -137,41 +132,35 @@ export class PeerServer {
     return this.app;
   }
 
-  private validateGuardianSignature(peerRegistration: PeerRegistration): string | null {
-    // Validate guardian index is within bounds
-    const guardianIndex = peerRegistration.signature.guardianIndex;
-    if (guardianIndex < 0 || guardianIndex >= this.wormholeData.guardians.length) {
-      this.display.log(`Invalid guardian index: ${guardianIndex}. Must be between 0 and ${this.wormholeData.guardians.length - 1}`);
-      return null;
-    }
-
-    // Get the expected guardian address at this index
-    const expectedGuardianAddress = this.wormholeData.guardians[guardianIndex];
-
+  private validateGuardianSignature(peerRegistration: PeerRegistration): Guardian | null {
     // Create the message hash that should have been signed
     // Message format: keccak256(abi.encodePacked(hostname, tlsX509))
+    const fullUrl = `${peerRegistration.peer.hostname}:${peerRegistration.peer.port}`;
     const messageHash = ethers.keccak256(
       ethers.solidityPacked(
         ['string', 'string'],
-        [peerRegistration.peer.hostname, peerRegistration.peer.tlsX509]
+        [fullUrl, peerRegistration.peer.tlsX509]
       )
     );
 
     try {
       // Recover the address that signed the message
-      const recoveredAddress = ethers.verifyMessage(
+      const guardianAddress = ethers.verifyMessage(
         ethers.getBytes(messageHash),
         peerRegistration.signature.signature
       );
 
-      // Check if the recovered address matches the expected guardian at the given index
-      if (recoveredAddress.toLowerCase() === expectedGuardianAddress.toLowerCase()) {
-        this.display.log(`Valid signature from guardian ${guardianIndex}: ${recoveredAddress}`);
-        return recoveredAddress;
-      } else {
-        this.display.log(`Invalid signature: expected ${expectedGuardianAddress}, got ${recoveredAddress} for guardian index ${guardianIndex}`);
+      const guardianIndex = this.wormholeData.guardians.findIndex(
+        guardian => guardian.toLowerCase() === guardianAddress.toLowerCase()
+      );
+
+      if (guardianIndex === -1) {
+        this.display.log(`Invalid signature: guardian ${guardianAddress} not found in guardian set`);
         return null;
       }
+
+      this.display.log(`Valid signature from guardian ${guardianIndex}: ${guardianAddress}`);
+      return { guardianAddress, guardianIndex };
     } catch (error) {
       this.display.log('Failed to verify signature:' + (error instanceof Error ? error.message : String(error)));
       return null;

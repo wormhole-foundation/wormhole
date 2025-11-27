@@ -1,11 +1,9 @@
 import { ethers } from 'ethers';
 import {
-  Peer,
   PeerRegistration,
   SelfConfig,
   PeersResponse,
   validateOrFail,
-  SelfConfigSchema,
   PeerRegistrationSchema,
   PeersResponseSchema,
   ServerResponseSchema
@@ -17,12 +15,12 @@ export class PeerClient {
 
   constructor(config: SelfConfig) {
     // Validate with Zod
-    this.config = validateOrFail(SelfConfigSchema, config, "Invalid client configuration");
+    this.config = config;
     this.serverUrl = this.config.serverUrl;
   }
 
   private async signPeerData(): Promise<PeerRegistration> {
-    const { peer, guardianIndex } = this.config;
+    const { peer } = this.config;
 
     // Create wallet from private key
     const wallet = new ethers.Wallet(this.config.guardianPrivateKey);
@@ -41,8 +39,7 @@ export class PeerClient {
     const peerRegistration = {
       peer,
       signature: {
-        signature,
-        guardianIndex
+        signature
       }
     };
 
@@ -54,7 +51,7 @@ export class PeerClient {
     try {
       const peerRegistration = await this.signPeerData();
 
-      console.log(`[UPLOAD] Uploading peer data for guardian ${this.config.guardianIndex}...`);
+      console.log(`[UPLOAD] Uploading peer data for guardian...`);
 
       const response = await fetch(`${this.serverUrl}/peers`, {
         method: 'POST',
@@ -71,6 +68,7 @@ export class PeerClient {
         const result = validateOrFail(ServerResponseSchema, jsonResponse, "Invalid server response");
         console.log(`[SUCCESS] Successfully uploaded peer data!`);
         console.log(`   Guardian Address: ${result.peer.guardianAddress}`);
+        console.log(`   Guardian Index: ${result.peer.guardianIndex}`);
         console.log(`   Hostname: ${result.peer.hostname}`);
       } else {
         const error = await response.text();
@@ -138,7 +136,6 @@ export class PeerClient {
     try {
       console.log(`[STARTING] Peer Client starting...`);
       console.log(`   Server: ${this.serverUrl}`);
-      console.log(`   Guardian Index: ${this.config.guardianIndex}`);
       console.log(`   Peer: ${this.config.peer.hostname}`);
 
       // Upload our peer data

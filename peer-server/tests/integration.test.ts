@@ -108,10 +108,12 @@ describe('Peer Server Integration Tests', () => {
     const testPeers = [
       {
         hostname: 'guardian-0.example.com',
+        port: 1,
         tlsX509: path.join(testDir, 'guardian-0-cert.pem')
       },
       {
         hostname: 'guardian-1.example.com',
+        port: 1,
         tlsX509: path.join(testDir, 'guardian-1-cert.pem')
       }
     ];
@@ -121,7 +123,6 @@ describe('Peer Server Integration Tests', () => {
 
     for (let i = 0; i < 2; i++) {
       const clientConfig: SelfConfig = {
-        guardianIndex: i,
         // @ts-ignore
         guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
         serverUrl: serverUrl,
@@ -204,10 +205,12 @@ describe('Peer Server Integration Tests', () => {
     const testPeers = [
       {
         hostname: 'guardian-staggered-0.example.com',
+        port: 1,
         tlsX509: path.join(testDir, 'guardian-0-cert.pem')
       },
       {
         hostname: 'guardian-staggered-1.example.com',
+        port: 1,
         tlsX509: path.join(testDir, 'guardian-1-cert.pem')
       }
     ];
@@ -217,9 +220,7 @@ describe('Peer Server Integration Tests', () => {
       const clientConfigs: SelfConfig[] = [];
       for (let i = 0; i < 2; i++) {
         const clientConfig: SelfConfig = {
-          guardianIndex: i,
-          // @ts-ignore
-          guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
+          guardianPrivateKey: testGuardianWallets[i].privateKey,
           serverUrl: serverUrl,
           peer: testPeers[i]
         };

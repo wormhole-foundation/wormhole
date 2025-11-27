@@ -31,21 +31,6 @@ class ConfigClient {
     try {
       const configData = fs.readFileSync(configPath, 'utf-8');
       const parsedConfig = JSON.parse(configData);
-
-      // Handle guardian key file loading
-      if (parsedConfig.guardianKey && !parsedConfig.guardianKey.startsWith('0x')) {
-        // Treat as file path
-        const keyPath = path.resolve(parsedConfig.guardianKey);
-        if (fs.existsSync(keyPath)) {
-          const privateKeyHex = fs.readFileSync(keyPath, 'utf-8').trim();
-          // Ensure 0x prefix
-          parsedConfig.guardianKey = privateKeyHex.startsWith('0x') ? privateKeyHex : '0x' + privateKeyHex;
-        } else {
-          console.error(`[ERROR] Guardian key file not found: ${keyPath}`);
-          process.exit(1);
-        }
-      }
-
       return validateOrFail(SelfConfigSchema, parsedConfig, "Invalid self_config.json");
     } catch (error: any) {
       console.error(`[ERROR] Invalid JSON in self_config.json: ${error?.message || error}`);
@@ -63,12 +48,12 @@ class ConfigClient {
           .map((peer) => ({
             Hostname: peer.hostname,
             TlsX509: peer.tlsX509,
-            Port: new URL(peer.hostname).port,
+            Port: peer.port,
           })),
         Self: {
           Hostname: this.config.peer.hostname,
           TlsX509: this.config.peer.tlsX509,
-          Port: new URL(this.config.peer.hostname).port,
+          Port: this.config.peer.port,
         },
         NumParticipants: peers.length,
         WantedThreshold: threshold,
@@ -87,7 +72,6 @@ class ConfigClient {
     try {
       console.log(`[STARTING] Peer Client starting...`);
       console.log(`   Server: ${this.config.serverUrl}`);
-      console.log(`   Guardian Index: ${this.config.guardianIndex}`);
       console.log(`   Peer: ${this.config.peer.hostname}`);
 
       // Run the client and get results
