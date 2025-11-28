@@ -15,6 +15,7 @@ message GossipMessage {
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
     SignedObservationBatch signed_observation_batch = 12;
+    DelegateObservation delegate_observation = 13;
   }
 }
 
@@ -213,4 +214,41 @@ message Observation {
   // Message ID (chain/emitter/seq) for this observation.
   // Optional, included for observability.
   string message_id = 4;
+}
+
+// DelegateObservation contains all the fields necessary for a canonical guardian to reconstruct the VAA body.
+message DelegateObservation {
+  // Seconds since UNIX epoch.
+  uint32 timestamp = 1;
+
+  // The nonce for the transfer.
+  uint32 nonce = 2;
+
+  // The source chain from which this observation was created.
+  uint32 emitter_chain = 3;
+
+  // The address on the source chain that emitted this message.
+  bytes emitter_address = 4;
+
+  // The sequence number of this observation.
+  uint64 sequence = 5;
+
+  // The consistency level requested by the emitter.
+  uint32 consistency_level = 6;
+
+  // The serialized payload.
+  bytes payload = 7;
+
+  // The observation's deterministic, unique hash.
+  bytes hash = 8;
+
+  // ECDSA signature of the hash using the node's guardian key.
+  bytes signature = 9;
+
+  // Guardian pubkey as truncated eth address.
+  bytes guardian_addr = 10;
+
+  // Transaction hash on the emitter chain in which the transfer was performed.
+  // Optional, included for observability.
+  bytes tx_hash = 11;
 }
