@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -8,6 +9,7 @@ import (
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
+	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -70,6 +72,120 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 		}
 	}
 	return sigs
+}
+
+// handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and publishes it to the delegateObsvSendC.
+// This should only be called by a delegated guardian for the chain.
+func (p* Processor) handleDelegateMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
+	d, err := messagePublicationToDelegateObservation(k)
+	if err != nil {
+		p.logger.Warn("failed to build delegate observation from message publication",
+			zap.String("msgID", k.MessageIDString()),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	// Generate digest of the unsigned VAA.
+	v := k.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
+	digest := v.SigningDigest()
+
+	// Sign the digest using the node's GuardianSigner
+	signature, err := p.guardianSigner.Sign(ctx, digest.Bytes())
+	if err != nil {
+		panic(err)
+	}
+
+	d.Hash = digest.Bytes()
+	d.Signature = signature
+	d.GuardianAddr = p.ourAddr.Bytes()
+
+	select {
+	case p.delegateObsvSendC <- d:
+	default:
+		// TODO: replace with prometheus.CounterVec
+		p.logger.Warn("delegate observation send channel full, dropping",
+			zap.String("msgID", k.MessageIDString()),
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.Uint64("sequence", d.Sequence),
+		)
+	}
+	return nil
+}
+
+// This is the main message processing loop. It is responsible for handling messages that are
+// received on the message channel. Depending on the configuration, a message may be processed
+// by the Notary, the Governor, and/or the Accountant.
+// This loop effectively causes each of these components to process messages in a modular
+// manner. The Notary, Governor, and Accountant can be enabled or disabled independently.
+// As a consequence of this loop, each of these components updates its internal state, tracking
+// whether a message is ready to be processed from its perspective. This state is used by the
+// processor to determine whether a message should be processed or not. This occurs elsewhere
+// in the processor code.
+func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
+	// Track transfer verification states for analytics and log unusual states
+	p.trackVerificationState(k)
+
+	// Notary: check whether a message is well-formed.
+	// Send messages to the Notary first. If messages are not approved, they should not continue
+	// to the Governor or the Accountant.
+	if p.notary != nil {
+		p.logger.Debug("processor: sending message to notary for evaluation", k.ZapFields()...)
+
+		// NOTE: Always returns Approve for messages that are not token transfers.
+		verdict, err := p.notary.ProcessMsg(k)
+		if err != nil {
+			// TODO: The error is deliberately ignored so that the processor does not panic and restart.
+			// In contrast, the Accountant does not ignore the error and restarts the processor if it fails.
+			// The error-handling strategy can be revisited once the Notary is considered stable.
+			p.logger.Error("notary failed to process message", zap.Error(err), zap.String("messageID", k.MessageIDString()))
+			return nil
+		}
+
+		// Based on the verdict, we can decide what to do with the message.
+		switch verdict {
+		case guardianNotary.Blackhole, guardianNotary.Delay:
+			p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
+			if verdict == guardianNotary.Blackhole {
+				// Black-holed messages should not be processed.
+				p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+			} else {
+				// Delayed messages are added to a separate queue and processed elsewhere.
+				p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+			}
+			// We're done processing the message.
+			return nil
+		case guardianNotary.Unknown:
+			p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
+		case guardianNotary.Approve:
+			// no-op: process normally
+			p.logger.Debug("notary evaluated message as approved", k.ZapFields(zap.String("verdict", verdict.String()))...)
+		default:
+			p.logger.Error("notary returned unrecognized verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
+		}
+	}
+
+	// Governor: check if a message is ready to be published.
+	if p.governor != nil {
+		if !p.governor.ProcessMsg(k) {
+			// We're done processing the message.
+			return nil
+		}
+	}
+
+	// Accountant: check if a message is ready to be published (i.e. if it has enough observations).
+	if p.acct != nil {
+		shouldPub, err := p.acct.SubmitObservation(k)
+		if err != nil {
+			return fmt.Errorf("accountant: failed to process message `%s`: %w", k.MessageIDString(), err)
+		}
+		if !shouldPub {
+			// We're done processing the message.
+			return nil
+		}
+	}
+	p.handleMessage(ctx, k)
+	return nil
 }
 
 // handleBatchObservation processes a batch of remote VAA observations.
@@ -359,4 +475,171 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	}
 
 	p.storeSignedVAA(v)
+}
+
+// handleDelegateObservation processes a delegate observation
+func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) {
+	hash := hex.EncodeToString(m.Hash)
+
+    if p.logger.Core().Enabled(zapcore.DebugLevel) {
+        p.logger.Debug("received delegate observation",
+			// TODO: add all fields
+            zap.String("txhash", hex.EncodeToString(m.TxHash)),
+            zap.String("txhash_b58", base58.Encode(m.TxHash)),
+            zap.Uint32("emitter_chain", m.EmitterChain),
+            zap.Uint64("sequence", m.Sequence),
+            zap.String("hash", hash),
+        )
+    }
+
+	c := vaa.ChainID(m.EmitterChain)
+	
+	cfg := p.dgc.GetChainConfig(c)
+	if cfg == nil {
+		p.logger.Debug("ignoring delegate observation for chain without delegate chain config",
+			zap.Stringer("emitter_chain", c),
+			zap.Uint64("sequence", m.Sequence),
+			zap.String("hash", hash),
+		)
+		return
+	}
+
+    _, ok := cfg.KeyIndex(p.ourAddr)
+	if ok {
+		p.logger.Debug("ignoring delegate observation since we are a delegated guardian for this chain", 
+			zap.Stringer("emitter_chain", c),
+            zap.Uint64("sequence", m.Sequence),
+			zap.String("hash", hash),
+		)
+		return
+	}
+
+	addr := common.BytesToAddress(m.GuardianAddr)
+	_, ok = cfg.KeyIndex(addr)
+	if !ok {
+		p.logger.Debug("ignoring delegate observation from non-delegated guardian for this chain", 
+			zap.Stringer("emitter_chain", c),
+            zap.Uint64("sequence", m.Sequence),
+			zap.String("hash", hash),
+			zap.String("guardian", addr.Hex()),
+		)
+		return
+	}
+
+	p.handleCanonicalDelegateObservation(ctx, cfg, m, hash)
+}
+
+// handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
+func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation, hash string) {
+	// Get / create our state entry.
+	s := p.delegateState.observations[hash]
+	if s == nil {
+		s = &delegateState{
+			firstObserved: time.Now(),
+			observations:  map[common.Address]*gossipv1.DelegateObservation{},
+		}
+		p.delegateState.observations[hash] = s
+	}
+
+	// Update our state.
+	addr := common.BytesToAddress(m.GuardianAddr)
+	s.observations[addr] = m
+
+	if !s.submitted {
+		p.checkForDelegateQuorum(ctx, m, s, cfg, hash)
+	}
+}
+
+// checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it converts the delegate observation 
+// to a MessagePublication and runs it through the normal message pipeline. 
+func (p *Processor) checkForDelegateQuorum(ctx context.Context, m *gossipv1.DelegateObservation, s *delegateState, dgs *DelegateGuardianChainConfig, hash string) {	
+	// Check if we have more delegate observations than required for quorum.
+	if len(s.observations) < dgs.Quorum() {
+		// no quorum yet, we're done here
+		c := vaa.ChainID(m.EmitterChain)
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("quorum not yet met",
+				zap.Stringer("emitter_chain", c),
+            	zap.Uint64("sequence", m.Sequence),
+				zap.String("hash", hash),
+			)
+		}
+		return
+	}
+
+	mp, err := delegateObservationToMessagePublication(m)
+    if err != nil {
+        p.logger.Warn("failed to convert delegate observation to message publication",
+            zap.String("hash", hash),
+            zap.Error(err),
+        )
+        return
+    }
+
+	s.submitted = true
+	p.handleMessagePublication(ctx, mp)
+}
+
+// delegateObservationToMessagePublication converts a DelegateObservation into a MessagePublication that can be passed through the normal processor pipeline.
+func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*node_common.MessagePublication, error) {
+	const TxIDSizeMax = math.MaxUint8
+	txIDLen := len(d.TxHash)
+	if txIDLen > TxIDSizeMax {
+		return nil, fmt.Errorf("delegate observation tx_hash too long: got %d; want at most %d", txIDLen, TxIDSizeMax)
+	}
+	if txIDLen < node_common.TxIDLenMin {
+		return nil, fmt.Errorf("delegate observation tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
+	}
+
+    addr, err := vaa.BytesToAddress(d.EmitterAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid delegate observation emitter address: %w", err)
+	}
+
+	c, err := vaa.ChainIDFromNumber(d.EmitterChain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid delegate observation emitter chain: %w", err)
+	}
+
+    mp := &node_common.MessagePublication{
+        TxID:            d.TxHash,
+        Timestamp:       time.Unix(int64(d.Timestamp), 0), // Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert.
+        Nonce:           d.Nonce,
+        Sequence:        d.Sequence,
+        ConsistencyLevel: uint8(d.ConsistencyLevel),
+        EmitterChain:    c,
+        EmitterAddress:  addr,
+        Payload:         d.Payload,
+        IsReobservation: false,
+        Unreliable:      false,
+        // verificationState intentionally left at the default (NotVerified).
+    }
+
+    return mp, nil
+}
+
+// messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
+func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
+	const TxIDSizeMax = math.MaxUint8
+	txIDLen := len(m.TxID)
+	if txIDLen > TxIDSizeMax {
+		return nil, fmt.Errorf("message publication tx_hash too long: got %d; want at most %d", txIDLen, TxIDSizeMax)
+	}
+	if txIDLen < node_common.TxIDLenMin {
+		return nil, fmt.Errorf("message publication tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
+	}
+
+	d := &gossipv1.DelegateObservation{
+		Timestamp:        uint32(m.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
+		Nonce:            m.Nonce,
+		EmitterChain:     uint32(m.EmitterChain),
+		EmitterAddress:   m.EmitterAddress.Bytes(),
+		Sequence:         m.Sequence,
+		ConsistencyLevel: uint32(m.ConsistencyLevel),
+		Payload:          m.Payload,
+		TxHash:           m.TxID,		  
+		// Hash, Signature and GuardianAddr will be populated in p2p before broadcast.
+	}
+
+	return d, nil
 }
