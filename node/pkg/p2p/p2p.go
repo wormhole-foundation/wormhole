@@ -90,6 +90,8 @@ var signedObservationRequestPrefix = []byte("signed_observation_request|")
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
+// TODO: Remove if no freshness check required
+var delegateObservationMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
@@ -316,6 +318,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
+		p2pReceiveChannelOverflow.WithLabelValues("delegate_observation").Add(0)
 
 		logger := supervisor.Logger(ctx)
 
@@ -382,7 +385,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		var controlSubscription, attestationSubscription, vaaSubscription *pubsub.Subscription
 
 		// Set up the control channel. ////////////////////////////////////////////////////////////////////
-		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
+		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.delegateObsvSendC != nil || params.delegateObsvRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
 			controlTopic := fmt.Sprintf("%s/%s", params.networkID, "control")
 			logger.Info("joining the control topic", zap.String("topic", controlTopic))
 			controlPubsubTopic, err = ps.Join(controlTopic)
@@ -396,7 +399,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 			}()
 
-			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
+			if params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.delegateObsvRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
 				logger.Info("subscribing to the control topic", zap.String("topic", controlTopic))
 				controlSubscription, err = controlPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
 				if err != nil {
@@ -682,6 +685,33 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					} else {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
+				case msg:= <-params.delegateObsvSendC:
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_DelegateObservation {
+							DelegateObservation: msg,
+						},
+					}
+					b, err := proto.Marshal(envelope)
+					if err != nil {
+						panic(err)
+					}
+
+					// // Send to local observation request queue (the loopback message is ignored)
+					// if params.obsvReqRecvC != nil {
+					// 	common.WriteToChannelWithoutBlocking(params.obsvReqRecvC, msg, "obs_req_internal")
+					// }
+
+					if controlPubsubTopic == nil {
+						panic("controlPubsubTopic should not be nil when delegateObsvSendC is set")
+					}
+					err = controlPubsubTopic.Publish(ctx, b)
+					p2pMessagesSent.WithLabelValues("control").Inc()
+					if err != nil {
+						logger.Error("failed to publish delegate observation", zap.Error(err))
+					} else {
+						logger.Info("published delegate observation", zap.Any("delegate_observation", msg))
+					}
+
 				}
 			}
 		}()
@@ -834,6 +864,46 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					case *gossipv1.GossipMessage_SignedChainGovernorStatus:
 						if params.signedGovStatusRecvC != nil {
 							common.WriteToChannelWithoutBlocking(params.signedGovStatusRecvC, m.SignedChainGovernorStatus, "gov_status_gossip_internal")
+						}
+					case *gossipv1.GossipMessage_DelegateObservation:
+						if params.delegateObsvRecvC != nil {
+							d := m.DelegateObservation
+							gs := params.gst.Get()
+							if gs == nil {
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("dropping DelegateObservation - no guardian set", 
+										zap.Any("value", d), 
+										zap.String("from", envelope.GetFrom().String()),
+									)
+								}
+								break
+							}
+							r, err := processDelegateObservation(d, gs)
+							if err != nil {
+								p2pMessagesReceived.WithLabelValues("invalid_delegate_observation").Inc()
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("invalid delegate observation received",
+										zap.Error(err),
+										zap.Any("payload", msg.Message),
+										zap.Any("value", d),
+										zap.Binary("raw", envelope.Data),
+										zap.String("from", envelope.GetFrom().String()))
+								}
+							} else {
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("valid signed delegate observation received", 
+										zap.Any("value", r), 
+										zap.String("from", envelope.GetFrom().String()),
+									)
+								}
+
+								select {
+								case params.delegateObsvRecvC <- r:
+									p2pMessagesReceived.WithLabelValues("delegate_observation").Inc()
+								default:
+									p2pReceiveChannelOverflow.WithLabelValues("delegate_observation").Inc()
+								}
+							}
 						}
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
@@ -1103,3 +1173,35 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 
 	return &h, nil
 }
+
+func processDelegateObservation(d *gossipv1.DelegateObservation, gs *common.GuardianSet) (*gossipv1.DelegateObservation, error) {
+	envelopeAddr := eth_common.BytesToAddress(d.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	if !ok {
+		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+	}
+	pk := gs.Keys[idx]
+
+	pubKey, err := ethcrypto.Ecrecover(d.Hash, d.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := eth_common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
+
+	// TODO: Remove if no freshness check required
+	// Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert
+	if time.Until(time.Unix(int64(d.Timestamp), 0)).Abs() > delegateObservationMaxTimeDifference {
+		return nil, fmt.Errorf("delegate observation is too old or too far into the future")
+	}
+
+	if eth_common.BytesToAddress(d.GuardianAddr) != signerAddr {
+		return nil, fmt.Errorf("GuardianAddr in delegate observation does not match signerAddr")
+	}
+
+	return d, nil
+}
+
