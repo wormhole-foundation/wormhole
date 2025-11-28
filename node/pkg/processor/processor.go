@@ -86,6 +86,28 @@ type (
 	aggregationState struct {
 		signatures observationMap
 	}
+
+
+	// delegateState represents the local view of a given delegate observation
+	delegateState struct {
+		// First time this digest was seen.
+		firstObserved time.Time
+
+		// Map of delegate observations sent by guardian.
+		observations map[ethcommon.Address]*gossipv1.DelegateObservation
+
+		// Flag set after reaching quorum and submitting the VAA.
+		submitted bool
+
+		// TODO: add more fields like state if necessary
+	}
+
+	delegateObservationMap map[string]*delegateState
+
+	// delegateAggregationState represents the node's aggregation of delegate guardian signatures.
+	delegateAggregationState struct {
+		observations	delegateObservationMap
+	}
 )
 
 // LoggingID can be used to identify a state object in a log message. Note that it should not
@@ -119,8 +141,14 @@ type Processor struct {
 	// batchObsvC is a channel of inbound decoded batches of observations from p2p
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
+	// delegateObsvC is a channel of inbound delegate observations from p2p
+	delegateObsvC <-chan *gossipv1.DelegateObservation
+
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
+
+	// delegateObsvSendC is a channel of outbound delegate observations to broadcast on p2p
+	delegateObsvSendC chan<- *gossipv1.DelegateObservation
 
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
@@ -142,8 +170,13 @@ type Processor struct {
 	// guardian set by other components.
 	gst *common.GuardianSetState
 
+	// dgc is the per-chain delegated guardian config
+	dgc *DelegateGuardianConfig
+
 	// state is the current runtime VAA view
 	state *aggregationState
+	// delegateState is the current delegate observation view
+	delegateState *delegateAggregationState
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 
@@ -227,7 +260,9 @@ func NewProcessor(
 	gossipAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
+	delegateObsvC <-chan *gossipv1.DelegateObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
+	delegateObsvSendC chan<- *gossipv1.DelegateObservation,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	guardianSigner guardiansigner.GuardianSigner,
 	gst *common.GuardianSetState,
@@ -246,7 +281,9 @@ func NewProcessor(
 		gossipAttestationSendC: gossipAttestationSendC,
 		gossipVaaSendC:         gossipVaaSendC,
 		batchObsvC:             batchObsvC,
+		delegateObsvC: 			delegateObsvC,
 		obsvReqSendC:           obsvReqSendC,
+		delegateObsvSendC:      delegateObsvSendC,
 		signedInC:              signedInC,
 		guardianSigner:         guardianSigner,
 		gst:                    gst,
@@ -255,6 +292,7 @@ func NewProcessor(
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
+		delegateState:  &delegateAggregationState{delegateObservationMap{}},
 		ourAddr:        crypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
 		governor:       g,
 		acct:           acct,
@@ -265,6 +303,8 @@ func NewProcessor(
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 		networkID:      networkID,
+		// TODO: have this be similar to gs in the sense it is constantly updated by watchers
+		dgc: 			NewDelegateGuardianConfig(),
 	}
 }
 
@@ -297,83 +337,21 @@ func (p *Processor) Run(ctx context.Context) error {
 			)
 			p.gst.Set(p.gs)
 		case k := <-p.msgC:
-			// This is the main message processing loop. It is responsible for handling messages that are
-			// received on the message channel. Depending on the configuration, a message may be processed
-			// by the Notary, the Governor, and/or the Accountant.
-			// This loop effectively causes each of these components to process messages in a modular
-			// manner. The Notary, Governor, and Accountant can be enabled or disabled independently.
-			// As a consequence of this loop, each of these components updates its internal state, tracking
-			// whether a message is ready to be processed from its perspective. This state is used by the
-			// processor to determine whether a message should be processed or not. This occurs elsewhere
-			// in the processor code.
-
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
+			if err := p.handleMessagePublication(ctx, k); err != nil {
+				return err
+			}
 
-			// Track transfer verification states for analytics and log unusual states
-			p.trackVerificationState(k)
-
-			// Notary: check whether a message is well-formed.
-			// Send messages to the Notary first. If messages are not approved, they should not continue
-			// to the Governor or the Accountant.
-			if p.notary != nil {
-				p.logger.Debug("processor: sending message to notary for evaluation", k.ZapFields()...)
-
-				// NOTE: Always returns Approve for messages that are not token transfers.
-				verdict, err := p.notary.ProcessMsg(k)
-				if err != nil {
-					// TODO: The error is deliberately ignored so that the processor does not panic and restart.
-					// In contrast, the Accountant does not ignore the error and restarts the processor if it fails.
-					// The error-handling strategy can be revisited once the Notary is considered stable.
-					p.logger.Error("notary failed to process message", zap.Error(err), zap.String("messageID", k.MessageIDString()))
-					continue
-				}
-
-				// Based on the verdict, we can decide what to do with the message.
-				switch verdict {
-				case guardianNotary.Blackhole, guardianNotary.Delay:
-					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
-
-					if verdict == guardianNotary.Blackhole {
-						// Black-holed messages should not be processed.
-						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
-					} else {
-						// Delayed messages are added to a separate queue and processed elsewhere.
-						p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
+			cfg := p.dgc.GetChainConfig(k.EmitterChain)
+			if cfg != nil {
+				_, ok := cfg.KeyIndex(p.ourAddr)
+				if ok {
+					// Logs internally on failure
+					if err := p.handleDelegateMessagePublication(ctx, k); err != nil {
+						p.logger.Warn("failed to send delegate observation", k.ZapFields(zap.Error(err))...)
 					}
-					// We're done processing the message.
-					continue
-				case guardianNotary.Unknown:
-					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
-
-				case guardianNotary.Approve:
-					// no-op: process normally
-					p.logger.Debug("notary evaluated message as approved", k.ZapFields(zap.String("verdict", verdict.String()))...)
-				default:
-					p.logger.Error("notary returned unrecognized verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 				}
 			}
-
-			// Governor: check if a message is ready to be published.
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
-					// We're done processing the message.
-					continue
-				}
-			}
-
-			// Accountant: check if a message is ready to be published (i.e. if it has enough observations).
-			if p.acct != nil {
-				shouldPub, err := p.acct.SubmitObservation(k)
-				if err != nil {
-					return fmt.Errorf("accountant: failed to process message `%s`: %w", k.MessageIDString(), err)
-				}
-				if !shouldPub {
-					// We're done processing the message.
-					continue
-				}
-			}
-			p.handleMessage(ctx, k)
-
 		case k := <-p.acctReadC:
 			if p.acct == nil {
 				return fmt.Errorf("received an accountant event when accountant is not configured")
@@ -388,6 +366,8 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleBatchObservation(m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(m)
+		case m := <-p.delegateObsvC:
+			p.handleDelegateObservation(ctx, m)
 		case <-cleanup.C:
 			p.handleCleanup(ctx)
 		case <-pollTimer.C:
