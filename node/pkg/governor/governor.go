@@ -764,13 +764,12 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 		return false, nil, nil, nil, nil
 	}
 
-	// Decode the payload header 
+	// Decode the payload header
 	vaaHeader, decodeErr := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if decodeErr != nil {
 		gov.logger.Error("failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(decodeErr))
 		return false, nil, nil, nil, decodeErr
 	}
-
 
 	// If we don't care about this token, the VAA can be published.
 	tk := tokenKey{chain: vaaHeader.OriginChain, addr: vaaHeader.OriginAddress}
