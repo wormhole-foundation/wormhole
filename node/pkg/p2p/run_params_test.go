@@ -192,10 +192,12 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	batchObsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 42)
 	signedInC := make(chan<- *gossipv1.SignedVAAWithQuorum, 42)
 	obsvReqC := make(chan<- *gossipv1.ObservationRequest, 42)
+	delegateObsvRecvC := make(chan<- *gossipv1.DelegateObservation, 42)
 	gossipControlSendC := make(chan []byte, 42)
 	gossipAttestationSendC := make(chan []byte, 42)
 	gossipVaaSendC := make(chan []byte, 42)
 	obsvReqSendC := make(<-chan *gossipv1.ObservationRequest, 42)
+	delegateObsvSendC := make(<-chan *gossipv1.DelegateObservation, 42)
 
 	acct := &accountant.Accountant{}
 	gov := &governor.ChainGovernor{}
@@ -223,10 +225,12 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			batchObsvC,
 			signedInC,
 			obsvReqC,
+			delegateObsvRecvC,
 			gossipControlSendC,
 			gossipAttestationSendC,
 			gossipVaaSendC,
 			obsvReqSendC,
+			delegateObsvSendC,
 			acct,
 			gov,
 			disableHeartbeatVerify,

@@ -38,6 +38,9 @@ type (
 		// signedGovStatusRecvC is optional and can be set with `WithChainGovernorStatusListener`.
 		signedGovStatusRecvC chan *gossipv1.SignedChainGovernorStatus
 
+		// delegateObsvRecvC is optional and can be set with `WithDelegateObservationListener`.
+		delegateObsvRecvC chan<- *gossipv1.DelegateObservation
+
 		// disableHeartbeatVerify is optional and can be set with `WithDisableHeartbeatVerify` or `WithGuardianOptions`.
 		disableHeartbeatVerify bool
 
@@ -48,6 +51,7 @@ type (
 		gossipAttestationSendC chan []byte
 		gossipVaaSendC         chan []byte
 		obsvReqSendC           <-chan *gossipv1.ObservationRequest
+		delegateObsvSendC 	   <-chan *gossipv1.DelegateObservation
 		acct                   *accountant.Accountant
 		gov                    *governor.ChainGovernor
 		components             *Components
@@ -147,6 +151,14 @@ func WithChainGovernorStatusListener(signedGovStatusRecvC chan *gossipv1.SignedC
 	}
 }
 
+// WithDelegateObservationListener is used to set the channel to receive `SignedDelegateObservation` messages.
+func WithDelegateObservationListener(delegateObsvRecvC chan<- *gossipv1.DelegateObservation) RunOpt {
+	return func(p *RunParams) error {
+		p.delegateObsvRecvC = delegateObsvRecvC
+		return nil
+	}
+}
+
 // WithDisableHeartbeatVerify is used to set disableHeartbeatVerify.
 func WithDisableHeartbeatVerify(disableHeartbeatVerify bool) RunOpt {
 	return func(p *RunParams) error {
@@ -178,10 +190,12 @@ func WithGuardianOptions(
 	batchObsvRecvC chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
 	signedIncomingVaaRecvC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqRecvC chan<- *gossipv1.ObservationRequest,
+	delegateObsvRecvC chan<- *gossipv1.DelegateObservation,
 	gossipControlSendC chan []byte,
 	gossipAttestationSendC chan []byte,
 	gossipVaaSendC chan []byte,
 	obsvReqSendC <-chan *gossipv1.ObservationRequest,
+	delegateObsvSendC <-chan *gossipv1.DelegateObservation,
 	acct *accountant.Accountant,
 	gov *governor.ChainGovernor,
 	disableHeartbeatVerify bool,
@@ -203,10 +217,12 @@ func WithGuardianOptions(
 		p.batchObsvRecvC = batchObsvRecvC
 		p.signedIncomingVaaRecvC = signedIncomingVaaRecvC
 		p.obsvReqRecvC = obsvReqRecvC
+		p.delegateObsvRecvC = delegateObsvRecvC
 		p.gossipControlSendC = gossipControlSendC
 		p.gossipAttestationSendC = gossipAttestationSendC
 		p.gossipVaaSendC = gossipVaaSendC
 		p.obsvReqSendC = obsvReqSendC
+		p.delegateObsvSendC = delegateObsvSendC
 		p.acct = acct
 		p.gov = gov
 		p.disableHeartbeatVerify = disableHeartbeatVerify
@@ -249,7 +265,12 @@ func (p *RunParams) verify() error {
 	}
 	if p.obsvReqSendC != nil {
 		if p.guardianSigner == nil {
-			return errors.New("if obsvReqSendC is not nil, vs may not be nil")
+			return errors.New("if obsvReqSendC is not nil, guardianSigner may not be nil")
+		}
+	}
+	if p.delegateObsvSendC != nil {
+		if p.guardianSigner == nil {
+			return errors.New("if delegateObsvSendC is not nil, guardianSigner may not be nil")
 		}
 	}
 	return nil
