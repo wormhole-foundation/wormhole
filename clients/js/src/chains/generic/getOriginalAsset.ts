@@ -19,8 +19,8 @@ import {
   Network,
   contracts,
   toChain,
+  toChainId
 } from "@wormhole-foundation/sdk-base";
-import { toChainId } from "@wormhole-foundation/sdk";
 
 export const getOriginalAsset = async (
   chain: ChainId | Chain,
@@ -41,30 +41,22 @@ export const getOriginalAsset = async (
       const provider = getProviderForChain(chainName, network, { rpc });
       return getOriginalAssetSolana(provider, tokenBridgeAddress, assetAddress);
     }
-    case "Acala":
     case "Arbitrum":
-    case "Aurora":
     case "Avalanche":
     case "Base":
     case "Bsc":
     case "Celo":
     case "Ethereum":
     case "Fantom":
-    case "Gnosis":
-    case "Karura":
     case "Klaytn":
     case "Moonbeam":
-    case "Neon":
-    case "Oasis":
     case "Optimism":
     case "Polygon":
     case "Scroll":
     case "Mantle":
-    case "Blast":
     case "Xlayer":
     case "Linea":
     case "Berachain":
-    case "Snaxchain":
     case "Seievm":
     case "Sepolia":
     case "ArbitrumSepolia":
@@ -77,13 +69,9 @@ export const getOriginalAsset = async (
         tokenBridgeAddress,
         provider,
         assetAddress,
+        // @ts-ignore: legacy chain ids
         toChainId(chain)
       );
-    }
-    case "Terra":
-    case "Terra2": {
-      const provider = getProviderForChain(chainName, network, { rpc });
-      return getOriginalAssetTerra(provider, assetAddress);
     }
     case "Injective": {
       const provider = getProviderForChain(chainName, network, { rpc });
@@ -92,10 +80,6 @@ export const getOriginalAsset = async (
     case "Sei": {
       const provider = await getProviderForChain(chainName, network, { rpc });
       return getOriginalAssetSei(assetAddress, provider);
-    }
-    case "Xpla": {
-      const provider = getProviderForChain(chainName, network, { rpc });
-      return getOriginalAssetXpla(provider, assetAddress);
     }
     case "Algorand": {
       const provider = getProviderForChain(chainName, network, { rpc });
@@ -130,9 +114,9 @@ export const getOriginalAsset = async (
     case "Seda":
     case "Dymension":
     case "Provenance":
-    case "Rootstock":
       throw new Error(`${chainName} not supported`);
     default:
+      // @ts-ignore: unsupported
       impossible(chainName);
   }
 };
