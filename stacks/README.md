@@ -1,28 +1,81 @@
-# Stacks
+# Stacks Integration
 
-## High-level architecture
+Wormhole integration for the [Stacks](https://www.stacks.co/) Bitcoin L2 blockchain.
 
-The Stacks watcher is a component that monitors the Stacks blockchain and processes transactions to find Wormhole message publication events.
+## Overview
 
-The Stacks watcher uses a polling-based approach to monitor the Stacks blockchain:
+Stacks is a Bitcoin Layer 2 that settles transactions to Bitcoin through Proof-of-Transfer (PoX) consensus. This integration enables cross-chain messaging using Bitcoin blocks as the anchor point for finality.
 
-- **Bitcoin Block Anchoring**: Uses Bitcoin blocks (burn blocks) as the anchor point for confirmation.
-- **BlockPoller**: Polls the Stacks RPC API for new Bitcoin blocks every 2 seconds.
-- **Confirmation**: Considers a block final after 6 Bitcoin block confirmations.
-- **ObsvReqProcessor**: Processes observation requests to re-observe specific transactions.
+| Component         | Location                    | Description              |
+| ----------------- | --------------------------- | ------------------------ |
+| Smart Contracts   | `stacks/contracts/`         | Wormhole Core in Clarity |
+| Watcher           | `node/pkg/watchers/stacks/` | Go blockchain monitor    |
+| Integration Tests | `stacks/test/`              | Vitest test suite        |
+| Devnet Config     | `devnet/stacks-*.yaml`      | Kubernetes manifests     |
 
-## Processing Flow
+## Architecture
 
-The watcher maintains two key tracking points:
+```
+Bitcoin Block → Stacks Blocks → Transactions → Wormhole Events → Guardian Network
+```
 
-- Latest Bitcoin block height seen
-- Last processed Bitcoin block height
+The watcher polls the Stacks node for **stable** Bitcoin blocks (via `/v2/info`). Once a block is marked stable by the node, all Stacks blocks anchored to it are processed for Wormhole message events.
 
-When new blocks are found, it:
+### Watcher
 
-1. Polls for new Bitcoin (burn) blocks
-2. Processes Bitcoin blocks that have reached sufficient confirmation (6 blocks)
-3. Fetches all Stacks blocks anchored to those Bitcoin blocks
-4. Processes transactions in those Stacks blocks
-5. Examines events in those transactions to find Wormhole message publication events
-6. Extracts message data and creates MessagePublication objects
+The watcher monitors `print` events from the Wormhole Core state contract.
+
+**Key files:**
+
+- `watcher.go` — Polling loop and message processing
+- `fetch.go` — Stacks RPC client (v2/v3 endpoints)
+- `clarity.go` — Clarity value parsing
+- `config.go` — Configuration
+
+**API endpoints used:**
+
+- `/v2/info` — Node info including `stable_burn_block_height`
+- `/v2/pox` — PoX epoch info (Nakamoto start height)
+- `/v3/tenures/blocks/height/{height}` — Stacks blocks by Bitcoin height
+- `/v3/blocks/replay/{blockHash}` — Block transactions with events
+- `/v3/transaction/{txID}` — Transaction lookup (re-observation)
+
+**Configuration:**
+
+- `RPCURL` — Stacks node API endpoint
+- `RPCAuthToken` — Optional auth token
+- `StateContract` — Wormhole Core state contract address
+- `BitcoinBlockPollInterval` — Poll interval (default: 2s)
+
+## Docker Images
+
+| Image                | Dockerfile                      | Purpose                 |
+| -------------------- | ------------------------------- | ----------------------- |
+| `stacks-node`        | `stacks/Dockerfile`             | Stacks Core node        |
+| `stacks-signer`      | `stacks/Dockerfile`             | Nakamoto signer         |
+| `stacks-broadcaster` | `stacks/broadcaster/Dockerfile` | Transaction broadcaster |
+| `stacks-stacker`     | `stacks/stacker/Dockerfile`     | PoX stacking service    |
+| `stacks-test`        | `stacks/test/Dockerfile`        | Integration test runner |
+
+The main `Dockerfile` builds both `stacks-node` and `stacks-signer` from [stacks-core](https://github.com/stacks-network/stacks-core).
+
+## Devnet
+
+Kubernetes manifests in `devnet/`:
+
+- `stacks-bitcoin.yaml` — Bitcoin regtest node
+- `stacks-node.yaml` — Stacks node
+- `stacks-signer.yaml` — Nakamoto signer
+- `stacks-stacker.yaml` — PoX stacking
+- `stacks-broadcaster.yaml` — Transaction distribution
+
+**Endpoints (when port-forwarded):**
+
+- Stacks RPC: `http://localhost:20443`
+- Bitcoin RPC: `http://localhost:18443`
+
+## Resources
+
+- [Stacks Docs](https://docs.stacks.co/)
+- [Clarity Reference](https://docs.stacks.co/clarity)
+- [stacks-core](https://github.com/stacks-network/stacks-core)
