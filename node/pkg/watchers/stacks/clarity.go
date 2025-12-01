@@ -95,13 +95,9 @@ type Bool struct {
 	Value bool
 }
 
-func (b *Bool) ClarityDecode(r *bytes.Reader) error {
-	var val uint8
-	err := binary.Read(r, binary.BigEndian, &val)
-	if err != nil {
-		return err
-	}
-	b.Value = val != 0
+// ClarityDecode is a no-op for Bool - the type byte (0x03/0x04) encodes the value directly.
+// The Value field must be set by the caller based on the type ID.
+func (b *Bool) ClarityDecode(_ *bytes.Reader) error {
 	return nil
 }
 
@@ -151,7 +147,6 @@ type Response struct {
 func (res *Response) ClarityDecode(r *bytes.Reader) error {
 	var err error
 	res.Result, err = DecodeClarityValue(r)
-	res.IsOk = err == nil
 	return err
 }
 
@@ -160,10 +155,11 @@ type Option struct {
 	Value  ClarityValue
 }
 
+// Option.ClarityDecode decodes only the inner value (for SomeOption).
+// NoneOption should not call this method.
 func (opt *Option) ClarityDecode(r *bytes.Reader) error {
 	var err error
 	opt.Value, err = DecodeClarityValue(r)
-	opt.IsSome = err == nil
 	return err
 }
 
@@ -296,10 +292,11 @@ func DecodeClarityValue(r *bytes.Reader) (ClarityValue, error) {
 		err := val.ClarityDecode(r)
 		val.IsOk = typeID == 0x07
 		return val, err
-	case 0x09, 0x0a:
-		val := &Option{}
+	case 0x09: // NoneOption - no inner value to decode
+		return &Option{IsSome: false, Value: nil}, nil
+	case 0x0a: // SomeOption - decode inner value
+		val := &Option{IsSome: true}
 		err := val.ClarityDecode(r)
-		val.IsSome = typeID == 0x0a
 		return val, err
 	case 0x0b:
 		val := &List{}
