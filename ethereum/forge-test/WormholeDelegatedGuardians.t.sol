@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache 2
 pragma solidity ^0.8.0;
 
 import "../contracts/Implementation.sol";
@@ -13,13 +14,14 @@ contract TestWormholeDelegatedGuardians is TestUtils {
   uint16  constant CHAINID = 2;
   uint256 constant EVMCHAINID = 1;
   bytes32 constant MODULE = 0x000000000000000000000000000044656C656761746564477561726469616E73;
+  uint8 constant SET_CONFIG_ACTION = 1;
   uint16 constant ACTION_CHAINID = 0;
   uint16 constant GOVERNANCE_CHAIN_ID = 1;
   bytes32 constant GOVERNANCE_CONTRACT = 0x0000000000000000000000000000000000000000000000000000000000000004;
   uint256 constant TEST_GUARDIAN_PK = 93941733246223705020089879371323733820373732307041878556247502674739205313440;
 
   bytes32 constant BAD_MODULE = 0x000000000000000000000000000044656C656761746564477561726469616E74;
-  uint8 constant BAD_ACTION = 1;
+  uint8 constant BAD_ACTION = 2;
   uint16 constant BAD_ACTION_CHAINID = 1;
   bytes32 constant BAD_GOVERNANCE_CONTRACT = 0x0000000000000000000000000000000000000000000000000000000000000005;
   uint16 constant BAD_GOVERNANCE_CHAINID = 9;
@@ -285,6 +287,47 @@ contract TestWormholeDelegatedGuardians is TestUtils {
     }
   }
 
+  // Payload created using the new guardiand template command
+  function testSubmitConfigurationFromTemplate(
+    uint32 timestamp,
+    uint32 nonce,
+    uint64 sequence,
+    uint8 consistencyLevel
+  ) public {
+    bytes memory encodedPayload = hex"000000000000000000000000000044656c656761746564477561726469616e73010000000000000000000000000000000000000000000000000000000000000000000002000302031111111111111111111111111111111111111111222222222222222222222222222222222222222233333333333333333333333333333333333333330004010244444444444444444444444444444444444444445555555555555555555555555555555555555555";
+
+    (bytes memory _vm,) = validVm(
+      0,
+      timestamp,
+      nonce,
+      GOVERNANCE_CHAIN_ID,
+      GOVERNANCE_CONTRACT,
+      sequence,
+      consistencyLevel,
+      encodedPayload,
+      TEST_GUARDIAN_PK
+    );
+    
+    delegatedGuardians.submitConfig(_vm);
+
+    WormholeDelegatedGuardians.DelegatedGuardianSet[] memory storedConfigs = delegatedGuardians.getConfig();
+    assertEq(storedConfigs.length, 2);
+    assertEq(storedConfigs[0].chainId, 3);
+    assertEq(storedConfigs[1].chainId, 4);
+
+    assertEq(storedConfigs[0].threshold, 2);
+    assertEq(storedConfigs[1].threshold, 1);
+
+    assertEq(storedConfigs[0].keys.length, 3);
+    assertEq(storedConfigs[1].keys.length, 2);
+
+    assertEq(storedConfigs[0].keys[0], 0x1111111111111111111111111111111111111111);
+    assertEq(storedConfigs[0].keys[1], 0x2222222222222222222222222222222222222222);
+    assertEq(storedConfigs[0].keys[2], 0x3333333333333333333333333333333333333333);
+    assertEq(storedConfigs[1].keys[0], 0x4444444444444444444444444444444444444444);
+    assertEq(storedConfigs[1].keys[1], 0x5555555555555555555555555555555555555555);
+  }
+
   function testSubmitReplayProtection(
     uint32 timestamp,
     uint32 nonce,
@@ -325,7 +368,7 @@ contract TestWormholeDelegatedGuardians is TestUtils {
       0,
       configs,
       BAD_MODULE, // invalid module
-      uint8(WormholeDelegatedGuardians.Action.SET_CONFIG),
+      uint8(SET_CONFIG_ACTION),
       ACTION_CHAINID
     );
 
@@ -391,7 +434,7 @@ contract TestWormholeDelegatedGuardians is TestUtils {
       0,
       configs,
       MODULE,
-      uint8(WormholeDelegatedGuardians.Action.SET_CONFIG),
+      uint8(SET_CONFIG_ACTION),
       BAD_ACTION_CHAINID // invalid chain id
     );
 
@@ -637,7 +680,7 @@ contract TestWormholeDelegatedGuardians is TestUtils {
       configIndex,
       configs,
       MODULE,
-      uint8(WormholeDelegatedGuardians.Action.SET_CONFIG),
+      uint8(SET_CONFIG_ACTION),
       ACTION_CHAINID
     );
   }

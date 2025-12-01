@@ -157,6 +157,9 @@ message GovernanceMessage {
 
     // Set message fee
     CoreBridgeSetMessageFee core_bridge_set_message_fee = 30;
+
+    // Delegated Guardians
+    DelegatedGuardiansConfig delegated_guardians_config = 31;
   }
 }
 
@@ -593,4 +596,9 @@ message CoreBridgeSetMessageFee {
   uint32 chain_id = 1;
   // New message fee.
   string message_fee = 2;
+}
+
+message DelegatedGuardiansConfig {
+  string config = 1;
+  uint32 config_index = 2;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache 2
 pragma solidity ^0.8.0;
 
 import "../interfaces/IWormhole.sol";
@@ -29,12 +30,9 @@ contract WormholeDelegatedGuardians {
     address[] keys;
   }
 
-  enum Action {
-    SET_CONFIG
-  }
-
   // "DelegatedGuardians" left padded
   bytes32 private constant MODULE = 0x000000000000000000000000000044656C656761746564477561726469616E73;
+  uint8 private constant SET_CONFIG_ACTION = 1;
   IWormhole private immutable wormhole;
   mapping(uint16 => DelegatedGuardianSet[]) private delegatedGuardianSets;
   uint16[] private chainIds;
@@ -147,7 +145,7 @@ contract WormholeDelegatedGuardians {
     uint256 configIndex = payload.toUint256(offset);
     offset += 32;
     
-    uint256 configsLength = payload.toUint8(offset);
+    uint8 configsLength = payload.toUint8(offset);
     offset += 1;
     
     DelegatedGuardianPayload[] memory configs = new DelegatedGuardianPayload[](configsLength);
@@ -159,12 +157,12 @@ contract WormholeDelegatedGuardians {
       configs[i].threshold = payload.toUint8(offset);
       offset += 1;
       
-      uint256 keysLength = payload.toUint8(offset);
+      uint8 keysLength = payload.toUint8(offset);
       offset += 1;
       
       configs[i].keys = new address[](keysLength);
       
-      for (uint256 j = 0; j < keysLength; j++) {
+      for (uint8 j = 0; j < keysLength; j++) {
         configs[i].keys[j] = payload.toAddress(offset);
         offset += 20;
       }
@@ -223,7 +221,7 @@ contract WormholeDelegatedGuardians {
 
     uint8 action = _vaaPayload.toUint8(offset);
     offset += 1;
-    if(action != uint8(Action.SET_CONFIG)) {
+    if(action != SET_CONFIG_ACTION) {
       revert InvalidAction(action);
     }
 

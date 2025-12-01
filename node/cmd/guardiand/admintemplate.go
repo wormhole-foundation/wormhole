@@ -80,6 +80,9 @@ var governanceCallData *string
 var coreBridgeSetMessageFeeChainId *string
 var coreBridgeSetMessageFeeMessageFee *string
 
+var delegatedGuardiansConfigJson *string
+var delegatedGuardiansConfigId *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -213,6 +216,13 @@ func init() {
 	coreBridgeSetMessageFeeMessageFee = coreBridgeSetMessageFeeFlagSet.String("message-fee", "", "New message fee")
 	AdminClientCoreBridgeSetMessageFeeCmd.Flags().AddFlagSet(coreBridgeSetMessageFeeFlagSet)
 	TemplateCmd.AddCommand(AdminClientCoreBridgeSetMessageFeeCmd)
+
+	// flags for delegated guardian set configuration command
+	delegatedGuardiansConfigFlagSet := pflag.NewFlagSet("delegated-guardians-config", pflag.ExitOnError)
+	delegatedGuardiansConfigJson = delegatedGuardiansConfigFlagSet.String("config", "", "Delegated guardians configuration JSON")
+	delegatedGuardiansConfigId = delegatedGuardiansConfigFlagSet.String("config-id", "", "ID of the configuration (must be sequential - query `nextConfigIndex`)")
+	AdminClientDelegatedGuardiansConfigCmd.Flags().AddFlagSet(delegatedGuardiansConfigFlagSet)
+	TemplateCmd.AddCommand(AdminClientDelegatedGuardiansConfigCmd)
 
 	// flags for general-purpose governance call command
 	generalPurposeGovernanceFlagSet := pflag.NewFlagSet("general-purpose-governance", pflag.ExitOnError)
@@ -357,6 +367,12 @@ var AdminClientCoreBridgeSetMessageFeeCmd = &cobra.Command{
 	Use:   "core-bridge-set-message-fee",
 	Short: "Generate a 'set message fee' template for specified chain and address",
 	Run:   runCoreBridgeSetMessageFeeTemplate,
+}
+
+var AdminClientDelegatedGuardiansConfigCmd = &cobra.Command{
+	Use:   "delegated-guardians-config",
+	Short: "Generate a 'delegated guardians config' template from a JSON file",
+	Run:   runDelegatedGuardiansConfigTemplate,
 }
 
 var AdminClientGeneralPurposeGovernanceEvmCallCmd = &cobra.Command{
@@ -1145,6 +1161,45 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 					CoreBridgeSetMessageFee: &nodev1.CoreBridgeSetMessageFee{
 						ChainId:    uint32(chainID),
 						MessageFee: *coreBridgeSetMessageFeeMessageFee,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		log.Fatal("failed to marshal request: ", err)
+	}
+	fmt.Print(string(b))
+}
+
+func runDelegatedGuardiansConfigTemplate(cmd *cobra.Command, args []string) {
+		if *delegatedGuardiansConfigId == "" {
+			log.Fatal("--config-id must be specified")
+		}
+		if *delegatedGuardiansConfigJson == "" {
+			log.Fatal("--config must be specified")
+		}
+
+		// Parse config ID from string to uint32
+		configID, err := strconv.ParseUint(*delegatedGuardiansConfigId, 10, 32)
+		if err != nil {
+			log.Fatal("invalid config-id: ", err)
+		}
+
+    seq, nonce := randSeqNonce()
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: seq,
+				Nonce:    nonce,
+				Payload: &nodev1.GovernanceMessage_DelegatedGuardiansConfig{
+					DelegatedGuardiansConfig: &nodev1.DelegatedGuardiansConfig{
+						ConfigIndex: uint32(configID),
+						Config:      *delegatedGuardiansConfigJson,
 					},
 				},
 			},
