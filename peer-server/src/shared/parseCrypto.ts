@@ -4,36 +4,54 @@ export const guardianPrivateKeyArmor = "WORMHOLE GUARDIAN PRIVATE KEY";
 export const tlsKeyArmor             = "PRIVATE KEY";
 export const tlsCertificateArmor     = "CERTIFICATE";
 
-export type ParseResult = { valid: false } | { valid: true; headers: string[]; body: string };
+export type ParseResult = {
+  valid: false;
+  error: string;
+} | {
+  valid: true;
+  headers: string[];
+  body: Uint8Array;
+};
 
 /**
  * We use this to parse two kinds of armored files: PEM and PGP.
  */
 export function parseArmor(input: string, type: string): ParseResult {
   const lines = input.trim().split(/\r?\n/);
-  const message = lines.slice(1, lines.length - 1);
-
-  let headers: string[] | undefined, body;
-  for (let i = 0; i < message.length; ++i) {
-    const line = message[i];
-    if (line.length > 0) continue;
-
-    headers = message.slice(0, i + 1);
-    body = message.slice(i + 1).join("").trim();
-    break;
+  if (!(lines[0] === `-----BEGIN ${type}-----` &&
+    lines[lines.length - 1] === `-----END ${type}-----`)) {
+    return { valid: false, error: `Invalid ${type} armor format` };
   }
+  const message = lines.slice(1, lines.length - 1);
+  const breakIndex = message.findIndex(line => line.length === 0);
 
-  if (headers === undefined) headers = [];
-  if (body === undefined)    body = message.join("").trim();
-  
-  const valid = lines[0] === `-----BEGIN ${type}-----` &&
-    lines[lines.length - 1] === `-----END ${type}-----`;
+  const headers = breakIndex === -1 ? [] : message.slice(0, breakIndex);
+  const lastLine = message[message.length - 1];
+  const hasCrc = /^=....$/.test(lastLine);
+  const bodyEnd = hasCrc ? message.length - 1 : message.length;
+  const body = encoding.b64.decode(message.slice(breakIndex + 1, bodyEnd).join("").trim());
+  if (hasCrc) {
+    const crc = Buffer.from(encoding.b64.decode(lastLine.slice(1))).readUintBE(0, 3);
+    if (crc !== crc24(body)) {
+      return { valid: false, error: `Invalid CRC: ${crc} !== ${crc24(body)}` };
+    }
+  }
+  return { valid: true, headers, body };
+}
 
-  return {
-    valid,
-    headers,
-    body,
-  };
+export function crc24(data: Uint8Array) {
+  let crc = 0xB704CE;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i] << 16;
+    for (let j = 0; j < 8; j++) {
+      crc <<= 1;
+      if (crc & 0x1000000) {
+        crc &= 0xFFFFFF;
+        crc ^= 0x864CFB;
+      }
+    }
+  }
+  return crc & 0xFFFFFF;
 }
 
 export function checkTlsKey(input: string) {
@@ -44,9 +62,8 @@ export function checkTlsCertificate(input: string) {
   return parseArmor(input, tlsCertificateArmor).valid;
 }
 
-
 export const wormholeKeyLayout = [
-  { name: "tagKey", binary: "uint",  size: 1, custom: 0x0A, omit: true},
+  { name: "tagKey", binary: "uint",  size: 1, custom: 0x0A, omit: true },
   { name: "key",    binary: "bytes", lengthSize: 1 }
 ] as const satisfies Layout;
 
@@ -54,11 +71,11 @@ export const wormholeKeyLayout = [
 export function parseGuardianKey(input: string) {
   const parsed = parseArmor(input, guardianPrivateKeyArmor);
 
-  if (!parsed.valid) throw new Error(`Guardian private key armor invalid!`);
+  if (!parsed.valid)
+    throw new Error(`Guardian private key armor invalid: ${parsed.error}`);
 
-  const whKey = encoding.b64.decode(parsed.body);
   // There might be other bytes after the key to set metadata flags,
   // thus we set consume all to false.
-  const [{key}] = deserializeLayout(wormholeKeyLayout, whKey, false);
+  const [{key}] = deserializeLayout(wormholeKeyLayout, parsed.body, false);
   return key;
 }
