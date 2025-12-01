@@ -702,6 +702,47 @@ func coreBridgeSetMessageFeeToVaa(req *nodev1.CoreBridgeSetMessageFee, timestamp
 	return v, nil
 }
 
+func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	var rawConfig map[string]struct {
+		Keys      []string `json:"keys"`
+		Threshold uint8    `json:"threshold"`
+	}
+	if err := json.Unmarshal([]byte(req.Config), &rawConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	configs := make(map[vaa.ChainID]vaa.DelegatedGuardianConfig)
+	for chainIDStr, cfg := range rawConfig {
+		chainID, err := strconv.ParseUint(chainIDStr, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid chain ID %s: %w", chainIDStr, err)
+		}
+
+		keys := make([]ethcommon.Address, len(cfg.Keys))
+		for i, keyStr := range cfg.Keys {
+			keys[i] = ethcommon.HexToAddress(keyStr)
+		}
+
+		configs[vaa.ChainID(chainID)] = vaa.DelegatedGuardianConfig{
+			Threshold: cfg.Threshold,
+			Keys:      keys,
+		}
+	}
+
+	configIndex := uint256.NewInt(uint64(req.ConfigIndex))
+
+	body, err := vaa.BodyDelegatedGuardiansSetConfig{
+		ConfigIndex: configIndex,
+		Config:      configs,
+	}.Serialize()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize governance body: %w", err)
+	}
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+	return v, nil
+}
+
 func evmCallToVaa(evmCall *nodev1.EvmCall, timestamp time.Time, guardianSetIndex, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	governanceContract := ethcommon.HexToAddress(evmCall.GovernanceContract)
 	targetContract := ethcommon.HexToAddress(evmCall.TargetContract)
@@ -812,6 +853,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = solanaCallToVaa(payload.SolanaCall, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CoreBridgeSetMessageFee:
 		v, err = coreBridgeSetMessageFeeToVaa(payload.CoreBridgeSetMessageFee, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_DelegatedGuardiansConfig:
+		v, err = delegatedGuardiansConfigToVaa(payload.DelegatedGuardiansConfig, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	default:
 		err = fmt.Errorf("unsupported VAA type: %T", payload)
 	}
