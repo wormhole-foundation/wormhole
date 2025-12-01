@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { readFileSync } from 'fs';
-import { checkTlsCertificate, parseGuardianKey } from './parseCrypto';
+import { checkTlsCertificate, parseGuardianKey } from './parseCrypto.js';
 
 // Zod validation schemas (these also serve as type definitions)
 export const BasePeerSchema = z.object({
