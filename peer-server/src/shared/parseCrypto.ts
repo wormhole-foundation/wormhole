@@ -1,4 +1,5 @@
-import { deserializeLayout, encoding, Layout } from "@wormhole-foundation/sdk";
+import { deserialize, Layout } from "binary-layout";
+import { base64 } from "@scure/base";
 
 export const guardianPrivateKeyArmor = "WORMHOLE GUARDIAN PRIVATE KEY";
 export const tlsKeyArmor             = "PRIVATE KEY";
@@ -29,9 +30,9 @@ export function parseArmor(input: string, type: string): ParseResult {
   const lastLine = message[message.length - 1];
   const hasCrc = /^=....$/.test(lastLine);
   const bodyEnd = hasCrc ? message.length - 1 : message.length;
-  const body = encoding.b64.decode(message.slice(breakIndex + 1, bodyEnd).join("").trim());
+  const body = base64.decode(message.slice(breakIndex + 1, bodyEnd).join("").trim());
   if (hasCrc) {
-    const crc = Buffer.from(encoding.b64.decode(lastLine.slice(1))).readUintBE(0, 3);
+    const crc = Buffer.from(base64.decode(lastLine.slice(1))).readUintBE(0, 3);
     if (crc !== crc24(body)) {
       return { valid: false, error: `Invalid CRC: ${crc} !== ${crc24(body)}` };
     }
@@ -76,6 +77,6 @@ export function parseGuardianKey(input: string) {
 
   // There might be other bytes after the key to set metadata flags,
   // thus we set consume all to false.
-  const [{key}] = deserializeLayout(wormholeKeyLayout, parsed.body, false);
+  const [{key}] = deserialize(wormholeKeyLayout, parsed.body, false);
   return key;
 }
