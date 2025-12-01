@@ -16,7 +16,7 @@ export async function getWormholeGuardianData(
 ): Promise<WormholeGuardianData> {
   console.log('Connecting to Wormhole contract...');
 
-  const provider = new ethers.JsonRpcProvider(config.ethereum.rpcUrl);
+  const provider = new ethers.JsonRpcProvider(config.ethereum.rpcUrl, undefined, {staticNetwork: true});
   const contract = new ethers.Contract(config.wormholeContractAddress, CORE_BRIDGE_ABI, provider);
 
   try {
