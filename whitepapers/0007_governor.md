@@ -49,16 +49,16 @@ If a Guardian decides to enable this feature:
 
 The Governor divides token-based transactions into two categories: small transactions and large transactions.
 
-- **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any 24h sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the 24h sliding window. A transaction either fits or is delayed, they are not artificially split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the 24h threshold.
+- **Small Transactions:** Transactions smaller than the single-transaction threshold of the chain where the transfer is originating from are considered small transactions.  During any sliding window, the Guardian will sign token bridge transfers in aggregate value up to the 24h threshold with no finality delay.  When small transactions exceed this limit, they will be delayed until sufficient headroom is present in the sliding window. A transaction either fits or is delayed, they are not artificially split into multiple transactions. If a small transaction has been delayed for more than 24h, it will be released immediately and it will not count towards the USD limit for the sliding window.
 - **Large Transactions:** Transactions larger than the single-transaction threshold of the chain where the transfer is originating from are considered large transactions.  All large transactions have an imposed 24h finality delay before Wormhole Guardians sign them. These transactions do not affect the 24h threshold counter.
 
 #### Headroom Calculations
 
-Each chain has a configured limit, denoted in USD, that determines the maximum value of transfers that can be emitted within a 24 hour period. This is sometimes referred to as the "daily limit", though it uses a 24-hour sliding window rather than discrete calendar days. When the sum exceeds the limit, any new small transfers that exceed the limit will be queued. The headroom for a chain is the amount left over after subtracting the current sum of small transfers from the chain's daily limit. Inbound transfers of certain tokens can also decrease this sum, a process referred to as Flow Canceling.
+Each chain has a configured limit, denoted in USD, that determines the maximum value of transfers that can be emitted within a 24 hour period. This is sometimes referred to as the "USD limit", though it uses a 24-hour sliding window rather than discrete calendar days. When the sum exceeds the limit, any new small transfers that exceed the limit will be queued. The headroom for a chain is the amount left over after subtracting the current sum of small transfers from the chain's USD limit. Inbound transfers of certain tokens can also decrease this sum, a process referred to as Flow Canceling.
 
 #### Flow Canceling
 
-Guardians can optionally enable "flow canceling". This feature allows incoming transfers to reduce the current "daily limit" (sum of the USD value of all small transactions within the past 24 hours). This creates additional headroom, allowing a greater volume of notional value to leave the chain without being delayed.
+Guardians can optionally enable "flow canceling". This feature allows incoming transfers to reduce the current "USD limit" (sum of the USD value of all small transactions within the past 24 hours). This creates additional headroom, allowing a greater volume of notional value to leave the chain without being delayed.
 
 The general idea is to allow certain transfers to offset the consumption of an outgoing "budget" that the Governor records. A flow cancel transfer is akin toa credit transferred into the Governor which is measured against the total debits of the day, 'paying off the debt', and allowing for further consumption.
 
@@ -109,18 +109,18 @@ The above checks will produce 3 possible scenarios:
 
 - **Non-Governed Message**: If a message does not pass checks (1-4), `ChainGovernor` will indicate that the message can be published.
 - **Governed Message (Large)**: If a message is “large”, `ChainGovernor` will wait for 24hrs before signing the VAA and place the message in a queue.
-- **Governed Message (Small)**: If a message is “small”, `ChainGovernor` will determine if it fits inside the `dailyLimit` for this chain. If it does fit, it will be signed immediately. If it does not fit, it will wait in the queue until it does fit. If it does not fit in 24hrs, it will be released from the queue. The `dailyLimit` is the sum of the notional USD value of outbound transfers minus the value of any inbound Flow Cancel tokens.
+- **Governed Message (Small)**: If a message is “small”, `ChainGovernor` will determine if it fits inside the `usdLimit` for this chain. If it does fit, it will be signed immediately. If it does not fit, it will wait in the queue until it does fit. If it does not fit in 24hrs, it will be released from the queue. The `usdLimit` is the sum of the notional USD value of outbound transfers minus the value of any inbound Flow Cancel tokens.
 
 While messages are enqueued, any Guardian has a window of opportunity to determine if a message is fraudulent using their own processes for fraud detection. If Guardians determine a message is fraudulent, they can delete the message from the queue from their own independently managed queue. If a super minority of Guardians (7 of 19) delete a message from their queues, this fraudulent message is effectively censored as it can no longer reach a super-majority quorum.
 
 In this design, there are three mechanisms for enqueued messages to be published:
 
 - A quorum (13/19) of Guardians can manually override the Governor and release any pending messages.
-  - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window._
-- Guardians will periodically check if a message can be posted without exceeding the daily notional limit as the sliding window and notional value of the transactions change.
-  - _Messages released through this mechanism WOULD be added to the list of processed transactions and thus be counted toward the daily notional limit._
+  - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the USD limit as maintained by the sliding window._
+- Guardians will periodically check if a message can be posted without exceeding the USD limit as the sliding window and notional value of the transactions change.
+  - _Messages released through this mechanism WOULD be added to the list of processed transactions and thus be counted toward the USD limit._
 - Messages will be automatically released after a maximum time limit (this time limit can be adjusted through governance and is currently set to 24 hours).
-  - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the daily notional limit as maintained by the sliding window._
+  - _Messages released through this mechanism WOULD NOT be added to the list of the processed transactions to avoid impacting the USD limit as maintained by the sliding window._
 
 ## Flow Canceling
 
@@ -141,8 +141,8 @@ An incoming transfer to a chain can flow cancel if all of the following conditio
 
 ### Effects
 
-When a flow cancel occurs, the "daily limit" of the destination chain is reduced by the USD value of the incoming transfer.
-This additional headroom may allow previously queued transfers to be released if they fit within the new daily limit constraint.
+When a flow cancel occurs, the "USD limit" of the destination chain is reduced by the USD value of the incoming transfer.
+This additional headroom may allow previously queued transfers to be released if they fit within the new USD limit constraint.
 
 It is important to note that big transfers are not affected by flow canceling and will remain queued.
 
@@ -187,7 +187,7 @@ This motivates the design decision to make flow cancel functionality optional. I
 
 When evaluating whether to enable flow canceling, consider:
 - Is this corridor experiencing chronic congestion?
-- Could the congestion be addressed by modifying the daily limit or big transaction limit?
+- Could the congestion be addressed by modifying the USD limit or big transaction limit?
 - Is the chain and its watcher considered stable?
 - Does historical transfer data show that a small number of assets represent most of the congestion?
 

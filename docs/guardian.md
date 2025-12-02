@@ -58,8 +58,8 @@ before publishing an observation.
 
 ### Governor
 
-The governor is responsible for verifying that a given token bridge transfer will not exceed a daily limit for the given
-chain and is not too large. For a detailed descriptions of the governor, see [governor.md](governor.md).
+The governor is responsible for verifying that a given token bridge transfer will not cause the sum of transfers during  a given duration to exceed a configured USD limit for a given
+chain, and that the transfer is not too large. For a detailed descriptions of the governor, see [governor.md](governor.md).
 
 ### Accountant
 

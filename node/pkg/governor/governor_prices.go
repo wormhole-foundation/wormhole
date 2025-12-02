@@ -120,7 +120,7 @@ func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
 	_ = gov.queryCoinGecko(ctx)
 
-	ticker := time.NewTicker(time.Duration(coinGeckoQueryIntervalInMins) * time.Minute)
+	ticker := time.NewTicker(coinGeckoQueryIntervalInMins * time.Minute)
 	defer ticker.Stop()
 
 	for {
@@ -152,7 +152,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 	// between 1000 and 2000 tokens.
 	throttle := make(chan int, 1)
 	go func() {
-		ticker := time.NewTicker(time.Duration(15) * time.Second)
+		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
