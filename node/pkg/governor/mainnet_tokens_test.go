@@ -73,6 +73,8 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 		vaa.ChainIDLinea: true,
 		// TODO: Remove this once we have governed tokens for Fogo.
 		vaa.ChainIDFogo: true,
+		// TODO: Remove this once we have governed tokens for MegaETH
+		vaa.ChainIDMegaETH: true,
 	}
 	if len(ignoredChains) > 0 {
 		ignoredOutput := []string{}
