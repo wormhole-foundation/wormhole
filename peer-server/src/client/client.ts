@@ -67,7 +67,7 @@ export class PeerClient {
         throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
       }
     } catch (error: any) {
-      console.error(`[ERROR] Error uploading peer data: ${error?.message || error}`);
+      console.error(`[ERROR] Error uploading peer data: ${error?.stack || error}`);
       throw error;
     }
   }
@@ -110,7 +110,7 @@ export class PeerClient {
           console.error(`[ERROR] Failed to fetch peers: ${response.status} ${response.statusText}`);
         }
       } catch (error: any) {
-        console.error(`[ERROR] Error polling for completion: ${error?.message || error}`);
+        console.error(`[ERROR] Error polling for completion: ${error?.stack || error}`);
       }
 
       // Wait 5 seconds before next poll
@@ -137,7 +137,7 @@ export class PeerClient {
       console.log(`[COMPLETED] Client completed successfully!`);
       return response;
     } catch (error: any) {
-      console.error(`[ERROR] Client failed: ${error?.message || error}`);
+      console.error(`[ERROR] Client failed: ${error?.stack || error}`);
       throw error;
     }
   }
