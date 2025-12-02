@@ -109,23 +109,23 @@ export type ValidationError<T> = {
   error: string;
 };
 
-export function validate<IN, OUT>(schema: z.ZodSchema<OUT, z.ZodTypeDef, IN>, data: IN, errorMessage: string): ValidationError<OUT> {
+// Validation helper function
+export function validate<IN, OUT>(
+  schema: z.ZodSchema<OUT, z.ZodTypeDef, IN>,
+  data: IN,
+  errorMessage: string,
+): ValidationError<OUT> {
   const validationResult = schema.safeParse(data);
   if (!validationResult.success) {
-    let error = errorMessage + '\n';
-    const flattenedError = validationResult.error.flatten();
-    const entries: [string, string[]][] = Object.entries(flattenedError.fieldErrors);
-    entries.forEach(([field, messages]) => {
-      if (messages) {
-        messages.forEach(message => error += `  - ${field}: ${message}\n`);
-      }
+    let fullMessage = errorMessage + '\n';
+    validationResult.error.errors.forEach((error) => {
+      fullMessage += `  - ${error.path.flat().join('.')}: ${error.message}\n`;
     });
-    return { success: false, error };
+    return { success: false, error: fullMessage };
   }
   return { success: true, data: validationResult.data };
 }
 
-// Validation helper function
 export function validateOrFail<IN, OUT>(schema: z.ZodSchema<OUT, z.ZodTypeDef, IN>, data: IN, errorMessage: string): OUT {
   const validationResult = validate(schema, data, errorMessage);
   if (!validationResult.success) {

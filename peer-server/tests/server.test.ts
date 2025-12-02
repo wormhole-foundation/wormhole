@@ -34,12 +34,11 @@ for (let i = 0; i < 19; i++) {
 async function createPeerRegistration(
   wallet: ethers.HDNodeWallet,
   peer: Peer,
-  guardianIndex: number = 0
 ): Promise<PeerRegistration> {
   const messageHash = ethers.keccak256(
     ethers.solidityPacked(
       ['string', 'string'],
-      [peer.hostname, peer.tlsX509]
+      [`${peer.hostname}:${peer.port}`, peer.tlsX509]
     )
   );
   const signature = await wallet.signMessage(ethers.getBytes(messageHash));
@@ -157,7 +156,7 @@ describe('PeerServer', () => {
         .send(incompleteRegistration)
         .expect(400);
 
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.body.error).toContain('Invalid peer registration');
     });
 
     it('should reject peer registration with invalid signatures', async () => {
@@ -203,7 +202,7 @@ describe('PeerServer', () => {
         .send(noSigRegistration)
         .expect(400);
 
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.body.error).toContain('Invalid peer registration');
     });
   });
 
