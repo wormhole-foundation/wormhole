@@ -127,7 +127,7 @@ describe('Peer Server Integration Tests', () => {
       };
       const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
       const client = new PeerClient(selfConfig);
-      clientPromises.push(client.run());
+      clientPromises.push(client.submitAndWaitForAllPeers());
     }
 
     try {
@@ -227,18 +227,18 @@ describe('Peer Server Integration Tests', () => {
 
       // Submit first client immediately
       const firstClient = new PeerClient(clientConfigs[0]);
-      const firstClientPromise = firstClient.run();
+      const firstClientPromise = firstClient.submitAndWaitForAllPeers();
 
       // Wait a bit then submit second client
       setTimeout(async () => {
         const secondClient = new PeerClient(clientConfigs[1]);
-        await secondClient.run();
+        await secondClient.submitAndWaitForAllPeers();
       }, 1000);
 
       // Wait for both to complete
       const results = await Promise.all([
         firstClientPromise,
-        new PeerClient(clientConfigs[1]).run()
+        new PeerClient(clientConfigs[1]).submitAndWaitForAllPeers()
       ]);
 
       // Verify results are consistent

@@ -33,14 +33,15 @@ export function parseArmor(input: string, type: string): ParseResult {
   const body = base64.decode(message.slice(breakIndex + 1, bodyEnd).join("").trim());
   if (hasCrc) {
     const crc = Buffer.from(base64.decode(lastLine.slice(1))).readUintBE(0, 3);
-    if (crc !== crc24(body)) {
-      return { valid: false, error: `Invalid CRC: ${crc} !== ${crc24(body)}` };
+    const expectedCrc = crc24(body);
+    if (crc !== expectedCrc) {
+      return { valid: false, error: `Invalid CRC: ${crc} !== ${expectedCrc}` };
     }
   }
   return { valid: true, headers, body };
 }
 
-export function crc24(data: Uint8Array) {
+export function crc24(data: Uint8Array): number {
   let crc = 0xB704CE;
   for (let i = 0; i < data.length; i++) {
     crc ^= data[i] << 16;

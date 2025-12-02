@@ -3,7 +3,7 @@ import request from 'supertest';
 import { PeerServer } from '../src/server/server.js';
 import { loadConfig } from '../src/server/index.js';
 import { Display } from '../src/server/display.js';
-import { WormholeGuardianData, ServerConfig, PeerRegistration, Peer } from '../src/shared/types.js';
+import { WormholeGuardianData, ServerConfig, PeerRegistration, Peer, BasePeer } from '../src/shared/types.js';
 import { hashPeerData } from '../src/shared/message.js';
 import { ethers } from 'ethers';
 import path from 'path';
@@ -34,16 +34,14 @@ for (let i = 0; i < 19; i++) {
 // Utility function to create a peer registration with a valid signature
 async function createPeerRegistration(
   wallet: ethers.HDNodeWallet,
-  peer: Peer,
+  peer: BasePeer,
 ): Promise<PeerRegistration> {
   const messageHash = hashPeerData(peer);
   const signature = await wallet.signMessage(ethers.getBytes(messageHash));
 
   return {
     peer,
-    signature: {
-      signature,
-    }
+    signature,
   };
 }
 
@@ -79,9 +77,7 @@ describe('PeerServer', () => {
 
     it('should return all peers mapped by guardian keys', async () => {
       // Add a test peer first with valid signature using one of our generated guardians
-      const peer: Peer = {
-        guardianAddress: '', // Will be set by server
-        guardianIndex: 0,
+      const peer: BasePeer = {
         hostname: 'test.example.com',
         port: 1,
         tlsX509: 'test-cert',
@@ -116,9 +112,7 @@ describe('PeerServer', () => {
 
   describe('POST /peers', () => {
     it('should add a new peer with valid signatures', async () => {
-      const peer: Peer = {
-        guardianAddress: '', // Will be set by server
-        guardianIndex: 0,
+      const peer: BasePeer = {
         hostname: 'newpeer.example.com',
         port: 1,
         tlsX509: 'new-cert-data',
@@ -156,9 +150,7 @@ describe('PeerServer', () => {
     });
 
     it('should reject peer registration with invalid signatures', async () => {
-      const peer: Peer = {
-        guardianAddress: '', // Will be set by server
-        guardianIndex: 0,
+      const peer: BasePeer = {
         hostname: 'invalid.example.com',
         port: 1,
         tlsX509: 'invalid-cert',
@@ -166,9 +158,7 @@ describe('PeerServer', () => {
 
       const invalidRegistration: PeerRegistration = {
         peer,
-        signature: {
-          signature: '0xinvalidsignature',
-        }
+        signature: '0xinvalidsignature',
       };
 
       const response = await request(app)
@@ -180,9 +170,7 @@ describe('PeerServer', () => {
     });
 
     it('should reject peer registration with missing signature', async () => {
-      const peer: Peer = {
-        guardianAddress: '', // Will be set by server
-        guardianIndex: 0,
+      const peer: BasePeer = {
         hostname: 'nosigs.example.com',
         port: 1,
         tlsX509: 'nosigs-cert',

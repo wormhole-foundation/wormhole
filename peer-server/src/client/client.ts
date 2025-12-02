@@ -6,7 +6,8 @@ import {
   validateOrFail,
   PeerRegistrationSchema,
   PeersResponseSchema,
-  ServerResponseSchema
+  UploadResponseSchema,
+  UploadResponse
 } from '../shared/types.js';
 import { hashPeerData } from '../shared/message.js';
 
@@ -29,15 +30,13 @@ export class PeerClient {
     const signature = await wallet.signMessage(ethers.getBytes(messageHash));
     const peerRegistration = {
       peer,
-      signature: {
-        signature
-      }
+      signature
     };
     // Validate the generated PeerRegistration
     return validateOrFail(PeerRegistrationSchema, peerRegistration, "Generated PeerRegistration is invalid");
   }
 
-  private async uploadPeerData(): Promise<void> {
+  private async uploadPeerData(): Promise<UploadResponse> {
     try {
       const peerRegistration = await this.signPeerData();
 
@@ -55,11 +54,12 @@ export class PeerClient {
         const jsonResponse = await response.json();
 
         // Validate response with Zod
-        const result = validateOrFail(ServerResponseSchema, jsonResponse, "Invalid server response");
+        const result = validateOrFail(UploadResponseSchema, jsonResponse, "Invalid server response");
         console.log(`[SUCCESS] Successfully uploaded peer data!`);
         console.log(`   Guardian Address: ${result.peer.guardianAddress}`);
         console.log(`   Guardian Index: ${result.peer.guardianIndex}`);
         console.log(`   Hostname: ${result.peer.hostname}`);
+        return result;
       } else {
         const error = await response.text();
         console.error(`[ERROR] Failed to upload peer data: ${response.status} ${response.statusText}`);
@@ -122,29 +122,34 @@ export class PeerClient {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  public async run(): Promise<PeersResponse> {
+  private async run<T>(action: () => Promise<T>, message: string): Promise<T> {
     try {
       console.log(`[STARTING] Peer Client starting...`);
       console.log(`   Server: ${this.serverUrl}`);
       console.log(`   Peer: ${this.config.peer.hostname}`);
-
-      // Upload our peer data
-      await this.uploadPeerData();
-
-      // Poll for completion
-      const response = await this.pollForCompletion();
-
-      console.log(`[COMPLETED] Client completed successfully!`);
-      return response;
+      console.log(`   ${message}`);
+      const result = await action();
+      console.log(`[COMPLETED] Completed successfully!`);
+      return result;
     } catch (error: any) {
       console.error(`[ERROR] Client failed: ${error?.stack || error}`);
       throw error;
     }
   }
 
-  // Test helper method to get peer data without polling for completion
-  public async submitPeerData(): Promise<void> {
-    await this.uploadPeerData();
+  public async submitPeerData(): Promise<UploadResponse> {
+    return this.run(() => this.uploadPeerData(), "Uploading peer data...");
+  }
+
+  public async waitForAllPeers(): Promise<PeersResponse> {
+    return this.run(() => this.pollForCompletion(), "Polling all peers...");
+  }
+
+  public async submitAndWaitForAllPeers(): Promise<PeersResponse> {
+    return this.run(async () => {
+      await this.uploadPeerData();
+      return this.pollForCompletion();
+    }, "Uploading peer data and waiting for all peers...");
   }
 
   // Test helper method to get current peer data from server

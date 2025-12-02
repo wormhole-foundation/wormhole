@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import process from "process";
 import {
   SelfConfig,
   validateOrFail,
@@ -69,22 +70,10 @@ class ConfigClient {
   }
 
   public async run(): Promise<void> {
-    try {
-      console.log(`[STARTING] Peer Client starting...`);
-      console.log(`   Server: ${this.config.serverUrl}`);
-      console.log(`   Peer: ${this.config.peer.hostname}`);
-
       // Run the client and get results
-      const response = await this.client.run();
-
+      const response = await this.client.waitForAllPeers();
       // Save the final configuration
       this.savePeerConfig(response.peers, response.threshold);
-
-      console.log(`[COMPLETED] Client completed successfully!`);
-    } catch (error: any) {
-      console.error(`[ERROR] Client failed: ${error?.message || error}`);
-      process.exit(1);
-    }
   }
 }
 

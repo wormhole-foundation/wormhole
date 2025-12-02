@@ -15,7 +15,8 @@ import { hashPeerData } from '../shared/message.js';
 
 export class PeerServer {
   private app: express.Application;
-  private guardianPeers: Peer[] = []; // array of peer data with guardian keys
+  private guardianPeers: Peer[] = [];
+  private guardianSetLength: number;
   private wormholeData: WormholeGuardianData;
   private config: BaseServerConfig;
   private server?: any;
@@ -24,12 +25,13 @@ export class PeerServer {
   constructor(config: BaseServerConfig, wormholeData: WormholeGuardianData, display: Display) {
     this.config = config;
     this.wormholeData = wormholeData;
+    this.guardianSetLength = wormholeData.guardians.length;
     this.display = display;
     this.app = express();
     this.setupMiddleware();
     this.setupRoutes()
     // Show initial progress
-    this.display.setProgress(this.submittedCount, this.guardianSetLength, 'Guardian Collection Progress');
+    this.display.setProgress(this.guardianPeers.length, this.guardianSetLength, 'Guardian Collection Progress');
   }
 
   private setupMiddleware(): void {
@@ -41,15 +43,8 @@ export class PeerServer {
     // Get all peers (returns array of peer data)
     this.app.get('/peers', async (req, res) => {
       try {
-        // Sort peers by guardian index
-        const peers = this.allPeers.sort((a, b) => {
-          const aIndex = this.wormholeData.guardians.indexOf(a.guardianAddress);
-          const bIndex = this.wormholeData.guardians.indexOf(b.guardianAddress);
-          return aIndex - bIndex;
-        })
-
         res.json({
-          peers,
+          peers: this.guardianPeers,
           threshold: this.config.threshold,
           totalExpectedGuardians: this.guardianSetLength
         });
@@ -68,7 +63,6 @@ export class PeerServer {
         }
         const peerRegistration = validationResult.data;
 
-        const { hostname, port, tlsX509 } = peerRegistration.peer;
 
         // Validate guardian signature and get guardian address
         const guardian = this.validateGuardianSignature(peerRegistration);
@@ -86,17 +80,21 @@ export class PeerServer {
           });
         }
 
+        const { hostname, port, tlsX509 } = peerRegistration.peer;
+        const signature = peerRegistration.signature;
         this.display.log(`Adding peer ${hostname} from guardian ${guardianAddress}`);
 
         // Store peer data for this guardian
         const peer: Peer = { 
           guardianAddress,
           guardianIndex,
+          signature,
           hostname, 
           port,
           tlsX509,
         };
         this.guardianPeers.push(peer);
+        this.guardianPeers.sort((a, b) => a.guardianIndex - b.guardianIndex);
 
         // Update progress display (will automatically show peers when complete)
         this.display.setProgress(
@@ -107,7 +105,7 @@ export class PeerServer {
         );
 
         res.status(201).json({
-          peer: { guardianAddress, guardianIndex, hostname, port, tlsX509 },
+          peer: { guardianAddress, guardianIndex, signature, hostname, port, tlsX509 },
           threshold: this.config.threshold
         });
       } catch (error) {
@@ -124,18 +122,6 @@ export class PeerServer {
     });
   }
 
-  get guardianSetLength(): number {
-    return this.wormholeData?.guardians.length || 0;
-  }
-
-  get submittedCount(): number {
-    return this.guardianPeers.length;
-  }
-
-  get allPeers(): Peer[] {
-    return this.guardianPeers;
-  }
-
   getApp(): express.Application {
     return this.app;
   }
@@ -148,7 +134,7 @@ export class PeerServer {
       // Recover the address that signed the message
       const guardianAddress = ethers.verifyMessage(
         ethers.getBytes(messageHash),
-        peerRegistration.signature.signature
+        peerRegistration.signature
       );
 
       const guardianIndex = this.wormholeData.guardians.findIndex(

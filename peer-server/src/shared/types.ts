@@ -14,16 +14,16 @@ export const GuardianSchema = z.object({
   guardianIndex: z.number().int().min(0, "Guardian index must be non-negative"),
 });
 
-export const PeerSchema = z.intersection(BasePeerSchema, GuardianSchema);
-
 export const PeerSignatureSchema = z.object({
   signature: z.string().min(1, "Signature cannot be empty"),
 });
 
-export const PeerRegistrationSchema = z.object({
-  peer: BasePeerSchema,
-  signature: PeerSignatureSchema
-});
+export const PeerSchema = z.intersection(z.intersection(BasePeerSchema, GuardianSchema), PeerSignatureSchema);
+
+export const PeerRegistrationSchema = z.intersection(
+  z.object({ peer: BasePeerSchema }),
+  PeerSignatureSchema
+);
 
 // Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
@@ -70,19 +70,21 @@ export const BaseServerConfigSchema = z.object({
   threshold: z.number().int().min(1, "Threshold must be a positive integer")
 });
 
-export const ServerConfigSchema = z.intersection(BaseServerConfigSchema, z.object({
+export const WormholeConfigSchema = z.object({
   ethereum: z.object({
     rpcUrl: z.string().url("Ethereum RPC URL must be a valid URL"),
     chainId: z.number().int().min(1).optional()
   }),
   wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
-}));
+});
+
+export const ServerConfigSchema = z.intersection(BaseServerConfigSchema, WormholeConfigSchema);
 
 export const WormholeGuardianDataSchema = z.object({
   guardians: z.array(z.string().min(1, "Guardian addresses cannot be empty"))
 });
 
-export const ServerResponseSchema = z.object({
+export const UploadResponseSchema = z.object({
   peer: PeerSchema,
   threshold: z.number().int().min(1, "Threshold must be a positive integer")
 });
@@ -101,9 +103,10 @@ export type PeerSignature = z.infer<typeof PeerSignatureSchema>;
 export type PeerRegistration = z.infer<typeof PeerRegistrationSchema>;
 export type SelfConfig = z.infer<typeof SelfConfigSchema>;
 export type BaseServerConfig = z.infer<typeof BaseServerConfigSchema>;
+export type WormholeConfig = z.infer<typeof WormholeConfigSchema>;
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 export type WormholeGuardianData = z.infer<typeof WormholeGuardianDataSchema>;
-export type ServerResponse = z.infer<typeof ServerResponseSchema>;
+export type UploadResponse = z.infer<typeof UploadResponseSchema>;
 export type PeersResponse = z.infer<typeof PeersResponseSchema>;
 
 export type ValidationError<T> = {
