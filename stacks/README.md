@@ -35,24 +35,17 @@ The watcher monitors `print` events from the Wormhole Core state contract.
 **API endpoints used:**
 
 - `/v2/info` — Node info including `stable_burn_block_height`
-- `/v2/pox` — PoX epoch info (Nakamoto start height)
+- `/v2/pox` — PoX epoch info (Stacks 3.0 start height)
 - `/v3/tenures/blocks/height/{height}` — Stacks blocks by Bitcoin height
 - `/v3/blocks/replay/{blockHash}` — Block transactions with events
 - `/v3/transaction/{txID}` — Transaction lookup (re-observation)
-
-**Configuration:**
-
-- `RPCURL` — Stacks node API endpoint
-- `RPCAuthToken` — Optional auth token
-- `StateContract` — Wormhole Core state contract address
-- `BitcoinBlockPollInterval` — Poll interval (default: 2s)
 
 ## Docker Images
 
 | Image                | Dockerfile                      | Purpose                 |
 | -------------------- | ------------------------------- | ----------------------- |
 | `stacks-node`        | `stacks/Dockerfile`             | Stacks Core node        |
-| `stacks-signer`      | `stacks/Dockerfile`             | Nakamoto signer         |
+| `stacks-signer`      | `stacks/Dockerfile`             | Stacks 3.0 signer       |
 | `stacks-broadcaster` | `stacks/broadcaster/Dockerfile` | Transaction broadcaster |
 | `stacks-stacker`     | `stacks/stacker/Dockerfile`     | PoX stacking service    |
 | `stacks-test`        | `stacks/test/Dockerfile`        | Integration test runner |
@@ -63,9 +56,9 @@ The main `Dockerfile` builds both `stacks-node` and `stacks-signer` from [stacks
 
 Kubernetes manifests in `devnet/`:
 
-- `stacks-bitcoin.yaml` — Bitcoin regtest node
+- `stacks-bitcoin.yaml` — Bitcoin test node
 - `stacks-node.yaml` — Stacks node
-- `stacks-signer.yaml` — Nakamoto signer
+- `stacks-signer.yaml` — Stacks 3.0 signer
 - `stacks-stacker.yaml` — PoX stacking
 - `stacks-broadcaster.yaml` — Transaction distribution
 
