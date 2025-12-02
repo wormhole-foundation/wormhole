@@ -326,6 +326,18 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		return
 	}
 
+	// Check if a VAA guardianSetIndex matches our current active guardian set
+	if v.GuardianSetIndex != p.gs.Index {
+		p.logger.Warn("dropping SignedVAAWithQuorum message since it has a different guardian set index than our current guardian set",
+			zap.String("message_id", v.MessageID()),
+			zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
+			zap.Uint32("message_guardian_set_index", v.GuardianSetIndex),
+			zap.Uint32("current_guardian_set_index", p.gs.Index),
+			zap.Any("message", m),
+		)
+		return
+	}
+
 	if err := v.Verify(p.gs.Keys); err != nil {
 		// We format the error as part of the message so the tests can check for it.
 		p.logger.Warn("dropping SignedVAAWithQuorum message because it failed verification: "+err.Error(), zap.String("message_id", v.MessageID()))
