@@ -3,8 +3,6 @@
 //! This module contains all data types that external users need to interact with
 //! the Wormhole Core contract, including VAAs, guardian sets, messages, and payloads.
 
-#![allow(missing_docs)]
-
 use soroban_sdk::{Bytes, BytesN, Vec, contracttype};
 
 // ========== VAA Types ==========
@@ -78,13 +76,13 @@ pub enum ConsistencyLevel {
 }
 
 impl TryFrom<u8> for ConsistencyLevel {
-    type Error = crate::Error;
+    type Error = crate::WormholeError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(ConsistencyLevel::Confirmed),
             32 => Ok(ConsistencyLevel::Finalized),
-            _ => Err(crate::Error::InvalidConsistencyLevel),
+            _ => Err(crate::WormholeError::InvalidConsistencyLevel),
         }
     }
 }

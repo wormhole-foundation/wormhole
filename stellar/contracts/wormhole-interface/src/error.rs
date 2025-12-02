@@ -4,14 +4,12 @@
 //! interacting with the Wormhole Core contract. External users must handle
 //! these errors when calling contract methods.
 
-#![allow(missing_docs)]
-
 use soroban_sdk::contracterror;
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
-pub enum Error {
+pub enum WormholeError {
     InvalidVAAFormat = 1,
     InvalidGuardianSetIndex = 2,
     GuardianSetExpired = 3,

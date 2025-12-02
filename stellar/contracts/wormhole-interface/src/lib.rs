@@ -26,6 +26,6 @@ pub mod types;
 
 // Re-export everything for convenient imports
 pub use constants::*;
-pub use error::Error;
+pub use error::WormholeError;
 pub use interface::WormholeCoreInterface;
 pub use types::*;

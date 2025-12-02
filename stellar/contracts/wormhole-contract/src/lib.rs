@@ -1,15 +1,16 @@
 #![no_std]
-#![allow(unused_variables)]
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
-use wormhole_interface::{ConsistencyLevel, Error, GuardianSetInfo, VAA, WormholeCoreInterface};
+use wormhole_interface::{
+    ConsistencyLevel, GuardianSetInfo, VAA, WormholeCoreInterface, WormholeError,
+};
 
 #[contract]
 pub struct Wormhole;
 
 #[contractimpl]
 impl WormholeCoreInterface for Wormhole {
-    fn initialize(_env: Env, _initial_guardians: Vec<BytesN<20>>) -> Result<(), Error> {
+    fn initialize(_env: Env, _initial_guardians: Vec<BytesN<20>>) -> Result<(), WormholeError> {
         todo!("Implementation in later PRs")
     }
 
@@ -17,27 +18,27 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn verify_vaa(_env: Env, _vaa_bytes: Bytes) -> Result<bool, Error> {
+    fn verify_vaa(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
         todo!()
     }
 
-    fn parse_vaa(_env: Env, _vaa_bytes: Bytes) -> Result<VAA, Error> {
+    fn parse_vaa(_env: Env, _vaa_bytes: Bytes) -> Result<VAA, WormholeError> {
         todo!()
     }
 
-    fn submit_contract_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
+    fn submit_contract_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
         todo!()
     }
 
-    fn submit_guardian_set_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
+    fn submit_guardian_set_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
         todo!()
     }
 
-    fn submit_set_message_fee(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
+    fn submit_set_message_fee(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
         todo!()
     }
 
-    fn submit_transfer_fees(_env: Env, _vaa_bytes: Bytes) -> Result<(), Error> {
+    fn submit_transfer_fees(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
         todo!()
     }
 
@@ -47,7 +48,7 @@ impl WormholeCoreInterface for Wormhole {
         _nonce: u32,
         _payload: Bytes,
         _consistency_level: ConsistencyLevel,
-    ) -> Result<u64, Error> {
+    ) -> Result<u64, WormholeError> {
         todo!()
     }
 
@@ -55,7 +56,7 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn get_guardian_set(_env: Env, _index: u32) -> Result<GuardianSetInfo, Error> {
+    fn get_guardian_set(_env: Env, _index: u32) -> Result<GuardianSetInfo, WormholeError> {
         todo!()
     }
 
@@ -83,7 +84,7 @@ impl WormholeCoreInterface for Wormhole {
         todo!()
     }
 
-    fn is_governance_vaa_consumed(_env: Env, _vaa_bytes: Bytes) -> Result<bool, Error> {
+    fn is_governance_vaa_consumed(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
         todo!()
     }
 

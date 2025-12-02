@@ -11,6 +11,8 @@ edition = "2024"
 [workspace.dependencies]
 soroban-sdk = "23.0.2"
 wormhole-interface = { path = "contracts/wormhole-interface" }
+stellar-strkey = "0.0.14"
+base64 = "0.21"
 
 [profile.release]
 opt-level = "z"

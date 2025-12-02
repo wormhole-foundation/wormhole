@@ -5,8 +5,10 @@
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec};
 
-use crate::error::Error;
-use crate::types::{ConsistencyLevel, GuardianSetInfo, VAA};
+use crate::{
+    error::WormholeError,
+    types::{ConsistencyLevel, GuardianSetInfo, VAA},
+};
 
 /// The complete public interface for the Wormhole Core contract.
 ///
@@ -26,7 +28,7 @@ pub trait WormholeCoreInterface {
     /// # Errors
     /// * `Error::AlreadyInitialized` - Contract already initialized
     /// * `Error::EmptyGuardianSet` - No guardians provided
-    fn initialize(env: Env, initial_guardians: Vec<BytesN<20>>) -> Result<(), Error>;
+    fn initialize(env: Env, initial_guardians: Vec<BytesN<20>>) -> Result<(), WormholeError>;
 
     /// Check if the contract has been initialized.
     ///
@@ -51,7 +53,7 @@ pub trait WormholeCoreInterface {
     /// * `Error::GuardianSetExpired` - Guardian set has expired
     /// * `Error::InsufficientSignatures` - Not enough signatures for quorum
     /// * `Error::InvalidSignature` - Invalid guardian signature
-    fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<bool, Error>;
+    fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 
     /// Parse a VAA structure without signature verification.
     ///
@@ -63,7 +65,7 @@ pub trait WormholeCoreInterface {
     ///
     /// # Errors
     /// * `Error::InvalidVAAFormat` - Malformed VAA bytes
-    fn parse_vaa(env: Env, vaa_bytes: Bytes) -> Result<VAA, Error>;
+    fn parse_vaa(env: Env, vaa_bytes: Bytes) -> Result<VAA, WormholeError>;
 
     // ========== Governance Actions ==========
 
@@ -79,7 +81,7 @@ pub trait WormholeCoreInterface {
     /// * `Error::InvalidGovernanceAction` - Wrong action ID
     /// * `Error::InvalidGovernanceChain` - Wrong chain ID
     /// * `Error::GovernanceVAAAlreadyConsumed` - VAA already processed
-    fn submit_contract_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), Error>;
+    fn submit_contract_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 
     /// Submit a guardian set upgrade governance VAA.
     /// Requires valid VAA signed by current guardian set.
@@ -92,7 +94,7 @@ pub trait WormholeCoreInterface {
     /// * Governance validation errors
     /// * `Error::InvalidGuardianSetSequence` - New index not sequential
     /// * `Error::EmptyGuardianSet` - No guardians in new set
-    fn submit_guardian_set_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), Error>;
+    fn submit_guardian_set_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 
     /// Submit a set message fee governance VAA.
     /// Requires valid VAA signed by current guardian set.
@@ -103,7 +105,7 @@ pub trait WormholeCoreInterface {
     /// # Errors
     /// * VAA verification errors
     /// * Governance validation errors
-    fn submit_set_message_fee(env: Env, vaa_bytes: Bytes) -> Result<(), Error>;
+    fn submit_set_message_fee(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 
     /// Submit a transfer fees governance VAA.
     /// Requires valid VAA signed by current guardian set.
@@ -116,7 +118,7 @@ pub trait WormholeCoreInterface {
     /// * Governance validation errors
     /// * `Error::InsufficientFees` - Not enough fees to transfer
     /// * `Error::TransferFailed` - Token transfer failed
-    fn submit_transfer_fees(env: Env, vaa_bytes: Bytes) -> Result<(), Error>;
+    fn submit_transfer_fees(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 
     // ========== Message Posting ==========
 
@@ -141,7 +143,7 @@ pub trait WormholeCoreInterface {
         nonce: u32,
         payload: Bytes,
         consistency_level: ConsistencyLevel,
-    ) -> Result<u64, Error>;
+    ) -> Result<u64, WormholeError>;
 
     // ========== State Queries ==========
 
@@ -161,7 +163,7 @@ pub trait WormholeCoreInterface {
     ///
     /// # Errors
     /// * `Error::GuardianSetNotFound` - Guardian set does not exist
-    fn get_guardian_set(env: Env, index: u32) -> Result<GuardianSetInfo, Error>;
+    fn get_guardian_set(env: Env, index: u32) -> Result<GuardianSetInfo, WormholeError>;
 
     /// Get the expiry timestamp for a guardian set.
     ///
@@ -219,7 +221,7 @@ pub trait WormholeCoreInterface {
     ///
     /// # Errors
     /// * `Error::InvalidVAAFormat` - Malformed VAA bytes
-    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<bool, Error>;
+    fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError>;
 
     // ========== Protocol Constants ==========
 
