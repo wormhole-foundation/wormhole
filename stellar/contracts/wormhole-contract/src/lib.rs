@@ -5,7 +5,6 @@ use wormhole_interface::{
     ConsistencyLevel, GuardianSetInfo, VAA, WormholeCoreInterface, WormholeError,
 };
 
-pub mod constants;
 pub mod storage;
 pub mod utils;
 
