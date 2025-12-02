@@ -97,13 +97,14 @@ func (p* Processor) handleDelegateMessagePublication(ctx context.Context, k *nod
 	}
 
 	d.Hash = digest.Bytes()
+	// TODO2: convert signature to prefix hash instead
 	d.Signature = signature
 	d.GuardianAddr = p.ourAddr.Bytes()
 
 	select {
 	case p.delegateObsvSendC <- d:
 	default:
-		// TODO: replace with prometheus.CounterVec
+		// TODO2: replace with prometheus.CounterVec
 		p.logger.Warn("delegate observation send channel full, dropping",
 			zap.String("msgID", k.MessageIDString()),
 			zap.Uint32("emitter_chain", d.EmitterChain),
@@ -469,7 +470,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 
     if p.logger.Core().Enabled(zapcore.DebugLevel) {
         p.logger.Debug("received delegate observation",
-			// TODO: add all fields
+			// TODO2: add all fields
             zap.String("txhash", hex.EncodeToString(m.TxHash)),
             zap.String("txhash_b58", base58.Encode(m.TxHash)),
             zap.Uint32("emitter_chain", m.EmitterChain),
@@ -539,6 +540,7 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 // checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it converts the delegate observation 
 // to a MessagePublication and runs it through the normal message pipeline. 
 func (p *Processor) checkForDelegateQuorum(ctx context.Context, m *gossipv1.DelegateObservation, s *delegateState, dgs *DelegateGuardianChainConfig, hash string) {	
+	// TODO2: handle cases for delegate guardian set changes
 	// Check if we have more delegate observations than required for quorum.
 	if len(s.observations) < dgs.Quorum() {
 		// no quorum yet, we're done here
@@ -604,6 +606,7 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
     return mp, nil
 }
 
+// TODO2: convert signature with prefix hash instead
 // messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
 func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
 	const TxIDSizeMax = math.MaxUint8

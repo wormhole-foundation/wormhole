@@ -99,7 +99,7 @@ type (
 		// Flag set after reaching quorum and submitting the VAA.
 		submitted bool
 
-		// TODO: add more fields like state if necessary
+		// TODO2: add more fields like state if necessary
 	}
 
 	delegateObservationMap map[string]*delegateState
@@ -296,7 +296,7 @@ func NewProcessor(
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 		networkID:      networkID,
-		// TODO: have this be similar to gs in the sense it is constantly updated by watchers
+		// TODO2: have this be similar to gs in the sense it is constantly updated by watchers
 		dgc: 			NewDelegateGuardianConfig(),
 	}
 }
