@@ -1,0 +1,13 @@
+{
+  "name": "root",
+  "private": true,
+  "workspaces": [
+    "deploy",
+    "peer-server"
+  ],
+  "scripts": {
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
