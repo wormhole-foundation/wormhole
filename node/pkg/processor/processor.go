@@ -347,7 +347,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				_, ok := cfg.KeyIndex(p.ourAddr)
 				if ok {
 					// Logs internally on failure
-					if err := p.handleDelegateMessagePublication(ctx, k); err != nil {
+					if err := p.handleDelegateMessagePublication(k); err != nil {
 						p.logger.Warn("failed to send delegate observation", k.ZapFields(zap.Error(err))...)
 					}
 				}
