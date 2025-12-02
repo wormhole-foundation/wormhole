@@ -219,8 +219,8 @@ func init() {
 
 	// flags for delegated guardian set configuration command
 	delegatedGuardiansConfigFlagSet := pflag.NewFlagSet("delegated-guardians-config", pflag.ExitOnError)
-	delegatedGuardiansConfigJson = delegatedGuardiansConfigFlagSet.String("config", "", "Delegated guardians configuration JSON")
-	delegatedGuardiansConfigId = delegatedGuardiansConfigFlagSet.String("config-id", "", "ID of the configuration (must be sequential - query `nextConfigIndex`)")
+	delegatedGuardiansConfigJson = delegatedGuardiansConfigFlagSet.String("config", "", "Delegated guardians configuration JSON. ex: '{\"chainId\": {\"keys\": [\"0x123\", \"0x456\"], \"threshold\": 2}}'")
+	delegatedGuardiansConfigId = delegatedGuardiansConfigFlagSet.String("config-id", "", "ID of the configuration (must be sequential - query nextConfigIndex())")
 	AdminClientDelegatedGuardiansConfigCmd.Flags().AddFlagSet(delegatedGuardiansConfigFlagSet)
 	TemplateCmd.AddCommand(AdminClientDelegatedGuardiansConfigCmd)
 
