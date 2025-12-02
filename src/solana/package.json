@@ -1,19 +1,18 @@
 {
-  "license": "ISC",
+  "license": "Apache-2.0",
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "tsc --build ./tsconfig.json",
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "build": "tsc --build ./tsconfig.json"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.2",
     "@noble/secp256k1": "^2.2.3",
-    "@wormhole-foundation/sdk-base": "^2.2.0",
-    "@wormhole-foundation/sdk-definitions": "^2.2.0",
-    "@wormhole-foundation/sdk-solana-core": "^2.2.0"
+    "@wormhole-foundation/sdk-base": "^4.1.0",
+    "@wormhole-foundation/sdk-definitions": "^4.1.0",
+    "@wormhole-foundation/sdk-solana-core": "^4.1.0",
+    "@xlabs-xyz/tss-definitions": "file:../../ts-pkgs/tss-definitions"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
@@ -21,12 +20,10 @@
     "@types/mocha": "^10.0.10",
     "@types/yargs": "^17.0.33",
     "chai": "^4.5.0",
-    "diff": "^7.0.0",
     "mocha": "^11.1.0",
-    "prettier": "^2.6.2",
     "toml": "^3.0.0",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "yargs": "^18.0.0"
   }
 }

@@ -2,7 +2,8 @@
   "name": "root",
   "private": true,
   "workspaces": [
-    "ts-pkgs/*"
+    "ts-pkgs/*",
+    "src/solana"
   ],
   "scripts": {
   },
