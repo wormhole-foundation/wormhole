@@ -355,14 +355,9 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3TenureBlockTransaction, replay *StacksV3TenureBlockReplayResponse, isReobservation bool, logger *zap.Logger) (uint32, error) {
 	logger.Info("Processing Stacks transaction", zap.String("tx_id", tx.TxId))
 
-	// non-okay response
+	// abort_by_response (non-okay response)
 	if !strings.HasPrefix(tx.ResultHex, "0x07") { // (ok) is 0x07...
 		return 0, fmt.Errorf("transaction %s failed due to response hex: %s", tx.TxId, tx.ResultHex)
-	}
-
-	// abort_by_response
-	if !isTransactionResultCommitted(tx.Result) {
-		return 0, fmt.Errorf("transaction %s failed due to response: %v", tx.TxId, tx.Result)
 	}
 
 	// abort_by_post_condition
@@ -443,6 +438,14 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 	transaction, err := w.fetchStacksTransactionByTxId(ctx, txId)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch transaction: %w", err)
+	}
+
+	if !transaction.IsCanonical {
+		return 0, fmt.Errorf("transaction %s is not in the canonical chain", txId)
+	}
+
+	if !strings.HasPrefix(transaction.Result, "(ok ") {
+		return 0, fmt.Errorf("transaction %s failed due to result: %s", txId, transaction.Result)
 	}
 
 	replay, err := w.fetchStacksBlockReplay(ctx, transaction.IndexBlockHash)
