@@ -52,7 +52,6 @@ Examples:
   npm start -- --config ./my-config.json
         `);
         process.exit(0);
-        break;
     }
   }
 
