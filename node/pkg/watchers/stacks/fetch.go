@@ -53,7 +53,6 @@ type (
 		TxIndex              uint32                 `json:"tx_index"`
 		Data                 map[string]interface{} `json:"data,omitempty"`                   // Transaction data structure
 		Hex                  string                 `json:"hex,omitempty"`                    // Raw transaction hex
-		Result               map[string]interface{} `json:"result,omitempty"`                 // Transaction execution result
 		ResultHex            string                 `json:"result_hex,omitempty"`             // Transaction execution result in hex
 		StxBurned            uint64                 `json:"stx_burned,omitempty"`             // STX burned in transaction
 		ExecutionCost        map[string]interface{} `json:"execution_cost,omitempty"`         // Execution cost breakdown
@@ -82,6 +81,8 @@ type (
 		IndexBlockHash string `json:"index_block_hash"`
 		Tx             string `json:"tx"`
 		Result         string `json:"result"`
+		BlockHeight    uint64 `json:"block_height"` // Height of the block containing the transaction
+		IsCanonical    bool   `json:"is_canonical"` // Whether the block is in the canonical chain
 	}
 
 	StacksV2PoxEpoch struct {

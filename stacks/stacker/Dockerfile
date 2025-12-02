@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y curl gettext-base jq
 
 WORKDIR /root
 COPY package.json package-lock.json /root/
-RUN npm i
+RUN npm ci
 
 COPY stacking.ts common.ts /root/
 
