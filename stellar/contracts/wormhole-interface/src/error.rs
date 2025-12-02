@@ -47,4 +47,7 @@ pub enum Error {
     InvalidRecipient = 52,
     TransferFailed = 53,
     InvalidFeeAmount = 54,
+
+    // Consistency Errors
+    InvalidConsistencyLevel = 60,
 }

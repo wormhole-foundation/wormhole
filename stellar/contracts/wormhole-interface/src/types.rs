@@ -47,7 +47,7 @@ pub struct VAA {
     /// Message sequence number
     pub sequence: u64,
     /// Finality requirement level
-    pub consistency_level: u32,
+    pub consistency_level: ConsistencyLevel,
     /// Action-specific payload data
     pub payload: Bytes,
 }
@@ -75,6 +75,18 @@ pub enum ConsistencyLevel {
     Confirmed = 1,
     /// Full finality (multiple blocks)
     Finalized = 32,
+}
+
+impl TryFrom<u8> for ConsistencyLevel {
+    type Error = crate::Error;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(ConsistencyLevel::Confirmed),
+            32 => Ok(ConsistencyLevel::Finalized),
+            _ => Err(crate::Error::InvalidConsistencyLevel),
+        }
+    }
 }
 
 /// Data for a posted cross-chain message.
