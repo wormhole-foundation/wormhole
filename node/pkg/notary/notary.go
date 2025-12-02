@@ -83,6 +83,9 @@ const (
 	DefaultDelay = time.Hour * 24 * 4
 	MaxDelayDays = 30
 	MaxDelay     = time.Hour * 24 * MaxDelayDays
+
+	// The ticker interval for the notary's periodic metrics update.
+	metricsUpdateInterval = time.Second * 30
 )
 
 var (
@@ -139,6 +142,11 @@ func NewNotary(
 }
 
 func (n *Notary) Run() error {
+	// Initialize and register Prometheus metrics when notary starts.
+	// This ensures metrics are only registered when the notary is actually enabled.
+	// Safe to call multiple times - will only initialize once.
+	initMetrics(n.logger)
+
 	if n.env != common.GoTest {
 		n.logger.Info("loading notary data from database")
 		if err := n.loadFromDB(n.logger); err != nil {
@@ -148,7 +156,50 @@ func (n *Notary) Run() error {
 
 	n.logger.Info("notary ready")
 
+	// Spawn a goroutine to periodically update prometheus gauge metrics
+	go n.updateMetrics()
+
 	return nil
+}
+
+// updateMetrics runs periodically to update gauge metrics for queue sizes
+func (n *Notary) updateMetrics() {
+	ticker := time.NewTicker(metricsUpdateInterval)
+	defer ticker.Stop()
+
+	// Update metrics immediately on start
+	n.updateGauges()
+
+	for {
+		select {
+		case <-n.ctx.Done():
+			return
+		case <-ticker.C:
+			n.updateGauges()
+		}
+	}
+}
+
+// updateGauges updates the prometheus gauge metrics
+func (n *Notary) updateGauges() {
+
+	// Only update gauges if the notary is ready.
+	if n.blackholed == nil || n.delayed == nil {
+		n.logger.Info("Notary is not ready yet, skipping gauges update")
+		return
+	}
+
+	// Safety check: ensure metrics are initialized (should always be true after Run() is called)
+	if notaryDelayedMessagesGauge == nil || notaryBlackholedMessagesGauge == nil {
+		n.logger.Warn("Notary metrics not initialized, skipping gauges update")
+		return
+	}
+
+	n.mutex.RLock()
+	defer n.mutex.RUnlock()
+
+	notaryDelayedMessagesGauge.Set(float64(n.delayed.Len()))
+	notaryBlackholedMessagesGauge.Set(float64(n.blackholed.Len()))
 }
 
 func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err error) {
@@ -186,6 +237,9 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 		if tokenBridge, ok := tbEmitters[msg.EmitterChain]; !ok {
 			// Return Unknown if the token bridge is not registered in the SDK.
 			n.logger.Error("notary: unknown token bridge emitter", msg.ZapFields()...)
+			if notaryErrors != nil {
+				notaryErrors.WithLabelValues("unknown_token_bridge").Inc()
+			}
 			return Unknown, errors.New("unknown token bridge emitter")
 		} else {
 			// Approve if the token transfer is not from the token bridge.
@@ -228,6 +282,12 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	n.logger.Debug("notary result",
 		msg.ZapFields(zap.String("verdict", v.String()))...,
 	)
+
+	// Track messages that receive non-Approve verdicts
+	if v != Approve && notaryTokenTransferNonApprove != nil {
+		notaryTokenTransferNonApprove.WithLabelValues(v.String()).Inc()
+	}
+
 	return
 }
 
@@ -294,6 +354,9 @@ func (n *Notary) ReleaseReadyMessages() []*common.MessagePublication {
 		zap.Int("delayedCount", n.delayed.Len()),
 	)
 
+	if notaryReleasedMessagesCounter != nil {
+		notaryReleasedMessagesCounter.Add(float64(len(readyMsgs)))
+	}
 	return readyMsgs
 }
 
@@ -600,7 +663,12 @@ func NewSet() *msgPubSet {
 	}
 }
 
+// Len returns the number of elements in the set. Returns 0 if the set is nil.
 func (s *msgPubSet) Len() int {
+	if s == nil {
+		return 0
+	}
+
 	return len(s.elements)
 }
 
