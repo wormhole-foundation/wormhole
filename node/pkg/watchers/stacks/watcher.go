@@ -536,20 +536,6 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, times
 
 /// HELPERS
 
-func isTransactionResultCommitted(result map[string]interface{}) bool {
-	if result == nil {
-		return false
-	}
-
-	response, parsed := result["Response"].(map[string]interface{})
-	if !parsed {
-		return false
-	}
-
-	committed, parsed := response["committed"].(bool)
-	return parsed && committed
-}
-
 // Extracts the event name from an event tuple
 func extractEventName(eventTuple *Tuple) (string, error) {
 	eventNameVal, ok := eventTuple.Values["event"]
