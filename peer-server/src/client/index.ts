@@ -9,6 +9,8 @@ import {
 } from "../shared/types.js";
 import { PeerClient } from "./client.js";
 
+type ClientAction = "upload" | "poll";
+
 /**
  * CLI wrapper for PeerClient that handles configuration loading and file I/O
  */
@@ -69,18 +71,28 @@ class ConfigClient {
     }
   }
 
-  public async run(): Promise<void> {
-      // Run the client and get results
+  public async run(action: ClientAction): Promise<void> {
+    if (action === "upload") {
+      await this.client.submitPeerData();
+    } else {
       const response = await this.client.waitForAllPeers();
       // Save the final configuration
       this.savePeerConfig(response.peers, response.threshold);
+    }
   }
 }
 
 // Main execution
 async function main() {
+  const action = process.argv[2];
+  if (action !== "upload" && action !== "poll") {
+    console.log("Usage: npm run start:client [upload | poll]");
+    console.log("    upload: Uploads the peer data to the server");
+    console.log("    poll: Polls until the server has all the peer data");
+    process.exit(1);
+  }
   const client = new ConfigClient();
-  await client.run();
+  await client.run(action as ClientAction);
 }
 
 main().catch((error) => {

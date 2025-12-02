@@ -37,7 +37,7 @@ COPY <<EOT self_config.json
 EOT
 RUN npm ci
 RUN npm run build
-RUN --mount=type=secret,id=guardian_pk npm run start:client
+RUN --mount=type=secret,id=guardian_pk npm run start:client upload
 
 FROM scratch
 
