@@ -3,6 +3,7 @@ import cors from 'cors';
 import { ethers } from 'ethers';
 import { Display } from './display.js';
 import { Guardian, Peer, PeerRegistration, PeerRegistrationSchema, ServerConfig, validate, validateOrFail, WormholeGuardianData } from '../shared/types.js';
+import { hashPeerData } from '../shared/message.js';
 
 export class PeerServer {
   private app: express.Application;
@@ -133,15 +134,8 @@ export class PeerServer {
   }
 
   private validateGuardianSignature(peerRegistration: PeerRegistration): Guardian | null {
-    // Create the message hash that should have been signed
-    // Message format: keccak256(abi.encodePacked(hostname, tlsX509))
-    const fullUrl = `${peerRegistration.peer.hostname}:${peerRegistration.peer.port}`;
-    const messageHash = ethers.keccak256(
-      ethers.solidityPacked(
-        ['string', 'string'],
-        [fullUrl, peerRegistration.peer.tlsX509]
-      )
-    );
+    // The message hash that should have been signed by the guardian
+    const messageHash = hashPeerData(peerRegistration.peer);
 
     try {
       // Recover the address that signed the message

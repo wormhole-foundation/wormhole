@@ -92,6 +92,7 @@ export const PeersResponseSchema = z.object({
 
 // Type definitions inferred from Zod schemas
 export type Peer = z.infer<typeof PeerSchema>;
+export type BasePeer = z.infer<typeof BasePeerSchema>;
 export type Guardian = z.infer<typeof GuardianSchema>;
 export type PeerSignature = z.infer<typeof PeerSignatureSchema>;
 export type PeerRegistration = z.infer<typeof PeerRegistrationSchema>;

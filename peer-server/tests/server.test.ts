@@ -4,6 +4,7 @@ import { PeerServer } from '../src/server/server.js';
 import { loadConfig } from '../src/server/index.js';
 import { Display } from '../src/server/display.js';
 import { WormholeGuardianData, ServerConfig, PeerRegistration, Peer } from '../src/shared/types.js';
+import { hashPeerData } from '../src/shared/message.js';
 import { ethers } from 'ethers';
 import path from 'path';
 
@@ -35,12 +36,7 @@ async function createPeerRegistration(
   wallet: ethers.HDNodeWallet,
   peer: Peer,
 ): Promise<PeerRegistration> {
-  const messageHash = ethers.keccak256(
-    ethers.solidityPacked(
-      ['string', 'string'],
-      [`${peer.hostname}:${peer.port}`, peer.tlsX509]
-    )
-  );
+  const messageHash = hashPeerData(peer);
   const signature = await wallet.signMessage(ethers.getBytes(messageHash));
 
   return {

@@ -8,6 +8,7 @@ import {
   PeersResponseSchema,
   ServerResponseSchema
 } from '../shared/types.js';
+import { hashPeerData } from '../shared/message.js';
 
 export class PeerClient {
   private config: SelfConfig;
@@ -21,28 +22,18 @@ export class PeerClient {
 
   private async signPeerData(): Promise<PeerRegistration> {
     const { peer } = this.config;
-
     // Create wallet from private key
     const wallet = new ethers.Wallet(this.config.guardianPrivateKey);
-
     // Create message hash as per server implementation
-    const messageHash = ethers.keccak256(
-      ethers.solidityPacked(
-        ['string', 'string'],
-        [peer.hostname, peer.tlsX509]
-      )
-    );
-
+    const messageHash = hashPeerData(peer);
     // Sign the message
     const signature = await wallet.signMessage(ethers.getBytes(messageHash));
-
     const peerRegistration = {
       peer,
       signature: {
         signature
       }
     };
-
     // Validate the generated PeerRegistration
     return validateOrFail(PeerRegistrationSchema, peerRegistration, "Generated PeerRegistration is invalid");
   }

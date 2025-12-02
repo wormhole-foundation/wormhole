@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PeerServer } from '../src/server/server.js';
 import { Display } from '../src/server/display.js';
-import { WormholeGuardianData, ServerConfig, SelfConfig, PeersResponse } from '../src/shared/types.js';
+import { WormholeGuardianData, ServerConfig, SelfConfig, PeersResponse, validate, SelfConfigSchema, validateOrFail } from '../src/shared/types.js';
 import { PeerClient } from '../src/client/client.js';
 import { ethers } from 'ethers';
 import fs from 'fs';
@@ -122,14 +122,13 @@ describe('Peer Server Integration Tests', () => {
     const clientPromises: Promise<PeersResponse>[] = [];
 
     for (let i = 0; i < 2; i++) {
-      const clientConfig: SelfConfig = {
-        // @ts-ignore
+      const clientConfig = {
         guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
         serverUrl: serverUrl,
         peer: testPeers[i]
       };
-
-      const client = new PeerClient(clientConfig);
+      const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
+      const client = new PeerClient(selfConfig);
       clientPromises.push(client.run());
     }
 
@@ -219,12 +218,13 @@ describe('Peer Server Integration Tests', () => {
       // Create clients but submit with delays
       const clientConfigs: SelfConfig[] = [];
       for (let i = 0; i < 2; i++) {
-        const clientConfig: SelfConfig = {
-          guardianPrivateKey: testGuardianWallets[i].privateKey,
+        const clientConfig = {
+          guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
           serverUrl: serverUrl,
           peer: testPeers[i]
         };
-        clientConfigs.push(clientConfig);
+        const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
+        clientConfigs.push(selfConfig);
       }
 
       // Submit first client immediately
