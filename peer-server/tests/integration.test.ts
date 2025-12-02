@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PeerServer } from '../src/server/server.js';
 import { Display } from '../src/server/display.js';
-import { WormholeGuardianData, ServerConfig, SelfConfig, PeersResponse, validate, SelfConfigSchema, validateOrFail } from '../src/shared/types.js';
+import { WormholeGuardianData,
+  SelfConfig,
+  PeersResponse,
+  SelfConfigSchema,
+  validateOrFail,
+  BaseServerConfig,
+} from '../src/shared/types.js';
 import { PeerClient } from '../src/client/client.js';
 import { ethers } from 'ethers';
 import fs from 'fs';
@@ -36,16 +42,8 @@ describe('Peer Server Integration Tests', () => {
     testGuardianWallets.push(wallet as ethers.HDNodeWallet);
     testGuardianAddresses.push(wallet.address);
   }
-
-  const testConfig: ServerConfig = {
-    port: 0, // Use 0 for automatic port assignment
-    ethereum: {
-      rpcUrl: 'https://eth.llamarpc.com',
-      chainId: 1
-    },
-    wormholeContractAddress: '0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B',
-    threshold: 1
-  };
+  // Use port 0 for automatic port assignment
+  const testConfig: BaseServerConfig = { port: 0, threshold: 1 };
 
   // Mock guardian data for testing using generated wallets
   const mockWormholeData: WormholeGuardianData = {

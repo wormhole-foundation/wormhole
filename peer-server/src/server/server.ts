@@ -2,25 +2,32 @@ import express from 'express';
 import cors from 'cors';
 import { ethers } from 'ethers';
 import { Display } from './display.js';
-import { Guardian, Peer, PeerRegistration, PeerRegistrationSchema, ServerConfig, validate, validateOrFail, WormholeGuardianData } from '../shared/types.js';
+import {
+  BaseServerConfig,
+  Guardian,
+  Peer,
+  PeerRegistration,
+  PeerRegistrationSchema,
+  validate,
+  WormholeGuardianData
+} from '../shared/types.js';
 import { hashPeerData } from '../shared/message.js';
 
 export class PeerServer {
   private app: express.Application;
   private guardianPeers: Peer[] = []; // array of peer data with guardian keys
   private wormholeData: WormholeGuardianData;
-  private config: ServerConfig;
+  private config: BaseServerConfig;
   private server?: any;
   private display: Display;
 
-  constructor(config: ServerConfig, wormholeData: WormholeGuardianData, display: Display) {
+  constructor(config: BaseServerConfig, wormholeData: WormholeGuardianData, display: Display) {
     this.config = config;
     this.wormholeData = wormholeData;
     this.display = display;
     this.app = express();
     this.setupMiddleware();
-    this.setupRoutes();
-    
+    this.setupRoutes()
     // Show initial progress
     this.display.setProgress(this.submittedCount, this.guardianSetLength, 'Guardian Collection Progress');
   }

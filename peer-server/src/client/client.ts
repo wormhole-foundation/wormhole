@@ -15,7 +15,6 @@ export class PeerClient {
   private serverUrl: string;
 
   constructor(config: SelfConfig) {
-    // Validate with Zod
     this.config = config;
     this.serverUrl = this.config.serverUrl;
   }

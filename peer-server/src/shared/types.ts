@@ -65,15 +65,18 @@ export const SelfConfigSchema = z.object({
   };
 });
 
-export const ServerConfigSchema = z.object({
+export const BaseServerConfigSchema = z.object({
   port: z.number().int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
+  threshold: z.number().int().min(1, "Threshold must be a positive integer")
+});
+
+export const ServerConfigSchema = z.intersection(BaseServerConfigSchema, z.object({
   ethereum: z.object({
     rpcUrl: z.string().url("Ethereum RPC URL must be a valid URL"),
     chainId: z.number().int().min(1).optional()
   }),
   wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
-  threshold: z.number().int().min(1, "Threshold must be a positive integer")
-});
+}));
 
 export const WormholeGuardianDataSchema = z.object({
   guardians: z.array(z.string().min(1, "Guardian addresses cannot be empty"))
@@ -97,6 +100,7 @@ export type Guardian = z.infer<typeof GuardianSchema>;
 export type PeerSignature = z.infer<typeof PeerSignatureSchema>;
 export type PeerRegistration = z.infer<typeof PeerRegistrationSchema>;
 export type SelfConfig = z.infer<typeof SelfConfigSchema>;
+export type BaseServerConfig = z.infer<typeof BaseServerConfigSchema>;
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 export type WormholeGuardianData = z.infer<typeof WormholeGuardianDataSchema>;
 export type ServerResponse = z.infer<typeof ServerResponseSchema>;
