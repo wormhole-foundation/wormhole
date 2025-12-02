@@ -2,8 +2,7 @@
   "name": "root",
   "private": true,
   "workspaces": [
-    "deploy",
-    "peer-server"
+    "ts-pkgs/*"
   ],
   "scripts": {
   },
