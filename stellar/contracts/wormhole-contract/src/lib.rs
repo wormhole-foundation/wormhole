@@ -5,8 +5,8 @@ use wormhole_interface::{
     ConsistencyLevel, GuardianSetInfo, VAA, WormholeCoreInterface, WormholeError,
 };
 
-pub mod storage;
-pub mod utils;
+mod storage;
+mod utils;
 
 #[contract]
 pub struct Wormhole;

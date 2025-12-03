@@ -138,7 +138,7 @@ pub const EVENT_TOPIC_CONTRACT_UPGRADE: &str = "upgrade";
 /// Event topic for guardian set upgrade actions.
 ///
 /// Published when the guardian set is upgraded to a new version.
-pub const EVENT_TOPIC_GUARDIAN_SET_UPGRADE: &str = "gs_upg";
+pub const EVENT_TOPIC_GUARDIAN_SET_UPGRADE: &str = "guardian_set_upgrade";
 
 /// Event topic for message fee updates.
 ///
@@ -148,7 +148,7 @@ pub const EVENT_TOPIC_MESSAGE_FEE_SET: &str = "fee_set";
 /// Event topic for fee transfers.
 ///
 /// Published when accumulated fees are transferred out via governance.
-pub const EVENT_TOPIC_FEE_TRANSFER: &str = "fee_xfer";
+pub const EVENT_TOPIC_FEE_TRANSFER: &str = "fee_transfer";
 
 /// Event topic for contract initialization.
 ///
