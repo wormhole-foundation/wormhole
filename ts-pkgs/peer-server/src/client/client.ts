@@ -9,7 +9,7 @@ import {
   UploadResponseSchema,
   UploadResponse
 } from '../shared/types.js';
-import { hashPeerData } from '../shared/message.js';
+import { hashPeerData } from '../shared/wormhole.js';
 
 export class PeerClient {
   private config: SelfConfig;

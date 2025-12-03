@@ -1,6 +1,5 @@
 import { ethers } from 'ethers';
-import { WormholeGuardianData, WormholeConfig, PeerRegistration, Guardian, ValidationError } from './types.js';
-import { hashPeerData } from './message.js';
+import { WormholeGuardianData, WormholeConfig, PeerRegistration, Guardian, ValidationError, BasePeer } from './types.js';
 
 // Core Bridge ABI based on ICoreBridge interface
 const CORE_BRIDGE_ABI = [
@@ -36,6 +35,15 @@ export async function getWormholeGuardianData(
     console.error('Failed to fetch Wormhole guardian data:', error);
     throw error;
   }
+}
+
+export function hashPeerData(basePeer: BasePeer): string {
+  return ethers.keccak256(
+    ethers.solidityPacked(
+      ['string', 'string'],
+      [`${basePeer.hostname}:${basePeer.port}`, basePeer.tlsX509]
+    )
+  );
 }
 
 export function validateGuardianSignature(

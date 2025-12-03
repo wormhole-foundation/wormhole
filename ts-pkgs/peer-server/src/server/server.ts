@@ -1,20 +1,13 @@
 import express from 'express';
 import cors from 'cors';
-import { ethers } from 'ethers';
 import { Display } from './display.js';
 import {
   BaseServerConfig,
-  Guardian,
   Peer,
-  PeerArraySchema,
-  PeerRegistration,
   PeerRegistrationSchema,
-  PeerSchema,
   validate,
-  validateOrFail,
   WormholeGuardianData
 } from '../shared/types.js';
-import { hashPeerData } from '../shared/message.js';
 import { saveGuardianPeers } from './peers.js';
 import { validateGuardianSignature } from '../shared/wormhole.js';
 
