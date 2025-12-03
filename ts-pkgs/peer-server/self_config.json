@@ -1,9 +1,0 @@
-{
-  "guardianPrivateKeyPath": "./test_guardian_key.pri",
-  "guardianIndex": 0,
-  "serverUrl": "http://127.0.0.1:3000",
-  "peer": {
-    "hostname": "test.example.com",
-    "tlsX509": "./test_cert.pem"
-  }
-}

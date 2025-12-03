@@ -1,0 +1,9 @@
+{
+  "guardianPrivateKeyPath": "/path/to/private/key.pri",
+  "serverUrl": "http://127.0.0.1:3000",
+  "peer": {
+    "hostname": "test.example.com",
+    "port": 3001,
+    "tlsX509": "/path/to/tls/cert.pem"
+  }
+}
