@@ -36,7 +36,7 @@ class ConfigClient {
       const parsedConfig = JSON.parse(configData);
       return validateOrFail(SelfConfigSchema, parsedConfig, "Invalid self_config.json");
     } catch (error: any) {
-      console.error(`[ERROR] Invalid JSON in self_config.json: ${error?.message || error}`);
+      console.error(`[ERROR] Invalid JSON in self_config.json: ${error?.stack || error}`);
       process.exit(1);
     }
   }
@@ -66,7 +66,7 @@ class ConfigClient {
       console.log(`[SAVED] Peer configuration saved to: ${outputPath}`);
       console.log(`[INFO] Threshold: ${threshold}`);
     } catch (error: any) {
-      console.error(`[ERROR] Error saving peer config: ${error?.message || error}`);
+      console.error(`[ERROR] Error saving peer config: ${error?.stack || error}`);
       process.exit(1);
     }
   }

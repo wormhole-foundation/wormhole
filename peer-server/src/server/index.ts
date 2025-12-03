@@ -4,6 +4,7 @@ import { Display } from './display.js';
 import { ServerConfig, ServerConfigSchema, validateOrFail } from '../shared/types.js';
 import fs from 'fs';
 import path from 'path';
+import { loadGuardianPeers } from './peers.js';
 
 // Load configuration from file
 export function loadConfig(configPath?: string): ServerConfig {
@@ -72,7 +73,10 @@ async function main() {
   const wormholeData = await getWormholeGuardianData(config);
   display.log('Server initialized with Wormhole guardian data');
 
-  const server = new PeerServer(config, wormholeData, display);
+  const guardianPeers = loadGuardianPeers(display);
+  display.log(`Loaded ${guardianPeers.length} guardian peers`);
+
+  const server = new PeerServer(config, wormholeData, display, guardianPeers);
   server.start();
 
   // Handle graceful shutdown

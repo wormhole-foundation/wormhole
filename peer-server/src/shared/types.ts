@@ -89,8 +89,10 @@ export const UploadResponseSchema = z.object({
   threshold: z.number().int().min(1, "Threshold must be a positive integer")
 });
 
+export const PeerArraySchema = z.array(PeerSchema);
+
 export const PeersResponseSchema = z.object({
-  peers: z.array(PeerSchema),
+  peers: PeerArraySchema,
   threshold: z.number().int().min(1, "Threshold must be a positive integer"),
   totalExpectedGuardians: z.number().int().min(1, "Total expected guardians must be a positive integer")
 });
