@@ -113,7 +113,7 @@ export type PeersResponse = z.infer<typeof PeersResponseSchema>;
 
 export type ValidationError<T> = {
   success: true;
-  data: T;
+  value: T;
 } | {
   success: false;
   error: string;
@@ -133,7 +133,7 @@ export function validate<IN, OUT>(
     });
     return { success: false, error: fullMessage };
   }
-  return { success: true, data: validationResult.data };
+  return { success: true, value: validationResult.data };
 }
 
 export function validateOrFail<IN, OUT>(schema: z.ZodSchema<OUT, z.ZodTypeDef, IN>, data: IN, errorMessage: string): OUT {
@@ -142,5 +142,5 @@ export function validateOrFail<IN, OUT>(schema: z.ZodSchema<OUT, z.ZodTypeDef, I
     console.error(`[ERROR] ${validationResult.error}`);
     throw new Error(validationResult.error);
   }
-  return validationResult.data;
+  return validationResult.value;
 }

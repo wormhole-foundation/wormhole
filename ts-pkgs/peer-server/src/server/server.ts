@@ -103,7 +103,7 @@ export class PeerServer {
         if (!validationResult.success) {
           return res.status(400).json({ error: validationResult.error });
         }
-        const peerRegistration = validationResult.data;
+        const peerRegistration = validationResult.value;
 
         // Validate guardian signature and get guardian address
         const guardian = validateGuardianSignature(peerRegistration, this.wormholeData);
@@ -112,7 +112,7 @@ export class PeerServer {
           return res.status(401).json({ error: 'Invalid guardian signature' });
         }
 
-        const { guardianAddress, guardianIndex } = guardian.data;
+        const { guardianAddress, guardianIndex } = guardian.value;
         const { hostname, port, tlsX509 } = peerRegistration.peer;
         const signature = peerRegistration.signature;
         this.display.log(`Adding peer ${hostname} from guardian ${guardianAddress}`);

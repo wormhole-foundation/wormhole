@@ -56,7 +56,7 @@ export function validateGuardianSignature(
     if (guardianIndex === -1) {
       return { success: false, error: `Invalid signature: guardian ${guardianAddress} not found in guardian set` };
     }
-    return { success: true, data: { guardianAddress, guardianIndex } };
+    return { success: true, value: { guardianAddress, guardianIndex } };
   } catch (error) {
     return { success: false, error: 'Failed to verify signature:' + (error instanceof Error ? error.stack : String(error)) };
   }
