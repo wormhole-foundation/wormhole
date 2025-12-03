@@ -1,8 +1,8 @@
-use soroban_sdk::{contracttype, Address, BytesN};
+use soroban_sdk::{Address, BytesN, contracttype};
 
 #[derive(Clone)]
 #[contracttype]
-pub(crate) enum StorageKey {
+pub enum StorageKey {
     /// Current active guardian set index
     CurrentGuardianSetIndex,
     /// Whether the contract is initialized

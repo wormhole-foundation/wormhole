@@ -3,17 +3,17 @@ use wormhole_interface::WormholeError;
 
 /// A cursor-based reader for parsing bytes in big-endian format.
 /// Tracks position and provides clean error handling for out-of-bounds reads.
-pub(crate) struct BytesReader<'a> {
+pub struct BytesReader<'a> {
     bytes: &'a Bytes,
     cursor: u32,
 }
 
 impl<'a> BytesReader<'a> {
-    pub(crate) fn new(bytes: &'a Bytes) -> Self {
+    pub fn new(bytes: &'a Bytes) -> Self {
         Self { bytes, cursor: 0 }
     }
 
-    pub(crate) fn remaining(&self) -> u32 {
+    pub fn remaining(&self) -> u32 {
         self.bytes.len().saturating_sub(self.cursor)
     }
 
@@ -31,7 +31,7 @@ impl<'a> BytesReader<'a> {
         self.bytes.get(self.cursor + offset).unwrap()
     }
 
-    pub(crate) fn read_u8(&mut self) -> Result<u8, WormholeError> {
+    pub fn read_u8(&mut self) -> Result<u8, WormholeError> {
         self.require(1)?;
         let value = self.get_unchecked(0);
         self.cursor += 1;
@@ -39,7 +39,7 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
-    pub(crate) fn read_u16_be(&mut self) -> Result<u16, WormholeError> {
+    pub fn read_u16_be(&mut self) -> Result<u16, WormholeError> {
         self.require(2)?;
         let value = u16::from(self.get_unchecked(0)) << 8 | u16::from(self.get_unchecked(1));
         self.cursor += 2;
@@ -47,7 +47,7 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
-    pub(crate) fn read_u32_be(&mut self) -> Result<u32, WormholeError> {
+    pub fn read_u32_be(&mut self) -> Result<u32, WormholeError> {
         self.require(4)?;
         let value = (0..4).fold(0u32, |acc, i| (acc << 8) | u32::from(self.get_unchecked(i)));
         self.cursor += 4;
@@ -55,7 +55,7 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
-    pub(crate) fn read_u64_be(&mut self) -> Result<u64, WormholeError> {
+    pub fn read_u64_be(&mut self) -> Result<u64, WormholeError> {
         self.require(8)?;
         let value = (0..8).fold(0u64, |acc, i| (acc << 8) | u64::from(self.get_unchecked(i)));
         self.cursor += 8;
@@ -63,10 +63,13 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
-    pub(crate) fn read_bytes_n<const N: usize>(&mut self) -> Result<BytesN<N>, WormholeError> {
+    pub fn read_bytes_n<const N: usize>(&mut self) -> Result<BytesN<N>, WormholeError> {
         let n = u32::try_from(N).map_err(|_| WormholeError::InvalidVAAFormat)?;
-        self.read_bytes(n)
-            .and_then(|bytes| bytes.try_into().map_err(|_| WormholeError::InvalidVAAFormat))
+        self.read_bytes(n).and_then(|bytes| {
+            bytes
+                .try_into()
+                .map_err(|_| WormholeError::InvalidVAAFormat)
+        })
     }
 
     pub fn read_bytes(&mut self, len: u32) -> Result<Bytes, WormholeError> {
@@ -77,13 +80,13 @@ impl<'a> BytesReader<'a> {
         Ok(slice)
     }
 
-    pub(crate) fn skip(&mut self, n: u32) -> Result<(), WormholeError> {
+    pub fn skip(&mut self, n: u32) -> Result<(), WormholeError> {
         self.require(n)?;
         self.cursor = self.cursor.saturating_add(n);
         Ok(())
     }
 
-    pub(crate) fn remaining_bytes(&self) -> Bytes {
+    pub fn remaining_bytes(&self) -> Bytes {
         self.bytes.slice(self.cursor..)
     }
 }
