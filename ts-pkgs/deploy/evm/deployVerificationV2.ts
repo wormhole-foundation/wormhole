@@ -1,12 +1,13 @@
+import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 import { readFile } from "fs/promises";
 import { createWalletClient, defineChain, http, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { waitForTransactionReceipt } from "viem/actions";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
-import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 
-import compilerOutput from "../../verifiable-evm-build/WormholeVerifier.output.json" with {type: "json"};
-import { waitForTransactionReceipt } from "viem/actions";
+import compilerOutput from "../../../verifiable-evm-build/WormholeVerifier.output.json" with {type: "json"};
+
 import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
 
 // ICoreBridge coreBridge,

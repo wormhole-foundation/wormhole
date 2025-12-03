@@ -1,9 +1,9 @@
 import fs from "fs";
-import yargs from "yargs";
-import { hideBin } from 'yargs/helpers';
 import { createWalletClient, defineChain, http, isHex, encodePacked } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { waitForTransactionReceipt } from "viem/actions";
+import yargs from "yargs";
+import { hideBin } from 'yargs/helpers';
 
 // Default contract address for WormholeVerifier
 const DEFAULT_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: Update with actual deployed address

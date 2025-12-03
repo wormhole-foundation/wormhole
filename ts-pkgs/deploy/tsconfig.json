@@ -12,6 +12,6 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["evm", "guardian", "../peer-server/src/client/configClient.ts"],
+  "include": ["evm", "guardian"],
   "files": ["../verifiable-evm-build/*.json"]
 }
