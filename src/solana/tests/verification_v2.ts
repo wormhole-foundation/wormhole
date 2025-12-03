@@ -11,7 +11,7 @@ import { VerificationV2 } from "../target/types/verification_v2.js"
 import { guardianAddress, TestingWormholeCore } from "./testing-wormhole-core.js"
 import { WormholeContracts, TestsHelper, expectFailure } from "./testing_helpers.js"
 import { inspect } from "util"
-import { appendSchnorrKeyMessageLayout, HeaderV2, headerV2Layout } from "./layouts.js"
+import { appendSchnorrKeyMessageLayout, HeaderV2, headerV2Layout } from "@xlabs-xyz/tss-definitions"
 
 
 interface SchnorrKeyMessage {

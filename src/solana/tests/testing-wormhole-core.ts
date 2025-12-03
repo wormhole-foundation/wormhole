@@ -19,7 +19,7 @@ import {
 } from '@wormhole-foundation/sdk-definitions';
 import { mocks } from '@wormhole-foundation/sdk-definitions/testing';
 
-import { coreV1AccountDataLayout } from './layouts.js';
+import { coreV1AccountDataLayout } from '@xlabs-xyz/tss-definitions';
 import { sendAndConfirm } from './testing_helpers.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';

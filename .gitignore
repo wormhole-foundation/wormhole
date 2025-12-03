@@ -13,3 +13,5 @@ ts-types
 ts-build
 
 tmp/
+
+*.sublime-workspace

@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build": "tsc --build",
     "test": "vitest",
     "test:run": "vitest run",
     "test:integration": "vitest run configClient.integration.test.ts"
