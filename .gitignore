@@ -15,3 +15,5 @@ ts-build
 tmp/
 
 *.sublime-workspace
+
+guardian_peers.json

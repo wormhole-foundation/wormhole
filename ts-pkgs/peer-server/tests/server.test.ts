@@ -49,7 +49,15 @@ describe('PeerServer', () => {
   let server: PeerServer;
   let app: any;
 
-  const testConfig: ServerConfig = loadConfig(path.join(__dirname, '..', 'config.json'));
+  const testConfig: ServerConfig = {
+    "port": 3000,
+    "ethereum": {
+      "rpcUrl": "https://eth.llamarpc.com",
+      "chainId": 1
+    },
+    "wormholeContractAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+    "threshold": 13
+  };
 
   // Mock guardian data for testing using generated wallets
   const mockWormholeData: WormholeGuardianData = {

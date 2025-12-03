@@ -9,7 +9,7 @@
     "dev:server": "tsx --watch src/server/index.ts",
     "start:client": "tsx src/client/index.ts",
     "dev:client": "tsx --watch src/client/index.ts",
-    "test": "vitest"
+    "test": "npm run build && vitest"
   },
   "dependencies": {
     "@scure/base": "^2.0.0",
