@@ -274,7 +274,9 @@ data:
         function get_stacks_epoch(){
             # Determine current Stacks epoch based on Bitcoin block height
             local height=${1}
-            if [ "$height" -ge "$STACKS_32_HEIGHT" ]; then
+            if [ "$height" -ge "$STACKS_33_HEIGHT" ]; then
+                echo "3.3 (Clarity 4)"
+            elif [ "$height" -ge "$STACKS_32_HEIGHT" ]; then
                 echo "3.2"
             elif [ "$height" -ge "$STACKS_30_HEIGHT" ]; then
                 echo "3.0-Nakamoto"
@@ -558,6 +560,8 @@ spec:
                         value: "232"
                       - name: STACKS_32_HEIGHT
                         value: "234"
+                      - name: STACKS_33_HEIGHT
+                        value: "236"
                       - name: PAUSE_HEIGHT
                         value: "999999999999"
                       - name: PAUSE_TIMER

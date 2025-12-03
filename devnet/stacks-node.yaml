@@ -113,6 +113,10 @@ data:
     start_height = ${STACKS_32_HEIGHT}
     epoch_name = "3.2"
 
+    [[burnchain.epochs]]
+    start_height = ${STACKS_33_HEIGHT}
+    epoch_name = "3.3"
+
     [[ustx_balance]]
     # PRIVATE KEY 714a5bf161a680ebb2670c5ea6e8bcd75f299eae234412af0cf12d21e11ae09901
     address = "ST5ZW3BC07M4P27KFJ6JJ6PKTB1NW79SH0BVYB3W" # Stacks integration test account
@@ -282,6 +286,8 @@ spec:
               value: "233"
             - name: STACKS_32_HEIGHT
               value: "234"
+            - name: STACKS_33_HEIGHT
+              value: "236"
             - name: POX_PREPARE_LENGTH
               value: "5"
             - name: POX_REWARD_LENGTH
