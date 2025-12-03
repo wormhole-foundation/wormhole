@@ -16,6 +16,7 @@ import {
 } from '../shared/types.js';
 import { hashPeerData } from '../shared/message.js';
 import { saveGuardianPeers } from './peers.js';
+import { validateGuardianSignature } from '../shared/wormhole.js';
 
 export class PeerServer {
   private app: express.Application;
@@ -25,34 +26,6 @@ export class PeerServer {
   private config: BaseServerConfig;
   private server?: any;
   private display: Display;
-
-  static validateGuardianSignature(
-    peerRegistration: PeerRegistration,
-    wormholeData: WormholeGuardianData,
-    display: Display
-  ): Guardian | null {
-    // The message hash that should have been signed by the guardian
-    const messageHash = hashPeerData(peerRegistration.peer);
-    try {
-      // Recover the address that signed the message
-      const guardianAddress = ethers.verifyMessage(
-        ethers.getBytes(messageHash),
-        peerRegistration.signature
-      );
-      const guardianIndex = wormholeData.guardians.findIndex(
-        guardian => guardian.toLowerCase() === guardianAddress.toLowerCase()
-      );
-      if (guardianIndex === -1) {
-        display.log(`Invalid signature: guardian ${guardianAddress} not found in guardian set`);
-        return null;
-      }
-      display.log(`Valid signature from guardian ${guardianIndex}: ${guardianAddress}`);
-      return { guardianAddress, guardianIndex };
-    } catch (error) {
-      display.log('Failed to verify signature:' + (error instanceof Error ? error.message : String(error)));
-      return null;
-    }
-  }
 
   static validateInitialPeers(
     initialPeers: Peer[],
@@ -72,7 +45,7 @@ export class PeerServer {
         throw new Error(`Peer address is not in the wormhole guardian set: ${peer.guardianAddress}`);
       }
       const signature = peer.signature;
-      const guardian = this.validateGuardianSignature({ peer, signature }, wormholeData, display);
+      const guardian = validateGuardianSignature({ peer, signature }, wormholeData);
       if (!guardian) {
         throw new Error(`Invalid guardian signature: ${peer.guardianAddress}`);
       }
@@ -97,10 +70,6 @@ export class PeerServer {
     this.setupRoutes();
     // Show initial progress
     this.display.setProgress(this.sparseGuardianPeers.length, this.guardianSetLength, 'Guardian Collection Progress');
-  }
-
-  private validateGuardianSignature(peerRegistration: PeerRegistration): Guardian | null {
-    return PeerServer.validateGuardianSignature(peerRegistration, this.wormholeData, this.display);
   }
 
   private partialGuardianPeers(): Peer[] {
@@ -137,12 +106,13 @@ export class PeerServer {
         const peerRegistration = validationResult.data;
 
         // Validate guardian signature and get guardian address
-        const guardian = this.validateGuardianSignature(peerRegistration);
-        if (!guardian) {
+        const guardian = validateGuardianSignature(peerRegistration, this.wormholeData);
+        if (!guardian.success) {
+          this.display.error('Error validating guardian signature:', guardian.error);
           return res.status(401).json({ error: 'Invalid guardian signature' });
         }
 
-        const { guardianAddress, guardianIndex } = guardian;
+        const { guardianAddress, guardianIndex } = guardian.data;
         const { hostname, port, tlsX509 } = peerRegistration.peer;
         const signature = peerRegistration.signature;
         this.display.log(`Adding peer ${hostname} from guardian ${guardianAddress}`);

@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
-import { WormholeGuardianData, WormholeConfig } from './types.js';
+import { WormholeGuardianData, WormholeConfig, PeerRegistration, Guardian, ValidationError } from './types.js';
+import { hashPeerData } from './message.js';
 
 // Core Bridge ABI based on ICoreBridge interface
 const CORE_BRIDGE_ABI = [
@@ -34,5 +35,29 @@ export async function getWormholeGuardianData(
   } catch (error) {
     console.error('Failed to fetch Wormhole guardian data:', error);
     throw error;
+  }
+}
+
+export function validateGuardianSignature(
+  peerRegistration: PeerRegistration,
+  wormholeData: WormholeGuardianData
+): ValidationError<Guardian> {
+  // The message hash that should have been signed by the guardian
+  const messageHash = hashPeerData(peerRegistration.peer);
+  try {
+    // Recover the address that signed the message
+    const guardianAddress = ethers.verifyMessage(
+      ethers.getBytes(messageHash),
+      peerRegistration.signature
+    );
+    const guardianIndex = wormholeData.guardians.findIndex(
+      guardian => guardian.toLowerCase() === guardianAddress.toLowerCase()
+    );
+    if (guardianIndex === -1) {
+      return { success: false, error: `Invalid signature: guardian ${guardianAddress} not found in guardian set` };
+    }
+    return { success: true, data: { guardianAddress, guardianIndex } };
+  } catch (error) {
+    return { success: false, error: 'Failed to verify signature:' + (error instanceof Error ? error.stack : String(error)) };
   }
 }
