@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { WormholeGuardianData, WormholeConfig, PeerRegistration, Guardian, ValidationError, BasePeer } from './types.js';
+import { WormholeGuardianData, WormholeConfig, PeerRegistration, Guardian, ValidationError, BasePeer, Peer } from './types.js';
 
 // Core Bridge ABI based on ICoreBridge interface
 const CORE_BRIDGE_ABI = [
@@ -68,4 +68,30 @@ export function validateGuardianSignature(
   } catch (error) {
     return { success: false, error: 'Failed to verify signature:' + (error instanceof Error ? error.stack : String(error)) };
   }
+}
+
+export function validatePeers(
+  initialPeers: Peer[],
+  wormholeData: WormholeGuardianData,
+): (Peer | undefined)[] {
+  const sparsePeers = Array<Peer | undefined>(wormholeData.guardians.length);
+  for (const peer of initialPeers) {
+    if (peer.guardianIndex < 0 || peer.guardianIndex >= wormholeData.guardians.length) {
+      throw new Error(`Invalid initial peer index: ${peer.guardianIndex}`);
+    }
+    if (sparsePeers[peer.guardianIndex] !== undefined) {
+      throw new Error(`Duplicate initial peer: ${peer}`);
+    }
+    const guardianAddress = wormholeData.guardians[peer.guardianIndex];
+    if (guardianAddress.toLowerCase() !== peer.guardianAddress.toLowerCase()) {
+      throw new Error(`Peer address is not in the wormhole guardian set: ${peer.guardianAddress}`);
+    }
+    const signature = peer.signature;
+    const guardian = validateGuardianSignature({ peer, signature }, wormholeData);
+    if (!guardian) {
+      throw new Error(`Invalid guardian signature: ${peer.guardianAddress}`);
+    }
+    sparsePeers[peer.guardianIndex] = peer;
+  }
+  return sparsePeers;
 }

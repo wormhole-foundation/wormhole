@@ -26,11 +26,20 @@ export const PeerRegistrationSchema = z.intersection(
   PeerSignatureSchema
 );
 
+export const WormholeConfigSchema = z.object({
+  ethereum: z.object({
+    rpcUrl: z.url("Ethereum RPC URL must be a valid URL"),
+    chainId: z.number().int().min(1).optional()
+  }),
+  wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
+});
+
 // Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
   guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty"),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
+  wormhole: WormholeConfigSchema,
 }).transform((data) => {
   // Load and validate guardian private key
   let guardianPrivateKey: string;
@@ -62,21 +71,14 @@ export const SelfConfigSchema = z.object({
       hostname: data.peer.hostname,
       port: data.peer.port,
       tlsX509
-    }
+    },
+    wormhole: data.wormhole,
   };
 });
 
 export const BaseServerConfigSchema = z.object({
   port: z.number().int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
   threshold: z.number().int().min(1, "Threshold must be a positive integer")
-});
-
-export const WormholeConfigSchema = z.object({
-  ethereum: z.object({
-    rpcUrl: z.string().url("Ethereum RPC URL must be a valid URL"),
-    chainId: z.number().int().min(1).optional()
-  }),
-  wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
 });
 
 export const ServerConfigSchema = z.intersection(BaseServerConfigSchema, WormholeConfigSchema);

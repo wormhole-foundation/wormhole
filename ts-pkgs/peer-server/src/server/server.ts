@@ -7,7 +7,8 @@ import {
   PeerRegistrationSchema,
   validate,
   validateGuardianSignature,
-  WormholeGuardianData
+  WormholeGuardianData,
+  validatePeers
 } from '@xlabs-xyz/peer-lib';
 import { saveGuardianPeers } from './peers.js';
 
@@ -20,33 +21,6 @@ export class PeerServer {
   private server?: any;
   private display: Display;
 
-  static validateInitialPeers(
-    initialPeers: Peer[],
-    wormholeData: WormholeGuardianData,
-    display: Display
-  ): (Peer | undefined)[] {
-    const sparsePeers = Array<Peer | undefined>(wormholeData.guardians.length);
-    for (const peer of initialPeers) {
-      if (peer.guardianIndex < 0 || peer.guardianIndex >= wormholeData.guardians.length) {
-        throw new Error(`Invalid initial peer index: ${peer.guardianIndex}`);
-      }
-      if (sparsePeers[peer.guardianIndex]) {
-        throw new Error(`Duplicate initial peer: ${peer}`);
-      }
-      const guardianAddress = wormholeData.guardians[peer.guardianIndex];
-      if (guardianAddress.toLowerCase() !== peer.guardianAddress.toLowerCase()) {
-        throw new Error(`Peer address is not in the wormhole guardian set: ${peer.guardianAddress}`);
-      }
-      const signature = peer.signature;
-      const guardian = validateGuardianSignature({ peer, signature }, wormholeData);
-      if (!guardian) {
-        throw new Error(`Invalid guardian signature: ${peer.guardianAddress}`);
-      }
-      sparsePeers[peer.guardianIndex] = peer;
-    }
-    return sparsePeers;
-  }
-
   constructor(
     config: BaseServerConfig,
     wormholeData: WormholeGuardianData,
@@ -56,7 +30,7 @@ export class PeerServer {
     this.config = config;
     this.wormholeData = wormholeData;
     this.display = display;
-    this.sparseGuardianPeers = PeerServer.validateInitialPeers(initialPeers, wormholeData, display);
+    this.sparseGuardianPeers = validatePeers(initialPeers, wormholeData);
     this.guardianSetLength = wormholeData.guardians.length;
     this.app = express();
     this.setupMiddleware();

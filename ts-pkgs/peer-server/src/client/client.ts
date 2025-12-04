@@ -90,8 +90,12 @@ export class PeerClient {
           const totalExpectedGuardians = responseData.totalExpectedGuardians;
           const currentCount = Object.keys(peers).length;
 
+          if (currentCount > totalExpectedGuardians) {
+            throw new Error(`More guardians than expected have submitted their peer data`);
+          }
+
           // Check if all expected guardians have submitted
-          if (currentCount >= totalExpectedGuardians) {
+          if (currentCount === totalExpectedGuardians) {
             console.log(`[SUCCESS] All ${totalExpectedGuardians} expected guardians have submitted their peer data!`);
             return { peers, threshold, totalExpectedGuardians };
           }
