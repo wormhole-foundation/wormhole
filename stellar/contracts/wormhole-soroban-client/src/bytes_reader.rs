@@ -1,8 +1,6 @@
+use crate::WormholeError;
 use soroban_sdk::{Bytes, BytesN};
-use wormhole_interface::WormholeError;
 
-/// A cursor-based reader for parsing bytes in big-endian format.
-/// Tracks position and provides clean error handling for out-of-bounds reads.
 pub struct BytesReader<'a> {
     bytes: &'a Bytes,
     cursor: u32,
@@ -25,8 +23,6 @@ impl<'a> BytesReader<'a> {
         }
     }
 
-    /// Reads a byte at offset from cursor without bouns checking.
-    /// Caller must ensure bounds via `require()` first.
     fn get_unchecked(&self, offset: u32) -> u8 {
         self.bytes.get(self.cursor + offset).unwrap()
     }

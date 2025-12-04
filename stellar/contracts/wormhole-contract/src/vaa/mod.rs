@@ -1,216 +1,129 @@
-mod signature;
+//! VAA verification logic.
+//!
+//! This module contains contract-specific VAA verification that requires
+//! access to storage (guardian sets). Parsing, serialization, and other
+//! pure data operations are defined in the wormhole-interface crate.
 
-pub use signature::Signature;
+pub use wormhole_soroban_client::{Signature, VAA};
 
-use crate::utils::BytesReader;
-use core::convert::TryFrom;
-use soroban_sdk::{contracttype, Bytes, BytesN, Env, Vec};
-use wormhole_interface::WormholeError;
+use soroban_sdk::{Bytes, BytesN, Env, Vec};
+use wormhole_soroban_client::WormholeError;
 
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct VAA {
-    // Header
-    pub version: u32,
-    pub guardian_set_index: u32,
-    pub signatures: Vec<Signature>,
+/// Verify a VAA's signatures against stored guardian sets.
+///
+/// This checks:
+/// - Guardian set exists in storage
+/// - Guardian set not expired
+/// - Sufficient valid signatures (quorum)
+/// - Signatures in ascending order
+pub(crate) fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, WormholeError> {
+    // let body_bytes = vaa.serialize_body(env);
 
-    // Body
-    pub timestamp: u32,
-    pub nonce: u32,
-    pub emitter_chain: u32,
-    pub emitter_address: BytesN<32>,
-    pub sequence: u64,
-    pub consistency_level: u32,
-    pub payload: Bytes,
+    // let guardian_set_info = governance::guardian_set::get(env, vaa.guardian_set_index)?;
+
+    // if let Some(expiry) = governance::guardian_set::get_expiry(env, vaa.guardian_set_index) {
+    //     if env.ledger().timestamp() > expiry {
+    //         return Err(Error::GuardianSetExpired);
+    //     }
+    // }
+
+    // verify_signatures_impl(vaa, env, &body_bytes, &guardian_set_info.keys)
+
+    // TODO
+
+    Err(WormholeError::GuardianSetNotFound)
 }
 
-impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
-    type Error = WormholeError;
+/// Verify a single ECDSA signature against an expected Ethereum style address.
+///
+/// This performs:
+/// - ECDSA signature recovery
+/// - Public key to Ethereum style address conversion
+/// - Address comparison
+pub(crate) fn verify_signature(
+    sig: &Signature,
+    env: &Env,
+    message_hash: &soroban_sdk::crypto::Hash<32>,
+    expected_address: &BytesN<20>,
+) -> Result<bool, WormholeError> {
+    let mut sig_bytes = [0u8; 64];
+    let r_array = sig.r.to_array();
+    let s_array = sig.s.to_array();
+    sig_bytes[..32].copy_from_slice(&r_array);
+    sig_bytes[32..].copy_from_slice(&s_array);
+    let sig_formatted = BytesN::<64>::from_array(env, &sig_bytes);
 
-    fn try_from(value: (&'a Env, &'a Bytes)) -> Result<Self, Self::Error> {
-        let (env, vaa_bytes) = value;
+    let recovered_pubkey = env
+        .crypto()
+        .secp256k1_recover(message_hash, &sig_formatted, sig.v);
 
-        if vaa_bytes.len() < 6 {
-            return Err(WormholeError::InvalidVAAFormat);
-        }
+    let eth_address = crate::utils::pubkey_to_eth_address(env, &recovered_pubkey);
 
-        let mut reader = BytesReader::new(vaa_bytes);
-
-        let version = u32::from(reader.read_u8()?);
-        let guardian_set_index = reader.read_u32_be()?;
-        let num_signatures = u32::from(reader.read_u8()?);
-
-        let mut signatures = Vec::new(env);
-        for _ in 0..num_signatures {
-            let sig = Signature::parse(env, &mut reader)?;
-            signatures.push_back(sig);
-        }
-
-        let timestamp = reader.read_u32_be()?;
-        let nonce = reader.read_u32_be()?;
-        let emitter_chain = u32::from(reader.read_u16_be()?);
-        let emitter_address = reader.read_bytes_n::<32>()?;
-        let sequence = reader.read_u64_be()?;
-        let consistency_level = u32::from(reader.read_u8()?);
-        let payload = reader.remaining_bytes();
-
-        Ok(VAA {
-            version,
-            guardian_set_index,
-            signatures,
-            timestamp,
-            nonce,
-            emitter_chain,
-            emitter_address,
-            sequence,
-            consistency_level,
-            payload,
-        })
-    }
+    Ok(&eth_address == expected_address)
 }
 
-impl VAA {
+/// Calculate the required quorum for a given number of guardians.
+/// Formula: (num_guardians * 2 / 3) + 1
+fn calculate_quorum(num_guardians: u32) -> u32 {
+    num_guardians
+        .saturating_mul(2)
+        .saturating_div(3)
+        .saturating_add(1)
+}
 
-    /// Serialize the VAA body for hashing
-    #[allow(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)]
-    pub(crate) fn serialize_body(&self, env: &Env) -> Bytes {
-        let mut bytes = Bytes::new(env);
-
-        for i in (0..4).rev() {
-            bytes.push_back(((self.timestamp >> (i * 8)) & 0xFF) as u8);
-        }
-
-        for i in (0..4).rev() {
-            bytes.push_back(((self.nonce >> (i * 8)) & 0xFF) as u8);
-        }
-
-        bytes.push_back((self.emitter_chain >> 8) as u8);
-        bytes.push_back((self.emitter_chain & 0xFF) as u8);
-
-        for byte in self.emitter_address.to_array().iter() {
-            bytes.push_back(*byte);
-        }
-
-        for i in (0..8).rev() {
-            bytes.push_back(((self.sequence >> (i * 8)) & 0xFF) as u8);
-        }
-
-        bytes.push_back(self.consistency_level as u8);
-
-        bytes.append(&self.payload);
-
-        bytes
+/// Verify all signatures against a specific guardian set
+fn verify_signatures_impl(
+    vaa: &VAA,
+    env: &Env,
+    body_bytes: &Bytes,
+    guardian_keys: &Vec<BytesN<20>>,
+) -> Result<bool, WormholeError> {
+    let guardian_count = guardian_keys.len();
+    if guardian_count == 0 {
+        return Err(WormholeError::InvalidGuardianSetIndex);
     }
 
-    /// Get the body bytes for hashing (everything after signatures)
-    pub(crate) fn get_body_bytes(vaa_bytes: &Bytes) -> Result<Bytes, WormholeError> {
-        if vaa_bytes.len() < 6 {
-            return Err(WormholeError::InvalidVAAFormat);
-        }
-
-        let num_sigs = u32::from(vaa_bytes.get(5).ok_or(WormholeError::InvalidVAAFormat)?);
-        let body_offset = 6u32.saturating_add(66u32.saturating_mul(num_sigs));
-
-        if body_offset > vaa_bytes.len() {
-            return Err(WormholeError::InvalidVAAFormat);
-        }
-
-        Ok(vaa_bytes.slice(body_offset..))
+    let required_sigs = calculate_quorum(guardian_count);
+    if vaa.signatures.len() < required_sigs {
+        return Err(WormholeError::InsufficientSignatures);
     }
 
-    /// Verify this VAA's signatures against stored guardian sets
-    pub(crate) fn verify(&self, env: &Env) -> Result<bool, WormholeError> {
-        // TODO: Implement when governance module is added
-        Err(WormholeError::GuardianSetNotFound)
-    }
+    let body_hash_bytes: Bytes = crate::utils::keccak256_hash(env, body_bytes).into();
+    let double_hash = env.crypto().keccak256(&body_hash_bytes);
 
-    /// Calculate the required quorum for a given number of guardians.
-    /// Formula: (num_guardians * 2 / 3) + 1
-    fn calculate_quorum(num_guardians: u32) -> u32 {
-        num_guardians.saturating_mul(2).saturating_div(3).saturating_add(1)
-    }
+    let mut last_guardian_index = None;
 
-    /// Verify signatures against a specific guardian set
-    fn verify_signatures(
-        &self,
-        env: &Env,
-        body_bytes: &Bytes,
-        guardian_keys: &Vec<BytesN<20>>,
-    ) -> Result<bool, WormholeError> {
-        let guardian_count = guardian_keys.len();
-        if guardian_count == 0 {
-            return Err(WormholeError::InvalidGuardianSetIndex);
-        }
-
-        let required_sigs = VAA::calculate_quorum(guardian_count);
-        if self.signatures.len() < required_sigs {
-            return Err(WormholeError::InsufficientSignatures);
-        }
-
-        let body_hash_bytes: Bytes = crate::utils::keccak256_hash(env, body_bytes).into();
-        let double_hash = env.crypto().keccak256(&body_hash_bytes);
-
-        let mut last_guardian_index = None;
-
-        for signature in self.signatures.iter() {
-            if let Some(last_idx) = last_guardian_index
-                && signature.guardian_index <= last_idx {
-                    return Err(WormholeError::SignaturesNotAscending);
-                }
-            last_guardian_index = Some(signature.guardian_index);
-
-            if signature.guardian_index >= guardian_count {
-                return Err(WormholeError::GuardianIndexOutOfBounds);
-            }
-
-            let guardian_key = guardian_keys
-                .get(signature.guardian_index)
-                .ok_or(WormholeError::GuardianIndexOutOfBounds)?;
-
-            if !signature.verify(
-                env,
-                &double_hash,
-                &guardian_key,
-            )? {
-                return Err(WormholeError::InvalidSignature);
+    for signature in vaa.signatures.iter() {
+        if let Some(last_idx) = last_guardian_index {
+            if signature.guardian_index <= last_idx {
+                return Err(WormholeError::SignaturesNotAscending);
             }
         }
+        last_guardian_index = Some(signature.guardian_index);
 
-        Ok(true)
+        if signature.guardian_index >= guardian_count {
+            return Err(WormholeError::GuardianIndexOutOfBounds);
+        }
+
+        let guardian_key = guardian_keys
+            .get(signature.guardian_index)
+            .ok_or(WormholeError::GuardianIndexOutOfBounds)?;
+
+        if !verify_signature(&signature, env, &double_hash, &guardian_key)? {
+            return Err(WormholeError::InvalidSignature);
+        }
     }
+
+    Ok(true)
 }
 
+/// Parse and verify a VAA from bytes.
 pub(crate) fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<bool, WormholeError> {
     let vaa = VAA::try_from((&env, &vaa_bytes))?;
-    vaa.verify(&env)
+    verify_vaa_signatures(&vaa, &env)
 }
 
-/// Parse a VAA and convert to the interface type
-pub(crate) fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<wormhole_interface::VAA, WormholeError> {
-    let internal_vaa = VAA::try_from((env, vaa_bytes))?;
-
-    // Convert internal signatures to interface signatures
-    let mut interface_signatures = Vec::new(env);
-    for sig in internal_vaa.signatures.iter() {
-        interface_signatures.push_back(wormhole_interface::Signature {
-            guardian_index: sig.guardian_index,
-            r: sig.r.clone(),
-            s: sig.s.clone(),
-            v: sig.v,
-        });
-    }
-
-    Ok(wormhole_interface::VAA {
-        version: internal_vaa.version,
-        guardian_set_index: internal_vaa.guardian_set_index,
-        signatures: interface_signatures,
-        timestamp: internal_vaa.timestamp,
-        nonce: internal_vaa.nonce,
-        emitter_chain: internal_vaa.emitter_chain,
-        emitter_address: internal_vaa.emitter_address,
-        sequence: internal_vaa.sequence,
-        consistency_level: wormhole_interface::ConsistencyLevel::try_from(internal_vaa.consistency_level as u8)?,
-        payload: internal_vaa.payload,
-    })
+/// Parse a VAA from bytes.
+pub(crate) fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<VAA, WormholeError> {
+    VAA::try_from((env, vaa_bytes))
 }

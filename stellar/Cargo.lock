@@ -1722,11 +1722,11 @@ dependencies = [
  "serde_json",
  "soroban-sdk",
  "stellar-strkey 0.0.14",
- "wormhole-interface",
+ "wormhole-soroban-client",
 ]
 
 [[package]]
-name = "wormhole-interface"
+name = "wormhole-soroban-client"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

@@ -1,10 +1,6 @@
-mod bytes_reader;
-
-pub use bytes_reader::BytesReader;
-
 use soroban_sdk::{Address, Bytes, BytesN, Env, String};
 use stellar_strkey::{Strkey, ed25519::PublicKey as StrEd25519};
-use wormhole_interface::NATIVE_TOKEN_ADDRESS;
+use wormhole_soroban_client::NATIVE_TOKEN_ADDRESS;
 
 /// Compute keccak256 hash and return as BytesN<32>.
 ///

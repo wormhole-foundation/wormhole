@@ -9,21 +9,22 @@
 //! Add this to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! wormhole-interface = { path = "../wormhole-interface" }
+//! wormhole-soroban-client = { path = "../wormhole-soroban-client" }
 //! ```
 //!
 //! Then use the types and interface:
 //! ```ignore
-//! use wormhole_interface::{WormholeCoreInterface, VAA, WormholeError};
+//! use wormhole_soroban_client::{WormholeCoreInterface, VAA, WormholeError};
 //! ```
 
 #![no_std]
 
+pub mod bytes_reader;
 pub mod constants;
 pub mod error;
 pub mod types;
 
-// Re-export everything for convenient imports
+pub use bytes_reader::BytesReader;
 pub use constants::*;
 pub use error::WormholeError;
 pub use types::*;

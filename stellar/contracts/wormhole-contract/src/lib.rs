@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
-use wormhole_interface::{
+use wormhole_soroban_client::{
     ConsistencyLevel, GuardianSetInfo, VAA, WormholeCoreInterface, WormholeError,
 };
 
