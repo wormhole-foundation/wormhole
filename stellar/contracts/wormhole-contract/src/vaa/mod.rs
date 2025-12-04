@@ -112,7 +112,7 @@ impl VAA {
         let num_sigs = u32::from(vaa_bytes.get(5).ok_or(WormholeError::InvalidVAAFormat)?);
         let body_offset = 6u32.saturating_add(66u32.saturating_mul(num_sigs));
 
-        if body_offset >= vaa_bytes.len() {
+        if body_offset > vaa_bytes.len() {
             return Err(WormholeError::InvalidVAAFormat);
         }
 

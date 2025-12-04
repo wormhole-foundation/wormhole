@@ -62,6 +62,18 @@ pub const STORAGE_TTL_THRESHOLD: u32 = 100_000;
 /// When calling `extend_ttl()`, entries are extended to live at most this many ledgers.
 pub const STORAGE_TTL_EXTENSION: u32 = 1_000_000;
 
+// ========== VAA Structure Constants ==========
+
+/// Minimum VAA header size in bytes.
+///
+/// Header structure:
+/// - version: 1 byte (VAA format version, always 1)
+/// - guardian_set_index: 4 bytes (big-endian u32)
+/// - num_signatures: 1 byte (number of guardian signatures)
+///
+/// Total: 6 bytes minimum (before signatures and body)
+pub const VAA_HEADER_MIN_LENGTH: u32 = 6;
+
 // ========== Payload Structure Constants ==========
 
 /// U256 padding size in governance payloads (Ethereum compatibility).
