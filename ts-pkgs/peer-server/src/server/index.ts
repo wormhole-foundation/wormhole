@@ -14,15 +14,11 @@ import { loadGuardianPeers } from './peers.js';
 export function loadConfig(configPath?: string): ServerConfig {
   const configFile = configPath || path.join(process.cwd(), 'config.json');
 
-  if (!fs.existsSync(configFile)) {
-    throw new Error(`Config file not found: ${configFile}`);
-  }
 
   try {
     const configData = fs.readFileSync(configFile, 'utf8');
     const config = JSON.parse(configData);
 
-    // Validate configuration using Zod schema
     return validateOrFail(ServerConfigSchema, config, `Invalid configuration in ${configFile}`);
   } catch (error: any) {
     if (error instanceof SyntaxError) {
@@ -99,6 +95,6 @@ async function main() {
 
 main().catch((error) => {
   const display = new Display();
-  display.error('Failed to start server:', error);
+  display.error('Failed to start server:', error?.stack || error);
   process.exit(1);
 });

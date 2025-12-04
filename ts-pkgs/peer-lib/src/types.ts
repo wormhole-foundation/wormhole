@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { readFileSync } from 'fs';
 import { checkTlsCertificate, parseGuardianKey } from './parseCrypto.js';
 
-// Zod validation schemas (these also serve as type definitions)
+/// Encodes the information necessary to construct the peer description message
 export const BasePeerSchema = z.object({
   hostname: z.string().min(1, "Hostname cannot be empty"),
   port: z.number().int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
@@ -14,6 +14,7 @@ export const GuardianSchema = z.object({
   guardianIndex: z.number().int().min(0, "Guardian index must be non-negative"),
 });
 
+/// Contains the signature of the peer description message
 export const PeerSignatureSchema = z.object({
   signature: z.string().min(1, "Signature cannot be empty"),
 });

@@ -18,11 +18,9 @@ export class Display {
     if (this.hasProgressBar) {
       // Clear the current line and move cursor to beginning
       process.stdout.write('\r\x1b[K');
-      console.error(message, error || '');
       // The progress bar will be redrawn by the next setProgress call
-    } else {
-      console.error(message, error || '');
     }
+    console.error(message, error?.stack || error || '');
   }
 
   setProgress(current: number, total: number, label = 'Progress', peers?: Peer[]): void {
@@ -81,8 +79,8 @@ export class Display {
       
       this.log(`Total: ${peers.length} peer${peers.length !== 1 ? 's' : ''} collected from guardians`);
       this.log('Guardian submissions complete. Server will continue running...');
-    } catch (error) {
-      this.error('Error displaying peers:', error);
+    } catch (error: any) {
+      this.error('Error displaying peers:', error?.stack || error);
     }
   }
 }

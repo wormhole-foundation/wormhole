@@ -53,7 +53,6 @@ export class PeerClient {
       if (response.ok) {
         const jsonResponse = await response.json();
 
-        // Validate response with Zod
         const result = validateOrFail(UploadResponseSchema, jsonResponse, "Invalid server response");
         console.log(`[SUCCESS] Successfully uploaded peer data!`);
         console.log(`   Guardian Address: ${result.peer.guardianAddress}`);
