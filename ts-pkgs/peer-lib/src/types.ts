@@ -28,7 +28,7 @@ export const PeerRegistrationSchema = z.intersection(
 // Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
   guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty"),
-  serverUrl: z.string().url("Server URL must be a valid HTTP(S) URL"),
+  serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
 }).transform((data) => {
   // Load and validate guardian private key
@@ -121,14 +121,14 @@ export type ValidationError<T> = {
 
 // Validation helper function
 export function validate<IN, OUT>(
-  schema: z.ZodSchema<OUT, z.ZodTypeDef, IN>,
+  schema: z.ZodSchema<OUT, IN>,
   data: IN,
   errorMessage: string,
 ): ValidationError<OUT> {
   const validationResult = schema.safeParse(data);
   if (!validationResult.success) {
     let fullMessage = errorMessage + '\n';
-    validationResult.error.errors.forEach((error) => {
+    validationResult.error.issues.forEach((error) => {
       fullMessage += `  - ${error.path.flat().join('.')}: ${error.message}\n`;
     });
     return { success: false, error: fullMessage };
@@ -136,7 +136,7 @@ export function validate<IN, OUT>(
   return { success: true, value: validationResult.data };
 }
 
-export function validateOrFail<IN, OUT>(schema: z.ZodSchema<OUT, z.ZodTypeDef, IN>, data: IN, errorMessage: string): OUT {
+export function validateOrFail<IN, OUT>(schema: z.ZodSchema<OUT, IN>, data: IN, errorMessage: string): OUT {
   const validationResult = validate(schema, data, errorMessage);
   if (!validationResult.success) {
     console.error(`[ERROR] ${validationResult.error}`);

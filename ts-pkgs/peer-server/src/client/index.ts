@@ -6,7 +6,7 @@ import {
   validateOrFail,
   SelfConfigSchema,
   Peer,
-} from "../shared/types.js";
+} from "@xlabs-xyz/peer-lib";
 import { PeerClient } from "./client.js";
 
 type ClientAction = "upload" | "poll";

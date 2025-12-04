@@ -1,4 +1,4 @@
-import { Peer } from '../shared/types.js';
+import { Peer } from '@xlabs-xyz/peer-lib';
 
 export class Display {
   private hasProgressBar = false;

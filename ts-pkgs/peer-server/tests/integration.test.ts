@@ -1,17 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { PeerServer } from '../src/server/server.js';
-import { Display } from '../src/server/display.js';
 import { WormholeGuardianData,
   SelfConfig,
   PeersResponse,
   SelfConfigSchema,
   validateOrFail,
   BaseServerConfig,
-} from '../src/shared/types.js';
-import { PeerClient } from '../src/client/client.js';
+} from '@xlabs-xyz/peer-lib';
 import { ethers } from 'ethers';
 import fs from 'fs';
 import path from 'path';
+
+import { PeerClient } from '../src/client/client.js';
+import { Display } from '../src/server/display.js';
+import { PeerServer } from '../src/server/server.js';
 
 // Mock Display for tests to avoid console output during testing
 class MockDisplay extends Display {

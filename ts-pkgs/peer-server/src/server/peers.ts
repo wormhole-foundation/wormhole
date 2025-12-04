@@ -1,7 +1,7 @@
 
 import path from 'path';
 import fs from 'fs';
-import { Peer, PeerArraySchema, validateOrFail } from '../shared/types.js';
+import { Peer, PeerArraySchema, validateOrFail } from '@xlabs-xyz/peer-lib';
 import { Display } from './display.js';
 
 const GUARDIAN_PEERS_FILE = 'guardian_peers.json';

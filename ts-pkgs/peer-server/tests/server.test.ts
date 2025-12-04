@@ -1,10 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
+import {
+  hashPeerData,
+  WormholeGuardianData,
+  ServerConfig,
+  PeerRegistration,
+  BasePeer
+} from '@xlabs-xyz/peer-lib';
+import { ethers } from 'ethers';
+
 import { PeerServer } from '../src/server/server.js';
 import { Display } from '../src/server/display.js';
-import { WormholeGuardianData, ServerConfig, PeerRegistration, Peer, BasePeer } from '../src/shared/types.js';
-import { hashPeerData } from '../src/shared/wormhole.js';
-import { ethers } from 'ethers';
 
 // Mock Display for tests to avoid console output during testing
 class MockDisplay extends Display {

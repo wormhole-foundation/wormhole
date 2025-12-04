@@ -6,10 +6,10 @@ import {
   Peer,
   PeerRegistrationSchema,
   validate,
+  validateGuardianSignature,
   WormholeGuardianData
-} from '../shared/types.js';
+} from '@xlabs-xyz/peer-lib';
 import { saveGuardianPeers } from './peers.js';
-import { validateGuardianSignature } from '../shared/wormhole.js';
 
 export class PeerServer {
   private app: express.Application;

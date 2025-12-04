@@ -1,7 +1,11 @@
 import { PeerServer } from './server.js';
-import { getWormholeGuardianData } from '../shared/wormhole.js';
+import {
+  getWormholeGuardianData,
+  ServerConfig,
+  ServerConfigSchema,
+  validateOrFail,
+} from '@xlabs-xyz/peer-lib';
 import { Display } from './display.js';
-import { ServerConfig, ServerConfigSchema, validateOrFail } from '../shared/types.js';
 import fs from 'fs';
 import path from 'path';
 import { loadGuardianPeers } from './peers.js';

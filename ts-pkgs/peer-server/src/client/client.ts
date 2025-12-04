@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import {
+  hashPeerData,
   PeerRegistration,
   SelfConfig,
   PeersResponse,
@@ -8,8 +9,7 @@ import {
   PeersResponseSchema,
   UploadResponseSchema,
   UploadResponse
-} from '../shared/types.js';
-import { hashPeerData } from '../shared/wormhole.js';
+} from '@xlabs-xyz/peer-lib';
 
 export class PeerClient {
   private config: SelfConfig;
