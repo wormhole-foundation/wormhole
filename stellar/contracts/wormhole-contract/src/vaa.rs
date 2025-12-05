@@ -17,7 +17,7 @@ use wormhole_soroban_client::WormholeError;
 /// - Guardian set not expired
 /// - Sufficient valid signatures (quorum)
 /// - Signatures in ascending order
-pub(crate) fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, WormholeError> {
+pub fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, WormholeError> {
     let body_bytes = vaa.serialize_body(env);
 
     let guardian_set_info = governance::guardian_set::get(env, vaa.guardian_set_index)?;
@@ -37,7 +37,7 @@ pub(crate) fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, Wormho
 /// - ECDSA signature recovery
 /// - Public key to Ethereum address conversion
 /// - Address comparison
-pub(crate) fn verify_signature(
+pub fn verify_signature(
     sig: &Signature,
     env: &Env,
     message_hash: &soroban_sdk::crypto::Hash<32>,
@@ -117,12 +117,12 @@ fn verify_signatures_impl(
 /// Parse and verify a VAA from bytes (convenience function).
 ///
 /// This combines parsing and verification into a single call.
-pub(crate) fn verify_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<bool, WormholeError> {
+pub fn verify_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<bool, WormholeError> {
     let vaa = VAA::try_from((env, vaa_bytes))?;
     verify_vaa_signatures(&vaa, &env)
 }
 
 /// Parse a VAA from bytes (convenience function).
-pub(crate) fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<VAA, WormholeError> {
+pub fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<VAA, WormholeError> {
     VAA::try_from((env, vaa_bytes))
 }

@@ -1,9 +1,12 @@
-use crate::{governance::action::{GovernanceAction, parse_governance_header, validate_governance_header}, storage::StorageKey};
+use crate::{
+    governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
+    storage::StorageKey,
+};
 use core::convert::TryFrom;
-use soroban_sdk::{contractevent, Bytes, BytesN, Env};
+use soroban_sdk::{Bytes, BytesN, Env, contractevent};
 use wormhole_soroban_client::{
-    BytesReader, WormholeError, ACTION_SET_MESSAGE_FEE, SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH,
-    STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, U256_PADDING_BYTES, VAA,
+    ACTION_SET_MESSAGE_FEE, BytesReader, SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH, STORAGE_TTL_EXTENSION,
+    STORAGE_TTL_THRESHOLD, U256_PADDING_BYTES, VAA, WormholeError,
 };
 
 /// Event published when the message fee is updated.
@@ -52,7 +55,12 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for SetMessageFeePayload {
 
 impl SetMessageFeePayload {
     fn validate(&self) -> Result<(), WormholeError> {
-        validate_governance_header(&self.module, self.action, self.chain, ACTION_SET_MESSAGE_FEE)
+        validate_governance_header(
+            &self.module,
+            self.action,
+            self.chain,
+            ACTION_SET_MESSAGE_FEE,
+        )
     }
 }
 
