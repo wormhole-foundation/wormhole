@@ -243,6 +243,11 @@ contract WormholeVerifier is EIP712Encoding {
   error UnknownGuardianSet(uint32 index);
   error GovernanceVaaVerificationFailure();
 
+  // Update events
+  event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes32 oldShardId, bytes32 newShardId, uint256 timestamp);
+  event SchnorrKeyAdded(uint32 indexed newSchnorrKeyIndex, uint256 indexed newSchnorrKey, bytes32 initialShardDataHash, uint256 timestamp);
+  event MultisigKeyDataPulled(uint256 indexed newMultisigKeyIndex, uint256 indexed oldMultisigKeyIndex, uint256 timestamp);
+
   // We don't make this immutable to keep bytecode verification from build simple.
   // It's only used in cold execution paths like governance operations.
   ICoreBridge private _coreBridge;
@@ -1123,8 +1128,11 @@ contract WormholeVerifier is EIP712Encoding {
 
     _useUnorderedNonce(schnorrKeyIndex, signerIndex, nonce, baseOffset);
 
+    bytes32 oldShardId = _getSchnorrShardId(schnorrKeyIndex, signerIndex);
+
     // Store the shard ID
     _setSchnorrShardId(schnorrKeyIndex, signerIndex, shardId);
+    emit ShardIdUpdated(schnorrKeyIndex, signerIndex, oldShardId, shardId, block.timestamp);
 
     return offset;
   }
@@ -1226,6 +1234,7 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Bounds check on data read
       require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
+      emit SchnorrKeyAdded(newSchnorrKeyIndex, newSchnorrKey, initialShardDataHash, block.timestamp);
     }
   }
 
@@ -1257,6 +1266,9 @@ contract WormholeVerifier is EIP712Encoding {
         GuardianSet memory guardians = _coreBridge.getGuardianSet(uint32(i));
         _appendMultisigKeyData(guardians.keys, guardians.expirationTime);
       }
+
+      uint256 newMultisigKeyIndex = upper - 1;
+      emit MultisigKeyDataPulled(newMultisigKeyIndex, currentMultisigKeyIndex, block.timestamp);
     }
   }
 
@@ -1352,6 +1364,13 @@ contract WormholeVerifier is EIP712Encoding {
   function _getSchnorrKeyData(uint32 index) internal view returns (uint256 pubkey) {
     assembly ("memory-safe") {
       pubkey := sload(add(SLOT_SCHNORR_KEY_DATA, index))
+    }
+  }
+
+  function _getSchnorrShardId(uint32 keyIndex, uint8 signerIndex) internal view returns (bytes32 schnorrId) {
+    uint256 shardIdSlot = _slotShardMapId(keyIndex, signerIndex);
+    assembly ("memory-safe") {
+      schnorrId := sload(shardIdSlot)
     }
   }
 

@@ -683,8 +683,23 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
   }
 
   function test_updateShardId_success() public {
-    bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
+    uint32 keyIndex = 1;
+    uint32 nonce = 1;
+    bytes32 shardId = bytes32(vm.randomUint());
+    uint8 signerIndex = 0;
+    bytes32 oldShardId = 0;
+    bytes memory signedMessage = signUpdateShardIdMessage(
+      _wormholeVerifierV2, 
+      keyIndex, 
+      nonce, 
+      shardId, 
+      signerIndex, 
+      guardianPrivateKeys[0]
+    );
+
+    vm.expectEmit(true, true, false, false);
+    emit WormholeVerifier.ShardIdUpdated(keyIndex, signerIndex, oldShardId, shardId, 0);
+
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
@@ -979,6 +994,8 @@ contract TestAssembly2 is VerificationTestAPI {
   // V1 codepaths
 
   function test_pullGuardianSets_pullsOne() public {
+    vm.expectEmit(true, true, false, false);
+    emit WormholeVerifier.MultisigKeyDataPulled(0, 0, 0);
     pullGuardianSets(_wormholeVerifierV2, 1);
   }
 
@@ -1095,7 +1112,10 @@ contract TestAssembly2 is VerificationTestAPI {
   // V2 codepaths
 
   function test_appendSchnorrKey() public {
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
     pullGuardianSets(_wormholeVerifierV2, 1);
+    vm.expectEmit(true, true, false, false);
+    emit WormholeVerifier.SchnorrKeyAdded(0, PK1, schnorrShardDataHash, 0);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
   }
 
