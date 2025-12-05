@@ -9,6 +9,8 @@ pub enum StorageKey {
     Initialized,
     /// Admin address for contract upgrades (set to contract itself)
     Admin,
+    /// Governance emitter address (configurable, set during initialization)
+    GovernanceEmitter,
     /// Guardian set information by index
     GuardianSet(u32),
     /// Guardian set expiry timestamp by index

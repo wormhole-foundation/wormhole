@@ -18,8 +18,13 @@ pub struct Wormhole;
 
 #[contractimpl]
 impl WormholeCoreInterface for Wormhole {
-    fn initialize(env: Env, initial_guardians: Vec<BytesN<20>>) -> Result<(), WormholeError> {
-        initialize::initialize(&env, initial_guardians)
+    /// Initialize the core contract with initial guardians and governance emitter. Can only be called once
+    fn initialize(
+        env: Env,
+        initial_guardians: Vec<BytesN<20>>,
+        governance_emitter: BytesN<32>,
+    ) -> Result<(), WormholeError> {
+        initialize::initialize(&env, initial_guardians, governance_emitter)
     }
 
     fn is_initialized(env: Env) -> bool {
@@ -31,7 +36,10 @@ impl WormholeCoreInterface for Wormhole {
         Ok(())
     }
 
-    fn parse_vaa(env: Env, vaa_bytes: Bytes) -> Result<wormhole_soroban_client::VAA, WormholeError> {
+    fn parse_vaa(
+        env: Env,
+        vaa_bytes: Bytes,
+    ) -> Result<wormhole_soroban_client::VAA, WormholeError> {
         vaa::parse_vaa(&env, &vaa_bytes)
     }
 

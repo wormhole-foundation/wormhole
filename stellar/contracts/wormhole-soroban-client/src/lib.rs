@@ -40,16 +40,23 @@ use soroban_sdk::{Address, Bytes, BytesN, Env, Vec};
 pub trait WormholeCoreInterface {
     // ========== Initialization ==========
 
-    /// Initialize the contract with the initial guardian set.
+    /// Initialize the contract with the initial guardian set and governance emitter.
     /// Can only be called once.
     ///
     /// # Arguments
     /// * `initial_guardians` - Ethereum addresses (20 bytes) of initial guardians
+    /// * `governance_emitter` - The governance emitter address (32 bytes) that can issue governance VAAs.
+    ///   For mainnet, this should be 0x0000000000000000000000000000000000000000000000000000000000000004
+    ///   For testnet, you may use a different address you control for testing.
     ///
     /// # Errors
     /// * `Error::AlreadyInitialized` - Contract already initialized
     /// * `Error::EmptyGuardianSet` - No guardians provided
-    fn initialize(env: Env, initial_guardians: Vec<BytesN<20>>) -> Result<(), WormholeError>;
+    fn initialize(
+        env: Env,
+        initial_guardians: Vec<BytesN<20>>,
+        governance_emitter: BytesN<32>,
+    ) -> Result<(), WormholeError>;
 
     /// Check if the contract has been initialized.
     ///

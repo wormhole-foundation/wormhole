@@ -1,9 +1,9 @@
-use crate::{initialize, storage::StorageKey, vaa::verify_vaa};
+use crate::{initialize, storage::StorageKey, utils::keccak256_hash, vaa::verify_vaa};
 use core::convert::TryFrom;
 use soroban_sdk::{Bytes, BytesN, Env};
 use wormhole_soroban_client::{
-    VAA, BytesReader, WormholeError, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER,
-    MODULE_CORE, STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD,
+    BytesReader, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER, MODULE_CORE,
+    STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, VAA, WormholeError,
 };
 
 pub trait GovernanceAction {
@@ -50,7 +50,7 @@ fn verify_and_hash_governance_vaa(
     verify_vaa(env, vaa_bytes)?;
 
     let body_bytes = vaa.serialize_body(env);
-    let vaa_hash = crate::utils::keccak256_hash(env, &body_bytes);
+    let vaa_hash = keccak256_hash(env, &body_bytes);
 
     Ok((vaa, vaa_hash))
 }
@@ -85,7 +85,7 @@ pub fn is_governance_vaa_consumed_from_bytes(
     vaa_bytes: &Bytes,
 ) -> Result<bool, WormholeError> {
     let body_bytes = VAA::get_body_bytes(vaa_bytes)?;
-    let vaa_hash = crate::utils::keccak256_hash(env, &body_bytes);
+    let vaa_hash = keccak256_hash(env, &body_bytes);
     Ok(is_vaa_consumed(env, &vaa_hash))
 }
 
