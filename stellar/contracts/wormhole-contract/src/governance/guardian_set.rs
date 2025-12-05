@@ -2,15 +2,24 @@ use crate::{
     governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
     initialize,
     storage::StorageKey,
-    vaa::VAA,
 };
 use core::convert::TryFrom;
-use soroban_sdk::{Bytes, BytesN, Env, Vec};
+use soroban_sdk::{Bytes, BytesN, Env, Vec, contractevent};
 use wormhole_soroban_client::{
     ACTION_GUARDIAN_SET_UPGRADE, BytesReader, GUARDIAN_SET_EXPIRATION_TIME,
     GUARDIAN_SET_UPGRADE_PAYLOAD_MIN_LENGTH, GuardianSetInfo, STORAGE_TTL_EXTENSION,
     STORAGE_TTL_THRESHOLD, WormholeError,
 };
+
+/// Event published when a guardian set upgrade is executed.
+///
+/// Topics: ["wormhole_core", "gs_upg"]
+/// Data: { new_guardian_set_index: u32, guardian_count: u32 }
+#[contractevent(topics = ["wormhole_core", "gs_upg"])]
+struct GuardianSetUpgradeEvent {
+    new_guardian_set_index: u32,
+    guardian_count: u32,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct GuardianSetUpgradePayload {
@@ -158,26 +167,30 @@ impl GovernanceAction for GuardianSetUpgradeAction {
         payload.validate(env)
     }
 
-    fn execute(env: &Env, _vaa: &VAA, payload: &Self::Payload) -> Result<(), WormholeError> {
-        let current_index = get_current_index(env);
+    fn execute(
+        env: &Env,
+        vaa: &crate::vaa::VAA,
+        payload: &Self::Payload,
+    ) -> Result<(), WormholeError> {
+        let old_index = get_current_index(env);
 
-        expire_guardian_set(env, current_index);
+        let expiry_time =
+            u64::from(vaa.timestamp).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));
+        set_expiry(env, old_index, expiry_time);
 
         let new_set = GuardianSetInfo {
             keys: payload.new_guardian_set_keys.clone(),
             creation_time: env.ledger().timestamp(),
         };
-
         store(env, payload.new_guardian_set_index, new_set)?;
+
         set_current_index(env, payload.new_guardian_set_index);
 
-        env.events().publish(
-            ("wormhole_core", "guardian_set_upgrade"),
-            (
-                payload.new_guardian_set_index,
-                payload.new_guardian_set_keys.len(),
-            ),
-        );
+        GuardianSetUpgradeEvent {
+            new_guardian_set_index: payload.new_guardian_set_index,
+            guardian_count: payload.new_guardian_set_keys.len(),
+        }
+        .publish(env);
 
         Ok(())
     }

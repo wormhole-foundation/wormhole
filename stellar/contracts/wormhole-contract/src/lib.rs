@@ -102,11 +102,7 @@ impl WormholeCoreInterface for Wormhole {
     }
 
     fn is_governance_vaa_consumed(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
-        if governance::is_governance_vaa_consumed(env, vaa_bytes)? {
-            Err(WormholeError::GovernanceVAAAlreadyConsumed)
-        } else {
-            Ok(())
-        }
+        governance::is_governance_vaa_consumed(env, vaa_bytes)
     }
 
     fn get_chain_id(_env: Env) -> u32 {
