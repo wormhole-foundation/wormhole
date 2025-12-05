@@ -1,4 +1,4 @@
-use crate::{governance::action::GovernanceAction, storage::StorageKey};
+use crate::{governance::action::{GovernanceAction, parse_governance_header, validate_governance_header}, storage::StorageKey};
 use core::convert::TryFrom;
 use soroban_sdk::{contractevent, Bytes, BytesN, Env};
 use wormhole_soroban_client::{
@@ -6,9 +6,13 @@ use wormhole_soroban_client::{
     STORAGE_TTL_EXTENSION, STORAGE_TTL_THRESHOLD, U256_PADDING_BYTES, VAA,
 };
 
-use super::action::{parse_governance_header, validate_governance_header};
-
-#[contractevent]
+/// Event published when the message fee is updated.
+///
+/// Topics: ["wormhole_core", "fee_set"]
+/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
+/// - "fee_set": Event type for message fee updates
+/// Data: fee (u64) - uses single-value format for cleaner output
+#[contractevent(topics = ["wormhole_core", "fee_set"], data_format = "single-value")]
 pub struct MessageFeeSetEvent {
     pub fee: u64,
 }

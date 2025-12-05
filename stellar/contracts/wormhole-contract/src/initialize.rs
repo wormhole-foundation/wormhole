@@ -8,7 +8,8 @@ use wormhole_soroban_client::*;
 /// Event published when the contract is initialized.
 ///
 /// Topics: ["wormhole_core", "init"]
-/// Data: { chain_id: u32, guardian_count: u32, governance_chain_id: u32, governance_emitter: BytesN<32> }
+/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
+/// - "init": Event type for initialization
 #[contractevent(topics = ["wormhole_core", "init"])]
 struct InitializeEvent {
     chain_id: u32,
@@ -24,13 +25,7 @@ pub fn is_initialized(env: &Env) -> bool {
         .unwrap_or(false)
 }
 
-/// Ensures the contract is initialized, returning an  WormholeError if not.
-///
-/// This is a convenience helper to reduce repetitive  WormholeError handling across the codebase.
-///
-/// #  WormholeErrors
-///
-/// Returns ` WormholeError::NotInitialized` if the contract has not been initialized.
+/// Ensures the contract is initialized, returning an Error if not.
 pub fn require_initialized(env: &Env) -> Result<(), WormholeError> {
     if !is_initialized(env) {
         return Err(WormholeError::NotInitialized);

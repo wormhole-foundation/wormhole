@@ -1,5 +1,5 @@
 use crate::{
-    governance::action::GovernanceAction,
+    governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
     storage::StorageKey,
     utils::{address_from_ed25519_pk_bytes, get_native_token_address},
 };
@@ -11,9 +11,11 @@ use wormhole_soroban_client::{
     U256_PADDING_BYTES, VAA,
 };
 
-use super::action::{parse_governance_header, validate_governance_header};
-
-#[contractevent]
+/// Event published when fees are transferred out.
+///
+/// Topics: ["wormhole_core", "fee_transfer"]
+/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
+#[contractevent(topics = ["wormhole_core", "fee_transfer"])]
 pub struct FeeTransferEvent {
     pub amount: u64,
     pub recipient: Address,

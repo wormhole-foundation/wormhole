@@ -14,8 +14,9 @@ use wormhole_soroban_client::{
 /// Event published when a guardian set upgrade is executed.
 ///
 /// Topics: ["wormhole_core", "gs_upg"]
-/// Data: { new_guardian_set_index: u32, guardian_count: u32 }
-#[contractevent(topics = ["wormhole_core", "gs_upg"])]
+/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
+/// - "gs_upg": Event type for guardian set upgrades
+#[contractevent(topics = ["wormhole_core", "guardian_set_upgrade"])]
 struct GuardianSetUpgradeEvent {
     new_guardian_set_index: u32,
     guardian_count: u32,
