@@ -113,7 +113,7 @@ pub struct PostedMessageData {
 
 impl Signature {
     /// Parse a signature from a BytesReader
-    pub fn parse_from_reader(env: &Env, reader: &mut BytesReader) -> Result<Self, WormholeError> {
+    pub fn parse_from_reader(reader: &mut BytesReader) -> Result<Self, WormholeError> {
         let guardian_index = u32::from(reader.read_u8()?);
         let r = reader.read_bytes_n::<32>()?;
         let s = reader.read_bytes_n::<32>()?;
@@ -146,7 +146,7 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
 
         let mut signatures = Vec::new(env);
         for _ in 0..num_signatures {
-            let sig = Signature::parse_from_reader(env, &mut reader)?;
+            let sig = Signature::parse_from_reader(&mut reader)?;
             signatures.push_back(sig);
         }
 
@@ -184,7 +184,6 @@ impl VAA {
     /// - sequence (8 bytes, big-endian)
     /// - consistency_level (1 byte)
     /// - payload (variable length)
-    #[allow(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)]
     pub fn serialize_body(&self, env: &Env) -> Bytes {
         let mut bytes = Bytes::new(env);
 
