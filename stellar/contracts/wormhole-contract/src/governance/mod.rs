@@ -1,8 +1,12 @@
 mod action;
 pub mod guardian_set;
+mod set_message_fee;
+mod transfer_fees;
 
 pub use action::GovernanceAction;
 pub use guardian_set::GuardianSetUpgradeAction;
+pub use set_message_fee::{SetMessageFeeAction, get_message_fee};
+pub use transfer_fees::{TransferFeesAction, get_last_fee_transfer};
 
 use crate::initialize;
 use soroban_sdk::{Bytes, Env};
