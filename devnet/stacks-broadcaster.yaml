@@ -1,0 +1,72 @@
+---
+# TX Broadcaster Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stacks-broadcaster
+  labels:
+    app: stacks-broadcaster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stacks-broadcaster
+  template:
+    metadata:
+      labels:
+        app: stacks-broadcaster
+    spec:
+      containers:
+        - name: tx-broadcaster
+          image: stacks-broadcaster
+          env:
+            - name: STACKS_CORE_RPC_HOST
+              value: "stacks-node"
+            - name: STACKS_CORE_RPC_PORT
+              value: "20443"
+            - name: NAKAMOTO_BLOCK_INTERVAL
+              value: "2"
+            - name: STACKS_25_HEIGHT
+              value: "209"
+            - name: STACKS_30_HEIGHT
+              value: "232"
+            - name: POX_PREPARE_LENGTH
+              value: "5"
+            - name: POX_REWARD_LENGTH
+              value: "20"
+            - name: PAUSE_HEIGHT
+              value: "999999999999"
+            # Private keys for broadcasting transactions
+            - name: ACCOUNT_KEYS
+              value: "e26e611fc92fe535c5e2e58a6a446375bb5e3b471440af21bbe327384befb50a01,e3ebd73a51da9a2ab0c6679145420876bf4338554a8972e3ab200cef7adbec6001"
+            # Signer keys for reference
+            - name: STACKING_KEYS
+              value: "41634762d89dfa09133a4a8e9c1378d0161d29cd0a9433b51f1e3d32947a73dc01"
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "test -f /tmp/ready"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "pgrep -f tx-broadcaster.ts"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
