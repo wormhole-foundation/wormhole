@@ -36,7 +36,7 @@ export class PeerServer {
     this.setupMiddleware();
     this.setupRoutes();
     // Show initial progress
-    this.display.setProgress(this.sparseGuardianPeers.length, this.guardianSetLength, 'Guardian Collection Progress');
+    this.display.setProgress(initialPeers.length, this.guardianSetLength, 'Guardian Collection Progress');
   }
 
   private partialGuardianPeers(): Peer[] {
