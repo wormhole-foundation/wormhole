@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
     - uses: actions/setup-node@v4
       with:
-        node-version: "22.15.0"
+        node-version: "24.11.1"
         registry-url: "https://npm.pkg.github.com"
         cache: "npm"
         cache-dependency-path: |
@@ -124,13 +124,6 @@ jobs:
       uses: actions/checkout@v4
       with:
           persist-credentials: false
-    # - uses: actions/setup-node@v4
-    #   with:
-    #     node-version: "22.15.0"
-    #     registry-url: "https://npm.pkg.github.com"
-    #     cache: "npm"
-    #     cache-dependency-path: |
-    #       ./src/solana/package-lock.json
     - name: Hash Solidity dependencies
       id: solidity-deps-hash
       run: |
