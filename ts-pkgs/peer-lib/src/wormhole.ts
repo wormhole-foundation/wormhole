@@ -31,8 +31,8 @@ export async function getWormholeGuardianData(
     return {
       guardians: currentSetResult[0]
     };
-  } catch (error) {
-    console.error('Failed to fetch Wormhole guardian data:', error);
+  } catch (error: any) {
+    console.error('Failed to fetch Wormhole guardian data:', error?.stack || error);
     throw error;
   }
 }
