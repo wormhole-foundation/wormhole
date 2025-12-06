@@ -20,7 +20,7 @@ RUN openssl req -x509 -key key.pem -out cert.pem -days 365 \
   -addext "keyUsage=digitalSignature" \
   -addext "extendedKeyUsage=serverAuth,clientAuth"
 
-# TODO: Fix the commit
+# TODO: Pin the commit
 RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
 WORKDIR core-bridge/ts-pkgs/peer-server
 RUN yarnpkg install
