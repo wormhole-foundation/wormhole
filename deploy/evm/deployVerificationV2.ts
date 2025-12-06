@@ -1,13 +1,12 @@
 import { readFile } from "fs/promises";
 import { Abi, createWalletClient, defineChain, http, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { waitForTransactionReceipt } from "viem/actions";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
 import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 
-import { waitForTransactionReceipt } from "viem/actions";
 import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
-import { readFileSync } from "fs";
 
 // ICoreBridge coreBridge,
 // uint32 initialMultisigKeyCount,
@@ -57,9 +56,8 @@ interface CompilerOutput {
   }
 }
 
-function getCompilerOutput(): CompilerOutput {
-  const path = "../../verifiable-evm-build/WormholeVerifier.output.json";
-  return JSON.parse(readFileSync(path, "utf8"));
+function getCompilerOutput(path = "../../verifiable-evm-build/WormholeVerifier.output.json"): Promise<CompilerOutput> {
+  return JSON.parse(await readFile(path, "utf8"));
 }
 
 
@@ -83,7 +81,7 @@ async function main() {
   if (typeof signer !== "string" || !isHex(signer)) throw new Error("Unexpected signer file format.");
 
   const account = privateKeyToAccount(signer);
-  const compilerOutput = getCompilerOutput();
+  const compilerOutput = await getCompilerOutput();
   const contractOutput = compilerOutput.contracts["src/evm/WormholeVerifier.sol"].WormholeVerifier;
   const abi = contractOutput.abi;
   const bytecode = `0x${contractOutput.evm.bytecode.object}`;
