@@ -41,7 +41,7 @@ clean-evm:
 	rm -rf lib
 
 dependencies-solana-ts:
-	yarn --immutable --immutable-cache
+	yarn --immutable
 
 build-solana:
 	cd src/solana; anchor build
