@@ -36,6 +36,16 @@ jobs:
             - 'Makefile'
             - '.github/workflows/ci_test.yaml'
             - 'src/solana/**'
+          ts-pkgs:
+            - '.github/workflows/ci_test.yaml'
+            - 'ts-pkgs/**'
+            - 'src/solana/package.json'
+            - 'src/solana/tsconfig.json'
+            - 'src/solana/**/*.ts'
+            - 'yarn.lock'
+            - '.pnp.cjs'
+            - '.pnp.loader.mjs'
+            - '.yarnrc.yml'
 
   solana-tests:
     name: Solana
@@ -52,7 +62,6 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: "24.11.1"
-        registry-url: "https://npm.pkg.github.com"
         cache: "yarn"
         cache-dependency-path: |
           ./yarn.lock
@@ -158,3 +167,27 @@ jobs:
       shell: bash
     - name: Run EVM tests
       run: make test-evm
+
+  ts-pkg-tests:
+    name: TS libraries
+    needs: changes
+    if: ${{ needs.changes.outputs.ts-pkgs == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2500"
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+          persist-credentials: false
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24.11.1"
+        cache: "yarn"
+        cache-dependency-path: |
+          ./yarn.lock
+
+    - name: Check lockfile
+      run: yarn --immutable
+    - name: Typecheck
+      run: yarn run build:ts

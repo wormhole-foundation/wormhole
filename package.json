@@ -5,6 +5,9 @@
     "ts-pkgs/*",
     "src/solana"
   ],
+  "scripts": {
+    "build:ts": "yarn workspaces foreach --all run build"
+  },
   "devDependencies": {
     "typescript": "^5.9.3"
   },
