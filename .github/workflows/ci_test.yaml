@@ -36,7 +36,7 @@ jobs:
             - 'Makefile'
             - '.github/workflows/ci_test.yaml'
             - 'src/solana/**'
-          ts-pkgs:
+          ts_pkgs:
             - '.github/workflows/ci_test.yaml'
             - 'ts-pkgs/**'
             - 'src/solana/package.json'
@@ -171,7 +171,7 @@ jobs:
   ts-pkg-tests:
     name: TS libraries
     needs: changes
-    if: ${{ needs.changes.outputs.ts-pkgs == 'true' }}
+    if: ${{ needs.changes.outputs.ts_pkgs == 'true' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
