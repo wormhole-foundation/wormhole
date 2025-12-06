@@ -257,13 +257,13 @@ pub trait WormholeCoreInterface {
     ///
     /// # Returns
     /// Chain ID as u32
-    fn get_chain_id(env: Env) -> u32;
+    fn get_chain_id() -> u32;
 
     /// Get the governance chain ID (Solana = 1).
     ///
     /// # Returns
     /// Governance chain ID
-    fn get_governance_chain_id(env: Env) -> u32;
+    fn get_governance_chain_id() -> u32;
 
     /// Get the governance emitter address.
     ///

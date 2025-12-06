@@ -2,7 +2,7 @@
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
 use wormhole_soroban_client::{
-    ConsistencyLevel, GuardianSetInfo, WormholeCoreInterface, WormholeError,
+    ConsistencyLevel, GuardianSetInfo, WormholeCoreInterface, WormholeError, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER
 };
 use crate::governance::{
     guardian_set::get_current_guardian_set_index, guardian_set::get_guardian_set, guardian_set::get_guardian_set_expiry,
@@ -112,15 +112,21 @@ impl WormholeCoreInterface for Wormhole {
         governance::is_governance_vaa_consumed(env, vaa_bytes)
     }
 
-    fn get_chain_id(_env: Env) -> u32 {
-        todo!()
+    fn get_chain_id() -> u32 {
+        u32::from(CHAIN_ID_STELLAR)
     }
 
-    fn get_governance_chain_id(_env: Env) -> u32 {
-        todo!()
+    fn get_governance_chain_id() -> u32 {
+        GOVERNANCE_CHAIN_ID
     }
 
-    fn get_governance_emitter(_env: Env) -> BytesN<32> {
-        todo!()
+    fn get_governance_emitter(env: Env) -> BytesN<32> {
+        env.storage()
+            .persistent()
+            .get(&storage::StorageKey::GovernanceEmitter)
+            .unwrap_or_else(|| {
+                // Fallback to default if not initialized
+                BytesN::from_array(&env, &GOVERNANCE_EMITTER)
+            })
     }
 }
