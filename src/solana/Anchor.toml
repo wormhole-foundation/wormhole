@@ -17,7 +17,7 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run mocha -t 1000000 tests/**/*.ts"
+test = "yarn run mocha -t 1000000 tests/**/*.test.ts"
 
 [test]
 startup_wait = 5000

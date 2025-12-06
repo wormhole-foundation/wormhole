@@ -3,7 +3,7 @@
     "types": ["mocha", "chai"],
     "lib": ["es2023"],
     "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "node16",
     "target": "es2022",
     "outDir": "ts-build",
     "strict": true,

@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "types": "./ts-build/src/index.d.ts",
-  "module": "./ts-build/src/index.js",
+  "main": "./ts-build/src/index.js",
   "private": true,
   "scripts": {
     "build": "tsc --build ./tsconfig.json"

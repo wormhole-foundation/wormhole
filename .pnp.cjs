@@ -2906,7 +2906,8 @@ const RAW_RUNTIME_STATE =
           ["@solana/web3.js", "npm:1.98.4"],\
           ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
           ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
+          ["bn.js", "npm:5.2.2"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -5805,6 +5806,7 @@ const RAW_RUNTIME_STATE =
           ["serialize-javascript", "npm:6.0.2"],\
           ["strip-json-comments", "npm:3.1.1"],\
           ["supports-color", "npm:8.1.1"],\
+          ["tsx", "npm:4.21.0"],\
           ["workerpool", "npm:9.3.4"],\
           ["yargs", "npm:17.7.2"],\
           ["yargs-parser", "npm:21.1.1"],\

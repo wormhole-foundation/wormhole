@@ -3,15 +3,15 @@ import assert from "assert"
 import * as anchor from "@coral-xyz/anchor"
 import { ComputeBudgetProgram, Keypair, PublicKey } from "@solana/web3.js"
 import { keccak256, toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
-import { Chain, encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
+import { type Chain, encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
 import { randomBytes } from "@noble/hashes/utils"
 
-import { VerificationV2 } from "../target/types/verification_v2.js"
+import type { VerificationV2 } from "../target/types/verification_v2.js"
 
 import { guardianAddress, TestingWormholeCore } from "./testing-wormhole-core.js"
 import { WormholeContracts, TestsHelper, expectFailure } from "./testing_helpers.js"
 import { inspect } from "util"
-import { appendSchnorrKeyMessageLayout, HeaderV2, headerV2Layout } from "@xlabs-xyz/tss-definitions"
+import { appendSchnorrKeyMessageLayout, type HeaderV2, headerV2Layout } from "@xlabs-xyz/tss-definitions"
 
 
 interface SchnorrKeyMessage {
