@@ -17,6 +17,7 @@ jobs:
     outputs:
       evm: ${{ steps.filter.outputs.evm }}
       solana: ${{ steps.filter.outputs.solana }}
+      ts-pkgs: ${{ steps.filter.outputs.ts-pkgs }}
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -36,7 +37,7 @@ jobs:
             - 'Makefile'
             - '.github/workflows/ci_test.yaml'
             - 'src/solana/**'
-          ts_pkgs:
+          ts-pkgs:
             - '.github/workflows/ci_test.yaml'
             - 'ts-pkgs/**'
             - 'src/solana/package.json'
@@ -171,7 +172,7 @@ jobs:
   ts-pkg-tests:
     name: TS libraries
     needs: changes
-    if: ${{ needs.changes.outputs.ts_pkgs == 'true' }}
+    if: ${{ needs.changes.outputs.ts-pkgs == 'true' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--max-old-space-size=2500"
