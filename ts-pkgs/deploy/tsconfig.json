@@ -9,8 +9,7 @@
     "composite": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "types": ["node"]
+    "esModuleInterop": true
   },
   "include": ["evm", "guardian", "vaatool"],
 }
