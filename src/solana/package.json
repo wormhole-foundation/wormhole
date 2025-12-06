@@ -9,15 +9,19 @@
     "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.2",
     "@noble/secp256k1": "^2.2.3",
+    "@solana/web3.js": "^1.98.4",
     "@wormhole-foundation/sdk-base": "^4.4.0",
+    "@wormhole-foundation/sdk-connect": "^4.4.0",
     "@wormhole-foundation/sdk-definitions": "^4.4.0",
+    "@wormhole-foundation/sdk-solana": "^4.4.0",
     "@wormhole-foundation/sdk-solana-core": "^4.4.0",
-    "@xlabs-xyz/tss-definitions": "file:../../ts-pkgs/tss-definitions"
+    "@xlabs-xyz/tss-definitions": "workspace:*"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
     "@types/chai": "^4.3.0",
     "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.0",
     "@types/yargs": "^17.0.33",
     "chai": "^4.5.0",
     "mocha": "^11.7.5",

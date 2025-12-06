@@ -3054,17 +3054,6 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["@xlabs-xyz/peer-lib", [\
-      ["file:../peer-lib#../peer-lib::hash=47910f&locator=%40xlabs-xyz%2Fpeer-server%40workspace%3Ats-pkgs%2Fpeer-server", {\
-        "packageLocation": "../../../.yarn/berry/cache/@xlabs-xyz-peer-lib-file-9b00ce21d6-10c0.zip/node_modules/@xlabs-xyz/peer-lib/",\
-        "packageDependencies": [\
-          ["@scure/base", "npm:2.0.0"],\
-          ["@xlabs-xyz/peer-lib", "file:../peer-lib#../peer-lib::hash=47910f&locator=%40xlabs-xyz%2Fpeer-server%40workspace%3Ats-pkgs%2Fpeer-server"],\
-          ["binary-layout", "npm:1.3.2"],\
-          ["ethers", "npm:6.16.0"],\
-          ["zod", "npm:4.1.13"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
       ["workspace:ts-pkgs/peer-lib", {\
         "packageLocation": "./ts-pkgs/peer-lib/",\
         "packageDependencies": [\
@@ -3088,7 +3077,7 @@ const RAW_RUNTIME_STATE =
           ["@types/express", "npm:4.17.25"],\
           ["@types/node", "npm:24.10.1"],\
           ["@types/supertest", "npm:6.0.3"],\
-          ["@xlabs-xyz/peer-lib", "file:../peer-lib#../peer-lib::hash=47910f&locator=%40xlabs-xyz%2Fpeer-server%40workspace%3Ats-pkgs%2Fpeer-server"],\
+          ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
           ["@xlabs-xyz/peer-server", "workspace:ts-pkgs/peer-server"],\
           ["binary-layout", "npm:1.3.2"],\
           ["cors", "npm:2.8.5"],\
@@ -3103,15 +3092,6 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["@xlabs-xyz/tss-definitions", [\
-      ["file:../../ts-pkgs/tss-definitions#../../ts-pkgs/tss-definitions::hash=0a4ea8&locator=solana-8a846c%40workspace%3Asrc%2Fsolana", {\
-        "packageLocation": "../../../.yarn/berry/cache/@xlabs-xyz-tss-definitions-file-272b2c97c9-10c0.zip/node_modules/@xlabs-xyz/tss-definitions/",\
-        "packageDependencies": [\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"],\
-          ["@xlabs-xyz/tss-definitions", "file:../../ts-pkgs/tss-definitions#../../ts-pkgs/tss-definitions::hash=0a4ea8&locator=solana-8a846c%40workspace%3Asrc%2Fsolana"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
       ["workspace:ts-pkgs/tss-definitions", {\
         "packageLocation": "./ts-pkgs/tss-definitions/",\
         "packageDependencies": [\
@@ -6858,14 +6838,18 @@ const RAW_RUNTIME_STATE =
           ["@coral-xyz/anchor", "npm:0.31.1"],\
           ["@noble/hashes", "npm:1.8.0"],\
           ["@noble/secp256k1", "npm:2.3.0"],\
+          ["@solana/web3.js", "npm:1.98.4"],\
           ["@types/bn.js", "npm:5.2.0"],\
           ["@types/chai", "npm:4.3.20"],\
           ["@types/mocha", "npm:10.0.10"],\
+          ["@types/node", "npm:24.10.1"],\
           ["@types/yargs", "npm:17.0.35"],\
           ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
           ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
           ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
-          ["@xlabs-xyz/tss-definitions", "file:../../ts-pkgs/tss-definitions#../../ts-pkgs/tss-definitions::hash=0a4ea8&locator=solana-8a846c%40workspace%3Asrc%2Fsolana"],\
+          ["@xlabs-xyz/tss-definitions", "workspace:ts-pkgs/tss-definitions"],\
           ["chai", "npm:4.5.0"],\
           ["mocha", "npm:11.7.5"],\
           ["solana-8a846c", "workspace:src/solana"],\

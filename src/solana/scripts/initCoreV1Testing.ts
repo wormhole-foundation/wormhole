@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
   encoding,
-} from '@wormhole-foundation/sdk-connect';
+} from '@wormhole-foundation/sdk-base';
 
 import { privateKeyToEvmAddress, TestingWormholeCore } from "../tests/testing-wormhole-core.js";
 

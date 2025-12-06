@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@scure/base": "^2.0.0",
-    "@xlabs-xyz/peer-lib": "file:../peer-lib",
+    "@xlabs-xyz/peer-lib": "workspace:*",
     "binary-layout": "^1.3.2",
     "cors": "^2.8.5",
     "ethers": "^6.16.0",

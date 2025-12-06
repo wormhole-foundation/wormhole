@@ -1,12 +1,12 @@
 import anchor from '@coral-xyz/anchor';
 import { Connection, Keypair, PublicKey, Signer, Transaction } from '@solana/web3.js';
+import { signAndSendWait } from '@wormhole-foundation/sdk-connect';
 import {
   Chain,
   deserializeLayout,
   encoding,
   Network,
-  signAndSendWait,
-} from '@wormhole-foundation/sdk-connect';
+} from '@wormhole-foundation/sdk-base';
 import { AnySolanaAddress, SolanaAddress, SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
 import { SolanaWormholeCore, utils as coreUtils } from '@wormhole-foundation/sdk-solana-core';
 import {
@@ -18,11 +18,11 @@ import {
   VAA,
 } from '@wormhole-foundation/sdk-definitions';
 import { mocks } from '@wormhole-foundation/sdk-definitions/testing';
-
 import { coreV1AccountDataLayout } from '@xlabs-xyz/tss-definitions';
-import { sendAndConfirm } from './testing_helpers.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
+
+import { sendAndConfirm } from './testing_helpers.js';
 
 export type VaaMessage = VAA<'Uint8Array'>;
 
