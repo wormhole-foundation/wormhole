@@ -11,7 +11,7 @@ RUN test -n "${TLS_HOSTNAME}" && \
     test -n "${TLS_PUBLIC_IP}" && \
     test -n "${PEER_SERVER_URL}"
 
-RUN apt-get update && apt-get -y install openssl git npm
+RUN apt-get update && apt-get -y install openssl git yarnpkg
 
 RUN openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out key.pem
 RUN openssl req -x509 -key key.pem -out cert.pem -days 365 \
@@ -22,7 +22,9 @@ RUN openssl req -x509 -key key.pem -out cert.pem -days 365 \
 
 # TODO: Fix the commit
 RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
-WORKDIR core-bridge/peer-server/
+WORKDIR core-bridge/ts-pkgs/peer-server
+RUN yarnpkg install
+RUN yarnpkg build
 # This is the config for the peer client
 COPY <<EOT self_config.json
 {
@@ -42,9 +44,7 @@ COPY <<EOT self_config.json
   }
 }
 EOT
-RUN npm ci
-RUN npm run build
-RUN --mount=type=secret,id=guardian_pk npm run start:client upload
+RUN --mount=type=secret,id=guardian_pk yarnpkg start:client upload
 
 FROM scratch
 

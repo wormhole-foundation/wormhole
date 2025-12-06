@@ -8,14 +8,13 @@ ARG WORMHOLE_ADDRESS=0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
 RUN test -n "${SERVER_PORT}" && \
     test -n "${ETHEREUM_RPC_URL}"
 
-RUN apt-get update && apt-get -y install git npm
+RUN apt-get update && apt-get -y install git yarnpkg
 
 # TODO: Fix the commit
 RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
-WORKDIR core-bridge
-RUN npm ci
-RUN npm -w @xlabs-xyz/peer-lib run build
-WORKDIR ts-pkgs/peer-server
+WORKDIR core-bridge/ts-pkgs/peer-server
+RUN yarnpkg install
+RUN yarnpkg build
 # This is the config for the peer server
 COPY <<EOT config.json
 {
@@ -28,5 +27,4 @@ COPY <<EOT config.json
   "threshold": 13
 }
 EOT
-RUN npm run build
-ENTRYPOINT npm run start:server
+ENTRYPOINT yarnpkg start:server
