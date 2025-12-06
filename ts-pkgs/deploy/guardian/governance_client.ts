@@ -22,6 +22,9 @@ interface Args {
 
 async function main() {
   const parser = yargs(hideBin(process.argv))
+    // TODO: create these two commands. Internally, they should each prepare a batch of these operations as needed.
+    // - submit new schnorr key
+    // - submit new guardian id
     .option('opcode', {
       description: 'Update opcode: 0=SET_SHARD_ID, 1=APPEND_SCHNORR_KEY, 2=PULL_MULTISIG_KEY_DATA',
       demandOption: true,
@@ -62,6 +65,7 @@ async function main() {
       default: 1,
       alias: 'i',
     })
+    //TODO: add support for ledger signer
     .option('signer', {
       description: 'Path to JSON file containing signer private key (hex string with 0x prefix)',
       demandOption: true,
@@ -147,7 +151,7 @@ async function main() {
     process.exit(1);
   }
 
-  // TODO: Do we want parseCrypto.ts to be used here?
+  // TODO: use parseCrypto.ts to parse guardian private key
   if (typeof signerKey !== "string" || !isHex(signerKey)) {
     console.error("❌ Signer file must contain a hex string with 0x prefix");
     process.exit(1);
@@ -187,6 +191,7 @@ async function main() {
   // Prepare the update call data based on opcode
   let updateData: `0x${string}`;
   
+  // TODO: Use binary-layout for these
   if (args.opcode === 1) {
     // APPEND_SCHNORR_KEY: opcode (1 byte) + vaa length (2 bytes) + vaa data
     const vaaLength = dataBytes!.length;
