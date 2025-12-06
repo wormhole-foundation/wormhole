@@ -41,8 +41,6 @@ jobs:
             - '.github/workflows/ci_test.yaml'
             - 'ts-pkgs/**'
             - 'src/solana/package.json'
-            - 'src/solana/tsconfig.json'
-            - 'src/solana/**/*.ts'
             - 'yarn.lock'
             - '.pnp.cjs'
             - '.pnp.loader.mjs'
@@ -191,4 +189,4 @@ jobs:
     - name: Check lockfile
       run: yarn --immutable
     - name: Typecheck
-      run: yarn run build:ts
+      run: yarn run build:ts:libs

@@ -6,7 +6,8 @@
     "src/solana"
   ],
   "scripts": {
-    "build:ts": "yarn workspaces foreach --all run build"
+    "build:ts": "yarn workspaces foreach --all run build",
+    "build:ts:libs": "yarn workspaces foreach --all --exclude ./src/solana run build"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
