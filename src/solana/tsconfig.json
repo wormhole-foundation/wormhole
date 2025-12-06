@@ -11,5 +11,8 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["tests", "target/types", "scripts"]
+  "include": ["tests", "target/types", "scripts"],
+  "references": [
+    { "path": "../../ts-pkgs/tss-definitions" }
+  ]
 }

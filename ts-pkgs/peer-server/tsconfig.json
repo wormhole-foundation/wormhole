@@ -21,5 +21,8 @@
   "exclude": [
     "node_modules",
     "dist"
+  ],
+  "references": [
+    { "path": "../peer-lib" }
   ]
 }
