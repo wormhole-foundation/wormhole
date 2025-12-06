@@ -1,6 +1,5 @@
 .anvil
 .env
-.vscode
 cache
 /lib
 /bin
