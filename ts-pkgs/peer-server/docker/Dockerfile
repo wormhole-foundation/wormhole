@@ -32,6 +32,13 @@ COPY <<EOT self_config.json
     "hostname": "${TLS_HOSTNAME}",
     "port": ${TLS_PORT},
     "tlsX509": "/cert.pem"
+  },
+  "wormhole": {
+    "ethereum": {
+      "rpcUrl": "https://eth.llamarpc.com",
+      "chainId": 1
+    },
+    "wormholeContractAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
   }
 }
 EOT

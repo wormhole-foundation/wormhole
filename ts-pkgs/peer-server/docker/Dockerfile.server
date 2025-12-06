@@ -1,0 +1,31 @@
+# From https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/Dockerfile
+FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb
+
+ARG SERVER_PORT
+ARG ETHEREUM_RPC_URL
+
+RUN test -n "${SERVER_PORT}" && \
+    test -n "${ETHEREUM_RPC_URL}"
+
+RUN apt-get update && apt-get -y install git npm
+
+# TODO: Fix the commit
+RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
+WORKDIR core-bridge
+RUN npm ci
+RUN npm -w @xlabs-xyz/peer-lib run build
+WORKDIR ts-pkgs/peer-server
+# This is the config for the peer client
+COPY <<EOT config.json
+{
+  "port": ${SERVER_PORT},
+  "ethereum": {
+    "rpcUrl": "${ETHEREUM_RPC_URL}",
+    "chainId": 1
+  },
+  "wormholeContractAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+  "threshold": 13
+}
+EOT
+RUN npm run build
+ENTRYPOINT npm run start:server

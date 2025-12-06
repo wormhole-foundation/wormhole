@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "TSS guardian peer description library",
   "type": "module",
+  "main": "./ts-build/src/index.js",
   "module": "./ts-build/src/index.js",
   "types": "./ts-build/src/index.d.ts",
   "scripts": {
