@@ -1,12 +1,10 @@
 import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 import { readFile } from "fs/promises";
-import { createWalletClient, defineChain, http, isHex } from "viem";
+import { Abi, createWalletClient, defineChain, http, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { waitForTransactionReceipt } from "viem/actions";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
-
-import compilerOutput from "../../../verifiable-evm-build/WormholeVerifier.output.json" with {type: "json"};
 
 import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
 
@@ -47,6 +45,21 @@ interface Config {
   }
 }
 
+interface CompilerOutput {
+  contracts: {
+    "src/evm/WormholeVerifier.sol": {
+      WormholeVerifier: {
+        abi: Abi;
+        evm: { bytecode: { object: string } }
+      }
+    }
+  }
+}
+
+function getCompilerOutput(path = "../../verifiable-evm-build/WormholeVerifier.output.json"): Promise<CompilerOutput> {
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
 
 async function main() {
   const parser = yargs(hideBin(process.argv))
@@ -68,9 +81,10 @@ async function main() {
   if (typeof signer !== "string" || !isHex(signer)) throw new Error("Unexpected signer file format.");
 
   const account = privateKeyToAccount(signer);
+  const compilerOutput = await getCompilerOutput();
   const contractOutput = compilerOutput.contracts["src/evm/WormholeVerifier.sol"].WormholeVerifier;
   const abi = contractOutput.abi;
-  const bytecode = contractOutput.evm.bytecode.object;
+  const bytecode = `0x${contractOutput.evm.bytecode.object}`;
   if (typeof bytecode !== "string" || !isHex(bytecode)) throw new Error("Unexpected bytecode format.");
 
   const configFile = await readFile(args.configFile, "utf8");
@@ -105,6 +119,7 @@ async function main() {
       config.guardianSet.initialMultisigKeyCount,
       config.guardianSet.initialSchnorrKeyCount,
       config.guardianSet.initialMultisigKeyPullLimit,
+      config.guardianSet.appendSchnorrKeyVaa,
     ];
     const txid = await walletClient.deployContract({
       abi,

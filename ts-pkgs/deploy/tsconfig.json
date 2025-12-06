@@ -12,6 +12,5 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["evm", "guardian"],
-  "files": ["../verifiable-evm-build/*.json"]
+  "include": ["evm", "guardian", "vaatool"],
 }
