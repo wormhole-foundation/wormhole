@@ -56,7 +56,7 @@ interface CompilerOutput {
   }
 }
 
-function getCompilerOutput(path = "../../verifiable-evm-build/WormholeVerifier.output.json"): Promise<CompilerOutput> {
+async function getCompilerOutput(path = "../../verifiable-evm-build/WormholeVerifier.output.json"): Promise<CompilerOutput> {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
