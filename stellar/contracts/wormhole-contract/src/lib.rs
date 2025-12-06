@@ -46,8 +46,8 @@ impl WormholeCoreInterface for Wormhole {
         vaa::parse_vaa(&env, &vaa_bytes)
     }
 
-    fn submit_contract_upgrade(_env: Env, _vaa_bytes: Bytes) -> Result<(), WormholeError> {
-        todo!()
+    fn submit_contract_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
+        governance::GuardianSetUpgradeAction::submit(&env, vaa_bytes)
     }
 
     fn submit_guardian_set_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {

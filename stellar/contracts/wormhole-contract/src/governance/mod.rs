@@ -1,4 +1,5 @@
 mod action;
+mod contract_upgrade;
 pub mod guardian_set;
 mod set_message_fee;
 mod transfer_fees;
