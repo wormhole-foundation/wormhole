@@ -53,9 +53,9 @@ jobs:
       with:
         node-version: "24.11.1"
         registry-url: "https://npm.pkg.github.com"
-        cache: "npm"
+        cache: "yarn"
         cache-dependency-path: |
-          ./src/solana/package-lock.json
+          ./yarn.lock
 
     - name: Set the rust toolchain version
       run: |
