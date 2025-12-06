@@ -8,22 +8,6 @@ import { hideBin } from 'yargs/helpers';
 
 import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
 
-// ICoreBridge coreBridge,
-// uint32 initialMultisigKeyCount,
-// uint32 initialSchnorrKeyCount,
-// uint32 initialMultisigKeyPullLimit,
-// bytes memory appendSchnorrKeyVaa
-
-// export const wagmiAbi = [
-//   ...
-//   {
-//     inputs: [{ name: "x", type: "uint32" }],
-//     stateMutability: "nonpayable",
-//     type: "constructor",
-//   },
-//   ...
-// ] as const;
-
 interface ChainDescriptor {
   description: string;
   eip155ChainId: number;
