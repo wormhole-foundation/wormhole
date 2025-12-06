@@ -10,7 +10,7 @@
   "license": "Apache-2.0",
   "description": "",
   "dependencies": {
-    "@wormhole-foundation/sdk": "^4.1.0",
+    "@wormhole-foundation/sdk": "^4.4.0",
     "viem": "^2.41.2",
     "yargs": "^18.0.0"
   },
