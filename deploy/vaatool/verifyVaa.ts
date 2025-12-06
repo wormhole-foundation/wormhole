@@ -79,6 +79,7 @@ function getVaaType(vaa: Hex): "Multisig" | "Schnorr" | undefined {
 }
 
 async function main() {
+  // TODO: use yargs to get explicit option parsing instead
   const rpcUrl = process.argv[2];
   const verifierAddress = process.argv[3] as Address;
   const vaaBase64 = process.argv[4];
