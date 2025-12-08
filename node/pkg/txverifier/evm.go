@@ -450,7 +450,10 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 		deposits            []*NativeDeposit
 		transfers           []*ERC20Transfer
 		messagePublications []*LogMessagePublished
-		receiptErr          error
+		// Accumulates errors encountered while parsing receipts into Deposit, Transfer, and LogMessagePublished events.
+		// This is reserved for cases like network errors where it is not possible to properly parse a log and/or
+		// retrieve relevant information from the blockchain.
+		receiptErr error
 	)
 	for _, log := range receipt.Logs {
 		// Bounds check.
@@ -462,6 +465,9 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			continue
 		}
 
+		// Parse logs based on their topics. If stateless parsing fails for Deposits or Transfer, those logs are skipped.
+		// If an error occurs during a network call, the error is added to the receipt, which will
+		// in turn cause this method to return an error.
 		switch log.Topics[0] {
 		case common.HexToHash(EVENTHASH_WETH_DEPOSIT):
 
@@ -476,11 +482,11 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			deposit, depositErr := DepositFromLog(log, tv.chainIds.wormholeChainId)
 
 			if depositErr != nil {
-				tv.logger.Error("error when parsing Deposit from log",
-					zap.Error(depositErr),
+				tv.logger.Warn(
+					fmt.Sprintf("skip: %s", depositErr.Error()),
 					zap.String("txHash", log.TxHash.String()),
 				)
-				receiptErr = errors.Join(receiptErr, depositErr)
+				// Error deliberately ignored.
 				continue
 			}
 
@@ -494,7 +500,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 
 			if transferErr != nil {
 
-				// Just skip transfers that aren't from ERC20 contracts.
+				// e.g. NFT transfers.
 				if errors.Is(transferErr, ErrTransferIsNotERC20) {
 					tv.logger.Debug(
 						fmt.Sprintf("skip: %s", ErrTransferIsNotERC20.Error()),
@@ -503,11 +509,16 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 					continue
 				}
 
-				tv.logger.Error("error when parsing ERC20 Transfer from log",
-					zap.Error(transferErr),
-					zap.String("txHash", log.TxHash.String()),
-				)
-				receiptErr = errors.Join(receiptErr, transferErr)
+				// Wrong data size is very unusual, so this may indicate a bug in the code.
+				if errors.Is(transferErr, ErrEventWrongDataSize) {
+					tv.logger.Warn(
+						fmt.Sprintf("skip: %s", ErrEventWrongDataSize.Error()),
+						zap.String("txHash", log.TxHash.String()),
+					)
+					continue
+				}
+
+				// Error deliberately ignored.
 				continue
 			}
 
@@ -527,6 +538,7 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			transfers = append(transfers, transfer)
 
 		// Process LogMessagePublished events.
+		// Parsing errors that occur here should bubble up to the caller.
 		case common.HexToHash(EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED):
 			if len(log.Data) == 0 {
 				receiptErr = errors.Join(receiptErr, errors.New("receipt data has length 0"))
