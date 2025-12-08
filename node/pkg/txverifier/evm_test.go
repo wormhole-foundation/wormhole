@@ -1,3 +1,10 @@
+// Unit tests for the EVM structs used to parse and validate Wormhole transfers.
+//
+// Naming conventions:
+//   - Variables with the Geth suffix are used to represent the data types represented by go-ethereum's types package.
+//     It is also used to represent EVM addresses as opposed to addresses in the Wormhole normalized address format,
+//     which is a 32-byte array with the first 12 bytes set to zero.
+//   - Variables with the VAA suffix are used to represent the data types represented by the Wormhole VAA package.
 package txverifier
 
 // TODO:
@@ -64,12 +71,22 @@ type mockConnector struct{}
 // TODO add a helper method to actually populate the results of the mocked method
 // TODO add different results here so we can test different values
 func (c *mockConnector) ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error) {
-	// add mock data
+	// Parse the payload from the log data
+	// The payload starts after the ABI metadata fields (5 * 32 bytes = 160 bytes)
+	const payloadOffset = 160
+	var payload []byte
+	if len(log.Data) > payloadOffset {
+		payload = log.Data[payloadOffset:]
+	} else {
+		// Fallback to the default USDC payload for backwards compatibility
+		payload = transferTokensPayload(big.NewInt(1), usdcAddrVAA)
+	}
+
 	return &ethabi.AbiLogMessagePublished{
 		Sender:   tokenBridgeAddr,
 		Sequence: 0,
 		Nonce:    0,
-		Payload:  transferTokensPayload(big.NewInt(1)),
+		Payload:  payload,
 		Raw:      log,
 	}, nil
 }
@@ -129,12 +146,24 @@ var (
 			// sender
 			tokenBridgeAddr.Hash(),
 		},
-		Data: receiptData(big.NewInt(255)),
+		Data: receiptData(big.NewInt(1), usdcAddrVAA),
+	}
+
+	// A valid log message published event for native token (WETH) transfers.
+	validNativeLogMessagePublishedLog = &types.Log{
+		Address: coreBridgeAddr,
+		Topics: []common.Hash{
+			// LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);
+			common.HexToHash(EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED),
+			// sender
+			tokenBridgeAddr.Hash(),
+		},
+		Data: receiptData(big.NewInt(1), nativeAddrVAA),
 	}
 )
 
 var (
-	validTransferReceipt = &types.Receipt{
+	transferReceiptGeth = types.Receipt{
 		Status: types.ReceiptStatusSuccessful,
 		Logs: []*types.Log{
 			transferLog,
@@ -159,13 +188,50 @@ func TestParseReceiptHappyPath(t *testing.T) {
 	mocks := setup()
 	defer mocks.ctxCancel()
 
+	// Create transfer receipts with weird logs. These logs should be skipped, resulting in a successful receipt.
+	// NOTE: Compare these values with the custom errors defined in the EVM types file.
+	var (
+		transferLogFromAndToZero = *transferLog
+		transferLogWrongDataSize = *transferLog
+	)
+
+	// Weird log 1: topics[1] and topics[2] are both zero
+	// Deep copy the Topics slice to avoid modifying the shared underlying array
+	transferLogFromAndToZero.Topics = make([]common.Hash, len(transferLog.Topics))
+	copy(transferLogFromAndToZero.Topics, transferLog.Topics)
+
+	// Set both topics (from and to addresses) to zero to make the log invalid.
+	transferLogFromAndToZero.Topics[1] = common.BytesToHash([]byte{0x00})
+	transferLogFromAndToZero.Topics[2] = common.BytesToHash([]byte{0x00})
+	transferReceiptWeirdLog := types.Receipt{
+		Status: types.ReceiptStatusSuccessful,
+		Logs: []*types.Log{
+			transferLog,
+			&transferLogFromAndToZero,
+			validLogMessagedPublishedLog,
+		},
+	}
+
+	// Weird log 2: payload data size is not 32 bytes
+	transferLogWrongDataSize.Data = transferLogWrongDataSize.Data[:len(transferLog.Data)-1]
+	transferReceiptWrongDataSize := types.Receipt{
+		Status: types.ReceiptStatusSuccessful,
+		Logs: []*types.Log{
+			&transferLogWrongDataSize,
+			transferLog,
+			validLogMessagedPublishedLog,
+		},
+	}
+
 	tests := map[string]struct {
-		receipt  *types.Receipt
-		expected *TransferReceipt
+		// input
+		receipt types.Receipt
+		// output
+		expected TransferReceipt
 	}{
 		"valid transfer receipt, single LogMessagePublished": {
-			validTransferReceipt,
-			&TransferReceipt{
+			transferReceiptGeth,
+			TransferReceipt{
 				Deposits: &[]*NativeDeposit{},
 				Transfers: &[]*ERC20Transfer{
 					{
@@ -192,18 +258,178 @@ func TestParseReceiptHappyPath(t *testing.T) {
 				},
 			},
 		},
+		"valid transfer receipt, unusual log skipped (from and to addresses are both zero)": {
+			transferReceiptWeirdLog,
+			TransferReceipt{
+				Deposits: &[]*NativeDeposit{},
+				Transfers: &[]*ERC20Transfer{
+					{
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Amount:       big.NewInt(1),
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							TokenChain:    2, // Wormhole ethereum chain ID
+							TargetAddress: eoaAddrVAA,
+							// Amount and OriginAddress are not populated by ParseReceipt
+							Amount:        big.NewInt(1),
+							OriginAddress: usdcAddrVAA,
+						},
+					},
+				},
+			},
+		},
+		"valid transfer receipt, unusual log skipped (log data size is not 32 bytes)": {
+			transferReceiptWrongDataSize,
+			TransferReceipt{
+				Deposits: &[]*NativeDeposit{},
+				Transfers: &[]*ERC20Transfer{
+					{
+						From:         eoaAddrGeth,
+						To:           tokenBridgeAddr,
+						TokenAddress: usdcAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Amount:       big.NewInt(1),
+					},
+				},
+				MessagePublications: &[]*LogMessagePublished{
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							TokenChain:    2, // Wormhole ethereum chain ID
+							TargetAddress: eoaAddrVAA,
+							// Amount and OriginAddress are not populated by ParseReceipt
+							Amount:        big.NewInt(1),
+							OriginAddress: usdcAddrVAA,
+						},
+					},
+				},
+			},
+		},
+		"valid deposit receipt, single LogMessagePublished": {
+			types.Receipt{
+				Status: types.ReceiptStatusSuccessful,
+				Logs: []*types.Log{
+					{
+						Address: nativeAddrGeth,
+						Topics: []common.Hash{
+							// Deposit(address,uint256)
+							common.HexToHash(EVENTHASH_WETH_DEPOSIT),
+							// depositor (dst)
+							tokenBridgeAddr.Hash(),
+						},
+						// amount
+						Data: common.LeftPadBytes([]byte{0x01}, 32),
+					},
+					validNativeLogMessagePublishedLog,
+				},
+			},
+			TransferReceipt{
+				Deposits: &[]*NativeDeposit{
+					{
+						TokenAddress: nativeAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Receiver:     tokenBridgeAddr,
+						Amount:       big.NewInt(1),
+					},
+				},
+				Transfers: &[]*ERC20Transfer{},
+				MessagePublications: &[]*LogMessagePublished{
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							TokenChain:    2, // Wormhole ethereum chain ID
+							TargetAddress: eoaAddrVAA,
+							Amount:        big.NewInt(1),
+							OriginAddress: nativeAddrVAA,
+						},
+					},
+				},
+			},
+		},
+		"valid deposit receipt, unusual log skipped": {
+			types.Receipt{
+				Status: types.ReceiptStatusSuccessful,
+				Logs: []*types.Log{
+					{
+						Address: nativeAddrGeth,
+						Topics: []common.Hash{
+							common.HexToHash(EVENTHASH_WETH_DEPOSIT),
+							tokenBridgeAddr.Hash(),
+						},
+						Data: common.LeftPadBytes([]byte{0x01}, 32),
+					},
+					// Add an unusual deposit log with wrong number of topics that should be skipped
+					{
+						Address: nativeAddrGeth,
+						Topics: []common.Hash{
+							// Only has 1 topic instead of 2, should be skipped
+							common.HexToHash(EVENTHASH_WETH_DEPOSIT),
+						},
+						Data: common.LeftPadBytes([]byte{0xFF}, 32),
+					},
+					validNativeLogMessagePublishedLog,
+				},
+			},
+			TransferReceipt{
+				Deposits: &[]*NativeDeposit{
+					{
+						TokenAddress: nativeAddrGeth,
+						TokenChain:   vaa.ChainIDEthereum,
+						Receiver:     tokenBridgeAddr,
+						Amount:       big.NewInt(1),
+					},
+				},
+				Transfers: &[]*ERC20Transfer{},
+				MessagePublications: &[]*LogMessagePublished{
+					{
+						EventEmitter: coreBridgeAddr,
+						MsgSender:    tokenBridgeAddr,
+						TransferDetails: &TransferDetails{
+							PayloadType:   TransferTokens,
+							TokenChain:    2,
+							TargetAddress: eoaAddrVAA,
+							Amount:        big.NewInt(1),
+							OriginAddress: nativeAddrVAA,
+						},
+					},
+				},
+			},
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 
-			transferReceipt, err := mocks.transferVerifier.parseReceipt(test.receipt)
+			transferReceipt, err := mocks.transferVerifier.parseReceipt(&test.receipt)
 			require.NoError(t, err)
+
+			// Verify deposits
+			expectedDeposits := *test.expected.Deposits
+			assert.Equal(t, len(expectedDeposits), len(*transferReceipt.Deposits), "deposits length should match expected")
+			for _, ret := range *transferReceipt.Deposits {
+				assert.Equal(t, expectedDeposits[0].Receiver, ret.Receiver)
+				assert.Equal(t, expectedDeposits[0].TokenAddress, ret.TokenAddress)
+				assert.Equal(t, expectedDeposits[0].TokenChain, ret.TokenChain)
+				assert.Zero(t, ret.Amount.Cmp(expectedDeposits[0].Amount))
+			}
 
 			// Note: the data for this test uses only a single transfer. However, if multiple transfers
 			// are used, iteration over these slices will be non-deterministic which might result in a flaky
 			// test.
 			expectedTransfers := *test.expected.Transfers
-			assert.Equal(t, len(expectedTransfers), len(*transferReceipt.Transfers))
+			assert.Equal(t, len(expectedTransfers), len(*transferReceipt.Transfers), "transfers length should match expected")
 			for _, ret := range *transferReceipt.Transfers {
 				assert.Equal(t, expectedTransfers[0].To, ret.To)
 				assert.Equal(t, expectedTransfers[0].From, ret.From)
@@ -1263,7 +1489,7 @@ func TestNoPanics(t *testing.T) {
 	}, "UpdateReceiptDetails should handle nil without panicking")
 
 	// Regression check: ensure that a log with no indexed topics does not panic.
-	receipt := *validTransferReceipt
+	receipt := transferReceiptGeth
 	receipt.Logs[0].Topics = []common.Hash{}
 	require.NotPanics(t, func() {
 		parsed, err := mocks.transferVerifier.parseReceipt(&receipt)
@@ -1272,7 +1498,7 @@ func TestNoPanics(t *testing.T) {
 	}, "UpdateReceiptDetails must not panic when a log with no topics is present")
 }
 
-func receiptData(payloadAmount *big.Int) (data []byte) {
+func receiptData(payloadAmount *big.Int, tokenAddress vaa.Address) (data []byte) {
 	// non-payload part of the receipt and ABI metadata fields
 	seq := common.LeftPadBytes([]byte{0x11}, 32)
 	nonce := common.LeftPadBytes([]byte{0x22}, 32)
@@ -1285,13 +1511,13 @@ func receiptData(payloadAmount *big.Int) (data []byte) {
 	data = append(data, offset...)
 	data = append(data, consistencyLevel...)
 	data = append(data, payloadLength...)
-	data = append(data, transferTokensPayload(payloadAmount)...)
+	data = append(data, transferTokensPayload(payloadAmount, tokenAddress)...)
 
 	return data
 }
 
 // Generate the Payload portion of a LogMessagePublished receipt for use in unit tests.
-func transferTokensPayload(payloadAmount *big.Int) (data []byte) {
+func transferTokensPayload(payloadAmount *big.Int, tokenAddress vaa.Address) (data []byte) {
 	// tokenTransfer() payload format:
 	//     transfer.payloadID, uint8, size: 1
 	//     amount, uint256, size: 32
@@ -1305,14 +1531,14 @@ func transferTokensPayload(payloadAmount *big.Int) (data []byte) {
 
 	payloadType := []byte{0x01} // transferTokens, not padded
 	amount := common.LeftPadBytes(payloadAmount.Bytes(), 32)
-	tokenAddress := usdcAddrVAA.Bytes()
+	tokenAddr := tokenAddress.Bytes()
 	tokenChain := common.LeftPadBytes([]byte{0x02}, 2) // Eth wormhole chain ID, uint16
 	to := common.LeftPadBytes([]byte{0xbe, 0xef, 0xca, 0xfe}, 32)
 	toChain := common.LeftPadBytes([]byte{0x01}, 2) // Eth wormhole chain ID, uint16
 	fee := common.LeftPadBytes([]byte{0x00}, 32)
 	data = append(data, payloadType...)
 	data = append(data, amount...)
-	data = append(data, tokenAddress...)
+	data = append(data, tokenAddr...)
 	data = append(data, tokenChain...)
 	data = append(data, to...)
 	data = append(data, toChain...)

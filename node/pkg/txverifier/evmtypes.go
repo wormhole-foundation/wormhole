@@ -475,6 +475,7 @@ func (t *ERC20Transfer) String() string {
 }
 
 // ERC20TransferFromLog() creates an ERC20Transfer struct given a log and Wormhole chain ID.
+// Returns an error if the log could not be parsed or if the parsed log is not an ERC20 Transfer.
 func ERC20TransferFromLog(
 	log *types.Log,
 	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID.
