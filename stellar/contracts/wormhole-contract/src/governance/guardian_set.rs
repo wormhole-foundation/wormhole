@@ -72,7 +72,7 @@ impl GuardianSetUpgradePayload {
             ACTION_GUARDIAN_SET_UPGRADE,
         )?;
 
-        let current_index = get_current_index(env);
+        let current_index = get_current_guardian_set_index(env);
         if self.new_guardian_set_index != current_index.saturating_add(1) {
             return Err(WormholeError::InvalidGuardianSetSequence);
         }
@@ -85,7 +85,7 @@ impl GuardianSetUpgradePayload {
     }
 }
 
-pub fn get_current_index(env: &Env) -> u32 {
+pub fn get_current_guardian_set_index(env: &Env) -> u32 {
     env.storage()
         .persistent()
         .get(&StorageKey::CurrentGuardianSetIndex)
@@ -98,21 +98,21 @@ pub fn set_current_index(env: &Env, index: u32) {
         .set(&StorageKey::CurrentGuardianSetIndex, &index);
 }
 
-pub fn get(env: &Env, index: u32) -> Result<GuardianSetInfo, WormholeError> {
+pub fn get_guardian_set(env: &Env, index: u32) -> Result<GuardianSetInfo, WormholeError> {
     env.storage()
         .persistent()
         .get(&StorageKey::GuardianSet(index))
         .ok_or(WormholeError::GuardianSetNotFound)
 }
 
-pub fn get_expiry(env: &Env, index: u32) -> Option<u64> {
+pub fn get_guardian_set_expiry(env: &Env, index: u32) -> Option<u64> {
     env.storage()
         .persistent()
         .get(&StorageKey::GuardianSetExpiry(index))
 }
 
 pub fn store(env: &Env, index: u32, set: GuardianSetInfo) -> Result<(), WormholeError> {
-    let current_index = get_current_index(env);
+    let current_index = get_current_guardian_set_index(env);
 
     if index == 0 {
         if initialize::is_initialized(env) {
@@ -122,7 +122,7 @@ pub fn store(env: &Env, index: u32, set: GuardianSetInfo) -> Result<(), Wormhole
         return Err(WormholeError::InvalidGuardianSetSequence);
     }
 
-    if get(env, index).is_ok() {
+    if get_guardian_set(env, index).is_ok() {
         return Err(WormholeError::GuardianSetAlreadyExists);
     }
 
@@ -173,7 +173,7 @@ impl GovernanceAction for GuardianSetUpgradeAction {
         vaa: &crate::vaa::VAA,
         payload: &Self::Payload,
     ) -> Result<(), WormholeError> {
-        let old_index = get_current_index(env);
+        let old_index = get_current_guardian_set_index(env);
 
         let expiry_time =
             u64::from(vaa.timestamp).saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));

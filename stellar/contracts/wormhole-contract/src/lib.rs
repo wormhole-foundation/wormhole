@@ -5,7 +5,7 @@ use wormhole_soroban_client::{
     ConsistencyLevel, GuardianSetInfo, WormholeCoreInterface, WormholeError,
 };
 use crate::governance::{
-    guardian_set::get_current_index, guardian_set::get, guardian_set::get_expiry,
+    guardian_set::get_current_guardian_set_index, guardian_set::get_guardian_set, guardian_set::get_guardian_set_expiry,
     GovernanceAction, GuardianSetUpgradeAction, SetMessageFeeAction, TransferFeesAction,
 };
 
@@ -75,15 +75,15 @@ impl WormholeCoreInterface for Wormhole {
     }
 
     fn get_current_guardian_set_index(env: Env) -> u32 {
-        get_current_index(&env)
+        get_current_guardian_set_index(&env)
     }
 
     fn get_guardian_set(env: Env, index: u32) -> Result<GuardianSetInfo, WormholeError> {
-        get(&env, index)
+        get_guardian_set(&env, index)
     }
 
     fn get_guardian_set_expiry(env: Env, index: u32) -> Option<u64> {
-        get_expiry(&env, index)
+        get_guardian_set_expiry(&env, index)
     }
 
     fn get_emitter_sequence(env: Env, emitter: Address) -> u64 {

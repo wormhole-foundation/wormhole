@@ -20,9 +20,9 @@ use wormhole_soroban_client::WormholeError;
 pub fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, WormholeError> {
     let body_bytes = vaa.serialize_body(env);
 
-    let guardian_set_info = governance::guardian_set::get(env, vaa.guardian_set_index)?;
+    let guardian_set_info = governance::guardian_set::get_guardian_set(env, vaa.guardian_set_index)?;
 
-    if let Some(expiry) = governance::guardian_set::get_expiry(env, vaa.guardian_set_index) {
+    if let Some(expiry) = governance::guardian_set::get_guardian_set_expiry(env, vaa.guardian_set_index) {
         if env.ledger().timestamp() > expiry {
             return Err(WormholeError::GuardianSetExpired);
         }
