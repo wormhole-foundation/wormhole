@@ -131,7 +131,7 @@ const (
 	Valid
 	// Indicates that no verification is necessary.
 	NotApplicable
-	// The message could not complete the verification process.
+	// The message could not complete the verification process. Indicates malformed input or network issues.
 	CouldNotVerify
 )
 
