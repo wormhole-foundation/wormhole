@@ -40,7 +40,7 @@ createGuardianPrivateKey() {
 }
 
 # Build the docker cache first. It will throw an error but it will save time
-docker build --network="host" -f ../../docker/Dockerfile . || true
+docker build --network="host" -f ../../docker/Dockerfile --progress=plain . || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
