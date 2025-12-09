@@ -27,24 +27,13 @@ fn serialize_posted_message(
 ) -> Result<Bytes, WormholeError> {
     let mut bytes = Bytes::new(env);
 
-    for i in (0..4).rev() {
-        bytes.push_back(((message.timestamp >> (i * 8)) & 0xFF) as u8);
-    }
+    bytes.extend_from_array(&message.timestamp.to_be_bytes());
+    bytes.extend_from_array(&message.nonce.to_be_bytes());
 
-    for i in (0..4).rev() {
-        bytes.push_back(((message.nonce >> (i * 8)) & 0xFF) as u8);
-    }
+    bytes.extend_from_array(&(message.emitter_chain as u16).to_be_bytes());
 
-    bytes.push_back((message.emitter_chain >> 8) as u8);
-    bytes.push_back((message.emitter_chain & 0xFF) as u8);
-
-    for byte in message.emitter_address.to_array().iter() {
-        bytes.push_back(*byte);
-    }
-
-    for i in (0..8).rev() {
-        bytes.push_back(((message.sequence >> (i * 8)) & 0xFF) as u8);
-    }
+    bytes.extend_from_array(&message.emitter_address.to_array());
+    bytes.extend_from_array(&message.sequence.to_be_bytes());
 
     bytes.push_back(message.consistency_level as u8);
 
