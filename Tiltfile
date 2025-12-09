@@ -396,6 +396,16 @@ if num_guardians >= 2 and ci == False:
         trigger_mode = trigger_mode,
     )
 
+# delegated guardian sets
+if(num_guardians >= 3 and evm2 == True):
+    local_resource(
+        name = "delegated-guardian-sets",
+        resource_deps = guardian_resource_deps + ["guardian"],
+        deps = ["scripts/send-vaa.sh", "clients/eth"],
+        cmd = './scripts/delegated-guardian-set-preset.sh %s %s %s' % (num_guardians, webHost, namespace),
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
 
 # grafana + prometheus for node metrics
 if node_metrics:
@@ -501,7 +511,7 @@ docker_build(
     context = ".",
     only = ["./ethereum", "./relayer/ethereum"],
     dockerfile = "./ethereum/Dockerfile",
-
+    platform = "linux/amd64",
     # ignore local node_modules (in case they're present)
     ignore = ["./ethereum/node_modules","./relayer/ethereum/node_modules"],
     build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
