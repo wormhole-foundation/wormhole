@@ -8,11 +8,14 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 2, Addr: "000000000000000000000000a3931d71877C0E7a3148CB7Eb4463524FEc27fbD", Symbol: "sUSDS", CoinGeckoId: "susds", Decimals: 18, Price: 1.07},
 		{Chain: 2, Addr: "000000000000000000000000CEDbEA37C8872c4171259Cdfd5255CB8923Cf8e7", Symbol: "XAN", CoinGeckoId: "anoma", Decimals: 18, Price: 0.03343},
 		{Chain: 2, Addr: "000000000000000000000000e355De6a6043b0580Ff5A26b46051A4809B12793", Symbol: "4EVER", CoinGeckoId: "4everland", Decimals: 18, Price: 0.001255},
-		{Chain: 8, Addr: "000000000000000000000000000000000000000000000000000000000004c5c1", Symbol: "USDt", CoinGeckoId: "tether", Decimals: 6, Price: 1.002}, // Addr: 312769, Notional: 22.31747085
+		{Chain: 2, Addr: "0000000000000000000000006a9a65b84843f5fd4ac9a0471c4fc11afffbce4a", Symbol: "ENZOBTC", CoinGeckoId: "lorenzo-wrapped-bitcoin", Decimals: 8, Price: 90_350.44},
+		{Chain: 2, Addr: "000000000000000000000000cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", Symbol: "CBBTC", CoinGeckoId: "coinbase-wrapped-btc", Decimals: 8, Price: 90_313.28},
+		{Chain: 4, Addr: "000000000000000000000000ffda10b7fd9cf172e0502a6bc0e5e355516c5232", Symbol: "SFUND", CoinGeckoId: "seedify-fund", Decimals: 18, Price: 0.1121}, // New contract (Oct 2025) https://x.com/SeedifyFund/status/1976695528902869499
+		{Chain: 8, Addr: "000000000000000000000000000000000000000000000000000000000004c5c1", Symbol: "USDt", CoinGeckoId: "tether", Decimals: 6, Price: 1.002},
 		{Chain: 13, Addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", Symbol: "KLEVA", CoinGeckoId: "kleva", Decimals: 18, Price: 0.086661},
 		{Chain: 13, Addr: "0000000000000000000000005096db80b21ef45230c9e423c373f1fc9c0198dd", Symbol: "WEMIX", CoinGeckoId: "wemix-token", Decimals: 18, Price: 1.74},
 		{Chain: 15, Addr: "0000000000000000000000000000000000000000000000000000000000000000", Symbol: "NEAR", CoinGeckoId: "near", Decimals: 24, Price: 4.34},
-		{Chain: 30, Addr: "000000000000000000000000cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", Symbol: "CBBTC", CoinGeckoId: "coinbase-wrapped-btc", Decimals: 8, Price: 111336},
+		{Chain: 30, Addr: "000000000000000000000000cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", Symbol: "CBBTC", CoinGeckoId: "coinbase-wrapped-btc", Decimals: 8, Price: 90_313.28},
 		{Chain: 32, Addr: "01881043998ff2b738519d444d2dd0da3da4545de08290c1076746538d5333df", Symbol: "SEI", CoinGeckoId: "sei-network", Decimals: 6, Price: 0.3},
 		// SCROLL (tokens over $50,000 24h volume)
 		{Chain: 34, Addr: "0000000000000000000000000018d96c579121a94307249d47f053e2d687b5e7", Symbol: "MVX", CoinGeckoId: "metavault-trade", Decimals: 18, Price: 2.06},
