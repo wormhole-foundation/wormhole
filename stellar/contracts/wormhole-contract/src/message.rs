@@ -1,10 +1,13 @@
 use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
-use wormhole_soroban_client::*;
+use wormhole_soroban_client::{
+    CHAIN_ID_STELLAR, ConsistencyLevel, PostedMessageData, STORAGE_TTL_EXTENSION,
+    STORAGE_TTL_THRESHOLD, WormholeError,
+};
 
 use crate::{
     governance, initialize,
     storage::StorageKey,
-    utils::{address_to_bytes32, get_native_token_address},
+    utils::{address_to_bytes32, get_native_token_address, keccak256_hash},
 };
 
 /// Event published when a cross-chain message is posted.
@@ -26,18 +29,35 @@ fn serialize_posted_message(
     message: &PostedMessageData,
     env: &Env,
 ) -> Result<Bytes, WormholeError> {
-    let mut bytes = Bytes::new(env);
+    // Build fixed-size header as a single array (51 bytes)
+    let mut header = [0u8; 51];
+    let mut offset = 0;
 
-    bytes.extend_from_array(&message.timestamp.to_be_bytes());
-    bytes.extend_from_array(&message.nonce.to_be_bytes());
+    // timestamp (4 bytes, big-endian)
+    header[offset..offset + 4].copy_from_slice(&message.timestamp.to_be_bytes());
+    offset += 4;
 
-    bytes.extend_from_array(&(message.emitter_chain as u16).to_be_bytes());
+    // nonce (4 bytes, big-endian)
+    header[offset..offset + 4].copy_from_slice(&message.nonce.to_be_bytes());
+    offset += 4;
 
-    bytes.extend_from_array(&message.emitter_address.to_array());
-    bytes.extend_from_array(&message.sequence.to_be_bytes());
+    // emitter_chain (2 bytes, big-endian u16)
+    header[offset..offset + 2].copy_from_slice(&(message.emitter_chain as u16).to_be_bytes());
+    offset += 2;
 
-    bytes.push_back(message.consistency_level as u8);
+    // emitter_address (32 bytes)
+    header[offset..offset + 32].copy_from_slice(&message.emitter_address.to_array());
+    offset += 32;
 
+    // sequence (8 bytes, big-endian)
+    header[offset..offset + 8].copy_from_slice(&message.sequence.to_be_bytes());
+    offset += 8;
+
+    // consistency_level (1 byte)
+    header[offset] = message.consistency_level as u8;
+
+    // Create Bytes from header and append payload in a single operation
+    let mut bytes = Bytes::from_array(env, &header);
     bytes.append(&message.payload);
 
     Ok(bytes)
@@ -131,7 +151,7 @@ pub fn post_message_with_fee(
     };
 
     let message_bytes = serialize_posted_message(&message_data, env)?;
-    let hash_bytes = crate::utils::keccak256_hash(env, &message_bytes);
+    let hash_bytes = keccak256_hash(env, &message_bytes);
 
     store_posted_message(env, emitter, sequence, &hash_bytes);
 
