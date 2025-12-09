@@ -15,7 +15,7 @@ message GossipMessage {
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
     SignedObservationBatch signed_observation_batch = 12;
-    DelegateObservation delegate_observation = 13;
+    SignedDelegateObservation signed_delegate_observation = 13;
   }
 }
 
@@ -216,6 +216,17 @@ message Observation {
   string message_id = 4;
 }
 
+message SignedDelegateObservation {
+  // Serialized DelegateObservation message.
+  bytes delegate_observation = 1;
+
+  // ECDSA signature using the node's guardian key.
+  bytes signature = 2;
+
+  // Guardian pubkey as truncated eth address.
+  bytes guardian_addr = 3;
+}
+
 // DelegateObservation contains all the fields necessary for a canonical guardian to reconstruct the VAA body.
 message DelegateObservation {
   // Seconds since UNIX epoch.
@@ -239,16 +250,10 @@ message DelegateObservation {
   // The serialized payload.
   bytes payload = 7;
 
-  // The observation's deterministic, unique hash.
-  bytes hash = 8;
-
-  // ECDSA signature of the hash using the node's guardian key.
-  bytes signature = 9;
-
-  // Guardian pubkey as truncated eth address.
-  bytes guardian_addr = 10;
-
   // Transaction hash on the emitter chain in which the transfer was performed.
   // Optional, included for observability.
-  bytes tx_hash = 11;
+  bytes tx_hash = 8;
+
+  // Guardian pubkey as truncated eth address.
+  bytes guardian_addr = 9;
 }

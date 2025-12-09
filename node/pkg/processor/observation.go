@@ -74,9 +74,9 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 	return sigs
 }
 
-// handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and publishes it to the delegateObsvSendC.
+// handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and sends it to the delegateObsvSendC channel.
 // This should only be called by a delegated guardian for the chain.
-func (p* Processor) handleDelegateMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
+func (p* Processor) handleDelegateMessagePublication(k *node_common.MessagePublication) error {
 	d, err := messagePublicationToDelegateObservation(k)
 	if err != nil {
 		p.logger.Warn("failed to build delegate observation from message publication",
@@ -85,20 +85,6 @@ func (p* Processor) handleDelegateMessagePublication(ctx context.Context, k *nod
 		)
 		return err
 	}
-
-	// Generate digest of the unsigned VAA.
-	v := k.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
-	digest := v.SigningDigest()
-
-	// Sign the digest using the node's GuardianSigner
-	signature, err := p.guardianSigner.Sign(ctx, digest.Bytes())
-	if err != nil {
-		panic(err)
-	}
-
-	d.Hash = digest.Bytes()
-	// TODO2: convert signature to prefix hash instead
-	d.Signature = signature
 	d.GuardianAddr = p.ourAddr.Bytes()
 
 	select {
@@ -466,16 +452,14 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 
 // handleDelegateObservation processes a delegate observation
 func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) {
-	hash := hex.EncodeToString(m.Hash)
-
     if p.logger.Core().Enabled(zapcore.DebugLevel) {
         p.logger.Debug("received delegate observation",
 			// TODO2: add all fields
-            zap.String("txhash", hex.EncodeToString(m.TxHash)),
-            zap.String("txhash_b58", base58.Encode(m.TxHash)),
             zap.Uint32("emitter_chain", m.EmitterChain),
             zap.Uint64("sequence", m.Sequence),
-            zap.String("hash", hash),
+            zap.String("txhash", hex.EncodeToString(m.TxHash)),
+            zap.String("txhash_b58", base58.Encode(m.TxHash)),
+			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
         )
     }
 
@@ -486,7 +470,6 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 		p.logger.Debug("ignoring delegate observation for chain without delegate chain config",
 			zap.Stringer("emitter_chain", c),
 			zap.Uint64("sequence", m.Sequence),
-			zap.String("hash", hash),
 		)
 		return
 	}
@@ -496,7 +479,6 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 		p.logger.Debug("ignoring delegate observation since we are a delegated guardian for this chain", 
 			zap.Stringer("emitter_chain", c),
             zap.Uint64("sequence", m.Sequence),
-			zap.String("hash", hash),
 		)
 		return
 	}
@@ -507,17 +489,25 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 		p.logger.Debug("ignoring delegate observation from non-delegated guardian for this chain", 
 			zap.Stringer("emitter_chain", c),
             zap.Uint64("sequence", m.Sequence),
-			zap.String("hash", hash),
 			zap.String("guardian", addr.Hex()),
 		)
 		return
 	}
 
-	p.handleCanonicalDelegateObservation(ctx, cfg, m, hash)
+	p.handleCanonicalDelegateObservation(ctx, cfg, m)
 }
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
-func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation, hash string) {
+// TODO2: not sure if guardrails are needed to ensure cfg corresponds to m.EmitterChain
+func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation) {
+	mp, err := delegateObservationToMessagePublication(m)
+    if err != nil {
+        p.logger.Warn("failed to convert delegate observation to message publication", zap.Error(err))
+        return
+    }
+	
+	hash := mp.CreateDigest()
+
 	// Get / create our state entry.
 	s := p.delegateState.observations[hash]
 	if s == nil {
@@ -533,36 +523,27 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	s.observations[addr] = m
 
 	if !s.submitted {
-		p.checkForDelegateQuorum(ctx, m, s, cfg, hash)
+		p.checkForDelegateQuorum(ctx, mp, s, cfg)
 	}
 }
 
-// checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it converts the delegate observation 
-// to a MessagePublication and runs it through the normal message pipeline. 
-func (p *Processor) checkForDelegateQuorum(ctx context.Context, m *gossipv1.DelegateObservation, s *delegateState, dgs *DelegateGuardianChainConfig, hash string) {	
+// checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it runs the converted 
+// MessagePublication through the normal message pipeline.
+// TODO2: not sure if guardrails are needed to ensure mp corresponds to s
+func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegateGuardianChainConfig) {	
 	// TODO2: handle cases for delegate guardian set changes
 	// Check if we have more delegate observations than required for quorum.
 	if len(s.observations) < dgs.Quorum() {
 		// no quorum yet, we're done here
-		c := vaa.ChainID(m.EmitterChain)
+		c := vaa.ChainID(mp.EmitterChain)
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not yet met",
 				zap.Stringer("emitter_chain", c),
-            	zap.Uint64("sequence", m.Sequence),
-				zap.String("hash", hash),
+            	zap.Uint64("sequence", mp.Sequence),
 			)
 		}
 		return
 	}
-
-	mp, err := delegateObservationToMessagePublication(m)
-    if err != nil {
-        p.logger.Warn("failed to convert delegate observation to message publication",
-            zap.String("hash", hash),
-            zap.Error(err),
-        )
-        return
-    }
 
 	s.submitted = true
 	p.handleMessagePublication(ctx, mp)
@@ -606,8 +587,8 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
     return mp, nil
 }
 
-// TODO2: convert signature with prefix hash instead
 // messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
+// This does not populate GuardianAddr.
 func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
 	const TxIDSizeMax = math.MaxUint8
 	txIDLen := len(m.TxID)
@@ -626,8 +607,8 @@ func messagePublicationToDelegateObservation(m *node_common.MessagePublication) 
 		Sequence:         m.Sequence,
 		ConsistencyLevel: uint32(m.ConsistencyLevel),
 		Payload:          m.Payload,
-		TxHash:           m.TxID,		  
-		// Hash, Signature and GuardianAddr will be populated in p2p before broadcast.
+		TxHash:           m.TxID,
+		// GuardianAddr will be populated in handleDelegateMessagePublication before p2p broadcast.
 	}
 
 	return d, nil
