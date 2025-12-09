@@ -1,10 +1,11 @@
+use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
+use wormhole_soroban_client::*;
+
 use crate::{
     governance, initialize,
     storage::StorageKey,
     utils::{address_to_bytes32, get_native_token_address},
 };
-use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
-use wormhole_soroban_client::*;
 
 /// Event published when a cross-chain message is posted.
 ///
