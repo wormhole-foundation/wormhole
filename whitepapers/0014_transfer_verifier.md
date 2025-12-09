@@ -170,8 +170,8 @@ transaction limit" may result in a message being delayed twice.
 ### Flow Cancel can release transfers early
 
 The Flow Cancel mechanism can result in the "daily limit" of the Governor being reduced under specific conditions.
-. If suspicious transfers are queued alongside regular transfers, and Flow
-Cancel is enabled, the suspicious transfers may become released early.
+If suspicious transfers are queued alongside regular transfers, and Flow Cancel is enabled, the suspicious transfers 
+may become released early.
 
 It should be noted that this only affects small transfers, as Flow Cancel does not affect transfers over the big
 transfer limit.
