@@ -97,9 +97,12 @@ export class PeerServer {
         };
         // We allow re-submission of peer data for the same guardian
         if (this.sparseGuardianPeers[guardianIndex] !== undefined) {
-          this.display.log(`WARNING: Guardian ${guardianIndex} resubmitted peer data`);
-          this.display.log(`   Old peer: ${this.sparseGuardianPeers[guardianIndex]}`);
-          this.display.log(`   New peer: ${peer}`);
+          const oldPeer = this.sparseGuardianPeers[guardianIndex];
+          this.display.log('-------------------------------------');
+          this.display.log(`WARNING: Guardian ${guardianAddress} resubmitted peer data`);
+          this.display.log(`Old peer: ${JSON.stringify(oldPeer, null, 2)}`);
+          this.display.log(`New peer: ${JSON.stringify(peer, null, 2)}`);
+          this.display.log('-------------------------------------');
         }
         this.sparseGuardianPeers[guardianIndex] = peer;
         // Save the updated guardian peers

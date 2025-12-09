@@ -71,9 +71,9 @@ export class Display {
       }
 
       peers.forEach((peer, index) => {
-        this.log(`${index + 1}. Guardian: ${peer.guardianAddress.slice(0, 10)}...${peer.guardianAddress.slice(-8)}`);
+        this.log(`${index}. Guardian: ${peer.guardianAddress.slice(0, 10)}...${peer.guardianAddress.slice(-8)}`);
         this.log(`   Hostname: ${peer.hostname}`);
-        this.log(`   TLS Certificate: ${peer.tlsX509.substring(0, 50)}...`);
+        this.log(`   TLS Certificate: ${peer.tlsX509.substring(28, 80)}...`);
         this.log('');
       });
       
