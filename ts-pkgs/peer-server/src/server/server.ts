@@ -15,7 +15,6 @@ import { saveGuardianPeers } from './peers.js';
 export class PeerServer {
   private app: express.Application;
   private sparseGuardianPeers: (Peer | undefined)[];
-  private guardianSetLength: number;
   private wormholeData: WormholeGuardianData;
   private config: BaseServerConfig;
   private server?: any;
@@ -31,12 +30,13 @@ export class PeerServer {
     this.wormholeData = wormholeData;
     this.display = display;
     this.sparseGuardianPeers = validatePeers(initialPeers, wormholeData);
-    this.guardianSetLength = wormholeData.guardians.length;
     this.app = express();
     this.setupMiddleware();
     this.setupRoutes();
     // Show initial progress
-    this.display.setProgress(initialPeers.length, this.guardianSetLength, 'Guardian Collection Progress');
+    this.display.setProgress(
+      initialPeers.length, this.wormholeData.guardians.length, 'Guardian Collection Progress'
+    );
   }
 
   private partialGuardianPeers(): Peer[] {
@@ -55,7 +55,7 @@ export class PeerServer {
         res.json({
           peers: this.partialGuardianPeers(),
           threshold: this.config.threshold,
-          totalExpectedGuardians: this.guardianSetLength
+          totalExpectedGuardians: this.wormholeData.guardians.length
         });
       } catch (error) {
         this.display.error('Error fetching peers:', error);
@@ -66,7 +66,9 @@ export class PeerServer {
     // Add a new peer with signature validation
     this.app.post('/peers', async (req, res) => {
       try {
-        const validationResult = validate(PeerRegistrationSchema, req.body, "Invalid peer registration");
+        const validationResult = validate(
+          PeerRegistrationSchema, req.body, "Invalid peer registration"
+        );
         if (!validationResult.success) {
           return res.status(400).json({ error: validationResult.error });
         }
@@ -104,7 +106,7 @@ export class PeerServer {
         saveGuardianPeers(this.partialGuardianPeers(), this.display);
         // Update progress display (will automatically show peers when complete)
         this.display.setProgress(
-          this.sparseGuardianPeers.length, 
+          this.partialGuardianPeers().length,
           this.wormholeData.guardians.length, 
           'Guardian Collection Progress',
           this.partialGuardianPeers()
