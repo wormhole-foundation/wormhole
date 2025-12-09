@@ -538,20 +538,17 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			transfers = append(transfers, transfer)
 
 		// Process LogMessagePublished events.
-		// Parsing errors that occur here should bubble up to the caller.
+		//
+		// Errors are only added `receiptErr` if the log is not well-formed. (Logs that are simply irrelevant
+		// must not result in errors.)
+		//
+		// The intention here is to skip logs that are well-formed but irrelevant, but to alert the caller on malformed logs.
+		// Given that the core bridge must have a strict structure, and its events are totally immutable except
+		// by a supermajority of Guardians, even a slight deviation in structure should halt further processing.
+		//
+		// This should be kept in mind if this code is refactored: it may be risky to return early to save
+		// on processing performance if this would occlude a log from the core bridge that has the wrong format.
 		case common.HexToHash(EVENTHASH_WORMHOLE_LOG_MESSAGE_PUBLISHED):
-			if len(log.Data) == 0 {
-				receiptErr = errors.Join(receiptErr, errors.New("receipt data has length 0"))
-				continue
-			}
-
-			logMessagePublished, parseLogErr := tv.evmConnector.ParseLogMessagePublished(*log)
-			if parseLogErr != nil {
-				tv.logger.Error("failed to parse LogMessagePublished event")
-				receiptErr = errors.Join(receiptErr, parseLogErr)
-				continue
-			}
-
 			// Make sure the core bridge is the emitter of the event.
 			// This check is required. Payload parsing will fail if performed on a message emitted from another contract or sent
 			// by a contract other than the token bridge
@@ -570,7 +567,10 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 				continue
 			}
 
-			// Make sure the token bridge is the sender.
+			// Make sure the token bridge is the sender (after verifying that there are enough topics)
+			//
+			// Subsequent checks assume certain that the payload structure of the log match the serialized
+			// token transfer format.
 			if log.Topics[1] != tv.Addresses.TokenBridgeAddr.Hash() {
 				tv.logger.Debug("skip: LogMessagePublished with sender not equal to the token bridge",
 					zap.String("sender", log.Topics[1].String()),
@@ -579,7 +579,19 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 				continue
 			}
 
-			// If there is no payload, then there's no point in further processing.
+			if len(log.Data) == 0 {
+				receiptErr = errors.Join(receiptErr, errors.New("receipt data has length 0"))
+				continue
+			}
+
+			logMessagePublished, parseLogErr := tv.evmConnector.ParseLogMessagePublished(*log)
+			if parseLogErr != nil {
+				tv.logger.Error("failed to parse LogMessagePublished event")
+				receiptErr = errors.Join(receiptErr, parseLogErr)
+				continue
+			}
+
+			// Bound checks. If there is no payload, then there's no point in further processing.
 			// This should never happen.
 			if len(logMessagePublished.Payload) == 0 {
 				emptyErr := errors.New("a LogMessagePayload event from the token bridge was received with a zero-sized payload")
@@ -592,7 +604,10 @@ func (tv *TransferVerifier[evmClient, connector]) parseReceipt(
 			}
 
 			// Only token transfers are relevant (not attestations or any other payload type).
+			// TODO: This could optionally be refactored to use `IsWTT()` from the SDK in order to
+			// filter payloads whose emitter is not equal to the token bridge.
 			if !vaa.IsTransfer(logMessagePublished.Payload) {
+				// The bounds check for Payload must be performed before this log.
 				tv.logger.Info("skip: LogMessagePublished is not a token transfer",
 					zap.String("txHash", log.TxHash.String()),
 					zap.String("payloadByte", fmt.Sprintf("%x", logMessagePublished.Payload[0])),
@@ -889,14 +904,12 @@ func (receiptSummary *ReceiptSummary) insolventAssets() []string {
 
 // parseLogMessagePublishedPayload parses the details of a transfer from a
 // LogMessagePublished event's Payload field.
+//
+// Returns an error if the payload can't be parsed into a token transfer.
 func parseLogMessagePublishedPayload(
 	// Corresponds to LogMessagePublished.Payload as returned by the ABI parsing operation in the ethConnector.
 	data []byte,
 ) (*TransferDetails, error) {
-	if !vaa.IsTransfer(data) {
-		return nil, ErrNotTransfer
-	}
-
 	// Note: vaa.DecodeTransferPayloadHdr performs validation on data, e.g. length checks.
 	hdr, err := vaa.DecodeTransferPayloadHdr(data)
 	if err != nil {
