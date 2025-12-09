@@ -3,7 +3,9 @@ use crate::governance::action::{
 };
 use core::convert::TryFrom;
 use soroban_sdk::{Bytes, BytesN, Env, contractevent};
-use wormhole_soroban_client::*;
+use wormhole_soroban_client::{
+    ACTION_CONTRACT_UPGRADE, BytesReader, CONTRACT_UPGRADE_PAYLOAD_MIN_LENGTH, WormholeError, VAA
+};
 
 /// Event published when a contract upgrade is executed.
 ///
@@ -68,7 +70,7 @@ impl GovernanceAction for ContractUpgradeAction {
 
     fn execute(
         env: &Env,
-        _vaa: &crate::vaa::VAA,
+        _vaa: &VAA,
         payload: &Self::Payload,
     ) -> Result<(), WormholeError> {
         env.deployer()
