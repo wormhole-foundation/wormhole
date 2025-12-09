@@ -1,6 +1,14 @@
 # From https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/Dockerfile
 FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb as dkg
 
+RUN apt-get update && apt-get -y install openssl git
+
+# TODO: Pin the commit
+RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
+WORKDIR core-bridge/ts-pkgs/peer-server
+RUN yarnpkg install
+RUN yarnpkg build
+
 ARG TLS_HOSTNAME
 ARG TLS_PORT
 ARG TLS_PUBLIC_IP
@@ -11,20 +19,13 @@ RUN test -n "${TLS_HOSTNAME}" && \
     test -n "${TLS_PUBLIC_IP}" && \
     test -n "${PEER_SERVER_URL}"
 
-RUN apt-get update && apt-get -y install openssl git yarnpkg
-
-RUN openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out key.pem
-RUN openssl req -x509 -key key.pem -out cert.pem -days 365 \
+RUN openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out /key.pem
+RUN openssl req -x509 -key /key.pem -out /cert.pem -days 365 \
   -subj "/CN=${TLS_HOSTNAME}" \
   -addext "subjectAltName=DNS:${TLS_HOSTNAME},IP:${TLS_PUBLIC_IP}" \
   -addext "keyUsage=digitalSignature" \
   -addext "extendedKeyUsage=serverAuth,clientAuth"
 
-# TODO: Pin the commit
-RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
-WORKDIR core-bridge/ts-pkgs/peer-server
-RUN yarnpkg install
-RUN yarnpkg build
 # This is the config for the peer client
 COPY <<EOT self_config.json
 {
@@ -44,6 +45,7 @@ COPY <<EOT self_config.json
   }
 }
 EOT
+
 RUN --mount=type=secret,id=guardian_pk yarnpkg start:client upload
 
 FROM scratch

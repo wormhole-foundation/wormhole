@@ -1,14 +1,14 @@
 # From https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/Dockerfile
 FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb
 
+RUN apt-get update && apt-get -y install git
+
 ARG SERVER_PORT
 ARG ETHEREUM_RPC_URL
 ARG WORMHOLE_ADDRESS=0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
 
 RUN test -n "${SERVER_PORT}" && \
     test -n "${ETHEREUM_RPC_URL}"
-
-RUN apt-get update && apt-get -y install git yarnpkg
 
 # TODO: Pin the commit
 RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
