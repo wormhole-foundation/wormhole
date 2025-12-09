@@ -8,6 +8,7 @@ package governor
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -26,37 +28,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
-
-// The CoinGecko API is documented here: https://www.coingecko.com/en/api/documentation
-// An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
-
-// coinGeckoQueryIntervalInMins specifies how often we query CoinGecko for prices.
-const coinGeckoQueryIntervalInMins = 15
-
-// CoinGecko API response structures for /coins/{platform}/contract/{address} endpoint
-
-// CoinGeckoContractResponse represents the response from CoinGecko's contract address lookup endpoint
-type CoinGeckoContractResponse struct {
-	ID              string                    `json:"id"`
-	Symbol          string                    `json:"symbol"`
-	Name            string                    `json:"name"`
-	DetailPlatforms map[string]PlatformDetail `json:"detail_platforms"`
-	MarketData      MarketData                `json:"market_data"`
-}
-
-// PlatformDetail contains platform-specific token information
-type PlatformDetail struct {
-	DecimalPlace    int    `json:"decimal_place"`
-	ContractAddress string `json:"contract_address"`
-}
-
-// MarketData contains current market information for a token
-type MarketData struct {
-	CurrentPrice map[string]float64 `json:"current_price"`
-}
-
-// tokensPerCoinGeckoQuery specifies how many tokens will be in each CoinGecko query. The token list will be broken up into chunks of this size.
-const tokensPerCoinGeckoQuery = 200
 
 // initCoinGecko builds the set of CoinGecko queries that will be used to update prices. It also starts a go routine to periodically do the queries.
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
@@ -73,7 +44,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	}
 
 	if len(gov.coinGeckoQueries) == 0 {
-		gov.logger.Info("did not find any tokens, nothing to do!")
+		gov.logger.Warn("did not find any tokens, nothing to do!")
 		return nil
 	}
 
@@ -86,57 +57,6 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	return nil
 }
 
-// createCoinGeckoQueries creates the set of CoinGecko queries, breaking the set of IDs into the appropriate size chunks.
-func createCoinGeckoQueries(idList []string, tokensPerQuery int, coinGeckoApiKey string) []string {
-	var queries []string
-	queryIdx := 0
-	tokenIdx := 0
-	ids := ""
-	first := true
-	for _, coinGeckoId := range idList {
-		if tokenIdx%tokensPerQuery == 0 && tokenIdx != 0 {
-			queries = append(queries, createCoinGeckoQuery(ids, coinGeckoApiKey))
-			ids = ""
-			first = true
-			queryIdx += 1
-		}
-		if first {
-			first = false
-		} else {
-			ids += ","
-		}
-
-		ids += coinGeckoId
-		tokenIdx += 1
-	}
-
-	if ids != "" {
-		queries = append(queries, createCoinGeckoQuery(ids, coinGeckoApiKey))
-	}
-
-	return queries
-}
-
-// createCoinGeckoQuery creates a CoinGecko query for the specified set of IDs.
-func createCoinGeckoQuery(ids string, coinGeckoApiKey string) string {
-	params := url.Values{}
-	params.Add("ids", ids)
-	params.Add("vs_currencies", "usd")
-
-	// If modifying this code, ensure that the test 'TestCoinGeckoPriceChecks' passes when adding a pro API key to it.
-	// Since the code requires an API key (which we don't want to publish to git), this
-	// part of the test is normally skipped but mods to sensitive places should still be checked
-	query := ""
-	if coinGeckoApiKey == "" {
-		query = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
-	} else { // Pro version API key path
-		params.Add("x_cg_pro_api_key", coinGeckoApiKey)
-		query = "https://pro-api.coingecko.com/api/v3/simple/price?" + params.Encode()
-	}
-
-	return query
-}
-
 // priceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
 func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// Do a query immediately, then once each interval.
@@ -144,7 +64,7 @@ func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
 	_ = gov.queryCoinGecko(ctx)
 
-	ticker := time.NewTicker(time.Duration(coinGeckoQueryIntervalInMins) * time.Minute)
+	ticker := time.NewTicker(coinGeckoUpdateInterval)
 	defer ticker.Stop()
 
 	for {
@@ -160,11 +80,11 @@ func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 }
 
 // queryCoinGecko sends a series of one or more queries to the CoinGecko server to get the latest prices. It can
-// return an error, but that is only used by the tool that validates the query. In the actual governor,
+// return an error, but this error is only used by the tool that validates the query. In the actual governor,
 // it just logs the error and we will try again next interval. If an error happens, any tokens that have
 // not been updated will be assigned their pre-configured price.
 func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 
 	// Cache buster of Unix timestamp concatenated with random number
 	params := url.Values{}
@@ -178,12 +98,12 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 	// between 1000 and 2000 tokens.
 	throttle := make(chan int, 1)
 	go func() {
-		ticker := time.NewTicker(time.Duration(15) * time.Second)
+		ticker := time.NewTicker(coinGeckoRequestInterval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				throttle <- 1 //nolint:channelcheck // We want this to block for throttling
+				throttle <- 1 // We want this to block for throttling
 			case <-ctx.Done():
 				return
 			}
@@ -230,7 +150,7 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 		if exists {
 			// If a price is not set in CoinGecko, they return an empty entry. Treat that as a zero price.
 			var price float64
-			m, ok := data.(map[string]interface{})
+			m, ok := data.(map[string]any)
 			if !ok {
 				gov.logger.Error("failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
 				// By continuing, we leave this one in the local map so the price will get reverted below.
@@ -287,8 +207,8 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 }
 
 // queryCoinGeckoChunk sends a single CoinGecko query and returns the result.
-func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interface{}, error) {
-	var result map[string]interface{}
+func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]any, error) {
+	var result map[string]any
 
 	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
 	// #nosec G107 // the URL is hard-coded to the CoinGecko API. See [createCoinGeckoQuery].
@@ -309,6 +229,13 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 		return result, fmt.Errorf("failed to read CoinGecko response: %w", err)
 	}
 
+	// NOTE: This check is new, so out of caution this code just logs (instead of returning an error) if the status code is not 200.
+	// This could return an error in the future after the code is battle-tested.
+	if response.StatusCode != http.StatusOK {
+		gov.logger.Warn("CoinGecko query failed with status code", zap.Int("statusCode", response.StatusCode))
+	}
+
+	// TODO: Does CoinGecko actually return an error code string this way? There's no mention of it in the docs.
 	resp := string(responseData)
 	if strings.Contains(resp, "error_code") {
 		return result, fmt.Errorf("CoinGecko query failed: %s", resp)
@@ -322,6 +249,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 }
 
 // revertAllPrices reverts the price of all tokens to the configured prices. It is used when a CoinGecko query fails.
+// Does not affect dynamic tokens as they do not have a default configured price to revert to.
 func (gov *ChainGovernor) revertAllPrices() {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
@@ -341,6 +269,7 @@ func (gov *ChainGovernor) revertAllPrices() {
 }
 
 // updatePrice updates the price of a single token. We should use the max(coinGeckoPrice, configuredPrice) as our price for computing notional value.
+// Does not affect dynamic tokens as they do not have a default configured price to revert to.
 func (te tokenEntry) updatePrice() {
 	if (te.coinGeckoPrice == nil) || (te.coinGeckoPrice.Cmp(te.cfgPrice) < 0) {
 		te.price.Set(te.cfgPrice)
@@ -349,26 +278,8 @@ func (te tokenEntry) updatePrice() {
 	}
 }
 
-// buildCoinGeckoIdFromToken attempts to construct a CoinGecko ID from token metadata.
-// For now, this is a simple mapping based on chain ID and token address.
-// In a production system, this would likely query a token metadata service or use
-// a more sophisticated mapping algorithm.
-func buildCoinGeckoIdFromToken(chain vaa.ChainID, addr vaa.Address) (string, error) {
-	// This is a simplified implementation. In production, you would:
-	// 1. Query on-chain token metadata (symbol, name)
-	// 2. Use a token metadata service or database
-	// 3. Apply heuristics to map to CoinGecko IDs
-	//
-	// For now, we construct a placeholder that could be enhanced
-	// based on the actual CoinGecko API's /coins/list endpoint
-
-	// Return empty string to signal that we cannot construct a CoinGecko ID yet
-	// This will be populated when we actually query CoinGecko
-	return "", fmt.Errorf("cannot automatically determine CoinGecko ID for chain %d, addr %s", chain, addr)
-}
-
 // processPendingTokenDiscovery attempts to discover prices for tokens in the pending queue.
-// It builds CoinGecko queries for pending tokens and attempts to fetch their prices.
+// It queries CoinGecko by contract address for pending tokens and attempts to fetch their prices.
 // If a price can be retrieved, the token is added to the dynamic tokens map.
 func (gov *ChainGovernor) processPendingTokenDiscovery(ctx context.Context) error {
 	gov.mutex.Lock()
@@ -387,31 +298,16 @@ func (gov *ChainGovernor) processPendingTokenDiscovery(ctx context.Context) erro
 
 	gov.logger.Info("processing pending token discoveries", zap.Int("count", len(pendingTokens)))
 
-	// Process each pending token
+	// Process each pending token by querying CoinGecko via contract address
 	for _, tk := range pendingTokens {
-		// Attempt to build CoinGecko ID from token metadata
-		// In a real implementation, this would query token metadata or use a lookup service
-		coinGeckoId, err := buildCoinGeckoIdFromToken(tk.chain, tk.addr)
-		if err != nil {
-			gov.logger.Debug("cannot determine CoinGecko ID for token",
+		// Query by contract address - this gives us price, decimals, symbol, and CoinGecko ID
+		priceFound := gov.queryTokenByContractAddress(ctx, tk)
+		if !priceFound {
+			// Keep in pending queue for next attempt
+			gov.logger.Debug("failed to discover token, will retry",
 				zap.Stringer("chain", tk.chain),
-				zap.Stringer("addr", tk.addr),
-				zap.Error(err))
-
-			// For now, we'll use a simple query by contract address
-			// CoinGecko supports querying by contract address on some chains
-			priceFound := gov.queryTokenByContractAddress(ctx, tk)
-			if !priceFound {
-				// Keep in pending queue for next attempt
-				continue
-			}
-		} else {
-			// We have a CoinGecko ID, query for the price
-			priceFound := gov.queryTokenByCoinGeckoId(ctx, tk, coinGeckoId)
-			if !priceFound {
-				// Keep in pending queue for next attempt
-				continue
-			}
+				zap.Stringer("addr", tk.addr))
+			continue
 		}
 
 		// Successfully discovered price, remove from pending queue
@@ -429,7 +325,7 @@ func (gov *ChainGovernor) queryTokenByContractAddress(ctx context.Context, tk to
 	// Map Wormhole chain IDs to CoinGecko platform IDs
 	platformId := mapChainToCoinGeckoPlatform(tk.chain)
 	if platformId == "" {
-		gov.logger.Debug("chain not supported for CoinGecko contract address lookup",
+		gov.logger.Info("chain not supported for CoinGecko contract address lookup",
 			zap.Stringer("chain", tk.chain))
 		return false
 	}
@@ -446,8 +342,9 @@ func (gov *ChainGovernor) queryTokenByContractAddress(ctx context.Context, tk to
 
 	gov.logger.Debug("querying CoinGecko by contract address", zap.String("query", query))
 
-	// #nosec G107 // the URL is constructed from validated inputs
-	response, err := http.Get(query) //nolint:noctx
+	// FIXME: Query is not validated. Needs some sanitization
+	// FIXME: Add a proper context
+	response, err := http.Get(query)
 	if err != nil {
 		gov.logger.Debug("failed to query CoinGecko by contract address",
 			zap.Stringer("chain", tk.chain),
@@ -563,79 +460,10 @@ func (gov *ChainGovernor) queryTokenByContractAddress(ctx context.Context, tk to
 	return true
 }
 
-// queryTokenByCoinGeckoId queries CoinGecko for a token price using a known CoinGecko ID.
-func (gov *ChainGovernor) queryTokenByCoinGeckoId(ctx context.Context, tk tokenKey, coinGeckoId string) bool {
-	// Build query URL
-	params := url.Values{}
-	params.Add("ids", coinGeckoId)
-	params.Add("vs_currencies", "usd")
-
-	var query string
-	if gov.coinGeckoApiKey == "" {
-		query = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
-	} else {
-		params.Add("x_cg_pro_api_key", gov.coinGeckoApiKey)
-		query = "https://pro-api.coingecko.com/api/v3/simple/price?" + params.Encode()
-	}
-
-	result, err := gov.queryCoinGeckoChunk(query)
-	if err != nil {
-		return false
-	}
-
-	data, ok := result[coinGeckoId]
-	if !ok {
-		return false
-	}
-
-	m, ok := data.(map[string]interface{})
-	if !ok {
-		return false
-	}
-
-	priceFloat, ok := m["usd"].(float64)
-	if !ok {
-		return false
-	}
-
-	// Create token entry
-	decimals := int64(8)
-	decimalsFloat := big.NewFloat(math.Pow(10.0, float64(decimals)))
-	decimalsBigInt, _ := decimalsFloat.Int(nil)
-
-	cfgPrice := big.NewFloat(priceFloat)
-	initialPrice := new(big.Float)
-	initialPrice.Set(cfgPrice)
-
-	te := &tokenEntry{
-		cfgPrice:       cfgPrice,
-		price:          initialPrice,
-		decimals:       decimalsBigInt,
-		symbol:         fmt.Sprintf("%d:%s", tk.chain, tk.addr.String()),
-		coinGeckoId:    coinGeckoId,
-		token:          tk,
-		coinGeckoPrice: big.NewFloat(priceFloat),
-		priceTime:      time.Now(),
-	}
-	te.updatePrice()
-
-	gov.mutex.Lock()
-	gov.dynamicTokens[tk] = te
-
-	cge, exists := gov.dynamicTokensByCoinGeckoId[coinGeckoId]
-	if !exists {
-		gov.dynamicTokensByCoinGeckoId[coinGeckoId] = []*tokenEntry{te}
-	} else {
-		cge = append(cge, te)
-		gov.dynamicTokensByCoinGeckoId[coinGeckoId] = cge
-	}
-	gov.mutex.Unlock()
-
-	return true
-}
-
 // mapChainToCoinGeckoPlatform maps Wormhole chain IDs to CoinGecko platform identifiers.
 // Uses ChainID.String() where possible, with exceptions for chains that need different naming.
+// Returns an empty string if a chain ID could not be converted to a platform ID.
+// Performs no validation that the chain is governed or active.
 func mapChainToCoinGeckoPlatform(chain vaa.ChainID) string {
 	// Special cases where CoinGecko platform name differs from ChainID.String()
 	switch chain {
@@ -670,7 +498,7 @@ func mapChainToCoinGeckoPlatform(chain vaa.ChainID) string {
 	// This includes: ethereum, solana, avalanche, fantom, base, celo, moonbeam, scroll, linea,
 	// unichain, ink, monad, aptos, sui, algorand, etc.
 	switch chain {
-	case vaa.ChainIDEthereum, vaa.ChainIDSolana, vaa.ChainIDAvalanche, vaa.ChainIDFantom,
+	case vaa.ChainIDEthereum, vaa.ChainIDSolana, vaa.ChainIDAvalanche,
 		vaa.ChainIDBase, vaa.ChainIDCelo, vaa.ChainIDMoonbeam, vaa.ChainIDScroll,
 		vaa.ChainIDLinea, vaa.ChainIDUnichain, vaa.ChainIDInk, vaa.ChainIDMonad,
 		vaa.ChainIDAptos, vaa.ChainIDSui, vaa.ChainIDAlgorand, vaa.ChainIDBerachain,
@@ -708,155 +536,82 @@ func CheckQuery(logger *zap.Logger) error {
 	return nil
 }
 
-// CheckContractQuery is a free function used to test the CoinGecko contract address lookup endpoint
-// and validate the struct-based JSON parsing for dynamic token discovery.
-// This function queries real tokens on different chains to ensure the API integration works correctly.
+// CheckContractQuery is a free function used to test that the CoinGecko contract address lookup
+// endpoint still works correctly with the struct-based JSON parsing for dynamic token discovery.
+// This validates that the queryTokenByContractAddress flow works as expected.
 func CheckContractQuery(logger *zap.Logger, coinGeckoApiKey string) error {
-	logger.Info("Testing CoinGecko contract address lookup endpoint")
+	logger.Info("Instantiating governor for contract query test.")
+	ctx := context.Background()
+	var db guardianDB.MockGovernorDB
+	gov := NewChainGovernor(logger, &db, common.MainNet, true, coinGeckoApiKey)
 
-	// Test cases: well-known tokens on different chains
-	testCases := []struct {
-		name     string
-		chain    vaa.ChainID
-		address  string
-		expected struct {
-			symbol   string
-			decimals int
-		}
-	}{
-		{
-			name:    "USDC on Ethereum",
-			chain:   vaa.ChainIDEthereum,
-			address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-			expected: struct {
-				symbol   string
-				decimals int
-			}{symbol: "usdc", decimals: 6},
-		},
-		{
-			name:    "USDC on Solana",
-			chain:   vaa.ChainIDSolana,
-			address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-			expected: struct {
-				symbol   string
-				decimals int
-			}{symbol: "usdc", decimals: 6},
-		},
-		{
-			name:    "WETH on Ethereum",
-			chain:   vaa.ChainIDEthereum,
-			address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-			expected: struct {
-				symbol   string
-				decimals int
-			}{symbol: "weth", decimals: 18},
-		},
-		{
-			name:    "USDC on Polygon",
-			chain:   vaa.ChainIDPolygon,
-			address: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
-			expected: struct {
-				symbol   string
-				decimals int
-			}{symbol: "usdc", decimals: 6},
-		},
+	if err := gov.initConfig(); err != nil {
+		return err
 	}
 
-	for _, tc := range testCases {
-		logger.Info("Testing token",
-			zap.String("name", tc.name),
-			zap.Stringer("chain", tc.chain),
-			zap.String("address", tc.address))
+	logger.Info("Testing dynamic token discovery for sample tokens.")
 
-		// Map chain to CoinGecko platform
-		platformId := mapChainToCoinGeckoPlatform(tc.chain)
-		if platformId == "" {
-			return fmt.Errorf("chain %s not supported for CoinGecko lookup", tc.chain)
-		}
-		logger.Info("Mapped chain to platform", zap.String("platform", platformId))
+	// Sample tokens to test dynamic discovery - these should NOT be in TokenList()
+	// Using well-known tokens to ensure CoinGecko has data
+	testTokens := []tokenKey{
+		{chain: vaa.ChainIDEthereum, addr: mustParseAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")}, // USDC on Ethereum
+		{chain: vaa.ChainIDSolana, addr: mustParseAddress("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")}, // USDC on Solana
+	}
 
-		// Build query URL
-		var query string
-		if coinGeckoApiKey == "" {
-			query = fmt.Sprintf("https://api.coingecko.com/api/v3/coins/%s/contract/%s", platformId, tc.address)
-		} else {
-			query = fmt.Sprintf("https://pro-api.coingecko.com/api/v3/coins/%s/contract/%s?x_cg_pro_api_key=%s",
-				platformId, tc.address, coinGeckoApiKey)
-		}
-		logger.Info("Querying CoinGecko", zap.String("url", query))
+	for _, tk := range testTokens {
+		logger.Info("Attempting to discover token",
+			zap.Stringer("chain", tk.chain),
+			zap.Stringer("addr", tk.addr))
 
-		// Query CoinGecko
-		// #nosec G107 // the URL is constructed from validated inputs
-		response, err := http.Get(query) //nolint:noctx
-		if err != nil {
-			return fmt.Errorf("failed to query CoinGecko for %s: %w", tc.name, err)
+		// Attempt discovery using the actual implementation
+		success := gov.queryTokenByContractAddress(ctx, tk)
+		if !success {
+			return fmt.Errorf("failed to discover token on chain %s with address %s", tk.chain, tk.addr)
 		}
 
-		responseData, err := common.SafeRead(response.Body)
-		_ = response.Body.Close()
-		if err != nil {
-			return fmt.Errorf("failed to read response for %s: %w", tc.name, err)
+		// Verify token was added to dynamicTokens
+		gov.mutex.Lock()
+		token, exists := gov.dynamicTokens[tk]
+		gov.mutex.Unlock()
+
+		if !exists {
+			return fmt.Errorf("token was not added to dynamicTokens after successful discovery")
 		}
 
-		// Parse response using struct
-		var result CoinGeckoContractResponse
-		if err := json.Unmarshal(responseData, &result); err != nil {
-			return fmt.Errorf("failed to unmarshal response for %s: %w", tc.name, err)
-		}
-
-		// Validate response
-		if result.ID == "" {
-			return fmt.Errorf("missing CoinGecko ID for %s", tc.name)
-		}
-		if result.Symbol == "" {
-			return fmt.Errorf("missing symbol for %s", tc.name)
-		}
-
-		// Check price exists
-		priceUsd, ok := result.MarketData.CurrentPrice["usd"]
-		if !ok {
-			return fmt.Errorf("missing USD price for %s", tc.name)
-		}
-		if priceUsd <= 0 {
-			return fmt.Errorf("invalid USD price for %s: %f", tc.name, priceUsd)
-		}
-
-		// Check decimals
-		platformData, ok := result.DetailPlatforms[platformId]
-		if !ok {
-			return fmt.Errorf("missing platform data for %s on %s", tc.name, platformId)
-		}
-		if platformData.DecimalPlace == 0 {
-			return fmt.Errorf("missing decimal place for %s", tc.name)
-		}
-
-		// Log results
-		logger.Info("Successfully retrieved token data",
-			zap.String("name", tc.name),
-			zap.String("id", result.ID),
-			zap.String("symbol", result.Symbol),
-			zap.Float64("price", priceUsd),
-			zap.Int("decimals", platformData.DecimalPlace),
-			zap.String("contract", platformData.ContractAddress))
-
-		// Validate against expected values
-		if result.Symbol != tc.expected.symbol {
-			logger.Warn("Symbol mismatch",
-				zap.String("expected", tc.expected.symbol),
-				zap.String("got", result.Symbol))
-		}
-		if platformData.DecimalPlace != tc.expected.decimals {
-			logger.Warn("Decimals mismatch",
-				zap.Int("expected", tc.expected.decimals),
-				zap.Int("got", platformData.DecimalPlace))
-		}
-
-		logger.Info("✓ Test passed for " + tc.name)
+		logger.Info("Successfully discovered token",
+			zap.Stringer("chain", tk.chain),
+			zap.Stringer("addr", tk.addr),
+			zap.String("symbol", token.symbol),
+			zap.String("coinGeckoId", token.coinGeckoId),
+			zap.Stringer("price", token.price),
+			zap.Stringer("decimals", token.decimals))
 
 		// Be nice to CoinGecko API - rate limit ourselves
 		time.Sleep(2 * time.Second)
 	}
 
-	logger.Info("✓ All contract address lookups succeeded")
+	logger.Info("Dynamic token discovery test complete.")
 	return nil
+}
+
+// mustParseAddress is a helper function to parse addresses for test cases.
+func mustParseAddress(addr string) vaa.Address {
+	var result vaa.Address
+	// For Ethereum-style addresses (0x...)
+	if strings.HasPrefix(addr, "0x") {
+		decoded, err := hex.DecodeString(addr[2:])
+		if err != nil {
+			panic(fmt.Sprintf("failed to decode address %s: %v", addr, err))
+		}
+		copy(result[32-len(decoded):], decoded)
+		return result
+	}
+
+	// For Solana-style base58 addresses
+	decoded, err := base58.Decode(addr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to decode address %s: %v", addr, err))
+	}
+	copy(result[32-len(decoded):], decoded)
+	return result
 }

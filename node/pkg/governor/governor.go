@@ -238,6 +238,7 @@ type ChainGovernor struct {
 	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
 	msgsToPublish         []*common.MessagePublication // protected by `mutex`
 	dayLengthInMinutes    int
+	// coinGeckoQueries is a slice of URLs that will be used to query CoinGecko for token prices.
 	coinGeckoQueries      []string
 	env                   common.Environment
 	nextStatusPublishTime time.Time
@@ -249,10 +250,28 @@ type ChainGovernor struct {
 	// Pairs of chains for which flow canceling is enabled. Note that an asset may be flow canceling even if
 	// it was minted on a chain that is not configured to be an 'end' of any of the corridors.
 	flowCancelCorridors []corridor
-	// Dynamic token discovery: tokens discovered at runtime that are not in TokenList()
-	dynamicTokens              map[tokenKey]*tokenEntry // protected by `mutex`
+
+	// Dynamic token discovery fields: enable governing ALL tokens, not just those in TokenList()
+	// When a transfer for an unknown token is processed, it is queued for discovery and
+	// CoinGecko is queried to obtain price and metadata. Once discovered, the token is
+	// added to dynamicTokens and governed like static tokens.
+
+	// dynamicTokens stores tokens discovered at runtime via CoinGecko contract address lookup.
+	// Maps tokenKey (chain+address) to tokenEntry (price, decimals, symbol, etc).
+	// Tokens are added when CoinGecko successfully returns price data for an unknown token.
+	// These tokens receive price updates every 15 minutes alongside static tokens.
+	dynamicTokens map[tokenKey]*tokenEntry // protected by `mutex`
+
+	// dynamicTokensByCoinGeckoId indexes dynamic tokens by their CoinGecko ID for efficient
+	// price updates. Multiple tokens can share a CoinGecko ID (e.g., USDC on different chains).
+	// Used during queryCoinGecko() to update prices for all discovered tokens.
 	dynamicTokensByCoinGeckoId map[string][]*tokenEntry // protected by `mutex`
-	// Queue of tokens pending CoinGecko price discovery
+
+	// pendingTokenDiscovery is a queue of tokens awaiting CoinGecko price discovery.
+	// When a transfer references an unknown token, it is added here (non-blocking).
+	// The processPendingTokenDiscovery() function processes this queue during the
+	// regular 15-minute CoinGecko polling cycle, moving successfully discovered tokens
+	// to dynamicTokens. Value is always true; map used as a set for O(1) lookups.
 	pendingTokenDiscovery map[tokenKey]bool // protected by `mutex`
 }
 
