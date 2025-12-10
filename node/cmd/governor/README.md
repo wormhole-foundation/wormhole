@@ -45,7 +45,7 @@ guardiand governor token-price --chain-id 2 0xa0b86991c6218b36c1d19d4a2e9eb0ce36
 guardiand governor token-price --platform ethereum 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
 
 # Multiple tokens
-guardiand governor token-price --chain-id 2 0xaddr1 0xaddr2 0xaddr3
+guardiand governor token-price --chain-id 2 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 ...
 ```
 
 **Arguments:**
