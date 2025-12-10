@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"net/http"
 	"net/url"
@@ -284,14 +283,10 @@ func (c *Client) BuildChainToPlatformMap(
 		found := false
 		chainName := chainID.String()
 
-		// FIXME: delete
-		log.Printf("chainID: %s", chainID)
-
 		// Return early for platforms whose chain ID string does not map
 		// predictably to a CoinGecko platform ID.
 		// https://www.coingecko.com/en/chains
 
-		// FIXME: check if exhaustive
 		switch chainID {
 		case vaa.ChainIDCosmoshub:
 			c.chainToPlatform[chainID] = "cosmos"

@@ -22,6 +22,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor/coingecko"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
 
@@ -34,7 +35,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	}
 
 	// Create the set of queries, breaking the IDs into the appropriate size chunks.
-	gov.coinGeckoQueries = createCoinGeckoQueries(ids, tokensPerCoinGeckoQuery, gov.coinGeckoApiKey)
+	gov.coinGeckoQueries = createCoinGeckoQueries(ids, coingecko.TokensPerCoinGeckoQuery, gov.coinGeckoApiKey)
 	for queryIdx, query := range gov.coinGeckoQueries {
 		gov.logger.Info("coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
 	}
@@ -111,7 +112,7 @@ func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
 	_ = gov.queryCoinGecko(ctx)
 
-	ticker := time.NewTicker(coinGeckoRequestInterval)
+	ticker := time.NewTicker(coingecko.CoinGeckoRequestInterval)
 	defer ticker.Stop()
 
 	for {
