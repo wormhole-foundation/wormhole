@@ -190,3 +190,7 @@ jobs:
       run: yarn --immutable
     - name: Typecheck
       run: yarn run build:ts:libs
+    - name: Lint check
+      run: yarn run lint:libs
+    - name: Peer server tests
+      run: yarn workspace @xlabs-xyz/peer-server run test
