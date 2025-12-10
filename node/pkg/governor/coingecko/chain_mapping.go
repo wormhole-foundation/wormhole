@@ -11,6 +11,9 @@ import (
 // This map was generated from the CoinGecko /asset_platforms endpoint and manual mappings
 // for chains that don't match predictably.
 //
+// Maintainers SHOULD update this list when adding new chains, and MUST update this list
+// if the new chain will have a Token Bridge deployed.
+//
 // Source: Generated via `guardiand governor chain-mapping`
 var chainToPlatformMap = map[vaa.ChainID]string{
 	vaa.ChainIDSolana:     "solana",

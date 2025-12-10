@@ -21,8 +21,10 @@ To add a new ChainID to Wormhole:
    This runs `chainid_generator.go` which auto-generates `String()`, `ChainIDFromString()`, and `GetAllNetworkIDs()` methods.
 
 3. **Update other components** as needed:
-   - Add to governor chain lists (`node/pkg/governor/mainnet_chains.go`)
-   - Add manual tokens if required (`node/pkg/governor/manual_tokens.go`)
+   - If the chain will have a Token Bridge deployed (for Wrapped Token Transfers):
+      - Add to governor chain lists (`node/pkg/governor/mainnet_chains.go`)
+      - Add manual tokens if required (`node/pkg/governor/manual_tokens.go`)
+      - Add a CoinGecko platform if one exists (`node/pkg/governor/coingecko/chain_mapping.go`)
    - Update any chain-specific configuration files
    - Add the ChainID in `proto/publicrpc/v1/publicrpc.proto`.
    - If watcher support is necessary, update the guardian code.
