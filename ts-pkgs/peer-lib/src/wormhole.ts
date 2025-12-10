@@ -84,12 +84,12 @@ export function validatePeers(
     }
     const guardianAddress = wormholeData.guardians[peer.guardianIndex];
     if (guardianAddress.toLowerCase() !== peer.guardianAddress.toLowerCase()) {
-      throw new Error(`Peer address is not in the wormhole guardian set: ${peer.guardianAddress}`);
+      throw new Error(`Peer address at index ${peer.guardianIndex} is not ${peer.guardianAddress}`);
     }
     const signature = peer.signature;
     const guardian = validateGuardianSignature({ peer, signature }, wormholeData);
-    if (!guardian) {
-      throw new Error(`Invalid guardian signature: ${peer.guardianAddress}`);
+    if (!guardian.success) {
+      throw new Error(`Invalid guardian signature: ${guardian.error}`);
     }
     sparsePeers[peer.guardianIndex] = peer;
   }
