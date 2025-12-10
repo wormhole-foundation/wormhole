@@ -34,9 +34,7 @@ export class PeerServer {
     this.setupMiddleware();
     this.setupRoutes();
     // Show initial progress
-    this.display.setProgress(
-      initialPeers.length, this.wormholeData.guardians.length, 'Guardian Collection Progress'
-    );
+    this.display.setProgress(initialPeers, this.wormholeData.guardians.length);
   }
 
   private partialGuardianPeers(): Peer[] {
@@ -108,12 +106,7 @@ export class PeerServer {
         // Save the updated guardian peers
         saveGuardianPeers(this.partialGuardianPeers(), this.display);
         // Update progress display (will automatically show peers when complete)
-        this.display.setProgress(
-          this.partialGuardianPeers().length,
-          this.wormholeData.guardians.length, 
-          'Guardian Collection Progress',
-          this.partialGuardianPeers()
-        );
+        this.display.setProgress(this.partialGuardianPeers(), this.wormholeData.guardians.length);
         res.status(201).json({
           peer: { guardianAddress, guardianIndex, signature, hostname, port, tlsX509 },
           threshold: this.config.threshold

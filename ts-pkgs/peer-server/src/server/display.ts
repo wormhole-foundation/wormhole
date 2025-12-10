@@ -23,7 +23,7 @@ export class Display {
     console.error(message, error?.stack || error || '');
   }
 
-  setProgress(current: number, total: number, label = 'Progress', peers?: Peer[]): void {
+  setProgress(peers: Peer[], total: number, label = 'Guardian Collection Progress'): void {
     // Clear the current line and move cursor to beginning
     process.stdout.write('\r\x1b[K');
     
@@ -35,28 +35,24 @@ export class Display {
 
     // Create progress bar
     const barLength = 40;
-    const filledLength = Math.round((current / total) * barLength);
+    const filledLength = Math.round((peers.length / total) * barLength);
     const emptyLength = barLength - filledLength;
     
     const bar = '█'.repeat(filledLength) + '░'.repeat(emptyLength);
-    const percentage = Math.round((current / total) * 100);
+    const percentage = Math.round((peers.length / total) * 100);
     
     // Display progress
     process.stdout.write(
-      `${label}: [${bar}] ${current}/${total} guardians (${percentage}%)`
+      `${label}: [${bar}] ${peers.length}/${total} guardians (${percentage}%)`
     );
 
     this.hasProgressBar = true;
 
     // If complete, finish the line and show completion
-    if (current === total && current > 0) {
+    if (peers.length === total && peers.length > 0) {
       process.stdout.write('\n✅ All guardians have submitted their peer data!\n');
       this.hasProgressBar = false;
-      
-      // Display all peers when complete
-      if (peers) {
-        this.displayAllPeers(peers);
-      }
+      this.displayAllPeers(peers);
     }
   }
 
