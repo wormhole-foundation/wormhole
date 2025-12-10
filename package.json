@@ -7,10 +7,16 @@
   ],
   "scripts": {
     "build:ts": "yarn workspaces foreach --all run build",
-    "build:ts:libs": "yarn workspaces foreach --all --exclude ./src/solana run build"
+    "build:ts:libs": "yarn workspaces foreach --all --exclude ./src/solana run build",
+    "lint": "yarn eslint ./src/solana/tests ./src/solana/scripts ./ts-pkgs/deploy/vaatool ./ts-pkgs/deploy/guardian ./ts-pkgs/deploy/evm ./ts-pkgs/peer-lib/src ./ts-pkgs/peer-server/src ./ts-pkgs/peer-server/tests ./ts-pkgs/tss-definitions/src",
+    "lint:libs": "yarn eslint ./ts-pkgs/deploy/vaatool ./ts-pkgs/deploy/guardian ./ts-pkgs/deploy/evm ./ts-pkgs/peer-lib/src ./ts-pkgs/peer-server/src ./ts-pkgs/peer-server/tests ./ts-pkgs/tss-definitions/src"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "@eslint/compat": "^2.0.0",
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.49.0"
   },
   "packageManager": "yarn@4.12.0+sha512.f45ab632439a67f8bc759bf32ead036a1f413287b9042726b7cc4818b7b49e14e9423ba49b18f9e06ea4941c1ad062385b1d8760a8d5091a1a31e5f6219afca8"
 }
