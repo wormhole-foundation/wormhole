@@ -13,7 +13,6 @@ import (
 
 var (
 	chainMappingAPIKey string
-	chainMappingOutput string
 	onlyGovernedChains bool
 )
 
@@ -32,16 +31,12 @@ Examples:
 
   # With API key
   guardiand governor chain-mapping --api-key YOUR_API_KEY
-
-  # JSON output
-  guardiand governor chain-mapping --output json
 `,
 	Run: runChainMapping,
 }
 
 func init() {
 	chainMappingCmd.Flags().StringVar(&chainMappingAPIKey, "api-key", "", "CoinGecko API key (optional)")
-	chainMappingCmd.Flags().StringVarP(&chainMappingOutput, "output", "o", "table", "Output format: table, json")
 	chainMappingCmd.Flags().BoolVar(&onlyGovernedChains, "only-governed", false, "Only show chains governed by the Guardian")
 }
 

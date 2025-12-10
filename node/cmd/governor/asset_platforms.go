@@ -11,7 +11,6 @@ import (
 
 var (
 	assetPlatformsAPIKey string
-	assetPlatformsOutput string
 )
 
 var assetPlatformsCmd = &cobra.Command{
@@ -25,16 +24,12 @@ Examples:
 
   # List all platforms with API key
   guardiand governor asset-platforms --api-key YOUR_API_KEY
-
-  # Output as JSON
-  guardiand governor asset-platforms --output json
 `,
 	Run: runAssetPlatforms,
 }
 
 func init() {
 	assetPlatformsCmd.Flags().StringVar(&assetPlatformsAPIKey, "api-key", "", "CoinGecko API key (optional)")
-	assetPlatformsCmd.Flags().StringVarP(&assetPlatformsOutput, "output", "o", "table", "Output format: table, json")
 }
 
 func runAssetPlatforms(cmd *cobra.Command, args []string) {
