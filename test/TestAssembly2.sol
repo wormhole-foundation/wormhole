@@ -1115,7 +1115,7 @@ contract TestAssembly2 is VerificationTestAPI {
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
     pullGuardianSets(_wormholeVerifierV2, 1);
     vm.expectEmit(true, true, false, false);
-    emit WormholeVerifier.SchnorrKeyAdded(0, PK1, schnorrShardDataHash);
+    emit WormholeVerifier.SchnorrKeyAdded(PK1, schnorrShardDataHash);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
   }
 

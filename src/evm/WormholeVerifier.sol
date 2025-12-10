@@ -245,7 +245,7 @@ contract WormholeVerifier is EIP712Encoding {
 
   // Update events
   event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes32 oldShardId, bytes32 newShardId);
-  event SchnorrKeyAdded(uint32 indexed newSchnorrKeyIndex, uint256 indexed newSchnorrKey, bytes32 initialShardDataHash);
+  event SchnorrKeyAdded(uint256 indexed newSchnorrKey, bytes32 initialShardDataHash);
   event MultisigKeyDataPulled(uint256 indexed newMultisigKeyIndex, uint256 indexed oldMultisigKeyIndex);
 
   // We don't make this immutable to keep bytecode verification from build simple.
@@ -1234,7 +1234,7 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Bounds check on data read
       require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
-      emit SchnorrKeyAdded(newSchnorrKeyIndex, newSchnorrKey, initialShardDataHash);
+      emit SchnorrKeyAdded(newSchnorrKey, initialShardDataHash);
     }
   }
 
