@@ -1046,22 +1046,6 @@ if query_server:
     )
 
 if stacks:
-    # Build Stacks node image
-    docker_build(
-        ref = "stacks-node",
-        context = "./stacks",
-        dockerfile = "stacks/Dockerfile",
-        target = "stacks-node",
-    )
-
-    # Build Stacks signer image
-    docker_build(
-        ref = "stacks-signer",
-        context = "./stacks",
-        dockerfile = "stacks/Dockerfile",
-        target = "stacks-signer",
-    )
-
     # Build stacker image
     docker_build(
         ref = "stacks-stacker",
@@ -1125,7 +1109,6 @@ if stacks:
     k8s_yaml_with_ns("devnet/stacks-stacker.yaml")
     k8s_resource(
         "stacks-stacker",
-        resource_deps = ["stacks-node"],
         labels = ["stacks"],
         trigger_mode = trigger_mode,
     )

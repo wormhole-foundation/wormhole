@@ -62,6 +62,7 @@ data:
     username = "${BITCOIN_RPC_USER}"
     password = "${BITCOIN_RPC_PASS}"
     wallet_name = "${BITCOIN_WALLET}"
+    first_burn_block_height = ${STACKS_20_HEIGHT}
 
     # Add stacks-signer as an event observer
     [[events_observer]]
@@ -214,7 +215,7 @@ spec:
     spec:
       containers:
         - name: stacks-node
-          image: stacks-node
+          image: blockstack/stacks-blockchain:3.3.0.0.2-debian@sha256:504e4c9314971eb229420c72c374c270011d9fcd1ba8ad8651d589742204e00b
           securityContext:
             runAsUser: 0
           ports:
@@ -267,27 +268,27 @@ spec:
             - name: BLOCK_PUSH_FAIL_PROBABILITY
               value: "0"
             - name: STACKS_20_HEIGHT
-              value: "0"
+              value: "100"
             - name: STACKS_2_05_HEIGHT
-              value: "203"
+              value: "103"
             - name: STACKS_21_HEIGHT
-              value: "204"
+              value: "104"
             - name: STACKS_22_HEIGHT
-              value: "206"
+              value: "106"
             - name: STACKS_23_HEIGHT
-              value: "207"
+              value: "107"
             - name: STACKS_24_HEIGHT
-              value: "208"
+              value: "108"
             - name: STACKS_25_HEIGHT
-              value: "209"
+              value: "109"
             - name: STACKS_30_HEIGHT
-              value: "232"
+              value: "142"
             - name: STACKS_31_HEIGHT
-              value: "233"
+              value: "143"
             - name: STACKS_32_HEIGHT
-              value: "234"
+              value: "144"
             - name: STACKS_33_HEIGHT
-              value: "236"
+              value: "146"
             - name: POX_PREPARE_LENGTH
               value: "5"
             - name: POX_REWARD_LENGTH

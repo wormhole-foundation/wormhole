@@ -30,9 +30,9 @@ spec:
             - name: STACKING_SLOT_DISTRO
               value: "2"
             - name: STACKS_25_HEIGHT
-              value: "209"
+              value: "109"
             - name: STACKS_30_HEIGHT
-              value: "232"
+              value: "142"
             - name: POX_PREPARE_LENGTH
               value: "5"
             - name: POX_REWARD_LENGTH

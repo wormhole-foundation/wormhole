@@ -545,23 +545,23 @@ spec:
                       - name: STACKS_MINER_1_BTC_WALLET
                         value: "stacks-miner-1"
                       - name: MINE_INTERVAL
-                        value: "5"
+                        value: "0.5"
                       - name: MINE_INTERVAL_EPOCH2_05
-                        value: "10"
+                        value: "3"
                       - name: MINE_INTERVAL_EPOCH25
-                        value: "10"
+                        value: "5"
                       - name: MINE_INTERVAL_EPOCH3
-                        value: "30"
+                        value: "10"
                       - name: STACKS_2_05_HEIGHT
-                        value: "203"
+                        value: "103"
                       - name: STACKS_25_HEIGHT
-                        value: "209"
+                        value: "109"
                       - name: STACKS_30_HEIGHT
-                        value: "232"
+                        value: "142"
                       - name: STACKS_32_HEIGHT
-                        value: "234"
+                        value: "144"
                       - name: STACKS_33_HEIGHT
-                        value: "236"
+                        value: "146"
                       - name: PAUSE_HEIGHT
                         value: "999999999999"
                       - name: PAUSE_TIMER
@@ -586,9 +586,9 @@ spec:
                               - -c
                               - |
                                   HEIGHT=$(bitcoin-cli -rpcconnect=bitcoin-node -rpcuser=hacknet -rpcpassword=hacknet getblockcount 2>/dev/null || echo 0)
-                                  [ "$HEIGHT" -ge 100 ]
-                      initialDelaySeconds: 15
-                      periodSeconds: 5
+                                  [ "$HEIGHT" -ge 80 ]
+                      initialDelaySeconds: 0
+                      periodSeconds: 1
                       timeoutSeconds: 3
                       successThreshold: 1
                       failureThreshold: 60

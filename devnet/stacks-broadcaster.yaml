@@ -27,9 +27,9 @@ spec:
             - name: NAKAMOTO_BLOCK_INTERVAL
               value: "2"
             - name: STACKS_25_HEIGHT
-              value: "209"
+              value: "109"
             - name: STACKS_30_HEIGHT
-              value: "232"
+              value: "142"
             - name: POX_PREPARE_LENGTH
               value: "5"
             - name: POX_REWARD_LENGTH
@@ -48,8 +48,8 @@ spec:
                 - /bin/sh
                 - -c
                 - "test -f /tmp/ready"
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 5
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 3
@@ -58,9 +58,9 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - "pgrep -f tx-broadcaster.ts"
-            initialDelaySeconds: 60
-            periodSeconds: 30
+                - "test -f /tmp/ready"
+            initialDelaySeconds: 5
+            periodSeconds: 5
             timeoutSeconds: 10
             failureThreshold: 3
           resources:
