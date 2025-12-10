@@ -48,8 +48,12 @@ func init() {
 	addTokenCmd.Flags().StringVarP(&addTokenChainID, "chain-id", "c", "", "Wormhole chain ID (required)")
 	addTokenCmd.Flags().StringVarP(&addTokenAddress, "address", "a", "", "Token contract address (required)")
 	addTokenCmd.Flags().BoolVar(&addTokenDryRun, "dry-run", false, "Print the entry without modifying the file")
-	addTokenCmd.MarkFlagRequired("chain-id")
-	addTokenCmd.MarkFlagRequired("address")
+	if err := addTokenCmd.MarkFlagRequired("chain-id"); err != nil {
+		log.Fatalf("Failed to mark chain-id flag as required: %v", err)
+	}
+	if err := addTokenCmd.MarkFlagRequired("address"); err != nil {
+		log.Fatalf("Failed to mark address flag as required: %v", err)
+	}
 }
 
 func runAddToken(cmd *cobra.Command, args []string) {
@@ -238,7 +242,7 @@ func addTokenToFile(entry string) error {
 
 	// Write back to file
 	newContent := strings.Join(newLines, "\n")
-	err = os.WriteFile(filePath, []byte(newContent), 0644)
+	err = os.WriteFile(filePath, []byte(newContent), 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}

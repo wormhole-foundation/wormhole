@@ -1,9 +1,11 @@
 package coingecko
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/url"
 	"sort"
@@ -98,7 +100,7 @@ func (c *Client) BuildPlatformCache() error {
 	url := freeAPIBaseURL + "/asset_platforms"
 
 	// Create HTTP request
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -201,7 +203,7 @@ func (c *Client) SimpleTokenPrice(platformID string, contractAddresses []string)
 	fullURL := baseURL + "?" + params.Encode()
 
 	// Create HTTP request
-	req, err := http.NewRequest("GET", fullURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -393,9 +395,7 @@ func (c *Client) GetChainToPlatformMap() map[vaa.ChainID]string {
 
 	// Return a copy to prevent external modifications
 	result := make(map[vaa.ChainID]string, len(c.chainToPlatform))
-	for k, v := range c.chainToPlatform {
-		result[k] = v
-	}
+	maps.Copy(result, c.chainToPlatform)
 
 	return result
 }
@@ -505,7 +505,7 @@ func (c *Client) GetTokenURL(chainID vaa.ChainID, contractAddr string) (string, 
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest("GET", query, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", query, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -599,7 +599,7 @@ func (c *Client) GetTokenInfo(chainID vaa.ChainID, contractAddr string) (*TokenI
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest("GET", query, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", query, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

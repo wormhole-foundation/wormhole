@@ -8,9 +8,6 @@ import (
 )
 
 const (
-	// coinGeckoUpdateInterval specifies how often we update prices for tokens.
-	coinGeckoUpdateInterval = 15 * time.Minute
-
 	// coinGeckoRequestInterval acts as a rate limiter for batches of individual token queries.
 	coinGeckoRequestInterval = 15 * time.Second
 

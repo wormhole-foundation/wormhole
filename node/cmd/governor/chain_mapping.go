@@ -45,11 +45,6 @@ func init() {
 	chainMappingCmd.Flags().BoolVar(&onlyGovernedChains, "only-governed", false, "Only show chains governed by the Guardian")
 }
 
-type chainMappingEntry struct {
-	ChainID    vaa.ChainID `json:"chain_id"`
-	PlatformID string      `json:"platform_id"`
-}
-
 func runChainMapping(cmd *cobra.Command, args []string) {
 	// Create CoinGecko client
 	client := coingecko.NewClient(chainMappingAPIKey, nil)

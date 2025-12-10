@@ -1,9 +1,9 @@
 package governor
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,7 +31,7 @@ func AssetPlatforms(apiKey string) ([]AssetPlatform, error) {
 	url := "https://api.coingecko.com/api/v3/asset_platforms"
 
 	// Create HTTP request
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -51,7 +51,7 @@ func AssetPlatforms(apiKey string) ([]AssetPlatform, error) {
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := common.SafeRead(resp.Body)
 		return nil, fmt.Errorf("CoinGecko API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -115,7 +115,7 @@ func SimpleTokenPrice(platformID string, contractAddresses []string, apiKey stri
 	fullURL := baseURL + "?" + params.Encode()
 
 	// Create HTTP request
-	req, err := http.NewRequest("GET", fullURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
