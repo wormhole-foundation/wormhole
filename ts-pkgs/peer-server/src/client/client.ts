@@ -83,30 +83,27 @@ export class PeerClient {
           const jsonResponse = await response.json() as PeersResponse;
 
           // Validate response with Zod
-          const responseData = validateOrFail(PeersResponseSchema, jsonResponse, "Invalid peers response");
-          const peers = responseData.peers;
-          const threshold = responseData.threshold;
-          const totalExpectedGuardians = responseData.totalExpectedGuardians;
-          const currentCount = Object.keys(peers).length;
+          const { peers, threshold, totalExpectedGuardians } = validateOrFail(
+            PeersResponseSchema, jsonResponse, "Invalid peers response"
+          );
 
-          if (currentCount > totalExpectedGuardians) {
+          if (peers.length > totalExpectedGuardians) {
             throw new Error(`More guardians than expected have submitted their peer data`);
           }
 
           // Check if all expected guardians have submitted
-          if (currentCount === totalExpectedGuardians) {
+          if (peers.length === totalExpectedGuardians) {
             console.log(`[SUCCESS] All ${totalExpectedGuardians} expected guardians have submitted their peer data!`);
             return { peers, threshold, totalExpectedGuardians };
           }
 
           // Show progress if we have new submissions
-          if (currentCount > lastPeerCount) {
-            console.log(`[PROGRESS] ${currentCount}/${totalExpectedGuardians} guardians have submitted`);
-            lastPeerCount = currentCount;
-          } else if (currentCount > 0) {
-            console.log(`[PROGRESS] ${currentCount}/${totalExpectedGuardians} guardians have submitted (waiting for more...)`);
+          const progressMessage = `${peers.length}/${totalExpectedGuardians} guardians have submitted`;
+          if (peers.length > lastPeerCount) {
+            console.log(`[PROGRESS] ${progressMessage}`);
+            lastPeerCount = peers.length;
           } else {
-            console.log(`[PROGRESS] 0/${totalExpectedGuardians} guardians have submitted (waiting for peers...)`);
+            console.log(`[PROGRESS] ${progressMessage} (waiting for more...)`);
           }
         } else {
           console.error(`[ERROR] Failed to fetch peers: ${response.status} ${response.statusText}`);
