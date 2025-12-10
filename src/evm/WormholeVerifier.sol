@@ -244,9 +244,9 @@ contract WormholeVerifier is EIP712Encoding {
   error GovernanceVaaVerificationFailure();
 
   // Update events
-  event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes32 oldShardId, bytes32 newShardId, uint256 timestamp);
-  event SchnorrKeyAdded(uint32 indexed newSchnorrKeyIndex, uint256 indexed newSchnorrKey, bytes32 initialShardDataHash, uint256 timestamp);
-  event MultisigKeyDataPulled(uint256 indexed newMultisigKeyIndex, uint256 indexed oldMultisigKeyIndex, uint256 timestamp);
+  event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes32 oldShardId, bytes32 newShardId);
+  event SchnorrKeyAdded(uint32 indexed newSchnorrKeyIndex, uint256 indexed newSchnorrKey, bytes32 initialShardDataHash);
+  event MultisigKeyDataPulled(uint256 indexed newMultisigKeyIndex, uint256 indexed oldMultisigKeyIndex);
 
   // We don't make this immutable to keep bytecode verification from build simple.
   // It's only used in cold execution paths like governance operations.
@@ -1132,7 +1132,7 @@ contract WormholeVerifier is EIP712Encoding {
 
     // Store the shard ID
     _setSchnorrShardId(schnorrKeyIndex, signerIndex, shardId);
-    emit ShardIdUpdated(schnorrKeyIndex, signerIndex, oldShardId, shardId, block.timestamp);
+    emit ShardIdUpdated(schnorrKeyIndex, signerIndex, oldShardId, shardId);
 
     return offset;
   }
@@ -1234,7 +1234,7 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Bounds check on data read
       require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
-      emit SchnorrKeyAdded(newSchnorrKeyIndex, newSchnorrKey, initialShardDataHash, block.timestamp);
+      emit SchnorrKeyAdded(newSchnorrKeyIndex, newSchnorrKey, initialShardDataHash);
     }
   }
 
@@ -1268,7 +1268,7 @@ contract WormholeVerifier is EIP712Encoding {
       }
 
       uint256 newMultisigKeyIndex = upper - 1;
-      emit MultisigKeyDataPulled(newMultisigKeyIndex, currentMultisigKeyIndex, block.timestamp);
+      emit MultisigKeyDataPulled(newMultisigKeyIndex, currentMultisigKeyIndex);
     }
   }
 
