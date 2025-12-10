@@ -2,6 +2,7 @@ package coingecko
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -10,64 +11,63 @@ import (
 // This map was generated from the CoinGecko /asset_platforms endpoint and manual mappings
 // for chains that don't match predictably.
 //
-// Last updated: December 2024
 // Source: Generated via `guardiand governor chain-mapping`
 var chainToPlatformMap = map[vaa.ChainID]string{
-	1:    "solana",
-	2:    "ethereum",
-	3:    "terra",
-	4:    "binance-smart-chain",
-	5:    "polygon-pos",
-	6:    "avalanche",
-	8:    "algorand",
-	10:   "fantom",
-	13:   "klay-token", // Klaytn (now called Kaia on CoinGecko)
-	14:   "celo",
-	15:   "near-protocol",
-	16:   "moonbeam",
-	19:   "injective",
-	20:   "osmosis",
-	21:   "sui",
-	22:   "aptos",
-	23:   "arbitrum-nova",
-	24:   "optimistic-ethereum",
-	30:   "base",
-	31:   "filecoin",
-	32:   "sei-network",
-	33:   "rootstock",
-	34:   "scroll",
-	35:   "mantle",
-	37:   "x-layer",
-	38:   "linea",
-	39:   "berachain",
-	40:   "sei-v2", // SeiEVM
-	41:   "eclipse",
-	42:   "bob-network",
-	44:   "unichain",
-	45:   "world-chain",
-	46:   "ink",
-	47:   "hyperevm",
-	48:   "monad",
-	49:   "movement",
-	50:   "mezo",
-	52:   "sonic",
-	54:   "codex",
-	55:   "plume-network",
-	57:   "xrpl-evm",
-	58:   "plasma",
-	60:   "stacks",
-	61:   "stellar",
-	62:   "the-open-network", // TON
-	64:   "megaeth",
-	4000: "cosmos", // Cosmoshub
-	4001: "evmos",
-	4002: "kujira",
-	4003: "neutron",
-	4004: "celestia",
-	4005: "stargaze",
-	4007: "dymension",
-	4008: "provenance",
-	4009: "noble",
+	vaa.ChainIDSolana:     "solana",
+	vaa.ChainIDEthereum:   "ethereum",
+	vaa.ChainIDTerra:      "terra",
+	vaa.ChainIDBSC:        "binance-smart-chain",
+	vaa.ChainIDPolygon:    "polygon-pos",
+	vaa.ChainIDAvalanche:  "avalanche",
+	vaa.ChainIDAlgorand:   "algorand",
+	vaa.ChainIDFantom:     "fantom",
+	vaa.ChainIDKlaytn:     "klay-token", // Klaytn (now called Kaia on CoinGecko)
+	vaa.ChainIDCelo:       "celo",
+	vaa.ChainIDNear:       "near-protocol",
+	vaa.ChainIDMoonbeam:   "moonbeam",
+	vaa.ChainIDInjective:  "injective",
+	vaa.ChainIDOsmosis:    "osmosis",
+	vaa.ChainIDSui:        "sui",
+	vaa.ChainIDAptos:      "aptos",
+	23:                    "arbitrum-nova", // No vaa.ChainIDArbitrumNova constant available
+	vaa.ChainIDOptimism:   "optimistic-ethereum",
+	vaa.ChainIDBase:       "base",
+	vaa.ChainIDFileCoin:   "filecoin",
+	vaa.ChainIDSei:        "sei-network",
+	vaa.ChainIDRootstock:  "rootstock",
+	vaa.ChainIDScroll:     "scroll",
+	vaa.ChainIDMantle:     "mantle",
+	vaa.ChainIDXLayer:     "x-layer",
+	vaa.ChainIDLinea:      "linea",
+	vaa.ChainIDBerachain:  "berachain",
+	vaa.ChainIDSeiEVM:     "sei-v2",
+	vaa.ChainIDEclipse:    "eclipse",
+	vaa.ChainIDBOB:        "bob-network",
+	vaa.ChainIDUnichain:   "unichain",
+	vaa.ChainIDWorldchain: "world-chain",
+	vaa.ChainIDInk:        "ink",
+	vaa.ChainIDHyperEVM:   "hyperevm",
+	vaa.ChainIDMonad:      "monad",
+	vaa.ChainIDMovement:   "movement",
+	vaa.ChainIDMezo:       "mezo",
+	vaa.ChainIDSonic:      "sonic",
+	vaa.ChainIDCodex:      "codex",
+	vaa.ChainIDPlume:      "plume-network",
+	vaa.ChainIDXRPLEVM:    "xrpl-evm",
+	vaa.ChainIDPlasma:     "plasma",
+	vaa.ChainIDStacks:     "stacks",
+	vaa.ChainIDStellar:    "stellar",
+	vaa.ChainIDTON:        "the-open-network",
+	vaa.ChainIDMegaETH:    "megaeth",
+	vaa.ChainIDCosmoshub:  "cosmos",
+	vaa.ChainIDEvmos:      "evmos",
+	vaa.ChainIDKujira:     "kujira",
+	vaa.ChainIDNeutron:    "neutron",
+	vaa.ChainIDCelestia:   "celestia",
+	vaa.ChainIDStargaze:   "stargaze",
+	vaa.ChainIDDymension:  "dymension",
+	vaa.ChainIDProvenance: "provenance",
+	vaa.ChainIDNoble:      "noble",
 }
 
 // GetChainMapping returns the complete hard-coded mapping of Wormhole ChainIDs
@@ -80,9 +80,7 @@ var chainToPlatformMap = map[vaa.ChainID]string{
 func GetChainMapping() map[vaa.ChainID]string {
 	// Return a copy to prevent external modifications
 	result := make(map[vaa.ChainID]string, len(chainToPlatformMap))
-	for k, v := range chainToPlatformMap {
-		result[k] = v
-	}
+	maps.Copy(result, chainToPlatformMap)
 	return result
 }
 
