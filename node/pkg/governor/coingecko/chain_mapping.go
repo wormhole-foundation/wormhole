@@ -70,67 +70,25 @@ var chainToPlatformMap = map[vaa.ChainID]string{
 	vaa.ChainIDNoble:      "noble",
 }
 
-// GetChainMapping returns the complete hard-coded mapping of Wormhole ChainIDs
-// to CoinGecko platform IDs.
-//
-// This is a static mapping that doesn't require querying the CoinGecko API.
-// Use this when you need the full mapping or want to avoid API calls.
-//
-// Returns a copy of the map to prevent external modifications.
+// GetChainMapping returns the complete mapping of Wormhole ChainIDs to CoinGecko platform IDs.
 func GetChainMapping() map[vaa.ChainID]string {
-	// Return a copy to prevent external modifications
 	result := make(map[vaa.ChainID]string, len(chainToPlatformMap))
 	maps.Copy(result, chainToPlatformMap)
 	return result
 }
 
-// GetPlatform returns the CoinGecko platform ID for a given Wormhole ChainID
-// using the hard-coded mapping.
-//
-// Returns an empty string if the chain is not found in the mapping.
-//
-// This is a fast, static lookup that doesn't require querying the CoinGecko API.
-// Use this when you know the chain ID and just need the platform ID.
-//
-// Example:
-//
-//	platformID := coingecko.GetPlatform(vaa.ChainIDEthereum)
-//	// Returns: "ethereum"
-//
-//	platformID := coingecko.GetPlatform(vaa.ChainIDBSC)
-//	// Returns: "binance-smart-chain"
+// GetPlatform returns the CoinGecko platform ID for a chain, or empty string if not found.
 func GetPlatform(chainID vaa.ChainID) string {
 	return chainToPlatformMap[chainID]
 }
 
-// IsPlatformSupported checks if a given Wormhole ChainID has a CoinGecko platform mapping.
-//
-// This is useful for checking if a chain is supported before attempting to query prices.
-//
-// Example:
-//
-//	if coingecko.IsPlatformSupported(vaa.ChainIDEthereum) {
-//	    platform := coingecko.GetPlatform(vaa.ChainIDEthereum)
-//	    // Query prices...
-//	}
+// IsPlatformSupported returns true if the chain has a CoinGecko platform mapping.
 func IsPlatformSupported(chainID vaa.ChainID) bool {
 	_, exists := chainToPlatformMap[chainID]
 	return exists
 }
 
-// FormatTokenURL creates a user-friendly CoinGecko URL for a token given its coin ID.
-// This is a simple formatting function that doesn't make any API calls.
-//
-// The coin ID is the unique identifier CoinGecko uses for each token
-// (e.g., "coinbase-wrapped-btc", "usd-coin", "ethereum").
-//
-// Example:
-//
-//	url := coingecko.FormatTokenURL("coinbase-wrapped-btc")
-//	// Returns: "https://www.coingecko.com/en/coins/coinbase-wrapped-btc"
-//
-//	url := coingecko.FormatTokenURL("usd-coin")
-//	// Returns: "https://www.coingecko.com/en/coins/usd-coin"
+// FormatTokenURL returns the CoinGecko URL for a token's coin ID.
 func FormatTokenURL(coinID string) string {
 	return fmt.Sprintf("https://www.coingecko.com/en/coins/%s", coinID)
 }
