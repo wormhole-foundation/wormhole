@@ -6,7 +6,7 @@ RUN apt-get update && apt-get -y install openssl git
 # TODO: Pin the commit
 RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
 WORKDIR core-bridge/ts-pkgs/peer-server
-RUN yarnpkg install
+RUN yarnpkg install --immutable
 RUN yarnpkg build
 
 ARG TLS_HOSTNAME
