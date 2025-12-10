@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { readFileSync } from 'fs';
 import { checkTlsCertificate, parseGuardianKey } from './parseCrypto.js';
+import { errorMsg } from './error.js';
 
 /// Encodes the information necessary to construct the peer description message
 export const BasePeerSchema = z.object({
@@ -48,8 +49,8 @@ export const SelfConfigSchema = z.object({
     const keyBytes = parseGuardianKey(keyContents); // Extract and validate the key
     // Convert to hex format for ethers.Wallet
     guardianPrivateKey = '0x' + Buffer.from(keyBytes).toString('hex');
-  } catch (error: any) {
-    throw new Error(`Failed to read or validate guardian private key from ${data.guardianPrivateKeyPath}: ${error.message}`);
+  } catch (error) {
+    throw new Error(`Failed to read or validate guardian private key from ${data.guardianPrivateKeyPath}: ${errorMsg(error)}`);
   }
 
   // Load and validate TLS certificate
@@ -60,8 +61,8 @@ export const SelfConfigSchema = z.object({
       throw new Error("Invalid TLS X509 certificate format");
     }
     tlsX509 = certContents;
-  } catch (error: any) {
-    throw new Error(`Failed to read or validate TLS X509 certificate from ${data.peer.tlsX509}: ${error.message}`);
+  } catch (error) {
+    throw new Error(`Failed to read or validate TLS X509 certificate from ${data.peer.tlsX509}: ${errorMsg(error)}`);
   }
 
   return {
@@ -124,7 +125,7 @@ export type ValidationError<T> = {
 
 // Validation helper function
 export function validate<IN, OUT>(
-  schema: z.ZodSchema<OUT, IN>,
+  schema: z.ZodType<OUT, IN>,
   data: IN,
   errorMessage: string,
 ): ValidationError<OUT> {
@@ -139,7 +140,7 @@ export function validate<IN, OUT>(
   return { success: true, value: validationResult.data };
 }
 
-export function validateOrFail<IN, OUT>(schema: z.ZodSchema<OUT, IN>, data: IN, errorMessage: string): OUT {
+export function validateOrFail<IN, OUT>(schema: z.ZodType<OUT, IN>, data: IN, errorMessage: string): OUT {
   const validationResult = validate(schema, data, errorMessage);
   if (!validationResult.success) {
     console.error(`[ERROR] ${validationResult.error}`);

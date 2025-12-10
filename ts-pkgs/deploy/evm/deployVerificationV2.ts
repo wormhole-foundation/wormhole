@@ -1,4 +1,4 @@
-import { getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
+import { ChainId, getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 import { readFile } from "fs/promises";
 import { Abi, createWalletClient, defineChain, http, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -13,7 +13,7 @@ interface ChainDescriptor {
   eip155ChainId: number;
   chainId: number;
   rpc: string;
-  coreV1Address: string;
+  coreV1Address?: string;
 }
 
 interface Config {
@@ -40,8 +40,10 @@ interface CompilerOutput {
   }
 }
 
-async function getCompilerOutput(path = "../../verifiable-evm-build/WormholeVerifier.output.json"): Promise<CompilerOutput> {
-  return JSON.parse(await readFile(path, "utf8"));
+async function getCompilerOutput(
+  path = "../../verifiable-evm-build/WormholeVerifier.output.json"
+): Promise<CompilerOutput> {
+  return JSON.parse(await readFile(path, "utf8")) as CompilerOutput;
 }
 
 
@@ -61,21 +63,23 @@ async function main() {
   const network = args.configFile.toLowerCase().includes("mainnet") ? "Mainnet" : "Testnet";
 
   const signerFile = await readFile(args.signer, "utf8");
-  const signer = JSON.parse(signerFile);
-  if (typeof signer !== "string" || !isHex(signer)) throw new Error("Unexpected signer file format.");
+  const signer = JSON.parse(signerFile) as unknown;
+  if (typeof signer !== "string" || !isHex(signer))
+    throw new Error("Unexpected signer file format.");
 
   const account = privateKeyToAccount(signer);
   const compilerOutput = await getCompilerOutput();
   const contractOutput = compilerOutput.contracts["src/evm/WormholeVerifier.sol"].WormholeVerifier;
   const abi = contractOutput.abi;
   const bytecode = `0x${contractOutput.evm.bytecode.object}`;
-  if (typeof bytecode !== "string" || !isHex(bytecode)) throw new Error("Unexpected bytecode format.");
+  if (typeof bytecode !== "string" || !isHex(bytecode))
+    throw new Error("Unexpected bytecode format.");
 
   const configFile = await readFile(args.configFile, "utf8");
   const config = JSON.parse(configFile) as Config;
 
   const tasks = await Promise.allSettled(config.evm.chains.map(async (chain) => {
-    const chainName = toChain(chain.chainId) || chain.description;
+    const chainName = toChain(chain.chainId);
     const viemChain = defineChain({
       id: chain.eip155ChainId,
       name: chainName,
@@ -114,13 +118,14 @@ async function main() {
 
     const receipt = await waitForTransactionReceipt(walletClient, {
       hash: txid,
-    });
+    }) as { status: "success"; contractAddress: string } | { status: "reverted" };
 
-    if (receipt.status !== "success") throw new Error(`Deploy tx failed in chain ${chainName}`);
+    if (receipt.status !== "success")
+      throw new Error(`Deploy tx failed in chain ${chainName}`);
 
     return {
-      address: receipt.contractAddress!,
-      chainId: chain.chainId as any,
+      address: receipt.contractAddress,
+      chainId: chain.chainId as ChainId,
       constructorArgs,
       deployTxid: txid,
     } satisfies EvmSerializableDeployment;
@@ -141,9 +146,6 @@ async function main() {
 
 function getCoreV1Address(chainDescriptor: ChainDescriptor, network: "Mainnet" | "Testnet") {
   const chainName = toChain(chainDescriptor.chainId);
-  if (chainName === undefined) {
-    return checkConfigCoreV1Address(chainDescriptor);
-  }
 
   const sdkCoreAddress = getContracts(network, chainName).coreBridge;
   if (sdkCoreAddress === undefined) {
@@ -170,7 +172,7 @@ function checkConfigCoreV1Address(chainDescriptor: ChainDescriptor) {
   throw new Error(`Missing core v1 address for chain ${chainDescriptor.chainId}`);
 }
 
-main().catch((error) => {
-  console.error(error?.stack || error);
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.stack : String(error));
   process.exit(1);
 });

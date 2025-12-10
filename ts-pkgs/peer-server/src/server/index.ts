@@ -1,5 +1,6 @@
 import { PeerServer } from './server.js';
 import {
+  errorStack,
   getWormholeGuardianData,
   ServerConfig,
   ServerConfigSchema,
@@ -12,15 +13,12 @@ import { loadGuardianPeers } from './peers.js';
 
 // Load configuration from file
 export function loadConfig(configPath?: string): ServerConfig {
-  const configFile = configPath || path.join(process.cwd(), 'config.json');
-
-
+  const configFile = configPath ?? path.join(process.cwd(), 'config.json');
   try {
     const configData = fs.readFileSync(configFile, 'utf8');
-    const config = JSON.parse(configData);
-
+    const config = JSON.parse(configData) as ServerConfig;
     return validateOrFail(ServerConfigSchema, config, `Invalid configuration in ${configFile}`);
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid JSON in config file: ${configFile}`);
     }
@@ -93,8 +91,8 @@ async function main() {
   });
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   const display = new Display();
-  display.error('Failed to start server:', error?.stack || error);
+  display.error(`Failed to start server: ${errorStack(error)}`);
   process.exit(1);
 });

@@ -8,17 +8,20 @@ import {
   validate,
   validateGuardianSignature,
   WormholeGuardianData,
-  validatePeers
+  validatePeers,
+  errorStack
 } from '@xlabs-xyz/peer-lib';
 import { saveGuardianPeers } from './peers.js';
+import { Server } from 'http';
 
 export class PeerServer {
   private app: express.Application;
   private sparseGuardianPeers: (Peer | undefined)[];
   private wormholeData: WormholeGuardianData;
   private config: BaseServerConfig;
-  private server?: any;
+  private server?: Server;
   private display: Display;
+  private port?: number;
 
   constructor(
     config: BaseServerConfig,
@@ -48,7 +51,7 @@ export class PeerServer {
 
   private setupRoutes(): void {
     // Get all peers (returns array of peer data)
-    this.app.get('/peers', async (req, res) => {
+    this.app.get('/peers', (req, res) => {
       try {
         res.json({
           peers: this.partialGuardianPeers(),
@@ -56,13 +59,13 @@ export class PeerServer {
           totalExpectedGuardians: this.wormholeData.guardians.length
         });
       } catch (error) {
-        this.display.error('Error fetching peers:', error);
+        this.display.error(`Error fetching peers: ${errorStack(error)}`);
         res.status(500).json({ error: 'Failed to fetch peers' });
       }
     });
 
     // Add a new peer with signature validation
-    this.app.post('/peers', async (req, res) => {
+    this.app.post('/peers', (req, res) => {
       try {
         const validationResult = validate(
           PeerRegistrationSchema, req.body, "Invalid peer registration"
@@ -75,7 +78,7 @@ export class PeerServer {
         // Validate guardian signature and get guardian address
         const guardian = validateGuardianSignature(peerRegistration, this.wormholeData);
         if (!guardian.success) {
-          this.display.error('Error validating guardian signature:', guardian.error);
+          this.display.error(`Error validating guardian signature: ${guardian.error}`);
           return res.status(401).json({ error: 'Invalid guardian signature' });
         }
 
@@ -112,7 +115,7 @@ export class PeerServer {
           threshold: this.config.threshold
         });
       } catch (error) {
-        this.display.error('Error adding peer:', error);
+        this.display.error(`Error adding peer: ${errorStack(error)}`);
         res.status(500).json({ error: 'Failed to add peer' });
       }
     });
@@ -123,6 +126,12 @@ export class PeerServer {
       this.display.log(`Peer server running on port ${this.config.port}`);
       this.display.log('\nWaiting for guardians to submit their peer data...');
     });
+    const address = this.server.address();
+    this.port = typeof address === 'object' ? address?.port : undefined;
+  }
+
+  getPort(): number | undefined {
+    return this.port;
   }
 
   getApp(): express.Application {

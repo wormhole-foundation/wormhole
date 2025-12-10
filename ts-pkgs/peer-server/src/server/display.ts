@@ -1,4 +1,4 @@
-import { Peer } from '@xlabs-xyz/peer-lib';
+import { errorStack, Peer } from '@xlabs-xyz/peer-lib';
 
 export class Display {
   private hasProgressBar = false;
@@ -7,20 +7,17 @@ export class Display {
     if (this.hasProgressBar) {
       // Clear the current line and move cursor to beginning
       process.stdout.write('\r\x1b[K');
-      console.log(message);
-      // The progress bar will be redrawn by the next setProgress call
-    } else {
-      console.log(message);
     }
+    console.log(message);
   }
 
-  error(message: string, error?: any): void {
+  error(message: string): void {
     if (this.hasProgressBar) {
       // Clear the current line and move cursor to beginning
       process.stdout.write('\r\x1b[K');
       // The progress bar will be redrawn by the next setProgress call
     }
-    console.error(message, error?.stack || error || '');
+    console.error(message);
   }
 
   setProgress(peers: Peer[], total: number, label = 'Guardian Collection Progress'): void {
@@ -75,8 +72,8 @@ export class Display {
       
       this.log(`Total: ${peers.length} peer${peers.length !== 1 ? 's' : ''} collected from guardians`);
       this.log('Guardian submissions complete. Server will continue running...');
-    } catch (error: any) {
-      this.error('Error displaying peers:', error?.stack || error);
+    } catch (error) {
+      this.error(`Error displaying peers: ${errorStack(error)}`);
     }
   }
 }

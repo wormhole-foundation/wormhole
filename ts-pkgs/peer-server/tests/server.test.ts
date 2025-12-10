@@ -5,12 +5,16 @@ import {
   WormholeGuardianData,
   ServerConfig,
   PeerRegistration,
-  BasePeer
+  BasePeer,
+  PeersResponse,
+  Peer,
+  UploadResponse
 } from '@xlabs-xyz/peer-lib';
 import { ethers } from 'ethers';
 
 import { PeerServer } from '../src/server/server.js';
 import { Display } from '../src/server/display.js';
+import { Application } from 'express';
 
 // Mock Display for tests to avoid console output during testing
 class MockDisplay extends Display {
@@ -31,7 +35,7 @@ const testGuardianAddresses: string[] = [];
 
 for (let i = 0; i < 19; i++) {
   const wallet = ethers.Wallet.createRandom();
-  testGuardianWallets.push(wallet as ethers.HDNodeWallet);
+  testGuardianWallets.push(wallet);
   testGuardianAddresses.push(wallet.address);
 }
 
@@ -51,7 +55,7 @@ async function createPeerRegistration(
 
 describe('PeerServer', () => {
   let server: PeerServer;
-  let app: any;
+  let app: Application;
 
   const testConfig: ServerConfig = {
     "port": 3000,
@@ -68,7 +72,7 @@ describe('PeerServer', () => {
     guardians: testGuardianAddresses
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     const mockDisplay = new MockDisplay();
     server = new PeerServer(testConfig, mockWormholeData, mockDisplay);
     app = server.getApp();
@@ -106,7 +110,7 @@ describe('PeerServer', () => {
 
       const response = await request(app)
         .get('/peers')
-        .expect(200);
+        .expect(200) as { body: PeersResponse };
 
       // Should be an array with peer data and threshold
       expect(typeof response.body).toBe('object');
@@ -115,8 +119,10 @@ describe('PeerServer', () => {
       expect(response.body.totalExpectedGuardians).toBe(19);
       expect(response.body.peers).toHaveLength(1);
       
-      const submittedPeer = response.body.peers.find((p: any) => p.guardianAddress === testGuardianWallet.address);
-      expect(submittedPeer).toBeDefined();
+      const submittedPeer = response.body.peers.find((p: Peer) => p.guardianAddress === testGuardianWallet.address);
+      if (!submittedPeer) {
+        throw new Error('Submitted peer not found');
+      }
       expect(submittedPeer.hostname).toBe(peer.hostname);
       expect(submittedPeer.tlsX509).toBe(peer.tlsX509);
     });
@@ -137,7 +143,7 @@ describe('PeerServer', () => {
       const response = await request(app)
         .post('/peers')
         .send(peerRegistration)
-        .expect(201);
+        .expect(201) as { body: UploadResponse };
 
       expect(response.body.peer.hostname).toBe(peer.hostname);
       expect(response.body.peer.tlsX509).toBe(peer.tlsX509);
@@ -156,7 +162,7 @@ describe('PeerServer', () => {
       const response = await request(app)
         .post('/peers')
         .send(incompleteRegistration)
-        .expect(400);
+        .expect(400) as { body: { error: string } };
 
       expect(response.body.error).toContain('Invalid peer registration');
     });
@@ -176,7 +182,7 @@ describe('PeerServer', () => {
       const response = await request(app)
         .post('/peers')
         .send(invalidRegistration)
-        .expect(401);
+        .expect(401) as { body: { error: string } };
 
       expect(response.body.error).toBe('Invalid guardian signature');
     });
@@ -196,7 +202,7 @@ describe('PeerServer', () => {
       const response = await request(app)
         .post('/peers')
         .send(noSigRegistration)
-        .expect(400);
+        .expect(400) as { body: { error: string } };
 
       expect(response.body.error).toContain('Invalid peer registration');
     });

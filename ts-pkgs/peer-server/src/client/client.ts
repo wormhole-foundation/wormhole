@@ -8,7 +8,8 @@ import {
   PeerRegistrationSchema,
   PeersResponseSchema,
   UploadResponseSchema,
-  UploadResponse
+  UploadResponse,
+  errorStack
 } from '@xlabs-xyz/peer-lib';
 
 export class PeerClient {
@@ -51,9 +52,7 @@ export class PeerClient {
       });
 
       if (response.ok) {
-        const jsonResponse = await response.json();
-
-        const result = validateOrFail(UploadResponseSchema, jsonResponse, "Invalid server response");
+        const result = validateOrFail(UploadResponseSchema, await response.json(), "Invalid server response");
         console.log(`[SUCCESS] Successfully uploaded peer data!`);
         console.log(`   Guardian Address: ${result.peer.guardianAddress}`);
         console.log(`   Guardian Index: ${result.peer.guardianIndex}`);
@@ -65,8 +64,8 @@ export class PeerClient {
         console.error(`   Error: ${error}`);
         throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
       }
-    } catch (error: any) {
-      console.error(`[ERROR] Error uploading peer data: ${error?.stack || error}`);
+    } catch (error) {
+      console.error(`[ERROR] Error uploading peer data: ${errorStack(error)}`);
       throw error;
     }
   }
@@ -76,12 +75,12 @@ export class PeerClient {
 
     let lastPeerCount = 0;
 
-    while (true) {
+    for (;;) {
       try {
         const response = await fetch(`${this.serverUrl}/peers`);
 
         if (response.ok) {
-          const jsonResponse = await response.json();
+          const jsonResponse = await response.json() as PeersResponse;
 
           // Validate response with Zod
           const responseData = validateOrFail(PeersResponseSchema, jsonResponse, "Invalid peers response");
@@ -112,8 +111,8 @@ export class PeerClient {
         } else {
           console.error(`[ERROR] Failed to fetch peers: ${response.status} ${response.statusText}`);
         }
-      } catch (error: any) {
-        console.error(`[ERROR] Error polling for completion: ${error?.stack || error}`);
+      } catch (error) {
+        console.error(`[ERROR] Error polling for completion: ${errorStack(error)}`);
       }
 
       // Wait 5 seconds before next poll
@@ -134,8 +133,8 @@ export class PeerClient {
       const result = await action();
       console.log(`[COMPLETED] Completed successfully!`);
       return result;
-    } catch (error: any) {
-      console.error(`[ERROR] Client failed: ${error?.stack || error}`);
+    } catch (error) {
+      console.error(`[ERROR] Client failed: ${errorStack(error)}`);
       throw error;
     }
   }
@@ -161,7 +160,6 @@ export class PeerClient {
     if (!response.ok) {
       throw new Error(`Failed to fetch peers: ${response.status} ${response.statusText}`);
     }
-    const jsonResponse = await response.json();
-    return validateOrFail(PeersResponseSchema, jsonResponse, "Invalid peers response");
+    return validateOrFail(PeersResponseSchema, await response.json(), "Invalid peers response");
   }
 }

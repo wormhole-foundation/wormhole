@@ -5,6 +5,8 @@ import { WormholeGuardianData,
   SelfConfigSchema,
   validateOrFail,
   BaseServerConfig,
+  Peer,
+  WormholeConfig,
 } from '@xlabs-xyz/peer-lib';
 import { ethers } from 'ethers';
 import fs from 'fs';
@@ -30,7 +32,6 @@ class MockDisplay extends Display {
 
 describe('Peer Server Integration Tests', () => {
   let server: PeerServer;
-  let app: any;
   let serverUrl: string;
 
   // Generate test guardians
@@ -40,11 +41,17 @@ describe('Peer Server Integration Tests', () => {
   // Using 2 guardians for faster testing
   for (let i = 0; i < 2; i++) {
     const wallet = ethers.Wallet.createRandom();
-    testGuardianWallets.push(wallet as ethers.HDNodeWallet);
+    testGuardianWallets.push(wallet);
     testGuardianAddresses.push(wallet.address);
   }
-  // Use port 0 for automatic port assignment
   const testConfig: BaseServerConfig = { port: 0, threshold: 1 };
+  const wormholeConfig: WormholeConfig = {
+    ethereum: {
+      rpcUrl: 'https://eth.llamarpc.com',
+      chainId: 1
+    },
+    wormholeContractAddress: '0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B'
+  };
 
   // Mock guardian data for testing using generated wallets
   const mockWormholeData: WormholeGuardianData = {
@@ -54,7 +61,6 @@ describe('Peer Server Integration Tests', () => {
   beforeEach(async () => {
     const mockDisplay = new MockDisplay();
     server = new PeerServer(testConfig, mockWormholeData, mockDisplay);
-    app = server.getApp();
 
     // Start the server and get the actual port
     const serverPromise = new Promise<void>((resolve) => {
@@ -65,8 +71,7 @@ describe('Peer Server Integration Tests', () => {
     await serverPromise;
 
     // Get the actual port the server is running on
-    const address = (server as any).server.address();
-    serverUrl = `http://localhost:${address.port}`;
+    serverUrl = `http://localhost:${server.getPort()}`;
   });
 
   afterEach(() => {
@@ -124,7 +129,8 @@ describe('Peer Server Integration Tests', () => {
       const clientConfig = {
         guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
         serverUrl: serverUrl,
-        peer: testPeers[i]
+        peer: testPeers[i],
+        wormhole: wormholeConfig
       };
       const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
       const client = new PeerClient(selfConfig);
@@ -145,13 +151,13 @@ describe('Peer Server Integration Tests', () => {
 
         // Should have our own peer data
         const ourGuardianAddr = testGuardianWallets[index].address;
-        const ourPeer = result.peers.find((p: any) => p.guardianAddress === ourGuardianAddr);
+        const ourPeer = result.peers.find((p: Peer) => p.guardianAddress === ourGuardianAddr);
         expect(ourPeer).toBeDefined();
         expect(ourPeer?.hostname).toBe(testPeers[index].hostname);
 
         // Should have the other guardian's peer data
         const otherGuardianAddr = testGuardianWallets[1 - index].address;
-        const otherPeer = result.peers.find((p: any) => p.guardianAddress === otherGuardianAddr);
+        const otherPeer = result.peers.find((p: Peer) => p.guardianAddress === otherGuardianAddr);
         expect(otherPeer).toBeDefined();
         expect(otherPeer?.hostname).toBe(testPeers[1 - index].hostname);
       });
@@ -220,7 +226,8 @@ describe('Peer Server Integration Tests', () => {
         const clientConfig = {
           guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
           serverUrl: serverUrl,
-          peer: testPeers[i]
+          peer: testPeers[i],
+          wormhole: wormholeConfig
         };
         const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
         clientConfigs.push(selfConfig);
@@ -231,10 +238,9 @@ describe('Peer Server Integration Tests', () => {
       const firstClientPromise = firstClient.submitAndWaitForAllPeers();
 
       // Wait a bit then submit second client
-      setTimeout(async () => {
-        const secondClient = new PeerClient(clientConfigs[1]);
-        await secondClient.submitAndWaitForAllPeers();
-      }, 1000);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const secondClient = new PeerClient(clientConfigs[1]);
+      await secondClient.submitAndWaitForAllPeers();
 
       // Wait for both to complete
       const results = await Promise.all([
@@ -247,8 +253,8 @@ describe('Peer Server Integration Tests', () => {
         expect(Array.isArray(result.peers)).toBe(true);
         expect(result.peers).toHaveLength(2);
         
-        const peer0 = result.peers.find((p: any) => p.guardianAddress === testGuardianWallets[0].address);
-        const peer1 = result.peers.find((p: any) => p.guardianAddress === testGuardianWallets[1].address);
+        const peer0 = result.peers.find((p: Peer) => p.guardianAddress === testGuardianWallets[0].address);
+        const peer1 = result.peers.find((p: Peer) => p.guardianAddress === testGuardianWallets[1].address);
         
         expect(peer0).toBeDefined();
         expect(peer1).toBeDefined();

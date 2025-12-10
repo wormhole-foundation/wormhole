@@ -8,17 +8,30 @@ import { hideBin } from 'yargs/helpers';
 // Default contract address for WormholeVerifier
 const DEFAULT_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: Update with actual deployed address
 
-interface Args {
-  vaaFile?: string;
-  guardianMessage?: string;
-  limit?: number;
+export function errorMsg(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function errorStack(error: unknown): string {
+  return String(error instanceof Error ? error.stack : error);
+}
+
+type Args = {
   contractAddress: string;
   rpcUrl: string;
   chainId: number;
   signer: string;
-  opcode: number;
   dryRun: boolean;
-}
+} & ({
+  opcode: 0;
+  guardianMessage: string;
+} | {
+  opcode: 1;
+  vaaFile: string;
+} | {
+  opcode: 2;
+  limit: number;
+})
 
 async function main() {
   const parser = yargs(hideBin(process.argv))
@@ -82,10 +95,10 @@ async function main() {
     .alias('help', 'h')
     .check((argv) => {
       // Validate required parameters based on opcode
-      if (argv.opcode === 0 && !argv.guardianMessage) {
+      if (argv.opcode === 0 && argv.guardianMessage === undefined) {
         throw new Error('--guardian-message is required for opcode 0 (SET_SHARD_ID)');
       }
-      if (argv.opcode === 1 && !argv.vaaFile) {
+      if (argv.opcode === 1 && argv.vaaFile === undefined) {
         throw new Error('--vaa-file is required for opcode 1 (APPEND_SCHNORR_KEY)');
       }
       if (argv.opcode === 2 && argv.limit === undefined) {
@@ -96,43 +109,44 @@ async function main() {
 
   const args = await parser.parse() as Args;
 
-  let dataBytes: Buffer | undefined;
+  let dataBytes: Buffer;
   
   // Load data based on opcode
   if (args.opcode === 0) {
     // SET_SHARD_ID: Load guardian message
-    if (!fs.existsSync(args.guardianMessage!)) {
+    if (!fs.existsSync(args.guardianMessage)) {
       console.error(`❌ Guardian message file not found at ${args.guardianMessage}`);
       process.exit(1);
     }
 
-    const messageBase64 = fs.readFileSync(args.guardianMessage!, 'utf-8').trim();
+    const messageBase64 = fs.readFileSync(args.guardianMessage, 'utf-8').trim();
     try {
       dataBytes = Buffer.from(messageBase64, 'base64');
-    } catch (error: any) {
-      console.error(`❌ Failed to decode base64 guardian message: ${error?.message || error}`);
+    } catch (error) {
+      console.error(`❌ Failed to decode base64 guardian message: ${errorMsg(error)}`);
       process.exit(1);
     }
 
     console.log(`📄 Loaded guardian message (${dataBytes.length} bytes) from ${args.guardianMessage}`);
   } else if (args.opcode === 1) {
     // APPEND_SCHNORR_KEY: Load VAA
-    if (!fs.existsSync(args.vaaFile!)) {
+    if (!fs.existsSync(args.vaaFile)) {
       console.error(`❌ VAA file not found at ${args.vaaFile}`);
       process.exit(1);
     }
 
-    const vaaBase64 = fs.readFileSync(args.vaaFile!, 'utf-8').trim();
+    const vaaBase64 = fs.readFileSync(args.vaaFile, 'utf-8').trim();
     try {
       dataBytes = Buffer.from(vaaBase64, 'base64');
-    } catch (error: any) {
-      console.error(`❌ Failed to decode base64 VAA: ${error?.message || error}`);
+    } catch (error) {
+      console.error(`❌ Failed to decode base64 VAA: ${errorMsg(error)}`);
       process.exit(1);
     }
 
     console.log(`📄 Loaded VAA (${dataBytes.length} bytes) from ${args.vaaFile}`);
   } else {
     // PULL_MULTISIG_KEY_DATA: No file needed, just the limit
+    dataBytes = Buffer.alloc(0);
     console.log(`📄 Using limit: ${args.limit}`);
   }
 
@@ -145,9 +159,9 @@ async function main() {
   const signerFile = fs.readFileSync(args.signer, 'utf-8');
   let signerKey: string;
   try {
-    signerKey = JSON.parse(signerFile);
-  } catch (error: any) {
-    console.error(`❌ Failed to parse signer file: ${error?.message || error}`);
+    signerKey = JSON.parse(signerFile) as string;
+  } catch (error) {
+    console.error(`❌ Failed to parse signer file: ${errorMsg(error)}`);
     process.exit(1);
   }
 
@@ -194,29 +208,26 @@ async function main() {
   // TODO: Use binary-layout for these
   if (args.opcode === 1) {
     // APPEND_SCHNORR_KEY: opcode (1 byte) + vaa length (2 bytes) + vaa data
-    const vaaLength = dataBytes!.length;
+    const vaaLength = dataBytes.length;
     updateData = encodePacked(
       ['uint8', 'uint16', 'bytes'],
-      [args.opcode, vaaLength, `0x${dataBytes!.toString('hex')}`]
+      [args.opcode, vaaLength, `0x${dataBytes.toString('hex')}`]
     );
     console.log(`📦 Prepared APPEND_SCHNORR_KEY data (${updateData.length} bytes)`);
   } else if (args.opcode === 0) {
     // SET_SHARD_ID: opcode (1 byte) + guardian message data
     updateData = encodePacked(
       ['uint8', 'bytes'],
-      [args.opcode, `0x${dataBytes!.toString('hex')}`]
+      [args.opcode, `0x${dataBytes.toString('hex')}`]
     );
     console.log(`📦 Prepared SET_SHARD_ID data (${updateData.length} bytes)`);
-  } else if (args.opcode === 2) {
+  } else {
     // PULL_MULTISIG_KEY_DATA: opcode (1 byte) + limit (4 bytes)
     updateData = encodePacked(
       ['uint8', 'uint32'],
-      [args.opcode, args.limit!]
+      [args.opcode, args.limit]
     );
     console.log(`📦 Prepared PULL_MULTISIG_KEY_DATA with limit ${args.limit}`);
-  } else {
-    console.error("❌ Invalid opcode");
-    process.exit(1);
   }
 
   console.log(`📍 Target contract: ${args.contractAddress}`);
@@ -243,7 +254,7 @@ async function main() {
   try {
     console.log('\n📤 Sending transaction...');
     const txHash = await walletClient.writeContract({
-      address: args.contractAddress as `0x${string}`,
+      address: args.contractAddress,
       abi,
       functionName: 'update',
       args: [updateData],
@@ -263,16 +274,13 @@ async function main() {
       console.error('❌ Transaction failed');
       process.exit(1);
     }
-  } catch (error: any) {
-    console.error(`❌ Transaction failed: ${error?.message || error}`);
-    if (error?.cause) {
-      console.error('Cause:', error.cause);
-    }
+  } catch (error) {
+    console.error(`❌ Transaction failed: ${errorStack(error)}`);
     process.exit(1);
   }
 }
 
-main().catch((error) => {
-  console.error(error?.stack || error);
+main().catch((error: unknown) => {
+  console.error(`[ERROR] Unhandled error: ${errorStack(error)}`);
   process.exit(1);
 });

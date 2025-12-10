@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { WormholeGuardianData, WormholeConfig, PeerRegistration, Guardian, ValidationError, BasePeer, Peer } from './types.js';
+import { errorMsg } from './error.js';
 
 // Core Bridge ABI based on ICoreBridge interface
 const CORE_BRIDGE_ABI = [
@@ -20,19 +21,19 @@ export async function getWormholeGuardianData(
 
   try {
     // Get current guardian set index
-    const currentGuardianSetIndex = await contract.getCurrentGuardianSetIndex();
+    const currentGuardianSetIndex = await contract.getCurrentGuardianSetIndex() as number;
     console.log(`Current guardian set index: ${currentGuardianSetIndex}`);
 
     // Load current guardian set - returns a struct/tuple
-    const currentSetResult = await contract.getGuardianSet(currentGuardianSetIndex);
+    const currentSetResult = await contract.getGuardianSet(currentGuardianSetIndex) as [string[]];
 
     console.log(`Loaded current guardian set with ${currentSetResult[0].length} guardians`);
 
     return {
       guardians: currentSetResult[0]
     };
-  } catch (error: any) {
-    console.error('Failed to fetch Wormhole guardian data:', error?.stack || error);
+  } catch (error) {
+    console.error('Failed to fetch Wormhole guardian data:', errorMsg(error));
     throw error;
   }
 }
@@ -66,7 +67,7 @@ export function validateGuardianSignature(
     }
     return { success: true, value: { guardianAddress, guardianIndex } };
   } catch (error) {
-    return { success: false, error: 'Failed to verify signature:' + (error instanceof Error ? error.stack : String(error)) };
+    return { success: false, error: `Failed to verify signature: ${errorMsg(error)}` };
   }
 }
 
@@ -80,7 +81,7 @@ export function validatePeers(
       throw new Error(`Invalid initial peer index: ${peer.guardianIndex}`);
     }
     if (sparsePeers[peer.guardianIndex] !== undefined) {
-      throw new Error(`Duplicate initial peer: ${peer}`);
+      throw new Error(`Duplicate initial peer: ${JSON.stringify(peer)}`);
     }
     const guardianAddress = wormholeData.guardians[peer.guardianIndex];
     if (guardianAddress.toLowerCase() !== peer.guardianAddress.toLowerCase()) {

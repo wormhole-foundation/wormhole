@@ -11,7 +11,7 @@ export interface SerializableDeployment {
 
 export interface EvmSerializableDeployment extends SerializableDeployment {
   deployTxid: string;
-  constructorArgs?: any[];
+  constructorArgs?: unknown[];
 };
 
 export type Network = "Mainnet" | "Testnet";
@@ -20,11 +20,12 @@ enum ContractWrites {
   NoChanges,
 }
 
-type ContractsJson = Record<string, SerializableDeployment[]>;
+type ContractsJson = Record<string, SerializableDeployment[] | undefined>;
 class ContractAddresses {
-  static contractAddresses: ContractAddresses;
+  static contractAddresses: ContractAddresses | undefined;
   public static get(env: Network): ContractAddresses {
-    if (this.contractAddresses === undefined) this.contractAddresses = new ContractAddresses(env);
+    if (this.contractAddresses === undefined)
+      this.contractAddresses = new ContractAddresses(env);
 
     return this.contractAddresses;
   }
@@ -36,20 +37,20 @@ class ContractAddresses {
     this.path = `./config/${env}/contracts.json`;
     if (fs.existsSync(this.path)) {
       const contractsFile = fs.readFileSync(this.path, "utf8");
-      this.contracts = JSON.parse(contractsFile);
+      this.contracts = JSON.parse(contractsFile) as ContractsJson;
     } else {
       this.contracts = {};
     }
   }
 
   updateContracts(newContracts: ContractsJson) {
-    if (Object.values(newContracts).every((deployments) => deployments.length === 0)) {
+    if (Object.values(newContracts).every((deployments) => deployments?.length === 0)) {
       return ContractWrites.NoChanges;
     }
 
     const commit = getCurrentCommit();
     for (const [key, newDeployments] of Object.entries(newContracts)) {
-      const newDeploymentsWithCommit = newDeployments.map((deployment) => ({...deployment, commit}))
+      const newDeploymentsWithCommit = newDeployments?.map((deployment) => ({...deployment, commit})) ?? [];
       const savedDeployments = this.contracts[key] ?? [];
       this.contracts[key] = this.mergeContractAddresses(
         savedDeployments,
@@ -91,7 +92,8 @@ class ContractAddresses {
 
   loadContract(name: string): SerializableDeployment[] {
     const addresses = this.contracts[name];
-    if (addresses === undefined) throw new Error(`Failed to find ${name} in contracts file`);
+    if (addresses === undefined)
+      throw new Error(`Failed to find ${name} in contracts file`);
     return addresses;
   }
 
@@ -162,9 +164,10 @@ function syncContractsJson(newContracts: ContractsJson, env: Network) {
   }
 }
 
-let currentCommit: string;
+let currentCommit: string | undefined;
 function getCurrentCommit() {
-  if (currentCommit !== undefined) return currentCommit;
+  if (currentCommit !== undefined)
+    return currentCommit;
   currentCommit = execSync("git rev-parse HEAD").toString().trim();
   return currentCommit;
 }

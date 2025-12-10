@@ -48,11 +48,11 @@ async function verifyVaa(
       sequence: result[2],
       payloadOffset: result[3],
     };
-  } catch (error: any) {
-    if (!("cause" in error && "raw" in error.cause)) {
+  } catch (error) {
+    if (!(error instanceof Error && "raw" in (error.cause as { raw: Hex }))) {
       return { verified: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
-    const hexData = error.cause.raw as Hex;
+    const hexData = (error.cause as { raw: Hex }).raw;
     if (hexData.startsWith(VERIFICATION_FAILED_ERROR_SIGNATURE)) {
       const flags = hexData.slice(VERIFICATION_FAILED_ERROR_SIGNATURE.length);
       return { verified: false, error: `Verification failed with flags: 0x${flags}` };
@@ -111,4 +111,4 @@ async function main() {
   console.log("================================================");
 }
 
-await main().catch((error) => console.error(error));
+await main().catch((error: unknown) => { console.error(error) });

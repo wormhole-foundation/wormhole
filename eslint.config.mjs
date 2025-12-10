@@ -19,7 +19,8 @@ export default defineConfig(
   },
   {
     rules: {
-      "@typescript-eslint/strict-boolean-expressions": "error"
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/restrict-template-expressions": ["error", { "allowNumber": true }],
     },
   },
   includeIgnoreFile(resolve("./.gitignore"), "Imported .gitignore patterns"),

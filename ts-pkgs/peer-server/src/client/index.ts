@@ -9,6 +9,7 @@ import {
   getWormholeGuardianData,
   validatePeers,
   PeersResponse,
+  errorStack,
 } from "@xlabs-xyz/peer-lib";
 import { PeerClient } from "./client.js";
 
@@ -36,10 +37,9 @@ class ConfigClient {
 
     try {
       const configData = fs.readFileSync(configPath, 'utf-8');
-      const parsedConfig = JSON.parse(configData);
-      return validateOrFail(SelfConfigSchema, parsedConfig, "Invalid self_config.json");
-    } catch (error: any) {
-      console.error(`[ERROR] Invalid JSON in self_config.json: ${error?.stack || error}`);
+      return validateOrFail(SelfConfigSchema, JSON.parse(configData), "Invalid self_config.json");
+    } catch (error) {
+      console.error(`[ERROR] Invalid JSON in self_config.json: ${errorStack(error)}`);
       process.exit(1);
     }
   }
@@ -68,8 +68,8 @@ class ConfigClient {
       fs.writeFileSync(outputPath, JSON.stringify(outputData, null, 2), 'utf-8');
       console.log(`[SAVED] Peer configuration saved to: ${outputPath}`);
       console.log(`[INFO] Threshold: ${threshold}`);
-    } catch (error: any) {
-      console.error(`[ERROR] Error saving peer config: ${error?.stack || error}`);
+    } catch (error) {
+      console.error(`[ERROR] Error saving peer config: ${errorStack(error)}`);
       process.exit(1);
     }
   }
@@ -109,8 +109,8 @@ async function main() {
   await client.run(action as ClientAction);
 }
 
-main().catch((error) => {
-  console.error(`[ERROR] Unhandled error: ${error}`);
+main().catch((error: unknown) => {
+  console.error(`[ERROR] Unhandled error: ${errorStack(error)}`);
   process.exit(1);
 });
 
