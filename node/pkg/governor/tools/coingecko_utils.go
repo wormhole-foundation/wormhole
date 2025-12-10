@@ -71,8 +71,8 @@ func AssetPlatforms(apiKey string) ([]AssetPlatform, error) {
 //   - platformID: The asset platform ID (e.g., "ethereum", "binance-smart-chain")
 //   - contractAddresses: List of contract addresses to query (e.g., "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")
 //   - apiKey: CoinGecko API key (optional - pass empty string for free tier)
-// (Currency is hard-coded to "usd")
 //
+// (Currency is hard-coded to "usd")
 //
 // Returns a slice of TokenPrice, one for each contract address queried.
 //

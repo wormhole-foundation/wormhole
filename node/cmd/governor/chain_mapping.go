@@ -79,7 +79,6 @@ func runChainMapping(cmd *cobra.Command, args []string) {
 	log.Printf("Mapping complete!")
 	mapping := client.GetChainToPlatformMap()
 
-
 	// Output results
 	fmt.Printf("%-10s %-25s %-30s\n", "WORMHOLE_CHAIN_ID", "CHAIN_NAME", "COINGECKO_PLATFORM")
 	fmt.Println("--------------------------------------------------------------------------------")
