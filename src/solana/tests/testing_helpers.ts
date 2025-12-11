@@ -1,18 +1,18 @@
 import {
   Connection,
-  Finality,
+  type Finality,
   LAMPORTS_PER_SOL,
   PublicKey,
-  Signer,
+  type Signer,
   Transaction,
   TransactionInstruction,
   sendAndConfirmTransaction,
   Keypair,
-  TransactionSignature,
-  VersionedTransactionResponse
+  type TransactionSignature,
+  type VersionedTransactionResponse,
 } from "@solana/web3.js"
 import { mocks } from "@wormhole-foundation/sdk-definitions/testing"
-import { Contracts } from '@wormhole-foundation/sdk-definitions'
+import type { Contracts } from '@wormhole-foundation/sdk-definitions'
 import fs from "fs/promises"
 import fsSync from "fs"
 import * as toml from 'toml'

@@ -1,0 +1,24 @@
+{
+  "name": "@xlabs-xyz/peer-lib",
+  "version": "1.0.0",
+  "description": "TSS guardian peer description library",
+  "type": "module",
+  "main": "./ts-build/src/index.js",
+  "module": "./ts-build/src/index.js",
+  "types": "./ts-build/src/index.d.ts",
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@scure/base": "^2.0.0",
+    "binary-layout": "^1.3.2",
+    "ethers": "^6.16.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  },
+  "author": "",
+  "license": "Apache-2.0"
+}

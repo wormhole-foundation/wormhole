@@ -1,18 +1,14 @@
 {
   "compilerOptions": {
-    "types": ["mocha", "chai"],
-    "lib": ["es2023"],
+    "lib": ["es2024"],
     "module": "NodeNext",
     "moduleResolution": "node16",
-    "target": "es2022",
+    "target": "es2024",
     "outDir": "ts-build",
     "strict": true,
     "composite": true,
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["tests", "target/types", "scripts"],
-  "references": [
-    { "path": "../../ts-pkgs/tss-definitions" }
-  ]
+  "include": ["src"]
 }
