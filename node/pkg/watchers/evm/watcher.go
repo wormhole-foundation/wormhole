@@ -30,6 +30,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -137,6 +138,12 @@ type (
 		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
 
+		// Delegated guardians connector and config
+		dgConn                  *connectors.DelegatedGuardiansConnector
+		dgConfigC               chan<- *processor.DelegateGuardianConfig
+		dgContractAddr          string
+		currentDelegatedGuardianConfigTimestamp uint32
+
 		ccqConfig          query.PerChainConfig
 		ccqMaxBlockNumber  *big.Int
 		ccqTimestampCache  *BlocksByTimestamp
@@ -188,6 +195,8 @@ func NewEthWatcher(
 	chainID vaa.ChainID,
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
+	dgConfigC chan<- *processor.DelegateGuardianConfig,
+	dgContractAddr string,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *query.PerChainQueryInternal,
 	queryResponseC chan<- *query.PerChainQueryResponseInternal,
@@ -205,6 +214,8 @@ func NewEthWatcher(
 		chainID:            chainID,
 		msgC:               msgC,
 		setC:               setC,
+		dgConfigC:          dgConfigC,
+		dgContractAddr:     dgContractAddr,
 		obsvReqC:           obsvReqC,
 		queryReqC:          queryReqC,
 		queryResponseC:     queryResponseC,
@@ -357,6 +368,30 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 	defer messageSub.Unsubscribe()
 
+	// Initialize delegated guardians connector if configured
+	if w.dgContractAddr != "" && w.dgConfigC != nil {
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		dgConn, err := connectors.NewDelegatedGuardiansConnector(
+			timeout,
+			w.networkName,
+			w.url,
+			eth_common.HexToAddress(w.dgContractAddr),
+			logger,
+		)
+		cancel()
+		if err != nil {
+			logger.Warn("failed to create delegated guardians connector, feature will be disabled",
+				zap.String("contractAddr", w.dgContractAddr),
+				zap.Error(err),
+			)
+		} else {
+			w.dgConn = dgConn
+			logger.Info("delegated guardians connector initialized",
+				zap.String("contractAddr", w.dgContractAddr),
+			)
+		}
+	}
+
 	// Fetch initial guardian set
 	if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
 		return fmt.Errorf("failed to request guardian set: %v", err)
@@ -378,6 +413,32 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			}
 		}
 	})
+
+	// Fetch initial delegated guardian config if connector is configured
+	if w.dgConn != nil {
+		if err := w.fetchAndUpdateDelegatedGuardianConfig(logger, ctx); err != nil {
+			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(err))
+		}
+	}
+
+	// Poll for delegated guardian config.
+	if w.dgConn != nil {
+		common.RunWithScissors(ctx, errC, "evm_fetch_delegated_guardian_config", func(ctx context.Context) error {
+			t := time.NewTicker(15 * time.Second)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-t.C:
+					if err := w.fetchAndUpdateDelegatedGuardianConfig(logger, ctx); err != nil {
+						errC <- fmt.Errorf("failed to request delegated guardian config: %v", err) //nolint:channelcheck // The watcher will exit anyway
+						return nil
+					}
+				}
+			}
+		})
+	}
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_objs_req", func(ctx context.Context) error {
 		for {
@@ -728,6 +789,70 @@ func fetchCurrentGuardianSet(ctx context.Context, ethConn connectors.Connector) 
 	}
 
 	return currentIndex, &gs, nil
+}
+
+func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
+	logger *zap.Logger,
+	ctx context.Context,
+) error {
+	if w.dgConn == nil || w.dgConfigC == nil {
+		return nil
+	}
+
+	msm := time.Now()
+	logger.Info("fetching delegated guardian config from contract")
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	configs, err := w.dgConn.GetConfig(timeout)
+	if err != nil {
+		ethConnectionErrors.WithLabelValues(w.networkName, "delegated_guardian_config_fetch_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		logger.Error("failed to fetch delegated guardian config", zap.Error(err))
+		return err
+	}
+
+	logger.Info("successfully fetched delegated guardian config", 
+		zap.Int("numChains", len(configs)),
+		zap.Duration("latency", time.Since(msm)))
+	queryLatency.WithLabelValues(w.networkName, "get_delegated_guardian_config").Observe(time.Since(msm).Seconds())
+
+	// Check if config has changed by comparing timestamps
+	if len(configs) > 0 {
+		// Find the most recent timestamp across all chain configs
+		var maxTimestamp uint32
+		for _, cfg := range configs {
+			if cfg.Timestamp > maxTimestamp {
+				maxTimestamp = cfg.Timestamp
+			}
+		}
+
+		if w.currentDelegatedGuardianConfigTimestamp == maxTimestamp {
+			return nil
+		}
+
+		logger.Info("updated delegated guardian config found", zap.Uint32("timestamp", maxTimestamp), zap.Int("chains", len(configs)))
+
+		w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
+
+		// Build the DelegateGuardianConfig
+		dgConfig := processor.NewDelegateGuardianConfig()
+		for _, cfg := range configs {
+			chainID := vaa.ChainID(cfg.ChainId)
+			chainConfig := processor.NewDelegateGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
+			dgConfig.SetChainConfig(chainID, chainConfig)
+			logger.Info("delegated guardian config for chain",
+				zap.Stringer("chainID", chainID),
+				zap.Int("numKeys", len(cfg.Keys)),
+				zap.Uint8("threshold", cfg.Threshold),
+				zap.Uint32("timestamp", cfg.Timestamp))
+		}
+
+		w.dgConfigC <- dgConfig //nolint:channelcheck // Will only block the delegated guardian config update routine
+		logger.Info("sent delegated guardian config update to processor")
+	}
+
+	return nil
 }
 
 // getFinality determines if the chain supports "finalized" and "safe". This is hard coded so it requires thought to change something. However, it also reads the RPC

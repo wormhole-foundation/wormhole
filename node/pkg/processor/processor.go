@@ -132,6 +132,9 @@ type Processor struct {
 	// setC is a channel of guardian set updates
 	setC <-chan *common.GuardianSet
 
+	// dgConfigC is a channel of delegated guardian config updates
+	dgConfigC <-chan *DelegateGuardianConfig
+
 	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
 	gossipAttestationSendC chan<- []byte
 
@@ -257,6 +260,7 @@ func NewProcessor(
 	db *guardianDB.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
+	dgConfigC <-chan *DelegateGuardianConfig,
 	gossipAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
@@ -278,6 +282,7 @@ func NewProcessor(
 	return &Processor{
 		msgC:                   msgC,
 		setC:                   setC,
+		dgConfigC:              dgConfigC,
 		gossipAttestationSendC: gossipAttestationSendC,
 		gossipVaaSendC:         gossipVaaSendC,
 		batchObsvC:             batchObsvC,
@@ -336,6 +341,26 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Int("quorum", p.gs.Quorum()),
 			)
 			p.gst.Set(p.gs)
+		case dgConfig := <-p.dgConfigC:
+			p.logger.Info("delegated guardian config updated",
+				zap.Int("chains", len(dgConfig.Chains)),
+			)
+			// Log details for each chain config
+			for chainID, chainConfig := range dgConfig.Chains {
+				p.logger.Info("delegated guardian chain config details",
+					zap.Stringer("chainID", chainID),
+					zap.Int("numKeys", len(chainConfig.Keys)),
+					zap.Int("quorum", chainConfig.Quorum()),
+					zap.Strings("keys", func() []string {
+						keys := make([]string, len(chainConfig.Keys))
+						for i, k := range chainConfig.Keys {
+							keys[i] = k.Hex()
+						}
+						return keys
+					}()),
+				)
+			}
+			p.dgc = dgConfig
 		case k := <-p.msgC:
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 			if err := p.handleMessagePublication(ctx, k); err != nil {

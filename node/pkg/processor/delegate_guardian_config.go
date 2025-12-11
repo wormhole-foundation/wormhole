@@ -25,15 +25,14 @@ func (dc *DelegateGuardianChainConfig) Quorum() int {
 	return dc.quorum
 }
 
-func NewDelegateGuardianChainConfig(keys []common.Address) *DelegateGuardianChainConfig {
+func NewDelegateGuardianChainConfig(keys []common.Address, threshold int) *DelegateGuardianChainConfig {
 	keyMap := map[common.Address]int{}
 	for idx, key := range keys {
 		keyMap[key] = idx
 	}
 	return &DelegateGuardianChainConfig{
 		Keys:   keys,
-		// TODO(delegated-guardian-sets): replace with threshold from EVM contract
-		quorum: vaa.CalculateQuorum(len(keys)),
+		quorum: threshold,
 		keyMap: keyMap,
 	}
 }

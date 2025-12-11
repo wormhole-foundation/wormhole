@@ -12,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	"github.com/certusone/wormhole/node/pkg/notary"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -116,6 +117,8 @@ type G struct {
 	msgC channelPair[*common.MessagePublication]
 	// Ethereum incoming guardian set updates
 	setC channelPair[*common.GuardianSet]
+	// Delegated guardian config updates
+	dgConfigC channelPair[*processor.DelegateGuardianConfig]
 	// Inbound signed VAAs
 	signedInC channelPair[*gossipv1.SignedVAAWithQuorum]
 	// Inbound observation requests from the p2p service (for all chains)
@@ -156,6 +159,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
+	g.dgConfigC = makeChannelPair[*processor.DelegateGuardianConfig](1)
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)

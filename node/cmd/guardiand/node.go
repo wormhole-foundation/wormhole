@@ -72,8 +72,9 @@ var (
 	guardianKeyPath   *string
 	guardianSignerUri *string
 
-	ethRPC      *string
-	ethContract *string
+	ethRPC                        *string
+	ethContract                   *string
+	ethDelegatedGuardiansContract *string
 
 	bscRPC      *string
 	bscContract *string
@@ -329,6 +330,7 @@ func init() {
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
+	ethDelegatedGuardiansContract = NodeCmd.Flags().String("ethDelegatedGuardiansContract", "", "Ethereum delegated guardians contract address")
 
 	bscRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "bscRPC", "Binance Smart Chain RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	bscContract = NodeCmd.Flags().String("bscContract", "", "Binance Smart Chain contract address")
@@ -1255,14 +1257,20 @@ func runNode(cmd *cobra.Command, args []string) {
 	watcherConfigs := []watchers.WatcherConfig{}
 
 	if shouldStart(ethRPC) {
+		dgContract := checkDelegatedGuardiansContract(*ethRPC, *ethDelegatedGuardiansContract, vaa.ChainIDEthereum)
+		if dgContract != "" {
+			logger.Info("Ethereum delegated guardians contract configured", zap.String("address", dgContract))
+		}
 		wc := &evm.WatcherConfig{
-			NetworkID:              "eth",
-			ChainID:                vaa.ChainIDEthereum,
-			Rpc:                    *ethRPC,
-			Contract:               *ethContract,
-			GuardianSetUpdateChain: true,
-			CcqBackfillCache:       *ccqBackfillCache,
-			TxVerifierEnabled:      slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
+			NetworkID:                     "eth",
+			ChainID:                       vaa.ChainIDEthereum,
+			Rpc:                           *ethRPC,
+			Contract:                      *ethContract,
+			GuardianSetUpdateChain:        true,
+			DelegatedGuardiansContract:    dgContract,
+			DelegatedGuardiansUpdateChain: dgContract != "",
+			CcqBackfillCache:              *ccqBackfillCache,
+			TxVerifierEnabled:             slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
@@ -2009,6 +2017,18 @@ func checkEvmArgs(logger *zap.Logger, rpcURL string, contractAddr string, chainI
 	mainnetSupported := evm.SupportedInMainnet(chainID)
 	if contractAddr != "" && !mainnetSupported && env == common.MainNet {
 		logger.Fatal(fmt.Sprintf("Chain %s is not supported in mainnet", chainID.String()))
+	}
+	return contractAddr
+}
+
+// checkDelegatedGuardiansContract returns the delegated guardians contract address for the given chain.
+// If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
+func checkDelegatedGuardiansContract(rpcURL string, contractAddr string, chainID vaa.ChainID) string {
+	if env == common.UnsafeDevNet && rpcURL != "" && contractAddr == "" {
+		// In devnet, if RPC is set but delegated guardians contract is not set, use the deterministic one for tilt.
+		if knownAddr, exists := sdk.KnownDevnetDelegatedGuardiansContracts[chainID]; exists {
+			return knownAddr
+		}
 	}
 	return contractAddr
 }
