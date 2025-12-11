@@ -48,7 +48,7 @@ class ConfigClient {
     const outputPath = path.resolve("peer_config.json");
 
     try {
-      // Convert to array and sort by guardian address for consistency
+      // This MUST match the schema for the DKG config
       const outputData = {
         Peers: peers
           .map((peer) => ({
