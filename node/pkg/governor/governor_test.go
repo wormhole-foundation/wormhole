@@ -3493,3 +3493,98 @@ func TestCheckedAddInt64ReturnsErrorOnUnderflow(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, int64(0), sum)
 }
+
+func Test_computeValue(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		amount  *big.Int
+		token   *tokenEntry
+		want    uint64
+		wantErr bool
+	}{
+		{
+			name:   "token with decimals == 0",
+			amount: big.NewInt(10),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(0),
+				price:    big.NewFloat(1),
+			},
+			want:    10,
+			wantErr: false,
+		},
+		{
+			name: "nil amount",
+			// amount: big.NewInt(-1),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(1),
+				price:    big.NewFloat(1),
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:   "negative amount",
+			amount: big.NewInt(-1),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(1),
+				price:    big.NewFloat(1),
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:   "nil token price",
+			amount: big.NewInt(-1),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(1),
+				// price: big.NewFloat(1),
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:   "negative token price",
+			amount: big.NewInt(-1),
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(1),
+				price:    big.NewFloat(-1),
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name: "amount exceeds uint64",
+			// 10^18 * 2
+			amount: big.NewInt(0).Mul(big.NewInt(0).Exp(big.NewInt(10), big.NewInt(18), nil), big.NewInt(2)),
+
+			token: &tokenEntry{
+				symbol:   "TEST",
+				decimals: big.NewInt(1),
+				price:    big.NewFloat(-1),
+			},
+			want:    0,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := computeValue(tt.amount, tt.token)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("computeValue() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("computeValue() succeeded unexpectedly")
+			}
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
