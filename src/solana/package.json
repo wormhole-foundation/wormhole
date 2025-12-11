@@ -7,8 +7,8 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
-    "@noble/hashes": "^1.7.2",
-    "@noble/secp256k1": "^2.2.3",
+    "@noble/hashes": "^2.0.1",
+    "@noble/secp256k1": "^3.0.0",
     "@solana/web3.js": "^1.98.4",
     "@wormhole-foundation/sdk-base": "^4.5.0",
     "@wormhole-foundation/sdk-connect": "^4.5.0",
@@ -18,7 +18,7 @@
     "@xlabs-xyz/tss-definitions": "workspace:*"
   },
   "devDependencies": {
-    "@types/bn.js": "^5.1.0",
+    "@types/bn.js": "^5.2.0",
     "@types/chai": "^4.3.20",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.10.3",

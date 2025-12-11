@@ -4,7 +4,7 @@ import * as anchor from "@coral-xyz/anchor"
 import { ComputeBudgetProgram, Keypair, PublicKey } from "@solana/web3.js"
 import { keccak256, toUniversal, UniversalAddress } from "@wormhole-foundation/sdk-definitions"
 import { type Chain, encoding, serializeLayout } from "@wormhole-foundation/sdk-base"
-import { randomBytes } from "@noble/hashes/utils"
+import { randomBytes } from "@noble/hashes/utils.js"
 
 import type { VerificationV2 } from "../target/types/verification_v2.js"
 
