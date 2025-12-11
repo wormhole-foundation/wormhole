@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { Display } from './display.js';
 import {
   BaseServerConfig,
   Peer,
@@ -11,8 +10,10 @@ import {
   validatePeers,
   errorStack
 } from '@xlabs-xyz/peer-lib';
-import { saveGuardianPeers } from './peers.js';
 import { Server } from 'http';
+
+import { Display } from './display.js';
+import { saveGuardianPeers } from './peers.js';
 
 export class PeerServer {
   private app: express.Application;
