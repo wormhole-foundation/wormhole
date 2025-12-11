@@ -39,6 +39,7 @@ createGuardianPrivateKey() {
              END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}'
 }
 
+export DOCKER_BUILDKIT=1
 # Build the docker cache first. It will throw an error but it will save time
 docker build --network="host" -f ../../docker/Dockerfile --progress=plain . || true
 
