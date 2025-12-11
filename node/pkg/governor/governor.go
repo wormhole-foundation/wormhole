@@ -351,6 +351,7 @@ func (gov *ChainGovernor) initConfig() error {
 			dec = 8
 		}
 
+		// NOTE: Converts a value of 0 for decimals to 1.
 		decimalsFloat := big.NewFloat(math.Pow(10.0, float64(dec)))
 		decimals, _ := decimalsFloat.Int(nil)
 
@@ -989,6 +990,14 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 }
 
 func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+
+	// Ensure that the input is valid:
+	// - Price must be non-nil and greater than 0.
+	// - Amount must be non-nil non-negative.
+	if amount == nil || amount.Sign() == -1 || token == nil || token.price == nil {
+		return 0, fmt.Errorf("computeValue: invalid input for amount or token")
+	}
+
 	amountFloat := new(big.Float)
 	amountFloat = amountFloat.SetInt(amount)
 
@@ -996,7 +1005,11 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	valueFloat = valueFloat.Mul(amountFloat, token.price)
 
 	valueBigInt, _ := valueFloat.Int(nil)
-	valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+
+	// Defense-in-depth: avoid division by zero.
+	if token.decimals.Sign() != 0 {
+		valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+	}
 
 	if !valueBigInt.IsUint64() {
 		return 0, fmt.Errorf("value is too large to fit in uint64")
