@@ -2,6 +2,7 @@ package evm
 
 import (
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -17,8 +18,11 @@ type WatcherConfig struct {
 	Rpc                    string             // RPC URL
 	Contract               string             // hex representation of the contract address
 	GuardianSetUpdateChain bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
+	DelegatedGuardiansContract string          // hex representation of the delegated guardians contract address
+	DelegatedGuardiansUpdateChain bool         // if `true`, we will retrieve the DelegatedGuardians config from this chain
 	CcqBackfillCache       bool
 	TxVerifierEnabled      bool
+	DgConfigC              chan<- *processor.DelegateGuardianConfig // Delegated guardian config channel, set by GuardianOptionWatchers
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -45,6 +49,15 @@ func (wc *WatcherConfig) Create(
 		setWriteC = setC
 	}
 
+	// only actually use the delegated guardians config channel if wc.DelegatedGuardiansUpdateChain == true
+	// Note: DgConfigC is set by GuardianOptionWatchers in options.go
+	var dgConfigWriteC chan<- *processor.DelegateGuardianConfig = nil
+	var dgContractAddr string
+	if wc.DelegatedGuardiansUpdateChain {
+		dgConfigWriteC = wc.DgConfigC
+		dgContractAddr = wc.DelegatedGuardiansContract
+	}
+
 	watcher := NewEthWatcher(
 		wc.Rpc,
 		eth_common.HexToAddress(wc.Contract),
@@ -52,6 +65,8 @@ func (wc *WatcherConfig) Create(
 		wc.ChainID,
 		msgC,
 		setWriteC,
+		dgConfigWriteC,
+		dgContractAddr,
 		obsvReqC,
 		queryReqC,
 		queryResponseC,
