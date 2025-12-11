@@ -2271,12 +2271,12 @@ const RAW_RUNTIME_STATE =
         ],\
         "linkType": "SOFT"\
       }],\
-      ["virtual:6c730a32a0c855bba237271185632ba70862ce7aa0c349ad4bf71d88eb8d991496b4a5c891c05b294300db9c6016419f50432764a4499dc2fe6158983845c9a6#npm:0.3.9", {\
-        "packageLocation": "./.yarn/__virtual__/@solana-spl-token-virtual-2267bd00f1/4/.yarn/berry/cache/@solana-spl-token-npm-0.3.9-b2d855b518-10c0.zip/node_modules/@solana/spl-token/",\
+      ["virtual:eec11edbf21e04a99f0863dfc52ec54cf3d6babfcd94a40acaf665f1a232eab7b962480f40b9fca9747aa0b7e16af0f8ff764d9fffaac1355c33be418edd4a87#npm:0.3.9", {\
+        "packageLocation": "./.yarn/__virtual__/@solana-spl-token-virtual-0a8499cdac/4/.yarn/berry/cache/@solana-spl-token-npm-0.3.9-b2d855b518-10c0.zip/node_modules/@solana/spl-token/",\
         "packageDependencies": [\
           ["@solana/buffer-layout", "npm:4.0.1"],\
           ["@solana/buffer-layout-utils", "npm:0.2.0"],\
-          ["@solana/spl-token", "virtual:6c730a32a0c855bba237271185632ba70862ce7aa0c349ad4bf71d88eb8d991496b4a5c891c05b294300db9c6016419f50432764a4499dc2fe6158983845c9a6#npm:0.3.9"],\
+          ["@solana/spl-token", "virtual:eec11edbf21e04a99f0863dfc52ec54cf3d6babfcd94a40acaf665f1a232eab7b962480f40b9fca9747aa0b7e16af0f8ff764d9fffaac1355c33be418edd4a87#npm:0.3.9"],\
           ["@solana/web3.js", "npm:1.98.4"],\
           ["@types/solana__web3.js", null],\
           ["buffer", "npm:6.0.3"]\
@@ -2552,6 +2552,14 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/@types-node-npm-24.10.1-d514f50dfd-10c0.zip/node_modules/@types/node/",\
         "packageDependencies": [\
           ["@types/node", "npm:24.10.1"],\
+          ["undici-types", "npm:7.16.0"]\
+        ],\
+        "linkType": "HARD"\
+      }],\
+      ["npm:24.10.3", {\
+        "packageLocation": "../../../.yarn/berry/cache/@types-node-npm-24.10.3-25b6ad2bde-10c0.zip/node_modules/@types/node/",\
+        "packageDependencies": [\
+          ["@types/node", "npm:24.10.3"],\
           ["undici-types", "npm:7.16.0"]\
         ],\
         "linkType": "HARD"\
@@ -3013,435 +3021,435 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["@wormhole-foundation/sdk", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-npm-4.4.0-10b5cb8af3-10c0.zip/node_modules/@wormhole-foundation/sdk/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-npm-4.5.0-bd023c1638-10c0.zip/node_modules/@wormhole-foundation/sdk/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-algorand", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-algorand-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-algorand-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos-cctp", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-ibc", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-cctp", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-portico", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-tbtc", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-cctp", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-tbtc", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-stacks", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-stacks-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-cctp", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-tokenbridge", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-algorand", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-algorand-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-algorand-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos-cctp", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-base", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-ibc", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-definitions", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-cctp", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-portico", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-tbtc", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-cctp", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-tbtc", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-stacks", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-stacks-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-cctp", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-tokenbridge", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-algorand", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-algorand-npm-4.4.0-b5af81e97c-10c0.zip/node_modules/@wormhole-foundation/sdk-algorand/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-algorand-npm-4.5.0-e666167aee-10c0.zip/node_modules/@wormhole-foundation/sdk-algorand/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-algorand", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-algorand", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
           ["algosdk", "npm:2.7.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-algorand-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-algorand-core-npm-4.4.0-8b77a76062-10c0.zip/node_modules/@wormhole-foundation/sdk-algorand-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-algorand-core-npm-4.5.0-c5d8ba6859-10c0.zip/node_modules/@wormhole-foundation/sdk-algorand-core/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-algorand", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-algorand-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-algorand", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-algorand-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-algorand-tokenbridge", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-algorand-tokenbridge-npm-4.4.0-5d39aae2ea-10c0.zip/node_modules/@wormhole-foundation/sdk-algorand-tokenbridge/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-algorand-tokenbridge-npm-4.5.0-d82ea00d59-10c0.zip/node_modules/@wormhole-foundation/sdk-algorand-tokenbridge/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-algorand", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-algorand-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-algorand-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-algorand", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-algorand-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-algorand-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-aptos", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-npm-4.4.0-79ca34cbb4-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-npm-4.5.0-08f855e8cf-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos/",\
         "packageDependencies": [\
           ["@aptos-labs/ts-sdk", "npm:2.0.1"],\
-          ["@wormhole-foundation/sdk-aptos", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-aptos", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-aptos-cctp", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-cctp-npm-4.4.0-b8bb16bcde-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos-cctp/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-cctp-npm-4.5.0-3d850d7162-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos-cctp/",\
         "packageDependencies": [\
           ["@aptos-labs/ts-sdk", "npm:2.0.1"],\
-          ["@wormhole-foundation/sdk-aptos", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos-cctp", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-aptos", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos-cctp", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-aptos-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-core-npm-4.4.0-04793288ad-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-core-npm-4.5.0-711c007c71-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos-core/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-aptos", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-aptos", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-aptos-tokenbridge", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-tokenbridge-npm-4.4.0-fe434a831a-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos-tokenbridge/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-aptos-tokenbridge-npm-4.5.0-915f97096a-10c0.zip/node_modules/@wormhole-foundation/sdk-aptos-tokenbridge/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-aptos", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-aptos-tokenbridge", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-aptos", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-aptos-tokenbridge", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-base", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-base-npm-4.4.0-cb7616ebab-10c0.zip/node_modules/@wormhole-foundation/sdk-base/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-base-npm-4.5.0-35e0d97995-10c0.zip/node_modules/@wormhole-foundation/sdk-base/",\
         "packageDependencies": [\
           ["@scure/base", "npm:1.2.6"],\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-base", "npm:4.5.0"],\
           ["binary-layout", "npm:1.3.2"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-connect", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-connect-npm-4.4.0-dbda660b33-10c0.zip/node_modules/@wormhole-foundation/sdk-connect/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-connect-npm-4.5.0-dfbd7f7266-10c0.zip/node_modules/@wormhole-foundation/sdk-connect/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-base", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-definitions", "npm:4.5.0"],\
           ["axios", "npm:1.13.2"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-cosmwasm", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-npm-4.4.0-b6048a3ac3-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-npm-4.5.0-62492a9337-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm/",\
         "packageDependencies": [\
           ["@cosmjs/cosmwasm-stargate", "npm:0.32.4"],\
           ["@cosmjs/proto-signing", "npm:0.32.4"],\
           ["@cosmjs/stargate", "npm:0.32.4"],\
           ["@injectivelabs/sdk-ts", "npm:1.16.38"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.5.0"],\
           ["cosmjs-types", "npm:0.9.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-cosmwasm-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-core-npm-4.4.0-d19e6b0641-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-core-npm-4.5.0-7afcf637d3-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm-core/",\
         "packageDependencies": [\
           ["@cosmjs/cosmwasm-stargate", "npm:0.32.4"],\
           ["@cosmjs/stargate", "npm:0.32.4"],\
           ["@injectivelabs/sdk-ts", "npm:1.16.38"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-core", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-core", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-cosmwasm-ibc", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-ibc-npm-4.4.0-e50eab269c-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm-ibc/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-ibc-npm-4.5.0-aa6a4a103e-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm-ibc/",\
         "packageDependencies": [\
           ["@cosmjs/cosmwasm-stargate", "npm:0.32.4"],\
           ["@cosmjs/stargate", "npm:0.32.4"],\
           ["@injectivelabs/sdk-ts", "npm:1.16.38"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-ibc", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-ibc", "npm:4.5.0"],\
           ["cosmjs-types", "npm:0.9.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-cosmwasm-tokenbridge", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-tokenbridge-npm-4.4.0-b7d2dfd197-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm-tokenbridge/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-cosmwasm-tokenbridge-npm-4.5.0-492068af29-10c0.zip/node_modules/@wormhole-foundation/sdk-cosmwasm-tokenbridge/",\
         "packageDependencies": [\
           ["@cosmjs/cosmwasm-stargate", "npm:0.32.4"],\
           ["@injectivelabs/sdk-ts", "npm:1.16.38"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-cosmwasm-tokenbridge", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-cosmwasm-tokenbridge", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-definitions", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-definitions-npm-4.4.0-cfbca9fd7c-10c0.zip/node_modules/@wormhole-foundation/sdk-definitions/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-definitions-npm-4.5.0-b4d5ca8ed2-10c0.zip/node_modules/@wormhole-foundation/sdk-definitions/",\
         "packageDependencies": [\
           ["@noble/curves", "npm:1.9.7"],\
           ["@noble/hashes", "npm:1.8.0"],\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-base", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-definitions", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-evm", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-npm-4.4.0-94eaff8d3d-10c0.zip/node_modules/@wormhole-foundation/sdk-evm/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-npm-4.5.0-feedcbfd20-10c0.zip/node_modules/@wormhole-foundation/sdk-evm/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
           ["ethers", "npm:6.16.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-evm-cctp", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-cctp-npm-4.4.0-ce3a0cf789-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-cctp/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-cctp-npm-4.5.0-1b2ec4f6cf-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-cctp/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-cctp", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-core", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-cctp", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-core", "npm:4.5.0"],\
           ["ethers", "npm:6.16.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-evm-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-core-npm-4.4.0-73a39393d8-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-core-npm-4.5.0-7f4ee45222-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-core/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-core", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-core", "npm:4.5.0"],\
           ["ethers", "npm:6.16.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-evm-portico", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-portico-npm-4.4.0-7d70cd9b82-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-portico/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-portico-npm-4.5.0-3c11e29e29-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-portico/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-portico", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-tokenbridge", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-portico", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-tokenbridge", "npm:4.5.0"],\
           ["ethers", "npm:6.16.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-evm-tbtc", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-tbtc-npm-4.4.0-aeb154ce04-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-tbtc/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-tbtc-npm-4.5.0-ecebbf9359-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-tbtc/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-tbtc", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-tbtc", "npm:4.5.0"],\
           ["ethers", "npm:6.16.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-evm-tokenbridge", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-tokenbridge-npm-4.4.0-01c67a0095-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-tokenbridge/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-evm-tokenbridge-npm-4.5.0-78b998ba17-10c0.zip/node_modules/@wormhole-foundation/sdk-evm-tokenbridge/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-evm-tokenbridge", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-evm-tokenbridge", "npm:4.5.0"],\
           ["ethers", "npm:6.16.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-solana", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-npm-4.4.0-6c730a32a0-10c0.zip/node_modules/@wormhole-foundation/sdk-solana/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-npm-4.5.0-eec11edbf2-10c0.zip/node_modules/@wormhole-foundation/sdk-solana/",\
         "packageDependencies": [\
           ["@coral-xyz/anchor", "npm:0.29.0"],\
           ["@coral-xyz/borsh", "virtual:852da326f150408584798524fe58e9855b987bcc4f041389e1ca13248c23c659c3ffb4a9aa4176cc7542f503f2e1e6422a1f18f69e5e623ca255691d222a55ca#npm:0.29.0"],\
-          ["@solana/spl-token", "virtual:6c730a32a0c855bba237271185632ba70862ce7aa0c349ad4bf71d88eb8d991496b4a5c891c05b294300db9c6016419f50432764a4499dc2fe6158983845c9a6#npm:0.3.9"],\
+          ["@solana/spl-token", "virtual:eec11edbf21e04a99f0863dfc52ec54cf3d6babfcd94a40acaf665f1a232eab7b962480f40b9fca9747aa0b7e16af0f8ff764d9fffaac1355c33be418edd4a87#npm:0.3.9"],\
           ["@solana/web3.js", "npm:1.98.4"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
           ["rpc-websockets", "npm:7.11.2"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-solana-cctp", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-cctp-npm-4.4.0-d6f240867e-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-cctp/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-cctp-npm-4.5.0-7a363daa7f-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-cctp/",\
         "packageDependencies": [\
           ["@coral-xyz/anchor", "npm:0.29.0"],\
-          ["@solana/spl-token", "virtual:6c730a32a0c855bba237271185632ba70862ce7aa0c349ad4bf71d88eb8d991496b4a5c891c05b294300db9c6016419f50432764a4499dc2fe6158983845c9a6#npm:0.3.9"],\
+          ["@solana/spl-token", "virtual:eec11edbf21e04a99f0863dfc52ec54cf3d6babfcd94a40acaf665f1a232eab7b962480f40b9fca9747aa0b7e16af0f8ff764d9fffaac1355c33be418edd4a87#npm:0.3.9"],\
           ["@solana/web3.js", "npm:1.98.4"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-cctp", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-cctp", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-solana-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-core-npm-4.4.0-3104138737-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-core-npm-4.5.0-4da6a845c1-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-core/",\
         "packageDependencies": [\
           ["@coral-xyz/anchor", "npm:0.29.0"],\
           ["@coral-xyz/borsh", "virtual:852da326f150408584798524fe58e9855b987bcc4f041389e1ca13248c23c659c3ffb4a9aa4176cc7542f503f2e1e6422a1f18f69e5e623ca255691d222a55ca#npm:0.29.0"],\
           ["@solana/web3.js", "npm:1.98.4"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-core", "npm:4.5.0"],\
           ["bn.js", "npm:5.2.2"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-solana-tbtc", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-tbtc-npm-4.4.0-5f0b2417e2-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-tbtc/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-tbtc-npm-4.5.0-8c38087bd1-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-tbtc/",\
         "packageDependencies": [\
           ["@coral-xyz/anchor", "npm:0.29.0"],\
-          ["@solana/spl-token", "virtual:6c730a32a0c855bba237271185632ba70862ce7aa0c349ad4bf71d88eb8d991496b4a5c891c05b294300db9c6016419f50432764a4499dc2fe6158983845c9a6#npm:0.3.9"],\
+          ["@solana/spl-token", "virtual:eec11edbf21e04a99f0863dfc52ec54cf3d6babfcd94a40acaf665f1a232eab7b962480f40b9fca9747aa0b7e16af0f8ff764d9fffaac1355c33be418edd4a87#npm:0.3.9"],\
           ["@solana/web3.js", "npm:1.98.4"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-tbtc", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-tokenbridge", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-tbtc", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-tokenbridge", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-solana-tokenbridge", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-tokenbridge-npm-4.4.0-d191d10b8f-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-tokenbridge/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-solana-tokenbridge-npm-4.5.0-63f969ad81-10c0.zip/node_modules/@wormhole-foundation/sdk-solana-tokenbridge/",\
         "packageDependencies": [\
           ["@coral-xyz/anchor", "npm:0.29.0"],\
-          ["@solana/spl-token", "virtual:6c730a32a0c855bba237271185632ba70862ce7aa0c349ad4bf71d88eb8d991496b4a5c891c05b294300db9c6016419f50432764a4499dc2fe6158983845c9a6#npm:0.3.9"],\
+          ["@solana/spl-token", "virtual:eec11edbf21e04a99f0863dfc52ec54cf3d6babfcd94a40acaf665f1a232eab7b962480f40b9fca9747aa0b7e16af0f8ff764d9fffaac1355c33be418edd4a87#npm:0.3.9"],\
           ["@solana/web3.js", "npm:1.98.4"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-tokenbridge", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-tokenbridge", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-stacks", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-stacks-npm-4.4.0-c7db7ac8fb-10c0.zip/node_modules/@wormhole-foundation/sdk-stacks/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-stacks-npm-4.5.0-330b2742b0-10c0.zip/node_modules/@wormhole-foundation/sdk-stacks/",\
         "packageDependencies": [\
           ["@stacks/network", "npm:7.2.0"],\
           ["@stacks/transactions", "npm:7.3.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-stacks", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-stacks", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-stacks-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-stacks-core-npm-4.4.0-78e6630a86-10c0.zip/node_modules/@wormhole-foundation/sdk-stacks-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-stacks-core-npm-4.5.0-ccb69ba96a-10c0.zip/node_modules/@wormhole-foundation/sdk-stacks-core/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-stacks", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-stacks-core", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-stacks", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-stacks-core", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-sui", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-npm-4.4.0-01f61e290d-10c0.zip/node_modules/@wormhole-foundation/sdk-sui/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-npm-4.5.0-973c28d2d1-10c0.zip/node_modules/@wormhole-foundation/sdk-sui/",\
         "packageDependencies": [\
           ["@mysten/sui", "npm:1.45.2"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-sui-cctp", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-cctp-npm-4.4.0-5c6c64c3b6-10c0.zip/node_modules/@wormhole-foundation/sdk-sui-cctp/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-cctp-npm-4.5.0-e15c9081cc-10c0.zip/node_modules/@wormhole-foundation/sdk-sui-cctp/",\
         "packageDependencies": [\
           ["@mysten/sui", "npm:1.45.2"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-cctp", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-cctp", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-sui-core", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-core-npm-4.4.0-78e109870f-10c0.zip/node_modules/@wormhole-foundation/sdk-sui-core/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-core-npm-4.5.0-bad5a6f000-10c0.zip/node_modules/@wormhole-foundation/sdk-sui-core/",\
         "packageDependencies": [\
           ["@mysten/sui", "npm:1.45.2"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-core", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-core", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
     ]],\
     ["@wormhole-foundation/sdk-sui-tokenbridge", [\
-      ["npm:4.4.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-tokenbridge-npm-4.4.0-4f8fd4af7d-10c0.zip/node_modules/@wormhole-foundation/sdk-sui-tokenbridge/",\
+      ["npm:4.5.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@wormhole-foundation-sdk-sui-tokenbridge-npm-4.5.0-051a36c798-10c0.zip/node_modules/@wormhole-foundation/sdk-sui-tokenbridge/",\
         "packageDependencies": [\
           ["@mysten/sui", "npm:1.45.2"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-core", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-sui-tokenbridge", "npm:4.4.0"]\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-core", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-sui-tokenbridge", "npm:4.5.0"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -3491,7 +3499,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./ts-pkgs/peer-lib/",\
         "packageDependencies": [\
           ["@scure/base", "npm:2.0.0"],\
-          ["@types/node", "npm:24.10.1"],\
+          ["@types/node", "npm:24.10.3"],\
           ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
           ["binary-layout", "npm:1.3.2"],\
           ["ethers", "npm:6.16.0"],\
@@ -3508,7 +3516,7 @@ const RAW_RUNTIME_STATE =
           ["@scure/base", "npm:2.0.0"],\
           ["@types/cors", "npm:2.8.19"],\
           ["@types/express", "npm:4.17.25"],\
-          ["@types/node", "npm:24.10.1"],\
+          ["@types/node", "npm:24.10.3"],\
           ["@types/supertest", "npm:6.0.3"],\
           ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
           ["@xlabs-xyz/peer-server", "workspace:ts-pkgs/peer-server"],\
@@ -3528,8 +3536,8 @@ const RAW_RUNTIME_STATE =
       ["workspace:ts-pkgs/tss-definitions", {\
         "packageLocation": "./ts-pkgs/tss-definitions/",\
         "packageDependencies": [\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-base", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-definitions", "npm:4.5.0"],\
           ["@xlabs-xyz/tss-definitions", "workspace:ts-pkgs/tss-definitions"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"]\
         ],\
@@ -4572,9 +4580,9 @@ const RAW_RUNTIME_STATE =
       ["workspace:ts-pkgs/deploy", {\
         "packageLocation": "./ts-pkgs/deploy/",\
         "packageDependencies": [\
-          ["@types/node", "npm:24.10.1"],\
+          ["@types/node", "npm:24.10.3"],\
           ["@types/yargs", "npm:17.0.35"],\
-          ["@wormhole-foundation/sdk", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk", "npm:4.5.0"],\
           ["deploy", "workspace:ts-pkgs/deploy"],\
           ["tsx", "npm:4.21.0"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
@@ -7715,13 +7723,13 @@ const RAW_RUNTIME_STATE =
           ["@types/bn.js", "npm:5.2.0"],\
           ["@types/chai", "npm:4.3.20"],\
           ["@types/mocha", "npm:10.0.10"],\
-          ["@types/node", "npm:24.10.1"],\
+          ["@types/node", "npm:24.10.3"],\
           ["@types/yargs", "npm:17.0.35"],\
-          ["@wormhole-foundation/sdk-base", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-connect", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-definitions", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana", "npm:4.4.0"],\
-          ["@wormhole-foundation/sdk-solana-core", "npm:4.4.0"],\
+          ["@wormhole-foundation/sdk-base", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-connect", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-definitions", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
+          ["@wormhole-foundation/sdk-solana-core", "npm:4.5.0"],\
           ["@xlabs-xyz/tss-definitions", "workspace:ts-pkgs/tss-definitions"],\
           ["chai", "npm:4.5.0"],\
           ["mocha", "npm:11.7.5"],\
@@ -8368,7 +8376,7 @@ const RAW_RUNTIME_STATE =
           ["@types/jiti", null],\
           ["@types/less", null],\
           ["@types/lightningcss", null],\
-          ["@types/node", "npm:24.10.1"],\
+          ["@types/node", "npm:24.10.3"],\
           ["@types/sass", null],\
           ["@types/sass-embedded", null],\
           ["@types/stylus", null],\
@@ -8437,7 +8445,7 @@ const RAW_RUNTIME_STATE =
           ["@types/edge-runtime__vm", null],\
           ["@types/happy-dom", null],\
           ["@types/jsdom", null],\
-          ["@types/node", "npm:24.10.1"],\
+          ["@types/node", "npm:24.10.3"],\
           ["@types/opentelemetry__api", null],\
           ["@types/vitest__browser-playwright", null],\
           ["@types/vitest__browser-preview", null],\
