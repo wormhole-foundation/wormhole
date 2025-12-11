@@ -2,7 +2,6 @@
 
 set -meuo pipefail
 
-PRIVATE_KEY_PATH=long/path/pk
 TLS_HOSTNAME="Guardian"
 TLS_PUBLIC_IP="127.0.0.1"
 TLS_PORT="3003"
