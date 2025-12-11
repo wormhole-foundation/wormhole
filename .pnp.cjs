@@ -2395,13 +2395,6 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["@types/chai", [\
-      ["npm:4.3.20", {\
-        "packageLocation": "../../../.yarn/berry/cache/@types-chai-npm-4.3.20-468371f41f-10c0.zip/node_modules/@types/chai/",\
-        "packageDependencies": [\
-          ["@types/chai", "npm:4.3.20"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
       ["npm:5.2.3", {\
         "packageLocation": "../../../.yarn/berry/cache/@types-chai-npm-5.2.3-5f61dbddda-10c0.zip/node_modules/@types/chai/",\
         "packageDependencies": [\
@@ -3815,13 +3808,6 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["assertion-error", [\
-      ["npm:1.1.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/assertion-error-npm-1.1.0-66b893015e-10c0.zip/node_modules/assertion-error/",\
-        "packageDependencies": [\
-          ["assertion-error", "npm:1.1.0"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
       ["npm:2.0.1", {\
         "packageLocation": "../../../.yarn/berry/cache/assertion-error-npm-2.0.1-8169d136f2-10c0.zip/node_modules/assertion-error/",\
         "packageDependencies": [\
@@ -4179,20 +4165,6 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["chai", [\
-      ["npm:4.5.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/chai-npm-4.5.0-428447e206-10c0.zip/node_modules/chai/",\
-        "packageDependencies": [\
-          ["assertion-error", "npm:1.1.0"],\
-          ["chai", "npm:4.5.0"],\
-          ["check-error", "npm:1.0.3"],\
-          ["deep-eql", "npm:4.1.4"],\
-          ["get-func-name", "npm:2.0.2"],\
-          ["loupe", "npm:2.3.7"],\
-          ["pathval", "npm:1.1.1"],\
-          ["type-detect", "npm:4.1.0"]\
-        ],\
-        "linkType": "HARD"\
-      }],\
       ["npm:6.2.1", {\
         "packageLocation": "../../../.yarn/berry/cache/chai-npm-6.2.1-df1838f7a6-10c0.zip/node_modules/chai/",\
         "packageDependencies": [\
@@ -4215,16 +4187,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/chalk-npm-5.6.2-ecbd482482-10c0.zip/node_modules/chalk/",\
         "packageDependencies": [\
           ["chalk", "npm:5.6.2"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["check-error", [\
-      ["npm:1.0.3", {\
-        "packageLocation": "../../../.yarn/berry/cache/check-error-npm-1.0.3-137994eabc-10c0.zip/node_modules/check-error/",\
-        "packageDependencies": [\
-          ["check-error", "npm:1.0.3"],\
-          ["get-func-name", "npm:2.0.2"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -4509,16 +4471,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/decamelize-npm-4.0.0-12410e3409-10c0.zip/node_modules/decamelize/",\
         "packageDependencies": [\
           ["decamelize", "npm:4.0.0"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["deep-eql", [\
-      ["npm:4.1.4", {\
-        "packageLocation": "../../../.yarn/berry/cache/deep-eql-npm-4.1.4-bc4d39c2ca-10c0.zip/node_modules/deep-eql/",\
-        "packageDependencies": [\
-          ["deep-eql", "npm:4.1.4"],\
-          ["type-detect", "npm:4.1.0"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -5451,15 +5403,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["get-func-name", [\
-      ["npm:2.0.2", {\
-        "packageLocation": "../../../.yarn/berry/cache/get-func-name-npm-2.0.2-409dbe3703-10c0.zip/node_modules/get-func-name/",\
-        "packageDependencies": [\
-          ["get-func-name", "npm:2.0.2"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["get-intrinsic", [\
       ["npm:1.3.1", {\
         "packageLocation": "../../../.yarn/berry/cache/get-intrinsic-npm-1.3.1-2f734f40ec-10c0.zip/node_modules/get-intrinsic/",\
@@ -6326,16 +6269,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["loupe", [\
-      ["npm:2.3.7", {\
-        "packageLocation": "../../../.yarn/berry/cache/loupe-npm-2.3.7-f294c2ef33-10c0.zip/node_modules/loupe/",\
-        "packageDependencies": [\
-          ["get-func-name", "npm:2.0.2"],\
-          ["loupe", "npm:2.3.7"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["lower-case", [\
       ["npm:2.0.2", {\
         "packageLocation": "../../../.yarn/berry/cache/lower-case-npm-2.0.2-151055f1c2-10c0.zip/node_modules/lower-case/",\
@@ -7043,15 +6976,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["pathval", [\
-      ["npm:1.1.1", {\
-        "packageLocation": "../../../.yarn/berry/cache/pathval-npm-1.1.1-ce0311d7e0-10c0.zip/node_modules/pathval/",\
-        "packageDependencies": [\
-          ["pathval", "npm:1.1.1"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["picocolors", [\
       ["npm:1.1.1", {\
         "packageLocation": "../../../.yarn/berry/cache/picocolors-npm-1.1.1-4fede47cf1-10c0.zip/node_modules/picocolors/",\
@@ -7728,7 +7652,7 @@ const RAW_RUNTIME_STATE =
           ["@noble/secp256k1", "npm:3.0.0"],\
           ["@solana/web3.js", "npm:1.98.4"],\
           ["@types/bn.js", "npm:5.2.0"],\
-          ["@types/chai", "npm:4.3.20"],\
+          ["@types/chai", "npm:5.2.3"],\
           ["@types/mocha", "npm:10.0.10"],\
           ["@types/node", "npm:24.10.3"],\
           ["@types/yargs", "npm:17.0.35"],\
@@ -7738,7 +7662,7 @@ const RAW_RUNTIME_STATE =
           ["@wormhole-foundation/sdk-solana", "npm:4.5.0"],\
           ["@wormhole-foundation/sdk-solana-core", "npm:4.5.0"],\
           ["@xlabs-xyz/tss-definitions", "workspace:ts-pkgs/tss-definitions"],\
-          ["chai", "npm:4.5.0"],\
+          ["chai", "npm:6.2.1"],\
           ["mocha", "npm:11.7.5"],\
           ["solana-8a846c", "workspace:src/solana"],\
           ["toml", "npm:3.0.0"],\
@@ -8131,15 +8055,6 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["prelude-ls", "npm:1.2.1"],\
           ["type-check", "npm:0.4.0"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["type-detect", [\
-      ["npm:4.1.0", {\
-        "packageLocation": "../../../.yarn/berry/cache/type-detect-npm-4.1.0-171d011a73-10c0.zip/node_modules/type-detect/",\
-        "packageDependencies": [\
-          ["type-detect", "npm:4.1.0"]\
         ],\
         "linkType": "HARD"\
       }]\
