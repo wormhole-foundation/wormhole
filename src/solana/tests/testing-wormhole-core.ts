@@ -20,7 +20,7 @@ import {
 import { mocks } from '@wormhole-foundation/sdk-definitions/testing';
 import { coreV1AccountDataLayout } from '@xlabs-xyz/tss-definitions';
 import { getPublicKey } from '@noble/secp256k1';
-import { keccak_256 } from '@noble/hashes/sha3';
+import { keccak_256 } from '@noble/hashes/sha3.js';
 
 import { sendAndConfirm } from './testing_helpers.js';
 
