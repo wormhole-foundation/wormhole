@@ -88,7 +88,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  const display = new Display();
-  display.error(`Failed to start server: ${errorStack(error)}`);
+  console.error(`Failed to start server: ${errorStack(error)}`);
   process.exit(1);
 });
