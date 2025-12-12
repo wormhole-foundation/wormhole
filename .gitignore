@@ -1,6 +1,5 @@
 .anvil
 .env
-.vscode
 cache
 /lib
 /bin
@@ -11,5 +10,20 @@ broadcast
 dist
 ts-types
 ts-build
+*.tsbuildinfo
 
 tmp/
+
+*.sublime-workspace
+
+guardian_peers.json
+
+
+# Yarn
+.yarn/*
+!.yarn/cache
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

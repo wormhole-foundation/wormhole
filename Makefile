@@ -41,7 +41,7 @@ clean-evm:
 	rm -rf lib
 
 dependencies-solana-ts:
-	npm ci --prefix src/solana
+	yarn --immutable
 
 build-solana:
 	cd src/solana; anchor build
@@ -50,7 +50,7 @@ build-solana:
 # This happens automatically as soon as you run `anchor test` but it's useful to trigger the build
 # before typechecking if you're tweaking things that impact the IDL and haven't regenerated it yet.
 build-solana-ts: build-solana dependencies-solana-ts
-	npm run build --prefix src/solana
+	yarn ./src/solana run build
 
 # cargo test runs the Rust unit tests
 # anchor test runs the contract tests

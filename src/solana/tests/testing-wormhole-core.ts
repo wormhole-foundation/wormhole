@@ -1,28 +1,28 @@
 import anchor from '@coral-xyz/anchor';
-import { Connection, Keypair, PublicKey, Signer, Transaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, type Signer, Transaction } from '@solana/web3.js';
+import { signAndSendWait } from '@wormhole-foundation/sdk-connect';
 import {
-  Chain,
+  type Chain,
   deserializeLayout,
   encoding,
-  Network,
-  signAndSendWait,
-} from '@wormhole-foundation/sdk-connect';
-import { AnySolanaAddress, SolanaAddress, SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
+  type Network,
+} from '@wormhole-foundation/sdk-base';
+import { type AnySolanaAddress, SolanaAddress, SolanaSendSigner } from '@wormhole-foundation/sdk-solana';
 import { SolanaWormholeCore, utils as coreUtils } from '@wormhole-foundation/sdk-solana-core';
 import {
   serialize as serializeVaa,
   deserialize as deserializeVaa,
   UniversalAddress,
   createVAA,
-  Contracts,
+  type Contracts,
   VAA,
 } from '@wormhole-foundation/sdk-definitions';
 import { mocks } from '@wormhole-foundation/sdk-definitions/testing';
-
-import { coreV1AccountDataLayout } from './layouts.js';
-import { sendAndConfirm } from './testing_helpers.js';
+import { coreV1AccountDataLayout } from '@xlabs-xyz/tss-definitions';
 import { getPublicKey } from '@noble/secp256k1';
-import { keccak_256 } from '@noble/hashes/sha3';
+import { keccak_256 } from '@noble/hashes/sha3.js';
+
+import { sendAndConfirm } from './testing_helpers.js';
 
 export type VaaMessage = VAA<'Uint8Array'>;
 
