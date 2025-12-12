@@ -195,10 +195,7 @@ func main() {
 						}
 					}
 
-					acc, err := process(tx)
-					if err != nil {
-						log.Fatalf("process: %v", err)
-					}
+					acc := process(tx)
 
 					log.Printf("found account %v (%s)", acc, hex.EncodeToString(acc[:]))
 
@@ -272,17 +269,17 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 	return nil, 0, nil
 }
 
-func process(out *rpc.GetTransactionResult) (*solana.PublicKey, error) {
+func process(out *rpc.GetTransactionResult) *solana.PublicKey {
 	program, err := solana.PublicKeyFromBase58(*solanaAddr)
 	if err != nil {
 		log.Fatalf("Invalid program address: %v", err)
-		return nil, err
+		return nil
 	}
 
 	tx, err := out.Transaction.GetTransaction()
 	if err != nil {
 		log.Fatalf("Failed to unmarshal transaction: %v", err)
-		return nil, err
+		return nil
 	}
 
 	signature := tx.Signatures[0]
@@ -293,7 +290,7 @@ func process(out *rpc.GetTransactionResult) (*solana.PublicKey, error) {
 		}
 	}
 	if programIndex == 0 {
-		return nil, nil
+		return nil
 	}
 
 	log.Printf("found Wormhole tx in %s", signature)
@@ -312,8 +309,8 @@ func process(out *rpc.GetTransactionResult) (*solana.PublicKey, error) {
 			continue
 		}
 		acc := tx.Message.AccountKeys[inst.Accounts[1]]
-		return &acc, nil
+		return &acc
 	}
 
-	return nil, nil
+	return nil
 }
