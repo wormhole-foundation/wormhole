@@ -60,6 +60,9 @@ const (
 
 	// delegateObservationInboundBufferSize configures the size of delegateObsvC.
 	delegateObservationInboundBufferSize = 1000
+	
+	// delegateObservationOutboundBufferSize configures the size of delegateObsvSendC.
+	delegateObservationOutboundBufferSize = 1000
 )
 
 type ComponentAlreadyConfiguredError struct {
@@ -127,6 +130,8 @@ type G struct {
 	obsvReqSendC channelPair[*gossipv1.ObservationRequest]
 	// Inbound delegate observations from the p2p service
 	delegateObsvC channelPair[*gossipv1.DelegateObservation]
+	// Outbound delegate observations to the p2p service
+	delegateObsvSendC channelPair[*gossipv1.DelegateObservation]
 	// acctC is the channel where messages will be put after they reached quorum in the accountant.
 	acctC channelPair[*common.MessagePublication]
 
@@ -164,6 +169,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
 	g.delegateObsvC = makeChannelPair[*gossipv1.DelegateObservation](delegateObservationInboundBufferSize)
+	g.delegateObsvSendC = makeChannelPair[*gossipv1.DelegateObservation](delegateObservationOutboundBufferSize)
 	g.acctC = makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 	// Cross Chain Query Handler channels
 	g.chainQueryReqC = make(map[vaa.ChainID]chan *query.PerChainQueryInternal)

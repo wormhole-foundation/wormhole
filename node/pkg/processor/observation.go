@@ -77,6 +77,11 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 // handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and sends it to the delegateObsvSendC channel.
 // This should only be called by a delegated guardian for the chain.
 func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePublication) error {
+	p.logger.Info("handleDelegateMessagePublication: CALLED - converting message to delegate observation",
+		zap.String("msgID", k.MessageIDString()),
+		zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+		zap.Uint64("sequence", k.Sequence),
+	)
 	d, err := messagePublicationToDelegateObservation(k)
 	if err != nil {
 		p.logger.Warn("failed to build delegate observation from message publication",
@@ -87,8 +92,18 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 	}
 	d.GuardianAddr = p.ourAddr.Bytes()
 
+	p.logger.Debug("handleDelegateMessagePublication: delegate observation created, sending to channel",
+		zap.String("msgID", k.MessageIDString()),
+		zap.Uint32("emitter_chain", d.EmitterChain),
+		zap.Uint64("sequence", d.Sequence),
+		zap.String("guardian_addr", p.ourAddr.Hex()),
+	)
+
 	select {
 	case p.delegateObsvSendC <- d:
+		p.logger.Debug("handleDelegateMessagePublication: successfully sent to delegateObsvSendC channel",
+			zap.String("msgID", k.MessageIDString()),
+		)
 	default:
 		// TODO(delegated-guardian-sets): replace with prometheus.CounterVec
 		p.logger.Warn("delegate observation send channel full, dropping",

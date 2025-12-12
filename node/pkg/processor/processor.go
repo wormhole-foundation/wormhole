@@ -368,14 +368,41 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 
 			cfg := p.dgc.GetChainConfig(k.EmitterChain)
+			p.logger.Info("processor: checking delegation config for chain",
+				zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+				zap.Bool("has_config", cfg != nil),
+				zap.String("our_addr", p.ourAddr.Hex()),
+			)
 			if cfg != nil {
 				_, ok := cfg.KeyIndex(p.ourAddr)
+				p.logger.Info("processor: delegation check result",
+					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+					zap.Bool("is_delegated_guardian", ok),
+					zap.Int("chain_quorum", cfg.Quorum()),
+					zap.Strings("delegated_keys", func() []string {
+						keys := make([]string, len(cfg.Keys))
+						for i, k := range cfg.Keys {
+							keys[i] = k.Hex()
+						}
+						return keys
+					}()),
+				)
 				if ok {
-					// Logs internally on failure
+					p.logger.Info("processor: sending delegate observation as delegated guardian", k.ZapFields()...)
 					if err := p.handleDelegateMessagePublication(k); err != nil {
 						p.logger.Warn("failed to send delegate observation", k.ZapFields(zap.Error(err))...)
+					} else {
+						p.logger.Info("processor: successfully queued delegate observation", k.ZapFields()...)
 					}
+				} else {
+					p.logger.Info("processor: skipping delegate observation - not a delegated guardian for this chain",
+						zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+					)
 				}
+			} else {
+				p.logger.Info("processor: no delegation config found for chain",
+					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
+				)
 			}
 		case k := <-p.acctReadC:
 			if p.acct == nil {
