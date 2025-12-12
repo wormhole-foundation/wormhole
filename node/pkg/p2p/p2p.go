@@ -692,19 +692,36 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
 				case msg:= <-params.delegateObsvSendC:
+					logger.Debug("p2p: received delegate observation from channel",
+						zap.Uint32("emitter_chain", msg.EmitterChain),
+						zap.Uint64("sequence", msg.Sequence),
+						zap.Binary("emitter_address", msg.EmitterAddress),
+					)
 					ourAddr := ethcrypto.PubkeyToAddress(params.guardianSigner.PublicKey(ctx))
+					logger.Debug("p2p: guardian address for signing",
+						zap.String("guardian_addr", ourAddr.Hex()),
+					)
 
 					b, err := proto.Marshal(msg)
 					if err != nil {
 						panic(err)
 					}
+					logger.Debug("p2p: marshaled delegate observation",
+						zap.Int("size_bytes", len(b)),
+					)
 
 					// Sign the delegate observation using our node's guardian key.
 					digest := signedDelegateObservationDigest(b)
+					logger.Debug("p2p: signing delegate observation",
+						zap.String("digest", digest.Hex()),
+					)
 					sig, err := params.guardianSigner.Sign(ctx, digest.Bytes())
 					if err != nil {
 						panic(err)
 					}
+					logger.Debug("p2p: delegate observation signed",
+						zap.Int("signature_length", len(sig)),
+					)
 
 					sObsv := &gossipv1.SignedDelegateObservation{
 						DelegateObservation: b,
@@ -721,16 +738,30 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					if err != nil {
 						panic(err)
 					}
+					logger.Debug("p2p: created gossip envelope for delegate observation",
+						zap.Int("envelope_size_bytes", len(b)),
+					)
 
 					if controlPubsubTopic == nil {
 						panic("controlPubsubTopic should not be nil when delegateObsvSendC is set")
 					}
+					logger.Debug("p2p: publishing delegate observation to control topic",
+						zap.Uint32("emitter_chain", msg.EmitterChain),
+						zap.Uint64("sequence", msg.Sequence),
+					)
 					err = controlPubsubTopic.Publish(ctx, b)
 					p2pMessagesSent.WithLabelValues("control").Inc()
 					if err != nil {
-						logger.Error("failed to publish signed delegate observation", zap.Error(err))
+						logger.Error("failed to publish signed delegate observation",
+							zap.Error(err),
+							zap.Uint32("emitter_chain", msg.EmitterChain),
+							zap.Uint64("sequence", msg.Sequence),
+						)
 					} else {
-						logger.Info("published signed delegate observation", zap.Any("signed_delegate_observation", msg))
+						logger.Info("published signed delegate observation",
+							zap.Any("signed_delegate_observation", msg),
+							zap.String("guardian_addr", ourAddr.Hex()),
+						)
 					}
 
 				}
