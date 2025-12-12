@@ -6,7 +6,7 @@ use wormhole_soroban_client::{
 };
 use crate::governance::{
     guardian_set::get_current_guardian_set_index, guardian_set::get_guardian_set, guardian_set::get_guardian_set_expiry,
-    GovernanceAction, GuardianSetUpgradeAction, SetMessageFeeAction, TransferFeesAction,
+    ContractUpgradeAction, GovernanceAction, GuardianSetUpgradeAction, SetMessageFeeAction, TransferFeesAction,
 };
 
 mod governance;
@@ -47,7 +47,7 @@ impl WormholeCoreInterface for Wormhole {
     }
 
     fn submit_contract_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
-        governance::GuardianSetUpgradeAction::submit(&env, vaa_bytes)
+        ContractUpgradeAction::submit(&env, vaa_bytes)
     }
 
     fn submit_guardian_set_upgrade(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {

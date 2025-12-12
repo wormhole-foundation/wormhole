@@ -5,6 +5,7 @@ mod set_message_fee;
 mod transfer_fees;
 
 pub use action::GovernanceAction;
+pub use contract_upgrade::ContractUpgradeAction;
 pub use guardian_set::GuardianSetUpgradeAction;
 pub use set_message_fee::{SetMessageFeeAction, get_message_fee};
 pub use transfer_fees::{TransferFeesAction, get_last_fee_transfer};
