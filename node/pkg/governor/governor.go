@@ -989,12 +989,14 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 	return msgsToPublish, nil
 }
 
+// computeValue computes the value of a transfer in USD.
 func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 
 	// Ensure that the input is valid:
-	// - Price must be non-nil and greater than 0.
-	// - Amount must be non-nil non-negative.
-	if amount == nil || amount.Sign() == -1 || token == nil || token.price == nil {
+	// - Price must be non-nil and greater than or equal to zero.
+	// - Amount must be non-nil and non-negative.
+	if amount == nil || amount.Sign() == -1 ||
+		token == nil || token.price == nil || token.price.Sign() <= 0 {
 		return 0, fmt.Errorf("computeValue: invalid input for amount or token")
 	}
 
