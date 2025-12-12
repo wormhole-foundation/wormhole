@@ -126,9 +126,15 @@ This prevents a scenario where a `Rejected` message might still consume outgoing
 ### Ethereum
 
 The EVM provides a Receipt containing detailed logs for all of the contracts that were interacted with during the transactions.
-The Receipt can be parsed and filtered to isolate Token Bridge and Core Bridge activity and the details are precise. For these
-reasons the Ethereum implementation can be considered "strict". If  a Transfer Verifier is enabled, the Guardians will not
-publish Message Publications in violation of the invariants checked by  a Transfer Verifier.
+The Receipt can be parsed and filtered to isolate Token Bridge and Core Bridge activity and the details are precise.
+
+Even though an EVM receipt contains a perfect record of all information from the blockchain, the implementation for
+Ethereum is not "strict". This is because certain ERC-20 token implementations override the transfer, deposit, or balance
+functions such that it is not possible to strictly enforce the solvency invariant. (Tokens in >= Tokens out) For example,
+when transferring a rebasing token into the Token Bridge, the result can be a _decrease_ of the Token Bridge's balance!
+
+In order to support these tokens, the EVM Transfer Verifier should be considered "heuristic" and hence only delay
+messages rather than ban them outright.
 
 For EVM implementations, the contents of the [LogMessagePublished event](https://github.com/wormhole-foundation/wormhole/blob/ab34a049e55badc88f2fb1bd8ebd5e1043dcdb4a/ethereum/contracts/Implementation.sol#L12-L26)
 can be observed and parsed.
@@ -136,7 +142,7 @@ can be observed and parsed.
 # Deployment Considerations
 
 ## Modularity
-Because  a Transfer Verifier will be integrated with the Watcher code, bugs in its implementations could lead to messages
+Because a Transfer Verifier will be integrated with the Watcher code, bugs in its implementations could lead to messages
 being missed. For this reason, the changes to the watcher code must be minimal, well-tested, and reversible. It should
 be possible to disable a Transfer Verifier entirely or on a per-chain basis by a Guardian without the need for a 
 new release.
@@ -164,8 +170,8 @@ transaction limit" may result in a message being delayed twice.
 ### Flow Cancel can release transfers early
 
 The Flow Cancel mechanism can result in the "daily limit" of the Governor being reduced under specific conditions.
-If suspicious transfers are queued alongside regular transfers, and Flow
-Cancel is enabled, the suspicious transfers may become released early.
+If suspicious transfers are queued alongside regular transfers, and Flow Cancel is enabled, the suspicious transfers 
+may become released early.
 
 It should be noted that this only affects small transfers, as Flow Cancel does not affect transfers over the big
 transfer limit.
