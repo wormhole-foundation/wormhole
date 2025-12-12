@@ -202,6 +202,19 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
 
+            # Add POD_NAME environment variable for per-guardian configuration when needed
+            if num_guardians >= 3 and evm2:
+                if not "env" in container:
+                    container["env"] = []
+                container["env"].append({
+                    "name": "POD_NAME",
+                    "valueFrom": {
+                        "fieldRef": {
+                            "fieldPath": "metadata.name"
+                        }
+                    }
+                })
+
             container["command"] += ["--logLevel="+guardiand_loglevel]
 
             if guardiand_debug:
@@ -234,7 +247,16 @@ def build_node_yaml():
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
                 ]
 
-            if evm2:
+            # Handle bscRPC configuration based on guardian count and evm2 flag
+            # When num_guardians >= 3 and evm2 is enabled:
+            #   - guardian-0 listens only to eth-devnet (canonical guardian)
+            #   - guardians 1+ listen to eth-devnet2 (delegated guardians for evm2)
+            # Otherwise, all guardians use the same configuration
+            if num_guardians >= 3 and evm2:
+                # Use a shell wrapper to conditionally set bscRPC based on pod ordinal
+                # We need to wrap the entire command since we're building it incrementally
+                pass  # bscRPC will be added in the wrapper at the end
+            elif evm2:
                 container["command"] += [
                     "--bscRPC",
                     "ws://eth-devnet2:8545",
@@ -349,6 +371,31 @@ def build_node_yaml():
                     "--gatewayLCD",
                     "http://wormchain:1317"
                 ]
+
+            # Wrap the command with a shell script for per-guardian configuration
+            if num_guardians >= 3 and evm2:
+                original_command = container["command"]
+                
+                # Build the shell wrapper script
+                wrapper_script = "POD_ORDINAL=$(echo $POD_NAME | grep -o '[0-9]*$')\n"
+                wrapper_script += "if [ \"$POD_ORDINAL\" = \"0\" ]; then\n"
+                wrapper_script += "  # Guardian-0 does not listen to eth-devnet2 (no bscRPC flag)\n"
+                wrapper_script += "  exec"
+                for cmd_part in original_command:
+                    escaped = cmd_part.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+                    wrapper_script += " \"" + escaped + "\""
+                wrapper_script += "\n"
+                wrapper_script += "else\n"
+                wrapper_script += "  # Other guardians listen to eth-devnet2\n"
+                wrapper_script += "  exec"
+                for cmd_part in original_command:
+                    escaped = cmd_part.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+                    wrapper_script += " \"" + escaped + "\""
+                wrapper_script += " --bscRPC ws://eth-devnet2:8545\n"
+                wrapper_script += "fi\n"
+                
+                # Replace the command with the wrapper
+                container["command"] = ["/bin/sh", "-c", wrapper_script]
 
     return encode_yaml_stream(node_yaml_with_replicas)
 
