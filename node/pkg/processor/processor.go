@@ -363,9 +363,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.dgc = dgConfig
 		case k := <-p.msgC:
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
-			if err := p.handleMessagePublication(ctx, k); err != nil {
-				return err
-			}
 
 			cfg := p.dgc.GetChainConfig(k.EmitterChain)
 			p.logger.Info("processor: checking delegation config for chain",
@@ -388,6 +385,10 @@ func (p *Processor) Run(ctx context.Context) error {
 					}()),
 				)
 				if ok {
+					p.logger.Info("processor: process message publication using main processing loop")
+					if err := p.handleMessagePublication(ctx, k); err != nil {
+						return err
+					}
 					p.logger.Info("processor: sending delegate observation as delegated guardian", k.ZapFields()...)
 					if err := p.handleDelegateMessagePublication(k); err != nil {
 						p.logger.Warn("failed to send delegate observation", k.ZapFields(zap.Error(err))...)
@@ -395,7 +396,7 @@ func (p *Processor) Run(ctx context.Context) error {
 						p.logger.Info("processor: successfully queued delegate observation", k.ZapFields()...)
 					}
 				} else {
-					p.logger.Info("processor: skipping delegate observation - not a delegated guardian for this chain",
+					p.logger.Info("processor: skipping message publication and delegate observation - not a delegated guardian for this chain",
 						zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
 					)
 				}
@@ -403,6 +404,10 @@ func (p *Processor) Run(ctx context.Context) error {
 				p.logger.Info("processor: no delegation config found for chain",
 					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
 				)
+				p.logger.Info("processor: process message publication using main processing loop")
+				if err := p.handleMessagePublication(ctx, k); err != nil {
+					return err
+				}
 			}
 		case k := <-p.acctReadC:
 			if p.acct == nil {
