@@ -107,16 +107,6 @@ since only very few nodes support the light client protocol.
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
 frequency). Light clients have much lower hardware requirements.
 
-### Terra
-
-Terra is also sometimes referred to as Terra 2, but the correct name is just simply "Terra". The previous version was renamed to "Terra Classic".
-
-Refer to the [Terra documentation](https://docs.terra.money/full-node/run-a-full-terra-node/set-up-production/) on how to run a full node.
-
-#### Terra Classic
-
-Refer to the [Terra Classic documentation](https://classic-docs.terra.money/docs/full-node/run-a-full-terra-node/README.html) on how to run a full node.
-
 ### Wormchain
 
 All guardians **must run validators for wormchain**, the codename of [Wormhole Gateway](https://wormhole.com/gateway/).
@@ -305,8 +295,6 @@ All modern Cosmos integrations happen by Wormhole observing IBC transactions on 
 The following Cosmos based nodes were added prior to Gateway and guardians need to run full nodes:
 
 - Injective
-- Terra
-- Terra Classic
 - XPLA
 
 **NOTE**: All guardians must run validators for wormchain.
