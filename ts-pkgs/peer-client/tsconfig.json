@@ -3,5 +3,10 @@
   "compilerOptions": {
     "outDir": "./ts-build"
   },
-  "include": ["src"]
+  "include": [
+    "src",
+  ],
+  "references": [
+    { "path": "../peer-lib" }
+  ]
 }

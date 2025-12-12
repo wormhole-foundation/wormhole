@@ -23,6 +23,14 @@ const RAW_RUNTIME_STATE =
       "reference": "workspace:ts-pkgs/deploy"\
     },\
     {\
+      "name": "@xlabs-xyz/peer-client",\
+      "reference": "workspace:ts-pkgs/peer-client"\
+    },\
+    {\
+      "name": "@xlabs-xyz/peer-e2e",\
+      "reference": "workspace:ts-pkgs/peer-e2e"\
+    },\
+    {\
       "name": "@xlabs-xyz/peer-lib",\
       "reference": "workspace:ts-pkgs/peer-lib"\
     },\
@@ -39,6 +47,8 @@ const RAW_RUNTIME_STATE =
   "ignorePatternData": "(^(?:\\\\.yarn\\\\/sdks(?:\\\\/(?!\\\\.{1,2}(?:\\\\/|$))(?:(?:(?!(?:^|\\\\/)\\\\.{1,2}(?:\\\\/|$)).)*?)|$))$)",\
   "pnpZipBackend": "libzip",\
   "fallbackExclusionList": [\
+    ["@xlabs-xyz/peer-client", ["workspace:ts-pkgs/peer-client"]],\
+    ["@xlabs-xyz/peer-e2e", ["workspace:ts-pkgs/peer-e2e"]],\
     ["@xlabs-xyz/peer-lib", ["workspace:ts-pkgs/peer-lib"]],\
     ["@xlabs-xyz/peer-server", ["workspace:ts-pkgs/peer-server"]],\
     ["@xlabs-xyz/tss-definitions", ["workspace:ts-pkgs/tss-definitions"]],\
@@ -3474,6 +3484,36 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@xlabs-xyz/peer-client", [\
+      ["workspace:ts-pkgs/peer-client", {\
+        "packageLocation": "./ts-pkgs/peer-client/",\
+        "packageDependencies": [\
+          ["@types/node", "npm:24.10.3"],\
+          ["@xlabs-xyz/peer-client", "workspace:ts-pkgs/peer-client"],\
+          ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
+          ["ethers", "npm:6.16.0"],\
+          ["tsx", "npm:4.21.0"],\
+          ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
+    ["@xlabs-xyz/peer-e2e", [\
+      ["workspace:ts-pkgs/peer-e2e", {\
+        "packageLocation": "./ts-pkgs/peer-e2e/",\
+        "packageDependencies": [\
+          ["@types/node", "npm:24.10.3"],\
+          ["@xlabs-xyz/peer-client", "workspace:ts-pkgs/peer-client"],\
+          ["@xlabs-xyz/peer-e2e", "workspace:ts-pkgs/peer-e2e"],\
+          ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
+          ["@xlabs-xyz/peer-server", "workspace:ts-pkgs/peer-server"],\
+          ["ethers", "npm:6.16.0"],\
+          ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\
+          ["vitest", "virtual:e511802f87791bdb7866bd21f19bdbc53ae5d62aa9d05217961b882a873aed13062e8df21a50b3bfcffea12c3a91e38b3aa9e08125b20921eaf47cff96637833#npm:4.0.15"]\
+        ],\
+        "linkType": "SOFT"\
+      }]\
+    ]],\
     ["@xlabs-xyz/peer-lib", [\
       ["workspace:ts-pkgs/peer-lib", {\
         "packageLocation": "./ts-pkgs/peer-lib/",\
@@ -3493,14 +3533,12 @@ const RAW_RUNTIME_STATE =
       ["workspace:ts-pkgs/peer-server", {\
         "packageLocation": "./ts-pkgs/peer-server/",\
         "packageDependencies": [\
-          ["@scure/base", "npm:2.0.0"],\
           ["@types/cors", "npm:2.8.19"],\
           ["@types/express", "npm:5.0.6"],\
           ["@types/node", "npm:24.10.3"],\
           ["@types/supertest", "npm:6.0.3"],\
           ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
           ["@xlabs-xyz/peer-server", "workspace:ts-pkgs/peer-server"],\
-          ["binary-layout", "npm:1.3.2"],\
           ["cors", "npm:2.8.5"],\
           ["ethers", "npm:6.16.0"],\
           ["express", "npm:5.2.1"],\

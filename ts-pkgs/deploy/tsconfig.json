@@ -1,15 +1,7 @@
 {
+  "extends": "../config/tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["es2023"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "target": "es2022",
-    "outDir": "ts-build",
-    "strict": true,
-    "composite": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true
+    "outDir": "./ts-build"
   },
   "include": ["evm", "guardian", "vaatool"],
 }

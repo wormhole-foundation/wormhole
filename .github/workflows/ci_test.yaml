@@ -194,3 +194,5 @@ jobs:
       run: yarn run lint:libs
     - name: Peer server tests
       run: yarn workspace @xlabs-xyz/peer-server run test
+    - name: Peer server e2e tests
+      run: yarn workspace @xlabs-xyz/peer-e2e run test

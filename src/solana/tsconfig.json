@@ -1,15 +1,7 @@
 {
+  "extends": "../../ts-pkgs/config/tsconfig.base.json",
   "compilerOptions": {
-    "types": ["mocha", "chai"],
-    "lib": ["es2023"],
-    "module": "NodeNext",
-    "moduleResolution": "node16",
-    "target": "es2022",
-    "outDir": "ts-build",
-    "strict": true,
-    "composite": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true
+    "outDir": "./ts-build"
   },
   "include": ["tests", "target/types", "scripts"],
   "references": [

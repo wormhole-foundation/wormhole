@@ -4,10 +4,11 @@
     "outDir": "./ts-build"
   },
   "include": [
-    "src",
     "tests"
   ],
   "references": [
-    { "path": "../peer-lib" }
+    { "path": "../peer-lib" },
+    { "path": "../peer-server" },
+    { "path": "../peer-client" }
   ]
 }

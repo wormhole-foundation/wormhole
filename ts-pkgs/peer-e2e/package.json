@@ -1,0 +1,22 @@
+{
+  "name": "@xlabs-xyz/peer-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "npm run build && vitest --run"
+  },
+  "dependencies": {
+    "@xlabs-xyz/peer-client": "workspace:*",
+    "@xlabs-xyz/peer-lib": "workspace:*",
+    "@xlabs-xyz/peer-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.3",
+    "ethers": "^6.16.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "author": "",
+  "license": "Apache-2.0"
+}

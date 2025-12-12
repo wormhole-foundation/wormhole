@@ -12,9 +12,8 @@ import { ethers } from 'ethers';
 import fs from 'fs';
 import path from 'path';
 
-import { PeerClient } from '../src/client/client.js';
-import { Display } from '../src/server/display.js';
-import { PeerServer } from '../src/server/server.js';
+import { PeerClient } from '@xlabs-xyz/peer-client';
+import { Display, PeerServer } from '@xlabs-xyz/peer-server';
 
 // Mock Display for tests to avoid console output during testing
 class MockDisplay extends Display {
