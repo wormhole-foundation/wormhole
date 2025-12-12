@@ -1,10 +1,11 @@
 #!/bin/bash
 
 set -meuo pipefail
+export DOCKER_BUILDKIT=1
 
 TLS_HOSTNAME="Guardian"
 TLS_PUBLIC_IP="127.0.0.1"
-TLS_PORT="3003"
+TLS_BASE_PORT="3001"
 PEER_SERVER_URL="http://127.0.0.1:3000"
 
 GUARDIAN_PRIVATE_KEYS=(
@@ -38,17 +39,16 @@ createGuardianPrivateKey() {
              END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}'
 }
 
-export DOCKER_BUILDKIT=1
 # Build the docker cache first. It will throw an error but it will save time
-docker build --network="host" -f ../../../peer-client/Dockerfile --progress=plain . || true
+docker build --network="host" -f ../../docker/Dockerfile --progress=plain . || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-    docker build --network="host" -f ../../../peer-client/Dockerfile \
+    docker build --network="host" -f ../../docker/Dockerfile \
         --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
         --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
         --build-arg TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
-        --build-arg TLS_PORT=${TLS_PORT} \
+        --build-arg TLS_PORT=$((TLS_BASE_PORT + $i)) \
         --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
         --progress=plain --output=out/$i/ . &
 done
