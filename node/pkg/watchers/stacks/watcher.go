@@ -1,7 +1,6 @@
 package stacks
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	clarity "github.com/stx-labs/clarity-go"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -398,7 +398,15 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 			continue
 		}
 
-		clarityValue, err := DecodeClarityValue(bytes.NewReader(hexBytes))
+		if len(hexBytes) > 1024*1024 {
+			logger.Error("Clarity value exceeds (1MB)",
+				zap.String("tx_id", tx.TxId),
+				zap.Uint64("event_index", event.EventIndex),
+				zap.Int("size", len(hexBytes)))
+			continue
+		}
+
+		clarityValue, err := clarity.Decode(hexBytes)
 		if err != nil {
 			logger.Error("Failed to decode clarity value",
 				zap.String("tx_id", tx.TxId),
@@ -480,9 +488,9 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 }
 
 // Processes a core contract event tuple and extracts message fields
-func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, timestamp uint64, isReobservation bool) error {
+func (w *Watcher) processCoreEvent(clarityValue clarity.Value, txId string, timestamp uint64, isReobservation bool) error {
 	// Cast to tuple
-	eventTuple, isTuple := clarityValue.(*Tuple)
+	eventTuple, isTuple := clarityValue.(*clarity.Tuple)
 	if !isTuple {
 		return fmt.Errorf("expected tuple type but got %T", clarityValue)
 	}
@@ -537,7 +545,7 @@ func (w *Watcher) processCoreEvent(clarityValue ClarityValue, txId string, times
 /// HELPERS
 
 // Extracts the event name from an event tuple
-func extractEventName(eventTuple *Tuple) (string, error) {
+func extractEventName(eventTuple *clarity.Tuple) (string, error) {
 	eventNameVal, ok := eventTuple.Values["event"]
 	if !ok {
 		return "", fmt.Errorf("missing 'event' field in tuple")
@@ -545,9 +553,9 @@ func extractEventName(eventTuple *Tuple) (string, error) {
 
 	// Check if event is a StringASCII or StringUTF8
 	var eventName string
-	if strVal, ok := eventNameVal.(*StringASCII); ok {
+	if strVal, ok := eventNameVal.(*clarity.StringASCII); ok {
 		eventName = strVal.Value
-	} else if strVal, ok := eventNameVal.(*StringUTF8); ok {
+	} else if strVal, ok := eventNameVal.(*clarity.StringUTF8); ok {
 		eventName = strVal.Value
 	} else {
 		return "", fmt.Errorf("'event' field is not a string type: %T", eventNameVal)
@@ -557,7 +565,7 @@ func extractEventName(eventTuple *Tuple) (string, error) {
 }
 
 // Extracts core message fields from an event tuple
-func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
+func extractMessageData(eventTuple *clarity.Tuple) (*MessageData, error) {
 	// Get the data field which should contain the message
 	dataVal, ok := eventTuple.Values["data"]
 	if !ok {
@@ -565,7 +573,7 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 	}
 
 	// Cast data to tuple
-	msgTuple, ok := dataVal.(*Tuple)
+	msgTuple, ok := dataVal.(*clarity.Tuple)
 	if !ok {
 		return nil, fmt.Errorf("'data' field is not a tuple: %T", dataVal)
 	}
@@ -576,8 +584,8 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 		return nil, fmt.Errorf("missing 'emitter' field in message")
 	}
 
-	emitterBuffer, ok := emitterVal.(*ClarityBuffer)
-	if !ok || emitterBuffer.Length != 32 {
+	emitterBuffer, ok := emitterVal.(*clarity.Buffer)
+	if !ok || emitterBuffer.Len() != 32 {
 		return nil, fmt.Errorf("'emitter' field is not a 32-byte buffer: %T", emitterVal)
 	}
 
@@ -590,7 +598,7 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 		return nil, fmt.Errorf("missing 'nonce' field in message")
 	}
 
-	nonceUint, ok := nonceVal.(*UInt128)
+	nonceUint, ok := nonceVal.(*clarity.UInt128)
 	if !ok || nonceUint.Value.Cmp(maxUint32BigInt) > 0 {
 		return nil, fmt.Errorf("invalid 'nonce' field: %T", nonceVal)
 	}
@@ -600,7 +608,7 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 		return nil, fmt.Errorf("missing 'sequence' field in message")
 	}
 
-	sequenceUint, ok := sequenceVal.(*UInt128)
+	sequenceUint, ok := sequenceVal.(*clarity.UInt128)
 	if !ok || sequenceUint.Value.Cmp(maxUint64BigInt) > 0 {
 		return nil, fmt.Errorf("invalid 'sequence' field: %T", sequenceVal)
 	}
@@ -610,7 +618,7 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 		return nil, fmt.Errorf("missing 'consistency-level' field in message")
 	}
 
-	consistencyLevelUint, ok := consistencyLevelVal.(*UInt128)
+	consistencyLevelUint, ok := consistencyLevelVal.(*clarity.UInt128)
 	if !ok || consistencyLevelUint.Value.Cmp(maxUint8BigInt) > 0 {
 		return nil, fmt.Errorf("invalid 'consistency-level' field: %T", consistencyLevelVal)
 	}
@@ -620,8 +628,8 @@ func extractMessageData(eventTuple *Tuple) (*MessageData, error) {
 		return nil, fmt.Errorf("missing 'payload' field in message")
 	}
 
-	payload, ok := payloadVal.(*ClarityBuffer)
-	if !ok || payload.Length > 8192 {
+	payload, ok := payloadVal.(*clarity.Buffer)
+	if !ok || payload.Len() > 8192 {
 		return nil, fmt.Errorf("invalid 'payload' field: %T", payloadVal)
 	}
 
