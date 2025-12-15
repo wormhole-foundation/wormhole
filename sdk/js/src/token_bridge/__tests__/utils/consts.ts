@@ -36,9 +36,6 @@ export const SOLANA_PRIVATE_KEY = new Uint8Array([
   8, 174, 214, 157, 175, 126, 98, 90, 54, 24, 100, 177, 247, 77, 19, 112, 47,
   44, 165, 109, 233, 102, 14, 86, 109, 29, 134, 145, 132, 141,
 ]);
-export const TERRA_NODE_URL = ci
-  ? "http://terra-terrad:1317"
-  : "http://localhost:1317";
 export const TERRA2_NODE_URL = ci
   ? "http://terra2-terrad:1317"
   : "http://localhost:1318";
@@ -60,28 +57,6 @@ export const WORMHOLE_RPC_HOSTS = ci
 
 export type Environment = "devnet" | "testnet" | "mainnet";
 export const CLUSTER: Environment = "devnet" as Environment; //This is the currently selected environment.
-
-export const TERRA_HOST =
-  CLUSTER === "mainnet"
-    ? {
-        URL: "https://lcd.terra.dev",
-        chainID: "columbus-5",
-        name: "mainnet",
-        isClassic: true,
-      }
-    : CLUSTER === "testnet"
-    ? {
-        URL: "https://bombay-lcd.terra.dev",
-        chainID: "bombay-12",
-        name: "testnet",
-        isClassic: true,
-      }
-    : {
-        URL: TERRA_NODE_URL,
-        chainID: "columbus-5",
-        name: "localterra",
-        isClassic: true,
-      };
 
 export const NEAR_NODE_URL = ci ? "http://near:3030" : "http://localhost:3030";
 
