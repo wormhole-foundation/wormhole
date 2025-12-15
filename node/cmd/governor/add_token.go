@@ -1,13 +1,15 @@
 package governor
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
+	ipfslog "github.com/ipfs/go-log/v2"
 	cg "github.com/certusone/wormhole/node/pkg/governor/coingecko"
+	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
@@ -57,34 +59,30 @@ func init() {
 }
 
 func runAddToken(cmd *cobra.Command, args []string) {
-	chainIDUint, err := strconv.ParseUint(addTokenChainID, 10, 16)
+	chainID, err := vaa.StringToKnownChainID(addTokenChainID)
 	if err != nil {
-		log.Fatalf("Invalid chain ID '%s': must be a number", addTokenChainID)
-	}
-	chainID := vaa.ChainID(chainIDUint)
-
-	_, err = vaa.KnownChainIDFromNumber(chainIDUint)
-	if err != nil {
-		log.Fatalf("Unknown chain ID %d: %v", chainID, err)
+		log.Fatalf("Invalid chain ID '%s': must be a known chain ID", addTokenChainID)
 	}
 
-	queryAddr := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(addTokenAddress), "0x"))
-	if len(queryAddr) != 40 {
-		log.Fatalf("Invalid token address: %s (must be 40 hex characters)", addTokenAddress)
+	queryAddr := strings.TrimSpace(addTokenAddress)
+
+
+	// Setup logging
+	lvl, logErr := ipfslog.LevelFromString("WARN")
+	if logErr != nil {
+		fmt.Println("Invalid log level")
+		os.Exit(1)
 	}
 
-	client := cg.NewClient(addTokenAPIKey, nil)
+	logger := ipfslog.Logger("governor-add-token").Desugar()
+	ipfslog.SetAllLoggers(lvl)
+
+	client := cg.NewClient(addTokenAPIKey, logger)
 	client.UseStaticChainMapping()
 
-	platformID := client.GetPlatformForChain(chainID)
-	if platformID == "" {
-		log.Fatalf("Chain %s (%d) is not supported by CoinGecko.\nUse 'guardiand governor chain-mapping' to see supported chains.", chainID, chainID)
-	}
+	fmt.Printf("Querying CoinGecko for token: %s\n\n", queryAddr)
 
-	fmt.Printf("Using chain %s (%d) -> platform: %s\n", chainID, chainID, platformID)
-	fmt.Printf("Querying CoinGecko for token: 0x%s\n\n", queryAddr)
-
-	cgTokenInfo, err := client.GetTokenInfo(chainID, "0x"+queryAddr)
+	cgTokenInfo, err := client.GetTokenInfo(chainID, queryAddr)
 	if err != nil {
 		log.Fatalf("Failed to query token info: %v", err)
 	}
@@ -104,7 +102,7 @@ func runAddToken(cmd *cobra.Command, args []string) {
 	}
 	fmt.Println()
 
-	wormholeAddr := padAddress(queryAddr)
+	wormholeAddr := padEVMAddress(queryAddr)
 	entry := formatTokenEntry(chainID, wormholeAddr, cgTokenInfo.Symbol, cgTokenInfo.CoinGeckoID, cgTokenInfo.Decimals, cgTokenInfo.Price, tokenURL)
 	fmt.Printf("Generated entry:\n%s\n\n", entry)
 
@@ -124,15 +122,57 @@ func runAddToken(cmd *cobra.Command, args []string) {
 	fmt.Printf("  Symbol: %s\n", cgTokenInfo.Symbol)
 }
 
-// padAddress converts an Ethereum address to Wormhole format (64 hex chars, zero-padded).
-func padAddress(addr string) string {
-	if len(addr) < 64 {
-		return strings.Repeat("0", 64-len(addr)) + addr
+// padEVMAddress converts an EVM address to Wormhole format (64 hex chars, zero-padded, no 0x prefix).
+// Returns the original address if the argument is not 0x-prefixed.
+func padEVMAddress(addr string) string {
+	if !strings.HasPrefix(addr, "0x") {
+		return addr
+	}
+
+	addrNoPrefix := addr[2:]
+
+	if len(addrNoPrefix) < 64 {
+		return strings.Repeat("0", 64-len(addrNoPrefix)) + addrNoPrefix
 	}
 	return addr
 }
 
-func formatTokenEntry(chainID vaa.ChainID, addr, symbol, coinGeckoID string, decimals int, price float64, tokenURL string) string {
+// normalizeAddress converts an address from any chain into the Wormhole format (64 hex chars, zero-padded).
+// Supports EVM addresses (0x-prefixed), Solana addresses (base58-encoded), and Move addresses (hex-encoded).
+func normalizeAddress(addrRaw string) string {
+
+	addr := addrRaw
+	if strings.HasPrefix(addr, "0x") {
+		addr = strings.TrimPrefix(addr, "0x")
+	}
+
+	if len(addr) == 64 {
+		// A Move address is hex-encoded and already 64 chars long.
+		return addr
+	}
+
+	// Two possible cases:
+	// 1. The address is hex-encoded EVM address
+	// 2. The address is a base58 encoded Solana address
+
+	// EVM address: check if it's a valid hex-encoded address
+	var addrBuf []byte
+	count, err := hex.Decode(addrBuf[:], []byte(addr))
+	if err == nil && count == 20 {
+		// EVM address
+		return padEVMAddress(addr)
+	}
+
+	// Solana address: decode base58 encoded address
+	solAddrBytes, err := base58.Decode(addr)
+	if err != nil {
+		log.Fatalf("Failed to decode address '%s': %v", addr, err)
+	}
+	return hex.EncodeToString(solAddrBytes)
+
+}
+
+func formatTokenEntry(chainID vaa.ChainID, addrRaw, symbol, coinGeckoID string, decimals int, price float64, tokenURL string) string {
 	var priceStr string
 	switch {
 	case price >= 1000:
@@ -147,7 +187,7 @@ func formatTokenEntry(chainID vaa.ChainID, addr, symbol, coinGeckoID string, dec
 
 	entry := fmt.Sprintf(
 		`		{Chain: %d, Addr: "%s", Symbol: "%s", CoinGeckoId: "%s", Decimals: %d, Price: %s},`,
-		chainID, addr, symbol, coinGeckoID, decimals, priceStr,
+		chainID, addrRaw, symbol, coinGeckoID, decimals, priceStr,
 	)
 
 	if tokenURL != "" {

@@ -484,12 +484,6 @@ func (c *Client) GetTokenURL(chainID vaa.ChainID, contractAddr string) (string, 
 		return "", fmt.Errorf("chain %s (%d) is not supported by CoinGecko", chainID, chainID)
 	}
 
-	// Normalize contract address (ensure it has 0x prefix and is lowercase)
-	contractAddr = strings.ToLower(strings.TrimSpace(contractAddr))
-	if !strings.HasPrefix(contractAddr, "0x") {
-		contractAddr = "0x" + contractAddr
-	}
-
 	// Build the API query URL
 	var query string
 	if c.apiKey == "" {
@@ -571,17 +565,15 @@ type TokenInfo struct {
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("%s: $%.2f\n", info.Symbol, info.Price)
-func (c *Client) GetTokenInfo(chainID vaa.ChainID, contractAddr string) (*TokenInfo, error) {
+func (c *Client) GetTokenInfo(
+	chainID vaa.ChainID, 
+	// contractAddr is the token contract address. It should be in the format appropriate for the chain.
+	contractAddr string,
+) (*TokenInfo, error) {
 	// Get platform for this chain
 	platformID := c.GetPlatformForChain(chainID)
 	if platformID == "" {
 		return nil, fmt.Errorf("chain %s (%d) is not supported by CoinGecko", chainID, chainID)
-	}
-
-	// Normalize contract address (ensure it has 0x prefix and is lowercase)
-	contractAddr = strings.ToLower(strings.TrimSpace(contractAddr))
-	if !strings.HasPrefix(contractAddr, "0x") {
-		contractAddr = "0x" + contractAddr
 	}
 
 	// Build the API query URL
@@ -592,6 +584,9 @@ func (c *Client) GetTokenInfo(chainID vaa.ChainID, contractAddr string) (*TokenI
 		query = fmt.Sprintf("%s/coins/%s/contract/%s?x_cg_pro_api_key=%s",
 			proAPIBaseURL, platformID, contractAddr, c.apiKey)
 	}
+
+	// FIXME: remove
+	c.logger.Error("query", zap.String("query", query))
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(context.Background(), "GET", query, nil)
