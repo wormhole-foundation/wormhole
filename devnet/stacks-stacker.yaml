@@ -24,7 +24,7 @@ spec:
             - name: STACKS_CORE_RPC_PORT
               value: "20443"
             - name: STACKING_CYCLES
-              value: "1"
+              value: "12"
             - name: STACKING_KEYS
               value: "41634762d89dfa09133a4a8e9c1378d0161d29cd0a9433b51f1e3d32947a73dc01"
             - name: STACKING_SLOT_DISTRO
