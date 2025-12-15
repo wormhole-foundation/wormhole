@@ -1,20 +1,13 @@
 import fs from "fs";
-import { createWalletClient, defineChain, http, isHex, encodePacked } from "viem";
+import { createWalletClient, defineChain, http, isHex, encodePacked, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { waitForTransactionReceipt } from "viem/actions";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
+import { parseGuardianKey, errorMsg, errorStack } from '@xlabs-xyz/peer-lib';
 
 // Default contract address for WormholeVerifier
 const DEFAULT_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: Update with actual deployed address
-
-export function errorMsg(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-export function errorStack(error: unknown): string {
-  return String(error instanceof Error ? error.stack : error);
-}
 
 type Args = {
   contractAddress: string;
@@ -150,24 +143,13 @@ async function main() {
     console.log(`📄 Using limit: ${args.limit}`);
   }
 
-  // Read and validate signer
-  if (!fs.existsSync(args.signer)) {
-    console.error(`❌ Signer file not found at ${args.signer}`);
-    process.exit(1);
-  }
-
-  const signerFile = fs.readFileSync(args.signer, 'utf-8');
-  let signerKey: string;
+  let signerKey: Hex;
   try {
-    signerKey = JSON.parse(signerFile) as string;
+    const signerFile = fs.readFileSync(args.signer, 'utf-8');
+    const keyBytes = parseGuardianKey(signerFile);
+    signerKey = `0x${Buffer.from(keyBytes).toString('hex')}`;
   } catch (error) {
     console.error(`❌ Failed to parse signer file: ${errorMsg(error)}`);
-    process.exit(1);
-  }
-
-  // TODO: use parseCrypto.ts to parse guardian private key
-  if (typeof signerKey !== "string" || !isHex(signerKey)) {
-    console.error("❌ Signer file must contain a hex string with 0x prefix");
     process.exit(1);
   }
 

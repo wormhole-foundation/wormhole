@@ -4,4 +4,7 @@
     "outDir": "./ts-build"
   },
   "include": ["evm", "guardian", "vaatool"],
+  "references": [
+    { "path": "../peer-lib" }
+  ]
 }
