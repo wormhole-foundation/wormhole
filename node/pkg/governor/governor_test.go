@@ -127,7 +127,7 @@ func (gov *ChainGovernor) getStatsForAllChains() (numTrans int, valueTrans uint6
 
 		numPending += len(ce.pending)
 		for _, pe := range ce.pending {
-			value, _ := computeValue(pe.amount, pe.token)
+			value, _ := usdValue(pe.amount, pe.token)
 			valuePending += value
 		}
 	}
@@ -149,7 +149,7 @@ func (gov *ChainGovernor) getStatsForAllChainsCancelFlow() (numTrans int, valueT
 
 		numPending += len(ce.pending)
 		for _, pe := range ce.pending {
-			value, _ := computeValue(pe.amount, pe.token)
+			value, _ := usdValue(pe.amount, pe.token)
 			valuePending += value
 		}
 	}
@@ -3574,7 +3574,7 @@ func Test_computeValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := computeValue(tt.amount, tt.token)
+			got, gotErr := usdValue(tt.amount, tt.token)
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("computeValue() failed: %v", gotErr)
