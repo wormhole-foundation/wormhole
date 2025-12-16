@@ -9,49 +9,101 @@ import { parseGuardianKey, errorMsg, errorStack } from '@xlabs-xyz/peer-lib';
 // Default contract address for WormholeVerifier
 const DEFAULT_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: Update with actual deployed address
 
+const UPDATE_SET_SHARD_ID = 0;
+const UPDATE_APPEND_SCHNORR_KEY = 1;
+const UPDATE_PULL_MULTISIG_KEY_DATA = 2;
+
+const UPDATE_ABI = [
+  {
+    name: 'update',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'data', type: 'bytes' }],
+    outputs: [],
+  },
+] as const;
+
 type Args = {
   contractAddress: string;
   rpcUrl: string;
   chainId: number;
   signer: string;
   dryRun: boolean;
+  limit: number;
 } & ({
-  opcode: 0;
+  command: "set_shard_id";
   guardianMessage: string;
 } | {
-  opcode: 1;
+  command: "append_schnorr";
   vaaFile: string;
 } | {
-  opcode: 2;
-  limit: number;
+  command: "pull_multisigs";
 })
+
+// TODO: Use binary-layout for these
+function encodeSetShardId(guardianMessage: Buffer): Hex {
+  // set_shard_id: opcode (1 byte) + guardian message data
+  return encodePacked(
+    ['uint8', 'bytes'],
+    [UPDATE_SET_SHARD_ID, `0x${guardianMessage.toString('hex')}`]
+  );
+}
+
+function encodeAppendSchnorrKey(vaa: Buffer): Hex {
+  // append_schnorr_KEY: opcode (1 byte) + vaa length (2 bytes) + vaa data
+  return encodePacked(
+    ['uint8', 'uint16', 'bytes'],
+    [UPDATE_APPEND_SCHNORR_KEY, vaa.length, `0x${vaa.toString('hex')}`]
+  );
+}
+
+function encodePullMultisigKeyData(limit: number): `0x${string}` {
+  // PULL_MULTISIG_KEY_DATA: opcode (1 byte) + limit (4 bytes)
+  return encodePacked(
+    ['uint8', 'uint32'],
+    [UPDATE_PULL_MULTISIG_KEY_DATA, limit]
+  );
+}
+
+function encodeUpdate(args: Args, dataBytes: Buffer): `0x${string}` {
+  if (args.command === "append_schnorr") {
+    const pullData = encodePullMultisigKeyData(args.limit);
+    const appendData = encodeAppendSchnorrKey(dataBytes);
+    console.log(`Prepared pull_multisigs with limit ${args.limit}`);
+    console.log(`Prepared append_schnorr with ${dataBytes.length} bytes of data`);
+    return encodePacked(['bytes', 'bytes'], [pullData, appendData]);
+  } else if (args.command === "set_shard_id") {
+    console.log(`Prepared set_shard_id with ${dataBytes.length} bytes of data`);
+    return encodeSetShardId(dataBytes);
+  } else {
+    console.log(`Prepared pull_multisigs with limit ${args.limit}`);
+    return encodePullMultisigKeyData(args.limit);
+  }
+}
 
 async function main() {
   const parser = yargs(hideBin(process.argv))
-    // TODO: create these two commands. Internally, they should each prepare a batch of these operations as needed.
-    // - submit new schnorr key
-    // - submit new guardian id
-    .option('opcode', {
-      description: 'Update opcode: 0=SET_SHARD_ID, 1=APPEND_SCHNORR_KEY, 2=PULL_MULTISIG_KEY_DATA',
+    .command('append_schnorr <vaa-file>', 'Append a Schnorr key to the guardian',
+      (yargs) => yargs.positional('vaa-file', {
+        description: 'Path to file containing base64-encoded governance VAA',
+        type: 'string',
+      }
+    ))
+    .command('set_shard_id <guardian-message>', 'Set the shard ID of the guardian',
+      (yargs) => yargs.positional('guardian-message', {
+        description: 'Path to file containing base64-encoded signed guardian message',
+        type: 'string',
+      }
+    ))
+    .command('pull_multisigs', 'Pull multisig sets from the core contract')
+    .demandCommand(1, 'A command is required')
+    .strictCommands()
+    //TODO: add support for ledger signer
+    .option('signer', {
+      description: 'Path to gpg armor guardian private key file',
       demandOption: true,
-      type: 'number',
-      alias: 'o',
-      choices: [0, 1, 2],
-    })
-    .option('vaa-file', {
-      description: '[Opcode 1 only] Path to file containing base64-encoded governance VAA for APPEND_SCHNORR_KEY',
       type: 'string',
-      alias: 'v',
-    })
-    .option('guardian-message', {
-      description: '[Opcode 0 only] Path to file containing base64-encoded signed guardian message for SET_SHARD_ID',
-      type: 'string',
-      alias: 'g',
-    })
-    .option('limit', {
-      description: '[Opcode 2 only] Number of multisig keys to pull (uint32)',
-      type: 'number',
-      alias: 'l',
+      alias: 's',
     })
     .option('contract-address', {
       description: 'Address of the WormholeVerifier contract',
@@ -71,76 +123,38 @@ async function main() {
       default: 1,
       alias: 'i',
     })
-    //TODO: add support for ledger signer
-    .option('signer', {
-      description: 'Path to JSON file containing signer private key (hex string with 0x prefix)',
-      demandOption: true,
-      type: 'string',
-      alias: 's',
-    })
     .option('dry-run', {
       description: 'Simulate the transaction without actually sending it',
       type: 'boolean',
       default: false,
       alias: 'd',
     })
+    .option('limit', {
+      description: 'Maximum number of multisig sets to pull.',
+      defaultDescription: '0 (Pull all necessary multisig sets)',
+      type: 'number',
+      alias: 'l',
+      default: 0,
+    })
     .help()
-    .alias('help', 'h')
-    .check((argv) => {
-      // Validate required parameters based on opcode
-      if (argv.opcode === 0 && argv.guardianMessage === undefined) {
-        throw new Error('--guardian-message is required for opcode 0 (SET_SHARD_ID)');
-      }
-      if (argv.opcode === 1 && argv.vaaFile === undefined) {
-        throw new Error('--vaa-file is required for opcode 1 (APPEND_SCHNORR_KEY)');
-      }
-      if (argv.opcode === 2 && argv.limit === undefined) {
-        throw new Error('--limit is required for opcode 2 (PULL_MULTISIG_KEY_DATA)');
-      }
-      return true;
-    });
+    .alias('help', 'h');
 
-  const args = await parser.parse() as Args;
+  const parsedArgs = await parser.parse();
+  const args = { ...parsedArgs, command: parsedArgs._[0] } as Args;
 
-  let dataBytes: Buffer;
+  let dataBytes = Buffer.alloc(0);
   
-  // Load data based on opcode
-  if (args.opcode === 0) {
-    // SET_SHARD_ID: Load guardian message
-    if (!fs.existsSync(args.guardianMessage)) {
-      console.error(`❌ Guardian message file not found at ${args.guardianMessage}`);
-      process.exit(1);
-    }
-
-    const messageBase64 = fs.readFileSync(args.guardianMessage, 'utf-8').trim();
+  if (args.command === "set_shard_id" || args.command === "append_schnorr") {
+    const path = args.command === "set_shard_id" ? args.guardianMessage : args.vaaFile;
+    // Load guardian message or VAA from base64 encoded file
     try {
+      const messageBase64 = fs.readFileSync(path, 'utf-8').trim();
       dataBytes = Buffer.from(messageBase64, 'base64');
     } catch (error) {
-      console.error(`❌ Failed to decode base64 guardian message: ${errorMsg(error)}`);
+      console.error(`Failed to load data from ${path}: ${errorMsg(error)}`);
       process.exit(1);
     }
-
-    console.log(`📄 Loaded guardian message (${dataBytes.length} bytes) from ${args.guardianMessage}`);
-  } else if (args.opcode === 1) {
-    // APPEND_SCHNORR_KEY: Load VAA
-    if (!fs.existsSync(args.vaaFile)) {
-      console.error(`❌ VAA file not found at ${args.vaaFile}`);
-      process.exit(1);
-    }
-
-    const vaaBase64 = fs.readFileSync(args.vaaFile, 'utf-8').trim();
-    try {
-      dataBytes = Buffer.from(vaaBase64, 'base64');
-    } catch (error) {
-      console.error(`❌ Failed to decode base64 VAA: ${errorMsg(error)}`);
-      process.exit(1);
-    }
-
-    console.log(`📄 Loaded VAA (${dataBytes.length} bytes) from ${args.vaaFile}`);
-  } else {
-    // PULL_MULTISIG_KEY_DATA: No file needed, just the limit
-    dataBytes = Buffer.alloc(0);
-    console.log(`📄 Using limit: ${args.limit}`);
+    console.log(`Loaded ${dataBytes.length} bytes of data from ${path}`);
   }
 
   let signerKey: Hex;
@@ -149,16 +163,16 @@ async function main() {
     const keyBytes = parseGuardianKey(signerFile);
     signerKey = `0x${Buffer.from(keyBytes).toString('hex')}`;
   } catch (error) {
-    console.error(`❌ Failed to parse signer file: ${errorMsg(error)}`);
+    console.error(`Failed to parse signer file: ${errorMsg(error)}`);
     process.exit(1);
   }
 
   const account = privateKeyToAccount(signerKey);
-  console.log(`🔑 Using signer address: ${account.address}`);
+  console.log(`Using signer address: ${account.address}`);
 
   // Validate contract address
   if (!isHex(args.contractAddress)) {
-    console.error("❌ Contract address must be a valid hex address");
+    console.error("Contract address must be a valid hex address");
     process.exit(1);
   }
 
@@ -184,80 +198,43 @@ async function main() {
     account,
   });
 
-  // Prepare the update call data based on opcode
-  let updateData: `0x${string}`;
-  
-  // TODO: Use binary-layout for these
-  if (args.opcode === 1) {
-    // APPEND_SCHNORR_KEY: opcode (1 byte) + vaa length (2 bytes) + vaa data
-    const vaaLength = dataBytes.length;
-    updateData = encodePacked(
-      ['uint8', 'uint16', 'bytes'],
-      [args.opcode, vaaLength, `0x${dataBytes.toString('hex')}`]
-    );
-    console.log(`📦 Prepared APPEND_SCHNORR_KEY data (${updateData.length} bytes)`);
-  } else if (args.opcode === 0) {
-    // SET_SHARD_ID: opcode (1 byte) + guardian message data
-    updateData = encodePacked(
-      ['uint8', 'bytes'],
-      [args.opcode, `0x${dataBytes.toString('hex')}`]
-    );
-    console.log(`📦 Prepared SET_SHARD_ID data (${updateData.length} bytes)`);
-  } else {
-    // PULL_MULTISIG_KEY_DATA: opcode (1 byte) + limit (4 bytes)
-    updateData = encodePacked(
-      ['uint8', 'uint32'],
-      [args.opcode, args.limit]
-    );
-    console.log(`📦 Prepared PULL_MULTISIG_KEY_DATA with limit ${args.limit}`);
-  }
+  const updateData = encodeUpdate(args, dataBytes);
 
-  console.log(`📍 Target contract: ${args.contractAddress}`);
-  console.log(`🌐 Chain ID: ${args.chainId}`);
-  console.log(`🔗 RPC URL: ${args.rpcUrl}`);
-
-  // Simple ABI for the update function
-  const abi = [
-    {
-      name: 'update',
-      type: 'function',
-      stateMutability: 'nonpayable',
-      inputs: [{ name: 'data', type: 'bytes' }],
-      outputs: [],
-    },
-  ] as const;
+  console.log(`Target contract: ${args.contractAddress}`);
+  console.log(`Chain ID: ${args.chainId}`);
+  console.log(`RPC URL: ${args.rpcUrl}`);
 
   if (args.dryRun) {
-    console.log('\n🧪 DRY RUN MODE - Transaction will not be sent');
+    console.log('\nDRY RUN MODE - Transaction will not be sent');
     console.log('Update data (hex):', updateData);
     return;
   }
 
   try {
-    console.log('\n📤 Sending transaction...');
+    console.log('\nSending transaction...');
     const txHash = await walletClient.writeContract({
       address: args.contractAddress,
-      abi,
+      abi: UPDATE_ABI,
       functionName: 'update',
       args: [updateData],
     });
 
-    console.log(`✅ Transaction sent: ${txHash}`);
-    console.log('⏳ Waiting for confirmation...');
+    console.log(`Transaction sent: ${txHash}`);
+    console.log('Waiting for confirmation...');
 
     const receipt = await waitForTransactionReceipt(walletClient, {
       hash: txHash,
     });
 
     if (receipt.status === 'success') {
-      console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
-      console.log(`⛽ Gas used: ${receipt.gasUsed}`);
+      console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
+      console.log(`Gas used: ${receipt.gasUsed}`);
     } else {
-      console.error('❌ Transaction failed');
+      console.error('Transaction failed');
       process.exit(1);
     }
   } catch (error) {
-    console.error(`❌ Transaction failed: ${errorStack(error)}`);
+    console.error(`Transaction failed: ${errorStack(error)}`);
     process.exit(1);
   }
 }
