@@ -55,7 +55,7 @@ spec:
     spec:
       containers:
         - name: stacks-signer
-          image: blockstack/stacks-signer@sha256:481b68c3d80ba1a1e248e85347fb6a5a9257c5ed97f82d749bf4f873b63d8558
+          image: blockstack/stacks-signer:3.3.0.0.3.0-debian@sha256:211fba50ef008ecf97ea917c85e6d84141fc509256590cd7a487e54a09a74e06
           ports:
             - containerPort: 30000
               name: signer

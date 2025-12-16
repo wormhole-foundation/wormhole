@@ -215,7 +215,7 @@ spec:
     spec:
       containers:
         - name: stacks-node
-          image: blockstack/stacks-blockchain:3.3.0.0.2-debian@sha256:21bee919c94010abdbddc7cafb61590871e1bad6382272bf4dea9cb34548edd6
+          image: blockstack/stacks-blockchain:3.3.0.0.3-debian@sha256:b21d8d4fb798c2058bf663060a126ad5d3d9eea38258d1963e61522c0c021fc0
           securityContext:
             runAsUser: 0
           ports:
