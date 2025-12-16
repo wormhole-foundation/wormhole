@@ -20,11 +20,6 @@ const Mainnet = {
     rpc: "https://api.mainnet-beta.solana.com",
     key: getEnvVar("SOLANA_KEY"),
   },
-  Terra: {
-    rpc: "https://lcd.terra.dev",
-    chain_id: "columbus-5",
-    key: getEnvVar("TERRA_MNEMONIC"),
-  },
   Ethereum: {
     rpc: `https://ethereum-rpc.publicnode.com`,
     key: getEnvVar("ETH_KEY"),
@@ -288,11 +283,6 @@ const Testnet = {
   Solana: {
     rpc: "https://api.devnet.solana.com",
     key: getEnvVar("SOLANA_KEY_TESTNET"),
-  },
-  Terra: {
-    rpc: "https://bombay-lcd.terra.dev",
-    chain_id: "bombay-12",
-    key: getEnvVar("TERRA_MNEMONIC_TESTNET"),
   },
   Ethereum: {
     rpc: `https://rpc.ankr.com/eth_goerli`,
@@ -558,11 +548,6 @@ const Devnet = {
   Solana: {
     rpc: "http://127.0.0.1:8899",
     key: "J2D4pwDred8P9ioyPEZVLPht885AeYpifsFGUyuzVmiKQosAvmZP4EegaKFrSprBC5vVP1xTvu61vYDWsxBNsYx",
-  },
-  Terra: {
-    rpc: "http://localhost:1317",
-    chain_id: "columbus-5",
-    key: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius",
   },
   Ethereum: {
     rpc: "http://localhost:8545",
