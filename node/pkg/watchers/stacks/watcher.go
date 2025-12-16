@@ -448,6 +448,10 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 		return 0, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
 
+	if transaction.BlockHeight == nil {
+		return 0, fmt.Errorf("transaction %s has no block height", txId)
+	}
+
 	if !transaction.IsCanonical {
 		return 0, fmt.Errorf("transaction %s is not in the canonical chain", txId)
 	}

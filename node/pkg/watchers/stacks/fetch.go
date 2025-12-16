@@ -78,11 +78,11 @@ type (
 	}
 
 	StacksV3TransactionResponse struct {
-		IndexBlockHash string `json:"index_block_hash"`
-		Tx             string `json:"tx"`
-		Result         string `json:"result"`
-		BlockHeight    uint64 `json:"block_height"` // Height of the block containing the transaction
-		IsCanonical    bool   `json:"is_canonical"` // Whether the block is in the canonical chain
+		IndexBlockHash string  `json:"index_block_hash"`
+		Tx             string  `json:"tx"`
+		Result         string  `json:"result"`
+		BlockHeight    *uint64 `json:"block_height"`
+		IsCanonical    bool    `json:"is_canonical"`
 	}
 
 	StacksV2PoxEpoch struct {
