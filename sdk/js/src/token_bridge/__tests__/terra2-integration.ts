@@ -68,18 +68,16 @@ beforeAll(async () => {
 
 const terraBroadcastAndWaitForExecution = async (
   msgs: Msg[],
-  wallet: Wallet,
-  isClassic = false
+  wallet: Wallet
 ) => {
   const tx = await wallet.createAndSignTx({
     msgs,
   });
-  const _lcd = isClassic ? lcdClassic : lcd;
-  const txResult = await _lcd.tx.broadcast(tx);
+  const txResult = await lcd.tx.broadcast(tx);
   if (isTxError(txResult)) {
     throw new Error("tx error");
   }
-  const txInfo = await waitForTerraExecution(txResult.txhash, _lcd);
+  const txInfo = await waitForTerraExecution(txResult.txhash, lcd);
   if (!txInfo) {
     throw new Error("tx info not found");
   }
