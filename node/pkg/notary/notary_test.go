@@ -2,7 +2,6 @@ package notary
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -21,13 +20,19 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
+// MockNotaryDB is a mock implementation of the NotaryDB interface.
+// It returns nil for all operations, so it can be used to test the Notary's
+// core logic but certain DB-related operations are not covered.
+// Where possible, these should be tested in the Notary database's own unit tests, not here.
 type MockNotaryDB struct{}
 
-func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error  { return nil }
-func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error         { return nil }
-func (md MockNotaryDB) DeleteBlackholed(m *common.MessagePublication) error { return nil }
-func (md MockNotaryDB) DeleteDelayed(p *common.PendingMessage) error        { return nil }
-func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error) { return nil, nil }
+func (md MockNotaryDB) StoreBlackholed(m *common.MessagePublication) error { return nil }
+func (md MockNotaryDB) StoreDelayed(p *common.PendingMessage) error        { return nil }
+func (md MockNotaryDB) DeleteBlackholed(msgID []byte) (*common.MessagePublication, error) {
+	return nil, nil
+}
+func (md MockNotaryDB) DeleteDelayed(msgID []byte) (*common.PendingMessage, error) { return nil, nil }
+func (md MockNotaryDB) LoadAll(l *zap.Logger) (*db.NotaryLoadResult, error)        { return nil, nil }
 
 func makeTestNotary(t *testing.T) *Notary {
 	t.Helper()
@@ -40,6 +45,57 @@ func makeTestNotary(t *testing.T) *Notary {
 		delayed:    &common.PendingMessageQueue{},
 		blackholed: NewSet(),
 		env:        common.GoTest,
+	}
+}
+
+// TestNotary_AlwaysApproveNonTransferVerifierEmitters tests that all messages are approve if the emitter chain does not have a transfer verifier.
+// This test can be removed if the Notary is extended to support other chains.
+func TestNotary_AlwaysApproveNonTransferVerifierEmitters(t *testing.T) {
+	// NOTE: Solana does not have a transfer verifier implementation
+	tests := map[string]struct {
+		verificationState common.VerificationState
+		emitterChain      vaa.ChainID
+		verdict           Verdict
+	}{
+		"approve non-transfer verifier when Rejected": {
+			common.Rejected,
+			vaa.ChainIDSolana,
+			Approve,
+		},
+		"approve non-transfer verifier when Anomalous": {
+			common.Anomalous,
+			vaa.ChainIDSolana,
+			Approve,
+		},
+		"delay non-Ethereum messages for chain with transfer verifier when Rejected": {
+			common.Rejected,
+			vaa.ChainIDSepolia,
+			Delay,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			n := makeTestNotary(t)
+			msg := makeUniqueMessagePublication(t)
+
+			// Set the emitter address to the known token bridge address for the environment.
+			msg.EmitterChain = test.emitterChain
+
+			err := msg.SetVerificationState(test.verificationState)
+			require.NoError(t, err)
+
+			require.True(t, vaa.IsTransfer(msg.Payload))
+
+			verdict, err := n.ProcessMsg(msg)
+			require.NoError(t, err)
+			require.Equal(
+				t,
+				test.verdict,
+				verdict,
+				fmt.Sprintf("verificationState=%s verdict=%s", msg.VerificationState().String(), verdict.String()),
+			)
+		})
 	}
 }
 
@@ -341,13 +397,13 @@ func TestNotary_Forget(t *testing.T) {
 			require.Equal(t, 0, n.blackholed.Len())
 
 			// Modify the set manually because calling the blackhole function will remove the message from the delayed list.
-			n.blackholed.Add(tt.msg.VAAHash())
+			n.blackholed.Add(tt.msg.MessageID())
 
 			require.Equal(t, 1, n.delayed.Len())
 			require.Equal(t, 1, n.blackholed.Len())
 
-			err = n.forget(tt.msg)
-			require.NoError(t, err)
+			forgetErr := n.forget(tt.msg)
+			require.NoError(t, forgetErr)
 
 			require.Equal(t, tt.expectedDelayCount, n.delayed.Len())
 			require.Equal(t, tt.expectedBlackholed, n.blackholed.Len())
@@ -385,8 +441,8 @@ func TestNotary_BlackholeRemovesFromDelayedList(t *testing.T) {
 			require.Equal(t, 1, n.delayed.Len())
 			require.Equal(t, 0, n.blackholed.Len())
 
-			err = n.blackhole(tt.msg)
-			require.NoError(t, err)
+			blackholeErr := n.blackhole(tt.msg)
+			require.NoError(t, blackholeErr)
 
 			require.Equal(t, 0, n.delayed.Len())
 			require.Equal(t, 1, n.blackholed.Len())
@@ -429,6 +485,45 @@ func TestNotary_DelayFailsIfMessageAlreadyBlackholed(t *testing.T) {
 	}
 }
 
+func TestNotary_releaseChangesReleaseTime(t *testing.T) {
+	tests := []struct { // description of this test case
+		name                string
+		msg                 *common.MessagePublication
+		expectedReleaseTime time.Time
+	}{
+		{
+			"release changes release time",
+			makeUniqueMessagePublication(t),
+			time.Now().Add(time.Hour),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set-up
+			n := makeTestNotary(t)
+			n.delayed = common.NewPendingMessageQueue()
+			n.blackholed = NewSet()
+
+			require.Equal(t, 0, n.delayed.Len())
+
+			// Delay a message; ensure no messages are ready
+			delayErr := n.delay(tt.msg, time.Hour)
+			require.NoError(t, delayErr)
+			require.Equal(t, 1, n.delayed.Len())
+			require.Empty(t, n.ReleaseReadyMessages())
+			require.Equal(t, 1, n.delayed.Len())
+
+			// Release the message
+			releaseErr := n.release(tt.msg.MessageID())
+			require.NoError(t, releaseErr)
+
+			// Check that a new message is ready
+			require.Len(t, n.ReleaseReadyMessages(), 1)
+			require.Equal(t, 0, n.delayed.Len())
+		})
+	}
+}
+
 // Helper function that returns a valid PendingMessage. It creates identical messages publications
 // with different sequence numbers.
 func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
@@ -441,7 +536,7 @@ func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
 	require.NoError(t, err)
 
 	// Required as the Notary checks the emitter address.
-	tokenBridge := sdk.KnownTokenbridgeEmitters[vaa.ChainIDEthereum]
+	tokenBridge := sdk.KnownDevnetTokenbridgeEmitters[vaa.ChainIDEthereum]
 	tokenBridgeAddress := vaa.Address(tokenBridge)
 	require.NoError(t, err)
 
@@ -472,21 +567,4 @@ func makeUniqueMessagePublication(t *testing.T) *common.MessagePublication {
 	}
 
 	return msgpub
-}
-
-func encodePayloadBytes(payload *vaa.TransferPayloadHdr) []byte {
-	bz := make([]byte, 101)
-	bz[0] = payload.Type
-
-	amtBytes := payload.Amount.Bytes()
-	if len(amtBytes) > 32 {
-		panic("amount will not fit in 32 bytes!")
-	}
-	copy(bz[33-len(amtBytes):33], amtBytes)
-
-	copy(bz[33:65], payload.OriginAddress.Bytes())
-	binary.BigEndian.PutUint16(bz[65:67], uint16(payload.OriginChain))
-	copy(bz[67:99], payload.TargetAddress.Bytes())
-	binary.BigEndian.PutUint16(bz[99:101], uint16(payload.TargetChain))
-	return bz
 }

@@ -18,12 +18,17 @@ type registry struct {
 	// Per-chain error counters
 	errorCounters  map[vaa.ChainID]uint64
 	errorCounterMu sync.Mutex
+
+	// Per-chain last VAA timestamp (Unix nanoseconds)
+	lastObservationSignedAt   map[vaa.ChainID]int64
+	lastObservationSignedAtMu sync.RWMutex
 }
 
 func NewRegistry() *registry {
 	return &registry{
-		networkStats:  map[vaa.ChainID]*gossipv1.Heartbeat_Network{},
-		errorCounters: map[vaa.ChainID]uint64{},
+		networkStats:            map[vaa.ChainID]*gossipv1.Heartbeat_Network{},
+		errorCounters:           map[vaa.ChainID]uint64{},
+		lastObservationSignedAt: map[vaa.ChainID]int64{},
 	}
 }
 
@@ -50,4 +55,22 @@ func (r *registry) GetErrorCount(chain vaa.ChainID) uint64 {
 	r.errorCounterMu.Lock()
 	defer r.errorCounterMu.Unlock()
 	return r.errorCounters[chain]
+}
+
+// SetLastObservationSignedAtTimestamp sets the timestamp (Unix nanoseconds) of the last time an observation was signed for a chain.
+func (r *registry) SetLastObservationSignedAtTimestamp(chain vaa.ChainID, timestamp int64) {
+	r.lastObservationSignedAtMu.Lock()
+	defer r.lastObservationSignedAtMu.Unlock()
+	if existing, ok := r.lastObservationSignedAt[chain]; ok && existing >= timestamp {
+		return
+	}
+	r.lastObservationSignedAt[chain] = timestamp
+}
+
+// GetLastObservationSignedAtTimestamp returns the timestamp (Unix nanoseconds) of the last time an observation was signed for a chain.
+// Returns 0 if no observation has been signed yet for this chain.
+func (r *registry) GetLastObservationSignedAtTimestamp(chain vaa.ChainID) int64 {
+	r.lastObservationSignedAtMu.RLock()
+	defer r.lastObservationSignedAtMu.RUnlock()
+	return r.lastObservationSignedAt[chain]
 }

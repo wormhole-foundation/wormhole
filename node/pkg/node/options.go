@@ -517,11 +517,12 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 }
 
 // GuardianOptionAdminService enables the admin rpc service on a unix socket.
-// Dependencies: db, governor
+// Dependencies: db
+// Note: governor and notary are optional - they may be nil if not enabled
 func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *string, rpcMap map[string]string) *GuardianOption {
 	return &GuardianOption{
 		name:         "admin-service",
-		dependencies: []string{"governor", "db"},
+		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			//nolint:contextcheck // Independent service that should not be affected by other services
 			adminService, err := adminServiceRunnable(
@@ -533,6 +534,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 				g.db,
 				g.gst,
 				g.gov,
+				g.notary,
 				g.guardianSigner,
 				ethRpc,
 				ethContract,

@@ -114,7 +114,7 @@ jobs:
       - name: Get rust toolchain version
         id: toolchain
         run: |
-          RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/rust-toolchain)"
+          RUST_VERSION="$(awk '/channel =/ { print substr($3, 2, length($3)-2) }' solana/rust-toolchain.toml)"
           echo "::set-output name=version::${RUST_VERSION}"
 
       - name: Get solana version
@@ -290,7 +290,7 @@ jobs:
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.6.2
       - name: Run linters
         run: make generate && golangci-lint --version && ./scripts/lint.sh -g lint
       - name: Ensure generated proto matches
@@ -306,7 +306,6 @@ jobs:
       # Pinned version of the v6 tag, which is a lightweight and hence mutable tag
       - uses: streetsidesoftware/cspell-action@214db1e3138f326d33b7a6a51c92852e89ab0618
         with:
-          # NOTE: Keep this command in sync with `scripts/lint.sh`
           # For now, only lint markdown files
           files: "**/*.md"
           inline: warning
@@ -362,6 +361,10 @@ jobs:
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
             test_args: "--lib"  # Skip doctests; anchor interfaces lack solana_program dependency
+          # Token Metadata parser for SVM token bridge
+          - path: solana/modules/token_bridge/token_metadata_parser/Cargo.toml
+            args: "--workspace"
+            test_args: ""
     name: rust-lint-and-tests (${{ matrix.manifest.path }})
     steps:
       - name: Check out source

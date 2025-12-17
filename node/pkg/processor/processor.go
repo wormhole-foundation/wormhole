@@ -207,6 +207,13 @@ var (
 			Help:    "Latency histogram for total time to handle quorum on an observation",
 			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10_000.0, 100_000.0, 1_000_000.0, 10_000_000.0, 100_000_000.0, 1_000_000_000.0},
 		})
+
+	// Transfer Verifier metrics
+	msgVerificationStates = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_unusual_msg_verification_states_total",
+			Help: "Total number of message verification state changes to unusual values",
+		}, []string{"verification_state", "emitter_chain"})
 )
 
 // batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
@@ -302,6 +309,9 @@ func (p *Processor) Run(ctx context.Context) error {
 
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 
+			// Track transfer verification states for analytics and log unusual states
+			p.trackVerificationState(k)
+
 			// Notary: check whether a message is well-formed.
 			// Send messages to the Notary first. If messages are not approved, they should not continue
 			// to the Governor or the Accountant.
@@ -322,6 +332,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				switch verdict {
 				case guardianNotary.Blackhole, guardianNotary.Delay:
 					p.logger.Error("notary evaluated message as threatening", k.ZapFields(zap.String("verdict", verdict.String()))...)
+
 					if verdict == guardianNotary.Blackhole {
 						// Black-holed messages should not be processed.
 						p.logger.Error("message will not be processed", k.ZapFields(zap.String("verdict", verdict.String()))...)
@@ -333,6 +344,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					continue
 				case guardianNotary.Unknown:
 					p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
+
 				case guardianNotary.Approve:
 					// no-op: process normally
 					p.logger.Debug("notary evaluated message as approved", k.ZapFields(zap.String("verdict", verdict.String()))...)
@@ -554,5 +566,29 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 				p.updateVAALock.Unlock()
 			}
 		}
+	}
+}
+
+// trackVerificationState tracks transfer verification states for analytics and logs unusual states.
+// This provides centralized observability for the Transfer Verifier across all watchers.
+func (p *Processor) trackVerificationState(msg *common.MessagePublication) {
+	state := msg.VerificationState()
+
+	// Only track states that have been verified (skip NotVerified and NotApplicable)
+	if state == common.NotVerified || state == common.NotApplicable {
+		return
+	}
+
+	emitterChainStr := fmt.Sprintf("%d", msg.EmitterChain)
+
+	// Track unusual states (anything other than Valid)
+	if state != common.Valid {
+		msgVerificationStates.WithLabelValues(state.String(), emitterChainStr).Inc()
+
+		// Log unusual states for visibility
+		p.logger.Warn("transfer verifier returned unusual state",
+			msg.ZapFields(
+				zap.String("verification_state", state.String()),
+			)...)
 	}
 }

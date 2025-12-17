@@ -141,6 +141,30 @@ linters:
         - sloppyLen
         - underef
         - unslice
+    govet:
+      # The following list includes all the linters that are disabled by default.
+      # Uncomment any of these to enable them:
+      enable:
+        - atomic               # Check for non-atomic use of sync/atomic functions
+        # - atomicalign          # Check for non-64-bits-aligned arguments to sync/atomic functions
+        - deepequalerrors      # Check for calls of reflect.DeepEqual on error values
+        - defers               # Check for common mistakes in defer statements
+        # - fieldalignment       # Find structs that would use less memory if their fields were sorted (too noisy: 200+ issues)
+        # - findcall             # Find calls to a particular function
+        - ifaceassert          # Detect impossible interface-to-interface assertions
+        - loopclosure          # Check for loop variable capture in goroutines
+        - lostcancel           # Check that context cancel functions are called
+        - nilness              # Check for redundant or impossible nil comparisons
+        - reflectvaluecompare  # Check for comparing reflect.Value values with == or reflect.DeepEqual
+        # - shadow               # Check for possible unintended shadowing of variables
+        - sigchanyzer          # Check for unbuffered channels with signal.Notify
+        - slog                 # Check for invalid structured logging calls
+        - sortslice            # Check the argument type of sort.Slice
+        - stringintconv        # Check for string(int) conversions
+        - timeformat           # Check for calls of (time.Time).Format or time.Parse with 2006-02-01
+        - unsafeptr            # Check for invalid uintptr to unsafe.Pointer conversions
+        - unusedresult         # Check for unused results of important functions
+        - unusedwrite          # Check for unused writes
     nolintlint:
       # Disable to ensure that all nolint directives actually have an effect.
       # Default: false

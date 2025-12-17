@@ -535,6 +535,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							for _, v := range DefaultRegistry.networkStats {
 								errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
 								v.ErrorCount = errCtr
+								lastVaaTs := DefaultRegistry.GetLastObservationSignedAtTimestamp(vaa.ChainID(v.Id)) // #nosec G115 -- This is safe as chain id is constrained in SetNetworkStats
+								v.LastObservationSignedAt = lastVaaTs
 								networks = append(networks, v)
 							}
 
@@ -1095,12 +1097,8 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *c
 	// TODO: implement per-guardian rate limiting
 
 	// Perform timestamp validation
-	// Since this is a version upgrade, we need to accept a timestamp of 0.
-	// Shortly after all have upgraded, we will remove this conditional check.
-	if h.Timestamp != 0 {
-		if time.Until(time.Unix(0, h.Timestamp)).Abs() > observationRequestMaxTimeDifference {
-			return nil, fmt.Errorf("reobservation request is too old or too far into the future")
-		}
+	if time.Until(time.Unix(0, h.Timestamp)).Abs() > observationRequestMaxTimeDifference {
+		return nil, fmt.Errorf("reobservation request is too old or too far into the future")
 	}
 
 	return &h, nil

@@ -321,6 +321,10 @@ const (
 	ChainIDStellar ChainID = 61
 	// ChainIDTON is the ChainID of TON
 	ChainIDTON ChainID = 62
+	// ChainIDMoca is the ChainID of Moca
+	ChainIDMoca ChainID = 63
+	// ChainIDMegaETH is the ChainID of MegaETH
+	ChainIDMegaETH ChainID = 64
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
@@ -731,7 +735,10 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 	})
 }
 
-// NOTE: This function assumes that the caller has verified that the VAA is from the token bridge.
+// isTransfer returns true if the VAA appears to be a Wrapped Token Transfer by checking the payload type.
+// It does not apply to Native Token Transfers.
+// NOTE: This check is necessary but not sufficient for verifying the VAA as it does not consider
+// whether the VAA is sent emitted by a token bridge. Use IsWTT() from the SDK instead.
 func IsTransfer(payload []byte) bool {
 	return (len(payload) > 0) && ((payload[0] == 1) || (payload[0] == 3))
 }

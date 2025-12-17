@@ -650,6 +650,14 @@ if ci_tests:
     )
     k8s_yaml_with_ns("devnet/tx-verifier-evm.yaml")
 
+    if sui:
+        docker_build(
+            ref = "tx-verifier-sui",
+            context = "./devnet/tx-verifier/",
+            dockerfile = "./devnet/tx-verifier/Dockerfile.tx-verifier-sui"
+        )
+        k8s_yaml_with_ns("devnet/tx-verifier-sui.yaml")
+
     k8s_yaml_with_ns(
         encode_yaml_stream(
             set_env_in_jobs(
@@ -690,10 +698,11 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/querysdk.sh handles waiting for query-server, not having deps gets the build earlier
     )
+
     # launches Transfer Verifier binary and sets up monitoring script
     k8s_resource(
         "tx-verifier-evm",
-        labels = ["tx-verifier-evm"],
+        labels = ["tx-verifier"],
         trigger_mode = trigger_mode,
         resource_deps = ["eth-devnet"],
     )
@@ -703,6 +712,14 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
+
+    if sui:
+        k8s_resource(
+            "tx-verifier-sui",
+            labels = ["tx-verifier"],
+            trigger_mode = trigger_mode,
+            resource_deps = ["sui"]
+        )
 
 if terra_classic:
     docker_build(

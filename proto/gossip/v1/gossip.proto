@@ -50,9 +50,11 @@ message Heartbeat {
     // Connection error count
     uint64 error_count = 4;
     // Safe block height of the node, if supported.
-    int64 safe_height = 5;    
+    int64 safe_height = 5;
     // Finalized block height of the node, if supported.
     int64 finalized_height = 6;
+    // UNIX timestamp of the last time a VAA was observed for this chain.
+    int64 last_observation_signed_at = 7;
   }
   repeated Network networks = 4;
 
