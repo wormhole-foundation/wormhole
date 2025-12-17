@@ -12,7 +12,7 @@ RUN test -n "${SERVER_PORT}" && \
 
 # TODO: Pin the commit
 RUN git clone -b feat/dkg-docker --depth 1 https://github.com/XLabs/core-bridge.git
-WORKDIR core-bridge/ts-pkgs/peer-server
+WORKDIR /core-bridge/ts-pkgs/peer-server
 RUN yarnpkg install --immutable
 RUN yarnpkg build
 # This is the config for the peer server
@@ -27,4 +27,4 @@ COPY <<EOT config.json
   "threshold": 13
 }
 EOT
-ENTRYPOINT yarnpkg start:server
+ENTRYPOINT ["yarnpkg", "start:server"]

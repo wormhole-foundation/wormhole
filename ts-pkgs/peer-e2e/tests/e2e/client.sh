@@ -40,11 +40,11 @@ createGuardianPrivateKey() {
 }
 
 # Build the docker cache first. It will throw an error but it will save time
-docker build --network="host" -f ../../docker/Dockerfile --progress=plain . || true
+docker build --network="host" -f ../../../peer-client/Dockerfile --progress=plain . || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-    docker build --network="host" -f ../../docker/Dockerfile \
+    docker build --network="host" -f ../../../peer-client/Dockerfile \
         --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
         --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
         --build-arg TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
