@@ -28,7 +28,6 @@ type Args = {
   rpcUrl: string;
   chainId: number;
   signer: string;
-  dryRun: boolean;
   limit: number;
 } & ({
   command: "set_shard_id";
@@ -123,12 +122,6 @@ async function main() {
       default: 1,
       alias: 'i',
     })
-    .option('dry-run', {
-      description: 'Simulate the transaction without actually sending it',
-      type: 'boolean',
-      default: false,
-      alias: 'd',
-    })
     .option('limit', {
       description: 'Maximum number of multisig sets to pull.',
       defaultDescription: '0 (Pull all necessary multisig sets)',
@@ -213,12 +206,6 @@ async function main() {
   console.log(`Target contract: ${args.contractAddress}`);
   console.log(`Chain ID: ${args.chainId}`);
   console.log(`RPC URL: ${args.rpcUrl}`);
-
-  if (args.dryRun) {
-    console.log('\nDRY RUN MODE - Transaction will not be sent');
-    console.log('Update data (hex):', updateData);
-    return;
-  }
 
   try {
     console.log('\nSending transaction...');
