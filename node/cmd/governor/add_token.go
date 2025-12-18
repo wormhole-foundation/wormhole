@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	ipfslog "github.com/ipfs/go-log/v2"
 	cg "github.com/certusone/wormhole/node/pkg/governor/coingecko"
+	ipfslog "github.com/ipfs/go-log/v2"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -30,11 +30,20 @@ This command:
 1. Validates the Wormhole chain ID
 2. Looks up the CoinGecko platform for the chain
 3. Queries CoinGecko for token details (symbol, price, decimals, CoinGecko ID)
-4. Formats the entry and adds it to manual_tokens.go
+4. Converts the address to Wormhole format (64-char hex, zero-padded)
+5. Appends the entry to node/pkg/governor/manual_tokens.go
+
+The tool supports multiple chain types:
+- EVM chains: 0x-prefixed hex addresses (e.g., 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48)
+- Solana: base58-encoded addresses (e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v)
+- Move chains (Aptos/Sui): hex-encoded addresses (already 64 chars)
 
 Examples:
-  # Add USDC on Ethereum (chain 2)
+  # Add USDC on Ethereum (chain 2, EVM)
   guardiand governor add-token --chain-id 2 --address 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
+
+  # Add USDC on Solana (chain 1, base58)
+  guardiand governor add-token --chain-id solana --address EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 
   # Add token on BSC (chain 4) with API key
   guardiand governor add-token --chain-id 4 --address 0x... --api-key YOUR_KEY
@@ -65,7 +74,6 @@ func runAddToken(cmd *cobra.Command, args []string) {
 	}
 
 	queryAddr := strings.TrimSpace(addTokenAddress)
-
 
 	// Setup logging
 	lvl, logErr := ipfslog.LevelFromString("WARN")
@@ -102,7 +110,7 @@ func runAddToken(cmd *cobra.Command, args []string) {
 	}
 	fmt.Println()
 
-	wormholeAddr := padEVMAddress(queryAddr)
+	wormholeAddr := normalizeAddress(queryAddr)
 	entry := formatTokenEntry(chainID, wormholeAddr, cgTokenInfo.Symbol, cgTokenInfo.CoinGeckoID, cgTokenInfo.Decimals, cgTokenInfo.Price, tokenURL)
 	fmt.Printf("Generated entry:\n%s\n\n", entry)
 
@@ -155,12 +163,13 @@ func normalizeAddress(addrRaw string) string {
 	// 1. The address is hex-encoded EVM address
 	// 2. The address is a base58 encoded Solana address
 
-	// EVM address: check if it's a valid hex-encoded address
-	var addrBuf []byte
-	count, err := hex.Decode(addrBuf[:], []byte(addr))
-	if err == nil && count == 20 {
-		// EVM address
-		return padEVMAddress(addr)
+	// EVM address: check if it's a valid hex-encoded address (40 chars)
+	if len(addr) == 40 {
+		_, err := hex.DecodeString(addr)
+		if err == nil {
+			// Valid hex EVM address - pad it
+			return padEVMAddress(addrRaw)
+		}
 	}
 
 	// Solana address: decode base58 encoded address
@@ -197,8 +206,41 @@ func formatTokenEntry(chainID vaa.ChainID, addrRaw, symbol, coinGeckoID string, 
 	return entry
 }
 
+// addTokenToFile appends a new token entry to node/pkg/governor/manual_tokens.go.
+//
+// The manual_tokens.go file contains the manualTokenList() function which returns
+// a slice of TokenConfigEntry structs. The file structure looks like:
+//
+//	func manualTokenList() []TokenConfigEntry {
+//	    return []TokenConfigEntry{
+//	        {Chain: 2, Addr: "...", Symbol: "USDC", ...},
+//	        {Chain: 4, Addr: "...", Symbol: "WETH", ...},
+//	        // ... more entries ...
+//	    }  // <- This is where we insert (before the slice closing brace)
+//	} 
+//
+// This function finds the correct insertion point (before the slice's closing brace)
+// and appends the new token entry as the last element in the slice.
 func addTokenToFile(entry string) error {
+	// Locate manual_tokens.go relative to current working directory.
+	// The tool can be run from either the repo root or the node/ directory.
 	filePath := "node/pkg/governor/manual_tokens.go"
+
+	// Check if file exists at current path
+	if _, err := os.Stat(filePath); err != nil {
+		// Try from parent directory (in case we're running from node/)
+		filePath = "pkg/governor/manual_tokens.go"
+		if _, err := os.Stat(filePath); err != nil {
+			// Try absolute path from repo root
+			cwd, _ := os.Getwd()
+			// If we're in node/ directory, go up one level
+			if strings.HasSuffix(cwd, "/node") {
+				filePath = "pkg/governor/manual_tokens.go"
+			} else {
+				filePath = "node/pkg/governor/manual_tokens.go"
+			}
+		}
+	}
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -207,9 +249,25 @@ func addTokenToFile(entry string) error {
 
 	lines := strings.Split(string(content), "\n")
 
+	// Find the insertion point: the line with the closing brace of the slice.
+	// The file has two closing braces at the end:
+	//   }  <- slice closing brace (this is where we insert BEFORE)
+	//   }  <- function closing brace
+	//
+	// We need to find the second-to-last "}".
 	insertIdx := -1
+	closingBraceIdx := -1
+
+	// Scan backwards to find the closing braces
 	for i := len(lines) - 1; i >= 0; i-- {
-		if strings.TrimSpace(lines[i]) == "}" {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "}" && closingBraceIdx == -1 {
+			// Found the function closing brace
+			closingBraceIdx = i
+		}
+		// Look for the second-to-last "}" which closes the slice
+		if trimmed == "}" && closingBraceIdx != -1 && i < closingBraceIdx {
+			// Found the slice closing brace - this is our insertion point
 			insertIdx = i
 			break
 		}
@@ -219,6 +277,7 @@ func addTokenToFile(entry string) error {
 		return fmt.Errorf("could not find insertion point in file")
 	}
 
+	// Insert the new entry before the slice closing brace
 	newLines := make([]string, 0, len(lines)+1)
 	newLines = append(newLines, lines[:insertIdx]...)
 	newLines = append(newLines, entry)

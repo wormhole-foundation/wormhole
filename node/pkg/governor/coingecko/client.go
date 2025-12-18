@@ -566,7 +566,7 @@ type TokenInfo struct {
 //	}
 //	fmt.Printf("%s: $%.2f\n", info.Symbol, info.Price)
 func (c *Client) GetTokenInfo(
-	chainID vaa.ChainID, 
+	chainID vaa.ChainID,
 	// contractAddr is the token contract address. It should be in the format appropriate for the chain.
 	contractAddr string,
 ) (*TokenInfo, error) {
@@ -584,9 +584,6 @@ func (c *Client) GetTokenInfo(
 		query = fmt.Sprintf("%s/coins/%s/contract/%s?x_cg_pro_api_key=%s",
 			proAPIBaseURL, platformID, contractAddr, c.apiKey)
 	}
-
-	// FIXME: remove
-	c.logger.Error("query", zap.String("query", query))
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(context.Background(), "GET", query, nil)
