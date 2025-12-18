@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "@wormhole-foundation/sdk": "^4.5.0",
+    "@xlabs-xyz/peer-lib": "workspace:*",
     "viem": "^2.41.2",
     "yargs": "^18.0.0"
   },

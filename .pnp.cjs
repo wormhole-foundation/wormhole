@@ -4526,6 +4526,7 @@ const RAW_RUNTIME_STATE =
           ["@types/node", "npm:24.10.3"],\
           ["@types/yargs", "npm:17.0.35"],\
           ["@wormhole-foundation/sdk", "npm:4.5.0"],\
+          ["@xlabs-xyz/peer-lib", "workspace:ts-pkgs/peer-lib"],\
           ["deploy", "workspace:ts-pkgs/deploy"],\
           ["tsx", "npm:4.21.0"],\
           ["typescript", "patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"],\

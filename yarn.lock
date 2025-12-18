@@ -3595,6 +3595,7 @@ __metadata:
     "@types/node": "npm:^24.10.3"
     "@types/yargs": "npm:^17.0.35"
     "@wormhole-foundation/sdk": "npm:^4.5.0"
+    "@xlabs-xyz/peer-lib": "workspace:*"
     tsx: "npm:^4.21.0"
     typescript: "npm:^5.9.3"
     viem: "npm:^2.41.2"
