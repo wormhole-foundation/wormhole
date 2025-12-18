@@ -1883,21 +1883,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	tssGuardianStorage, err := tss.NewGuardianStorageFromFile(*tssSecretsPath)
-	if err != nil {
-		logger.Fatal("failed to load the guardian's threshold signature scheme's secrets", zap.Error(err))
-	}
 	logger.Info("Loaded the guardian's threshold signature scheme's storage")
-
-	reliableTss, err := tss.NewReliableTSS(tssGuardianStorage)
-	if err != nil {
-		logger.Fatal("failed to start tss engine", zap.Error(err))
-	}
 
 	guardianNode := node.NewGuardianNode(
 		env,
 		guardianSigner,
-		reliableTss,
+		tss.TODO(),
 	)
 
 	var guardianAddrAsBytes []byte

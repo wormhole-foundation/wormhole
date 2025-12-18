@@ -276,7 +276,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 
 	// Clean up tss signatures that are waited upon.
 	now := time.Now()
-	maxSigWaitTime := p.thresholdSigner.MaxTTL()
+	maxSigWaitTime := time.Minute * 10 // TODO: make configurable
 
 	// TODO: We can increase efficiency by using a heap / queue and removing from the map the top elements.
 	for vaaDigest, waitingSig := range p.tssWaiters {

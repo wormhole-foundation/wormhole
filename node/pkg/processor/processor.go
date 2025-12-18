@@ -389,8 +389,10 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 
 			p.handleMessage(ctx, k)
-		case sig := <-p.thresholdSigner.ProducedSignature():
-			p.processTssSignature(sig)
+		case sig := <-p.thresholdSigner.Response():
+			// p.processTssSignature(sig) // TODO:
+			_ = sig
+			panic("unimplemented")
 		case m := <-p.batchObsvC:
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleBatchObservation(m)

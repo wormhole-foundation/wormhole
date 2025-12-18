@@ -44,7 +44,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	observedLogger := zap.New(observedZapCore)
 
 	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-	processor := Processor{thresholdSigner: &tss.Engine{}} // added a thresholdSigner to avoid nil pointer
+	processor := Processor{thresholdSigner: tss.TODO()} // added a thresholdSigner to avoid nil pointer
 	processor.logger = observedLogger
 
 	processor.handleInboundSignedVAAWithQuorum(signedVAAWithQuorum)
@@ -106,7 +106,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			observedLogger := zap.New(observedZapCore)
 
 			signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-			processor := Processor{thresholdSigner: &tss.Engine{}} // added a thresholdSigner to avoid nil pointer
+			processor := Processor{thresholdSigner: tss.TODO()} // added a thresholdSigner to avoid nil pointer
 			processor.gs = &guardianSet
 			processor.logger = observedLogger
 

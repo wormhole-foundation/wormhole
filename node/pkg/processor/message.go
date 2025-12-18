@@ -133,14 +133,15 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 }
 
 func (p *Processor) tssSetup(v *VAA) {
-	v.Version = vaa.TSSVaaVersion
-	digest := v.SigningDigest()
-	hash := hex.EncodeToString(digest.Bytes())
+	// TODO: use signerClient to begin TSS signing protocol
+	// v.Version = vaa.TSSVaaVersion
+	// digest := v.SigningDigest()
+	// hash := hex.EncodeToString(digest.Bytes())
 
-	p.tssWaiters[hash] = timedThresholdSignatureWaiter{
-		vaa:       v,
-		startTime: time.Now(),
-	}
+	// p.tssWaiters[hash] = timedThresholdSignatureWaiter{
+	// 	vaa:       v,
+	// 	startTime: time.Now(),
+	// }
 
-	p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes(), v.EmitterChain, v.ConsistencyLevel)
+	// p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes(), v.EmitterChain, v.ConsistencyLevel)
 }
