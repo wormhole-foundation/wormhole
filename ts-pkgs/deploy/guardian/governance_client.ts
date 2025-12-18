@@ -35,7 +35,7 @@ type Args = {
   guardianMessage: string;
 } | {
   command: "append_schnorr";
-  vaaFile: string;
+  vaa: string;
 } | {
   command: "pull_multisigs";
 })
@@ -83,15 +83,15 @@ function encodeUpdate(args: Args, dataBytes: Buffer): `0x${string}` {
 
 async function main() {
   const parser = yargs(hideBin(process.argv))
-    .command('append_schnorr <vaa-file>', 'Append a Schnorr key to the guardian',
-      (yargs) => yargs.positional('vaa-file', {
-        description: 'Path to file containing base64-encoded governance VAA',
-        type: 'string',
-      }
-    ))
     .command('set_shard_id <guardian-message>', 'Set the shard ID of the guardian',
       (yargs) => yargs.positional('guardian-message', {
         description: 'Path to file containing base64-encoded signed guardian message',
+        type: 'string',
+      }
+    ))
+    .command('append_schnorr <vaa>', 'Append a Schnorr key to the VerificationV2 contract',
+      (yargs) => yargs.positional('vaa', {
+        description: 'Base64 encoded string of a governance VAA',
         type: 'string',
       }
     ))
@@ -136,6 +136,7 @@ async function main() {
       alias: 'l',
       default: 0,
     })
+    .strictOptions()
     .help()
     .alias('help', 'h');
 
@@ -144,17 +145,26 @@ async function main() {
 
   let dataBytes = Buffer.alloc(0);
   
-  if (args.command === "set_shard_id" || args.command === "append_schnorr") {
-    const path = args.command === "set_shard_id" ? args.guardianMessage : args.vaaFile;
-    // Load guardian message or VAA from base64 encoded file
+  if (args.command === "set_shard_id" ) {
+    // Load guardian message from base64 encoded file
+    // TODO: Take a TLS certificate as input instead
     try {
-      const messageBase64 = fs.readFileSync(path, 'utf-8').trim();
+      const messageBase64 = fs.readFileSync(args.guardianMessage, 'utf-8').trim();
       dataBytes = Buffer.from(messageBase64, 'base64');
     } catch (error) {
-      console.error(`Failed to load data from ${path}: ${errorMsg(error)}`);
+      console.error(`Failed to load data from ${args.guardianMessage}: ${errorMsg(error)}`);
       process.exit(1);
     }
-    console.log(`Loaded ${dataBytes.length} bytes of data from ${path}`);
+    console.log(`Loaded ${dataBytes.length} bytes of data from ${args.guardianMessage}`);
+  } else if (args.command === "append_schnorr") {
+    // Load VAA from base64 encoded string
+    try {
+      dataBytes = Buffer.from(args.vaa, 'base64');
+    } catch (error) {
+      console.error(`Failed to load VAA: ${errorMsg(error)}`);
+      process.exit(1);
+    }
+    console.log(`Loaded ${dataBytes.length} bytes of VAA`);
   }
 
   let signerKey: Hex;
