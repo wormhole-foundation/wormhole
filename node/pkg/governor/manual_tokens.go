@@ -10,7 +10,7 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 2, Addr: "000000000000000000000000e355De6a6043b0580Ff5A26b46051A4809B12793", Symbol: "4EVER", CoinGeckoId: "4everland", Decimals: 18, Price: 0.001255},
 		{Chain: 2, Addr: "0000000000000000000000006a9a65b84843f5fd4ac9a0471c4fc11afffbce4a", Symbol: "ENZOBTC", CoinGeckoId: "lorenzo-wrapped-bitcoin", Decimals: 8, Price: 90_350.44},
 		{Chain: 2, Addr: "000000000000000000000000cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", Symbol: "CBBTC", CoinGeckoId: "coinbase-wrapped-btc", Decimals: 8, Price: 90_313.28},
-		{Chain: 4, Addr: "000000000000000000000000ffda10b7fd9cf172e0502a6bc0e5e355516c5232", Symbol: "SFUND", CoinGeckoId: "seedify-fund", Decimals: 18, Price: 0.1121}, // New contract (Oct 2025) https://x.com/SeedifyFund/status/1976695528902869499
+		{Chain: 4, Addr: "000000000000000000000000ffda10b7fd9cf172e0502a6bc0e5e355516c5232", Symbol: "SFUND", CoinGeckoId: "seedify-fund", Decimals: 18, Price: 0.1121},                           // New contract (Oct 2025) https://x.com/SeedifyFund/status/1976695528902869499
 		{Chain: 5, Addr: "000000000000000000000000fce60bbc52a5705cec5b445501fbaf3274dc43d0", Symbol: "ACRED", CoinGeckoId: "apollo-diversified-credit-securitize-fund", Decimals: 6, Price: 1081}, // https://www.coingecko.com/en/coins/apollo-diversified-credit-securitize-fund
 		{Chain: 8, Addr: "000000000000000000000000000000000000000000000000000000000004c5c1", Symbol: "USDt", CoinGeckoId: "tether", Decimals: 6, Price: 1.002},
 		{Chain: 13, Addr: "0000000000000000000000005fff3a6c16c2208103f318f4713d4d90601a7313", Symbol: "KLEVA", CoinGeckoId: "kleva", Decimals: 18, Price: 0.086661},
