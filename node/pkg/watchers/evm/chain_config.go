@@ -105,7 +105,7 @@ var (
 		// vaa.ChainIDPlasma: {Finalized: true, Safe: true, EvmChainID: _, PublicRPC: "", ContractAddr: ""},
 		vaa.ChainIDCreditCoin: {Finalized: true, Safe: true, EvmChainID: 102030, PublicRPC: "https://mainnet3.creditcoin.network", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 		// vaa.ChainIDMoca: Not in Mainnet ""},
-		vaa.ChainIDMegaETH: {Finalized: true, Safe: true, EvmChainID: 4326, PublicRPC: "https://alpha.megaeth.com/rpc", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
+		vaa.ChainIDMegaETH: {Finalized: true, Safe: true, EvmChainID: 4326, PublicRPC: "https://mainnet.megaeth.com/rpc", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 	}
 
 	// testnetChainConfig specifies the configuration for all chains enabled in Testnet.
