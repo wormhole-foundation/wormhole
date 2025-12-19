@@ -1,5 +1,4 @@
-# From https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/Dockerfile
-FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb
+FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
 
 RUN apt-get update && apt-get -y install git
 

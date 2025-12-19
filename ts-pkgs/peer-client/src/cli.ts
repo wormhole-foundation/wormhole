@@ -6,9 +6,6 @@ import {
   validateOrFail,
   SelfConfigSchema,
   Peer,
-  getWormholeGuardianData,
-  validatePeers,
-  PeersResponse,
   errorStack,
 } from "@xlabs-xyz/peer-lib";
 
@@ -54,12 +51,12 @@ class ConfigClient {
         Peers: peers
           .map((peer) => ({
             Hostname: peer.hostname,
-            TlsX509: peer.tlsX509,
+            TlsX509: Buffer.from(peer.tlsX509).toString('base64'),
             Port: peer.port,
           })),
         Self: {
           Hostname: this.config.peer.hostname,
-          TlsX509: this.config.peer.tlsX509,
+          TlsX509: Buffer.from(this.config.peer.tlsX509).toString('base64'),
           Port: this.config.peer.port,
         },
         NumParticipants: peers.length,
@@ -75,22 +72,12 @@ class ConfigClient {
     }
   }
 
-  private async validatePeers(response: PeersResponse): Promise<void> {
-    const wormholeData = await getWormholeGuardianData(this.config.wormhole);
-    if (response.peers.length !== wormholeData.guardians.length) {
-      console.error(`[ERROR] Expected ${wormholeData.guardians.length} guardians, got ${response.peers.length}`);
-      process.exit(1);
-    }
-    validatePeers(response.peers, wormholeData);
-  }
-
   public async run(action: ClientAction): Promise<void> {
     if (action === "upload") {
       await this.client.submitPeerData();
     } else {
       const response = await this.client.waitForAllPeers();
       console.log(`[INFO] All peers fetched`);
-      await this.validatePeers(response);
       // Save the final configuration
       this.savePeerConfig(response.peers, response.threshold);
     }

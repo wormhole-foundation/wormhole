@@ -7,6 +7,8 @@ TLS_HOSTNAME="Guardian"
 TLS_PUBLIC_IP="127.0.0.1"
 TLS_BASE_PORT="3001"
 PEER_SERVER_URL="http://127.0.0.1:3000"
+ETHEREUM_RPC_URL="http://127.0.0.1:8545"
+WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
 GUARDIAN_PRIVATE_KEYS=(
   "c67c82a42364074e4a3ffec944a96d758cec08da09275ada471fe82c95159af9"
@@ -65,6 +67,22 @@ do
     --build-arg TLS_PORT=$((TLS_BASE_PORT + $i)) \
     --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
     --progress=plain . &
+done
+
+wait
+
+docker build -t dkg-client -f ../../../peer-client/dkg/Dockerfile --progress=plain .
+
+for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
+do
+  docker run --network="host" \
+    --mount type=bind,src=./out/$i/keys,dst=/keys \
+    -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
+    -e TLS_PORT=$((TLS_BASE_PORT + $i)) \
+    -e PEER_SERVER_URL=${PEER_SERVER_URL} \
+    -e ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL} \
+    -e WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} \
+    dkg-client &
 done
 
 wait

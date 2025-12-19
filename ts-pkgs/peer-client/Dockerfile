@@ -1,5 +1,4 @@
-# From https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/Dockerfile
-FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb AS peer-client
+FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
 
 RUN apt-get update && apt-get -y install git
 
@@ -26,13 +25,6 @@ COPY <<EOT self_config.json
     "hostname": "${TLS_HOSTNAME}",
     "port": ${TLS_PORT},
     "tlsX509": "/run/secrets/cert.pem"
-  },
-  "wormhole": {
-    "ethereum": {
-      "rpcUrl": "https://eth.llamarpc.com",
-      "chainId": 1
-    },
-    "wormholeContractAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
   }
 }
 EOT
