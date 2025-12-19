@@ -34,7 +34,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -53,7 +53,7 @@ func TestSerializeAndDeserializeOfTransfer(t *testing.T) {
 
 	assert.Equal(t, xfer1, xfer2)
 
-	expectedTransferKey := "GOV:XFER4:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
+	expectedTransferKey := "GOV:XFER5:2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"
 	assert.Equal(t, expectedTransferKey, string(TransferMsgID(xfer2)))
 }
 
@@ -75,6 +75,33 @@ func TestPendingMsgIDV5(t *testing.T) {
 	assert.Equal(t, []byte("GOV:PENDING5:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), PendingMsgID(msg1))
 }
 
+func TestTransferMsgIDV5(t *testing.T) {
+	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
+	require.NoError(t, err)
+
+	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
+	require.NoError(t, err)
+
+	xfer := &Transfer{
+		Timestamp:      time.Unix(int64(1654516425), 0),
+		ScaledValue:    125000,
+		OriginChain:    vaa.ChainIDEthereum,
+		OriginAddress:  tokenAddr,
+		EmitterChain:   vaa.ChainIDEthereum,
+		EmitterAddress: ethereumTokenBridgeAddr,
+		TargetChain:    vaa.ChainIDBSC,
+		TargetAddress:  bscTokenBridgeAddr,
+		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
+		Hash:           "Hash1",
+	}
+
+	assert.Equal(t, []byte("GOV:XFER5:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
+}
+
+// TestTransferMsgIDV4 tests the old transfer format prefix (now superseded by V5).
 func TestTransferMsgIDV4(t *testing.T) {
 	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
@@ -87,7 +114,7 @@ func TestTransferMsgIDV4(t *testing.T) {
 
 	xfer := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -98,39 +125,12 @@ func TestTransferMsgIDV4(t *testing.T) {
 		Hash:           "Hash1",
 	}
 
-	assert.Equal(t, []byte("GOV:XFER4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), TransferMsgID(xfer))
+	assert.Equal(t, []byte("GOV:XFER4:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), oldTransferMsgID(xfer))
 }
 
-// Deprecated: This function does not unmarshal the Unreliable or verificationState fields.
-func TestTransferMsgIDV3(t *testing.T) {
-	tokenAddr, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
-	require.NoError(t, err)
-
-	ethereumTokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
-	require.NoError(t, err)
-
-	bscTokenBridgeAddr, err := vaa.StringToAddress("0x26b4afb60d6c903165150c6f0aa14f8016be4aec")
-	require.NoError(t, err)
-
-	xfer := &Transfer{
-		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
-		OriginChain:    vaa.ChainIDEthereum,
-		OriginAddress:  tokenAddr,
-		EmitterChain:   vaa.ChainIDEthereum,
-		EmitterAddress: ethereumTokenBridgeAddr,
-		TargetChain:    vaa.ChainIDBSC,
-		TargetAddress:  bscTokenBridgeAddr,
-		MsgID:          "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415",
-		Hash:           "Hash1",
-	}
-
-	assert.Equal(t, []byte("GOV:XFER3:"+"2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"), oldTransferMsgID(xfer))
-}
-
-// TestIsTransferV4 tests the IsTransfer function for the current transfer format.
-// The V4 suffix matches the "GOV:XFER4:" prefix used by the current transfer implementation.
-func TestIsTransferV4(t *testing.T) {
+// TestIsTransferV5 tests the IsTransfer function for the current transfer format.
+// The V5 suffix matches the "GOV:XFER5:" prefix used by the current transfer implementation.
+func TestIsTransferV5(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
@@ -138,37 +138,37 @@ func TestIsTransferV4(t *testing.T) {
 	}{
 		{
 			name:     "valid transfer message",
-			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			input:    []byte("GOV:XFER5:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
 			expected: true,
 		},
 		{
 			name:     "previous message format",
-			input:    []byte("GOV:XFER3:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
 			expected: false,
 		},
 		{
 			name:     "transfer prefix only",
-			input:    []byte("GOV:XFER4:"),
+			input:    []byte("GOV:XFER5:"),
 			expected: false,
 		},
 		{
 			name:     "transfer with single digit",
-			input:    []byte("GOV:XFER4:1"),
+			input:    []byte("GOV:XFER5:1"),
 			expected: false,
 		},
 		{
 			name:     "transfer with a msgID that is too small",
-			input:    []byte("GOV:XFER4:1/1/1"),
+			input:    []byte("GOV:XFER5:1/1/1"),
 			expected: false,
 		},
 		{
 			name:     "transfer with missing sequence",
-			input:    []byte("GOV:XFER4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
+			input:    []byte("GOV:XFER5:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
 			expected: false,
 		},
 		{
 			name:     "valid transfer with sequence 0",
-			input:    []byte("GOV:XFER4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
+			input:    []byte("GOV:XFER5:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
 			expected: true,
 		},
 		{
@@ -196,9 +196,9 @@ func TestIsTransferV4(t *testing.T) {
 	}
 }
 
-// TestIsTransferV3 tests the isOldTransfer function for the legacy transfer format.
-// The V3 suffix matches the "GOV:XFER3:" prefix used by the legacy transfer implementation.
-func TestIsTransferV3(t *testing.T) {
+// TestIsTransferV4 tests the isOldTransfer function for the legacy transfer format.
+// The V4 suffix matches the "GOV:XFER4:" prefix used by the old transfer implementation.
+func TestIsTransferV4(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []byte
@@ -206,37 +206,37 @@ func TestIsTransferV3(t *testing.T) {
 	}{
 		{
 			name:     "old transfer message",
-			input:    []byte("GOV:XFER3:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
 			expected: true,
 		},
 		{
 			name:     "new transfer message",
-			input:    []byte("GOV:XFER4:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
+			input:    []byte("GOV:XFER5:" + "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/789101112131415"),
 			expected: false,
 		},
 		{
 			name:     "old transfer prefix only",
-			input:    []byte("GOV:XFER3:"),
+			input:    []byte("GOV:XFER4:"),
 			expected: false,
 		},
 		{
 			name:     "old transfer with single digit",
-			input:    []byte("GOV:XFER3:1"),
+			input:    []byte("GOV:XFER4:1"),
 			expected: false,
 		},
 		{
 			name:     "old transfer with a msgID that is too small",
-			input:    []byte("GOV:XFER3:1/1/1"),
+			input:    []byte("GOV:XFER4:1/1/1"),
 			expected: false,
 		},
 		{
 			name:     "old transfer with missing sequence",
-			input:    []byte("GOV:XFER3:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
+			input:    []byte("GOV:XFER4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/"),
 			expected: false,
 		},
 		{
 			name:     "old transfer with sequence 0",
-			input:    []byte("GOV:XFER3:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
+			input:    []byte("GOV:XFER4:" + "1/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"),
 			expected: true,
 		},
 		{
@@ -420,7 +420,7 @@ func TestStoreTransfer(t *testing.T) {
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -451,7 +451,7 @@ func TestDeleteTransfer(t *testing.T) {
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -586,7 +586,7 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -602,7 +602,7 @@ func TestStoreAndReloadTransfersAndPendingMessages(t *testing.T) {
 
 	xfer2 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516430), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -675,7 +675,7 @@ func TestMarshalUnmarshalNoMsgIdOrHash(t *testing.T) {
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
@@ -707,7 +707,7 @@ func TestUnmarshalTransferFailures(t *testing.T) {
 
 	xfer1 := &Transfer{
 		Timestamp:      time.Unix(int64(1654516425), 0),
-		Value:          125000,
+		ScaledValue:    125000,
 		OriginChain:    vaa.ChainIDEthereum,
 		OriginAddress:  tokenAddr,
 		EmitterChain:   vaa.ChainIDEthereum,
