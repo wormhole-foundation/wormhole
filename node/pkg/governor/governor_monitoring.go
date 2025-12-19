@@ -82,6 +82,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -117,7 +118,8 @@ func (gov *ChainGovernor) Status() (resp string) {
 		gov.logger.Info(s1)
 		if len(ce.pending) != 0 {
 			for idx, pe := range ce.pending {
-				value, _ := usdValue(pe.amount, pe.token)
+				scaledValue, _ := scaledUsdValue(pe.amount, pe.token)
+				value := scaleDownUsdValue(scaledValue)
 				s1 := fmt.Sprintf("chain: %v, pending[%v], value: %v, vaa: %v, timeStamp: %v, releaseTime: %v", ce.emitterChainId, idx, value,
 					pe.dbData.Msg.MessageIDString(), pe.dbData.Msg.Timestamp.String(), pe.dbData.ReleaseTime.String())
 				gov.logger.Info(s1)
@@ -160,7 +162,8 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 		for idx, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				value, _ := usdValue(pe.amount, pe.token)
+				scaledValue, _ := scaledUsdValue(pe.amount, pe.token)
+				value := scaleDownUsdValue(scaledValue)
 				gov.logger.Info("dropping pending vaa",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
@@ -190,7 +193,8 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 		for idx, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				value, _ := usdValue(pe.amount, pe.token)
+				scaledValue, _ := scaledUsdValue(pe.amount, pe.token)
+				value := scaleDownUsdValue(scaledValue)
 				gov.logger.Info("releasing pending vaa, should be published soon",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
@@ -258,13 +262,14 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time, 
 // NOTE these sums exclude "big transfers" as they are always queued for 24h and are never added to the chain entry's 'transfers' field.
 // Returns an error if the sum of all transfers would overflow the bounds of Int64. In this case, the function
 // returns a value of 0.
+// NOTE: The returned values are unscaled (human-readable USD values) even though the DB stores scaled values.
 func sumValue(transfers []transfer, startTime time.Time) (netNotional int64, smallTxOutgoingNotional uint64, flowCancelNotional uint64, err error) {
 	if len(transfers) == 0 {
 		return 0, 0, 0, nil
 	}
 
 	// Sum of all outgoing small tranasfers minus incoming flow cancel transfers. Big transfers are excluded
-	netNotional = int64(0)
+	netScaledNotional := int64(0)
 	smallTxOutgoingNotional = uint64(0)
 	flowCancelNotional = uint64(0)
 
@@ -272,24 +277,24 @@ func sumValue(transfers []transfer, startTime time.Time) (netNotional int64, sma
 		if t.dbTransfer.Timestamp.Before(startTime) {
 			continue
 		}
-		netNotional, err = CheckedAddInt64(netNotional, t.value)
+		netScaledNotional, err = CheckedAddInt64(netScaledNotional, t.scaledValue)
 		if err != nil {
 			// We have to stop and return an error here (rather than saturate, for example). The
 			// transfers are not sorted by value so we can't make any guarantee on the final value
 			// if we hit the upper or lower bound. We don't expect this to happen in any case.
 			return 0, 0, 0, err
 		}
-		if t.value < 0 {
+		if t.scaledValue < 0 {
 			// If a transfer is negative then it is an incoming, flow-cancelling transfer.
-			// We can use the dbTransfer.Value for calculating the sum because it is the unsigned version
-			// of t.Value
-			flowCancelNotional += t.dbTransfer.Value
+			// We can use the dbTransfer.ScaledValue for calculating the sum because it is the unsigned version
+			// of t.ScaledValue
+			flowCancelNotional += scaleDownUsdValue(t.dbTransfer.ScaledValue)
 		} else {
-			smallTxOutgoingNotional += t.dbTransfer.Value
+			smallTxOutgoingNotional += scaleDownUsdValue(t.dbTransfer.ScaledValue)
 		}
 	}
 
-	return netNotional, smallTxOutgoingNotional, flowCancelNotional, nil
+	return netScaledNotional / guardianDB.ScaledValueFactor, smallTxOutgoingNotional, flowCancelNotional, nil
 }
 
 // REST query to get the current available notional value per chain. This is defined as the sum of all transfers
@@ -371,10 +376,12 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 
 	for _, ce := range gov.chains {
 		for _, pe := range ce.pending {
-			value, err := usdValue(pe.amount, pe.token)
+			var value uint64
+			scaledValue, err := scaledUsdValue(pe.amount, pe.token)
 			if err != nil {
 				gov.logger.Error("failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
-				value = 0
+			} else {
+				value = scaleDownUsdValue(scaledValue)
 			}
 
 			resp = append(resp, &publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry{
@@ -648,10 +655,12 @@ func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartb
 
 		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
 		for _, pe := range ce.pending {
-			value, err := usdValue(pe.amount, pe.token)
+			var value uint64
+			scaledValue, err := scaledUsdValue(pe.amount, pe.token)
 			if err != nil {
 				gov.logger.Error("failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
-				value = 0
+			} else {
+				value = scaleDownUsdValue(scaledValue)
 			}
 
 			if numEnqueued < 20 {
