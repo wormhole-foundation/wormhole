@@ -1,11 +1,27 @@
 #!/usr/bin/env bash
+# This script allows devnet initialization of the delegated guardian configs.
+# First argument is the delegated config. This is a map of key-value pairs where:
+#   key = chain name
+#   value = {"chain_id": <chain_id>, "ordinals": [<pod ordinals>], "threshold": <threshold>}
+# eg:- 
+# {
+#   "evm2": {
+#     "chain_id": 4,
+#     "ordinals": [
+#       1,
+#       2
+#     ],
+#     "threshold": 2
+#   }
+# }
+# 
 set -e
+
+# wait for the guardians to establish networking
 sleep 20
 
-echo "DELEGATED PRESET"
-
-num_guardians=$1
-echo "num_guardians ${num_guardians}"
+delegated_config="$1"
+echo "delegated_config ${delegated_config}"
 
 webHost=$2
 echo "webHost ${webHost}"
@@ -13,11 +29,8 @@ echo "webHost ${webHost}"
 namespace=$3
 echo "namespace ${namespace}"
 
-echo "chain id"
-echo $CHAIN_ID
-
-PRIV_KEY=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
-RPC_URL=http://localhost:8545
+key=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d # one of the Ganche defaults
+devnetRPC="http://${webHost}:8545"
 
 # file & path to save governance VAA
 # Use /tmp with a fixed name so the path works both locally and inside containers
@@ -32,35 +45,38 @@ currentGuardianSetUrl="${guardianPublicWebBaseUrl}/v1/guardianset/current"
 # fetch current guardian set info
 guardianSet=$(curl ${currentGuardianSetUrl} | jq ".guardianSet")
 currentIndex=$(echo ${guardianSet} | jq ".index")
-address0=$(echo ${guardianSet} | jq ".addresses[0]")
-address1=$(echo ${guardianSet} | jq ".addresses[1]")
-address2=$(echo ${guardianSet} | jq ".addresses[2]")
+guardianAddresses=$(echo ${guardianSet} | jq -c ".addresses")
 currentNumGuardians=$(echo ${guardianSet} | jq ".addresses | length")
-newNumGuardians=${num_guardians}
-echo "guardianSet: ${guardianSet}"
 echo "currentIndex: ${currentIndex}"
 echo "currentNumGuardians: ${currentNumGuardians}"
-echo "newNumGuardians: ${newNumGuardians}"
-echo "address0: ${address0}"
-echo "address1: ${address1}"
-echo "address2: ${address2}"
+echo "guardianAddresses: ${guardianAddresses}"
 
-# Fetch addresses from the eth-devnet (delegated guardians is only deployed in eth-devnet)
-WORMHOLE_ADDRESS=$(kubectl exec -n "$namespace" eth-devnet-0 -c tests -- \
+# fetch addresses from the eth-devnet (delegated guardians is only deployed in eth-devnet)
+wormholeAddress=$(kubectl exec -n "${namespace}" eth-devnet-0 -c tests -- \
   jq -r '.returns.deployedAddress.value' /home/node/app/ethereum/broadcast/DeployCore.s.sol/1337/run-latest.json)
+echo "wormholeAddress: $wormholeAddress"
 
-DELEGATED_GUARDIANS_ADDRESS=$(kubectl exec -n "$namespace" eth-devnet-0 -c tests -- \
+delegatedGuardiansAddress=$(kubectl exec -n "${namespace}" eth-devnet-0 -c tests -- \
   jq -r '.returns.deployedDelegatedGuardians.value' /home/node/app/ethereum/broadcast/DeployWormholeDelegatedGuardians.s.sol/1337/run-latest.json)
+echo "delegatedGuardiansAddress: $delegatedGuardiansAddress"
 
-echo "WORMHOLE_ADDRESS: $WORMHOLE_ADDRESS"
-echo "DELEGATED_GUARDIANS_ADDRESS: $DELEGATED_GUARDIANS_ADDRESS"
+# convert delegated_config into expected config format for delegate-guardians-config command
+config="$(
+  echo "${delegated_config}" | 
+  jq -c --argjson guardians "${guardianAddresses}" '
+    with_entries(.value | {
+      key: (.chain_id | tostring),
+      value: {
+          keys: (.ordinals | map($guardians[.])),
+          threshold
+      }
+    })
+  '
+)"
+echo "config: ${config}"
 
 echo "creating guardian set update governance message template prototext"
-# We're creating a preset where eth-devnet-2 is a delegated chain
-# Guardian 0 is a canonical guardian
-# Guardian 1 and 2 are delegated guardians
-# Quorum is 2/3
-kubectl exec -n ${namespace} guardian-0 -c guardiand -- /guardiand template delegated-guardians-config --config "{\"4\": {\"keys\": [${address1}, ${address2}], \"threshold\": 2}}" --config-id 0 > ${tmpFile}
+kubectl exec -n "${namespace}" guardian-0 -c guardiand -- /guardiand template delegated-guardians-config --config "${config}" --config-id 0 > ${tmpFile}
 
 for i in $(seq ${currentNumGuardians})
 do
@@ -109,15 +125,54 @@ function base64_to_hex {
     echo "$b64Str" | tr -d '"' | base64 -d | hexdump -v -e '/1 "%02x" '
 }
 
-# transform base54 to hex
+# transform base64 to hex
 hexVaa=$(base64_to_hex ${b64Vaa})
 echo "got hex VAA: ${hexVaa}"
 
-txHash=$(cast send --rpc-url $RPC_URL --private-key $PRIV_KEY $DELEGATED_GUARDIANS_ADDRESS "submitConfig(bytes)" "0x$hexVaa" --json | jq -r '.transactionHash')
-echo "tx hash: ${txHash} . waiting 30 secs..." 
+txHash=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json | jq -r '.transactionHash')
+
+# give some time for guardians to observe the tx and update their state
 sleep 30
 
-echo "submitted VAA to ${DELEGATED_GUARDIANS_ADDRESS}"
+for chain_id in $(echo "${config}" | jq -r 'keys[]')
+do
+  # fetch and parse json body
+  echo "going to fetch configuration for chain ID ${chain_id}"
+  result=$(cast call "${delegatedGuardiansAddress}" "getConfig(uint16)((uint16,uint32,uint8,address[]))" "${chain_id}" --rpc-url "${devnetRPC}" --json | jq -r '
+    .[0]
+    | sub("^\\("; "") | sub("\\)$"; "")
+    | capture("^(?<chain_id>\\d+),\\s*(?<timestamp>\\d+),\\s*(?<threshold>\\d+),\\s*\\[(?<keys>.*)\\]$")
+    | [
+        .chain_id,
+        .timestamp,
+        .threshold,
+        (.keys | split(",") | map(gsub("^\\s+|\\s+$";"")) | sort | @json)
+      ]
+    | @tsv
+    '
+  )
+  read -r actual_chain_id timestamp actual_threshold actual_guardians <<< "${result}"
+  echo "chain_id: ${actual_chain_id}, timestamp: ${timestamp}, threshold: ${actual_threshold}, keys: ${actual_guardians}"
 
-echo "Configuration for chain ID 4:"
-cast call $DELEGATED_GUARDIANS_ADDRESS "getConfig(uint16)((uint16,uint32,uint8,address[]))" 4 --rpc-url $RPC_URL
+  # verify configuration is as expected
+  if [ ${chain_id} -ne ${actual_chain_id} ]; then
+    echo "invalid chain_id — expected: ${chain_id}; got ${actual_chain_id}"
+    exit 1
+  fi
+
+  expected_threshold=$(echo "${config}" | jq -r --arg chain_id "${chain_id}" '.[$chain_id].threshold')
+  if [ ${expected_threshold} -ne ${actual_threshold} ]; then
+    echo "invalid threshold — expected: ${expected_threshold}; got ${actual_threshold}"
+    exit 1
+  fi
+  
+  expected_guardians=$(echo "${config}" | jq -c --arg chain_id "${chain_id}" '.[$chain_id].keys | sort')
+  if [ "${expected_guardians}" != "${actual_guardians}" ]; then
+    echo "invalid guardians — expected: ${expected_guardians}; got ${actual_guardians}"
+    exit 1
+  fi
+
+  echo "configuration for chain ID ${chain_id} is as expected."
+done
+
+echo "delegated-guardian-set-preset.sh succeeded."

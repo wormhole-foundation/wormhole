@@ -106,6 +106,66 @@ if ci:
 else:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
 
+# TODO2: delegated chain args
+EVM2_ARGS = [
+    "--bscRPC",
+    "ws://eth-devnet2:8545"
+]
+ALGORAND_ARGS = [
+    "--algorandAppID",
+    "1004",
+    "--algorandIndexerRPC",
+    "http://algorand:8980",
+    "--algorandIndexerToken",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--algorandAlgodRPC",
+    "http://algorand:4001",
+    "--algorandAlgodToken",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+]
+chain_to_args = {
+    "evm2": EVM2_ARGS,
+    "algorand": ALGORAND_ARGS
+}
+
+# TODO2: delegate chain config
+# We're creating presets with the following configurations:
+# |------------------------------------------------------------------|
+# | chain (chain id) | delegated | guardians | threshold | simulates |
+# |------------------|-----------|-----------|-----------|-----------|
+# | eth-devnet (2)   |     N     | [0,1,2,3] |     3     |   13/19   |
+# | eth-devnet-2 (4) |     Y     |   [1,2]   |     2     |    7/9    |
+# | algorand (8)     |     Y     |    [3]    |     1     |    5/7    |
+# |------------------------------------------------------------------|
+DELEGATED_CONFIG = {
+    "evm2": { "chain_id": 4, "ordinals": [1, 2], "threshold": 2 },
+    "algorand": { "chain_id": 8, "ordinals": [3], "threshold": 1 }
+}
+
+active_delegated_chains = set()
+if evm2:
+    active_delegated_chains.add("evm2")
+if algorand:
+    active_delegated_chains.add("algorand")
+
+# create a DELEGATED_CONFIG submap that filters out disabled chains
+active_delegated_config = { k: v for k,v in DELEGATED_CONFIG.items() if k in active_delegated_chains }
+
+# derive per-guardian config from active_delegated_config
+pod_config = {}
+for k in active_delegated_config.keys():
+    for i in active_delegated_config[k]["ordinals"]:
+        if i not in pod_config:
+            pod_config[i] = []
+        pod_config[i].append(k)
+pod_config = { k: sorted(v) for k,v in pod_config.items() }
+
+require_per_guardian_config = (
+    bool(active_delegated_config)
+    and num_guardians > max([
+        max(v["ordinals"]) for v in active_delegated_config.values()
+    ])
+)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -202,8 +262,8 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
 
-            # Add POD_NAME environment variable for per-guardian configuration when needed
-            if num_guardians >= 3 and evm2:
+            # TODO2: Add POD_NAME environment variable for per-guardian configuration when needed
+            if require_per_guardian_config:
                 if not "env" in container:
                     container["env"] = []
                 container["env"].append({
@@ -246,26 +306,23 @@ def build_node_yaml():
                     "--suiMoveEventType",
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
                 ]
-
-            # Handle bscRPC configuration based on guardian count and evm2 flag
-            # When num_guardians >= 3 and evm2 is enabled:
-            #   - guardian-0 listens only to eth-devnet (canonical guardian)
-            #   - guardians 1+ listen to eth-devnet2 (delegated guardians for evm2)
-            # Otherwise, all guardians use the same configuration
-            if num_guardians >= 3 and evm2:
-                # Use a shell wrapper to conditionally set bscRPC based on pod ordinal
+            
+            # Handle evm2 and algorand configuration based on guardian count, evm2 and algorand flag
+            if require_per_guardian_config:
+                # Use a shell wrapper to conditionally set the values based on pod ordinal
                 # We need to wrap the entire command since we're building it incrementally
-                pass  # bscRPC will be added in the wrapper at the end
-            elif evm2:
-                container["command"] += [
-                    "--bscRPC",
-                    "ws://eth-devnet2:8545",
-                ]
+                pass  # these values will be added in the wrapper at the end
             else:
-                container["command"] += [
-                    "--bscRPC",
-                    "ws://eth-devnet:8545",
-                ]
+                if evm2:
+                    container["command"] += chain_to_args["evm2"]
+                else:
+                    container["command"] += [
+                        "--bscRPC",
+                        "ws://eth-devnet:8545",
+                    ]
+                
+                if algorand:
+                    container["command"] += chain_to_args["algorand"]
 
             if solana_watcher:
                 container["command"] += [
@@ -297,20 +354,6 @@ def build_node_yaml():
                     "http://terra2-terrad:1317",
                     "--terra2Contract",
                     "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-                ]
-
-            if algorand:
-                container["command"] += [
-                    "--algorandAppID",
-                    "1004",
-                    "--algorandIndexerRPC",
-                    "http://algorand:8980",
-                    "--algorandIndexerToken",
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                    "--algorandAlgodRPC",
-                    "http://algorand:4001",
-                    "--algorandAlgodToken",
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ]
 
             if guardiand_governor:
@@ -373,25 +416,41 @@ def build_node_yaml():
                 ]
 
             # Wrap the command with a shell script for per-guardian configuration
-            if num_guardians >= 3 and evm2:
+            if require_per_guardian_config:
                 original_command = container["command"]
+
+                def generate_exec_line(og_cmd, delegated_chain_args):
+                    def escape_line(cmd_part):
+                        return cmd_part.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+
+                    line = "  exec"
+                    for cmd_part in og_cmd:
+                        line += " \"" + escape_line(cmd_part) + "\""
+                    for arg in delegated_chain_args:
+                        line += " \"" + escape_line(arg) + "\""
+                    return line + "\n"
                 
                 # Build the shell wrapper script
                 wrapper_script = "POD_ORDINAL=$(echo $POD_NAME | grep -o '[0-9]*$')\n"
-                wrapper_script += "if [ \"$POD_ORDINAL\" = \"0\" ]; then\n"
-                wrapper_script += "  # Guardian-0 does not listen to eth-devnet2 (no bscRPC flag)\n"
-                wrapper_script += "  exec"
-                for cmd_part in original_command:
-                    escaped = cmd_part.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
-                    wrapper_script += " \"" + escaped + "\""
-                wrapper_script += "\n"
+
+                use_if = True
+                for pod_ordinal in sorted(pod_config.keys()):
+                    if use_if:
+                        wrapper_script += "if [ \"$POD_ORDINAL\" = \"{}\" ]; then\n".format(pod_ordinal)
+                        use_if = False
+                    else:
+                        wrapper_script += "elif [ \"$POD_ORDINAL\" = \"{}\" ]; then\n".format(pod_ordinal)
+
+                    chain_args = [
+                        args
+                        for chain in pod_config[pod_ordinal]
+                        for args in chain_to_args[chain]
+                    ]
+                    wrapper_script += generate_exec_line(original_command, chain_args)
+                
                 wrapper_script += "else\n"
-                wrapper_script += "  # Other guardians listen to eth-devnet2\n"
-                wrapper_script += "  exec"
-                for cmd_part in original_command:
-                    escaped = cmd_part.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
-                    wrapper_script += " \"" + escaped + "\""
-                wrapper_script += " --bscRPC ws://eth-devnet2:8545\n"
+                # Canonical guardians do not listen to delegated chains
+                wrapper_script += generate_exec_line(original_command, []) 
                 wrapper_script += "fi\n"
                 
                 # Replace the command with the wrapper
@@ -444,12 +503,12 @@ if num_guardians >= 2 and ci == False:
     )
 
 # delegated guardian sets
-if(num_guardians >= 3 and evm2 == True):
+if require_per_guardian_config:
     local_resource(
         name = "delegated-guardian-sets",
         resource_deps = guardian_resource_deps + ["guardian"],
         deps = ["scripts/send-vaa.sh", "clients/eth"],
-        cmd = './scripts/delegated-guardian-set-preset.sh %s %s %s' % (num_guardians, webHost, namespace),
+        cmd = './scripts/delegated-guardian-set-preset.sh %s %s %s' % ("'{}'".format(encode_json(active_delegated_config)), webHost, namespace),
         labels = ["guardian"],
         trigger_mode = trigger_mode,
     )
