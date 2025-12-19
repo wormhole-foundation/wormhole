@@ -457,7 +457,7 @@ contract WormholeV1Mock is ICoreBridge {
   }
 }
 
-contract TestAssembly2Benchmark is VerificationTestAPI {
+contract TestWormholeVerifierBenchmark is VerificationTestAPI {
   using VaaLib for bytes;
   using BytesParsing for bytes;
 
@@ -835,7 +835,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
   }
 }
 
-contract TestAssembly2 is VerificationTestAPI {
+contract TestWormholeVerifier is VerificationTestAPI {
   using VaaLib for bytes;
   using BytesParsing for bytes;
 
@@ -1322,13 +1322,13 @@ contract TestAssembly2 is VerificationTestAPI {
 
 
 contract FuzzTest is Test {
-  TestAssembly2Benchmark handler; 
+  TestWormholeVerifierBenchmark handler;
   bytes32 id; 
   bytes signedMessage; 
   WormholeVerifier verifier;
 
   function setUp() public {
-    handler = new TestAssembly2Benchmark(); 
+    handler = new TestWormholeVerifierBenchmark();
     verifier = handler._wormholeVerifierV2();
     handler.setUp();
   }
