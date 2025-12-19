@@ -31,25 +31,40 @@ GUARDIAN_PRIVATE_KEYS=(
 )
 
 createGuardianPrivateKey() {
-    echo 0a20${GUARDIAN_PRIVATE_KEYS[$1]} | \
-        xxd -r -p | gpg --enarmor | \
-        awk 'BEGIN {print "-----BEGIN WORMHOLE GUARDIAN PRIVATE KEY-----"}
-             NR>2 {print last}
-             {last=$0}
-             END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}'
+  echo 0a20${GUARDIAN_PRIVATE_KEYS[$1]} | \
+    xxd -r -p | gpg --enarmor | \
+    awk 'BEGIN {print "-----BEGIN WORMHOLE GUARDIAN PRIVATE KEY-----"}
+      NR>2 {print last}
+      {last=$0}
+      END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}'
 }
+
+# Build the dockerfile that generates the TLS key and certificate
+docker build -t tls-gen -f ../../../peer-client/tls/Dockerfile --progress=plain .
+
+for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
+do
+  mkdir -p out/$i/keys
+  docker run --mount type=bind,src=./out/$i/keys,dst=/keys \
+    -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
+    -e TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
+    tls-gen &
+done
+
+wait
 
 # Build the docker cache first. It will throw an error but it will save time
 docker build --network="host" -f ../../../peer-client/Dockerfile --progress=plain . || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-    docker build --network="host" -f ../../../peer-client/Dockerfile \
-        --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
-        --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
-        --build-arg TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
-        --build-arg TLS_PORT=$((TLS_BASE_PORT + $i)) \
-        --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
-        --progress=plain --output=out/$i/ . &
+  docker build --network="host" -f ../../../peer-client/Dockerfile \
+    --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
+    --secret id=cert.pem,src=./out/$i/keys/cert.pem \
+    --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
+    --build-arg TLS_PORT=$((TLS_BASE_PORT + $i)) \
+    --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
+    --progress=plain . &
 done
 
+wait
