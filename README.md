@@ -48,6 +48,8 @@ The costs for implementations other than VerificationV2 come from [here](https:/
 
 The costs for VerificationV2 come from some benchmark tests that we have [here](test/WormholeVerifier.t.sol#L433).
 
+Run `make measure-performance-evm` to see the numbers.
+
 # Solana
 
 VerificationV2 in Solana only implements verification of v2 VAAs.
