@@ -752,6 +752,26 @@ contract TestWormholeVerifierBenchmark is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
+  function test_benchmark_legacy_parseAndVerifyVM_multisig() public view {
+    (CoreBridgeVM memory verifiedMessage, bool valid,) =
+      _wormholeVerifierV2.parseAndVerifyVM(smallMultisigVaa);
+    vm.assertTrue(valid);
+    vm.assertEq(verifiedMessage.emitterChainId, 0);
+    vm.assertEq(verifiedMessage.emitterAddress, bytes32(0));
+    vm.assertEq(verifiedMessage.sequence, 0);
+    vm.assertEq(verifiedMessage.payload.length, smallMultisigVaa.length - (1 + 4 + 1 + 66*SHARD_QUORUM + 4 + 4 + 2 + 32 + 8 + 1));
+  }
+
+  function test_benchmark_legacy_parseAndVerifyVM_schnorr() public view {
+    (CoreBridgeVM memory verifiedMessage, bool valid,) =
+      _wormholeVerifierV2.parseAndVerifyVM(smallSchnorrVaa);
+    vm.assertTrue(valid);
+    vm.assertEq(verifiedMessage.emitterChainId, 0);
+    vm.assertEq(verifiedMessage.emitterAddress, bytes32(0));
+    vm.assertEq(verifiedMessage.sequence, 0);
+    vm.assertEq(verifiedMessage.payload.length, smallSchnorrVaa.length - (1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1));
+  }
+
   function test_verifyInvalidVersion() public {
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.VerificationFailed.selector, MASK_VERIFY_RESULT_INVALID_VERSION));
     _wormholeVerifierV2.verify(invalidVersionVaa);
