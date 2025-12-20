@@ -6,8 +6,8 @@ export DOCKER_BUILDKIT=1
 TLS_HOSTNAME="Guardian"
 TLS_PUBLIC_IP="127.0.0.1"
 TLS_BASE_PORT="3001"
-PEER_SERVER_URL="http://127.0.0.1:3000"
-ETHEREUM_RPC_URL="http://127.0.0.1:8545"
+PEER_SERVER_URL="http://peer-server:3000"
+ETHEREUM_RPC_URL="http://anvil-with-verifier:8545"
 WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
 GUARDIAN_PRIVATE_KEYS=(
@@ -47,7 +47,7 @@ docker build -t tls-gen -f ../../../peer-client/tls/Dockerfile --progress=plain 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   mkdir -p out/$i/keys
-  docker run --mount type=bind,src=./out/$i/keys,dst=/keys \
+  docker run --rm --mount type=bind,src=./out/$i/keys,dst=/keys \
     -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
     -e TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
     tls-gen &
@@ -55,12 +55,16 @@ done
 
 wait
 
+# Create a builder that connects directly to the dkg-test network so it can be accessed during build.
+docker buildx rm dkg-builder || true
+docker buildx create --name dkg-builder --driver docker-container --driver-opt network=dkg-test
 # Build the docker cache first. It will throw an error but it will save time
-docker build --network="host" -f ../../../peer-client/Dockerfile --progress=plain . || true
+docker build --builder dkg-builder --network=host -f ../../../peer-client/Dockerfile --progress=plain . || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  docker build --network="host" -f ../../../peer-client/Dockerfile \
+   # The host here refers to the builder host container, not the host machine.
+  docker build --builder dkg-builder --network=host -f ../../../peer-client/Dockerfile \
     --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
     --secret id=cert.pem,src=./out/$i/keys/cert.pem \
     --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
@@ -75,7 +79,7 @@ docker build -t dkg-client -f ../../../peer-client/dkg/Dockerfile --progress=pla
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  docker run --network="host" \
+  docker run --name ${TLS_HOSTNAME}$i --network=dkg-test \
     --mount type=bind,src=./out/$i/keys,dst=/keys \
     -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
     -e TLS_PORT=$((TLS_BASE_PORT + $i)) \
