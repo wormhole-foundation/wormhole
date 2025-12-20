@@ -46,7 +46,9 @@ This means that there is a fixed overhead of ~2441 gas units for batch schnorr v
 
 The costs for implementations other than VerificationV2 come from [here](https://github.com/nonergodic/core-bridge/blob/fc4d76a/README.md)
 
-The costs for VerificationV2 come from some benchmark tests that we have [here](test/TestAssembly2.sol#L433).
+The costs for VerificationV2 come from some benchmark tests that we have [here](test/WormholeVerifier.t.sol#L433).
+
+Run `make measure-performance-evm` to see the numbers.
 
 # Solana
 
