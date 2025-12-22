@@ -7,6 +7,7 @@ import {
   SelfConfigSchema,
   Peer,
   errorStack,
+  getWormholeGuardianData,
 } from "@xlabs-xyz/peer-lib";
 
 import { PeerClient } from "./client.js";
@@ -76,7 +77,11 @@ class ConfigClient {
     if (action === "upload") {
       await this.client.submitPeerData();
     } else {
-      const response = await this.client.waitForAllPeers();
+      if (this.config.wormhole === undefined) {
+        throw new Error(`Wormhole configuration was not set`);
+      }
+      const wormholeData = await getWormholeGuardianData(this.config.wormhole);
+      const response = await this.client.waitForAllPeers(wormholeData);
       console.log(`[INFO] All peers fetched`);
       // Save the final configuration
       this.savePeerConfig(response.peers, response.threshold);

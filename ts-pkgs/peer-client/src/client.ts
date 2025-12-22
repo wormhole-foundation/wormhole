@@ -10,9 +10,8 @@ import {
   UploadResponseSchema,
   UploadResponse,
   errorStack,
-  getWormholeGuardianData,
   validatePeers,
-  WormholeConfig
+  WormholeGuardianData
 } from '@xlabs-xyz/peer-lib';
 
 export class PeerClient {
@@ -123,17 +122,16 @@ export class PeerClient {
     }
   }
 
-  private async validatePeers(response: PeersResponse, wormholeConfig: WormholeConfig): Promise<void> {
-    const wormholeData = await getWormholeGuardianData(wormholeConfig);
+  private validatePeers(response: PeersResponse, wormholeData: WormholeGuardianData): void {
     if (response.peers.length !== wormholeData.guardians.length) {
       throw new Error(`Expected ${wormholeData.guardians.length} guardians, got ${response.peers.length}`);
     }
     validatePeers(response.peers, wormholeData);
   }
 
-  private async pollAllPeersAndValidate(wormholeConfig: WormholeConfig): Promise<PeersResponse> {
+  private async pollAllPeersAndValidate(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
     const response = await this.pollForCompletion();
-    await this.validatePeers(response, wormholeConfig);
+    this.validatePeers(response, wormholeData);
     return response;
   }
 
@@ -164,17 +162,13 @@ export class PeerClient {
     return this.run(() => this.signAndUploadPeerData(guardianPrivateKey), "Uploading peer data...");
   }
 
-  public async waitForAllPeers(): Promise<PeersResponse> {
-    const wormholeConfig = this.config.wormhole;
-    if (wormholeConfig === undefined) {
-      throw new Error(`Wormhole configuration was not set`);
-    }
-    return this.run(() => this.pollAllPeersAndValidate(wormholeConfig), "Polling all peers...");
+  public async waitForAllPeers(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
+    return this.run(() => this.pollAllPeersAndValidate(wormholeData), "Polling all peers...");
   }
 
-  public async submitAndWaitForAllPeers(): Promise<PeersResponse> {
+  public async submitAndWaitForAllPeers(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
     await this.submitPeerData();
-    return this.waitForAllPeers();
+    return this.waitForAllPeers(wormholeData);
   }
 
   // Test helper method to get current peer data from server

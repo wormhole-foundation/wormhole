@@ -6,7 +6,6 @@ import { WormholeGuardianData,
   validateOrFail,
   BaseServerConfig,
   Peer,
-  WormholeConfig,
 } from '@xlabs-xyz/peer-lib';
 import { ethers } from 'ethers';
 import fs from 'fs';
@@ -37,20 +36,12 @@ describe('Peer Server Integration Tests', () => {
   const testGuardianWallets: ethers.HDNodeWallet[] = [];
   const testGuardianAddresses: string[] = [];
 
-  // Using 2 guardians for faster testing
   for (let i = 0; i < 2; i++) {
     const wallet = ethers.Wallet.createRandom();
     testGuardianWallets.push(wallet);
     testGuardianAddresses.push(wallet.address);
   }
   const testConfig: BaseServerConfig = { port: 0, threshold: 1 };
-  const wormholeConfig: WormholeConfig = {
-    ethereum: {
-      rpcUrl: 'https://eth.llamarpc.com',
-      chainId: 1
-    },
-    wormholeContractAddress: '0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B'
-  };
 
   // Mock guardian data for testing using generated wallets
   const mockWormholeData: WormholeGuardianData = {
@@ -129,11 +120,10 @@ describe('Peer Server Integration Tests', () => {
         guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
         serverUrl: serverUrl,
         peer: testPeers[i],
-        wormhole: wormholeConfig
       };
       const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
       const client = new PeerClient(selfConfig);
-      clientPromises.push(client.submitAndWaitForAllPeers());
+      clientPromises.push(client.submitAndWaitForAllPeers(mockWormholeData));
     }
 
     try {
@@ -226,7 +216,6 @@ describe('Peer Server Integration Tests', () => {
           guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
           serverUrl: serverUrl,
           peer: testPeers[i],
-          wormhole: wormholeConfig
         };
         const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
         clientConfigs.push(selfConfig);
@@ -234,17 +223,17 @@ describe('Peer Server Integration Tests', () => {
 
       // Submit first client immediately
       const firstClient = new PeerClient(clientConfigs[0]);
-      const firstClientPromise = firstClient.submitAndWaitForAllPeers();
+      const firstClientPromise = firstClient.submitAndWaitForAllPeers(mockWormholeData);
 
       // Wait a bit then submit second client
       await new Promise(resolve => setTimeout(resolve, 1000));
       const secondClient = new PeerClient(clientConfigs[1]);
-      await secondClient.submitAndWaitForAllPeers();
+      await secondClient.submitAndWaitForAllPeers(mockWormholeData);
 
       // Wait for both to complete
       const results = await Promise.all([
         firstClientPromise,
-        new PeerClient(clientConfigs[1]).submitAndWaitForAllPeers()
+        new PeerClient(clientConfigs[1]).submitAndWaitForAllPeers(mockWormholeData)
       ]);
 
       // Verify results are consistent
