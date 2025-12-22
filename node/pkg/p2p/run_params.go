@@ -51,7 +51,7 @@ type (
 		gossipAttestationSendC chan []byte
 		gossipVaaSendC         chan []byte
 		obsvReqSendC           <-chan *gossipv1.ObservationRequest
-		delegateObsvSendC 	   <-chan *gossipv1.DelegateObservation
+		delegateObsvSendC      <-chan *gossipv1.DelegateObservation
 		acct                   *accountant.Accountant
 		gov                    *governor.ChainGovernor
 		components             *Components

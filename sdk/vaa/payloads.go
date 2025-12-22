@@ -295,7 +295,7 @@ type (
 	// BodyDelegatedGuardiansSetConfig is a governance message to set delegated guardian configurations for multiple chains.
 	BodyDelegatedGuardiansSetConfig struct {
 		ConfigIndex *uint256.Int
-		Config     map[ChainID]DelegatedGuardianConfig
+		Config      map[ChainID]DelegatedGuardianConfig
 	}
 )
 
@@ -546,11 +546,11 @@ func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
 		MustWrite(payload, binary.BigEndian, cfg.Threshold)
 		MustWrite(payload, binary.BigEndian, uint8(len(cfg.Keys)))
 		for _, addr := range cfg.Keys {
-				addrBytes := addr.Bytes()
-				if len(addrBytes) != 20 {
-						return nil, fmt.Errorf("address must be 20 bytes")
-				}
-				payload.Write(addrBytes)
+			addrBytes := addr.Bytes()
+			if len(addrBytes) != 20 {
+				return nil, fmt.Errorf("address must be 20 bytes")
+			}
+			payload.Write(addrBytes)
 		}
 	}
 	return serializeBridgeGovernanceVaa(DelegatedGuardiansModuleStr, DelegatedGuardiansSetConfigAction, 0, payload.Bytes())

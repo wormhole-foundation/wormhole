@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 	"time"
-	"fmt"
+
 	wh_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
@@ -469,9 +469,6 @@ func TestDelegatedGuardiansConfigToVaa(t *testing.T) {
 	require.NotNil(t, v)
 
 	verifyGovernanceVAA(t, v, sequence, nonce)
-
-	fmt.Println(v.Payload)
-
 	assert.NotEmpty(t, v.Payload)
 }
 
@@ -505,4 +502,3 @@ func TestDelegatedGuardiansConfigToVaa_InvalidChainID(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid chain ID")
 }
-

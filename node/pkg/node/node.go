@@ -61,7 +61,7 @@ const (
 	// TODO(delegated-guardian-sets): The buffer size is arbitrarily set and should be verified
 	// delegateObservationInboundBufferSize configures the size of delegateObsvC.
 	delegateObservationInboundBufferSize = 1000
-	
+
 	// delegateObservationOutboundBufferSize configures the size of delegateObsvSendC.
 	delegateObservationOutboundBufferSize = 1000
 )

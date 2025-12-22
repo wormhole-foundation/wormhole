@@ -480,7 +480,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 }
 
 // handleDelegateObservation processes a delegate observation
-func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) {
+func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) error {
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("received delegate observation",
 			// TODO(delegated-guardian-sets): Add additional relevant fields if necessary
@@ -492,7 +492,11 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 		)
 	}
 
-	c := vaa.ChainID(m.EmitterChain)
+	c, err := vaa.ChainIDFromNumber(m.EmitterChain)
+	if err != nil {
+		p.logger.Warn("invalid delegate observation emitter chain", zap.Error(err))
+		return nil
+	}
 
 	cfg := p.dgc.GetChainConfig(c)
 	if cfg == nil {
@@ -500,7 +504,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 			zap.Stringer("emitter_chain", c),
 			zap.Uint64("sequence", m.Sequence),
 		)
-		return
+		return nil
 	}
 
 	_, ok := cfg.KeyIndex(p.ourAddr)
@@ -509,7 +513,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 			zap.Stringer("emitter_chain", c),
 			zap.Uint64("sequence", m.Sequence),
 		)
-		return
+		return nil
 	}
 
 	addr := common.BytesToAddress(m.GuardianAddr)
@@ -520,20 +524,20 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 			zap.Uint64("sequence", m.Sequence),
 			zap.String("guardian", addr.Hex()),
 		)
-		return
+		return nil
 	}
 
-	p.handleCanonicalDelegateObservation(ctx, cfg, m)
+	return p.handleCanonicalDelegateObservation(ctx, cfg, m)
 }
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
 // This function assumes cfg corresponds to m.EmitterChain
 // TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
-func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation) {
+func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation) error {
 	mp, err := delegateObservationToMessagePublication(m)
 	if err != nil {
 		p.logger.Warn("failed to convert delegate observation to message publication", zap.Error(err))
-		return
+		return nil
 	}
 
 	hash := mp.CreateDigest()
@@ -553,15 +557,16 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	s.observations[addr] = m
 
 	if !s.submitted {
-		p.checkForDelegateQuorum(ctx, mp, s, cfg)
+		return p.checkForDelegateQuorum(ctx, mp, s, cfg)
 	}
+	return nil
 }
 
 // checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it runs the converted
 // MessagePublication through the normal message pipeline.
 // This function assumes mp corresponds to s
 // TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
-func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegateGuardianChainConfig) {
+func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegateGuardianChainConfig) error {
 	// TODO(delegated-guardian-sets): Handle case for when delegate guardian set changes
 	// Check if we have more delegate observations than required for quorum.
 	if len(s.observations) < dgs.Quorum() {
@@ -573,11 +578,11 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 				zap.Uint64("sequence", mp.Sequence),
 			)
 		}
-		return
+		return nil
 	}
 
 	s.submitted = true
-	p.handleMessagePublication(ctx, mp)
+	return p.handleMessagePublication(ctx, mp)
 }
 
 // delegateObservationToMessagePublication converts a DelegateObservation into a MessagePublication that can be passed through the normal processor pipeline.
@@ -591,14 +596,18 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 		return nil, fmt.Errorf("delegate observation tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
 	}
 
-	addr, err := vaa.BytesToAddress(d.EmitterAddress)
-	if err != nil {
-		return nil, fmt.Errorf("invalid delegate observation emitter address: %w", err)
+	if d.ConsistencyLevel > math.MaxUint8 {
+		return nil, fmt.Errorf("invalid delegate observation consistency : %d", d.ConsistencyLevel)
 	}
 
 	c, err := vaa.ChainIDFromNumber(d.EmitterChain)
 	if err != nil {
 		return nil, fmt.Errorf("invalid delegate observation emitter chain: %w", err)
+	}
+
+	addr, err := vaa.BytesToAddress(d.EmitterAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid delegate observation emitter address: %w", err)
 	}
 
 	mp := &node_common.MessagePublication{

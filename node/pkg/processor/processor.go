@@ -420,7 +420,9 @@ func (p *Processor) Run(ctx context.Context) error {
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(m)
 		case m := <-p.delegateObsvC:
-			p.handleDelegateObservation(ctx, m)
+			if err := p.handleDelegateObservation(ctx, m); err != nil {
+				return err
+			}
 		case <-cleanup.C:
 			p.handleCleanup(ctx)
 		case <-pollTimer.C:

@@ -29,8 +29,8 @@ type G struct {
 	batchObsvC             chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	obsvReqC               chan *gossipv1.ObservationRequest
 	obsvReqSendC           chan *gossipv1.ObservationRequest
-	delegateObsvRecvC	   chan *gossipv1.DelegateObservation
-	delegateObsvSendC	   chan *gossipv1.DelegateObservation
+	delegateObsvRecvC      chan *gossipv1.DelegateObservation
+	delegateObsvSendC      chan *gossipv1.DelegateObservation
 	controlSendC           chan []byte
 	attestationSendC       chan []byte
 	vaaSendC               chan []byte

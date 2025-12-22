@@ -92,6 +92,7 @@ var signedDelegateObservationPrefix = []byte("signed_delegate_observation|")
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
+
 // TODO(delegated-guardian-sets): Remove if no freshness check required
 var delegateObservationMaxTimeDifference = time.Minute * 15
 
@@ -691,7 +692,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					} else {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
-				case msg:= <-params.delegateObsvSendC:
+				case msg := <-params.delegateObsvSendC:
 					logger.Debug("p2p: received delegate observation from channel",
 						zap.Uint32("emitter_chain", msg.EmitterChain),
 						zap.Uint64("sequence", msg.Sequence),
@@ -923,8 +924,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 							gs := params.gst.Get()
 							if gs == nil {
 								if logger.Level().Enabled(zapcore.DebugLevel) {
-									logger.Debug("dropping SignedDelegateObservation - no guardian set", 
-										zap.Any("value", d), 
+									logger.Debug("dropping SignedDelegateObservation - no guardian set",
+										zap.Any("value", d),
 										zap.String("from", envelope.GetFrom().String()),
 									)
 								}
@@ -1237,7 +1238,7 @@ func processSignedDelegateObservation(d *gossipv1.SignedDelegateObservation, gs 
 	}
 
 	digest := signedDelegateObservationDigest(d.DelegateObservation)
-	
+
 	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), d.Signature)
 	if err != nil {
 		return nil, errors.New("failed to recover public key")

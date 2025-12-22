@@ -1175,20 +1175,20 @@ func runCoreBridgeSetMessageFeeTemplate(cmd *cobra.Command, args []string) {
 }
 
 func runDelegatedGuardiansConfigTemplate(cmd *cobra.Command, args []string) {
-		if *delegatedGuardiansConfigId == "" {
-			log.Fatal("--config-id must be specified")
-		}
-		if *delegatedGuardiansConfigJson == "" {
-			log.Fatal("--config must be specified")
-		}
+	if *delegatedGuardiansConfigId == "" {
+		log.Fatal("--config-id must be specified")
+	}
+	if *delegatedGuardiansConfigJson == "" {
+		log.Fatal("--config must be specified")
+	}
 
-		// Parse config ID from string to uint32
-		configID, err := strconv.ParseUint(*delegatedGuardiansConfigId, 10, 32)
-		if err != nil {
-			log.Fatal("invalid config-id: ", err)
-		}
+	// Parse config ID from string to uint32
+	configID, err := strconv.ParseUint(*delegatedGuardiansConfigId, 10, 32)
+	if err != nil {
+		log.Fatal("invalid config-id: ", err)
+	}
 
-    seq, nonce := randSeqNonce()
+	seq, nonce := randSeqNonce()
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex), // #nosec G115 -- Number of guardians will never overflow here

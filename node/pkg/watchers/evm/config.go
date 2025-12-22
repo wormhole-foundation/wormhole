@@ -13,16 +13,16 @@ import (
 )
 
 type WatcherConfig struct {
-	NetworkID              watchers.NetworkID // human readable name
-	ChainID                vaa.ChainID        // ChainID
-	Rpc                    string             // RPC URL
-	Contract               string             // hex representation of the contract address
-	GuardianSetUpdateChain bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
-	DelegatedGuardiansContract string          // hex representation of the delegated guardians contract address
-	DelegatedGuardiansUpdateChain bool         // if `true`, we will retrieve the DelegatedGuardians config from this chain
-	CcqBackfillCache       bool
-	TxVerifierEnabled      bool
-	DgConfigC              chan<- *processor.DelegateGuardianConfig // Delegated guardian config channel, set by GuardianOptionWatchers
+	NetworkID                     watchers.NetworkID // human readable name
+	ChainID                       vaa.ChainID        // ChainID
+	Rpc                           string             // RPC URL
+	Contract                      string             // hex representation of the contract address
+	GuardianSetUpdateChain        bool               // if `true`, we will retrieve the GuardianSet from this chain and watch this chain for GuardianSet updates
+	DelegatedGuardiansContract    string             // hex representation of the delegated guardians contract address
+	DelegatedGuardiansUpdateChain bool               // if `true`, we will retrieve the DelegatedGuardians config from this chain
+	CcqBackfillCache              bool
+	TxVerifierEnabled             bool
+	DgConfigC                     chan<- *processor.DelegateGuardianConfig // Delegated guardian config channel, set by GuardianOptionWatchers
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {

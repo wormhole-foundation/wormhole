@@ -139,9 +139,9 @@ type (
 		latestFinalizedBlockNumber uint64
 
 		// Delegated guardians connector and config
-		dgConn                  *connectors.DelegatedGuardiansConnector
-		dgConfigC               chan<- *processor.DelegateGuardianConfig
-		dgContractAddr          string
+		dgConn                                  *connectors.DelegatedGuardiansConnector
+		dgConfigC                               chan<- *processor.DelegateGuardianConfig
+		dgContractAddr                          string
 		currentDelegatedGuardianConfigTimestamp uint32
 
 		ccqConfig          query.PerChainConfig
@@ -812,7 +812,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 		return err
 	}
 
-	logger.Info("successfully fetched delegated guardian config", 
+	logger.Info("successfully fetched delegated guardian config",
 		zap.Int("numChains", len(configs)),
 		zap.Duration("latency", time.Since(msm)))
 	queryLatency.WithLabelValues(w.networkName, "get_delegated_guardian_config").Observe(time.Since(msm).Seconds())
