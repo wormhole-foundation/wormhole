@@ -55,11 +55,8 @@ done
 
 wait
 
-# Create a builder that connects directly to the dkg-test network so it can be accessed during build.
-docker buildx rm dkg-builder || true
-docker buildx create --name dkg-builder --driver docker-container --driver-opt network=dkg-test
 # Build the docker cache first. It will throw an error but it will save time
-docker build --builder dkg-builder --network=host -f ../../../peer-client/Dockerfile --progress=plain . || true
+docker build --builder dkg-builder --network=host -f ../../../peer-client/Dockerfile --progress=plain . 2>/dev/null || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
@@ -79,7 +76,7 @@ docker build -t dkg-client -f ../../../peer-client/dkg/Dockerfile --progress=pla
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  docker run --name ${TLS_HOSTNAME}$i --network=dkg-test \
+  docker run --rm --name ${TLS_HOSTNAME}$i --network=dkg-test \
     --mount type=bind,src=./out/$i/keys,dst=/keys \
     -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
     -e TLS_PORT=$((TLS_BASE_PORT + $i)) \
