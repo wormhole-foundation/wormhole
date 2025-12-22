@@ -172,6 +172,11 @@ export class PeerClient {
     return this.run(() => this.pollAllPeersAndValidate(wormholeConfig), "Polling all peers...");
   }
 
+  public async submitAndWaitForAllPeers(): Promise<PeersResponse> {
+    await this.submitPeerData();
+    return this.waitForAllPeers();
+  }
+
   // Test helper method to get current peer data from server
   public async getCurrentPeers(): Promise<PeersResponse> {
     const response = await fetch(`${this.serverUrl}/peers`);
