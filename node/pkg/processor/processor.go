@@ -457,27 +457,29 @@ func (p *Processor) Run(ctx context.Context) error {
 					// idea to refactor how we handle combinations of Notary, Governor, and Accountant being
 					// enabled.
 
-					// Hand-off to governor
-					if p.governor != nil {
-						if !p.governor.ProcessMsg(msg) {
-							continue
+					// Publish DelegateObservation if we are a delegated guardian for the chain
+					cfg := p.dgc.GetChainConfig(msg.EmitterChain)
+					if cfg != nil {
+						_, ok := cfg.KeyIndex(p.ourAddr)
+						if ok {
+							if err := p.handleDelegateMessagePublication(msg); err != nil {
+								p.logger.Warn("failed to send delegate observation", msg.ZapFields(zap.Error(err))...)
+							} else {
+								p.logger.Info("processor: successfully queued delegate observation", msg.ZapFields()...)
+							}
 						}
+					}
+
+					// Hand-off to governor
+					if !p.processWithGovernor(msg) {
+						continue
 					}
 
 					// Hand-off to accountant. If we get here, both the Notary and the Governor
 					// have signalled that the message is OK to publish.
-					if p.acct != nil {
-						shouldPub, err := p.acct.SubmitObservation(msg)
-						if err != nil {
-							return fmt.Errorf("accountant: failed to process message `%s`: %w", msg.MessageIDString(), err)
-						}
-						if !shouldPub {
-							continue
-						}
+					if err := p.processWithAccountant(ctx, msg); err != nil {
+						return err
 					}
-
-					// Notary, Governor, and Accountant have all approved.
-					p.handleMessage(ctx, msg)
 				}
 			}
 
@@ -494,16 +496,9 @@ func (p *Processor) Run(ctx context.Context) error {
 						} else if !msgIsGoverned {
 							return fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString())
 						}
-						if p.acct != nil {
-							shouldPub, err := p.acct.SubmitObservation(k)
-							if err != nil {
-								return fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
-							}
-							if !shouldPub {
-								continue
-							}
+						if err := p.processWithAccountant(ctx, k); err != nil {
+							return err
 						}
-						p.handleMessage(ctx, k)
 					}
 				}
 			}
