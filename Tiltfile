@@ -140,11 +140,11 @@ DELEGATED_CONFIG = {
     "algorand": { "chain_id": 8, "ordinals": [3], "threshold": 1 }
 }
 
-active_delegated_chains = set()
+active_delegated_chains = []
 if evm2:
-    active_delegated_chains.add("evm2")
+    active_delegated_chains.append("evm2")
 if algorand:
-    active_delegated_chains.add("algorand")
+    active_delegated_chains.append("algorand")
 
 # create a DELEGATED_CONFIG submap that filters out disabled chains
 active_delegated_config = { k: v for k,v in DELEGATED_CONFIG.items() if k in active_delegated_chains }
