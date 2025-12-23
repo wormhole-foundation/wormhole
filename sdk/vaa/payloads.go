@@ -544,7 +544,7 @@ func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
 	if len(r.Config) > math.MaxUint8 {
 		return nil, fmt.Errorf("config too long; expected at most %d bytes", math.MaxUint8)
 	}
-	MustWrite(payload, binary.BigEndian, uint8(len(r.Config)))
+	MustWrite(payload, binary.BigEndian, uint8(len(r.Config))) // #nosec G115 -- This is checked above
 
 	for chainID, cfg := range r.Config {
 		MustWrite(payload, binary.BigEndian, uint16(chainID))
