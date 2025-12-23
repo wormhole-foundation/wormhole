@@ -539,12 +539,17 @@ func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
 	padded := make([]byte, 32)
 	copy(padded[32-len(configIndexBytes):], configIndexBytes)
 	payload.Write(padded)
+
+	// write config len as uint8
+	if len(r.Config) > math.MaxUint8 {
+		return nil, fmt.Errorf("config too long; expected at most %d bytes", math.MaxUint8)
+	}
 	MustWrite(payload, binary.BigEndian, uint8(len(r.Config)))
 
 	for chainID, cfg := range r.Config {
 		MustWrite(payload, binary.BigEndian, uint16(chainID))
 		MustWrite(payload, binary.BigEndian, cfg.Threshold)
-		MustWrite(payload, binary.BigEndian, uint8(len(cfg.Keys)))
+		MustWrite(payload, binary.BigEndian, uint8(len(cfg.Keys))) // #nosec G115 -- There will never be 256 guardians
 		for _, addr := range cfg.Keys {
 			addrBytes := addr.Bytes()
 			if len(addrBytes) != 20 {
