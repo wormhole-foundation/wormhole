@@ -42,9 +42,6 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		}
 
 		digest := v.SigningDigest().Bytes()
-		if err != nil {
-			panic(err)
-		}
 
 		b, err := v.Marshal()
 		if err != nil {
