@@ -1,0 +1,40 @@
+{
+  "index": 1,
+  "guardians": [
+    {
+      "index": 0,
+      "privateKey": "e037bee26e3a86a39914179cbd4bc0256c11a80146f5a47bb0dd2fce87c091a2",
+      "ethereumAddress": "0x72c9208be4472daC203C608633C8adc21BA3f952"
+    },
+    {
+      "index": 1,
+      "privateKey": "18e1c6304cf5fd8d224e8ead026506a97141949e4ab63b4700380a6e48c474aa",
+      "ethereumAddress": "0xf99Ce4D280B17Ec75b9f9dafc265aA8298a5F026"
+    },
+    {
+      "index": 2,
+      "privateKey": "118d3546389ff121cabd156638cd9cc09b7786d8ba1fb3af6c46e026416c6dc5",
+      "ethereumAddress": "0x47292565744bed9851A9234AE816725273544beB"
+    },
+    {
+      "index": 3,
+      "privateKey": "b25a17705d0f64c3fbaea06407923f80713e85ba1f9671ef5d9daf73659e2c52",
+      "ethereumAddress": "0x7dBFaAc580bd2c611b3A9Aec1C76C366Bf72de46"
+    },
+    {
+      "index": 4,
+      "privateKey": "0e2c7a5533cd4d36e0ff43af38675ba37adebefbdcdc3e707b3b9930cb1b1ba6",
+      "ethereumAddress": "0x6dAB8eDcfab33009014310b2114D36269ff077ae"
+    },
+    {
+      "index": 5,
+      "privateKey": "25054e1c8bb9289438a12938ff32f88b349dff0cfc979679d1a29cce9f9ffae3",
+      "ethereumAddress": "0x19378447848ee5c40Ed23937A5980bB55c52a462"
+    },
+    {
+      "index": 6,
+      "privateKey": "381ef4fb6126915443031bb0a6a4c06855d30ad6dd56c889da98f32479c87129",
+      "ethereumAddress": "0xe62C99576E360e0238e23d432D8783cD9c7E4C5b"
+    }
+  ]
+}
