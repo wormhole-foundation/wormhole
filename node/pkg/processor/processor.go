@@ -382,14 +382,27 @@ func (p *Processor) Run(ctx context.Context) error {
 				)
 				if ok {
 					p.logger.Info("processor: process message publication using main processing loop")
-					if err := p.handleMessagePublication(ctx, k); err != nil {
-						return err
+
+					// Send messages to the Notary first. If messages are not approved, they should not continue
+					// to the Governor or the Accountant.
+					if !p.processWithNotary(k) {
+						continue
 					}
+
 					p.logger.Info("processor: sending delegate observation as delegated guardian", k.ZapFields()...)
 					if err := p.handleDelegateMessagePublication(k); err != nil {
 						p.logger.Warn("failed to send delegate observation", k.ZapFields(zap.Error(err))...)
 					} else {
 						p.logger.Info("processor: successfully queued delegate observation", k.ZapFields()...)
+					}
+
+					// Send messages to the Governor and/or the Accountant
+					if !p.processWithGovernor(k) {
+						continue
+					}
+
+					if err := p.processWithAccountant(ctx, k); err != nil {
+						return err
 					}
 				} else {
 					p.logger.Info("processor: skipping message publication and delegate observation - not a delegated guardian for this chain",
