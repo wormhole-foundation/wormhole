@@ -222,8 +222,7 @@ const (
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
 	// OBSOLETE: ChainIDAurora ChainID = 9
-	// ChainIDFantom is the ChainID of Fantom
-	ChainIDFantom ChainID = 10
+	// OBSOLETE: ChainIDFantom ChainID = 10
 	// OBSOLETE: ChainIDKarura ChainID = 11
 	// OBSOLETE: ChainIDAcala ChainID = 12
 	// ChainIDKlaytn is the ChainID of Klaytn
