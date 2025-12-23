@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script allows devnet initialization of the delegated guardian configs.
+# This script allows devnet initialization of the delegated guardian set configs.
 # First argument is the delegated config. This is a map of key-value pairs where:
 #   key = chain name
 #   value = {"chain_id": <chain_id>, "ordinals": [<pod ordinals>], "threshold": <threshold>}

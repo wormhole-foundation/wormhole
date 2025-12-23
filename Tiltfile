@@ -106,7 +106,6 @@ if ci:
 else:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
 
-# TODO2: delegated chain args
 EVM2_ARGS = [
     "--bscRPC",
     "ws://eth-devnet2:8545"
@@ -128,8 +127,7 @@ chain_to_args = {
     "algorand": ALGORAND_ARGS
 }
 
-# TODO2: delegate chain config
-# We're creating presets with the following configurations:
+# We're creating delegated guardian set presets with the following configurations:
 # |------------------------------------------------------------------|
 # | chain (chain id) | delegated | guardians | threshold | simulates |
 # |------------------|-----------|-----------|-----------|-----------|
@@ -262,7 +260,7 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
 
-            # TODO2: Add POD_NAME environment variable for per-guardian configuration when needed
+            # Add POD_NAME environment variable for per-guardian configuration when needed
             if require_per_guardian_config:
                 if not "env" in container:
                     container["env"] = []

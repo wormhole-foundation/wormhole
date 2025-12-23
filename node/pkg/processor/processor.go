@@ -87,7 +87,6 @@ type (
 		signatures observationMap
 	}
 
-
 	// delegateState represents the local view of a given delegate observation
 	delegateState struct {
 		// First time this digest was seen.
@@ -98,15 +97,13 @@ type (
 
 		// Flag set after reaching quorum and submitting the VAA.
 		submitted bool
-
-		// TODO(delegated-guardian-sets): add more fields like state if necessary
 	}
 
 	delegateObservationMap map[string]*delegateState
 
 	// delegateAggregationState represents the node's aggregation of delegate guardian signatures.
 	delegateAggregationState struct {
-		observations	delegateObservationMap
+		observations delegateObservationMap
 	}
 )
 
@@ -286,7 +283,7 @@ func NewProcessor(
 		gossipAttestationSendC: gossipAttestationSendC,
 		gossipVaaSendC:         gossipVaaSendC,
 		batchObsvC:             batchObsvC,
-		delegateObsvC: 			delegateObsvC,
+		delegateObsvC:          delegateObsvC,
 		obsvReqSendC:           obsvReqSendC,
 		delegateObsvSendC:      delegateObsvSendC,
 		signedInC:              signedInC,
@@ -308,8 +305,7 @@ func NewProcessor(
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 		networkID:      networkID,
-		// TODO(delegated-guardian-sets): have this be similar to gs in the sense it is constantly updated by watchers
-		dgc: 			NewDelegateGuardianConfig(),
+		dgc:            NewDelegateGuardianConfig(),
 	}
 }
 

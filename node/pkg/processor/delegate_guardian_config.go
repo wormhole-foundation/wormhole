@@ -56,7 +56,7 @@ func (dc *DelegateGuardianChainConfig) KeyIndex(addr common.Address) (int, bool)
 }
 
 type DelegateGuardianConfig struct {
-	// TODO(delegated-guardian-sets): try RWMutex since reads > writes
+	// TODO(delegated-guardian-sets): Try RWMutex since reads > writes
 	mu     sync.Mutex
 	Chains map[vaa.ChainID]*DelegateGuardianChainConfig
 }
@@ -70,7 +70,7 @@ func NewDelegateGuardianConfig() *DelegateGuardianConfig {
 
 func (d *DelegateGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *DelegateGuardianChainConfig) {
 	d.mu.Lock()
-	// TODO(delegated-guardian-sets): add metrics using promauto.NewGuageVec()
+	// TODO(delegated-guardian-sets): Add metrics using promauto.NewGuageVec()
 	defer d.mu.Unlock()
 
 	d.Chains[chain] = cfg
