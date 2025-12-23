@@ -39,7 +39,7 @@ func NewDelegateGuardianChainConfig(keys []common.Address, threshold int) *Deleg
 
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
-func (dc *DelegateGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) {
+func (dc *DelegateGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) { //nolint: unparam // The index is unused but it is retained as it could be used in future tests
 	if dc.keyMap != nil {
 		if idx, found := dc.keyMap[addr]; found {
 			return idx, true
