@@ -1,0 +1,34 @@
+{
+  "name": "@wormhole-foundation/stacks-integration-test",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest",
+    "test:integration": "vitest integration.test.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk-proto-node": "^0.0.7",
+    "@fast-check/vitest": "^0.2.1",
+    "@grpc/grpc-js": "^1.13.4",
+    "@noble/curves": "^1.9.2",
+    "@noble/hashes": "^1.8.0",
+    "@noble/secp256k1": "^2.3.0",
+    "@scure/base": "^1.2.6",
+    "@stacks/transactions": "^7.2.0",
+    "@wormhole-foundation/wormhole-cli": "^0.0.4",
+    "bigint-buffer": "^1.1.5",
+    "ethers": "^5",
+    "micro-packed": "^0.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.25",
+    "elliptic": "^6.6.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.6"
+  }
+}
