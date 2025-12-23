@@ -90,7 +90,7 @@ var signedObservationRequestPrefix = []byte("signed_observation_request|")
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
-// TODO: Remove if no freshness check required
+// TODO(delegated-guardian-sets): Remove if no freshness check required
 var delegateObservationMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
@@ -1192,7 +1192,7 @@ func processDelegateObservation(d *gossipv1.DelegateObservation, gs *common.Guar
 		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
 	}
 
-	// TODO: Remove if no freshness check required
+	// TODO(delegated-guardian-sets): Remove if no freshness check required
 	// Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert
 	if time.Until(time.Unix(int64(d.Timestamp), 0)).Abs() > delegateObservationMaxTimeDifference {
 		return nil, fmt.Errorf("delegate observation is too old or too far into the future")

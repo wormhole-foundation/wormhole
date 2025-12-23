@@ -32,7 +32,7 @@ func NewDelegateGuardianChainConfig(keys []common.Address) *DelegateGuardianChai
 	}
 	return &DelegateGuardianChainConfig{
 		Keys:   keys,
-		// TODO: replace with threshold from EVM contract
+		// TODO(delegated-guardian-sets): replace with threshold from EVM contract
 		quorum: vaa.CalculateQuorum(len(keys)),
 		keyMap: keyMap,
 	}
@@ -57,7 +57,7 @@ func (dc *DelegateGuardianChainConfig) KeyIndex(addr common.Address) (int, bool)
 }
 
 type DelegateGuardianConfig struct {
-	// TODO: try RWMutex since reads > writes
+	// TODO(delegated-guardian-sets): try RWMutex since reads > writes
 	mu     sync.Mutex
 	Chains map[vaa.ChainID]*DelegateGuardianChainConfig
 }
@@ -71,7 +71,7 @@ func NewDelegateGuardianConfig() *DelegateGuardianConfig {
 
 func (d *DelegateGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *DelegateGuardianChainConfig) {
 	d.mu.Lock()
-	// TODO: add metrics using promauto.NewGuageVec()
+	// TODO(delegated-guardian-sets): add metrics using promauto.NewGuageVec()
 	defer d.mu.Unlock()
 
 	d.Chains[chain] = cfg
