@@ -125,12 +125,20 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 // processor to determine whether a message should be processed or not. This occurs elsewhere
 // in the processor code.
 func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
+	if !p.processWithNotary(k) || !p.processWithGovernor(k) {
+		return nil
+	}
+
+	return p.processWithAccountant(ctx, k)
+}
+
+// processWithNotary processes a message using the Notary to check whether it is well-formed.
+// Returns true if the message was processed successfully and we can continue processing the message.
+func (p *Processor) processWithNotary(k *node_common.MessagePublication) bool {
 	// Track transfer verification states for analytics and log unusual states
 	p.trackVerificationState(k)
 
 	// Notary: check whether a message is well-formed.
-	// Send messages to the Notary first. If messages are not approved, they should not continue
-	// to the Governor or the Accountant.
 	if p.notary != nil {
 		p.logger.Debug("processor: sending message to notary for evaluation", k.ZapFields()...)
 
@@ -141,7 +149,7 @@ func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common
 			// In contrast, the Accountant does not ignore the error and restarts the processor if it fails.
 			// The error-handling strategy can be revisited once the Notary is considered stable.
 			p.logger.Error("notary failed to process message", zap.Error(err), zap.String("messageID", k.MessageIDString()))
-			return nil
+			return false
 		}
 
 		// Based on the verdict, we can decide what to do with the message.
@@ -156,7 +164,7 @@ func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common
 				p.logger.Error("message will be delayed", k.ZapFields(zap.String("verdict", verdict.String()))...)
 			}
 			// We're done processing the message.
-			return nil
+			return false
 		case guardianNotary.Unknown:
 			p.logger.Error("notary returned Unknown verdict", k.ZapFields(zap.String("verdict", verdict.String()))...)
 		case guardianNotary.Approve:
@@ -167,15 +175,24 @@ func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common
 		}
 	}
 
-	// Governor: check if a message is ready to be published.
+	return true
+}
+
+// processWithGovernor processes a message using the Governor to check if it is ready to be published.
+// Returns true if the message was processed successfully and we can continue processing the message.
+func (p *Processor) processWithGovernor(k *node_common.MessagePublication) bool {
 	if p.governor != nil {
 		if !p.governor.ProcessMsg(k) {
 			// We're done processing the message.
-			return nil
+			return false
 		}
 	}
+	return true
+}
 
-	// Accountant: check if a message is ready to be published (i.e. if it has enough observations).
+// processWithAccountant processes a message using the Accountant to check if it is ready to be published
+// (i.e. if it has enough observations).
+func (p *Processor) processWithAccountant(ctx context.Context, k *node_common.MessagePublication) error {
 	if p.acct != nil {
 		shouldPub, err := p.acct.SubmitObservation(k)
 		if err != nil {
