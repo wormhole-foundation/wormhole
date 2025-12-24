@@ -19,9 +19,9 @@ tmp/
 guardian_peers.json
 
 
-# Yarn
+# Yarn without Zero-Installs
+.pnp.*
 .yarn/*
-!.yarn/cache
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
