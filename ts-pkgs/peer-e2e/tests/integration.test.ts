@@ -53,12 +53,7 @@ describe('Peer Server Integration Tests', () => {
     server = new PeerServer(testConfig, mockWormholeData, mockDisplay);
 
     // Start the server and get the actual port
-    const serverPromise = new Promise<void>((resolve) => {
-      server.start();
-      // Give server a moment to start
-      setTimeout(resolve, 100);
-    });
-    await serverPromise;
+    await server.start();
 
     // Get the actual port the server is running on
     serverUrl = `http://localhost:${server.getPort()}`;

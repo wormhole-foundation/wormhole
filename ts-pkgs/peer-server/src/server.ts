@@ -10,7 +10,7 @@ import {
   validatePeers,
   errorStack
 } from '@xlabs-xyz/peer-lib';
-import { Server } from 'http';
+import { createServer, Server } from 'node:http';
 
 import { Display } from './display.js';
 import { saveGuardianPeers } from './peers.js';
@@ -122,13 +122,17 @@ export class PeerServer {
     });
   }
 
-  start(): void {
-    this.server = this.app.listen(this.config.port, () => {
-      this.display.log(`Peer server running on port ${this.config.port}`);
-      this.display.log('\nWaiting for guardians to submit their peer data...');
+  start(): Promise<void> {
+    this.server = createServer(this.app);
+    return new Promise((resolve) => {
+      this.server!.listen(this.config.port, () => {
+        const address = this.server!.address();
+        this.port = typeof address === 'object' ? address?.port : undefined;
+        this.display.log(`Peer server running on port ${this.port || address}`);
+        this.display.log('\nWaiting for guardians to submit their peer data...');
+        resolve();
+      });
     });
-    const address = this.server.address();
-    this.port = typeof address === 'object' ? address?.port : undefined;
   }
 
   getPort(): number | undefined {
