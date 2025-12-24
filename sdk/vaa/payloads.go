@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
+	"slices"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -546,8 +548,11 @@ func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
 	}
 	MustWrite(payload, binary.BigEndian, uint8(len(r.Config))) // #nosec G115 -- This is checked above
 
-	for chainID, cfg := range r.Config {
-		MustWrite(payload, binary.BigEndian, uint16(chainID))
+	// Sort chainIds to get deterministic output
+	chainIds := slices.Sorted(maps.Keys(r.Config))
+	for _, chainId := range chainIds {
+		cfg := r.Config[chainId]
+		MustWrite(payload, binary.BigEndian, uint16(chainId))
 		MustWrite(payload, binary.BigEndian, cfg.Threshold)
 		MustWrite(payload, binary.BigEndian, uint8(len(cfg.Keys))) // #nosec G115 -- There will never be 256 guardians
 		for _, addr := range cfg.Keys {
