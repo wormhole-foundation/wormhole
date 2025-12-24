@@ -106,6 +106,64 @@ if ci:
 else:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
 
+EVM2_ARGS = [
+    "--bscRPC",
+    "ws://eth-devnet2:8545"
+]
+ALGORAND_ARGS = [
+    "--algorandAppID",
+    "1004",
+    "--algorandIndexerRPC",
+    "http://algorand:8980",
+    "--algorandIndexerToken",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--algorandAlgodRPC",
+    "http://algorand:4001",
+    "--algorandAlgodToken",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+]
+chain_to_args = {
+    "evm2": EVM2_ARGS,
+    "algorand": ALGORAND_ARGS
+}
+
+# We're creating delegated guardian set presets with the following configurations:
+# |------------------------------------------------------------------|
+# | chain (chain id) | delegated | guardians | threshold | simulates |
+# |------------------|-----------|-----------|-----------|-----------|
+# | eth-devnet (2)   |     N     | [0,1,2,3] |     3     |   13/19   |
+# | eth-devnet-2 (4) |     Y     |   [1,2]   |     2     |    7/9    |
+# | algorand (8)     |     Y     |    [3]    |     1     |    5/7    |
+# |------------------------------------------------------------------|
+DELEGATED_CONFIG = {
+    "evm2": { "chain_id": 4, "ordinals": [1, 2], "threshold": 2 },
+    "algorand": { "chain_id": 8, "ordinals": [3], "threshold": 1 }
+}
+
+active_delegated_chains = []
+if evm2:
+    active_delegated_chains.append("evm2")
+if algorand:
+    active_delegated_chains.append("algorand")
+
+# create a DELEGATED_CONFIG submap that filters out disabled chains
+active_delegated_config = { k: v for k,v in DELEGATED_CONFIG.items() if k in active_delegated_chains }
+
+# derive per-guardian config from active_delegated_config
+pod_config = {}
+for k in active_delegated_config.keys():
+    for i in active_delegated_config[k]["ordinals"]:
+        if i not in pod_config:
+            pod_config[i] = []
+        pod_config[i].append(k)
+pod_config = { k: sorted(v) for k,v in pod_config.items() }
+
+require_per_guardian_config = (
+    bool(active_delegated_config)
+    and num_guardians > max([
+        max(v["ordinals"]) for v in active_delegated_config.values()
+    ])
+)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -202,6 +260,19 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
 
+            # Add POD_NAME environment variable for per-guardian configuration when needed
+            if require_per_guardian_config:
+                if not "env" in container:
+                    container["env"] = []
+                container["env"].append({
+                    "name": "POD_NAME",
+                    "valueFrom": {
+                        "fieldRef": {
+                            "fieldPath": "metadata.name"
+                        }
+                    }
+                })
+
             container["command"] += ["--logLevel="+guardiand_loglevel]
 
             if guardiand_debug:
@@ -233,17 +304,23 @@ def build_node_yaml():
                     "--suiMoveEventType",
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
                 ]
-
-            if evm2:
-                container["command"] += [
-                    "--bscRPC",
-                    "ws://eth-devnet2:8545",
-                ]
+            
+            # Handle evm2 and algorand configuration based on guardian count, evm2 and algorand flag
+            if require_per_guardian_config:
+                # Use a shell wrapper to conditionally set the values based on pod ordinal
+                # We need to wrap the entire command since we're building it incrementally
+                pass  # these values will be added in the wrapper at the end
             else:
-                container["command"] += [
-                    "--bscRPC",
-                    "ws://eth-devnet:8545",
-                ]
+                if evm2:
+                    container["command"] += chain_to_args["evm2"]
+                else:
+                    container["command"] += [
+                        "--bscRPC",
+                        "ws://eth-devnet:8545",
+                    ]
+                
+                if algorand:
+                    container["command"] += chain_to_args["algorand"]
 
             if solana_watcher:
                 container["command"] += [
@@ -275,20 +352,6 @@ def build_node_yaml():
                     "http://terra2-terrad:1317",
                     "--terra2Contract",
                     "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-                ]
-
-            if algorand:
-                container["command"] += [
-                    "--algorandAppID",
-                    "1004",
-                    "--algorandIndexerRPC",
-                    "http://algorand:8980",
-                    "--algorandIndexerToken",
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                    "--algorandAlgodRPC",
-                    "http://algorand:4001",
-                    "--algorandAlgodToken",
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ]
 
             if guardiand_governor:
@@ -350,6 +413,47 @@ def build_node_yaml():
                     "http://wormchain:1317"
                 ]
 
+            # Wrap the command with a shell script for per-guardian configuration
+            if require_per_guardian_config:
+                original_command = container["command"]
+
+                def generate_exec_line(og_cmd, delegated_chain_args):
+                    def escape_line(cmd_part):
+                        return cmd_part.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+
+                    line = "  exec"
+                    for cmd_part in og_cmd:
+                        line += " \"" + escape_line(cmd_part) + "\""
+                    for arg in delegated_chain_args:
+                        line += " \"" + escape_line(arg) + "\""
+                    return line + "\n"
+                
+                # Build the shell wrapper script
+                wrapper_script = "POD_ORDINAL=$(echo $POD_NAME | grep -o '[0-9]*$')\n"
+
+                use_if = True
+                for pod_ordinal in sorted(pod_config.keys()):
+                    if use_if:
+                        wrapper_script += "if [ \"$POD_ORDINAL\" = \"{}\" ]; then\n".format(pod_ordinal)
+                        use_if = False
+                    else:
+                        wrapper_script += "elif [ \"$POD_ORDINAL\" = \"{}\" ]; then\n".format(pod_ordinal)
+
+                    chain_args = [
+                        args
+                        for chain in pod_config[pod_ordinal]
+                        for args in chain_to_args[chain]
+                    ]
+                    wrapper_script += generate_exec_line(original_command, chain_args)
+                
+                wrapper_script += "else\n"
+                # Canonical guardians do not listen to delegated chains
+                wrapper_script += generate_exec_line(original_command, []) 
+                wrapper_script += "fi\n"
+                
+                # Replace the command with the wrapper
+                container["command"] = ["/bin/sh", "-c", wrapper_script]
+
     return encode_yaml_stream(node_yaml_with_replicas)
 
 k8s_yaml_with_ns(build_node_yaml())
@@ -396,6 +500,16 @@ if num_guardians >= 2 and ci == False:
         trigger_mode = trigger_mode,
     )
 
+# delegated guardian sets
+if require_per_guardian_config:
+    local_resource(
+        name = "delegated-guardian-sets",
+        resource_deps = guardian_resource_deps + ["guardian"],
+        deps = ["scripts/send-vaa.sh", "clients/eth"],
+        cmd = './scripts/delegated-guardian-set-preset.sh %s %s %s' % ("'{}'".format(encode_json(active_delegated_config)), webHost, namespace),
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
 
 # grafana + prometheus for node metrics
 if node_metrics:
@@ -501,7 +615,7 @@ docker_build(
     context = ".",
     only = ["./ethereum", "./relayer/ethereum"],
     dockerfile = "./ethereum/Dockerfile",
-
+    platform = "linux/amd64",
     # ignore local node_modules (in case they're present)
     ignore = ["./ethereum/node_modules","./relayer/ethereum/node_modules"],
     build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
