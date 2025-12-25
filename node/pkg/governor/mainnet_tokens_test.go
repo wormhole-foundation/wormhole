@@ -56,6 +56,18 @@ func TestTokensHaveGovernedChains(t *testing.T) {
 	require.Empty(t, badTokens, "Some tokens are not governed by a chain: %v", badTokens)
 }
 
+func TestTokenSensibleDecimals(t *testing.T) {
+	tokenConfigEntries := TokenList()
+	// This is the global maximum number of decimals among the tokens we have configured. (due to NEAR)
+	// A larger number may be fine but it's unusual, so it's worth flagging.
+	const maxDecimals = 24
+
+	for tokenConfigEntry := range slices.Values(tokenConfigEntries) {
+		assert.GreaterOrEqual(t, tokenConfigEntry.Decimals, uint8(0), "Token decimals must be greater than or equal to zero")
+		assert.LessOrEqual(t, tokenConfigEntry.Decimals, uint8(maxDecimals), fmt.Sprintf("Token decimals must be less than or equal to %d but got %d. details: %v", maxDecimals, tokenConfigEntry.Decimals, tokenConfigEntry))
+	}
+}
+
 // Flag a situation where a Governed chain does not have any governed assets. Often times when adding a mainnet chain,
 // a list of tokens will be added so that they can be governed. (These tokens are sourced by CoinGecko or manually
 // populated.) While this is not a hard requirement, it may represent that a developer has forgotten to take the step

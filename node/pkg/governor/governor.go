@@ -63,7 +63,7 @@ type (
 		Addr        string
 		Symbol      string
 		CoinGeckoId string
-		Decimals    int64
+		Decimals    uint8
 		Price       float64
 	}
 
@@ -82,8 +82,9 @@ type (
 
 	// Payload of the map of the tokens being monitored
 	tokenEntry struct {
-		price          *big.Float
-		decimals       *big.Int
+		price *big.Float
+		// scalingFactor is 10 to the power of the number of decimals of the [TokenConfigEntry].
+		scalingFactor  *big.Int
 		symbol         string
 		coinGeckoId    string
 		token          tokenKey
@@ -351,8 +352,9 @@ func (gov *ChainGovernor) initConfig() error {
 			dec = 8
 		}
 
-		decimalsFloat := big.NewFloat(math.Pow(10.0, float64(dec)))
-		decimals, _ := decimalsFloat.Int(nil)
+		// Calculate the scaling factor based on the number of decimals.
+		scalingFactorFloat := big.NewFloat(math.Pow(10.0, float64(dec)))
+		scalingFactor, _ := scalingFactorFloat.Int(nil)
 
 		// Some Solana tokens don't have the symbol set. In that case, use the chain and token address as the symbol.
 		symbol := token.Symbol
@@ -362,12 +364,12 @@ func (gov *ChainGovernor) initConfig() error {
 
 		key := tokenKey{chain: vaa.ChainID(token.Chain), addr: addr}
 		te := &tokenEntry{
-			cfgPrice:    cfgPrice,
-			price:       initialPrice,
-			decimals:    decimals,
-			symbol:      symbol,
-			coinGeckoId: token.CoinGeckoId,
-			token:       key,
+			cfgPrice:      cfgPrice,
+			price:         initialPrice,
+			scalingFactor: scalingFactor,
+			symbol:        symbol,
+			coinGeckoId:   token.CoinGeckoId,
+			token:         key,
 		}
 		te.updatePrice()
 
@@ -388,8 +390,8 @@ func (gov *ChainGovernor) initConfig() error {
 				zap.String("symbol", te.symbol),
 				zap.String("coinGeckoId", te.coinGeckoId),
 				zap.String("price", te.price.String()),
-				zap.Int64("decimals", dec),
-				zap.Int64("origDecimals", token.Decimals),
+				zap.Uint8("decimals", dec),
+				zap.Uint8("origDecimals", token.Decimals),
 			)
 		}
 	}
@@ -988,7 +990,23 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 	return msgsToPublish, nil
 }
 
+// computeValue computes the USD value of a transfer.
 func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+
+	if token.scalingFactor == nil {
+		return 0, fmt.Errorf("scalingFactor is nil")
+	}
+
+	if token.price == nil {
+		return 0, fmt.Errorf("price is nil")
+	}
+
+	// Prevent division by zero panic.
+	// Shouldn't occur in practice as scalingFactor is always a power of 10.
+	if token.scalingFactor.Cmp(big.NewInt(0)) == 0 {
+		return 0, fmt.Errorf("scalingFactor is zero")
+	}
+
 	amountFloat := new(big.Float)
 	amountFloat = amountFloat.SetInt(amount)
 
@@ -996,7 +1014,7 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	valueFloat = valueFloat.Mul(amountFloat, token.price)
 
 	valueBigInt, _ := valueFloat.Int(nil)
-	valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+	valueBigInt = valueBigInt.Div(valueBigInt, token.scalingFactor)
 
 	if !valueBigInt.IsUint64() {
 		return 0, fmt.Errorf("value is too large to fit in uint64")
