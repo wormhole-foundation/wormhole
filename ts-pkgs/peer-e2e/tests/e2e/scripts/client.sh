@@ -42,26 +42,26 @@ createGuardianPrivateKey() {
 }
 
 # Build the dockerfile that generates the TLS key and certificate
-docker build -t tls-gen -f ../../../peer-client/tls/Dockerfile --progress=plain .
+docker build --tag tls-gen --file ../../../peer-client/tls/Dockerfile --progress=plain .
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   mkdir -p out/$i/keys
   docker run --rm --mount type=bind,src=./out/$i/keys,dst=/keys \
-    -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
-    -e TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
+    --env TLS_HOSTNAME=${TLS_HOSTNAME}$i \
+    --env TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
     tls-gen &
 done
 
 wait
 
 # Build the docker cache first. It will throw an error but it will save time
-docker build --builder dkg-builder --network=host -f ../../../peer-client/Dockerfile --progress=plain . 2>/dev/null || true
+docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile --progress=plain . 2>/dev/null || true
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
    # The host here refers to the builder host container, not the host machine.
-  docker build --builder dkg-builder --network=host -f ../../../peer-client/Dockerfile \
+  docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile \
     --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
     --secret id=cert.pem,src=./out/$i/keys/cert.pem \
     --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
@@ -72,17 +72,17 @@ done
 
 wait
 
-docker build -t dkg-client -f ../../../peer-client/dkg/Dockerfile --progress=plain .
+docker build --tag dkg-client --file ../../../peer-client/dkg/Dockerfile --progress=plain .
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   docker run --rm --name ${TLS_HOSTNAME}$i --network=dkg-test \
     --mount type=bind,src=./out/$i/keys,dst=/keys \
-    -e TLS_HOSTNAME=${TLS_HOSTNAME}$i \
-    -e TLS_PORT=$((TLS_BASE_PORT + $i)) \
-    -e PEER_SERVER_URL=${PEER_SERVER_URL} \
-    -e ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL} \
-    -e WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} \
+    --env TLS_HOSTNAME=${TLS_HOSTNAME}$i \
+    --env TLS_PORT=$((TLS_BASE_PORT + $i)) \
+    --env PEER_SERVER_URL=${PEER_SERVER_URL} \
+    --env ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL} \
+    --env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} \
     dkg-client &
 done
 

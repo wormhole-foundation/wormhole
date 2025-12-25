@@ -2,7 +2,7 @@
 
 set -meuo pipefail
 
-echo "Cleaning up danling Docker containers, builders and networks..."
+echo "Cleaning up dangling Docker containers, builders and networks..."
 
 for i in $(seq 0 18)
 do

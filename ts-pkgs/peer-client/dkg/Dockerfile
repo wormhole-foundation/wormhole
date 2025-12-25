@@ -13,7 +13,7 @@ WORKDIR /core-bridge/ts-pkgs/peer-client
 RUN yarnpkg install --immutable
 RUN yarnpkg build
 
-COPY <<EOT poll_guardians.sh
+COPY --chmod="ugo+rx" <<EOT poll_guardians.sh
 #!/bin/bash
 
 set -euo pipefail
@@ -67,7 +67,5 @@ jq ".StorageLocation = \\"/keys/\\" | .SelfSecret = \\"\${GUARDIAN_TLS_KEY}\\"" 
 /wormhole/node/pkg/tss/internal/cmd/server -cnfg=/keys/dkg_config.json
 
 EOT
-
-RUN chmod +x poll_guardians.sh
 
 ENTRYPOINT ["./poll_guardians.sh"]

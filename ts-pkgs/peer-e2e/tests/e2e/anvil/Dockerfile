@@ -3,9 +3,7 @@ FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a679150
 
 RUN apt-get update && apt-get -y install git make
 
-COPY --from=foundry /usr/local/bin/anvil /bin/anvil
-COPY --from=foundry /usr/local/bin/forge /bin/forge
-COPY --from=foundry /usr/local/bin/cast  /bin/cast
+COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/forge /usr/local/bin/cast /bin/
 
 # TODO: Pin the commit
 RUN git clone -b feat/dkg-docker --depth 1 https://github.com/XLabs/core-bridge.git
