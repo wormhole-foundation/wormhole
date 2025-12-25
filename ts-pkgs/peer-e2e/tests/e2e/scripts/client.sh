@@ -58,6 +58,12 @@ wait
 # Build the docker cache first. It will throw an error but it will save time
 docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile --progress=plain . 2>/dev/null || true
 
+# Wait until the server starts listening
+until docker logs peer-server 2>/dev/null | grep "running"
+do
+  sleep 1
+done
+
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
    # The host here refers to the builder host container, not the host machine.

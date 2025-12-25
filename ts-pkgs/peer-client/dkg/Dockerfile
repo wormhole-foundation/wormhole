@@ -13,7 +13,7 @@ WORKDIR /core-bridge/ts-pkgs/peer-client
 RUN yarnpkg install --immutable
 RUN yarnpkg build
 
-COPY --chmod="ugo+rx" <<EOT poll_guardians.sh
+COPY --chmod=555 <<EOT poll_guardians.sh
 #!/bin/bash
 
 set -euo pipefail

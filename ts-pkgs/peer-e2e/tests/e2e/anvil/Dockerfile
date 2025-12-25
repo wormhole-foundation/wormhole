@@ -12,6 +12,6 @@ WORKDIR /core-bridge
 
 RUN make build-evm
 
-WORKDIR /core-bridge/ts-pkgs/peer-e2e/tests/e2e/
+WORKDIR /core-bridge/ts-pkgs/peer-e2e/tests/e2e/anvil/
 
 ENTRYPOINT ["./localAnvilWithVerifier.sh"]

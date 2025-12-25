@@ -3,7 +3,7 @@ FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a679150
 RUN apt-get update && apt-get -y install openssl
 
 # Generate the TLS key and certificate
-COPY --chmod="ugo+rx" <<EOT generate_tls_key.sh
+COPY --chmod=555 <<EOT generate_tls_key.sh
 #!/bin/bash
 set -euo pipefail
 
@@ -23,6 +23,5 @@ openssl req -x509 -key /keys/key.pem -out /keys/cert.pem -days 365 \\
   -addext "keyUsage=digitalSignature" \\
   -addext "extendedKeyUsage=serverAuth,clientAuth"
 EOT
-
 
 ENTRYPOINT ["./generate_tls_key.sh"]

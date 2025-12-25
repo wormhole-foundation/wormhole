@@ -9,4 +9,10 @@ WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
 docker build --tag peer-server --file ../../../peer-server/Dockerfile --build-arg SERVER_PORT=${SERVER_PORT} --build-arg ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL} --build-arg WORMHOLE_ADDRESS=${WORMHOLE_ADDRESS} --progress=plain .
 
+# Wait until anvil starts listening
+until docker logs anvil-with-verifier 2>/dev/null | grep Listening
+do
+  sleep 1
+done
+
 docker run --rm --network=dkg-test --name peer-server peer-server
