@@ -4,5 +4,5 @@
 }
 /WormholeVerifier::/ {
   match($0, /\[([0-9]+)\]/, g)
-  printf "%-40s %10d\n", test, g[1]
+  printf "%-50s %10d\n", test, g[1]
 }
