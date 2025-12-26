@@ -18,7 +18,7 @@ export class PeerClient {
   private config: SelfConfig;
   private serverUrl: string;
 
-  constructor(config: SelfConfig) {
+  constructor(config: SelfConfig, private readonly pollPeriod = 5000) {
     this.config = config;
     this.serverUrl = this.config.serverUrl;
   }
@@ -117,8 +117,8 @@ export class PeerClient {
         console.error(`[ERROR] Error polling for completion: ${errorStack(error)}`);
       }
 
-      // Wait 5 seconds before next poll
-      await this.sleep(5000);
+      // Wait before next poll
+      await this.sleep(this.pollPeriod);
     }
   }
 

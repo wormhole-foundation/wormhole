@@ -31,6 +31,8 @@ class MockDisplay extends Display {
 describe('Peer Server Integration Tests', () => {
   let server: PeerServer;
   let serverUrl: string;
+  // We use a shorter polling period to accelerate tests.
+  const pollingPeriod = 500;
 
   // Generate test guardians
   const testGuardianWallets: ethers.HDNodeWallet[] = [];
@@ -117,7 +119,7 @@ describe('Peer Server Integration Tests', () => {
         peer: testPeers[i],
       };
       const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
-      const client = new PeerClient(selfConfig);
+      const client = new PeerClient(selfConfig, pollingPeriod);
       clientPromises.push(client.submitAndWaitForAllPeers(mockWormholeData));
     }
 
@@ -217,18 +219,18 @@ describe('Peer Server Integration Tests', () => {
       }
 
       // Submit first client immediately
-      const firstClient = new PeerClient(clientConfigs[0]);
+      const firstClient = new PeerClient(clientConfigs[0], pollingPeriod);
       const firstClientPromise = firstClient.submitAndWaitForAllPeers(mockWormholeData);
 
       // Wait a bit then submit second client
       await new Promise(resolve => setTimeout(resolve, 1000));
-      const secondClient = new PeerClient(clientConfigs[1]);
+      const secondClient = new PeerClient(clientConfigs[1], pollingPeriod);
       await secondClient.submitAndWaitForAllPeers(mockWormholeData);
 
       // Wait for both to complete
       const results = await Promise.all([
         firstClientPromise,
-        new PeerClient(clientConfigs[1]).submitAndWaitForAllPeers(mockWormholeData)
+        new PeerClient(clientConfigs[1], pollingPeriod).submitAndWaitForAllPeers(mockWormholeData)
       ]);
 
       // Verify results are consistent
