@@ -37,6 +37,7 @@ export const WormholeConfigSchema = z.object({
 
 // Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
+  // TODO: move this to specific CLI option/command type
   guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty").optional(),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
