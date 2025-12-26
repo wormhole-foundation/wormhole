@@ -9,7 +9,7 @@
     "build": "tsc --build",
     "start:server": "tsx src/cli.ts",
     "dev:server": "tsx --watch src/cli.ts",
-    "test": "npm run build && vitest --run"
+    "test": "npm run build && vitest --run --dir tests/"
   },
   "dependencies": {
     "@xlabs-xyz/peer-lib": "workspace:*",
