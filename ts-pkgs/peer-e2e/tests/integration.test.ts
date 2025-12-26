@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { WormholeGuardianData,
+import {
+  WormholeGuardianData,
   SelfConfig,
   PeersResponse,
   SelfConfigSchema,
@@ -73,7 +74,7 @@ describe('Peer Server Integration Tests', () => {
     }
 
     const testFiles: string[] = [];
-    
+
     for (let i = 0; i < 2; i++) {
       // Create guardian key file with proper Wormhole format
       const keyPath = path.join(testDir, `guardian-${i}-key.txt`);
