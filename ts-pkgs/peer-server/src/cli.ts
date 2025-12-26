@@ -76,7 +76,6 @@ async function main() {
   display.log(`Loaded ${guardianPeers.length} guardian peers`);
 
   const server = new PeerServer(config, wormholeData, display, guardianPeers);
-  server.start();
 
   const shutdown = () => {
     display.log('\nShutting down server...');
@@ -86,6 +85,8 @@ async function main() {
   // Handle graceful shutdown
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  await server.start();
 }
 
 main().catch((error: unknown) => {

@@ -9,22 +9,24 @@ import {
   PeersResponseSchema,
   UploadResponseSchema,
   UploadResponse,
-  errorStack
+  errorStack,
+  validatePeers,
+  WormholeGuardianData
 } from '@xlabs-xyz/peer-lib';
 
 export class PeerClient {
   private config: SelfConfig;
   private serverUrl: string;
 
-  constructor(config: SelfConfig) {
+  constructor(config: SelfConfig, private readonly pollPeriod = 5000) {
     this.config = config;
     this.serverUrl = this.config.serverUrl;
   }
 
-  private async signPeerData(): Promise<PeerRegistration> {
+  private async signPeerData(guardianPrivateKey: string): Promise<PeerRegistration> {
     const { peer } = this.config;
     // Create wallet from private key
-    const wallet = new ethers.Wallet(this.config.guardianPrivateKey);
+    const wallet = new ethers.Wallet(guardianPrivateKey);
     // Create message hash as per server implementation
     const messageHash = hashPeerData(peer);
     // Sign the message
@@ -37,10 +39,8 @@ export class PeerClient {
     return validateOrFail(PeerRegistrationSchema, peerRegistration, "Generated PeerRegistration is invalid");
   }
 
-  private async uploadPeerData(): Promise<UploadResponse> {
+  private async uploadPeerData(peerRegistration: PeerRegistration): Promise<UploadResponse> {
     try {
-      const peerRegistration = await this.signPeerData();
-
       console.log(`[UPLOAD] Uploading peer data for guardian...`);
 
       const response = await fetch(`${this.serverUrl}/peers`, {
@@ -68,6 +68,11 @@ export class PeerClient {
       console.error(`[ERROR] Error uploading peer data: ${errorStack(error)}`);
       throw error;
     }
+  }
+
+  private async signAndUploadPeerData(guardianPrivateKey: string): Promise<UploadResponse> {
+    const peerRegistration = await this.signPeerData(guardianPrivateKey);
+    return this.uploadPeerData(peerRegistration);
   }
 
   private async pollForCompletion(): Promise<PeersResponse> {
@@ -112,9 +117,22 @@ export class PeerClient {
         console.error(`[ERROR] Error polling for completion: ${errorStack(error)}`);
       }
 
-      // Wait 5 seconds before next poll
-      await this.sleep(5000);
+      // Wait before next poll
+      await this.sleep(this.pollPeriod);
     }
+  }
+
+  private validatePeers(response: PeersResponse, wormholeData: WormholeGuardianData): void {
+    if (response.peers.length !== wormholeData.guardians.length) {
+      throw new Error(`Expected ${wormholeData.guardians.length} guardians, got ${response.peers.length}`);
+    }
+    validatePeers(response.peers, wormholeData);
+  }
+
+  private async pollAllPeersAndValidate(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
+    const response = await this.pollForCompletion();
+    this.validatePeers(response, wormholeData);
+    return response;
   }
 
   private sleep(ms: number): Promise<void> {
@@ -137,18 +155,20 @@ export class PeerClient {
   }
 
   public async submitPeerData(): Promise<UploadResponse> {
-    return this.run(() => this.uploadPeerData(), "Uploading peer data...");
+    const guardianPrivateKey = this.config.guardianPrivateKey;
+    if (guardianPrivateKey === undefined) {
+      throw new Error(`Guardian private key path was not set`);
+    }
+    return this.run(() => this.signAndUploadPeerData(guardianPrivateKey), "Uploading peer data...");
   }
 
-  public async waitForAllPeers(): Promise<PeersResponse> {
-    return this.run(() => this.pollForCompletion(), "Polling all peers...");
+  public async waitForAllPeers(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
+    return this.run(() => this.pollAllPeersAndValidate(wormholeData), "Polling all peers...");
   }
 
-  public async submitAndWaitForAllPeers(): Promise<PeersResponse> {
-    return this.run(async () => {
-      await this.uploadPeerData();
-      return this.pollForCompletion();
-    }, "Uploading peer data and waiting for all peers...");
+  public async submitAndWaitForAllPeers(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
+    await this.submitPeerData();
+    return this.waitForAllPeers(wormholeData);
   }
 
   // Test helper method to get current peer data from server
