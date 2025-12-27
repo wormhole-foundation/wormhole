@@ -8,7 +8,7 @@
 # correctness and safety. Always verify any major dependency updates.
 
 DOCKER=${DOCKER:-docker}
-DOCKER_IMAGE_DEBIAN_DISTRO=bullseye
+DOCKER_IMAGE_DEBIAN_DISTRO=bookworm
 REPO_ROOT_DIR=$(dirname "$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )")
 
 # Update the github actions to use the updated version of go
@@ -18,8 +18,8 @@ function update_github_actions() {
     # Don't cd in and then cd out
     (
         cd "$directory" || return 1
-        echo "Updating github actions under $directory"
-        git grep -l go-version | xargs sed -r -i -e '/go-version/s/:.*$/: "'"${version}"'"/g'
+        echo "Updating github actions under $directory (excluding wormchain-icts.yml)"
+        git grep -l go-version | grep -v wormchain-icts.yml | xargs sed -r -i -e '/go-version/s/:.*$/: "'"${version}"'"/g'
         return "${PIPESTATUS[1]}"
     )
     return $?
@@ -64,7 +64,7 @@ function update_our_dockerfiles() {
     local image=docker.io/golang
 
     # shellcheck disable=SC2207
-    local wormhole_dockerfiles=($(git grep -lEi 'FROM.*go(lang)' | grep -Ev '^(wormchain/D|third_party|algorand|terra|docs)'))
+    local wormhole_dockerfiles=($(git grep -lEi 'FROM.*go(lang)' | grep -Ev '^(wormchain/|third_party|algorand|terra|docs|sdk/)'))
 
     # shellcheck disable=SC2155
     local digest=$(get_docker_image_digest "$version" "docker.io/golang")
@@ -99,15 +99,37 @@ function update_our_dockerfiles() {
     done
 }
 
-function update_go_mod() {
+# Update go.mod files in all relevant directories
+# Excludes wormchain/ and sdk/ as those cannot be upgraded
+function update_go_mods() {
     local version=$1
-    (
-        cd "${REPO_ROOT_DIR}/node" || exit 1
-        go mod edit -go "$version" -toolchain "go${version}"
-	# This is mandatory after go mod edit or it refuses to build
-	go mod tidy
+    local go_mod_dirs=(
+        "node"
+        "tools"
+        "clients/eth"
+        "near/test"
+        "node/tools"
     )
-    return $?
+    
+    for mod_dir in "${go_mod_dirs[@]}"; do
+        if [[ ! -f "${REPO_ROOT_DIR}/${mod_dir}/go.mod" ]]; then
+            echo "WARNING: ${mod_dir}/go.mod not found, skipping" >&2
+            continue
+        fi
+        
+        echo "Updating ${mod_dir}/go.mod to Go ${version}"
+        (
+            cd "${REPO_ROOT_DIR}/${mod_dir}" || exit 1
+            go mod edit -go "$version" -toolchain "go${version}"
+            # This is mandatory after go mod edit or it refuses to build
+            go mod tidy
+        )
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: Problem updating ${mod_dir}/go.mod" >&2
+            return 1
+        fi
+    done
+    return 0
 }
 
 function main() {
@@ -132,8 +154,8 @@ function main() {
         echo "ERROR: Problem updating dockerfiles" >&2
         exit 1
     fi
-    if ! update_go_mod "${version}"; then
-        echo "ERROR: Problem updating dockerfiles" >&2
+    if ! update_go_mods "${version}"; then
+        echo "ERROR: Problem updating go.mod files" >&2
         exit 1
     fi
 }
