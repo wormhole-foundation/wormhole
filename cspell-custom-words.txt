@@ -189,6 +189,7 @@ solana
 Solana
 Solana's
 spydk
+stablecoins
 Starport
 statesync
 struct

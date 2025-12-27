@@ -1,0 +1,288 @@
+package governor
+
+import (
+	"encoding/hex"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	cg "github.com/certusone/wormhole/node/pkg/governor/coingecko"
+	ipfslog "github.com/ipfs/go-log/v2"
+	"github.com/mr-tron/base58"
+	"github.com/spf13/cobra"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
+
+var (
+	addTokenAPIKey  string
+	addTokenChainID string
+	addTokenAddress string
+	addTokenDryRun  bool
+)
+
+var addTokenCmd = &cobra.Command{
+	Use:   "add-token --chain-id CHAIN_ID --address TOKEN_ADDRESS",
+	Short: "Add a token to manual_tokens.go by querying CoinGecko",
+	Long: `Query CoinGecko for token information and add it to manual_tokens.go.
+
+This command:
+1. Validates the Wormhole chain ID
+2. Looks up the CoinGecko platform for the chain
+3. Queries CoinGecko for token details (symbol, price, decimals, CoinGecko ID)
+4. Converts the address to Wormhole format (64-char hex, zero-padded)
+5. Appends the entry to node/pkg/governor/manual_tokens.go
+
+The tool supports multiple chain types:
+- EVM chains: 0x-prefixed hex addresses (e.g., 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48)
+- Solana: base58-encoded addresses (e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v)
+- Move chains (Aptos/Sui): hex-encoded addresses (already 64 chars)
+
+Examples:
+  # Add USDC on Ethereum (chain 2, EVM)
+  guardiand governor add-token --chain-id 2 --address 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
+
+  # Add USDC on Solana (chain 1, base58)
+  guardiand governor add-token --chain-id solana --address EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+
+  # Add token on BSC (chain 4) with API key
+  guardiand governor add-token --chain-id 4 --address 0x... --api-key YOUR_KEY
+
+  # Dry run (print without modifying file)
+  guardiand governor add-token --chain-id 2 --address 0x... --dry-run
+`,
+	Run: runAddToken,
+}
+
+func init() {
+	addTokenCmd.Flags().StringVar(&addTokenAPIKey, "api-key", "", "CoinGecko API key (optional)")
+	addTokenCmd.Flags().StringVarP(&addTokenChainID, "chain-id", "c", "", "Wormhole chain ID (required)")
+	addTokenCmd.Flags().StringVarP(&addTokenAddress, "address", "a", "", "Token contract address (required)")
+	addTokenCmd.Flags().BoolVar(&addTokenDryRun, "dry-run", false, "Print the entry without modifying the file")
+	if err := addTokenCmd.MarkFlagRequired("chain-id"); err != nil {
+		log.Fatalf("Failed to mark chain-id flag as required: %v", err)
+	}
+	if err := addTokenCmd.MarkFlagRequired("address"); err != nil {
+		log.Fatalf("Failed to mark address flag as required: %v", err)
+	}
+}
+
+func runAddToken(cmd *cobra.Command, args []string) {
+	chainID, err := vaa.StringToKnownChainID(addTokenChainID)
+	if err != nil {
+		log.Fatalf("Invalid chain ID '%s': must be a known chain ID", addTokenChainID)
+	}
+
+	queryAddr := strings.TrimSpace(addTokenAddress)
+
+	// Setup logging
+	lvl, logErr := ipfslog.LevelFromString("WARN")
+	if logErr != nil {
+		fmt.Println("Invalid log level")
+		os.Exit(1)
+	}
+
+	logger := ipfslog.Logger("governor-add-token").Desugar()
+	ipfslog.SetAllLoggers(lvl)
+
+	client := cg.NewClient(addTokenAPIKey, logger)
+	client.UseStaticChainMapping()
+
+	fmt.Printf("Querying CoinGecko for token: %s\n\n", queryAddr)
+
+	cgTokenInfo, err := client.GetTokenInfo(chainID, queryAddr)
+	if err != nil {
+		log.Fatalf("Failed to query token info: %v", err)
+	}
+
+	tokenURL, err := client.GetTokenURL(chainID, addTokenAddress)
+	if err != nil {
+		fmt.Printf("Warning: Could not generate CoinGecko URL: %v\n\n", err)
+	}
+
+	fmt.Printf("Token found!\n")
+	fmt.Printf("  Symbol:       %s\n", cgTokenInfo.Symbol)
+	fmt.Printf("  CoinGecko ID: %s\n", cgTokenInfo.CoinGeckoID)
+	fmt.Printf("  Decimals:     %d\n", cgTokenInfo.Decimals)
+	fmt.Printf("  Price (USD):  $%.6f\n", cgTokenInfo.Price)
+	if tokenURL != "" {
+		fmt.Printf("  URL:          %s\n", tokenURL)
+	}
+	fmt.Println()
+
+	wormholeAddr := normalizeAddress(queryAddr)
+	entry := formatTokenEntry(chainID, wormholeAddr, cgTokenInfo.Symbol, cgTokenInfo.CoinGeckoID, cgTokenInfo.Decimals, cgTokenInfo.Price, tokenURL)
+	fmt.Printf("Generated entry:\n%s\n\n", entry)
+
+	if addTokenDryRun {
+		fmt.Println("Dry run mode - file not modified")
+		return
+	}
+
+	err = addTokenToFile(entry)
+	if err != nil {
+		log.Fatalf("Failed to add token to file: %v", err)
+	}
+
+	fmt.Printf("✓ Token added to manual_tokens.go\n")
+	fmt.Printf("  Chain: %d\n", chainID)
+	fmt.Printf("  Address: %s\n", wormholeAddr)
+	fmt.Printf("  Symbol: %s\n", cgTokenInfo.Symbol)
+}
+
+// padEVMAddress converts an EVM address to Wormhole format (64 hex chars, zero-padded, no 0x prefix).
+// Returns the original address if the argument is not 0x-prefixed.
+func padEVMAddress(addr string) string {
+	if !strings.HasPrefix(addr, "0x") {
+		return addr
+	}
+
+	addrNoPrefix := addr[2:]
+
+	if len(addrNoPrefix) < 64 {
+		return strings.Repeat("0", 64-len(addrNoPrefix)) + addrNoPrefix
+	}
+	return addr
+}
+
+// normalizeAddress converts an address from any chain into the Wormhole format (64 hex chars, zero-padded).
+// Supports EVM addresses (0x-prefixed), Solana addresses (base58-encoded), and Move addresses (hex-encoded).
+func normalizeAddress(addrRaw string) string {
+
+	addr := addrRaw
+	if strings.HasPrefix(addr, "0x") {
+		addr = strings.TrimPrefix(addr, "0x")
+	}
+
+	if len(addr) == 64 {
+		// A Move address is hex-encoded and already 64 chars long.
+		return addr
+	}
+
+	// Two possible cases:
+	// 1. The address is hex-encoded EVM address
+	// 2. The address is a base58 encoded Solana address
+
+	// EVM address: check if it's a valid hex-encoded address (40 chars)
+	if len(addr) == 40 {
+		_, err := hex.DecodeString(addr)
+		if err == nil {
+			// Valid hex EVM address - pad it
+			return padEVMAddress(addrRaw)
+		}
+	}
+
+	// Solana address: decode base58 encoded address
+	solAddrBytes, err := base58.Decode(addr)
+	if err != nil {
+		log.Fatalf("Failed to decode address '%s': %v", addr, err)
+	}
+	return hex.EncodeToString(solAddrBytes)
+
+}
+
+func formatTokenEntry(chainID vaa.ChainID, addrRaw, symbol, coinGeckoID string, decimals int, price float64, tokenURL string) string {
+	var priceStr string
+	switch {
+	case price >= 1000:
+		priceStr = fmt.Sprintf("%.0f", price)
+	case price >= 1:
+		priceStr = fmt.Sprintf("%.2f", price)
+	case price >= 0.01:
+		priceStr = fmt.Sprintf("%.4f", price)
+	default:
+		priceStr = fmt.Sprintf("%.6f", price)
+	}
+
+	entry := fmt.Sprintf(
+		`		{Chain: %d, Addr: "%s", Symbol: "%s", CoinGeckoId: "%s", Decimals: %d, Price: %s},`,
+		chainID, addrRaw, symbol, coinGeckoID, decimals, priceStr,
+	)
+
+	if tokenURL != "" {
+		entry += fmt.Sprintf(" // %s", tokenURL)
+	}
+
+	return entry
+}
+
+// addTokenToFile appends a new token entry to node/pkg/governor/manual_tokens.go.
+//
+// The manual_tokens.go file contains the manualTokenList() function which returns
+// a slice of TokenConfigEntry structs. The file structure looks like:
+//
+//	func manualTokenList() []TokenConfigEntry {
+//	    return []TokenConfigEntry{
+//	        {Chain: 2, Addr: "...", Symbol: "USDC", ...},
+//	        {Chain: 4, Addr: "...", Symbol: "WETH", ...},
+//	        // ... more entries ...
+//	    }  // <- This is where we insert (before the slice closing brace)
+//	} 
+//
+// This function finds the correct insertion point (before the slice's closing brace)
+// and appends the new token entry as the last element in the slice.
+func addTokenToFile(entry string) error {
+	// Locate manual_tokens.go relative to current working directory.
+	// The tool can be run from either the repo root or the node/ directory.
+	filePath := "node/pkg/governor/manual_tokens.go"
+
+	// Check if file exists at current path
+	if _, err := os.Stat(filePath); err != nil {
+		// Try from parent directory (in case we're running from node/)
+		filePath = "pkg/governor/manual_tokens.go"
+		if _, err := os.Stat(filePath); err != nil {
+			// Try absolute path from repo root
+			cwd, _ := os.Getwd()
+			// If we're in node/ directory, go up one level
+			if strings.HasSuffix(cwd, "/node") {
+				filePath = "pkg/governor/manual_tokens.go"
+			} else {
+				filePath = "node/pkg/governor/manual_tokens.go"
+			}
+		}
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+
+	// Find the insertion point: the line with the closing brace of the slice.
+	// The file has two closing braces at the end:
+	//   }  <- slice closing brace (this is where we insert BEFORE)
+	//   }  <- function closing brace
+	//
+	// We need to find the second-to-last "}".
+	insertIdx := -1
+	closingBraceIdx := -1
+
+	// Scan backwards to find the closing braces
+	for i := len(lines) - 1; i >= 0; i-- {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "}" && closingBraceIdx == -1 {
+			// Found the function closing brace
+			closingBraceIdx = i
+		}
+		// Look for the second-to-last "}" which closes the slice
+		if trimmed == "}" && closingBraceIdx != -1 && i < closingBraceIdx {
+			// Found the slice closing brace - this is our insertion point
+			insertIdx = i
+			break
+		}
+	}
+
+	if insertIdx == -1 {
+		return fmt.Errorf("could not find insertion point in file")
+	}
+
+	// Insert the new entry before the slice closing brace
+	newLines := make([]string, 0, len(lines)+1)
+	newLines = append(newLines, lines[:insertIdx]...)
+	newLines = append(newLines, entry)
+	newLines = append(newLines, lines[insertIdx:]...)
+
+	newContent := strings.Join(newLines, "\n")
+	return os.WriteFile(filePath, []byte(newContent), 0600)
+}
