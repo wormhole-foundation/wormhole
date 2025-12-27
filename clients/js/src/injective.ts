@@ -22,8 +22,9 @@ import {
   contracts,
   Network,
 } from "@wormhole-foundation/sdk-base";
-import { chains } from "@wormhole-foundation/sdk";
+import { chains } from "@wormhole-foundation/sdk-base";
 import { tryNativeToUint8Array } from "./sdk/array";
+import { castChainIdToOldSdk } from "./utils";
 
 export async function execute_injective(
   payload: Payload,
@@ -194,7 +195,7 @@ export async function transferInjective(
     token_bridge,
     tokenAddress,
     amount,
-    chainToChainId(dstChain),
+    castChainIdToOldSdk(chainToChainId(dstChain)),
     tryNativeToUint8Array(dstAddress, chainToChainId(dstChain))
   );
 
@@ -304,7 +305,7 @@ export async function queryRegistrationsInjective(
         await (async () => {
           let query_msg = {
             chain_registration: {
-              chain: chainToChainId(cname),
+              chain: castChainIdToOldSdk(chainToChainId(cname)),
             },
           };
 
