@@ -235,6 +235,19 @@ Options:
 </details>
 
 <details>
+<summary> parse-guardian-key <key> </summary>
+
+```sh
+Positionals:
+  key  Base64 encoded guardian private key                              [string]
+
+Options:
+  --help     Show help                                                 [boolean]
+  --version  Show version number                                       [boolean]
+```
+</details>
+
+<details>
 <summary> recover <digest> <signature> </summary>
 
 ```sh
@@ -330,6 +343,9 @@ Options:
       --version  Show version number                                   [boolean]
   -v, --vaa      vaa in hex format                           [string] [required]
   -n, --network  Network    [required] [choices: "mainnet", "testnet", "devnet"]
+  -c, --chain    Chain to verify on (e.g., Sepolia, ArbitrumSepolia,
+                 BaseSepolia)                                           [string]
+      --rpc      Custom RPC endpoint (overrides network default)        [string]
 ```
 </details>
 
