@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	batchSize    = 10
-	batchTimeout = 100 * time.Millisecond
+	batchSize    = 100             // Observations per batch (limited by wasm contract input size of 64KB)
+	batchTimeout = 2 * time.Second // Time to collect observations before submitting
 )
 
 // baseWorker is the entry point for the base accountant worker.

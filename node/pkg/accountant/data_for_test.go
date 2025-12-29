@@ -1,6 +1,7 @@
 package accountant
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -5413,4 +5414,126 @@ func createTxRespForCommitted() []byte {
 	`
 
 	return []byte(respJson)
+}
+
+// createPendingTransfersForTest creates test JSON data for all_pending_transfers queries.
+// It reuses the same transfer key data as createTransferKeysForTestingBatchTransferStatus.
+// Parameters:
+//   - num: number of transfers to create (-1 for all available)
+//   - guardianSetIndex: the guardian set index to use for all transfers
+//   - signatures: the signatures bitmask string (decimal representation of u128)
+//
+// Returns the JSON response bytes.
+func createPendingTransfersForTest(t *testing.T, num int, guardianSetIndex uint32, signatures string) []byte { //nolint:unparam
+	input := []transferKey{
+		{
+			EmitterChain:   1,
+			EmitterAddress: "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5",
+			Sequence:       277025,
+		},
+		{
+			EmitterChain:   3,
+			EmitterAddress: "0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2",
+			Sequence:       258114,
+		},
+		{
+			EmitterChain:   2,
+			EmitterAddress: "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585",
+			Sequence:       106099,
+		},
+		{
+			EmitterChain:   1,
+			EmitterAddress: "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5",
+			Sequence:       277276,
+		},
+		{
+			EmitterChain:   2,
+			EmitterAddress: "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585",
+			Sequence:       106014,
+		},
+	}
+
+	if num >= 0 {
+		require.GreaterOrEqual(t, len(input), num)
+		input = input[:num]
+	}
+
+	respBytes := []byte("{\"pending\":[")
+	first := true
+	for i, in := range input {
+		emitterAddr, _ := vaa.StringToAddress(in.EmitterAddress)
+
+		// Create a simple digest and tx_hash based on the index for deterministic testing
+		digest := fmt.Sprintf("digest%d", i)
+		txHash := fmt.Sprintf("txhash%d", i)
+
+		// Build JSON - note that digest and tx_hash are base64 encoded in JSON
+		digestB64 := base64.StdEncoding.EncodeToString([]byte(digest))
+		txHashB64 := base64.StdEncoding.EncodeToString([]byte(txHash))
+		bytes := fmt.Sprintf(
+			`{"key":{"emitter_chain":%d,"emitter_address":"%s","sequence":%d},"data":[{"digest":"%s","tx_hash":"%s","signatures":"%s","guardian_set_index":%d,"emitter_chain":%d}]}`,
+			in.EmitterChain, emitterAddr.String(), in.Sequence,
+			digestB64, txHashB64, signatures, guardianSetIndex, in.EmitterChain)
+
+		if first {
+			first = false
+		} else {
+			respBytes = append(respBytes, ',')
+		}
+		respBytes = append(respBytes, bytes...)
+	}
+
+	respBytes = append(respBytes, []byte("]}")...)
+	return respBytes
+}
+
+// createPendingTransfersForTestWithTxHash creates test JSON data for all_pending_transfers
+// with a specific txHash that can be matched against local pending entries.
+func createPendingTransfersForTestWithTxHash(
+	emitterChain uint16, //nolint:unparam
+	emitterAddr string,
+	sequence uint64,
+	txHash []byte,
+	digest []byte,
+	guardianSetIndex uint32,
+	signatures string,
+) []byte {
+	emitterAddress, _ := vaa.StringToAddress(emitterAddr)
+	txHashB64 := base64.StdEncoding.EncodeToString(txHash)
+	digestB64 := base64.StdEncoding.EncodeToString(digest)
+
+	return []byte(fmt.Sprintf(
+		`{"pending":[{"key":{"emitter_chain":%d,"emitter_address":"%s","sequence":%d},"data":[{"digest":"%s","tx_hash":"%s","signatures":"%s","guardian_set_index":%d,"emitter_chain":%d}]}]}`,
+		emitterChain, emitterAddress.String(), sequence,
+		digestB64, txHashB64, signatures, guardianSetIndex, emitterChain))
+}
+
+// createBatchTransferStatusResponse creates a batch_transfer_status JSON response.
+// statusType: "committed", "pending", or "null"
+// For "committed", digest is required (raw bytes, will be base64 encoded)
+func createBatchTransferStatusResponse(
+	emitterChain uint16,
+	emitterAddr string,
+	sequence uint64,
+	statusType string,
+	digest []byte,
+) []byte {
+	emitterAddress, _ := vaa.StringToAddress(emitterAddr)
+
+	var statusJson string
+	switch statusType {
+	case "committed":
+		digestB64 := base64.StdEncoding.EncodeToString(digest)
+		statusJson = fmt.Sprintf(`{"committed":{"data":{"amount":"1000000000000000000","token_chain":2,"token_address":"0000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a","recipient_chain":4},"digest":"%s"}}`, digestB64)
+	case "pending":
+		statusJson = `{"pending":[{"digest":"dGVzdA==","tx_hash":"dGVzdA==","signatures":"1","guardian_set_index":0,"emitter_chain":2}]}`
+	case "null":
+		statusJson = "null"
+	default:
+		statusJson = "null"
+	}
+
+	return []byte(fmt.Sprintf(
+		`{"details":[{"key":{"emitter_chain":%d,"emitter_address":"%s","sequence":%d},"status":%s}]}`,
+		emitterChain, emitterAddress.String(), sequence, statusJson))
 }

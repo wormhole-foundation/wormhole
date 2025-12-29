@@ -35,7 +35,7 @@ func (c *ClientConn) SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (
 	if setErr := builder.SetMsgs(msg); setErr != nil {
 		return nil, fmt.Errorf("failed to add message to builder: %w", setErr)
 	}
-	builder.SetGasLimit(2000000) // TODO: Maybe simulate and use the result
+	builder.SetGasLimit(5000000) // Can comfortably handle 100 observations at ~4.2M gas maximum
 
 	// The tx needs to be signed in 2 passes: first we populate the SignerInfo
 	// inside the TxBuilder and then sign the payload.

@@ -62,7 +62,7 @@ func (acct *Accountant) watcher(ctx context.Context, isNTT bool) error {
 		ctx,
 		"guardiand",
 		query,
-		64, // channel capacity
+		1000, // channel capacity
 	)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to %s events: %w", tag, err)
@@ -211,7 +211,8 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation, tag string
 		acct.publishTransferAlreadyLocked(pe)
 		transfersApproved.Inc()
 	} else {
-		// TODO: We could issue a reobservation request here since it looks like other guardians have seen this transfer but we haven't.
+		// This log will be emitted by the Guardians that submit to the Accountant after the transfer has already been confirmed.
+		// These transfers are already processed in submit_obs.go and so when the watcher sees the event it is no longer in the pendingTransfers map.
 		acct.logger.Info("acctwatch: unknown transfer has been approved, ignoring it", zap.String("msgId", msgId))
 	}
 }
