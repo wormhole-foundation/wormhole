@@ -57,4 +57,9 @@ var (
 			Name: "global_accountant_audit_errors_total",
 			Help: "Total number of audit errors detected by accountant",
 		})
+	channelSubmitTimeouts = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "global_accountant_channel_submit_timeouts",
+			Help: "Total number of channel submit timeouts during audit",
+		})
 )
