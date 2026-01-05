@@ -1462,7 +1462,7 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, bytes memory shardData) internal {
-    uint256 shardCount = shardData.length / 96;
+    uint256 shardCount = shardData.length / (3 * LENGTH_WORD);
     for (uint8 i = 0; i < shardCount; ++i) {
       uint256 thriceIndex = i * 3;
       uint256 shardReadOffset = (thriceIndex + 1) * LENGTH_WORD;
