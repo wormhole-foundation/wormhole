@@ -351,6 +351,7 @@ func (gov *ChainGovernor) initConfig() error {
 			dec = 8
 		}
 
+		// NOTE: Converts a value of 0 for decimals to 1.
 		decimalsFloat := big.NewFloat(math.Pow(10.0, float64(dec)))
 		decimals, _ := decimalsFloat.Int(nil)
 
@@ -566,8 +567,8 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 		return false, err
 	}
 
-	// Compute the notional USD value of the transfers
-	value, err := computeValue(payload.Amount, token)
+	// Compute the notional USD value.
+	value, err := usdValue(payload.Amount, token)
 	if err != nil {
 		gov.logger.Error("failed to compute value of transfer",
 			zap.String("msgID", msg.MessageIDString()),
@@ -840,7 +841,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 
 			// Keep going until we find something that fits or hit the end.
 			for idx, pe := range ce.pending {
-				value, err := computeValue(pe.amount, pe.token)
+				value, err := usdValue(pe.amount, pe.token)
 				if err != nil {
 					gov.logger.Error("failed to compute value for pending vaa",
 						zap.Stringer("amount", pe.amount),
@@ -988,7 +989,19 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 	return msgsToPublish, nil
 }
 
-func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+// usdValue converts an amount of a token into a USD value. This is done by multiplying the amount by the token's price
+// and scaling the result to the token's number of decimals.
+// The amount must be greater than or equal to zero. The token's price must be positive.
+func usdValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+
+	// Ensure that the input is valid:
+	// - Price must be non-nil and greater than or equal to zero.
+	// - Amount must be non-nil and non-negative.
+	if amount == nil || amount.Sign() == -1 ||
+		token == nil || token.price == nil || token.price.Sign() <= 0 {
+		return 0, fmt.Errorf("usdValue: invalid input for amount or token")
+	}
+
 	amountFloat := new(big.Float)
 	amountFloat = amountFloat.SetInt(amount)
 
@@ -996,10 +1009,14 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	valueFloat = valueFloat.Mul(amountFloat, token.price)
 
 	valueBigInt, _ := valueFloat.Int(nil)
-	valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+
+	// Defense-in-depth: avoid division by zero.
+	if token.decimals.Sign() != 0 {
+		valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+	}
 
 	if !valueBigInt.IsUint64() {
-		return 0, fmt.Errorf("value is too large to fit in uint64")
+		return 0, fmt.Errorf("usdValue: value is too large to fit in uint64")
 	}
 
 	value := valueBigInt.Uint64()
