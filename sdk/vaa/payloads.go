@@ -5,9 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
-	"slices"
+	"sort"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -549,7 +548,14 @@ func (r BodyDelegatedGuardiansSetConfig) Serialize() ([]byte, error) {
 	MustWrite(payload, binary.BigEndian, uint8(len(r.Config))) // #nosec G115 -- This is checked above
 
 	// Sort chainIds to get deterministic output
-	chainIds := slices.Sorted(maps.Keys(r.Config))
+	chainIds := make([]ChainID, 0, len(r.Config))
+	for k := range r.Config {
+		chainIds = append(chainIds, k)
+	}
+	sort.Slice(chainIds, func(i, j int) bool {
+		return chainIds[i] < chainIds[j]
+	})
+
 	for _, chainId := range chainIds {
 		cfg := r.Config[chainId]
 		MustWrite(payload, binary.BigEndian, uint16(chainId))
