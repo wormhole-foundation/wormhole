@@ -696,9 +696,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     uint32 nonce = 1;
     bytes32 pubKeyX = bytes32(vm.randomUint());
     bytes32 pubKeyY = bytes32(vm.randomUint());
-    bytes memory newPublicKey = abi.encodePacked(pubKeyX, pubKeyY);
     uint8 signerIndex = 0;
-    bytes memory oldPublicKey = abi.encodePacked(uint256(0), uint256(0));
     bytes memory signedMessage = signUpdateShardIdMessage(
       _wormholeVerifierV2, 
       keyIndex, 
@@ -710,7 +708,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     );
 
     vm.expectEmit(true, true, false, false);
-    emit WormholeVerifier.ShardIdUpdated(keyIndex, signerIndex, oldPublicKey, newPublicKey);
+    emit WormholeVerifier.ShardIdUpdated(keyIndex, signerIndex, bytes32(uint256(0)), bytes32(uint256(0)), pubKeyX, pubKeyY);
 
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }

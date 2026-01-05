@@ -244,7 +244,7 @@ contract WormholeVerifier is EIP712Encoding {
   error GovernanceVaaVerificationFailure();
 
   // Update events
-  event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes oldPublicKey, bytes newPublicKey);
+  event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes32 oldPubKeyX, bytes32 oldPubKeyY, bytes32 newPubKeyX, bytes32 newPubKeyY);
   event SchnorrKeyAdded(uint32 indexed newSchnorrKeyIndex, uint256 newSchnorrKey, bytes32 initialShardDataHash);
   event MultisigKeyDataPulled(uint256 indexed newMultisigKeyIndex, uint256 indexed oldMultisigKeyIndex);
 
@@ -1139,9 +1139,7 @@ contract WormholeVerifier is EIP712Encoding {
     // Store the shard ID
     _setSchnorrShardId(schnorrKeyIndex, signerIndex, pubKeyX, pubKeyY);
     
-    bytes memory oldPublicKey = abi.encodePacked(oldPubKeyX, oldPubKeyY);
-    bytes memory newPublicKey = abi.encodePacked(pubKeyX, pubKeyY);
-    emit ShardIdUpdated(schnorrKeyIndex, signerIndex, oldPublicKey, newPublicKey);
+    emit ShardIdUpdated(schnorrKeyIndex, signerIndex, oldPubKeyX, oldPubKeyY, pubKeyX, pubKeyY);
 
     return offset;
   }
@@ -1379,8 +1377,8 @@ contract WormholeVerifier is EIP712Encoding {
   function _getSchnorrShardId(uint32 keyIndex, uint8 signerIndex) internal view returns (bytes32 pubKeyX, bytes32 pubKeyY) {
     uint256 shardIdSlot = _slotShardMapId(keyIndex, signerIndex);
     assembly ("memory-safe") {
-      pubKeyX := sload(sub(shardIdSlot, 1))
-      pubKeyY := sload(shardIdSlot)
+      pubKeyX := sload(shardIdSlot)
+      pubKeyY := sload(add(shardIdSlot, 1))
     }
   }
 
@@ -1425,8 +1423,8 @@ contract WormholeVerifier is EIP712Encoding {
   function _setSchnorrShardId(uint32 keyIndex, uint8 signerIndex, bytes32 pubKeyX, bytes32 pubKeyY) internal {
     uint256 shardIdSlot = _slotShardMapId(keyIndex, signerIndex);
     assembly ("memory-safe") {
-      sstore(sub(shardIdSlot, 1), pubKeyX)
-      sstore(shardIdSlot, pubKeyY)
+      sstore(shardIdSlot, pubKeyX)
+      sstore(add(shardIdSlot, 1), pubKeyY)
     }
   }
 
@@ -1434,7 +1432,7 @@ contract WormholeVerifier is EIP712Encoding {
     return SLOT_SCHNORR_SHARD_MAP_SHARD | (keyIndex << 8) | signerIndex;
   }
 
-  // Each ShardId take 2 slots, shardIdSlot -1 and shardIdSlot
+  // Each ShardId take 2 slots, shardIdSlot and shardIdSlot + 1
   function _slotShardMapId(uint32 keyIndex, uint8 signerIndex) internal pure returns (uint256) {
     return SLOT_SCHNORR_SHARD_MAP_ID | (keyIndex << 8) | signerIndex << 1;
   }
@@ -1472,8 +1470,8 @@ contract WormholeVerifier is EIP712Encoding {
       uint256 idWriteSlot = _slotShardMapId(schnorrKeyIndex, i);
       assembly ("memory-safe") {
         sstore(shardWriteSlot,      mload(add(shardData, shardReadOffset)))
-        sstore(sub(idWriteSlot, 1), mload(add(shardData, pubKeyXReadOffset)))
-        sstore(idWriteSlot,         mload(add(shardData, pubKeyYReadOffset)))
+        sstore(idWriteSlot,         mload(add(shardData, pubKeyXReadOffset)))
+        sstore(add(idWriteSlot, 1), mload(add(shardData, pubKeyYReadOffset)))
       }
     }
   }
