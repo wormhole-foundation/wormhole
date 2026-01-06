@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"sync/atomic"
 
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -13,7 +12,9 @@ import (
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -65,37 +66,31 @@ func TODO() SignerConnection { // TODO: remove
 }
 
 // TODO: Consider letting the signer have its own logs and inspect the status of sign requests, responses, errors, etc.
-func NewSigner(socketPath string) *signerClient {
+func NewSigner(socketPath string, cert *tls.Certificate) *signerClient {
 	// todo: create a goroutine with a map that will match requests to responses and output them to the out channel.
 	// it will also use a logger to log errors, etc.
 	// closes once the context is cancelled.
 
 	return &signerClient{
 		socketPath: socketPath,
-		started:    atomic.Int32{},
-		ctx:        nil,                // filled in Connect.
-		cert:       &tls.Certificate{}, // TODO
-		logger:     zap.NewNop(),       // filled in Connect.
+		cert:       cert,
 		conn: &connChans{
 			signRequests:  make(chan *signer.SignRequest, 100),  // TODO: buffer sizes?
 			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
+			unaryRequests: make(chan unaryRequest, 100),         // TODO: buffer sizes?
 		},
+		out: make(chan *common.SignatureData),
 	}
 }
 
 type signerClient struct {
 	// immutable fields:
-	ctx        context.Context
 	cert       *tls.Certificate
 	socketPath string
 	out        chan *common.SignatureData // outputs signatures.
 
 	// used to communicate with the signer service.
 	conn *connChans
-
-	// initialized in start. Might be changed during a restart of the runnable.
-	started atomic.Int32 // 0 != means started.
-	logger  *zap.Logger
 }
 
 type unaryResult struct {
@@ -161,13 +156,14 @@ func (s *signerClient) Connect(ctx context.Context) error {
 	go s.receivingStream(ctx, stream, errchan)
 	go s.sendingStream(ctx, stream, errchan)
 
-	go s.unaryRequestsHandler(ctx, client, logger)
+	go s.unaryRequestsHandler(ctx, client, logger, errchan)
 
 	select {
 	case <-ctx.Done():
 		return nil
 	case err := <-errchan:
 		logger.Error("closing connection", zap.Error(err))
+
 		return err
 	}
 }
@@ -208,7 +204,7 @@ func (s *signerClient) sendingStream(ctx context.Context, stream signatureStream
 }
 
 // responsible to receive unary requests and send the to the signer-service for processing.
-func (s *signerClient) unaryRequestsHandler(ctx context.Context, client signer.SignerClient, logger *zap.Logger) {
+func (s *signerClient) unaryRequestsHandler(ctx context.Context, client signer.SignerClient, logger *zap.Logger, errchan chan error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -229,14 +225,37 @@ func (s *signerClient) unaryRequestsHandler(ctx context.Context, client signer.S
 			default:
 				errResponse = errors.New("unknown unary request type")
 			}
-			// TODO: understand if errResponse is fatal or not. for now, we just send it back.
 
 			select {
 			case urq.responseChan <- unaryResult{item: resp, err: errResponse}:
 			default:
 				logger.Error("unary response channel full, dropping response")
 			}
+
+			if isFatalError(errResponse) {
+				errchan <- errResponse
+
+				return
+			}
 		}
+	}
+}
+
+func isFatalError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	switch st.Code() {
+	case codes.Unavailable, codes.Internal:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -273,8 +292,8 @@ func (s *signerClient) AsyncSign(rq *signer.SignRequest) error {
 var errInvalidUnaryResponseError = errors.New("internal error: invalid response type from signer service")
 
 // GetPublicData implements Signer.
-func (s *signerClient) GetPublicData(context.Context) (*signer.PublicData, error) {
-	response, err := s.sendUnaryRequest(s.ctx, &signer.PublicDataRequest{})
+func (s *signerClient) GetPublicData(ctx context.Context) (*signer.PublicData, error) {
+	response, err := s.sendUnaryRequest(ctx, &signer.PublicDataRequest{})
 	if err != nil {
 		return nil, err
 	}
