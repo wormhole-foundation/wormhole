@@ -195,7 +195,6 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionNotary(true),
 			GuardianOptionGatewayRelayer("", nil),     // disable gateway relayer
 			GuardianOptionQueryHandler(false, "", ""), // disable queries
-			GuardianOptionNotary(true),
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
