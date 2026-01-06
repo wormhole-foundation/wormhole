@@ -3,7 +3,6 @@ package tss
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync/atomic"
 
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -20,7 +19,7 @@ import (
 type SignerConnection interface {
 	// Connect establishes a connection to the signer service.
 	// It blocks until the connection is established or an error occurs.
-	// Can be used for a supervisor.Runnable.
+	// Can be used as supervisor.Runnable [ensuring rapid restarts on failure].
 	Connect(ctx context.Context) error
 
 	Signer
@@ -85,7 +84,8 @@ func NewSigner(socketPath string, opts ...grpc.DialOption) (*signerClient, error
 			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
 			unaryRequests: make(chan unaryRequest, 100),         // TODO: buffer sizes?
 		},
-		out: make(chan *common.SignatureData),
+		out:       make(chan *common.SignatureData),
+		connected: atomic.Int64{},
 	}
 
 	return sc, nil
@@ -123,10 +123,6 @@ type connChans struct {
 	unaryRequests chan unaryRequest
 }
 
-func (s *signerClient) Start(ctx context.Context) error {
-	return s.Connect(ctx)
-}
-
 type signatureStream grpc.BidiStreamingClient[signer.SignRequest, signer.SignResponse]
 
 const (
@@ -141,39 +137,40 @@ const (
 // It runs until the context is cancelled or an error occurs.
 // (expects the supervisor to restart it on failure).
 func (s *signerClient) Connect(ctx context.Context) error {
-	logger := supervisor.Logger(ctx).Named("tss-signer-connection")
-	logger.Info("setting connection to signer service.")
+	return s.connect(ctx, supervisor.Logger(ctx).Named("tss-signer-connection"))
+}
 
+func (s *signerClient) connect(ctx context.Context, logger *zap.Logger) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // we cancel on exit to ensure all goroutines exit.
+
+	logger.Info("connecting to signer service...")
 
 	// setup conn:
 	cc, err := grpc.NewClient(s.socketPath, s.dialOpts...)
 	if err != nil {
-		fmt.Println("connecting to signer service failed:", err)
 		logger.Error("connecting to signer service failed", zap.Error(err))
 
 		return err
 	}
 	defer cc.Close()
 
-	fmt.Println("created connection.")
 	client := signer.NewSignerClient(cc)
 
 	// Setting up the stream for signing requests and responses.
 	stream, err := client.SignMessage(ctx)
 	if err != nil {
-		fmt.Println("stream setup failed:", err)
 		logger.Error("stream setup failed", zap.Error(err))
 
 		return err
 	}
 	defer stream.CloseSend()
 
+	logger.Info("connection to signer service established")
+
 	s.connected.Store(connected)
 	defer s.connected.Store(notConnected)
 
-	fmt.Println("connected to signer service")
 	// buffer to avoid goroutine leaks.
 	errchan := make(chan error, 3)
 
@@ -185,7 +182,7 @@ func (s *signerClient) Connect(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		return nil
+		return ctx.Err()
 	case err := <-errchan:
 		logger.Error("closing connection", zap.Error(err))
 
