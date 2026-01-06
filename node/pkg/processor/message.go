@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/mr-tron/base58"
+	"github.com/xlabs/tss-common/service/signer"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	tsscommon "github.com/xlabs/tss-common"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -65,9 +67,8 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		Reobservation: k.IsReobservation,
 	}
 
-	vCpy := *v
-	p.tssSetup(&vCpy)
-	// Generate digest of the unsigned VAA.
+	vShallowCopy := *v
+	p.tssSign(&vShallowCopy)
 
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
@@ -132,16 +133,26 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	}
 }
 
-func (p *Processor) tssSetup(v *VAA) {
-	// TODO: use signerClient to begin TSS signing protocol
-	// v.Version = vaa.TSSVaaVersion
-	// digest := v.SigningDigest()
-	// hash := hex.EncodeToString(digest.Bytes())
+func (p *Processor) tssSign(v *VAA) {
+	v.Version = vaa.TSSVaaVersion
+	digest := v.SigningDigest()
+	hash := hex.EncodeToString(digest.Bytes())
 
-	// p.tssWaiters[hash] = timedThresholdSignatureWaiter{
-	// 	vaa:       v,
-	// 	startTime: time.Now(),
-	// }
+	p.tssWaiters[hash] = timedThresholdSignatureWaiter{
+		vaa:       v,
+		startTime: time.Now(),
+	}
 
-	// p.thresholdSigner.BeginAsyncThresholdSigningProtocol(digest.Bytes(), v.EmitterChain, v.ConsistencyLevel)
+	err := p.thresholdSigner.AsyncSign(&signer.SignRequest{
+		Digest: v.SigningDigest().Bytes(),
+		// TODO: fill in protocol according to additional context like chain.
+		Protocol: string(tsscommon.ProtocolFROSTSign),
+	})
+
+	if err != nil {
+		p.logger.Error("failed to request TSS signature",
+			zap.String("hash", hash),
+			zap.Error(err),
+		)
+	}
 }
