@@ -2,9 +2,8 @@ package tss
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
+	"fmt"
 
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -13,7 +12,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -66,14 +64,20 @@ func TODO() SignerConnection { // TODO: remove
 }
 
 // TODO: Consider letting the signer have its own logs and inspect the status of sign requests, responses, errors, etc.
-func NewSigner(socketPath string, cert *tls.Certificate) *signerClient {
+// The opts should provide the dial options to connect to the signer service. this includes credentials, etc.
+func NewSigner(socketPath string, opts ...grpc.DialOption) (*signerClient, error) {
 	// todo: create a goroutine with a map that will match requests to responses and output them to the out channel.
 	// it will also use a logger to log errors, etc.
 	// closes once the context is cancelled.
 
-	return &signerClient{
+	for _, opt := range opts {
+		if opt == nil {
+			return nil, errors.New("nil grpc dial option provided")
+		}
+	}
+	sc := &signerClient{
+		dialOpts:   opts,
 		socketPath: socketPath,
-		cert:       cert,
 		conn: &connChans{
 			signRequests:  make(chan *signer.SignRequest, 100),  // TODO: buffer sizes?
 			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
@@ -81,11 +85,13 @@ func NewSigner(socketPath string, cert *tls.Certificate) *signerClient {
 		},
 		out: make(chan *common.SignatureData),
 	}
+
+	return sc, nil
 }
 
 type signerClient struct {
 	// immutable fields:
-	cert       *tls.Certificate
+	dialOpts   []grpc.DialOption
 	socketPath string
 	out        chan *common.SignatureData // outputs signatures.
 
@@ -109,10 +115,8 @@ type connChans struct {
 	signRequests  chan *signer.SignRequest
 	signResponses chan *signer.SignResponse
 
+	// unary requests (GetPublicData, VerifySignature).
 	unaryRequests chan unaryRequest
-	// TODO: unary requests like public-data, verify, etc. should have a single channel that accepts a type and a response channel with 1 capacity to respond into.
-	//   the signer will attempt to send them through this channel, if its full/ blocked it will return an error.
-	//   unaryRequests chan UnaryRequest{item, responseChan with 1 buffer}
 }
 
 func (s *signerClient) Start(ctx context.Context) error {
@@ -135,28 +139,37 @@ func (s *signerClient) Connect(ctx context.Context) error {
 	defer cancel() // we cancel on exit to ensure all goroutines exit.
 
 	// setup conn:
-	cc, err := s.makeConn()
+	cc, err := grpc.NewClient(s.socketPath, s.dialOpts...)
 	if err != nil {
+		fmt.Println("connecting to signer service failed:", err)
+		logger.Error("connecting to signer service failed", zap.Error(err))
+
 		return err
 	}
 	defer cc.Close()
 
+	fmt.Println("created connection.")
 	client := signer.NewSignerClient(cc)
 
 	// Setting up the stream for signing requests and responses.
 	stream, err := client.SignMessage(ctx)
 	if err != nil {
+		fmt.Println("stream setup failed:", err)
+		logger.Error("stream setup failed", zap.Error(err))
+
 		return err
 	}
 	defer stream.CloseSend()
 
-	errchan := make(chan error, 3) // buffer to avoid goroutine leak if both fail simultaneously.
+	fmt.Println("connected to signer service")
+	// buffer to avoid goroutine leaks.
+	errchan := make(chan error, 3)
 
-	// listeners
 	go s.receivingStream(ctx, stream, errchan)
 	go s.sendingStream(ctx, stream, errchan)
-
 	go s.unaryRequestsHandler(ctx, client, logger, errchan)
+
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	select {
 	case <-ctx.Done():
@@ -211,7 +224,7 @@ func (s *signerClient) unaryRequestsHandler(ctx context.Context, client signer.S
 			return
 		case urq := <-s.conn.unaryRequests:
 			if urq.item == nil {
-				continue
+				continue // malformed request, ignore.
 			}
 
 			var resp proto.Message
@@ -257,24 +270,6 @@ func isFatalError(err error) bool {
 	default:
 		return false
 	}
-}
-
-func (s *signerClient) makeConn() (*grpc.ClientConn, error) {
-	var opts []grpc.DialOption
-	if s.cert != nil {
-		pool := x509.NewCertPool()
-		pool.AddCert(s.cert.Leaf) // same cert used for server verification.
-
-		creds := credentials.NewTLS(&tls.Config{
-			MinVersion:   tls.VersionTLS13,
-			Certificates: []tls.Certificate{*s.cert}, // this is what the client presents to the server.
-			RootCAs:      pool,                       // this is what the client uses to verify the server.
-		})
-
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-	}
-
-	return grpc.NewClient(s.socketPath, opts...)
 }
 
 var ErrSignerClientSignRequestChannelFull = errors.New("signer client sign request channel is full")
