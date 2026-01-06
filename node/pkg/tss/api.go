@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -75,6 +76,7 @@ func NewSigner(socketPath string, opts ...grpc.DialOption) (*signerClient, error
 			return nil, errors.New("nil grpc dial option provided")
 		}
 	}
+
 	sc := &signerClient{
 		dialOpts:   opts,
 		socketPath: socketPath,
@@ -97,6 +99,8 @@ type signerClient struct {
 
 	// used to communicate with the signer service.
 	conn *connChans
+
+	connected atomic.Int64 // 0 is not connected, 1 is connected.
 }
 
 type unaryResult struct {
@@ -124,6 +128,11 @@ func (s *signerClient) Start(ctx context.Context) error {
 }
 
 type signatureStream grpc.BidiStreamingClient[signer.SignRequest, signer.SignResponse]
+
+const (
+	notConnected = iota
+	connected
+)
 
 // a blocking call that connects to the signer service and maintains the connection.
 //
@@ -161,6 +170,9 @@ func (s *signerClient) Connect(ctx context.Context) error {
 	}
 	defer stream.CloseSend()
 
+	s.connected.Store(connected)
+	defer s.connected.Store(notConnected)
+
 	fmt.Println("connected to signer service")
 	// buffer to avoid goroutine leaks.
 	errchan := make(chan error, 3)
@@ -179,6 +191,11 @@ func (s *signerClient) Connect(ctx context.Context) error {
 
 		return err
 	}
+}
+
+// mainly used for tests.
+func (s *signerClient) isConnected() bool {
+	return s.connected.Load() == connected
 }
 
 func (s *signerClient) receivingStream(ctx context.Context, stream signatureStream, errchan chan error) {
