@@ -71,9 +71,6 @@ func (p QueryTypePool) queryTypeBits() [32]byte {
 			continue
 		}
 		qtUint8 := uint8(qt)
-		if qtUint8 > 255 {
-			continue
-		}
 		byteIndex := 31 - (qtUint8-1)/8
 		bitOffset := (qtUint8 - 1) % 8
 		bits[byteIndex] |= 1 << bitOffset
@@ -660,7 +657,7 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 		},
 	}
 
-	currentTime := uint64(time.Now().Unix())
+	currentTime := uint64(time.Now().Unix()) // #nosec G115 -- Unix timestamp is always positive since epoch
 	poolsChecked := 0
 	poolsWithStakes := 0
 	totalErrors := 0

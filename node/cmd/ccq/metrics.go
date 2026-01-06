@@ -130,25 +130,17 @@ var (
 			Help: "Gauge showing the maximum concurrent query requests by chain",
 		}, []string{"chain_name"})
 
-	// Staking-based rate limiting metrics
-	stakingPolicyFetchDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Name:    "ccq_server_staking_policy_fetch_duration_seconds",
-			Help:    "Time to fetch staking policy from provider",
-			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0},
+	delegatedQueriesReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_server_delegated_queries_received",
+			Help: "Total number of delegated queries received (signer using staker's rate limits)",
 		})
 
-	stakingPolicyRejections = promauto.NewCounterVec(
+	selfStakingQueriesReceived = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "ccq_server_staking_rejections_total",
-			Help: "Total requests rejected due to staking checks by reason",
-		}, []string{"reason"}) // reason: insufficient_stake, rate_limit_exceeded, failed_to_fetch_policy, etc.
-
-	stakingPolicyCacheResults = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "ccq_server_staking_policy_cache_total",
-			Help: "Staking policy cache hits and misses",
-		}, []string{"result"}) // result: hit, miss
+			Name: "ccq_server_self_staking_queries_received",
+			Help: "Total number of self-staking queries received (signer using own stake)",
+		})
 )
 
 // getGaugeValue returns the current value of a metric.

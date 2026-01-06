@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"github.com/prometheus/client_golang/prometheus"
@@ -65,9 +65,13 @@ func (c *IPFSClient) FetchConversionTable(ctx context.Context, cidBytes [32]byte
 
 	// Check cache first
 	if cached, ok := c.cache.Load(cidStr); ok {
-		ipfsCacheHitRate.WithLabelValues("hit").Inc()
-		c.logger.Debug("cache hit for conversion table", zap.String("cid", cidStr))
-		return cached.(*ConversionTable), nil
+		if table, ok := cached.(*ConversionTable); ok {
+			ipfsCacheHitRate.WithLabelValues("hit").Inc()
+			c.logger.Debug("cache hit for conversion table", zap.String("cid", cidStr))
+			return table, nil
+		}
+		// Invalid cache entry, remove it and fall through to fetch
+		c.cache.Delete(cidStr)
 	}
 	ipfsCacheHitRate.WithLabelValues("miss").Inc()
 
@@ -77,8 +81,10 @@ func (c *IPFSClient) FetchConversionTable(ctx context.Context, cidBytes [32]byte
 	if err != nil {
 		// Check cache again in case of network error (stale cache is better than no data)
 		if cached, ok := c.cache.Load(cidStr); ok {
-			c.logger.Warn("IPFS fetch failed, using stale cache", zap.String("cid", cidStr), zap.Error(err))
-			return cached.(*ConversionTable), nil
+			if table, ok := cached.(*ConversionTable); ok {
+				c.logger.Warn("IPFS fetch failed, using stale cache", zap.String("cid", cidStr), zap.Error(err))
+				return table, nil
+			}
 		}
 		return nil, err
 	}
@@ -118,7 +124,7 @@ func (c *IPFSClient) fetchFromIPFS(ctx context.Context, cidStr string) (*Convers
 	}
 
 	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	body, err := common.SafeRead(resp.Body)
 	if err != nil {
 		ipfsFetchErrors.WithLabelValues("read_body").Inc()
 		return nil, fmt.Errorf("failed to read IPFS response body: %w", err)

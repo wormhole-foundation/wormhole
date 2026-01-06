@@ -48,18 +48,6 @@ func buildStakeInfoBytes(amount, conversionTableIndex, lockupEnd, accessEnd, las
 	return result
 }
 
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // TestParseStakeInfo tests parsing of stake info from contract data
 func TestParseStakeInfo(t *testing.T) {
 	tests := []struct {

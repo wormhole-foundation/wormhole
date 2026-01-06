@@ -279,7 +279,6 @@ var (
 	ccqProtectedPeers []string
 	ccqAllowedPeers   *string
 	ccqBackfillCache  *bool
-	ccqIpfsGateway    *string
 
 	gatewayRelayerContract      *string
 	gatewayRelayerKeyPath       *string
@@ -392,8 +391,6 @@ func init() {
 	accountantNttContract = NodeCmd.Flags().String("accountantNttContract", "", "Address of the NTT accountant smart contract on wormchain")
 	accountantNttKeyPath = NodeCmd.Flags().String("accountantNttKeyPath", "", "path to NTT accountant private key for signing transactions")
 	accountantNttKeyPassPhrase = NodeCmd.Flags().String("accountantNttKeyPassPhrase", "", "pass phrase used to unarmor the NTT accountant key file")
-
-	ccqIpfsGateway = NodeCmd.Flags().String("ccqIpfsGateway", "https://ipfs.io/ipfs/", "IPFS gateway URL for fetching CCQ conversion tables (default: public gateway, can use local node like http://localhost:8080/ipfs/)")
 
 	aptosRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "aptosRPC", "Aptos RPC URL", "http://aptos:8080", []string{"http", "https"})
 	aptosAccount = NodeCmd.Flags().String("aptosAccount", "", "aptos account")
@@ -1936,7 +1933,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionNotary(*notaryEnabled),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
-		node.GuardianOptionQueryHandler(*ccqEnabled, *ethRPC, *ccqIpfsGateway),
+		node.GuardianOptionQueryHandler(*ccqEnabled),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionStatusServer(*statusAddr),
 		node.GuardianOptionAlternatePublisher(guardianAddrAsBytes, *additionalPublishers),

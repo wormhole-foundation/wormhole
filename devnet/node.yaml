@@ -198,4 +198,3 @@ metadata:
 data:
   guardiand.yaml: |
     ethRPC: "ws://eth-devnet:8545"
-    ccqIpfsGateway: "http://kubo:8080/ipfs/"

@@ -28,7 +28,7 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
   serialize(): Uint8Array {
     const writer = new BinaryWriter()
       .writeUint32(this.blockTag.length)
-      .writeUint8Array(Buffer.from(this.blockTag) as any)
+      .writeUint8Array(Buffer.from(this.blockTag))
       .writeUint8(this.callData.length);
     this.callData.forEach(({ to, data }) => {
       const dataArray = hexToUint8Array(data);
@@ -41,7 +41,7 @@ export class EthCallQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): EthCallQueryRequest {
-    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
+    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
     return this.fromReader(reader);
   }
 
@@ -107,7 +107,7 @@ export class EthCallQueryResponse implements ChainSpecificResponse {
   }
 
   static from(bytes: string | Uint8Array): EthCallQueryResponse {
-    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
+    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
     return this.fromReader(reader);
   }
 

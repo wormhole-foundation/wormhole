@@ -66,12 +66,12 @@ export class QueryRequest {
 
   static digest(network: Network, bytes: Uint8Array): Uint8Array {
     const prefix = getPrefix(network);
-    const data = Buffer.concat([Buffer.from(prefix), Buffer.from(bytes)] as any);
+    const data = Buffer.concat([Buffer.from(prefix), Buffer.from(bytes)]);
     return hexToUint8Array(keccak256(data).slice(2));
   }
 
   static from(bytes: string | Uint8Array): QueryRequest {
-    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
+    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
     return this.fromReader(reader);
   }
 
@@ -119,7 +119,7 @@ export class PerChainQueryRequest {
   }
 
   static from(bytes: string | Uint8Array): PerChainQueryRequest {
-    const reader = new BinaryReader(Buffer.from(coalesceUint8Array(bytes)) as any);
+    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
     return this.fromReader(reader);
   }
 

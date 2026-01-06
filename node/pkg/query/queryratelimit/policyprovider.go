@@ -100,21 +100,29 @@ func (r *PolicyProvider) GetPolicy(ctx context.Context, signerAddr, stakerAddr c
 	cacheKey := signerAddr.Hex() + ":" + stakerAddr.Hex()
 	ival, hit := r.cache.Get(cacheKey)
 	if hit {
-		val := ival.(withExpiry[*Policy])
+		val, ok := ival.(withExpiry[*Policy])
+		if !ok {
+			// Cache corruption - remove and treat as miss
+			r.cache.Remove(cacheKey)
+			StakingPolicyCacheResults.WithLabelValues("miss_invalid").Inc()
+			return r.fetchAndFill(ctx, cacheKey, signerAddr, stakerAddr)
+		}
 		// Check expiry atomically - if expired, treat as cache miss
 		isExpired := time.Now().After(val.expiresAt)
 		if isExpired {
+			StakingPolicyCacheResults.WithLabelValues("miss_expired").Inc()
 			// Remove expired entry to prevent serving stale data
 			r.cache.Remove(cacheKey)
 			// Fall through to fetch fresh data
 		} else {
+			StakingPolicyCacheResults.WithLabelValues("hit").Inc()
 			// Cache hit with valid (non-expired) data
 			if r.optimistic {
 				// Trigger background refresh while returning cached value
-				go func() {
-					ctx, cn := context.WithTimeout(r.parentContext, r.fetchTimeout)
+				go func() { //nolint:contextcheck // Background refresh uses parentContext to continue even if request context is cancelled
+					bgCtx, cn := context.WithTimeout(r.parentContext, r.fetchTimeout)
 					defer cn()
-					if _, err := r.fetchAndFill(ctx, cacheKey, signerAddr, stakerAddr); err != nil {
+					if _, err := r.fetchAndFill(bgCtx, cacheKey, signerAddr, stakerAddr); err != nil {
 						if r.logger != nil {
 							r.logger.Error("failed to fetch rate limit policy in background", zap.Error(err))
 						}
@@ -125,12 +133,17 @@ func (r *PolicyProvider) GetPolicy(ctx context.Context, signerAddr, stakerAddr c
 		}
 	}
 	// Cache miss or expired - fetch fresh data
+	if !hit {
+		StakingPolicyCacheResults.WithLabelValues("miss").Inc()
+	}
 	return r.fetchAndFill(ctx, cacheKey, signerAddr, stakerAddr)
 }
 
 func (r *PolicyProvider) fetchAndFill(ctx context.Context, cacheKey string, signerAddr, stakerAddr common.Address) (*Policy, error) {
 	res, err, _ := r.sf.Do(cacheKey, func() (any, error) {
+		start := time.Now()
 		policy, err := r.fetcher(ctx, signerAddr, stakerAddr)
+		StakingPolicyFetchDuration.Observe(time.Since(start).Seconds())
 		if err != nil {
 			return nil, err
 		}
@@ -143,5 +156,9 @@ func (r *PolicyProvider) fetchAndFill(ctx context.Context, cacheKey string, sign
 	if err != nil {
 		return nil, err
 	}
-	return res.(*Policy), err
+	policy, ok := res.(*Policy)
+	if !ok {
+		return nil, fmt.Errorf("singleflight returned unexpected type")
+	}
+	return policy, nil
 }

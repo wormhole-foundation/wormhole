@@ -276,8 +276,8 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 
 	// Write staker address only in v2 messages (delegation support)
 	if version == MSG_VERSION_V2 {
-		stakerLen := uint8(len(queryRequest.StakerAddress))
-		vaa.MustWrite(buf, binary.BigEndian, stakerLen) // #nosec G115 -- `StakerAddress` length checked in `Validate`
+		stakerLen := uint8(len(queryRequest.StakerAddress)) // #nosec G115 -- `StakerAddress` length checked in `Validate`
+		vaa.MustWrite(buf, binary.BigEndian, stakerLen)
 		if stakerLen > 0 {
 			buf.Write(queryRequest.StakerAddress)
 		}

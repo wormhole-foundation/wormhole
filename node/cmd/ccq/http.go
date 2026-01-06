@@ -153,11 +153,16 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		rateLimitKey = eth_common.BytesToAddress(qr.StakerAddress)
 		userIdentifier = "delegated:" + signerAddr.Hex() + "->staker:" + rateLimitKey.Hex()
 		s.logger.Debug("delegated query", zap.String("signer", signerAddr.Hex()), zap.String("staker", rateLimitKey.Hex()))
+		delegatedQueriesReceived.Inc()
 	} else {
 		rateLimitKey = signerAddr
 		userIdentifier = "signer:" + signerAddr.Hex()
 		s.logger.Debug("self-staking query", zap.String("signer", signerAddr.Hex()))
+		selfStakingQueriesReceived.Inc()
 	}
+
+	// Track total requests by user
+	totalRequestsByUser.WithLabelValues(userIdentifier).Inc()
 
 	// If staking-based rate limiting is enabled, enforce it here
 	if s.policyProvider != nil && s.limitEnforcer != nil {
@@ -173,6 +178,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 				zap.Error(err))
 			http.Error(w, "failed to verify staking eligibility", http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_fetch_policy").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("failed_to_fetch_policy").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			return
 		}
 
@@ -193,6 +200,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 			http.Error(w, errorMsg, http.StatusForbidden)
 			invalidQueryRequestReceived.WithLabelValues("insufficient_stake").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("insufficient_stake").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			return
 		}
 
@@ -216,6 +225,8 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 				zap.Error(err))
 			http.Error(w, "failed to enforce rate limit", http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_enforce_rate_limit").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("failed_to_enforce_rate_limit").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			return
 		}
 
@@ -226,6 +237,9 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 				zap.Any("exceededTypes", limitResult.ExceededTypes))
 			http.Error(w, fmt.Sprintf("rate limit exceeded for query types: %v", limitResult.ExceededTypes), http.StatusTooManyRequests)
 			invalidQueryRequestReceived.WithLabelValues("rate_limit_exceeded").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("rate_limit_exceeded").Inc()
+			rateLimitExceededByUser.WithLabelValues(userIdentifier).Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			return
 		}
 
@@ -250,6 +264,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("failed to marshal gossip message", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_gossip_msg").Inc()
+		invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 		return
 	}
 
@@ -259,6 +274,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Info("duplicate request", zap.String("userId", userIdentifier), zap.String("requestId", requestId))
 		http.Error(w, "Duplicate request", http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("duplicate_request").Inc()
+		invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 		return
 	}
 
@@ -270,6 +286,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("failed to publish gossip message", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_publish_gossip_msg").Inc()
+		invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 		s.pendingResponses.Remove(pendingResponse)
 		return
 	}
@@ -286,14 +303,16 @@ outer:
 			zap.Int("outstandingResponses", outstandingResponses),
 			zap.Int("quorum", quorum),
 		)
+		queryTimeoutsByUser.WithLabelValues(pendingResponse.userName).Inc()
 		http.Error(w, "Timed out waiting for response", http.StatusGatewayTimeout)
 	case res := <-pendingResponse.ch:
 		s.logger.Info("publishing response to client", zap.String("userId", userIdentifier), zap.String("requestId", requestId))
 		resBytes, respMarshalErr := res.Response.Marshal()
 		if respMarshalErr != nil {
-			s.logger.Error("failed to marshal response", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(err))
+			s.logger.Error("failed to marshal response", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(respMarshalErr))
 			http.Error(w, respMarshalErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			break
 		}
 		// Signature indices must be ascending for on-chain verification
@@ -307,6 +326,7 @@ outer:
 				s.logger.Error(boundsErr, zap.Int("sig.Index", sig.Index))
 				http.Error(w, boundsErr, http.StatusInternalServerError)
 				invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
+				invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 				break outer
 			}
 			// ECDSA signature + a byte for the index of the guardian in the guardian set
@@ -319,9 +339,10 @@ outer:
 			Bytes:      hex.EncodeToString(resBytes),
 		})
 		if encodeErr != nil {
-			s.logger.Error("failed to encode response", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			s.logger.Error("failed to encode response", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(encodeErr))
+			http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			break
 		}
 	case errEntry := <-pendingResponse.errCh:
@@ -332,6 +353,7 @@ outer:
 	}
 
 	totalQueryTime.Observe(float64(time.Since(start).Milliseconds()))
+	successfulQueriesByUser.WithLabelValues(pendingResponse.userName).Inc()
 	validQueryRequestsReceived.Inc()
 	s.pendingResponses.Remove(pendingResponse)
 }

@@ -133,7 +133,7 @@ func GuardianOptionP2P(
 }
 
 // GuardianOptionQueryHandler configures the Cross Chain Query module.
-func GuardianOptionQueryHandler(ccqEnabled bool, ethRPCURL string, ipfsGateway string) *GuardianOption {
+func GuardianOptionQueryHandler(ccqEnabled bool) *GuardianOption {
 	return &GuardianOption{
 		name: "query",
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {

@@ -18,8 +18,6 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
-
-	"github.com/gagliardetto/solana-go"
 )
 
 func FetchCurrentGuardianSet(ctx context.Context, rpcUrl, coreAddr string) (*common.GuardianSet, error) {
@@ -78,42 +76,6 @@ func validateCallData(logger *zap.Logger, permsForUser *permissionEntry, callTag
 		}
 
 		totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
-	}
-
-	return http.StatusOK, nil
-}
-
-// validateSolanaAccountQuery performs verification on a Solana sol_account query.
-func validateSolanaAccountQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaAccountQueryRequest) (int, error) {
-	if !permsForUser.allowAnything {
-		for _, acct := range q.Accounts {
-			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct).String())
-			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-				return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
-			}
-
-			totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
-		}
-	}
-
-	return http.StatusOK, nil
-}
-
-// validateSolanaPdaQuery performs verification on a Solana sol_account query.
-func validateSolanaPdaQuery(logger *zap.Logger, permsForUser *permissionEntry, callTag string, chainId vaa.ChainID, q *query.SolanaPdaQueryRequest) (int, error) {
-	if !permsForUser.allowAnything {
-		for _, acct := range q.PDAs {
-			callKey := fmt.Sprintf("%s:%d:%s", callTag, chainId, solana.PublicKey(acct.ProgramAddress).String())
-			if _, exists := permsForUser.allowedCalls[callKey]; !exists {
-				logger.Debug("requested call not authorized", zap.String("userName", permsForUser.userName), zap.String("callKey", callKey))
-				invalidQueryRequestReceived.WithLabelValues("call_not_authorized").Inc()
-				return http.StatusForbidden, fmt.Errorf(`call "%s" not authorized`, callKey)
-			}
-
-			totalRequestedCallsByChain.WithLabelValues(chainId.String()).Inc()
-		}
 	}
 
 	return http.StatusOK, nil

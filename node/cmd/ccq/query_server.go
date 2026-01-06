@@ -208,7 +208,7 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	}
 
 	factoryAddr := ethCommon.HexToAddress(*ccqFactoryAddress)
-	cacheDuration := time.Duration(*policyCacheDuration) * time.Second
+	cacheDuration := time.Duration(*policyCacheDuration) * time.Second // #nosec G115 -- policyCacheDuration is validated to be reasonable
 	policyProvider, err := querystaking.CreateStakingPolicyProvider(
 		ethClient,
 		logger,

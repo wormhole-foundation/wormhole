@@ -8,25 +8,28 @@ import (
 	"github.com/google/btree"
 )
 
+// MemoryStore is an in-memory, time-bucketed counter store.
 type MemoryStore struct {
+	mu       sync.RWMutex
 	tree     *btree.BTreeG[*memoryStoreItem]
 	mapPool  sync.Pool
 	interval time.Duration
 }
 
 type memoryStoreItem struct {
-	ts int
-	m  map[string]int
+	ts int // normalized timestamp (bucket key)
+	m  map[string]uint64
 }
 
-func (m *memoryStoreItem) Clear() {
-	for k := range m.m {
-		delete(m.m, k)
+func (i *memoryStoreItem) clear() {
+	for k := range i.m {
+		delete(i.m, k)
 	}
 }
 
+// NewMemoryStore creates a new MemoryStore with the given time bucket interval.
 func NewMemoryStore(interval time.Duration) *MemoryStore {
-	c := &MemoryStore{
+	return &MemoryStore{
 		tree: btree.NewG(8, func(a, b *memoryStoreItem) bool {
 			return a.ts < b.ts
 		}),
@@ -34,93 +37,144 @@ func NewMemoryStore(interval time.Duration) *MemoryStore {
 		mapPool: sync.Pool{
 			New: func() any {
 				return &memoryStoreItem{
-					m: make(map[string]int),
+					m: make(map[string]uint64),
 				}
 			},
 		},
 	}
-	return c
 }
 
+// Close implements a no-op closer for interface compatibility.
 func (s *MemoryStore) Close() error {
 	return nil
 }
 
-func (s *MemoryStore) getMap(key int) *memoryStoreItem {
+func (s *MemoryStore) getItem(ts int) *memoryStoreItem {
 	v := s.mapPool.Get()
-	if v == nil {
-		return &memoryStoreItem{
-			m: make(map[string]int),
-		}
-	}
-	item := v.(*memoryStoreItem)
-	item.ts = key
-	item.Clear()
+	item := v.(*memoryStoreItem) //nolint:forcetypeassert // Pool.New always returns *memoryStoreItem
+	item.ts = ts
+	item.clear()
 	return item
 }
 
-func (s *MemoryStore) putMap(m *memoryStoreItem) {
-	s.mapPool.Put(m)
+func (s *MemoryStore) putItem(item *memoryStoreItem) {
+	s.mapPool.Put(item)
 }
 
-func (s *MemoryStore) time(cur time.Time) int {
-	return int(cur.Truncate(s.interval).Unix())
+// normalizeTime converts a time into a bucket timestamp.
+func (s *MemoryStore) normalizeTime(t time.Time) int {
+	return int(t.Truncate(s.interval).Unix())
 }
 
-func (s *MemoryStore) IncrKey(ctx context.Context, bucket string, amount int, cur time.Time) (int, error) {
-	now := s.time(cur)
-	val, ok := s.tree.Get(&memoryStoreItem{ts: now})
+// IncrKey increments a bucketed counter.
+// Context is intentionally ignored
+func (s *MemoryStore) IncrKey(
+	_ context.Context,
+	bucket string,
+	amount int,
+	at time.Time,
+) (uint64, error) {
+	ts := s.normalizeTime(at)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	item, ok := s.tree.Get(&memoryStoreItem{ts: ts})
 	if !ok {
-		n := s.getMap(now)
-		s.tree.ReplaceOrInsert(n)
-		val = n
+		item = s.getItem(ts)
+		s.tree.ReplaceOrInsert(item)
 	}
-	if _, ok := val.m[bucket]; !ok {
-		val.m[bucket] = amount
-	} else {
-		val.m[bucket] = val.m[bucket] + amount
-	}
-	return val.m[bucket], nil
+
+	item.m[bucket] += uint64(amount) // #nosec G115 -- amount is always non-negative in practice
+	return item.m[bucket], nil
 }
 
-func (s *MemoryStore) GetKeys(ctx context.Context, bucket string, from time.Time, to time.Time) ([]int, error) {
-	out := make([]int, 0)
-	toseconds := s.time(to)
-	fromseconds := s.time(from)
+// GetKeys returns all counter values for a bucket in the given time range.
+func (s *MemoryStore) GetKeys(
+	ctx context.Context,
+	bucket string,
+	from time.Time,
+	to time.Time,
+) ([]uint64, error) {
+	fromTS := s.normalizeTime(from)
+	toTS := s.normalizeTime(to)
+
+	out := make([]uint64, 0)
+	var ctxErr error
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	s.tree.AscendRange(
-		&memoryStoreItem{ts: fromseconds},
-		&memoryStoreItem{ts: toseconds},
-		func(val *memoryStoreItem) bool {
-			if val.ts > toseconds {
+		&memoryStoreItem{ts: fromTS},
+		&memoryStoreItem{ts: toTS},
+		func(item *memoryStoreItem) bool {
+			select {
+			case <-ctx.Done():
+				ctxErr = ctx.Err()
 				return false
+			default:
 			}
-			if count, ok := val.m[bucket]; ok {
-				out = append(out, count)
+
+			if v, ok := item.m[bucket]; ok {
+				out = append(out, v)
 			}
 			return true
-		})
+		},
+	)
+
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+
 	return out, nil
 }
 
-func (s *MemoryStore) Cleanup(ctx context.Context, now time.Time, age time.Duration) error {
+// Cleanup removes entries older than the given age.
+// Cleanup is best-effort and respects context cancellation.
+func (s *MemoryStore) Cleanup(
+	ctx context.Context,
+	now time.Time,
+	age time.Duration,
+) error {
+	nowTS := s.normalizeTime(now)
+	expireBefore := nowTS - int(age.Seconds())
+
 	var expired []int
-	nowseconds := int(now.Unix())
-	ageSeconds := int(age.Seconds())
-	func() {
-		s.tree.Ascend(func(val *memoryStoreItem) bool {
-			// extract the timestamp from the key timestamp:bucket
-			if nowseconds-val.ts >= ageSeconds {
-				expired = append(expired, val.ts)
-				return true
-			}
+
+	// Scan phase
+	s.mu.RLock()
+	s.tree.Ascend(func(item *memoryStoreItem) bool {
+		select {
+		case <-ctx.Done():
 			return false
-		})
-	}()
-	for _, key := range expired {
-		item, ok := s.tree.Delete(&memoryStoreItem{ts: key})
+		default:
+		}
+
+		if item.ts <= expireBefore {
+			expired = append(expired, item.ts)
+			return true
+		}
+		return false
+	})
+	s.mu.RUnlock()
+
+	// Delete phase
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, ts := range expired {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		item, ok := s.tree.Delete(&memoryStoreItem{ts: ts})
 		if ok {
-			s.putMap(item)
+			s.putItem(item)
 		}
 	}
+
 	return nil
 }

@@ -1,4 +1,4 @@
-import { Buffer, WithImplicitCoercion } from "buffer";
+import { Buffer, type WithImplicitCoercion } from "buffer";
 import { uint8ArrayToHex } from "./utils";
 
 // BinaryReader provides the inverse of BinaryWriter

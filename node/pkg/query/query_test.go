@@ -74,65 +74,19 @@ func parseAllowedRequesters(allowedRequesters string) (map[ethCommon.Address]str
 	return result, nil
 }
 
-// createTestRateLimitComponents creates mock rate limiting components for tests
-func createTestRateLimitComponents(allowedRequesters map[ethCommon.Address]struct{}) (*queryratelimit.Enforcer, *queryratelimit.PolicyProvider, error) {
-	enforcer := queryratelimit.NewEnforcer()
-
-	// Create a policy provider that uses the allowed requesters map
-	policyProvider, err := queryratelimit.NewPolicyProvider(
-		queryratelimit.WithPolicyProviderFetcher(func(ctx context.Context, signerAddr, stakerAddr ethCommon.Address) (*queryratelimit.Policy, error) {
-			_, ok := allowedRequesters[stakerAddr]
-			if !ok {
-				return &queryratelimit.Policy{}, nil
-			}
-			return &queryratelimit.Policy{
-				Limits: queryratelimit.Limits{
-					Types: map[uint8]queryratelimit.Rule{
-						uint8(EthCallQueryRequestType): {
-							MaxPerMinute: 15 * 60,
-							MaxPerSecond: 15,
-						},
-						uint8(EthCallByTimestampQueryRequestType): {
-							MaxPerMinute: 15 * 60,
-							MaxPerSecond: 15,
-						},
-						uint8(EthCallWithFinalityQueryRequestType): {
-							MaxPerMinute: 15 * 60,
-							MaxPerSecond: 15,
-						},
-						uint8(SolanaAccountQueryRequestType): {
-							MaxPerMinute: 15 * 60,
-							MaxPerSecond: 15,
-						},
-						uint8(SolanaPdaQueryRequestType): {
-							MaxPerMinute: 15 * 60,
-							MaxPerSecond: 15,
-						},
-					},
-				},
-			}, nil
-		}),
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return enforcer, policyProvider, nil
-}
-
 // createPerChainQueryForEthCall creates a per chain query for an eth_call for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCall(
 	t *testing.T,
-	chainId vaa.ChainID,
+	chainID vaa.ChainID,
 	block string,
 	numCalls int,
 ) *PerChainQueryRequest {
 	t.Helper()
 	ethCallData := []*EthCallData{}
-	for count := 0; count < numCalls; count++ {
+	for count := range numCalls {
 		ethCallData = append(ethCallData, &EthCallData{
-			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
-			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainID, count))),
+			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainID, count)),
 		})
 	}
 
@@ -142,7 +96,7 @@ func createPerChainQueryForEthCall(
 	}
 
 	return &PerChainQueryRequest{
-		ChainId: chainId,
+		ChainId: chainID,
 		Query:   callRequest,
 	}
 }
@@ -150,7 +104,7 @@ func createPerChainQueryForEthCall(
 // createPerChainQueryForEthCallByTimestamp creates a per chain query for an eth_call_by_timestamp for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCallByTimestamp(
 	t *testing.T,
-	chainId vaa.ChainID,
+	chainID vaa.ChainID,
 	targetBlock string,
 	followingBlock string,
 	numCalls int,
@@ -159,8 +113,8 @@ func createPerChainQueryForEthCallByTimestamp(
 	ethCallData := []*EthCallData{}
 	for count := 0; count < numCalls; count++ {
 		ethCallData = append(ethCallData, &EthCallData{
-			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
-			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainID, count))),
+			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainID, count)),
 		})
 	}
 
@@ -172,7 +126,7 @@ func createPerChainQueryForEthCallByTimestamp(
 	}
 
 	return &PerChainQueryRequest{
-		ChainId: chainId,
+		ChainId: chainID,
 		Query:   callRequest,
 	}
 }
@@ -180,17 +134,17 @@ func createPerChainQueryForEthCallByTimestamp(
 // createPerChainQueryForEthCallWithFinality creates a per chain query for an eth_call_with_finality for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForEthCallWithFinality(
 	t *testing.T,
-	chainId vaa.ChainID,
+	chainID vaa.ChainID,
 	blockId string,
 	finality string,
 	numCalls int,
 ) *PerChainQueryRequest {
 	t.Helper()
 	ethCallData := []*EthCallData{}
-	for count := 0; count < numCalls; count++ {
+	for count := range numCalls {
 		ethCallData = append(ethCallData, &EthCallData{
-			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
-			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
+			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainID, count))),
+			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainID, count)),
 		})
 	}
 
@@ -201,7 +155,7 @@ func createPerChainQueryForEthCallWithFinality(
 	}
 
 	return &PerChainQueryRequest{
-		ChainId: chainId,
+		ChainId: chainID,
 		Query:   callRequest,
 	}
 }
@@ -411,18 +365,18 @@ func (md *mockData) setExpectedResults(expectedResults []PerChainQueryResponse) 
 
 // setRetries allows a test to specify how many times a given watcher should retry before returning success.
 // If the count is the special value `fatalError`, the watcher will return QueryFatalError.
-func (md *mockData) setRetries(chainId vaa.ChainID, count int) {
+func (md *mockData) setRetries(chainID vaa.ChainID, count int) {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
-	md.retriesPerChain[chainId] = count
+	md.retriesPerChain[chainID] = count
 }
 
 // incrementRequestsPerChainAlreadyLocked is used by the watchers to keep track of how many times they were invoked in a given test.
-func (md *mockData) incrementRequestsPerChainAlreadyLocked(chainId vaa.ChainID) {
-	if val, exists := md.requestsPerChain[chainId]; exists {
-		md.requestsPerChain[chainId] = val + 1
+func (md *mockData) incrementRequestsPerChainAlreadyLocked(chainID vaa.ChainID) {
+	if val, exists := md.requestsPerChain[chainID]; exists {
+		md.requestsPerChain[chainID] = val + 1
 	} else {
-		md.requestsPerChain[chainId] = 1
+		md.requestsPerChain[chainID] = 1
 	}
 }
 
@@ -434,20 +388,20 @@ func (md *mockData) getQueryResponsePublication() *QueryResponsePublication {
 }
 
 // getRequestsPerChain returns the count of the number of times the given watcher was invoked in a given test.
-func (md *mockData) getRequestsPerChain(chainId vaa.ChainID) int {
+func (md *mockData) getRequestsPerChain(chainID vaa.ChainID) int {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
-	if ret, exists := md.requestsPerChain[chainId]; exists {
+	if ret, exists := md.requestsPerChain[chainID]; exists {
 		return ret
 	}
 	return 0
 }
 
 // shouldIgnoreAlreadyLocked is used by the watchers to see if they should ignore a query (causing a retry).
-func (md *mockData) shouldIgnoreAlreadyLocked(chainId vaa.ChainID) bool {
-	if val, exists := md.retriesPerChain[chainId]; exists {
+func (md *mockData) shouldIgnoreAlreadyLocked(chainID vaa.ChainID) bool {
+	if val, exists := md.retriesPerChain[chainID]; exists {
 		if val == ignoreQuery {
-			delete(md.retriesPerChain, chainId)
+			delete(md.retriesPerChain, chainID)
 			return true
 		}
 	}
@@ -455,16 +409,16 @@ func (md *mockData) shouldIgnoreAlreadyLocked(chainId vaa.ChainID) bool {
 }
 
 // getStatusAlreadyLocked is used by the watchers to determine what query status they should return, based on the `retriesPerChain`.
-func (md *mockData) getStatusAlreadyLocked(chainId vaa.ChainID) QueryStatus {
-	if val, exists := md.retriesPerChain[chainId]; exists {
+func (md *mockData) getStatusAlreadyLocked(chainID vaa.ChainID) QueryStatus {
+	if val, exists := md.retriesPerChain[chainID]; exists {
 		if val == fatalError {
 			return QueryFatalError
 		}
 		val -= 1
 		if val > 0 {
-			md.retriesPerChain[chainId] = val
+			md.retriesPerChain[chainID] = val
 		} else {
-			delete(md.retriesPerChain, chainId)
+			delete(md.retriesPerChain, chainID)
 		}
 		return QueryRetryNeeded
 	}
@@ -494,8 +448,8 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	// Per-chain query requests
 	md.chainQueryReqC = make(map[vaa.ChainID]chan *PerChainQueryInternal)
-	for _, chainId := range chains {
-		md.chainQueryReqC[chainId] = make(chan *PerChainQueryInternal)
+	for _, chainID := range chains {
+		md.chainQueryReqC[chainID] = make(chan *PerChainQueryInternal)
 	}
 
 	// Query responses from watchers to query handler aggregated across all chains
@@ -514,31 +468,31 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	// Create a routine for each configured watcher. It will take a per chain query and return the corresponding expected result.
 	// It also pegs a counter of the number of requests the watcher received, for verification purposes.
-	for chainId := range md.chainQueryReqC {
-		go func(chainId vaa.ChainID, chainQueryReqC <-chan *PerChainQueryInternal) {
+	for chainID := range md.chainQueryReqC {
+		go func(chainID vaa.ChainID, chainQueryReqC <-chan *PerChainQueryInternal) {
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case pcqr := <-chainQueryReqC:
-					require.Equal(t, chainId, pcqr.Request.ChainId)
+					require.Equal(t, chainID, pcqr.Request.ChainId)
 					md.mutex.Lock()
-					md.incrementRequestsPerChainAlreadyLocked(chainId)
-					if md.shouldIgnoreAlreadyLocked(chainId) {
-						logger.Info("watcher ignoring query", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx))
+					md.incrementRequestsPerChainAlreadyLocked(chainID)
+					if md.shouldIgnoreAlreadyLocked(chainID) {
+						logger.Info("watcher ignoring query", zap.String("chainID", chainID.String()), zap.Int("requestIdx", pcqr.RequestIdx))
 					} else if pcqr.RequestIdx >= len(md.expectedResults) {
-						logger.Error("unexpected query reached watcher", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("expectedResultsLen", len(md.expectedResults)))
+						logger.Error("unexpected query reached watcher", zap.String("chainID", chainID.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("expectedResultsLen", len(md.expectedResults)))
 					} else {
 						results := md.expectedResults[pcqr.RequestIdx].Response
-						status := md.getStatusAlreadyLocked(chainId)
-						logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("status", int(status)))
+						status := md.getStatusAlreadyLocked(chainID)
+						logger.Info("watcher returning", zap.String("chainID", chainID.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("status", int(status)))
 						queryResponse := CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.Request.ChainId, status, results)
 						md.queryResponseWriteC <- queryResponse
 					}
 					md.mutex.Unlock()
 				}
 			}
-		}(chainId, md.chainQueryReqC[chainId])
+		}(chainID, md.chainQueryReqC[chainID])
 	}
 
 	return &md
@@ -1215,7 +1169,7 @@ func TestRecoverPrefixedSigner(t *testing.T) {
 	t.Run("prefixed signature recovery succeeds", func(t *testing.T) {
 		// Sign with EIP-191 prefix (what personal_sign does)
 		prefixedHash := ethCrypto.Keccak256(
-			[]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(digest.Bytes()))),
+			fmt.Appendf(nil, "\x19Ethereum Signed Message:\n%d", len(digest.Bytes())),
 			digest.Bytes(),
 		)
 		sig, err := ethCrypto.Sign(prefixedHash, sk)

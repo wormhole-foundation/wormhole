@@ -41,8 +41,12 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 	// TODO(elee): we can probably tune these variable better, if memory consumption or cpu usage of the ratelimiter ever becomes an issue
 	if e.enforcementCount%1024 == 0 {
 		e.enforcementCount = 0
-		e.secondLimits.Cleanup(ctx, time.Now(), 5*time.Minute)
-		e.minuteLimits.Cleanup(ctx, time.Now(), 1*time.Hour)
+		if err := e.secondLimits.Cleanup(ctx, time.Now(), 5*time.Minute); err != nil {
+			return nil, err
+		}
+		if err := e.minuteLimits.Cleanup(ctx, time.Now(), 1*time.Hour); err != nil {
+			return nil, err
+		}
 	}
 	out := &EnforcementResponse{
 		Allowed:       true,
@@ -66,7 +70,7 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 				// on failure to contact the rate limiter, we just error
 				return nil, err
 			}
-			if uint64(thisSecond) > limitForQueryType.MaxPerSecond {
+			if thisSecond > limitForQueryType.MaxPerSecond {
 				out.Allowed = false
 				out.ExceededTypes = append(out.ExceededTypes, queryType)
 				continue
@@ -78,7 +82,7 @@ func (e *Enforcer) EnforcePolicy(ctx context.Context, policy *Policy, action *Ac
 			// on failure to contact the rate limiter, we just error
 			return nil, err
 		}
-		if uint64(thisMinute) > limitForQueryType.MaxPerMinute {
+		if thisMinute > limitForQueryType.MaxPerMinute {
 			out.Allowed = false
 			out.ExceededTypes = append(out.ExceededTypes, queryType)
 		}

@@ -19,7 +19,7 @@ export class BinaryWriter {
       const oldBuffer = this._buffer;
       const newSize = this._buffer.length * 2 + size;
       this._buffer = Buffer.alloc(newSize);
-      oldBuffer.copy(this._buffer as any);
+      oldBuffer.copy(this._buffer);
     }
   }
 
