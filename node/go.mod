@@ -39,7 +39,7 @@ require (
 	google.golang.org/api v0.126.0
 	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5 // indirect
 	google.golang.org/grpc v1.76.0
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -63,8 +63,8 @@ require (
 	github.com/prometheus/common v0.60.0
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
-	github.com/xlabs/multi-party-sig v0.0.2-0.20251106111445-bf7821c135f2
-	github.com/xlabs/tss-common v0.0.0-20251105153320-7da4a3182636
+	github.com/xlabs/multi-party-sig v0.0.2-0.20260106091636-03df0eb97600
+	github.com/xlabs/tss-common v0.0.0-20260106090845-24efe5d8f9c2
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250804133106-a7a43d27e69b
 	nhooyr.io/websocket v1.8.7
@@ -392,7 +392,10 @@ replace github.com/CosmWasm/wasmd v0.30.0 => github.com/wormhole-foundation/wasm
 
 replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole
 
-require github.com/gogo/status v1.1.1 // indirect
+require (
+	github.com/gogo/status v1.1.1 // indirect
+	github.com/xlabs/tss-lib/v2 v2.1.1-0.20260106092316-0373937dfe57 // indirect
+)
 
 replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43 // done in the TSS-LIB.
 

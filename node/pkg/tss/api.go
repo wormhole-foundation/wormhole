@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/proto"
 )
 
 type SignerConnection interface {
@@ -44,8 +45,9 @@ type Signer interface {
 
 	// TODO: Missing signerService API! The SignerService should support both GetPublicData data and verify.
 	// GetPublicKey gets the public information of the signer.
-	GetPublicData(context.Context) error
-	Verify(context.Context, *common.SignatureData) error
+	GetPublicData(context.Context) (*signer.PublicData, error)
+	// Verify verifies a signature against the provided public data.
+	Verify(context.Context, *signer.VerifySignatureRequest) error
 
 	// Witness new VAA is used by a LEADER to inform all peers of a new VAA observed on the network and to sign it!
 	// If this signer is a leader: it'll use the p2p network to tell all peers to sign the
@@ -71,9 +73,9 @@ func NewSigner(socketPath string) *signerClient {
 	return &signerClient{
 		socketPath: socketPath,
 		started:    atomic.Int32{},
-		ctx:        nil,                // filled in start.
+		ctx:        nil,                // filled in Connect.
 		cert:       &tls.Certificate{}, // TODO
-		logger:     zap.NewNop(),       // filled in start.
+		logger:     zap.NewNop(),       // filled in Connect.
 		conn: &connChans{
 			signRequests:  make(chan *signer.SignRequest, 100),  // TODO: buffer sizes?
 			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
@@ -96,12 +98,23 @@ type signerClient struct {
 	logger  *zap.Logger
 }
 
+type unaryResult struct {
+	item proto.Message
+	err  error
+}
+
+type unaryRequest struct {
+	item         proto.Message
+	responseChan chan unaryResult
+}
+
 // This might fail suddenly. if it does, the runnable should restart it.
 type connChans struct {
 	// streams for sign request/response.
 	signRequests  chan *signer.SignRequest
 	signResponses chan *signer.SignResponse
 
+	unaryRequests chan unaryRequest
 	// TODO: unary requests like public-data, verify, etc. should have a single channel that accepts a type and a response channel with 1 capacity to respond into.
 	//   the signer will attempt to send them through this channel, if its full/ blocked it will return an error.
 	//   unaryRequests chan UnaryRequest{item, responseChan with 1 buffer}
@@ -110,6 +123,8 @@ type connChans struct {
 func (s *signerClient) Start(ctx context.Context) error {
 	return s.Connect(ctx)
 }
+
+type signatureStream grpc.BidiStreamingClient[signer.SignRequest, signer.SignResponse]
 
 // a blocking call that connects to the signer service and maintains the connection.
 //
@@ -122,7 +137,7 @@ func (s *signerClient) Connect(ctx context.Context) error {
 	logger.Info("setting connection to signer service.")
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel() // we cancel on exit.
+	defer cancel() // we cancel on exit to ensure all goroutines exit.
 
 	// setup conn:
 	cc, err := s.makeConn()
@@ -142,46 +157,86 @@ func (s *signerClient) Connect(ctx context.Context) error {
 
 	errchan := make(chan error, 3) // buffer to avoid goroutine leak if both fail simultaneously.
 
-	// listener
-	go func() {
-		for {
-			resp, err := stream.Recv()
-			if err != nil {
-				errchan <- err
-				return
-			}
+	// listeners
+	go s.receivingStream(ctx, stream, errchan)
+	go s.sendingStream(ctx, stream, errchan)
 
-			// TODO: Consider inspecting the type of response (signature or error. on error log and continue?)
-			select {
-			case <-ctx.Done(): // context cancelled, stop processing.
-				return
-			case s.conn.signResponses <- resp:
-			}
-		}
-	}()
+	go s.unaryRequestsHandler(ctx, client, logger)
 
-	// sender
-	go func() {
-		for {
-			select {
-			case <-ctx.Done(): // context cancelled, or error from other peer.
-				return
-			case rq := <-s.conn.signRequests:
-				if err := stream.Send(rq); err != nil {
-					errchan <- err
-					return
-				}
-			}
-		}
-	}()
-
-	// TODO: add unary request handling goroutine.
 	select {
 	case <-ctx.Done():
 		return nil
 	case err := <-errchan:
 		logger.Error("closing connection", zap.Error(err))
 		return err
+	}
+}
+
+func (s *signerClient) receivingStream(ctx context.Context, stream signatureStream, errchan chan error) {
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			errchan <- err // error from stream is stream-fatal.
+
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		// incoming response from signer service is sent to the signResponses channel.
+		case s.conn.signResponses <- resp:
+			// TODO: Consider inspecting the type of response (signature or error. on error log and continue?)
+		}
+	}
+}
+
+// responsible to send sign requests to the signer-service.
+func (s *signerClient) sendingStream(ctx context.Context, stream signatureStream, errchan chan error) {
+	for {
+		select {
+		case <-ctx.Done(): // context cancelled, or error from other peer.
+			return
+		case rq := <-s.conn.signRequests:
+			if err := stream.Send(rq); err != nil {
+				errchan <- err // error from stream is stream-fatal.
+
+				return
+			}
+		}
+	}
+}
+
+// responsible to receive unary requests and send the to the signer-service for processing.
+func (s *signerClient) unaryRequestsHandler(ctx context.Context, client signer.SignerClient, logger *zap.Logger) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case urq := <-s.conn.unaryRequests:
+			if urq.item == nil {
+				continue
+			}
+
+			var resp proto.Message
+			var errResponse error
+
+			switch req := urq.item.(type) {
+			case *signer.PublicDataRequest:
+				resp, errResponse = client.GetPublicData(ctx, req)
+			case *signer.VerifySignatureRequest:
+				resp, errResponse = client.VerifySignature(ctx, req)
+			default:
+				errResponse = errors.New("unknown unary request type")
+			}
+			// TODO: understand if errResponse is fatal or not. for now, we just send it back.
+
+			select {
+			case urq.responseChan <- unaryResult{item: resp, err: errResponse}:
+			default:
+				logger.Error("unary response channel full, dropping response")
+			}
+		}
 	}
 }
 
@@ -215,9 +270,21 @@ func (s *signerClient) AsyncSign(rq *signer.SignRequest) error {
 	}
 }
 
+var errInvalidUnaryResponseError = errors.New("internal error: invalid response type from signer service")
+
 // GetPublicData implements Signer.
-func (s *signerClient) GetPublicData(context.Context) error {
-	panic("unimplemented")
+func (s *signerClient) GetPublicData(context.Context) (*signer.PublicData, error) {
+	response, err := s.sendUnaryRequest(s.ctx, &signer.PublicDataRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	publicData, ok := response.(*signer.PublicData)
+	if !ok {
+		return nil, errInvalidUnaryResponseError
+	}
+
+	return publicData, nil
 }
 
 // outputs the SignerService responses.
@@ -226,11 +293,54 @@ func (s *signerClient) Response() <-chan *signer.SignResponse {
 }
 
 // Verify implements Signer.
-func (s *signerClient) Verify(context.Context, *common.SignatureData) error {
-	panic("unimplemented")
+func (s *signerClient) Verify(ctx context.Context, toVerify *signer.VerifySignatureRequest) error {
+	response, err := s.sendUnaryRequest(ctx, toVerify)
+	if err != nil {
+		return err
+	}
+
+	verifyResult, ok := response.(*signer.VerifySignatureResponse)
+	if !ok {
+		return errInvalidUnaryResponseError
+	}
+
+	if !verifyResult.IsValid {
+		return errors.New("signature verification failed")
+	}
+
+	return nil // no error. signature is valid.
+}
+
+func (s *signerClient) sendUnaryRequest(ctx context.Context, request proto.Message) (proto.Message, error) {
+	chn := make(chan unaryResult, 1)
+
+	select {
+	case s.conn.unaryRequests <- unaryRequest{
+		item:         request,
+		responseChan: chn,
+	}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	select {
+	case response := <-chn:
+		if response.err != nil {
+			return nil, response.err
+		}
+
+		if response.item == nil {
+			return nil, errors.New("internal error: nil response from signer service")
+		}
+
+		return response.item, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // WitnessNewVaa implements Signer.
 func (s *signerClient) WitnessNewVaa(v *vaa.VAA) error {
+	// TODO: validate VAA. in case its valid and this is the leader: create a gossip message to all peers.
 	panic("unimplemented")
 }
