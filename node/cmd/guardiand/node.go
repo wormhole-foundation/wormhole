@@ -1095,6 +1095,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
 	}
 
+	// Special or bespoke chains is in the 60000+ range.
+	// ChainIDHyperCore is not supported in the guardian.
+
 	// Other, non-chain specific parameters go here.
 	rpcMap["accountantWS"] = *accountantWS
 	rpcMap["gatewayWS"] = *gatewayWS

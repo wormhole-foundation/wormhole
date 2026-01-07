@@ -3,10 +3,6 @@ FROM const-gen AS const-export
 FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:v1.0.0@sha256:d12a373ec950de170d5461014ef9320ba0fb6e0db6f87835999d0fcf3820370e as foundry
 FROM --platform=linux/amd64 node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb
 
-RUN echo "Acquire::http::Pipeline-Depth 0;" >> /etc/apt/apt.conf.d/fixbadproxy
-RUN echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/fixbadproxy
-RUN echo "Acquire::BrokenProxy    true;" >> /etc/apt/apt.conf.d/fixbadproxy
-
 # npm wants to clone random Git repositories - lovely.
 # RUN apk add git python make build-base
 # RUN apk update && apk add bash
