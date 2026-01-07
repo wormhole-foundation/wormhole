@@ -56,6 +56,9 @@ export function chainToChain(input: string): Chain {
   if (input.length < 2) {
     throw new Error(`Invalid chain: ${input}`);
   }
-  const chainStr = input[0].toUpperCase() + input.slice(1).toLowerCase();
+  let chainStr = input[0].toUpperCase() + input.slice(1).toLowerCase();
+
+  // TODO/Hack: sdk-v1 used "_sepolia" but sdk-v2 uses camel casing. Convert if necessary.
+  chainStr = chainStr.replace("_sepolia", "Sepolia");
   return toChain(chainStr);
 }
