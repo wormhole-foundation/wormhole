@@ -366,6 +366,10 @@ const (
 	ChainIDPolygonSepolia ChainID = 10007
 	// OBSOLETE: ChainIDMonadDevnet ChainID = 10008
 
+	// Special or bespoke chains start at 60000.
+	// ChainIDHyperCore is the ChainID of HyperCore (ID taken from Mayan)
+	ChainIDHyperCore ChainID = 65000
+
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER
 	//  - Supported VAA Version (1 byte)
