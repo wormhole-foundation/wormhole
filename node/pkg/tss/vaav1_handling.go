@@ -1,179 +1,109 @@
 package tss
 
-// var errNilGuardianSetState = errors.New("tss' guardianSetState nil")
-// var errNilVaa = errors.New("nil VAA")
-// var errNetworkOutputChannelFull = errors.New("network output channel buffer is full")
+import (
+	"context"
+	"errors"
+	"fmt"
 
-// 	if t == nil {
-// 		return errNilTssEngine
-// 	}
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
 
-// 	if t.started.Load() != started {
-// 		return errTssEngineNotStarted
-// 	}
+var (
+	errNilGuardianSetState      = errors.New("tss' guardianSetState nil")
+	errNilVaa                   = errors.New("nil VAAv1")
+	errNilGuardianSet           = errors.New("nil guardian set")
+	errNotVaaV1                 = errors.New("not a VAAv1")
+	errNetworkOutputChannelFull = errors.New("network output channel buffer is full")
+	errCouldntGossipVaa         = errors.New("couldn't gossip VAAv1")
+	errNilGuardianSigner        = errors.New("guardianSigner is nil")
+)
 
-// 	// consider removing this check: Going leaderless, and letting everyone send VAAs they see
-// 	// adds a layer of availability (no need to worry about leader missing VAAs or going offline),
-// 	// but will spam the network with duplicated VAAs.
-// 	if !t.isleader {
-// 		return nil
-// 	}
+func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
+	if s == nil {
+		return ErrSignerClientNil
+	}
 
-// 	if v == nil {
-// 		return errNilVaa
-// 	}
+	if v == nil {
+		return errNilVaa
+	}
 
-// 	if t.gst == nil {
-// 		t.logger.Error("issue sending VAAv1 to others", zap.Error(errNilGuardianSetState))
+	if !s.vaaData.isLeader {
+		return nil
+	}
 
-// 		return errNilGuardianSetState
-// 	}
+	if s.vaaData.gst == nil {
+		return errNilGuardianSetState
+	}
 
-// 	dgst := digest{}
-// 	copy(dgst[:], v.SigningDigest().Bytes())
+	if s.vaaData.GuardianSigner == nil {
+		return errNilGuardianSigner
+	}
 
-// 	if v.Version != vaa.VaaVersion1 {
-// 		// not an error. but will not accept.
-// 		return nil
-// 	}
+	if v.Version != vaa.VaaVersion1 {
+		// not an error. but will not accept.
+		return nil
+	}
 
-// 	gs := t.gst.Get()
-// 	if err := v.Verify(gs.Keys); err != nil {
-// 		return nil // won't send invalid VAAs.
-// 	}
+	gs := s.vaaData.gst.Get()
+	if err := v.Verify(gs.Keys); err != nil {
+		return nil // won't send invalid VAAs.
+	}
 
-// 	bts, err := v.Marshal()
-// 	if err != nil {
-// 		err := fmt.Errorf("failed to marshal VAA: %w", err)
+	bts, err := v.Marshal()
+	if err != nil {
+		return fmt.Errorf("failed to marshal VAA: %w", err)
+	}
 
-// 		t.logger.Error("issue sending VAAv1 to others", zap.Error(err))
-// 		return err
-// 	}
+	// signing the content the leader will gossip.
+	sig, err := s.vaaData.GuardianSigner.Sign(ctx, bts)
+	if err != nil {
+		return fmt.Errorf("failed to sign VAA: %w", err)
+	}
+}
 
-// 	send := Unicast{
-// 		Unicast: &tsscommv1.Unicast{
-// 			Content: &tsscommv1.Unicast_Vaav1{
-// 				Vaav1: &tsscommv1.VaaV1Info{
-// 					Marshaled: bts,
-// 				},
-// 			},
-// 		},
-// 		Receipients: t.GuardianStorage.Identities, // sending to all guardians.
-// 	}
-
-// 	select {
-// 	case t.messageOutChan <- &send:
-// 		t.logger.Info("informed all guardians on vaav1",
-// 			zap.String("chainID", v.EmitterChain.String()),
-// 			zap.String("digest", fmt.Sprintf("%x", v.SigningDigest())),
-// 		)
-// 	default:
-// 		t.logger.Error("issue sending VAAv1 to others", zap.Error(errNetworkOutputChannelFull))
-// 	}
-
-// 	return nil
-// }
-
-// var errNilGuardianSet = fmt.Errorf("nil guardian set")
-// var errNotVaaV1 = fmt.Errorf("not a v1 VAA")
-
-// // handleUnicastVaaV1 expects to receive valid Vaav1 messages.
-// // If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
+// handleUnicastVaaV1 expects to receive valid Vaav1 messages.
+// If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
 // func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1) error {
-// 	if t == nil {
-// 		return errNilTssEngine
-// 	}
-
-// 	if t.started.Load() != started {
-// 		return errTssEngineNotStarted
-// 	}
-
-// 	if t.gst == nil {
-// 		return errNilGuardianSetState
-// 	}
-
-// 	gs := t.gst.Get()
-// 	if gs == nil {
-// 		return errNilGuardianSet
-// 	}
-
-// 	if v == nil || v.Vaav1 == nil {
-// 		return errNilVaa
-// 	}
-
-// 	newVaa, err := vaa.Unmarshal(v.Vaav1.Marshaled)
-// 	if err != nil {
-// 		return fmt.Errorf("unmarshal err: %w", err)
-// 	}
-
-// 	dgst := digest{}
-// 	copy(dgst[:], newVaa.SigningDigest().Bytes())
-
-// 	if newVaa.Version != vaa.VaaVersion1 {
-// 		return errNotVaaV1
-// 	}
-
-// 	if err := newVaa.Verify(gs.Keys); err != nil {
-// 		return err
-// 	}
-
-// 	signatureMeta := signingMeta{
-// 		isFromVaav1:   true,
-// 		verifiedVAAv1: newVaa,
-// 	}
-
-// 	return t.beginTSSSign(dgst[:], newVaa.EmitterChain, newVaa.ConsistencyLevel, signatureMeta)
+// if t == nil {
+// 	return errNilTssEngine
 // }
 
-// var errCouldNotMapAllVaaV1Signers = fmt.Errorf("could not map all VAAv1 signers to senderIndexes")
-
-// func (t *Engine) translateVaaV1Signers(v *vaa.VAA) (map[SenderIndex]*Identity, error) {
-// 	gs := t.gst.Get()
-// 	// translating the VAAv1 signers to senderIndexes to use.
-// 	signersID := make(map[SenderIndex]*Identity, len(gs.Keys))
-// 	for _, s := range v.Signatures {
-// 		if int(s.Index) >= len(gs.Keys) {
-// 			// shouldn't happen, since the signature was verified. but just in case.
-// 			return nil, fmt.Errorf("signature index %d out of bounds for guardian set size %d", s.Index, len(gs.Keys))
-// 		}
-
-// 		id, err := t.GuardianStorage.fetchIdentityFromVaav1Pubkey(gs.Keys[s.Index])
-// 		if err != nil {
-// 			return nil, errCouldNotMapAllVaaV1Signers
-// 		}
-
-// 		signersID[id.CommunicationIndex] = id
-// 	}
-
-// 	if len(signersID) != len(v.Signatures) {
-// 		// make into an error:
-// 		return nil, errCouldNotMapAllVaaV1Signers
-// 	}
-
-// 	return signersID, nil
+// if t.started.Load() != started {
+// 	return errTssEngineNotStarted
 // }
 
-// func (t *Engine) getExcludedFromCommittee(mt signingMeta) []*common.PartyID {
-// 	if !mt.isFromVaav1 || mt.verifiedVAAv1 == nil {
-// 		return nil
-// 	}
+// if t.gst == nil {
+// 	return errNilGuardianSetState
+// }
 
-// 	signersID, err := t.translateVaaV1Signers(mt.verifiedVAAv1)
-// 	if err != nil {
-// 		return nil
-// 	}
+// gs := t.gst.Get()
+// if gs == nil {
+// 	return errNilGuardianSet
+// }
 
-// 	if len(signersID) < t.GuardianStorage.Threshold {
-// 		return nil // not enough guardians to form a committee.
-// 	}
+// if v == nil || v.Vaav1 == nil {
+// 	return errNilVaa
+// }
 
-// 	// grab everyone that is not a signer in the VAAv1.
-// 	var excludedSigners []*common.PartyID
-// 	for _, id := range t.GuardianStorage.Identities {
-// 		if _, ok := signersID[id.CommunicationIndex]; !ok {
-// 			excludedSigners = append(excludedSigners, id.Pid)
-// 		}
-// 	}
+// newVaa, err := vaa.Unmarshal(v.Vaav1.Marshaled)
+// if err != nil {
+// 	return fmt.Errorf("unmarshal err: %w", err)
+// }
 
-// 	return excludedSigners
+// dgst := digest{}
+// copy(dgst[:], newVaa.SigningDigest().Bytes())
+
+// if newVaa.Version != vaa.VaaVersion1 {
+// 	return errNotVaaV1
+// }
+
+// if err := newVaa.Verify(gs.Keys); err != nil {
+// 	return err
+// }
+
+// signatureMeta := signingMeta{
+// 	isFromVaav1:   true,
+// 	verifiedVAAv1: newVaa,
+// }
+
 // }

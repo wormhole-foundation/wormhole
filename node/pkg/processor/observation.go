@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -303,7 +304,10 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		//
 		// in case the leader has a VaaV2, it doesn't need to start a new signing process.
 		if !p.haveSignedVaav2(*db.VaaIDFromVAA(v)) {
-			p.thresholdSigner.WitnessNewVaa(v)
+			if err := p.thresholdSigner.WitnessNewVaaV1(context.TODO(), v); err != nil { // TODO: handle ctx.
+				p.logger.Warn("witnessing new VAA v1 for TSS signing failed",
+					zap.Error(err), zap.Any("message", m))
+			}
 		}
 	}
 

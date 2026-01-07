@@ -10,7 +10,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/stretchr/testify/require"
-	common "github.com/xlabs/tss-common"
+	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -126,7 +126,7 @@ func TestSignerClient(t *testing.T) {
 		// Send response from server
 		resp := &signer.SignResponse{
 			Response: &signer.SignResponse_Signature{
-				Signature: &common.SignatureData{
+				Signature: &tsscommon.SignatureData{
 					Signature: []byte("test_signature"),
 				},
 			},

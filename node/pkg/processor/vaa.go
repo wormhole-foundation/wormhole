@@ -1,6 +1,8 @@
 package processor
 
 import (
+	"context"
+
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -36,7 +38,11 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	// Broadcast the VAA and store it in the database.
 	p.broadcastSignedVAA(signed)
 	p.storeSignedVAA(signed)
-	p.thresholdSigner.WitnessNewVaa(signed)
+	// TODO: handle ctx.
+	if err := p.thresholdSigner.WitnessNewVaaV1(context.TODO(), signed); err != nil {
+		p.logger.Warn("witnessing new VAA v1 for TSS signing failed",
+			zap.Error(err), zap.Any("message", signed))
+	}
 }
 
 func (v *VAA) IsReliable() bool {

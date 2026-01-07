@@ -5,10 +5,11 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/gogo/status"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	common "github.com/xlabs/tss-common"
+	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -16,14 +17,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type vaaHandling struct {
+	isLeader    bool
+	leaderIndex int // used to verify what content came from the leader.
+	gst         *common.GuardianSetState
+	guardiansigner.GuardianSigner
+}
+
 type signerClient struct {
 	// immutable fields:
 	dialOpts   []grpc.DialOption
 	socketPath string
-	out        chan *common.SignatureData // outputs signatures.
+	out        chan *tsscommon.SignatureData // outputs signatures.
 
 	// used to communicate with the signer service.
 	conn *connChans
+
+	vaaData vaaHandling
 
 	connected atomic.Int64 // 0 is not connected, 1 is connected.
 }
@@ -166,12 +176,6 @@ func (s *signerClient) sendUnaryRequest(ctx context.Context, request proto.Messa
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-}
-
-// WitnessNewVaa implements Signer.
-func (s *signerClient) WitnessNewVaa(v *vaa.VAA) error {
-	// TODO: validate VAA. in case its valid and this is the leader: create a gossip message to all peers.
-	panic("unimplemented")
 }
 
 // mainly used for tests.

@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	common "github.com/xlabs/tss-common"
+	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"google.golang.org/grpc"
 )
@@ -46,7 +46,8 @@ type Signer interface {
 
 	// Witness new VAA is used by a LEADER to inform all peers of a new VAA observed on the network and to sign it!
 	// If this signer is a leader: it'll use the p2p network to tell all peers to sign the
-	WitnessNewVaa(v *vaa.VAA) error // TODO: need to specify from whom it came, to ensure leader forwarded this VAA.
+	// the context parameter is due to the usage of guardianSigner which may need it for signing.
+	WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error
 }
 
 // Ensure interfaces are implemented.
@@ -79,7 +80,7 @@ func NewSigner(socketPath string, opts ...grpc.DialOption) (*signerClient, error
 			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
 			unaryRequests: make(chan unaryRequest, 100),         // TODO: buffer sizes?
 		},
-		out:       make(chan *common.SignatureData),
+		out:       make(chan *tsscommon.SignatureData),
 		connected: atomic.Int64{},
 	}
 
