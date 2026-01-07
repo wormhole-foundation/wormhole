@@ -59,6 +59,7 @@ require (
 	github.com/holiman/uint256 v1.2.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.60.0
+	github.com/stx-labs/clarity-go v0.1.1
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e
