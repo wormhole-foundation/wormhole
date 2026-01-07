@@ -31,7 +31,7 @@
 /sdk/js-wasm/ @evan-gray @kev1n-peters
 /sdk/js/ @evan-gray @kev1n-peters @panoel
 /sdk/rust/ @Daniel-Aaron-Bloom
-/sdk/vaa/ @evan-gray @panoel @SEJeff
+/sdk/vaa/ @evan-gray @panoel @SEJeff @fergarrui
 /spydk/ @evan-gray
 /testing/ @evan-gray
 /wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
