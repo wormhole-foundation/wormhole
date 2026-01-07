@@ -193,11 +193,6 @@ case "$chain_name" in
     chain=8
     explorer="https://algoexplorer.io/address/"
     ;;
-  fantom)
-    chain=10
-    explorer="https://ftmscan.com/address/"
-    evm=true
-    ;;
   karura)
     chain=11
     explorer="https://blockscout.karura.network/address/"

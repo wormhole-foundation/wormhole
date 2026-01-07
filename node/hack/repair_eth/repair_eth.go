@@ -37,7 +37,6 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDBSC:       "https://api.bscscan.com/api",
 	vaa.ChainIDAvalanche: "https://api.snowtrace.io/api",
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
-	vaa.ChainIDFantom:    "https://api.ftmscan.com/api",
 	// NOTE: Not sure what should be here for Klaytn, since they use: https://scope.klaytn.com/
 	vaa.ChainIDCelo:       "https://celoscan.xyz/api",
 	vaa.ChainIDMoonbeam:   "https://api-moonbeam.moonscan.io",

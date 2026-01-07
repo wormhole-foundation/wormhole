@@ -7,7 +7,6 @@ rm -rf my_proposal
 ./register-chain-governance.sh -m TokenBridge -c polygon -o my_proposal > governance.md
 ./register-chain-governance.sh -m TokenBridge -c avalanche -o my_proposal > governance.md
 ./register-chain-governance.sh -m TokenBridge -c oasis -o my_proposal > governance.md
-./register-chain-governance.sh -m TokenBridge -c fantom -o my_proposal > governance.md
 ./register-chain-governance.sh -m TokenBridge -c aurora -o my_proposal > governance.md
 
 # These are already on the current guardian set.
@@ -25,7 +24,6 @@ rm -rf my_proposal
 ./register-chain-governance.sh -m NFTBridge -c polygon -o my_proposal > governance.md
 ./register-chain-governance.sh -m NFTBridge -c avalanche -o my_proposal > governance.md
 ./register-chain-governance.sh -m NFTBridge -c oasis -o my_proposal > governance.md
-./register-chain-governance.sh -m NFTBridge -c fantom -o my_proposal > governance.md
 ./register-chain-governance.sh -m NFTBridge -c aurora -o my_proposal > governance.md
 
 # These are already on the current guardian set.
