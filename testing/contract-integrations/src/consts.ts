@@ -24,24 +24,6 @@ export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL
   ? clusterApiUrl("testnet")
   : "http://localhost:8899";
 
-export const TERRA_HOST =
-  CLUSTER === "mainnet"
-    ? {
-        URL: "https://lcd.terra.dev",
-        chainID: "columbus-5",
-        name: "mainnet",
-      }
-    : CLUSTER === "testnet"
-    ? {
-        URL: "https://bombay-lcd.terra.dev",
-        chainID: "bombay-12",
-        name: "testnet",
-      }
-    : {
-        URL: "http://localhost:1317",
-        chainID: "columbus-5",
-        name: "localterra",
-      };
 export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
@@ -123,18 +105,6 @@ export const SOL_TOKEN_BRIDGE_ADDRESS =
     : CLUSTER === "testnet"
     ? "A4Us8EhCC76XdGAN17L4KpRNEK423nMivVHZzZqFqqBg"
     : "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
-export const TERRA_BRIDGE_ADDRESS =
-  CLUSTER === "mainnet"
-    ? "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5"
-    : CLUSTER === "testnet"
-    ? "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au"
-    : "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au";
-export const TERRA_TOKEN_BRIDGE_ADDRESS =
-  CLUSTER === "mainnet"
-    ? "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
-    : CLUSTER === "testnet"
-    ? "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6"
-    : "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6";
 
 export const getBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -143,8 +113,6 @@ export const getBridgeAddressForChain = (chainId: ChainId) =>
     ? ETH_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_BSC
     ? BSC_BRIDGE_ADDRESS
-    : chainId === CHAIN_ID_TERRA
-    ? TERRA_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_BRIDGE_ADDRESS
     : "";
@@ -165,8 +133,6 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? ETH_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_BSC
     ? BSC_TOKEN_BRIDGE_ADDRESS
-    : chainId === CHAIN_ID_TERRA
-    ? TERRA_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_TOKEN_BRIDGE_ADDRESS
     : "";

@@ -332,6 +332,17 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		return
 	}
 
+	// Normalize guardian set index if needed
+	if v.GuardianSetIndex != p.gs.Index {
+		p.logger.Info("normalizing guardian set index on inbound signed VAA",
+			zap.String("message_id", v.MessageID()),
+			zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
+			zap.Uint32("from_index", v.GuardianSetIndex),
+			zap.Uint32("to_index", p.gs.Index),
+		)
+		v.GuardianSetIndex = p.gs.Index
+	}
+
 	// We now established that:
 	//  - all signatures on the VAA are valid
 	//  - the signature's addresses match the node's current guardian set

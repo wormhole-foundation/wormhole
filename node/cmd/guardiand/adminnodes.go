@@ -133,6 +133,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Plasma", vaa.ChainIDPlasma},
 		{"CreditCoin", vaa.ChainIDCreditCoin},
 		{"Moca", vaa.ChainIDMoca},
+		{"MegaETH", vaa.ChainIDMegaETH},
 		// The IBC chains (4000 range) are not included here.
 		{"Sepolia", vaa.ChainIDSepolia},
 		{"ArbitrumSepolia", vaa.ChainIDArbitrumSepolia},
@@ -140,6 +141,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"OptimismSepolia", vaa.ChainIDOptimismSepolia},
 		{"Holesky", vaa.ChainIDHolesky},
 		{"PolygonSepolia", vaa.ChainIDPolygonSepolia},
+		// The special or bespoke chains (60000+ range) are not included here.
 	}
 
 	if len(only) > 0 {

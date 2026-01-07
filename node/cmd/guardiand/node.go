@@ -225,6 +225,9 @@ var (
 	mocaRPC      *string
 	mocaContract *string
 
+	megaEthRPC      *string
+	megaEthContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -479,8 +482,11 @@ func init() {
 	creditCoinRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "creditCoinRPC", "CREDITCOIN RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	creditCoinContract = NodeCmd.Flags().String("creditCoinContract", "", "CreditCoin contract address")
 
-	mocaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "MocaRPC", "Moca RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	mocaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "mocaRPC", "Moca RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	mocaContract = NodeCmd.Flags().String("mocaContract", "", "Moca contract address")
+
+	megaEthRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "megaEthRPC", "MegaETH RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	megaEthContract = NodeCmd.Flags().String("megaEthContract", "", "MegaETH contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -889,6 +895,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*plasmaContract = checkEvmArgs(logger, *plasmaRPC, *plasmaContract, vaa.ChainIDPlasma)
 	*creditCoinContract = checkEvmArgs(logger, *creditCoinRPC, *creditCoinContract, vaa.ChainIDCreditCoin)
 	*mocaContract = checkEvmArgs(logger, *mocaRPC, *mocaContract, vaa.ChainIDMoca)
+	*megaEthContract = checkEvmArgs(logger, *megaEthRPC, *megaEthContract, vaa.ChainIDMegaETH)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1085,6 +1092,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["holeskyRPC"] = *holeskyRPC
 		rpcMap["polygonSepoliaRPC"] = *polygonSepoliaRPC
 	}
+
+	// Special or bespoke chains is in the 60000+ range.
+	// ChainIDHyperCore is not supported in the guardian.
 
 	// Other, non-chain specific parameters go here.
 	rpcMap["accountantWS"] = *accountantWS
@@ -1617,6 +1627,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDMoca,
 			Rpc:              *mocaRPC,
 			Contract:         *mocaContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(megaEthRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "megaeth",
+			ChainID:          vaa.ChainIDMegaETH,
+			Rpc:              *megaEthRPC,
+			Contract:         *megaEthContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)

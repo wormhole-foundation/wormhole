@@ -42,8 +42,6 @@ func (conn *mockBackfillConn) RawBatchCallContext(ctx context.Context, b []rpc.B
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal result: %w", err)
 		}
-
-		b.Error = nil
 	}
 	return nil
 }

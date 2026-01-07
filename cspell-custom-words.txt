@@ -27,6 +27,10 @@ bscscan
 BUILDKIT
 bytecodes
 callstack
+Blackhole
+Blackholed
+blackholing
+blackholed
 ccqlistener
 CCTP
 celestia
@@ -117,6 +121,8 @@ localnet
 localterra
 lockfiles
 marshal
+megaETH
+MegaETH
 merkle
 Metaplex
 mezo
