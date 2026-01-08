@@ -71,6 +71,7 @@
 ## Governor
 
 /node/pkg/governor/ @SEJeff @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+/node/cmd/governor/ @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
 
 ## Gateway Relayer
 
