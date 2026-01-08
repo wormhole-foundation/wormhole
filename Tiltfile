@@ -158,13 +158,12 @@ for k in active_delegated_config.keys():
         pod_config[i].append(k)
 pod_config = { k: sorted(v) for k,v in pod_config.items() }
 
-require_per_guardian_config = False  # Temporarily disabled to debug guardian deployment
-# require_per_guardian_config = (
-#     bool(active_delegated_config)
-#     and num_guardians > max([
-#         max(v["ordinals"]) for v in active_delegated_config.values()
-#     ])
-# )
+require_per_guardian_config = (
+    bool(active_delegated_config)
+    and num_guardians > max([
+        max(v["ordinals"]) for v in active_delegated_config.values()
+    ])
+)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -252,10 +251,8 @@ ccqBootstrapPeers = generate_bootstrap_peers(num_guardians, 8996)
 
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
-    print("DEBUG: read_yaml_stream returned %d objects" % len(node_yaml))
 
     node_yaml_with_replicas = set_replicas_in_statefulset(node_yaml, "guardian", num_guardians)
-    print("DEBUG: after set_replicas_in_statefulset, have %d objects" % len(node_yaml_with_replicas))
 
     for obj in node_yaml_with_replicas:
         if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "guardian":
@@ -457,16 +454,9 @@ def build_node_yaml():
                 # Replace the command with the wrapper
                 container["command"] = ["/bin/sh", "-c", wrapper_script]
 
-    print("DEBUG: about to call encode_yaml_stream with %d objects" % len(node_yaml_with_replicas))
-    result = encode_yaml_stream(node_yaml_with_replicas)
-    print("DEBUG: encode_yaml_stream returned a blob")
-    return result
+    return encode_yaml_stream(node_yaml_with_replicas)
 
-print("DEBUG: About to call k8s_yaml_with_ns for guardian")
-guardian_yaml_blob = build_node_yaml()
-print("DEBUG: build_node_yaml completed, calling k8s_yaml_with_ns")
-k8s_yaml_with_ns(guardian_yaml_blob)
-print("DEBUG: k8s_yaml_with_ns completed for guardian")
+k8s_yaml_with_ns(build_node_yaml())
 
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
