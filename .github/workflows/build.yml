@@ -38,7 +38,7 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
-      - run: tilt ci --timeout 45m0s -- --ci --namespace=$DEPLOY_NS --num=3
+      - run: tilt ci --timeout 45m0s -- --ci --namespace=$DEPLOY_NS --num=2
         timeout-minutes: 60
 
       # Clean up k8s resources
@@ -357,10 +357,10 @@ jobs:
           # SVM directory (shims code)
           - path: svm/wormhole-core-shims/Cargo.toml
             args: "--workspace --no-default-features --features solana" # The crate by default requires environment variables. If solana is specified, mainnet values are used.
-            test_args: "--lib"  # Skip integration tests; they require compiled BPF programs
+            test_args: "--lib" # Skip integration tests; they require compiled BPF programs
           - path: svm/wormhole-core-shims/anchor/Cargo.toml
             args: "--workspace"
-            test_args: "--lib"  # Skip doctests; anchor interfaces lack solana_program dependency
+            test_args: "--lib" # Skip doctests; anchor interfaces lack solana_program dependency
           # Token Metadata parser for SVM token bridge
           - path: solana/modules/token_bridge/token_metadata_parser/Cargo.toml
             args: "--workspace"
