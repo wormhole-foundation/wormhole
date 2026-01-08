@@ -521,18 +521,26 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("received delegate observation",
-			// TODO(delegated-guardian-sets): Add additional relevant fields if necessary
 			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
 			zap.Uint64("sequence", m.Sequence),
 			zap.String("txhash", hex.EncodeToString(m.TxHash)),
 			zap.String("txhash_b58", base58.Encode(m.TxHash)),
 			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+			zap.Uint32("timestamp", m.Timestamp),
+			zap.Int("payload_len", len(m.Payload)),
 		)
 	}
 
 	c, err := vaa.ChainIDFromNumber(m.EmitterChain)
 	if err != nil {
-		p.logger.Warn("invalid delegate observation emitter chain", zap.Error(err))
+		p.logger.Warn("invalid delegate observation emitter chain",
+			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
+			zap.Uint64("sequence", m.Sequence),
+			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+			zap.Error(err),
+		)
 		delegateObservationsFailedTotal.WithLabelValues("invalid_emitter_chain").Inc()
 		return nil
 	}
@@ -540,8 +548,10 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	cfg := p.dgc.GetChainConfig(c)
 	if cfg == nil {
 		p.logger.Debug("ignoring delegate observation for chain without delegate chain config",
-			zap.Stringer("emitter_chain", c),
+			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
 			zap.Uint64("sequence", m.Sequence),
+			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("no_delegate_chain_config").Inc()
 		return nil
@@ -550,8 +560,10 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	_, ok := cfg.KeyIndex(p.ourAddr)
 	if ok {
 		p.logger.Debug("ignoring delegate observation since we are a delegated guardian for this chain",
-			zap.Stringer("emitter_chain", c),
+			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
 			zap.Uint64("sequence", m.Sequence),
+			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("self_delegated_guardian").Inc()
 		return nil
@@ -561,9 +573,10 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	_, ok = cfg.KeyIndex(addr)
 	if !ok {
 		p.logger.Debug("ignoring delegate observation from non-delegated guardian for this chain",
-			zap.Stringer("emitter_chain", c),
+			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
 			zap.Uint64("sequence", m.Sequence),
-			zap.String("guardian", addr.Hex()),
+			zap.String("guardian_addr", addr.Hex()),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("unknown_delegated_guardian").Inc()
 		return nil
@@ -579,7 +592,13 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	addr := common.BytesToAddress(m.GuardianAddr)
 	mp, err := delegateObservationToMessagePublication(m)
 	if err != nil {
-		p.logger.Warn("failed to convert delegate observation to message publication", zap.Error(err))
+		p.logger.Warn("failed to convert delegate observation to message publication",
+			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
+			zap.Uint64("sequence", m.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
+			zap.Error(err),
+		)
 		delegateObservationsFailedTotal.WithLabelValues("invalid_delegate_observation").Inc()
 		return nil
 	}
