@@ -4,7 +4,26 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+)
+
+var (
+	dgSigners = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_delegated_guardian_set_signers",
+			Help: "Number of signers in the delegated guardian set.",
+		},
+		[]string{"chain"},
+	)
+	dgQuorum = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "wormhole_delegated_guardian_set_quorum",
+			Help: "Quorum for the delegated guardian set.",
+		},
+		[]string{"chain"},
+	)
 )
 
 type DelegateGuardianChainConfig struct {
@@ -70,7 +89,8 @@ func NewDelegateGuardianConfig() *DelegateGuardianConfig {
 
 func (d *DelegateGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *DelegateGuardianChainConfig) {
 	d.mu.Lock()
-	// TODO(delegated-guardian-sets): Add metrics using promauto.NewGuageVec()
+	dgSigners.WithLabelValues(chain.String()).Set(float64(len(cfg.Keys)))
+	dgQuorum.WithLabelValues(chain.String()).Set(float64(cfg.quorum))
 	defer d.mu.Unlock()
 
 	d.Chains[chain] = cfg
