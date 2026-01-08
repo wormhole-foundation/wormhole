@@ -333,6 +333,9 @@ func ensureEquivalentDelegateObservations(t *testing.T, observations ...*gossipv
 }
 
 func TestDelegateObservationScenario(t *testing.T) {
+	t.Log("Waiting for guardian network to stabilize...")
+	time.Sleep(15 * time.Second)
+
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
