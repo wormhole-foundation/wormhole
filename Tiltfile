@@ -457,7 +457,10 @@ def build_node_yaml():
 
     return encode_yaml_stream(node_yaml_with_replicas)
 
-k8s_yaml_with_ns(build_node_yaml())
+guardian_yaml = build_node_yaml()
+print("Guardian YAML length: %d" % len(guardian_yaml))
+print("Guardian YAML preview: %s" % (guardian_yaml[:200] if len(guardian_yaml) > 0 else "EMPTY"))
+k8s_yaml_with_ns(guardian_yaml)
 
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
