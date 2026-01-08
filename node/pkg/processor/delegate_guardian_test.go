@@ -38,7 +38,7 @@ var devnetGuardians = []string{
 }
 
 func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consistencyLevel uint8) string {
-	rpcUrl := "http://eth-devnet2:8545"                                     // using eth-devnet2 as it is a delegated chain in devnet
+	rpcUrl := "http://eth-devnet2.wormhole.svc.cluster.local:8545" // eth-devnet2 is a delegated chain in devnet
 	wormholeContractAddress := "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550" // devnet core contract
 	client, err := ethclient.Dial(rpcUrl)
 	require.NoError(t, err, "Failed to connect to Ethereum RPC")
@@ -68,7 +68,7 @@ func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consis
 }
 
 func startGossipCollector(t *testing.T) *GossipCollector {
-	bootstrapPeers := "/dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw" // guardian 0 peer
+	bootstrapPeers := "/dns4/guardian-0.guardian.wormhole.svc.cluster.local/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw" // guardian 0 peer
 	networkID := "/wormhole/dev"
 	port := uint(9999)
 
