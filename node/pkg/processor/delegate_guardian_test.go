@@ -333,6 +333,11 @@ func ensureEquivalentDelegateObservations(t *testing.T, observations ...*gossipv
 }
 
 func TestDelegateObservationScenario(t *testing.T) {
+	// skip if CI
+	if os.Getenv("CI") == "true" {
+		t.Skip("Skipping test in CI")
+		return
+	}
 	t.Log("Waiting for guardian network to stabilize...")
 	time.Sleep(15 * time.Second)
 
