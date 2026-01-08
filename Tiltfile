@@ -252,8 +252,10 @@ ccqBootstrapPeers = generate_bootstrap_peers(num_guardians, 8996)
 
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
+    print("DEBUG: read_yaml_stream returned %d objects" % len(node_yaml))
 
     node_yaml_with_replicas = set_replicas_in_statefulset(node_yaml, "guardian", num_guardians)
+    print("DEBUG: after set_replicas_in_statefulset, have %d objects" % len(node_yaml_with_replicas))
 
     for obj in node_yaml_with_replicas:
         if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "guardian":
@@ -455,12 +457,12 @@ def build_node_yaml():
                 # Replace the command with the wrapper
                 container["command"] = ["/bin/sh", "-c", wrapper_script]
 
-    return encode_yaml_stream(node_yaml_with_replicas)
+    print("DEBUG: about to call encode_yaml_stream with %d objects" % len(node_yaml_with_replicas))
+    result = encode_yaml_stream(node_yaml_with_replicas)
+    print("DEBUG: encode_yaml_stream returned a blob")
+    return result
 
-guardian_yaml = build_node_yaml()
-print("Guardian YAML length: %d" % len(guardian_yaml))
-print("Guardian YAML preview: %s" % (guardian_yaml[:200] if len(guardian_yaml) > 0 else "EMPTY"))
-k8s_yaml_with_ns(guardian_yaml)
+k8s_yaml_with_ns(build_node_yaml())
 
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
