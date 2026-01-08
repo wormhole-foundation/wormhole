@@ -462,7 +462,11 @@ def build_node_yaml():
     print("DEBUG: encode_yaml_stream returned a blob")
     return result
 
-k8s_yaml_with_ns(build_node_yaml())
+print("DEBUG: About to call k8s_yaml_with_ns for guardian")
+guardian_yaml_blob = build_node_yaml()
+print("DEBUG: build_node_yaml completed, calling k8s_yaml_with_ns")
+k8s_yaml_with_ns(guardian_yaml_blob)
+print("DEBUG: k8s_yaml_with_ns completed for guardian")
 
 guardian_resource_deps = ["eth-devnet"]
 if evm2:
