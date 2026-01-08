@@ -812,14 +812,12 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
-    
-    if require_per_guardian_config:
-        k8s_resource(
-            "delegate-guardian-ci-tests",
-            labels = ["ci"],
-            trigger_mode = trigger_mode,
-            resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-sets"], # requires guardian P2P network and eth-devnet2 for transactions
-        )
+    k8s_resource(
+        "delegate-guardian-ci-tests",
+        labels = ["ci"],
+        trigger_mode = trigger_mode,
+        resource_deps = ["guardian", "eth-devnet2"], # requires guardian P2P network and eth-devnet2 for transactions
+    )
 
     if sui:
         k8s_resource(
