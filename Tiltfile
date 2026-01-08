@@ -158,12 +158,13 @@ for k in active_delegated_config.keys():
         pod_config[i].append(k)
 pod_config = { k: sorted(v) for k,v in pod_config.items() }
 
-require_per_guardian_config = (
-    bool(active_delegated_config)
-    and num_guardians > max([
-        max(v["ordinals"]) for v in active_delegated_config.values()
-    ])
-)
+require_per_guardian_config = False  # Temporarily disabled to debug guardian deployment
+# require_per_guardian_config = (
+#     bool(active_delegated_config)
+#     and num_guardians > max([
+#         max(v["ordinals"]) for v in active_delegated_config.values()
+#     ])
+# )
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
