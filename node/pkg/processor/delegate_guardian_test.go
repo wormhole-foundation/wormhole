@@ -38,7 +38,7 @@ var devnetGuardians = []string{
 }
 
 func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consistencyLevel uint8) string {
-	rpcUrl := "http://eth-devnet2:8545" // eth-devnet2 is a delegated chain in devnet
+	rpcUrl := "http://eth-devnet2:8545"                                     // eth-devnet2 is a delegated chain in devnet
 	wormholeContractAddress := "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550" // devnet core contract
 	client, err := ethclient.Dial(rpcUrl)
 	require.NoError(t, err, "Failed to connect to Ethereum RPC")
