@@ -280,12 +280,17 @@ describe("Delegation Integration Tests", () => {
     const client = createClient();
     const blockNumber = await client.getBlockNumber();
 
-    const callData = createTestEthCallData(WETH_ADDRESS, "totalSupply", "uint256");
+    const callData = createTestEthCallData(
+      WETH_ADDRESS,
+      "totalSupply",
+      "uint256"
+    );
     const ethCall = new EthCallQueryRequest(Number(blockNumber), [callData]);
     const perChainQuery = new PerChainQueryRequest(2, ethCall);
 
     const results: Array<{ status: number }> = [];
-    const numQueries = 3;
+    // 2 QPS rate limit
+    const numQueries = 2;
 
     console.log(
       `\nSending ${numQueries} queries using delegator ${delegator.address} with signer ${signer.address}`

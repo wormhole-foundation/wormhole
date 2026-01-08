@@ -530,7 +530,7 @@ describe("eth call v2", () => {
         bytes: Buffer.from(serialized).toString("hex"),
         signature: signature.slice(2),
       })
-      .catch(function (error) {
+      .catch(function(error) {
         err = true;
         // Should fail because wrong address is recovered -> no stake found
         expect(error.response?.status).toBe(403);

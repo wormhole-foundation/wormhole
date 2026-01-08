@@ -7,8 +7,12 @@ import {
   publicActions,
   defineChain,
   encodeFunctionData,
+  WalletClient,
+  Transport,
+  Chain,
+  PublicActions,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { LocalAccount, nonceManager, privateKeyToAccount } from "viem/accounts";
 import axios from "axios";
 import { Buffer } from "buffer";
 import {
@@ -212,12 +216,27 @@ export function getCurrentTimestampSeconds(): number {
  * Creates a viem wallet client that can both read and write.
  * Uses publicActions extension to add read capabilities to wallet client.
  */
-export function createClient(privateKey: `0x${string}` = MINTER_PRIVATE_KEY) {
-  return createWalletClient({
-    account: privateKeyToAccount(privateKey),
+type ExtendedClient = WalletClient<Transport, Chain, LocalAccount> &
+  PublicActions;
+const clientCache = new Map<string, ExtendedClient>();
+
+export function createClient(privateKey: `0x${string}` = MINTER_PRIVATE_KEY): ExtendedClient {
+  if (clientCache.has(privateKey)) {
+    return clientCache.get(privateKey)!;
+  }
+
+  const account = privateKeyToAccount(privateKey, {
+    nonceManager,
+  });
+
+  const client = createWalletClient({
+    account,
     chain: devnet,
     transport: http(ETH_NODE_URL),
   }).extend(publicActions);
+
+  clientCache.set(privateKey, client);
+  return client;
 }
 
 /**
