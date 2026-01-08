@@ -44,6 +44,26 @@ var (
 			Name: "wormhole_observations_unknown_total",
 			Help: "Total number of verified observations we haven't seen ourselves",
 		})
+	delegateObservationsReceivedTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_observations_received_total",
+			Help: "Total number of delegate observations received from gossip",
+		})
+	delegateObservationsReceivedByGuardianAddressTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_observations_by_guardian_total",
+			Help: "Total number of valid delegate observations grouped by guardian address",
+		}, []string{"addr"})
+	delegateObservationsFailedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_observations_verification_failures_total",
+			Help: "Total number of delegate observations verification failure, grouped by failure reason",
+		}, []string{"cause"})
+	delegateObservationsUnknownTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_observations_unknown_total",
+			Help: "Total number of valid delegate observations we haven't seen ourselves",
+		})
 )
 
 // signaturesToVaaFormat converts a map[common.Address][]byte (processor state format) to []*vaa.Signature (VAA format) given a set of keys gsKeys
@@ -105,7 +125,6 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 			zap.String("msgID", k.MessageIDString()),
 		)
 	default:
-		// TODO(delegated-guardian-sets): Replace with prometheus.CounterVec
 		p.logger.Warn("delegate observation send channel full, dropping",
 			zap.String("msgID", k.MessageIDString()),
 			zap.Uint32("emitter_chain", d.EmitterChain),
@@ -498,6 +517,8 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 
 // handleDelegateObservation processes a delegate observation
 func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) error {
+	delegateObservationsReceivedTotal.Inc()
+
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
 		p.logger.Debug("received delegate observation",
 			// TODO(delegated-guardian-sets): Add additional relevant fields if necessary
@@ -512,6 +533,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	c, err := vaa.ChainIDFromNumber(m.EmitterChain)
 	if err != nil {
 		p.logger.Warn("invalid delegate observation emitter chain", zap.Error(err))
+		delegateObservationsFailedTotal.WithLabelValues("invalid_emitter_chain").Inc()
 		return nil
 	}
 
@@ -521,6 +543,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 			zap.Stringer("emitter_chain", c),
 			zap.Uint64("sequence", m.Sequence),
 		)
+		delegateObservationsFailedTotal.WithLabelValues("no_delegate_chain_config").Inc()
 		return nil
 	}
 
@@ -530,6 +553,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 			zap.Stringer("emitter_chain", c),
 			zap.Uint64("sequence", m.Sequence),
 		)
+		delegateObservationsFailedTotal.WithLabelValues("self_delegated_guardian").Inc()
 		return nil
 	}
 
@@ -541,6 +565,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 			zap.Uint64("sequence", m.Sequence),
 			zap.String("guardian", addr.Hex()),
 		)
+		delegateObservationsFailedTotal.WithLabelValues("unknown_delegated_guardian").Inc()
 		return nil
 	}
 
@@ -551,17 +576,23 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 // This function assumes cfg corresponds to m.EmitterChain
 // TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
 func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation) error {
+	addr := common.BytesToAddress(m.GuardianAddr)
 	mp, err := delegateObservationToMessagePublication(m)
 	if err != nil {
 		p.logger.Warn("failed to convert delegate observation to message publication", zap.Error(err))
+		delegateObservationsFailedTotal.WithLabelValues("invalid_delegate_observation").Inc()
 		return nil
 	}
+
+	delegateObservationsReceivedByGuardianAddressTotal.WithLabelValues(addr.Hex()).Inc()
 
 	hash := mp.CreateDigest()
 
 	// Get / create our state entry.
 	s := p.delegateState.observations[hash]
 	if s == nil {
+		delegateObservationsUnknownTotal.Inc()
+
 		s = &delegateState{
 			firstObserved: time.Now(),
 			observations:  map[common.Address]*gossipv1.DelegateObservation{},
@@ -570,7 +601,6 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	}
 
 	// Update our state.
-	addr := common.BytesToAddress(m.GuardianAddr)
 	s.observations[addr] = m
 
 	if !s.submitted {
