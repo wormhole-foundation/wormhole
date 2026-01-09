@@ -53,7 +53,7 @@ spec:
               
               echo "Installing dependencies..."
               apt-get update -qq
-              apt-get install -y -qq curl jq ca-certificates git
+              apt-get install -y -qq curl jq ca-certificates git bsdmainutils
               
               echo "Installing kubectl..."
               curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
