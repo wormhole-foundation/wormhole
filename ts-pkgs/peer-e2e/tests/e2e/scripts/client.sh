@@ -33,7 +33,7 @@ GUARDIAN_PRIVATE_KEYS=(
 )
 
 createGuardianPrivateKey() {
-  echo 0a20${GUARDIAN_PRIVATE_KEYS[$1]} | \
+  echo "0a20${GUARDIAN_PRIVATE_KEYS[$1]}" | \
     xxd -r -p | gpg --enarmor | \
     awk 'BEGIN {print "-----BEGIN WORMHOLE GUARDIAN PRIVATE KEY-----"}
       NR>2 {print last}
@@ -42,13 +42,13 @@ createGuardianPrivateKey() {
 }
 
 # Build the dockerfile that generates the TLS key and certificate
-docker build --tag tls-gen --file ../../../peer-client/tls/Dockerfile --progress=plain .
+yarn workspace @xlabs-xyz/peer-client run docker:build:tls-gen
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  mkdir -p out/$i/keys
-  docker run --rm --mount type=bind,src=./out/$i/keys,dst=/keys \
-    --env TLS_HOSTNAME=${TLS_HOSTNAME}$i \
+  mkdir -p "out/$i/keys"
+  docker run --rm --mount "type=bind,src=./out/$i/keys,dst=/keys" \
+    --env "TLS_HOSTNAME=${TLS_HOSTNAME}$i" \
     --env TLS_PUBLIC_IP=${TLS_PUBLIC_IP} \
     tls-gen &
 done
@@ -56,7 +56,7 @@ done
 wait
 
 # Build the docker cache first. It will throw an error but it will save time
-docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile --progress=plain . 2>/dev/null || true
+docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile --progress=plain ../../../.. 2>/dev/null || true
 
 # Wait until the server starts listening
 until docker logs peer-server 2>/dev/null | grep "running"
@@ -68,24 +68,24 @@ for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
    # The host here refers to the builder host container, not the host machine.
   docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile \
-    --secret id=guardian_pk,src=<(createGuardianPrivateKey $i) \
-    --secret id=cert.pem,src=./out/$i/keys/cert.pem \
-    --build-arg TLS_HOSTNAME=${TLS_HOSTNAME}$i \
-    --build-arg TLS_PORT=$((TLS_BASE_PORT + $i)) \
+    --secret id=guardian_pk,src=<(createGuardianPrivateKey "$i") \
+    --secret "id=cert.pem,src=./out/$i/keys/cert.pem" \
+    --build-arg "TLS_HOSTNAME=${TLS_HOSTNAME}$i" \
+    --build-arg TLS_PORT=$((TLS_BASE_PORT + i)) \
     --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
-    --progress=plain . &
+    --progress=plain ../../../.. &
 done
 
 wait
 
-docker build --tag dkg-client --file ../../../peer-client/dkg/Dockerfile --progress=plain .
+docker build --tag dkg-client --file ../../../peer-client/dkg.Dockerfile --progress=plain ../../../..
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  docker run --rm --name ${TLS_HOSTNAME}$i --network=dkg-test \
-    --mount type=bind,src=./out/$i/keys,dst=/keys \
-    --env TLS_HOSTNAME=${TLS_HOSTNAME}$i \
-    --env TLS_PORT=$((TLS_BASE_PORT + $i)) \
+  docker run --rm --name "${TLS_HOSTNAME}$i" --network=dkg-test \
+    --mount "type=bind,src=./out/$i/keys,dst=/keys" \
+    --env "TLS_HOSTNAME=${TLS_HOSTNAME}$i" \
+    --env TLS_PORT=$((TLS_BASE_PORT + i)) \
     --env PEER_SERVER_URL=${PEER_SERVER_URL} \
     --env ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL} \
     --env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} \

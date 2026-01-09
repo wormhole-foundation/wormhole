@@ -29,7 +29,7 @@ build-evm: dependencies-evm
 	forge build
 
 verifiable-build-evm: dependencies-evm
-	mkdir -p verifiable-evm-build && docker build  --file ./Dockerfile.evm . --tag verification-v2-evm-build --output type=local,dest=verifiable-evm-build
+	mkdir -p verifiable-evm-build && docker build --file ./evm-build.Dockerfile . --tag verification-v2-evm-build --output type=local,dest=verifiable-evm-build
 
 test-evm: dependencies-evm
 	forge test

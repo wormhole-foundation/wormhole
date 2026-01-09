@@ -1296,6 +1296,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Check if we need to update the current guardian set
       if (oldMultisigKeysLength > 0) {
         // Pull and write the current guardian set expiration time
+        // There can't be more than 2^32 - 1 guardian sets
+        // forge-lint: disable-next-line(unsafe-typecast)
         uint32 updateIndex = uint32(oldMultisigKeysLength - 1);
         uint32 expirationTime = _coreBridge.getGuardianSet(updateIndex).expirationTime;
         _setMultisigExpirationTime(updateIndex, expirationTime);
@@ -1308,6 +1310,8 @@ contract WormholeVerifier is EIP712Encoding {
       // Pull and append the guardian sets
       for (uint256 i = oldMultisigKeysLength; i < upper; i++) {
         // Pull the guardian set, write the expiration time, and append the guardian set data to the ExtStore
+        // There can't be more than 2^32 - 1 guardian sets
+        // forge-lint: disable-next-line(unsafe-typecast)
         GuardianSet memory guardians = _coreBridge.getGuardianSet(uint32(i));
         _appendMultisigKeyData(guardians.keys, guardians.expirationTime);
       }
@@ -1338,9 +1342,13 @@ contract WormholeVerifier is EIP712Encoding {
     uint256 multisigDataSlot = SLOT_MULTISIG_KEY_DATA + index;
     uint256 entry;
     assembly ("memory-safe") { entry := sload(multisigDataSlot) }
+    // We clear the upper bits
+    // forge-lint: disable-next-line(unsafe-typecast)
     expirationTime = uint32(entry & MASK_MULTISIG_ENTRY_EXPIRATION_TIME);
 
     // Load the key data contract, validate the size
+    // We select the bits that contain the address
+    // forge-lint: disable-next-line(unsafe-typecast)
     address keyDataAddress = address(uint160(entry >> SHIFT_MULTISIG_ENTRY_ADDRESS));
     uint256 keyDataSize = keyDataAddress.code.length;
     require (keyDataSize > 0, UnknownGuardianSet(index));
@@ -1425,9 +1433,12 @@ contract WormholeVerifier is EIP712Encoding {
     uint256 storageWord;
     assembly ("memory-safe") { storageWord := sload(extraDataSlot) }
 
+    // We select the relevant bits for each field
+    // forge-lint: disable-start(unsafe-typecast)
     expirationTime   = uint32( storageWord                                           & MASK_SCHNORR_EXTRA_EXPIRATION_TIME);
     shardCount       = uint8 ((storageWord >> SHIFT_SCHNORR_EXTRA_SHARD_COUNT)       & MASK_SCHNORR_EXTRA_SHARD_COUNT    );
     multisigKeyIndex = uint32( storageWord >> SHIFT_SCHNORR_EXTRA_MULTISIG_KEY_INDEX                                     );
+    // forge-lint: disable-end(unsafe-typecast)
   }
 
   function _getSchnorrShardDataExport(uint32 index) internal view returns (uint8 shardCount, bytes memory shardData) {
