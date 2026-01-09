@@ -1001,9 +1001,11 @@ if wormchain:
         return encode_yaml_stream(wormchain_set + services)
 
     wormchain_path = "devnet/wormchain.yaml"
-    if num_guardians >= 2:
+    # Cap wormchain instances at 2 for simplicity (guardian-2 reuses wormchain-1's validator)
+    wormchain_instances = min(num_guardians, 2)
+    if wormchain_instances >= 2:
         # update wormchain's k8s config to spin up multiple instances
-        k8s_yaml_with_ns(build_wormchain_yaml(wormchain_path, num_guardians))
+        k8s_yaml_with_ns(build_wormchain_yaml(wormchain_path, wormchain_instances))
     else:
         k8s_yaml_with_ns(wormchain_path)
 
