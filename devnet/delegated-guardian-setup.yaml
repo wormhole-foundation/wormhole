@@ -1,0 +1,96 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: delegated-guardian-script
+data:
+  delegated-guardian-set-preset.sh: |
+    PLACEHOLDER
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: delegated-guardian-setup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: delegated-guardian-setup
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: delegated-guardian-setup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: delegated-guardian-setup
+subjects:
+  - kind: ServiceAccount
+    name: delegated-guardian-setup
+---
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: delegated-guardian-setup
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: delegated-guardian-setup
+      containers:
+        - name: setup
+          image: debian:bookworm-slim
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              
+              echo "Installing dependencies..."
+              apt-get update -qq
+              apt-get install -y -qq curl jq ca-certificates git bsdmainutils
+              
+              echo "Installing kubectl..."
+              curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              mv kubectl /usr/local/bin/
+              
+              echo "Installing foundry..."
+              curl -L https://foundry.paradigm.xyz | bash
+              export PATH="$HOME/.foundry/bin:$PATH"
+              foundryup
+              
+              echo "Running delegated guardian setup..."
+              bash /scripts/delegated-guardian-set-preset.sh "$DELEGATED_CONFIG" "$WEB_HOST" "$NAMESPACE"
+              
+              echo "Setup completed successfully"
+              touch /tmp/success
+          env:
+            - name: DELEGATED_CONFIG
+              value: ""  # will be set by Tiltfile
+            - name: WEB_HOST
+              value: "guardian-0.guardian"
+            - name: NAMESPACE
+              value: "wormhole"
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - /tmp/success
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: script
+          configMap:
+            name: delegated-guardian-script
+            defaultMode: 0755

@@ -571,9 +571,10 @@
       },
       "guardianSetList": [
         {
-          "expirationTime": 0,
-          "index": 0,
-          "keys": ["vvpCnVfNGLf4pNkaLamrSvBdD74="]
+          "keys": [
+            "vvpCnVfNGLf4pNkaLamrSvBdD74="
+          ],
+          "expirationTime": "0"
         }
       ],
       "guardianValidatorList": [

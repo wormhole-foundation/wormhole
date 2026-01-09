@@ -88,3 +88,9 @@ source ./sh/deployCustomConsistencyLevel.sh
 returnInfo=$(cat ./broadcast/DeployCustomConsistencyLevel.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
 CUSTOM_CONSISTENCY_LEVEL=$(jq -r '.returns.deployedAddress.value' <<< "$returnInfo")
 echo "CUSTOM_CONSISTENCY_LEVEL: $CUSTOM_CONSISTENCY_LEVEL"
+
+echo "Deploying Delegated Guardians"
+source ./sh/deployDelegatedGuardians.sh
+returnInfo=$(cat ./broadcast/DeployWormholeDelegatedGuardians.s.sol/$INIT_EVM_CHAIN_ID/run-latest.json)
+DELEGATED_GUARDIANS_ADDRESS=$(jq -r '.returns.deployedDelegatedGuardians.value' <<< "$returnInfo")
+echo "DELEGATED_GUARDIANS_ADDRESS: $DELEGATED_GUARDIANS_ADDRESS"

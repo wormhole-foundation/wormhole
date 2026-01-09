@@ -12,6 +12,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
 	"github.com/certusone/wormhole/node/pkg/notary"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -56,6 +57,13 @@ const (
 
 	// observationRequestPerChainBufferSize is the buffer size of the per-network reobservation channel
 	observationRequestPerChainBufferSize = 100
+
+	// TODO(delegated-guardian-sets): The buffer size is arbitrarily set and should be verified
+	// delegateObservationInboundBufferSize configures the size of delegateObsvC.
+	delegateObservationInboundBufferSize = 1000
+
+	// delegateObservationOutboundBufferSize configures the size of delegateObsvSendC.
+	delegateObservationOutboundBufferSize = 1000
 )
 
 type ComponentAlreadyConfiguredError struct {
@@ -113,12 +121,18 @@ type G struct {
 	msgC channelPair[*common.MessagePublication]
 	// Ethereum incoming guardian set updates
 	setC channelPair[*common.GuardianSet]
+	// Delegated guardian config updates
+	dgConfigC channelPair[*processor.DelegateGuardianConfig]
 	// Inbound signed VAAs
 	signedInC channelPair[*gossipv1.SignedVAAWithQuorum]
 	// Inbound observation requests from the p2p service (for all chains)
 	obsvReqC channelPair[*gossipv1.ObservationRequest]
 	// Outbound observation requests
 	obsvReqSendC channelPair[*gossipv1.ObservationRequest]
+	// Inbound delegate observations from the p2p service
+	delegateObsvC channelPair[*gossipv1.DelegateObservation]
+	// Outbound delegate observations to the p2p service
+	delegateObsvSendC channelPair[*gossipv1.DelegateObservation]
 	// acctC is the channel where messages will be put after they reached quorum in the accountant.
 	acctC channelPair[*common.MessagePublication]
 
@@ -151,9 +165,12 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
+	g.dgConfigC = makeChannelPair[*processor.DelegateGuardianConfig](1)
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
+	g.delegateObsvC = makeChannelPair[*gossipv1.DelegateObservation](delegateObservationInboundBufferSize)
+	g.delegateObsvSendC = makeChannelPair[*gossipv1.DelegateObservation](delegateObservationOutboundBufferSize)
 	g.acctC = makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 	// Cross Chain Query Handler channels
 	g.chainQueryReqC = make(map[vaa.ChainID]chan *query.PerChainQueryInternal)
