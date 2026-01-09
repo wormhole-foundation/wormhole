@@ -165,7 +165,7 @@ func TestIPFSClientFetch(t *testing.T) {
 	}{
 		{
 			name:           "valid JSON response",
-			serverResponse: `{"EVM":{"5000":"1 QPM","50000":"1 QPS"},"Solana":{"12500":"1 QPM","125000":"1 QPS"}}`,
+			serverResponse: `{"EVM":{"5000":{"qpm":1},"50000":{"qps":1,"qpm":60}},"Solana":{"12500":{"qpm":1},"125000":{"qps":1,"qpm":60}}}`,
 			serverStatus:   http.StatusOK,
 			wantError:      false,
 		},
@@ -240,7 +240,7 @@ func TestIPFSClientCache(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"EVM":{"5000":"1 QPM"},"Solana":{"12500":"1 QPM"}}`))
+		_, _ = w.Write([]byte(`{"EVM":{"5000":{"qpm":1}},"Solana":{"12500":{"qpm":1}}}`))
 	}))
 	defer server.Close()
 

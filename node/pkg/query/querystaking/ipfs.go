@@ -148,22 +148,41 @@ func (c *IPFSClient) fetchFromIPFS(ctx context.Context, cidStr string) (*Convers
 	return &conversionTable, nil
 }
 
+// RateConfig represents the rate limits for a tranche
+type RateConfig struct {
+	QPS *uint64 `json:"qps,omitempty"` // Queries per second (optional)
+	QPM *uint64 `json:"qpm,omitempty"` // Queries per minute (optional, defaults to QPS*60 if not set)
+}
+
 // ConversionTranche represents a single tranche in the conversion table
 type ConversionTranche struct {
-	Rate    uint64 // Queries per minute for this tranche
-	Tranche uint64 // Minimum stake amount required for this tranche
+	RatePerSecond uint64 // Queries per second (0 if not set)
+	RatePerMinute uint64 // Queries per minute
+	Tranche       uint64 // Minimum stake amount required for this tranche
 }
 
 // ConversionTable represents the IPFS JSON structure for chain-specific conversion rates
 type ConversionTable struct {
-	EVM    map[string]string `json:"EVM"`
-	Solana map[string]string `json:"Solana"`
+	EVM    map[string]RateConfig `json:"EVM"`
+	Solana map[string]RateConfig `json:"Solana"`
+}
+
+// GetSupportedChains returns the list of chains that have rates defined in this conversion table
+func (ct *ConversionTable) GetSupportedChains() []string {
+	var chains []string
+	if ct.EVM != nil && len(ct.EVM) > 0 {
+		chains = append(chains, "EVM")
+	}
+	if ct.Solana != nil && len(ct.Solana) > 0 {
+		chains = append(chains, "Solana")
+	}
+	return chains
 }
 
 // GetTranchesByChain extracts and parses tranches for a specific chain
 // Returns sorted tranches (ascending by tranche amount)
 func (ct *ConversionTable) GetTranchesByChain(chainName string) ([]ConversionTranche, error) {
-	var chainRates map[string]string
+	var chainRates map[string]RateConfig
 
 	// Select the appropriate chain data
 	switch chainName {
@@ -181,22 +200,36 @@ func (ct *ConversionTable) GetTranchesByChain(chainName string) ([]ConversionTra
 
 	// Parse the map into tranches
 	tranches := make([]ConversionTranche, 0, len(chainRates))
-	for trancheStr, rateStr := range chainRates {
+	for trancheStr, rateConfig := range chainRates {
 		// Parse tranche amount
 		tranche, err := strconv.ParseUint(trancheStr, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid tranche amount '%s': %w", trancheStr, err)
 		}
 
-		// Parse rate string (e.g., "1 QPS" or "5 QPM")
-		rate, err := parseRateString(rateStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid rate string '%s': %w", rateStr, err)
+		// Extract QPS and QPM from the rate config
+		var qps, qpm uint64
+
+		if rateConfig.QPS != nil {
+			qps = *rateConfig.QPS
+		}
+
+		if rateConfig.QPM != nil {
+			qpm = *rateConfig.QPM
+		} else if rateConfig.QPS != nil {
+			// If QPM not specified, derive from QPS
+			qpm = qps * 60
+		}
+
+		// Validate that at least one rate is specified
+		if qps == 0 && qpm == 0 {
+			return nil, fmt.Errorf("tranche %s has no rate specified (both qps and qpm are 0 or missing)", trancheStr)
 		}
 
 		tranches = append(tranches, ConversionTranche{
-			Rate:    rate,
-			Tranche: tranche,
+			RatePerSecond: qps,
+			RatePerMinute: qpm,
+			Tranche:       tranche,
 		})
 	}
 

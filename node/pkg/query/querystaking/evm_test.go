@@ -14,6 +14,10 @@ func toBytes32(s string) [32]byte {
 	return arr
 }
 
+func uint64Ptr(v uint64) *uint64 {
+	return &v
+}
+
 // Helper function to build StakeInfo bytes for testing
 func buildStakeInfoBytes(amount, conversionTableIndex, lockupEnd, accessEnd, lastClaimed, capacity uint64) []byte {
 	result := make([]byte, 192)
@@ -343,53 +347,53 @@ func TestConversionTableGetTranchesByChain(t *testing.T) {
 		{
 			name: "EVM chain with single tranche",
 			table: ConversionTable{
-				EVM: map[string]string{
-					"5000": "1 QPM",
+				EVM: map[string]RateConfig{
+					"5000": {QPM: uint64Ptr(1)},
 				},
 			},
 			chainName: "EVM",
 			want: []ConversionTranche{
-				{Rate: 1, Tranche: 5000},
+				{RatePerSecond: 0, RatePerMinute: 1, Tranche: 5000},
 			},
 			wantError: false,
 		},
 		{
 			name: "EVM chain with multiple tranches",
 			table: ConversionTable{
-				EVM: map[string]string{
-					"5000":   "1 QPM",
-					"50000":  "1 QPS",
-					"500000": "10 QPS",
+				EVM: map[string]RateConfig{
+					"5000":   {QPM: uint64Ptr(1)},
+					"50000":  {QPS: uint64Ptr(1), QPM: uint64Ptr(60)},
+					"500000": {QPS: uint64Ptr(10), QPM: uint64Ptr(600)},
 				},
 			},
 			chainName: "EVM",
 			want: []ConversionTranche{
-				{Rate: 1, Tranche: 5000},
-				{Rate: 60, Tranche: 50000},
-				{Rate: 600, Tranche: 500000},
+				{RatePerSecond: 0, RatePerMinute: 1, Tranche: 5000},
+				{RatePerSecond: 1, RatePerMinute: 60, Tranche: 50000},
+				{RatePerSecond: 10, RatePerMinute: 600, Tranche: 500000},
 			},
 			wantError: false,
 		},
 		{
 			name: "Solana chain",
 			table: ConversionTable{
-				Solana: map[string]string{
-					"12500":  "1 QPM",
-					"125000": "1 QPS",
+				Solana: map[string]RateConfig{
+					"12500":  {QPM: uint64Ptr(1)},
+					"125000": {QPS: uint64Ptr(1), QPM: uint64Ptr(60)},
 				},
 			},
 			chainName: "Solana",
 			want: []ConversionTranche{
-				{Rate: 1, Tranche: 12500},
-				{Rate: 60, Tranche: 125000},
+				{RatePerSecond: 0, RatePerMinute: 1, Tranche: 12500},
+				{RatePerSecond: 1, RatePerMinute: 60, Tranche: 125000},
 			},
 			wantError: false,
 		},
 		{
 			name: "unknown chain",
 			table: ConversionTable{
-				EVM: map[string]string{
-					"5000": "1 QPM",
+				EVM: map[string]RateConfig{
+					"5000": {QPM: uint64Ptr(1)},
 				},
 			},
 			chainName: "Bitcoin",
@@ -406,18 +410,18 @@ func TestConversionTableGetTranchesByChain(t *testing.T) {
 		{
 			name: "invalid tranche amount",
 			table: ConversionTable{
-				EVM: map[string]string{
-					"abc": "1 QPM",
+				EVM: map[string]RateConfig{
+					"abc": {QPM: uint64Ptr(1)},
 				},
 			},
 			chainName: "EVM",
 			wantError: true,
 		},
 		{
-			name: "invalid rate string",
+			name: "no rate specified",
 			table: ConversionTable{
-				EVM: map[string]string{
-					"5000": "invalid",
+				EVM: map[string]RateConfig{
+					"5000": {},
 				},
 			},
 			chainName: "EVM",
@@ -456,8 +460,11 @@ func TestConversionTableGetTranchesByChain(t *testing.T) {
 
 			// Check each tranche
 			for i := range got {
-				if got[i].Rate != tt.want[i].Rate {
-					t.Errorf("GetTranchesByChain() tranche[%d].Rate = %d, want %d", i, got[i].Rate, tt.want[i].Rate)
+				if got[i].RatePerSecond != tt.want[i].RatePerSecond {
+					t.Errorf("GetTranchesByChain() tranche[%d].RatePerSecond = %d, want %d", i, got[i].RatePerSecond, tt.want[i].RatePerSecond)
+				}
+				if got[i].RatePerMinute != tt.want[i].RatePerMinute {
+					t.Errorf("GetTranchesByChain() tranche[%d].RatePerMinute = %d, want %d", i, got[i].RatePerMinute, tt.want[i].RatePerMinute)
 				}
 				if got[i].Tranche != tt.want[i].Tranche {
 					t.Errorf("GetTranchesByChain() tranche[%d].Tranche = %d, want %d", i, got[i].Tranche, tt.want[i].Tranche)

@@ -104,6 +104,7 @@ const stakersToCleanup = new Set<`0x${string}`>();
 describe("Staking Integration Tests", () => {
   beforeAll(async () => {
     poolAddress = await getPoolAddress(STAKING_FACTORY_ADDRESS, EVM_QUERY_TYPE);
+    console.log("staking integration tests", "pool_address", poolAddress);
 
     expect(poolAddress).toBeTruthy();
     expect(poolAddress).not.toBe("0x0000000000000000000000000000000000000000");

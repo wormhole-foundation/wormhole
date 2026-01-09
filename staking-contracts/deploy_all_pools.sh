@@ -7,6 +7,12 @@
 #   1. EVM Pool - eth_call, eth_call_by_timestamp, eth_call_with_finality (types 1, 2, 3)
 #   2. Solana Pool - sol_account, sol_pda (types 4, 5)
 #
+# Environment variables:
+#   ETH_RPC_URL - RPC endpoint (default: http://localhost:8545)
+#   RATE_LIMITS_FILE - Path to rate limits JSON file (default: ./ccq-rate-limits.json)
+#   EVM_DECAY_RATE - Decay rate for EVM pool, 0-100 (default: 5)
+#   SOLANA_DECAY_RATE - Decay rate for Solana pool, 0-100 (default: 5)
+#
 # Uses devnet configuration from ../wormhole/scripts/devnet-consts.json
 
 set -e  # Exit on error
@@ -23,8 +29,9 @@ RATE_LIMITS_FILE="${RATE_LIMITS_FILE:-./ccq-rate-limits.json}"
 CREATE_POOL_EVENT_TOPIC="0x34d4b91c04bf254b71c435c46e26f1c0b6ec05b426b3bbebb5a80d3e71c030db"
 
 # Common pool parameters
-# Note: Decay rate is now encoded in the lowest byte of queryType (bits 0-7)
-# Query type flags are in bits 8+
+# Query Type Encoding:
+#   Bits 0-7 (lowest byte): Decay rate (0-100)
+#   Bits 8+: Query type flags (bit field of supported query types)
 INITIAL_ENTRY=${INITIAL_ENTRY:-"0x0000000000000000000000000000000000000000000000000000000000000001"}
 
 export PRIVATE_KEY W_TOKEN_ADDRESS
@@ -32,6 +39,30 @@ export PRIVATE_KEY W_TOKEN_ADDRESS
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+# Encode query type with decay rate
+# Usage: encode_query_type "query_flags_hex" "decay_rate"
+# Example: encode_query_type "0x07" "50" -> 0x0732
+encode_query_type() {
+    local query_flags="$1"
+    local decay_rate="$2"
+
+    # Validate decay rate
+    if [ "$decay_rate" -lt 0 ] || [ "$decay_rate" -gt 100 ]; then
+        echo "Error: Decay rate must be between 0 and 100" >&2
+        exit 1
+    fi
+
+    # Convert hex query flags to decimal
+    local flags_dec=$((query_flags))
+
+    # Shift flags left by 8 bits and OR with decay rate
+    # Formula: (flags << 8) | decay_rate
+    local encoded=$(( (flags_dec << 8) | decay_rate ))
+
+    # Convert back to 32-byte hex
+    printf "0x%064x" "$encoded"
+}
 
 # Extract pool address from the CreateQueryTypeStakingPool event in broadcast file
 extract_pool_address() {
@@ -48,12 +79,17 @@ extract_pool_address() {
 }
 
 # Create a staking pool with the given parameters
-# Usage: create_pool "Pool Name" "query_type_hex" "min_stake_wei_or_empty" "description"
+# Usage: create_pool "Pool Name" "query_flags_hex" "decay_rate" "min_stake_wei_or_empty" "description"
 create_pool() {
     local name="$1"
-    local query_type="$2"
-    local min_stake="$3"
-    local description="$4"
+    local query_flags="$2"
+    local decay_rate="$3"
+    local min_stake="$4"
+    local description="$5"
+
+    # Encode the query type with decay rate
+    local query_type
+    query_type=$(encode_query_type "$query_flags" "$decay_rate")
 
     echo ""
     echo "Creating $name staking pool..."
@@ -68,7 +104,9 @@ create_pool() {
     fi
 
     echo "$name Pool parameters:"
-    echo "  QUERY_TYPE: $query_type ($description)"
+    echo "  QUERY_FLAGS: $query_flags ($description)"
+    echo "  DECAY_RATE: $decay_rate%"
+    echo "  ENCODED_QUERY_TYPE: $query_type"
     echo "  MIN_STAKE: ${min_stake:-default (100 tokens)}"
     echo "  RATE_LIMITS_CID: $RATE_LIMITS_CID"
 
@@ -129,20 +167,25 @@ export FACTORY_ADDRESS
 
 # Step 2: Create EVM pool
 # Query Types 1, 2, 3 (binary 0b111 = 0x07)
-# TODO: Investigate factory queryTypePools mapping - may need shifted format (0x0700) for decay rate encoding
+# Using decay rate from environment or default to 5%
+EVM_DECAY_RATE=${EVM_DECAY_RATE:-5}
 echo ""
 echo "Step 2: Creating EVM staking pool..."
 EVM_POOL_ADDRESS=$(create_pool "EVM" \
-    "0x0000000000000000000000000000000000000000000000000000000000000007" \
+    "0x07" \
+    "$EVM_DECAY_RATE" \
     "10000000000000000000" \
     "eth_call, eth_call_by_timestamp, eth_call_with_finality")
 
 # Step 3: Create Solana pool
 # Query Types 4, 5: bit(4-1)=3 -> 0x08, bit(5-1)=4 -> 0x10, combined = 0x18
+# Using decay rate from environment or default to 5%
+SOLANA_DECAY_RATE=${SOLANA_DECAY_RATE:-5}
 echo ""
 echo "Step 3: Creating Solana staking pool..."
 SOLANA_POOL_ADDRESS=$(create_pool "Solana" \
-    "0x0000000000000000000000000000000000000000000000000000000000000018" \
+    "0x18" \
+    "$SOLANA_DECAY_RATE" \
     "125000000000000000000" \
     "sol_account, sol_pda")
 
@@ -154,8 +197,10 @@ echo "Factory Address: $FACTORY_ADDRESS"
 echo ""
 echo "EVM Pool: ${EVM_POOL_ADDRESS:-'(check logs above)'}"
 echo "  Query types: eth_call (1), eth_call_by_timestamp (2), eth_call_with_finality (3)"
-echo "  Min stake: 100 tokens"
+echo "  Decay rate: ${EVM_DECAY_RATE}%"
+echo "  Min stake: 10 tokens"
 echo ""
 echo "Solana Pool: ${SOLANA_POOL_ADDRESS:-'(check logs above)'}"
 echo "  Query types: sol_account (4), sol_pda (5)"
-echo "  Min stake: 12,500 tokens"
+echo "  Decay rate: ${SOLANA_DECAY_RATE}%"
+echo "  Min stake: 125 tokens"

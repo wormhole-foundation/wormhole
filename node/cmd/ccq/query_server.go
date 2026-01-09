@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -54,6 +55,7 @@ var (
 	ccqFactoryAddress      *string
 	ipfsGateway            *string
 	policyCacheDuration    *uint
+	stakingPoolAddresses   *string
 )
 
 const DEV_NETWORK_ID = "/wormhole/dev"
@@ -76,9 +78,10 @@ func init() {
 	promRemoteURL = QueryServerCmd.Flags().String("promRemoteURL", "", "Prometheus remote write URL (Grafana)")
 	monitorPeers = QueryServerCmd.Flags().Bool("monitorPeers", false, "Should monitor bootstrap peers and attempt to reconnect")
 	gossipAdvertiseAddress = QueryServerCmd.Flags().String("gossipAdvertiseAddress", "", "External IP to advertize on P2P (use if behind a NAT or running in k8s)")
-	ccqFactoryAddress = QueryServerCmd.Flags().String("ccqFactoryAddress", "", "Address of the CCQ staking factory contract for staking-based rate limiting (required)")
+	ccqFactoryAddress = QueryServerCmd.Flags().String("ccqFactoryAddress", "", "Address of the CCQ staking factory contract for staking-based rate limiting (optional, not used if stakingPoolAddresses is provided)")
 	ipfsGateway = QueryServerCmd.Flags().String("ipfsGateway", "https://ipfs.io", "IPFS gateway URL for fetching conversion tables")
 	policyCacheDuration = QueryServerCmd.Flags().Uint("policyCacheDuration", 300, "Staking policy cache duration in seconds (default: 300 = 5 minutes)")
+	stakingPoolAddresses = QueryServerCmd.Flags().String("stakingPoolAddresses", "", "Comma-separated list of staking pool contract addresses (e.g., 0xaaa...,0xbbb...). If provided, pools are queried directly without factory discovery.")
 
 	// The default health check monitoring is every five seconds, with a five second timeout, and you have to miss two, for 20 seconds total.
 	shutdownDelay1 = QueryServerCmd.Flags().Uint("shutdownDelay1", 25, "Seconds to delay after disabling health check on shutdown")
@@ -193,27 +196,49 @@ func runQueryServer(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if !ethCommon.IsHexAddress(*ccqFactoryAddress) {
-		logger.Fatal("Invalid CCQ factory address", zap.String("address", *ccqFactoryAddress))
+	// Parse pool addresses if provided
+	var poolAddresses []ethCommon.Address
+	if *stakingPoolAddresses != "" {
+		addressStrings := strings.Split(*stakingPoolAddresses, ",")
+		for _, addrStr := range addressStrings {
+			addrStr = strings.TrimSpace(addrStr)
+			if !ethCommon.IsHexAddress(addrStr) {
+				logger.Fatal("Invalid staking pool address", zap.String("address", addrStr))
+			}
+			poolAddresses = append(poolAddresses, ethCommon.HexToAddress(addrStr))
+		}
+		logger.Info("Using direct pool address configuration",
+			zap.Int("poolCount", len(poolAddresses)),
+			zap.String("ipfsGateway", *ipfsGateway),
+			zap.Uint("policyCacheDurationSeconds", *policyCacheDuration))
+	} else if *ccqFactoryAddress != "" {
+		if !ethCommon.IsHexAddress(*ccqFactoryAddress) {
+			logger.Fatal("Invalid CCQ factory address", zap.String("address", *ccqFactoryAddress))
+		}
+		logger.Info("Using factory-based pool discovery",
+			zap.String("factoryAddress", *ccqFactoryAddress),
+			zap.String("ipfsGateway", *ipfsGateway),
+			zap.Uint("policyCacheDurationSeconds", *policyCacheDuration))
+	} else {
+		logger.Fatal("Must specify either --stakingPoolAddresses or --ccqFactoryAddress")
 	}
-
-	logger.Info("Initializing staking-based rate limiting",
-		zap.String("factoryAddress", *ccqFactoryAddress),
-		zap.String("ipfsGateway", *ipfsGateway),
-		zap.Uint("policyCacheDurationSeconds", *policyCacheDuration))
 
 	ethClient, err := ethclient.Dial(*ethRPC)
 	if err != nil {
 		logger.Fatal("Failed to connect to Ethereum RPC for staking", zap.Error(err))
 	}
 
-	factoryAddr := ethCommon.HexToAddress(*ccqFactoryAddress)
+	var factoryAddr ethCommon.Address
+	if *ccqFactoryAddress != "" {
+		factoryAddr = ethCommon.HexToAddress(*ccqFactoryAddress)
+	}
 	cacheDuration := time.Duration(*policyCacheDuration) * time.Second // #nosec G115 -- policyCacheDuration is validated to be reasonable
 	policyProvider, err := querystaking.CreateStakingPolicyProvider(
 		ethClient,
 		logger,
 		ctx,
 		factoryAddr,
+		poolAddresses,
 		*ipfsGateway,
 		cacheDuration,
 	)

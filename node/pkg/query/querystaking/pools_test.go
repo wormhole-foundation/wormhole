@@ -1,6 +1,8 @@
 package querystaking
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/certusone/wormhole/node/pkg/query/queryratelimit"
@@ -141,12 +143,31 @@ func TestCalculateRates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conversionEntry := toBytes32(tt.conversion)
-			tranches, err := ParseConversionTranches(conversionEntry)
-			// If parse fails, CalculateRates should return zero (like it did before)
-			if err != nil {
-				tranches = []ConversionTranche{}
+			// Parse conversion string to create tranches
+			// Format: "rate:X,tranche:Y" becomes {RatePerMinute: X, Tranche: Y}
+			var tranches []ConversionTranche
+			if tt.conversion != "" && tt.conversion != "invalid" {
+				parts := strings.Split(tt.conversion, ",")
+				if len(parts) >= 2 {
+					// Parse rate
+					rateStr := strings.TrimPrefix(parts[0], "rate:")
+					rate, err := strconv.ParseUint(rateStr, 10, 64)
+					if err == nil {
+						// Parse tranche
+						trancheStr := strings.TrimPrefix(parts[1], "tranche:")
+						tranche, err := strconv.ParseUint(trancheStr, 10, 64)
+						if err == nil {
+							// QPM-only format, QPS will be derived in CalculateRates
+							tranches = []ConversionTranche{{
+								RatePerSecond: 0,
+								RatePerMinute: rate,
+								Tranche:       tranche,
+							}}
+						}
+					}
+				}
 			}
+
 			// Use decimals=0 so stake values are treated as token units (no conversion)
 			got := CalculateRates(tt.stake, tranches, 0)
 
@@ -195,10 +216,20 @@ func TestCalculateRates_IntegerDivision(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stake := uint256.NewInt(tt.stake)
-			conversionEntry := toBytes32(tt.conversion)
-			tranches, err := ParseConversionTranches(conversionEntry)
-			if err != nil {
-				t.Fatalf("ParseConversionTranches() error = %v", err)
+			// Parse conversion string to create tranches
+			var tranches []ConversionTranche
+			parts := strings.Split(tt.conversion, ",")
+			if len(parts) >= 2 {
+				rateStr := strings.TrimPrefix(parts[0], "rate:")
+				rate, _ := strconv.ParseUint(rateStr, 10, 64)
+				trancheStr := strings.TrimPrefix(parts[1], "tranche:")
+				tranche, _ := strconv.ParseUint(trancheStr, 10, 64)
+				// QPM-only format, QPS will be derived in CalculateRates
+				tranches = []ConversionTranche{{
+					RatePerSecond: 0,
+					RatePerMinute: rate,
+					Tranche:       tranche,
+				}}
 			}
 			// Use decimals=0 so stake values are treated as token units (no conversion)
 			got := CalculateRates(stake, tranches, 0)

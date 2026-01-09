@@ -63,11 +63,12 @@ export const STAKING_FACTORY_ADDRESS =
   (process.env.STAKING_FACTORY_ADDRESS as Address) ||
   ("0xb4ffe5983b0b748124577af4d16953bd096b6897" as Address);
 
-// Query types
+// Query types -- get from staking-pools-deploy logs
+// e.g. ENCODED_QUERY_TYPE: 0x0000000000000000000000000000000000000000000000000000000000000732
 export const EVM_QUERY_TYPE =
-  "0x0000000000000000000000000000000000000000000000000000000000000007";
+  "0x0000000000000000000000000000000000000000000000000000000000000705";
 export const SOLANA_QUERY_TYPE =
-  "0x0000000000000000000000000000000000000000000000000000000000000018";
+  "0x0000000000000000000000000000000000000000000000000000000000001805";
 
 // ============================================================================
 // Type Definitions
@@ -220,7 +221,9 @@ type ExtendedClient = WalletClient<Transport, Chain, LocalAccount> &
   PublicActions;
 const clientCache = new Map<string, ExtendedClient>();
 
-export function createClient(privateKey: `0x${string}` = MINTER_PRIVATE_KEY): ExtendedClient {
+export function createClient(
+  privateKey: `0x${string}` = MINTER_PRIVATE_KEY
+): ExtendedClient {
   if (clientCache.has(privateKey)) {
     return clientCache.get(privateKey)!;
   }

@@ -11,11 +11,11 @@ import (
 )
 
 // CreateStakingPolicyProvider creates a PolicyProvider configured for staking-based rate limits
-func CreateStakingPolicyProvider(ethClient *ethclient.Client, logger *zap.Logger, parentContext context.Context, factoryAddress common.Address, ipfsGateway string, cacheDuration time.Duration) (*queryratelimit.PolicyProvider, error) {
+func CreateStakingPolicyProvider(ethClient *ethclient.Client, logger *zap.Logger, parentContext context.Context, factoryAddress common.Address, poolAddresses []common.Address, ipfsGateway string, cacheDuration time.Duration) (*queryratelimit.PolicyProvider, error) {
 	// Create IPFS client with hardcoded timeout (30s)
 	ipfsClient := NewIPFSClient(ipfsGateway, 30*time.Second, logger)
 
-	stakingClient := NewStakingClient(ethClient, logger, factoryAddress, ipfsClient)
+	stakingClient := NewStakingClient(ethClient, logger, factoryAddress, poolAddresses, ipfsClient)
 
 	// Create the fetcher function that queries staking contracts
 	// This supports both self-staking and delegated signing:

@@ -64,6 +64,7 @@ type QueryTypePool struct {
 }
 
 // queryTypeBits generates the bit field from the QueryTypes slice
+// Note: This is only used for factory discovery. For direct pool configuration, use --stakingPoolAddresses instead.
 func (p QueryTypePool) queryTypeBits() [32]byte {
 	var bits [32]byte
 	for _, qt := range p.QueryTypes {
@@ -116,6 +117,17 @@ func getChainName(qt QueryType) (string, error) {
 	return chainName, nil
 }
 
+// chainNameToQueryTypes returns the query types for a given chain name
+func chainNameToQueryTypes(chainName string) []QueryType {
+	var queryTypes []QueryType
+	for qt, chain := range QueryTypeToChain {
+		if chain == chainName {
+			queryTypes = append(queryTypes, qt)
+		}
+	}
+	return queryTypes
+}
+
 // PoolMetadata holds immutable pool data that can be safely cached.
 // These values are set at pool deployment and never change.
 type PoolMetadata struct {
@@ -125,10 +137,12 @@ type PoolMetadata struct {
 
 // StakingClient wraps ethereum client for staking contract interactions
 type StakingClient struct {
-	client         *ethclient.Client
-	logger         *zap.Logger
-	factoryAddress common.Address
-	ipfsClient     *IPFSClient
+	client              *ethclient.Client
+	logger              *zap.Logger
+	factoryAddress      common.Address
+	configuredPools     []common.Address // Direct pool addresses from config
+	useDirectPoolConfig bool             // If true, use configuredPools instead of factory discovery
+	ipfsClient          *IPFSClient
 
 	// Single mutex protects all caches (accessed sequentially in FetchStakingPolicy)
 	cacheMutex sync.RWMutex
@@ -140,11 +154,22 @@ type StakingClient struct {
 }
 
 // NewStakingClient creates a new staking client
-func NewStakingClient(client *ethclient.Client, logger *zap.Logger, factoryAddress common.Address, ipfsClient *IPFSClient) *StakingClient {
+func NewStakingClient(client *ethclient.Client, logger *zap.Logger, factoryAddress common.Address, poolAddresses []common.Address, ipfsClient *IPFSClient) *StakingClient {
+	useDirectConfig := len(poolAddresses) > 0
+	if useDirectConfig {
+		logger.Info("Staking client configured with direct pool addresses",
+			zap.Int("poolCount", len(poolAddresses)))
+	} else {
+		logger.Info("Staking client configured for factory-based discovery",
+			zap.String("factoryAddress", factoryAddress.Hex()))
+	}
+
 	return &StakingClient{
 		client:                 client,
 		logger:                 logger.With(zap.String("component", "staking-client")),
 		factoryAddress:         factoryAddress,
+		configuredPools:        poolAddresses,
+		useDirectPoolConfig:    useDirectConfig,
 		ipfsClient:             ipfsClient,
 		conversionHistoryCache: make(map[common.Address][][32]byte),
 		poolMetadataCache:      make(map[common.Address]*PoolMetadata),
@@ -580,7 +605,7 @@ func (sc *StakingClient) getConversionTableHistory(ctx context.Context, poolAddr
 
 // CalculateRates calculates rate limits based on stake amount and conversion tranches.
 // The tranches define rate/tranche pairs locked in at stake time.
-// Rates in the tranches are queries per minute (QPM).
+// Each tranche can specify both QPS (queries per second) and QPM (queries per minute).
 // The decimals parameter is used to convert the stake amount from wei to token units.
 func CalculateRates(stakeAmount *uint256.Int, tranches []ConversionTranche, decimals uint8) queryratelimit.Rule {
 	if stakeAmount == nil || stakeAmount.Cmp(uint256.NewInt(0)) == 0 {
@@ -616,21 +641,22 @@ func CalculateRates(stakeAmount *uint256.Int, tranches []ConversionTranche, deci
 	}
 
 	// Calculate rate: (stakeAmount / tranche) * rate
-	// This gives us the allotted QPM
+	// Apply multiplier to both QPS and QPM independently
 	// Using uint64 eliminates overflow concerns for any reasonable stake amount
 	multiplier := stakeAmountUint64 / selectedTranche.Tranche
-	qpm := multiplier * selectedTranche.Rate
 
-	// Convert QPM to QPS if rate is high enough (>= 60 QPM = 1 QPS)
-	// This matches assumption 1: rate is always QPM, convert to QPS when appropriate
-	var maxPerSecond uint64 = 0
-	if qpm >= 60 {
-		maxPerSecond = qpm / 60
+	maxPerSecond := multiplier * selectedTranche.RatePerSecond
+	maxPerMinute := multiplier * selectedTranche.RatePerMinute
+
+	// If QPS was not explicitly set (is 0), derive it from QPM
+	// This maintains backward compatibility with QPM-only configurations
+	if selectedTranche.RatePerSecond == 0 && maxPerMinute >= 60 {
+		maxPerSecond = maxPerMinute / 60
 	}
 
 	return queryratelimit.Rule{
 		MaxPerSecond: maxPerSecond,
-		MaxPerMinute: qpm,
+		MaxPerMinute: maxPerMinute,
 	}
 }
 
@@ -666,30 +692,65 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 	failureReasons := make(map[string]int)
 	poolsSkipped := 0
 
-	// Check each supported query type pool via factory
-	for poolName, pool := range SupportedQueryPools {
+	// Determine which pools to check
+	var poolsToCheck []struct {
+		address common.Address
+		name    string
+	}
+
+	if sc.useDirectPoolConfig {
+		// Use directly configured pool addresses
+		for _, poolAddr := range sc.configuredPools {
+			poolsToCheck = append(poolsToCheck, struct {
+				address common.Address
+				name    string
+			}{
+				address: poolAddr,
+				name:    poolAddr.Hex(),
+			})
+		}
+		sc.logger.Debug("using direct pool configuration",
+			zap.Int("poolCount", len(poolsToCheck)))
+	} else {
+		// Use factory discovery (legacy path)
+		for poolName, pool := range SupportedQueryPools {
+			poolAddress, err := sc.GetCachedPoolAddress(ctx, pool.queryTypeBits(), poolName)
+			if err != nil {
+				totalErrors++
+				failureReasons["factory_error"]++
+				stakingPolicyFetches.WithLabelValues("factory_error", poolName).Inc()
+				sc.logger.Warn("failed to discover pool from factory",
+					zap.String("poolName", poolName),
+					zap.String("staker", stakerAddr.Hex()),
+					zap.Error(err))
+				continue
+			}
+
+			// Skip if no pool exists for this query type
+			if poolAddress == (common.Address{}) {
+				poolsSkipped++
+				failureReasons["no_pool_deployed"]++
+				sc.logger.Debug("no pool found for query type", zap.String("queryType", poolName))
+				continue
+			}
+
+			poolsToCheck = append(poolsToCheck, struct {
+				address common.Address
+				name    string
+			}{
+				address: poolAddress,
+				name:    poolName,
+			})
+		}
+		sc.logger.Debug("using factory-based pool discovery",
+			zap.Int("poolCount", len(poolsToCheck)))
+	}
+
+	// Query each pool for stakes
+	for _, poolInfo := range poolsToCheck {
+		poolAddress := poolInfo.address
+		poolName := poolInfo.name
 		poolsChecked++
-
-		// Discover pool address from factory using query type bits (cached)
-		poolAddress, err := sc.GetCachedPoolAddress(ctx, pool.queryTypeBits(), poolName)
-		if err != nil {
-			totalErrors++
-			failureReasons["factory_error"]++
-			stakingPolicyFetches.WithLabelValues("factory_error", poolName).Inc()
-			sc.logger.Warn("failed to discover pool from factory",
-				zap.String("poolName", poolName),
-				zap.String("staker", stakerAddr.Hex()),
-				zap.Error(err))
-			continue
-		}
-
-		// Skip if no pool exists for this query type
-		if poolAddress == (common.Address{}) {
-			poolsSkipped++
-			failureReasons["no_pool_deployed"]++
-			sc.logger.Debug("no pool found for query type", zap.String("queryType", poolName))
-			continue
-		}
 
 		// Verify signer is authorized to act on behalf of staker
 		if err := sc.VerifySignerAuthorization(ctx, poolAddress, stakerAddr, signerAddr, poolName); err != nil {
@@ -838,36 +899,6 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 			continue
 		}
 
-		// Get chain name from first query type (all query types in pool map to same chain)
-		if len(pool.QueryTypes) == 0 {
-			sc.logger.Error("pool has no query types",
-				zap.String("poolName", poolName))
-			continue
-		}
-
-		chainName, err := getChainName(pool.QueryTypes[0])
-		if err != nil {
-			totalErrors++
-			sc.logger.Error("unknown query type in pool",
-				zap.String("poolName", poolName),
-				zap.Uint8("queryType", uint8(pool.QueryTypes[0])),
-				zap.Error(err))
-			continue
-		}
-
-		// Extract chain-specific rates from IPFS data (once per pool)
-		tranches, err := conversionTable.GetTranchesByChain(chainName)
-		if err != nil {
-			totalErrors++
-			stakingPolicyFetches.WithLabelValues("chain_parse_error", poolName).Inc()
-			sc.logger.Warn("failed to get tranches for chain during policy fetch",
-				zap.String("poolName", poolName),
-				zap.String("chainName", chainName),
-				zap.String("staker", stakerAddr.Hex()),
-				zap.Error(err))
-			continue
-		}
-
 		// Fetch pool metadata for proper stake amount conversion (cached)
 		poolMetadata, err := sc.GetPoolMetadata(ctx, poolAddress, poolName)
 		var decimals uint8 = 18 // Default to 18 decimals (standard ERC20)
@@ -880,76 +911,126 @@ func (sc *StakingClient) FetchStakingPolicy(ctx context.Context, stakerAddr, sig
 			decimals = poolMetadata.TokenDecimals
 		}
 
-		// Calculate rate limits using tranches
-		rates := CalculateRates(stakeInfo.Amount, tranches, decimals)
+		// Process rates for each chain in the conversion table
+		// In direct config mode, we discover supported chains from IPFS
+		// In factory mode, we use the predefined query types
+		var chainsToProcess []string
 
-		sc.logger.Info("rate calculation details",
-			zap.String("pool", poolName),
-			zap.String("stakeAmount", stakeInfo.Amount.String()),
-			zap.Uint8("decimals", decimals),
-			zap.Int("trancheCount", len(tranches)),
-			zap.Uint64("maxPerSecond", rates.MaxPerSecond),
-			zap.Uint64("maxPerMinute", rates.MaxPerMinute))
+		if sc.useDirectPoolConfig {
+			// Get all chains from the conversion table
+			chainsToProcess = conversionTable.GetSupportedChains()
+			sc.logger.Debug("discovered chains from conversion table",
+				zap.String("poolName", poolName),
+				zap.Strings("chains", chainsToProcess))
+		} else {
+			// Use predefined query types from SupportedQueryPools
+			poolConfig := SupportedQueryPools[poolName]
+			if len(poolConfig.QueryTypes) == 0 {
+				sc.logger.Error("pool has no query types",
+					zap.String("poolName", poolName))
+				continue
+			}
 
-		// Determine tier for metrics
-		tier := "none"
-		if rates.MaxPerSecond > 0 {
-			tier = "qps"
-		} else if rates.MaxPerMinute > 0 {
-			tier = "qpm"
+			chainName, err := getChainName(poolConfig.QueryTypes[0])
+			if err != nil {
+				totalErrors++
+				sc.logger.Error("unknown query type in pool",
+					zap.String("poolName", poolName),
+					zap.Uint8("queryType", uint8(poolConfig.QueryTypes[0])),
+					zap.Error(err))
+				continue
+			}
+			chainsToProcess = []string{chainName}
 		}
 
-		// Skip if no rates calculated
-		if rates.MaxPerSecond == 0 && rates.MaxPerMinute == 0 {
-			stakingPolicyDecisions.WithLabelValues("denied", tier, "all").Inc()
-			continue
-		}
+		// Calculate and apply rates for each chain
+		for _, chainName := range chainsToProcess {
+			// Extract chain-specific rates from IPFS data
+			tranches, err := conversionTable.GetTranchesByChain(chainName)
+			if err != nil {
+				totalErrors++
+				stakingPolicyFetches.WithLabelValues("chain_parse_error", poolName).Inc()
+				sc.logger.Warn("failed to get tranches for chain during policy fetch",
+					zap.String("poolName", poolName),
+					zap.String("chainName", chainName),
+					zap.String("staker", stakerAddr.Hex()),
+					zap.Error(err))
+				continue
+			}
 
-		sc.logger.Debug("calculated rates for pool",
-			zap.String("queryType", poolName),
-			zap.String("chainName", chainName),
-			zap.String("poolAddress", poolAddress.Hex()),
-			zap.String("signer", signerAddr.Hex()),
-			zap.String("tier", tier),
-			zap.Uint64("maxPerSecond", rates.MaxPerSecond),
-			zap.Uint64("maxPerMinute", rates.MaxPerMinute),
-			zap.String("stakeAmount", stakeInfo.Amount.String()))
+			// Calculate rate limits using tranches
+			rates := CalculateRates(stakeInfo.Amount, tranches, decimals)
 
-		// Apply rates to all query types in this pool
-		for _, queryType := range pool.QueryTypes {
-			queryTypeStr := fmt.Sprintf("%d", queryType)
-			qt := uint8(queryType)
+			sc.logger.Info("rate calculation details",
+				zap.String("pool", poolName),
+				zap.String("chainName", chainName),
+				zap.String("stakeAmount", stakeInfo.Amount.String()),
+				zap.Uint8("decimals", decimals),
+				zap.Int("trancheCount", len(tranches)),
+				zap.Uint64("maxPerSecond", rates.MaxPerSecond),
+				zap.Uint64("maxPerMinute", rates.MaxPerMinute))
 
-			// Record policy decision
-			stakingPolicyDecisions.WithLabelValues("allowed", tier, queryTypeStr).Inc()
+			// Determine tier for metrics
+			tier := "none"
+			if rates.MaxPerSecond > 0 {
+				tier = "qps"
+			} else if rates.MaxPerMinute > 0 {
+				tier = "qpm"
+			}
 
-			// If multiple pools grant access to the same query type, take the maximum
-			if existingRule, exists := policy.Limits.Types[qt]; exists {
-				updated := false
-				if rates.MaxPerSecond > existingRule.MaxPerSecond {
-					existingRule.MaxPerSecond = rates.MaxPerSecond
-					updated = true
-				}
-				if rates.MaxPerMinute > existingRule.MaxPerMinute {
-					existingRule.MaxPerMinute = rates.MaxPerMinute
-					updated = true
-				}
-				policy.Limits.Types[qt] = existingRule
+			// Skip if no rates calculated
+			if rates.MaxPerSecond == 0 && rates.MaxPerMinute == 0 {
+				stakingPolicyDecisions.WithLabelValues("denied", tier, chainName).Inc()
+				continue
+			}
 
-				if updated {
-					sc.logger.Debug("updated existing policy with higher limits",
+			sc.logger.Debug("calculated rates for pool",
+				zap.String("poolName", poolName),
+				zap.String("chainName", chainName),
+				zap.String("poolAddress", poolAddress.Hex()),
+				zap.String("signer", signerAddr.Hex()),
+				zap.String("tier", tier),
+				zap.Uint64("maxPerSecond", rates.MaxPerSecond),
+				zap.Uint64("maxPerMinute", rates.MaxPerMinute),
+				zap.String("stakeAmount", stakeInfo.Amount.String()))
+
+			// Map chain name to query types and apply rates
+			queryTypes := chainNameToQueryTypes(chainName)
+			for _, queryType := range queryTypes {
+				queryTypeStr := fmt.Sprintf("%d", queryType)
+				qt := uint8(queryType)
+
+				// Record policy decision
+				stakingPolicyDecisions.WithLabelValues("allowed", tier, queryTypeStr).Inc()
+
+				// If multiple pools grant access to the same query type, take the maximum
+				if existingRule, exists := policy.Limits.Types[qt]; exists {
+					updated := false
+					if rates.MaxPerSecond > existingRule.MaxPerSecond {
+						existingRule.MaxPerSecond = rates.MaxPerSecond
+						updated = true
+					}
+					if rates.MaxPerMinute > existingRule.MaxPerMinute {
+						existingRule.MaxPerMinute = rates.MaxPerMinute
+						updated = true
+					}
+					policy.Limits.Types[qt] = existingRule
+
+					if updated {
+						sc.logger.Debug("updated existing policy with higher limits",
+							zap.String("queryType", poolName),
+							zap.Uint8("queryType", qt),
+							zap.Uint64("newMaxPerSecond", existingRule.MaxPerSecond),
+							zap.Uint64("newMaxPerMinute", existingRule.MaxPerMinute))
+					}
+				} else {
+					policy.Limits.Types[qt] = rates
+					sc.logger.Debug("added new policy",
 						zap.String("queryType", poolName),
 						zap.Uint8("queryType", qt),
-						zap.Uint64("newMaxPerSecond", existingRule.MaxPerSecond),
-						zap.Uint64("newMaxPerMinute", existingRule.MaxPerMinute))
+						zap.Uint64("maxPerSecond", rates.MaxPerSecond),
+						zap.Uint64("maxPerMinute", rates.MaxPerMinute))
 				}
-			} else {
-				policy.Limits.Types[qt] = rates
-				sc.logger.Debug("added new policy",
-					zap.String("queryType", poolName),
-					zap.Uint8("queryType", qt),
-					zap.Uint64("maxPerSecond", rates.MaxPerSecond),
-					zap.Uint64("maxPerMinute", rates.MaxPerMinute))
 			}
 		}
 	}

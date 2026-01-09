@@ -58,8 +58,8 @@ spec:
             - --logLevel=debug
             - --shutdownDelay1
             - "0"
-            - --ccqFactoryAddress
-            - "0xb4ffe5983b0b748124577af4d16953bd096b6897"
+            - --stakingPoolAddresses
+            - "0xA15E05b9b9BC1154fa9eC2307da6896497c753d0,0x3AD57a97426A8F7800820E6F6E311864ea031c7D"
             - --ipfsGateway
             - "http://kubo:8080/ipfs/"
             - --policyCacheDuration=60

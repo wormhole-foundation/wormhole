@@ -226,8 +226,9 @@ func ParseConversionTranches(entry [32]byte) ([]ConversionTranche, error) {
 		}
 
 		tranches = append(tranches, ConversionTranche{
-			Rate:    rate,
-			Tranche: tranche,
+			RatePerSecond: 0,
+			RatePerMinute: rate,
+			Tranche:       tranche,
 		})
 	}
 
