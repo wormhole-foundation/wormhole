@@ -15,7 +15,11 @@ COPY --link src/evm src/evm
 # Prepare compiler input. NOTE: jq must be pre-applied to "clean" the output from forge.
 # Otherwise solc aborts with duplicated key/newline problems.
 
-RUN forge verify-contract --show-standard-json-input 0x0000000000000000000000000000000000000000 src/evm/WormholeVerifier.sol:WormholeVerifier | jq '.' > WormholeVerifier.input.json
+RUN forge verify-contract \
+  --show-standard-json-input \
+  0x0000000000000000000000000000000000000000 \
+  src/evm/WormholeVerifier.sol:WormholeVerifier \
+  | jq '.' > WormholeVerifier.input.json
 
 # Get compiler according to forge configuration (foundry.toml specified)
 
