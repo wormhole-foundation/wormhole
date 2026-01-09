@@ -11,7 +11,7 @@ import {
   PerChainQueryResponse,
   QueryRequest,
   QueryResponse,
-} from "..";
+} from "../src";
 
 describe("from works with hex and Uint8Array", () => {
   test("QueryResponse", () => {

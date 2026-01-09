@@ -8,12 +8,13 @@ import (
 	"math"
 	"net/http"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/query/queryratelimit"
+	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/zap"
@@ -21,6 +22,11 @@ import (
 )
 
 const MAX_BODY_SIZE = 5 * 1024 * 1024
+
+const (
+	SignatureFormatRaw    = "raw"
+	SignatureFormatEIP191 = "eip191"
+)
 
 type queryRequest struct {
 	Bytes     string `json:"bytes"`
@@ -36,10 +42,12 @@ type httpServer struct {
 	topic            *pubsub.Topic
 	logger           *zap.Logger
 	env              common.Environment
-	permissions      *Permissions
 	signerKey        *ecdsa.PrivateKey
 	pendingResponses *PendingResponses
 	loggingMap       *LoggingMap
+
+	policyProvider *queryratelimit.PolicyProvider
+	limitEnforcer  *queryratelimit.Enforcer
 }
 
 func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +57,7 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Methods", "PUT, POST")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Key")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Signature-Format")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -70,49 +78,19 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// There should be one and only one API key in the header.
-	apiKeys, exists := r.Header["X-Api-Key"]
-	if !exists || len(apiKeys) != 1 {
-		s.logger.Error("received a request with the wrong number of api keys", zap.Stringer("url", r.URL), zap.Int("numApiKeys", len(apiKeys)))
-		http.Error(w, "api key is missing", http.StatusUnauthorized)
-		invalidQueryRequestReceived.WithLabelValues("missing_api_key").Inc()
-		return
-	}
-	apiKey := strings.ToLower(apiKeys[0])
-
-	// Make sure the user is authorized before we go any farther.
-	permEntry, exists := s.permissions.GetUserEntry(apiKey)
-	if !exists {
-		s.logger.Error("invalid api key", zap.String("apiKey", apiKey))
-		http.Error(w, "invalid api key", http.StatusForbidden)
-		invalidQueryRequestReceived.WithLabelValues("invalid_api_key").Inc()
-		return
-	}
-
-	if permEntry.rateLimiter != nil && !permEntry.rateLimiter.Allow() {
-		s.logger.Debug("denying request due to rate limit", zap.String("userId", permEntry.userName))
-		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
-		rateLimitExceededByUser.WithLabelValues(permEntry.userName).Inc()
-		return
-	}
-
-	totalRequestsByUser.WithLabelValues(permEntry.userName).Inc()
-
 	queryRequestBytes, err := hex.DecodeString(q.Bytes)
 	if err != nil {
-		s.logger.Error("failed to decode request bytes", zap.String("userId", permEntry.userName), zap.Error(err))
+		s.logger.Error("failed to decode request bytes", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_request").Inc()
-		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
 	signature, err := hex.DecodeString(q.Signature)
 	if err != nil {
-		s.logger.Error("failed to decode signature bytes", zap.String("userId", permEntry.userName), zap.Error(err))
+		s.logger.Error("failed to decode signature bytes", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_decode_signature").Inc()
-		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
 		return
 	}
 
@@ -121,17 +99,159 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 		Signature:    signature,
 	}
 
-	status, queryReq, err := validateRequest(s.logger, s.env, s.permissions, s.signerKey, apiKey, signedQueryRequest)
+	var userIdentifier string // For logging and metrics
+	var queryReq *query.QueryRequest
+
+	// Basic validation of query request structure
+	var qr query.QueryRequest
+	err = qr.Unmarshal(signedQueryRequest.QueryRequest)
 	if err != nil {
-		s.logger.Error("failed to validate request", zap.String("userId", permEntry.userName), zap.String("requestId", hex.EncodeToString(signedQueryRequest.Signature)), zap.Int("status", status), zap.Error(err))
-		http.Error(w, err.Error(), status)
-		// Error specific metric has already been pegged.
-		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
+		s.logger.Error("failed to unmarshal request", zap.Error(err))
+		http.Error(w, "failed to unmarshal request", http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_unmarshal_request").Inc()
 		return
 	}
 
+	if err := qr.Validate(); err != nil {
+		s.logger.Error("invalid query request", zap.Error(err))
+		http.Error(w, "invalid query request", http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_validate_request").Inc()
+		return
+	}
+
+	// Check X-Signature-Format header to determine recovery method, defaults to `raw`
+	// Values: "eip191" for EIP191/personal_sign or 'raw' or unset for raw ECDSA
+	sigFormat := r.Header.Get("X-Signature-Format")
+	if sigFormat == "" {
+		sigFormat = SignatureFormatRaw
+	}
+
+	// Recover signer address from signature
+	digest := query.QueryRequestDigest(s.env, signedQueryRequest.QueryRequest)
+	var signerAddr eth_common.Address
+	switch sigFormat {
+	case SignatureFormatEIP191:
+		signerAddr, err = query.RecoverPrefixedSigner(digest.Bytes(), signedQueryRequest.Signature)
+	case SignatureFormatRaw:
+		signerAddr, err = query.RecoverQueryRequestSigner(digest.Bytes(), signedQueryRequest.Signature)
+	default:
+		http.Error(w, "invalid X-Signature-Format value. Use 'eip191' or 'raw'", http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("invalid_signature_format_header").Inc()
+		return
+	}
+
+	if err != nil {
+		s.logger.Error("failed to recover signer from signature", zap.Error(err))
+		http.Error(w, "invalid signature", http.StatusBadRequest)
+		invalidQueryRequestReceived.WithLabelValues("failed_to_recover_signer").Inc()
+		return
+	}
+
+	// Determine rate limit key: use staker address if provided, otherwise signer
+	var rateLimitKey eth_common.Address
+	if len(qr.StakerAddress) == 20 {
+		rateLimitKey = eth_common.BytesToAddress(qr.StakerAddress)
+		userIdentifier = "delegated:" + signerAddr.Hex() + "->staker:" + rateLimitKey.Hex()
+		s.logger.Debug("delegated query", zap.String("signer", signerAddr.Hex()), zap.String("staker", rateLimitKey.Hex()))
+		delegatedQueriesReceived.Inc()
+	} else {
+		rateLimitKey = signerAddr
+		userIdentifier = "signer:" + signerAddr.Hex()
+		s.logger.Debug("self-staking query", zap.String("signer", signerAddr.Hex()))
+		selfStakingQueriesReceived.Inc()
+	}
+
+	// Track total requests by user
+	totalRequestsByUser.WithLabelValues(userIdentifier).Inc()
+
+	// If staking-based rate limiting is enabled, enforce it here
+	if s.policyProvider != nil && s.limitEnforcer != nil {
+		// Determine staker address (same as rateLimitKey above)
+		stakerAddr := rateLimitKey
+
+		// Fetch staking policy
+		policy, err := s.policyProvider.GetPolicy(r.Context(), signerAddr, stakerAddr)
+		if err != nil {
+			s.logger.Error("failed to fetch staking policy",
+				zap.String("signer", signerAddr.Hex()),
+				zap.String("staker", stakerAddr.Hex()),
+				zap.Error(err))
+			http.Error(w, "failed to verify staking eligibility", http.StatusInternalServerError)
+			invalidQueryRequestReceived.WithLabelValues("failed_to_fetch_policy").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("failed_to_fetch_policy").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
+			return
+		}
+
+		// Check if user has any limits (i.e., has stake)
+		if len(policy.Limits.Types) == 0 {
+			s.logger.Info("requestor has insufficient stake",
+				zap.String("signer", signerAddr.Hex()),
+				zap.String("staker", stakerAddr.Hex()))
+
+			// Provide more specific error message for delegation scenarios
+			var errorMsg string
+			if signerAddr != stakerAddr {
+				errorMsg = fmt.Sprintf("insufficient stake for CCQ access: signer %s is not authorized to use staker %s's rate limits (or staker has no stake)",
+					signerAddr.Hex(), stakerAddr.Hex())
+			} else {
+				errorMsg = fmt.Sprintf("insufficient stake for CCQ access: address %s has no stake or is below minimum threshold", signerAddr.Hex())
+			}
+
+			http.Error(w, errorMsg, http.StatusForbidden)
+			invalidQueryRequestReceived.WithLabelValues("insufficient_stake").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("insufficient_stake").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
+			return
+		}
+
+		// Build action for rate limit enforcement
+		action := &queryratelimit.Action{
+			Key:   stakerAddr,
+			Time:  time.Now(),
+			Types: make(map[uint8]int),
+		}
+
+		for _, pcq := range qr.PerChainQueries {
+			action.Types[uint8(pcq.Query.Type())] += 1
+		}
+
+		// Enforce rate limits
+		limitResult, err := s.limitEnforcer.EnforcePolicy(r.Context(), policy, action)
+		if err != nil {
+			s.logger.Error("failed to enforce rate limit",
+				zap.String("signer", signerAddr.Hex()),
+				zap.String("staker", stakerAddr.Hex()),
+				zap.Error(err))
+			http.Error(w, "failed to enforce rate limit", http.StatusInternalServerError)
+			invalidQueryRequestReceived.WithLabelValues("failed_to_enforce_rate_limit").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("failed_to_enforce_rate_limit").Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
+			return
+		}
+
+		if !limitResult.Allowed {
+			s.logger.Info("rate limit exceeded",
+				zap.String("signer", signerAddr.Hex()),
+				zap.String("staker", stakerAddr.Hex()),
+				zap.Any("exceededTypes", limitResult.ExceededTypes))
+			http.Error(w, fmt.Sprintf("rate limit exceeded for query types: %v", limitResult.ExceededTypes), http.StatusTooManyRequests)
+			invalidQueryRequestReceived.WithLabelValues("rate_limit_exceeded").Inc()
+			queryratelimit.StakingPolicyRejections.WithLabelValues("rate_limit_exceeded").Inc()
+			rateLimitExceededByUser.WithLabelValues(userIdentifier).Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
+			return
+		}
+
+		s.logger.Debug("rate limit check passed",
+			zap.String("signer", signerAddr.Hex()),
+			zap.String("staker", stakerAddr.Hex()))
+	}
+
+	queryReq = &qr
+
 	requestId := hex.EncodeToString(signedQueryRequest.Signature)
-	s.logger.Info("received request from client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+	s.logger.Info("received request from client", zap.String("userId", userIdentifier), zap.String("requestId", requestId))
 
 	m := gossipv1.GossipMessage{
 		Message: &gossipv1.GossipMessage_SignedQueryRequest{
@@ -141,34 +261,32 @@ func (s *httpServer) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	b, err := proto.Marshal(&m)
 	if err != nil {
-		s.logger.Error("failed to marshal gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
+		s.logger.Error("failed to marshal gossip message", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_gossip_msg").Inc()
-		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
+		invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 		return
 	}
 
-	pendingResponse := NewPendingResponse(signedQueryRequest, permEntry.userName, queryReq)
+	pendingResponse := NewPendingResponse(signedQueryRequest, userIdentifier, queryReq)
 	added := s.pendingResponses.Add(pendingResponse)
 	if !added {
-		s.logger.Info("duplicate request", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+		s.logger.Info("duplicate request", zap.String("userId", userIdentifier), zap.String("requestId", requestId))
 		http.Error(w, "Duplicate request", http.StatusBadRequest)
 		invalidQueryRequestReceived.WithLabelValues("duplicate_request").Inc()
-		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
+		invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 		return
 	}
 
-	if permEntry.logResponses {
-		s.loggingMap.AddRequest(requestId)
-	}
+	s.loggingMap.AddRequest(requestId)
 
-	s.logger.Info("posting request to gossip", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+	s.logger.Info("posting request to gossip", zap.String("userId", userIdentifier), zap.String("requestId", requestId))
 	err = s.topic.Publish(r.Context(), b)
 	if err != nil {
-		s.logger.Error("failed to publish gossip message", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(err))
+		s.logger.Error("failed to publish gossip message", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		invalidQueryRequestReceived.WithLabelValues("failed_to_publish_gossip_msg").Inc()
-		invalidRequestsByUser.WithLabelValues(permEntry.userName).Inc()
+		invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 		s.pendingResponses.Remove(pendingResponse)
 		return
 	}
@@ -179,23 +297,22 @@ outer:
 	case <-time.After(query.RequestTimeout + 5*time.Second):
 		maxMatchingResponses, outstandingResponses, quorum := pendingResponse.getStats()
 		s.logger.Info("publishing time out to client",
-			zap.String("userId", permEntry.userName),
+			zap.String("userId", userIdentifier),
 			zap.String("requestId", requestId),
 			zap.Int("maxMatchingResponses", maxMatchingResponses),
 			zap.Int("outstandingResponses", outstandingResponses),
 			zap.Int("quorum", quorum),
 		)
+		queryTimeoutsByUser.WithLabelValues(pendingResponse.userName).Inc()
 		http.Error(w, "Timed out waiting for response", http.StatusGatewayTimeout)
-		queryTimeoutsByUser.WithLabelValues(permEntry.userName).Inc()
-		failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case res := <-pendingResponse.ch:
-		s.logger.Info("publishing response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId))
+		s.logger.Info("publishing response to client", zap.String("userId", userIdentifier), zap.String("requestId", requestId))
 		resBytes, respMarshalErr := res.Response.Marshal()
 		if respMarshalErr != nil {
-			s.logger.Error("failed to marshal response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(respMarshalErr))
+			s.logger.Error("failed to marshal response", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(respMarshalErr))
 			http.Error(w, respMarshalErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
-			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			break
 		}
 		// Signature indices must be ascending for on-chain verification
@@ -209,7 +326,7 @@ outer:
 				s.logger.Error(boundsErr, zap.Int("sig.Index", sig.Index))
 				http.Error(w, boundsErr, http.StatusInternalServerError)
 				invalidQueryRequestReceived.WithLabelValues("failed_to_marshal_response").Inc()
-				failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
+				invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 				break outer
 			}
 			// ECDSA signature + a byte for the index of the guardian in the guardian set
@@ -222,30 +339,31 @@ outer:
 			Bytes:      hex.EncodeToString(resBytes),
 		})
 		if encodeErr != nil {
-			s.logger.Error("failed to encode response", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Error(encodeErr))
+			s.logger.Error("failed to encode response", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Error(encodeErr))
 			http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
 			invalidQueryRequestReceived.WithLabelValues("failed_to_encode_response").Inc()
-			failedQueriesByUser.WithLabelValues(permEntry.userName).Inc()
+			invalidRequestsByUser.WithLabelValues(userIdentifier).Inc()
 			break
 		}
-		successfulQueriesByUser.WithLabelValues(permEntry.userName).Inc()
 	case errEntry := <-pendingResponse.errCh:
-		s.logger.Info("publishing error response to client", zap.String("userId", permEntry.userName), zap.String("requestId", requestId), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
+		s.logger.Info("publishing error response to client", zap.String("userId", userIdentifier), zap.String("requestId", requestId), zap.Int("status", errEntry.status), zap.Error(errEntry.err))
 		http.Error(w, errEntry.err.Error(), errEntry.status)
 		// Metrics have already been pegged.
 		break
 	}
 
 	totalQueryTime.Observe(float64(time.Since(start).Milliseconds()))
+	successfulQueriesByUser.WithLabelValues(pendingResponse.userName).Inc()
 	validQueryRequestsReceived.Inc()
 	s.pendingResponses.Remove(pendingResponse)
 }
 
-func NewHTTPServer(addr string, t *pubsub.Topic, permissions *Permissions, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment, loggingMap *LoggingMap) *http.Server {
+func NewHTTPServer(addr string, t *pubsub.Topic, signerKey *ecdsa.PrivateKey, p *PendingResponses, logger *zap.Logger, env common.Environment, loggingMap *LoggingMap, policyProvider *queryratelimit.PolicyProvider, limitEnforcer *queryratelimit.Enforcer) *http.Server {
 	s := &httpServer{
 		topic:            t,
-		permissions:      permissions,
 		signerKey:        signerKey,
+		policyProvider:   policyProvider,
+		limitEnforcer:    limitEnforcer,
 		pendingResponses: p,
 		logger:           logger,
 		env:              env,

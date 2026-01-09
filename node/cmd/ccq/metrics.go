@@ -129,6 +129,18 @@ var (
 			Name: "ccq_server_max_concurrent_queries_by_chain",
 			Help: "Gauge showing the maximum concurrent query requests by chain",
 		}, []string{"chain_name"})
+
+	delegatedQueriesReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_server_delegated_queries_received",
+			Help: "Total number of delegated queries received (signer using staker's rate limits)",
+		})
+
+	selfStakingQueriesReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ccq_server_self_staking_queries_received",
+			Help: "Total number of self-staking queries received (signer using own stake)",
+		})
 )
 
 // getGaugeValue returns the current value of a metric.

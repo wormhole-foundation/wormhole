@@ -1,0 +1,116 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubo
+  labels:
+    app: kubo
+spec:
+  ports:
+    - port: 5001
+      name: api
+      protocol: TCP
+    - port: 8080
+      name: gateway
+      protocol: TCP
+    - port: 4001
+      name: swarm
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: kubo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kubo
+spec:
+  selector:
+    matchLabels:
+      app: kubo
+  serviceName: kubo
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kubo
+    spec:
+      volumes:
+        - name: ipfs-data
+          configMap:
+            name: ccq-rate-limits
+      containers:
+        - name: kubo
+          image: kubo-node
+          volumeMounts:
+            - name: ipfs-data
+              mountPath: /config
+              readOnly: true
+          env:
+            - name: IPFS_TELEMETRY
+              value: "off"
+          command:
+            - sh
+            - -c
+            - |
+              # Initialize IPFS in ephemeral mode (no repo persistence)
+              ipfs init --empty-repo
+
+              # Configure for local development
+              ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
+              ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+              ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+              ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["GET", "POST", "PUT"]'
+
+              # Start daemon in background to add files
+              ipfs daemon --enable-gc &
+              DAEMON_PID=$!
+
+              # Wait for daemon to be ready
+              until ipfs id > /dev/null 2>&1; do
+                echo "Waiting for IPFS daemon to start..."
+                sleep 1
+              done
+
+              # Additional wait to ensure daemon fully releases locks
+              echo "Waiting for IPFS daemon to fully initialize..."
+              sleep 3
+
+              # Add JSON data to IPFS and capture CID
+              echo "Adding rate limits to IPFS..."
+              # Use --raw-leaves so the CID is based on raw SHA-256 of the file content
+              # This allows deploy scripts to compute the hash with simple shasum -a 256
+              # Use cat to read file content (ConfigMap files are symlinks)
+              CID=$(cat /config/ccq-rate-limits.json | ipfs add -Q --raw-leaves --stdin-name ccq-rate-limits.json)
+              echo "=========================================="
+              echo "CCQ Rate Limits CID: $CID"
+              echo "=========================================="
+              echo "Access via: http://localhost:8080/ipfs/$CID"
+              echo "=========================================="
+
+              # Wait for daemon process
+              wait $DAEMON_PID
+          ports:
+            - containerPort: 5001
+              name: api
+              protocol: TCP
+            - containerPort: 8080
+              name: gateway
+              protocol: TCP
+            - containerPort: 4001
+              name: swarm
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - ipfs
+                - id
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - ipfs
+                - id
+            initialDelaySeconds: 10
+            periodSeconds: 10

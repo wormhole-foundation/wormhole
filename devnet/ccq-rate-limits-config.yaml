@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ccq-rate-limits
+data:
+  ccq-rate-limits.json: |
+    {
+      "EVM": {
+        "500": {"qps": 1},
+        "50": {"qpm": 1}
+      },
+      "Solana": {
+        "1250": {"qps": 1},
+        "125": {"qpm": 1}
+      }
+    }

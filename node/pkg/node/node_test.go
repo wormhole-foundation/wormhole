@@ -16,10 +16,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
-
-	"sync/atomic"
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -51,15 +50,19 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 )
 
-const LOCAL_RPC_PORTRANGE_START = 10000
-const LOCAL_P2P_PORTRANGE_START = 11000
-const LOCAL_STATUS_PORTRANGE_START = 12000
-const LOCAL_PUBLICWEB_PORTRANGE_START = 13000
+const (
+	LOCAL_RPC_PORTRANGE_START       = 10000
+	LOCAL_P2P_PORTRANGE_START       = 11000
+	LOCAL_STATUS_PORTRANGE_START    = 12000
+	LOCAL_PUBLICWEB_PORTRANGE_START = 13000
+)
 
 var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = "wormhole_p2p_broadcast_messages_received_total{type=\"valid_heartbeat\"}"
 
-const WAIT_FOR_LOGS = true
-const WAIT_FOR_METRICS = false
+const (
+	WAIT_FOR_LOGS    = true
+	WAIT_FOR_METRICS = false
+)
 
 // The level at which logs will be written to console; During testing, logs are produced and buffered at Info level, because some tests need to look for certain entries.
 var CONSOLE_LOG_LEVEL = zap.InfoLevel
@@ -156,7 +159,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		env := common.GoTest
 
 		// setup a mock watcher
-		var watcherConfigs = []watchers.WatcherConfig{
+		watcherConfigs := []watchers.WatcherConfig{
 			&mock.WatcherConfig{
 				NetworkID:        "mock",
 				ChainID:          vaa.ChainIDSolana,
@@ -191,7 +194,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionGovernor(true, false, ""),
 			GuardianOptionNotary(true),
 			GuardianOptionGatewayRelayer("", nil), // disable gateway relayer
-			GuardianOptionQueryHandler(false, ""), // disable queries
+			GuardianOptionQueryHandler(false),     // disable queries
 			GuardianOptionPublicRpcSocket(cfg.publicSocket, publicRpcLogDetail),
 			GuardianOptionPublicrpcTcpService(cfg.publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(cfg.publicWeb, cfg.publicSocket, "", false, ""),
@@ -279,7 +282,7 @@ func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian,
 		requests[i] = req
 	}
 
-	var httpClient = &http.Client{
+	httpClient := &http.Client{
 		Timeout: time.Second * 10,
 	}
 
@@ -374,9 +377,11 @@ func randomTime() time.Time {
 	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
-var someMsgSequenceCounter uint64 = 0
-var someMsgEmitter vaa.Address = [32]byte{1, 2, 3}
-var someMsgEmitterChain vaa.ChainID = vaa.ChainIDSolana
+var (
+	someMsgSequenceCounter uint64      = 0
+	someMsgEmitter         vaa.Address = [32]byte{1, 2, 3}
+	someMsgEmitterChain    vaa.ChainID = vaa.ChainIDSolana
+)
 
 func someMessage() *common.MessagePublication {
 	someMsgSequenceCounter++
@@ -400,7 +405,6 @@ var tokenBridgeSequenceCounter uint64 = 0
 // The transfer is of wrapped-SOL from Solana to Ethereum.
 // If shouldBeDelayed == true, then the amount will be set to 1_000_000_000_000 wSOL which should exceed the governor limit.
 func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
-
 	// buildMockTransferPayloadBytes is copied from governor_test.go.
 	buildMockTransferPayloadBytes := func(
 		tokenChainID vaa.ChainID,
@@ -474,7 +478,7 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 // waitForStatusServer queries the /readyz and /metrics endpoints at `statusAddr` every 100ms until they are online.
 // #nosec G107 -- it's OK to make http requests with `statusAddr` because `statusAddr` is trusted.
 func waitForStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string) error {
-	var httpClient = &http.Client{
+	httpClient := &http.Client{
 		Timeout: time.Second * 10,
 	}
 
@@ -1055,7 +1059,6 @@ func signMsgsEth(pk *ecdsa.PrivateKey, msgs [][]byte) [][]byte {
 
 func BenchmarkCrypto(b *testing.B) {
 	b.Run("libp2p (Ed25519)", func(b *testing.B) {
-
 		p2pKey := devnet.DeterministicP2PPrivKeyByIndex(1)
 
 		b.Run("sign", func(b *testing.B) {
@@ -1089,7 +1092,6 @@ func BenchmarkCrypto(b *testing.B) {
 			libp2p_(RSA)/verify-64		   327945 ns/op
 	*/
 	b.Run("libp2p (RSA)", func(b *testing.B) {
-
 		r := math_rand.New(math_rand.NewSource(0)) //#nosec G404 testnet / devnet keys are public knowledge
 		p2pKey, _, err := libp2p_crypto.GenerateKeyPairWithReader(libp2p_crypto.RSA, 2048, r)
 		if err != nil {
@@ -1117,7 +1119,6 @@ func BenchmarkCrypto(b *testing.B) {
 	})
 
 	b.Run("eth_crypto (secp256k1)", func(b *testing.B) {
-
 		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(0)
 
 		b.Run("sign", func(b *testing.B) {
@@ -1145,12 +1146,12 @@ func BenchmarkCrypto(b *testing.B) {
 //	go test -v -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
 func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
-	//CONSOLE_LOG_LEVEL = zap.DebugLevel
-	//CONSOLE_LOG_LEVEL = zap.InfoLevel
+	// CONSOLE_LOG_LEVEL = zap.DebugLevel
+	// CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
 	runConsensusBenchmark(b, "1", 19, 1000, 50) // ~7.5s
-	//runConsensusBenchmark(b, "1", 19, 1000, 5) // ~10s
-	//runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
+	// runConsensusBenchmark(b, "1", 19, 1000, 5) // ~10s
+	// runConsensusBenchmark(b, "1", 19, 1000, 1) // ~13s
 }
 
 func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessages uint64, maxPendingObs int) {
@@ -1289,7 +1290,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 		zapLogger.Info("Test root context cancelled, exiting...")
 
 		// wait for everything to shut down gracefully
-		//time.Sleep(time.Second * 11) // 11s is needed to gracefully shutdown libp2p, but since switching to dedicated ports per `testId`, this is no longer necessary
+		// time.Sleep(time.Second * 11) // 11s is needed to gracefully shutdown libp2p, but since switching to dedicated ports per `testId`, this is no longer necessary
 		time.Sleep(time.Second * 1) // 1s is needed to gracefully shutdown BadgerDB
 	})
 }

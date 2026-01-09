@@ -45,7 +45,7 @@ export class EthCallWithFinalityQueryRequest implements ChainSpecificQuery {
   }
 
   static from(bytes: string | Uint8Array): EthCallWithFinalityQueryRequest {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
     return this.fromReader(reader);
   }
 
@@ -75,7 +75,7 @@ export class EthCallWithFinalityQueryResponse extends EthCallQueryResponse {
   }
 
   static from(bytes: string | Uint8Array): EthCallWithFinalityQueryResponse {
-    const reader = new BinaryReader(coalesceUint8Array(bytes));
+    const reader = new BinaryReader(coalesceUint8Array(bytes).buffer);
     return this.fromReader(reader);
   }
 

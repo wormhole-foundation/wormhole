@@ -488,7 +488,6 @@ Please remember to allowlist the new NTT Accountant key for use with Wormchain! 
 ```shell
 --ccqEnabled=true \
 --ccqAllowedPeers="[ALLOWED,PEERS,GO,HERE]" \
---ccqAllowedRequesters="[ALLOWED,REQUESTORS,GO,HERE" \
 ```
 
 <!-- cspell:enable -->

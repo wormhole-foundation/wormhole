@@ -128,11 +128,12 @@ func GuardianOptionP2P(
 			)
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionQueryHandler configures the Cross Chain Query module.
-func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *GuardianOption {
+func GuardianOptionQueryHandler(ccqEnabled bool) *GuardianOption {
 	return &GuardianOption{
 		name: "query",
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
@@ -141,10 +142,13 @@ func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *Guar
 				return nil
 			}
 
+			// Rate limiting is enforced by the CCQ server before requests reach guardians.
+			// Guardians trust that requests on the gossip network have already been validated.
+			logger.Info("ccq: cross chain query is enabled", zap.String("component", "ccq"))
+
 			g.queryHandler = query.NewQueryHandler(
 				logger,
 				g.env,
-				allowedRequesters,
 				g.signedQueryReqC.readC,
 				g.chainQueryReqC,
 				g.queryResponseC.readC,
@@ -152,7 +156,8 @@ func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *Guar
 			)
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionNoAccountant disables the accountant. It is a shorthand for GuardianOptionAccountant("", "", false, nil)
@@ -163,7 +168,8 @@ func GuardianOptionNoAccountant() *GuardianOption {
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			logger.Info("accountant is disabled", zap.String("component", "gacct"))
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionAccountant configures the Accountant module.
@@ -227,7 +233,8 @@ func GuardianOptionAccountant(
 			)
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionGovernor enables or disables the governor.
@@ -241,7 +248,6 @@ func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGe
 				if flowCancelEnabled {
 					logger.Info("chain governor is enabled with flow cancel enabled")
 				} else {
-
 					logger.Info("chain governor is enabled without flow cancel")
 				}
 				if coinGeckoApiKey != "" {
@@ -252,7 +258,8 @@ func GuardianOptionGovernor(governorEnabled bool, flowCancelEnabled bool, coinGe
 				logger.Info("chain governor is disabled")
 			}
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionNotary enables or disables the Notary.
@@ -268,7 +275,8 @@ func GuardianOptionNotary(notaryEnabled bool) *GuardianOption {
 				logger.Info("notary is disabled")
 			}
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionGatewayRelayer configures the Gateway Relayer module. If the gateway relayer smart contract is configured, we will instantiate
@@ -287,7 +295,8 @@ func GuardianOptionGatewayRelayer(gatewayRelayerContract string, wormchainConn *
 			)
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionStatusServer configures the status server, including /readyz and /metrics.
@@ -344,7 +353,8 @@ func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 				}
 			}
 			return nil
-		}}
+		},
+	}
 }
 
 type IbcWatcherConfig struct {
@@ -361,7 +371,6 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 	return &GuardianOption{
 		name: "watchers",
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
-
 			chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
 
 			chainMsgC := make(map[vaa.ChainID]chan *common.MessagePublication)
@@ -463,7 +472,6 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 
 				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
-
 				if err != nil {
 					return fmt.Errorf("error creating watcher: %w", err)
 				}
@@ -513,7 +521,8 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 			go handleReobservationRequests(ctx, clock, logger, g.obsvReqC.readC, chainObsvReqC)
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionAdminService enables the admin rpc service on a unix socket.
@@ -547,7 +556,8 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 			g.runnables["admin"] = adminService
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionPublicRpcSocket enables the public rpc service on a unix socket
@@ -566,7 +576,8 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 			g.runnables["publicrpcsocket"] = publicrpcUnixService
 			g.publicrpcServer = publicrpcServer
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionPublicrpcTcpService enables the public gRPC service on TCP.
@@ -579,7 +590,8 @@ func GuardianOptionPublicrpcTcpService(publicRpc string, publicRpcLogDetail comm
 			publicrpcService := publicrpcTcpServiceRunnable(logger, publicRpc, publicRpcLogDetail, g.db, g.gst, g.gov)
 			g.runnables["publicrpc"] = publicrpcService
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionPublicWeb enables the public rpc service on http, i.e. gRPC-web and JSON-web.
@@ -593,7 +605,8 @@ func GuardianOptionPublicWeb(listenAddr string, publicGRPCSocketPath string, tls
 				tlsHostname, tlsProdEnv, tlsCacheDir)
 			g.runnables["publicweb"] = publicwebService
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionDatabase configures the main database to be used for this guardian node.
@@ -604,7 +617,8 @@ func GuardianOptionDatabase(db *guardianDB.Database) *GuardianOption {
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			g.db = db
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionAlternatePublisher enables the alternate publisher if it is configured.
@@ -613,7 +627,6 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 		name: "alternate-publisher",
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
-
 			var err error
 			g.alternatePublisher, err = altpub.NewAlternatePublisher(logger, guardianAddr, configs)
 			if err != nil {
@@ -625,7 +638,8 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 			}
 
 			return nil
-		}}
+		},
+	}
 }
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
@@ -637,7 +651,6 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor", "notary"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
-
 			g.runnables["processor"] = processor.NewProcessor(ctx,
 				g.db,
 				g.msgC.readC,
@@ -659,7 +672,8 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 			).Run
 
 			return nil
-		}}
+		},
+	}
 }
 
 // getStaticFeatureFlags creates the list of feature flags that do not change after initialization and adds them to the ones passed in.
