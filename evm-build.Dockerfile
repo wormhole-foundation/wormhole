@@ -1,4 +1,4 @@
-FROM ghcr.io/foundry-rs/foundry:v1.3.4@sha256:3afb57dcd8f06e098d643d04e0b541ef83a1edf94c0a80ea5e89329ec50ccd92 AS builder
+FROM ghcr.io/foundry-rs/foundry:v1.5.1@sha256:3a70bfa9bd2c732a767bb60d12c8770b40e8f9b6cca28efc4b12b1be81c7f28e AS builder
 
 # Foundry image runs as foundry user by default
 # We need root to both run apt and to write files to the filesystem
@@ -12,6 +12,11 @@ COPY foundry.toml foundry.toml
 COPY --link lib/wormhole-solidity-sdk lib/wormhole-solidity-sdk
 COPY --link src/evm src/evm
 
+# forge logs "errors" and warnings to the standard output
+# Luckily, the only warning here is that forge's solidity compiler cache is missing.
+# However, we need to drop it to have a valid JSON.
+# See https://github.com/foundry-rs/foundry/issues/13034
+
 # Prepare compiler input. NOTE: jq must be pre-applied to "clean" the output from forge.
 # Otherwise solc aborts with duplicated key/newline problems.
 
@@ -19,6 +24,7 @@ RUN forge verify-contract \
   --show-standard-json-input \
   0x0000000000000000000000000000000000000000 \
   src/evm/WormholeVerifier.sol:WormholeVerifier \
+  | sed '1d' \
   | jq '.' > WormholeVerifier.input.json
 
 # Get compiler according to forge configuration (foundry.toml specified)
