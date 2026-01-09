@@ -44,7 +44,7 @@ spec:
       serviceAccountName: delegated-guardian-setup
       containers:
         - name: setup
-          image: debian:bullseye-slim
+          image: debian:bookworm-slim
           command:
             - /bin/bash
             - -c
