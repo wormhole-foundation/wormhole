@@ -504,6 +504,8 @@ if require_per_guardian_config:
     
     delegated_setup_yaml = read_yaml_stream("devnet/delegated-guardian-setup.yaml")
     
+    job_web_host = "guardian-0.guardian"
+    
     for obj in delegated_setup_yaml:
         if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "delegated-guardian-script":
             obj["data"]["delegated-guardian-set-preset.sh"] = script_content
@@ -515,7 +517,7 @@ if require_per_guardian_config:
                         if env_var["name"] == "DELEGATED_CONFIG":
                             env_var["value"] = encode_json(active_delegated_config)
                         elif env_var["name"] == "WEB_HOST":
-                            env_var["value"] = webHost
+                            env_var["value"] = job_web_host
                         elif env_var["name"] == "NAMESPACE":
                             env_var["value"] = namespace
     
