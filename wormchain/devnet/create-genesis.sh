@@ -41,7 +41,7 @@ fi
 if [ $NUM_GUARDIANS -ge 3 ]; then
   echo "number of guardians is >= 3, adding third guardian (reusing wormchain-1 validator)."
   # Guardian-2 will use the same validator as wormchain-1
-  guardianKey="M6R6tuxftYIhPk+sb8FxJuiVUMr4rkT33eoe7r77i4g="
+  guardianKey="WAdvVhzGKkcIe1Z8hvmGQm380AA="  # Guardian signing key for guardian-2 (0x58076f561cc62a47087b567c86f986426dfcd000)
   validatorAddr="cBxHWxmj9o0/3r8JWRSH+s7y1jY="  # Reuse wormchain-1's validator address
 
   # add the guardianKey to guardianSetList.keys.
