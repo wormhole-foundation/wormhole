@@ -1268,7 +1268,7 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Read and validate the shard data
       bytes memory shardData;
-      (shardData, offset) = data.sliceMemUnchecked(offset, uint256(shardCount) * 96);
+      (shardData, offset) = data.sliceMemUnchecked(offset, uint256(shardCount) * 3 * LENGTH_WORD);
 
       /// forge-lint: disable-next-line(asm-keccak256)
       bytes32 expectedHash = keccak256(shardData);
@@ -1432,7 +1432,8 @@ contract WormholeVerifier is EIP712Encoding {
 
   function _getSchnorrShardDataExport(uint32 index) internal view returns (uint8 shardCount, bytes memory shardData) {
     (, shardCount,) = _getSchnorrExtraData(index);
-    shardData = new bytes(shardCount * 96); // 32 bytes for the shard + 64 for the ID (32 bytes each for the X and Y components of the public key)
+    // 32 bytes for the shard + 64 for the ID (32 bytes each for the X and Y components of the public key)
+    shardData = new bytes(shardCount * 3 * LENGTH_WORD);
 
     for (uint8 i = 0; i < shardCount; ++i) {
       uint256 thriceIndex = i * 3; // To adjust for the fact that we're storing 3 words
