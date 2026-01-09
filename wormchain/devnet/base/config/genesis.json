@@ -1,99 +1,122 @@
 {
+  "genesis_time": "2022-09-27T22:08:43.044644477Z",
+  "chain_id": "wormchain",
+  "initial_height": "1",
+  "consensus_params": {
+    "block": {
+      "max_bytes": "22020096",
+      "max_gas": "-1",
+      "time_iota_ms": "1000"
+    },
+    "evidence": {
+      "max_age_num_blocks": "100000",
+      "max_age_duration": "172800000000000",
+      "max_bytes": "1048576"
+    },
+    "validator": {
+      "pub_key_types": ["ed25519"]
+    },
+    "version": {}
+  },
   "app_hash": "",
   "app_state": {
     "auth": {
+      "params": {
+        "max_memo_characters": "256",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000"
+      },
       "accounts": [
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1h6v7cku5w803pf563czepx5s32vrzz5cntj9k4",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "account_number": "0",
           "address": "wormhole1g25zz7gyuyh6chuejc3ppfemgfla4xpsm69lzq",
           "pub_key": null,
+          "account_number": "0",
           "sequence": "0"
         }
-      ],
-      "params": {
-        "max_memo_characters": "256",
-        "sig_verify_cost_ed25519": "590",
-        "sig_verify_cost_secp256k1": "1000",
-        "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10"
-      }
+      ]
     },
     "bank": {
+      "params": {
+        "send_enabled": [],
+        "default_send_enabled": true
+      },
       "balances": [
         {
           "address": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr",
           "coins": [
             {
-              "amount": "100000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000"
             },
             {
-              "amount": "1000000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "1000000000"
             }
           ]
         },
@@ -101,12 +124,12 @@
           "address": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -114,12 +137,12 @@
           "address": "wormhole14vtqhv6550uh6gycxxum8qmx3kmy7ak2qwzecx",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -127,12 +150,12 @@
           "address": "wormhole1s5a6dg9p902z5rhjgkk0ts8lulvtmhmpftasxe",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -140,12 +163,12 @@
           "address": "wormhole1dtwappgz4zfmlhay44x5r787u6ap0zhrk2m09m",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -153,12 +176,12 @@
           "address": "wormhole1karc53cm5zyyaeqsw9stmjvu0vwzky7k07lhwm",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -166,12 +189,12 @@
           "address": "wormhole1cdvy8ae9xgmfjj4pztz77dwqm4wa04glz68r5w",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -179,12 +202,12 @@
           "address": "wormhole18s5lynnmx37hq4wlrw9gdn68sg2uxp5rwf5k3u",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -192,12 +215,12 @@
           "address": "wormhole1h6v7cku5w803pf563czepx5s32vrzz5cntj9k4",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         },
@@ -205,61 +228,57 @@
           "address": "wormhole1g25zz7gyuyh6chuejc3ppfemgfla4xpsm69lzq",
           "coins": [
             {
-              "amount": "100000000000",
-              "denom": "utest"
+              "denom": "utest",
+              "amount": "100000000000"
             },
             {
-              "amount": "200000000",
-              "denom": "uworm"
+              "denom": "uworm",
+              "amount": "200000000"
             }
           ]
         }
       ],
+      "supply": [],
       "denom_metadata": [
         {
-          "base": "utest",
+          "description": "Wormchain's native test asset",
           "denom_units": [
             {
-              "aliases": [],
               "denom": "utest",
-              "exponent": 0
+              "exponent": 0,
+              "aliases": []
             },
             {
-              "aliases": [],
               "denom": "test",
-              "exponent": 6
+              "exponent": 6,
+              "aliases": []
             }
           ],
-          "description": "Wormchain's native test asset",
+          "base": "utest",
           "display": "test",
           "name": "Test Coin",
           "symbol": "TEST"
         },
         {
-          "base": "uworm",
+          "description": "Wormchain's native staking asset",
           "denom_units": [
             {
-              "aliases": [],
               "denom": "uworm",
-              "exponent": 0
+              "exponent": 0,
+              "aliases": []
             },
             {
-              "aliases": [],
               "denom": "worm",
-              "exponent": 6
+              "exponent": 6,
+              "aliases": []
             }
           ],
-          "description": "Wormchain's native staking asset",
+          "base": "uworm",
           "display": "worm",
           "name": "Worm Coin",
           "symbol": "WORM"
         }
-      ],
-      "params": {
-        "default_send_enabled": true,
-        "send_enabled": []
-      },
-      "supply": []
+      ]
     },
     "capability": {
       "index": "1",
@@ -299,122 +318,122 @@
     "genutil": {
       "gen_txs": [
         {
+          "body": {
+            "messages": [
+              {
+                "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
+                "description": {
+                  "moniker": "wormchain-1",
+                  "identity": "",
+                  "website": "",
+                  "security_contact": "",
+                  "details": ""
+                },
+                "commission": {
+                  "rate": "0.100000000000000000",
+                  "max_rate": "0.200000000000000000",
+                  "max_change_rate": "0.010000000000000000"
+                },
+                "min_self_delegation": "0",
+                "delegator_address": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr",
+                "validator_address": "wormholevaloper1wqwywkce50mg6077huy4j9y8lt80943kxgr79y",
+                "pubkey": {
+                  "@type": "/cosmos.crypto.ed25519.PubKey",
+                  "key": "Zcujkt1sXRWWLfhgxLAm/Q+ioLn4wFim0OnGPLlCG0I="
+                },
+                "value": {
+                  "denom": "uworm",
+                  "amount": "0"
+                }
+              }
+            ],
+            "memo": "80f4cf2666a9b9237f2841914e990bb22bc5bd2a@wormchain-1:26656",
+            "timeout_height": "0",
+            "extension_options": [],
+            "non_critical_extension_options": []
+          },
           "auth_info": {
-            "fee": {
-              "amount": [],
-              "gas_limit": "200000",
-              "granter": "",
-              "payer": ""
-            },
             "signer_infos": [
               {
+                "public_key": {
+                  "@type": "/cosmos.crypto.secp256k1.PubKey",
+                  "key": "ApJi/CY2RGyzA5cQtDwU9c+o7T8OE+SjrgcG5PwLMjTP"
+                },
                 "mode_info": {
                   "single": {
                     "mode": "SIGN_MODE_DIRECT"
                   }
                 },
-                "public_key": {
-                  "@type": "/cosmos.crypto.secp256k1.PubKey",
-                  "key": "ApJi/CY2RGyzA5cQtDwU9c+o7T8OE+SjrgcG5PwLMjTP"
-                },
                 "sequence": "0"
               }
-            ]
-          },
-          "body": {
-            "extension_options": [],
-            "memo": "80f4cf2666a9b9237f2841914e990bb22bc5bd2a@wormchain-1:26656",
-            "messages": [
-              {
-                "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
-                "commission": {
-                  "max_change_rate": "0.010000000000000000",
-                  "max_rate": "0.200000000000000000",
-                  "rate": "0.100000000000000000"
-                },
-                "delegator_address": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr",
-                "description": {
-                  "details": "",
-                  "identity": "",
-                  "moniker": "wormchain-1",
-                  "security_contact": "",
-                  "website": ""
-                },
-                "min_self_delegation": "0",
-                "pubkey": {
-                  "@type": "/cosmos.crypto.ed25519.PubKey",
-                  "key": "Zcujkt1sXRWWLfhgxLAm/Q+ioLn4wFim0OnGPLlCG0I="
-                },
-                "validator_address": "wormholevaloper1wqwywkce50mg6077huy4j9y8lt80943kxgr79y",
-                "value": {
-                  "amount": "0",
-                  "denom": "uworm"
-                }
-              }
             ],
-            "non_critical_extension_options": [],
-            "timeout_height": "0"
+            "fee": {
+              "amount": [],
+              "gas_limit": "200000",
+              "payer": "",
+              "granter": ""
+            }
           },
           "signatures": [
             "sxQr6kBBRT144+FH0RoLVC+Si0yNdXn+zfIUdGTvA0AjnF1k93M9L+A+0QDDkXv+BwclKGV3LJRq4lVnYFnwVQ=="
           ]
         },
         {
+          "body": {
+            "messages": [
+              {
+                "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
+                "description": {
+                  "moniker": "wormchain-0",
+                  "identity": "",
+                  "website": "",
+                  "security_contact": "",
+                  "details": ""
+                },
+                "commission": {
+                  "rate": "0.100000000000000000",
+                  "max_rate": "0.200000000000000000",
+                  "max_change_rate": "0.010000000000000000"
+                },
+                "min_self_delegation": "0",
+                "delegator_address": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
+                "validator_address": "wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8",
+                "pubkey": {
+                  "@type": "/cosmos.crypto.ed25519.PubKey",
+                  "key": "fnfoo/C+i+Ng1J8vct6wfvrTS9JeNIG5UeO87ZHKMkY="
+                },
+                "value": {
+                  "denom": "uworm",
+                  "amount": "0"
+                }
+              }
+            ],
+            "memo": "90ea40bee73abfda5226a0e8ddb18b0e324d2a29@wormchain-0:26656",
+            "timeout_height": "0",
+            "extension_options": [],
+            "non_critical_extension_options": []
+          },
           "auth_info": {
-            "fee": {
-              "amount": [],
-              "gas_limit": "200000",
-              "granter": "",
-              "payer": ""
-            },
             "signer_infos": [
               {
+                "public_key": {
+                  "@type": "/cosmos.crypto.secp256k1.PubKey",
+                  "key": "AuwYyCUBxQiBGSUWebU46c+OrlApVsyGLHd4qhSDZeiG"
+                },
                 "mode_info": {
                   "single": {
                     "mode": "SIGN_MODE_DIRECT"
                   }
                 },
-                "public_key": {
-                  "@type": "/cosmos.crypto.secp256k1.PubKey",
-                  "key": "AuwYyCUBxQiBGSUWebU46c+OrlApVsyGLHd4qhSDZeiG"
-                },
                 "sequence": "0"
               }
-            ]
-          },
-          "body": {
-            "extension_options": [],
-            "memo": "90ea40bee73abfda5226a0e8ddb18b0e324d2a29@wormchain-0:26656",
-            "messages": [
-              {
-                "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
-                "commission": {
-                  "max_change_rate": "0.010000000000000000",
-                  "max_rate": "0.200000000000000000",
-                  "rate": "0.100000000000000000"
-                },
-                "delegator_address": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq",
-                "description": {
-                  "details": "",
-                  "identity": "",
-                  "moniker": "wormchain-0",
-                  "security_contact": "",
-                  "website": ""
-                },
-                "min_self_delegation": "0",
-                "pubkey": {
-                  "@type": "/cosmos.crypto.ed25519.PubKey",
-                  "key": "fnfoo/C+i+Ng1J8vct6wfvrTS9JeNIG5UeO87ZHKMkY="
-                },
-                "validator_address": "wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8",
-                "value": {
-                  "amount": "0",
-                  "denom": "uworm"
-                }
-              }
             ],
-            "non_critical_extension_options": [],
-            "timeout_height": "0"
+            "fee": {
+              "amount": [],
+              "gas_limit": "200000",
+              "payer": "",
+              "granter": ""
+            }
           },
           "signatures": [
             "VOqIY9svWR9qEQsLcONbM1fehnt/Uo5hwYO8UcNyru1XE1/3OIgFI9guEsEb+jErW224KBWrFqO0FjUt+j82rQ=="
@@ -463,10 +482,7 @@
         "create_localhost": false,
         "next_client_sequence": "0",
         "params": {
-          "allowed_clients": [
-            "06-solomachine",
-            "07-tendermint"
-          ]
+          "allowed_clients": ["06-solomachine", "07-tendermint"]
         }
       },
       "connection_genesis": {
@@ -531,17 +547,17 @@
     "upgrade": {},
     "vesting": {},
     "wasm": {
-      "codes": [],
-      "contracts": [],
-      "gen_msgs": [],
       "params": {
         "code_upload_access": {
-          "address": "",
-          "permission": "Everybody"
+          "permission": "Everybody",
+          "address": ""
         },
         "instantiate_default_permission": "Everybody"
       },
-      "sequences": []
+      "codes": [],
+      "contracts": [],
+      "sequences": [],
+      "gen_msgs": []
     },
     "wormhole": {
       "config": {
@@ -555,52 +571,20 @@
       },
       "guardianSetList": [
         {
-          "expirationTime": 0,
-          "index": 0,
           "keys": [
-            "vvpCnVfNGLf4pNkaLamrSvBdD74=",
-            "iNfYsyqRBdIoEA5y3/4vrgcF0xw=",
-            "WAdvVhzGKkcIe1Z8hvmGQm380AA="
-          ]
+            "vvpCnVfNGLf4pNkaLamrSvBdD74="
+          ],
+          "expirationTime": "0"
         }
       ],
       "guardianValidatorList": [
         {
           "guardianKey": "vvpCnVfNGLf4pNkaLamrSvBdD74=",
           "validatorAddr": "wQggmD8zRWznvrOgRvWoP6NPAn0="
-        },
-        {
-          "guardianKey": "iNfYsyqRBdIoEA5y3/4vrgcF0xw=",
-          "validatorAddr": "cBxHWxmj9o0/3r8JWRSH+s7y1jY="
-        },
-        {
-          "guardianKey": "WAdvVhzGKkcIe1Z8hvmGQm380AA=",
-          "validatorAddr": "cBxHWxmj9o0/3r8JWRSH+s7y1jY="
         }
       ],
       "replayProtectionList": [],
       "sequenceCounterList": []
     }
-  },
-  "chain_id": "wormchain",
-  "consensus_params": {
-    "block": {
-      "max_bytes": "22020096",
-      "max_gas": "-1",
-      "time_iota_ms": "1000"
-    },
-    "evidence": {
-      "max_age_duration": "172800000000000",
-      "max_age_num_blocks": "100000",
-      "max_bytes": "1048576"
-    },
-    "validator": {
-      "pub_key_types": [
-        "ed25519"
-      ]
-    },
-    "version": {}
-  },
-  "genesis_time": "2022-09-27T22:08:43.044644477Z",
-  "initial_height": "1"
+  }
 }
