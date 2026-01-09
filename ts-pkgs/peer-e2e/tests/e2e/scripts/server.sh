@@ -15,7 +15,7 @@ docker build --tag peer-server \
   --progress=plain ../../../..
 
 # Wait until anvil starts listening
-until docker logs anvil-with-verifier 2>/dev/null | grep Listening
+until test -n "${ETHEREUM_RPC_URL}"
 do
   sleep 1
 done

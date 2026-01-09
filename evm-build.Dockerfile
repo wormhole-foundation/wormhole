@@ -3,7 +3,7 @@ FROM ghcr.io/foundry-rs/foundry:v1.5.1@sha256:3a70bfa9bd2c732a767bb60d12c8770b40
 # Foundry image runs as foundry user by default
 # We need root to both run apt and to write files to the filesystem
 USER root
-RUN apt-get update && apt-get install --no-install-recommends --yes jq wget
+RUN apt-get --quiet update && apt-get --quiet --no-install-recommends --yes install jq wget
 USER foundry
 
 # Preflight
