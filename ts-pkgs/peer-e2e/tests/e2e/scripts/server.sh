@@ -15,9 +15,16 @@ docker build --tag peer-server \
   --progress=plain ../../../..
 
 # Wait until anvil starts listening
-until test -n "${ETHEREUM_RPC_URL}"
-do
-  sleep 1
-done
+docker run --rm --network=dkg-test --env ETHEREUM_RPC_URL ghcr.io/foundry-rs/foundry:v1.5.1@sha256:3a70bfa9bd2c732a767bb60d12c8770b40e8f9b6cca28efc4b12b1be81c7f28e sh -lc '
+  deadline=$((SECONDS+60))
+  until cast block-number --rpc-url "$ETHEREUM_RPC_URL" >/dev/null 2>&1; do
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      echo "Timed out waiting for $ETHEREUM_RPC_URL" >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+'
+
 
 docker run --rm --network=dkg-test --name peer-server peer-server
