@@ -66,7 +66,8 @@ uint256 constant LENGTH_WORD = 0x20;
 
 struct ShardData {
   bytes32 shard;
-  bytes32 id;
+  bytes32 pubKeyX;
+  bytes32 pubKeyY;
 }
 
 abstract contract VerificationMessageBuilder {
@@ -92,7 +93,8 @@ abstract contract VerificationMessageBuilder {
   // NOTE: This will destroy the original shard data array's length
   function shardDataToBytes(ShardData[] memory shards) internal pure returns (bytes memory result) {
     assembly ("memory-safe") {
-      mstore(result, shl(6, mload(shards)))
+      result := shards
+      mstore(shards, mul(mload(shards), 96))
     }
   }
 
@@ -186,10 +188,12 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
     WormholeVerifier wormholeVerifier,
     uint32 keyIndex,
     uint32 nonce,
-    bytes32 shardId,
+    bytes32 pubKeyX,
+    bytes32 pubKeyY,
     uint8 signerIndex,
     uint256 privateKey
   ) internal view returns (bytes memory signedMessage) {
+    bytes32 shardId = keccak256(abi.encode(pubKeyX, pubKeyY));
     bytes32 digest = wormholeVerifier.getRegisterGuardianDigest(keyIndex, nonce, shardId);
 
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
@@ -197,7 +201,8 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
     return abi.encodePacked(
       keyIndex,
       nonce,
-      shardId,
+      pubKeyX,
+      pubKeyY,
       signerIndex,
       r,
       s,
@@ -349,11 +354,14 @@ abstract contract VerificationTestAPI is Test, VerificationMessageBuilder {
 
     for (uint i = 0; i < shards; ++i) {
       bytes32 shard;
-      bytes32 id;
-      (shard, newOffset) = result.asBytes32MemUnchecked(newOffset);
-      (id,    newOffset) = result.asBytes32MemUnchecked(newOffset);
-      shardData[i].shard = shard;
-      shardData[i].id = id;
+      bytes32 pubKeyX;
+      bytes32 pubKeyY;
+      (shard,   newOffset) = result.asBytes32MemUnchecked(newOffset);
+      (pubKeyX, newOffset) = result.asBytes32MemUnchecked(newOffset);
+      (pubKeyY, newOffset) = result.asBytes32MemUnchecked(newOffset);
+      shardData[i].shard   = shard;
+      shardData[i].pubKeyX = pubKeyX;
+      shardData[i].pubKeyY = pubKeyY;
     }
     assertGe(result.length, newOffset);
   }
@@ -650,12 +658,13 @@ contract TestWormholeVerifierBenchmark is VerificationTestAPI {
     for (uint256 i = 0; i < SHARD_COUNT; i++) {
       schnorrShards[i] = ShardData({
         shard: bytes32(vm.randomUint()),
-        id: bytes32(vm.randomUint())
+        pubKeyX: bytes32(vm.randomUint()),
+        pubKeyY: bytes32(vm.randomUint())
       });
     }
 
     schnorrShardsRaw = shardDataToBytes(schnorrShards);
-    require(schnorrShardsRaw.length == SHARD_COUNT*64);
+    require(schnorrShardsRaw.length == SHARD_COUNT*96);
 
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
     bytes memory appendSchnorrKeyMessage1 = newAppendSchnorrKeyMessage(0, 0, schnorrPublicKeys[0], 0, schnorrShardDataHash);
@@ -683,35 +692,55 @@ contract TestWormholeVerifierBenchmark is VerificationTestAPI {
   }
 
   function test_updateShardId_success() public {
-    bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
+    uint32 keyIndex = 1;
+    uint32 nonce = 1;
+    bytes32 pubKeyX = bytes32(vm.randomUint());
+    bytes32 pubKeyY = bytes32(vm.randomUint());
+    uint8 signerIndex = 0;
+    bytes memory signedMessage = signUpdateShardIdMessage(
+      _wormholeVerifierV2, 
+      keyIndex, 
+      nonce, 
+      pubKeyX,
+      pubKeyY, 
+      signerIndex, 
+      guardianPrivateKeys[0]
+    );
+
+    vm.expectEmit(true, true, false, false);
+    emit WormholeVerifier.ShardIdUpdated(keyIndex, signerIndex, bytes32(uint256(0)), bytes32(uint256(0)), pubKeyX, pubKeyY);
+
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidKeyIndex() public {
-    bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 2, 1, id, 0, guardianPrivateKeys[0]);
+    bytes32 pubKeyX = bytes32(vm.randomUint());
+    bytes32 pubKeyY = bytes32(vm.randomUint());
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 2, 1, pubKeyX, pubKeyY, 0, guardianPrivateKeys[0]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_INVALID_SCHNORR_KEY_INDEX | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidNonce() public {
-    bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[0]);
-    vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED | 0x6C));
+    bytes32 pubKeyX = bytes32(vm.randomUint());
+    bytes32 pubKeyY = bytes32(vm.randomUint());
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, pubKeyX, pubKeyY, 0, guardianPrivateKeys[0]);
+    vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_NONCE_ALREADY_CONSUMED | 0x8C));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage, UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidSignerIndex() public {
-    bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0xFF, guardianPrivateKeys[0]);
+    bytes32 pubKeyX = bytes32(vm.randomUint());
+    bytes32 pubKeyY = bytes32(vm.randomUint());
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, pubKeyX, pubKeyY, 0xFF, guardianPrivateKeys[0]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_INVALID_SIGNER_INDEX | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
 
   function test_updateShardIdInvalidSignature() public {
-    bytes32 id = bytes32(vm.randomUint());
-    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, id, 0, guardianPrivateKeys[1]);
+    bytes32 pubKeyX = bytes32(vm.randomUint());
+    bytes32 pubKeyY = bytes32(vm.randomUint());
+    bytes memory signedMessage = signUpdateShardIdMessage(_wormholeVerifierV2, 1, 1, pubKeyX, pubKeyY, 0, guardianPrivateKeys[1]);
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.UpdateFailed.selector, MASK_UPDATE_RESULT_SIGNATURE_MISMATCH | 1));
     _wormholeVerifierV2.update(abi.encodePacked(UPDATE_SET_SHARD_ID, signedMessage));
   }
@@ -936,12 +965,13 @@ contract TestWormholeVerifier is VerificationTestAPI {
     for (uint256 i = 0; i < SHARD_COUNT; i++) {
       schnorrShards[i] = ShardData({
         shard: bytes32(vm.randomUint()),
-        id: bytes32(vm.randomUint())
+        pubKeyX: bytes32(vm.randomUint()),
+        pubKeyY: bytes32(vm.randomUint())
       });
     }
 
     schnorrShardsRaw = shardDataToBytes(schnorrShards);
-    require(schnorrShardsRaw.length == SHARD_COUNT*64);
+    require(schnorrShardsRaw.length == SHARD_COUNT*96);
 
     bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
     bytes memory appendSchnorrKeyMessage1 = newAppendSchnorrKeyMessage(0, 0, PK1, 0, schnorrShardDataHash);
@@ -999,6 +1029,8 @@ contract TestWormholeVerifier is VerificationTestAPI {
   // V1 codepaths
 
   function test_pullGuardianSets_pullsOne() public {
+    vm.expectEmit(true, true, false, false);
+    emit WormholeVerifier.MultisigKeyDataPulled(0, 0);
     pullGuardianSets(_wormholeVerifierV2, 1);
   }
 
@@ -1115,7 +1147,10 @@ contract TestWormholeVerifier is VerificationTestAPI {
   // V2 codepaths
 
   function test_appendSchnorrKey() public {
+    bytes32 schnorrShardDataHash = keccak256(schnorrShardsRaw);
     pullGuardianSets(_wormholeVerifierV2, 1);
+    vm.expectEmit(true, false, false, false);
+    emit WormholeVerifier.SchnorrKeyAdded(0, PK1, schnorrShardDataHash);
     appendSchnorrKey(_wormholeVerifierV2, appendSchnorrKeyVaa1, schnorrShardsRaw);
   }
 
@@ -1252,18 +1287,21 @@ contract TestWormholeVerifier is VerificationTestAPI {
     (
       ShardData[] memory shards,
     ) = decodeShardData(result, 0);
-    uint256 shardCount = schnorrShardsRaw.length / (LENGTH_WORD * 2);
+    uint256 shardCount = schnorrShardsRaw.length / (LENGTH_WORD * 3);
     assertEq(shards.length, shardCount);
 
     uint256 offset = 0;
     for (uint i = 0; i < shardCount; ++i) {
       bytes32 shard;
-      bytes32 id;
+      bytes32 pubKeyX;
+      bytes32 pubKeyY;
       (shard, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
-      (id,    offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+      (pubKeyX, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+      (pubKeyY, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
 
-      assertEq(shard, shards[i].shard);
-      assertEq(id,    shards[i].id);
+      assertEq(shard,   shards[i].shard);
+      assertEq(pubKeyX, shards[i].pubKeyX);
+      assertEq(pubKeyY, shards[i].pubKeyY);
     }
   }
 
@@ -1278,19 +1316,22 @@ contract TestWormholeVerifier is VerificationTestAPI {
       uint32             readSchnorrKeyIndex,
       ShardData[] memory shards,
     ) = decodeCurrentShardData(result, 0);
-    uint256 shardCount = schnorrShardsRaw.length / (LENGTH_WORD * 2);
+    uint256 shardCount = schnorrShardsRaw.length / (LENGTH_WORD * 3);
     assertEq(shards.length, shardCount);
     assertEq(schnorrKeyIndex, readSchnorrKeyIndex);
 
     uint256 offset = 0;
     for (uint i = 0; i < shardCount; ++i) {
       bytes32 shard;
-      bytes32 id;
+      bytes32 pubKeyX;
+      bytes32 pubKeyY;
       (shard, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
-      (id,    offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+      (pubKeyX, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
+      (pubKeyY, offset) = schnorrShardsRaw.asBytes32MemUnchecked(offset);
 
-      assertEq(shard, shards[i].shard);
-      assertEq(id,    shards[i].id);
+      assertEq(shard,   shards[i].shard);
+      assertEq(pubKeyX, shards[i].pubKeyX);
+      assertEq(pubKeyY, shards[i].pubKeyY);
     }
   }
 

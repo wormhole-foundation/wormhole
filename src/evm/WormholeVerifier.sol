@@ -243,6 +243,11 @@ contract WormholeVerifier is EIP712Encoding {
   error UnknownGuardianSet(uint32 index);
   error GovernanceVaaVerificationFailure();
 
+  // Update events
+  event ShardIdUpdated(uint32 indexed schnorrKeyIndex, uint8 indexed signerIndex, bytes32 oldPubKeyX, bytes32 oldPubKeyY, bytes32 newPubKeyX, bytes32 newPubKeyY);
+  event SchnorrKeyAdded(uint32 indexed newSchnorrKeyIndex, uint256 newSchnorrKey, bytes32 initialShardDataHash);
+  event MultisigKeyDataPulled(uint256 indexed newMultisigKeyIndex, uint256 indexed oldMultisigKeyIndex);
+
   // We don't make this immutable to keep bytecode verification from build simple.
   // It's only used in cold execution paths like governance operations.
   ICoreBridge private _coreBridge;
@@ -1129,7 +1134,11 @@ contract WormholeVerifier is EIP712Encoding {
   function _updateShardId(bytes calldata data, uint256 offset) internal returns (uint256 newOffset) {
     uint32 schnorrKeyIndex;
     uint32 nonce;
-    bytes32 shardId;
+
+    // ShardId Components
+    bytes32 pubKeyX;
+    bytes32 pubKeyY;
+    
     uint8 signerIndex;
     bytes32 r;
     bytes32 s;
@@ -1138,7 +1147,8 @@ contract WormholeVerifier is EIP712Encoding {
     uint256 baseOffset = offset;
     (schnorrKeyIndex, offset) = data.asUint32CdUnchecked(offset);
     (nonce, offset) = data.asUint32CdUnchecked(offset);
-    (shardId, offset) = data.asBytes32CdUnchecked(offset);
+    (pubKeyX, offset) = data.asBytes32CdUnchecked(offset);
+    (pubKeyY, offset) = data.asBytes32CdUnchecked(offset);
     (signerIndex, r, s, v, offset) = data.decodeGuardianSignatureCdUnchecked(offset);
 
     // We only allow registrations for the current threshold key
@@ -1155,14 +1165,19 @@ contract WormholeVerifier is EIP712Encoding {
     // Verify the signature
     // We're not doing replay protection with the signature itself so we don't care about
     // verifying only canonical (low s) signatures.
+    bytes32 shardId = keccak256(abi.encode(pubKeyX, pubKeyY));
     bytes32 digest = getRegisterGuardianDigest(schnorrKeyIndex, nonce, shardId);
     address signatory = ecrecover(digest, v, r, s);
     require(signatory == expected, UpdateFailed(baseOffset | MASK_UPDATE_RESULT_SIGNATURE_MISMATCH));
 
     _useUnorderedNonce(schnorrKeyIndex, signerIndex, nonce, baseOffset);
 
+    (bytes32 oldPubKeyX, bytes32 oldPubKeyY) = _getSchnorrShardId(schnorrKeyIndex, signerIndex);
+
     // Store the shard ID
-    _setSchnorrShardId(schnorrKeyIndex, signerIndex, shardId);
+    _setSchnorrShardId(schnorrKeyIndex, signerIndex, pubKeyX, pubKeyY);
+    
+    emit ShardIdUpdated(schnorrKeyIndex, signerIndex, oldPubKeyX, oldPubKeyY, pubKeyX, pubKeyY);
 
     return offset;
   }
@@ -1253,7 +1268,7 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Read and validate the shard data
       bytes memory shardData;
-      (shardData, offset) = data.sliceMemUnchecked(offset, uint256(shardCount) << 6);
+      (shardData, offset) = data.sliceMemUnchecked(offset, uint256(shardCount) * 3 * LENGTH_WORD);
 
       /// forge-lint: disable-next-line(asm-keccak256)
       bytes32 expectedHash = keccak256(shardData);
@@ -1264,6 +1279,7 @@ contract WormholeVerifier is EIP712Encoding {
 
       // Bounds check on data read
       require(offset == data.length, UpdateFailed(offset | MASK_UPDATE_RESULT_INVALID_DATA_LENGTH));
+      emit SchnorrKeyAdded(newSchnorrKeyIndex, newSchnorrKey, initialShardDataHash);
     }
   }
 
@@ -1295,6 +1311,9 @@ contract WormholeVerifier is EIP712Encoding {
         GuardianSet memory guardians = _coreBridge.getGuardianSet(uint32(i));
         _appendMultisigKeyData(guardians.keys, guardians.expirationTime);
       }
+
+      uint256 newMultisigKeyIndex = upper - 1;
+      emit MultisigKeyDataPulled(newMultisigKeyIndex, currentMultisigKeyIndex);
     }
   }
 
@@ -1393,6 +1412,14 @@ contract WormholeVerifier is EIP712Encoding {
     }
   }
 
+  function _getSchnorrShardId(uint32 keyIndex, uint8 signerIndex) internal view returns (bytes32 pubKeyX, bytes32 pubKeyY) {
+    uint256 shardIdSlot = _slotShardMapId(keyIndex, signerIndex);
+    assembly ("memory-safe") {
+      pubKeyX := sload(shardIdSlot)
+      pubKeyY := sload(add(shardIdSlot, 1))
+    }
+  }
+
   function _getSchnorrExtraData(uint32 index) internal view returns (uint32 expirationTime, uint8 shardCount, uint32 multisigKeyIndex) {
     uint256 extraDataSlot = SLOT_SCHNORR_EXTRA_DATA + index;
     uint256 storageWord;
@@ -1405,17 +1432,20 @@ contract WormholeVerifier is EIP712Encoding {
 
   function _getSchnorrShardDataExport(uint32 index) internal view returns (uint8 shardCount, bytes memory shardData) {
     (, shardCount,) = _getSchnorrExtraData(index);
-    shardData = new bytes(shardCount << 6); // 32 bytes for the shard + 32 for the ID
+    // 32 bytes for the shard + 64 for the ID (32 bytes each for the X and Y components of the public key)
+    shardData = new bytes(shardCount * 3 * LENGTH_WORD);
 
     for (uint8 i = 0; i < shardCount; ++i) {
-      uint256 twiceIndex = i << 1; // To adjust for the fact that we're storing pairs of words
-      uint256 shardWriteOffset = (twiceIndex + 1) * LENGTH_WORD; // Offset by 1 to skip the array length word
-      uint256 idWriteOffset = (twiceIndex + 2) * LENGTH_WORD;
+      uint256 thriceIndex = i * 3; // To adjust for the fact that we're storing 3 words
+      uint256 shardWriteOffset = (thriceIndex + 1) * LENGTH_WORD; // Offset by 1 to skip the array length word
+      uint256 pubKeyXWriteOffset = (thriceIndex + 2) * LENGTH_WORD;
+      uint256 pubKeyYWriteOffset = (thriceIndex + 3) * LENGTH_WORD;
       uint256 shardReadSlot = _slotShardMapShard(index, i);
       uint256 idReadSlot = _slotShardMapId(index, i);
       assembly ("memory-safe") {
         mstore(add(shardData, shardWriteOffset), sload(shardReadSlot))
-        mstore(add(shardData, idWriteOffset), sload(idReadSlot))
+        mstore(add(shardData, pubKeyXWriteOffset), sload(sub(idReadSlot, 1)))
+        mstore(add(shardData, pubKeyYWriteOffset), sload(idReadSlot))
       }
     }
   }
@@ -1429,10 +1459,11 @@ contract WormholeVerifier is EIP712Encoding {
     assembly ("memory-safe") { sstore(schnorrDataSlot, newEntry) }
   }
 
-  function _setSchnorrShardId(uint32 keyIndex, uint8 signerIndex, bytes32 newSchnorrId) internal {
+  function _setSchnorrShardId(uint32 keyIndex, uint8 signerIndex, bytes32 pubKeyX, bytes32 pubKeyY) internal {
     uint256 shardIdSlot = _slotShardMapId(keyIndex, signerIndex);
     assembly ("memory-safe") {
-      sstore(shardIdSlot, newSchnorrId)
+      sstore(shardIdSlot, pubKeyX)
+      sstore(add(shardIdSlot, 1), pubKeyY)
     }
   }
 
@@ -1440,8 +1471,9 @@ contract WormholeVerifier is EIP712Encoding {
     return SLOT_SCHNORR_SHARD_MAP_SHARD | (keyIndex << 8) | signerIndex;
   }
 
+  // Each ShardId take 2 slots, shardIdSlot and shardIdSlot + 1
   function _slotShardMapId(uint32 keyIndex, uint8 signerIndex) internal pure returns (uint256) {
-    return SLOT_SCHNORR_SHARD_MAP_ID | (keyIndex << 8) | signerIndex;
+    return SLOT_SCHNORR_SHARD_MAP_ID | (keyIndex << 8) | (signerIndex << 1);
   }
 
   function _appendSchnorrKeyData(
@@ -1467,15 +1499,18 @@ contract WormholeVerifier is EIP712Encoding {
   }
 
   function _storeSchnorrShardDataBlock(uint32 schnorrKeyIndex, bytes memory shardData) internal {
-    uint256 shardCount = shardData.length >> 6;
+    uint256 shardCount = shardData.length / (3 * LENGTH_WORD);
     for (uint8 i = 0; i < shardCount; ++i) {
-      uint256 shardReadOffset = (i * 2 + 1) * LENGTH_WORD;
-      uint256 idReadOffset = (i * 2 + 2) * LENGTH_WORD;
+      uint256 thriceIndex = i * 3;
+      uint256 shardReadOffset = (thriceIndex + 1) * LENGTH_WORD;
+      uint256 pubKeyXReadOffset = (thriceIndex + 2) * LENGTH_WORD;
+      uint256 pubKeyYReadOffset = (thriceIndex + 3) * LENGTH_WORD;
       uint256 shardWriteSlot = _slotShardMapShard(schnorrKeyIndex, i);
       uint256 idWriteSlot = _slotShardMapId(schnorrKeyIndex, i);
       assembly ("memory-safe") {
-        sstore(shardWriteSlot, mload(add(shardData, shardReadOffset)))
-        sstore(idWriteSlot, mload(add(shardData, idReadOffset)))
+        sstore(shardWriteSlot,      mload(add(shardData, shardReadOffset)))
+        sstore(idWriteSlot,         mload(add(shardData, pubKeyXReadOffset)))
+        sstore(add(idWriteSlot, 1), mload(add(shardData, pubKeyYReadOffset)))
       }
     }
   }
