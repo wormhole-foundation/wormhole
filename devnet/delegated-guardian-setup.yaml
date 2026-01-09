@@ -18,7 +18,7 @@ spec:
       serviceAccountName: default
       containers:
         - name: setup
-          image: bitnami/kubectl:latest
+          image: debian:bullseye-slim
           command:
             - /bin/bash
             - -c
@@ -26,7 +26,13 @@ spec:
               set -e
               
               echo "Installing dependencies..."
-              apk add --no-cache curl jq bash
+              apt-get update -qq
+              apt-get install -y -qq curl jq ca-certificates
+              
+              echo "Installing kubectl..."
+              curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              mv kubectl /usr/local/bin/
               
               echo "Installing foundry..."
               curl -L https://foundry.paradigm.xyz | bash
