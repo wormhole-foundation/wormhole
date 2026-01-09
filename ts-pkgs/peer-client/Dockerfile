@@ -1,10 +1,10 @@
 FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
 
 RUN mkdir --parents core-bridge/ts-pkgs/peer-client core-bridge/ts-pkgs/peer-lib
-COPY --link .yarn core-bridge/.yarn
-COPY --link package.json yarn.lock .yarnrc.yml core-bridge/
-COPY --link ts-pkgs/peer-client/package.json core-bridge/ts-pkgs/peer-client/
-COPY --link ts-pkgs/peer-lib/package.json core-bridge/ts-pkgs/peer-lib/
+COPY --link .yarn /core-bridge/.yarn
+COPY --link package.json yarn.lock .yarnrc.yml /core-bridge/
+COPY --link ts-pkgs/peer-client/package.json /core-bridge/ts-pkgs/peer-client/
+COPY --link ts-pkgs/peer-lib/package.json /core-bridge/ts-pkgs/peer-lib/
 WORKDIR /core-bridge
 RUN yarnpkg workspaces focus --all
 

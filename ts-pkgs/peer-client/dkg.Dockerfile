@@ -1,6 +1,10 @@
 FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
 
-RUN apt-get update && apt-get -y install git golang jq
+RUN apt-get update && apt-get --no-install-recommends --yes install \
+  git \
+  golang \
+  jq \
+  && rm -rf /var/lib/apt/lists
 
 # TODO: Pin the commit
 RUN git clone -b schnorr --depth 1 https://github.com/XLabs/wormhole.git
