@@ -117,7 +117,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run deploy-wormchain --prefix=/app/tools && touch /app/tools/success && sleep infinity"
+            - "echo 'Waiting for wormchain to be ready...'; until curl -s http://wormchain:26657/status > /dev/null 2>&1; do echo 'Wormchain not ready, waiting...'; sleep 2; done; echo 'Wormchain is ready, deploying contracts...'; npm run deploy-wormchain --prefix=/app/tools && touch /app/tools/success && sleep infinity"
           readinessProbe:
             exec:
               command:
