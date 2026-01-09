@@ -1,5 +1,7 @@
 import { createPublicClient, http, Address, Hex, PublicClient } from "viem";
-import { Chain, isChainId, toChain } from "@wormhole-foundation/sdk"; 
+import { Chain, isChainId, toChain } from "@wormhole-foundation/sdk";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 
 const VERIFICATION_FAILED_ERROR_SIGNATURE = "0x32629d58";
 
@@ -18,21 +20,23 @@ const WORMHOLE_VERIFIER_ABI = [
   },
 ] as const;
 
-export type VerificationResult = {
-  verified: true;
-  emitterChainId: number;
-  emitterAddress: Address;
-  sequence: bigint;
-  payloadOffset: number;
-} | {
-  verified: false;
-  error: string;
-}
+export type VerificationResult =
+  | {
+      verified: true;
+      emitterChainId: number;
+      emitterAddress: Address;
+      sequence: bigint;
+      payloadOffset: number;
+    }
+  | {
+      verified: false;
+      error: string;
+    };
 
 async function verifyVaa(
   client: PublicClient,
   verifierAddress: Address,
-  vaa: Hex,
+  vaa: Hex
 ): Promise<VerificationResult> {
   try {
     const result = await client.readContract({
@@ -50,14 +54,23 @@ async function verifyVaa(
     };
   } catch (error) {
     if (!(error instanceof Error && "raw" in (error.cause as { raw: Hex }))) {
-      return { verified: false, error: error instanceof Error ? error.message : "Unknown error" };
+      return {
+        verified: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
     const hexData = (error.cause as { raw: Hex }).raw;
     if (hexData.startsWith(VERIFICATION_FAILED_ERROR_SIGNATURE)) {
       const flags = hexData.slice(VERIFICATION_FAILED_ERROR_SIGNATURE.length);
-      return { verified: false, error: `Verification failed with flags: 0x${flags}` };
+      return {
+        verified: false,
+        error: `Verification failed with flags: 0x${flags}`,
+      };
     }
-    return { verified: false, error: `Contract call failed with unknown error data: ${hexData}` };
+    return {
+      verified: false,
+      error: `Contract call failed with unknown error data: ${hexData}`,
+    };
   }
 }
 
@@ -79,23 +92,38 @@ function getVaaType(vaa: Hex): "Multisig" | "Schnorr" | undefined {
 }
 
 async function main() {
-  // TODO: use yargs to get explicit option parsing instead
-  const rpcUrl = process.argv[2];
-  const verifierAddress = process.argv[3] as Address;
-  const vaaBase64 = process.argv[4];
-  if (!vaaBase64) {
-    console.error("Usage: tsx verifyV2Vaa.ts <rpc_url> <verifier_address> <base64_v2_vaa>");
-    process.exit(1);
-  }
-  const client = createPublicClient({ transport: http(rpcUrl),});
-  const vaaHex = ("0x" + Buffer.from(vaaBase64, "base64").toString("hex")) as Hex;
+  const { rpc, vaa, verifier } = await yargs(hideBin(process.argv))
+    .usage("Usage: $0 --rpc <url> --verifier <address> --vaa <base64>")
+    .option("rpc", {
+      alias: "r",
+      type: "string",
+      description: "RPC URL for the EVM chain",
+      demandOption: true,
+    })
+    .option("verifier", {
+      alias: "v",
+      type: "string",
+      description: "Verifier contract address",
+      demandOption: true,
+    })
+    .option("vaa", {
+      type: "string",
+      description: "Base64-encoded VAA to verify",
+      demandOption: true,
+    })
+    .strict()
+    .help()
+    .parse();
+
+  const client = createPublicClient({ transport: http(rpc) });
+  const vaaHex = ("0x" + Buffer.from(vaa, "base64").toString("hex")) as Hex;
   const vaaType = getVaaType(vaaHex);
   if (vaaType === undefined) {
-    console.error(`Invalid VAA type`);
+    console.error("Invalid VAA type");
     process.exit(1);
   }
   console.log(`Verifying ${vaaType} VAA...`);
-  const result = await verifyVaa(client, verifierAddress, vaaHex);
+  const result = await verifyVaa(client, verifier as Address, vaaHex);
   if (!result.verified) {
     console.error("VAA verification failed:");
     console.error(result.error);
@@ -111,4 +139,7 @@ async function main() {
   console.log("================================================");
 }
 
-await main().catch((error: unknown) => { console.error(error) });
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});
