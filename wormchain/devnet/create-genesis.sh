@@ -37,13 +37,14 @@ if [ $NUM_GUARDIANS -ge 2 ]; then
 fi
 
 # TEMP manually add the third validator info to genesis.json
+# Note: Guardian-2 reuses wormchain-1's validator (no need for wormchain-2 node for simplicity?)
 if [ $NUM_GUARDIANS -ge 3 ]; then
-  echo "number of guardians is >= 3, adding third validator to genesis.json."
-  # the validator info for wormchain-2
+  echo "number of guardians is >= 3, adding third guardian (reusing wormchain-1 validator)."
+  # Guardian-2 will use the same validator as wormchain-1
   guardianKey="M6R6tuxftYIhPk+sb8FxJuiVUMr4rkT33eoe7r77i4g="
-  validatorAddr="uY/FhidTAULQwEpUVt3NDEzemlU="
+  validatorAddr="cBxHWxmj9o0/3r8JWRSH+s7y1jY="  # Reuse wormchain-1's validator address
 
-  # add the validatorAddr to guardianSetList.keys.
+  # add the guardianKey to guardianSetList.keys.
   cat <<< $(jq --arg new "$guardianKey" '.app_state.wormhole.guardianSetList[0].keys += [$new]' ${genesis})  > ${genesis}
 
   # create a guardianValidator config object and add it to the guardianValidatorList.
