@@ -117,7 +117,21 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "echo 'Waiting for wormchain to be ready...'; until curl -s http://wormchain:26657/status > /dev/null 2>&1; do echo 'Wormchain not ready, waiting...'; sleep 2; done; echo 'Wormchain is ready, deploying contracts...'; npm run deploy-wormchain --prefix=/app/tools && touch /app/tools/success && sleep infinity"
+            - |
+              echo "Waiting for wormchain to be ready..."
+              max_attempts=60
+              attempt=0
+              until curl -s http://wormchain:26657/status | jq -e '.result.sync_info.catching_up == false' > /dev/null 2>&1; do
+                attempt=$((attempt + 1))
+                if [ $attempt -ge $max_attempts ]; then
+                  echo "ERROR: Wormchain did not become ready after $max_attempts attempts"
+                  exit 1
+                fi
+                echo "Wormchain not ready (attempt $attempt/$max_attempts), waiting..."
+                sleep 2
+              done
+              echo "Wormchain is ready and synced, deploying contracts..."
+              npm run deploy-wormchain --prefix=/app/tools && touch /app/tools/success && sleep infinity
           readinessProbe:
             exec:
               command:
