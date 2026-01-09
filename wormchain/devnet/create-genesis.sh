@@ -36,6 +36,21 @@ if [ $NUM_GUARDIANS -ge 2 ]; then
   cat <<< $(jq --argjson new "$validatorConfig" '.app_state.wormhole.guardianValidatorList += [$new]' ${genesis})  > ${genesis}
 fi
 
+# TEMP manually add the third validator info to genesis.json
+if [ $NUM_GUARDIANS -ge 3 ]; then
+  echo "number of guardians is >= 3, adding third validator to genesis.json."
+  # the validator info for wormchain-2
+  guardianKey="M6R6tuxftYIhPk+sb8FxJuiVUMr4rkT33eoe7r77i4g="
+  validatorAddr="uY/FhidTAULQwEpUVt3NDEzemlU="
+
+  # add the validatorAddr to guardianSetList.keys.
+  cat <<< $(jq --arg new "$guardianKey" '.app_state.wormhole.guardianSetList[0].keys += [$new]' ${genesis})  > ${genesis}
+
+  # create a guardianValidator config object and add it to the guardianValidatorList.
+  validatorConfig="{\"guardianKey\": \"$guardianKey\", \"validatorAddr\": \"$validatorAddr\"}"
+  cat <<< $(jq --argjson new "$validatorConfig" '.app_state.wormhole.guardianValidatorList += [$new]' ${genesis})  > ${genesis}
+fi
+
 
 
 echo "done with genesis, exiting."
