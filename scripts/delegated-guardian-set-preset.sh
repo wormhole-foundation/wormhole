@@ -130,24 +130,28 @@ hexVaa=$(base64_to_hex ${b64Vaa})
 echo "got hex VAA: ${hexVaa}"
 
 txHash=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json | jq -r '.transactionHash')
-
+echo "txHash: ${txHash}"
 # give some time for guardians to observe the tx and update their state
 sleep 30
+
+echo "checking if tx was successful..."
+receipt=$(cast receipt --rpc-url "${devnetRPC}" "${txHash}")
+echo "receipt: ${receipt}"
 
 for chain_id in $(echo "${config}" | jq -r 'keys[]')
 do
   # fetch and parse json body
   echo "going to fetch configuration for chain ID ${chain_id}"
-  result=$(cast call "${delegatedGuardiansAddress}" "getConfig(uint16)((uint16,uint32,uint8,address[]))" "${chain_id}" --rpc-url "${devnetRPC}" --json | jq -r '
-    .[0]
-    | sub("^\\("; "") | sub("\\)$"; "")
-    | capture("^(?<chain_id>\\d+),\\s*(?<timestamp>\\d+),\\s*(?<threshold>\\d+),\\s*\\[(?<keys>.*)\\]$")
-    | [
-        .chain_id,
-        .timestamp,
-        .threshold,
-        (.keys | split(",") | map(gsub("^\\s+|\\s+$";"")) | sort | @json)
-      ]
+  cast_result=$(cast call "${delegatedGuardiansAddress}" "getConfig(uint16)((uint16,uint32,uint8,address[]))" "${chain_id}" --rpc-url "${devnetRPC}" --json)
+  echo "cast result: ${cast_result}"
+  
+  result=$(echo "${cast_result}" | jq -r '
+    [
+      .[0],
+      .[1],
+      .[2],
+      (.[3] | sort | @json)
+    ]
     | @tsv
     '
   )
