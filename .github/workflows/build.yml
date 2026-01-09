@@ -34,10 +34,6 @@ jobs:
       - name: Expand for link to Tilt dashboard (only available during build)
         run: >
           echo "Tilt progress dashboard: https://$DASHBOARD_URL"
-      - name: Install jq
-        run: |
-          apt-get update
-          apt-get install -y jq
       - run: |
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
