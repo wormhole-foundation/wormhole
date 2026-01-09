@@ -6,6 +6,32 @@ data:
   delegated-guardian-set-preset.sh: |
     PLACEHOLDER
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: delegated-guardian-setup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: delegated-guardian-setup
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: delegated-guardian-setup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: delegated-guardian-setup
+subjects:
+  - kind: ServiceAccount
+    name: delegated-guardian-setup
+---
 kind: Job
 apiVersion: batch/v1
 metadata:
@@ -15,7 +41,7 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      serviceAccountName: default
+      serviceAccountName: delegated-guardian-setup
       containers:
         - name: setup
           image: debian:bullseye-slim
@@ -48,7 +74,7 @@ spec:
             - name: DELEGATED_CONFIG
               value: ""  # will be set by Tiltfile
             - name: WEB_HOST
-              value: "localhost"
+              value: "guardian-0.guardian"
             - name: NAMESPACE
               value: "wormhole"
           volumeMounts:
