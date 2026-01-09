@@ -146,6 +146,7 @@ do
   echo "cast result: ${cast_result}"
   
   result=$(echo "${cast_result}" | jq -r '
+    .[0] |
     [
       .[0],
       .[1],
