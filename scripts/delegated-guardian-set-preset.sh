@@ -30,7 +30,7 @@ namespace=$3
 echo "namespace ${namespace}"
 
 key=0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d # one of the Ganche defaults
-devnetRPC="http://${webHost}:8545"
+devnetRPC="http://eth-devnet-0.eth-devnet:8545"
 
 # file & path to save governance VAA
 # Use /tmp with a fixed name so the path works both locally and inside containers
