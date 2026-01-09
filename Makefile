@@ -36,12 +36,16 @@ test-evm: dependencies-evm
 #--match-test InitiateFullFuzz
 #--fork-url $(TEST_RPC)
 
+measure-performance-evm: dependencies-evm
+	forge test --match-test test_benchmark -vvvv | \
+	awk -f extract-gas.awk
+
 clean-evm:
 	forge clean
 	rm -rf lib
 
 dependencies-solana-ts:
-	yarn --immutable
+	yarn install --immutable
 
 build-solana:
 	cd src/solana; anchor build

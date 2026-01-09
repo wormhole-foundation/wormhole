@@ -271,7 +271,7 @@ contract WormholeVerifier is EIP712Encoding {
     if (appendSchnorrKeyVaa.length > 0) _appendSchnorrKey(appendSchnorrKeyVaa);
   }
 
-  function verify(bytes calldata data) external view returns (
+  function verify(bytes calldata data) public view returns (
     uint16 emitterChainId,
     bytes32 emitterAddress,
     uint64 sequence,
@@ -1004,6 +1004,44 @@ contract WormholeVerifier is EIP712Encoding {
         }
       }
     }
+  }
+
+  /**
+   * Legacy endpoint.
+   * It's better to use some of the other endpoints like `verify()` or `verifyBatch()` but this endpoint allows you
+   * to reuse contract code without modifications if you already depend on the Wormhole Core contract.
+   *
+   * Note these differences:
+   * It always returns an empty array of signatures.
+   * When the VAA doesn't verify, the call reverts.
+   */
+  function parseAndVerifyVM(
+    bytes calldata encodedVM
+  ) external view returns (CoreBridgeVM memory vm, bool valid, string memory reason) {
+
+    (uint16 emitterChainId,
+    bytes32 emitterAddress,
+    uint64 sequence,
+    uint16 payloadOffset) = verify(encodedVM);
+
+    uint256 offset = 0;
+
+    (vm.version, offset)          = encodedVM.asUint8CdUnchecked(offset);
+    (vm.guardianSetIndex, offset) = encodedVM.asUint32CdUnchecked(offset);
+
+    // skip signatures
+    offset = payloadOffset - 51;
+
+    (vm.timestamp, offset)        = encodedVM.asUint32CdUnchecked(offset);
+    (vm.nonce, offset)            = encodedVM.asUint32CdUnchecked(offset);
+    vm.emitterChainId             = emitterChainId;
+    vm.emitterAddress             = emitterAddress;
+    vm.sequence                   = sequence;
+    (vm.consistencyLevel,)        = encodedVM.asUint8CdUnchecked(payloadOffset - 1);
+    (vm.payload,)                 = encodedVM.sliceCdUnchecked(payloadOffset, encodedVM.length - payloadOffset);
+
+    valid = true;
+    reason = "";
   }
 
   function get(bytes calldata data) external view returns (bytes memory) {

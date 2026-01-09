@@ -37,20 +37,23 @@ export const WormholeConfigSchema = z.object({
 
 // Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
-  guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty"),
+  // TODO: move this to specific CLI option/command type
+  guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty").optional(),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
-  wormhole: WormholeConfigSchema,
+  wormhole: WormholeConfigSchema.optional(),
 }).transform((data) => {
   // Load and validate guardian private key
-  let guardianPrivateKey: string;
-  try {
-    const keyContents = readFileSync(data.guardianPrivateKeyPath, 'utf-8');
-    const keyBytes = parseGuardianKey(keyContents); // Extract and validate the key
-    // Convert to hex format for ethers.Wallet
-    guardianPrivateKey = '0x' + Buffer.from(keyBytes).toString('hex');
-  } catch (error) {
-    throw new Error(`Failed to read or validate guardian private key from ${data.guardianPrivateKeyPath}: ${errorMsg(error)}`);
+  let guardianPrivateKey: string | undefined = undefined;
+  if (data.guardianPrivateKeyPath !== undefined) {
+    try {
+      const keyContents = readFileSync(data.guardianPrivateKeyPath, 'utf-8');
+      const keyBytes = parseGuardianKey(keyContents); // Extract and validate the key
+      // Convert to hex format for ethers.Wallet
+      guardianPrivateKey = '0x' + Buffer.from(keyBytes).toString('hex');
+    } catch (error) {
+      throw new Error(`Failed to read or validate guardian private key from ${data.guardianPrivateKeyPath}: ${errorMsg(error)}`);
+    }
   }
 
   // Load and validate TLS certificate

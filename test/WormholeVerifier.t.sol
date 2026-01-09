@@ -465,7 +465,7 @@ contract WormholeV1Mock is ICoreBridge {
   }
 }
 
-contract TestAssembly2Benchmark is VerificationTestAPI {
+contract TestWormholeVerifierBenchmark is VerificationTestAPI {
   using VaaLib for bytes;
   using BytesParsing for bytes;
 
@@ -781,6 +781,26 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
     vm.assertEq(payloadOffset, 1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1);
   }
 
+  function test_benchmark_legacy_parseAndVerifyVM_multisig() public view {
+    (CoreBridgeVM memory verifiedMessage, bool valid,) =
+      _wormholeVerifierV2.parseAndVerifyVM(smallMultisigVaa);
+    vm.assertTrue(valid);
+    vm.assertEq(verifiedMessage.emitterChainId, 0);
+    vm.assertEq(verifiedMessage.emitterAddress, bytes32(0));
+    vm.assertEq(verifiedMessage.sequence, 0);
+    vm.assertEq(verifiedMessage.payload.length, smallMultisigVaa.length - (1 + 4 + 1 + 66*SHARD_QUORUM + 4 + 4 + 2 + 32 + 8 + 1));
+  }
+
+  function test_benchmark_legacy_parseAndVerifyVM_schnorr() public view {
+    (CoreBridgeVM memory verifiedMessage, bool valid,) =
+      _wormholeVerifierV2.parseAndVerifyVM(smallSchnorrVaa);
+    vm.assertTrue(valid);
+    vm.assertEq(verifiedMessage.emitterChainId, 0);
+    vm.assertEq(verifiedMessage.emitterAddress, bytes32(0));
+    vm.assertEq(verifiedMessage.sequence, 0);
+    vm.assertEq(verifiedMessage.payload.length, smallSchnorrVaa.length - (1 + 4 + 20 + 32 + 4 + 4 + 2 + 32 + 8 + 1));
+  }
+
   function test_verifyInvalidVersion() public {
     vm.expectRevert(abi.encodeWithSelector(WormholeVerifier.VerificationFailed.selector, MASK_VERIFY_RESULT_INVALID_VERSION));
     _wormholeVerifierV2.verify(invalidVersionVaa);
@@ -864,7 +884,7 @@ contract TestAssembly2Benchmark is VerificationTestAPI {
   }
 }
 
-contract TestAssembly2 is VerificationTestAPI {
+contract TestWormholeVerifier is VerificationTestAPI {
   using VaaLib for bytes;
   using BytesParsing for bytes;
 
@@ -1363,13 +1383,13 @@ contract TestAssembly2 is VerificationTestAPI {
 
 
 contract FuzzTest is Test {
-  TestAssembly2Benchmark handler; 
+  TestWormholeVerifierBenchmark handler;
   bytes32 id; 
   bytes signedMessage; 
   WormholeVerifier verifier;
 
   function setUp() public {
-    handler = new TestAssembly2Benchmark(); 
+    handler = new TestWormholeVerifierBenchmark();
     verifier = handler._wormholeVerifierV2();
     handler.setUp();
   }

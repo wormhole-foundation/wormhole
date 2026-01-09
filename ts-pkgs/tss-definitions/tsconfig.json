@@ -1,14 +1,7 @@
 {
+  "extends": "../config/tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["es2024"],
-    "module": "NodeNext",
-    "moduleResolution": "node16",
-    "target": "es2024",
-    "outDir": "ts-build",
-    "strict": true,
-    "composite": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true
+    "outDir": "./ts-build"
   },
   "include": ["src"]
 }

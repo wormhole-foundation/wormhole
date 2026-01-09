@@ -1,5 +1,4 @@
-# From https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/Dockerfile
-FROM node:22.16-bullseye-slim@sha256:550b434f7edc3a1875860657a3e306752358029c957280809ae6395ab296faeb
+FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
 
 RUN apt-get update && apt-get -y install git
 
@@ -11,8 +10,8 @@ RUN test -n "${SERVER_PORT}" && \
     test -n "${ETHEREUM_RPC_URL}"
 
 # TODO: Pin the commit
-RUN git clone -b feat/peer-server --depth 1 https://github.com/XLabs/core-bridge.git
-WORKDIR core-bridge/ts-pkgs/peer-server
+RUN git clone -b feat/dkg-docker --depth 1 https://github.com/XLabs/core-bridge.git
+WORKDIR /core-bridge/ts-pkgs/peer-server
 RUN yarnpkg install --immutable
 RUN yarnpkg build
 # This is the config for the peer server
@@ -27,4 +26,4 @@ COPY <<EOT config.json
   "threshold": 13
 }
 EOT
-ENTRYPOINT yarnpkg start:server
+ENTRYPOINT ["yarnpkg", "start:server"]

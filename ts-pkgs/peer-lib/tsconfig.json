@@ -1,24 +1,9 @@
 {
+  "extends": "../config/tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "node16",
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "composite": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "./ts-build",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
+    "outDir": "./ts-build"
   },
   "include": [
     "src"
-  ],
-  "exclude": [
-    "node_modules",
-    "ts-build"
   ]
 }

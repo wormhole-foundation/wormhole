@@ -12,8 +12,8 @@ import {
 } from '@xlabs-xyz/peer-lib';
 import { ethers } from 'ethers';
 
-import { PeerServer } from '../src/server/server.js';
-import { Display } from '../src/server/display.js';
+import { PeerServer } from '../src/server.js';
+import { Display } from '../src/display.js';
 import { Application } from 'express';
 
 // Mock Display for tests to avoid console output during testing
