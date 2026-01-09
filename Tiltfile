@@ -835,7 +835,7 @@ if ci_tests:
         "delegate-guardian-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian", "eth-devnet2"], # requires guardian P2P network and eth-devnet2 for transactions
+        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup"], # requires guardian P2P network, eth-devnet2 for transactions, and delegated-guardian-setup to complete
     )
 
     if sui:
