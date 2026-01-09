@@ -6,7 +6,7 @@ echo "Cleaning up dangling Docker containers, builders and networks..."
 
 for i in $(seq 0 18)
 do
-  docker stop Guardian$i 2>/dev/null &
+  docker stop "Guardian$i" 2>/dev/null &
 done;
 
 docker stop anvil-with-verifier peer-server 2>/dev/null &

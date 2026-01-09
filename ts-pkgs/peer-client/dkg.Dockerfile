@@ -3,14 +3,26 @@ FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a679150
 RUN apt-get update && apt-get -y install git golang jq
 
 # TODO: Pin the commit
-RUN git clone -b feat/dkg-docker --depth 1 https://github.com/XLabs/core-bridge.git
 RUN git clone -b schnorr --depth 1 https://github.com/XLabs/wormhole.git
 
 WORKDIR /wormhole/node/pkg/tss/internal/cmd
 RUN go build -o=./server ./dkg
 
+WORKDIR /
+RUN mkdir --parents core-bridge/ts-pkgs/peer-client core-bridge/ts-pkgs/peer-lib
+COPY --link .yarn core-bridge/.yarn
+COPY --link package.json yarn.lock .yarnrc.yml core-bridge/
+COPY --link ts-pkgs/peer-client/package.json core-bridge/ts-pkgs/peer-client/
+COPY --link ts-pkgs/peer-lib/package.json core-bridge/ts-pkgs/peer-lib/
+WORKDIR /core-bridge
+RUN yarnpkg workspaces focus --all
+
+COPY --link ts-pkgs/config/ ts-pkgs/config/
+COPY --link ts-pkgs/peer-lib/tsconfig.json ts-pkgs/peer-lib/
+COPY --link ts-pkgs/peer-lib/src ts-pkgs/peer-lib/src
+COPY --link ts-pkgs/peer-client/tsconfig.json ts-pkgs/peer-client/
+COPY --link ts-pkgs/peer-client/src ts-pkgs/peer-client/src
 WORKDIR /core-bridge/ts-pkgs/peer-client
-RUN yarnpkg install --immutable
 RUN yarnpkg build
 
 COPY --chmod=555 <<EOT poll_guardians.sh
