@@ -1473,7 +1473,7 @@ contract WormholeVerifier is EIP712Encoding {
 
   // Each ShardId take 2 slots, shardIdSlot and shardIdSlot + 1
   function _slotShardMapId(uint32 keyIndex, uint8 signerIndex) internal pure returns (uint256) {
-    return SLOT_SCHNORR_SHARD_MAP_ID | (keyIndex << 8) | signerIndex << 1;
+    return SLOT_SCHNORR_SHARD_MAP_ID | (keyIndex << 8) | (signerIndex << 1);
   }
 
   function _appendSchnorrKeyData(
