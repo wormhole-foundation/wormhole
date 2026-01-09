@@ -176,3 +176,6 @@ do
 done
 
 echo "delegated-guardian-set-preset.sh succeeded."
+
+echo "Waiting for guardians to fully reload delegated guardian configuration..."
+sleep 60
