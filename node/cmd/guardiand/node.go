@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
@@ -308,6 +309,9 @@ var (
 	// featureFlags are additional static flags that should be published in P2P heartbeats.
 	featureFlags  []string
 	notaryEnabled *bool
+
+	managerServiceEnabled    *bool
+	dogecoinManagerSignerUri *string
 )
 
 func init() {
@@ -553,6 +557,9 @@ func init() {
 	transferVerifierEnabledChainIDs = NodeCmd.Flags().UintSlice("transferVerifierEnabledChainIDs", make([]uint, 0), "Transfer Verifier will be enabled for these chain IDs (comma-separated)")
 
 	notaryEnabled = NodeCmd.Flags().Bool("notaryEnabled", false, "Run the notary")
+
+	managerServiceEnabled = NodeCmd.Flags().Bool("managerServiceEnabled", false, "Run the manager service")
+	dogecoinManagerSignerUri = NodeCmd.Flags().String("dogecoinManagerSignerUri", "", "Dogecoin manager signer URI")
 }
 
 var (
@@ -1967,12 +1974,36 @@ func runNode(cmd *cobra.Command, args []string) {
 		guardianAddrAsBytes = ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(rootCtx)).Bytes()
 	}
 
+	// Initialize manager signers map
+	managerSigners := make(map[vaa.ChainID]guardiansigner.GuardianSigner)
+	if *dogecoinManagerSignerUri != "" {
+		// Ensure the manager signer is not the same as the guardian signer in non-devnet environments
+		if env != common.UnsafeDevNet && *dogecoinManagerSignerUri == *guardianSignerUri {
+			logger.Fatal("dogecoinManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+		}
+		dogecoinSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, *dogecoinManagerSignerUri, env == common.UnsafeDevNet, "manager-dogecoin")
+		if err != nil {
+			logger.Fatal("failed to create dogecoin manager signer", zap.Error(err))
+		}
+		managerSigners[vaa.ChainIDDogecoin] = dogecoinSigner
+
+		// Log the 33-byte compressed public key for use in P2SH multisig
+		pubKey := dogecoinSigner.PublicKey(rootCtx)
+		btcecPubKey, err := btcec.ParsePubKey(ethcrypto.FromECDSAPub(&pubKey))
+		if err != nil {
+			logger.Fatal("failed to parse dogecoin public key", zap.Error(err))
+		}
+		compressedPubKey := btcecPubKey.SerializeCompressed()
+		logger.Info("initialized dogecoin manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", compressedPubKey)))
+	}
+
 	guardianOptions := []*node.GuardianOption{
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionNotary(*notaryEnabled),
+		node.GuardianOptionManagerService(*managerServiceEnabled, managerSigners),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),

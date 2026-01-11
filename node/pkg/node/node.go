@@ -11,6 +11,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/gwrelayer"
+	"github.com/certusone/wormhole/node/pkg/manager"
 	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
@@ -31,6 +32,12 @@ const (
 
 	// gossipVaaSendBufferSize configures the size of the gossip network send buffer
 	gossipVaaSendBufferSize = 5000
+
+	// gossipManagerSendBufferSize configures the size of the manager gossip network send buffer
+	gossipManagerSendBufferSize = 100
+
+	// inboundManagerTxBufferSize configures the size of the signedManagerTxC channel that contains signed manager transactions from other managers.
+	inboundManagerTxBufferSize = 500
 
 	// inboundBatchObservationBufferSize configures the size of the batchObsvC channel that contains batches of observations from other Guardians.
 	// Since a batch contains many observations, the guardians should not be publishing too many of these. With 19 guardians, we would expect 19 messages
@@ -96,6 +103,8 @@ type G struct {
 	queryHandler       *query.QueryHandler
 	publicrpcServer    *grpc.Server
 	alternatePublisher *altpub.AlternatePublisher
+	managerService     *manager.ManagerService
+	managerSigners     map[vaa.ChainID]guardiansigner.GuardianSigner
 
 	// runnables
 	runnablesWithScissors map[string]supervisor.Runnable
@@ -107,6 +116,7 @@ type G struct {
 	gossipControlSendC     chan []byte
 	gossipAttestationSendC chan []byte
 	gossipVaaSendC         chan []byte
+	gossipManagerSendC     chan []byte
 	// Inbound observation batches.
 	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
 	// Finalized guardian observations aggregated across all chains
@@ -127,6 +137,11 @@ type G struct {
 	signedQueryReqC           channelPair[*gossipv1.SignedQueryRequest]
 	queryResponseC            channelPair[*query.PerChainQueryResponseInternal]
 	queryResponsePublicationC channelPair[*query.QueryResponsePublication]
+
+	// Manager service channel for incoming VAAs
+	managerC channelPair[*vaa.VAA]
+	// Inbound signed manager transactions from the p2p service
+	signedManagerTxC channelPair[*gossipv1.SignedManagerTransaction]
 }
 
 func NewGuardianNode(
@@ -148,6 +163,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
+	g.gossipManagerSendC = make(chan []byte, gossipManagerSendBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
@@ -160,6 +176,9 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.signedQueryReqC = makeChannelPair[*gossipv1.SignedQueryRequest](query.SignedQueryRequestChannelSize)
 	g.queryResponseC = makeChannelPair[*query.PerChainQueryResponseInternal](query.QueryResponseBufferSize)
 	g.queryResponsePublicationC = makeChannelPair[*query.QueryResponsePublication](query.QueryResponsePublicationChannelSize)
+	// Manager service channels
+	g.managerC = makeChannelPair[*vaa.VAA](inboundSignedVaaBufferSize)
+	g.signedManagerTxC = makeChannelPair[*gossipv1.SignedManagerTransaction](inboundManagerTxBufferSize)
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)

@@ -373,6 +373,184 @@ func local_request_PublicRPCService_GovernorGetTokenList_0(ctx context.Context, 
 
 }
 
+var (
+	filter_PublicRPCService_GetSignedManagerTransaction_0 = &utilities.DoubleArray{Encoding: map[string]int{"message_id": 0, "emitter_chain": 1, "emitter_address": 2, "sequence": 3}, Base: []int{1, 1, 1, 2, 3, 0, 0, 0}, Check: []int{0, 1, 2, 2, 2, 3, 4, 5}}
+)
+
+func request_PublicRPCService_GetSignedManagerTransaction_0(ctx context.Context, marshaler runtime.Marshaler, client PublicRPCServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetSignedManagerTransactionRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		e   int32
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["message_id.emitter_chain"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "message_id.emitter_chain")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "message_id.emitter_chain", val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "message_id.emitter_chain", err)
+	}
+
+	e, err = runtime.Enum(val, ChainID_value)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "could not parse path as enum value, parameter: %s, error: %v", "message_id.emitter_chain", err)
+	}
+
+	protoReq.MessageId.EmitterChain = ChainID(e)
+
+	val, ok = pathParams["message_id.emitter_address"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "message_id.emitter_address")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "message_id.emitter_address", val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "message_id.emitter_address", err)
+	}
+
+	val, ok = pathParams["message_id.sequence"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "message_id.sequence")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "message_id.sequence", val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "message_id.sequence", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PublicRPCService_GetSignedManagerTransaction_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetSignedManagerTransaction(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_PublicRPCService_GetSignedManagerTransaction_0(ctx context.Context, marshaler runtime.Marshaler, server PublicRPCServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetSignedManagerTransactionRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		e   int32
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["message_id.emitter_chain"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "message_id.emitter_chain")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "message_id.emitter_chain", val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "message_id.emitter_chain", err)
+	}
+
+	e, err = runtime.Enum(val, ChainID_value)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "could not parse path as enum value, parameter: %s, error: %v", "message_id.emitter_chain", err)
+	}
+
+	protoReq.MessageId.EmitterChain = ChainID(e)
+
+	val, ok = pathParams["message_id.emitter_address"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "message_id.emitter_address")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "message_id.emitter_address", val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "message_id.emitter_address", err)
+	}
+
+	val, ok = pathParams["message_id.sequence"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "message_id.sequence")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "message_id.sequence", val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "message_id.sequence", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PublicRPCService_GetSignedManagerTransaction_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetSignedManagerTransaction(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_PublicRPCService_GetSignedManagerTransactionByHash_0(ctx context.Context, marshaler runtime.Marshaler, client PublicRPCServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetSignedManagerTransactionByHashRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["vaa_hash"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "vaa_hash")
+	}
+
+	protoReq.VaaHash, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "vaa_hash", err)
+	}
+
+	msg, err := client.GetSignedManagerTransactionByHash(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_PublicRPCService_GetSignedManagerTransactionByHash_0(ctx context.Context, marshaler runtime.Marshaler, server PublicRPCServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetSignedManagerTransactionByHashRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["vaa_hash"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "vaa_hash")
+	}
+
+	protoReq.VaaHash, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "vaa_hash", err)
+	}
+
+	msg, err := server.GetSignedManagerTransactionByHash(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 // RegisterPublicRPCServiceHandlerServer registers the http handlers for service PublicRPCService to "mux".
 // UnaryRPC     :call PublicRPCServiceServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
@@ -537,6 +715,52 @@ func RegisterPublicRPCServiceHandlerServer(ctx context.Context, mux *runtime.Ser
 		}
 
 		forward_PublicRPCService_GovernorGetTokenList_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_PublicRPCService_GetSignedManagerTransaction_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/publicrpc.v1.PublicRPCService/GetSignedManagerTransaction", runtime.WithHTTPPathPattern("/v1/manager/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_PublicRPCService_GetSignedManagerTransaction_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_PublicRPCService_GetSignedManagerTransaction_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_PublicRPCService_GetSignedManagerTransactionByHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/publicrpc.v1.PublicRPCService/GetSignedManagerTransactionByHash", runtime.WithHTTPPathPattern("/v1/manager/signed_vaa/{vaa_hash}"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_PublicRPCService_GetSignedManagerTransactionByHash_0(rctx, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_PublicRPCService_GetSignedManagerTransactionByHash_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -721,6 +945,46 @@ func RegisterPublicRPCServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 
 	})
 
+	mux.Handle("GET", pattern_PublicRPCService_GetSignedManagerTransaction_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/publicrpc.v1.PublicRPCService/GetSignedManagerTransaction", runtime.WithHTTPPathPattern("/v1/manager/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_PublicRPCService_GetSignedManagerTransaction_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_PublicRPCService_GetSignedManagerTransaction_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_PublicRPCService_GetSignedManagerTransactionByHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/publicrpc.v1.PublicRPCService/GetSignedManagerTransactionByHash", runtime.WithHTTPPathPattern("/v1/manager/signed_vaa/{vaa_hash}"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_PublicRPCService_GetSignedManagerTransactionByHash_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_PublicRPCService_GetSignedManagerTransactionByHash_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -738,6 +1002,10 @@ var (
 	pattern_PublicRPCService_GovernorIsVAAEnqueued_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v1", "governor", "is_vaa_enqueued", "message_id.emitter_chain", "message_id.emitter_address", "message_id.sequence"}, ""))
 
 	pattern_PublicRPCService_GovernorGetTokenList_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "governor", "token_list"}, ""))
+
+	pattern_PublicRPCService_GetSignedManagerTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v1", "manager", "signed_vaa", "message_id.emitter_chain", "message_id.emitter_address", "message_id.sequence"}, ""))
+
+	pattern_PublicRPCService_GetSignedManagerTransactionByHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "manager", "signed_vaa", "vaa_hash"}, ""))
 )
 
 var (
@@ -754,4 +1022,8 @@ var (
 	forward_PublicRPCService_GovernorIsVAAEnqueued_0 = runtime.ForwardResponseMessage
 
 	forward_PublicRPCService_GovernorGetTokenList_0 = runtime.ForwardResponseMessage
+
+	forward_PublicRPCService_GetSignedManagerTransaction_0 = runtime.ForwardResponseMessage
+
+	forward_PublicRPCService_GetSignedManagerTransactionByHash_0 = runtime.ForwardResponseMessage
 )
