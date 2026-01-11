@@ -65,6 +65,14 @@ var GeneralPurposeGovernanceModule = [32]byte{
 }
 var GeneralPurposeGovernanceModuleStr = string(GeneralPurposeGovernanceModule[:])
 
+// DelegatedManagerModule is the identifier of the Delegated Manager module (which is used for governance messages).
+// It is the hex representation of "DelegatedManager" left padded with zeroes.
+var DelegatedManagerModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x44, 0x65, 0x6C, 0x65, 0x67, 0x61, 0x74, 0x65, 0x64, 0x4D, 0x61, 0x6E, 0x61, 0x67, 0x65, 0x72,
+}
+var DelegatedManagerModuleStr = string(DelegatedManagerModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -114,6 +122,9 @@ var (
 	// General purpose governance
 	GeneralPurposeGovernanceEvmAction    GovernanceAction = 1
 	GeneralPurposeGovernanceSolanaAction GovernanceAction = 2
+
+	// Delegated manager governance actions
+	ActionManagerSetUpdate GovernanceAction = 1
 )
 
 type (
@@ -281,7 +292,41 @@ type (
 		ChainID    ChainID
 		MessageFee *uint256.Int
 	}
+
+	// BodyManagerSetUpdate is a governance message to update the delegated manager set for a chain.
+	// This is used to delegate manager signing authority to a set of public keys for bridging to chains
+	// without smart contract support (e.g., Dogecoin, Bitcoin).
+	BodyManagerSetUpdate struct {
+		// ManagerChainID is the Wormhole Chain ID for the manager chain (e.g., Dogecoin)
+		ManagerChainID ChainID
+		// NewManagerSetIndex is the index of the new manager set
+		NewManagerSetIndex uint32
+		// NewManagerSet is the raw bytes of the new manager set (format is chain-specific)
+		NewManagerSet []byte
+	}
 )
+
+// ManagerSetType represents the type of manager set.
+type ManagerSetType uint8
+
+const (
+	// ManagerSetTypeSecp256k1Multisig represents an equal-weight compressed secp256k1 public key multisig.
+	ManagerSetTypeSecp256k1Multisig ManagerSetType = 1
+
+	// CompressedSecp256k1PublicKeyLength is the length in bytes of a compressed secp256k1 public key.
+	CompressedSecp256k1PublicKeyLength = 33
+)
+
+// Secp256k1MultisigManagerSet represents an equal-weight compressed secp256k1 public key multisig manager set.
+// This is used for UTXO-based chains like Dogecoin and Bitcoin.
+type Secp256k1MultisigManagerSet struct {
+	// M is the number of valid signatures required (threshold)
+	M uint8
+	// N is the number of public keys in the set
+	N uint8
+	// PublicKeys is the list of compressed secp256k1 public keys
+	PublicKeys [][CompressedSecp256k1PublicKeyLength]byte
+}
 
 //nolint:unparam // TODO: The error is always nil here. This function should not return an error.
 func (b BodyContractUpgrade) Serialize() ([]byte, error) {
@@ -538,6 +583,105 @@ func (r BodyGeneralPurposeGovernanceSolana) Serialize() ([]byte, error) {
 	return serializeBridgeGovernanceVaa(GeneralPurposeGovernanceModuleStr, GeneralPurposeGovernanceSolanaAction, r.ChainID, payload.Bytes())
 }
 
+func (r BodyManagerSetUpdate) Serialize() ([]byte, error) {
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.ManagerChainID)
+	MustWrite(payload, binary.BigEndian, r.NewManagerSetIndex)
+	payload.Write(r.NewManagerSet)
+	// ChainID - 0 for universal
+	return serializeBridgeGovernanceVaa(DelegatedManagerModuleStr, ActionManagerSetUpdate, 0, payload.Bytes())
+}
+
+func (r *BodyManagerSetUpdate) Deserialize(bz []byte) error {
+	// Minimum length: 2 (ManagerChainID) + 4 (NewManagerSetIndex) = 6 bytes
+	if len(bz) < 6 {
+		return fmt.Errorf("incorrect payload length, should be at least 6 bytes, is %d", len(bz))
+	}
+
+	r.ManagerChainID = ChainID(binary.BigEndian.Uint16(bz[0:2]))
+	r.NewManagerSetIndex = binary.BigEndian.Uint32(bz[2:6])
+	r.NewManagerSet = bz[6:]
+	return nil
+}
+
+// Serialize serializes the Secp256k1MultisigManagerSet into bytes.
+// Format: Type (1 byte) + M (1 byte) + N (1 byte) + NumKeys (1 byte) + PublicKeys (NumKeys * CompressedSecp256k1PublicKeyLength bytes)
+func (s Secp256k1MultisigManagerSet) Serialize() ([]byte, error) {
+	numKeys := len(s.PublicKeys)
+	if numKeys > 255 {
+		return nil, fmt.Errorf("too many public keys: %d (max 255)", numKeys)
+	}
+	if int(s.N) != numKeys {
+		return nil, fmt.Errorf("n (%d) does not match number of public keys (%d)", s.N, numKeys)
+	}
+	if s.M > s.N {
+		return nil, fmt.Errorf("m (%d) cannot be greater than n (%d)", s.M, s.N)
+	}
+	if s.M == 0 {
+		return nil, errors.New("m must be at least 1")
+	}
+
+	buf := new(bytes.Buffer)
+	// Type
+	buf.WriteByte(byte(ManagerSetTypeSecp256k1Multisig))
+	// M
+	buf.WriteByte(s.M)
+	// N
+	buf.WriteByte(s.N)
+	// Length of PublicKeys array
+	buf.WriteByte(uint8(numKeys)) // #nosec G115 -- checked above
+	// PublicKeys
+	for _, pk := range s.PublicKeys {
+		buf.Write(pk[:])
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Deserialize deserializes bytes into a Secp256k1MultisigManagerSet.
+func (s *Secp256k1MultisigManagerSet) Deserialize(bz []byte) error {
+	// Minimum length: 1 (Type) + 1 (M) + 1 (N) + 1 (NumKeys) = 4 bytes
+	if len(bz) < 4 {
+		return fmt.Errorf("payload too short, expected at least 4 bytes, got %d", len(bz))
+	}
+
+	managerSetType := ManagerSetType(bz[0])
+	if managerSetType != ManagerSetTypeSecp256k1Multisig {
+		return fmt.Errorf("unexpected manager set type %d, expected %d", managerSetType, ManagerSetTypeSecp256k1Multisig)
+	}
+
+	m := bz[1]
+	n := bz[2]
+	numKeys := bz[3]
+
+	if n != numKeys {
+		return fmt.Errorf("n (%d) does not match key array length (%d)", n, numKeys)
+	}
+
+	expectedLen := 4 + int(numKeys)*CompressedSecp256k1PublicKeyLength
+	if len(bz) != expectedLen {
+		return fmt.Errorf("payload length mismatch, expected %d bytes for %d keys, got %d", expectedLen, numKeys, len(bz))
+	}
+
+	if m > n {
+		return fmt.Errorf("m (%d) cannot be greater than n (%d)", m, n)
+	}
+	if m == 0 {
+		return errors.New("m must be at least 1")
+	}
+
+	publicKeys := make([][CompressedSecp256k1PublicKeyLength]byte, numKeys)
+	for i := uint8(0); i < numKeys; i++ {
+		offset := 4 + int(i)*CompressedSecp256k1PublicKeyLength
+		copy(publicKeys[i][:], bz[offset:offset+CompressedSecp256k1PublicKeyLength])
+	}
+
+	s.M = m
+	s.N = n
+	s.PublicKeys = publicKeys
+	return nil
+}
+
 func EmptyPayloadVaa(module string, actionId GovernanceAction, chainId ChainID) ([]byte, error) {
 	return serializeBridgeGovernanceVaa(module, actionId, chainId, []byte{})
 }
@@ -588,4 +732,250 @@ func LeftPadBytes(payload string, length int) (*bytes.Buffer, error) {
 	buf.Write([]byte(payload))
 
 	return buf, nil
+}
+
+// UTXOPayloadPrefix is the 4-byte prefix for UTXO unlock payloads
+var UTXOPayloadPrefix = [4]byte{'U', 'T', 'X', '0'}
+
+// UTXOAddressType represents the type of address in a UTXO output
+type UTXOAddressType uint32
+
+const (
+	// UTXOAddressTypeP2PKH represents a Pay-to-Public-Key-Hash address (20 bytes)
+	UTXOAddressTypeP2PKH UTXOAddressType = 0
+	// UTXOAddressTypeP2SH represents a Pay-to-Script-Hash address (20 bytes)
+	UTXOAddressTypeP2SH UTXOAddressType = 1
+)
+
+// AddressLength returns the length of the address for the given address type
+func (t UTXOAddressType) AddressLength() (int, error) {
+	switch t {
+	case UTXOAddressTypeP2PKH, UTXOAddressTypeP2SH:
+		return 20, nil
+	default:
+		return 0, fmt.Errorf("unknown UTXO address type: %d", t)
+	}
+}
+
+// UTXOInput represents an input in a UTXO unlock payload.
+// This corresponds to a UTXO that will be spent.
+type UTXOInput struct {
+	// OriginalRecipientAddress is the recipient address in the redeem script (32 bytes)
+	OriginalRecipientAddress [32]byte
+	// TransactionID is the deposit transaction ID (32 bytes, big-endian)
+	TransactionID [32]byte
+	// Vout is the vout index of the deposit transaction
+	Vout uint32
+}
+
+// UTXOOutput represents an output in a UTXO unlock payload.
+// This corresponds to a destination for unlocked funds.
+type UTXOOutput struct {
+	// Amount is the amount in the smallest unit (e.g., satoshis)
+	Amount uint64
+	// AddressType indicates the type of address (P2PKH, P2SH, etc.)
+	AddressType UTXOAddressType
+	// Address is the destination address (length depends on AddressType)
+	Address []byte
+}
+
+// UTXOUnlockPayload represents a VAA payload for unlocking funds on a UTXO chain.
+// This payload is emitted by a registered emitter to trigger Manager Service signing.
+// All uint values are encoded big-endian.
+type UTXOUnlockPayload struct {
+	// DestinationChain is the Wormhole Chain ID for the destination chain
+	DestinationChain ChainID
+	// DelegatedManagerSetIndex is the index of the delegated manager set to use
+	DelegatedManagerSetIndex uint32
+	// Inputs is the list of UTXOs to spend
+	Inputs []UTXOInput
+	// Outputs is the list of destinations for the unlocked funds
+	Outputs []UTXOOutput
+}
+
+// DeserializeUTXOInput deserializes a single UTXOInput from bytes.
+// Expected format: OriginalRecipientAddress (32 bytes) + TransactionID (32 bytes) + Vout (4 bytes)
+func DeserializeUTXOInput(bz []byte) (*UTXOInput, error) {
+	const inputSize = 32 + 32 + 4 // OriginalRecipientAddress + TransactionID + Vout
+	if len(bz) < inputSize {
+		return nil, fmt.Errorf("UTXO input too short: expected at least %d bytes, got %d", inputSize, len(bz))
+	}
+
+	input := &UTXOInput{}
+	copy(input.OriginalRecipientAddress[:], bz[0:32])
+	copy(input.TransactionID[:], bz[32:64])
+	input.Vout = binary.BigEndian.Uint32(bz[64:68])
+
+	return input, nil
+}
+
+// Serialize serializes a UTXOInput to bytes.
+func (i *UTXOInput) Serialize() []byte {
+	buf := make([]byte, 68)
+	copy(buf[0:32], i.OriginalRecipientAddress[:])
+	copy(buf[32:64], i.TransactionID[:])
+	binary.BigEndian.PutUint32(buf[64:68], i.Vout)
+	return buf
+}
+
+// DeserializeUTXOOutput deserializes a single UTXOOutput from bytes.
+// Expected format: Amount (8 bytes) + AddressType (4 bytes) + Address (variable length based on AddressType)
+func DeserializeUTXOOutput(bz []byte) (*UTXOOutput, int, error) {
+	// Minimum size: Amount (8) + AddressType (4)
+	if len(bz) < 12 {
+		return nil, 0, fmt.Errorf("UTXO output too short: expected at least 12 bytes, got %d", len(bz))
+	}
+
+	output := &UTXOOutput{}
+	output.Amount = binary.BigEndian.Uint64(bz[0:8])
+	output.AddressType = UTXOAddressType(binary.BigEndian.Uint32(bz[8:12]))
+
+	addrLen, err := output.AddressType.AddressLength()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	totalSize := 12 + addrLen
+	if len(bz) < totalSize {
+		return nil, 0, fmt.Errorf("UTXO output too short for address: expected %d bytes, got %d", totalSize, len(bz))
+	}
+
+	output.Address = make([]byte, addrLen)
+	copy(output.Address, bz[12:12+addrLen])
+
+	return output, totalSize, nil
+}
+
+// Serialize serializes a UTXOOutput to bytes.
+func (o *UTXOOutput) Serialize() ([]byte, error) {
+	addrLen, err := o.AddressType.AddressLength()
+	if err != nil {
+		return nil, err
+	}
+	if len(o.Address) != addrLen {
+		return nil, fmt.Errorf("address length mismatch: expected %d bytes for address type %d, got %d", addrLen, o.AddressType, len(o.Address))
+	}
+
+	buf := make([]byte, 12+addrLen)
+	binary.BigEndian.PutUint64(buf[0:8], o.Amount)
+	binary.BigEndian.PutUint32(buf[8:12], uint32(o.AddressType))
+	copy(buf[12:], o.Address)
+	return buf, nil
+}
+
+// DeserializeUTXOUnlockPayload deserializes a UTXOUnlockPayload from bytes.
+// This is the payload format for triggering Manager Service signing on UTXO chains.
+func DeserializeUTXOUnlockPayload(bz []byte) (*UTXOUnlockPayload, error) {
+	// Minimum size: prefix (4) + destination_chain (2) + manager_set (4) + len_input (4) + len_output (4)
+	const minSize = 4 + 2 + 4 + 4 + 4
+	if len(bz) < minSize {
+		return nil, fmt.Errorf("UTXO unlock payload too short: expected at least %d bytes, got %d", minSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], UTXOPayloadPrefix[:]) {
+		return nil, fmt.Errorf("invalid UTXO payload prefix: expected %s, got %s", string(UTXOPayloadPrefix[:]), string(bz[0:4]))
+	}
+
+	payload := &UTXOUnlockPayload{}
+	offset := 4
+
+	// Destination chain
+	payload.DestinationChain = ChainID(binary.BigEndian.Uint16(bz[offset : offset+2]))
+	offset += 2
+
+	// Delegated manager set index
+	payload.DelegatedManagerSetIndex = binary.BigEndian.Uint32(bz[offset : offset+4])
+	offset += 4
+
+	// Number of inputs
+	lenInput := binary.BigEndian.Uint32(bz[offset : offset+4])
+	offset += 4
+
+	// Deserialize inputs
+	const inputSize = 68 // 32 + 32 + 4
+	payload.Inputs = make([]UTXOInput, lenInput)
+	for i := uint32(0); i < lenInput; i++ {
+		if offset+inputSize > len(bz) {
+			return nil, fmt.Errorf("UTXO unlock payload truncated while reading input %d", i)
+		}
+		input, err := DeserializeUTXOInput(bz[offset:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize input %d: %w", i, err)
+		}
+		payload.Inputs[i] = *input
+		offset += inputSize
+	}
+
+	// Number of outputs
+	if offset+4 > len(bz) {
+		return nil, errors.New("UTXO unlock payload truncated while reading output count")
+	}
+	lenOutput := binary.BigEndian.Uint32(bz[offset : offset+4])
+	offset += 4
+
+	// Deserialize outputs
+	payload.Outputs = make([]UTXOOutput, lenOutput)
+	for i := uint32(0); i < lenOutput; i++ {
+		output, size, err := DeserializeUTXOOutput(bz[offset:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize output %d: %w", i, err)
+		}
+		payload.Outputs[i] = *output
+		offset += size
+	}
+
+	// Verify we consumed all bytes
+	if offset != len(bz) {
+		return nil, fmt.Errorf("UTXO unlock payload has trailing bytes: consumed %d of %d bytes", offset, len(bz))
+	}
+
+	return payload, nil
+}
+
+// Serialize serializes a UTXOUnlockPayload to bytes.
+func (p *UTXOUnlockPayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(UTXOPayloadPrefix[:])
+
+	// Destination chain
+	MustWrite(buf, binary.BigEndian, uint16(p.DestinationChain))
+
+	// Delegated manager set index
+	MustWrite(buf, binary.BigEndian, p.DelegatedManagerSetIndex)
+
+	// Number of inputs
+	if len(p.Inputs) > math.MaxUint32 {
+		return nil, fmt.Errorf("too many inputs: %d", len(p.Inputs))
+	}
+	MustWrite(buf, binary.BigEndian, uint32(len(p.Inputs))) // #nosec G115 -- checked above
+
+	// Inputs
+	for i, input := range p.Inputs {
+		inputBytes := input.Serialize()
+		if _, err := buf.Write(inputBytes); err != nil {
+			return nil, fmt.Errorf("failed to write input %d: %w", i, err)
+		}
+	}
+
+	// Number of outputs
+	if len(p.Outputs) > math.MaxUint32 {
+		return nil, fmt.Errorf("too many outputs: %d", len(p.Outputs))
+	}
+	MustWrite(buf, binary.BigEndian, uint32(len(p.Outputs))) // #nosec G115 -- checked above
+
+	// Outputs
+	for i, output := range p.Outputs {
+		outputBytes, err := output.Serialize()
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize output %d: %w", i, err)
+		}
+		if _, err := buf.Write(outputBytes); err != nil {
+			return nil, fmt.Errorf("failed to write output %d: %w", i, err)
+		}
+	}
+
+	return buf.Bytes(), nil
 }

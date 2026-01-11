@@ -378,8 +378,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// These will only be non-nil if the application plans to listen for or publish to that topic.
-		var controlPubsubTopic, attestationPubsubTopic, vaaPubsubTopic *pubsub.Topic
-		var controlSubscription, attestationSubscription, vaaSubscription *pubsub.Subscription
+		var controlPubsubTopic, attestationPubsubTopic, vaaPubsubTopic, managerPubsubTopic *pubsub.Topic
+		var controlSubscription, attestationSubscription, vaaSubscription, managerSubscription *pubsub.Subscription
 
 		// Set up the control channel. ////////////////////////////////////////////////////////////////////
 		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
@@ -453,6 +453,31 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					return fmt.Errorf("failed to subscribe to the vaa topic: %w", err)
 				}
 				defer vaaSubscription.Cancel()
+			}
+		}
+
+		// Set up the manager channel. ////////////////////////////////////////////////////////////////////
+		if params.gossipManagerSendC != nil || params.signedManagerTxRecvC != nil {
+			managerTopic := fmt.Sprintf("%s/%s", params.networkID, "manager")
+			logger.Info("joining the manager topic", zap.String("topic", managerTopic))
+			managerPubsubTopic, err = ps.Join(managerTopic)
+			if err != nil {
+				return fmt.Errorf("failed to join the manager topic: %w", err)
+			}
+
+			defer func() {
+				if err := managerPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("Error closing the manager topic", zap.Error(err))
+				}
+			}()
+
+			if params.signedManagerTxRecvC != nil {
+				logger.Info("subscribing to the manager topic", zap.String("topic", managerTopic))
+				managerSubscription, err = managerPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
+				if err != nil {
+					return fmt.Errorf("failed to subscribe to the manager topic: %w", err)
+				}
+				defer managerSubscription.Cancel()
 			}
 		}
 
@@ -638,6 +663,15 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					p2pMessagesSent.WithLabelValues("vaa").Inc()
 					if err != nil {
 						logger.Error("failed to publish message from vaa queue", zap.Error(err))
+					}
+				case msg := <-params.gossipManagerSendC:
+					if managerPubsubTopic == nil {
+						panic("managerPubsubTopic should not be nil when gossipManagerSendC is set")
+					}
+					err := managerPubsubTopic.Publish(ctx, msg)
+					p2pMessagesSent.WithLabelValues("manager").Inc()
+					if err != nil {
+						logger.Error("failed to publish message from manager queue", zap.Error(err))
 					}
 				case msg := <-params.obsvReqSendC:
 					b, err := proto.Marshal(msg)
@@ -959,6 +993,62 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					default:
 						p2pMessagesReceived.WithLabelValues("unknown").Inc()
 						logger.Warn("received unknown message type on vaa topic (running outdated software?)",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+				}
+			}()
+		}
+
+		// This routine processes signed manager transaction messages received from gossip. //////////////////////////////////////////////
+		if managerSubscription != nil {
+			go func() {
+				for {
+					envelope, err := managerSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
+					if err != nil {
+						errC <- fmt.Errorf("failed to receive pubsub message on manager topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+						return
+					}
+
+					var msg gossipv1.GossipMessage
+					err = proto.Unmarshal(envelope.Data, &msg)
+					if err != nil {
+						logger.Info("received invalid message on manager topic",
+							zap.Binary("data", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+						p2pMessagesReceived.WithLabelValues("invalid").Inc()
+						continue
+					}
+
+					if envelope.GetFrom() == h.ID() {
+						if logger.Level().Enabled(zapcore.DebugLevel) {
+							logger.Debug("received message from ourselves on manager topic, ignoring", zap.Any("payload", msg.Message))
+						}
+						p2pMessagesReceived.WithLabelValues("loopback").Inc()
+						continue
+					}
+
+					if logger.Level().Enabled(zapcore.DebugLevel) {
+						logger.Debug("received message on manager topic",
+							zap.Any("payload", msg.Message),
+							zap.Binary("raw", envelope.Data),
+							zap.String("from", envelope.GetFrom().String()))
+					}
+
+					switch m := msg.Message.(type) {
+					case *gossipv1.GossipMessage_SignedManagerTransaction:
+						if params.signedManagerTxRecvC != nil {
+							select {
+							case params.signedManagerTxRecvC <- m.SignedManagerTransaction:
+								p2pMessagesReceived.WithLabelValues("signed_manager_transaction").Inc()
+							default:
+								p2pReceiveChannelOverflow.WithLabelValues("signed_manager_transaction").Inc()
+							}
+						}
+					default:
+						p2pMessagesReceived.WithLabelValues("unknown").Inc()
+						logger.Warn("received unknown message type on manager topic (running outdated software?)",
 							zap.Any("payload", msg.Message),
 							zap.Binary("raw", envelope.Data),
 							zap.String("from", envelope.GetFrom().String()))
