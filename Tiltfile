@@ -301,11 +301,11 @@ def build_node_yaml():
                     "0x320a40bff834b5ffa12d7f5cc2220dd733dd9e8e91c425800203d06fb2b1fee8::publish_message::WormholeMessage",
                 ]
             
-            # Handle evm2 and algorand configuration based on guardian count, evm2 and algorand flag
+            # Handle evm2 configuration based on guardian count and evm2 flag
             if require_per_guardian_config:
                 # Use a shell wrapper to conditionally set the values based on pod ordinal
                 # We need to wrap the entire command since we're building it incrementally
-                pass  # these values will be added in the wrapper at the end
+                pass  # evm2 values will be added in the wrapper at the end
             else:
                 if evm2:
                     container["command"] += chain_to_args["evm2"]
@@ -314,9 +314,10 @@ def build_node_yaml():
                         "--bscRPC",
                         "ws://eth-devnet:8545",
                     ]
-                
-                if algorand:
-                    container["command"] += chain_to_args["algorand"]
+
+            # Algorand is not a delegated chain - all guardians should watch it
+            if algorand:
+                container["command"] += chain_to_args["algorand"]
 
             if solana_watcher:
                 container["command"] += [
