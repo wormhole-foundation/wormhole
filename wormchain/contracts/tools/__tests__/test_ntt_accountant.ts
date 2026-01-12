@@ -980,8 +980,6 @@ describe("NTT Global Accountant Tests", () => {
           expect(peer.data).toStrictEqual(BSC_WALLET_EMITTER);
         }
       }
-      // Wait for guardians to poll wormchain and reload the NTT accountant config
-      await new Promise((resolve) => setTimeout(resolve, 30000));
     });
     test("a. Ensure a token can be sent from its hub transceiver", async () => {
       const beforeMetrics = await fetchGlobalAccountantMetrics();
