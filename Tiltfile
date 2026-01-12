@@ -135,7 +135,7 @@ chain_to_args = {
 # | eth-devnet-2 (4) |     Y     |   [1,2]   |     2     |    7/9    |
 # |------------------------------------------------------------------|
 DELEGATED_CONFIG = {
-    "evm2": { "chain_id": 4, "ordinals": [0, 1, 2], "threshold": 2 }
+    "evm2": { "chain_id": 4, "ordinals": [1, 2], "threshold": 2 }
 }
 
 active_delegated_chains = []
@@ -792,17 +792,25 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
     )
+    # delegated-guardian-setup must run before accountant tests to ensure all guardians watch BSC
+    if require_per_guardian_config:
+        k8s_resource(
+            "delegated-guardian-setup",
+            resource_deps = guardian_resource_deps + ["guardian"],
+            labels = ["guardian"],
+            trigger_mode = trigger_mode,
+        )
     k8s_resource(
         "accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = ["delegated-guardian-setup"] if require_per_guardian_config else [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier, wait for delegated-guardian-setup if per-guardian config is active
     )
     k8s_resource(
         "ntt-accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = ["delegated-guardian-setup"] if require_per_guardian_config else [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier, wait for delegated-guardian-setup if per-guardian config is active
     )
     k8s_resource(
         "query-sdk-ci-tests",
@@ -824,19 +832,11 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
-    # delegated-guardian-setup must run after ntt-accountant-ci-tests to avoid interference
-    if require_per_guardian_config:
-        k8s_resource(
-            "delegated-guardian-setup",
-            resource_deps = guardian_resource_deps + ["guardian", "ntt-accountant-ci-tests"],
-            labels = ["guardian"],
-            trigger_mode = trigger_mode,
-        )
     k8s_resource(
         "delegate-guardian-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup", "ntt-accountant-ci-tests"], # requires guardian P2P network, eth-devnet2 for transactions, delegated-guardian-setup to complete, and ntt-accountant-ci-tests to finish first to avoid interference
+        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup"] if require_per_guardian_config else ["guardian", "eth-devnet2"], # requires guardian P2P network, eth-devnet2 for transactions, and delegated-guardian-setup to complete
     )
 
     if sui:
