@@ -1,0 +1,19 @@
+{
+  "name": "@xlabs-xyz/tss-definitions",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "types": "./ts-build/src/index.d.ts",
+  "main": "./ts-build/src/index.js",
+  "private": true,
+  "scripts": {
+    "build": "tsc --build ./tsconfig.json"
+  },
+  "dependencies": {
+    "@wormhole-foundation/sdk-base": "^4.5.0",
+    "@wormhole-foundation/sdk-definitions": "^4.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

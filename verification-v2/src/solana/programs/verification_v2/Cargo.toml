@@ -1,0 +1,36 @@
+[package]
+name = "verification_v2"
+version = "0.1.0"
+description = "Wormhole threshold signature verification program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "verification_v2"
+
+[features]
+default = ["mainnet"]
+mainnet = ["wormhole-anchor-sdk/mainnet"]
+testnet = ["wormhole-anchor-sdk/solana-devnet"]
+devnet = ["wormhole-anchor-sdk/tilt-devnet"]
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = [
+	"anchor-lang/idl-build",
+	"wormhole-anchor-sdk/idl-build",
+]
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+byteorder = "1.5.0"
+primitive-types = "0.13.1"
+# wormhole-anchor-sdk = { git = "https://github.com/wormhole-foundation/wormhole-scaffolding.git", default-features = false }
+wormhole-anchor-sdk = { git = "https://github.com/XLabs/wormhole-scaffolding.git", rev = "3811c6c4beadbf2f1fc42ce038bfea925a596872", default-features = false }
+
+[dev-dependencies]
+num-bigint = "0.4.6"
+num-traits = "0.2.19"
+rstest = "0.25.0"
+proptest = "1.7.0"

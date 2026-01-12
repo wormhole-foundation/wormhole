@@ -1,0 +1,14 @@
+{
+  "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./ts-build"
+  },
+  "include": [
+    "tests"
+  ],
+  "references": [
+    { "path": "../peer-lib" },
+    { "path": "../peer-server" },
+    { "path": "../peer-client" }
+  ]
+}

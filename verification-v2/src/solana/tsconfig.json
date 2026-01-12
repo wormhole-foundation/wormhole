@@ -1,0 +1,10 @@
+{
+  "extends": "../../ts-pkgs/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./ts-build"
+  },
+  "include": ["tests", "target/types", "scripts"],
+  "references": [
+    { "path": "../../ts-pkgs/tss-definitions" }
+  ]
+}

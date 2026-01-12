@@ -1,0 +1,32 @@
+{
+  "name": "@xlabs-xyz/peer-server",
+  "version": "1.0.0",
+  "description": "Minimal Node.js REST server for peer management with Ethereum integration",
+  "type": "module",
+  "types": "./ts-build/src/index.d.ts",
+  "main": "./ts-build/src/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "start:server": "tsx src/cli.ts",
+    "dev:server": "tsx --watch src/cli.ts",
+    "test": "npm run build && vitest --run --dir tests/"
+  },
+  "dependencies": {
+    "@xlabs-xyz/peer-lib": "workspace:*",
+    "cors": "^2.8.5",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.3",
+    "@types/supertest": "^6.0.3",
+    "ethers": "^6.16.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "author": "",
+  "license": "Apache-2.0"
+}

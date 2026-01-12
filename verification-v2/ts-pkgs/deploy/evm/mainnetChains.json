@@ -1,0 +1,174 @@
+{
+  "guardianSet": {
+    "initialMultisigKeyCount": 4,
+    "initialSchnorrKeyCount": 0,
+    "initialMultisigKeyPullLimit": 1,
+    "appendSchnorrKeyVaa": ""
+  },
+  "evm": {
+    "compilerOutput": "../verifiable-evm-build/WormholeVerifier.output.json",
+    "chains": [
+      {
+        "description": "Ethereum",
+        "eip155ChainId": 1,
+        "chainId": 2,
+        "rpc": "https://eth.llamarpc.com",
+        "coreV1Address": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+      },
+      {
+        "description": "BSC",
+        "eip155ChainId": 56,
+        "chainId": 4,
+        "rpc": "https://bsc-dataseed1.binance.org/",
+        "coreV1Address": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+      },
+      {
+        "description": "Polygon",
+        "eip155ChainId": 137,
+        "chainId": 5,
+        "rpc": "https://polygon-bor-rpc.publicnode.com",
+        "coreV1Address": "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
+      },
+      {
+        "description": "Avalanche",
+        "eip155ChainId": 43114,
+        "chainId": 6,
+        "rpc": "https://api.avax.network/ext/bc/C/rpc",
+        "coreV1Address": "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c"
+      },
+      {
+        "description": "Fantom",
+        "eip155ChainId": 250,
+        "chainId": 10,
+        "rpc": "https://rpc3.fantom.network",
+        "coreV1Address": "0x126783A6Cb203a3E35344528B26ca3a0489a1485"
+      },
+      {
+        "description": "Klaytn",
+        "eip155ChainId": 8217,
+        "chainId": 13,
+        "rpc": "https://klaytn.api.onfinality.io/public",
+        "coreV1Address": "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"
+      },
+      {
+        "description": "Celo",
+        "eip155ChainId": 42220,
+        "chainId": 14,
+        "rpc": "https://forno.celo.org",
+        "coreV1Address": "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"
+      },
+      {
+        "description": "Moonbeam",
+        "eip155ChainId": 1284,
+        "chainId": 16,
+        "rpc": "https://rpc.api.moonbeam.network",
+        "coreV1Address": "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"
+      },
+      {
+        "description": "Arbitrum",
+        "eip155ChainId": 42161,
+        "chainId": 23,
+        "rpc": "https://arbitrum-one-rpc.publicnode.com",
+        "coreV1Address": "0xa5f208e072434bC67592E4C49C1B991BA79BCA46"
+      },
+      {
+        "description": "Optimism",
+        "eip155ChainId": 10,
+        "chainId": 24,
+        "rpc": "https://optimism.publicnode.com",
+        "coreV1Address": "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"
+      },
+      {
+        "description": "Base",
+        "eip155ChainId": 8453,
+        "chainId": 30,
+        "rpc": "https://base.llamarpc.com",
+        "coreV1Address": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+      },
+      {
+        "description": "Scroll",
+        "eip155ChainId": 534352,
+        "chainId": 34,
+        "rpc": "https://rpc.scroll.io",
+        "coreV1Address": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+      },
+      {
+        "description": "Mantle",
+        "eip155ChainId": 5000,
+        "chainId": 35,
+        "rpc": "https://rpc.mantle.xyz",
+        "coreV1Address": "0xbebdb6C8ddC678FfA9f8748f85C815C556Dd8ac6"
+      },
+      {
+        "description": "XLayer",
+        "eip155ChainId": 196,
+        "chainId": 37,
+        "rpc": "https://xlayerrpc.okx.com",
+        "coreV1Address": "0x194B123c5E96B9b2E49763619985790Dc241CAC0"
+      },
+      {
+        "description": "Linea",
+        "eip155ChainId": 59144,
+        "chainId": 38,
+        "rpc": "https://rpc.linea.build",
+        "coreV1Address": "0x0C56aebD76E6D9e4a1Ec5e94F4162B4CBbf77b32"
+      },
+      {
+        "description": "Berachain",
+        "eip155ChainId": 80094,
+        "chainId": 39,
+        "rpc": "https://rpc.berachain.com",
+        "coreV1Address": "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"
+      },
+      {
+        "description": "Seievm",
+        "eip155ChainId": 1329,
+        "chainId": 40,
+        "rpc": "https://evm-rpc.sei-apis.com",
+        "coreV1Address": "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"
+      },
+      {
+        "description": "Unichain",
+        "eip155ChainId": 130,
+        "chainId": 44,
+        "rpc": "https://unichain-rpc.publicnode.com",
+        "coreV1Address": "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"
+      },
+      {
+        "description": "Worldchain",
+        "eip155ChainId": 480,
+        "chainId": 45,
+        "rpc": "https://worldchain-mainnet.g.alchemy.com/public",
+        "coreV1Address": "0xcbcEe4e081464A15d8Ad5f58BB493954421eB506"
+      },
+      {
+        "description": "Ink",
+        "eip155ChainId": 57073,
+        "chainId": 46,
+        "rpc": "https://rpc-qnd.inkonchain.com",
+        "coreV1Address": "0xCa1D5a146B03f6303baF59e5AD5615ae0b9d146D"
+      },
+      {
+        "description": "Mezo",
+        "eip155ChainId": 31612,
+        "chainId": 50,
+        "rpc": "https://mainnet.mezo.public.validationcloud.io",
+        "coreV1Address": "0xaBf89de706B583424328B54dD05a8fC986750Da8"
+      },
+      {
+        "description": "Plume",
+        "eip155ChainId": 98866,
+        "chainId": 55,
+        "rpc": "https://rpc.plume.org",
+        "coreV1Address": "0xaBf89de706B583424328B54dD05a8fC986750Da8"
+      },
+      {
+        "description": "XRPLEVM",
+        "eip155ChainId": 1440000,
+        "chainId": 57,
+        "rpc": "https://rpc.xrplevm.org",
+        "coreV1Address": "0xaBf89de706B583424328B54dD05a8fC986750Da8"
+      }
+    ]
+  }
+}
