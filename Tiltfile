@@ -825,18 +825,18 @@ if ci_tests:
         resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
     # delegated-guardian-setup must run after ntt-accountant-ci-tests to avoid interference
-    if require_per_guardian_config:
-        k8s_resource(
-            "delegated-guardian-setup",
-            resource_deps = guardian_resource_deps + ["guardian", "ntt-accountant-ci-tests"],
-            labels = ["guardian"],
-            trigger_mode = trigger_mode,
-        )
+    k8s_resource(
+        "delegated-guardian-setup",
+        resource_deps = guardian_resource_deps + ["guardian", "ntt-accountant-ci-tests"],
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+        auto_init = require_per_guardian_config,
+    )
     k8s_resource(
         "delegate-guardian-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup", "ntt-accountant-ci-tests"], # requires guardian P2P network, eth-devnet2 for transactions, delegated-guardian-setup to complete, and ntt-accountant-ci-tests to finish first to avoid interference
+        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup", "ntt-accountant-ci-tests"], # requires guardian P2P network, eth-devnet2 for transactions, delegated-guardian-setup to complete, and ntt-accountant-ci-tests to finish first
     )
 
     if sui:
