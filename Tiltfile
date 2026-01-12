@@ -141,8 +141,6 @@ DELEGATED_CONFIG = {
 active_delegated_chains = []
 if evm2:
     active_delegated_chains.append("evm2")
-if algorand:
-    active_delegated_chains.append("algorand")
 
 # create a DELEGATED_CONFIG submap that filters out disabled chains
 active_delegated_config = { k: v for k,v in DELEGATED_CONFIG.items() if k in active_delegated_chains }
