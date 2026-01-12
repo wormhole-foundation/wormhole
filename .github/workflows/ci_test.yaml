@@ -42,8 +42,6 @@ jobs:
             - 'ts-pkgs/**'
             - 'src/solana/package.json'
             - 'yarn.lock'
-            - '.pnp.cjs'
-            - '.pnp.loader.mjs'
             - '.yarnrc.yml'
 
   solana-tests:
