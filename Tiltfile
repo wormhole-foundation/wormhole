@@ -525,7 +525,7 @@ if require_per_guardian_config:
     
     k8s_resource(
         "delegated-guardian-setup",
-        resource_deps = guardian_resource_deps + ["guardian"],
+        resource_deps = guardian_resource_deps + ["guardian", "ntt-accountant-ci-tests"],
         labels = ["guardian"],
         trigger_mode = trigger_mode,
     )
@@ -835,7 +835,7 @@ if ci_tests:
         "delegate-guardian-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup"], # requires guardian P2P network, eth-devnet2 for transactions, and delegated-guardian-setup to complete
+        resource_deps = ["guardian", "eth-devnet2", "delegated-guardian-setup", "ntt-accountant-ci-tests"], # requires guardian P2P network, eth-devnet2 for transactions, delegated-guardian-setup to complete, and ntt-accountant-ci-tests to finish first to avoid interference
     )
 
     if sui:
