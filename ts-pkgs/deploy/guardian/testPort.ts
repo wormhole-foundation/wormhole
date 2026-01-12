@@ -10,7 +10,7 @@ interface Peer {
 interface CheckResult extends Peer {
   ip?: string;
   state: PortState;
-  error?: string;
+  error?: unknown;
   rttNs?: bigint;
 }
 
@@ -46,7 +46,7 @@ function checkTcp(
         state: code === "ECONNREFUSED" || code === "ENETUNREACH" || code === "EHOSTUNREACH" || code === "EACCES"
           ? "closed"
           : "error",
-        error: `${code ?? err.message}`
+        error: code ?? err.message
       });
       socket.destroy();
     });
@@ -81,13 +81,13 @@ async function scanList(
       try {
         const res = await checkTcp(target.host, target.port, timeoutMs);
         results.push(res);
-      } catch (err: any) {
+      } catch (error) {
         results.push({
           host: target.host,
           ip: target.host,
           port: target.port,
           state: 'error',
-          error: err?.stack ?? err,
+          error: (error as Error | undefined)?.stack ?? error,
         });
       }
     }
@@ -116,9 +116,10 @@ async function scanList(
   });
   const out = await scanList(targets);
   for (const r of out) {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions
     console.log(`${r.host}:${r.port} -> ${r.state}${r.rttNs !== undefined ? ` (${r.rttNs}ns)` : ''}${r.error !== undefined ? ` (${r.error})` : ''}`);
   }
-})().catch((error: any) => {
-  console.error(error?.stack ?? error);
+})().catch((error: unknown) => {
+  console.error((error as Error | undefined)?.stack ?? error);
   process.exit(1);
 });
