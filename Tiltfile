@@ -135,7 +135,7 @@ chain_to_args = {
 # | eth-devnet-2 (4) |     Y     |   [1,2]   |     2     |    7/9    |
 # |------------------------------------------------------------------|
 DELEGATED_CONFIG = {
-    "evm2": { "chain_id": 4, "ordinals": [1, 2], "threshold": 2 }
+    "evm2": { "chain_id": 4, "ordinals": [0, 1, 2], "threshold": 2 }
 }
 
 active_delegated_chains = []
