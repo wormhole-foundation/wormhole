@@ -522,13 +522,6 @@ if require_per_guardian_config:
                             env_var["value"] = namespace
     
     k8s_yaml_with_ns(encode_yaml_stream(delegated_setup_yaml))
-    
-    k8s_resource(
-        "delegated-guardian-setup",
-        resource_deps = guardian_resource_deps + ["guardian", "ntt-accountant-ci-tests"],
-        labels = ["guardian"],
-        trigger_mode = trigger_mode,
-    )
 
 # grafana + prometheus for node metrics
 if node_metrics:
@@ -831,6 +824,14 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # uses devnet-consts.json, buttesting/contract-integrations/custom_consistency_level/test_custom_consistency_level.sh handles waiting for guardian, not having deps gets the build earlier
     )
+    # delegated-guardian-setup must run after ntt-accountant-ci-tests to avoid interference
+    if require_per_guardian_config:
+        k8s_resource(
+            "delegated-guardian-setup",
+            resource_deps = guardian_resource_deps + ["guardian", "ntt-accountant-ci-tests"],
+            labels = ["guardian"],
+            trigger_mode = trigger_mode,
+        )
     k8s_resource(
         "delegate-guardian-ci-tests",
         labels = ["ci"],
