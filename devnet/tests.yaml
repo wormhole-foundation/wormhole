@@ -163,7 +163,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "cd /app/node && go test -v ./pkg/processor -run TestDelegateObservationScenario && touch /tmp/success"
+            - "cd /app/node && go test -v ./pkg/processor -tags delegated_guardian_ci && touch /tmp/success"
           readinessProbe:
             exec:
               command:
