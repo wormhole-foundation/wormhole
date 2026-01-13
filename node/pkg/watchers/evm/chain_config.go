@@ -149,7 +149,6 @@ var (
 		vaa.ChainIDWorldchain:      {Finalized: true, Safe: true, EvmChainID: 4801, PublicRPC: "https://worldchain-sepolia.g.alchemy.com/public", ContractAddr: "0xe5E02cD12B6FcA153b0d7fF4bF55730AE7B3C93A"},
 		vaa.ChainIDInk:             {Finalized: true, Safe: true, EvmChainID: 763373, PublicRPC: "https://rpc-qnd-sepolia.inkonchain.com", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		vaa.ChainIDHyperEVM:        {Finalized: true, Safe: true, EvmChainID: 998, PublicRPC: "https://rpc.hyperliquid-testnet.xyz/evm", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
-		vaa.ChainIDMonad:           {Finalized: true, Safe: true, EvmChainID: 10143, PublicRPC: "https://testnet-rpc.monad.xyz", ContractAddr: "0xBB73cB66C26740F31d1FabDC6b7A46a038A300dd"},
 		vaa.ChainIDMezo:            {Finalized: true, Safe: true, EvmChainID: 31611, PublicRPC: "https://rpc.test.mezo.org", ContractAddr: "0x268557122Ffd64c85750d630b716471118F323c8"},
 		vaa.ChainIDConverge:        {Finalized: true, Safe: true, EvmChainID: 52085145, PublicRPC: "https://rpc-converge-testnet-1.t.conduit.xyz", ContractAddr: "0x556B259cFaCd9896B2773310080c7c3bcE90Ff01"},
 		vaa.ChainIDPlume:           {Finalized: true, Safe: true, EvmChainID: 98867, PublicRPC: "https://testnet-rpc.plume.org", ContractAddr: "0x81705b969cDcc6FbFde91a0C6777bE0EF3A75855"},
@@ -164,6 +163,7 @@ var (
 		vaa.ChainIDOptimismSepolia: {Finalized: true, Safe: true, EvmChainID: 11155420, PublicRPC: "https://optimism-sepolia-rpc.publicnode.com", ContractAddr: "0x31377888146f3253211EFEf5c676D41ECe7D58Fe"},
 		vaa.ChainIDHolesky:         {Finalized: true, Safe: true, EvmChainID: 17000, PublicRPC: "https://1rpc.io/holesky", ContractAddr: "0xa10f2eF61dE1f19f586ab8B6F2EbA89bACE63F7a"},
 		vaa.ChainIDPolygonSepolia:  {Finalized: true, Safe: false, EvmChainID: 80002, PublicRPC: "https://polygon-amoy-bor-rpc.publicnode.com", ContractAddr: "0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35"},
+		vaa.ChainIDMonadTestnet:    {Finalized: true, Safe: true, EvmChainID: 10143, PublicRPC: "https://testnet-rpc.monad.xyz", ContractAddr: "0xaBf89de706B583424328B54dD05a8fC986750Da8"},
 	}
 )
 
