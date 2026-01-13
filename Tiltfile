@@ -521,6 +521,13 @@ if require_per_guardian_config:
                             env_var["value"] = namespace
     
     k8s_yaml_with_ns(encode_yaml_stream(delegated_setup_yaml))
+    
+    k8s_resource(
+        "delegated-guardian-setup",
+        resource_deps = guardian_resource_deps + ["guardian"],
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
 
 # grafana + prometheus for node metrics
 if node_metrics:
@@ -791,14 +798,6 @@ if ci_tests:
         trigger_mode = trigger_mode,
         resource_deps = [], # testing/spydk.sh handles waiting for spy, not having deps gets the build earlier
     )
-    # delegated-guardian-setup must run before accountant tests to ensure all guardians watch BSC
-    if require_per_guardian_config:
-        k8s_resource(
-            "delegated-guardian-setup",
-            resource_deps = guardian_resource_deps + ["guardian"],
-            labels = ["guardian"],
-            trigger_mode = trigger_mode,
-        )
     k8s_resource(
         "accountant-ci-tests",
         labels = ["ci"],

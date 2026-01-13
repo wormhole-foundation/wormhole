@@ -8,21 +8,28 @@ import (
 	"encoding/hex"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/holiman/uint256"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -31,6 +38,13 @@ const (
 	guardian0 = "befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"
 	guardian1 = "88d7d8b32a9105d228100e72dffe2fae0705d31c"
 	guardian2 = "58076f561cc62a47087b567c86f986426dfcd000"
+	ethDevnetRPC  = "http://eth-devnet:8545"
+	ethDevnet2RPC = "http://eth-devnet2:8545"
+	wormholeContractAddress        = "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+	delegatedGuardiansContractAddr = "0xfE82e8f24A51E670133f4268cDfc164c49FC3b37"
+	anvilPrivateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+	numDevnetGuardians = 3
+	delegatedGuardiansABI = `[{"inputs":[{"internalType":"bytes","name":"vaa","type":"bytes"}],"name":"submitConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"nextConfigIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
 )
 
 var devnetGuardians = []string{
@@ -39,14 +53,44 @@ var devnetGuardians = []string{
 	guardian2,
 }
 
-func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consistencyLevel uint8) string {
-	rpcUrl := "http://eth-devnet2:8545"                                     // eth-devnet2 is a delegated chain in devnet
-	wormholeContractAddress := "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550" // devnet core contract
-	client, err := ethclient.Dial(rpcUrl)
+func getNextConfigIndex(t *testing.T) uint64 {
+	client, err := ethclient.Dial(ethDevnetRPC)
 	require.NoError(t, err, "Failed to connect to Ethereum RPC")
 	defer client.Close()
 
-	privateKey, err := eth_crypto.HexToECDSA("4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d") // anvil key
+	contractAddr := eth_common.HexToAddress(delegatedGuardiansContractAddr)
+
+	code, err := client.CodeAt(context.Background(), contractAddr, nil)
+	require.NoError(t, err, "Failed to get contract code")
+	require.NotEmpty(t, code, "DelegatedGuardians contract not deployed at %s", delegatedGuardiansContractAddr)
+
+	parsedABI, err := abi.JSON(strings.NewReader(delegatedGuardiansABI))
+	require.NoError(t, err, "Failed to parse ABI")
+
+	data, err := parsedABI.Pack("nextConfigIndex")
+	require.NoError(t, err, "Failed to pack nextConfigIndex call")
+
+	result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &contractAddr,
+		Data: data,
+	}, nil)
+	require.NoError(t, err, "Failed to call nextConfigIndex")
+	require.NotEmpty(t, result, "Empty response from nextConfigIndex - contract may not be properly deployed")
+
+	var configIndex *big.Int
+	err = parsedABI.UnpackIntoInterface(&configIndex, "nextConfigIndex", result)
+	require.NoError(t, err, "Failed to unpack nextConfigIndex result")
+
+	t.Logf("Current nextConfigIndex: %d", configIndex.Uint64())
+	return configIndex.Uint64()
+}
+
+func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consistencyLevel uint8) string {
+	client, err := ethclient.Dial(ethDevnet2RPC)
+	require.NoError(t, err, "Failed to connect to Ethereum RPC")
+	defer client.Close()
+
+	privateKey, err := eth_crypto.HexToECDSA(anvilPrivateKey)
 	require.NoError(t, err, "Failed to parse private key")
 
 	chainID, err := client.ChainID(context.Background())
@@ -334,10 +378,127 @@ func ensureEquivalentDelegateObservations(t *testing.T, observations ...*gossipv
 	}
 }
 
-func TestDelegateObservationScenario(t *testing.T) {
-	t.Log("Waiting for guardian network to stabilize...")
-	time.Sleep(15 * time.Second)
+func TestDelegateChainUndelegated(t *testing.T) {
+	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
+		4: {
+			Threshold: 0,
+			Keys:      []eth_common.Address{},
+		},
+	}
 
+	createAndSubmitDelegatedGuardiansConfig(t, config)
+	t.Log("Waiting for guardian to pick up configuration...")
+	time.Sleep(20 * time.Second)
+
+	collector := startGossipCollector(t)
+	defer collector.Stop()
+
+	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200)
+
+	time.Sleep(10 * time.Second)
+
+	messages := stopGossipCollector(t, collector)
+
+	// in this case we should not have delegated observations
+	assert.Equal(t, 0, len(messages.DelegateObservations))
+
+
+	t.Logf("\n=== All Delegate Observations ===")
+	for i, obs := range messages.DelegateObservations {
+		t.Logf("\nDelegate Observation #%d:", i+1)
+		t.Logf("  Timestamp: %d", obs.Timestamp)
+		t.Logf("  Nonce: %d", obs.Nonce)
+		t.Logf("  EmitterChain: %d", obs.EmitterChain)
+		t.Logf("  EmitterAddress: %s", hex.EncodeToString(obs.EmitterAddress))
+		t.Logf("  Sequence: %d", obs.Sequence)
+		t.Logf("  ConsistencyLevel: %d", obs.ConsistencyLevel)
+		t.Logf("  Payload: %s", hex.EncodeToString(obs.Payload))
+		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
+		t.Logf("  GuardianAddr: %s", hex.EncodeToString(obs.GuardianAddr))
+	}
+
+	// When delegated guardians are disabled (threshold=0), guardians should still observe messages
+	ob0 := messages.FindObservationBatchByGuardian(guardian0)
+	ob1 := messages.FindObservationBatchByGuardian(guardian1)
+	ob2 := messages.FindObservationBatchByGuardian(guardian2)
+
+	if ob0 != nil {
+		t.Logf("\n=== Observation Batch 0 (guardian0) ===")
+		t.Logf("  Timestamp: %d", ob0.Timestamp.Unix())
+		for i, obs := range ob0.Msg.Observations {
+			t.Logf("\nObservation #%d:", i+1)
+			t.Logf("  MessageId: %s", obs.MessageId)
+			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
+			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
+		}
+	} else {
+		t.Log("No observation batch from guardian0")
+	}
+
+	if ob1 != nil {
+		t.Logf("\n=== Observation Batch 1 (guardian1) ===")
+		t.Logf("  Timestamp: %d", ob1.Timestamp.Unix())
+		for i, obs := range ob1.Msg.Observations {
+			t.Logf("\nObservation #%d:", i+1)
+			t.Logf("  MessageId: %s", obs.MessageId)
+			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
+			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
+		}
+	} else {
+		t.Log("No observation batch from guardian1")
+	}
+
+	if ob2 != nil {
+		t.Logf("\n=== Observation Batch 2 (guardian2) ===")
+		t.Logf("  Timestamp: %d", ob2.Timestamp.Unix())
+		for i, obs := range ob2.Msg.Observations {
+			t.Logf("\nObservation #%d:", i+1)
+			t.Logf("  MessageId: %s", obs.MessageId)
+			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
+			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
+		}
+	} else {
+		t.Log("No observation batch from guardian2")
+	}
+
+	// guardian-1 and guardian-2 watch chain 4, so they should have observations
+	// guardian-0 only watches chain 2, so it won't have observations for chain 4
+	require.NotNil(t, ob1, "Expected observation batch from guardian1")
+	require.NotNil(t, ob2, "Expected observation batch from guardian2")
+
+	ensureEquivalentObservationBatches(t, ob1.Msg, ob2.Msg)
+
+	assert.Equal(t, 1, len(ob1.Msg.Observations), "Expected exactly 1 observation in guardian1 batch")
+	assert.Equal(t, 1, len(ob2.Msg.Observations), "Expected exactly 1 observation in guardian2 batch")
+
+	// chain id 4
+	require.NotEmpty(t, ob1.Msg.Observations, "Guardian1 should have observations")
+	messageID := ob1.Msg.Observations[0].MessageId
+	assert.True(t, strings.HasPrefix(messageID, "4/"), "Message ID should be for chain 4, got: %s", messageID)
+	t.Logf("Message ID: %s", messageID)
+
+	// VAA is not produced because guardian-0 is still not listening to evm2
+	// even if we undelegate chain id 4, so no quorum is reached
+	require.Empty(t, messages.VAAs, "Expected no VAA to be produced")
+	t.Logf("VAAs produced: %d", len(messages.VAAs))
+
+	// we rollback configuration changes to devnet default config
+	rollbackConfig := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
+		4: {
+			Threshold: 2,
+			Keys: []eth_common.Address{
+				eth_common.HexToAddress("0x" + guardian1),
+				eth_common.HexToAddress("0x" + guardian2),
+			},
+		},
+	}
+
+	createAndSubmitDelegatedGuardiansConfig(t, rollbackConfig)
+	t.Log("Waiting for guardian to pick up configuration...")
+	time.Sleep(20 * time.Second)
+}
+
+func TestDelegateObservationScenario(t *testing.T) {
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
@@ -354,8 +515,7 @@ func TestDelegateObservationScenario(t *testing.T) {
 	message0 := messages.DelegateObservations[0]
 	message1 := messages.DelegateObservations[1]
 
-	// we are expecting guardian 1 and 2 only (delegated for this chain)
-	// to send delegated observations
+	// we are expecting guardian 1 and 2 only to send delegated observations
 	actualGuardians := []string{
 		hex.EncodeToString(message0.GuardianAddr),
 		hex.EncodeToString(message1.GuardianAddr),
@@ -422,4 +582,83 @@ func TestDelegateObservationScenario(t *testing.T) {
 	hash := mp.CreateDigest()
 	assert.Equal(t, hash, hex.EncodeToString(ob0.Msg.Observations[0].Hash))
 	assert.Equal(t, message0.TxHash, ob0.Msg.Observations[0].TxHash)
+}
+
+func createAndSubmitDelegatedGuardiansConfig(t *testing.T, config map[vaa.ChainID]vaa.DelegatedGuardianConfig) {
+	configIndex := getNextConfigIndex(t)
+	t.Logf("Creating delegated guardians config VAA with configIndex=%d", configIndex)
+
+	body, err := vaa.BodyDelegatedGuardiansSetConfig{
+		ConfigIndex: uint256.NewInt(configIndex),
+		Config:      config,
+	}.Serialize()
+	require.NoError(t, err, "Failed to serialize governance body")
+
+	timestamp := time.Now()
+	nonce := uint32(configIndex)
+	sequence := uint64(configIndex)
+	guardianSetIndex := uint32(0)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+
+	for i := 0; i < numDevnetGuardians; i++ {
+		key := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(i))
+		v.AddSignature(key, uint8(i))
+	}
+
+	vaaBytes, err := v.Marshal()
+	require.NoError(t, err, "Failed to marshal VAA")
+
+	t.Logf("Created governance VAA with %d signatures", len(v.Signatures))
+	t.Logf("VAA hex: %s", hex.EncodeToString(vaaBytes))
+
+	submitConfigToDelegatedGuardians(t, vaaBytes)
+
+	t.Log("Governance VAA submitted successfully")
+}
+
+func submitConfigToDelegatedGuardians(t *testing.T, vaaBytes []byte) {
+	client, err := ethclient.Dial(ethDevnetRPC)
+	require.NoError(t, err, "Failed to connect to Ethereum RPC")
+	defer client.Close()
+
+	privateKey, err := eth_crypto.HexToECDSA(anvilPrivateKey)
+	require.NoError(t, err, "Failed to parse private key")
+
+	chainID, err := client.ChainID(context.Background())
+	require.NoError(t, err, "Failed to get chain ID")
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err, "Failed to create transactor")
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(500000)
+
+	contractAddr := eth_common.HexToAddress(delegatedGuardiansContractAddr)
+
+	parsedABI, err := abi.JSON(strings.NewReader(delegatedGuardiansABI))
+	require.NoError(t, err, "Failed to parse ABI")
+
+	data, err := parsedABI.Pack("submitConfig", vaaBytes)
+	require.NoError(t, err, "Failed to pack submitConfig call")
+
+	nonce, err := client.PendingNonceAt(context.Background(), auth.From)
+	require.NoError(t, err, "Failed to get nonce")
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	require.NoError(t, err, "Failed to get gas price")
+
+	tx := types.NewTransaction(nonce, contractAddr, big.NewInt(0), auth.GasLimit, gasPrice, data)
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	require.NoError(t, err, "Failed to sign transaction")
+
+	err = client.SendTransaction(context.Background(), signedTx)
+	require.NoError(t, err, "Failed to send transaction")
+
+	t.Logf("Transaction sent: %s", signedTx.Hash().Hex())
+
+	receipt, err := bind.WaitMined(context.Background(), client, signedTx)
+	require.NoError(t, err, "Failed to wait for transaction")
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Transaction failed")
+
+	t.Logf("Transaction mined in block %d", receipt.BlockNumber.Uint64())
 }

@@ -37,7 +37,7 @@ contract WormholeDelegatedGuardians {
   mapping(uint16 => DelegatedGuardianSet[]) private delegatedGuardianSets;
   uint16[] private chainIds;
   mapping(bytes32 => bool) public governanceActionsConsumed;
-  uint256 private nextConfigIndex;
+  uint256 public nextConfigIndex;
 
   event ChainConfigSet(uint256 configIndex, uint16 chainId, uint8 threshold, address[] keys);
 
