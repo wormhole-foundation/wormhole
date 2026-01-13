@@ -22,7 +22,7 @@ type WatcherConfig struct {
 	DelegatedGuardiansUpdateChain bool               // if `true`, we will retrieve the DelegatedGuardians config from this chain
 	CcqBackfillCache              bool
 	TxVerifierEnabled             bool
-	DgConfigC                     chan<- *processor.DelegateGuardianConfig // Delegated guardian config channel, set by GuardianOptionWatchers
+	DgConfigC                     chan<- *processor.DelegatedGuardianConfig // Delegated guardian config channel, set by GuardianOptionWatchers
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -51,7 +51,7 @@ func (wc *WatcherConfig) Create(
 
 	// only actually use the delegated guardians config channel if wc.DelegatedGuardiansUpdateChain == true
 	// Note: DgConfigC is set by GuardianOptionWatchers in options.go
-	var dgConfigWriteC chan<- *processor.DelegateGuardianConfig = nil
+	var dgConfigWriteC chan<- *processor.DelegatedGuardianConfig = nil
 	var dgContractAddr string
 	if wc.DelegatedGuardiansUpdateChain {
 		dgConfigWriteC = wc.DgConfigC

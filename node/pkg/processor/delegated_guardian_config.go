@@ -26,7 +26,7 @@ var (
 	)
 )
 
-type DelegateGuardianChainConfig struct {
+type DelegatedGuardianChainConfig struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address
 
@@ -40,16 +40,16 @@ type DelegateGuardianChainConfig struct {
 }
 
 // Quorum returns the current quorum value.
-func (dc *DelegateGuardianChainConfig) Quorum() int {
+func (dc *DelegatedGuardianChainConfig) Quorum() int {
 	return dc.quorum
 }
 
-func NewDelegateGuardianChainConfig(keys []common.Address, threshold int) *DelegateGuardianChainConfig {
+func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) *DelegatedGuardianChainConfig {
 	keyMap := map[common.Address]int{}
 	for idx, key := range keys {
 		keyMap[key] = idx
 	}
-	return &DelegateGuardianChainConfig{
+	return &DelegatedGuardianChainConfig{
 		Keys:   keys,
 		quorum: threshold,
 		keyMap: keyMap,
@@ -58,7 +58,7 @@ func NewDelegateGuardianChainConfig(keys []common.Address, threshold int) *Deleg
 
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
-func (dc *DelegateGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) { //nolint: unparam // The index is unused but it is retained as it could be used in future tests
+func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) { //nolint: unparam // The index is unused but it is retained as it could be used in future tests
 	if dc.keyMap != nil {
 		if idx, found := dc.keyMap[addr]; found {
 			return idx, true
@@ -74,20 +74,20 @@ func (dc *DelegateGuardianChainConfig) KeyIndex(addr common.Address) (int, bool)
 	return -1, false
 }
 
-type DelegateGuardianConfig struct {
+type DelegatedGuardianConfig struct {
 	// TODO(delegated-guardian-sets): Try RWMutex since reads > writes
 	mu     sync.Mutex
-	Chains map[vaa.ChainID]*DelegateGuardianChainConfig
+	Chains map[vaa.ChainID]*DelegatedGuardianChainConfig
 }
 
-// NewDelegateGuardianConfig returns a new DelegateGuardianConfig.
-func NewDelegateGuardianConfig() *DelegateGuardianConfig {
-	return &DelegateGuardianConfig{
-		Chains: map[vaa.ChainID]*DelegateGuardianChainConfig{},
+// NewDelegatedGuardianConfig returns a new DelegatedGuardianConfig.
+func NewDelegatedGuardianConfig() *DelegatedGuardianConfig {
+	return &DelegatedGuardianConfig{
+		Chains: map[vaa.ChainID]*DelegatedGuardianChainConfig{},
 	}
 }
 
-func (d *DelegateGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *DelegateGuardianChainConfig) {
+func (d *DelegatedGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *DelegatedGuardianChainConfig) {
 	d.mu.Lock()
 	dgSigners.WithLabelValues(chain.String()).Set(float64(len(cfg.Keys)))
 	dgQuorum.WithLabelValues(chain.String()).Set(float64(cfg.quorum))
@@ -96,8 +96,8 @@ func (d *DelegateGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *Delegate
 	d.Chains[chain] = cfg
 }
 
-// GetChainConfig returns the delegate guardian chain config for a specific chain, or nil if none.
-func (d *DelegateGuardianConfig) GetChainConfig(chain vaa.ChainID) *DelegateGuardianChainConfig {
+// GetChainConfig returns the delegated guardian chain config for a specific chain, or nil if none.
+func (d *DelegatedGuardianConfig) GetChainConfig(chain vaa.ChainID) *DelegatedGuardianChainConfig {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

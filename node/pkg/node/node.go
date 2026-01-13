@@ -122,7 +122,7 @@ type G struct {
 	// Ethereum incoming guardian set updates
 	setC channelPair[*common.GuardianSet]
 	// Delegated guardian config updates
-	dgConfigC channelPair[*processor.DelegateGuardianConfig]
+	dgConfigC channelPair[*processor.DelegatedGuardianConfig]
 	// Inbound signed VAAs
 	signedInC channelPair[*gossipv1.SignedVAAWithQuorum]
 	// Inbound observation requests from the p2p service (for all chains)
@@ -165,7 +165,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
-	g.dgConfigC = makeChannelPair[*processor.DelegateGuardianConfig](1)
+	g.dgConfigC = makeChannelPair[*processor.DelegatedGuardianConfig](1)
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)

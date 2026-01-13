@@ -151,14 +151,14 @@ spec:
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: delegate-guardian-ci-tests
+  name: delegated-guardian-ci-tests
 spec:
   backoffLimit: 0
   template:
     spec:
       restartPolicy: Never
       containers:
-        - name: delegate-guardian-ci-tests
+        - name: delegated-guardian-ci-tests
           image: guardiand-image
           command:
             - /bin/sh

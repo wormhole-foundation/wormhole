@@ -140,7 +140,7 @@ type (
 
 		// Delegated guardians connector and config
 		dgConn                                  *connectors.DelegatedGuardiansConnector
-		dgConfigC                               chan<- *processor.DelegateGuardianConfig
+		dgConfigC                               chan<- *processor.DelegatedGuardianConfig
 		dgContractAddr                          string
 		currentDelegatedGuardianConfigTimestamp uint32
 
@@ -195,7 +195,7 @@ func NewEthWatcher(
 	chainID vaa.ChainID,
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
-	dgConfigC chan<- *processor.DelegateGuardianConfig,
+	dgConfigC chan<- *processor.DelegatedGuardianConfig,
 	dgContractAddr string,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *query.PerChainQueryInternal,
@@ -835,11 +835,11 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 
 		w.currentDelegatedGuardianConfigTimestamp = maxTimestamp
 
-		// Build the DelegateGuardianConfig
-		dgConfig := processor.NewDelegateGuardianConfig()
+		// Build the DelegatedGuardianConfig
+		dgConfig := processor.NewDelegatedGuardianConfig()
 		for _, cfg := range configs {
 			chainID := vaa.ChainID(cfg.ChainId)
-			chainConfig := processor.NewDelegateGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
+			chainConfig := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
 			dgConfig.SetChainConfig(chainID, chainConfig)
 			logger.Info("delegated guardian config for chain",
 				zap.Stringer("chainID", chainID),

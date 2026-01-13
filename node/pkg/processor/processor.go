@@ -101,7 +101,7 @@ type (
 
 	delegateObservationMap map[string]*delegateState
 
-	// delegateAggregationState represents the node's aggregation of delegate guardian signatures.
+	// delegateAggregationState represents the node's aggregation of delegated guardian signatures.
 	delegateAggregationState struct {
 		observations delegateObservationMap
 	}
@@ -130,7 +130,7 @@ type Processor struct {
 	setC <-chan *common.GuardianSet
 
 	// dgConfigC is a channel of delegated guardian config updates
-	dgConfigC <-chan *DelegateGuardianConfig
+	dgConfigC <-chan *DelegatedGuardianConfig
 
 	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
 	gossipAttestationSendC chan<- []byte
@@ -171,7 +171,7 @@ type Processor struct {
 	gst *common.GuardianSetState
 
 	// dgc is the per-chain delegated guardian config
-	dgc *DelegateGuardianConfig
+	dgc *DelegatedGuardianConfig
 
 	// state is the current runtime VAA view
 	state *aggregationState
@@ -257,7 +257,7 @@ func NewProcessor(
 	db *guardianDB.Database,
 	msgC <-chan *common.MessagePublication,
 	setC <-chan *common.GuardianSet,
-	dgConfigC <-chan *DelegateGuardianConfig,
+	dgConfigC <-chan *DelegatedGuardianConfig,
 	gossipAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
@@ -305,7 +305,7 @@ func NewProcessor(
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 		networkID:      networkID,
-		dgc:            NewDelegateGuardianConfig(),
+		dgc:            NewDelegatedGuardianConfig(),
 	}
 }
 

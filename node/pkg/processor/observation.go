@@ -588,7 +588,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
 // This function assumes cfg corresponds to m.EmitterChain
 // TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
-func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegateGuardianChainConfig, m *gossipv1.DelegateObservation) error {
+func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegatedGuardianChainConfig, m *gossipv1.DelegateObservation) error {
 	addr := common.BytesToAddress(m.GuardianAddr)
 	mp, err := delegateObservationToMessagePublication(m)
 	if err != nil {
@@ -632,8 +632,8 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 // MessagePublication through the normal message pipeline.
 // This function assumes mp corresponds to s
 // TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
-func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegateGuardianChainConfig) error {
-	// TODO(delegated-guardian-sets): Handle case for when delegate guardian set changes
+func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegatedGuardianChainConfig) error {
+	// TODO(delegated-guardian-sets): Handle case for when delegated guardian set changes
 	// Check if we have more delegate observations than required for quorum.
 	if len(s.observations) < dgs.Quorum() {
 		// no quorum yet, we're done here

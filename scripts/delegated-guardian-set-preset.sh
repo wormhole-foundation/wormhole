@@ -60,7 +60,7 @@ delegatedGuardiansAddress=$(kubectl exec -n "${namespace}" eth-devnet-0 -c tests
   jq -r '.returns.deployedDelegatedGuardians.value' /home/node/app/ethereum/broadcast/DeployWormholeDelegatedGuardians.s.sol/1337/run-latest.json)
 echo "delegatedGuardiansAddress: $delegatedGuardiansAddress"
 
-# convert delegated_config into expected config format for delegate-guardians-config command
+# convert delegated_config into expected config format for delegated-guardians-config command
 config="$(
   echo "${delegated_config}" | 
   jq -c --argjson guardians "${guardianAddresses}" '
