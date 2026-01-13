@@ -179,6 +179,7 @@ func (w *Watcher) fetchStacksBlockReplay(ctx context.Context, blockId string) (*
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// The replay endpoint requires an authorized request, as it's protected due to potential resource concerns.
 	resp, err := w.doAuthorizedRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch block replay: %w", err)
