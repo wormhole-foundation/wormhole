@@ -50,12 +50,5 @@
       consistency-level: uint,    ;; Must fit into `u8`
       payload: (buff 8192)
     } uint))
-    ;; Get or generate new "Wormhole address" for a Stacks `prrincipal` that can be used in Wormhole messages
-    ;; Addresses in the Wormhole protocol are limited to 32 bytes, but a Stacks `principal` can be longer than this
-    ;; NOTE: May charge sender a fee to generate new address
-    (get-wormhole-address (principal) (response {
-      created: bool,
-      wormhole-address: (buff 32)
-    } uint))
   )
 )

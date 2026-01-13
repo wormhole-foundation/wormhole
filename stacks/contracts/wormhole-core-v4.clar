@@ -21,6 +21,7 @@
 (impl-trait .wormhole-trait-core-v2.core-trait)
 (impl-trait .wormhole-trait-governance-v1.governance-trait)
 (impl-trait .wormhole-trait-export-v1.export-trait)
+(impl-trait .protocol-send-trait-v1.send-trait)
 
 ;; Export trait used previous contract that we are importing from
 ;; May not match the version of `export-trait` this contract implements
@@ -156,6 +157,11 @@
 ;; No guardians found for guardian set
 (define-constant ERR_NO_GUARDIANS (err u2004))
 
+;; Protocol Agnostic Send: Payload exceeds max len for Wormhole
+(define-constant ERR_PAS_PAYLOAD_LEN (err u2101))
+;; Protocol Agnostic Send: No nonce given
+(define-constant ERR_PAS_NO_NONCE (err u2102))
+
 ;; Wormhole Governance: emitting chain
 (define-constant GOV_EMITTING_CHAIN u1)
 ;; Wormhole Governance: emitting address
@@ -203,8 +209,8 @@
 ;; The state of this particular deployment of the core contract
 (define-data-var deployment-state uint DEPLOYMENT_STATE_UNITIALIZED)
 ;; If we have recieved a ContractUpgrade VAA, this is the contract we are upgrading to
-;; We receive the hash of the address in the VAA. Store it this way so we don't have to register the sucessor contract manually with `get-wormhole-address`
-(define-data-var successor-contract (optional { wormhole-address: (buff 32), set-at-burn-block: uint }) none)
+;; We receive the hash of the address in the VAA. Store it this way so we don't have to register the sucessor contract manually with `addr32`
+(define-data-var successor-contract (optional { addr32: (buff 32), set-at-burn-block: uint }) none)
 
 ;; ----- DATA VARS BELOW THIS LINE MUST BE EXPORTED IN `get-exported-vars`! -----
 
@@ -282,21 +288,21 @@
 ;; NOTE: In future versions of this contract, `export-state` may require newer version of `export-trait` than `import-state`
 (define-public (export-state)
   (let ((active (try! (check-active-deployment)))
-        (contract-principal (get-contract-principal))
-        (stx-balance (stx-get-balance contract-principal))
+        (stx-balance (stx-get-balance current-contract))
         (caller contract-caller)
         (caller-parts (unwrap! (principal-destruct? caller) ERR_UPG_CHECK_CONTRACT_ADDRESS))
-        (wormhole-address (get wormhole-address (try! (contract-call? .wormhole-core-state get-wormhole-address caller))))
-        (new-wormhole-address (get wormhole-address (unwrap! (get-successor-contract) ERR_UPG_UNAUTHORIZED))))
+        (addr32 (get addr32 (try! (contract-call? .addr32 register caller))))
+        (new-addr32 (get addr32 (unwrap! (get-successor-contract) ERR_UPG_UNAUTHORIZED))))
     ;; Check we have a contract principal and not a standard principal
     (asserts! (is-some (get name caller-parts)) ERR_UPG_CHECK_CONTRACT_ADDRESS)
     ;; Only the contract set by the ContractUpgrade VAA is allowed to call this function
-    (asserts! (is-eq wormhole-address new-wormhole-address) ERR_UPG_UNAUTHORIZED)
+    (asserts! (is-eq addr32 new-addr32) ERR_UPG_UNAUTHORIZED)
     ;; Transfer ownership of state contract
     (try! (contract-call? .wormhole-core-state start-ownership-transfer caller))
     ;; If we have an STX balance, transfer to new contract
     (if (> stx-balance u0)
-      (try! (as-contract (stx-transfer? stx-balance tx-sender caller)))
+      (try! (as-contract? ((with-stx stx-balance))
+        (try! (stx-transfer? stx-balance current-contract caller))))
       true)
     (var-set deployment-state DEPLOYMENT_STATE_DEPRECATED)
     (ok (get-exported-vars))))
@@ -491,7 +497,8 @@
     (try! (contract-call? .wormhole-core-state consume-governance-vaa hash))
 
     ;; --- Execute Action ---
-    (try! (as-contract (stx-transfer? amount tx-sender recipient)))
+    (try! (as-contract? ((with-stx amount))
+      (try! (stx-transfer? amount current-contract recipient))))
 
     ;; Emit event
     (print {
@@ -551,7 +558,7 @@
     ;; This verifies new contract actually exists before this one becomes unusable
     ;; Also keep track of when this was set
     (var-set successor-contract (some {
-      wormhole-address: contract,
+      addr32: contract,
       set-at-burn-block: burn-block-height
     }))
 
@@ -588,10 +595,17 @@
       vaa-body-hash: (get vaa-body-hash message)
     })))
 
-;; @desc Get or generate new "Wormhole address" for a Stacks `prrincipal` that can be used in Wormhole messages
-;;       Addresses in the Wormhole protocol are limited to 32 bytes, but a Stacks `principal` can be longer than this
-(define-public (get-wormhole-address (p principal))
-  (contract-call? .wormhole-core-state get-wormhole-address p))
+;; @desc Used by NTT contracts to send messages in a protocol-agnostic way
+(define-public (protocol-agnostic-send
+    (payload-64000 (buff 64000))
+    (unused1 (optional (string-ascii 20)))
+    (unused2 (optional (string-ascii 128)))
+    (nonce-opt (optional uint))
+    (consistency-level-opt (optional uint)))
+  (let ((payload (unwrap! (as-max-len? payload-64000 u8192) ERR_PAS_PAYLOAD_LEN))
+        (nonce (unwrap! nonce-opt ERR_PAS_NO_NONCE))
+        (result (try! (post-message payload nonce consistency-level-opt))))
+    (ok (get sequence result))))
 
 ;;;; Private functions
 
@@ -749,7 +763,7 @@
 ;; Expected message format for TransferFees payload:
 ;;   [35]byte   header     Governance payload header
 ;;   u256       amount     Amount to transfer (in uSTX)
-;;   [32]byte   recipient  Hash of recipient address (MUST HAVE BEEN REGISTERED WITH `get-wormhole-address`!!)
+;;   [32]byte   recipient  Hash of recipient address (MUST HAVE BEEN REGISTERED WITH `addr32` CONTRACT!!)
 ;;
 ;; @param vaa-payload: VAA `payload` as raw bytes
 (define-private (parse-transfer-fees-payload (vaa-payload (buff 8192)))
@@ -759,9 +773,9 @@
           ERR_TXF_PARSING_AMOUNT_1))
         (amount (unwrap! (read-uint-128 gov-payload u16)
           ERR_TXF_PARSING_AMOUNT_2))
-        (recipient-hash (unwrap! (read-buff-32 gov-payload u32)
+        (recipient-addr32 (unwrap! (read-buff-32 gov-payload u32)
           ERR_TXF_PARSING_RECIPIENT))
-        (recipient (unwrap! (contract-call? .wormhole-core-state wormhole-to-stacks-get recipient-hash)
+        (recipient (unwrap! (contract-call? .addr32 lookup recipient-addr32)
           ERR_TXF_LOOKUP_RECIPIENT_ADDRESS)))
 
     ;; --- Validate Message Data ---
@@ -842,6 +856,8 @@
     }))
 
 ;; @desc Foldable function evaluating signatures from a list of { guardian-id: u8, signature: (buff 65) }, returning a list of recovered public-keys
+;;
+;; NOTE: Since ECDSA signatures are malleable (both the high-s and low-s variants are valid), we need to check for unique public keys, not unique signatures
 (define-private (batch-check-active-public-keys
       (entry { recovered-compressed-public-key: (buff 33), guardian-id: uint })
       (acc {
@@ -980,10 +996,6 @@
     (asserts! (is-eq set-id active-set-id) ERR_GOV_VAA_OLD_GUARDIAN_SET)
     (ok true)))
 
-;; Get this contract's principal
-(define-private (get-contract-principal)
-  (as-contract tx-sender))
-
 ;; @desc Initialize all Wormhole contracts (this one and the state contract)
 ;;       Only needs to be called once, when Wormhole contracts are first deployed
 ;;
@@ -992,7 +1004,7 @@
 ;;  - (err ...):  Already initialized or permissions error
 (define-private (initialize-wormhole)
   (begin
-    (try! (contract-call? .wormhole-core-state initialize (get-contract-principal)))
+    (try! (contract-call? .wormhole-core-state initialize current-contract))
     ;; This is the initial deployment of `wormhole-core`
     (var-set deployment-state DEPLOYMENT_STATE_ACTIVE)
 
@@ -1042,7 +1054,7 @@
   (let ((fee (var-get message-fee)))
     ;; If a fee has been set, collect it
     (if (> fee u0)
-      (try! (stx-transfer? fee tx-sender (get-contract-principal)))
+      (try! (stx-transfer? fee tx-sender current-contract))
       true
     )
     (ok true)))
@@ -1074,17 +1086,8 @@
 ;; Based on functions from `SP2J933XB2CP2JQ1A4FGN8JA968BBG3NK3EKZ7Q9F.hk-cursor-v2`
 ;; Modified for better performance
 
-(define-private (read-buff-1 (bytes (buff 8192)) (pos uint))
-  (ok (unwrap-panic (as-max-len? (unwrap! (slice? bytes pos (+ pos u1)) (err u1)) u1))))
-
 (define-private (read-buff-2 (bytes (buff 8192)) (pos uint))
   (ok (unwrap-panic (as-max-len? (unwrap! (slice? bytes pos (+ pos u2)) (err u1)) u2))))
-
-(define-private (read-buff-4 (bytes (buff 8192)) (pos uint))
-  (ok (unwrap-panic (as-max-len? (unwrap! (slice? bytes pos (+ pos u4)) (err u1)) u4))))
-
-(define-private (read-buff-8 (bytes (buff 8192)) (pos uint))
-  (ok (unwrap-panic (as-max-len? (unwrap! (slice? bytes pos (+ pos u8)) (err u1)) u8))))
 
 (define-private (read-buff-16 (bytes (buff 8192)) (pos uint))
   (ok (unwrap-panic (as-max-len? (unwrap! (slice? bytes pos (+ pos u16)) (err u1)) u16))))

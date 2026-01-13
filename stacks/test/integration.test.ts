@@ -60,6 +60,8 @@ describe("Stacks Wormhole Integration Tests", () => {
     ].map((file) => path.join(dependencyPath, file));
 
     const contractFiles = [
+      "addr32.clar",
+      "protocol-send-trait-v1.clar",
       "wormhole-core-state.clar",
       "wormhole-trait-core-v2.clar",
       "wormhole-core-proxy-v2.clar",
