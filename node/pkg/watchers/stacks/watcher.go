@@ -204,7 +204,7 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 
 	var nakamotoEpoch *StacksV2PoxEpoch
 	for _, epoch := range poxInfo.Epochs {
-		if epoch.EpochID == "Epoch30" {
+		if epoch.EpochID == NakamotoEpochID {
 			nakamotoEpoch = &epoch
 			break
 		}
@@ -356,7 +356,7 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 	logger.Info("Processing Stacks transaction", zap.String("tx_id", tx.TxId))
 
 	// abort_by_response (non-okay response)
-	if !strings.HasPrefix(tx.ResultHex, "0x07") { // (ok) is 0x07...
+	if !strings.HasPrefix(tx.ResultHex, OkPrefixHex) { // (ok) response prefix
 		return 0, fmt.Errorf("transaction %s failed due to response hex: %s", tx.TxId, tx.ResultHex)
 	}
 
@@ -388,6 +388,17 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 			zap.Uint64("event_index", event.EventIndex))
 
 		hexStr := strings.TrimPrefix(event.ContractEvent.RawValue, "0x")
+
+		// Check length before decoding (hex encoding is 2 bytes per character)
+		if len(hexStr) > MaxClarityValueHexSize {
+			logger.Error("Clarity value hex string exceeds maximum size",
+				zap.String("tx_id", tx.TxId),
+				zap.Uint64("event_index", event.EventIndex),
+				zap.Int("size", len(hexStr)),
+				zap.Int("max_size", MaxClarityValueHexSize))
+			continue
+		}
+
 		hexBytes, err := hex.DecodeString(hexStr)
 		if err != nil {
 			logger.Error("Failed to decode raw value hex",
@@ -395,14 +406,6 @@ func (w *Watcher) processStacksTransaction(_ context.Context, tx *StacksV3Tenure
 				zap.Uint64("event_index", event.EventIndex),
 				zap.String("hex", event.ContractEvent.RawValue),
 				zap.Error(err))
-			continue
-		}
-
-		if len(hexBytes) > 1024*1024 {
-			logger.Error("Clarity value exceeds (1MB)",
-				zap.String("tx_id", tx.TxId),
-				zap.Uint64("event_index", event.EventIndex),
-				zap.Int("size", len(hexBytes)))
 			continue
 		}
 
@@ -456,7 +459,7 @@ func (w *Watcher) reobserveStacksTransactionByTxId(ctx context.Context, txId str
 		return 0, fmt.Errorf("transaction %s is not in the canonical chain", txId)
 	}
 
-	if !strings.HasPrefix(transaction.Result, "(ok ") {
+	if !strings.HasPrefix(transaction.Result, OkPrefix) {
 		return 0, fmt.Errorf("transaction %s failed due to result: %s", txId, transaction.Result)
 	}
 
@@ -589,8 +592,8 @@ func extractMessageData(eventTuple *clarity.Tuple) (*MessageData, error) {
 	}
 
 	emitterBuffer, ok := emitterVal.(*clarity.Buffer)
-	if !ok || emitterBuffer.Len() != 32 {
-		return nil, fmt.Errorf("'emitter' field is not a 32-byte buffer: %T", emitterVal)
+	if !ok || emitterBuffer.Len() != EmitterAddressSize {
+		return nil, fmt.Errorf("'emitter' field is not a %d-byte buffer: %T", EmitterAddressSize, emitterVal)
 	}
 
 	// Convert buffer to wormhole address
@@ -633,7 +636,7 @@ func extractMessageData(eventTuple *clarity.Tuple) (*MessageData, error) {
 	}
 
 	payload, ok := payloadVal.(*clarity.Buffer)
-	if !ok || payload.Len() > 8192 {
+	if !ok || payload.Len() > MaxPayloadSize {
 		return nil, fmt.Errorf("invalid 'payload' field: %T", payloadVal)
 	}
 
