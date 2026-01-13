@@ -168,6 +168,11 @@ func (w *Watcher) Reobserve(ctx context.Context, chainID vaa.ChainID, txID []byt
 		return 0, fmt.Errorf("unexpected chain ID: %v", chainID)
 	}
 
+	// Validate transaction ID length (must be exactly 32 bytes / 64 hex chars)
+	if len(txID) != TransactionIDSize {
+		return 0, fmt.Errorf("invalid transaction ID length: expected %d bytes, got %d", TransactionIDSize, len(txID))
+	}
+
 	txIdString := hex.EncodeToString(txID)
 	logger.Info("Received reobservation request",
 		zap.String("tx_id", txIdString),
@@ -302,6 +307,15 @@ func (w *Watcher) processBitcoinBlock(ctx context.Context, tenureBlocks *StacksV
 		zap.Uint64("bitcoin_block_height", tenureBlocks.BurnBlockHeight),
 		zap.String("bitcoin_block_hash", tenureBlocks.BurnBlockHash))
 
+	// Check if there are any Stacks blocks anchored to this Bitcoin block
+	// Note: It's valid for a Bitcoin block to have no Stacks blocks
+	if tenureBlocks.StacksBlocks == nil || len(tenureBlocks.StacksBlocks) == 0 {
+		logger.Info("No Stacks blocks found for Bitcoin block",
+			zap.Uint64("bitcoin_block_height", tenureBlocks.BurnBlockHeight),
+			zap.String("bitcoin_block_hash", tenureBlocks.BurnBlockHash))
+		return
+	}
+
 	// Process each Stacks block anchored to this burn block
 	for _, block := range tenureBlocks.StacksBlocks {
 		logger.Info("Processing Stacks block", zap.String("stacks_block_id", block.BlockId))
@@ -323,6 +337,13 @@ func (w *Watcher) processStacksBlock(ctx context.Context, blockHash string, logg
 		return fmt.Errorf("failed to fetch Stacks block replay: %w", err)
 	}
 
+	// Stacks blocks are expected to always contain at least one transaction
+	if len(replay.Transactions) == 0 {
+		return fmt.Errorf("block %s has no transactions", blockHash)
+	}
+
+	// Process transactions in order returned by Stacks node.
+	// We rely on the node to provide stable, consistent ordering.
 	for _, tx := range replay.Transactions {
 		if _, err := w.processStacksTransaction(ctx, &tx, replay, false, logger); err != nil {
 			logger.Error("Failed to process transaction",
@@ -537,6 +558,10 @@ func (w *Watcher) processCoreEvent(clarityValue clarity.Value, txId string, time
 
 // Extracts the event name from an event tuple
 func extractEventName(eventTuple *clarity.Tuple) (string, error) {
+	if eventTuple == nil {
+		return "", fmt.Errorf("eventTuple is nil")
+	}
+
 	eventNameVal, ok := eventTuple.Values["event"]
 	if !ok {
 		return "", fmt.Errorf("missing 'event' field in tuple")
@@ -557,6 +582,10 @@ func extractEventName(eventTuple *clarity.Tuple) (string, error) {
 
 // Extracts core message fields from an event tuple
 func extractMessageData(eventTuple *clarity.Tuple) (*MessageData, error) {
+	if eventTuple == nil {
+		return nil, fmt.Errorf("eventTuple is nil")
+	}
+
 	// Get the data field which should contain the message
 	dataVal, ok := eventTuple.Values["data"]
 	if !ok {
