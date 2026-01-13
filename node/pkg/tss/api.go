@@ -19,7 +19,14 @@ type SignerConnection interface {
 	Connect(ctx context.Context) error
 
 	Signer
-	Inform(*gossipv1.SignedChosenVAAV1) error // TODO: should receive VAA, and signature of LEADER.
+	TssGossiper
+}
+
+// The VaaGossiper interface represents the ability to inform and publish VAAs to the network.
+// It is specifically used to abstract the interaction of the TSS signer with the P2P layer for VAA gossiping.
+type TssGossiper interface {
+	Inform(*gossipv1.TSSGossipMessage) error    // TODO: should receive VAA, and signature of LEADER.
+	Publish() <-chan *gossipv1.TSSGossipMessage // basically only a leader will publish. but potentially others can too.
 }
 
 /*

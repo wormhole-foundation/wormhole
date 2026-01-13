@@ -86,7 +86,7 @@ type mockGuardian struct {
 	config           *guardianConfig
 
 	db        *guardianDB.Database
-	tssEngine tss.Signer
+	tssEngine tss.SignerConnection
 }
 
 type guardianConfig struct {

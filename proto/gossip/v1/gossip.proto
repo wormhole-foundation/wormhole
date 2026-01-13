@@ -15,17 +15,21 @@ message GossipMessage {
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
     SignedObservationBatch signed_observation_batch = 12;
-    SignedChosenVAAV1 signed_chosen_vaa_v1 = 13;
+    TSSGossipMessage tss_gossip_message = 13;
   }
 }
 
-// SignedChosenVAAV1 is used as a second trigger for VAAv2 signing. 
-// A leader guardian sends a specific VAAv1 to all peers to gossip.
-// Upon seeing a valid SignedChosenVAAV1, a guardian will inspect it against the leader's key, and if it is valid
-// and the VAAv1 is correct: it will begin a TSS process.
-message SignedChosenVAAV1{
-  bytes vaa = 1;
+
+// TSSGossipMessage is used to forward different TSS messages between nodes.
+// For instance: in the TSS protocol we incorporated a leader-based protocol where a specific guardian 
+// can forward a VAAv1 with a specific committee it wants others to participate in.
+message TSSGossipMessage{
+  // currently marshalled VAAv1. Can later be other items signers wish to gossip about.
+  bytes message = 1;
+  // ECDSA signature using the node's guardian public key.
   bytes signature = 2;
+  // used to identify the original sender of the gossip message.
+  bytes guardian_addr = 3;
 }
 
 message SignedHeartbeat {

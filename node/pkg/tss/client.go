@@ -23,8 +23,9 @@ type vaaHandling struct {
 	leaderIndex int // used to verify what content came from the leader.
 	gst         *common.GuardianSetState
 	guardiansigner.GuardianSigner
-	vaaV1Ingress <-chan *gossipv1.SignedChosenVAAV1
-	vaaV1Egress  chan<- *gossipv1.SignedChosenVAAV1
+
+	gossipOutput   chan *gossipv1.TSSGossipMessage // channel to send outgoing gossip messages.
+	incomingGossip chan *gossipv1.TSSGossipMessage // channel to receive incoming gossip messages.
 }
 
 type signerClient struct {
@@ -96,10 +97,6 @@ func (s *signerClient) AsyncSign(rq *signer.SignRequest) error {
 	default:
 		return ErrSignerClientSignRequestChannelFull
 	}
-}
-
-func (s *signerClient) InformValidV1Vaa() {
-	panic("unimplemented")
 }
 
 // GetPublicData implements Signer.

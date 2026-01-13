@@ -60,21 +60,36 @@ func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	if err != nil {
 		return fmt.Errorf("failed to sign VAA: %w", err)
 	}
-	m := &gossipv1.SignedChosenVAAV1{
-		Vaa:       bts,
-		Signature: sig,
+	m := &gossipv1.TSSGossipMessage{
+		Message:      bts,
+		Signature:    sig,
+		GuardianAddr: nil, // TODO.
 	}
 
 	// send to network.
 	select {
-	case s.vaaData.vaaV1Egress <- m:
+	case s.vaaData.gossipOutput <- m:
 		return nil
 	default:
 		return errNetworkOutputChannelFull
 	}
 }
 
-func (s *signerClient) Inform(v *gossipv1.SignedChosenVAAV1) error {
+func (s *signerClient) Publish() <-chan *gossipv1.TSSGossipMessage {
+	if s == nil {
+		return nil
+	}
+
+	// nothing to publish if not leader.
+	if !s.vaaData.isLeader {
+		return nil
+	}
+
+	return s.vaaData.gossipOutput
+}
+
+func (s *signerClient) Inform(v *gossipv1.TSSGossipMessage) error {
+	s.vaaData.incomingGossip <- v
 	return errors.New("Not implemented.")
 }
 

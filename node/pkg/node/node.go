@@ -89,7 +89,7 @@ type G struct {
 
 	// guardianSigner is the abstracted GuardianSigner that signs VAAs, or any other guardian-related information
 	guardianSigner guardiansigner.GuardianSigner
-	tssEngine      tss.Signer
+	tssEngine      tss.SignerConnection
 
 	// components
 	db                 *db.Database
@@ -137,7 +137,7 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	guardianSigner guardiansigner.GuardianSigner,
-	tssEngine tss.Signer,
+	tssEngine tss.SignerConnection,
 ) *G {
 
 	g := G{
