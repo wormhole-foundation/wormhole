@@ -366,6 +366,7 @@ const (
 	// ChainIDPolygonSepolia is the ChainID of Polygon on Sepolia
 	ChainIDPolygonSepolia ChainID = 10007
 	// OBSOLETE: ChainIDMonadDevnet ChainID = 10008
+	ChainIDMonadTestnet ChainID = 10009
 
 	// Special or bespoke chains start at 60000.
 	// ChainIDHyperCore is the ChainID of HyperCore (ID taken from Mayan)
