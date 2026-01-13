@@ -540,6 +540,11 @@ func (w *Watcher) processCoreEvent(clarityValue clarity.Value, txId string, time
 		return fmt.Errorf("failed to extract message data: %w", err)
 	}
 
+	// For now, we only support consistency level 0 (enum, "publish when tx is stable")
+	if msgData.ConsistencyLevel != 0 {
+		return fmt.Errorf("consistency level %d is not supported", msgData.ConsistencyLevel)
+	}
+
 	// Convert txId to bytes
 	txIdBytes, err := hex.DecodeString(strings.TrimPrefix(txId, "0x"))
 	if err != nil {
