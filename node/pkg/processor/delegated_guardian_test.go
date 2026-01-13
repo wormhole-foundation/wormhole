@@ -1,5 +1,4 @@
 //go:build delegated_guardian_ci
-// +build delegated_guardian_ci
 
 package processor
 
