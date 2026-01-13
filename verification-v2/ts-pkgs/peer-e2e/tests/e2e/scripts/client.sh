@@ -58,6 +58,18 @@ wait
 # Build the docker cache first. It will throw an error but it will save time
 docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile --progress=plain ../../../.. 2>/dev/null || true
 
+# Wait until anvil starts listening
+docker run --rm --network=dkg-test --env ETHEREUM_RPC_URL ghcr.io/foundry-rs/foundry:v1.5.1@sha256:3a70bfa9bd2c732a767bb60d12c8770b40e8f9b6cca28efc4b12b1be81c7f28e sh -lc '
+  deadline=$((SECONDS+60))
+  until cast block-number --rpc-url "$ETHEREUM_RPC_URL" >/dev/null 2>&1; do
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      echo "Timed out waiting for $ETHEREUM_RPC_URL" >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+'
+
 # Wait until the server starts listening
 until docker logs peer-server 2>/dev/null | grep "running"
 do

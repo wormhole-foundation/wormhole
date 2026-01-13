@@ -8,9 +8,9 @@ RUN apt-get --quiet update && apt-get --quiet --no-install-recommends --yes inst
   && rm -rf /var/lib/apt/lists
 
 # TODO: Pin the commit
-RUN git clone -b schnorr --depth 1 https://github.com/XLabs/wormhole.git
+RUN git clone -b tss-server --depth 1 https://github.com/XLabs/tss-lib.git
 
-WORKDIR /wormhole/node/pkg/tss/internal/cmd
+WORKDIR /tss-lib/tss/internal/cmd
 RUN go build -o=./server ./dkg
 
 WORKDIR /
@@ -81,7 +81,7 @@ yarnpkg start:client poll
 GUARDIAN_TLS_KEY=$(cat /keys/key.pem | base64 -w 0)
 jq ".StorageLocation = \\"/keys/\\" | .SelfSecret = \\"\${GUARDIAN_TLS_KEY}\\"" peer_config.json > /keys/dkg_config.json
 
-/wormhole/node/pkg/tss/internal/cmd/server -cnfg=/keys/dkg_config.json
+/tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json
 
 EOT
 
