@@ -7,6 +7,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/gogo/status"
 	tsscommon "github.com/xlabs/tss-common"
@@ -22,6 +23,8 @@ type vaaHandling struct {
 	leaderIndex int // used to verify what content came from the leader.
 	gst         *common.GuardianSetState
 	guardiansigner.GuardianSigner
+	vaaV1Ingress <-chan *gossipv1.SignedChosenVAAV1
+	vaaV1Egress  chan<- *gossipv1.SignedChosenVAAV1
 }
 
 type signerClient struct {

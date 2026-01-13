@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync/atomic"
 
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
@@ -18,7 +19,7 @@ type SignerConnection interface {
 	Connect(ctx context.Context) error
 
 	Signer
-	InformValidV1Vaa() // TODO: should receive VAA, and signature of LEADER.
+	Inform(*gossipv1.SignedChosenVAAV1) error // TODO: should receive VAA, and signature of LEADER.
 }
 
 /*

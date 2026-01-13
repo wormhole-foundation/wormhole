@@ -15,7 +15,17 @@ message GossipMessage {
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
     SignedObservationBatch signed_observation_batch = 12;
+    SignedChosenVAAV1 signed_chosen_vaa_v1 = 13;
   }
+}
+
+// SignedChosenVAAV1 is used as a second trigger for VAAv2 signing. 
+// A leader guardian sends a specific VAAv1 to all peers to gossip.
+// Upon seeing a valid SignedChosenVAAV1, a guardian will inspect it against the leader's key, and if it is valid
+// and the VAAv1 is correct: it will begin a TSS process.
+message SignedChosenVAAV1{
+  bytes vaa = 1;
+  bytes signature = 2;
 }
 
 message SignedHeartbeat {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -59,6 +60,22 @@ func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	if err != nil {
 		return fmt.Errorf("failed to sign VAA: %w", err)
 	}
+	m := &gossipv1.SignedChosenVAAV1{
+		Vaa:       bts,
+		Signature: sig,
+	}
+
+	// send to network.
+	select {
+	case s.vaaData.vaaV1Egress <- m:
+		return nil
+	default:
+		return errNetworkOutputChannelFull
+	}
+}
+
+func (s *signerClient) Inform(v *gossipv1.SignedChosenVAAV1) error {
+	return errors.New("Not implemented.")
 }
 
 // handleUnicastVaaV1 expects to receive valid Vaav1 messages.
