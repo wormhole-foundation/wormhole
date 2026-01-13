@@ -42,7 +42,6 @@ var (
 	maxUint32BigInt = big.NewInt(math.MaxUint32)
 	maxUint64BigInt = new(big.Int).SetUint64(math.MaxUint64)
 	maxUint8BigInt  = big.NewInt(math.MaxUint8)
-	maxInt64        = uint64(math.MaxInt64)
 )
 
 type (
@@ -232,14 +231,8 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 	logger.Info("Initialized Stacks watcher with stable Bitcoin (burn) block",
 		zap.Uint64("stable_bitcoin_block_height", nodeInfo.StableBurnBlockHeight))
 
-	// Convert StableBurnBlockHeight to int64 with overflow check
-	stableHeight := nodeInfo.StableBurnBlockHeight
-	if stableHeight > maxInt64 {
-		return fmt.Errorf("stable burn block height %d exceeds maximum int64 value", stableHeight)
-	}
-
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDStacks, &gossipv1.Heartbeat_Network{
-		Height:          int64(stableHeight), // #nosec G115 -- checked above
+		Height:          int64(nodeInfo.StableBurnBlockHeight), // #nosec G115 -- block heights will never exceed int64 max
 		ContractAddress: w.stateContract,
 	})
 
@@ -270,17 +263,8 @@ func (w *Watcher) runBlockPoller(ctx context.Context) error {
 
 				w.stableBitcoinHeight.Store(nodeInfo.StableBurnBlockHeight)
 
-				// Convert StableBurnBlockHeight to int64 with overflow check
-				newStableHeight := nodeInfo.StableBurnBlockHeight
-				if newStableHeight > maxInt64 {
-					logger.Error("Stable burn block height exceeds maximum int64 value",
-						zap.Uint64("height", newStableHeight))
-					timer.Reset(w.bitcoinBlockPollInterval)
-					continue
-				}
-
 				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDStacks, &gossipv1.Heartbeat_Network{
-					Height:          int64(newStableHeight), // #nosec G115 -- checked above
+					Height:          int64(nodeInfo.StableBurnBlockHeight), // #nosec G115 -- block heights will never exceed int64 max
 					ContractAddress: w.stateContract,
 				})
 

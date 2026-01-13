@@ -11,6 +11,8 @@ import (
 )
 
 type (
+	// Partial types from https://github.com/stacks-network/stacks-core/blob/master/docs/rpc/openapi.yaml
+
 	StacksStxTransferEvent struct {
 		Amount    string `json:"amount"`
 		Memo      string `json:"memo"`
@@ -54,8 +56,6 @@ type (
 		Data                 map[string]interface{} `json:"data,omitempty"`                   // Transaction data structure
 		Hex                  string                 `json:"hex,omitempty"`                    // Raw transaction hex
 		ResultHex            string                 `json:"result_hex,omitempty"`             // Transaction execution result in hex
-		StxBurned            uint64                 `json:"stx_burned,omitempty"`             // STX burned in transaction
-		ExecutionCost        map[string]interface{} `json:"execution_cost,omitempty"`         // Execution cost breakdown
 		Events               []StacksEvent          `json:"events,omitempty"`                 // Transaction events
 		PostConditionAborted bool                   `json:"post_condition_aborted,omitempty"` // Whether the post-condition was aborted
 		VmError              *string                `json:"vm_error,omitempty"`               // Runtime error message if transaction failed (null when successful)
@@ -67,7 +67,6 @@ type (
 		BlockHeight     uint64                           `json:"block_height"`
 		ParentBlockId   string                           `json:"parent_block_id"`
 		ConsensusHash   string                           `json:"consensus_hash"`
-		Fees            uint64                           `json:"fees"`
 		TxMerkleRoot    string                           `json:"tx_merkle_root"`
 		StateIndexRoot  string                           `json:"state_index_root"`
 		Timestamp       uint64                           `json:"timestamp"`
@@ -106,20 +105,20 @@ type (
 	}
 
 	StacksV2InfoResponse struct {
-		PeerVersion            uint64                 `json:"peer_version"`
+		PeerVersion            uint32                 `json:"peer_version"`
 		PoxConsensus           string                 `json:"pox_consensus"`
 		BurnBlockHeight        uint64                 `json:"burn_block_height"`
 		StablePoxConsensus     string                 `json:"stable_pox_consensus"`
 		StableBurnBlockHeight  uint64                 `json:"stable_burn_block_height"`
 		ServerVersion          string                 `json:"server_version"`
-		NetworkID              uint64                 `json:"network_id"`
-		ParentNetworkID        uint64                 `json:"parent_network_id"`
+		NetworkID              uint32                 `json:"network_id"`
+		ParentNetworkID        uint32                 `json:"parent_network_id"`
 		StacksTipHeight        uint64                 `json:"stacks_tip_height"`
 		StacksTip              string                 `json:"stacks_tip"`
 		StacksTipConsensusHash string                 `json:"stacks_tip_consensus_hash"`
 		GenesisChainStateHash  string                 `json:"genesis_chainstate_hash"`
 		UnanchoredTip          *string                `json:"unanchored_tip"`
-		UnanchoredSeq          *uint64                `json:"unanchored_seq"`
+		UnanchoredSeq          *uint16                `json:"unanchored_seq"`
 		TenureHeight           uint64                 `json:"tenure_height"`
 		ExitAtBlockHeight      *uint64                `json:"exit_at_block_height"`
 		IsFullySynced          bool                   `json:"is_fully_synced"`
