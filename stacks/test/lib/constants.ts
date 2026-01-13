@@ -35,21 +35,3 @@ export const STACKS_CONTRACTS = {
   CORE_V4: "wormhole-core-v4",
   CORE_PROXY: "wormhole-core-proxy-v2",
 } as const;
-
-// Ethereum NTT Contract Addresses (deployed by 05-deploy-ntt-ethereum.ts)
-export const ETHEREUM_NTT_CONTRACTS = {
-  DUMMY_TOKEN: "0xfE82e8f24A51E670133f4268cDfc164c49FC3b37",
-  TRANSCEIVER_STRUCTS_LIBRARY: "0xb4fFe5983B0B748124577Af4d16953bd096b6897",
-  NTT_MANAGER: "0x6f84742680311CEF5ba42bc10A71a4708b4561d1",
-  WORMHOLE_TRANSCEIVER: "0x25AF99b922857C37282f578F428CB7f34335B379",
-} as const;
-
-// NTT Configuration Constants
-export const NTT_CONFIG = {
-  MODE: 0, // LOCKING mode - preserve STX supply on Stacks
-  RATE_LIMIT_DURATION: 86400, // 24 hours in seconds
-  CONSISTENCY_LEVEL: 202, // Finalized
-  GAS_LIMIT: 500000,
-  OUTBOUND_LIMIT: "1000000000000000000000000", // 1M tokens (scaled by 18 decimals)
-  THRESHOLD: 1, // Single transceiver setup
-} as const;
