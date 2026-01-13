@@ -52,7 +52,7 @@ type (
 
 	StacksV3TenureBlockTransaction struct {
 		TxId                 string                 `json:"txid"`
-		TxIndex              uint32                 `json:"tx_index"`
+		TxIndex              uint32                 `json:"tx_index"`                         // Warning: May default to 0 for replay endpoint
 		Data                 map[string]interface{} `json:"data,omitempty"`                   // Transaction data structure
 		Hex                  string                 `json:"hex,omitempty"`                    // Raw transaction hex
 		ResultHex            string                 `json:"result_hex,omitempty"`             // Transaction execution result in hex
@@ -138,7 +138,7 @@ func (w *Watcher) fetchTenureBlocksByBurnHeight(ctx context.Context, height uint
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Bitcoin (burn) block: %w", err)
 	}
@@ -179,11 +179,7 @@ func (w *Watcher) fetchStacksBlockReplay(ctx context.Context, blockId string) (*
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	if w.rpcAuthToken != "" {
-		req.Header.Set("Authorization", w.rpcAuthToken)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := w.doAuthorizedRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch block replay: %w", err)
 	}
@@ -216,7 +212,7 @@ func (w *Watcher) fetchStacksTransactionByTxId(ctx context.Context, txID string)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
@@ -248,7 +244,7 @@ func (w *Watcher) fetchPoxInfo(ctx context.Context) (*StacksV2PoxResponse, error
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch PoX info: %w", err)
 	}
@@ -280,7 +276,7 @@ func (w *Watcher) fetchNodeInfo(ctx context.Context) (*StacksV2InfoResponse, err
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := w.doRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Stacks node info: %w", err)
 	}

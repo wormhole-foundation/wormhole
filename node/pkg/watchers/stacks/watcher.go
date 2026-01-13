@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -49,6 +50,7 @@ type (
 		rpcURL        string
 		rpcAuthToken  string
 		stateContract string
+		httpClient    *http.Client
 
 		bitcoinBlockPollInterval time.Duration
 
@@ -84,6 +86,7 @@ func NewWatcher(
 		rpcURL:                   rpcURL,
 		rpcAuthToken:             rpcAuthToken,
 		stateContract:            contract,
+		httpClient:               &http.Client{Timeout: 30 * time.Second},
 		bitcoinBlockPollInterval: bitcoinBlockPollInterval,
 		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
@@ -94,6 +97,19 @@ func NewWatcher(
 	w.processedBitcoinHeight.Store(0)
 
 	return w
+}
+
+// doRequest executes an HTTP request using the watcher's configured client.
+func (w *Watcher) doRequest(req *http.Request) (*http.Response, error) {
+	return w.httpClient.Do(req)
+}
+
+// doAuthorizedRequest executes an HTTP request with the Authorization header set.
+func (w *Watcher) doAuthorizedRequest(req *http.Request) (*http.Response, error) {
+	if w.rpcAuthToken != "" {
+		req.Header.Set("Authorization", w.rpcAuthToken)
+	}
+	return w.httpClient.Do(req)
 }
 
 /// WATCHER PUBLIC METHODS
