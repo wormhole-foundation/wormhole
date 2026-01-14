@@ -48,7 +48,17 @@ CERT_PATH="$(cd "$(dirname "${CERT_PATH}")" && pwd)/$(basename "${CERT_PATH}")"
 
 export DOCKER_BUILDKIT=1
 
-docker build \
+# Optional: use DOCKER_BUILDER and DOCKER_BUILD_NETWORK env vars for custom builder/network
+BUILDER_FLAG=""
+NETWORK_FLAG=""
+if [ -n "${DOCKER_BUILDER:-}" ]; then
+    BUILDER_FLAG="--builder ${DOCKER_BUILDER}"
+fi
+if [ -n "${DOCKER_BUILD_NETWORK:-}" ]; then
+    NETWORK_FLAG="--network=${DOCKER_BUILD_NETWORK}"
+fi
+
+docker build ${BUILDER_FLAG} ${NETWORK_FLAG} \
     --file "${REPO_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
     --secret id=cert.pem,src="${CERT_PATH}" \

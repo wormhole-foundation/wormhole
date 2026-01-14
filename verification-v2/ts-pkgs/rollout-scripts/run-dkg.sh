@@ -52,15 +52,25 @@ fi
 
 TLS_KEYS_DIR="$(cd "${TLS_KEYS_DIR}" && pwd)"
 
-docker build \
-    --tag dkg-client \
-    --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" \
-    --progress=plain \
-    "${REPO_ROOT}"
+# Optional: use DOCKER_NETWORK env var for custom network
+NETWORK_FLAG=""
+if [ -n "${DOCKER_NETWORK:-}" ]; then
+    NETWORK_FLAG="--network=${DOCKER_NETWORK}"
+fi
+
+# Build the DKG client image (skip if SKIP_BUILD is set)
+if [ -z "${SKIP_BUILD:-}" ]; then
+    docker build \
+        --tag dkg-client \
+        --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" \
+        --progress=plain \
+        "${REPO_ROOT}"
+fi
 
 docker run \
     --rm \
     --name "${TLS_HOSTNAME}" \
+    ${NETWORK_FLAG} \
     --publish "${TLS_PORT}:${TLS_PORT}" \
     --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \

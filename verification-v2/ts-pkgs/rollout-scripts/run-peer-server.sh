@@ -42,5 +42,6 @@ docker run \
     --name peer-server \
     --publish "${SERVER_PORT}:${SERVER_PORT}" \
     --mount type=bind,src="$(pwd)",dst=/output \
+    --network=dkg-test \
     peer-server
 
