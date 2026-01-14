@@ -5,8 +5,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	tsscommon "github.com/xlabs/tss-common"
+	"github.com/xlabs/tss-common/service/signer"
+	"go.uber.org/zap"
 )
 
 var (
@@ -56,7 +62,7 @@ func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	}
 
 	// signing the content the leader will gossip.
-	sig, err := s.vaaData.GuardianSigner.Sign(ctx, bts)
+	sig, err := s.vaaData.GuardianSigner.Sign(ctx, ethcrypto.Keccak256(bts))
 	if err != nil {
 		return fmt.Errorf("failed to sign VAA: %w", err)
 	}
@@ -75,7 +81,7 @@ func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	}
 }
 
-func (s *signerClient) Publish() <-chan *gossipv1.TSSGossipMessage {
+func (s *signerClient) Outbound() <-chan *gossipv1.TSSGossipMessage {
 	if s == nil {
 		return nil
 	}
@@ -88,54 +94,105 @@ func (s *signerClient) Publish() <-chan *gossipv1.TSSGossipMessage {
 	return s.vaaData.gossipOutput
 }
 
+// Inform is used to inform the TSS signer of a new incoming gossip message.
+// it returns an error if the message couldn't be delivered.
 func (s *signerClient) Inform(v *gossipv1.TSSGossipMessage) error {
-	s.vaaData.incomingGossip <- v
-	return errors.New("Not implemented.")
+	if s == nil {
+		return ErrSignerClientNil
+	}
+
+	if s.vaaData.isLeader { // leader doesn't need to be informed.
+		return nil
+	}
+
+	select {
+	case s.vaaData.incomingGossip <- v:
+		return nil
+	default:
+		return errCouldntGossipVaa
+	}
 }
 
-// handleUnicastVaaV1 expects to receive valid Vaav1 messages.
-// If the VAA is valid, it will trigger the TSS signing protocol too for that VAA (beginTSSSign, will ensure double signing for the same digest).
-// func (t *Engine) handleUnicastVaaV1(v *tsscommv1.Unicast_Vaav1) error {
-// if t == nil {
-// 	return errNilTssEngine
-// }
+// the gossipListener listens for incoming gossip messages and processes them.
+// closes when the context is done.
+func (s *signerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
+	logger = logger.Named("gossipListener")
+	dt := s.vaaData
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-dt.incomingGossip:
+			gs := dt.gst.Get()
+			if gs == nil {
+				// log.Warn("gossipListener: nil guardian set")
+				continue
+			}
 
-// if t.started.Load() != started {
-// 	return errTssEngineNotStarted
-// }
+			if err := dt.verifyGossipSig(msg, gs); err != nil {
+				logger.Warn("invalid gossip signature", zap.Error(err))
+				continue
+			}
 
-// if t.gst == nil {
-// 	return errNilGuardianSetState
-// }
+			newVaa, err := vaa.Unmarshal(msg.Message)
+			if err != nil {
+				logger.Warn("malformed VAA", zap.Error(err))
+				continue
+			}
 
-// gs := t.gst.Get()
-// if gs == nil {
-// 	return errNilGuardianSet
-// }
+			if newVaa.Version != vaa.VaaVersion1 {
+				continue
+			}
 
-// if v == nil || v.Vaav1 == nil {
-// 	return errNilVaa
-// }
+			if err := newVaa.Verify(gs.Keys); err != nil {
+				logger.Warn("invalid VAA", zap.Error(err))
+				continue
+			}
 
-// newVaa, err := vaa.Unmarshal(v.Vaav1.Marshaled)
-// if err != nil {
-// 	return fmt.Errorf("unmarshal err: %w", err)
-// }
+			if err := s.vaaToSignRequest(newVaa, gs); err != nil {
+				logger.Error("failed to create sign request from VAA", zap.Error(err))
+				continue
+			}
+		}
+	}
+}
 
-// dgst := digest{}
-// copy(dgst[:], newVaa.SigningDigest().Bytes())
+func (s *signerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet) error {
+	rq := &signer.SignRequest{
+		Digest:    newVaa.SigningDigest().Bytes(),
+		Committee: [][]byte{},
+		Protocol:  string(tsscommon.ProtocolFROSTSign), // TODO: what protocol do we use here?
+	}
 
-// if newVaa.Version != vaa.VaaVersion1 {
-// 	return errNotVaaV1
-// }
+	// set committee members to be the current guardian set.
+	for _, sig := range newVaa.Signatures {
+		if sig == nil {
+			continue
+		}
 
-// if err := newVaa.Verify(gs.Keys); err != nil {
-// 	return err
-// }
+		if sig.Index >= uint8(len(gs.Keys)) {
+			continue
+		}
 
-// signatureMeta := signingMeta{
-// 	isFromVaav1:   true,
-// 	verifiedVAAv1: newVaa,
-// }
+		addr := gs.Keys[sig.Index]
+		rq.Committee = append(rq.Committee, addr.Bytes())
+	}
 
-// }
+	return s.AsyncSign(rq)
+}
+
+func (dt vaaHandling) verifyGossipSig(msg *gossipv1.TSSGossipMessage, gs *common.GuardianSet) error {
+	pubKey, err := ethcrypto.Ecrecover(ethcrypto.Keccak256(msg.Message), msg.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to recover public key: %w", err)
+	}
+
+	signerAddr := ethcommon.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	leaderAddr := gs.Keys[dt.leaderIndex]
+
+	if signerAddr != leaderAddr {
+		return fmt.Errorf("signature not from leader: got %s, want %s", signerAddr.Hex(), leaderAddr.Hex())
+	}
+
+	return nil
+}

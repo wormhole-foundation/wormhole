@@ -224,6 +224,7 @@ func (s *signerClient) connect(ctx context.Context, logger *zap.Logger) error {
 	go s.receivingStream(ctx, stream, errchan)
 	go s.sendingStream(ctx, stream, errchan)
 	go s.unaryRequestsHandler(ctx, client, logger, errchan)
+	go s.gossipListener(ctx, logger)
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
