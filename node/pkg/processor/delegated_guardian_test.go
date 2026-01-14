@@ -328,6 +328,17 @@ func (cm *CapturedMessages) FindObservationBatchByGuardian(guardianAddr string) 
 	return nil
 }
 
+// filterObservationsByChain filters observations to only include those from the specified chain ID
+func filterObservationsByChain(observations []*gossipv1.Observation, chainID string) []*gossipv1.Observation {
+	var filtered []*gossipv1.Observation
+	for _, obs := range observations {
+		if strings.HasPrefix(obs.MessageId, chainID+"/") {
+			filtered = append(filtered, obs)
+		}
+	}
+	return filtered
+}
+
 // sortObservations sorts a slice of observations into ascending order.
 func sortObservations(observations []*gossipv1.Observation) {
 	slices.SortFunc(observations, func(a, b *gossipv1.Observation) int {
@@ -422,6 +433,15 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	ob1 := messages.FindObservationBatchByGuardian(guardian1)
 	ob2 := messages.FindObservationBatchByGuardian(guardian2)
 
+	// Filter observations to only include chain 4 messages (test messages)
+	// This avoids counting governance VAAs from chain 2 that may still be in flight
+	if ob1 != nil {
+		ob1.Msg.Observations = filterObservationsByChain(ob1.Msg.Observations, "4")
+	}
+	if ob2 != nil {
+		ob2.Msg.Observations = filterObservationsByChain(ob2.Msg.Observations, "4")
+	}
+
 	if ob0 != nil {
 		t.Logf("\n=== Observation Batch 0 (guardian0) ===")
 		t.Logf("  Timestamp: %d", ob0.Timestamp.Unix())
@@ -499,6 +519,20 @@ func TestDelegateChainUndelegated(t *testing.T) {
 }
 
 func TestDelegateObservationScenario(t *testing.T) {
+	// Ensure delegated guardians are configured for chain 4
+	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
+		4: {
+			Threshold: 2,
+			Keys: []eth_common.Address{
+				eth_common.HexToAddress("0x" + guardian1),
+				eth_common.HexToAddress("0x" + guardian2),
+			},
+		},
+	}
+	createAndSubmitDelegatedGuardiansConfig(t, config)
+	t.Log("Waiting for guardian to pick up configuration...")
+	time.Sleep(20 * time.Second)
+
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
@@ -537,6 +571,21 @@ func TestDelegateObservationScenario(t *testing.T) {
 	}
 
 	ob0 := messages.FindObservationBatchByGuardian(guardian0)
+	ob1 := messages.FindObservationBatchByGuardian(guardian1)
+	ob2 := messages.FindObservationBatchByGuardian(guardian2)
+
+	// Filter observations to only include chain 4 messages (test messages)
+	// This avoids counting governance VAAs from chain 2 that may still be in flight
+	if ob0 != nil {
+		ob0.Msg.Observations = filterObservationsByChain(ob0.Msg.Observations, "4")
+	}
+	if ob1 != nil {
+		ob1.Msg.Observations = filterObservationsByChain(ob1.Msg.Observations, "4")
+	}
+	if ob2 != nil {
+		ob2.Msg.Observations = filterObservationsByChain(ob2.Msg.Observations, "4")
+	}
+
 	t.Logf("\n=== Observation Batch 0 ===")
 	t.Logf("  Timestamp: %d", ob0.Timestamp.Unix())
 	for i, obs := range ob0.Msg.Observations {
@@ -545,7 +594,6 @@ func TestDelegateObservationScenario(t *testing.T) {
 		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
 		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
 	}
-	ob1 := messages.FindObservationBatchByGuardian(guardian1)
 	t.Logf("\n=== Observation Batch 1 ===")
 	t.Logf("  Timestamp: %d", ob1.Timestamp.Unix())
 	for i, obs := range ob1.Msg.Observations {
@@ -554,7 +602,6 @@ func TestDelegateObservationScenario(t *testing.T) {
 		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
 		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
 	}
-	ob2 := messages.FindObservationBatchByGuardian(guardian2)
 	t.Logf("\n=== Observation Batch 2 ===")
 	t.Logf("  Timestamp: %d", ob2.Timestamp.Unix())
 	for i, obs := range ob2.Msg.Observations {
