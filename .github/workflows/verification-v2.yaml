@@ -20,7 +20,7 @@ jobs:
       ts-pkgs: ${{ steps.filter.outputs.ts-pkgs }}
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
           persist-credentials: false
     - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
@@ -55,13 +55,13 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=2500"
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
           persist-credentials: false
           sparse-checkout: 'verification-v2'
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # 6.1.0
       with:
-        node-version: "24.11.1"
+        node-version: "24.13.0"
         cache: "yarn"
         cache-dependency-path: |
           ./verification-v2/yarn.lock
@@ -71,7 +71,7 @@ jobs:
         rustup override set 1.88.0
         rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
     - name: Cache Rust packages
-      uses: actions/cache@v4
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # 5.0.1
       with:
         path: |
           ~/.cargo/registry
@@ -83,7 +83,7 @@ jobs:
     # TODO: read Solana version from Anchor.toml
     - name: Cache Solana CLI tools
       id: cache-solana-tools
-      uses: actions/cache@v4
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # 5.0.1
       with:
         path: |
           ~/.cache/solana/
@@ -96,7 +96,7 @@ jobs:
     # TODO: read Anchor version from Anchor.toml
     - name: Cache Anchor CLI tools
       id: cache-anchor-tool
-      uses: actions/cache@v4
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # 5.0.1
       with:
         path: |
           ~/bin/anchor
@@ -131,7 +131,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=2500"
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
           persist-credentials: false
           sparse-checkout: 'verification-v2'
@@ -142,7 +142,7 @@ jobs:
         HASH=$(grep "^LIB_DEPS" Makefile | sha256sum | cut --delimiter=" " --fields=1)
         echo "hash=$HASH" >> "$GITHUB_OUTPUT"
     - name: Cache Solidity build
-      uses: actions/cache@v4
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # 5.0.1
       with:
         path: |
           verification-v2/out
@@ -151,7 +151,7 @@ jobs:
 
     - name: Cache Foundry CLI tools
       id: cache-foundry-tool
-      uses: actions/cache@v4
+      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # 5.0.1
       with:
         path: |
           ~/.foundry/bin
@@ -181,13 +181,13 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=2500"
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
           persist-credentials: false
           sparse-checkout: 'verification-v2'
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # 6.1.0
       with:
-        node-version: "24.11.1"
+        node-version: "24.13.0"
         cache: "yarn"
         cache-dependency-path: |
           ./verification-v2/yarn.lock
