@@ -1,0 +1,209 @@
+name: VerificationV2 tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - tss-develop
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      evm: ${{ steps.filter.outputs.evm }}
+      solana: ${{ steps.filter.outputs.solana }}
+      ts-pkgs: ${{ steps.filter.outputs.ts-pkgs }}
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+          persist-credentials: false
+    - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
+      id: filter
+      with:
+        filters: |
+          evm:
+            - '.github/workflows/verification-v2.yaml'
+            - 'verification-v2/Makefile'
+            - 'verification-v2/foundry.toml'
+            - 'verification-v2/src/evm/**'
+            - 'verification-v2/test/**'
+          solana:
+            - '.github/workflows/verification-v2.yaml'
+            - 'verification-v2/Makefile'
+            - 'verification-v2/src/solana/**'
+            - 'verification-v2/yarn.lock'
+            - 'verification-v2/.yarnrc.yml'
+          ts-pkgs:
+            - '.github/workflows/verification-v2.yaml'
+            - 'verification-v2/ts-pkgs/**'
+            - 'verification-v2/src/solana/package.json'
+            - 'verification-v2/yarn.lock'
+            - 'verification-v2/.yarnrc.yml'
+
+  solana-tests:
+    name: Solana
+    needs: changes
+    if: ${{ needs.changes.outputs.solana == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2500"
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+          persist-credentials: false
+          sparse-checkout: 'verification-v2'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24.11.1"
+        cache: "yarn"
+        cache-dependency-path: |
+          ./verification-v2/yarn.lock
+
+    - name: Set the rust toolchain version
+      run: |
+        rustup override set 1.88.0
+        rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
+    - name: Cache Rust packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          verification-v2/src/solana/target
+        key: ${{ runner.os }}-rust-1.88.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
+
+    # Taken from https://github.com/metaDAOproject/setup-anchor/blob/main/action.yml#L25-L40
+    # TODO: read Solana version from Anchor.toml
+    - name: Cache Solana CLI tools
+      id: cache-solana-tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/solana/
+          ~/.local/share/solana/
+        key: solana-cli-${{ runner.os }}-build-2.2.19
+    - name: Install Solana CLI tools
+      if: ${{ steps.cache-solana-tools.outputs.cache-hit != 'true' }}
+      run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.19/install)"
+      shell: bash
+    # TODO: read Anchor version from Anchor.toml
+    - name: Cache Anchor CLI tools
+      id: cache-anchor-tool
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/bin/anchor
+        key: anchor-cli-${{ runner.os }}-build-0.31.1
+    - name: Install Anchor
+      if: ${{ steps.cache-anchor-tool.outputs.cache-hit != 'true' }}
+      run: |
+        wget https://github.com/coral-xyz/anchor/releases/download/v0.31.1/anchor-0.31.1-x86_64-unknown-linux-gnu
+        chmod +x anchor-0.31.1-x86_64-unknown-linux-gnu
+        mkdir -p "$HOME/bin"
+        mv anchor-0.31.1-x86_64-unknown-linux-gnu "$HOME/bin/anchor"
+      shell: bash
+    - name: Update PATH
+      run: |
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+        echo "$HOME/bin" >> "$GITHUB_PATH"
+      shell: bash
+    # We create the Solana CLI keypair to avoid errors and/or interactive keygen prompts
+    - name: Create keypair
+      run: solana-keygen new --no-bip39-passphrase
+      shell: bash
+    - name: Run Solana tests
+      working-directory: ./verification-v2
+      run: make test-solana
+
+  evm-tests:
+    name: EVM
+    needs: changes
+    if: ${{ needs.changes.outputs.evm == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2500"
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+          persist-credentials: false
+          sparse-checkout: 'verification-v2'
+    - name: Hash Solidity dependencies
+      id: solidity-deps-hash
+      working-directory: ./verification-v2
+      run: |
+        HASH=$(grep "^LIB_DEPS" Makefile | sha256sum | cut --delimiter=" " --fields=1)
+        echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+    - name: Cache Solidity build
+      uses: actions/cache@v4
+      with:
+        path: |
+          verification-v2/out
+          verification-v2/cache
+        key: ${{ runner.os }}-${{ steps.solidity-deps-hash.outputs.hash }}-${{ hashFiles('foundry.toml') }}
+
+    - name: Cache Foundry CLI tools
+      id: cache-foundry-tool
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.foundry/bin
+        key: foundry-cli-${{ runner.os }}-build-1.3.4
+    - name: Install Foundry
+      if: ${{ steps.cache-foundry-tool.outputs.cache-hit != 'true' }}
+      run: |
+        wget https://github.com/foundry-rs/foundry/releases/download/v1.5.1/foundry_v1.5.1_linux_amd64.tar.gz
+        mkdir -p ~/.foundry/bin
+        tar -xvf foundry_v1.5.1_linux_amd64.tar.gz --directory ~/.foundry/bin
+        chmod +x ~/.foundry/bin/*
+      shell: bash
+    - name: Update PATH
+      run: |
+        echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
+      shell: bash
+    - name: Run EVM tests
+      working-directory: ./verification-v2
+      run: make test-evm
+
+  ts-pkg-tests:
+    name: TS libraries
+    needs: changes
+    if: ${{ needs.changes.outputs.ts-pkgs == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2500"
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+          persist-credentials: false
+          sparse-checkout: 'verification-v2'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24.11.1"
+        cache: "yarn"
+        cache-dependency-path: |
+          ./verification-v2/yarn.lock
+
+    - name: Check lockfile
+      working-directory: ./verification-v2
+      run: yarn --immutable
+    - name: Typecheck
+      working-directory: ./verification-v2
+      run: yarn run build:ts:libs
+    - name: Lint check
+      working-directory: ./verification-v2
+      run: yarn run lint:libs
+    - name: Peer server tests
+      working-directory: ./verification-v2
+      run: yarn workspace @xlabs-xyz/peer-server run test
+    - name: Peer server e2e tests
+      working-directory: ./verification-v2
+      run: yarn workspace @xlabs-xyz/peer-e2e run test
