@@ -92,8 +92,6 @@ var signedDelegateObservationPrefix = []byte("signed_delegate_observation|")
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
 var observationRequestMaxTimeDifference = time.Minute * 15
-
-// TODO(delegated-guardian-sets): Remove if no freshness check required
 var delegateObservationMaxTimeDifference = time.Minute * 15
 
 func heartbeatDigest(b []byte) eth_common.Hash {
@@ -728,6 +726,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						DelegateObservation: b,
 						Signature:           sig,
 						GuardianAddr:        ourAddr.Bytes(),
+						Timestamp:           time.Now().Unix(),
 					}
 
 					envelope := &gossipv1.GossipMessage{
@@ -1249,16 +1248,14 @@ func processSignedDelegateObservation(d *gossipv1.SignedDelegateObservation, gs 
 		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
 	}
 
+	if time.Until(time.Unix(d.Timestamp, 0)).Abs() > delegateObservationMaxTimeDifference {
+		return nil, fmt.Errorf("delegate observation is too old or too far into the future")
+	}
+
 	var h gossipv1.DelegateObservation
 	err = proto.Unmarshal(d.DelegateObservation, &h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal delegate observation: %w", err)
-	}
-
-	// TODO(delegated-guardian-sets): Remove if no freshness check required
-	// Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert
-	if time.Until(time.Unix(int64(h.Timestamp), 0)).Abs() > delegateObservationMaxTimeDifference {
-		return nil, fmt.Errorf("delegate observation is too old or too far into the future")
 	}
 
 	if eth_common.BytesToAddress(h.GuardianAddr) != signerAddr {
