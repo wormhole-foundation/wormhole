@@ -8,8 +8,7 @@
   "scripts": {
     "build": "tsc --build",
     "start:client": "tsx src/cli.ts",
-    "dev:client": "tsx --watch src/cli.ts",
-    "docker:build:tls-gen": "./scripts/build-tls-gen.sh"
+    "dev:client": "tsx --watch src/cli.ts"
   },
   "dependencies": {
     "@xlabs-xyz/peer-lib": "workspace:*",
