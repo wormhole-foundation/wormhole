@@ -366,6 +366,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Bool("has_config", cfg != nil),
 				zap.String("our_addr", p.ourAddr.Hex()),
 			)
+			// len(cfg.Keys) > 0 is redundant, kept for extra safety
 			if cfg != nil && len(cfg.Keys) > 0 {
 				_, ok := cfg.KeyIndex(p.ourAddr)
 				p.logger.Info("processor: delegation check result",
@@ -459,6 +460,7 @@ func (p *Processor) Run(ctx context.Context) error {
 
 					// Publish DelegateObservation if we are a delegated guardian for the chain
 					cfg := p.dgc.GetChainConfig(msg.EmitterChain)
+					// len(cfg.Keys) > 0 is redundant, kept for extra safety
 					if cfg != nil && len(cfg.Keys) > 0 {
 						_, ok := cfg.KeyIndex(p.ourAddr)
 						if ok {
