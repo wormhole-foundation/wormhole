@@ -847,7 +847,11 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 			}
 
 			chainID := vaa.ChainID(cfg.ChainId)
-			chainConfig := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
+			chainConfig, err := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
+			if err != nil {
+				logger.Error("failed to instantiate delegated guardian chain config", zap.Error(err))
+				return err
+			}
 			dgConfig.SetChainConfig(chainID, chainConfig)
 			logger.Info("delegated guardian config for chain",
 				zap.Stringer("chainID", chainID),
