@@ -97,6 +97,7 @@ type G struct {
 	// components
 	db                 *db.Database
 	gst                *common.GuardianSetState
+	dgc                *processor.DelegatedGuardianConfig
 	acct               *accountant.Accountant
 	gov                *governor.ChainGovernor
 	notary             *notary.Notary
@@ -180,6 +181,9 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)
+
+	// Delegated guardian config
+	g.dgc = processor.NewDelegatedGuardianConfig()
 
 	// allocate maps
 	g.runnablesWithScissors = make(map[string]supervisor.Runnable)

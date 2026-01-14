@@ -88,7 +88,7 @@ func GuardianOptionP2P(
 				featureFlagFuncs = append(featureFlagFuncs, ibc.GetFeatures)
 			}
 			// Delegated guardians has a dynamic feature flag because configs can change at runtime via governance.
-			featureFlagFuncs = append(featureFlagFuncs, g.processor.dgc.GetFeatures)
+			featureFlagFuncs = append(featureFlagFuncs, g.dgc.GetFeatures)
 
 			params, err := p2p.NewRunParams(
 				bootstrapPeers,
@@ -472,7 +472,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					evmWc.DgConfigC = g.dgConfigC.writeC
 					// If this watcher has a delegated guardians contract configured, set it in the processor's config
 					if evmWc.DelegatedGuardiansContract != "" {
-						g.processor.dgc.SetContractAddress(evmWc.DelegatedGuardiansContract)
+						g.dgc.SetContractAddress(evmWc.DelegatedGuardiansContract)
 					}
 				}
 
@@ -666,6 +666,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.signedInC.readC,
 				g.guardianSigner,
 				g.gst,
+				g.dgc,
 				g.gov,
 				g.acct,
 				g.acctC.readC,

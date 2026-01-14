@@ -267,6 +267,7 @@ func NewProcessor(
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	guardianSigner guardiansigner.GuardianSigner,
 	gst *common.GuardianSetState,
+	dgc *DelegatedGuardianConfig,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
@@ -305,7 +306,7 @@ func NewProcessor(
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
 		networkID:      networkID,
-		dgc:            NewDelegatedGuardianConfig(),
+		dgc:            dgc,
 	}
 }
 
