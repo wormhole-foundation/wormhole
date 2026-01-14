@@ -81,7 +81,7 @@ yarnpkg start:client poll
 GUARDIAN_TLS_KEY=$(cat /keys/key.pem | base64 -w 0)
 jq ".StorageLocation = \\"/keys/\\" | .SelfSecret = \\"\${GUARDIAN_TLS_KEY}\\"" peer_config.json > /keys/dkg_config.json
 
-/tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json
+/tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json -protocol=FROST:DKG
 
 EOT
 
