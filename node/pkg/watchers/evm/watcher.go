@@ -841,7 +841,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 			// skip config without keys
 			if len(cfg.Keys) == 0 {
 				logger.Info("skipping delegated guardian config with no keys",
-					zap.Uint32("chainID", cfg.ChainId),
+					zap.Uint32("chainID", uint32(cfg.ChainId)),
 					zap.Uint32("timestamp", cfg.Timestamp))
 				continue
 			}
