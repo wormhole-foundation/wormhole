@@ -470,6 +470,10 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				// For EVM watchers, set the delegated guardian config channel
 				if evmWc, ok := wc.(*evm.WatcherConfig); ok {
 					evmWc.DgConfigC = g.dgConfigC.writeC
+					// If this watcher has a delegated guardians contract configured, set it in the processor's config
+					if evmWc.DelegatedGuardiansContract != "" {
+						g.processor.dgc.SetContractAddress(evmWc.DelegatedGuardiansContract)
+					}
 				}
 
 				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
