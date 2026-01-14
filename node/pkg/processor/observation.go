@@ -675,6 +675,10 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 		return nil, fmt.Errorf("invalid delegate observation emitter address: %w", err)
 	}
 
+	if d.VerificationState >= node_common.NumVariantsVerificationState {
+		return nil, fmt.Errorf("invalid verification state: %d", d.VerificationState)
+	}
+
 	mp := &node_common.MessagePublication{
 		TxID:             d.TxHash,
 		Timestamp:        time.Unix(int64(d.Timestamp), 0), // Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert.
@@ -684,9 +688,12 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 		EmitterChain:     c,
 		EmitterAddress:   addr,
 		Payload:          d.Payload,
-		IsReobservation:  false,
-		Unreliable:       false,
-		// verificationState intentionally left at the default (NotVerified).
+		IsReobservation:  d.IsReobservation,
+		Unreliable:       d.Unreliable,
+	}
+
+	if err = mp.SetVerificationState(node_common.VerificationState(d.VerificationState)); err != nil {
+		return nil, fmt.Errorf("could not set verification state: %w", err)
 	}
 
 	return mp, nil
@@ -705,14 +712,17 @@ func messagePublicationToDelegateObservation(m *node_common.MessagePublication) 
 	}
 
 	d := &gossipv1.DelegateObservation{
-		Timestamp:        uint32(m.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
-		Nonce:            m.Nonce,
-		EmitterChain:     uint32(m.EmitterChain),
-		EmitterAddress:   m.EmitterAddress.Bytes(),
-		Sequence:         m.Sequence,
-		ConsistencyLevel: uint32(m.ConsistencyLevel),
-		Payload:          m.Payload,
-		TxHash:           m.TxID,
+		Timestamp:         uint32(m.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
+		Nonce:             m.Nonce,
+		EmitterChain:      uint32(m.EmitterChain),
+		EmitterAddress:    m.EmitterAddress.Bytes(),
+		Sequence:          m.Sequence,
+		ConsistencyLevel:  uint32(m.ConsistencyLevel),
+		Payload:           m.Payload,
+		TxHash:            m.TxID,
+		Unreliable:        m.Unreliable,
+		IsReobservation:   m.IsReobservation,
+		VerificationState: uint32(m.VerificationState()),
 		// GuardianAddr will be populated in handleDelegateMessagePublication before p2p broadcast.
 	}
 

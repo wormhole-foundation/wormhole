@@ -254,6 +254,15 @@ message DelegateObservation {
   // Optional, included for observability.
   bytes tx_hash = 8;
 
+  // Indicates if this message can be reobserved.
+  bool unreliable = 9;
+
+  // Indicates if this message is a reobservation.
+  bool is_reobservation = 10;
+
+  // Result of applying transfer verification to the transaction.
+  uint32 verification_state = 11;
+
   // Guardian pubkey as truncated eth address.
-  bytes guardian_addr = 9;
+  bytes guardian_addr = 12;
 }
