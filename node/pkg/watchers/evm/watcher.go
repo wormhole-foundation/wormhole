@@ -838,6 +838,14 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 		// Build the DelegatedGuardianConfig
 		dgConfig := processor.NewDelegatedGuardianConfig()
 		for _, cfg := range configs {
+			// skip config without keys
+			if len(cfg.Keys) == 0 {
+				logger.Info("skipping delegated guardian config with no keys",
+					zap.Uint32("chainID", cfg.ChainId),
+					zap.Uint32("timestamp", cfg.Timestamp))
+				continue
+			}
+
 			chainID := vaa.ChainID(cfg.ChainId)
 			chainConfig := processor.NewDelegatedGuardianChainConfig(cfg.Keys, int(cfg.Threshold))
 			dgConfig.SetChainConfig(chainID, chainConfig)
