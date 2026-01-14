@@ -532,7 +532,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 		)
 	}
 
-	c, err := vaa.ChainIDFromNumber(m.EmitterChain)
+	c, err := vaa.KnownChainIDFromNumber(m.EmitterChain)
 	if err != nil {
 		p.logger.Warn("invalid delegate observation emitter chain",
 			zap.Uint32("emitter_chain", m.EmitterChain),
@@ -637,10 +637,9 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 	// Check if we have more delegate observations than required for quorum.
 	if len(s.observations) < dgs.Quorum() {
 		// no quorum yet, we're done here
-		c := vaa.ChainID(mp.EmitterChain)
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not yet met",
-				zap.Stringer("emitter_chain", c),
+				zap.Stringer("emitter_chain", mp.EmitterChain),
 				zap.Uint64("sequence", mp.Sequence),
 			)
 		}
@@ -666,7 +665,7 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 		return nil, fmt.Errorf("invalid delegate observation consistency : %d", d.ConsistencyLevel)
 	}
 
-	c, err := vaa.ChainIDFromNumber(d.EmitterChain)
+	c, err := vaa.KnownChainIDFromNumber(d.EmitterChain)
 	if err != nil {
 		return nil, fmt.Errorf("invalid delegate observation emitter chain: %w", err)
 	}
