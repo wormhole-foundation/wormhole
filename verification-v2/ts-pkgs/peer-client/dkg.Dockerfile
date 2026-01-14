@@ -77,11 +77,9 @@ EOF
 
 yarnpkg start:client poll
 
-# TODO: Change the SelfSecret to a file once we have the option in the dkg binary
-GUARDIAN_TLS_KEY=$(cat /keys/key.pem | base64 -w 0)
-jq ".StorageLocation = \\"/keys/\\" | .SelfSecret = \\"\${GUARDIAN_TLS_KEY}\\"" peer_config.json > /keys/dkg_config.json
+jq ".StorageLocation = \\"/keys/\\"" peer_config.json > /keys/dkg_config.json
 
-/tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json -protocol=FROST:DKG
+/tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json -protocol=FROST:DKG -sk=/keys/key.pem
 
 EOT
 
