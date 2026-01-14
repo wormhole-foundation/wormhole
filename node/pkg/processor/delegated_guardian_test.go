@@ -35,16 +35,16 @@ import (
 )
 
 const (
-	guardian0 = "befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"
-	guardian1 = "88d7d8b32a9105d228100e72dffe2fae0705d31c"
-	guardian2 = "58076f561cc62a47087b567c86f986426dfcd000"
-	ethDevnetRPC  = "http://eth-devnet:8545"
-	ethDevnet2RPC = "http://eth-devnet2:8545"
+	guardian0                      = "befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"
+	guardian1                      = "88d7d8b32a9105d228100e72dffe2fae0705d31c"
+	guardian2                      = "58076f561cc62a47087b567c86f986426dfcd000"
+	ethDevnetRPC                   = "http://eth-devnet:8545"
+	ethDevnet2RPC                  = "http://eth-devnet2:8545"
 	wormholeContractAddress        = "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 	delegatedGuardiansContractAddr = "0xfE82e8f24A51E670133f4268cDfc164c49FC3b37"
-	anvilPrivateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
-	numDevnetGuardians = 3
-	delegatedGuardiansABI = `[{"inputs":[{"internalType":"bytes","name":"vaa","type":"bytes"}],"name":"submitConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"nextConfigIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
+	anvilPrivateKey                = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+	numDevnetGuardians             = 3
+	delegatedGuardiansABI          = `[{"inputs":[{"internalType":"bytes","name":"vaa","type":"bytes"}],"name":"submitConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"nextConfigIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
 )
 
 var devnetGuardians = []string{
@@ -412,7 +412,6 @@ func TestDelegateChainUndelegated(t *testing.T) {
 
 	// in this case we should not have delegated observations
 	assert.Equal(t, 0, len(messages.DelegateObservations))
-
 
 	t.Logf("\n=== All Delegate Observations ===")
 	for i, obs := range messages.DelegateObservations {
