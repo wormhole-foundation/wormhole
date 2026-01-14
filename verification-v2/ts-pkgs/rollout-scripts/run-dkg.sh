@@ -68,6 +68,7 @@ if [ -z "${SKIP_BUILD:-}" ]; then
 fi
 
 docker run \
+    -it \
     --rm \
     --name "${TLS_HOSTNAME}" \
     ${NETWORK_FLAG} \

@@ -28,6 +28,17 @@ if ! [[ "$SERVER_PORT" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
+# For local testing: use DOCKER_NETWORK env var to join a specific network
+DOCKER_NETWORK="${DOCKER_NETWORK:-}"
+
+if [ -n "${DOCKER_NETWORK}" ]; then
+    # Create the network if it doesn't exist
+    docker network create "${DOCKER_NETWORK}" 2>/dev/null || true
+    NETWORK_FLAG="--network=${DOCKER_NETWORK}"
+else
+    NETWORK_FLAG=""
+fi
+
 docker build \
     --tag peer-server \
     --file "${REPO_ROOT}/ts-pkgs/peer-server/Dockerfile" \
@@ -38,10 +49,11 @@ docker build \
     "${REPO_ROOT}"
 
 docker run \
+    -it \
     --rm \
     --name peer-server \
     --publish "${SERVER_PORT}:${SERVER_PORT}" \
     --mount type=bind,src="$(pwd)",dst=/output \
-    --network=dkg-test \
+    ${NETWORK_FLAG} \
     peer-server
 

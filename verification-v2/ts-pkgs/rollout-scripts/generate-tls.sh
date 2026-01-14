@@ -45,6 +45,7 @@ docker build \
     "${REPO_ROOT}"
 
 docker run \
+    -it \
     --rm \
     --mount type=bind,src="${OUTPUT_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \
