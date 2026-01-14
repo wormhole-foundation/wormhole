@@ -111,6 +111,7 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 		return err
 	}
 	d.GuardianAddr = p.ourAddr.Bytes()
+	d.SentTimestamp = time.Now().Unix()
 
 	p.logger.Debug("handleDelegateMessagePublication: delegate observation created, sending to channel",
 		zap.String("msgID", k.MessageIDString()),
@@ -700,7 +701,7 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 }
 
 // messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
-// This does not populate the GuardianAddr field.
+// This does not populate the GuardianAddr and SentTimestamp fields.
 func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
 	const TxIDSizeMax = math.MaxUint8
 	txIDLen := len(m.TxID)
@@ -723,7 +724,7 @@ func messagePublicationToDelegateObservation(m *node_common.MessagePublication) 
 		Unreliable:        m.Unreliable,
 		IsReobservation:   m.IsReobservation,
 		VerificationState: uint32(m.VerificationState()),
-		// GuardianAddr will be populated in handleDelegateMessagePublication before p2p broadcast.
+		// GuardianAddr and SentTimestamp will be populated in handleDelegateMessagePublication before p2p broadcast.
 	}
 
 	return d, nil

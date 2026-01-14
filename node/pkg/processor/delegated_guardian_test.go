@@ -614,12 +614,16 @@ func TestDelegateObservationScenario(t *testing.T) {
 	assert.Equal(t, 1, len(ob0.Msg.Observations))
 
 	// ensure canonical observations do not come before delegate quorum
-	maxDelegateObservationsTimestamp := message0.Timestamp
-	if message1.Timestamp > message0.Timestamp {
-		maxDelegateObservationsTimestamp = message1.Timestamp
-	}
 	// NOTE: we cannot use assert.Less since seconds is not enough precision
-	assert.LessOrEqual(t, int64(maxDelegateObservationsTimestamp), ob0.Timestamp.Unix())
+	assert.LessOrEqual(t, int64(message0.Timestamp), message0.SentTimestamp)
+	assert.LessOrEqual(t, int64(message1.Timestamp), message1.SentTimestamp)
+
+	maxDelegateObservationsTimestamp := message0.SentTimestamp
+	if message1.SentTimestamp > message0.SentTimestamp {
+		maxDelegateObservationsTimestamp = message1.SentTimestamp
+	}
+
+	assert.LessOrEqual(t, maxDelegateObservationsTimestamp, ob0.Timestamp.Unix())
 
 	// ensure observation matches delegate observation
 	mp, err := delegateObservationToMessagePublication(message0)

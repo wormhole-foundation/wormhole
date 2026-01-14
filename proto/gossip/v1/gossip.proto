@@ -225,9 +225,6 @@ message SignedDelegateObservation {
 
   // Guardian pubkey as truncated eth address.
   bytes guardian_addr = 3;
-
-  // UNIX wall time
-  int64 timestamp = 4;
 }
 
 // DelegateObservation contains all the fields necessary for a canonical guardian to reconstruct the VAA body.
@@ -268,4 +265,7 @@ message DelegateObservation {
 
   // Guardian pubkey as truncated eth address.
   bytes guardian_addr = 12;
+
+  // Seconds since UNIX epoch when this delegate observation was sent.
+  int64 sent_timestamp = 13;
 }

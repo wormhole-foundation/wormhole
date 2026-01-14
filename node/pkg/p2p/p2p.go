@@ -726,7 +726,6 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						DelegateObservation: b,
 						Signature:           sig,
 						GuardianAddr:        ourAddr.Bytes(),
-						Timestamp:           time.Now().Unix(),
 					}
 
 					envelope := &gossipv1.GossipMessage{
@@ -1248,14 +1247,14 @@ func processSignedDelegateObservation(d *gossipv1.SignedDelegateObservation, gs 
 		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
 	}
 
-	if time.Until(time.Unix(d.Timestamp, 0)).Abs() > delegateObservationMaxTimeDifference {
-		return nil, fmt.Errorf("delegate observation is too old or too far into the future")
-	}
-
 	var h gossipv1.DelegateObservation
 	err = proto.Unmarshal(d.DelegateObservation, &h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal delegate observation: %w", err)
+	}
+
+	if time.Until(time.Unix(h.SentTimestamp, 0)).Abs() > delegateObservationMaxTimeDifference {
+		return nil, fmt.Errorf("delegate observation is too old or too far into the future")
 	}
 
 	if eth_common.BytesToAddress(h.GuardianAddr) != signerAddr {
