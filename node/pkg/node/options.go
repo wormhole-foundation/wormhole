@@ -59,7 +59,7 @@ func GuardianOptionP2P(
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
-		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "query"},
+		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "processor", "query"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
@@ -87,6 +87,8 @@ func GuardianOptionP2P(
 				// IBC has a dynamic feature flag because it reports the Wormchain version.
 				featureFlagFuncs = append(featureFlagFuncs, ibc.GetFeatures)
 			}
+			// Delegated guardians has a dynamic feature flag because configs can change at runtime via governance.
+			featureFlagFuncs = append(featureFlagFuncs, g.processor.dgc.GetFeatures)
 
 			params, err := p2p.NewRunParams(
 				bootstrapPeers,

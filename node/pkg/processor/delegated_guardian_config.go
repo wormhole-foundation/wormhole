@@ -103,3 +103,16 @@ func (d *DelegatedGuardianConfig) GetChainConfig(chain vaa.ChainID) *DelegatedGu
 
 	return d.Chains[chain]
 }
+
+// GetFeatures returns the delegated guardian feature string for heartbeat messages.
+// Returns empty string if no chains are configured.
+func (d *DelegatedGuardianConfig) GetFeatures() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if len(d.Chains) == 0 {
+		return ""
+	}
+
+	return "dgset"
+}
