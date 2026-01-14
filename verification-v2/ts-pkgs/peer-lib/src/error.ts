@@ -3,5 +3,6 @@ export function errorMsg(error: unknown): string {
 }
 
 export function errorStack(error: unknown): string {
-  return String(error instanceof Error ? error.stack : error);
+  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-explicit-any
+  return String((error as any)?.stack || error);
 }
