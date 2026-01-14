@@ -42,7 +42,9 @@ createGuardianPrivateKey() {
 }
 
 # Build the dockerfile that generates the TLS key and certificate
-yarn workspace @xlabs-xyz/peer-client run docker:build:tls-gen
+ctx=$(mktemp --directory)
+docker build --tag tls-gen --file ../../../peer-client/tls.Dockerfile --progress=plain "$ctx"
+rm -rf "$ctx"
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
