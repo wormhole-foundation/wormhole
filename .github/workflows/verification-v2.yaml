@@ -207,3 +207,24 @@ jobs:
     - name: Peer server e2e tests
       working-directory: ./verification-v2
       run: yarn workspace @xlabs-xyz/peer-e2e run test
+
+  e2e-dkg:
+    name: E2E DKG ceremony
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+          persist-credentials: false
+          sparse-checkout: 'verification-v2'
+    - name: Create network
+      run: docker network create dkg-test
+    - name: Setup buildx container
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      with:
+        name: dkg-builder
+        driver-opts:
+        - network=dkg-test
+    - name: Run E2E DKG ceremony
+      run: ./e2e.sh
+      working-directory: ./verification-v2/ts-pkgs/peer-e2e/tests/e2e/
