@@ -71,7 +71,7 @@ docker run --rm --network=dkg-test --env ETHEREUM_RPC_URL ghcr.io/foundry-rs/fou
 '
 
 # Wait until the server starts listening
-until docker logs peer-server 2>/dev/null | grep "running"
+until docker logs peer-server 2>/dev/null | grep "Peer server running on"
 do
   sleep 1
 done
