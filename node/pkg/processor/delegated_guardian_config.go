@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -44,7 +45,16 @@ func (dc *DelegatedGuardianChainConfig) Quorum() int {
 	return dc.quorum
 }
 
-func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) *DelegatedGuardianChainConfig {
+func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) (*DelegatedGuardianChainConfig, error) {
+	numKeys := len(keys)
+	minThreshold := vaa.CalculateQuorum(numKeys)
+	if threshold > numKeys {
+		return nil, fmt.Errorf("threshold too high: got %d; want at most %d", threshold, numKeys)
+	}
+	if threshold < minThreshold {
+		return nil, fmt.Errorf("threshold too low: got %d; want at least %d", threshold, minThreshold)
+	}
+
 	keyMap := map[common.Address]int{}
 	for idx, key := range keys {
 		keyMap[key] = idx
@@ -53,7 +63,7 @@ func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) *Dele
 		Keys:   keys,
 		quorum: threshold,
 		keyMap: keyMap,
-	}
+	}, nil
 }
 
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
