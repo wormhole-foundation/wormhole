@@ -63,7 +63,6 @@ if [ -z "${SKIP_BUILD:-}" ]; then
     docker build \
         --tag dkg-client \
         --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" \
-        --progress=plain \
         "${REPO_ROOT}"
 fi
 

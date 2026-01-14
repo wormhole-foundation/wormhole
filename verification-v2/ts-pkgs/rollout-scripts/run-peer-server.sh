@@ -45,7 +45,6 @@ docker build \
     --build-arg SERVER_PORT="${SERVER_PORT}" \
     --build-arg ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
     --build-arg WORMHOLE_ADDRESS="${WORMHOLE_ADDRESS}" \
-    --progress=plain \
     "${REPO_ROOT}"
 
 docker run \

@@ -65,7 +65,6 @@ docker build ${BUILDER_FLAG} ${NETWORK_FLAG} \
     --build-arg TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --build-arg TLS_PORT="${TLS_PORT}" \
     --build-arg PEER_SERVER_URL="${PEER_SERVER_URL}" \
-    --progress=plain \
     "${REPO_ROOT}"
 
 log_info "Registration complete"

@@ -24,8 +24,11 @@ TLS_HOSTNAME="$1"
 TLS_PUBLIC_IP="$2"
 OUTPUT_DIR="$3"
 
-if ! [[ "$TLS_PUBLIC_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    log_error "TLS_PUBLIC_IP must be a valid IPv4 address"
+# Validate IP address (IPv4 or IPv6)
+IPV4_REGEX='^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
+IPV6_REGEX='^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$|^::$|^::1$'
+if ! [[ "$TLS_PUBLIC_IP" =~ $IPV4_REGEX ]] && ! [[ "$TLS_PUBLIC_IP" =~ $IPV6_REGEX ]]; then
+    log_error "TLS_PUBLIC_IP must be a valid IPv4 or IPv6 address"
     exit 1
 fi
 
@@ -41,7 +44,6 @@ fi
 docker build \
     --tag tls-gen \
     --file "${REPO_ROOT}/ts-pkgs/peer-client/tls.Dockerfile" \
-    --progress=plain \
     "${REPO_ROOT}"
 
 docker run \
