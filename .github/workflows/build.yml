@@ -38,7 +38,7 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
-      - run: tilt ci --timeout 45m0s -- --ci --namespace=$DEPLOY_NS --num=3
+      - run: tilt ci --timeout 60m0s -- --ci --namespace=$DEPLOY_NS --num=3
         timeout-minutes: 60
 
       # Clean up k8s resources
