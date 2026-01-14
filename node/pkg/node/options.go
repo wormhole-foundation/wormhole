@@ -117,6 +117,7 @@ func GuardianOptionP2P(
 					ccqProtectedPeers,
 					featureFlags,
 					featureFlagFuncs,
+					g.tssEngine, // as a tss.Gossiper
 				),
 			)
 			if err != nil {

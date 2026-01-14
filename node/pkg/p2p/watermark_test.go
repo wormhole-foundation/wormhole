@@ -15,6 +15,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/ethereum/go-ethereum/crypto"
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	p2ppeer "github.com/libp2p/go-libp2p/core/peer"
@@ -46,6 +47,7 @@ type G struct {
 	signedGovCfg           chan *gossipv1.SignedChainGovernorConfig
 	signedGovSt            chan *gossipv1.SignedChainGovernorStatus
 	components             *Components
+	tssGossiper            tss.Gossiper
 }
 
 func NewG(t *testing.T, nodeName string) *G {
@@ -292,6 +294,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G, protectedPeers []str
 			[]string{},        // ccq protected peers
 			[]string{},        // featureFlags
 			[]func() string{}, // featureFlagFuncs
+			g.tssGossiper,     // tssGossiper
 		))
 	require.NoError(t, err)
 

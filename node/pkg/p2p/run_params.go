@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/query"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -61,6 +62,8 @@ type (
 		ccqProtectedPeers      []string
 		featureFlags           []string
 		featureFlagFuncs       []func() string
+
+		tssGossiper tss.Gossiper
 	}
 
 	// RunOpt is used to specify optional parameters.
@@ -196,6 +199,7 @@ func WithGuardianOptions(
 	ccqProtectedPeers []string,
 	featureFlags []string,
 	featureFlagFuncs []func() string,
+	tssGossiper tss.Gossiper,
 ) RunOpt {
 	return func(p *RunParams) error {
 		p.nodeName = nodeName
@@ -221,6 +225,7 @@ func WithGuardianOptions(
 		p.ccqProtectedPeers = ccqProtectedPeers
 		p.featureFlags = featureFlags
 		p.featureFlagFuncs = featureFlagFuncs
+		p.tssGossiper = tssGossiper
 		return nil
 	}
 }
