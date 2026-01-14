@@ -2,13 +2,18 @@ package tss
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"errors"
 	"io"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
@@ -65,6 +70,77 @@ func (m *mockSignerServer) VerifySignature(ctx context.Context, req *signer.Veri
 	return &signer.VerifySignatureResponse{IsValid: true}, nil
 }
 
+func TestNewSignerValidation(t *testing.T) {
+	key, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
+	require.NoError(t, err)
+
+	gs, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(key)
+	require.NoError(t, err)
+
+	validParams := Parameters{
+		SocketPath: "localhost:1234",
+		DialOpts: []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+		GST:            common.NewGuardianSetState(nil),
+		GuardianSigner: gs,
+	}
+
+	testCases := []struct {
+		name        string
+		modifier    func(p *Parameters)
+		expectedErr string
+	}{
+		{
+			name:        "Valid parameters",
+			modifier:    func(p *Parameters) {},
+			expectedErr: "",
+		},
+		{
+			name: "Nil DialOption",
+			modifier: func(p *Parameters) {
+				p.DialOpts = []grpc.DialOption{nil}
+			},
+			expectedErr: "nil grpc dial option provided",
+		},
+		{
+			name: "Nil GST",
+			modifier: func(p *Parameters) {
+				p.GST = nil
+			},
+			expectedErr: "guardian set state must not be nil",
+		},
+		{
+			name: "Nil GuardianSigner",
+			modifier: func(p *Parameters) {
+				p.GuardianSigner = nil
+			},
+			expectedErr: "guardian signer must not be nil",
+		},
+		{
+			name: "Empty SocketPath",
+			modifier: func(p *Parameters) {
+				p.SocketPath = ""
+			},
+			expectedErr: "socket path must not be empty",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			params := validParams
+			tc.modifier(&params)
+			_, err := NewSigner(params)
+			if tc.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
+			}
+		})
+	}
+}
+
 func TestSignerClient(t *testing.T) {
 	a := require.New(t)
 
@@ -89,10 +165,23 @@ func TestSignerClient(t *testing.T) {
 	}()
 	defer s.Stop()
 
+	key, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
+	a.NoError(err)
+
+	gs, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(key)
+	a.NoError(err)
+
 	// Create client with bufconn dialer and insecure credentials
-	client, err := NewSigner(lis.Addr().String(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	client, err := NewSigner(Parameters{
+		SocketPath: lis.Addr().String(),
+		DialOpts: []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+		// LeaderIndex:    0,
+		// Self:           0,
+		GST:            common.NewGuardianSetState(nil),
+		GuardianSigner: gs,
+	})
 	a.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -151,7 +240,7 @@ func TestSignerClient(t *testing.T) {
 	})
 }
 
-func waitForConnection(t *testing.T, client *signerClient) {
+func waitForConnection(t *testing.T, client *SignerClient) {
 	t.Log("waiting for client to connect...")
 	for range 5 {
 		if client.isConnected() {

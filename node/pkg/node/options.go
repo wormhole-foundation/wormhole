@@ -2,9 +2,12 @@ package node
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -20,15 +23,20 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/tss"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GuardianOption struct {
@@ -58,7 +66,7 @@ func GuardianOptionP2P(
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
-		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "query"},
+		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "query", "tss"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
@@ -633,7 +641,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor, accountant, and notary may be set to nil, but that choice needs to be made before the processor is configured
-		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor", "notary"},
+		dependencies: []string{"accountant", "alternate-publisher", "db", "gateway-relayer", "governor", "notary", "tss"},
 
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 
@@ -662,13 +670,66 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 		}}
 }
 
-func GuardianOptionTSSNetwork() *GuardianOption {
-	serviceName := "tsscomm"
+func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, address, x509path, tlsKeyPath string) *GuardianOption {
+	serviceName := "tss"
 	return &GuardianOption{
 		name:         serviceName,
-		dependencies: []string{"processor"}, // TODO: I think it is dependant on it, since the TSS passes its signatures to the processor.
+		dependencies: nil, // doesn't depend on anything.
 		f: func(_ context.Context, logger *zap.Logger, g *G) error {
-			// TODO: Fix
+
+			var dialOpts []grpc.DialOption
+
+			if x509path != "" {
+				if tlsKeyPath == "" {
+					return fmt.Errorf("tss tls key path must be provided when tls cert path is provided (using mTLS)")
+				}
+				certBytes, err := os.ReadFile(x509path)
+				if err != nil {
+					return fmt.Errorf("failed to read tss tls certificate: %w", err)
+				}
+
+				pool := x509.NewCertPool() // pool of accepted server certificates
+				if ok := pool.AppendCertsFromPEM(certBytes); !ok {
+					return fmt.Errorf("failed to parse tss tls certificate")
+				}
+
+				var creds credentials.TransportCredentials
+				if tlsKeyPath == "" {
+					return fmt.Errorf("tss tls key path must be provided when tls cert path is provided")
+				}
+				cert, err := tls.LoadX509KeyPair(x509path, tlsKeyPath)
+				if err != nil {
+					return fmt.Errorf("failed to load tss tls key pair: %w", err)
+				}
+				creds = credentials.NewTLS(&tls.Config{
+					Certificates: []tls.Certificate{cert}, // present client certificate to the server.
+					RootCAs:      pool,
+					MinVersion:   tls.VersionTLS13,
+					ClientAuth:   tls.RequireAndVerifyClientCert,
+				})
+				logger.Info("loaded tss tls certificate and key", zap.String("cert", x509path), zap.String("key", tlsKeyPath))
+				dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
+			} else {
+				logger.Warn("no tss tls certificate configured, connecting insecurely")
+				dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			}
+
+			engine, err := tss.NewSigner(tss.Parameters{
+				SocketPath:     address,
+				DialOpts:       dialOpts,
+				LeaderAddress:  leaderAddr,
+				Self:           selfAddr,
+				GST:            g.gst,
+				GuardianSigner: g.guardianSigner,
+			})
+
+			if err != nil {
+				return err
+			}
+
+			g.tssEngine = engine
+			g.runnables["tss"] = engine.Connect
+
 			return nil
 		}}
 }

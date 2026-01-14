@@ -5,8 +5,12 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"github.com/xlabs/multi-party-sig/pkg/math/curve"
 	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"google.golang.org/grpc"
@@ -53,6 +57,8 @@ type Signer interface {
 	// TODO: Missing signerService API! The SignerService should support both GetPublicData data and verify.
 	// GetPublicKey gets the public information of the signer.
 	GetPublicData(context.Context) (*signer.PublicData, error)
+	// GetPublicKey gets the public key for the specified protocol type.
+	GetPublicKey(context.Context, tsscommon.ProtocolType) (curve.Point, error)
 	// Verify verifies a signature against the provided public data.
 	Verify(context.Context, *signer.VerifySignatureRequest) error
 
@@ -64,29 +70,52 @@ type Signer interface {
 
 // Ensure interfaces are implemented.
 var (
-	_ SignerConnection = (*signerClient)(nil)
-	_ Signer           = (*signerClient)(nil)
+	_ SignerConnection = (*SignerClient)(nil)
+	_ Signer           = (*SignerClient)(nil)
 )
 
-func TODO() SignerConnection { // TODO: remove
-	return &signerClient{}
+// func TODO() SignerConnection { // TODO: remove
+// 	return &SignerClient{}
+// }
+
+type Parameters struct {
+	// Path to the signer service socket (hostname, ip).
+	SocketPath string
+	// grpc dial options to connect to the signer service (including tls.credentials or insecure connection).
+	DialOpts []grpc.DialOption
+
+	LeaderAddress ethcommon.Address
+	// index of this guardian in the guardian set. should be same for all guardians in the network.
+	Self           ethcommon.Address
+	GST            *common.GuardianSetState
+	GuardianSigner guardiansigner.GuardianSigner
 }
 
 // The opts should provide the dial options to connect to the signer service. this includes tls.credentials.
-func NewSigner(socketPath string, opts ...grpc.DialOption) (*signerClient, error) {
+func NewSigner(p Parameters) (*SignerClient, error) {
 	// todo: create a goroutine with a map that will match requests to responses and output them to the out channel.
 	// it will also use a logger to log errors, etc.
 	// closes once the context is cancelled.
 
-	for _, opt := range opts {
+	for _, opt := range p.DialOpts {
 		if opt == nil {
 			return nil, errors.New("nil grpc dial option provided")
 		}
 	}
 
-	sc := &signerClient{
-		dialOpts:   opts,
-		socketPath: socketPath,
+	if p.GST == nil {
+		return nil, errors.New("guardian set state must not be nil")
+	}
+	if p.GuardianSigner == nil {
+		return nil, errors.New("guardian signer must not be nil")
+	}
+	if p.SocketPath == "" {
+		return nil, errors.New("socket path must not be empty")
+	}
+
+	sc := &SignerClient{
+		dialOpts:   p.DialOpts,
+		socketPath: p.SocketPath,
 		conn: &connChans{
 			signRequests:  make(chan *signer.SignRequest, 100),  // TODO: buffer sizes?
 			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
@@ -94,6 +123,14 @@ func NewSigner(socketPath string, opts ...grpc.DialOption) (*signerClient, error
 		},
 		out:       make(chan *tsscommon.SignatureData),
 		connected: atomic.Int64{},
+		vaaData: vaaHandling{
+			isLeader:       p.LeaderAddress == p.Self && p.Self != (ethcommon.Address{}), // only if self is defined.
+			leaderAddress:  p.LeaderAddress,
+			gst:            p.GST,
+			GuardianSigner: p.GuardianSigner,
+			gossipOutput:   make(chan *gossipv1.TSSGossipMessage, 100), // TODO: buffer sizes?
+			incomingGossip: make(chan *gossipv1.TSSGossipMessage, 100), // TODO: buffer sizes?
+		},
 	}
 
 	return sc, nil

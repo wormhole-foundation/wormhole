@@ -25,7 +25,7 @@ var (
 	errNilGuardianSigner        = errors.New("guardianSigner is nil")
 )
 
-func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
+func (s *SignerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	if s == nil {
 		return ErrSignerClientNil
 	}
@@ -53,7 +53,7 @@ func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 
 	gs := s.vaaData.gst.Get()
 	if err := v.Verify(gs.Keys); err != nil {
-		return nil // won't send invalid VAAs.
+		return err // won't send invalid VAAs.
 	}
 
 	bts, err := v.Marshal()
@@ -81,7 +81,7 @@ func (s *signerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	}
 }
 
-func (s *signerClient) Outbound() <-chan *gossipv1.TSSGossipMessage {
+func (s *SignerClient) Outbound() <-chan *gossipv1.TSSGossipMessage {
 	if s == nil {
 		return nil
 	}
@@ -96,7 +96,7 @@ func (s *signerClient) Outbound() <-chan *gossipv1.TSSGossipMessage {
 
 // Inform is used to inform the TSS signer of a new incoming gossip message.
 // it returns an error if the message couldn't be delivered.
-func (s *signerClient) Inform(v *gossipv1.TSSGossipMessage) error {
+func (s *SignerClient) Inform(v *gossipv1.TSSGossipMessage) error {
 	if s == nil {
 		return ErrSignerClientNil
 	}
@@ -115,7 +115,7 @@ func (s *signerClient) Inform(v *gossipv1.TSSGossipMessage) error {
 
 // the gossipListener listens for incoming gossip messages and processes them.
 // closes when the context is done.
-func (s *signerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
+func (s *SignerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
 	logger = logger.Named("gossipListener")
 	dt := s.vaaData
 	for {
@@ -157,7 +157,7 @@ func (s *signerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
 	}
 }
 
-func (s *signerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet) error {
+func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet) error {
 	rq := &signer.SignRequest{
 		Digest:    newVaa.SigningDigest().Bytes(),
 		Committee: [][]byte{},
@@ -188,10 +188,9 @@ func (dt vaaHandling) verifyGossipSig(msg *gossipv1.TSSGossipMessage, gs *common
 	}
 
 	signerAddr := ethcommon.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
-	leaderAddr := gs.Keys[dt.leaderIndex]
 
-	if signerAddr != leaderAddr {
-		return fmt.Errorf("signature not from leader: got %s, want %s", signerAddr.Hex(), leaderAddr.Hex())
+	if signerAddr != dt.leaderAddress {
+		return fmt.Errorf("signature not from leader: got %s, want %s", signerAddr.Hex(), dt.leaderAddress.Hex())
 	}
 
 	return nil

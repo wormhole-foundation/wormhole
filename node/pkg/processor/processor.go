@@ -15,6 +15,7 @@ import (
 	guardianNotary "github.com/certusone/wormhole/node/pkg/notary"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/tss"
+	"google.golang.org/grpc/codes"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -28,6 +29,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/xlabs/multi-party-sig/protocols/frost"
 	tsscommon "github.com/xlabs/tss-common"
+	"github.com/xlabs/tss-common/service/signer"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -389,10 +391,8 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 
 			p.handleMessage(ctx, k)
-		case sig := <-p.thresholdSigner.Response():
-			// p.processTssSignature(sig) // TODO:
-			_ = sig
-			panic("unimplemented")
+		case tssResp := <-p.thresholdSigner.Response():
+			p.handleTssResponse(tssResp)
 		case m := <-p.batchObsvC:
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleBatchObservation(m)
@@ -478,6 +478,49 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+func (p *Processor) handleTssResponse(tssResp *signer.SignResponse) {
+	if tssResp == nil || tssResp.Response == nil {
+		p.logger.Error("received nil TSS signer response")
+		return
+	}
+
+	switch v := tssResp.Response.(type) {
+	case *signer.SignResponse_Signature:
+		if v.Signature == nil {
+			p.logger.Error("received nil TSS signer signature")
+			return
+		}
+
+		p.processTssSignature(v.Signature)
+	case *signer.SignResponse_Status:
+		if v.Status == nil {
+			p.logger.Error("received nil TSS signer status")
+			return
+		}
+		p.processTssStatus(v.Status)
+	default:
+		p.logger.Error("received unknown TSS signer response type")
+	}
+}
+
+func (p *Processor) processTssStatus(status *signer.SignStatus) {
+	if status == nil || len(status.GetDigest()) == 0 || status.GetCode() == 0 {
+		p.logger.Error("received nil TSS signer status")
+		return
+	}
+	hash := hex.EncodeToString(status.GetDigest())
+	delete(p.tssWaiters, hash)
+
+	p.logger.Info("TSS signing request stopped",
+		zap.String("hash", hash),
+		zap.String("status", status.GetProtocol()),
+		zap.String("code", codes.Code(status.GetCode()).String()),
+		zap.String("message", status.GetMessage()),
+	)
+
+	// TODO: consider additional handling based on status code
 }
 
 // storeSignedVAA schedules a database update for a VAA.
@@ -623,10 +666,16 @@ func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
 		return
 	}
 
-	sigBytes, err := frostsig.MarshalBinary()
+	csig, err := frostsig.ToContractSig()
 	if err != nil {
-		p.logger.Error("failed to convert TSS signature to bytes", zap.String("hash", hash), zap.Error(err))
+		p.logger.Error("failed to convert TSS signature to contractForm", zap.String("hash", hash), zap.Error(err))
 
+		return
+	}
+
+	sigBytes, err := csig.MarshalBinary()
+	if err != nil {
+		p.logger.Error("failed to marshal contract signature", zap.String("hash", hash), zap.Error(err))
 		return
 	}
 

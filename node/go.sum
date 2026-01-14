@@ -3137,16 +3137,10 @@ github.com/xeipuuv/gojsonschema v0.0.0-20180618132009-1d523034197f/go.mod h1:5yf
 github.com/xeipuuv/gojsonschema v1.2.0/go.mod h1:anYRn/JVcOK2ZgGU+IjEV4nwlhoK5sQluxsYJ78Id3Y=
 github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8/go.mod h1:HUYIGzjTL3rfEspMxjDjgmT5uz5wzYJKVo23qUhYTos=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
-github.com/xlabs/multi-party-sig v0.0.2-0.20251106111445-bf7821c135f2 h1:Myo7YtDC9AspIZQsjtTMQ2jCPb5JUbV4qEa/x6yzGYQ=
-github.com/xlabs/multi-party-sig v0.0.2-0.20251106111445-bf7821c135f2/go.mod h1:SBODTeykpKscQ1b0i0OPwjYbPpyvZzsKuT3efdTKidc=
-github.com/xlabs/multi-party-sig v0.0.2-0.20260106091636-03df0eb97600 h1:MW2mJZhnH8jPSuMtyPgYnvT/dxAMxeR8ChsXnWxl+90=
-github.com/xlabs/multi-party-sig v0.0.2-0.20260106091636-03df0eb97600/go.mod h1:4yXG6LBqQsccdeLKfxHqDqkZlayRkdhsjib13P5xpms=
-github.com/xlabs/tss-common v0.0.0-20251105153320-7da4a3182636 h1:0jDa2rP6/JKx93Cj+FqwO9kDKhqLAFPodQofMhsd24A=
-github.com/xlabs/tss-common v0.0.0-20251105153320-7da4a3182636/go.mod h1:fZmQ4NRkV/rXf68cDLgZoi/4LF89Nn8Rh2KGdxDB+ZM=
+github.com/xlabs/multi-party-sig v0.0.2-0.20260114132444-9fa120708b77 h1:IMjKAhCJxZl/Q7FHbnr9+FFdDm0Plq1fz8EQLzdO95A=
+github.com/xlabs/multi-party-sig v0.0.2-0.20260114132444-9fa120708b77/go.mod h1:4yXG6LBqQsccdeLKfxHqDqkZlayRkdhsjib13P5xpms=
 github.com/xlabs/tss-common v0.0.0-20260106090845-24efe5d8f9c2 h1:NXHZJVgpS8dhCEPKf3R7o5mGRbK1XZ5Ik4Vw6I/leWc=
 github.com/xlabs/tss-common v0.0.0-20260106090845-24efe5d8f9c2/go.mod h1:fZmQ4NRkV/rXf68cDLgZoi/4LF89Nn8Rh2KGdxDB+ZM=
-github.com/xlabs/tss-lib/v2 v2.1.1-0.20260106092316-0373937dfe57 h1:Ho7/Fi2fCt5YGzviB5wHNAbyz5+Ji9SknOX9M2FndxU=
-github.com/xlabs/tss-lib/v2 v2.1.1-0.20260106092316-0373937dfe57/go.mod h1:MuwXGuu46dy2LsklgD2LK2NhBpCmgKMYLn8CqRmV0KI=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRTfdpNzjtPYqr8smhKouy9mxVdGPU=
@@ -4318,8 +4312,6 @@ google.golang.org/protobuf v1.27.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQ
 google.golang.org/protobuf v1.27.1/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.28.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.28.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
-google.golang.org/protobuf v1.36.10 h1:AYd7cD/uASjIL6Q9LiTjz8JLcrh/88q5UObnmY3aOOE=
-google.golang.org/protobuf v1.36.10/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/airbrake/gobrake.v2 v2.0.9/go.mod h1:/h5ZAUhDkGaJfjzjKLSjv6zCL6O0LLBxU4K+aSYdM/U=

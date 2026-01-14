@@ -8,7 +8,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/node/pkg/tss"
+	tssmock "github.com/certusone/wormhole/node/pkg/tss/mock"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +44,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	observedLogger := zap.New(observedZapCore)
 
 	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-	processor := Processor{thresholdSigner: tss.TODO()} // added a thresholdSigner to avoid nil pointer
+	processor := Processor{thresholdSigner: tssmock.NewMockSignerConnection()} // added a thresholdSigner to avoid nil pointer
 	processor.logger = observedLogger
 
 	processor.handleInboundSignedVAAWithQuorum(signedVAAWithQuorum)
@@ -106,7 +106,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			observedLogger := zap.New(observedZapCore)
 
 			signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-			processor := Processor{thresholdSigner: tss.TODO()} // added a thresholdSigner to avoid nil pointer
+			processor := Processor{thresholdSigner: tssmock.NewMockSignerConnection()} // added a thresholdSigner to avoid nil pointer
 			processor.gs = &guardianSet
 			processor.logger = observedLogger
 

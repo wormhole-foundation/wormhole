@@ -12,6 +12,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	tsscommon "github.com/xlabs/tss-common"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -344,16 +345,18 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 
 	var verificationPublic vaa.PublicKeys = keys
 	if v.Version == vaa.TSSVaaVersion {
-		// TODO: Handle TSSVaa Version verification properly.
-		// verificationPublic, err = p.thresholdSigner.GetPublicKey()
-		// if err != nil {
-		// 	p.logger.Warn("dropping SignedVAAWithQuorum message since we failed to get public key for TSS VAA",
-		// 		zap.String("message_id", v.MessageID()),
-		// 		zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
-		// 		zap.Error(err),
-		// 	)
-		// 	return
-		// }
+		// TODO: Choose the protocol somehow.
+		pb, err := p.thresholdSigner.GetPublicKey(context.TODO(), tsscommon.ProtocolFROSTSign) // TODO: handle ctx.
+		if err != nil {
+			p.logger.Warn("dropping SignedVAAWithQuorum message since we failed to get public key for TSS VAA",
+				zap.String("message_id", v.MessageID()),
+				zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
+				zap.Error(err),
+			)
+			return
+		}
+
+		verificationPublic = pb
 	}
 
 	if err := v.Verify(verificationPublic); err != nil {

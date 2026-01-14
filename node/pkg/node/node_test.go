@@ -32,6 +32,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/tss"
+	tssmock "github.com/certusone/wormhole/node/pkg/tss/mock"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/mock"
 	eth_crypto "github.com/ethereum/go-ethereum/crypto"
@@ -131,7 +132,7 @@ func newMockGuardianSet(t testing.TB, testId uint, n int) []*mockGuardian {
 			guardianAddr:     eth_crypto.PubkeyToAddress(guardianSigner.PublicKey(context.Background())),
 
 			config:    createGuardianConfig(t, testId, uint(i)), // #nosec G115 -- Guardian set will never be that large
-			tssEngine: tss.TODO(),
+			tssEngine: tssmock.NewMockSignerConnection(),
 		}
 	}
 
@@ -145,6 +146,29 @@ func mockGuardianSetToGuardianAddrList(t testing.TB, gs []*mockGuardian) []eth_c
 		result[i] = g.guardianAddr
 	}
 	return result
+}
+
+func guardianOptionMockTSS() *GuardianOption {
+	serviceName := "tss"
+	return &GuardianOption{
+		name:         serviceName,
+		dependencies: nil, // doesn't depend on anything.
+		f: func(_ context.Context, logger *zap.Logger, g *G) error {
+			g.tssEngine = tssmock.NewMockSignerConnection()
+			g.runnables[serviceName] = func(ctx context.Context) error {
+				supervisor.Signal(ctx, supervisor.SignalHealthy)
+				for {
+					select {
+					case <-ctx.Done():
+						return nil
+					default:
+					}
+					time.Sleep(time.Millisecond * 100)
+				}
+			}
+			return nil
+		},
+	}
 }
 
 // mockGuardianRunnable returns a runnable that first sets up a mock guardian an then runs it.
@@ -193,6 +217,7 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 
 		// assemble all the options
 		guardianOptions := []*GuardianOption{
+			guardianOptionMockTSS(),
 			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
 			GuardianOptionNoAccountant(), // disable accountant
@@ -208,8 +233,6 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 			GuardianOptionAlternatePublisher([]byte{}, []string{}), // disable alternate publisher
 			GuardianOptionProcessor(networkID),
 
-			GuardianOptionTSSNetwork(),
-
 			// Keep this last so that all of its dependencies are met.
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, informOnNewVAAs, false, cfg.p2pPort, "", 0, "", "", false, []string{}, []string{}, []string{}),
 		}
@@ -217,7 +240,6 @@ func mockGuardianRunnable(t testing.TB, gs []*mockGuardian, mockGuardianIndex ui
 		guardianNode := NewGuardianNode(
 			env,
 			gs[mockGuardianIndex].guardianSigner,
-			gs[mockGuardianIndex].tssEngine,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
@@ -1004,7 +1026,7 @@ func runGuardianConfigTests(t *testing.T, testCases []testCaseGuardianConfig) {
 				ctx, ctxCancel := context.WithCancel(ctx)
 				defer ctxCancel()
 
-				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil, tss.TODO()).Run(ctxCancel, tc.opts...)); err != nil {
+				if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
 					panic(err)
 				}
 
@@ -1348,6 +1370,7 @@ func runConsensusBenchmark(t *testing.B, name string, numGuardians int, numMessa
 }
 
 func TestTssCorrectRun(t *testing.T) {
+	t.Skip("Need a real TSS signer to be connected to each guardian. This isn't the case yet.")
 	processor.FirstRetryMinWait = time.Second * 3
 	processor.CleanupInterval = time.Second * 30
 

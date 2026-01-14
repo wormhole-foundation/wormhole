@@ -7,16 +7,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestWitnessNewVaaV1(t *testing.T) {
@@ -32,7 +37,7 @@ func TestWitnessNewVaaV1(t *testing.T) {
 	}
 	gst.Set(gs)
 
-	s := &signerClient{
+	s := &SignerClient{
 		vaaData: vaaHandling{
 			isLeader:       true,
 			gst:            gst,
@@ -74,7 +79,7 @@ func TestWitnessNewVaaV1(t *testing.T) {
 }
 
 func TestWitnessNewVaaV1_NotLeader(t *testing.T) {
-	s := &signerClient{
+	s := &SignerClient{
 		vaaData: vaaHandling{
 			isLeader: false,
 		},
@@ -85,7 +90,7 @@ func TestWitnessNewVaaV1_NotLeader(t *testing.T) {
 }
 
 func TestInform(t *testing.T) {
-	s := &signerClient{
+	s := &SignerClient{
 		vaaData: vaaHandling{
 			isLeader:       false,
 			incomingGossip: make(chan *gossipv1.TSSGossipMessage, 1),
@@ -103,7 +108,7 @@ func TestInform(t *testing.T) {
 }
 
 func TestInform_Leader(t *testing.T) {
-	s := &signerClient{
+	s := &SignerClient{
 		vaaData: vaaHandling{
 			isLeader: true,
 		},
@@ -127,15 +132,17 @@ func TestGossipListener(t *testing.T) {
 	gst.Set(gs)
 
 	// Setup Client
-	s := &signerClient{
+	s := &SignerClient{
 		conn: &connChans{
 			signRequests: make(chan *signer.SignRequest, 1),
 		},
 		vaaData: vaaHandling{
 			isLeader:       false,
-			leaderIndex:    0,
 			gst:            gst,
 			incomingGossip: make(chan *gossipv1.TSSGossipMessage, 1),
+			leaderAddress:  crypto.PubkeyToAddress(leaderKey.PublicKey),
+			// GuardianSigner: nil,
+			gossipOutput: make(chan *gossipv1.TSSGossipMessage),
 		},
 	}
 
@@ -181,4 +188,84 @@ func TestGossipListener(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for sign request")
 	}
+}
+
+func TestWitnessVaa(t *testing.T) {
+	key, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
+	require.NoError(t, err)
+
+	gs, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(key)
+	require.NoError(t, err)
+
+	v := &vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 1,
+		Signatures:       nil,
+		Timestamp:        time.Unix(12345, 0),
+		Nonce:            1,
+		Sequence:         1,
+		ConsistencyLevel: 1,
+		EmitterChain:     1,
+		EmitterAddress:   vaa.Address([32]byte{1}),
+		Payload:          []byte("hello"),
+	}
+	v.AddSignature(key, 0)
+
+	leaderAddr := ethcommon.Address(crypto.PubkeyToAddress(key.PublicKey))
+
+	t.Run("Leader", func(t *testing.T) {
+		gst := common.NewGuardianSetState(nil)
+		gst.Set(&common.GuardianSet{
+			Keys:  []eth_common.Address{leaderAddr},
+			Index: 1,
+		})
+		a := require.New(t)
+		client, err := NewSigner(Parameters{
+			SocketPath:     "unused",
+			DialOpts:       []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
+			LeaderAddress:  leaderAddr,
+			Self:           leaderAddr,
+			GST:            gst,
+			GuardianSigner: gs,
+		})
+		a.NoError(err)
+
+		err = client.WitnessNewVaaV1(context.Background(), v)
+		a.NoError(err)
+
+		select {
+		case msg := <-client.Outbound():
+			a.NotNil(msg)
+
+			valid, err := gs.Verify(context.Background(), msg.Signature, ethcrypto.Keccak256(msg.Message))
+			a.NoError(err)
+			a.True(valid)
+
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for gossip message")
+		}
+	})
+
+	t.Run("Non-leader", func(t *testing.T) {
+		a := require.New(t)
+		client, err := NewSigner(Parameters{
+			SocketPath:     "unused",
+			DialOpts:       []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
+			LeaderAddress:  leaderAddr,
+			Self:           ethcommon.Address{},
+			GST:            common.NewGuardianSetState(nil),
+			GuardianSigner: gs,
+		})
+		a.NoError(err)
+
+		err = client.WitnessNewVaaV1(context.Background(), v)
+		a.NoError(err)
+
+		select {
+		case msg := <-client.Outbound():
+			t.Fatalf("received unexpected gossip message: %+v", msg)
+		case <-time.After(50 * time.Millisecond):
+			// Success, no message received
+		}
+	})
 }
