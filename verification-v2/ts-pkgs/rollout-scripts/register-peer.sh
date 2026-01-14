@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; }
@@ -59,13 +59,13 @@ if [ -n "${DOCKER_BUILD_NETWORK:-}" ]; then
 fi
 
 docker build ${BUILDER_FLAG} ${NETWORK_FLAG} \
-    --file "${REPO_ROOT}/ts-pkgs/peer-client/Dockerfile" \
+    --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
     --secret id=cert.pem,src="${CERT_PATH}" \
     --build-arg TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --build-arg TLS_PORT="${TLS_PORT}" \
     --build-arg PEER_SERVER_URL="${PEER_SERVER_URL}" \
-    "${REPO_ROOT}"
+    "${PROJECT_ROOT}"
 
 log_info "Registration complete"
 
