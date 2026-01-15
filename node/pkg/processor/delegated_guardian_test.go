@@ -462,11 +462,11 @@ func TestDelegateChainUndelegated(t *testing.T) {
 
 	// No delegate observations should be produced
 	assert.Equal(t, 0, len(messages.DelegateObservations), "Expected no delegate observations")
-	
+
 	// Guardian-1 and Guardian-2 should produce regular observations
 	ob1 := messages.FindObservationBatchByGuardian(guardian1)
 	ob2 := messages.FindObservationBatchByGuardian(guardian2)
-	
+
 	// Filter to only chain 4 observations
 	if ob1 != nil {
 		ob1.Msg.Observations = filterObservationsByChain(ob1.Msg.Observations, "4")
@@ -474,16 +474,22 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	if ob2 != nil {
 		ob2.Msg.Observations = filterObservationsByChain(ob2.Msg.Observations, "4")
 	}
-	
+
 	require.NotNil(t, ob1, "Expected observation batch from guardian1")
 	require.NotNil(t, ob2, "Expected observation batch from guardian2")
 	require.NotEmpty(t, ob1.Msg.Observations, "Guardian1 should have observations for chain 4")
 	require.NotEmpty(t, ob2.Msg.Observations, "Guardian2 should have observations for chain 4")
-	
+
 	ensureEquivalentObservationBatches(t, ob1.Msg, ob2.Msg)
-	
+
 	assert.Equal(t, 1, len(ob1.Msg.Observations), "Expected exactly 1 observation in guardian1 batch")
 	assert.Equal(t, 1, len(ob2.Msg.Observations), "Expected exactly 1 observation in guardian2 batch")
+
+	ob0 := messages.FindObservationBatchByGuardian(guardian0)
+	if ob0 != nil {
+		chain4Obs := filterObservationsByChain(ob0.Msg.Observations, "4")
+		require.Empty(t, chain4Obs, "Guardian0 should NOT have observations for chain 4")
+	}
 
 	// Filter VAAs to only include chain 4 VAAs (exclude governance VAAs on chain 2)
 	chain4VAAs := filterVAAsByChain(messages.VAAs, 4)
