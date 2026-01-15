@@ -150,10 +150,10 @@ func NewManagerService(
 	}
 
 	// Load default manager sets based on environment
-	if env == common.UnsafeDevNet {
+	if env == common.UnsafeDevNet || env == common.TestNet {
 		// Load the devnet manager set for Dogecoin
 		if _, ok := signers[vaa.ChainIDDogecoin]; ok {
-			devnetSet := loadDevnetManagerSet(ctx, signers[vaa.ChainIDDogecoin])
+			devnetSet := loadDefaultManagerSet(ctx, env, signers[vaa.ChainIDDogecoin])
 			managerSets[vaa.ChainIDDogecoin][devnetSet.Index] = devnetSet
 		}
 	}
@@ -173,10 +173,14 @@ func NewManagerService(
 	}
 }
 
-// loadDevnetManagerSet creates a ManagerSetConfig from the SDK's KnownDevnetManagerSet.
+// loadDefaultManagerSet creates a ManagerSetConfig from the SDK's KnownDevnetManagerSet.
 // It also determines the signer's index within the set by comparing public keys.
-func loadDevnetManagerSet(ctx context.Context, signer guardiansigner.GuardianSigner) *ManagerSetConfig {
+// TODO: remove this function
+func loadDefaultManagerSet(ctx context.Context, env common.Environment, signer guardiansigner.GuardianSigner) *ManagerSetConfig {
 	sdkSet := sdk.KnownDevnetManagerSet
+	if env == common.TestNet {
+		sdkSet = sdk.KnownTestnetManagerSet
+	}
 
 	// Convert public keys from [33]byte to []byte
 	pubKeys := make([][]byte, len(sdkSet.PublicKeys))

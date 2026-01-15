@@ -63,6 +63,8 @@ var KnownDevnetManagerEmitters = []struct {
 	{ChainId: vaa.ChainIDEthereum, Addr: "00000000000000000000000090F8bf6A479f320ead074411a4B0e7944Ea8c9C1"},
 }
 
+// TODO: This should be loaded from the delegated manager set contract instead.
+// TODO: This should be listed per chain and per index.
 // KnownDevnetManagerSet is the initial delegated manager set for devnet.
 // It is a 5-of-7 multisig using the first 7 devnet guardian keys.
 // Generated from scripts/generate-manager-set using devnetGuardians from scripts/devnet-consts.json.
