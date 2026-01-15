@@ -693,8 +693,11 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 		Unreliable:       d.Unreliable,
 	}
 
-	if err = mp.SetVerificationState(node_common.VerificationState(d.VerificationState)); err != nil {
-		return nil, fmt.Errorf("could not set verification state: %w", err)
+	// only set verification state if it's not the default value (NotVerified)
+	if d.VerificationState != uint32(node_common.NotVerified) {
+		if err = mp.SetVerificationState(node_common.VerificationState(d.VerificationState)); err != nil {
+			return nil, fmt.Errorf("could not set verification state: %w", err)
+		}
 	}
 
 	return mp, nil

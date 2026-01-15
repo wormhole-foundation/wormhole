@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,6 +149,7 @@ type GossipCollector struct {
 	signedGovCfgC      chan *gossipv1.SignedChainGovernorConfig
 	signedGovStatusC   chan *gossipv1.SignedChainGovernorStatus
 
+	mu                   sync.Mutex
 	delegateObservations []*gossipv1.DelegateObservation
 	observationBatches   []*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	vaas                 []*gossipv1.SignedVAAWithQuorum
@@ -253,24 +255,32 @@ func (gc *GossipCollector) collectMessages(ctx context.Context) {
 			return
 
 		case msg := <-gc.batchObsvC:
+			gc.mu.Lock()
 			gc.observationBatches = append(gc.observationBatches, msg)
+			gc.mu.Unlock()
 			gc.logger.Debug("Collected SignedObservationBatch",
 				zap.String("guardian_addr", hex.EncodeToString(msg.Msg.Addr)),
 				zap.Int("num_observations", len(msg.Msg.Observations)),
 			)
 
 		case msg := <-gc.signedIncomingVaaC:
+			gc.mu.Lock()
 			gc.vaas = append(gc.vaas, msg)
+			gc.mu.Unlock()
 			gc.logger.Debug("Collected SignedVAAWithQuorum")
 
 		case msg := <-gc.obsvReqC:
+			gc.mu.Lock()
 			gc.observationRequests = append(gc.observationRequests, msg)
+			gc.mu.Unlock()
 			gc.logger.Debug("Collected ObservationRequest",
 				zap.Uint32("chain_id", msg.ChainId),
 			)
 
 		case msg := <-gc.delegateObsvC:
+			gc.mu.Lock()
 			gc.delegateObservations = append(gc.delegateObservations, msg)
+			gc.mu.Unlock()
 			gc.logger.Info("Collected DelegateObservation",
 				zap.Uint32("emitter_chain", msg.EmitterChain),
 				zap.Uint64("sequence", msg.Sequence),
@@ -290,7 +300,15 @@ func (gc *GossipCollector) Stop() {
 	gc.cancel()
 }
 
+func (gc *GossipCollector) VAACount() int {
+	gc.mu.Lock()
+	defer gc.mu.Unlock()
+	return len(gc.vaas)
+}
+
 func (gc *GossipCollector) Capture() *CapturedMessages {
+	gc.mu.Lock()
+	defer gc.mu.Unlock()
 	return &CapturedMessages{
 		DelegateObservations: append([]*gossipv1.DelegateObservation{}, gc.delegateObservations...),
 		ObservationBatches:   append([]*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]{}, gc.observationBatches...),
@@ -585,7 +603,14 @@ func TestDelegateObservationScenario(t *testing.T) {
 		ob2.Msg.Observations = filterObservationsByChain(ob2.Msg.Observations, "4")
 	}
 
-	t.Logf("\n=== Observation Batch 0 ===")
+	// All guardians should produce observation batches:
+	// - guardian-1 and guardian-2 watch chain 4 directly and emit delegate observations
+	// - guardian-0 receives delegate observations, reaches quorum, and produces a canonical observation
+	require.NotNil(t, ob0, "Expected observation batch from guardian0 after receiving delegate observations")
+	require.NotNil(t, ob1, "Expected observation batch from guardian1")
+	require.NotNil(t, ob2, "Expected observation batch from guardian2")
+
+	t.Logf("\n=== Observation Batch 0 (guardian0) ===")
 	t.Logf("  Timestamp: %d", ob0.Timestamp.Unix())
 	for i, obs := range ob0.Msg.Observations {
 		t.Logf("\nObservation #%d:", i+1)
@@ -593,7 +618,8 @@ func TestDelegateObservationScenario(t *testing.T) {
 		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
 		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
 	}
-	t.Logf("\n=== Observation Batch 1 ===")
+
+	t.Logf("\n=== Observation Batch 1 (guardian1) ===")
 	t.Logf("  Timestamp: %d", ob1.Timestamp.Unix())
 	for i, obs := range ob1.Msg.Observations {
 		t.Logf("\nObservation #%d:", i+1)
@@ -601,7 +627,8 @@ func TestDelegateObservationScenario(t *testing.T) {
 		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
 		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
 	}
-	t.Logf("\n=== Observation Batch 2 ===")
+
+	t.Logf("\n=== Observation Batch 2 (guardian2) ===")
 	t.Logf("  Timestamp: %d", ob2.Timestamp.Unix())
 	for i, obs := range ob2.Msg.Observations {
 		t.Logf("\nObservation #%d:", i+1)
@@ -609,6 +636,7 @@ func TestDelegateObservationScenario(t *testing.T) {
 		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
 		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
 	}
+
 	// ensure observation batches are as expected
 	ensureEquivalentObservationBatches(t, ob0.Msg, ob1.Msg, ob2.Msg)
 	assert.Equal(t, 1, len(ob0.Msg.Observations))
@@ -632,6 +660,11 @@ func TestDelegateObservationScenario(t *testing.T) {
 	hash := mp.CreateDigest()
 	assert.Equal(t, hash, hex.EncodeToString(ob0.Msg.Observations[0].Hash))
 	assert.Equal(t, message0.TxHash, ob0.Msg.Observations[0].TxHash)
+
+	// Verify that a VAA with quorum was produced
+	// Note: Each guardian broadcasts the VAA, so we may receive multiple copies
+	require.Greater(t, len(messages.VAAs), 0, "Expected at least one VAA to be produced")
+	t.Logf("VAA with quorum produced successfully (%d VAA messages captured)", len(messages.VAAs))
 }
 
 func createAndSubmitDelegatedGuardiansConfig(t *testing.T, config map[vaa.ChainID]vaa.DelegatedGuardianConfig) {
