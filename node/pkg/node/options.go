@@ -694,9 +694,6 @@ func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, address, x509path
 				}
 
 				var creds credentials.TransportCredentials
-				if tlsKeyPath == "" {
-					return fmt.Errorf("tss tls key path must be provided when tls cert path is provided")
-				}
 				cert, err := tls.LoadX509KeyPair(x509path, tlsKeyPath)
 				if err != nil {
 					return fmt.Errorf("failed to load tss tls key pair: %w", err)

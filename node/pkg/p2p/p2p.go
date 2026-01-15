@@ -711,7 +711,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
 				case msg := <-tssOutbound:
-					if controlPubsubTopic == nil {
+					if tssPubsubTopic == nil {
 						continue // no control topic: drop TSS gossip messages.
 					}
 
@@ -725,7 +725,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 
 					p2pMessagesSent.WithLabelValues("tss").Inc()
-					if err := controlPubsubTopic.Publish(ctx, b); err != nil {
+					if err := tssPubsubTopic.Publish(ctx, b); err != nil {
 						logger.Error("failed to publish tss gossip message", zap.Error(err))
 					}
 				}

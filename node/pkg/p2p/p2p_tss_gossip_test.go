@@ -92,7 +92,7 @@ func TestTssGossipListener(t *testing.T) {
 
 	id0, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 	require.NoError(t, err)
-	bootstrapPeer := fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START_TSS, id0.String())
+	bootstrapPeer := fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic-v1/p2p/%s", LOCAL_P2P_PORTRANGE_START_TSS, id0.String())
 
 	for i := range gs {
 		gs[i].bootstrapPeers = bootstrapPeer
