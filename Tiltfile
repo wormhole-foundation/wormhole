@@ -802,13 +802,13 @@ if ci_tests:
         "accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["delegated-guardian-setup"] if require_per_guardian_config else [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier, wait for delegated-guardian-setup if per-guardian config is active
+        resource_deps = ["delegated-guardian-ci-tests"] if require_per_guardian_config else [], # wait for delegated-guardian-ci-tests to complete since those tests modify the delegated config
     )
     k8s_resource(
         "ntt-accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["delegated-guardian-setup"] if require_per_guardian_config else [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier, wait for delegated-guardian-setup if per-guardian config is active
+        resource_deps = ["delegated-guardian-ci-tests"] if require_per_guardian_config else [], # uses devnet-consts.json, but wormchain/contracts/tools/test_ntt_accountant.sh handles waiting for guardian, not having deps gets the build earlier, wait for delegated-guardian-setup if per-guardian config is active
     )
     k8s_resource(
         "query-sdk-ci-tests",
