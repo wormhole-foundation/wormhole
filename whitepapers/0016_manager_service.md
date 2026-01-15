@@ -231,11 +231,33 @@ GET /v1/manager/signed_vaa/{chain}/{emitter}/{sequence}
 GET /v1/manager/signed_vaa/{hash}
 ```
 
+They both return the following output:
+
+```typescript
+type GetSignedManagerTransactionResponse = {
+  vaaHash: string;
+  vaaId: string;
+  destinationChain: number;
+  managerSetIndex: number;
+  required: number;
+  total: number;
+  isComplete: boolean;
+  signatures: {
+    signerIndex: number;
+    signatures: string[];
+  }[];
+};
+```
+
+The `vaaHash` is in hex without a `0x` prefix, the `vaaId` is in the standard `{chain}/{emitter}/{sequence}` format, and `signatures` are base64.
+
 ## Caveats
 
 This design does NOT explicitly require that the Delegated Manager Set participants are part of the canonical guardian set.
 
-Integrating protocols must be aware of Delegated Manager Set upgrades by the canonical Guardian Set and act promptly to migrate to the new Delegated Manager Set. There is no inherent requirement for a given Delegated Manager Set to remain operational for any specific period of time in this design, but it should be expected that signers in the prior set remain operational for some period of time to facilitate migrations. Protocols may rely on the Delegated Manager Set Governance VAA to permissionlessly facilitate migration. A smart contract may be made available to verify and store this on-chain as described in [0. Delegated Manager Set Governance (Optional)](#0-delegated-manager-set-governance-optional)
+Integrating protocols must be aware of Delegated Manager Set upgrades by the canonical Guardian Set and act promptly to migrate to the new Delegated Manager Set. There is no inherent requirement for a given Delegated Manager Set to remain operational for any specific period of time in this design, but it should be expected that signers in the prior set remain operational for some period of time to facilitate migrations. Protocols may rely on the Delegated Manager Set Governance VAA to permissionlessly facilitate migration. A smart contract may be made available to verify and store this on-chain as described in [0. Delegated Manager Set Governance (Optional)](#0-delegated-manager-set-governance-optional).
+
+As mentioned above, UTXO management is left up to the integrating protocol prior to message emission. It is anticipated that protocols would subtract fees from withdrawals and send any remaining amounts back to their protocol by sending to the P2SH address of the redeem script above with their chain and emitter but a zero `recipient_address`. Their protocol would _not_ mint and tokens on these deposits. This zero address approach can also be used by the protocol to arbitrarily consolidate UTXOs in addition to performing Delegated Manager Set rotations.
 
 ## Alternatives Considered
 
