@@ -548,7 +548,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 
 	cfg := p.dgc.GetChainConfig(c)
 	if cfg == nil {
-		p.logger.Debug("ignoring delegate observation for chain without delegate chain config",
+		p.logger.Warn("ignoring delegate observation for chain without delegate chain config",
 			zap.Uint32("emitter_chain", m.EmitterChain),
 			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
 			zap.Uint64("sequence", m.Sequence),
@@ -573,7 +573,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	addr := common.BytesToAddress(m.GuardianAddr)
 	_, ok = cfg.KeyIndex(addr)
 	if !ok {
-		p.logger.Debug("ignoring delegate observation from non-delegated guardian for this chain",
+		p.logger.Warn("ignoring delegate observation from non-delegated guardian for this chain",
 			zap.Uint32("emitter_chain", m.EmitterChain),
 			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
 			zap.Uint64("sequence", m.Sequence),
