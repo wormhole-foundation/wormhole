@@ -9,7 +9,7 @@ clean:
 .PHONY: check
 ## Build contract
 check:
-	sui move build -d
+	sui move build
 
 .PHONY: test
 ## Run tests
