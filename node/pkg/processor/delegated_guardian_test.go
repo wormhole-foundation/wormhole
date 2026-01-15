@@ -460,74 +460,30 @@ func TestDelegateChainUndelegated(t *testing.T) {
 		t.Logf("  GuardianAddr: %s", hex.EncodeToString(obs.GuardianAddr))
 	}
 
-	// When delegated guardians are disabled (threshold=0), guardians should still observe messages
-	ob0 := messages.FindObservationBatchByGuardian(guardian0)
+	// No delegate observations should be produced
+	assert.Equal(t, 0, len(messages.DelegateObservations), "Expected no delegate observations")
+	
+	// Guardian-1 and Guardian-2 should produce regular observations
 	ob1 := messages.FindObservationBatchByGuardian(guardian1)
 	ob2 := messages.FindObservationBatchByGuardian(guardian2)
-
-	// Filter observations to only include chain 4 messages (test messages)
-	// This avoids counting governance VAAs from chain 2 that may still be in flight
+	
+	// Filter to only chain 4 observations
 	if ob1 != nil {
 		ob1.Msg.Observations = filterObservationsByChain(ob1.Msg.Observations, "4")
 	}
 	if ob2 != nil {
 		ob2.Msg.Observations = filterObservationsByChain(ob2.Msg.Observations, "4")
 	}
-
-	if ob0 != nil {
-		t.Logf("\n=== Observation Batch 0 (guardian0) ===")
-		t.Logf("  Timestamp: %d", ob0.Timestamp.Unix())
-		for i, obs := range ob0.Msg.Observations {
-			t.Logf("\nObservation #%d:", i+1)
-			t.Logf("  MessageId: %s", obs.MessageId)
-			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
-			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-		}
-	} else {
-		t.Log("No observation batch from guardian0")
-	}
-
-	if ob1 != nil {
-		t.Logf("\n=== Observation Batch 1 (guardian1) ===")
-		t.Logf("  Timestamp: %d", ob1.Timestamp.Unix())
-		for i, obs := range ob1.Msg.Observations {
-			t.Logf("\nObservation #%d:", i+1)
-			t.Logf("  MessageId: %s", obs.MessageId)
-			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
-			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-		}
-	} else {
-		t.Log("No observation batch from guardian1")
-	}
-
-	if ob2 != nil {
-		t.Logf("\n=== Observation Batch 2 (guardian2) ===")
-		t.Logf("  Timestamp: %d", ob2.Timestamp.Unix())
-		for i, obs := range ob2.Msg.Observations {
-			t.Logf("\nObservation #%d:", i+1)
-			t.Logf("  MessageId: %s", obs.MessageId)
-			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
-			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-		}
-	} else {
-		t.Log("No observation batch from guardian2")
-	}
-
-	// guardian-1 and guardian-2 watch chain 4, so they should have observations
-	// guardian-0 only watches chain 2, so it won't have observations for chain 4
+	
 	require.NotNil(t, ob1, "Expected observation batch from guardian1")
 	require.NotNil(t, ob2, "Expected observation batch from guardian2")
-
+	require.NotEmpty(t, ob1.Msg.Observations, "Guardian1 should have observations for chain 4")
+	require.NotEmpty(t, ob2.Msg.Observations, "Guardian2 should have observations for chain 4")
+	
 	ensureEquivalentObservationBatches(t, ob1.Msg, ob2.Msg)
-
+	
 	assert.Equal(t, 1, len(ob1.Msg.Observations), "Expected exactly 1 observation in guardian1 batch")
 	assert.Equal(t, 1, len(ob2.Msg.Observations), "Expected exactly 1 observation in guardian2 batch")
-
-	// chain id 4
-	require.NotEmpty(t, ob1.Msg.Observations, "Guardian1 should have observations")
-	messageID := ob1.Msg.Observations[0].MessageId
-	assert.True(t, strings.HasPrefix(messageID, "4/"), "Message ID should be for chain 4, got: %s", messageID)
-	t.Logf("Message ID: %s", messageID)
 
 	// Filter VAAs to only include chain 4 VAAs (exclude governance VAAs on chain 2)
 	chain4VAAs := filterVAAsByChain(messages.VAAs, 4)
