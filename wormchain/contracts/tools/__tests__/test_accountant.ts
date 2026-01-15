@@ -49,7 +49,7 @@ if (process.env.INIT_SIGNERS_KEYS_CSV === "undefined") {
 
 const ci = !!process.env.CI;
 
-const GUARDIAN_HOST = ci ? "guardian" : "localhost";
+const GUARDIAN_HOST = ci ? "guardian-1" : "localhost";
 const GUARDIAN_RPCS = [`http://${GUARDIAN_HOST}:7071`];
 const GUARDIAN_METRICS = `http://${GUARDIAN_HOST}:6060/metrics`;
 const ETH_NODE_URL = ci ? "http://eth-devnet:8545" : "http://localhost:8545";

@@ -357,6 +357,21 @@ func filterObservationsByChain(observations []*gossipv1.Observation, chainID str
 	return filtered
 }
 
+// filterVAAsByChain filters VAAs to only include those from the specified chain ID
+func filterVAAsByChain(vaas []*gossipv1.SignedVAAWithQuorum, chainID vaa.ChainID) []*gossipv1.SignedVAAWithQuorum {
+	var filtered []*gossipv1.SignedVAAWithQuorum
+	for _, v := range vaas {
+		parsedVAA, err := vaa.Unmarshal(v.Vaa)
+		if err != nil {
+			continue
+		}
+		if parsedVAA.EmitterChain == chainID {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
+}
+
 // sortObservations sorts a slice of observations into ascending order.
 func sortObservations(observations []*gossipv1.Observation) {
 	slices.SortFunc(observations, func(a, b *gossipv1.Observation) int {
@@ -514,9 +529,12 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	assert.True(t, strings.HasPrefix(messageID, "4/"), "Message ID should be for chain 4, got: %s", messageID)
 	t.Logf("Message ID: %s", messageID)
 
+	// Filter VAAs to only include chain 4 VAAs (exclude governance VAAs on chain 2)
+	chain4VAAs := filterVAAsByChain(messages.VAAs, 4)
+
 	// VAA is not produced because guardian-0 is still not listening to evm2
 	// even if we undelegate chain id 4, so no quorum is reached
-	require.Empty(t, messages.VAAs, "Expected no VAA to be produced")
+	require.Empty(t, chain4VAAs, "Expected no VAA to be produced")
 	t.Logf("VAAs produced: %d", len(messages.VAAs))
 
 	// we rollback configuration changes to devnet default config
