@@ -515,7 +515,6 @@ const BodyManagerSetUpdatePayloadBuf = "0041" + // ManagerChainID (ChainIDDogeco
 	"01" + // Type (Secp256k1Multisig)
 	"02" + // M
 	"02" + // N
-	"02" + // NumKeys
 	"020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + // PublicKey 1 (33 bytes)
 	"032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40" // PublicKey 2 (33 bytes)
 
@@ -563,21 +562,19 @@ func TestSecp256k1MultisigManagerSetSerialize(t *testing.T) {
 	buf, err := managerSet.Serialize()
 	require.NoError(t, err)
 
-	// Expected format: Type (1) + M (1) + N (1) + NumKeys (1) + Keys (3 * 33)
+	// Expected format: Type (1) + M (1) + N (1) + Keys (3 * 33)
 	expected := "01" + // Type
 		"02" + // M
 		"03" + // N
-		"03" + // NumKeys
 		"020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + // Key 1
 		"032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40" + // Key 2
 		"024142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60" // Key 3
 
 	// Check the length and structure
-	assert.Equal(t, 1+1+1+1+3*CompressedSecp256k1PublicKeyLength, len(buf))
+	assert.Equal(t, 1+1+1+3*CompressedSecp256k1PublicKeyLength, len(buf))
 	assert.Equal(t, byte(ManagerSetTypeSecp256k1Multisig), buf[0]) // Type
 	assert.Equal(t, byte(2), buf[1])                               // M
 	assert.Equal(t, byte(3), buf[2])                               // N
-	assert.Equal(t, byte(3), buf[3])                               // NumKeys
 
 	// Compare public keys
 	assert.Equal(t, expected, hex.EncodeToString(buf))
@@ -629,7 +626,6 @@ func TestSecp256k1MultisigManagerSetSerializeValidation(t *testing.T) {
 const Secp256k1MultisigManagerSetBuf = "01" + // Type
 	"02" + // M
 	"03" + // N
-	"03" + // NumKeys
 	"020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + // Key 1
 	"032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40" + // Key 2
 	"024142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60" // Key 3
@@ -660,32 +656,27 @@ func TestSecp256k1MultisigManagerSetDeserializeFailures(t *testing.T) {
 	}{
 		{
 			name:        "too short",
-			hexInput:    "010203", // Only 3 bytes, missing NumKeys
-			expectedErr: "payload too short, expected at least 4 bytes, got 3",
+			hexInput:    "0102", // Only 2 bytes, missing N
+			expectedErr: "payload too short, expected at least 3 bytes, got 2",
 		},
 		{
 			name:        "wrong type",
-			hexInput:    "020203030102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+			hexInput:    "020203" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + "032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40" + "024142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60",
 			expectedErr: "unexpected manager set type 2, expected 1",
 		},
 		{
-			name:        "N does not match NumKeys",
-			hexInput:    "01020302" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + "032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40", // N=3 but NumKeys=2
-			expectedErr: "n (3) does not match key array length (2)",
-		},
-		{
 			name:        "M greater than N",
-			hexInput:    "01030202" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + "032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40", // M=3, N=2
+			hexInput:    "010302" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + "032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40", // M=3, N=2
 			expectedErr: "m (3) cannot be greater than n (2)",
 		},
 		{
 			name:        "M is zero",
-			hexInput:    "01000202" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + "032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40", // M=0
+			hexInput:    "010002" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20" + "032122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40", // M=0
 			expectedErr: "m must be at least 1",
 		},
 		{
 			name:        "payload length mismatch",
-			hexInput:    "01020202" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20", // Only 1 key but NumKeys=2
+			hexInput:    "010202" + "020102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20", // Only 1 key but N=2
 			expectedErr: "payload length mismatch",
 		},
 	}
