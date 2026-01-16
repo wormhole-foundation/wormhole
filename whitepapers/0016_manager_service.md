@@ -99,7 +99,7 @@ A new module can be added for `DelegatedManager` along with a governance action 
 A new immutable contract can be deployed to verify and store these on-chain. It should be forward-compatible, and therefore should not parse the internal set bytes. It must expose the following:
 
 - `submitNewManagerSet(bytes memory _vm)` this should be akin to `submitNewGuardianSet` on the Core bridge, except store the set and latest set index per-chain
-- `getManagerSet(uint32 index, uint16 chainId)`
+- `getManagerSet(uint16 chainId, uint32 index)`
 - `getCurrentManagerSetIndex(uint16 chainId)`
 - `getCurrentManagerSet(uint16 chainId)`
 
