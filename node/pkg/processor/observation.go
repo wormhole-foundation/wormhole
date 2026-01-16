@@ -606,7 +606,11 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 
 	delegateObservationsReceivedByGuardianAddressTotal.WithLabelValues(addr.Hex()).Inc()
 
-	hash := mp.CreateDigest()
+	buf, err := mp.MarshalBinary()
+	if err != nil {
+		p.logger.Warn("failed to marshal message publication", mp.ZapFields(zap.Error(err))...)
+	}
+	hash := crypto.Keccak256Hash(buf).Hex()
 
 	// Get / create our state entry.
 	s := p.delegateState.observations[hash]
