@@ -605,7 +605,7 @@ func (r *BodyManagerSetUpdate) Deserialize(bz []byte) error {
 }
 
 // Serialize serializes the Secp256k1MultisigManagerSet into bytes.
-// Format: Type (1 byte) + M (1 byte) + N (1 byte) + NumKeys (1 byte) + PublicKeys (NumKeys * CompressedSecp256k1PublicKeyLength bytes)
+// Format: Type (1 byte) + M (1 byte) + N (1 byte) + PublicKeys (N * CompressedSecp256k1PublicKeyLength bytes)
 func (s Secp256k1MultisigManagerSet) Serialize() ([]byte, error) {
 	numKeys := len(s.PublicKeys)
 	if numKeys > 255 {
@@ -628,8 +628,6 @@ func (s Secp256k1MultisigManagerSet) Serialize() ([]byte, error) {
 	buf.WriteByte(s.M)
 	// N
 	buf.WriteByte(s.N)
-	// Length of PublicKeys array
-	buf.WriteByte(uint8(numKeys)) // #nosec G115 -- checked above
 	// PublicKeys
 	for _, pk := range s.PublicKeys {
 		buf.Write(pk[:])
@@ -640,9 +638,9 @@ func (s Secp256k1MultisigManagerSet) Serialize() ([]byte, error) {
 
 // Deserialize deserializes bytes into a Secp256k1MultisigManagerSet.
 func (s *Secp256k1MultisigManagerSet) Deserialize(bz []byte) error {
-	// Minimum length: 1 (Type) + 1 (M) + 1 (N) + 1 (NumKeys) = 4 bytes
-	if len(bz) < 4 {
-		return fmt.Errorf("payload too short, expected at least 4 bytes, got %d", len(bz))
+	// Minimum length: 1 (Type) + 1 (M) + 1 (N) = 3 bytes
+	if len(bz) < 3 {
+		return fmt.Errorf("payload too short, expected at least 3 bytes, got %d", len(bz))
 	}
 
 	managerSetType := ManagerSetType(bz[0])
@@ -652,15 +650,10 @@ func (s *Secp256k1MultisigManagerSet) Deserialize(bz []byte) error {
 
 	m := bz[1]
 	n := bz[2]
-	numKeys := bz[3]
 
-	if n != numKeys {
-		return fmt.Errorf("n (%d) does not match key array length (%d)", n, numKeys)
-	}
-
-	expectedLen := 4 + int(numKeys)*CompressedSecp256k1PublicKeyLength
+	expectedLen := 3 + int(n)*CompressedSecp256k1PublicKeyLength
 	if len(bz) != expectedLen {
-		return fmt.Errorf("payload length mismatch, expected %d bytes for %d keys, got %d", expectedLen, numKeys, len(bz))
+		return fmt.Errorf("payload length mismatch, expected %d bytes for %d keys, got %d", expectedLen, n, len(bz))
 	}
 
 	if m > n {
@@ -670,9 +663,9 @@ func (s *Secp256k1MultisigManagerSet) Deserialize(bz []byte) error {
 		return errors.New("m must be at least 1")
 	}
 
-	publicKeys := make([][CompressedSecp256k1PublicKeyLength]byte, numKeys)
-	for i := uint8(0); i < numKeys; i++ {
-		offset := 4 + int(i)*CompressedSecp256k1PublicKeyLength
+	publicKeys := make([][CompressedSecp256k1PublicKeyLength]byte, n)
+	for i := uint8(0); i < n; i++ {
+		offset := 3 + int(i)*CompressedSecp256k1PublicKeyLength
 		copy(publicKeys[i][:], bz[offset:offset+CompressedSecp256k1PublicKeyLength])
 	}
 

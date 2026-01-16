@@ -168,8 +168,7 @@ NewManagerSet struct {
     M uint8
     // Number of public keys
     N uint8
-    // Compressed secp256k1 public keys
-    PublicKeysLen uint8
+    // Compressed secp256k1 public keys (length determined by N)
     PublicKeys [][33]byte
 }
 ```
