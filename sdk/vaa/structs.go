@@ -325,6 +325,10 @@ const (
 	ChainIDMoca ChainID = 63
 	// ChainIDMegaETH is the ChainID of MegaETH
 	ChainIDMegaETH ChainID = 64
+	// ChainIDDogecoin is the ChainID of Dogecoin
+	ChainIDDogecoin ChainID = 65
+	// ChainIDXRPL is the ChainID of XRP Ledger
+	ChainIDXRPL ChainID = 66
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
