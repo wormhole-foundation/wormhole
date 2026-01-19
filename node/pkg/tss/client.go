@@ -110,7 +110,7 @@ func (s *signerClient) GetPublicData(ctx context.Context) (*signer.PublicData, e
 
 // outputs the SignerService responses.
 func (s *signerClient) Response() <-chan *signer.SignResponse {
-	if s == nil {
+	if s == nil || s.conn == nil {
 		return nil // ensure we don't panic, but return nil channel (which blocks forever, and ignored in select).
 	}
 
