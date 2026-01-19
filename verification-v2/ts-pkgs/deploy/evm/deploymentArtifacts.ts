@@ -1,6 +1,6 @@
 import { ChainId } from "@wormhole-foundation/sdk";
 import fs from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 import { execSync } from "child_process";
 
 export interface SerializableDeployment {
@@ -59,6 +59,8 @@ class ContractAddresses {
     }
 
     const serializedContracts = this.serialize();
+
+    fs.mkdirSync(resolve(join(this.path, "..")), { recursive: true } );
     fs.writeFileSync(this.path, serializedContracts);
     return serializedContracts;
   }

@@ -1,4 +1,4 @@
-import { ChainId, getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
+import { ChainId, chainIdToChain, getContracts, toChain, UniversalAddress } from "@wormhole-foundation/sdk";
 import { readFile } from "fs/promises";
 import { Abi, createWalletClient, defineChain, http, isHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -6,7 +6,7 @@ import { waitForTransactionReceipt } from "viem/actions";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
 
-import { EvmSerializableDeployment, saveDeployments } from "./deploymentArtifacts.js";
+import { EvmSerializableDeployment, saveDeployments, tryLoadContractsFromFile } from "./deploymentArtifacts.js";
 
 interface ChainDescriptor {
   description: string;
@@ -39,6 +39,8 @@ interface CompilerOutput {
     }
   }
 }
+
+const contractName = "verificationV2";
 
 async function getCompilerOutput(
   path = "../../verifiable-evm-build/WormholeVerifier.output.json"
@@ -78,7 +80,15 @@ async function main() {
   const configFile = await readFile(args.configFile, "utf8");
   const config = JSON.parse(configFile) as Config;
 
-  const tasks = await Promise.allSettled(config.evm.chains.map(async (chain) => {
+  const currentContracts = tryLoadContractsFromFile(contractName, network) ?? [];
+  console.log(`Skipping already deployed chains: ${currentContracts.map(({chainId}) => `${chainIdToChain(chainId)} (${chainId})`).join(", ")}`)
+
+  const operatingChains = config.evm.chains.filter(({chainId}) => {
+    return !currentContracts.map(({chainId}) => chainId).some(
+      (deployedChainID) => {return chainId === deployedChainID}
+    );
+  })
+  const tasks = await Promise.allSettled(operatingChains.map(async (chain) => {
     const chainName = toChain(chain.chainId);
     const viemChain = defineChain({
       id: chain.eip155ChainId,
@@ -137,11 +147,11 @@ async function main() {
     if (task.status === "fulfilled") {
       newDeployments.push(task.value);
     } else {
-      console.error(`Failed deployment in chain ${config.evm.chains[i].description}:\n${task.reason}`);
+      console.error(`Failed deployment in chain ${operatingChains[i].description}:\n${task.reason}`);
     }
   }
 
-  saveDeployments({verificationV2: newDeployments}, "deployVerificationV2", network);
+  saveDeployments({[contractName]: newDeployments}, "deployVerificationV2", network);
 }
 
 function getCoreV1Address(chainDescriptor: ChainDescriptor, network: "Mainnet" | "Testnet") {
