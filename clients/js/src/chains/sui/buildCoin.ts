@@ -1,55 +1,24 @@
-import { JsonRpcProvider } from "@mysten/sui.js";
 import fs from "fs";
-import { MoveToml } from "./MoveToml";
-import {
-  buildPackage,
-  cleanupTempToml,
-  getAllLocalPackageDependencyPaths,
-  getDefaultTomlPath,
-  getPackageNameFromPath,
-  setupMainToml,
-} from "./publish";
+import { buildPackage } from "./publish";
 import { SuiBuildOutput } from "./types";
-import { getPackageId } from "./utils";
 import { Network } from "@wormhole-foundation/sdk";
 
 export const buildCoin = async (
-  provider: JsonRpcProvider,
   network: Network,
   packagePath: string,
-  coreBridgeStateObjectId: string,
-  tokenBridgeStateObjectId: string,
   version: string,
   decimals: number
 ): Promise<SuiBuildOutput> => {
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
   try {
-    setupCoin(
-      network,
-      packagePath,
-      coreBridgePackageId,
-      tokenBridgePackageId,
-      version,
-      decimals
-    );
-    return buildPackage(`${packagePath}/wrapped_coin`);
+    setupCoin(packagePath, version, decimals);
+    return buildPackage(`${packagePath}/wrapped_coin`, network);
   } finally {
     cleanupCoin(`${packagePath}/wrapped_coin`);
   }
 };
 
 const setupCoin = (
-  network: Network,
   packagePath: string,
-  coreBridgePackageId: string,
-  tokenBridgePackageId: string,
   version: string,
   decimals: number
 ): void => {
@@ -64,7 +33,7 @@ const setupCoin = (
   fs.rmSync(`${packagePath}/wrapped_coin`, { recursive: true, force: true });
   fs.mkdirSync(`${packagePath}/wrapped_coin/sources`, { recursive: true });
 
-  // Replace template variables
+  // Replace template variables in coin.move
   const coinTemplate = fs
     .readFileSync(
       `${packagePath}/templates/wrapped_coin/sources/coin.move`,
@@ -80,50 +49,23 @@ const setupCoin = (
     "utf8"
   );
 
-  // Substitute dependency package IDs
-  const toml = new MoveToml(`${packagePath}/templates/wrapped_coin/Move.toml`)
-    .updateRow("addresses", "wormhole", coreBridgePackageId)
-    .updateRow("addresses", "token_bridge", tokenBridgePackageId)
-    .serialize();
-  const tomlPath = `${packagePath}/wrapped_coin/Move.toml`;
-  fs.writeFileSync(tomlPath, toml, "utf8");
+  // Copy Move.toml from template
+  const templateToml = fs.readFileSync(
+    `${packagePath}/templates/wrapped_coin/Move.toml`,
+    "utf8"
+  );
+  fs.writeFileSync(
+    `${packagePath}/wrapped_coin/Move.toml`,
+    templateToml,
+    "utf8"
+  );
 
-  // Setup dependencies
-  const paths = getAllLocalPackageDependencyPaths(tomlPath);
-  for (const dependencyPath of paths) {
-    // todo(aki): the 4th param is a hack that makes this work, but doesn't
-    // necessarily make sense. We should probably revisit this later.
-    setupMainToml(dependencyPath, network, false, network !== "Devnet");
-    if (network === "Devnet") {
-      const dependencyToml = new MoveToml(getDefaultTomlPath(dependencyPath));
-      switch (getPackageNameFromPath(dependencyPath)) {
-        case "wormhole":
-          dependencyToml
-            .addOrUpdateRow("package", "published-at", coreBridgePackageId)
-            .updateRow("addresses", "wormhole", coreBridgePackageId);
-          break;
-        case "token_bridge":
-          dependencyToml
-            .addOrUpdateRow("package", "published-at", tokenBridgePackageId)
-            .updateRow("addresses", "token_bridge", tokenBridgePackageId);
-          break;
-        default:
-          throw new Error(`Unknown dependency ${dependencyPath}`);
-      }
-      fs.writeFileSync(
-        getDefaultTomlPath(dependencyPath),
-        dependencyToml.serialize(),
-        "utf8"
-      );
-    }
-  }
+  // Note: In Sui v1.63+, the package system automatically resolves dependencies
+  // using Pub.localnet.toml for ephemeral publications. No manual Move.toml
+  // modification is needed.
 };
 
 const cleanupCoin = (packagePath: string) => {
-  const paths = getAllLocalPackageDependencyPaths(
-    getDefaultTomlPath(packagePath)
-  );
-  for (const dependencyPath of paths) {
-    cleanupTempToml(dependencyPath, false);
-  }
+  // Clean up the generated wrapped_coin directory
+  fs.rmSync(packagePath, { recursive: true, force: true });
 };
