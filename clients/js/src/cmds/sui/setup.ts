@@ -133,8 +133,8 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
-      logTransactionDigest(tokenBridgeDeployRes);
-      logPublishedPackageId(tokenBridgeDeployRes);
+      logTransactionDigest(exampleAppDeployRes);
+      logPublishedPackageId(exampleAppDeployRes);
 
       // Init example app
       console.log("\n[+2/3] Initializing example app...");
