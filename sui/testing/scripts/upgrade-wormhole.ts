@@ -42,7 +42,6 @@ async function main() {
   const dstWormholePath = resolve(`${__dirname}/wormhole`);
 
   // Stage build(s).
-  // setUpWormholeDirectory(srcWormholePath, dstWormholePath);
 
   // Build for digest.
   const { modules, dependencies, digest } =
@@ -87,9 +86,6 @@ async function main() {
   console.log("tx digest", migrateResults.digest);
   console.log("tx effects", JSON.stringify(migrateResults.effects!));
   console.log("tx events", JSON.stringify(migrateResults.events!));
-
-  // Clean up.
-  cleanUpPackageDirectory(dstWormholePath);
 }
 
 main();
@@ -103,7 +99,7 @@ function buildForBytecodeAndDigest(packagePath: string) {
     digest: number[];
   } = JSON.parse(
     execSync(
-      `sui move build --dump-bytecode-as-base64 -p ${packagePath} 2> /dev/null`,
+      `sui move build --dump-bytecode-as-base64 -e testnet -p ${packagePath} 2> /dev/null`,
       { encoding: "utf-8" }
     )
   );
@@ -228,40 +224,4 @@ async function migrateWormhole(
       showEvents: true,
     },
   });
-}
-
-function setUpWormholeDirectory(
-  srcWormholePath: string,
-  dstWormholePath: string
-) {
-  fs.cpSync(srcWormholePath, dstWormholePath, { recursive: true });
-
-  // Remove irrelevant files. This part is not necessary, but is helpful
-  // for debugging a clean package directory.
-  const removeThese = [
-    "Move.devnet.toml",
-    "Move.lock",
-    "Makefile",
-    "README.md",
-    "build",
-  ];
-  for (const basename of removeThese) {
-    fs.rmSync(`${dstWormholePath}/${basename}`, {
-      recursive: true,
-      force: true,
-    });
-  }
-
-  // Fix Move.toml file.
-  const moveTomlPath = `${dstWormholePath}/Move.toml`;
-  const moveToml = fs.readFileSync(moveTomlPath, "utf-8");
-  fs.writeFileSync(
-    moveTomlPath,
-    moveToml.replace(`wormhole = "_"`, `wormhole = "0x0"`),
-    "utf-8"
-  );
-}
-
-function cleanUpPackageDirectory(packagePath: string) {
-  fs.rmSync(packagePath, { recursive: true, force: true });
 }

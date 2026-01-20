@@ -281,8 +281,7 @@ Commands:
 
                                          Example:
                                          worm sui build-coin -d 8 -v V__0_1_1 -n
-                                         testnet -r
-                                         "https://fullnode.testnet.sui.io:443"
+                                         testnet
   worm sui deploy <package-dir>          Deploy a Sui package
   worm sui init-example-message-app      Initialize example core message app
   worm sui init-token-bridge             Initialize token bridge contract
