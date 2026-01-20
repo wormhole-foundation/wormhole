@@ -1,14 +1,15 @@
-import {
-  fromB64,
-  getPublishedObjectChanges,
-  normalizeSuiObjectId,
-  RawSigner,
-  TransactionBlock,
-} from "@mysten/sui.js";
+import { SuiTransactionBlockResponse } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
+import { fromB64 } from "@mysten/bcs";
 import { execSync } from "child_process";
 import fs from "fs";
 import { SuiBuildOutput } from "./types";
-import { executeTransactionBlock } from "./utils";
+import {
+  executeTransactionBlock,
+  isSuiPublishEvent,
+  normalizeSuiAddress,
+  SuiSigner,
+} from "./utils";
 import { Network } from "@wormhole-foundation/sdk";
 
 /**
@@ -55,7 +56,7 @@ export const buildPackage = (
  * Publish a package using test-publish for Devnet (ephemeral) or SDK publish for persistent networks.
  */
 export const publishPackage = async (
-  signer: RawSigner,
+  signer: SuiSigner,
   network: Network,
   packagePath: string
 ) => {
@@ -126,7 +127,7 @@ const publishPackageTestPublish = async (packagePath: string) => {
  * Use SDK publish for persistent networks (Mainnet, Testnet).
  */
 const publishPackageSDK = async (
-  signer: RawSigner,
+  signer: SuiSigner,
   network: Network,
   packagePath: string
 ) => {
@@ -136,19 +137,22 @@ const publishPackageSDK = async (
     `Build output: ${build.modules.length} modules, ${build.dependencies.length} dependencies`
   );
 
-  const tx = new TransactionBlock();
+  const tx = new Transaction();
   const [upgradeCap] = tx.publish({
     modules: build.modules.map((m) => Array.from(fromB64(m))),
-    dependencies: build.dependencies.map((d) => normalizeSuiObjectId(d)),
+    dependencies: build.dependencies.map((d) => normalizeSuiAddress(d)),
   });
 
-  tx.transferObjects([upgradeCap], tx.pure(await signer.getAddress()));
+  tx.transferObjects(
+    [upgradeCap],
+    signer.keypair.getPublicKey().toSuiAddress()
+  );
 
   const res = await executeTransactionBlock(signer, tx);
 
   console.log(`Transaction status: ${JSON.stringify(res.effects?.status)}`);
 
-  const publishEvents = getPublishedObjectChanges(res);
+  const publishEvents = res.objectChanges?.filter(isSuiPublishEvent) ?? [];
   if (publishEvents.length !== 1) {
     throw new Error(
       "No publish event found in transaction:" +

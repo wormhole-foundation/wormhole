@@ -4,7 +4,7 @@ import {
   getNetworkEndpoints,
 } from "@injectivelabs/networks";
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import { JsonRpcProvider, Connection as SuiConnection } from "@mysten/sui.js";
+import { SuiClient } from "@mysten/sui/client";
 import { getCosmWasmClient } from "@sei-js/core";
 import { Connection as SolanaConnection } from "@solana/web3.js";
 import { LCDClient as TerraLCDClient } from "@terra-money/terra.js";
@@ -39,7 +39,7 @@ export type ChainProvider<T extends Chain> = T extends "Algorand"
   : T extends "Solana"
   ? SolanaConnection
   : T extends "Sui"
-  ? JsonRpcProvider
+  ? SuiClient
   : T extends "Xpla"
   ? XplaLCDClient
   : never;
@@ -142,9 +142,7 @@ export const getProviderForChain = <T extends Chain>(
     case "Aptos":
       return new AptosClient(rpc) as ChainProvider<T>;
     case "Sui":
-      return new JsonRpcProvider(
-        new SuiConnection({ fullnode: rpc })
-      ) as ChainProvider<T>;
+      return new SuiClient({ url: rpc }) as ChainProvider<T>;
     case "Btc":
     case "Osmosis":
     case "Pythnet":

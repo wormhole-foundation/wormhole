@@ -1,10 +1,6 @@
 import { parseTokenBridgeRegisterChainVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
-import {
-  JsonRpcProvider,
-  TransactionBlock,
-  getObjectFields,
-  getTransactionDigest,
-} from "@mysten/sui.js";
+import { SuiClient } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
 import dotenv from "dotenv";
 import fs from "fs";
 import yargs from "yargs";
@@ -21,6 +17,7 @@ import {
   registerChain,
   setMaxGasBudgetDevnet,
 } from "../../chains/sui";
+import { getObjectFields } from "../../sdk/sui";
 import {
   GOVERNANCE_CHAIN,
   GOVERNANCE_EMITTER,
@@ -195,7 +192,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
       dotenv.config({ path: envPath });
 
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       setMaxGasBudgetDevnet("Devnet", tx);
       const registrations: { chain: Chain; module: string }[] = [];
       for (const key in process.env) {
@@ -228,7 +225,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         console.log(`  ${registration.chain} ${registration.module}... done`);
       }
 
-      console.log("Transaction digest:", getTransactionDigest(registerRes));
+      console.log("Transaction digest:", registerRes.digest);
 
       // Done!
       console.log("\nDone!");
@@ -236,14 +233,9 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   );
 
 const getEmitterCapObjectId = async (
-  provider: JsonRpcProvider,
+  client: SuiClient,
   tokenBridgeStateObjectId: string
-): Promise<string> =>
-  getObjectFields(
-    await provider.getObject({
-      id: tokenBridgeStateObjectId,
-      options: {
-        showContent: true,
-      },
-    })
-  )?.emitter_cap.fields.id.id;
+): Promise<string> => {
+  const fields = await getObjectFields(client, tokenBridgeStateObjectId);
+  return fields?.emitter_cap?.fields?.id?.id;
+};
