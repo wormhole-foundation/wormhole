@@ -6,7 +6,7 @@ import {
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/createWrapped";
-import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
+import { Transaction } from "@mysten/sui/transactions";
 import { Payload, impossible } from "../../vaa";
 import {
   assertSuccess,
@@ -18,6 +18,7 @@ import {
   isSuiPublishEvent,
   registerChain,
   setMaxGasBudgetDevnet,
+  SUI_CLOCK_OBJECT_ID,
 } from "./utils";
 import {
   Chain,
@@ -36,12 +37,9 @@ export const submit = async (
   rpc?: string,
   privateKey?: string
 ) => {
-  const consoleWarnTemp = console.warn;
-  console.warn = () => {};
-
   const chain: Chain = "Sui";
-  const provider = getProvider(network, rpc);
-  const signer = getSigner(provider, network, privateKey);
+  const client = getProvider(network, rpc);
+  const signer = getSigner(client, network, privateKey);
 
   switch (payload.module) {
     case "Core": {
@@ -50,17 +48,17 @@ export const submit = async (
         throw Error("Core bridge object ID is undefined");
       }
 
-      const corePackageId = await getPackageId(provider, coreObjectId);
+      const corePackageId = await getPackageId(client, coreObjectId);
       switch (payload.type) {
         case "ContractUpgrade":
           throw new Error("ContractUpgrade not supported on Sui");
         case "GuardianSetUpgrade": {
-          const tx = new TransactionBlock();
+          const tx = new Transaction();
           const [verifiedVaa] = tx.moveCall({
             target: `${corePackageId}::vaa::parse_and_verify`,
             arguments: [
               tx.object(coreObjectId),
-              tx.pure(uint8ArrayToBCS(vaa)),
+              tx.pure("vector<u8>", [...uint8ArrayToBCS(vaa)]),
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
@@ -128,7 +126,7 @@ export const submit = async (
           const tokenAddress = parsedAttest.payload.token.address;
           const decimals = parsedAttest.payload.decimals;
           const coinType = await getForeignAssetSui(
-            provider,
+            client,
             tokenBridgeStateObjectId,
             tokenChain,
             tokenAddress.toUint8Array()
@@ -141,14 +139,17 @@ export const submit = async (
             // Coin doesn't exist, so create wrapped asset
             console.log("[1/2] Creating wrapped asset...");
             const prepareTx = await createWrappedOnSuiPrepare(
-              provider,
+              client as any,
               coreBridgeStateObjectId,
               tokenBridgeStateObjectId,
               decimals,
-              await signer.getAddress()
+              signer.keypair.getPublicKey().toSuiAddress()
             );
-            setMaxGasBudgetDevnet(network, prepareTx);
-            const prepareRes = await executeTransactionBlock(signer, prepareTx);
+            setMaxGasBudgetDevnet(network, prepareTx as any);
+            const prepareRes = await executeTransactionBlock(
+              signer,
+              prepareTx as any
+            );
             console.log(`  Digest ${prepareRes.digest}`);
             assertSuccess(prepareRes, "Prepare registration failed.");
 
@@ -183,18 +184,18 @@ export const submit = async (
             }
 
             const completeTx = await createWrappedOnSui(
-              provider,
+              client as any,
               coreBridgeStateObjectId,
               tokenBridgeStateObjectId,
-              await signer.getAddress(),
+              signer.keypair.getPublicKey().toSuiAddress(),
               coinPackageId,
               wrappedAssetSetup.objectType,
               vaa
             );
-            setMaxGasBudgetDevnet(network, completeTx);
+            setMaxGasBudgetDevnet(network, completeTx as any);
             const completeRes = await executeTransactionBlock(
               signer,
-              completeTx
+              completeTx as any
             );
             assertSuccess(completeRes, "Complete registration failed.");
             console.log(`  Digest ${completeRes.digest}`);
@@ -210,7 +211,7 @@ export const submit = async (
         case "RegisterChain": {
           console.log("Registering chain");
           const tx = await registerChain(
-            provider,
+            client,
             network,
             vaa,
             coreBridgeStateObjectId,
@@ -237,8 +238,6 @@ export const submit = async (
     default:
       impossible(payload);
   }
-
-  console.warn = consoleWarnTemp;
 };
 
 const sleep = (ms: number): Promise<void> => {

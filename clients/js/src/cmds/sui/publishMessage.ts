@@ -1,8 +1,4 @@
-import {
-  normalizeSuiAddress,
-  SUI_CLOCK_OBJECT_ID,
-  TransactionBlock,
-} from "@mysten/sui.js";
+import { Transaction } from "@mysten/sui/transactions";
 import yargs from "yargs";
 import {
   executeTransactionBlock,
@@ -10,7 +6,9 @@ import {
   getSigner,
   logTransactionDigest,
   logTransactionSender,
+  normalizeSuiAddress,
   setMaxGasBudgetDevnet,
+  SUI_CLOCK_OBJECT_ID,
 } from "../../chains/sui";
 import { NETWORK_OPTIONS, NETWORKS, RPC_OPTIONS } from "../../consts";
 import { YargsAddCommandsFn } from "../Yargs";
@@ -65,18 +63,18 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       const privateKey = argv["private-key"];
       const rpc = argv.rpc ?? NETWORKS[network].Sui.rpc;
 
-      const provider = getProvider(network, rpc);
-      const signer = getSigner(provider, network, privateKey);
+      const client = getProvider(network, rpc);
+      const signer = getSigner(client, network, privateKey);
 
       // Publish message
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
       setMaxGasBudgetDevnet(network, tx);
       tx.moveCall({
         target: `${packageId}::sender::send_message_entry`,
         arguments: [
           tx.object(stateObjectId),
           tx.object(wormholeStateObjectId),
-          tx.pure(message),
+          tx.pure("string", message),
           tx.object(SUI_CLOCK_OBJECT_ID),
         ],
       });
@@ -102,10 +100,10 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       console.log("Publish message succeeded:", {
         sender: event.sender,
         type: event.type,
-        payload: Buffer.from(event.parsedJson?.payload).toString(),
-        emitter: Buffer.from(event.parsedJson?.sender).toString("hex"),
-        sequence: event.parsedJson?.sequence,
-        nonce: event.parsedJson?.nonce,
+        payload: Buffer.from((event.parsedJson as any)?.payload).toString(),
+        emitter: Buffer.from((event.parsedJson as any)?.sender).toString("hex"),
+        sequence: (event.parsedJson as any)?.sequence,
+        nonce: (event.parsedJson as any)?.nonce,
       });
     }
   );

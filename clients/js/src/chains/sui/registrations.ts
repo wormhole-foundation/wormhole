@@ -27,7 +27,7 @@ export async function queryRegistrationsSui(
       throw new Error(`Invalid module: ${module}`);
   }
 
-  const state = await getObjectFields(provider, state_object_id);
+  const state = await getObjectFields(provider as any, state_object_id);
   const emitterRegistryId = state!.emitter_registry.fields.id.id;
 
   // TODO: handle pagination
