@@ -47,24 +47,39 @@ get_coin_information() {
     local treasury_cap_object_id=`
         jq -r --arg COIN $coin_name --arg INFO_TYPE $coin_info_type '.objectChanges[] |
             select(
-                .objectType != null and 
-                (.objectType | contains($INFO_TYPE)) and 
+                .objectType != null and
+                (.objectType | contains($INFO_TYPE)) and
                 (.objectType | contains($COIN))
-            ) | 
+            ) |
             .objectId' $filename`
 
     echo $treasury_cap_object_id
 }
 
 # Get the transaction digest of the example coin deployment.
-coin_deployment_digest=`cat $SETUP_DEVNET_OUTPUT_PATH | grep "Deploying example coins" -A1 | grep "digest" | cut -d' ' -f3`
+# The digest line follows "Deploying example coins" but there may be many lines of test-publish JSON in between
+coin_deployment_digest=`cat $SETUP_DEVNET_OUTPUT_PATH | sed -n '/Deploying example coins/,$p' | grep "^Transaction digest" | head -1 | cut -d' ' -f3`
+echo " - coin_deployment_digest    = $coin_deployment_digest"
+if [ -z "$coin_deployment_digest" ]; then
+    echo "ERROR: Failed to get coin deployment digest. Setup output:"
+    cat $SETUP_DEVNET_OUTPUT_PATH
+    exit 1
+fi
 # Retrieve the transaction block.
-sui client tx-block $coin_deployment_digest --json > $EXAMPLE_COIN_TX_OUTPUT_PATH
+sui client tx-block --json $coin_deployment_digest > $EXAMPLE_COIN_TX_OUTPUT_PATH
 # Read the package ID of the coin package that holds the coins.
 coin_package_id=`jq -r '.objectChanges[] | select(.type != null and .type == "published") | .packageId' $EXAMPLE_COIN_TX_OUTPUT_PATH`
+echo " - coin_package_id           = $coin_package_id"
+if [ -z "$coin_package_id" ] || [ "$coin_package_id" = "null" ]; then
+    echo "ERROR: Failed to get coin package ID. TX output:"
+    cat $EXAMPLE_COIN_TX_OUTPUT_PATH
+    exit 1
+fi
 # Get the TreasuryCap and CoinMetadata object IDs
 treasury_cap_10=`get_coin_information $EXAMPLE_COIN_TX_OUTPUT_PATH COIN_10 TreasuryCap`
 coin_metadata_10=`get_coin_information $EXAMPLE_COIN_TX_OUTPUT_PATH COIN_10 CoinMetadata`
+echo " - treasury_cap_10           = $treasury_cap_10"
+echo " - coin_metadata_10          = $coin_metadata_10"
 
 # A helper function to attest a native token on the token bridge. This effectively registers a coin on Sui as a
 # native asset on the token bridge.
@@ -85,7 +100,7 @@ echo "[*] adding the COIN_10 coin to the token bridge."
 res=`attest_token $coin_package_id::coin_10::COIN_10 $coin_metadata_10 1u32`
 
 # mint_and_transfer_token is a helper function that mints an `amount` of tokens to the caller, and then transfers
-# those tokens out via the token bridge. 
+# those tokens out via the token bridge.
 # This is used for legitimate token bridge transfers.
 mint_and_transfer_token() {
     local treasury_cap=$1
@@ -107,7 +122,7 @@ mint_and_transfer_token() {
         --move-call $token_bridge_package_id::transfer_tokens::transfer_tokens "<$coin_type>" @$token_bridge_state prepare_transfer_result.0 \
         --assign message_ticket \
         --move-call $core_bridge_package_id::publish_message::publish_message @$core_bridge_state empty_gas_coin message_ticket @0x06 \
-        --transfer-objects sender [prepare_transfer_result.1] \
+        --transfer-objects [prepare_transfer_result.1] sender \
         --gas-budget 10000000
 }
 
@@ -138,7 +153,7 @@ mint_and_transfer_unsafe_imbalanced() {
         --move-call $token_bridge_package_id::transfer_tokens::transfer_tokens "<$coin_type>" @$token_bridge_state prepare_transfer_result.0 \
         --assign message_ticket \
         --move-call $core_bridge_package_id::publish_message::publish_message @$core_bridge_state empty_gas_coin message_ticket @0x06 \
-        --transfer-objects sender [prepare_transfer_result.1] \
+        --transfer-objects [prepare_transfer_result.1] sender \
         --gas-budget 10000000
 }
 
@@ -166,8 +181,8 @@ transfer_without_deposit_unsafe() {
         --move-call $token_bridge_package_id::transfer_tokens::transfer_tokens_unsafe "<$coin_type>" @$token_bridge_state prepare_transfer_result.0 \
         --assign message_ticket \
         --move-call $core_bridge_package_id::publish_message::publish_message @$core_bridge_state empty_gas_coin message_ticket.0 @0x06 \
-        --transfer-objects sender [prepare_transfer_result.1] \
-        --transfer-objects sender [message_ticket.1] \
+        --transfer-objects [prepare_transfer_result.1] sender \
+        --transfer-objects [message_ticket.1] sender \
         --gas-budget 10000000
 }
 
