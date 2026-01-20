@@ -53,6 +53,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.45.11
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-kit/kit v0.12.0
+	github.com/gogo/status v1.1.1
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.6.0
 	github.com/grafana/dskit v0.0.0-20230201083518-528d8a7d52f2
@@ -170,7 +171,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/flatbuffers v1.12.0 // indirect
+	github.com/google/flatbuffers v2.0.8+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
@@ -392,11 +393,6 @@ replace github.com/CosmWasm/wasmd v0.30.0 => github.com/wormhole-foundation/wasm
 
 replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole
 
-require (
-	github.com/gogo/status v1.1.1 // indirect
-	github.com/xlabs/tss-lib/v2 v2.1.1-0.20260106092316-0373937dfe57 // indirect
-)
-
 replace github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43 // done in the TSS-LIB.
 
 replace github.com/btcsuite/btcd v0.23.4 => github.com/btcsuite/btcd v0.22.1 // had to use wormhole's version (and not TSS-LIB's) to compile...
@@ -404,3 +400,5 @@ replace github.com/btcsuite/btcd v0.23.4 => github.com/btcsuite/btcd v0.22.1 // 
 replace github.com/ethereum/go-ethereum v1.14.7 => github.com/ethereum/go-ethereum v1.10.21 // hdwallet is old, and hadn't updated its mod...
 
 replace github.com/certusone/wormhole/node/pkg/txverifier => ./pkg/txverifier
+
+replace github.com/sercand/kuberesolver/v4 => github.com/sercand/kuberesolver/v5 v5.1.1
