@@ -15,6 +15,7 @@ message GossipMessage {
     SignedQueryRequest signed_query_request = 10;
     SignedQueryResponse signed_query_response = 11;
     SignedObservationBatch signed_observation_batch = 12;
+    SignedManagerTransaction signed_manager_transaction = 13;
   }
 }
 
@@ -205,7 +206,7 @@ message SignedObservationBatch {
 message Observation {
   // The observation's deterministic, unique hash.
   bytes hash = 1;
-  // ECSDA signature of the hash using the node's guardian key.
+  // ECDSA signature of the hash using the node's guardian key.
   bytes signature = 2;
   // Transaction hash this observation was made from.
   // Optional, included for observability.
@@ -213,4 +214,28 @@ message Observation {
   // Message ID (chain/emitter/seq) for this observation.
   // Optional, included for observability.
   string message_id = 4;
+}
+
+// A SignedManagerTransaction is sent by manager nodes after signing a UTXO transaction.
+// Each manager node signs the transaction and broadcasts the signatures
+// to allow aggregation of M-of-N multisig signatures.
+message SignedManagerTransaction {
+  // VAA hash that triggered this signing (32 bytes).
+  bytes vaa_hash = 1;
+
+  // VAA ID in format "{chain}/{emitter}/{sequence}".
+  string vaa_id = 2;
+
+  // Destination chain where the transaction will be executed (e.g., Dogecoin).
+  uint32 destination_chain = 3;
+
+  // Manager set index from the UTXO unlock payload.
+  uint32 manager_set_index = 4;
+
+  // This signer's index within the manager set (0-based).
+  uint32 signer_index = 5;
+
+  // Signatures in order. Each signature is in the format expected
+  // by the destination chain (DER-encoded with sighash type for Dogecoin).
+  repeated bytes signatures = 6;
 }

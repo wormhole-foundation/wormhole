@@ -9,6 +9,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/manager"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -16,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) supervisor.Runnable {
+func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor, managerSvc *manager.ManagerService) supervisor.Runnable {
 	return func(ctx context.Context) error {
 		//nolint:noctx // TODO: this should be refactored to use context.
 		l, err := net.Listen("tcp", listenAddr)
@@ -27,7 +28,7 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRp
 
 		logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
-		rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
+		rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov, managerSvc)
 		//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
 		grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
 
@@ -42,7 +43,7 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRp
 	}
 }
 
-func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, *grpc.Server, error) {
+func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicRpcLogDetail common.GrpcLogDetail, db *guardianDB.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor, managerSvc *manager.ManagerService) (supervisor.Runnable, *grpc.Server, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -74,7 +75,7 @@ func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicR
 
 	logger.Info("publicrpc (unix socket) server listening on", zap.String("path", socketPath))
 
-	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
+	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov, managerSvc)
 
 	grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)

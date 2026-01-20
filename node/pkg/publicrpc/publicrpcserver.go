@@ -10,6 +10,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/manager"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -20,10 +21,11 @@ import (
 // PublicrpcServer implements the publicrpc gRPC service.
 type PublicrpcServer struct {
 	publicrpcv1.UnsafePublicRPCServiceServer
-	logger *zap.Logger
-	db     *guardianDB.Database
-	gst    *common.GuardianSetState
-	gov    *governor.ChainGovernor
+	logger  *zap.Logger
+	db      *guardianDB.Database
+	gst     *common.GuardianSetState
+	gov     *governor.ChainGovernor
+	manager *manager.ManagerService
 }
 
 func NewPublicrpcServer(
@@ -31,12 +33,14 @@ func NewPublicrpcServer(
 	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
+	managerSvc *manager.ManagerService,
 ) *PublicrpcServer {
 	return &PublicrpcServer{
-		logger: logger.Named("publicrpcserver"),
-		db:     db,
-		gst:    gst,
-		gov:    gov,
+		logger:  logger.Named("publicrpcserver"),
+		db:      db,
+		gst:     gst,
+		gov:     gov,
+		manager: managerSvc,
 	}
 }
 
@@ -188,4 +192,100 @@ func (s *PublicrpcServer) GovernorGetTokenList(_ context.Context, _ *publicrpcv1
 	}
 
 	return resp, nil
+}
+
+func (s *PublicrpcServer) GetSignedManagerTransaction(_ context.Context, req *publicrpcv1.GetSignedManagerTransactionRequest) (*publicrpcv1.GetSignedManagerTransactionResponse, error) {
+	if s.manager == nil {
+		return nil, status.Error(codes.Unavailable, "manager service not enabled")
+	}
+
+	if req.MessageId == nil {
+		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
+	}
+
+	if req.MessageId.GetEmitterChain() > math.MaxUint16 {
+		return nil, status.Error(codes.InvalidArgument, "emitter chain id must be no greater than 16 bits")
+	}
+
+	chainID := vaa.ChainID(req.MessageId.GetEmitterChain()) // #nosec G115
+
+	address, err := hex.DecodeString(req.MessageId.EmitterAddress)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode address: %v", err))
+	}
+	if len(address) != 32 {
+		return nil, status.Error(codes.InvalidArgument, "address must be 32 bytes")
+	}
+
+	addr := vaa.Address{}
+	copy(addr[:], address)
+
+	// Build VAA ID
+	vaaID := fmt.Sprintf("%d/%s/%d", chainID, hex.EncodeToString(addr[:]), req.MessageId.Sequence)
+
+	aggTx := s.manager.GetPendingTransactionByID(vaaID)
+	if aggTx == nil {
+		return nil, status.Error(codes.NotFound, "no manager transaction found for this VAA")
+	}
+
+	return aggregatedTxToResponse(aggTx), nil
+}
+
+func (s *PublicrpcServer) GetSignedManagerTransactionByHash(_ context.Context, req *publicrpcv1.GetSignedManagerTransactionByHashRequest) (*publicrpcv1.GetSignedManagerTransactionByHashResponse, error) {
+	if s.manager == nil {
+		return nil, status.Error(codes.Unavailable, "manager service not enabled")
+	}
+
+	if req.VaaHash == "" {
+		return nil, status.Error(codes.InvalidArgument, "no VAA hash specified")
+	}
+
+	aggTx := s.manager.GetPendingTransactionByHash(req.VaaHash)
+	if aggTx == nil {
+		return nil, status.Error(codes.NotFound, "no manager transaction found for this VAA hash")
+	}
+
+	return aggregatedTxToByHashResponse(aggTx), nil
+}
+
+func aggregatedTxToResponse(aggTx *manager.AggregatedTransaction) *publicrpcv1.GetSignedManagerTransactionResponse {
+	signatures := make([]*publicrpcv1.ManagerSignerEntry, 0, len(aggTx.Signatures))
+	for signerIdx, sigs := range aggTx.Signatures {
+		signatures = append(signatures, &publicrpcv1.ManagerSignerEntry{
+			SignerIndex: uint32(signerIdx),
+			Signatures:  sigs,
+		})
+	}
+
+	return &publicrpcv1.GetSignedManagerTransactionResponse{
+		VaaHash:          hex.EncodeToString(aggTx.VAAHash),
+		VaaId:            aggTx.VAAID,
+		DestinationChain: uint32(aggTx.DestinationChain),
+		ManagerSetIndex:  aggTx.ManagerSetIndex,
+		Required:         uint32(aggTx.Required),
+		Total:            uint32(aggTx.Total),
+		IsComplete:       aggTx.IsComplete(),
+		Signatures:       signatures,
+	}
+}
+
+func aggregatedTxToByHashResponse(aggTx *manager.AggregatedTransaction) *publicrpcv1.GetSignedManagerTransactionByHashResponse {
+	signatures := make([]*publicrpcv1.ManagerSignerEntry, 0, len(aggTx.Signatures))
+	for signerIdx, sigs := range aggTx.Signatures {
+		signatures = append(signatures, &publicrpcv1.ManagerSignerEntry{
+			SignerIndex: uint32(signerIdx),
+			Signatures:  sigs,
+		})
+	}
+
+	return &publicrpcv1.GetSignedManagerTransactionByHashResponse{
+		VaaHash:          hex.EncodeToString(aggTx.VAAHash),
+		VaaId:            aggTx.VAAID,
+		DestinationChain: uint32(aggTx.DestinationChain),
+		ManagerSetIndex:  aggTx.ManagerSetIndex,
+		Required:         uint32(aggTx.Required),
+		Total:            uint32(aggTx.Total),
+		IsComplete:       aggTx.IsComplete(),
+		Signatures:       signatures,
+	}
 }

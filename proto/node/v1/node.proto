@@ -157,6 +157,9 @@ message GovernanceMessage {
 
     // Set message fee
     CoreBridgeSetMessageFee core_bridge_set_message_fee = 30;
+
+    // Delegated Manager
+    DelegatedManagerSetUpdate delegated_manager_set_update = 31;
   }
 }
 
@@ -593,4 +596,16 @@ message CoreBridgeSetMessageFee {
   uint32 chain_id = 1;
   // New message fee.
   string message_fee = 2;
+}
+
+message DelegatedManagerSetUpdate {
+  // Wormhole Chain ID for the manager chain (e.g., 65 for Dogecoin).
+  uint32 manager_chain_id = 1;
+
+  // Index of the new manager set (must be current + 1).
+  uint32 manager_set_index = 2;
+
+  // Hex-encoded manager set bytes (without leading 0x).
+  // For secp256k1 multisig format: Type (1 byte) + M (1 byte) + N (1 byte) + PublicKeys (N * 33 bytes)
+  string manager_set = 3;
 }
