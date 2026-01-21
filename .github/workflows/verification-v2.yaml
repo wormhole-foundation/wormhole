@@ -68,7 +68,6 @@ jobs:
 
     - name: Set the rust toolchain version
       run: |
-        rustup override set 1.88.0
         rustup toolchain install nightly-2025-06-02-x86_64-unknown-linux-gnu
     - name: Cache Rust packages
       uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # 5.0.1
@@ -77,7 +76,8 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           verification-v2/src/solana/target
-        key: ${{ runner.os }}-rust-1.88.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
+        # The chosen agave package uses solana platform tools v1.52 which has a v1.89 rust toolchain
+        key: ${{ runner.os }}-rust-1.89.0-cargo-nightly-2025-06-02-x86_64-${{ hashFiles('src/solana/Cargo.lock') }}
 
     # Taken from https://github.com/metaDAOproject/setup-anchor/blob/main/action.yml#L25-L40
     # TODO: read Solana version from Anchor.toml
@@ -88,10 +88,10 @@ jobs:
         path: |
           ~/.cache/solana/
           ~/.local/share/solana/
-        key: solana-cli-${{ runner.os }}-build-2.2.19
+        key: solana-cli-${{ runner.os }}-build-3.1.7
     - name: Install Solana CLI tools
       if: ${{ steps.cache-solana-tools.outputs.cache-hit != 'true' }}
-      run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.19/install)"
+      run: sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.7/install)"
       shell: bash
     # TODO: read Anchor version from Anchor.toml
     - name: Cache Anchor CLI tools
@@ -100,14 +100,14 @@ jobs:
       with:
         path: |
           ~/bin/anchor
-        key: anchor-cli-${{ runner.os }}-build-0.31.1
+        key: anchor-cli-${{ runner.os }}-build-0.32.1
     - name: Install Anchor
       if: ${{ steps.cache-anchor-tool.outputs.cache-hit != 'true' }}
       run: |
-        wget https://github.com/coral-xyz/anchor/releases/download/v0.31.1/anchor-0.31.1-x86_64-unknown-linux-gnu
-        chmod +x anchor-0.31.1-x86_64-unknown-linux-gnu
+        wget https://github.com/coral-xyz/anchor/releases/download/v0.32.1/anchor-0.32.1-x86_64-unknown-linux-gnu
+        chmod +x anchor-0.32.1-x86_64-unknown-linux-gnu
         mkdir -p "$HOME/bin"
-        mv anchor-0.31.1-x86_64-unknown-linux-gnu "$HOME/bin/anchor"
+        mv anchor-0.32.1-x86_64-unknown-linux-gnu "$HOME/bin/anchor"
       shell: bash
     - name: Update PATH
       run: |
