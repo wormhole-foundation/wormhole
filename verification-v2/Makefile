@@ -33,8 +33,6 @@ verifiable-build-evm: dependencies-evm
 
 test-evm: dependencies-evm
 	forge test
-#--match-test InitiateFullFuzz
-#--fork-url $(TEST_RPC)
 
 measure-performance-evm: dependencies-evm
 	forge test --match-test test_benchmark -vvvv | \
