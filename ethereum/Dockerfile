@@ -52,28 +52,3 @@ ENV DEV=$dev
 
 COPY --chown=node:node ethereum .
 RUN make build
-
-### RELAYER ###
-
-WORKDIR /home/node/app/relayer/ethereum
-
-COPY --chown=node:node relayer/ethereum/package.json .
-COPY --chown=node:node relayer/ethereum/package-lock.json .
-COPY --from=const-export --chown=node:node .env.0x .env
-
-
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-  --mount=type=cache,uid=1000,gid=1000,target=node_modules \
-  npm ci && \
-  cp -R node_modules node_modules_cache
-
-RUN rm -rf node_modules && mv node_modules_cache node_modules
-
-ARG dev
-ENV DEV=$dev
-
-COPY --chown=node:node relayer/ethereum .
-RUN make build
-
-ARG num_guardians
-ENV NUM_GUARDIANS=$num_guardians
