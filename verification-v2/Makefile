@@ -47,8 +47,26 @@ clean-evm:
 dependencies-solana-ts:
 	yarn install --immutable
 
+# Defaults for Solana mainnet
+BRIDGE_ADDRESS ?= worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth
+
 build-solana:
 	cd src/solana; anchor build
+
+verifiable-build-solana:
+	@if [ -z "$(VERIFICATION_V2_PROGRAM_ID)" ]; then \
+		echo "Error: VERIFICATION_V2_PROGRAM_ID must be defined" >&2; \
+		exit 1; \
+	fi
+	rm -rf src/solana/target/
+	docker build --tag verification-v2-svm-build --file svm-build.Dockerfile .
+	cd src/solana; solana-verify build \
+	  --base-image verification-v2-svm-build \
+	  --library-name verification_v2 -- \
+	  --no-default-features \
+	  --features from-env \
+	  --config "env.BRIDGE_ADDRESS=\"$$BRIDGE_ADDRESS\"" \
+	  --config "env.VERIFICATION_V2_PROGRAM_ID=\"$$VERIFICATION_V2_PROGRAM_ID\""
 
 # depends on build-solana to generate the IDL
 # This happens automatically as soon as you run `anchor test` but it's useful to trigger the build

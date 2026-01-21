@@ -3,7 +3,7 @@ use anchor_lang::prelude::{
   Result,
   borsh::{BorshDeserialize},
 };
-use anchor_lang::solana_program::keccak::{Hash, hash};
+use solana_keccak_hasher::{Hash, hash};
 use primitive_types::U256;
 use std::io::{Read, Error, ErrorKind};
 use byteorder::{BigEndian, ReadBytesExt};
