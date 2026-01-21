@@ -97,7 +97,24 @@ attest_token() {
 }
 
 echo "[*] adding the COIN_10 coin to the token bridge."
-res=`attest_token $coin_package_id::coin_10::COIN_10 $coin_metadata_10 1u32`
+# Retry attest_token with backoff in case of transient object version conflicts
+ATTEST_MAX_RETRIES=5
+for attempt in $(seq 1 $ATTEST_MAX_RETRIES); do
+    res=$(attest_token $coin_package_id::coin_10::COIN_10 $coin_metadata_10 1u32 2>&1)
+    if echo "$res" | grep -q "Error"; then
+        if [ $attempt -eq $ATTEST_MAX_RETRIES ]; then
+            echo " [-] attest_token failed after $ATTEST_MAX_RETRIES attempts: $res"
+            exit 1
+        fi
+        echo " [!] attest_token attempt $attempt failed, retrying in ${attempt}s..."
+        sleep $attempt
+    else
+        echo " [+] attest_token succeeded on attempt $attempt"
+        break
+    fi
+done
+# Wait for token registration to be processed before transfers
+sleep 2
 
 # mint_and_transfer_token is a helper function that mints an `amount` of tokens to the caller, and then transfers
 # those tokens out via the token bridge.
