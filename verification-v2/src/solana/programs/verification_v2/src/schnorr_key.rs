@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{keccak::hash, secp256k1_recover};
+use solana_keccak_hasher::hash;
+use solana_secp256k1_recover::secp256k1_recover;
 #[cfg(feature = "idl-build")]
 use anchor_lang::{
   IdlBuild,
@@ -87,7 +88,7 @@ impl SchnorrKey {
     signature_bytes[32..64].copy_from_slice(&ep.to_big_endian());
     let sp_buf = sp.to_big_endian();
 
-    let recovered_pubkey = secp256k1_recover::secp256k1_recover(
+    let recovered_pubkey = secp256k1_recover(
       &sp_buf,
       parity as u8,
       &signature_bytes

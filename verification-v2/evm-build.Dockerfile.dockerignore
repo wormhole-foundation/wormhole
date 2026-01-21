@@ -6,11 +6,17 @@ cache/
 out/
 tmp/
 verifiable-evm-build/
+.prettierignore
+.mocharc.json
 
 ts-pkgs/
 
 src/solana
 test/
+
+# Solana builds
+target/
+.anchor/
 
 **/ts-build
 

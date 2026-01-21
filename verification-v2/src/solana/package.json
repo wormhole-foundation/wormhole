@@ -6,7 +6,7 @@
     "build": "tsc --build ./tsconfig.json"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1",
+    "@coral-xyz/anchor": "^0.32.1",
     "@noble/hashes": "^2.0.1",
     "@noble/secp256k1": "^3.0.0",
     "@solana/web3.js": "^1.98.4",
