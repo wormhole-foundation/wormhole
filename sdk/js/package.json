@@ -11,7 +11,7 @@
   "sideEffects": false,
   "repository": "https://github.com/certusone/wormhole/tree/main/sdk/js",
   "scripts": {
-    "build-contracts": "cd ../../ethereum && make forge_dependencies && npm run build && cd ../relayer/ethereum && make forge_dependencies && npm run build && cd ../../sdk/js && node scripts/copyContracts.js",
+    "build-contracts": "cd ../../ethereum && make forge_dependencies && npm run build && cd ../sdk/js && node scripts/copyContracts.js",
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-idl": "node scripts/compileAnchorIdls.js",
     "build-deps": "npm run build-abis && npm run build-contracts && npm run build-idl",
@@ -20,17 +20,13 @@
     "docs": "typedoc src/index.ts",
     "test": "DEV=true NETWORK=DEVNET jest --verbose",
     "test-ci": "NETWORK=DEVNET NEAR_NO_LOGS=true jest --verbose --setupFiles ./ci-config.js --forceExit",
-    "test-relayer-mainnet": "ENV=mainnet NETWORK=MAINNET npx jest --verbose ./src/relayer/",
-    "test-relayer-testnet": "ENV=testnet NETWORK=TESTNET npx jest --verbose ./src/relayer/",
     "build": "npm run build-all",
     "format": "echo \"disabled: prettier --write \"src/**/*.ts\"\"",
     "lint": "tslint -p tsconfig.json",
     "prepublishOnly": "echo \"disabled: npm test && npm run lint\"",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags",
-    "test-relayer-status": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'Checks the status of a message'",
-    "test-relayer-manual-delivery": "npm run test-relayer-testnet -- ./src/relayer/__tests__/wormhole_relayer.ts -t 'custom manual delivery'"
+    "postversion": "git push && git push --tags"
   },
   "keywords": [
     "wormhole",
