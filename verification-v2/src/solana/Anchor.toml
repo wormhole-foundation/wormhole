@@ -30,6 +30,7 @@ upgradeable = false
 # See https://github.com/anza-xyz/agave/blob/v3.1.7/feature-set/src/lib.rs
 # Look for account_data_direct_mapping.
 deactivate_feature = ["6f2qai82RU7Dutj1WJfRzLJKYA36QWvTa89CR1imgj7N"]
+bind_address = "127.0.0.1"
 
 [[test.genesis]]
 name = "wormhole-core-v1"
