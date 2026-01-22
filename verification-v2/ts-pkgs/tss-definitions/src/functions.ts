@@ -132,7 +132,7 @@ export function payloadDiscriminator<
         payloadNames.map((name) => composeLiteral(protocol, name)),
       );
 
-    if (typeof payloadLiterals[1] === "string") return payloadLiterals as AtLeast2<LayoutLiteral>;
+    if (typeof payloadLiterals[1] === "string") return payloadLiterals;
 
     const [protocol, payloadNames] = payloadLiterals as readonly [
       ProtocolName,
@@ -173,7 +173,7 @@ export function deserialize<T extends PayloadLiteral | PayloadDiscriminator>(
   payloadDet: T,
   rawData: Byteish,
 ): DistributiveVAAV2<ExtractLiteral<T>>{
-  let data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
+  const data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
 
   const [header, headerSize] = deserializeLayout(headerV2Layout, data, false);
   const envelopeOffset = headerSize;
@@ -184,10 +184,10 @@ export function deserialize<T extends PayloadLiteral | PayloadDiscriminator>(
   const [payloadLiteral, payload] =
     typeof payloadDet === "string"
       ? [
-          payloadDet as PayloadLiteral,
-          deserializePayload(payloadDet as PayloadLiteral, data.subarray(payloadOffset)),
+          payloadDet,
+          deserializePayload(payloadDet, data.subarray(payloadOffset)),
         ]
-      : deserializePayload(payloadDet as PayloadDiscriminator, data.subarray(payloadOffset));
+      : deserializePayload(payloadDet, data.subarray(payloadOffset));
   const [protocolName, payloadName] = decomposeLiteral(payloadLiteral);
   const hash = keccak256(data.slice(envelopeOffset));
 
@@ -195,7 +195,7 @@ export function deserialize<T extends PayloadLiteral | PayloadDiscriminator>(
     protocolName,
     payloadName,
     payloadLiteral,
-    ...(header as HeaderV2),
+    ...(header),
     ...envelope,
     payload,
     hash,
@@ -229,7 +229,7 @@ export function deserializePayload<T extends PayloadLiteral | PayloadDiscriminat
   offset = 0,
 ) {
   return (() => {
-    let data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
+    const data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
 
     if (payloadDet === "Uint8Array") return data.slice(offset);
 
@@ -269,12 +269,12 @@ export const exhaustiveDeserialize = (() => {
     if (payloadFactory.size !== layoutLiterals.length) [layoutLiterals] = rebuildDiscrimininator();
 
     const candidates = layoutLiterals;
-    return candidates.reduce((acc, literal) => {
+    return candidates.reduce<DeserializedPair[]>((acc, literal) => {
       try {
-        acc.push([literal, deserializePayload(literal!, data)] as DeserializedPair);
+        acc.push([literal, deserializePayload(literal, data)] as DeserializedPair);
       } catch {}
       return acc;
-    }, [] as DeserializedPair[]);
+    }, []);
   };
 })();
 
@@ -299,14 +299,14 @@ export const blindDeserializePayload = (() => {
     if (payloadFactory.size !== layoutLiterals.length)
       [layoutLiterals, discriminator] = rebuildDiscrimininator();
 
-    let data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
+    const data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
     const candidates = discriminator(data).map((c) => layoutLiterals[c]);
-    return candidates.reduce((acc, literal) => {
+    return candidates.reduce<DeserializedPair[]>((acc, literal) => {
       try {
-        acc.push([literal, deserializePayload(literal!, data)] as DeserializedPair);
+        acc.push([literal, deserializePayload(literal, data)] as DeserializedPair);
       } catch {}
       return acc;
-    }, [] as DeserializedPair[]);
+    }, []);
   };
 })();
 
