@@ -28,6 +28,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
+	"github.com/certusone/wormhole/node/pkg/watchers/xrpl"
 	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
@@ -216,6 +217,9 @@ var (
 
 	xrplEvmRPC      *string
 	xrplEvmContract *string
+
+	xrplRPC      *string
+	xrplContract *string
 
 	plasmaRPC      *string
 	plasmaContract *string
@@ -482,6 +486,9 @@ func init() {
 
 	xrplEvmRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplEvmRPC", "XRPLEVM RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	xrplEvmContract = NodeCmd.Flags().String("xrplEvmContract", "", "XRPLEVM contract address")
+
+	xrplRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "xrplRPC", "XRPL RPC URL", "ws://xrpl:6006", []string{"ws", "wss"})
+	xrplContract = NodeCmd.Flags().String("xrplContract", "", "XRPL contract address")
 
 	plasmaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "plasmaRPC", "PLASMA RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	plasmaContract = NodeCmd.Flags().String("plasmaContract", "", "Plasma contract address")
@@ -978,6 +985,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Either --suiRPC and --suiMoveEventType must all be set or all unset")
 	}
 
+	if !argsConsistent([]string{*xrplRPC, *xrplContract}) {
+		logger.Fatal("Either --xrplRPC and --xrplContract must all be set or all unset")
+	}
+
 	if !argsConsistent([]string{*gatewayContract, *gatewayWS, *gatewayLCD}) {
 		logger.Fatal("Either --gatewayContract, --gatewayWS and --gatewayLCD must all be set or all unset")
 	}
@@ -1087,6 +1098,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	rpcMap["xrplevmRPC"] = *xrplEvmRPC
 	rpcMap["plasmaRPC"] = *plasmaRPC
 	rpcMap["creditcoinRPC"] = *creditCoinRPC
+	rpcMap["xrplRPC"] = *xrplRPC
 
 	// Wormchain is in the 3000 range.
 	rpcMap["wormchainURL"] = *wormchainURL
@@ -1770,6 +1782,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			Rpc:               *suiRPC,
 			SuiMoveEventType:  *suiMoveEventType,
 			TxVerifierEnabled: slices.Contains(txVerifierChains, vaa.ChainIDSui),
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(xrplRPC) {
+		wc := &xrpl.WatcherConfig{
+			NetworkID: "xrpl",
+			ChainID:   vaa.ChainIDXRPL,
+			Rpc:       *xrplRPC,
+			Contract:  *xrplContract,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
 	}
