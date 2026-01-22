@@ -15,7 +15,7 @@
     "@wormhole-foundation/sdk-definitions": "^4.5.0"
   },
   "devDependencies": {
-    "@types/node": "^25.0.10",
+    "@types/node": "^24.10.9",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   }
