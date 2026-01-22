@@ -1,5 +1,6 @@
 import { chainToChainId, enumItem, Layout, LayoutToType } from '@wormhole-foundation/sdk-base';
 import { envelopeLayout, layoutItems } from '@wormhole-foundation/sdk-definitions';
+import type { PayloadLiteral, DecomposeLiteral, Payload, ProtocolName, ComposeLiteral } from '@wormhole-foundation/sdk-definitions';
 
 
 /* VerificationV2 layouts */
@@ -21,6 +22,54 @@ export const baseV2Layout = [
   ...headerV2Layout,
   ...envelopeLayout,
 ] as const satisfies Layout;
+
+type VAAV2Base = LayoutToType<typeof baseV2Layout>;
+export type VAAV2Header = LayoutToType<typeof headerV2Layout>;
+
+/**
+ * A VAA is a Verifiable Action Assertion, a signed message that contains
+ * information about an action that has occurred on a chain.
+ *
+ * See {@link https://docs.wormhole.com/wormhole/explore-wormhole/vaa | this link} for more.
+ *
+ */
+export interface VAAV2<PL extends PayloadLiteral = PayloadLiteral> extends VAAV2Base {
+  readonly protocolName: DecomposeLiteral<PL>[0];
+  readonly payloadName: DecomposeLiteral<PL>[1];
+  readonly payloadLiteral: PL;
+  readonly payload: Payload<PL>;
+  //TODO various problems with storing the hash here:
+  // 1. On EVM the core bridge actually uses the double keccak-ed hash because of an early oversight
+  // 2. As discussed on slack, storing memoized values on an object is a smell too
+  //kept as is for now to get something usable out there, but this should receive more thought once
+  //  the SDK has matured a little further.
+  readonly hash: Uint8Array;
+}
+
+//We enforce distribution over union types, e.g. have
+//    ProtocolVAAV2<"TokenBridge", "Transfer" | "TransferWithPayload">
+//  turned into
+//    VAAV2<"TokenBridge:Transfer"> | VAAV2<"TokenBridge:TransferWithPayload">
+//  rather than
+//    VAAV2<"TokenBridge:Transfer" | "TokenBridge:TransferWithPayload">
+//  because while the latter is considered more idiomatic/canonical, it actually interferes with
+//  the most natural way to narrow VAAs via querying the payloadName or payloadLiteral.
+//  (Thanks for absolutely nothing, Typescript).
+//  For example, given the TokenBridge VAAV2 union example:
+//  if (vaa.payloadName === "Transfer")
+//    typeof vaa //no narrowing - still resolves to the union type when using the latter approach
+export type DistributiveVAAV2<PL extends PayloadLiteral> = PL extends PayloadLiteral
+  ? VAAV2<PL>
+  : never;
+
+/** A  utility type that maps a protocol and payload name to its defined structure */
+export type ProtocolVAAV2<PN extends ProtocolName, PayloadName extends string> = ComposeLiteral<
+  PN,
+  PayloadName,
+  PayloadLiteral
+> extends infer PL extends PayloadLiteral
+  ? DistributiveVAAV2<PL>
+  : never;
 
 /** @dev module: TSS */
 export const MODULE_VERIFICATION_V2 = Uint8Array.from([

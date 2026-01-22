@@ -7,13 +7,16 @@
   "main": "./ts-build/src/index.js",
   "private": true,
   "scripts": {
-    "build": "tsc --build ./tsconfig.json"
+    "build": "tsc --build ./tsconfig.json",
+    "test": "yarn build && vitest --run --dir tests/"
   },
   "dependencies": {
     "@wormhole-foundation/sdk-base": "^4.5.0",
     "@wormhole-foundation/sdk-definitions": "^4.5.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "@types/node": "^25.0.10",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }
