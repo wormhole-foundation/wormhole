@@ -2,6 +2,9 @@
 
 set -meuo pipefail
 export DOCKER_BUILDKIT=1
+export NON_INTERACTIVE=1
+export FORCE_OVERWRITE=1
+export SKIP_NEXT_STEP_HINT=1
 
 TLS_HOSTNAME="Guardian"
 TLS_PUBLIC_IP="127.0.0.1"
@@ -43,31 +46,27 @@ createGuardianPrivateKey() {
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../generate-tls.sh "${TLS_HOSTNAME}$i" "${TLS_PUBLIC_IP}" "out/$i/keys"
+  ../../../../rollout-scripts/generate-tls.sh "${TLS_HOSTNAME}$i" "${TLS_PUBLIC_IP}" "out/$i/keys"
 done
 
 wait
 
-# Wait until the server starts listening
 until docker logs peer-server 2>/dev/null | grep "Peer server running on"
 do
   sleep 1
 done
 
-# Write guardian keys to files (register-peer.sh requires file paths)
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   createGuardianPrivateKey "$i" > "./out/$i/keys/guardian_pk"
 done
 
-# Register all peers using register-peer.sh
-# Uses dkg-builder with host network to reach peer-server
 export DOCKER_BUILDER="dkg-builder"
 export DOCKER_BUILD_NETWORK="host"
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../register-peer.sh \
+  ../../../../rollout-scripts/register-peer.sh \
     "./out/$i/keys/guardian_pk" \
     "./out/$i/keys/cert.pem" \
     "${TLS_HOSTNAME}$i" \
@@ -77,16 +76,14 @@ done
 
 wait
 
-# Build DKG client image once
-docker build --tag dkg-client --file ../../peer-client/dkg.Dockerfile --progress=plain ../../..
+docker build --tag dkg-client --file ../../../../peer-client/dkg.Dockerfile ../../../../..
 
-# Run DKG for all guardians using run-dkg.sh
 export DOCKER_NETWORK="dkg-test"
-export SKIP_BUILD="1"  # Already built above
+export SKIP_BUILD="1"
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../run-dkg.sh \
+  ../../../../rollout-scripts/run-dkg.sh \
     "./out/$i/keys" \
     "${TLS_HOSTNAME}$i" \
     $((TLS_BASE_PORT + i)) \
@@ -96,3 +93,4 @@ do
 done
 
 wait
+
