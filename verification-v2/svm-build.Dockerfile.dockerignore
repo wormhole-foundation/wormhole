@@ -11,8 +11,11 @@ verifiable-evm-build/
 
 ts-pkgs/
 
-src/solana
+src/evm
 test/
+src/solana/imports
+src/solana/scripts
+src/solana/tests
 
 # Solana builds
 target/

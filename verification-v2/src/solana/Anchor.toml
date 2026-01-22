@@ -1,6 +1,6 @@
 [toolchain]
-anchor_version = "0.31.1"
-solana_version = "2.2.19"
+anchor_version = "0.32.1"
+solana_version = "3.1.7"
 
 [features]
 resolution = true
@@ -25,10 +25,12 @@ shutdown_wait = 2000
 upgradeable = false
 
 [test.validator]
-# 1ncomp1ete111111111111111111111111111111111 - this feature disables memory gaps.
+# 6f2qai82RU7Dutj1WJfRzLJKYA36QWvTa89CR1imgj7N - this feature disables memory gaps.
 # We disable it because we want to test execution like in devnet or mainnet.
-# See https://github.com/anza-xyz/agave/blob/v2.2.19/feature-set/src/lib.rs
-deactivate_feature = ["1ncomp1ete111111111111111111111111111111111"]
+# See https://github.com/anza-xyz/agave/blob/v3.1.7/feature-set/src/lib.rs
+# Look for account_data_direct_mapping.
+deactivate_feature = ["6f2qai82RU7Dutj1WJfRzLJKYA36QWvTa89CR1imgj7N"]
+bind_address = "127.0.0.1"
 
 [[test.genesis]]
 name = "wormhole-core-v1"

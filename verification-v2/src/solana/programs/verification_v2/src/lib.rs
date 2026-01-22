@@ -1,6 +1,16 @@
 #![allow(unexpected_cfgs)]
 
-declare_id!("GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6");
+cfg_if::cfg_if! {
+  if #[cfg(feature = "from-env")] {
+    use wormhole_svm_definitions::env_pubkey;
+    pub const VERIFICATION_V2_PROGRAM_ID_ARRAY: [u8; 32] = env_pubkey!("VERIFICATION_V2_PROGRAM_ID");
+  } else {
+    // Used in contract tests
+    use const_crypto::bs58;
+    pub const VERIFICATION_V2_PROGRAM_ID_ARRAY: [u8; 32] = bs58::decode_pubkey("GbFfTqMqKDgAMRH8VmDmoLTdvDd1853TnkkEwpydv3J6");
+  }
+}
+declare_id!(anchor_lang::prelude::Pubkey::new_from_array(VERIFICATION_V2_PROGRAM_ID_ARRAY));
 
 mod vaa;
 mod append_schnorr_key_message;

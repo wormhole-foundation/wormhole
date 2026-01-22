@@ -2,6 +2,27 @@
 
 `make test` builds and runs the tests for Solana and EVM implementations.
 
+## Verifiable build
+
+### EVM
+
+`make verifiable-build-evm` produces the input and output for the compiler in the `verifiable-evm-build` directory.
+
+### Solana
+
+From the root directory:
+
+1.
+```
+VERIFICATION_V2_PROGRAM_ID="<verification v2 program id>" make verifiable-build-solana
+```
+- If you need to deploy to a chain other than Solana mainnet, you also need to override the core v1 program id:
+```
+BRIDGE_ADDRESS="<core v1 program id>" VERIFICATION_V2_PROGRAM_ID="<verification v2 program id>" make verifiable-build-solana
+```
+
+2. The build should be successful and you should see the program in `src/solana/target/deploy/verification_v2.so`.
+
 # EVM
 
 ## Verify 13 signatures multisig (v1 VAA)
