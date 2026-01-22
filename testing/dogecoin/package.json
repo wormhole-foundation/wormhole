@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "bitcoinjs-lib": "^7.0.0",
+    "bs58": "^6.0.0",
+    "ecpair": "^3.0.0",
+    "tiny-secp256k1": "^2.2.4",
+    "viem": "^2.44.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.5"
+  }
+}
