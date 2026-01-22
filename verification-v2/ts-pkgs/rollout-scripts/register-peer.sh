@@ -24,6 +24,7 @@ fi
 
 GUARDIAN_KEY_PATH="$1"
 CERT_PATH="$2"
+CERT_PATH_ORIGINAL="$2"
 TLS_HOSTNAME="$3"
 TLS_PORT="$4"
 PEER_SERVER_URL="$5"
@@ -69,3 +70,24 @@ docker build ${BUILDER_FLAG} ${NETWORK_FLAG} \
 
 log_info "Registration complete"
 
+TLS_KEYS_DIR="$(dirname "${CERT_PATH}")"
+
+TLS_KEYS_DIR_ORIGINAL="$(dirname "${CERT_PATH_ORIGINAL}")"
+
+echo ""
+echo "=============================================="
+echo "NEXT STEP: Run the DKG ceremony"
+echo "=============================================="
+echo ""
+echo "Run the following command from the rollout-scripts directory:"
+echo ""
+echo "  ./run-dkg.sh \\"
+echo "    ${TLS_KEYS_DIR_ORIGINAL} \\"
+echo "    ${TLS_HOSTNAME} \\"
+echo "    ${TLS_PORT} \\"
+echo "    ${PEER_SERVER_URL} \\"
+echo "    <ETHEREUM_RPC_URL>"
+echo ""
+echo "Where:"
+echo "  ETHEREUM_RPC_URL  - Ethereum mainnet RPC URL"
+echo ""

@@ -23,6 +23,7 @@ fi
 TLS_HOSTNAME="$1"
 TLS_PUBLIC_IP="$2"
 OUTPUT_DIR="$3"
+OUTPUT_DIR_ORIGINAL="$3"
 
 # Validate IP address (IPv4 or IPv6)
 IPV4_REGEX='^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
@@ -36,9 +37,13 @@ mkdir -p "${OUTPUT_DIR}"
 OUTPUT_DIR="$(cd "${OUTPUT_DIR}" && pwd)"
 
 if [ -f "${OUTPUT_DIR}/key.pem" ] || [ -f "${OUTPUT_DIR}/cert.pem" ]; then
-    read -p "TLS credentials already exist. Overwrite? (y/N) " -n 1 -r
-    echo
-    [[ ! $REPLY =~ ^[Yy]$ ]] && exit 0
+    if [ -n "${FORCE_OVERWRITE:-}" ]; then
+        log_info "Overwriting existing TLS credentials (FORCE_OVERWRITE=1)"
+    else
+        read -p "TLS credentials already exist. Overwrite? (y/N) " -n 1 -r
+        echo
+        [[ ! $REPLY =~ ^[Yy]$ ]] && exit 0
+    fi
 fi
 
 docker build \
@@ -46,8 +51,13 @@ docker build \
     --file "${REPO_ROOT}/ts-pkgs/peer-client/tls.Dockerfile" \
     "${REPO_ROOT}"
 
+DOCKER_IT_FLAG="-it"
+if [ ! -t 0 ] || [ -n "${NON_INTERACTIVE:-}" ]; then
+    DOCKER_IT_FLAG=""
+fi
+
 docker run \
-    -it \
+    ${DOCKER_IT_FLAG} \
     --rm \
     --mount type=bind,src="${OUTPUT_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \
@@ -61,3 +71,24 @@ else
     exit 1
 fi
 
+if [ -z "${SKIP_NEXT_STEP_HINT:-}" ]; then
+    echo ""
+    echo "=============================================="
+    echo "NEXT STEP: Register your peer with the discovery server"
+    echo "=============================================="
+    echo ""
+    echo "Run the following command from the rollout-scripts directory:"
+    echo ""
+    echo "  ./register-peer.sh \\"
+    echo "    <GUARDIAN_KEY_PATH> \\"
+    echo "    ${OUTPUT_DIR_ORIGINAL}/cert.pem \\"
+    echo "    ${TLS_HOSTNAME} \\"
+    echo "    <TLS_PORT> \\"
+    echo "    <PEER_SERVER_URL>"
+    echo ""
+    echo "Where:"
+    echo "  GUARDIAN_KEY_PATH - Path to your guardian's Wormhole private key"
+    echo "  TLS_PORT          - Port your DKG server will listen on (e.g., 8443)"
+    echo "  PEER_SERVER_URL   - URL of the peer discovery server"
+    echo ""
+fi
