@@ -3,7 +3,7 @@ import {
   encoding,
   serializeLayout,
 } from "@wormhole-foundation/sdk-base";
-import { baseV2Layout, VAAV2 } from "./layouts.js";
+import { v2Layout, VAAV2 } from "./layouts.js";
 
 /**
  * serialize a VAAV2 to a Uint8Array
@@ -12,7 +12,7 @@ import { baseV2Layout, VAAV2 } from "./layouts.js";
  * @throws if the VAAV2 is not valid
  */
 export function serialize(vaa: VAAV2): Uint8Array {
-  return serializeLayout(baseV2Layout, vaa);
+  return serializeLayout(v2Layout, vaa);
 }
 
 /**
@@ -24,6 +24,6 @@ export function serialize(vaa: VAAV2): Uint8Array {
 
 export function deserialize(rawData: Uint8Array | string): VAAV2{
   const data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
-  const [result,] = deserializeLayout(baseV2Layout, data, false);
+  const [result,] = deserializeLayout(v2Layout, data, false);
   return result satisfies VAAV2;
 }

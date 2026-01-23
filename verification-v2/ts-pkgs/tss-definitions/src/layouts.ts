@@ -21,6 +21,9 @@ export const envelopeLayout = [
   { name: "emitterAddress", ...layoutItems.universalAddressItem },
   { name: "sequence", ...layoutItems.sequenceItem },
   { name: "consistencyLevel", binary: "uint", size: 1 },
+] as const satisfies Layout;
+
+export const payloadLayout = [
   { name: "payload", binary: "bytes" }
 ] as const satisfies Layout;
 
@@ -31,7 +34,12 @@ export const baseV2Layout = [
   ...envelopeLayout,
 ] as const satisfies Layout;
 
-export type VAAV2 = LayoutToType<typeof baseV2Layout>;
+export const v2Layout = [
+  ...baseV2Layout,
+  ...payloadLayout
+] as const satisfies Layout;
+
+export type VAAV2 = LayoutToType<typeof v2Layout>;
 export type VAAV2Header = LayoutToType<typeof headerV2Layout>;
 
 /** @dev module: TSS */
