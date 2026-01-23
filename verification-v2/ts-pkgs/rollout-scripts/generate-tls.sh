@@ -39,6 +39,9 @@ OUTPUT_DIR="$(cd "${OUTPUT_DIR}" && pwd)"
 if [ -f "${OUTPUT_DIR}/key.pem" ] || [ -f "${OUTPUT_DIR}/cert.pem" ]; then
     if [ -n "${FORCE_OVERWRITE:-}" ]; then
         log_info "Overwriting existing TLS credentials (FORCE_OVERWRITE=1)"
+    elif [ -n "${NON_INTERACTIVE:-}" ]; then
+        log_error "TLS credentials already exist. Set FORCE_OVERWRITE=1 to overwrite."
+        exit 1
     else
         read -p "TLS credentials already exist. Overwrite? (y/N) " -n 1 -r
         echo
@@ -51,13 +54,7 @@ docker build \
     --file "${REPO_ROOT}/ts-pkgs/peer-client/tls.Dockerfile" \
     "${REPO_ROOT}"
 
-DOCKER_IT_FLAG="-it"
-if [ ! -t 0 ] || [ -n "${NON_INTERACTIVE:-}" ]; then
-    DOCKER_IT_FLAG=""
-fi
-
 docker run \
-    ${DOCKER_IT_FLAG} \
     --rm \
     --mount type=bind,src="${OUTPUT_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \

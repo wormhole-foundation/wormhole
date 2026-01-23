@@ -45,30 +45,12 @@ if [ ! -f "${TLS_KEYS_DIR}/cert.pem" ]; then
     exit 1
 fi
 
-if ! [[ "$TLS_PORT" =~ ^[0-9]+$ ]]; then
-    log_error "TLS_PORT must be a number"
-    exit 1
-fi
-
 TLS_KEYS_DIR="$(cd "${TLS_KEYS_DIR}" && pwd)"
 
 # Optional: use DOCKER_NETWORK env var for custom network
 NETWORK_FLAG=""
 if [ -n "${DOCKER_NETWORK:-}" ]; then
     NETWORK_FLAG="--network=${DOCKER_NETWORK}"
-fi
-
-# Build the DKG client image (skip if SKIP_BUILD is set)
-if [ -z "${SKIP_BUILD:-}" ]; then
-    docker build \
-        --tag dkg-client \
-        --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" \
-        "${REPO_ROOT}"
-fi
-
-DOCKER_IT_FLAG="-it"
-if [ ! -t 0 ] || [ -n "${NON_INTERACTIVE:-}" ]; then
-    DOCKER_IT_FLAG=""
 fi
 
 PUBLISH_FLAG="--publish ${TLS_PORT}:${TLS_PORT}"
@@ -82,7 +64,6 @@ if [ -n "${WORMHOLE_ADDRESS}" ]; then
 fi
 
 docker run \
-    ${DOCKER_IT_FLAG} \
     --rm \
     --name "${TLS_HOSTNAME}" \
     ${NETWORK_FLAG} \
