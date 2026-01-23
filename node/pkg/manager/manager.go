@@ -204,7 +204,7 @@ func loadDefaultManagerSet(ctx context.Context, env common.Environment, signer g
 	}
 
 	return &ManagerSetConfig{
-		Index:       0, // Initial set index
+		Index:       1, // Initial set index
 		M:           sdkSet.M,
 		N:           sdkSet.N,
 		PublicKeys:  pubKeys,
