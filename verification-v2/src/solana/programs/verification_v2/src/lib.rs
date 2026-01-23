@@ -121,7 +121,6 @@ pub mod verification_v2 {
       VerificationV2Error::InvalidAccounts,
     );
 
-    // ctx.accounts.signature_set.try_borrow_data()?
     let buf = ctx.accounts.signature_set.try_borrow_data()?;
     let signature_set_data: Vec<u8> = buf.to_vec();
     let signature_set: SignatureSetData = AccountDeserialize::try_deserialize_unchecked(&mut signature_set_data.as_slice())?;
