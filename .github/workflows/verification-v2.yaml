@@ -207,6 +207,9 @@ jobs:
     - name: Peer server e2e tests
       working-directory: ./verification-v2
       run: yarn workspace @xlabs-xyz/peer-e2e run test
+    - name: Tss definitions tests
+      working-directory: ./verification-v2
+      run: yarn workspace @xlabs-xyz/tss-definitions run test
 
   e2e-dkg:
     name: E2E DKG ceremony

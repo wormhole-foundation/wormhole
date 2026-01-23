@@ -1,6 +1,5 @@
 import { chainToChainId, enumItem, Layout, LayoutToType } from '@wormhole-foundation/sdk-base';
-import { envelopeLayout, layoutItems } from '@wormhole-foundation/sdk-definitions';
-
+import { layoutItems } from '@wormhole-foundation/sdk-definitions';
 
 /* VerificationV2 layouts */
 
@@ -15,12 +14,33 @@ export const headerV2Layout = [
   {name: "signature",       binary: "bytes", layout: schnorrSignatureLayout},
 ] as const satisfies Layout;
 
+export const envelopeLayout = [
+  { name: "timestamp", binary: "uint", size: 4 },
+  { name: "nonce", binary: "uint", size: 4 },
+  { name: "emitterChain", ...layoutItems.chainItem() },
+  { name: "emitterAddress", ...layoutItems.universalAddressItem },
+  { name: "sequence", ...layoutItems.sequenceItem },
+  { name: "consistencyLevel", binary: "uint", size: 1 },
+] as const satisfies Layout;
+
+export const payloadLayout = [
+  { name: "payload", binary: "bytes" }
+] as const satisfies Layout;
+
 export type HeaderV2 = LayoutToType<typeof headerV2Layout>;
 
 export const baseV2Layout = [
   ...headerV2Layout,
   ...envelopeLayout,
 ] as const satisfies Layout;
+
+export const v2Layout = [
+  ...baseV2Layout,
+  ...payloadLayout
+] as const satisfies Layout;
+
+export type VAAV2 = LayoutToType<typeof v2Layout>;
+export type VAAV2Header = LayoutToType<typeof headerV2Layout>;
 
 /** @dev module: TSS */
 export const MODULE_VERIFICATION_V2 = Uint8Array.from([

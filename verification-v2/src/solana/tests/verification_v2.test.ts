@@ -350,7 +350,7 @@ describe("VerificationV2", function() {
       },
       expectFailureHandler: expectInvalidGuardianSet,
     },
-  ] satisfies AddKeyTest[]).map((test) => addKeyTest(test));
+  ] satisfies AddKeyTest[]).map((test) => { addKeyTest(test); });
 
   [{
     name: "Fails to append Schnorr key when emitter chain is not Solana",
@@ -379,11 +379,11 @@ describe("VerificationV2", function() {
     },
     expectFailureHandler: expectInvalidGovernanceContract,
   }].map(({name, emitter, test, expectFailureHandler}) => it(name, async () => {
-    let message = createAppendSchnorrKeyMessage(test)
+    const message = createAppendSchnorrKeyMessage(test)
 
     const {postedVaa: postedVaaAddress, signatureSet} = await postVaaV1(message, undefined, emitter)
 
-    let ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
+    const ix = await coreV2.methods.appendSchnorrKey().accountsPartial({
       vaa: postedVaaAddress,
       signatureSet,
       newSchnorrKey: deriveSchnorrKeyPda(test.keyIndex)[0],
@@ -416,7 +416,7 @@ describe("VerificationV2", function() {
 
     return expectFailure(
       () => $.sendAndConfirm(ix, payer),
-      (error) => expectAtLeastOneLog(error, "Error Code: AccountOwnedByWrongProgram."),
+      (error) => { expectAtLeastOneLog(error, "Error Code: AccountOwnedByWrongProgram."); },
     )
   })
 
@@ -547,7 +547,7 @@ function expectInvalidGuardianSet(error: Error) {
 }
 
 function expectAllocateAccountError(account: string) {
-  return (error: Error) => expectAtLeastOneLog(error, `Allocate: account Address { address: ${account}, base: None } already in use`)
+  return (error: Error) => { expectAtLeastOneLog(error, `Allocate: account Address { address: ${account}, base: None } already in use`); }
 }
 
 

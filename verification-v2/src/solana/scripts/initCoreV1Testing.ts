@@ -79,7 +79,7 @@ async function main() {
 
   console.log(`Core guardian set ${inspect(guardianSet.index)}:`)
   // assert(guardianSet.index === 0, "Expected guardian set index to be 0")
-  console.log(`${inspect(guardianSet.keys.join(", "))}`)
+  console.log(inspect(guardianSet.keys.join(", ")))
   // assert(guardianSet.keys.length === 1, "Expected guardian set keys to have length 1")
 
   // const queriedGuardian = new UniversalAddress(guardianSet.keys[0], "hex")
