@@ -43,8 +43,6 @@ done
 
 docker build --tag dkg-client --file ../../../../peer-client/dkg.Dockerfile ../../../../..
 
-export SKIP_BUILD=1
-
 ../../../../rollout-scripts/run-dkg.sh \
   "out/0/keys" \
   "${TLS_HOSTNAME}" \
