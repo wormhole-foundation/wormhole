@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Useful to debug issues with the e2e test.
 set -meuo pipefail
 export DOCKER_BUILDKIT=1
 
