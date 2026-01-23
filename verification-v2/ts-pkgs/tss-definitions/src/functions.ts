@@ -24,7 +24,6 @@ export function serialize(vaa: VAAV2): Uint8Array {
 
 export function deserialize(rawData: Uint8Array | string): VAAV2{
   const data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [result, _] = deserializeLayout(baseV2Layout, data, false);
+  const [result,] = deserializeLayout(baseV2Layout, data, false);
   return result satisfies VAAV2;
 }
