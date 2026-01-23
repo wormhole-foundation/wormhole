@@ -10,6 +10,13 @@ PEER_SERVER_URL="http://peer-server:3000"
 ETHEREUM_RPC_URL="http://anvil-with-verifier:8545"
 WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
+export DOCKER_BUILDER="dkg-builder"
+export DOCKER_BUILD_NETWORK="host"
+export DOCKER_NETWORK="dkg-test"
+export NON_INTERACTIVE=1
+export FORCE_OVERWRITE=1
+export SKIP_NEXT_STEP_HINT=1
+
 GUARDIAN_PRIVATE_KEYS=(
   "c67c82a42364074e4a3ffec944a96d758cec08da09275ada471fe82c95159af9"
   "22b517009ccd7ede90cebf16ab630868989172c72ebd70ffc6d04cb783eeba61"
@@ -32,67 +39,53 @@ GUARDIAN_PRIVATE_KEYS=(
   "759540959b56070ee6effb4793af059d49897d9b54edaf78f0f06f5b03ec6c2c"
 )
 
-createGuardianPrivateKey() {
-  echo "0a20${GUARDIAN_PRIVATE_KEYS[$1]}" | \
+createGuardianPrivateKeyFile() {
+  local index=$1
+  local output_file=$2
+  echo "0a20${GUARDIAN_PRIVATE_KEYS[$index]}" | \
     xxd -r -p | gpg --enarmor | \
     awk 'BEGIN {print "-----BEGIN WORMHOLE GUARDIAN PRIVATE KEY-----"}
       NR>2 {print last}
       {last=$0}
-      END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}'
+      END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}' > "$output_file"
 }
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../generate-tls.sh "${TLS_HOSTNAME}$i" "${TLS_PUBLIC_IP}" "out/$i/keys"
+  mkdir -p "out/$i/keys"
+  createGuardianPrivateKeyFile "$i" "out/$i/guardian.key"
 done
 
-wait
-
-# Wait until the server starts listening
 until docker logs peer-server 2>/dev/null | grep "Peer server running on"
 do
   sleep 1
 done
 
-# Write guardian keys to files (register-peer.sh requires file paths)
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  createGuardianPrivateKey "$i" > "./out/$i/keys/guardian_pk"
-done
-
-# Register all peers using register-peer.sh
-# Uses dkg-builder with host network to reach peer-server
-export DOCKER_BUILDER="dkg-builder"
-export DOCKER_BUILD_NETWORK="host"
-
-for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
-do
-  ../register-peer.sh \
-    "./out/$i/keys/guardian_pk" \
-    "./out/$i/keys/cert.pem" \
+  ../../../../rollout-scripts/setup-peer.sh \
     "${TLS_HOSTNAME}$i" \
-    $((TLS_BASE_PORT + i)) \
+    "${TLS_PUBLIC_IP}" \
+    "out/$i/keys" \
+    "out/$i/guardian.key" \
+    "$((TLS_BASE_PORT + i))" \
     "${PEER_SERVER_URL}" &
 done
 
 wait
 
-# Build DKG client image once
-docker build --tag dkg-client --file ../../peer-client/dkg.Dockerfile --progress=plain ../../..
-
-# Run DKG for all guardians using run-dkg.sh
-export DOCKER_NETWORK="dkg-test"
-export SKIP_BUILD="1"  # Already built above
+docker build --tag dkg-client --file ../../../../peer-client/dkg.Dockerfile ../../../../..
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../run-dkg.sh \
-    "./out/$i/keys" \
+  ../../../../rollout-scripts/run-dkg.sh \
+    "out/$i/keys" \
     "${TLS_HOSTNAME}$i" \
-    $((TLS_BASE_PORT + i)) \
+    "$((TLS_BASE_PORT + i))" \
     "${PEER_SERVER_URL}" \
     "${ETHEREUM_RPC_URL}" \
     "${WORMHOLE_ADDRESS}" &
 done
 
 wait
+

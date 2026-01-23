@@ -48,7 +48,8 @@ docker build \
     "${REPO_ROOT}"
 
 docker run \
-    -it \
+    --interactive \
+    --tty \
     --rm \
     --name peer-server \
     --publish "${SERVER_PORT}:${SERVER_PORT}" \
