@@ -95,7 +95,6 @@ docker run \
     ${WORMHOLE_ENV} \
     dkg-client
 
-log_info "DKG complete"
 
 echo ""
 echo "=============================================="
