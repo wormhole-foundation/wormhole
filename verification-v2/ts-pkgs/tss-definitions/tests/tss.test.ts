@@ -14,7 +14,7 @@ describe("VAA V2 serialization", function () {
   // TODO Add more tests when we have valid vaa v2
   it("Should deserialize a VAA V2", function () {
     const testKeyIndex = 2;
-    const deserialized = deserialize("Uint8Array", fakeVaaV2) as VAAV2;
+    const deserialized = deserialize(fakeVaaV2) as VAAV2;
     expect(deserialized.schnorrKeyIndex).toBe(testKeyIndex);
     expect(deserialized.signature.r).toEqual(signatureTestMessage100Zeroed.r);
     expect(deserialized.signature.s).toEqual(signatureTestMessage100Zeroed.s);
