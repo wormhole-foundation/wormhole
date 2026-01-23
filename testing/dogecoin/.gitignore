@@ -1,5 +1,6 @@
 /*.json
 !package.json
+!tsconfig.json
 .env
 .env.*
 node_modules
