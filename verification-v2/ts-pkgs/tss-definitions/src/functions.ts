@@ -24,7 +24,7 @@ import {
   envelopeLayout,
 } from "@wormhole-foundation/sdk-definitions";
 
-import { baseV2Layout, DistributiveVAAV2, HeaderV2, headerV2Layout, VAAV2 } from "./layouts.js";
+import { baseV2Layout, DistributiveVAAV2, headerV2Layout, VAAV2 } from "./layouts.js";
 
 export function getPayloadLayout<LL extends LayoutLiteral>(layoutLiteral: LL) {
   const layout = payloadFactory.get(layoutLiteral);
@@ -142,7 +142,7 @@ export function payloadDiscriminator<
   })();
 
   const discriminator = layoutDiscriminator(
-    literals.map((literal) => getPayloadLayout(literal)),
+    (literals as LayoutLiteral[]).map((literal) => getPayloadLayout(literal)),
     !!allowAmbiguous,
   );
 
@@ -192,7 +192,7 @@ export function deserialize<T extends PayloadLiteral | PayloadDiscriminator>(
   const hash = keccak256(data.slice(envelopeOffset));
 
   return {
-    protocolName,
+    protocolName: protocolName as VAAV2["protocolName"],
     payloadName,
     payloadLiteral,
     ...(header),
@@ -227,7 +227,7 @@ export function deserializePayload<T extends PayloadLiteral | PayloadDiscriminat
   payloadDet: T,
   rawData: Byteish,
   offset = 0,
-) {
+): any {
   return (() => {
     const data: Uint8Array = typeof rawData === "string" ? encoding.hex.decode(rawData) : rawData;
 
