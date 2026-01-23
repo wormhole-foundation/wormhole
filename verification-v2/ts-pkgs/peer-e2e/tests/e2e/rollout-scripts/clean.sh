@@ -20,7 +20,4 @@ docker buildx rm dkg-builder 2>/dev/null || true
 echo "Removing network..."
 docker network rm dkg-test 2>/dev/null || true
 
-echo "Removing images..."
-docker rmi tls-gen dkg-client peer-server anvil-with-verifier 2>/dev/null || true
-
 echo "Done!"
