@@ -1,7 +1,5 @@
 import { chainToChainId, enumItem, Layout, LayoutToType } from '@wormhole-foundation/sdk-base';
 import { layoutItems } from '@wormhole-foundation/sdk-definitions';
-import type { PayloadLiteral, DecomposeLiteral, Payload, ProtocolName, ComposeLiteral } from '@wormhole-foundation/sdk-definitions';
-
 
 /* VerificationV2 layouts */
 
