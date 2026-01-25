@@ -94,6 +94,11 @@ type Parameters struct {
 	GuardianSigner guardiansigner.GuardianSigner
 }
 
+type Configuarations struct {
+	ChannelBufferSizes int                            `json:"channel_buffer_sizes"`
+	ChainToProtocol    map[int]tsscommon.ProtocolType `json:"chain_to_protocol"`
+}
+
 // The opts should provide the dial options to connect to the signer service. this includes tls.credentials.
 func NewSigner(p Parameters) (*SignerClient, error) {
 	// todo: create a goroutine with a map that will match requests to responses and output them to the out channel.

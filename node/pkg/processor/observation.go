@@ -305,7 +305,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		//
 		// in case the leader has a VaaV2, it doesn't need to start a new signing process.
 		if !p.haveSignedVaav2(*db.VaaIDFromVAA(v)) {
-			if err := p.thresholdSigner.WitnessNewVaaV1(context.TODO(), v); err != nil { // TODO: handle ctx.
+			if err := p.thresholdSigner.WitnessNewVaaV1(context.Background(), v); err != nil {
 				p.logger.Warn("witnessing new VAA v1 for TSS signing failed",
 					zap.Error(err), zap.Any("message", m))
 			}
@@ -346,7 +346,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	var verificationPublic vaa.PublicKeys = keys
 	if v.Version == vaa.TSSVaaVersion {
 		// TODO: Choose the protocol somehow.
-		pb, err := p.thresholdSigner.GetPublicKey(context.TODO(), tsscommon.ProtocolFROSTSign) // TODO: handle ctx.
+		pb, err := p.thresholdSigner.GetPublicKey(context.Background(), tsscommon.ProtocolFROSTSign)
 		if err != nil {
 			p.logger.Warn("dropping SignedVAAWithQuorum message since we failed to get public key for TSS VAA",
 				zap.String("message_id", v.MessageID()),
