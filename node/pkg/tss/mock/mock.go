@@ -112,6 +112,11 @@ type MockSignerConnection struct {
 	*MockSigner
 }
 
+// UpdateKeys implements tss.SignerConnection.
+func (m *MockSignerConnection) UpdateKeys(ctx context.Context, req *signer.UpdateKeysRequest) error {
+	return nil
+}
+
 func NewMockSignerConnection() *MockSignerConnection {
 	// TODO: add frost. modified schnorr signature.
 	return &MockSignerConnection{

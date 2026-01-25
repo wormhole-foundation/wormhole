@@ -24,6 +24,9 @@ type SignerConnection interface {
 
 	Signer
 	Gossiper
+
+	// informs the signerConnection on key updates.
+	UpdateKeys(ctx context.Context, req *signer.UpdateKeysRequest) error
 }
 
 // The TssGossiper interface represents the ability to listen and publish new TSS related gossip to the network.

@@ -121,6 +121,28 @@ func (s *SignerClient) GetPublicData(ctx context.Context) (*signer.PublicData, e
 	return publicData, nil
 }
 
+var errNilRequest = errors.New("nil  request")
+
+func (s *SignerClient) UpdateKeys(ctx context.Context, req *signer.UpdateKeysRequest) error {
+	if s == nil {
+		return ErrSignerClientNil
+	}
+	if req == nil {
+		return errNilRequest
+	}
+	res, err := s.sendUnaryRequest(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	_, ok := res.(*signer.UpdateKeysResponse)
+	if !ok {
+		return errInvalidUnaryResponseError
+	}
+
+	return nil
+}
+
 func (s *SignerClient) GetPublicKey(ctx context.Context, protocol tsscommon.ProtocolType) (curve.Point, error) {
 	if s == nil {
 		return nil, ErrSignerClientNil
@@ -155,6 +177,9 @@ func (s *SignerClient) Response() <-chan *signer.SignResponse {
 func (s *SignerClient) Verify(ctx context.Context, toVerify *signer.VerifySignatureRequest) error {
 	if s == nil {
 		return ErrSignerClientNil
+	}
+	if toVerify == nil {
+		return errNilRequest
 	}
 
 	response, err := s.sendUnaryRequest(ctx, toVerify)
@@ -316,6 +341,8 @@ func (s *SignerClient) unaryRequestsHandler(ctx context.Context, client signer.S
 				resp, errResponse = client.GetPublicData(ctx, req)
 			case *signer.VerifySignatureRequest:
 				resp, errResponse = client.VerifySignature(ctx, req)
+			case *signer.UpdateKeysRequest:
+				resp, errResponse = client.UpdateKeys(ctx, req)
 			default:
 				errResponse = errors.New("unknown unary request type")
 			}

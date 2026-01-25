@@ -15,6 +15,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xlabs/multi-party-sig/pkg/math/curve"
+	"github.com/xlabs/multi-party-sig/pkg/math/sample"
 	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
@@ -56,6 +58,10 @@ func (m *mockSignerServer) SignMessage(stream signer.Signer_SignMessageServer) e
 			// Drop if full to avoid blocking test
 		}
 	}
+}
+
+func (m *mockSignerServer) UpdateKeys(ctx context.Context, req *signer.UpdateKeysRequest) (*signer.UpdateKeysResponse, error) {
+	return &signer.UpdateKeysResponse{}, nil
 }
 
 func (m *mockSignerServer) GetPublicData(ctx context.Context, req *signer.PublicDataRequest) (*signer.PublicData, error) {
@@ -148,12 +154,20 @@ func TestSignerClient(t *testing.T) {
 	a.NoError(err)
 
 	s := grpc.NewServer()
+
+	// Generate valid points for testing GetPublicKey
+	grp := curve.Secp256k1{}
+	priv := sample.Scalar(rand.Reader, grp)
+	pub := priv.ActOnBase()
+	pubBytes, err := grp.MarshalPoint(pub)
+	a.NoError(err)
+
 	mock := &mockSignerServer{
 		signRequests:  make(chan *signer.SignRequest, 10),
 		signResponses: make(chan *signer.SignResponse, 10),
 		publicData: &signer.PublicData{
-			FrostPublicData: []byte("frost_key"),
-			EcdsaPublicData: []byte("ecdsa_key"),
+			FrostPublicData: pubBytes,
+			EcdsaPublicData: pubBytes,
 		},
 	}
 	signer.RegisterSignerServer(s, mock)
@@ -196,7 +210,7 @@ func TestSignerClient(t *testing.T) {
 		pd, err := client.GetPublicData(ctx)
 		a.NoError(err)
 
-		a.Equal(string(pd.FrostPublicData), "frost_key")
+		a.Equal(pd.FrostPublicData, pubBytes)
 	})
 
 	t.Run("AsyncSign", func(t *testing.T) {
@@ -237,6 +251,28 @@ func TestSignerClient(t *testing.T) {
 	t.Run("Verify", func(t *testing.T) {
 		err := client.Verify(ctx, &signer.VerifySignatureRequest{})
 		a.NoError(err)
+	})
+
+	t.Run("UpdateKeys", func(t *testing.T) {
+		err := client.UpdateKeys(ctx, &signer.UpdateKeysRequest{})
+		a.NoError(err)
+
+		err = client.UpdateKeys(ctx, nil)
+		a.Error(err)
+		a.Equal(err, errNilRequest)
+	})
+
+	t.Run("GetPublicKey", func(t *testing.T) {
+		pk, err := client.GetPublicKey(ctx, tsscommon.ProtocolFROSTSign)
+		a.NoError(err)
+		a.True(pk.Equal(pub))
+
+		pk, err = client.GetPublicKey(ctx, tsscommon.ProtocolECDSASign)
+		a.NoError(err)
+		a.True(pk.Equal(pub))
+
+		_, err = client.GetPublicKey(ctx, tsscommon.ProtocolType("unknown"))
+		a.Error(err)
 	})
 }
 

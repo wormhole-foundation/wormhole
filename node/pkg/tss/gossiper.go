@@ -160,7 +160,7 @@ func (s *SignerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
 func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet) error {
 	rq := &signer.SignRequest{
 		Digest:    newVaa.SigningDigest().Bytes(),
-		Committee: [][]byte{},
+		Committee: []*signer.TypedKey{},
 		Protocol:  string(tsscommon.ProtocolFROSTSign), // TODO: what protocol do we use here?
 	}
 
@@ -175,7 +175,12 @@ func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet)
 		}
 
 		addr := gs.Keys[sig.Index]
-		rq.Committee = append(rq.Committee, addr.Bytes())
+		key := &signer.TypedKey{
+			Type: signer.TypedKey_EthKey,
+			Key:  addr.Bytes(),
+		}
+
+		rq.Committee = append(rq.Committee, key)
 	}
 
 	return s.AsyncSign(rq)
