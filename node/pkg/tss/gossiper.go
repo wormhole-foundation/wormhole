@@ -169,12 +169,8 @@ func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet)
 		Protocol:  s.GetProtocol(int(newVaa.EmitterChain)).ToString(),
 	}
 
-	if len(newVaa.Signatures) < s.configurations.ThresholdSize {
-		return fmt.Errorf("not enough signatures on VAA: have %d, need %d", len(newVaa.Signatures), s.configurations.ThresholdSize)
-	}
 	// set committee members to be the current guardian set.
-	for i := range s.configurations.ThresholdSize {
-		sig := newVaa.Signatures[i]
+	for _, sig := range newVaa.Signatures {
 		if sig == nil {
 			continue
 		}
@@ -190,6 +186,10 @@ func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet)
 		}
 
 		rq.Committee = append(rq.Committee, key)
+	}
+
+	if len(rq.Committee) < s.configurations.ThresholdSize {
+		return fmt.Errorf("not enough committee members: have %d, need %d", len(rq.Committee), s.configurations.ThresholdSize)
 	}
 
 	return s.AsyncSign(rq)
