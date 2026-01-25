@@ -39,7 +39,7 @@ func TestGuardianOptionTSS(t *testing.T) {
 			guardianSigner: signer,
 			runnables:      make(map[string]supervisor.Runnable),
 		}
-		opt := GuardianOptionTSS(selfAddr, leaderAddr, address, "", "")
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, "", address, "", "")
 		err := opt.f(ctx, logger, g)
 		assert.NoError(t, err)
 		assert.NotNil(t, g.tssEngine)
@@ -52,7 +52,7 @@ func TestGuardianOptionTSS(t *testing.T) {
 			guardianSigner: signer,
 			runnables:      make(map[string]supervisor.Runnable),
 		}
-		opt := GuardianOptionTSS(selfAddr, leaderAddr, address, "/tmp/cert.pem", "")
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, "", address, "/tmp/cert.pem", "")
 		err := opt.f(ctx, logger, g)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "tss tls key path must be provided")
@@ -64,7 +64,7 @@ func TestGuardianOptionTSS(t *testing.T) {
 			guardianSigner: signer,
 			runnables:      make(map[string]supervisor.Runnable),
 		}
-		opt := GuardianOptionTSS(selfAddr, leaderAddr, address, "/nonexistent/cert.pem", "/nonexistent/key.pem")
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, "", address, "/nonexistent/cert.pem", "/nonexistent/key.pem")
 		err := opt.f(ctx, logger, g)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to read tss tls certificate")
@@ -79,7 +79,7 @@ func TestGuardianOptionTSS(t *testing.T) {
 			guardianSigner: signer,
 			runnables:      make(map[string]supervisor.Runnable),
 		}
-		opt := GuardianOptionTSS(selfAddr, leaderAddr, address, certPath, keyPath)
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, "", address, certPath, keyPath)
 		err := opt.f(ctx, logger, g)
 		assert.NoError(t, err)
 		assert.NotNil(t, g.tssEngine)
@@ -99,10 +99,60 @@ func TestGuardianOptionTSS(t *testing.T) {
 			guardianSigner: signer,
 			runnables:      make(map[string]supervisor.Runnable),
 		}
-		opt := GuardianOptionTSS(selfAddr, leaderAddr, address, f.Name(), "somekey")
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, "", address, f.Name(), "somekey")
 		err = opt.f(ctx, logger, g)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse tss tls certificate")
+	})
+
+	t.Run("ValidConfig", func(t *testing.T) {
+		f, err := os.CreateTemp("", "tss-config-*.json")
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+		_, err = f.WriteString(`{"threshold_size": 2}`)
+		require.NoError(t, err)
+		f.Close()
+
+		g := &G{
+			gst:            common.NewGuardianSetState(nil),
+			guardianSigner: signer,
+			runnables:      make(map[string]supervisor.Runnable),
+		}
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, f.Name(), address, "", "")
+		err = opt.f(ctx, logger, g)
+		assert.NoError(t, err)
+		assert.NotNil(t, g.tssEngine)
+	})
+
+	t.Run("InvalidConfigPath", func(t *testing.T) {
+		g := &G{
+			gst:            common.NewGuardianSetState(nil),
+			guardianSigner: signer,
+			runnables:      make(map[string]supervisor.Runnable),
+		}
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, "/nonexistent/config.json", address, "", "")
+		err := opt.f(ctx, logger, g)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to load tss configurations")
+	})
+
+	t.Run("InvalidConfigContent", func(t *testing.T) {
+		f, err := os.CreateTemp("", "tss-config-*.json")
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+		_, err = f.WriteString(`invalid-json`)
+		require.NoError(t, err)
+		f.Close()
+
+		g := &G{
+			gst:            common.NewGuardianSetState(nil),
+			guardianSigner: signer,
+			runnables:      make(map[string]supervisor.Runnable),
+		}
+		opt := GuardianOptionTSS(selfAddr, leaderAddr, f.Name(), address, "", "")
+		err = opt.f(ctx, logger, g)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to load tss configurations")
 	})
 }
 

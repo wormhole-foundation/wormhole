@@ -10,7 +10,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
 )
@@ -166,12 +165,16 @@ func (s *SignerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
 func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet) error {
 	rq := &signer.SignRequest{
 		Digest:    newVaa.SigningDigest().Bytes(),
-		Committee: []*signer.TypedKey{},
-		Protocol:  string(tsscommon.ProtocolFROSTSign), // TODO: what protocol do we use here?
+		Committee: make([]*signer.TypedKey, 0, len(newVaa.Signatures)),
+		Protocol:  s.EmitterChainToProtocolMapping(int(newVaa.EmitterChain)).ToString(),
 	}
 
+	if len(newVaa.Signatures) < s.configurations.ThresholdSize {
+		return fmt.Errorf("not enough signatures on VAA: have %d, need %d", len(newVaa.Signatures), s.configurations.ThresholdSize)
+	}
 	// set committee members to be the current guardian set.
-	for _, sig := range newVaa.Signatures {
+	for i := range s.configurations.ThresholdSize {
+		sig := newVaa.Signatures[i]
 		if sig == nil {
 			continue
 		}

@@ -73,10 +73,11 @@ var (
 	guardianKeyPath   *string
 	guardianSignerUri *string
 
-	tssTLSCertPath *string
-	tssTLSKeyPath  *string
-	tssSignerAddr  *string
-	tssLeaderAddr  *string
+	tssTLSCertPath        *string
+	tssTLSKeyPath         *string
+	tssSignerAddr         *string
+	tssLeaderAddr         *string
+	tssConfigurationsPath *string
 
 	ethRPC      *string
 	ethContract *string
@@ -331,6 +332,7 @@ func init() {
 	tssTLSKeyPath = NodeCmd.Flags().String("tssTLSKey", "", "Path to guardian tss TLS key (required for secure connections)")
 	tssSignerAddr = NodeCmd.Flags().String("tssSignerAddress", "127.0.0.1:9973", "Path to guardian tss socket (address:port for TCP connections)")
 	tssLeaderAddr = NodeCmd.Flags().String("tssLeaderAddress", "", "ethereum address (as hex) of the guardian that is the TSS leader")
+	tssConfigurationsPath = NodeCmd.Flags().String("tssConfigurations", "", "Path to guardian tss configurations JSON file (optional)")
 
 	ethRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "ethRPC", "Ethereum RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
@@ -1904,7 +1906,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	guardianOptions := []*node.GuardianOption{
-		node.GuardianOptionTSS(guardianSignerAddress, ethcommon.HexToAddress(*tssLeaderAddr), *tssSignerAddr, *tssTLSCertPath, *tssTLSKeyPath),
+		node.GuardianOptionTSS(guardianSignerAddress, ethcommon.HexToAddress(*tssLeaderAddr), *tssConfigurationsPath, *tssSignerAddr, *tssTLSCertPath, *tssTLSKeyPath),
 		node.GuardianOptionDatabase(db),
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),

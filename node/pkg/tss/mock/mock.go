@@ -20,6 +20,11 @@ type MockSigner struct {
 	pub    curve.Point
 }
 
+// EmitterChainToProtocolMapping implements tss.Signer.
+func (m *MockSigner) EmitterChainToProtocolMapping(int) tsscommon.ProtocolType {
+	return tsscommon.ProtocolFROSTSign
+}
+
 func (m *MockSigner) Sign(digest []byte, protocol tsscommon.ProtocolType) *signer.SignResponse {
 	grp := curve.Secp256k1{}
 

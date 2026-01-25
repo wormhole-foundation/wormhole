@@ -2,7 +2,10 @@ package tss
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"sync/atomic"
 
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -69,6 +72,11 @@ type Signer interface {
 	// If this signer is a leader: it'll use the p2p network to tell all peers to sign the
 	// the context parameter is due to the usage of guardianSigner which may need it for signing.
 	WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error
+
+	// EmitterChainToProtocolMapping provides the mapping from emitter chain ID to TSS protocol type.
+	// based on the configuration provided during signer creation.
+	// if no mapping is found, it returns tsscommon.ProtocolFROSTSign (default).
+	EmitterChainToProtocolMapping(int) tsscommon.ProtocolType
 }
 
 // Ensure interfaces are implemented.
@@ -77,34 +85,47 @@ var (
 	_ Signer           = (*SignerClient)(nil)
 )
 
-// func TODO() SignerConnection { // TODO: remove
-// 	return &SignerClient{}
-// }
-
 type Parameters struct {
+	// configurations for the signer client.
+	Configurations `json:"configurations"`
 	// Path to the signer service socket (hostname, ip).
-	SocketPath string
+	SocketPath string `json:"socket_path"`
 	// grpc dial options to connect to the signer service (including tls.credentials or insecure connection).
-	DialOpts []grpc.DialOption
+	DialOpts []grpc.DialOption `json:"-"` // no json
 
-	LeaderAddress ethcommon.Address
+	LeaderAddress ethcommon.Address `json:"leader_address"`
 	// index of this guardian in the guardian set. should be same for all guardians in the network.
-	Self           ethcommon.Address
-	GST            *common.GuardianSetState
-	GuardianSigner guardiansigner.GuardianSigner
+	Self           ethcommon.Address             `json:"self"`
+	GST            *common.GuardianSetState      `json:"-"` // no json
+	GuardianSigner guardiansigner.GuardianSigner `json:"-"` // no json
+
 }
 
-type Configuarations struct {
-	ChannelBufferSizes int                            `json:"channel_buffer_sizes"`
-	ChainToProtocol    map[int]tsscommon.ProtocolType `json:"chain_to_protocol"`
+type Configurations struct {
+	// buffer sizes for internal channels. if no value is provided, choosing default value according to `defaultBufferSize`.
+	ChannelBufferSizes int `json:"channel_buffer_sizes"`
+
+	// mapping from chain ID to protocol type.
+	// used to determine which protocol to use when signing VAAs from different chains.
+	// sets the mapping used in the API call EmitterChainToProtocolMapping. if nil, all chains map to FROST.
+	ChainToProtocol map[int]tsscommon.ProtocolType `json:"chain_to_protocol"`
+
+	// specifies the threshold size for TSS operations. Should match the signer service configuration.
+	//
+	// threshold represents the maximal number that will not be able to sign. For instance,
+	// if threshold is 2, then 3 or more parties will be able to sign.
+	// Seed is used to give generate a trackingID as an identifier to
+	// the running DKG protocol (more than one can run at the same time).
+	ThresholdSize int `json:"threshold_size"`
 }
+
+const (
+	defaultSigningProtocol = tsscommon.ProtocolFROSTSign
+	defaultBufferSize      = 1024
+)
 
 // The opts should provide the dial options to connect to the signer service. this includes tls.credentials.
 func NewSigner(p Parameters) (*SignerClient, error) {
-	// todo: create a goroutine with a map that will match requests to responses and output them to the out channel.
-	// it will also use a logger to log errors, etc.
-	// closes once the context is cancelled.
-
 	for _, opt := range p.DialOpts {
 		if opt == nil {
 			return nil, errors.New("nil grpc dial option provided")
@@ -121,25 +142,49 @@ func NewSigner(p Parameters) (*SignerClient, error) {
 		return nil, errors.New("socket path must not be empty")
 	}
 
+	bufferSize := defaultBufferSize // default
+	if p.Configurations.ChannelBufferSizes > 0 {
+		bufferSize = p.Configurations.ChannelBufferSizes
+	}
+
+	if p.Configurations.ChainToProtocol == nil {
+		p.Configurations.ChainToProtocol = make(map[int]tsscommon.ProtocolType)
+	}
+
 	sc := &SignerClient{
 		dialOpts:   p.DialOpts,
 		socketPath: p.SocketPath,
 		conn: &connChans{
-			signRequests:  make(chan *signer.SignRequest, 100),  // TODO: buffer sizes?
-			signResponses: make(chan *signer.SignResponse, 100), // TODO: buffer sizes?
-			unaryRequests: make(chan unaryRequest, 100),         // TODO: buffer sizes?
+			signRequests:  make(chan *signer.SignRequest, bufferSize),
+			signResponses: make(chan *signer.SignResponse, bufferSize),
+			unaryRequests: make(chan unaryRequest, bufferSize),
 		},
-		out:       make(chan *tsscommon.SignatureData),
 		connected: atomic.Int64{},
 		vaaData: vaaHandling{
 			isLeader:       p.LeaderAddress == p.Self && p.Self != (ethcommon.Address{}), // only if self is defined.
 			leaderAddress:  p.LeaderAddress,
 			gst:            p.GST,
 			GuardianSigner: p.GuardianSigner,
-			gossipOutput:   make(chan *gossipv1.TSSGossipMessage, 100), // TODO: buffer sizes?
-			incomingGossip: make(chan *gossipv1.TSSGossipMessage, 100), // TODO: buffer sizes?
+			gossipOutput:   make(chan *gossipv1.TSSGossipMessage, bufferSize),
+			incomingGossip: make(chan *gossipv1.TSSGossipMessage, bufferSize),
 		},
+
+		configurations: p.Configurations,
 	}
 
 	return sc, nil
+}
+
+// LoadFromFile loads the TSS configurations from a JSON file.
+func (c *Configurations) LoadFromFile(configurationsPath string) error {
+	data, err := os.ReadFile(configurationsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read tss configurations file: %w", err)
+	}
+	err = json.Unmarshal(data, c)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal tss configurations: %w", err)
+	}
+
+	return nil
 }

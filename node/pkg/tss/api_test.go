@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -276,6 +277,43 @@ func TestSignerClient(t *testing.T) {
 
 		_, err = client.GetPublicKey(ctx, tsscommon.ProtocolType("unknown"))
 		a.Error(err)
+	})
+}
+
+func TestConfigurations_LoadFromFile(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		f, err := os.CreateTemp("", "tss-config-*.json")
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+		_, err = f.WriteString(`{"threshold_size": 2}`)
+		require.NoError(t, err)
+		f.Close()
+
+		c := &Configurations{}
+		err = c.LoadFromFile(f.Name())
+		require.NoError(t, err)
+		require.Equal(t, 2, c.ThresholdSize)
+	})
+
+	t.Run("InvalidPath", func(t *testing.T) {
+		c := &Configurations{}
+		err := c.LoadFromFile("/nonexistent/config.json")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to read tss configurations file")
+	})
+
+	t.Run("InvalidContent", func(t *testing.T) {
+		f, err := os.CreateTemp("", "tss-config-*.json")
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+		_, err = f.WriteString(`invalid-json`)
+		require.NoError(t, err)
+		f.Close()
+
+		c := &Configurations{}
+		err = c.LoadFromFile(f.Name())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to unmarshal tss configurations")
 	})
 }
 

@@ -35,7 +35,6 @@ type SignerClient struct {
 	// immutable fields:
 	dialOpts   []grpc.DialOption
 	socketPath string
-	out        chan *tsscommon.SignatureData // outputs signatures.
 
 	// used to communicate with the signer service.
 	conn *connChans
@@ -43,6 +42,8 @@ type SignerClient struct {
 	vaaData vaaHandling
 
 	connected atomic.Int64 // 0 is not connected, 1 is connected.
+
+	configurations Configurations
 }
 
 type unaryResult struct {
@@ -87,6 +88,19 @@ var (
 // (expects the supervisor to restart it on failure).
 func (s *SignerClient) Connect(ctx context.Context) error {
 	return s.connect(ctx, supervisor.Logger(ctx).Named("tss-signer-connection"))
+}
+
+func (s *SignerClient) EmitterChainToProtocolMapping(chainID int) tsscommon.ProtocolType {
+	if s == nil {
+		return defaultSigningProtocol
+	}
+
+	protocol, ok := s.configurations.ChainToProtocol[chainID]
+	if !ok {
+		return defaultSigningProtocol
+	}
+
+	return protocol
 }
 
 // AsyncSign implements Signer.

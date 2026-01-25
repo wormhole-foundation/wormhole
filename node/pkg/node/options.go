@@ -670,7 +670,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 		}}
 }
 
-func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, address, x509path, tlsKeyPath string) *GuardianOption {
+func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, configurationsPath, address, x509path, tlsKeyPath string) *GuardianOption {
 	serviceName := "tss"
 	return &GuardianOption{
 		name:         serviceName,
@@ -711,6 +711,13 @@ func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, address, x509path
 				dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			}
 
+			var configurations tss.Configurations
+			if configurationsPath != "" {
+				if err := configurations.LoadFromFile(configurationsPath); err != nil {
+					return fmt.Errorf("failed to load tss configurations: %w", err)
+				}
+			}
+
 			engine, err := tss.NewSigner(tss.Parameters{
 				SocketPath:     address,
 				DialOpts:       dialOpts,
@@ -718,6 +725,7 @@ func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, address, x509path
 				Self:           selfAddr,
 				GST:            g.gst,
 				GuardianSigner: g.guardianSigner,
+				Configurations: configurations,
 			})
 
 			if err != nil {
