@@ -11,7 +11,6 @@ import (
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -32,7 +31,7 @@ func TestWitnessNewVaaV1(t *testing.T) {
 
 	gst := node_common.NewGuardianSetState(nil)
 	gs := &node_common.GuardianSet{
-		Keys:  []eth_common.Address{crypto.PubkeyToAddress(privKey.PublicKey)},
+		Keys:  []ethcommon.Address{crypto.PubkeyToAddress(privKey.PublicKey)},
 		Index: 1,
 	}
 	gst.Set(gs)
@@ -71,7 +70,7 @@ func TestWitnessNewVaaV1(t *testing.T) {
 		pubKey, err := crypto.Ecrecover(crypto.Keccak256(msg.Message), msg.Signature)
 		require.NoError(t, err)
 		addr := crypto.PubkeyToAddress(privKey.PublicKey)
-		recoveredAddr := eth_common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
+		recoveredAddr := ethcommon.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
 		assert.Equal(t, addr, recoveredAddr)
 	default:
 		t.Fatal("expected message in gossipOutput")
@@ -126,7 +125,7 @@ func TestGossipListener(t *testing.T) {
 	// Setup Guardian Set
 	gst := node_common.NewGuardianSetState(nil)
 	gs := &node_common.GuardianSet{
-		Keys:  []eth_common.Address{crypto.PubkeyToAddress(leaderKey.PublicKey)},
+		Keys:  []ethcommon.Address{crypto.PubkeyToAddress(leaderKey.PublicKey)},
 		Index: 1,
 	}
 	gst.Set(gs)
@@ -216,7 +215,7 @@ func TestWitnessVaa(t *testing.T) {
 	t.Run("Leader", func(t *testing.T) {
 		gst := common.NewGuardianSetState(nil)
 		gst.Set(&common.GuardianSet{
-			Keys:  []eth_common.Address{leaderAddr},
+			Keys:  []ethcommon.Address{leaderAddr},
 			Index: 1,
 		})
 		a := require.New(t)

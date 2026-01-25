@@ -125,7 +125,7 @@ func (s *SignerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
 		case msg := <-dt.incomingGossip:
 			gs := dt.gst.Get()
 			if gs == nil {
-				// log.Warn("gossipListener: nil guardian set")
+				logger.Debug("nil guardian set")
 				continue
 			}
 
