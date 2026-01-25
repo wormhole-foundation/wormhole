@@ -28,8 +28,6 @@ message TSSGossipMessage{
   bytes message = 1;
   // ECDSA signature using the node's guardian public key.
   bytes signature = 2;
-  // used to identify the original sender of the gossip message.
-  bytes guardian_addr = 3;
 }
 
 message SignedHeartbeat {

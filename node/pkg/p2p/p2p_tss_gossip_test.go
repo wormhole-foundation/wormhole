@@ -136,9 +136,8 @@ func TestTssGossipListener(t *testing.T) {
 
 	t.Run("ValidMessage", func(t *testing.T) {
 		tssMsg := &gossipv1.TSSGossipMessage{
-			Message:      []byte("hello"),
-			Signature:    []byte("sig"),
-			GuardianAddr: []byte("addr"),
+			Message:   []byte("hello"),
+			Signature: []byte("sig"),
 		}
 		gossipMsg := &gossipv1.GossipMessage{
 			Message: &gossipv1.GossipMessage_TssGossipMessage{
