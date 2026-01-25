@@ -151,8 +151,6 @@ func NewGuardianNode(
 func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.rootCtxCancel = rootCtxCancel
 
-	g.tssEngine = (*tss.SignerClient)(nil) // ensure nil receiver is ok.
-
 	// Setup various channels...
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
