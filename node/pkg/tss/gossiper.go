@@ -21,7 +21,7 @@ var (
 	errNilGuardianSet           = errors.New("nil guardian set")
 	errNotVaaV1                 = errors.New("not a VAAv1")
 	errNetworkOutputChannelFull = errors.New("network output channel buffer is full")
-	errCouldntGossipVaa         = errors.New("couldn't gossip VAAv1")
+	errCouldntInformVaav1       = errors.New("couldn't inform tss on new VAAv1")
 	errNilGuardianSigner        = errors.New("guardianSigner is nil")
 )
 
@@ -52,6 +52,10 @@ func (s *SignerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 	}
 
 	gs := s.vaaData.gst.Get()
+	if gs == nil {
+		return errNilGuardianSet
+	}
+
 	if err := v.Verify(gs.Keys); err != nil {
 		return err // won't send invalid VAAs.
 	}
@@ -109,7 +113,7 @@ func (s *SignerClient) Inform(v *gossipv1.TSSGossipMessage) error {
 	case s.vaaData.incomingGossip <- v:
 		return nil
 	default:
-		return errCouldntGossipVaa
+		return errCouldntInformVaav1
 	}
 }
 
