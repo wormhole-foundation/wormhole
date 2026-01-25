@@ -702,7 +702,6 @@ func GuardianOptionTSS(selfAddr, leaderAddr ethcommon.Address, configurationsPat
 					Certificates: []tls.Certificate{cert}, // present client certificate to the server.
 					RootCAs:      pool,
 					MinVersion:   tls.VersionTLS13,
-					ClientAuth:   tls.RequireAndVerifyClientCert,
 				})
 				logger.Info("loaded tss tls certificate and key", zap.String("cert", x509path), zap.String("key", tlsKeyPath))
 				dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
