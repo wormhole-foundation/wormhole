@@ -76,6 +76,7 @@ var (
 	ErrSignerClientSignRequestChannelFull = errors.New("signer client sign request channel is full")
 	ErrSignerClientNil                    = errors.New("tss signer client is nil")
 	errInvalidUnaryResponseError          = errors.New("internal error: invalid response type from signer service")
+	errMalformedSignRequest               = errors.New("malformed sign request")
 )
 
 // a blocking call that connects to the signer service and maintains the connection.
@@ -92,6 +93,10 @@ func (s *SignerClient) Connect(ctx context.Context) error {
 func (s *SignerClient) AsyncSign(rq *signer.SignRequest) error {
 	if s == nil {
 		return ErrSignerClientNil
+	}
+
+	if rq == nil || len(rq.Digest) == 0 || rq.Protocol == "" {
+		return errMalformedSignRequest
 	}
 
 	select {
@@ -130,13 +135,14 @@ func (s *SignerClient) UpdateKeys(ctx context.Context, req *signer.UpdateKeysReq
 	if req == nil {
 		return errNilRequest
 	}
+
 	res, err := s.sendUnaryRequest(ctx, req)
 	if err != nil {
 		return err
 	}
 
-	_, ok := res.(*signer.UpdateKeysResponse)
-	if !ok {
+	// unused response, but validate type.
+	if _, ok := res.(*signer.UpdateKeysResponse); !ok {
 		return errInvalidUnaryResponseError
 	}
 
@@ -270,7 +276,7 @@ func (s *SignerClient) connect(ctx context.Context, logger *zap.Logger) error {
 	// buffer to avoid goroutine leaks.
 	errchan := make(chan error, 3)
 
-	go s.receivingStream(ctx, stream, errchan)
+	go s.receivingStream(ctx, logger, stream, errchan)
 	go s.sendingStream(ctx, stream, errchan)
 	go s.unaryRequestsHandler(ctx, client, logger, errchan)
 	go s.gossipListener(ctx, logger)
@@ -287,7 +293,7 @@ func (s *SignerClient) connect(ctx context.Context, logger *zap.Logger) error {
 	}
 }
 
-func (s *SignerClient) receivingStream(ctx context.Context, stream signatureStream, errchan chan error) {
+func (s *SignerClient) receivingStream(ctx context.Context, logger *zap.Logger, stream signatureStream, errchan chan<- error) {
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
@@ -299,15 +305,17 @@ func (s *SignerClient) receivingStream(ctx context.Context, stream signatureStre
 		select {
 		case <-ctx.Done():
 			return
-		// incoming response from signer service is sent to the signResponses channel.
-		case s.conn.signResponses <- resp:
-			// TODO: Consider inspecting the type of response (signature or error. on error log and continue?)
+		case s.conn.signResponses <- resp: // forward response to consumer.
+		default:
+			// drop response if channel is full to avoid blocking. This is not ideal, but prevents deadlocks.
+			// log as an error, since it indicates that the consumer is not keeping up.
+			logger.Error("signResponses channel full, dropping response", zap.Stringer("response", resp))
 		}
 	}
 }
 
 // responsible to send sign requests to the signer-service.
-func (s *SignerClient) sendingStream(ctx context.Context, stream signatureStream, errchan chan error) {
+func (s *SignerClient) sendingStream(ctx context.Context, stream signatureStream, errchan chan<- error) {
 	for {
 		select {
 		case <-ctx.Done(): // context cancelled, or error from other peer.
@@ -323,7 +331,7 @@ func (s *SignerClient) sendingStream(ctx context.Context, stream signatureStream
 }
 
 // responsible to receive unary requests and send the to the signer-service for processing.
-func (s *SignerClient) unaryRequestsHandler(ctx context.Context, client signer.SignerClient, logger *zap.Logger, errchan chan error) {
+func (s *SignerClient) unaryRequestsHandler(ctx context.Context, client signer.SignerClient, logger *zap.Logger, errchan chan<- error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -350,7 +358,7 @@ func (s *SignerClient) unaryRequestsHandler(ctx context.Context, client signer.S
 			select {
 			case urq.responseChan <- unaryResult{item: resp, err: errResponse}:
 			default:
-				logger.Error("unary response channel full, dropping response")
+				logger.Error("unary response channel full, dropping response", zap.Any("response", resp))
 			}
 
 			if isFatalError(errResponse) {

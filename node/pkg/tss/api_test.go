@@ -214,8 +214,11 @@ func TestSignerClient(t *testing.T) {
 	})
 
 	t.Run("AsyncSign", func(t *testing.T) {
-		req := &signer.SignRequest{Digest: []byte("test_digest")}
+		a.Error(client.AsyncSign(nil))
+		a.Error(client.AsyncSign(&signer.SignRequest{}))                                            // malformed
+		a.Error(client.AsyncSign(&signer.SignRequest{Digest: []byte("12341414123"), Protocol: ""})) // malformed (missing protocol)
 
+		req := &signer.SignRequest{Digest: []byte("test_digest"), Protocol: tsscommon.ProtocolECDSASign.ToString()}
 		a.NoError(client.AsyncSign(req))
 
 		// Verify request received by server
