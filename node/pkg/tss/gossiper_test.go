@@ -268,3 +268,48 @@ func TestWitnessVaa(t *testing.T) {
 		}
 	})
 }
+
+func TestWitnessNewVaaV1_Errors(t *testing.T) {
+	s := &SignerClient{}
+
+	// Nil client
+	var nilClient *SignerClient
+	err := nilClient.WitnessNewVaaV1(context.Background(), &vaa.VAA{})
+	assert.Equal(t, ErrSignerClientNil, err)
+
+	// Nil VAA
+	err = s.WitnessNewVaaV1(context.Background(), nil)
+	assert.Equal(t, errNilVaa, err)
+
+	// Not leader
+	s.vaaData.isLeader = false
+	err = s.WitnessNewVaaV1(context.Background(), &vaa.VAA{})
+	assert.NoError(t, err)
+
+	// Leader but nil GST
+	s.vaaData.isLeader = true
+	s.vaaData.gst = nil
+	err = s.WitnessNewVaaV1(context.Background(), &vaa.VAA{})
+	assert.Equal(t, errNilGuardianSetState, err)
+
+	// Leader but nil GuardianSigner
+	s.vaaData.gst = common.NewGuardianSetState(nil)
+	s.vaaData.GuardianSigner = nil
+	err = s.WitnessNewVaaV1(context.Background(), &vaa.VAA{})
+	assert.Equal(t, errNilGuardianSigner, err)
+}
+
+func TestInform_ChannelFull(t *testing.T) {
+	s := &SignerClient{
+		vaaData: vaaHandling{
+			isLeader:       false,
+			incomingGossip: make(chan *gossipv1.TSSGossipMessage, 1),
+		},
+	}
+
+	// Fill channel
+	s.vaaData.incomingGossip <- &gossipv1.TSSGossipMessage{}
+
+	err := s.Inform(&gossipv1.TSSGossipMessage{})
+	assert.Equal(t, errCouldntInformVaav1, err)
+}
