@@ -71,9 +71,11 @@ func (s *SignerClient) WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error {
 		return fmt.Errorf("failed to sign VAA: %w", err)
 	}
 	m := &gossipv1.TSSGossipMessage{
-		Message:      bts,
-		Signature:    sig,
-		GuardianAddr: nil, // TODO.
+		Message:   bts,
+		Signature: sig,
+		// This is a placeholder, as the leader's address can be derived from the signature.
+		// This might be used in the future for different message types.
+		GuardianAddr: nil,
 	}
 
 	// send to network.
