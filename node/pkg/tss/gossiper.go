@@ -198,5 +198,9 @@ func (dt vaaHandling) verifyGossipSig(msg *gossipv1.TSSGossipMessage, gs *common
 		return fmt.Errorf("signature not from leader: got %s, want %s", signerAddr.Hex(), dt.leaderAddress.Hex())
 	}
 
+	if _, ok := gs.KeyIndex(signerAddr); !ok {
+		return fmt.Errorf("leader address %s not in guardian set", signerAddr.Hex())
+	}
+
 	return nil
 }
