@@ -166,7 +166,7 @@ func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet)
 	rq := &signer.SignRequest{
 		Digest:    newVaa.SigningDigest().Bytes(),
 		Committee: make([]*signer.TypedKey, 0, len(newVaa.Signatures)),
-		Protocol:  s.EmitterChainToProtocolMapping(int(newVaa.EmitterChain)).ToString(),
+		Protocol:  s.GetProtocol(int(newVaa.EmitterChain)).ToString(),
 	}
 
 	if len(newVaa.Signatures) < s.configurations.ThresholdSize {

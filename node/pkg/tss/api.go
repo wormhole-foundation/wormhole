@@ -73,10 +73,10 @@ type Signer interface {
 	// the context parameter is due to the usage of guardianSigner which may need it for signing.
 	WitnessNewVaaV1(ctx context.Context, v *vaa.VAA) error
 
-	// EmitterChainToProtocolMapping provides the mapping from emitter chain ID to TSS protocol type.
+	// GetProtocol provides the mapping from emitter chain ID to TSS protocol type.
 	// based on the configuration provided during signer creation.
 	// if no mapping is found, it returns tsscommon.ProtocolFROSTSign (default).
-	EmitterChainToProtocolMapping(int) tsscommon.ProtocolType
+	GetProtocol(int) tsscommon.ProtocolType
 }
 
 // Ensure interfaces are implemented.

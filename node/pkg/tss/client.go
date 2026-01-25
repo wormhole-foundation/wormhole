@@ -90,7 +90,7 @@ func (s *SignerClient) Connect(ctx context.Context) error {
 	return s.connect(ctx, supervisor.Logger(ctx).Named("tss-signer-connection"))
 }
 
-func (s *SignerClient) EmitterChainToProtocolMapping(chainID int) tsscommon.ProtocolType {
+func (s *SignerClient) GetProtocol(chainID int) tsscommon.ProtocolType {
 	if s == nil {
 		return defaultSigningProtocol
 	}

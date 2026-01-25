@@ -14,14 +14,16 @@ import (
 	"github.com/xlabs/tss-common/service/signer"
 )
 
+// TODO: this mock should ideally be removed in favor of using the real TSS signer from github.com/xlabs/tss-lib/v2/service.
+
 // MockSigner is a mock implementation of the Signer interface for testing purposes.
 type MockSigner struct {
 	secret curve.Scalar
 	pub    curve.Point
 }
 
-// EmitterChainToProtocolMapping implements tss.Signer.
-func (m *MockSigner) EmitterChainToProtocolMapping(int) tsscommon.ProtocolType {
+// GetProtocol implements tss.Signer.
+func (m *MockSigner) GetProtocol(int) tsscommon.ProtocolType {
 	return tsscommon.ProtocolFROSTSign
 }
 
