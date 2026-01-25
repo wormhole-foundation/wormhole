@@ -140,7 +140,7 @@ func (s *SignerClient) GetPublicData(ctx context.Context) (*signer.PublicData, e
 	return publicData, nil
 }
 
-var errNilRequest = errors.New("nil  request")
+var errNilRequest = errors.New("nil request")
 
 func (s *SignerClient) UpdateKeys(ctx context.Context, req *signer.UpdateKeysRequest) error {
 	if s == nil {
