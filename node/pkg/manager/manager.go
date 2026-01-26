@@ -240,6 +240,10 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 	// SECURITY: this channel should only be pushed to by a process that has verified the signatures on the VAA to belong to the current guardian set
 
 	// Check if this VAA is from a known manager emitter
+	// SECURITY: This is a defense-in-depth / DoS prevention check done to intentionally limit
+	// the scope of unknown emitters incidentally triggering this signing logic.
+	// In the future, this could be moved to a permissionless on-chain registration.
+	// Note that for the `UTX0` case, redeem scripts are tied to a particular emitter.
 	if !c.isKnownEmitter(v.EmitterChain, v.EmitterAddress) {
 		c.logger.Debug("skipping VAA from unknown emitter",
 			zap.String("message_id", v.MessageID()),
@@ -257,6 +261,8 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 	)
 
 	// Parse the UTXO unlock payload
+	// NOTE: when new payload / chain support is added,
+	// this should only parse the chain id before passing it off to the chain-specific signer.
 	payload, err := vaa.DeserializeUTXOUnlockPayload(v.Payload)
 	if err != nil {
 		c.logger.Error("failed to parse UTXO unlock payload",
