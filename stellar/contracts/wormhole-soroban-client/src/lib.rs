@@ -1,20 +1,27 @@
-//! Wormhole Core Contract Interface
+//! Wormhole Core Contract Interface for Stellar/Soroban.
 //!
-//! This crate defines the public API for the Wormhole Core contract on Stellar/Soroban.
-//! External contracts and clients should depend only on this interface crate, which
-//! provides type definitions and the contract interface without any implementation details.
+//! This crate provides the public API for interacting with the Wormhole Core contract.
+//! External contracts should depend only on this interface crate for smaller WASM
+//! binaries, while the implementation lives in `wormhole-contract`.
 //!
-//! # Usage
+//! # Key Types
 //!
-//! Add this to your `Cargo.toml`:
-//! ```toml
-//! [dependencies]
-//! wormhole-soroban-client = { path = "../wormhole-soroban-client" }
-//! ```
+//! - [`VAA`] - Verifiable Action Approval, the core cross-chain message format
+//! - [`GuardianSetInfo`] - Guardian set metadata stored on-chain
+//! - [`ConsistencyLevel`] - Finality requirements for message attestation
+//! - [`WormholeError`] - All possible error conditions
 //!
-//! Then use the types and interface:
+//! # Example
+//!
 //! ```ignore
 //! use wormhole_soroban_client::{WormholeCoreInterface, VAA, WormholeError};
+//!
+//! // Parse and verify a VAA
+//! let vaa = VAA::try_from((&env, &vaa_bytes))?;
+//! client.verify_vaa(&vaa_bytes)?;
+//!
+//! // Post a cross-chain message
+//! let sequence = client.post_message(&emitter, nonce, &payload, ConsistencyLevel::Finalized)?;
 //! ```
 
 #![no_std]
@@ -31,12 +38,17 @@ pub use types::*;
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec};
 
-/// The complete public interface for the Wormhole Core contract.
+/// Complete public interface for the Wormhole Core contract.
 ///
-/// This trait defines all functions that external contracts, clients,
-/// and users can call on the Wormhole Core contract.
+/// Defines all contract entry points for VAA verification, governance actions,
+/// cross-chain message posting, and state queries. The `wormhole-contract` crate
+/// implements this trait with the `#[contractimpl]` macro.
 ///
-/// The `#[contractimpl]` macro automatically generates a client for this interface.
+/// # Security Model
+///
+/// - Governance actions require VAAs signed by a quorum (13/19) of guardians
+/// - VAAs are consumed after use to prevent replay attacks
+/// - The contract is its own admin—upgrades require guardian consensus
 pub trait WormholeCoreInterface {
     // ========== Initialization ==========
 

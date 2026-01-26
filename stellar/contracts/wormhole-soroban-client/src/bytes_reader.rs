@@ -1,20 +1,34 @@
+//! Cursor-based byte parsing utilities for VAA and payload deserialization.
+//!
+//! Provides a [`BytesReader`] that safely reads primitive types from a byte buffer
+//! with automatic bounds checking. All multi-byte values are read in big-endian
+//! format to match the Wormhole wire protocol.
+
 use crate::WormholeError;
 use soroban_sdk::{Bytes, BytesN};
 
+/// Cursor-based reader for parsing binary data from Soroban `Bytes`.
+///
+/// Tracks read position and provides safe access to primitives with automatic
+/// bounds checking. Returns [`WormholeError::InvalidVAAFormat`] when attempting
+/// to read past the end of the buffer.
 pub struct BytesReader<'a> {
     bytes: &'a Bytes,
     cursor: u32,
 }
 
 impl<'a> BytesReader<'a> {
+    /// Creates a new reader starting at position 0.
     pub fn new(bytes: &'a Bytes) -> Self {
         Self { bytes, cursor: 0 }
     }
 
+    /// Returns the number of unread bytes remaining.
     pub fn remaining(&self) -> u32 {
         self.bytes.len().saturating_sub(self.cursor)
     }
 
+    /// Ensures at least `n` bytes remain; errors if insufficient data.
     fn require(&self, n: u32) -> Result<(), WormholeError> {
         if self.remaining() < n {
             Err(WormholeError::InvalidVAAFormat)
@@ -23,10 +37,12 @@ impl<'a> BytesReader<'a> {
         }
     }
 
+    /// Reads a byte at offset from current cursor without bounds check.
     fn get_unchecked(&self, offset: u32) -> u8 {
         self.bytes.get(self.cursor + offset).unwrap()
     }
 
+    /// Reads a single byte and advances the cursor.
     pub fn read_u8(&mut self) -> Result<u8, WormholeError> {
         self.require(1)?;
         let value = self.get_unchecked(0);
@@ -35,6 +51,7 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
+    /// Reads a big-endian `u16` (2 bytes) and advances the cursor.
     pub fn read_u16_be(&mut self) -> Result<u16, WormholeError> {
         self.require(2)?;
         let value = u16::from(self.get_unchecked(0)) << 8 | u16::from(self.get_unchecked(1));
@@ -43,6 +60,7 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
+    /// Reads a big-endian `u32` (4 bytes) and advances the cursor.
     pub fn read_u32_be(&mut self) -> Result<u32, WormholeError> {
         self.require(4)?;
         let value = (0..4).fold(0u32, |acc, i| (acc << 8) | u32::from(self.get_unchecked(i)));
@@ -51,6 +69,7 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
+    /// Reads a big-endian `u64` (8 bytes) and advances the cursor.
     pub fn read_u64_be(&mut self) -> Result<u64, WormholeError> {
         self.require(8)?;
         let value = (0..8).fold(0u64, |acc, i| (acc << 8) | u64::from(self.get_unchecked(i)));
@@ -59,6 +78,9 @@ impl<'a> BytesReader<'a> {
         Ok(value)
     }
 
+    /// Reads exactly `N` bytes into a fixed-size `BytesN<N>` array.
+    ///
+    /// Useful for reading fixed-size fields like addresses and hashes.
     pub fn read_bytes_n<const N: usize>(&mut self) -> Result<BytesN<N>, WormholeError> {
         let n = u32::try_from(N).map_err(|_| WormholeError::InvalidVAAFormat)?;
         self.read_bytes(n).and_then(|bytes| {
@@ -68,6 +90,7 @@ impl<'a> BytesReader<'a> {
         })
     }
 
+    /// Reads `len` bytes as a variable-length `Bytes` slice.
     pub fn read_bytes(&mut self, len: u32) -> Result<Bytes, WormholeError> {
         self.require(len)?;
         let end = self.cursor.saturating_add(len);
@@ -76,12 +99,19 @@ impl<'a> BytesReader<'a> {
         Ok(slice)
     }
 
+    /// Advances the cursor by `n` bytes without reading.
+    ///
+    /// Useful for skipping padding or reserved fields in payloads.
     pub fn skip(&mut self, n: u32) -> Result<(), WormholeError> {
         self.require(n)?;
         self.cursor = self.cursor.saturating_add(n);
         Ok(())
     }
 
+    /// Returns all bytes from the current cursor to the end as a slice.
+    ///
+    /// Commonly used to extract variable-length payload data after parsing
+    /// fixed-size headers.
     pub fn remaining_bytes(&self) -> Bytes {
         self.bytes.slice(self.cursor..)
     }

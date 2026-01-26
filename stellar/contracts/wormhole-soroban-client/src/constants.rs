@@ -1,28 +1,39 @@
 //! Public protocol constants for the Wormhole Core contract.
 //!
-//! These constants are part of the public API and define core protocol parameters
-//! that external users may need to reference.
+//! These constants define core Wormhole protocol parameters used for VAA validation,
+//! governance processing, and cross-chain message handling. External integrators may
+//! reference these when building on top of the Wormhole Core contract.
 
-/// Solana by convention
+/// Chain ID of the governance source chain (Solana).
+///
+/// All governance VAAs must originate from this chain to be considered valid.
 pub const GOVERNANCE_CHAIN_ID: u32 = 1;
 
-/// Standard governance emitter address (0x00...04)
+/// Standard governance emitter address on Solana (`0x00...04`).
+///
+/// This 32-byte address identifies the authorized governance contract that
+/// can issue guardian set upgrades, fee changes, and contract upgrades.
 pub const GOVERNANCE_EMITTER: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
 ];
 
-/// Stellar/Soroban chain ID in Wormhole.
+/// Wormhole chain ID for Stellar/Soroban (61).
 ///
-/// Note: Chain IDs are u16 in the Wormhole protocol (2 bytes on wire).
-/// All Wormhole chain IDs fit within u16 range (max 65,535).
+/// Used in VAA payloads to target this specific chain. Chain IDs are encoded
+/// as 2 bytes (u16) on the wire but stored as u16 for type safety.
 pub const CHAIN_ID_STELLAR: u16 = 61;
 
-/// Guardian set expiration time in seconds (24 hours): Need to confirm this
-/// with the wormhole team
+/// Grace period before an old guardian set expires (24 hours in seconds).
+///
+/// After a guardian set upgrade, the old set remains valid for this duration
+/// to allow in-flight VAAs signed by the previous guardians to be processed.
 pub const GUARDIAN_SET_EXPIRATION_TIME: u32 = 86400;
 
-/// Core module identifier for governance actions (right-padded "Core")
+/// Module identifier for Wormhole Core governance actions.
+///
+/// Right-padded ASCII "Core" in a 32-byte field. Governance payloads must
+/// contain this exact value to be recognized as Core contract actions.
 pub const MODULE_CORE: [u8; 32] = {
     let mut bytes = [0u8; 32];
     bytes[28] = b'C';
@@ -32,105 +43,69 @@ pub const MODULE_CORE: [u8; 32] = {
     bytes
 };
 
-/// Governance action IDs
+// ========== Governance Action IDs ==========
+
+/// Action ID for contract WASM upgrade (governance action 1).
 pub const ACTION_CONTRACT_UPGRADE: u8 = 1;
+
+/// Action ID for guardian set upgrade (governance action 2).
 pub const ACTION_GUARDIAN_SET_UPGRADE: u8 = 2;
+
+/// Action ID for setting the message fee (governance action 3).
 pub const ACTION_SET_MESSAGE_FEE: u8 = 3;
+
+/// Action ID for transferring accumulated fees (governance action 4).
 pub const ACTION_TRANSFER_FEES: u8 = 4;
 
-/// Minimum balance to maintain in contract (prevent deallocation)
-/// 1 XLM in stroops (1 XLM = 10^7 stroops)
+// ========== Balance & Token Constants ==========
+
+/// Minimum XLM balance the contract must retain (1 XLM = 10^7 stroops).
+///
+/// Stellar accounts are deallocated if their balance drops below the base reserve.
+/// This constant ensures fee transfers never drain the contract below a safe threshold.
 pub const MINIMUM_CONTRACT_BALANCE: u64 = 10_000_000;
 
-/// Native XLM token symbol for Stellar Asset Contract
+/// Native XLM token symbol for Stellar Asset Contract.
 pub const NATIVE_TOKEN_SYMBOL: &str = "native";
 
-/// Native XLM token address for Stellar Asset Contract. These addresses are deterministic and never change
-/// Both testnet and mainnet use the same address for native token
+/// Native XLM Stellar Asset Contract address (deterministic, same on all networks).
 pub const NATIVE_TOKEN_ADDRESS: &str = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
 
 // ========== Storage Configuration ==========
 
-/// Minimum TTL threshold for persistent storage entries.
+/// TTL threshold for persistent storage renewal (approx. 5.8 days at 5s/ledger).
 ///
-/// This value represents approximately 5.8 days of ledger lifetime
-/// at the standard rate of 5 seconds per ledger (100,000 ledgers × 5s ≈ 5.8 days).
-///
-/// When calling `extend_ttl()`, this is the minimum number of ledgers
-/// the entry must live if not already longer.
+/// Storage entries are extended when their remaining TTL falls below this threshold.
 pub const STORAGE_TTL_THRESHOLD: u32 = 100_000;
 
-/// Maximum TTL extension for persistent storage entries.
+/// TTL extension amount for persistent storage (approx. 58 days at 5s/ledger).
 ///
-/// This value represents approximately 58 days of ledger lifetime
-/// at the standard rate of 5 seconds per ledger (1,000,000 ledgers × 5s ≈ 58 days).
-///
-/// When calling `extend_ttl()`, entries are extended to live at most this many ledgers.
+/// When extending TTL, entries are renewed to live this many additional ledgers.
 pub const STORAGE_TTL_EXTENSION: u32 = 1_000_000;
 
 // ========== VAA Structure Constants ==========
 
-/// Minimum VAA header size in bytes.
-///
-/// Header structure:
-/// - version: 1 byte (VAA format version, always 1)
-/// - guardian_set_index: 4 bytes (big-endian u32)
-/// - num_signatures: 1 byte (number of guardian signatures)
-///
-/// Total: 6 bytes minimum (before signatures and body)
+/// Minimum VAA header size: version (1) + guardian_set_index (4) + num_signatures (1).
 pub const VAA_HEADER_MIN_LENGTH: u32 = 6;
 
 // ========== Payload Structure Constants ==========
 
-/// U256 padding size in governance payloads (Ethereum compatibility).
+/// U256 padding bytes to skip when reading u64 values from Ethereum-compatible payloads.
 ///
-/// Fee and amount fields in governance payloads are encoded as U256 (32 bytes) for
-/// Ethereum compatibility. On Stellar/Soroban, we use u64 values, so we skip the
-/// first 24 bytes of padding and read only the last 8 bytes as the actual value.
+/// Governance payloads encode amounts as 32-byte U256 for Ethereum compatibility.
+/// On Soroban we read only the low-order 8 bytes as u64, skipping the first 24.
 pub const U256_PADDING_BYTES: u32 = 24;
 
-/// Minimum payload length for Contract Upgrade governance action.
-///
-/// Payload structure:
-/// - module: 32 bytes (module identifier, e.g., "Core")
-/// - action: 1 byte (action ID = 1 for contract upgrade)
-/// - chain: 2 bytes (target chain ID, 0 for all chains or 40 for Stellar)
-/// - new_contract_hash: 32 bytes (WASM hash of new contract version)
-///
-/// Total: 67 bytes minimum
+/// Minimum Contract Upgrade payload: module (32) + action (1) + chain (2) + hash (32).
 pub const CONTRACT_UPGRADE_PAYLOAD_MIN_LENGTH: u32 = 67;
 
-/// Minimum payload length for Guardian Set Upgrade governance action.
+/// Minimum Guardian Set Upgrade payload: header (35) + index (4) + count (1).
 ///
-/// Payload structure:
-/// - module: 32 bytes (module identifier, e.g., "Core")
-/// - action: 1 byte (action ID = 2 for guardian set upgrade)
-/// - chain: 2 bytes (target chain ID, 0 for all chains or 40 for Stellar)
-/// - new_guardian_set_index: 4 bytes (sequential index, must be current + 1)
-/// - guardian_count: 1 byte (number of guardians, followed by 20 bytes per guardian)
-///
-/// Total: 40 bytes minimum (actual length varies based on guardian count)
+/// Actual length depends on guardian count (add 20 bytes per guardian).
 pub const GUARDIAN_SET_UPGRADE_PAYLOAD_MIN_LENGTH: u32 = 40;
 
-/// Minimum payload length for Set Message Fee governance action.
-///
-/// Payload structure:
-/// - module: 32 bytes (module identifier, e.g., "Core")
-/// - action: 1 byte (action ID = 3 for set message fee)
-/// - chain: 2 bytes (target chain ID, 0 for all chains or 40 for Stellar)
-/// - fee: 32 bytes (U256 format, last 8 bytes are actual u64 fee in stroops)
-///
-/// Total: 67 bytes minimum
+/// Minimum Set Message Fee payload: module (32) + action (1) + chain (2) + fee U256 (32).
 pub const SET_MESSAGE_FEE_PAYLOAD_MIN_LENGTH: u32 = 67;
 
-/// Minimum payload length for Transfer Fees governance action.
-///
-/// Payload structure:
-/// - module: 32 bytes (module identifier, e.g., "Core")
-/// - action: 1 byte (action ID = 4 for transfer fees)
-/// - chain: 2 bytes (target chain ID, 0 for all chains or 40 for Stellar)
-/// - amount: 32 bytes (U256 format, last 8 bytes are actual u64 amount in stroops)
-/// - recipient: 32 bytes (ED25519 public key, converted to Stellar Address)
-///
-/// Total: 99 bytes minimum
+/// Minimum Transfer Fees payload: header (35) + amount U256 (32) + recipient (32).
 pub const TRANSFER_FEES_PAYLOAD_MIN_LENGTH: u32 = 99;

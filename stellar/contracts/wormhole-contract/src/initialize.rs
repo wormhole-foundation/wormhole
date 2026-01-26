@@ -1,3 +1,8 @@
+//! Contract initialization logic.
+//!
+//! Handles one-time setup of the Wormhole Core contract, including guardian set
+//! creation, admin configuration, and governance emitter storage.
+
 use crate::{
     governance::guardian_set::{set_current_index, store},
     storage::StorageKey,
@@ -5,19 +10,22 @@ use crate::{
 use soroban_sdk::{BytesN, Env, Vec, contractevent};
 use wormhole_soroban_client::*;
 
-/// Event published when the contract is initialized.
+/// Emitted once when the contract is successfully initialized.
 ///
-/// Topics: ["wormhole_core", "init"]
-/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
-/// - "init": Event type for initialization
+/// Guardians and indexers can observe this event to confirm deployment.
 #[contractevent(topics = ["wormhole_core", "init"])]
 struct InitializeEvent {
+    /// Wormhole chain ID for this deployment (61 for Stellar).
     chain_id: u32,
+    /// Number of guardians in the initial set.
     guardian_count: u32,
+    /// Chain ID of the governance source (1 for Solana).
     governance_chain_id: u32,
+    /// Address authorized to emit governance VAAs.
     governance_emitter: BytesN<32>,
 }
 
+/// Checks whether the contract has been initialized.
 pub fn is_initialized(env: &Env) -> bool {
     env.storage()
         .persistent()
@@ -25,7 +33,7 @@ pub fn is_initialized(env: &Env) -> bool {
         .unwrap_or(false)
 }
 
-/// Ensures the contract is initialized, returning an Error if not.
+/// Guard that returns `NotInitialized` if the contract hasn't been set up.
 pub fn require_initialized(env: &Env) -> Result<(), WormholeError> {
     if !is_initialized(env) {
         return Err(WormholeError::NotInitialized);
@@ -33,12 +41,22 @@ pub fn require_initialized(env: &Env) -> Result<(), WormholeError> {
     Ok(())
 }
 
+/// Marks the contract as initialized (internal use only).
 fn set_initialized(env: &Env) {
     env.storage()
         .persistent()
         .set(&StorageKey::Initialized, &true);
 }
 
+/// Performs one-time contract initialization.
+///
+/// Sets up the initial guardian set (index 0), configures the contract as its own
+/// admin for upgrades, and stores the governance emitter address.
+///
+/// # Errors
+///
+/// - `AlreadyInitialized` if called more than once
+/// - `EmptyGuardianSet` if no guardians provided
 pub fn initialize(
     env: &Env,
     initial_guardians: Vec<BytesN<20>>,

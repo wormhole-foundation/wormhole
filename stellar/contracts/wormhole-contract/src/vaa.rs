@@ -1,8 +1,10 @@
-//! VAA verification logic.
+//! VAA verification and signature validation.
 //!
-//! This module contains contract-specific VAA verification that requires
-//! access to storage (guardian sets). Parsing, serialization, and other
-//! pure data operations are defined in the wormhole-interface crate.
+//! Provides cryptographic verification of VAA signatures against stored guardian sets.
+//! Uses secp256k1 ECDSA recovery to derive Ethereum addresses from signatures, then
+//! compares against the known guardian keys.
+//!
+//! Parsing and serialization are in `wormhole-soroban-client::types`.
 
 pub use wormhole_soroban_client::{Signature, VAA};
 
@@ -10,13 +12,14 @@ use crate::governance;
 use soroban_sdk::{Bytes, BytesN, Env, Vec};
 use wormhole_soroban_client::WormholeError;
 
-/// Verify a VAA's signatures against stored guardian sets.
+/// Verifies all VAA signatures against the stored guardian set.
 ///
-/// This checks:
-/// - Guardian set exists in storage
-/// - Guardian set not expired
-/// - Sufficient valid signatures (quorum)
-/// - Signatures in ascending order
+/// Validates guardian set existence and expiry, then checks that:
+/// - At least quorum signatures are present (13/19 for mainnet)
+/// - Signature indices are strictly ascending (prevents reuse)
+/// - Each signature recovers to the expected guardian's Ethereum address
+///
+/// Uses double keccak256 hashing as per Wormhole spec: `keccak256(keccak256(body))`.
 pub fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, WormholeError> {
     let body_bytes = vaa.serialize_body(env);
 
@@ -31,12 +34,11 @@ pub fn verify_vaa_signatures(vaa: &VAA, env: &Env) -> Result<bool, WormholeError
     verify_signatures_impl(vaa, env, &body_bytes, &guardian_set_info.keys)
 }
 
-/// Verify a single ECDSA signature against an expected Ethereum address.
+/// Verifies a single ECDSA signature matches an expected Ethereum address.
 ///
-/// This performs:
-/// - ECDSA signature recovery
-/// - Public key to Ethereum address conversion
-/// - Address comparison
+/// Recovers the secp256k1 public key from the signature and message hash,
+/// derives the Ethereum address (last 20 bytes of keccak256(pubkey[1..])),
+/// and compares against the expected guardian address.
 pub fn verify_signature(
     sig: &Signature,
     env: &Env,
@@ -59,8 +61,7 @@ pub fn verify_signature(
     Ok(&eth_address == expected_address)
 }
 
-/// Calculate the required quorum for a given number of guardians.
-/// Formula: (num_guardians * 2 / 3) + 1
+/// Calculates required quorum: `(n * 2 / 3) + 1` (e.g., 13 of 19 guardians).
 fn calculate_quorum(num_guardians: u32) -> u32 {
     num_guardians
         .saturating_mul(2)
@@ -68,7 +69,7 @@ fn calculate_quorum(num_guardians: u32) -> u32 {
         .saturating_add(1)
 }
 
-/// Internal helper: Verify all signatures against a specific guardian set
+/// Verifies all signatures against a guardian key set using double keccak256.
 fn verify_signatures_impl(
     vaa: &VAA,
     env: &Env,
@@ -114,15 +115,15 @@ fn verify_signatures_impl(
     Ok(true)
 }
 
-/// Parse and verify a VAA from bytes (convenience function).
+/// Parses and verifies a VAA in a single call.
 ///
-/// This combines parsing and verification into a single call.
+/// Combines `VAA::try_from` parsing with full signature verification.
 pub fn verify_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<bool, WormholeError> {
     let vaa = VAA::try_from((env, vaa_bytes))?;
     verify_vaa_signatures(&vaa, &env)
 }
 
-/// Parse a VAA from bytes (convenience function).
+/// Parses VAA bytes into a structured `VAA` without signature verification.
 pub fn parse_vaa(env: &Env, vaa_bytes: &Bytes) -> Result<VAA, WormholeError> {
     VAA::try_from((env, vaa_bytes))
 }

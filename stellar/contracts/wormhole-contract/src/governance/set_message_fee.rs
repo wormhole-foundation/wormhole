@@ -1,3 +1,8 @@
+//! Set message fee governance action (`ACTION_SET_MESSAGE_FEE`, value 3).
+//!
+//! Allows guardians to update the fee charged for posting cross-chain messages.
+//! The fee is denominated in stroops (10^-7 XLM).
+
 use crate::{
     governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
     storage::StorageKey,
@@ -9,22 +14,26 @@ use wormhole_soroban_client::{
     STORAGE_TTL_THRESHOLD, U256_PADDING_BYTES, VAA, WormholeError,
 };
 
-/// Event published when the message fee is updated.
-///
-/// Topics: ["wormhole_core", "fee_set"]
-/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
-/// - "fee_set": Event type for message fee updates
-/// Data: fee (u64) - uses single-value format for cleaner output
+/// Emitted when the message fee is updated.
 #[contractevent(topics = ["wormhole_core", "fee_set"], data_format = "single-value")]
 pub struct MessageFeeSetEvent {
+    /// New fee in stroops.
     pub fee: u64,
 }
 
+/// Parsed payload for set message fee governance action.
 #[derive(Debug, PartialEq)]
 pub struct SetMessageFeePayload {
+    /// Module identifier (must be "Core").
     pub module: BytesN<32>,
+    /// Governance action ID from the VAA header.
+    ///
+    /// Must equal `ACTION_SET_MESSAGE_FEE` (3); any other value is rejected by
+    /// `validate_governance_header`.
     pub action: u8,
+    /// Target chain (0 for all, 61 for Stellar).
     pub chain: u16,
+    /// New message fee in stroops.
     pub fee: u64,
 }
 
@@ -64,6 +73,7 @@ impl SetMessageFeePayload {
     }
 }
 
+/// Returns the current message fee in stroops, or 0 if not set.
 pub fn get_message_fee(env: &Env) -> u64 {
     env.storage()
         .persistent()
@@ -83,6 +93,7 @@ fn set_message_fee(env: &Env, fee: u64) {
     );
 }
 
+/// Governance action handler for setting the message fee.
 pub struct SetMessageFeeAction;
 
 impl GovernanceAction for SetMessageFeeAction {

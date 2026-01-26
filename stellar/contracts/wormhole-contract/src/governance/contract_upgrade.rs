@@ -1,3 +1,9 @@
+//! Contract upgrade governance action (`ACTION_CONTRACT_UPGRADE`, value 1).
+//!
+//! Allows guardians to upgrade the contract WASM by providing the hash of a
+//! new contract version. The contract is its own admin, so upgrades require
+//! guardian consensus rather than a separate admin key.
+
 use crate::governance::action::{
     GovernanceAction, parse_governance_header, validate_governance_header,
 };
@@ -7,21 +13,28 @@ use wormhole_soroban_client::{
     ACTION_CONTRACT_UPGRADE, BytesReader, CONTRACT_UPGRADE_PAYLOAD_MIN_LENGTH, WormholeError, VAA
 };
 
-/// Event published when a contract upgrade is executed.
+/// Emitted when a contract upgrade is executed successfully.
 ///
-/// Topics: ["wormhole_core", "upgrade"]
-/// - "wormhole_core": Namespace for all core contract governance/lifecycle events
-/// - "upgrade": Event type for contract upgrades
+/// Topics: `["wormhole_core", "upgrade"]`
 #[contractevent(topics = ["wormhole_core", "upgrade"], data_format = "single-value")]
 struct ContractUpgradeEvent {
+    /// WASM hash of the newly deployed contract version.
     new_contract_hash: BytesN<32>,
 }
 
+/// Parsed payload for contract upgrade governance action.
 #[derive(Debug, PartialEq)]
 pub struct ContractUpgradePayload {
+    /// Module identifier (must be "Core").
     pub module: BytesN<32>,
+    /// Governance action ID from the VAA header.
+    ///
+    /// Must equal `ACTION_CONTRACT_UPGRADE` (1); any other value is rejected by
+    /// `validate_governance_header`.
     pub action: u8,
+    /// Target chain (0 for all, 61 for Stellar).
     pub chain: u16,
+    /// WASM hash of the new contract to deploy.
     pub new_contract_hash: BytesN<32>,
 }
 
@@ -49,6 +62,7 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for ContractUpgradePayload {
 }
 
 impl ContractUpgradePayload {
+    /// Validates the governance header matches expected values for upgrade action.
     fn validate(&self) -> Result<(), WormholeError> {
         validate_governance_header(
             &self.module,
@@ -59,6 +73,7 @@ impl ContractUpgradePayload {
     }
 }
 
+/// Governance action handler for contract upgrades.
 pub struct ContractUpgradeAction;
 
 impl GovernanceAction for ContractUpgradeAction {

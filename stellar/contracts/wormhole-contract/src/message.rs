@@ -1,3 +1,8 @@
+//! Cross-chain message posting and sequence management.
+//!
+//! Handles posting messages to be attested by Wormhole guardians, including
+//! fee collection, sequence number management, and event emission.
+
 use soroban_sdk::{Address, Bytes, BytesN, Env, contractevent, token};
 use wormhole_soroban_client::{
     CHAIN_ID_STELLAR, ConsistencyLevel, PostedMessageData, STORAGE_TTL_EXTENSION,
@@ -10,21 +15,25 @@ use crate::{
     utils::{address_to_bytes32, get_native_token_address, keccak256_hash},
 };
 
-/// Event published when a cross-chain message is posted.
+/// Emitted when a cross-chain message is posted successfully.
 ///
-/// Topics: ["wormhole", "message_published"]
-/// - "wormhole": Namespace for cross-chain message events that guardians observe and attest to
-/// - "message_published": Event type for new messages (guardians filter on this to find messages to sign)
+/// Guardians observe these events and produce VAAs attesting to the message contents.
+/// The event data matches the message body structure for easy verification.
 #[contractevent(topics = ["wormhole", "message_published"])]
 struct MessagePublishedEvent {
+    /// Caller-provided nonce for deduplication.
     nonce: u32,
+    /// Auto-assigned sequence number for this emitter.
     sequence: u64,
+    /// Keccak256 hash of the emitter's Stellar address.
     emitter_address: BytesN<32>,
+    /// Application-specific message data.
     payload: Bytes,
+    /// Requested finality level for attestation.
     consistency_level: ConsistencyLevel,
 }
 
-/// Serialize PostedMessageData for hashing
+/// Serializes message data to bytes for hashing (51-byte header + payload).
 fn serialize_posted_message(
     message: &PostedMessageData,
     env: &Env,
@@ -63,6 +72,7 @@ fn serialize_posted_message(
     Ok(bytes)
 }
 
+/// Returns the next sequence number for an emitter (0 if never used).
 pub fn get_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
     env.storage()
         .persistent()
@@ -70,14 +80,14 @@ pub fn get_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
         .unwrap_or(0)
 }
 
-/// Get the hash of a posted message by emitter and sequence number.
-/// Returns None if the message was not found.
+/// Retrieves a previously posted message's hash by emitter and sequence.
 pub fn get_posted_message_hash(env: &Env, emitter: &Address, sequence: u64) -> Option<BytesN<32>> {
     env.storage()
         .persistent()
         .get(&StorageKey::PostedMessage(emitter.clone(), sequence))
 }
 
+/// Atomically increments and returns the current sequence for an emitter.
 fn next_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
     let current = get_emitter_sequence(env, emitter);
     let next = current.saturating_add(1);
@@ -94,6 +104,7 @@ fn next_emitter_sequence(env: &Env, emitter: &Address) -> u64 {
     current
 }
 
+/// Persists a message hash keyed by (emitter, sequence).
 fn store_posted_message(env: &Env, emitter: &Address, sequence: u64, message_hash: &BytesN<32>) {
     env.storage().persistent().set(
         &StorageKey::PostedMessage(emitter.clone(), sequence),
@@ -107,6 +118,16 @@ fn store_posted_message(env: &Env, emitter: &Address, sequence: u64, message_has
     );
 }
 
+/// Posts a cross-chain message with optional fee collection.
+///
+/// Collects the configured message fee (if any) via `transfer_from`, assigns
+/// a sequence number, hashes and stores the message, then emits a
+/// `MessagePublishedEvent` for guardian observation.
+///
+/// # Errors
+///
+/// - `NotInitialized` if the contract hasn't been initialized
+/// - `InsufficientFeePaid` if fee collection fails (requires prior approval)
 pub fn post_message_with_fee(
     env: &Env,
     emitter: &Address,

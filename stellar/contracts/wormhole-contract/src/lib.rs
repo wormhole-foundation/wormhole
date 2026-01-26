@@ -1,3 +1,17 @@
+//! Wormhole Core Contract implementation for Stellar/Soroban.
+//!
+//! This crate provides the complete implementation of the Wormhole Core contract,
+//! enabling Stellar to participate in Wormhole's cross-chain messaging protocol as Chain ID 61.
+//!
+//! # Architecture
+//!
+//! - [`Wormhole`] - Main contract struct implementing [`WormholeCoreInterface`]
+//! - [`governance`] - Guardian-signed governance actions (upgrades, fees)
+//! - [`vaa`] - VAA parsing and signature verification
+//! - [`message`] - Cross-chain message posting
+//! - [`storage`] - Persistent storage key definitions
+//! - [`utils`] - Cryptographic and address conversion utilities
+
 #![no_std]
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
@@ -16,12 +30,15 @@ mod storage;
 mod utils;
 mod vaa;
 
+/// Wormhole Core contract for Stellar/Soroban.
+///
+/// Implements the [`WormholeCoreInterface`] trait providing VAA verification,
+/// governance action processing, and cross-chain message posting capabilities.
 #[contract]
 pub struct Wormhole;
 
 #[contractimpl]
 impl WormholeCoreInterface for Wormhole {
-    /// Initialize the core contract with initial guardians and governance emitter. Can only be called once
     fn initialize(
         env: Env,
         initial_guardians: Vec<BytesN<20>>,

@@ -1,28 +1,37 @@
+//! Persistent storage key definitions for the Wormhole Core contract.
+//!
+//! All contract state is stored under these keys. Keys are extended automatically
+//! on access to maintain TTL (see `STORAGE_TTL_THRESHOLD` and `STORAGE_TTL_EXTENSION`).
+
 use soroban_sdk::{Address, BytesN, contracttype};
 
+/// Storage key enum for all persistent contract state.
+///
+/// Uses Soroban's `contracttype` for efficient serialization. Keys with parameters
+/// (e.g., `GuardianSet(u32)`) create separate storage entries per value.
 #[derive(Clone)]
 #[contracttype]
 pub enum StorageKey {
-    /// Current active guardian set index
+    /// Index of the currently active guardian set (starts at 0).
     CurrentGuardianSetIndex,
-    /// Whether the contract is initialized
+    /// Boolean flag indicating contract initialization status.
     Initialized,
-    /// Admin address for contract upgrades (set to contract itself)
+    /// Contract's admin address (set to itself for self-upgrade via governance).
     Admin,
-    /// Governance emitter address (configurable, set during initialization)
+    /// 32-byte address authorized to emit governance VAAs.
     GovernanceEmitter,
-    /// Guardian set information by index
+    /// Guardian set data keyed by index; stores `GuardianSetInfo`.
     GuardianSet(u32),
-    /// Guardian set expiry timestamp by index
+    /// Unix timestamp when a guardian set expires (24h after replacement).
     GuardianSetExpiry(u32),
-    /// Consumed governance VAA hashes for replay protection
+    /// Tracks consumed governance VAA hashes for replay protection.
     ConsumedGovernanceVAA(BytesN<32>),
-    /// Current message fee in stroops (smallest XLM unit)
+    /// Fee charged per message in stroops (10^-7 XLM).
     MessageFee,
-    /// Last fee transfer timestamp (for audit)
+    /// Timestamp of the most recent fee transfer (audit trail).
     LastFeeTransfer,
-    /// Sequence number for an emitter address
+    /// Next sequence number for each emitter address.
     EmitterSequence(Address),
-    /// Posted message by sequence, (emitter, sequence)
+    /// Hash of posted message keyed by (emitter, sequence).
     PostedMessage(Address, u64),
 }

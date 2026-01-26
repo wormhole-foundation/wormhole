@@ -1,7 +1,7 @@
 //! Public type definitions for the Wormhole Core contract.
 //!
-//! This module contains all data types that external users need to interact with
-//! the Wormhole Core contract, including VAAs, guardian sets, messages, and payloads.
+//! Contains the core data structures for VAA handling, guardian sets, and cross-chain
+//! messaging. External contracts should use these types when integrating with Wormhole.
 
 use crate::{BytesReader, VAA_HEADER_MIN_LENGTH, WormholeError};
 use core::convert::TryFrom;
@@ -9,77 +9,97 @@ use soroban_sdk::{Bytes, BytesN, Env, Vec, contracttype};
 
 // ========== VAA Types ==========
 
-/// ECDSA signature from a guardian.
+/// ECDSA signature from a Wormhole guardian.
+///
+/// Each signature contains the guardian's index for lookup and the secp256k1 ECDSA
+/// signature components (r, s, v) used to recover the signer's Ethereum address.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Signature {
-    /// Index of the guardian in the guardian set
+    /// Position of the signing guardian in the guardian set (0-indexed).
     pub guardian_index: u32,
-    /// ECDSA signature r value
+    /// ECDSA signature r component (32 bytes).
     pub r: BytesN<32>,
-    /// ECDSA signature s value
+    /// ECDSA signature s component (32 bytes).
     pub s: BytesN<32>,
-    /// ECDSA recovery ID
+    /// ECDSA recovery ID (0 or 1, stored as u32 for Soroban compatibility).
     pub v: u32,
 }
 
-/// Verifiable Action Approval - a signed message from Wormhole guardians.
+/// Verifiable Action Approval (VAA) - a cross-chain message attested by guardians.
+///
+/// VAAs are the core primitive for Wormhole's cross-chain messaging. They contain
+/// a message body signed by a quorum of guardians (13 of 19 on mainnet). VAAs can
+/// carry arbitrary payloads including governance actions, token transfers, or
+/// application-specific data.
+///
+/// Parse from bytes using `VAA::try_from((&env, &bytes))`.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct VAA {
-    // Header
-    /// VAA format version (always 1)
+    // ===== Header =====
+    /// VAA format version (currently always 1).
     pub version: u32,
-    /// Index of the guardian set that signed this VAA
+    /// Index of the guardian set that produced these signatures.
     pub guardian_set_index: u32,
-    /// Guardian signatures (quorum required)
+    /// Guardian signatures attesting to the message body.
     pub signatures: Vec<Signature>,
 
-    // Body
-    /// Unix timestamp when the VAA was created
+    // ===== Body (signed data) =====
+    /// Unix timestamp when the message was observed by guardians.
     pub timestamp: u32,
-    /// Unique nonce for the VAA
+    /// Application-defined nonce for deduplication.
     pub nonce: u32,
-    /// Source blockchain chain ID
+    /// Wormhole chain ID of the source blockchain.
     pub emitter_chain: u32,
-    /// Source contract/account address (32 bytes)
+    /// Address of the emitting contract on the source chain.
     pub emitter_address: BytesN<32>,
-    /// Message sequence number
+    /// Auto-incrementing sequence number from the emitter.
     pub sequence: u64,
-    /// Finality requirement level
+    /// Finality level requested when the message was posted.
     pub consistency_level: ConsistencyLevel,
-    /// Action-specific payload data
+    /// Application-specific payload data.
     pub payload: Bytes,
 }
 
 // ========== Guardian Set Types ==========
 
-/// Information about a guardian set.
+/// Metadata for a guardian set stored on-chain.
+///
+/// Guardian sets are indexed sequentially starting from 0. Only the current set
+/// can sign new VAAs, but expired sets remain valid for a grace period to allow
+/// in-flight VAAs to be processed.
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct GuardianSetInfo {
-    /// Ethereum addresses of guardians in this set
+    /// Ethereum addresses (20 bytes each) of guardians in this set.
     pub keys: Vec<BytesN<20>>,
-    /// Ledger timestamp when this guardian set was created
+    /// Ledger timestamp when this guardian set was activated.
     pub creation_time: u64,
 }
 
 // ========== Message Types ==========
 
-/// Finality level for cross-chain messages.
+/// Finality requirement for cross-chain message attestation.
+///
+/// Determines how many block confirmations guardians wait before signing.
+/// Higher levels provide stronger finality guarantees but increase latency.
 #[contracttype]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum ConsistencyLevel {
-    /// Standard confirmation (1 block)
+    /// Standard confirmation (~1 block, fastest).
     Confirmed = 1,
-    /// Full finality (multiple blocks)
+    /// Full finality (chain-specific, most secure).
     Finalized = 32,
 }
 
 impl TryFrom<u8> for ConsistencyLevel {
     type Error = crate::WormholeError;
 
+    /// Converts a raw byte to a `ConsistencyLevel`.
+    ///
+    /// Only values 1 (`Confirmed`) and 32 (`Finalized`) are valid.
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(ConsistencyLevel::Confirmed),
@@ -89,30 +109,36 @@ impl TryFrom<u8> for ConsistencyLevel {
     }
 }
 
-/// Data for a posted cross-chain message.
+/// Serializable representation of a posted cross-chain message.
+///
+/// Created when a message is posted via `post_message`. The message data is
+/// hashed and stored for later verification. Guardians observe these events
+/// and produce VAAs attesting to their contents.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PostedMessageData {
-    /// Unix timestamp when the message was posted
+    /// Ledger timestamp when the message was posted.
     pub timestamp: u32,
-    /// Unique nonce for the message
+    /// Caller-provided nonce for application-level deduplication.
     pub nonce: u32,
-    /// Source blockchain chain ID
+    /// Wormhole chain ID of this blockchain (61 for Stellar).
     pub emitter_chain: u32,
-    /// Source contract/account address (32 bytes)
+    /// Keccak256 hash of the emitter's Stellar address.
     pub emitter_address: BytesN<32>,
-    /// Message sequence number
+    /// Auto-incrementing sequence number for this emitter.
     pub sequence: u64,
-    /// Finality requirement level
+    /// Requested finality level for guardian attestation.
     pub consistency_level: ConsistencyLevel,
-    /// Message payload data
+    /// Application-specific message payload.
     pub payload: Bytes,
 }
 
 // ========== Type Implementations ==========
 
 impl Signature {
-    /// Parse a signature from a BytesReader
+    /// Parses a 66-byte signature from the reader.
+    ///
+    /// Wire format: guardian_index (1) + r (32) + s (32) + v (1) = 66 bytes.
     pub fn parse_from_reader(reader: &mut BytesReader) -> Result<Self, WormholeError> {
         let guardian_index = u32::from(reader.read_u8()?);
         let r = reader.read_bytes_n::<32>()?;
@@ -131,6 +157,10 @@ impl Signature {
 impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
     type Error = WormholeError;
 
+    /// Parses a VAA from its wire format representation.
+    ///
+    /// Validates minimum length but does not verify signatures; use
+    /// `verify_vaa` or `verify_vaa_signatures` for full verification.
     fn try_from(value: (&'a Env, &'a Bytes)) -> Result<Self, Self::Error> {
         let (env, vaa_bytes) = value;
 
@@ -174,16 +204,11 @@ impl<'a> TryFrom<(&'a Env, &'a Bytes)> for VAA {
 }
 
 impl VAA {
-    /// Serialize the VAA body for hashing (excludes version, guardian set index, and signatures)
+    /// Serializes the VAA body for hashing during signature verification.
     ///
-    /// The body consists of:
-    /// - timestamp (4 bytes, big-endian)
-    /// - nonce (4 bytes, big-endian)
-    /// - emitter_chain (2 bytes, big-endian)
-    /// - emitter_address (32 bytes)
-    /// - sequence (8 bytes, big-endian)
-    /// - consistency_level (1 byte)
-    /// - payload (variable length)
+    /// Returns the 51-byte fixed header plus variable payload. The body excludes
+    /// the version, guardian set index, and signatures—guardians sign only this data.
+    /// Output is big-endian encoded to match the Wormhole wire format.
     pub fn serialize_body(&self, env: &Env) -> Bytes {
         let mut bytes = Bytes::new(env);
 
@@ -220,10 +245,11 @@ impl VAA {
         bytes
     }
 
-    /// Extract the VAA body bytes from raw VAA bytes without full parsing
+    /// Extracts the body bytes from raw VAA data without full parsing.
     ///
-    /// This is useful for computing hashes when you have the raw VAA bytes
-    /// but don't need to fully parse the structure.
+    /// Computes the body offset by reading the signature count and slicing
+    /// past the header and signatures. Useful for hash computation when
+    /// only the body is needed.
     pub fn get_body_bytes(vaa_bytes: &Bytes) -> Result<Bytes, WormholeError> {
         if vaa_bytes.len() < VAA_HEADER_MIN_LENGTH {
             return Err(WormholeError::InvalidVAAFormat);
