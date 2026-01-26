@@ -329,8 +329,7 @@ const (
 	ChainIDDogecoin ChainID = 65
 	// ChainIDXRPL is the ChainID of XRP Ledger
 	ChainIDXRPL ChainID = 66
-	// ChainIDZeroGravity is the ChainID of 0Gravity,
-	// to avoid issues with numbers in Go variables, zero is spelled out
+	// ChainIDZeroGravity is the ChainID of ZeroGravity,
 	ChainIDZeroGravity ChainID = 67
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
