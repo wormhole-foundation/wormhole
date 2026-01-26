@@ -38,8 +38,9 @@ type (
 		// signedGovStatusRecvC is optional and can be set with `WithChainGovernorStatusListener`.
 		signedGovStatusRecvC chan *gossipv1.SignedChainGovernorStatus
 
-		// signedManagerTxRecvC is optional and can be set with `WithSignedManagerTransactionListener`.
-		signedManagerTxRecvC chan<- *gossipv1.SignedManagerTransaction
+		// managerTxRecvC is optional and can be set with `WithManagerOptions`.
+		// Receives verified ManagerTransaction messages (signature already validated by p2p layer).
+		managerTxRecvC chan<- *gossipv1.ManagerTransaction
 
 		// disableHeartbeatVerify is optional and can be set with `WithDisableHeartbeatVerify` or `WithGuardianOptions`.
 		disableHeartbeatVerify bool
@@ -50,7 +51,7 @@ type (
 		gossipControlSendC     chan []byte
 		gossipAttestationSendC chan []byte
 		gossipVaaSendC         chan []byte
-		gossipManagerSendC     chan []byte
+		managerTxSendC         chan *gossipv1.ManagerTransaction
 		obsvReqSendC           <-chan *gossipv1.ObservationRequest
 		acct                   *accountant.Accountant
 		gov                    *governor.ChainGovernor
@@ -231,12 +232,12 @@ func WithGuardianOptions(
 
 // WithManagerOptions is used to set options for the manager service p2p topic.
 func WithManagerOptions(
-	gossipManagerSendC chan []byte,
-	signedManagerTxRecvC chan<- *gossipv1.SignedManagerTransaction,
+	managerTxSendC chan *gossipv1.ManagerTransaction,
+	managerTxRecvC chan<- *gossipv1.ManagerTransaction,
 ) RunOpt {
 	return func(p *RunParams) error {
-		p.gossipManagerSendC = gossipManagerSendC
-		p.signedManagerTxRecvC = signedManagerTxRecvC
+		p.managerTxSendC = managerTxSendC
+		p.managerTxRecvC = managerTxRecvC
 		return nil
 	}
 }

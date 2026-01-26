@@ -36,7 +36,7 @@ const (
 	// gossipManagerSendBufferSize configures the size of the manager gossip network send buffer
 	gossipManagerSendBufferSize = 100
 
-	// inboundManagerTxBufferSize configures the size of the signedManagerTxC channel that contains signed manager transactions from other managers.
+	// inboundManagerTxBufferSize configures the size of the managerTxRecvC channel that contains verified manager transactions from other managers.
 	inboundManagerTxBufferSize = 500
 
 	// inboundBatchObservationBufferSize configures the size of the batchObsvC channel that contains batches of observations from other Guardians.
@@ -116,7 +116,7 @@ type G struct {
 	gossipControlSendC     chan []byte
 	gossipAttestationSendC chan []byte
 	gossipVaaSendC         chan []byte
-	gossipManagerSendC     chan []byte
+	managerTxSendC         chan *gossipv1.ManagerTransaction
 	// Inbound observation batches.
 	batchObsvC channelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]]
 	// Finalized guardian observations aggregated across all chains
@@ -140,8 +140,8 @@ type G struct {
 
 	// Manager service channel for incoming VAAs
 	managerC channelPair[*vaa.VAA]
-	// Inbound signed manager transactions from the p2p service
-	signedManagerTxC channelPair[*gossipv1.SignedManagerTransaction]
+	// Inbound manager transactions from the p2p service (signature already verified)
+	managerTxC channelPair[*gossipv1.ManagerTransaction]
 }
 
 func NewGuardianNode(
@@ -163,7 +163,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.gossipControlSendC = make(chan []byte, gossipControlSendBufferSize)
 	g.gossipAttestationSendC = make(chan []byte, gossipAttestationSendBufferSize)
 	g.gossipVaaSendC = make(chan []byte, gossipVaaSendBufferSize)
-	g.gossipManagerSendC = make(chan []byte, gossipManagerSendBufferSize)
+	g.managerTxSendC = make(chan *gossipv1.ManagerTransaction, gossipManagerSendBufferSize)
 	g.batchObsvC = makeChannelPair[*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]](inboundBatchObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](inboundMessageBufferSize)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
@@ -178,7 +178,7 @@ func (g *G) initializeBasic(rootCtxCancel context.CancelFunc) {
 	g.queryResponsePublicationC = makeChannelPair[*query.QueryResponsePublication](query.QueryResponsePublicationChannelSize)
 	// Manager service channels
 	g.managerC = makeChannelPair[*vaa.VAA](inboundSignedVaaBufferSize)
-	g.signedManagerTxC = makeChannelPair[*gossipv1.SignedManagerTransaction](inboundManagerTxBufferSize)
+	g.managerTxC = makeChannelPair[*gossipv1.ManagerTransaction](inboundManagerTxBufferSize)
 
 	// Guardian set state managed by processor
 	g.gst = common.NewGuardianSetState(nil)

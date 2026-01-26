@@ -216,10 +216,8 @@ message Observation {
   string message_id = 4;
 }
 
-// A SignedManagerTransaction is sent by manager nodes after signing a UTXO transaction.
-// Each manager node signs the transaction and broadcasts the signatures
-// to allow aggregation of M-of-N multisig signatures.
-message SignedManagerTransaction {
+// A ManagerTransaction contains the UTXO transaction signatures from a manager node.
+message ManagerTransaction {
   // VAA hash that triggered this signing (32 bytes).
   bytes vaa_hash = 1;
 
@@ -238,4 +236,21 @@ message SignedManagerTransaction {
   // Signatures in order. Each signature is in the format expected
   // by the destination chain (DER-encoded with sighash type for Dogecoin).
   repeated bytes signatures = 6;
+
+  // Seconds since UNIX epoch when this manager transaction was sent.
+  int64 sent_timestamp = 7;
+}
+
+// A SignedManagerTransaction wraps a ManagerTransaction with guardian authentication.
+// Each manager node signs the transaction and broadcasts the signatures
+// to allow aggregation of M-of-N multisig signatures.
+message SignedManagerTransaction {
+  // Serialized ManagerTransaction message.
+  bytes manager_transaction = 1;
+
+  // ECDSA signature of the manager_transaction using the guardian's key.
+  bytes signature = 2;
+
+  // Guardian address that signed this message (truncated Eth address).
+  bytes guardian_addr = 3;
 }

@@ -118,7 +118,7 @@ func GuardianOptionP2P(
 				),
 			}
 			if g.managerService != nil {
-				opts = append(opts, p2p.WithManagerOptions(g.gossipManagerSendC, g.signedManagerTxC.writeC))
+				opts = append(opts, p2p.WithManagerOptions(g.managerTxSendC, g.managerTxC.writeC))
 			}
 
 			params, err := p2p.NewRunParams(
@@ -292,7 +292,7 @@ func GuardianOptionManagerService(managerServiceEnabled bool, signers map[vaa.Ch
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if managerServiceEnabled {
 				g.managerSigners = signers
-				g.managerService = manager.NewManagerService(ctx, logger, g.managerC.readC, g.env, signers, g.gossipManagerSendC, g.signedManagerTxC.readC, g.db)
+				g.managerService = manager.NewManagerService(ctx, logger, g.managerC.readC, g.env, signers, g.managerTxSendC, g.managerTxC.readC, g.db)
 				g.runnables["manager"] = g.managerService.Run
 			} else {
 				logger.Info("manager service is disabled")

@@ -1115,10 +1115,8 @@ func (x *Observation) GetMessageId() string {
 	return ""
 }
 
-// A SignedManagerTransaction is sent by manager nodes after signing a UTXO transaction.
-// Each manager node signs the transaction and broadcasts the signatures
-// to allow aggregation of M-of-N multisig signatures.
-type SignedManagerTransaction struct {
+// A ManagerTransaction contains the UTXO transaction signatures from a manager node.
+type ManagerTransaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -1136,12 +1134,111 @@ type SignedManagerTransaction struct {
 	// Signatures in order. Each signature is in the format expected
 	// by the destination chain (DER-encoded with sighash type for Dogecoin).
 	Signatures [][]byte `protobuf:"bytes,6,rep,name=signatures,proto3" json:"signatures,omitempty"`
+	// Seconds since UNIX epoch when this manager transaction was sent.
+	SentTimestamp int64 `protobuf:"varint,7,opt,name=sent_timestamp,json=sentTimestamp,proto3" json:"sent_timestamp,omitempty"`
+}
+
+func (x *ManagerTransaction) Reset() {
+	*x = ManagerTransaction{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ManagerTransaction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ManagerTransaction) ProtoMessage() {}
+
+func (x *ManagerTransaction) ProtoReflect() protoreflect.Message {
+	mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ManagerTransaction.ProtoReflect.Descriptor instead.
+func (*ManagerTransaction) Descriptor() ([]byte, []int) {
+	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ManagerTransaction) GetVaaHash() []byte {
+	if x != nil {
+		return x.VaaHash
+	}
+	return nil
+}
+
+func (x *ManagerTransaction) GetVaaId() string {
+	if x != nil {
+		return x.VaaId
+	}
+	return ""
+}
+
+func (x *ManagerTransaction) GetDestinationChain() uint32 {
+	if x != nil {
+		return x.DestinationChain
+	}
+	return 0
+}
+
+func (x *ManagerTransaction) GetManagerSetIndex() uint32 {
+	if x != nil {
+		return x.ManagerSetIndex
+	}
+	return 0
+}
+
+func (x *ManagerTransaction) GetSignerIndex() uint32 {
+	if x != nil {
+		return x.SignerIndex
+	}
+	return 0
+}
+
+func (x *ManagerTransaction) GetSignatures() [][]byte {
+	if x != nil {
+		return x.Signatures
+	}
+	return nil
+}
+
+func (x *ManagerTransaction) GetSentTimestamp() int64 {
+	if x != nil {
+		return x.SentTimestamp
+	}
+	return 0
+}
+
+// A SignedManagerTransaction wraps a ManagerTransaction with guardian authentication.
+// Each manager node signs the transaction and broadcasts the signatures
+// to allow aggregation of M-of-N multisig signatures.
+type SignedManagerTransaction struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Serialized ManagerTransaction message.
+	ManagerTransaction []byte `protobuf:"bytes,1,opt,name=manager_transaction,json=managerTransaction,proto3" json:"manager_transaction,omitempty"`
+	// ECDSA signature of the manager_transaction using the guardian's key.
+	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Guardian address that signed this message (truncated Eth address).
+	GuardianAddr []byte `protobuf:"bytes,3,opt,name=guardian_addr,json=guardianAddr,proto3" json:"guardian_addr,omitempty"`
 }
 
 func (x *SignedManagerTransaction) Reset() {
 	*x = SignedManagerTransaction{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1154,7 +1251,7 @@ func (x *SignedManagerTransaction) String() string {
 func (*SignedManagerTransaction) ProtoMessage() {}
 
 func (x *SignedManagerTransaction) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[14]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1167,47 +1264,26 @@ func (x *SignedManagerTransaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedManagerTransaction.ProtoReflect.Descriptor instead.
 func (*SignedManagerTransaction) Descriptor() ([]byte, []int) {
-	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{14}
+	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *SignedManagerTransaction) GetVaaHash() []byte {
+func (x *SignedManagerTransaction) GetManagerTransaction() []byte {
 	if x != nil {
-		return x.VaaHash
+		return x.ManagerTransaction
 	}
 	return nil
 }
 
-func (x *SignedManagerTransaction) GetVaaId() string {
+func (x *SignedManagerTransaction) GetSignature() []byte {
 	if x != nil {
-		return x.VaaId
+		return x.Signature
 	}
-	return ""
+	return nil
 }
 
-func (x *SignedManagerTransaction) GetDestinationChain() uint32 {
+func (x *SignedManagerTransaction) GetGuardianAddr() []byte {
 	if x != nil {
-		return x.DestinationChain
-	}
-	return 0
-}
-
-func (x *SignedManagerTransaction) GetManagerSetIndex() uint32 {
-	if x != nil {
-		return x.ManagerSetIndex
-	}
-	return 0
-}
-
-func (x *SignedManagerTransaction) GetSignerIndex() uint32 {
-	if x != nil {
-		return x.SignerIndex
-	}
-	return 0
-}
-
-func (x *SignedManagerTransaction) GetSignatures() [][]byte {
-	if x != nil {
-		return x.Signatures
+		return x.GuardianAddr
 	}
 	return nil
 }
@@ -1236,7 +1312,7 @@ type Heartbeat_Network struct {
 func (x *Heartbeat_Network) Reset() {
 	*x = Heartbeat_Network{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[15]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1249,7 +1325,7 @@ func (x *Heartbeat_Network) String() string {
 func (*Heartbeat_Network) ProtoMessage() {}
 
 func (x *Heartbeat_Network) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[15]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1327,7 +1403,7 @@ type ChainGovernorConfig_Chain struct {
 func (x *ChainGovernorConfig_Chain) Reset() {
 	*x = ChainGovernorConfig_Chain{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[16]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1340,7 +1416,7 @@ func (x *ChainGovernorConfig_Chain) String() string {
 func (*ChainGovernorConfig_Chain) ProtoMessage() {}
 
 func (x *ChainGovernorConfig_Chain) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[16]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1390,7 +1466,7 @@ type ChainGovernorConfig_Token struct {
 func (x *ChainGovernorConfig_Token) Reset() {
 	*x = ChainGovernorConfig_Token{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[17]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1403,7 +1479,7 @@ func (x *ChainGovernorConfig_Token) String() string {
 func (*ChainGovernorConfig_Token) ProtoMessage() {}
 
 func (x *ChainGovernorConfig_Token) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[17]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1454,7 +1530,7 @@ type ChainGovernorStatus_EnqueuedVAA struct {
 func (x *ChainGovernorStatus_EnqueuedVAA) Reset() {
 	*x = ChainGovernorStatus_EnqueuedVAA{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[18]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1467,7 +1543,7 @@ func (x *ChainGovernorStatus_EnqueuedVAA) String() string {
 func (*ChainGovernorStatus_EnqueuedVAA) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_EnqueuedVAA) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[18]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1524,7 +1600,7 @@ type ChainGovernorStatus_Emitter struct {
 func (x *ChainGovernorStatus_Emitter) Reset() {
 	*x = ChainGovernorStatus_Emitter{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[19]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1537,7 +1613,7 @@ func (x *ChainGovernorStatus_Emitter) String() string {
 func (*ChainGovernorStatus_Emitter) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_Emitter) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[19]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1590,7 +1666,7 @@ type ChainGovernorStatus_Chain struct {
 func (x *ChainGovernorStatus_Chain) Reset() {
 	*x = ChainGovernorStatus_Chain{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[20]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1603,7 +1679,7 @@ func (x *ChainGovernorStatus_Chain) String() string {
 func (*ChainGovernorStatus_Chain) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_Chain) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[20]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1908,27 +1984,38 @@ var file_gossip_v1_gossip_proto_rawDesc = []byte{
 	0x74, 0x75, 0x72, 0x65, 0x12, 0x17, 0x0a, 0x07, 0x74, 0x78, 0x5f, 0x68, 0x61, 0x73, 0x68, 0x18,
 	0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x74, 0x78, 0x48, 0x61, 0x73, 0x68, 0x12, 0x1d, 0x0a,
 	0x0a, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x09, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x49, 0x64, 0x22, 0xe8, 0x01, 0x0a,
-	0x18, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x54, 0x72,
-	0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x19, 0x0a, 0x08, 0x76, 0x61, 0x61,
-	0x5f, 0x68, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x76, 0x61, 0x61,
-	0x48, 0x61, 0x73, 0x68, 0x12, 0x15, 0x0a, 0x06, 0x76, 0x61, 0x61, 0x5f, 0x69, 0x64, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x61, 0x49, 0x64, 0x12, 0x2b, 0x0a, 0x11, 0x64,
-	0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e,
-	0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x10, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74,
-	0x69, 0x6f, 0x6e, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x12, 0x2a, 0x0a, 0x11, 0x6d, 0x61, 0x6e, 0x61,
-	0x67, 0x65, 0x72, 0x5f, 0x73, 0x65, 0x74, 0x5f, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x04, 0x20,
-	0x01, 0x28, 0x0d, 0x52, 0x0f, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x53, 0x65, 0x74, 0x49,
-	0x6e, 0x64, 0x65, 0x78, 0x12, 0x21, 0x0a, 0x0c, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x72, 0x5f, 0x69,
-	0x6e, 0x64, 0x65, 0x78, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0b, 0x73, 0x69, 0x67, 0x6e,
-	0x65, 0x72, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x12, 0x1e, 0x0a, 0x0a, 0x73, 0x69, 0x67, 0x6e, 0x61,
-	0x74, 0x75, 0x72, 0x65, 0x73, 0x18, 0x06, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x0a, 0x73, 0x69, 0x67,
-	0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x42, 0x41, 0x5a, 0x3f, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x65, 0x72, 0x74, 0x75, 0x73, 0x6f, 0x6e, 0x65, 0x2f,
-	0x77, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x2f, 0x6e, 0x6f, 0x64, 0x65, 0x2f, 0x70, 0x6b,
-	0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2f, 0x76,
-	0x31, 0x3b, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x33,
+	0x09, 0x52, 0x09, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x49, 0x64, 0x22, 0x89, 0x02, 0x0a,
+	0x12, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74,
+	0x69, 0x6f, 0x6e, 0x12, 0x19, 0x0a, 0x08, 0x76, 0x61, 0x61, 0x5f, 0x68, 0x61, 0x73, 0x68, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x76, 0x61, 0x61, 0x48, 0x61, 0x73, 0x68, 0x12, 0x15,
+	0x0a, 0x06, 0x76, 0x61, 0x61, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05,
+	0x76, 0x61, 0x61, 0x49, 0x64, 0x12, 0x2b, 0x0a, 0x11, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d,
+	0x52, 0x10, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x68, 0x61,
+	0x69, 0x6e, 0x12, 0x2a, 0x0a, 0x11, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x5f, 0x73, 0x65,
+	0x74, 0x5f, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0f, 0x6d,
+	0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x53, 0x65, 0x74, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x12, 0x21,
+	0x0a, 0x0c, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x72, 0x5f, 0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x05,
+	0x20, 0x01, 0x28, 0x0d, 0x52, 0x0b, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x72, 0x49, 0x6e, 0x64, 0x65,
+	0x78, 0x12, 0x1e, 0x0a, 0x0a, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x73, 0x18,
+	0x06, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x0a, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65,
+	0x73, 0x12, 0x25, 0x0a, 0x0e, 0x73, 0x65, 0x6e, 0x74, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74,
+	0x61, 0x6d, 0x70, 0x18, 0x07, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0d, 0x73, 0x65, 0x6e, 0x74, 0x54,
+	0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0x8e, 0x01, 0x0a, 0x18, 0x53, 0x69, 0x67,
+	0x6e, 0x65, 0x64, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x2f, 0x0a, 0x13, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72,
+	0x5f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0c, 0x52, 0x12, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x72, 0x54, 0x72, 0x61, 0x6e, 0x73,
+	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74,
+	0x75, 0x72, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61,
+	0x74, 0x75, 0x72, 0x65, 0x12, 0x23, 0x0a, 0x0d, 0x67, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e,
+	0x5f, 0x61, 0x64, 0x64, 0x72, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0c, 0x67, 0x75, 0x61,
+	0x72, 0x64, 0x69, 0x61, 0x6e, 0x41, 0x64, 0x64, 0x72, 0x42, 0x41, 0x5a, 0x3f, 0x67, 0x69, 0x74,
+	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x65, 0x72, 0x74, 0x75, 0x73, 0x6f, 0x6e,
+	0x65, 0x2f, 0x77, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x2f, 0x6e, 0x6f, 0x64, 0x65, 0x2f,
+	0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70,
+	0x2f, 0x76, 0x31, 0x3b, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1943,7 +2030,7 @@ func file_gossip_v1_gossip_proto_rawDescGZIP() []byte {
 	return file_gossip_v1_gossip_proto_rawDescData
 }
 
-var file_gossip_v1_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_gossip_v1_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_gossip_v1_gossip_proto_goTypes = []interface{}{
 	(*GossipMessage)(nil),                   // 0: gossip.v1.GossipMessage
 	(*SignedHeartbeat)(nil),                 // 1: gossip.v1.SignedHeartbeat
@@ -1959,13 +2046,14 @@ var file_gossip_v1_gossip_proto_goTypes = []interface{}{
 	(*SignedQueryResponse)(nil),             // 11: gossip.v1.SignedQueryResponse
 	(*SignedObservationBatch)(nil),          // 12: gossip.v1.SignedObservationBatch
 	(*Observation)(nil),                     // 13: gossip.v1.Observation
-	(*SignedManagerTransaction)(nil),        // 14: gossip.v1.SignedManagerTransaction
-	(*Heartbeat_Network)(nil),               // 15: gossip.v1.Heartbeat.Network
-	(*ChainGovernorConfig_Chain)(nil),       // 16: gossip.v1.ChainGovernorConfig.Chain
-	(*ChainGovernorConfig_Token)(nil),       // 17: gossip.v1.ChainGovernorConfig.Token
-	(*ChainGovernorStatus_EnqueuedVAA)(nil), // 18: gossip.v1.ChainGovernorStatus.EnqueuedVAA
-	(*ChainGovernorStatus_Emitter)(nil),     // 19: gossip.v1.ChainGovernorStatus.Emitter
-	(*ChainGovernorStatus_Chain)(nil),       // 20: gossip.v1.ChainGovernorStatus.Chain
+	(*ManagerTransaction)(nil),              // 14: gossip.v1.ManagerTransaction
+	(*SignedManagerTransaction)(nil),        // 15: gossip.v1.SignedManagerTransaction
+	(*Heartbeat_Network)(nil),               // 16: gossip.v1.Heartbeat.Network
+	(*ChainGovernorConfig_Chain)(nil),       // 17: gossip.v1.ChainGovernorConfig.Chain
+	(*ChainGovernorConfig_Token)(nil),       // 18: gossip.v1.ChainGovernorConfig.Token
+	(*ChainGovernorStatus_EnqueuedVAA)(nil), // 19: gossip.v1.ChainGovernorStatus.EnqueuedVAA
+	(*ChainGovernorStatus_Emitter)(nil),     // 20: gossip.v1.ChainGovernorStatus.Emitter
+	(*ChainGovernorStatus_Chain)(nil),       // 21: gossip.v1.ChainGovernorStatus.Chain
 }
 var file_gossip_v1_gossip_proto_depIdxs = []int32{
 	1,  // 0: gossip.v1.GossipMessage.signed_heartbeat:type_name -> gossip.v1.SignedHeartbeat
@@ -1976,14 +2064,14 @@ var file_gossip_v1_gossip_proto_depIdxs = []int32{
 	10, // 5: gossip.v1.GossipMessage.signed_query_request:type_name -> gossip.v1.SignedQueryRequest
 	11, // 6: gossip.v1.GossipMessage.signed_query_response:type_name -> gossip.v1.SignedQueryResponse
 	12, // 7: gossip.v1.GossipMessage.signed_observation_batch:type_name -> gossip.v1.SignedObservationBatch
-	14, // 8: gossip.v1.GossipMessage.signed_manager_transaction:type_name -> gossip.v1.SignedManagerTransaction
-	15, // 9: gossip.v1.Heartbeat.networks:type_name -> gossip.v1.Heartbeat.Network
-	16, // 10: gossip.v1.ChainGovernorConfig.chains:type_name -> gossip.v1.ChainGovernorConfig.Chain
-	17, // 11: gossip.v1.ChainGovernorConfig.tokens:type_name -> gossip.v1.ChainGovernorConfig.Token
-	20, // 12: gossip.v1.ChainGovernorStatus.chains:type_name -> gossip.v1.ChainGovernorStatus.Chain
+	15, // 8: gossip.v1.GossipMessage.signed_manager_transaction:type_name -> gossip.v1.SignedManagerTransaction
+	16, // 9: gossip.v1.Heartbeat.networks:type_name -> gossip.v1.Heartbeat.Network
+	17, // 10: gossip.v1.ChainGovernorConfig.chains:type_name -> gossip.v1.ChainGovernorConfig.Chain
+	18, // 11: gossip.v1.ChainGovernorConfig.tokens:type_name -> gossip.v1.ChainGovernorConfig.Token
+	21, // 12: gossip.v1.ChainGovernorStatus.chains:type_name -> gossip.v1.ChainGovernorStatus.Chain
 	13, // 13: gossip.v1.SignedObservationBatch.observations:type_name -> gossip.v1.Observation
-	18, // 14: gossip.v1.ChainGovernorStatus.Emitter.enqueued_vaas:type_name -> gossip.v1.ChainGovernorStatus.EnqueuedVAA
-	19, // 15: gossip.v1.ChainGovernorStatus.Chain.emitters:type_name -> gossip.v1.ChainGovernorStatus.Emitter
+	19, // 14: gossip.v1.ChainGovernorStatus.Emitter.enqueued_vaas:type_name -> gossip.v1.ChainGovernorStatus.EnqueuedVAA
+	20, // 15: gossip.v1.ChainGovernorStatus.Chain.emitters:type_name -> gossip.v1.ChainGovernorStatus.Emitter
 	16, // [16:16] is the sub-list for method output_type
 	16, // [16:16] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
@@ -2166,7 +2254,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SignedManagerTransaction); i {
+			switch v := v.(*ManagerTransaction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2178,7 +2266,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Heartbeat_Network); i {
+			switch v := v.(*SignedManagerTransaction); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2190,7 +2278,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorConfig_Chain); i {
+			switch v := v.(*Heartbeat_Network); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2202,7 +2290,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorConfig_Token); i {
+			switch v := v.(*ChainGovernorConfig_Chain); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2214,7 +2302,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorStatus_EnqueuedVAA); i {
+			switch v := v.(*ChainGovernorConfig_Token); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2226,7 +2314,7 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainGovernorStatus_Emitter); i {
+			switch v := v.(*ChainGovernorStatus_EnqueuedVAA); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2238,6 +2326,18 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorStatus_Emitter); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_gossip_v1_gossip_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorStatus_Chain); i {
 			case 0:
 				return &v.state
@@ -2267,7 +2367,7 @@ func file_gossip_v1_gossip_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_gossip_v1_gossip_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

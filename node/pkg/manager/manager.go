@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
@@ -24,7 +25,6 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 // ManagerSignature represents signatures produced by a single manager signer for a VAA.
@@ -83,10 +83,10 @@ type ManagerService struct {
 	// managerSets is a map of chain ID -> manager set index -> manager set config.
 	// This allows tracking multiple manager sets per chain (for governance transitions).
 	managerSets map[vaa.ChainID]map[uint32]*ManagerSetConfig
-	// gossipSendC is the channel for broadcasting signed manager transactions to the gossip network.
-	gossipSendC chan<- []byte
-	// incomingTxC receives signed manager transactions from other manager nodes via gossip.
-	incomingTxC <-chan *gossipv1.SignedManagerTransaction
+	// managerTxSendC is the channel for sending manager transactions to be signed and broadcast via gossip.
+	managerTxSendC chan<- *gossipv1.ManagerTransaction
+	// managerTxRecvC receives verified manager transactions from other manager nodes via gossip.
+	managerTxRecvC <-chan *gossipv1.ManagerTransaction
 	// db is the database for persistent storage of aggregated transactions.
 	db *db.ManagerDB
 	// pendingTxMu protects access to database operations for aggregated transactions.
@@ -100,8 +100,8 @@ func NewManagerService(
 	vaaC <-chan *vaa.VAA,
 	env common.Environment,
 	signers map[vaa.ChainID]guardiansigner.GuardianSigner,
-	gossipSendC chan<- []byte,
-	incomingTxC <-chan *gossipv1.SignedManagerTransaction,
+	managerTxSendC chan<- *gossipv1.ManagerTransaction,
+	managerTxRecvC <-chan *gossipv1.ManagerTransaction,
 	database *db.Database,
 ) *ManagerService {
 	// Select the appropriate emitter list based on environment
@@ -142,17 +142,17 @@ func NewManagerService(
 	}
 
 	return &ManagerService{
-		ctx:           ctx,
-		logger:        logger.With(zap.String("component", "manager")),
-		vaaC:          vaaC,
-		env:           env,
-		emitters:      emitters,
-		signers:       signers,
-		signerPubKeys: signerPubKeys,
-		managerSets:   managerSets,
-		gossipSendC:   gossipSendC,
-		incomingTxC:   incomingTxC,
-		db:            db.NewManagerDB(database.Conn()),
+		ctx:            ctx,
+		logger:         logger.With(zap.String("component", "manager")),
+		vaaC:           vaaC,
+		env:            env,
+		emitters:       emitters,
+		signers:        signers,
+		signerPubKeys:  signerPubKeys,
+		managerSets:    managerSets,
+		managerTxSendC: managerTxSendC,
+		managerTxRecvC: managerTxRecvC,
+		db:             db.NewManagerDB(database.Conn()),
 	}
 }
 
@@ -229,7 +229,7 @@ func (c *ManagerService) Run(ctx context.Context) error {
 			return ctx.Err()
 		case v := <-c.vaaC:
 			c.handleVAA(v)
-		case tx := <-c.incomingTxC:
+		case tx := <-c.managerTxRecvC:
 			c.handleIncomingTransaction(tx)
 		}
 	}
@@ -307,7 +307,7 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 	)
 
 	// Broadcast the signature to other manager service instances
-	if c.gossipSendC != nil {
+	if c.managerTxSendC != nil {
 		c.broadcastSignature(sig)
 	}
 
@@ -315,8 +315,9 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 	c.storeSignature(sig)
 }
 
-// handleIncomingTransaction processes a signed manager transaction received from another manager node.
-func (c *ManagerService) handleIncomingTransaction(tx *gossipv1.SignedManagerTransaction) {
+// handleIncomingTransaction processes a verified manager transaction received from another manager node.
+// The p2p layer has already verified the guardian signature before passing this to us.
+func (c *ManagerService) handleIncomingTransaction(tx *gossipv1.ManagerTransaction) {
 	c.logger.Debug("received signed manager transaction from peer",
 		zap.String("vaa_id", tx.VaaId),
 		zap.Uint32("destination_chain", tx.DestinationChain),
@@ -374,37 +375,27 @@ func (c *ManagerService) isKnownEmitter(chain vaa.ChainID, addr vaa.Address) boo
 	return false
 }
 
-// broadcastSignature broadcasts a signed manager transaction to the gossip network.
+// broadcastSignature broadcasts a manager transaction to the gossip network.
+// The p2p layer will sign the message with the guardian key before publishing.
 func (c *ManagerService) broadcastSignature(sig *ManagerSignature) {
-	msg := &gossipv1.SignedManagerTransaction{
+	msg := &gossipv1.ManagerTransaction{
 		VaaHash:          sig.VAAHash,
 		VaaId:            sig.VAAID,
 		DestinationChain: uint32(sig.DestinationChain),
 		ManagerSetIndex:  sig.ManagerSetIndex,
 		SignerIndex:      uint32(sig.SignerIndex),
 		Signatures:       sig.InputSignatures,
-	}
-
-	envelope := &gossipv1.GossipMessage{
-		Message: &gossipv1.GossipMessage_SignedManagerTransaction{
-			SignedManagerTransaction: msg,
-		},
-	}
-
-	b, err := proto.Marshal(envelope)
-	if err != nil {
-		c.logger.Error("failed to marshal signed manager transaction", zap.Error(err))
-		return
+		SentTimestamp:    time.Now().Unix(),
 	}
 
 	select {
-	case c.gossipSendC <- b:
-		c.logger.Debug("broadcast signed manager transaction",
+	case c.managerTxSendC <- msg:
+		c.logger.Debug("broadcast manager transaction",
 			zap.String("vaa_id", sig.VAAID),
 			zap.Uint8("signer_index", sig.SignerIndex),
 		)
 	default:
-		c.logger.Warn("gossip send channel full, dropping signed manager transaction",
+		c.logger.Warn("gossip send channel full, dropping manager transaction",
 			zap.String("vaa_id", sig.VAAID),
 		)
 	}
