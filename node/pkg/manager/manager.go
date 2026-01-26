@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/manager/dogecoin"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -42,26 +44,6 @@ type ManagerSignature struct {
 	// InputSignatures contains one signature per input UTXO, in order.
 	// Each signature is in the format expected by the destination chain (DER-encoded for Dogecoin).
 	InputSignatures [][]byte
-}
-
-// AggregatedTransaction holds signatures from multiple signers for a single VAA.
-// It is used to collect signatures until we have M-of-N required for broadcast.
-type AggregatedTransaction struct {
-	// VAAHash is the hash of the VAA that triggered this signing.
-	VAAHash []byte
-	// VAAID is the VAA ID in format "{chain}/{emitter}/{sequence}".
-	VAAID string
-	// DestinationChain is the target chain (e.g., Dogecoin).
-	DestinationChain vaa.ChainID
-	// ManagerSetIndex is the delegated manager set index from the payload.
-	ManagerSetIndex uint32
-	// Required is the M value (number of signatures needed).
-	Required uint8
-	// Total is the N value (total number of possible signers).
-	Total uint8
-	// Signatures maps signer index to their signatures.
-	// Each entry contains the per-input signatures from that signer.
-	Signatures map[uint8][][]byte
 }
 
 // emitterEntry represents a known manager emitter.
@@ -105,10 +87,10 @@ type ManagerService struct {
 	gossipSendC chan<- []byte
 	// incomingTxC receives signed manager transactions from other manager nodes via gossip.
 	incomingTxC <-chan *gossipv1.SignedManagerTransaction
-	// pendingTxMu protects access to pendingTx.
+	// db is the database for persistent storage of aggregated transactions.
+	db *db.ManagerDB
+	// pendingTxMu protects access to database operations for aggregated transactions.
 	pendingTxMu sync.RWMutex
-	// pendingTx stores aggregated transactions indexed by VAA hash (hex encoded).
-	pendingTx map[string]*AggregatedTransaction
 }
 
 // NewManagerService creates a new ManagerService instance.
@@ -120,6 +102,7 @@ func NewManagerService(
 	signers map[vaa.ChainID]guardiansigner.GuardianSigner,
 	gossipSendC chan<- []byte,
 	incomingTxC <-chan *gossipv1.SignedManagerTransaction,
+	database *db.Database,
 ) *ManagerService {
 	// Select the appropriate emitter list based on environment
 	var emitters []emitterEntry
@@ -169,7 +152,7 @@ func NewManagerService(
 		managerSets:   managerSets,
 		gossipSendC:   gossipSendC,
 		incomingTxC:   incomingTxC,
-		pendingTx:     make(map[string]*AggregatedTransaction),
+		db:            db.NewManagerDB(database.Conn()),
 	}
 }
 
@@ -423,15 +406,24 @@ func (c *ManagerService) broadcastSignature(sig *ManagerSignature) {
 
 // storeSignature stores a signature from a manager signer for aggregation.
 // Once M-of-N signatures are collected, the transaction can be broadcast.
+// Signatures are persisted to BadgerDB for durability across restarts.
 func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 	hashHex := hex.EncodeToString(sig.VAAHash)
 
 	c.pendingTxMu.Lock()
 	defer c.pendingTxMu.Unlock()
 
-	// Get or create the aggregated transaction entry
-	aggTx, exists := c.pendingTx[hashHex]
-	if !exists {
+	// Try to get existing aggregated transaction from database
+	aggTx, err := c.db.GetAggregatedTransaction(hashHex)
+	if err != nil && !errors.Is(err, db.ErrManagerSigNotFound) {
+		c.logger.Error("failed to get aggregated transaction from database",
+			zap.String("vaa_hash", hashHex),
+			zap.Error(err),
+		)
+		return
+	}
+
+	if aggTx == nil {
 		// Look up the manager set to get M and N values
 		chainSets, ok := c.managerSets[sig.DestinationChain]
 		if !ok {
@@ -450,7 +442,7 @@ func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 			return
 		}
 
-		aggTx = &AggregatedTransaction{
+		aggTx = &db.AggregatedTransaction{
 			VAAHash:          sig.VAAHash,
 			VAAID:            sig.VAAID,
 			DestinationChain: sig.DestinationChain,
@@ -459,10 +451,9 @@ func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 			Total:            managerSet.N,
 			Signatures:       make(map[uint8][][]byte),
 		}
-		c.pendingTx[hashHex] = aggTx
 	}
 
-	// Store the signatures from this signer
+	// Check if we already have this signature
 	if _, alreadyHave := aggTx.Signatures[sig.SignerIndex]; alreadyHave {
 		c.logger.Debug("already have signature from signer",
 			zap.String("vaa_id", sig.VAAID),
@@ -471,7 +462,17 @@ func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 		return
 	}
 
+	// Add the new signature
 	aggTx.Signatures[sig.SignerIndex] = sig.InputSignatures
+
+	// Persist to database
+	if err := c.db.StoreAggregatedTransaction(hashHex, aggTx); err != nil {
+		c.logger.Error("failed to store aggregated transaction to database",
+			zap.String("vaa_hash", hashHex),
+			zap.Error(err),
+		)
+		return
+	}
 
 	c.logger.Info("stored manager signature",
 		zap.String("vaa_id", sig.VAAID),
@@ -488,7 +489,6 @@ func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 			zap.Int("collected", len(aggTx.Signatures)),
 			zap.Uint8("required", aggTx.Required),
 		)
-		// TODO: Notify that transaction is ready for broadcast
 	}
 }
 
@@ -640,30 +640,41 @@ func compressPublicKey(pubKey *ecdsa.PublicKey) []byte {
 
 // GetPendingTransactionByHash returns the aggregated transaction for a given VAA hash.
 // Returns nil if no transaction exists for the hash.
-func (c *ManagerService) GetPendingTransactionByHash(hashHex string) *AggregatedTransaction {
-	c.pendingTxMu.RLock()
-	defer c.pendingTxMu.RUnlock()
-	return c.pendingTx[hashHex]
-}
-
-// GetPendingTransactionByID searches for an aggregated transaction by VAA ID.
-// Returns nil if no transaction exists with the given ID.
-// This is less efficient than GetPendingTransactionByHash as it requires iteration.
-func (c *ManagerService) GetPendingTransactionByID(vaaID string) *AggregatedTransaction {
+func (c *ManagerService) GetPendingTransactionByHash(hashHex string) *db.AggregatedTransaction {
 	c.pendingTxMu.RLock()
 	defer c.pendingTxMu.RUnlock()
 
-	for _, tx := range c.pendingTx {
-		if tx.VAAID == vaaID {
-			return tx
+	tx, err := c.db.GetAggregatedTransaction(hashHex)
+	if err != nil {
+		if !errors.Is(err, db.ErrManagerSigNotFound) {
+			c.logger.Error("failed to get aggregated transaction from database",
+				zap.String("vaa_hash", hashHex),
+				zap.Error(err),
+			)
 		}
+		return nil
 	}
-	return nil
+	return tx
 }
 
-// IsComplete returns true if this aggregated transaction has enough signatures.
-func (a *AggregatedTransaction) IsComplete() bool {
-	return uint8(len(a.Signatures)) >= a.Required // #nosec G115 -- Signatures map is bounded by N (uint8)
+// GetPendingTransactionByID retrieves an aggregated transaction by VAA ID.
+// Returns nil if no transaction exists with the given ID.
+// This uses an index for O(1) lookup.
+func (c *ManagerService) GetPendingTransactionByID(vaaID string) *db.AggregatedTransaction {
+	c.pendingTxMu.RLock()
+	defer c.pendingTxMu.RUnlock()
+
+	tx, err := c.db.GetAggregatedTransactionByVAAID(vaaID)
+	if err != nil {
+		if !errors.Is(err, db.ErrManagerSigNotFound) {
+			c.logger.Error("failed to get aggregated transaction by VAA ID from database",
+				zap.String("vaa_id", vaaID),
+				zap.Error(err),
+			)
+		}
+		return nil
+	}
+	return tx
 }
 
 // GetFeatureString returns the feature flag string for heartbeat messages.

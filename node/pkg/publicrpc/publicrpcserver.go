@@ -248,7 +248,7 @@ func (s *PublicrpcServer) GetSignedManagerTransactionByHash(_ context.Context, r
 	return aggregatedTxToByHashResponse(aggTx), nil
 }
 
-func aggregatedTxToResponse(aggTx *manager.AggregatedTransaction) *publicrpcv1.GetSignedManagerTransactionResponse {
+func aggregatedTxToResponse(aggTx *guardianDB.AggregatedTransaction) *publicrpcv1.GetSignedManagerTransactionResponse {
 	signatures := make([]*publicrpcv1.ManagerSignerEntry, 0, len(aggTx.Signatures))
 	for signerIdx, sigs := range aggTx.Signatures {
 		signatures = append(signatures, &publicrpcv1.ManagerSignerEntry{
@@ -269,7 +269,7 @@ func aggregatedTxToResponse(aggTx *manager.AggregatedTransaction) *publicrpcv1.G
 	}
 }
 
-func aggregatedTxToByHashResponse(aggTx *manager.AggregatedTransaction) *publicrpcv1.GetSignedManagerTransactionByHashResponse {
+func aggregatedTxToByHashResponse(aggTx *guardianDB.AggregatedTransaction) *publicrpcv1.GetSignedManagerTransactionByHashResponse {
 	signatures := make([]*publicrpcv1.ManagerSignerEntry, 0, len(aggTx.Signatures))
 	for signerIdx, sigs := range aggTx.Signatures {
 		signatures = append(signatures, &publicrpcv1.ManagerSignerEntry{
