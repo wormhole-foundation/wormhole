@@ -80,5 +80,7 @@ func manualTokenList() []TokenConfigEntry {
 		{Chain: 2, Addr: "0000000000000000000000007d1afa7b718fb893db30a3abc0cfc608aacfebb0", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
 		{Chain: 4, Addr: "000000000000000000000000cc42724c6683b7e57334c4e856f4c9965ed682bd", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
 		{Chain: 16, Addr: "0000000000000000000000003405a1bd46b85c5c029483fbecf2f3e611026e45", Symbol: "MATIC", CoinGeckoId: "polygon-ecosystem-token", Decimals: 18, Price: 0.2},
+		// ZEROGRAVITY 
+		{Chain: 67, Addr: "0000000000000000000000001Cd0690fF9a693f5EF2dD976660a8dAFc81A109c", Symbol: "W0G", CoinGeckoId: "wrapped-0g", Decimals: 18, Price: 0.91},
 	}
 }
