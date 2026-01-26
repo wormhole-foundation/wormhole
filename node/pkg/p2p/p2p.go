@@ -87,7 +87,7 @@ var heartbeatMessagePrefix = []byte("heartbeat|")
 
 var signedObservationRequestPrefix = []byte("signed_observation_request|")
 
-var signedDelegateObservationPrefix = []byte("signed_delegate_observation|")
+var signedDelegateObservationPrefix = []byte("signed_delegate_observation_000000|")
 
 // heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
 var heartbeatMaxTimeDifference = time.Minute * 15
