@@ -5,10 +5,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-log_info() { echo "[INFO] $1"; }
-log_error() { echo "[ERROR] $1"; }
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 if [ $# -lt 6 ]; then
     echo "Usage: $0 <TLS_HOSTNAME> <TLS_PUBLIC_IP> <OUTPUT_DIR> <GUARDIAN_KEY_PATH> <TLS_PORT> <PEER_SERVER_URL>"
@@ -41,9 +38,6 @@ SKIP_NEXT_STEP_HINT=1 "${SCRIPT_DIR}/generate-tls.sh" \
     "${TLS_HOSTNAME}" \
     "${TLS_PUBLIC_IP}" \
     "${OUTPUT_DIR}"
-
-# Resolve OUTPUT_DIR to absolute path (generate-tls.sh creates it if needed)
-OUTPUT_DIR="$(cd "${OUTPUT_DIR}" && pwd)"
 
 echo ""
 echo "=============================================="

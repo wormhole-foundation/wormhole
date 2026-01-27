@@ -4,10 +4,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+REPO_ROOT="${SCRIPT_DIR}/../.."
 
-log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; }
 
 if [ $# -lt 5 ]; then
@@ -45,8 +44,6 @@ if [ ! -f "${TLS_KEYS_DIR}/cert.pem" ]; then
     exit 1
 fi
 
-TLS_KEYS_DIR="$(cd "${TLS_KEYS_DIR}" && pwd)"
-
 # Optional: use DOCKER_NETWORK env var for custom network
 NETWORK_FLAG=""
 if [ -n "${DOCKER_NETWORK:-}" ]; then
@@ -62,6 +59,8 @@ WORMHOLE_ENV=""
 if [ -n "${WORMHOLE_ADDRESS}" ]; then
     WORMHOLE_ENV="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS}"
 fi
+
+docker build --tag dkg-client --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
 
 docker run \
     --rm \
