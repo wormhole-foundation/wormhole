@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	addresscodec "github.com/Peersyst/xrpl-go/address-codec"
@@ -58,6 +60,10 @@ type Watcher struct {
 	msgChan       chan<- *common.MessagePublication
 	obsvReqC      <-chan *gossipv1.ObservationRequest
 	readinessSync readiness.Component
+
+	// WebSocket client - shared across all operations
+	client   *websocket.Client
+	clientMu sync.Mutex
 }
 
 func NewWatcher(
@@ -79,6 +85,16 @@ func NewWatcher(
 
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
+
+	// Clean up WebSocket connection on shutdown
+	defer func() {
+		w.clientMu.Lock()
+		if w.client != nil {
+			_ = w.client.Disconnect()
+			w.client = nil
+		}
+		w.clientMu.Unlock()
+	}()
 
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDXRPL, &gossipv1.Heartbeat_Network{
 		ContractAddress: w.contract,
@@ -131,7 +147,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-ticker.C:
-				ledgerIndex, err := w.getValidatedLedgerIndex(ctx, logger)
+				ledgerIndex, err := w.getValidatedLedgerIndex(logger)
 				if err != nil {
 					logger.Error("Failed to get validated ledger index", zap.Error(err))
 					xrplConnectionErrors.WithLabelValues("ledger_height_error").Inc()
@@ -159,6 +175,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			case req := <-w.obsvReqC:
+				if req.ChainId > math.MaxUint16 {
+					logger.Error("chain id for observation request is not a valid uint16",
+						zap.Uint32("chainID", req.ChainId),
+						zap.String("txID", hex.EncodeToString(req.TxHash)),
+					)
+					continue
+				}
 				if vaa.ChainID(req.ChainId) != vaa.ChainIDXRPL {
 					panic("invalid chain ID")
 				}
@@ -167,7 +190,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				logger.Info("Received reobservation request",
 					zap.String("txHash", hex.EncodeToString(txHash)))
 
-				msg, err := w.fetchAndParseTransaction(ctx, logger, txHash)
+				msg, err := w.fetchAndParseTransaction(txHash)
 				if err != nil {
 					logger.Error("Failed to fetch transaction for reobservation",
 						zap.String("txHash", hex.EncodeToString(txHash)),
@@ -194,18 +217,36 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-// subscribeAndProcess connects to XRPL WebSocket and subscribes to account transactions.
-// It processes incoming transactions and publishes Wormhole messages.
-func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) error {
-	// Create XRPL WebSocket client
+// connect creates a new WebSocket client and connects to the XRPL node.
+// Caller must hold w.clientMu.
+func (w *Watcher) connect() error {
+	// Disconnect existing client if any
+	if w.client != nil {
+		_ = w.client.Disconnect()
+		w.client = nil
+	}
+
 	cfg := websocket.NewClientConfig().WithHost(w.rpc)
 	client := websocket.NewClient(cfg)
 
-	// Connect to XRPL node
 	if err := client.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to XRPL node: %w", err)
 	}
-	defer client.Disconnect()
+
+	w.client = client
+	return nil
+}
+
+// subscribeAndProcess connects to XRPL WebSocket and subscribes to account transactions.
+// It processes incoming transactions and publishes Wormhole messages.
+func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) error {
+	w.clientMu.Lock()
+	if err := w.connect(); err != nil {
+		w.clientMu.Unlock()
+		return err
+	}
+	client := w.client
+	w.clientMu.Unlock()
 
 	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
 
@@ -237,7 +278,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 		case <-ctx.Done():
 			return ctx.Err()
 		case tx := <-txChan:
-			if err := w.processTransaction(ctx, logger, tx); err != nil {
+			if err := w.processTransaction(logger, tx); err != nil {
 				logger.Error("Failed to process transaction",
 					zap.String("hash", string(tx.Hash)),
 					zap.Error(err))
@@ -247,7 +288,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 }
 
 // processTransaction handles an incoming transaction from the subscription.
-func (w *Watcher) processTransaction(ctx context.Context, logger *zap.Logger, tx *streamtypes.TransactionStream) error {
+func (w *Watcher) processTransaction(logger *zap.Logger, tx *streamtypes.TransactionStream) error {
 	// Only process validated transactions
 	if !tx.Validated {
 		logger.Debug("Skipping unvalidated transaction", zap.String("hash", string(tx.Hash)))
@@ -279,15 +320,14 @@ func (w *Watcher) processTransaction(ctx context.Context, logger *zap.Logger, tx
 }
 
 // fetchAndParseTransaction fetches a specific transaction by hash for reobservation.
-func (w *Watcher) fetchAndParseTransaction(ctx context.Context, logger *zap.Logger, txHash []byte) (*common.MessagePublication, error) {
-	// Create WebSocket client for the request
-	cfg := websocket.NewClientConfig().WithHost(w.rpc)
-	client := websocket.NewClient(cfg)
+func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublication, error) {
+	w.clientMu.Lock()
+	client := w.client
+	w.clientMu.Unlock()
 
-	if err := client.Connect(); err != nil {
-		return nil, fmt.Errorf("failed to connect to XRPL node: %w", err)
+	if client == nil {
+		return nil, fmt.Errorf("XRPL client not connected")
 	}
-	defer client.Disconnect()
 
 	// Fetch transaction by hash
 	txReq := &transactions.TxRequest{
@@ -315,15 +355,14 @@ func (w *Watcher) fetchAndParseTransaction(ctx context.Context, logger *zap.Logg
 }
 
 // getValidatedLedgerIndex returns the current validated ledger index.
-func (w *Watcher) getValidatedLedgerIndex(ctx context.Context, logger *zap.Logger) (int64, error) {
-	// Create WebSocket client for the request
-	cfg := websocket.NewClientConfig().WithHost(w.rpc)
-	client := websocket.NewClient(cfg)
+func (w *Watcher) getValidatedLedgerIndex(logger *zap.Logger) (int64, error) {
+	w.clientMu.Lock()
+	client := w.client
+	w.clientMu.Unlock()
 
-	if err := client.Connect(); err != nil {
-		return 0, fmt.Errorf("failed to connect to XRPL node: %w", err)
+	if client == nil {
+		return 0, fmt.Errorf("XRPL client not connected")
 	}
-	defer client.Disconnect()
 
 	// Request server info
 	infoReq := &server.InfoRequest{}
@@ -345,7 +384,11 @@ func (w *Watcher) getValidatedLedgerIndex(ctx context.Context, logger *zap.Logge
 		logger.Warn("XRPL node not fully synced", zap.String("state", state))
 	}
 
-	return int64(infoResp.Info.ValidatedLedger.Seq), nil
+	seq := infoResp.Info.ValidatedLedger.Seq
+	if seq > math.MaxInt64 {
+		return 0, fmt.Errorf("ledger sequence %d exceeds max int64", seq)
+	}
+	return int64(seq), nil
 }
 
 // parseTransactionStream converts an XRPL TransactionStream into a MessagePublication.
@@ -361,7 +404,7 @@ func (w *Watcher) parseTransactionStream(tx *streamtypes.TransactionStream) (*co
 	}
 
 	// Extract payload from Memos
-	payload, nonce, err := w.extractWormholePayload(tx.Transaction)
+	payload, err := w.extractWormholePayload(tx.Transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +451,7 @@ func (w *Watcher) parseTransactionStream(tx *streamtypes.TransactionStream) (*co
 	return &common.MessagePublication{
 		TxID:             txHash,
 		Timestamp:        timestamp,
-		Nonce:            nonce,
+		Nonce:            0, // NTT payloads do not include a nonce
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDXRPL,
 		EmitterAddress:   emitterAddress,
@@ -422,7 +465,7 @@ func (w *Watcher) parseTransactionStream(tx *streamtypes.TransactionStream) (*co
 func (w *Watcher) parseTxResponse(tx *transactions.TxResponse) (*common.MessagePublication, error) {
 	// Extract Wormhole payload from Memos in the transaction
 	// TxResponse has TxJSON which is a FlatTransaction
-	payload, nonce, err := w.extractWormholePayload(tx.TxJSON)
+	payload, err := w.extractWormholePayload(tx.TxJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +495,7 @@ func (w *Watcher) parseTxResponse(tx *transactions.TxResponse) (*common.MessageP
 	return &common.MessagePublication{
 		TxID:             txHash,
 		Timestamp:        time.Now(), // TxResponse may not have close time readily available
-		Nonce:            nonce,
+		Nonce:            0, // NTT payloads do not include a nonce
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDXRPL,
 		EmitterAddress:   emitterAddress,
@@ -483,23 +526,22 @@ const (
 const tesSUCCESS = "tesSUCCESS"
 
 // extractWormholePayload extracts the Wormhole message payload from transaction Memos.
-// Returns the payload bytes, nonce, and any error.
-// Returns (nil, 0, nil) if no Wormhole payload is found (not an error, just not a Wormhole tx).
+// Returns the payload bytes and any error.
+// Returns (nil, nil) if no Wormhole payload is found (not an error, just not a Wormhole tx).
 //
 // Currently only NTT transfers are supported on XRPL. The NTT payload format does not include
-// a nonce field, so we return 0. If generic Wormhole messages are added in the future, the
-// nonce would need to be extracted from a different memo format or field.
-func (w *Watcher) extractWormholePayload(tx transaction.FlatTransaction) ([]byte, uint32, error) {
+// a nonce field, so callers should use nonce=0.
+func (w *Watcher) extractWormholePayload(tx transaction.FlatTransaction) ([]byte, error) {
 	// FlatTransaction is map[string]interface{}
 	// Memos is an array of objects with structure: [{"Memo": {"MemoType": "...", "MemoData": "..."}}]
 	memosRaw, ok := tx["Memos"]
 	if !ok {
-		return nil, 0, nil
+		return nil, nil
 	}
 
 	memos, ok := memosRaw.([]interface{})
 	if !ok {
-		return nil, 0, nil
+		return nil, nil
 	}
 
 	for _, memoWrapperRaw := range memos {
@@ -532,7 +574,7 @@ func (w *Watcher) extractWormholePayload(tx transaction.FlatTransaction) ([]byte
 
 		payload, err := hex.DecodeString(memoData)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to decode MemoData: %w", err)
+			return nil, fmt.Errorf("failed to decode MemoData: %w", err)
 		}
 
 		// Verify NTT payload prefix
@@ -541,11 +583,10 @@ func (w *Watcher) extractWormholePayload(tx transaction.FlatTransaction) ([]byte
 			continue
 		}
 
-		// NOTE: Nonce is not included in NTT payload, use 0
-		return payload, 0, nil
+		return payload, nil
 	}
 
-	return nil, 0, nil
+	return nil, nil
 }
 
 // addressToEmitter converts an XRPL address to a 32-byte VAA emitter address.
