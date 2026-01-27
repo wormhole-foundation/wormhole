@@ -312,6 +312,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		p2pMessagesSent.WithLabelValues("control").Add(0)
 		p2pMessagesSent.WithLabelValues("attestation").Add(0)
 		p2pMessagesSent.WithLabelValues("vaa").Add(0)
+		p2pMessagesSent.WithLabelValues("tss").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("batch_observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
@@ -378,8 +379,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		}
 
 		// These will only be non-nil if the application plans to listen for or publish to that topic.
-		var controlPubsubTopic, attestationPubsubTopic, vaaPubsubTopic *pubsub.Topic
-		var controlSubscription, attestationSubscription, vaaSubscription *pubsub.Subscription
+		var controlPubsubTopic, attestationPubsubTopic, vaaPubsubTopic, tssPubsubTopic *pubsub.Topic
+		var controlSubscription, attestationSubscription, vaaSubscription, tssSubscription *pubsub.Subscription
 
 		// Set up the control channel. ////////////////////////////////////////////////////////////////////
 		if params.nodeName != "" || params.gossipControlSendC != nil || params.obsvReqSendC != nil || params.obsvReqRecvC != nil || params.signedGovCfgRecvC != nil || params.signedGovStatusRecvC != nil || params.gst.IsSubscribedToHeartbeats() {
@@ -454,6 +455,30 @@ func Run(params *RunParams) func(ctx context.Context) error {
 				}
 				defer vaaSubscription.Cancel()
 			}
+		}
+
+		// Set up the TSS networking topics. ////////////////////////////////////////////////////////////////////
+		if params.tssGossiper != nil {
+			tssTopic := fmt.Sprintf("%s/%s", params.networkID, "tss")
+			logger.Info("joining the tss topic", zap.String("topic", tssTopic))
+
+			tssPubsubTopic, err = ps.Join(tssTopic)
+			if err != nil {
+				return fmt.Errorf("failed to join the tss topic: %w", err)
+			}
+
+			defer func() {
+				if err := tssPubsubTopic.Close(); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("Error closing the tss topic", zap.Error(err))
+				}
+			}()
+
+			logger.Info("subscribing to the tss topic", zap.String("topic", tssTopic))
+			tssSubscription, err = tssPubsubTopic.Subscribe(pubsub.WithBufferSize(P2P_SUBSCRIPTION_BUFFER_SIZE))
+			if err != nil {
+				return fmt.Errorf("failed to subscribe to the tss topic: %w", err)
+			}
+			defer tssSubscription.Cancel()
 		}
 
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
@@ -606,6 +631,11 @@ func Run(params *RunParams) func(ctx context.Context) error {
 		// This routine processes messages received from the internal channels and publishes them to gossip. ///////////////////
 		// NOTE: The go specification says that it is safe to receive on a nil channel, it just blocks forever.
 		go func() {
+			var tssOutbound <-chan *gossipv1.TSSGossipMessage
+			if params.tssGossiper != nil {
+				tssOutbound = params.tssGossiper.Outbound()
+			}
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -679,6 +709,24 @@ func Run(params *RunParams) func(ctx context.Context) error {
 						logger.Error("failed to publish observation request", zap.Error(err))
 					} else {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
+					}
+				case msg := <-tssOutbound:
+					if tssPubsubTopic == nil {
+						continue // no control topic: drop TSS gossip messages.
+					}
+
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_TssGossipMessage{TssGossipMessage: msg},
+					}
+
+					b, err := proto.Marshal(envelope)
+					if err != nil {
+						logger.Error("failed to marshal tss gossip message", zap.Error(err))
+					}
+
+					p2pMessagesSent.WithLabelValues("tss").Inc()
+					if err := tssPubsubTopic.Publish(ctx, b); err != nil {
+						logger.Error("failed to publish tss gossip message", zap.Error(err))
 					}
 				}
 			}
@@ -965,6 +1013,10 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			}()
 		}
 
+		if params.tssGossiper != nil && tssSubscription != nil {
+			tssGossipListener(ctx, tssSubscription, errC, logger, h, params)
+		}
+
 		// Wait for either a shutdown or a fatal error from a pubsub subscription.
 		select {
 		case <-ctx.Done():
@@ -973,6 +1025,54 @@ func Run(params *RunParams) func(ctx context.Context) error {
 			return err
 		}
 	}
+}
+
+// This method listens for TSS gossip messages and passes them to the TSS gossiper.
+func tssGossipListener(ctx context.Context, tssSubscription *pubsub.Subscription, errC chan error, logger *zap.Logger, h host.Host, params *RunParams) {
+	go func() {
+		for {
+			envelope, err := tssSubscription.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
+			if err != nil {
+				errC <- fmt.Errorf("failed to receive pubsub message on tss topic: %w", err) //nolint:channelcheck // The runnable will exit anyway
+				return
+			}
+
+			var msg gossipv1.GossipMessage
+			err = proto.Unmarshal(envelope.Data, &msg)
+			if err != nil {
+				logger.Info("received invalid message on tss topic",
+					zap.Binary("data", envelope.Data),
+					zap.String("from", envelope.GetFrom().String()),
+				)
+				p2pMessagesReceived.WithLabelValues("invalid").Inc()
+
+				continue
+			}
+
+			if envelope.GetFrom() == h.ID() {
+				p2pMessagesReceived.WithLabelValues("loopback").Inc()
+
+				continue // ignoring loopback messages
+			}
+
+			m, ok := msg.Message.(*gossipv1.GossipMessage_TssGossipMessage)
+			if !ok {
+				p2pMessagesReceived.WithLabelValues("unknown").Inc()
+				logger.Warn("received unknown message type on tss topic (running outdated software?)",
+					zap.Any("payload", msg.Message),
+					zap.Binary("raw", envelope.Data),
+					zap.String("from", envelope.GetFrom().String()),
+				)
+
+				continue
+			}
+
+			p2pMessagesReceived.WithLabelValues("tss").Inc()
+			if err := params.tssGossiper.Inform(m.TssGossipMessage); err != nil {
+				logger.Error("failed to inform tss gossiper", zap.Error(err))
+			}
+		}
+	}()
 }
 
 func createSignedHeartbeat(ctx context.Context, guardianSigner guardiansigner.GuardianSigner, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {

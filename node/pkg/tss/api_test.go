@@ -2,15 +2,23 @@ package tss
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"errors"
 	"io"
 	"net"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	common "github.com/xlabs/tss-common"
+	"github.com/xlabs/multi-party-sig/pkg/math/curve"
+	"github.com/xlabs/multi-party-sig/pkg/math/sample"
+	tsscommon "github.com/xlabs/tss-common"
 	"github.com/xlabs/tss-common/service/signer"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -53,6 +61,10 @@ func (m *mockSignerServer) SignMessage(stream signer.Signer_SignMessageServer) e
 	}
 }
 
+func (m *mockSignerServer) UpdateKeys(ctx context.Context, req *signer.UpdateKeysRequest) (*signer.UpdateKeysResponse, error) {
+	return &signer.UpdateKeysResponse{}, nil
+}
+
 func (m *mockSignerServer) GetPublicData(ctx context.Context, req *signer.PublicDataRequest) (*signer.PublicData, error) {
 	if m.publicData == nil {
 		return nil, errors.New("no public data")
@@ -65,6 +77,77 @@ func (m *mockSignerServer) VerifySignature(ctx context.Context, req *signer.Veri
 	return &signer.VerifySignatureResponse{IsValid: true}, nil
 }
 
+func TestNewSignerValidation(t *testing.T) {
+	key, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
+	require.NoError(t, err)
+
+	gs, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(key)
+	require.NoError(t, err)
+
+	validParams := Parameters{
+		SocketPath: "localhost:1234",
+		DialOpts: []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+		GST:            common.NewGuardianSetState(nil),
+		GuardianSigner: gs,
+	}
+
+	testCases := []struct {
+		name        string
+		modifier    func(p *Parameters)
+		expectedErr string
+	}{
+		{
+			name:        "Valid parameters",
+			modifier:    func(p *Parameters) {},
+			expectedErr: "",
+		},
+		{
+			name: "Nil DialOption",
+			modifier: func(p *Parameters) {
+				p.DialOpts = []grpc.DialOption{nil}
+			},
+			expectedErr: "nil grpc dial option provided",
+		},
+		{
+			name: "Nil GST",
+			modifier: func(p *Parameters) {
+				p.GST = nil
+			},
+			expectedErr: "guardian set state must not be nil",
+		},
+		{
+			name: "Nil GuardianSigner",
+			modifier: func(p *Parameters) {
+				p.GuardianSigner = nil
+			},
+			expectedErr: "guardian signer must not be nil",
+		},
+		{
+			name: "Empty SocketPath",
+			modifier: func(p *Parameters) {
+				p.SocketPath = ""
+			},
+			expectedErr: "socket path must not be empty",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			params := validParams
+			tc.modifier(&params)
+			_, err := NewSigner(params)
+			if tc.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
+			}
+		})
+	}
+}
+
 func TestSignerClient(t *testing.T) {
 	a := require.New(t)
 
@@ -72,12 +155,20 @@ func TestSignerClient(t *testing.T) {
 	a.NoError(err)
 
 	s := grpc.NewServer()
+
+	// Generate valid points for testing GetPublicKey
+	grp := curve.Secp256k1{}
+	priv := sample.Scalar(rand.Reader, grp)
+	pub := priv.ActOnBase()
+	pubBytes, err := grp.MarshalPoint(pub)
+	a.NoError(err)
+
 	mock := &mockSignerServer{
 		signRequests:  make(chan *signer.SignRequest, 10),
 		signResponses: make(chan *signer.SignResponse, 10),
 		publicData: &signer.PublicData{
-			FrostPublicData: []byte("frost_key"),
-			EcdsaPublicData: []byte("ecdsa_key"),
+			FrostPublicData: pubBytes,
+			EcdsaPublicData: pubBytes,
 		},
 	}
 	signer.RegisterSignerServer(s, mock)
@@ -89,10 +180,23 @@ func TestSignerClient(t *testing.T) {
 	}()
 	defer s.Stop()
 
+	key, err := ecdsa.GenerateKey(ethcrypto.S256(), rand.Reader)
+	a.NoError(err)
+
+	gs, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(key)
+	a.NoError(err)
+
 	// Create client with bufconn dialer and insecure credentials
-	client, err := NewSigner(lis.Addr().String(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	client, err := NewSigner(Parameters{
+		SocketPath: lis.Addr().String(),
+		DialOpts: []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+		// LeaderIndex:    0,
+		// Self:           0,
+		GST:            common.NewGuardianSetState(nil),
+		GuardianSigner: gs,
+	})
 	a.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -107,12 +211,15 @@ func TestSignerClient(t *testing.T) {
 		pd, err := client.GetPublicData(ctx)
 		a.NoError(err)
 
-		a.Equal(string(pd.FrostPublicData), "frost_key")
+		a.Equal(pd.FrostPublicData, pubBytes)
 	})
 
 	t.Run("AsyncSign", func(t *testing.T) {
-		req := &signer.SignRequest{Digest: []byte("test_digest")}
+		a.Error(client.AsyncSign(nil))
+		a.Error(client.AsyncSign(&signer.SignRequest{}))                                            // malformed
+		a.Error(client.AsyncSign(&signer.SignRequest{Digest: []byte("12341414123"), Protocol: ""})) // malformed (missing protocol)
 
+		req := &signer.SignRequest{Digest: []byte("test_digest"), Protocol: tsscommon.ProtocolECDSASign.ToString()}
 		a.NoError(client.AsyncSign(req))
 
 		// Verify request received by server
@@ -126,7 +233,7 @@ func TestSignerClient(t *testing.T) {
 		// Send response from server
 		resp := &signer.SignResponse{
 			Response: &signer.SignResponse_Signature{
-				Signature: &common.SignatureData{
+				Signature: &tsscommon.SignatureData{
 					Signature: []byte("test_signature"),
 				},
 			},
@@ -149,9 +256,68 @@ func TestSignerClient(t *testing.T) {
 		err := client.Verify(ctx, &signer.VerifySignatureRequest{})
 		a.NoError(err)
 	})
+
+	t.Run("UpdateKeys", func(t *testing.T) {
+		err := client.UpdateKeys(ctx, &signer.UpdateKeysRequest{})
+		a.NoError(err)
+
+		err = client.UpdateKeys(ctx, nil)
+		a.Error(err)
+		a.Equal(err, errNilRequest)
+	})
+
+	t.Run("GetPublicKey", func(t *testing.T) {
+		pk, err := client.GetPublicKey(ctx, tsscommon.ProtocolFROSTSign)
+		a.NoError(err)
+		a.True(pk.Equal(pub))
+
+		pk, err = client.GetPublicKey(ctx, tsscommon.ProtocolECDSASign)
+		a.NoError(err)
+		a.True(pk.Equal(pub))
+
+		_, err = client.GetPublicKey(ctx, tsscommon.ProtocolType("unknown"))
+		a.Error(err)
+	})
 }
 
-func waitForConnection(t *testing.T, client *signerClient) {
+func TestConfigurations_LoadFromFile(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		f, err := os.CreateTemp("", "tss-config-*.json")
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+		_, err = f.WriteString(`{"threshold_size": 2}`)
+		require.NoError(t, err)
+		f.Close()
+
+		c := &Configurations{}
+		err = c.LoadFromFile(f.Name())
+		require.NoError(t, err)
+		require.Equal(t, 2, c.ThresholdSize)
+	})
+
+	t.Run("InvalidPath", func(t *testing.T) {
+		c := &Configurations{}
+		err := c.LoadFromFile("/nonexistent/config.json")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to read tss configurations file")
+	})
+
+	t.Run("InvalidContent", func(t *testing.T) {
+		f, err := os.CreateTemp("", "tss-config-*.json")
+		require.NoError(t, err)
+		defer os.Remove(f.Name())
+		_, err = f.WriteString(`invalid-json`)
+		require.NoError(t, err)
+		f.Close()
+
+		c := &Configurations{}
+		err = c.LoadFromFile(f.Name())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to unmarshal tss configurations")
+	})
+}
+
+func waitForConnection(t *testing.T, client *SignerClient) {
 	t.Log("waiting for client to connect...")
 	for range 5 {
 		if client.isConnected() {

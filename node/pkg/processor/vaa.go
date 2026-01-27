@@ -1,6 +1,8 @@
 package processor
 
 import (
+	"context"
+
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -12,7 +14,7 @@ type VAA struct {
 }
 
 // HandleQuorum is called when a VAA reaches quorum. It publishes the VAA to the gossip network and stores it in the database.
-func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
+func (v *VAA) HandleQuorum(ctx context.Context, sigs []*vaa.Signature, hash string, p *Processor) {
 	// Deep copy the observation and add signatures
 	signed := &vaa.VAA{
 		Version:          v.Version,
@@ -36,7 +38,11 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	// Broadcast the VAA and store it in the database.
 	p.broadcastSignedVAA(signed)
 	p.storeSignedVAA(signed)
-	p.thresholdSigner.WitnessNewVaa(signed)
+
+	if err := p.thresholdSigner.WitnessNewVaaV1(ctx, signed); err != nil {
+		p.logger.Warn("witnessing new VAA v1 for TSS signing failed",
+			zap.Error(err), zap.Any("message", signed))
+	}
 }
 
 func (v *VAA) IsReliable() bool {

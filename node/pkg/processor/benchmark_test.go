@@ -58,7 +58,7 @@ func BenchmarkHandleObservation(b *testing.B) {
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
 			start := time.Now()
-			p.handleSingleObservation(pd.guardianAddrs[guardianIdx], pd.createObservation(b, guardianIdx, k))
+			p.handleSingleObservation(ctx, pd.guardianAddrs[guardianIdx], pd.createObservation(b, guardianIdx, k))
 			duration := time.Since(start)
 			totalCount++
 			totalTime += duration
@@ -111,7 +111,7 @@ func BenchmarkProfileHandleObservation(b *testing.B) {
 		p.handleMessage(ctx, k)
 
 		for guardianIdx := 1; guardianIdx < 19; guardianIdx++ {
-			p.handleSingleObservation(pd.guardianAddrs[guardianIdx], pd.createObservation(b, guardianIdx, k))
+			p.handleSingleObservation(ctx, pd.guardianAddrs[guardianIdx], pd.createObservation(b, guardianIdx, k))
 		}
 	}
 	require.Equal(b, NumObservations, len(pd.gossipVaaSendC))

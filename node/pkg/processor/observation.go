@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -73,15 +74,15 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 }
 
 // handleBatchObservation processes a batch of remote VAA observations.
-func (p *Processor) handleBatchObservation(m *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) {
+func (p *Processor) handleBatchObservation(ctx context.Context, m *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]) {
 	for _, obs := range m.Msg.Observations {
-		p.handleSingleObservation(m.Msg.Addr, obs)
+		p.handleSingleObservation(ctx, m.Msg.Addr, obs)
 	}
 	batchObservationTotalDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 }
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum, and assembles and submits a valid VAA if possible.
-func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation) {
+func (p *Processor) handleSingleObservation(ctx context.Context, addr []byte, m *gossipv1.Observation) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
@@ -222,7 +223,7 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 	s.signatures[their_addr] = m.Signature
 
 	if s.ourObservation != nil {
-		p.checkForQuorum(m, s, gs, hash)
+		p.checkForQuorum(ctx, m, s, gs, hash)
 	} else {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("we have not yet seen this observation yet",
@@ -238,7 +239,7 @@ func (p *Processor) handleSingleObservation(addr []byte, m *gossipv1.Observation
 
 // checkForQuorum checks for quorum after a valid signature has been added to the observation state. If quorum is met, it broadcasts the signed VAA. This function
 // is called both for local and external observations. It assumes we that we have made the observation ourselves but have not already submitted the VAA.
-func (p *Processor) checkForQuorum(m *gossipv1.Observation, s *state, gs *node_common.GuardianSet, hash string) {
+func (p *Processor) checkForQuorum(ctx context.Context, m *gossipv1.Observation, s *state, gs *node_common.GuardianSet, hash string) {
 	// Check if we have more signatures than required for quorum.
 	// s.signatures may contain signatures from multiple guardian sets during guardian set updates
 	// Hence, if len(s.signatures) < quorum, then there is definitely no quorum and we can return early to save additional computation,
@@ -283,13 +284,13 @@ func (p *Processor) checkForQuorum(m *gossipv1.Observation, s *state, gs *node_c
 
 	// We have reached quorum *with the active guardian set*.
 	start := time.Now()
-	s.ourObservation.HandleQuorum(sigsVaaFormat, hash, p)
+	s.ourObservation.HandleQuorum(ctx, sigsVaaFormat, hash, p)
 	s.submitted = true
 	timeToHandleQuorum.Observe(float64(time.Since(start).Microseconds()))
 }
 
 // handleInboundSignedVAAWithQuorum takes a VAA received from the network. If we have not already seen it and it is valid, we store it in the database.
-func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQuorum) {
+func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
 	v, err := vaa.Unmarshal(m.Vaa)
 	if err != nil {
 		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
@@ -303,7 +304,10 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 		//
 		// in case the leader has a VaaV2, it doesn't need to start a new signing process.
 		if !p.haveSignedVaav2(*db.VaaIDFromVAA(v)) {
-			p.thresholdSigner.WitnessNewVaa(v)
+			if err := p.thresholdSigner.WitnessNewVaaV1(ctx, v); err != nil {
+				p.logger.Warn("witnessing new VAA v1 for TSS signing failed",
+					zap.Error(err), zap.Any("message", m))
+			}
 		}
 	}
 
@@ -340,16 +344,18 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 
 	var verificationPublic vaa.PublicKeys = keys
 	if v.Version == vaa.TSSVaaVersion {
-		// TODO: Handle TSSVaa Version verification properly.
-		// verificationPublic, err = p.thresholdSigner.GetPublicKey()
-		// if err != nil {
-		// 	p.logger.Warn("dropping SignedVAAWithQuorum message since we failed to get public key for TSS VAA",
-		// 		zap.String("message_id", v.MessageID()),
-		// 		zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
-		// 		zap.Error(err),
-		// 	)
-		// 	return
-		// }
+		protocol := p.thresholdSigner.GetProtocol(int(v.EmitterChain))
+		pb, err := p.thresholdSigner.GetPublicKey(ctx, protocol)
+		if err != nil {
+			p.logger.Warn("dropping SignedVAAWithQuorum message since we failed to get public key for TSS VAA",
+				zap.String("message_id", v.MessageID()),
+				zap.String("digest", hex.EncodeToString(v.SigningDigest().Bytes())),
+				zap.Error(err),
+			)
+			return
+		}
+
+		verificationPublic = pb
 	}
 
 	if err := v.Verify(verificationPublic); err != nil {

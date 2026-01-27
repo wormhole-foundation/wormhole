@@ -12,7 +12,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	tsscommon "github.com/xlabs/tss-common"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -128,7 +127,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	// Fast path for our own signature.
 	if !s.submitted {
 		start := time.Now()
-		p.checkForQuorum(ourObs, s, s.gs, hash)
+		p.checkForQuorum(ctx, ourObs, s, s.gs, hash)
 		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 	}
 }
@@ -144,9 +143,8 @@ func (p *Processor) tssSign(v *VAA) {
 	}
 
 	err := p.thresholdSigner.AsyncSign(&signer.SignRequest{
-		Digest: v.SigningDigest().Bytes(),
-		// TODO: fill in protocol according to additional context like chain.
-		Protocol: string(tsscommon.ProtocolFROSTSign),
+		Digest:   v.SigningDigest().Bytes(),
+		Protocol: p.thresholdSigner.GetProtocol(int(v.EmitterChain)).ToString(),
 	})
 
 	if err != nil {
