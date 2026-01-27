@@ -36,7 +36,7 @@ pub use constants::*;
 pub use error::WormholeError;
 pub use types::*;
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, Vec};
+use soroban_sdk::{Address, Bytes, BytesN, Env};
 
 /// Complete public interface for the Wormhole Core contract.
 ///
@@ -49,33 +49,13 @@ use soroban_sdk::{Address, Bytes, BytesN, Env, Vec};
 /// - Governance actions require VAAs signed by a quorum (13/19) of guardians
 /// - VAAs are consumed after use to prevent replay attacks
 /// - The contract is its own admin—upgrades require guardian consensus
+///
+/// # Initialization
+///
+/// The contract is initialized via `__constructor` at deployment time.
+/// Constructor arguments (initial guardians and governance emitter) are passed
+/// during the `stellar contract deploy` command after `--`.
 pub trait WormholeCoreInterface {
-    // ========== Initialization ==========
-
-    /// Initialize the contract with the initial guardian set and governance emitter.
-    /// Can only be called once.
-    ///
-    /// # Arguments
-    /// * `initial_guardians` - Ethereum addresses (20 bytes) of initial guardians
-    /// * `governance_emitter` - The governance emitter address (32 bytes) that can issue governance VAAs.
-    ///   For mainnet, this should be 0x0000000000000000000000000000000000000000000000000000000000000004
-    ///   For testnet, you may use a different address you control for testing.
-    ///
-    /// # Errors
-    /// * `Error::AlreadyInitialized` - Contract already initialized
-    /// * `Error::EmptyGuardianSet` - No guardians provided
-    fn initialize(
-        env: Env,
-        initial_guardians: Vec<BytesN<20>>,
-        governance_emitter: BytesN<32>,
-    ) -> Result<(), WormholeError>;
-
-    /// Check if the contract has been initialized.
-    ///
-    /// # Returns
-    /// `true` if initialized, `false` otherwise
-    fn is_initialized(env: Env) -> bool;
-
     // ========== VAA Verification ==========
 
     /// Verify a complete VAA (Verifiable Action Approval).
@@ -175,8 +155,7 @@ pub trait WormholeCoreInterface {
     /// Sequence number assigned to the message
     ///
     /// # Errors
-    /// * `Error::NotInitialized` - Contract not initialized
-    /// * `Error::InsufficientFeePaid` - Fee not paid
+    /// * `Error::InsufficientFeePaid` - Fee not paid (requires prior token approval)
     fn post_message(
         env: Env,
         emitter: Address,

@@ -4,7 +4,7 @@
 //! providing a standard flow: verify VAA → check replay → parse payload →
 //! validate → consume → execute.
 
-use crate::{initialize, storage::StorageKey, utils::keccak256_hash, vaa::verify_vaa};
+use crate::{storage::StorageKey, utils::keccak256_hash, vaa::verify_vaa};
 use core::convert::TryFrom;
 use soroban_sdk::{Bytes, BytesN, Env};
 use wormhole_soroban_client::{
@@ -32,15 +32,12 @@ pub trait GovernanceAction {
 
     /// Standard governance submission flow with replay protection.
     ///
-    /// 1. Verify contract is initialized
-    /// 2. Parse and verify VAA (signatures + governance source)
-    /// 3. Check VAA not already consumed
-    /// 4. Parse and validate payload
-    /// 5. **Consume VAA (before execution!)**
-    /// 6. Execute the action
+    /// 1. Parse and verify VAA (signatures + governance source)
+    /// 2. Check VAA not already consumed
+    /// 3. Parse and validate payload
+    /// 4. **Consume VAA (before execution!)**
+    /// 5. Execute the action
     fn submit(env: &Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
-        initialize::require_initialized(env)?;
-
         let (vaa, vaa_hash) = verify_and_hash_governance_vaa(env, &vaa_bytes)?;
         require_vaa_not_consumed(env, &vaa_hash)?;
 

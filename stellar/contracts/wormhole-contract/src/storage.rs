@@ -14,8 +14,6 @@ use soroban_sdk::{Address, BytesN, contracttype};
 pub enum StorageKey {
     /// Index of the currently active guardian set (starts at 0).
     CurrentGuardianSetIndex,
-    /// Boolean flag indicating contract initialization status.
-    Initialized,
     /// Contract's admin address (set to itself for self-upgrade via governance).
     Admin,
     /// 32-byte address authorized to emit governance VAAs.

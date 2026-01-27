@@ -1,8 +1,8 @@
 //! Error types for the Wormhole Core contract.
 //!
 //! All contract operations return `Result<T, WormholeError>`. Error codes are
-//! grouped by category (VAA, initialization, governance, storage, fees) with
-//! reserved numeric ranges for future expansion.
+//! grouped by category (VAA, governance, storage, fees) with reserved numeric
+//! ranges for future expansion.
 
 use soroban_sdk::contracterror;
 
@@ -10,7 +10,6 @@ use soroban_sdk::contracterror;
 ///
 /// Error codes are organized into ranges:
 /// - 1-19: VAA parsing and verification errors
-/// - 20-29: Contract initialization errors
 /// - 30-39: Governance action errors
 /// - 40-49: Storage and guardian set errors
 /// - 50-59: Fee-related errors
@@ -41,13 +40,6 @@ pub enum WormholeError {
     InvalidEmitterAddress = 9,
     /// Payload bytes are malformed or insufficient length.
     InvalidPayload = 10,
-
-    // ========== Initialization Errors (20-29) ==========
-
-    /// Contract has already been initialized.
-    AlreadyInitialized = 20,
-    /// Contract must be initialized before this operation.
-    NotInitialized = 21,
 
     // ========== Governance Errors (30-39) ==========
 

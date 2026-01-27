@@ -7,7 +7,6 @@
 
 use crate::{
     governance::action::{GovernanceAction, parse_governance_header, validate_governance_header},
-    initialize,
     storage::StorageKey,
 };
 use core::convert::TryFrom;
@@ -133,19 +132,19 @@ pub fn get_guardian_set_expiry(env: &Env, index: u32) -> Option<u64> {
 
 /// Stores a new guardian set at the given index.
 ///
-/// Index 0 is only valid during initialization. Subsequent indices must be
-/// strictly sequential (current + 1) and cannot overwrite existing sets.
+/// Index 0 is only valid during constructor (guardian set won't exist yet).
+/// Subsequent indices must be strictly sequential (current + 1).
+/// Cannot overwrite existing guardian sets.
 pub fn store(env: &Env, index: u32, set: GuardianSetInfo) -> Result<(), WormholeError> {
     let current_index = get_current_guardian_set_index(env);
 
-    if index == 0 {
-        if initialize::is_initialized(env) {
-            return Err(WormholeError::GuardianSetAlreadyExists);
-        }
-    } else if index != current_index.saturating_add(1) {
+    // Index 0 is only valid during constructor (guardian set won't exist yet)
+    // All other indices must be current + 1 for proper sequencing
+    if index != 0 && index != current_index.saturating_add(1) {
         return Err(WormholeError::InvalidGuardianSetSequence);
     }
 
+    // Cannot overwrite existing guardian sets (including index 0 after constructor)
     if get_guardian_set(env, index).is_ok() {
         return Err(WormholeError::GuardianSetAlreadyExists);
     }
@@ -174,15 +173,6 @@ fn set_expiry(env: &Env, index: u32, expiry: u64) {
         STORAGE_TTL_THRESHOLD,
         STORAGE_TTL_EXTENSION,
     );
-}
-
-/// Marks a guardian set to expire in 24 hours from now.
-fn expire_guardian_set(env: &Env, index: u32) {
-    let expiry = env
-        .ledger()
-        .timestamp()
-        .saturating_add(u64::from(GUARDIAN_SET_EXPIRATION_TIME));
-    set_expiry(env, index, expiry);
 }
 
 /// Governance action handler for guardian set upgrades.

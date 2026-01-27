@@ -16,7 +16,7 @@
 
 use soroban_sdk::{Address, Bytes, BytesN, Env, Vec, contract, contractimpl};
 use wormhole_soroban_client::{
-    ConsistencyLevel, GuardianSetInfo, WormholeCoreInterface, WormholeError, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID, GOVERNANCE_EMITTER
+    ConsistencyLevel, GuardianSetInfo, WormholeCoreInterface, WormholeError, CHAIN_ID_STELLAR, GOVERNANCE_CHAIN_ID,
 };
 use crate::governance::{
     guardian_set::get_current_guardian_set_index, guardian_set::get_guardian_set, guardian_set::get_guardian_set_expiry,
@@ -37,20 +37,32 @@ mod vaa;
 #[contract]
 pub struct Wormhole;
 
+/// Constructor and non-trait methods.
 #[contractimpl]
-impl WormholeCoreInterface for Wormhole {
-    fn initialize(
+impl Wormhole {
+    /// Constructor called atomically during contract deployment.
+    ///
+    /// Sets up the initial guardian set (index 0), configures the contract as its
+    /// own admin for governance upgrades, and stores the governance emitter address.
+    ///
+    /// # Arguments
+    /// * `initial_guardians` - Ethereum addresses (20 bytes) of initial guardians
+    /// * `governance_emitter` - 32-byte address authorized to emit governance VAAs
+    ///
+    /// # Panics
+    /// Panics with `EmptyGuardianSet` if no guardians are provided.
+    pub fn __constructor(
         env: Env,
         initial_guardians: Vec<BytesN<20>>,
         governance_emitter: BytesN<32>,
-    ) -> Result<(), WormholeError> {
-        initialize::initialize(&env, initial_guardians, governance_emitter)
+    ) {
+        initialize::initialize_internal(&env, initial_guardians, governance_emitter);
     }
+}
 
-    fn is_initialized(env: Env) -> bool {
-        initialize::is_initialized(&env)
-    }
-
+/// Implementation of the public Wormhole Core interface.
+#[contractimpl]
+impl WormholeCoreInterface for Wormhole {
     fn verify_vaa(env: Env, vaa_bytes: Bytes) -> Result<(), WormholeError> {
         vaa::verify_vaa(&env, &vaa_bytes)?;
         Ok(())
@@ -138,12 +150,10 @@ impl WormholeCoreInterface for Wormhole {
     }
 
     fn get_governance_emitter(env: Env) -> BytesN<32> {
+        // Constructor guarantees this is always set
         env.storage()
             .persistent()
             .get(&storage::StorageKey::GovernanceEmitter)
-            .unwrap_or_else(|| {
-                // Fallback to default if not initialized
-                BytesN::from_array(&env, &GOVERNANCE_EMITTER)
-            })
+            .expect("governance emitter not set")
     }
 }

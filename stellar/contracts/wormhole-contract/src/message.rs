@@ -10,7 +10,7 @@ use wormhole_soroban_client::{
 };
 
 use crate::{
-    governance, initialize,
+    governance,
     storage::StorageKey,
     utils::{address_to_bytes32, get_native_token_address, keccak256_hash},
 };
@@ -126,7 +126,6 @@ fn store_posted_message(env: &Env, emitter: &Address, sequence: u64, message_has
 ///
 /// # Errors
 ///
-/// - `NotInitialized` if the contract hasn't been initialized
 /// - `InsufficientFeePaid` if fee collection fails (requires prior approval)
 pub fn post_message_with_fee(
     env: &Env,
@@ -135,8 +134,6 @@ pub fn post_message_with_fee(
     payload: Bytes,
     consistency_level: ConsistencyLevel,
 ) -> Result<u64, WormholeError> {
-    initialize::require_initialized(env)?;
-
     let required_fee = governance::get_message_fee(env);
 
     if required_fee > 0 {
