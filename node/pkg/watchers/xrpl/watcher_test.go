@@ -1,7 +1,6 @@
 package xrpl
 
 import (
-	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"testing"
@@ -51,11 +50,10 @@ func TestExtractWormholePayload_ValidNTTMemo(t *testing.T) {
 	w := &Watcher{}
 	tx := createFlatTransactionWithMemos(testNTTMemoType, sampleNTTMemoData)
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	require.NotNil(t, payload)
-	assert.Equal(t, uint32(0), nonce, "NTT nonce should be 0")
 
 	// Verify payload starts with NTT prefix
 	assert.Equal(t, byte(0x99), payload[0])
@@ -70,11 +68,10 @@ func TestExtractWormholePayload_NoMemos(t *testing.T) {
 		"Account": "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
 	}
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, payload, "Should return nil when no Memos field")
-	assert.Equal(t, uint32(0), nonce)
 }
 
 func TestExtractWormholePayload_EmptyMemos(t *testing.T) {
@@ -83,11 +80,10 @@ func TestExtractWormholePayload_EmptyMemos(t *testing.T) {
 		"Memos": []interface{}{},
 	}
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, payload)
-	assert.Equal(t, uint32(0), nonce)
 }
 
 func TestExtractWormholePayload_WrongMemoType(t *testing.T) {
@@ -96,11 +92,10 @@ func TestExtractWormholePayload_WrongMemoType(t *testing.T) {
 	wrongMemoType := "746578742F706C61696E"
 	tx := createFlatTransactionWithMemos(wrongMemoType, sampleNTTMemoData)
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, payload, "Should return nil for wrong MemoType")
-	assert.Equal(t, uint32(0), nonce)
 }
 
 func TestExtractWormholePayload_InvalidNTTPrefix(t *testing.T) {
@@ -109,11 +104,10 @@ func TestExtractWormholePayload_InvalidNTTPrefix(t *testing.T) {
 	wrongPrefixData := "DEADBEEF0600000000000F42400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000200010002"
 	tx := createFlatTransactionWithMemos(testNTTMemoType, wrongPrefixData)
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, payload, "Should return nil for wrong NTT prefix")
-	assert.Equal(t, uint32(0), nonce)
 }
 
 func TestExtractWormholePayload_InvalidHexMemoData(t *testing.T) {
@@ -121,11 +115,10 @@ func TestExtractWormholePayload_InvalidHexMemoData(t *testing.T) {
 	// Invalid hex string
 	tx := createFlatTransactionWithMemos(testNTTMemoType, "NOTVALIDHEX!!!")
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.Error(t, err, "Should return error for invalid hex")
 	assert.Nil(t, payload)
-	assert.Equal(t, uint32(0), nonce)
 }
 
 func TestExtractWormholePayload_TooShortPayload(t *testing.T) {
@@ -134,11 +127,10 @@ func TestExtractWormholePayload_TooShortPayload(t *testing.T) {
 	shortData := "99"
 	tx := createFlatTransactionWithMemos(testNTTMemoType, shortData)
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	assert.Nil(t, payload, "Should return nil for payload too short for prefix check")
-	assert.Equal(t, uint32(0), nonce)
 }
 
 func TestExtractWormholePayload_MultipleMemos_OnlyOneValid(t *testing.T) {
@@ -162,11 +154,10 @@ func TestExtractWormholePayload_MultipleMemos_OnlyOneValid(t *testing.T) {
 		},
 	}
 
-	payload, nonce, err := w.extractWormholePayload(tx)
+	payload, err := w.extractWormholePayload(tx)
 
 	require.NoError(t, err)
 	require.NotNil(t, payload, "Should find the valid NTT memo")
-	assert.Equal(t, uint32(0), nonce)
 	// Verify it's the NTT payload
 	assert.Equal(t, byte(0x99), payload[0])
 }
@@ -240,13 +231,11 @@ func TestExtractWormholePayload_MalformedMemoStructure(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			payload, nonce, err := w.extractWormholePayload(tc.tx)
+			payload, err := w.extractWormholePayload(tc.tx)
 
 			// Malformed structures should not cause errors, just return nil
 			require.NoError(t, err)
-			assert.Nil(t, payload)
-			assert.Equal(t, uint32(0), nonce)
-		})
+			assert.Nil(t, payload)	})
 	}
 }
 
@@ -472,7 +461,7 @@ func TestProcessTransaction_SkipsUnvalidated(t *testing.T) {
 		Transaction:  createFlatTransactionWithMemos(testNTTMemoType, sampleNTTMemoData),
 	}
 
-	err := w.processTransaction(context.Background(), zap.NewNop(), tx)
+	err := w.processTransaction(zap.NewNop(), tx)
 
 	require.NoError(t, err)
 	assert.Empty(t, msgChan, "No message should be sent for unvalidated transaction")
@@ -498,7 +487,7 @@ func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
 		},
 	}
 
-	err := w.processTransaction(context.Background(), zap.NewNop(), tx)
+	err := w.processTransaction(zap.NewNop(), tx)
 
 	require.NoError(t, err)
 	require.Len(t, msgChan, 1, "Message should be sent for validated transaction")
