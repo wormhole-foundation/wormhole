@@ -131,7 +131,7 @@ func (s *SignerClient) gossipListener(ctx context.Context, logger *zap.Logger) {
 				continue
 			}
 
-			if err := dt.verifyGossipSig(msg, gs); err != nil {
+			if err := dt.verifyGossipSig(msg); err != nil {
 				logger.Warn("invalid gossip signature", zap.Error(err))
 				continue
 			}
@@ -185,6 +185,7 @@ func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet)
 		rq.Committee = append(rq.Committee, key)
 	}
 
+	// This isn't for security, just to avoid sending requests that will be rejected by the signer.
 	if len(rq.Committee) < s.configurations.ThresholdSize {
 		return fmt.Errorf("not enough committee members: have %d, need %d", len(rq.Committee), s.configurations.ThresholdSize)
 	}
@@ -192,7 +193,7 @@ func (s *SignerClient) vaaToSignRequest(newVaa *vaa.VAA, gs *common.GuardianSet)
 	return s.AsyncSign(rq)
 }
 
-func (dt vaaHandling) verifyGossipSig(msg *gossipv1.TSSGossipMessage, gs *common.GuardianSet) error {
+func (dt vaaHandling) verifyGossipSig(msg *gossipv1.TSSGossipMessage) error {
 	pubKey, err := ethcrypto.Ecrecover(ethcrypto.Keccak256(msg.Message), msg.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to recover public key: %w", err)
@@ -203,10 +204,7 @@ func (dt vaaHandling) verifyGossipSig(msg *gossipv1.TSSGossipMessage, gs *common
 	if signerAddr != dt.leaderAddress {
 		return fmt.Errorf("signature not from leader: got %s, want %s", signerAddr.Hex(), dt.leaderAddress.Hex())
 	}
-
-	if _, ok := gs.KeyIndex(signerAddr); !ok {
-		return fmt.Errorf("leader address %s not in guardian set", signerAddr.Hex())
-	}
+	// We don't verify that the leaderAddress is in the guardian set because we acccept gossip messages from any leader (even outside the guardian set).
 
 	return nil
 }

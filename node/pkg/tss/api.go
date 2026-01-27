@@ -109,7 +109,10 @@ type Configurations struct {
 	// sets the mapping used in the API call EmitterChainToProtocolMapping. if nil, all chains map to FROST.
 	ChainToProtocol map[int]tsscommon.ProtocolType `json:"chain_to_protocol"`
 
-	// specifies the threshold size for TSS operations. Should match the signer service configuration.
+	// specifies the threshold size for TSS operations.
+	// NOTE:[Should match the signer service configuration]
+	//      This isn't for security, just to avoid sending requests
+	//      that will be rejected by the signer.
 	//
 	// threshold represents the maximal number that will not be able to sign. For instance,
 	// if threshold is 2, then 3 or more parties will be able to sign.
