@@ -38,7 +38,7 @@ import (
 //
 // API Interaction, aka fetch methods are in `fetch.go`.
 
-// Safe overflow checking constants for BigInt validation
+// Safe overflow checking constants
 var (
 	maxUint32BigInt = big.NewInt(math.MaxUint32)
 	maxUint64BigInt = new(big.Int).SetUint64(math.MaxUint64)
@@ -552,7 +552,7 @@ func (w *Watcher) processCoreEvent(clarityValue clarity.Value, txId string, time
 	}
 
 	// Convert timestamp to int64 with overflow check
-	if timestamp > maxInt64 {
+	if timestamp > math.MaxInt64 {
 		return fmt.Errorf("timestamp %d exceeds maximum int64 value", timestamp)
 	}
 
