@@ -14,7 +14,7 @@ type VAA struct {
 }
 
 // HandleQuorum is called when a VAA reaches quorum. It publishes the VAA to the gossip network and stores it in the database.
-func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
+func (v *VAA) HandleQuorum(ctx context.Context, sigs []*vaa.Signature, hash string, p *Processor) {
 	// Deep copy the observation and add signatures
 	signed := &vaa.VAA{
 		Version:          v.Version,
@@ -39,7 +39,7 @@ func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	p.broadcastSignedVAA(signed)
 	p.storeSignedVAA(signed)
 
-	if err := p.thresholdSigner.WitnessNewVaaV1(context.Background(), signed); err != nil {
+	if err := p.thresholdSigner.WitnessNewVaaV1(ctx, signed); err != nil {
 		p.logger.Warn("witnessing new VAA v1 for TSS signing failed",
 			zap.Error(err), zap.Any("message", signed))
 	}

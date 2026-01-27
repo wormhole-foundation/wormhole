@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/hex"
 	"testing"
 	"time"
@@ -34,14 +35,14 @@ func TestHandleTssResponse(t *testing.T) {
 
 	t.Run("NilResponse", func(t *testing.T) {
 		p := createProcessor()
-		p.handleTssResponse(nil)
+		p.handleTssResponse(context.Background(), nil)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received nil TSS signer response").Len())
 		observedLogs.TakeAll()
 	})
 
 	t.Run("NilInnerResponse", func(t *testing.T) {
 		p := createProcessor()
-		p.handleTssResponse(&signer.SignResponse{Response: nil})
+		p.handleTssResponse(context.Background(), &signer.SignResponse{Response: nil})
 		assert.Equal(t, 1, observedLogs.FilterMessage("received nil TSS signer response").Len())
 		observedLogs.TakeAll()
 	})
@@ -53,7 +54,7 @@ func TestHandleTssResponse(t *testing.T) {
 				Signature: nil,
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received nil TSS signer signature").Len())
 		observedLogs.TakeAll()
 	})
@@ -65,7 +66,7 @@ func TestHandleTssResponse(t *testing.T) {
 				Status: nil,
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received nil TSS signer status").Len())
 		observedLogs.TakeAll()
 	})
@@ -92,7 +93,7 @@ func TestHandleTssResponse(t *testing.T) {
 			},
 		}
 
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 
 		// Should be removed from waiters
 		_, exists := p.tssWaiters[hash]
@@ -110,7 +111,7 @@ func TestHandleTssResponse(t *testing.T) {
 				},
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received nil TSS signer status").Len())
 		observedLogs.TakeAll()
 	})
@@ -125,7 +126,7 @@ func TestHandleTssResponse(t *testing.T) {
 				},
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received nil TSS signer status").Len())
 		observedLogs.TakeAll()
 	})
@@ -140,7 +141,7 @@ func TestHandleTssResponse(t *testing.T) {
 				},
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received TSS signature with nil signature").Len())
 		observedLogs.TakeAll()
 	})
@@ -155,7 +156,7 @@ func TestHandleTssResponse(t *testing.T) {
 				},
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received TSS signature with nil message").Len())
 		observedLogs.TakeAll()
 	})
@@ -170,7 +171,7 @@ func TestHandleTssResponse(t *testing.T) {
 				},
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("received TSS signature for unknown VAA").Len())
 		observedLogs.TakeAll()
 	})
@@ -199,7 +200,7 @@ func TestHandleTssResponse(t *testing.T) {
 				},
 			},
 		}
-		p.handleTssResponse(resp)
+		p.handleTssResponse(context.Background(), resp)
 		assert.Equal(t, 1, observedLogs.FilterMessage("failed to translate TSS signature").Len())
 		observedLogs.TakeAll()
 	})
@@ -225,7 +226,7 @@ func TestHandleTssResponse(t *testing.T) {
 
 		// Mock the witness call on the signer
 
-		p.handleTssResponse(sigResp)
+		p.handleTssResponse(context.Background(), sigResp)
 
 		// Check logs for success message from HandleQuorum
 		assert.Equal(t, 1, observedLogs.FilterMessage("signed VAA with quorum").Len())

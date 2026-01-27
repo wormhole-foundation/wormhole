@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"testing"
@@ -47,7 +48,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	processor := Processor{thresholdSigner: tssmock.NewMockSignerConnection()} // added a thresholdSigner to avoid nil pointer
 	processor.logger = observedLogger
 
-	processor.handleInboundSignedVAAWithQuorum(signedVAAWithQuorum)
+	processor.handleInboundSignedVAAWithQuorum(context.Background(), signedVAAWithQuorum)
 
 	// Check to see if we got an error, which we should have,
 	// because a `gs` is not defined on processor
@@ -110,7 +111,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			processor.gs = &guardianSet
 			processor.logger = observedLogger
 
-			processor.handleInboundSignedVAAWithQuorum(signedVAAWithQuorum)
+			processor.handleInboundSignedVAAWithQuorum(context.Background(), signedVAAWithQuorum)
 
 			// Check to see if we got an error, which we should have
 			assert.Equal(t, 1, observedLogs.Len())

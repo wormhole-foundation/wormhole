@@ -54,7 +54,7 @@ type (
 		IsReobservation() bool
 		// HandleQuorum finishes processing the observation once a quorum of signatures have
 		// been received for it.
-		HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor)
+		HandleQuorum(ctx context.Context, sigs []*vaa.Signature, hash string, p *Processor)
 	}
 
 	// state represents the local view of a given observation
@@ -392,15 +392,15 @@ func (p *Processor) Run(ctx context.Context) error {
 
 			p.handleMessage(ctx, k)
 		case tssResp := <-p.thresholdSigner.Response():
-			p.handleTssResponse(tssResp)
+			p.handleTssResponse(ctx, tssResp)
 		case m := <-p.batchObsvC:
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-			p.handleBatchObservation(m)
+			p.handleBatchObservation(ctx, m)
 		case m := <-p.batchObsvC:
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
-			p.handleBatchObservation(m)
+			p.handleBatchObservation(ctx, m)
 		case m := <-p.signedInC:
-			p.handleInboundSignedVAAWithQuorum(m)
+			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-cleanup.C:
 			p.handleCleanup(ctx)
 		case <-pollTimer.C:
@@ -480,7 +480,7 @@ func (p *Processor) Run(ctx context.Context) error {
 	}
 }
 
-func (p *Processor) handleTssResponse(tssResp *signer.SignResponse) {
+func (p *Processor) handleTssResponse(ctx context.Context, tssResp *signer.SignResponse) {
 	if tssResp == nil || tssResp.Response == nil {
 		p.logger.Error("received nil TSS signer response")
 		return
@@ -493,7 +493,7 @@ func (p *Processor) handleTssResponse(tssResp *signer.SignResponse) {
 			return
 		}
 
-		p.processTssSignature(v.Signature)
+		p.processTssSignature(ctx, v.Signature)
 	case *signer.SignResponse_Status:
 		if v.Status == nil {
 			p.logger.Error("received nil TSS signer status")
@@ -634,7 +634,7 @@ func (p *Processor) vaaWriter(ctx context.Context) error {
 	}
 }
 
-func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
+func (p *Processor) processTssSignature(ctx context.Context, sig *tsscommon.SignatureData) {
 	if sig == nil {
 		return
 	}
@@ -683,7 +683,7 @@ func (p *Processor) processTssSignature(sig *tsscommon.SignatureData) {
 	copy(vaaSig.Signature[:], sigBytes)
 
 	// using single signature, since it was reached via threshold signing.
-	wtr.vaa.HandleQuorum([]*vaa.Signature{vaaSig}, hash, p)
+	wtr.vaa.HandleQuorum(ctx, []*vaa.Signature{vaaSig}, hash, p)
 }
 
 // GetFeatures returns the processor feature string that can be published in heartbeat messages.

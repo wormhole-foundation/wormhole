@@ -127,7 +127,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	// Fast path for our own signature.
 	if !s.submitted {
 		start := time.Now()
-		p.checkForQuorum(ourObs, s, s.gs, hash)
+		p.checkForQuorum(ctx, ourObs, s, s.gs, hash)
 		timeToHandleObservation.Observe(float64(time.Since(start).Microseconds()))
 	}
 }
