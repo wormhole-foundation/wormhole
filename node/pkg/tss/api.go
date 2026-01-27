@@ -114,8 +114,6 @@ type Configurations struct {
 	//
 	// threshold represents the maximal number that will not be able to sign. For instance,
 	// if threshold is 2, then 3 or more parties will be able to sign.
-	// Seed is used to give generate a trackingID as an identifier to
-	// the running DKG protocol (more than one can run at the same time).
 	ThresholdSize int `json:"threshold_size"`
 }
 
