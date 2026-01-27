@@ -80,9 +80,6 @@ type ManagerService struct {
 	signers  map[vaa.ChainID]guardiansigner.GuardianSigner
 	// signerPubKeys stores the compressed secp256k1 public keys for each chain's signer.
 	signerPubKeys map[vaa.ChainID][]byte
-	// managerSets is a map of chain ID -> manager set index -> manager set config.
-	// This allows tracking multiple manager sets per chain (for governance transitions).
-	managerSets map[vaa.ChainID]map[uint32]*ManagerSetConfig
 	// managerTxSendC is the channel for sending manager transactions to be signed and broadcast via gossip.
 	managerTxSendC chan<- *gossipv1.ManagerTransaction
 	// managerTxRecvC receives verified manager transactions from other manager nodes via gossip.
@@ -91,9 +88,13 @@ type ManagerService struct {
 	db *db.ManagerDB
 	// pendingTxMu protects access to database operations for aggregated transactions.
 	pendingTxMu sync.RWMutex
+	// reader is used to dynamically fetch manager sets from the DelegatedManagerSet contract.
+	reader *ManagerSetReader
 }
 
 // NewManagerService creates a new ManagerService instance.
+// The delegatedManagerSetRPC parameter is the Ethereum RPC URL (ethRPC) for fetching manager sets
+// from the DelegatedManagerSet contract. It can be empty for DevNet.
 func NewManagerService(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -103,26 +104,20 @@ func NewManagerService(
 	managerTxSendC chan<- *gossipv1.ManagerTransaction,
 	managerTxRecvC <-chan *gossipv1.ManagerTransaction,
 	database *db.Database,
-) *ManagerService {
+	delegatedManagerSetRPC string,
+) (*ManagerService, error) {
 	// Select the appropriate emitter list based on environment
 	var emitters []emitterEntry
-	//nolint:exhaustive // MainNet, GoTest, and AccountantMock intentionally fall through to default
+	//nolint:exhaustive // GoTest, and AccountantMock intentionally fall through to default
 	switch env {
 	case common.UnsafeDevNet:
 		emitters = parseEmitters(sdk.KnownDevnetManagerEmitters)
 	case common.TestNet:
 		emitters = parseEmitters(sdk.KnownTestnetManagerEmitters)
-	// TODO: Add mainnet emitter list when available
-	// case common.MainNet:
-	// 	emitters = parseEmitters(sdk.KnownManagerEmitters)
+	case common.MainNet:
+		emitters = parseEmitters(sdk.KnownManagerEmitters)
 	default:
 		emitters = []emitterEntry{}
-	}
-
-	// Initialize manager sets map for each chain that has a signer configured
-	managerSets := make(map[vaa.ChainID]map[uint32]*ManagerSetConfig)
-	for chainID := range signers {
-		managerSets[chainID] = make(map[uint32]*ManagerSetConfig)
 	}
 
 	// Compute compressed public keys for each signer
@@ -132,13 +127,13 @@ func NewManagerService(
 		signerPubKeys[chainID] = compressPublicKey(&pubKey)
 	}
 
-	// Load default manager sets based on environment
-	if env == common.UnsafeDevNet || env == common.TestNet {
-		// Load the devnet manager set for Dogecoin
-		if _, ok := signers[vaa.ChainIDDogecoin]; ok {
-			devnetSet := loadDefaultManagerSet(ctx, env, signers[vaa.ChainIDDogecoin])
-			managerSets[vaa.ChainIDDogecoin][devnetSet.Index] = devnetSet
-		}
+	// Create reader for dynamic manager set loading
+	if delegatedManagerSetRPC == "" {
+		return nil, fmt.Errorf("delegatedManagerSetRPC is required")
+	}
+	reader, err := NewManagerSetReader(logger, env, delegatedManagerSetRPC)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manager set reader: %w", err)
 	}
 
 	return &ManagerService{
@@ -149,51 +144,11 @@ func NewManagerService(
 		emitters:       emitters,
 		signers:        signers,
 		signerPubKeys:  signerPubKeys,
-		managerSets:    managerSets,
 		managerTxSendC: managerTxSendC,
 		managerTxRecvC: managerTxRecvC,
 		db:             db.NewManagerDB(database.Conn()),
-	}
-}
-
-// loadDefaultManagerSet creates a ManagerSetConfig from the SDK's KnownDevnetManagerSet.
-// It also determines the signer's index within the set by comparing public keys.
-// TODO: remove this function
-func loadDefaultManagerSet(ctx context.Context, env common.Environment, signer guardiansigner.GuardianSigner) *ManagerSetConfig {
-	sdkSet := sdk.KnownDevnetManagerSet
-	if env == common.TestNet {
-		sdkSet = sdk.KnownTestnetManagerSet
-	}
-
-	// Convert public keys from [33]byte to []byte
-	pubKeys := make([][]byte, len(sdkSet.PublicKeys))
-	for i, pk := range sdkSet.PublicKeys {
-		pubKeys[i] = pk[:]
-	}
-
-	// Determine signer index by matching public key
-	var isSigner bool
-	var signerIndex uint8
-	if signer != nil && ctx != nil {
-		signerPubKey := signer.PublicKey(ctx)
-		signerCompressed := compressPublicKey(&signerPubKey)
-		for i, pk := range pubKeys {
-			if bytes.Equal(signerCompressed, pk) {
-				isSigner = true
-				signerIndex = uint8(i) // #nosec G115 -- pubKeys length is bounded by PublicKeysLen (uint8) in governance
-				break
-			}
-		}
-	}
-
-	return &ManagerSetConfig{
-		Index:       1, // Initial set index
-		M:           sdkSet.M,
-		N:           sdkSet.N,
-		PublicKeys:  pubKeys,
-		IsSigner:    isSigner,
-		SignerIndex: signerIndex,
-	}
+		reader:         reader,
+	}, nil
 }
 
 // parseEmitters converts the SDK emitter format to internal emitterEntry slice.
@@ -213,6 +168,12 @@ func parseEmitters(sdkEmitters []struct {
 		})
 	}
 	return result
+}
+
+// getManagerSet retrieves a manager set by chain ID and index.
+func (c *ManagerService) getManagerSet(ctx context.Context, chainID vaa.ChainID, index uint32) (*ManagerSetConfig, error) {
+	signer := c.signers[chainID]
+	return c.reader.GetManagerSet(ctx, chainID, index, signer)
 }
 
 // Run starts the manager service and begins processing incoming VAAs.
@@ -327,19 +288,13 @@ func (c *ManagerService) handleIncomingTransaction(tx *gossipv1.ManagerTransacti
 
 	destChain := vaa.ChainID(tx.DestinationChain) // #nosec G115 -- ChainID is uint16, protobuf uses uint32 for wire compatibility
 
-	// Validate the signer is in the manager set
-	chainSets, ok := c.managerSets[destChain]
-	if !ok {
-		c.logger.Warn("received transaction for unconfigured chain",
+	// Validate the signer is in the manager set (fetch dynamically if needed)
+	managerSet, err := c.getManagerSet(c.ctx, destChain, tx.ManagerSetIndex)
+	if err != nil {
+		c.logger.Warn("failed to get manager set for incoming transaction",
 			zap.Stringer("chain", destChain),
-		)
-		return
-	}
-
-	managerSet, ok := chainSets[tx.ManagerSetIndex]
-	if !ok {
-		c.logger.Warn("received transaction for unknown manager set",
 			zap.Uint32("index", tx.ManagerSetIndex),
+			zap.Error(err),
 		)
 		return
 	}
@@ -421,20 +376,13 @@ func (c *ManagerService) storeSignature(sig *ManagerSignature) {
 	}
 
 	if aggTx == nil {
-		// Look up the manager set to get M and N values
-		chainSets, ok := c.managerSets[sig.DestinationChain]
-		if !ok {
-			c.logger.Error("no manager sets configured for chain",
+		// Look up the manager set to get M and N values (fetch dynamically if needed)
+		managerSet, err := c.getManagerSet(c.ctx, sig.DestinationChain, sig.ManagerSetIndex)
+		if err != nil {
+			c.logger.Error("failed to get manager set for signature storage",
 				zap.Stringer("chain", sig.DestinationChain),
-			)
-			return
-		}
-
-		managerSet, ok := chainSets[sig.ManagerSetIndex]
-		if !ok {
-			c.logger.Error("manager set not found",
 				zap.Uint32("index", sig.ManagerSetIndex),
-				zap.Stringer("chain", sig.DestinationChain),
+				zap.Error(err),
 			)
 			return
 		}
@@ -511,16 +459,10 @@ func (c *ManagerService) signDogecoinTransaction(
 	payload *vaa.UTXOUnlockPayload,
 	signer guardiansigner.GuardianSigner,
 ) (*ManagerSignature, error) {
-	// Get the manager sets for Dogecoin
-	chainSets, ok := c.managerSets[vaa.ChainIDDogecoin]
-	if !ok {
-		return nil, fmt.Errorf("no manager sets configured for Dogecoin")
-	}
-
-	// Look up the specific manager set by index from the payload
-	managerSet, ok := chainSets[payload.DelegatedManagerSetIndex]
-	if !ok {
-		return nil, fmt.Errorf("manager set index %d not found for Dogecoin", payload.DelegatedManagerSetIndex)
+	// Look up the specific manager set by index from the payload (fetch dynamically if needed)
+	managerSet, err := c.getManagerSet(c.ctx, vaa.ChainIDDogecoin, payload.DelegatedManagerSetIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get manager set for Dogecoin: %w", err)
 	}
 
 	// Verify this node is part of the manager set

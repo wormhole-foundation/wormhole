@@ -284,15 +284,21 @@ func GuardianOptionNotary(notaryEnabled bool) *GuardianOption {
 // GuardianOptionManagerService enables or disables the Manager Service.
 // The Manager Service subscribes to incoming VAAs and processes them.
 // The signers map contains chain-specific signers for manager operations.
+// The delegatedManagerSetRPC is the Ethereum RPC URL for fetching manager sets from the
+// DelegatedManagerSet contract.
 // Dependencies: db
-func GuardianOptionManagerService(managerServiceEnabled bool, signers map[vaa.ChainID]guardiansigner.GuardianSigner) *GuardianOption {
+func GuardianOptionManagerService(managerServiceEnabled bool, signers map[vaa.ChainID]guardiansigner.GuardianSigner, delegatedManagerSetRPC string) *GuardianOption {
 	return &GuardianOption{
 		name:         "manager",
 		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if managerServiceEnabled {
 				g.managerSigners = signers
-				g.managerService = manager.NewManagerService(ctx, logger, g.managerC.readC, g.env, signers, g.managerTxSendC, g.managerTxC.readC, g.db)
+				var err error
+				g.managerService, err = manager.NewManagerService(ctx, logger, g.managerC.readC, g.env, signers, g.managerTxSendC, g.managerTxC.readC, g.db, delegatedManagerSetRPC)
+				if err != nil {
+					return fmt.Errorf("failed to create manager service: %w", err)
+				}
 				g.runnables["manager"] = g.managerService.Run
 			} else {
 				logger.Info("manager service is disabled")

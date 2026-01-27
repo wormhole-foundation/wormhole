@@ -2003,7 +2003,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionAccountant(*accountantWS, *accountantContract, *accountantCheckEnabled, accountantWormchainConn, *accountantNttContract, accountantNttWormchainConn),
 		node.GuardianOptionGovernor(*chainGovernorEnabled, *governorFlowCancelEnabled, *coinGeckoApiKey),
 		node.GuardianOptionNotary(*notaryEnabled),
-		node.GuardianOptionManagerService(*managerServiceEnabled, managerSigners),
+		node.GuardianOptionManagerService(*managerServiceEnabled, managerSigners, *ethRPC),
 		node.GuardianOptionGatewayRelayer(*gatewayRelayerContract, gatewayRelayerWormchainConn),
 		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
