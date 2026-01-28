@@ -609,6 +609,7 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 	buf, err := mp.MarshalBinary()
 	if err != nil {
 		p.logger.Warn("failed to marshal message publication", mp.ZapFields(zap.Error(err))...)
+		return nil
 	}
 	hash := crypto.Keccak256Hash(buf).Hex()
 
