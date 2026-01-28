@@ -248,6 +248,14 @@ var (
 			Name: "wormhole_unusual_msg_verification_states_total",
 			Help: "Total number of message verification state changes to unusual values",
 		}, []string{"verification_state", "emitter_chain"})
+
+	channelNilReceive = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_processor_channel_nil_receive_total",
+			Help: "Total number of nil receives on processor channels.",
+		},
+		[]string{"channel"},
+	)
 )
 
 // batchObsvPubChanSize specifies the size of the channel used to publish observation batches. Allow five seconds worth.
@@ -333,6 +341,12 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case p.gs = <-p.setC:
+			if p.gs == nil {
+				p.logger.Error("received nil GuardianSet from setC channel")
+				channelNilReceive.WithLabelValues("setC").Inc()
+				continue
+			}
+
 			oldSize := 0
 			oldGs := p.gst.Get()
 			if oldGs != nil {
@@ -371,6 +385,12 @@ func (p *Processor) Run(ctx context.Context) error {
 
 			p.gst.Set(p.gs)
 		case dgConfig := <-p.dgConfigC:
+			if dgConfig == nil {
+				p.logger.Error("received nil DelegatedGuardianConfig from dgConfigC channel")
+				channelNilReceive.WithLabelValues("dgConfigC").Inc()
+				continue
+			}
+
 			oldChains := 0
 			oldDgc := p.dgc
 			if oldDgc != nil {
@@ -467,6 +487,12 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 		case k := <-p.msgC:
+			if k == nil {
+				p.logger.Error("received nil MessagePublication from msgC channel")
+				channelNilReceive.WithLabelValues("msgC").Inc()
+				continue
+			}
+
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 
 			cfg := p.dgc.GetChainConfig(k.EmitterChain)
@@ -529,6 +555,12 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 		case k := <-p.acctReadC:
+			if k == nil {
+				p.logger.Error("received nil MessagePublication from acctReadC channel")
+				channelNilReceive.WithLabelValues("acctReadC").Inc()
+				continue
+			}
+
 			if p.acct == nil {
 				return fmt.Errorf("received an accountant event when accountant is not configured")
 			}
@@ -538,11 +570,26 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			p.handleMessage(ctx, k)
 		case m := <-p.batchObsvC:
+			if m == nil {
+				p.logger.Error("received nil MsgWithTimeStamp[SignedObservationBatch] from batchObsvC channel")
+				channelNilReceive.WithLabelValues("batchObsvC").Inc()
+				continue
+			}
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleBatchObservation(m)
 		case m := <-p.signedInC:
+			if m == nil {
+				p.logger.Error("received nil SignedVAAWithQuorum from signedInC channel")
+				channelNilReceive.WithLabelValues("signedInC").Inc()
+				continue
+			}
 			p.handleInboundSignedVAAWithQuorum(m)
 		case m := <-p.delegateObsvC:
+			if m == nil {
+				p.logger.Error("received nil DelegateObservation from delegateObsvC channel")
+				channelNilReceive.WithLabelValues("delegateObsvC").Inc()
+				continue
+			}
 			if err := p.handleDelegateObservation(ctx, m); err != nil {
 				return err
 			}
