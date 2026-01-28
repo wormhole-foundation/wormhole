@@ -332,11 +332,42 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 		case p.gs = <-p.setC:
-			p.logger.Info("guardian set updated",
-				zap.Strings("set", p.gs.KeysAsHexStrings()),
-				zap.Uint32("index", p.gs.Index),
-				zap.Int("quorum", p.gs.Quorum()),
-			)
+			oldSize := 0
+			oldGs := p.gst.Get()
+			if oldGs != nil {
+				oldSize = len(oldGs.Keys)
+			}
+			newSize := len(p.gs.Keys)
+
+			// Log guardian set changes
+			switch {
+			case oldSize == 0 && newSize > 0:
+				p.logger.Warn("guardian set populated",
+					zap.Strings("set", p.gs.KeysAsHexStrings()),
+					zap.Uint32("index", p.gs.Index),
+					zap.Int("quorum", p.gs.Quorum()),
+				)
+			case oldSize > 0 && newSize == 0:
+				p.logger.Error("guardian set emptied",
+					zap.Int("old_size", oldSize),
+					zap.Uint32("index", p.gs.Index),
+				)
+			case oldSize != newSize:
+				p.logger.Warn("guardian set size changed",
+					zap.Int("old_size", oldSize),
+					zap.Int("new_size", newSize),
+					zap.Strings("set", p.gs.KeysAsHexStrings()),
+					zap.Uint32("index", p.gs.Index),
+					zap.Int("quorum", p.gs.Quorum()),
+				)
+			default:
+				p.logger.Info("guardian set updated",
+					zap.Strings("set", p.gs.KeysAsHexStrings()),
+					zap.Uint32("index", p.gs.Index),
+					zap.Int("quorum", p.gs.Quorum()),
+				)
+			}
+
 			p.gst.Set(p.gs)
 		case dgConfig := <-p.dgConfigC:
 			p.logger.Info("delegated guardian config updated",
