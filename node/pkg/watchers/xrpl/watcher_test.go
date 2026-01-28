@@ -29,6 +29,8 @@ const sampleNTTMemoData = "994E54540600000000000F4240000000000000000000000000000
 const testNTTMemoType = "6170706C69636174696F6E2F782D6E74742D7472616E73666572"
 
 // Helper to create a FlatTransaction with memos
+// createFlatTransactionWithMemos creates a minimal FlatTransaction with only Memos.
+// Use createValidNTTTransaction for tests that need full validation.
 func createFlatTransactionWithMemos(memoType, memoData string) transaction.FlatTransaction {
 	return transaction.FlatTransaction{
 		"Memos": []interface{}{
@@ -36,6 +38,25 @@ func createFlatTransactionWithMemos(memoType, memoData string) transaction.FlatT
 				"Memo": map[string]interface{}{
 					"MemoType": memoType,
 					"MemoData": memoData,
+				},
+			},
+		},
+	}
+}
+
+// createValidNTTTransaction creates a FlatTransaction with all fields required
+// for strict validation: meta with TransactionResult, Destination, and NTT Memos.
+func createValidNTTTransaction(destination string) transaction.FlatTransaction {
+	return transaction.FlatTransaction{
+		"Destination": destination,
+		"meta": map[string]interface{}{
+			"TransactionResult": "tesSUCCESS",
+		},
+		"Memos": []interface{}{
+			map[string]interface{}{
+				"Memo": map[string]interface{}{
+					"MemoType": testNTTMemoType,
+					"MemoData": sampleNTTMemoData,
 				},
 			},
 		},
@@ -325,8 +346,9 @@ func TestAddressToEmitter_DifferentAddresses(t *testing.T) {
 // =============================================================================
 
 func TestParseTransactionStream_ValidTransaction(t *testing.T) {
+	contract := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 	w := &Watcher{
-		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+		contract: contract,
 	}
 
 	// Create a mock TransactionStream matching real XRPL transaction structure
@@ -336,7 +358,7 @@ func TestParseTransactionStream_ValidTransaction(t *testing.T) {
 		LedgerIndex:  12345,
 		CloseTimeISO: "2024-01-15T10:30:00Z",
 		Validated:    true,
-		Transaction:  createFlatTransactionWithMemos(testNTTMemoType, sampleNTTMemoData),
+		Transaction:  createValidNTTTransaction(contract),
 		Meta: transaction.TxObjMeta{
 			TransactionIndex:  7,
 			TransactionResult: "tesSUCCESS",
@@ -376,17 +398,23 @@ func TestParseTransactionStream_ValidTransaction(t *testing.T) {
 }
 
 func TestParseTransactionStream_NoWormholePayload(t *testing.T) {
+	contract := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 	w := &Watcher{
-		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+		contract: contract,
 	}
 
+	// Transaction with valid meta and destination but no Memos (no Wormhole payload)
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
 		LedgerIndex:  12345,
 		CloseTimeISO: "2024-01-15T10:30:00Z",
 		Validated:    true,
 		Transaction: transaction.FlatTransaction{
-			"Account": "rSomeOtherAccount",
+			"Account":     "rSomeOtherAccount",
+			"Destination": contract,
+			"meta": map[string]interface{}{
+				"TransactionResult": "tesSUCCESS",
+			},
 		},
 	}
 
@@ -397,8 +425,9 @@ func TestParseTransactionStream_NoWormholePayload(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidTimestamp(t *testing.T) {
+	contract := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 	w := &Watcher{
-		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+		contract: contract,
 	}
 
 	tx := &streamtypes.TransactionStream{
@@ -406,7 +435,7 @@ func TestParseTransactionStream_InvalidTimestamp(t *testing.T) {
 		LedgerIndex:  12345,
 		CloseTimeISO: "not-a-valid-timestamp",
 		Validated:    true,
-		Transaction:  createFlatTransactionWithMemos(testNTTMemoType, sampleNTTMemoData),
+		Transaction:  createValidNTTTransaction(contract),
 		Meta: transaction.TxObjMeta{
 			TransactionIndex:  0,
 			TransactionResult: "tesSUCCESS",
@@ -420,8 +449,9 @@ func TestParseTransactionStream_InvalidTimestamp(t *testing.T) {
 }
 
 func TestParseTransactionStream_InvalidTxHash(t *testing.T) {
+	contract := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 	w := &Watcher{
-		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+		contract: contract,
 	}
 
 	tx := &streamtypes.TransactionStream{
@@ -429,7 +459,7 @@ func TestParseTransactionStream_InvalidTxHash(t *testing.T) {
 		LedgerIndex:  12345,
 		CloseTimeISO: "2024-01-15T10:30:00Z",
 		Validated:    true,
-		Transaction:  createFlatTransactionWithMemos(testNTTMemoType, sampleNTTMemoData),
+		Transaction:  createValidNTTTransaction(contract),
 		Meta: transaction.TxObjMeta{
 			TransactionIndex:  0,
 			TransactionResult: "tesSUCCESS",
@@ -468,9 +498,10 @@ func TestProcessTransaction_SkipsUnvalidated(t *testing.T) {
 }
 
 func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
+	contract := "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9"
 	msgChan := make(chan *common.MessagePublication, 1)
 	w := &Watcher{
-		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+		contract: contract,
 		msgChan:  msgChan,
 	}
 
@@ -479,7 +510,7 @@ func TestProcessTransaction_SendsValidatedMessage(t *testing.T) {
 		LedgerIndex:  12345,
 		CloseTimeISO: "2024-01-15T10:30:00Z",
 		Validated:    true, // Validated
-		Transaction:  createFlatTransactionWithMemos(testNTTMemoType, sampleNTTMemoData),
+		Transaction:  createValidNTTTransaction(contract),
 		Meta: transaction.TxObjMeta{
 			TransactionIndex:  3,
 			TransactionResult: "tesSUCCESS",
@@ -582,23 +613,26 @@ func TestValidateTransactionResult_NoMeta(t *testing.T) {
 		"Account": "rSomeAccount",
 	}
 
-	// No meta field - should allow processing to continue
+	// No meta field - strict validation requires meta
 	err := w.validateTransactionResult(tx)
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no meta field")
 }
 
 func TestValidateTransactionResult_MalformedMeta(t *testing.T) {
 	w := &Watcher{}
 
 	testCases := []struct {
-		name string
-		tx   transaction.FlatTransaction
+		name        string
+		tx          transaction.FlatTransaction
+		errContains string
 	}{
 		{
 			name: "meta not a map",
 			tx: transaction.FlatTransaction{
 				"meta": "not a map",
 			},
+			errContains: "meta field is not a map",
 		},
 		{
 			name: "TransactionResult missing",
@@ -607,6 +641,7 @@ func TestValidateTransactionResult_MalformedMeta(t *testing.T) {
 					"other_field": "value",
 				},
 			},
+			errContains: "no TransactionResult field",
 		},
 		{
 			name: "TransactionResult not a string",
@@ -615,14 +650,16 @@ func TestValidateTransactionResult_MalformedMeta(t *testing.T) {
 					"TransactionResult": 12345,
 				},
 			},
+			errContains: "TransactionResult is not a string",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Malformed structures should not cause errors, allow processing to continue
+			// Strict validation requires proper meta structure
 			err := w.validateTransactionResult(tc.tx)
-			require.NoError(t, err)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errContains)
 		})
 	}
 }
@@ -664,9 +701,10 @@ func TestValidateDestination_NoDestination(t *testing.T) {
 		"Account": "rSomeAccount",
 	}
 
-	// No Destination field - should allow processing to continue
+	// No Destination field - strict validation requires Destination
 	err := w.validateDestination(tx)
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no Destination field")
 }
 
 func TestValidateDestination_MalformedDestination(t *testing.T) {
@@ -677,9 +715,10 @@ func TestValidateDestination_MalformedDestination(t *testing.T) {
 		"Destination": 12345, // Not a string
 	}
 
-	// Malformed destination should allow processing to continue
+	// Strict validation requires Destination to be a string
 	err := w.validateDestination(tx)
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Destination field is not a string")
 }
 
 // =============================================================================
@@ -820,25 +859,14 @@ func TestParseTransactionStream_FailsOnWrongDestination(t *testing.T) {
 		contract: "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
 	}
 
+	// Use createValidNTTTransaction with a wrong destination
+	wrongDestination := "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh"
 	tx := &streamtypes.TransactionStream{
 		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
 		LedgerIndex:  12345,
 		CloseTimeISO: "2024-01-15T10:30:00Z",
 		Validated:    true,
-		Transaction: transaction.FlatTransaction{
-			"Destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh", // Wrong destination
-			"meta": map[string]interface{}{
-				"TransactionResult": "tesSUCCESS",
-			},
-			"Memos": []interface{}{
-				map[string]interface{}{
-					"Memo": map[string]interface{}{
-						"MemoType": testNTTMemoType,
-						"MemoData": sampleNTTMemoData,
-					},
-				},
-			},
-		},
+		Transaction:  createValidNTTTransaction(wrongDestination),
 	}
 
 	msg, err := w.parseTransactionStream(tx)
