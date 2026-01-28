@@ -657,6 +657,10 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 
 // delegateObservationToMessagePublication converts a DelegateObservation into a MessagePublication that can be passed through the normal processor pipeline.
 func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*node_common.MessagePublication, error) {
+	if d == nil {
+		return nil, fmt.Errorf("nil delegate observation")
+	}
+
 	const TxIDSizeMax = math.MaxUint8
 	txIDLen := len(d.TxHash)
 	if txIDLen > TxIDSizeMax {
@@ -710,6 +714,10 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 // messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
 // This does not populate the GuardianAddr and SentTimestamp fields.
 func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
+	if m == nil {
+		return nil, fmt.Errorf("nil message publication")
+	}
+
 	const TxIDSizeMax = math.MaxUint8
 	txIDLen := len(m.TxID)
 	if txIDLen > TxIDSizeMax {
