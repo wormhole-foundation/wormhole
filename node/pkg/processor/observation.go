@@ -749,6 +749,11 @@ func messagePublicationToDelegateObservation(m *node_common.MessagePublication) 
 		return nil, fmt.Errorf("message publication tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
 	}
 
+	// Check if payload length is within max message size for p2p
+	if len(m.Payload) > node_common.DelegatedPayloadLenMax {
+		return nil, fmt.Errorf("message publication payload length too large: got %d; want at most %d", len(m.Payload), node_common.DelegatedPayloadLenMax)
+	}
+
 	d := &gossipv1.DelegateObservation{
 		Timestamp:         uint32(m.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
 		Nonce:             m.Nonce,
