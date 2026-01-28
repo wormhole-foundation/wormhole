@@ -66,6 +66,16 @@ func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) (*Del
 	}, nil
 }
 
+func (dc *DelegatedGuardianChainConfig) KeysAsHexStrings() []string {
+	r := make([]string, len(dc.Keys))
+
+	for n, k := range dc.Keys {
+		r[n] = k.Hex()
+	}
+
+	return r
+}
+
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
 func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) { //nolint: unparam // The index is unused but it is retained as it could be used in future tests
