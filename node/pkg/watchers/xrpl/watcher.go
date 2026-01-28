@@ -97,6 +97,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Connect to XRPL node once at startup
 	cfg := websocket.NewClientConfig().WithHost(w.rpc)
+	// If you need to change the timeout from a builtin default of 5s, then do:
+	// cfg := websocket.NewClientConfig().
+	//   WithHost(w.rpc).
+	//   WithTimeout(10 * time.Second)
+
 	w.client = websocket.NewClient(cfg)
 	if err := w.client.Connect(); err != nil {
 		return fmt.Errorf("failed to connect to XRPL node: %w", err)
