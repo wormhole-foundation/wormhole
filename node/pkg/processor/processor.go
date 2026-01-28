@@ -395,7 +395,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				)
 			}
 
-			// Log details for each chain config
+			// Log details for each chain config and update config if modified
 			for chainID, chainConfig := range dgConfig.Chains {
 				oldSize := 0
 				oldQuorum := 0
@@ -409,6 +409,8 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 				newSize := len(chainConfig.Keys)
 				newQuorum := chainConfig.Quorum()
+
+				configModified := true
 
 				switch {
 				case oldChainConfig == nil:
@@ -452,15 +454,18 @@ func (p *Processor) Run(ctx context.Context) error {
 						zap.Int("quorum", newQuorum),
 					)
 				default:
+					configModified = false
 					p.logger.Debug("delegated guardian config chain unchanged",
 						zap.Stringer("chainID", chainID),
 						zap.Strings("set", chainConfig.KeysAsHexStrings()),
 						zap.Int("quorum", newQuorum),
 					)
 				}
-			}
 
-			p.dgc = dgConfig
+				if configModified {
+					p.dgc.SetChainConfig(chainID, chainConfig)
+				}
+			}
 		case k := <-p.msgC:
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 
