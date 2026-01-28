@@ -639,12 +639,33 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 // This function assumes mp corresponds to s
 // TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
 func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegatedGuardianChainConfig) error {
-	// TODO(delegated-guardian-sets): Handle case for when delegated guardian set changes
 	// Check if we have more delegate observations than required for quorum.
+	// s.observations may contain delegate observations from multiple delegated guardian sets during delegated guardian set updates
+	// Hence, if len(s.observations) < quorum, then there is definitely no quorum and we can return early to save additional computation,
+	// but if len(s.observations) >= quorum, there is not necessarily quorum for the active delegated guardian set.
 	if len(s.observations) < dgs.Quorum() {
 		// no quorum yet, we're done here
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not yet met",
+				zap.Stringer("emitter_chain", mp.EmitterChain),
+				zap.Uint64("sequence", mp.Sequence),
+			)
+		}
+		return nil
+	}
+
+	// Count all valid delegate observations for current delegated guardian set.
+	var numValidObsv int
+	for _, a := range dgs.Keys {
+		if _, ok := s.observations[a]; ok {
+			numValidObsv++
+		}
+	}
+
+	// Check if we actually have quorum.
+	if numValidObsv < dgs.Quorum() {
+		if p.logger.Level().Enabled(zapcore.DebugLevel) {
+			p.logger.Debug("quorum not met, doing nothing",
 				zap.Stringer("emitter_chain", mp.EmitterChain),
 				zap.Uint64("sequence", mp.Sequence),
 			)
