@@ -24,10 +24,14 @@ ETHEREUM_RPC_URL="$2"
 OUTPUT_DIRECTORY="$3"
 WORMHOLE_ADDRESS="${4:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
 
+mkdir -p "$OUTPUT_DIRECTORY"
+
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
     network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
+    publish_options=""
 else
+    publish_options="--publish ${SERVER_PORT}:${SERVER_PORT}"
     network_option=""
 fi
 
@@ -39,12 +43,16 @@ docker build \
     --build-arg WORMHOLE_ADDRESS="${WORMHOLE_ADDRESS}" \
     "${REPO_ROOT}"
 
+interactive_options="--interactive --tty"
+if [ -n "${NON_INTERACTIVE}" ]; then
+    interactive_options=""
+fi
+
 docker run \
-    --interactive \
-    --tty \
+    ${interactive_options} \
     --rm \
     --name peer-server \
-    --publish "${SERVER_PORT}:${SERVER_PORT}" \
+    ${publish_options} \
     --mount type=bind,src="${OUTPUT_DIRECTORY}",dst=/output \
     "${network_option}" \
     peer-server

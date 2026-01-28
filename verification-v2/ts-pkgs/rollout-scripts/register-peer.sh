@@ -46,7 +46,7 @@ if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
     builder_option="--builder ${TSS_E2E_DOCKER_BUILDER}"
 fi
 
-docker build "${builder_option}" \
+docker build ${builder_option} \
     --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
     --secret id=cert.pem,src="${CERT_PATH}" \
