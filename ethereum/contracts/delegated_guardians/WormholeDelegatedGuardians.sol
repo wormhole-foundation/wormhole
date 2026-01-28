@@ -49,6 +49,7 @@ contract WormholeDelegatedGuardians {
   error GovernanceActionAlreadyConsumed(bytes32 digest);
   error InvalidNextConfigIndex(uint256 nextConfigIndex);
   error InvalidConfig(uint16 chainId);
+  error InvalidPayloadLength(uint256 expected, uint256 actual);
 
   constructor(address wormholeAddress) {
     wormhole = IWormhole(wormholeAddress);
@@ -166,6 +167,10 @@ contract WormholeDelegatedGuardians {
         configs[i].keys[j] = payload.toAddress(offset);
         offset += 20;
       }
+    }
+
+    if (offset != payload.length) {
+      revert InvalidPayloadLength(offset, payload.length);
     }
     
     return ConfigPayload({

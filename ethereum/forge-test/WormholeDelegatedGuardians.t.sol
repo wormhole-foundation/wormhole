@@ -630,6 +630,40 @@ contract TestWormholeDelegatedGuardians is TestUtils {
     delegatedGuardians.submitConfig(_vm);
   }
 
+  function testSubmitPayloadWithTrailingBytes(
+    uint32 timestamp,
+    uint32 nonce,
+    uint64 sequence,
+    uint8 consistencyLevel
+  ) public {
+    WormholeDelegatedGuardians.DelegatedGuardianPayload[] memory configs = _buildSimpleConfig();
+    bytes memory encodedPayload = _buildPayload(0, configs);
+    
+    bytes memory payloadWithTrailingBytes = abi.encodePacked(encodedPayload, hex"c0ffee");
+
+    (bytes memory _vm,) = validVm(
+      0,
+      timestamp,
+      nonce,
+      GOVERNANCE_CHAIN_ID,
+      GOVERNANCE_CONTRACT,
+      sequence,
+      consistencyLevel,
+      payloadWithTrailingBytes,
+      TEST_GUARDIAN_PK
+    );
+
+    // Expected offset is the payload length - 4 trailing bytes and - the header (32 (module) + 1 (action) + 2 (chain id) = 35)
+    // So expected = encodedPayload.length - 35, actual = payloadWithTrailingBytes.length - 35
+    uint256 expectedOffset = encodedPayload.length - 35;
+    uint256 actualLength = payloadWithTrailingBytes.length - 35;
+    
+    vm.expectRevert(
+      abi.encodeWithSelector(WormholeDelegatedGuardians.InvalidPayloadLength.selector, expectedOffset, actualLength)
+    );
+    delegatedGuardians.submitConfig(_vm);
+  }
+
   function _buildSimpleConfig() private view returns (WormholeDelegatedGuardians.DelegatedGuardianPayload[] memory) {
     address[] memory keys = new address[](9);
     keys[0] = guardian1;
