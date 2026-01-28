@@ -8,7 +8,6 @@ import (
 	"math"
 	"slices"
 	"strconv"
-	"sync"
 	"time"
 
 	addresscodec "github.com/Peersyst/xrpl-go/address-codec"
@@ -61,9 +60,8 @@ type Watcher struct {
 	obsvReqC      <-chan *gossipv1.ObservationRequest
 	readinessSync readiness.Component
 
-	// WebSocket client - shared across all operations
-	client   *websocket.Client
-	clientMu sync.Mutex
+	// WebSocket client - created once at startup, shared across all operations
+	client *websocket.Client
 }
 
 func NewWatcher(
@@ -86,16 +84,6 @@ func NewWatcher(
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	// Clean up WebSocket connection on shutdown
-	defer func() {
-		w.clientMu.Lock()
-		if w.client != nil {
-			_ = w.client.Disconnect()
-			w.client = nil
-		}
-		w.clientMu.Unlock()
-	}()
-
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDXRPL, &gossipv1.Heartbeat_Network{
 		ContractAddress: w.contract,
 	})
@@ -106,6 +94,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 		zap.String("contract", w.contract),
 		zap.Bool("unsafeDevMode", w.unsafeDevMode),
 	)
+
+	// Connect to XRPL node once at startup
+	cfg := websocket.NewClientConfig().WithHost(w.rpc)
+	w.client = websocket.NewClient(cfg)
+	if err := w.client.Connect(); err != nil {
+		return fmt.Errorf("failed to connect to XRPL node: %w", err)
+	}
+	defer func() {
+		_ = w.client.Disconnect()
+	}()
+
+	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
@@ -217,45 +217,15 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-// connect creates a new WebSocket client and connects to the XRPL node.
-// Caller must hold w.clientMu.
-func (w *Watcher) connect() error {
-	// Disconnect existing client if any
-	if w.client != nil {
-		_ = w.client.Disconnect()
-		w.client = nil
-	}
-
-	cfg := websocket.NewClientConfig().WithHost(w.rpc)
-	client := websocket.NewClient(cfg)
-
-	if err := client.Connect(); err != nil {
-		return fmt.Errorf("failed to connect to XRPL node: %w", err)
-	}
-
-	w.client = client
-	return nil
-}
-
-// subscribeAndProcess connects to XRPL WebSocket and subscribes to account transactions.
-// It processes incoming transactions and publishes Wormhole messages.
+// subscribeAndProcess subscribes to account transactions and processes them.
+// It uses the WebSocket client that was connected in Run().
 func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) error {
-	w.clientMu.Lock()
-	if err := w.connect(); err != nil {
-		w.clientMu.Unlock()
-		return err
-	}
-	client := w.client
-	w.clientMu.Unlock()
-
-	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
-
 	// Subscribe to the contract account
 	subscribeReq := &subscribe.Request{
 		Accounts: []types.Address{types.Address(w.contract)},
 	}
 
-	_, err := client.Request(subscribeReq)
+	_, err := w.client.Request(subscribeReq)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to account %s: %w", w.contract, err)
 	}
@@ -264,8 +234,10 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 
 	// Set up transaction handler
 	txChan := make(chan *streamtypes.TransactionStream, 100)
-	client.OnTransactions(func(tx *streamtypes.TransactionStream) {
+	w.client.OnTransactions(func(tx *streamtypes.TransactionStream) {
 		select {
+		case <-ctx.Done():
+			return
 		case txChan <- tx:
 		default:
 			logger.Warn("Transaction channel full, dropping transaction")
@@ -321,20 +293,12 @@ func (w *Watcher) processTransaction(logger *zap.Logger, tx *streamtypes.Transac
 
 // fetchAndParseTransaction fetches a specific transaction by hash for reobservation.
 func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublication, error) {
-	w.clientMu.Lock()
-	client := w.client
-	w.clientMu.Unlock()
-
-	if client == nil {
-		return nil, fmt.Errorf("XRPL client not connected")
-	}
-
 	// Fetch transaction by hash
 	txReq := &transactions.TxRequest{
 		Transaction: hex.EncodeToString(txHash),
 	}
 
-	resp, err := client.Request(txReq)
+	resp, err := w.client.Request(txReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
 	}
@@ -356,17 +320,9 @@ func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublic
 
 // getValidatedLedgerIndex returns the current validated ledger index.
 func (w *Watcher) getValidatedLedgerIndex(logger *zap.Logger) (int64, error) {
-	w.clientMu.Lock()
-	client := w.client
-	w.clientMu.Unlock()
-
-	if client == nil {
-		return 0, fmt.Errorf("XRPL client not connected")
-	}
-
 	// Request server info
 	infoReq := &server.InfoRequest{}
-	resp, err := client.Request(infoReq)
+	resp, err := w.client.Request(infoReq)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get server info: %w", err)
 	}
@@ -461,6 +417,10 @@ func (w *Watcher) parseTransactionStream(tx *streamtypes.TransactionStream) (*co
 	}, nil
 }
 
+// rippleEpochOffset is the number of seconds between Unix epoch (1970-01-01) and
+// Ripple epoch (2000-01-01). XRPL timestamps are seconds since the Ripple epoch.
+const rippleEpochOffset = 946684800
+
 // parseTxResponse converts a TxResponse (from reobservation) into a MessagePublication.
 func (w *Watcher) parseTxResponse(tx *transactions.TxResponse) (*common.MessagePublication, error) {
 	// Extract Wormhole payload from Memos in the transaction
@@ -486,6 +446,13 @@ func (w *Watcher) parseTxResponse(tx *transactions.TxResponse) (*common.MessageP
 	txIndex := uint64(tx.Meta.TransactionIndex)
 	sequence := (ledgerIndex << 32) | txIndex
 
+	// Convert Ripple epoch timestamp to Unix timestamp
+	// tx.Date is seconds since Ripple epoch (2000-01-01 00:00:00 UTC)
+	if tx.Date > math.MaxInt64-rippleEpochOffset {
+		return nil, fmt.Errorf("transaction date %d would overflow int64", tx.Date)
+	}
+	timestamp := time.Unix(int64(tx.Date)+rippleEpochOffset, 0)
+
 	// Convert contract address to emitter
 	emitterAddress, err := w.addressToEmitter(w.contract)
 	if err != nil {
@@ -494,7 +461,7 @@ func (w *Watcher) parseTxResponse(tx *transactions.TxResponse) (*common.MessageP
 
 	return &common.MessagePublication{
 		TxID:             txHash,
-		Timestamp:        time.Now(), // TxResponse may not have close time readily available
+		Timestamp:        timestamp,
 		Nonce:            0, // NTT payloads do not include a nonce
 		Sequence:         sequence,
 		EmitterChain:     vaa.ChainIDXRPL,
@@ -615,28 +582,26 @@ func (w *Watcher) addressToEmitter(address string) (vaa.Address, error) {
 
 // validateTransactionResult checks that the transaction result is tesSUCCESS.
 // Returns nil if valid, or an error describing why the transaction should be skipped.
-// Returns nil (no error) if result cannot be determined - allows processing to continue.
+// This function is strict - if the result cannot be determined, it returns an error.
 func (w *Watcher) validateTransactionResult(tx transaction.FlatTransaction) error {
 	metaRaw, ok := tx["meta"]
 	if !ok {
-		// No meta field - this might be a subscription stream where meta is at top level
-		// Allow processing to continue
-		return nil
+		return fmt.Errorf("transaction has no meta field")
 	}
 
 	meta, ok := metaRaw.(map[string]interface{})
 	if !ok {
-		return nil
+		return fmt.Errorf("transaction meta field is not a map")
 	}
 
 	resultRaw, ok := meta["TransactionResult"]
 	if !ok {
-		return nil
+		return fmt.Errorf("transaction meta has no TransactionResult field")
 	}
 
 	result, ok := resultRaw.(string)
 	if !ok {
-		return nil
+		return fmt.Errorf("transaction TransactionResult is not a string")
 	}
 
 	if result != tesSUCCESS {
@@ -648,18 +613,16 @@ func (w *Watcher) validateTransactionResult(tx transaction.FlatTransaction) erro
 
 // validateDestination checks that the transaction destination is the custody account (contract).
 // Returns nil if valid, or an error if the destination doesn't match.
-// Returns nil (no error) if destination cannot be determined - allows processing to continue.
+// This function is strict - if the destination cannot be determined, it returns an error.
 func (w *Watcher) validateDestination(tx transaction.FlatTransaction) error {
 	destRaw, ok := tx["Destination"]
 	if !ok {
-		// No destination field - might not be a Payment transaction
-		// Allow processing to continue, extractWormholePayload will filter non-NTT
-		return nil
+		return fmt.Errorf("transaction has no Destination field")
 	}
 
 	dest, ok := destRaw.(string)
 	if !ok {
-		return nil
+		return fmt.Errorf("transaction Destination field is not a string")
 	}
 
 	if dest != w.contract {
