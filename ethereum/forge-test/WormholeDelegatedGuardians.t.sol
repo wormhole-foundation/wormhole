@@ -26,6 +26,8 @@ contract TestWormholeDelegatedGuardians is TestUtils {
   bytes32 constant BAD_GOVERNANCE_CONTRACT = 0x0000000000000000000000000000000000000000000000000000000000000005;
   uint16 constant BAD_GOVERNANCE_CHAINID = 9;
   uint256 constant BAD_GUARDIAN_PK = 93941733246223705020089879371323733820373732307041878556247502674739205313441;
+  // "Core" module for guardian set upgrades
+  bytes32 constant CORE_MODULE = 0x00000000000000000000000000000000000000000000000000000000436f7265;
 
   Wormhole proxy;
   Implementation impl;
@@ -660,6 +662,54 @@ contract TestWormholeDelegatedGuardians is TestUtils {
     
     vm.expectRevert(
       abi.encodeWithSelector(WormholeDelegatedGuardians.InvalidPayloadLength.selector, expectedOffset, actualLength)
+    );
+    delegatedGuardians.submitConfig(_vm);
+  }
+
+  function testSubmitNotSignedByCurrentGuardianSet(
+    uint32 timestamp,
+    uint32 nonce,
+    uint64 sequence,
+    uint8 consistencyLevel
+  ) public {
+    assertEq(Implementation(payable(address(proxy))).getCurrentGuardianSetIndex(), 0);
+    
+    address[] memory newGuardianKeys = new address[](1);
+    newGuardianKeys[0] = vm.addr(TEST_GUARDIAN_PK);
+    
+    bytes memory guardianSetPayload = payloadSubmitNewGuardianSet(CORE_MODULE, CHAINID, 1, newGuardianKeys);
+    (bytes memory guardianSetVm,) = validVm(
+      0,
+      timestamp,
+      nonce,
+      GOVERNANCE_CHAIN_ID,
+      GOVERNANCE_CONTRACT,
+      sequence,
+      consistencyLevel,
+      guardianSetPayload,
+      TEST_GUARDIAN_PK
+    );
+    
+    Implementation(payable(address(proxy))).submitNewGuardianSet(guardianSetVm);
+    assertEq(Implementation(payable(address(proxy))).getCurrentGuardianSetIndex(), 1);
+    
+    WormholeDelegatedGuardians.DelegatedGuardianPayload[] memory configs = _buildSimpleConfig();
+    bytes memory encodedPayload = _buildPayload(0, configs);
+
+    (bytes memory _vm,) = validVm(
+      0, // OLD guardian set index
+      timestamp,
+      nonce,
+      GOVERNANCE_CHAIN_ID,
+      GOVERNANCE_CONTRACT,
+      sequence,
+      consistencyLevel,
+      encodedPayload,
+      TEST_GUARDIAN_PK
+    );
+    
+    vm.expectRevert(
+      abi.encodeWithSelector(WormholeDelegatedGuardians.NotSignedByCurrentGuardianSet.selector)
     );
     delegatedGuardians.submitConfig(_vm);
   }

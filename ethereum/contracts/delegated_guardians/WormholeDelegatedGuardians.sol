@@ -50,6 +50,7 @@ contract WormholeDelegatedGuardians {
   error InvalidNextConfigIndex(uint256 nextConfigIndex);
   error InvalidConfig(uint16 chainId);
   error InvalidPayloadLength(uint256 expected, uint256 actual);
+  error NotSignedByCurrentGuardianSet();
 
   constructor(address wormholeAddress) {
     wormhole = IWormhole(wormholeAddress);
@@ -195,6 +196,10 @@ contract WormholeDelegatedGuardians {
 
       if (vm.emitterAddress != wormhole.governanceContract()) {
           revert InvalidGovernanceContract(vm.emitterAddress);
+      }
+
+      if (vm.guardianSetIndex != wormhole.getCurrentGuardianSetIndex()) {
+          revert NotSignedByCurrentGuardianSet();
       }
 
       _replayProtect(vm.hash);
