@@ -508,13 +508,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
 					zap.Bool("is_delegated_guardian", ok),
 					zap.Int("chain_quorum", cfg.Quorum()),
-					zap.Strings("delegated_keys", func() []string {
-						keys := make([]string, len(cfg.Keys))
-						for i, k := range cfg.Keys {
-							keys[i] = k.Hex()
-						}
-						return keys
-					}()),
+					zap.Strings("delegated_keys", cfg.KeysAsHexStrings()),
 				)
 				if ok {
 					p.logger.Info("processor: process message publication using main processing loop")
