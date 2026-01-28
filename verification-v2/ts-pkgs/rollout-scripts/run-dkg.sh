@@ -44,20 +44,20 @@ if [ ! -f "${TLS_KEYS_DIR}/cert.pem" ]; then
     exit 1
 fi
 
-# Optional: use DOCKER_NETWORK env var for custom network
-NETWORK_FLAG=""
-if [ -n "${DOCKER_NETWORK:-}" ]; then
-    NETWORK_FLAG="--network=${DOCKER_NETWORK}"
+# TSS_E2E_DOCKER_NETWORK should NOT be used in production
+network_option=""
+if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
 fi
 
-PUBLISH_FLAG="--publish ${TLS_PORT}:${TLS_PORT}"
-if [ -n "${DOCKER_NETWORK:-}" ]; then
-    PUBLISH_FLAG=""
+publish_option="--publish ${TLS_PORT}:${TLS_PORT}"
+if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    publish_option=""
 fi
 
-WORMHOLE_ENV=""
+wormhole_option=""
 if [ -n "${WORMHOLE_ADDRESS}" ]; then
-    WORMHOLE_ENV="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS}"
+    wormhole_option="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS}"
 fi
 
 docker build --tag dkg-client --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
@@ -65,14 +65,14 @@ docker build --tag dkg-client --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Docke
 docker run \
     --rm \
     --name "${TLS_HOSTNAME}" \
-    ${NETWORK_FLAG} \
-    ${PUBLISH_FLAG} \
+    ${network_option} \
+    ${publish_option} \
     --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --env TLS_PORT="${TLS_PORT}" \
     --env PEER_SERVER_URL="${PEER_SERVER_URL}" \
     --env ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
-    ${WORMHOLE_ENV} \
+    ${wormhole_option} \
     dkg-client
 
 

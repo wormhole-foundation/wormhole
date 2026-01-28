@@ -1,6 +1,6 @@
 #!/bin/bash
 # Start the peer discovery server for DKG coordination.
-# Usage: ./run-peer-server.sh <SERVER_PORT> <ETHEREUM_RPC_URL> [WORMHOLE_ADDRESS]
+# Usage: ./run-peer-server.sh <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_DIRECTORY> [WORMHOLE_ADDRESS]
 
 set -euo pipefail
 
@@ -8,28 +8,27 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 REPO_ROOT="${SCRIPT_DIR}/../.."
 
 # TODO: add argument for peer server output directory
-if [ $# -lt 2 ]; then
-    echo "Usage: $0 <SERVER_PORT> <ETHEREUM_RPC_URL> [WORMHOLE_ADDRESS]"
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_DIRECTORY> [WORMHOLE_ADDRESS]"
     echo ""
     echo "Arguments:"
     echo "  SERVER_PORT       - Port for the peer server to listen on"
     echo "  ETHEREUM_RPC_URL  - Ethereum mainnet RPC URL"
+    echo "  OUTPUT_DIRECTORY  - Output directory where peers will be stored"
     echo "  WORMHOLE_ADDRESS  - (Only set for testnet networks) Wormhole contract address"
     exit 1
 fi
 
 SERVER_PORT="$1"
 ETHEREUM_RPC_URL="$2"
-WORMHOLE_ADDRESS="${3:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
+OUTPUT_DIRECTORY="$3"
+WORMHOLE_ADDRESS="${4:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
 
-# For local testing: use DOCKER_NETWORK env var to join a specific network
-# Do NOT use in production
-DOCKER_NETWORK="${DOCKER_NETWORK:-}"
-
-if [ -n "${DOCKER_NETWORK}" ]; then
-    NETWORK_FLAG="--network=${DOCKER_NETWORK}"
+# TSS_E2E_DOCKER_NETWORK should NOT be used in production
+if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
 else
-    NETWORK_FLAG=""
+    network_option=""
 fi
 
 docker build \
@@ -46,7 +45,7 @@ docker run \
     --rm \
     --name peer-server \
     --publish "${SERVER_PORT}:${SERVER_PORT}" \
-    --mount type=bind,src="${SCRIPT_DIR}",dst=/output \
-    ${NETWORK_FLAG} \
+    --mount type=bind,src="${OUTPUT_DIRECTORY}",dst=/output \
+    ${network_option} \
     peer-server
 

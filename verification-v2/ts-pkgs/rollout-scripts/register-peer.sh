@@ -40,17 +40,17 @@ fi
 
 export DOCKER_BUILDKIT=1
 
-# For tests: use DOCKER_BUILDER and DOCKER_BUILD_NETWORK env vars for custom builder/network
-BUILDER_FLAG=""
-NETWORK_FLAG=""
-if [ -n "${DOCKER_BUILDER:-}" ]; then
-    BUILDER_FLAG="--builder ${DOCKER_BUILDER}"
+# TSS_E2E_DOCKER_BUILDER and TSS_E2E_DOCKER_NETWORK should NOT be used in production.
+builder_option=""
+network_option=""
+if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
+    builder_option="--builder ${TSS_E2E_DOCKER_BUILDER}"
 fi
-if [ -n "${DOCKER_BUILD_NETWORK:-}" ]; then
-    NETWORK_FLAG="--network=${DOCKER_BUILD_NETWORK}"
+if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
 fi
 
-docker build "${BUILDER_FLAG}" "${NETWORK_FLAG}" \
+docker build "${builder_option}" "${network_option}" \
     --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
     --secret id=cert.pem,src="${CERT_PATH}" \

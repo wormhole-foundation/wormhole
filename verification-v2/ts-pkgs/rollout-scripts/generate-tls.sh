@@ -24,14 +24,6 @@ TLS_HOSTNAME="$1"
 TLS_PUBLIC_IP="$2"
 OUTPUT_DIR="$3"
 
-# Validate IP address (IPv4 or IPv6)
-IPV4_REGEX='^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
-IPV6_REGEX='^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$|^::$|^::1$'
-if ! [[ "$TLS_PUBLIC_IP" =~ $IPV4_REGEX ]] && ! [[ "$TLS_PUBLIC_IP" =~ $IPV6_REGEX ]]; then
-    log_error "TLS_PUBLIC_IP must be a valid IPv4 or IPv6 address"
-    exit 1
-fi
-
 mkdir -p "${OUTPUT_DIR}"
 
 if [ -f "${OUTPUT_DIR}/key.pem" ] || [ -f "${OUTPUT_DIR}/cert.pem" ]; then
