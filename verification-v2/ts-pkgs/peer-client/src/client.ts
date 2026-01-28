@@ -40,33 +40,28 @@ export class PeerClient {
   }
 
   private async uploadPeerData(peerRegistration: PeerRegistration): Promise<UploadResponse> {
-    try {
-      console.log(`[UPLOAD] Uploading peer data for guardian...`);
+    console.log(`[UPLOAD] Uploading peer data for guardian...`);
 
-      const response = await fetch(`${this.serverUrl}/peers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(peerRegistration),
-      });
+    const response = await fetch(`${this.serverUrl}/peers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(peerRegistration),
+    });
 
-      if (response.ok) {
-        const result = validateOrFail(UploadResponseSchema, await response.json(), "Invalid server response");
-        console.log(`[SUCCESS] Successfully uploaded peer data!`);
-        console.log(`   Guardian Address: ${result.peer.guardianAddress}`);
-        console.log(`   Guardian Index: ${result.peer.guardianIndex}`);
-        console.log(`   Hostname: ${result.peer.hostname}`);
-        return result;
-      } else {
-        const error = await response.text();
-        console.error(`[ERROR] Failed to upload peer data: ${response.status} ${response.statusText}`);
-        console.error(`   Error: ${error}`);
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error(`[ERROR] Error uploading peer data: ${errorStack(error)}`);
-      throw error;
+    if (response.ok) {
+      const result = validateOrFail(UploadResponseSchema, await response.json(), "Invalid server response");
+      console.log(`[SUCCESS] Successfully uploaded peer data!`);
+      console.log(`   Guardian Address: ${result.peer.guardianAddress}`);
+      console.log(`   Guardian Index: ${result.peer.guardianIndex}`);
+      console.log(`   Hostname: ${result.peer.hostname}`);
+      return result;
+    } else {
+      const error = await response.text();
+      console.error(`[ERROR] Failed to upload peer data: ${response.status} ${response.statusText}`);
+      console.error(`   Error: ${error}`);
+      throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
     }
   }
 
@@ -140,18 +135,13 @@ export class PeerClient {
   }
 
   private async run<T>(action: () => Promise<T>, message: string): Promise<T> {
-    try {
-      console.log(`[STARTING] Peer Client starting...`);
-      console.log(`   Server: ${this.serverUrl}`);
-      console.log(`   Peer: ${this.config.peer.hostname}`);
-      console.log(`   ${message}`);
-      const result = await action();
-      console.log(`[COMPLETED] Completed successfully!`);
-      return result;
-    } catch (error) {
-      console.error(`[ERROR] Client failed: ${errorStack(error)}`);
-      throw error;
-    }
+    console.log(`[STARTING] Peer Client starting...`);
+    console.log(`   Server: ${this.serverUrl}`);
+    console.log(`   Peer: ${this.config.peer.hostname}`);
+    console.log(`   ${message}`);
+    const result = await action();
+    console.log(`[COMPLETED] Completed successfully!`);
+    return result;
   }
 
   public async submitPeerData(): Promise<UploadResponse> {
