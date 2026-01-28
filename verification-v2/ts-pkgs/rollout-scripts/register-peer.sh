@@ -40,17 +40,13 @@ fi
 
 export DOCKER_BUILDKIT=1
 
-# TSS_E2E_DOCKER_BUILDER and TSS_E2E_DOCKER_NETWORK should NOT be used in production.
+# TSS_E2E_DOCKER_BUILDER should NOT be used in production.
 builder_option=""
-network_option=""
 if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
     builder_option="--builder ${TSS_E2E_DOCKER_BUILDER}"
 fi
-if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
-    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
-fi
 
-docker build "${builder_option}" "${network_option}" \
+docker build "${builder_option}" \
     --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
     --secret id=cert.pem,src="${CERT_PATH}" \

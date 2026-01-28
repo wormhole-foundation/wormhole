@@ -10,9 +10,8 @@ PEER_SERVER_URL="http://peer-server:3000"
 ETHEREUM_RPC_URL="http://anvil-with-verifier:8545"
 WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
-export DOCKER_BUILDER="dkg-builder"
-export DOCKER_BUILD_NETWORK="host"
-export DOCKER_NETWORK="dkg-test"
+export TSS_E2E_DOCKER_BUILDER="dkg-builder"
+export TSS_E2E_DOCKER_NETWORK="dkg-test"
 export NON_INTERACTIVE=1
 export FORCE_OVERWRITE=1
 export SKIP_NEXT_STEP_HINT=1

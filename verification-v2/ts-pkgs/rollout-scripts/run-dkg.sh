@@ -46,12 +46,9 @@ fi
 
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
 network_option=""
-if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
-    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
-fi
-
 publish_option="--publish ${TLS_PORT}:${TLS_PORT}"
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
     publish_option=""
 fi
 
@@ -65,14 +62,14 @@ docker build --tag dkg-client --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Docke
 docker run \
     --rm \
     --name "${TLS_HOSTNAME}" \
-    ${network_option} \
-    ${publish_option} \
+    "${network_option}" \
+    "${publish_option}" \
     --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --env TLS_PORT="${TLS_PORT}" \
     --env PEER_SERVER_URL="${PEER_SERVER_URL}" \
     --env ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
-    ${wormhole_option} \
+    "${wormhole_option}" \
     dkg-client
 
 

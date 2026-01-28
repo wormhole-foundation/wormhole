@@ -46,6 +46,6 @@ docker run \
     --name peer-server \
     --publish "${SERVER_PORT}:${SERVER_PORT}" \
     --mount type=bind,src="${OUTPUT_DIRECTORY}",dst=/output \
-    ${network_option} \
+    "${network_option}" \
     peer-server
 
