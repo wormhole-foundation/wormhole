@@ -43,7 +43,7 @@ export DOCKER_BUILDKIT=1
 # TSS_E2E_DOCKER_BUILDER should NOT be used in production.
 builder_option=""
 if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
-    builder_option="--builder ${TSS_E2E_DOCKER_BUILDER}"
+    builder_option="--builder ${TSS_E2E_DOCKER_BUILDER} --network=host"
 fi
 
 docker build ${builder_option} \
