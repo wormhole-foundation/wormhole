@@ -476,7 +476,20 @@ impl TokenBridge {
             prom = ext_ft_contract::ext(account)
                 .with_attached_deposit(deposit)
                 .with_static_gas(Gas(50_000_000_000_000))
-                .vaa_transfer(amount.1, mr, recipient_chain, fee.1, refund_to);
+                // NOTE: we're passing 0 fee here, which means that the
+                // recipient will receive all of the tokens, and the relayer
+                // receives nothing.
+                // This means that a relayer has no incentive to perform the transfer.
+                // This is a lesser of two evils solution, because the fee
+                // payment logic in the `ft` contract doesn't check that the
+                // relayer (fee recipient) is registered to receive the tokens.
+                // If not, then the tx reverts, but the transfer is still marked
+                // as replay protected, making the tokens unrecoverable.
+                // So instead we bypass the fee path entirely. The good news is
+                // that this field is not being used anyway, and the token
+                // bridge relayer uses payload 3s with a custom fee mechanism
+                // (not implemented on near at the time of writing).
+                .vaa_transfer(amount.1, mr, recipient_chain, 0, refund_to);
         }
 
         PromiseOrValue::Promise(prom)
