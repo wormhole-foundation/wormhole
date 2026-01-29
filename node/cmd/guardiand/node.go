@@ -231,6 +231,9 @@ var (
 	megaEthRPC      *string
 	megaEthContract *string
 
+	zeroGravityRPC      *string
+	zeroGravityContract *string
+
 	sepoliaRPC      *string
 	sepoliaContract *string
 
@@ -492,6 +495,9 @@ func init() {
 
 	megaEthRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "megaEthRPC", "MegaETH RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	megaEthContract = NodeCmd.Flags().String("megaEthContract", "", "MegaETH contract address")
+
+	zeroGravityRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "zeroGravityRPC", "ZeroGravity RPC_URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
+	zeroGravityContract = NodeCmd.Flags().String("zeroGravityContract", "", "ZeroGravity contract address")
 
 	arbitrumSepoliaRPC = node.RegisterFlagWithValidationOrFail(NodeCmd, "arbitrumSepoliaRPC", "Arbitrum on Sepolia RPC URL", "ws://eth-devnet:8545", []string{"ws", "wss"})
 	arbitrumSepoliaContract = NodeCmd.Flags().String("arbitrumSepoliaContract", "", "Arbitrum on Sepolia contract address")
@@ -899,6 +905,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	*creditCoinContract = checkEvmArgs(logger, *creditCoinRPC, *creditCoinContract, vaa.ChainIDCreditCoin)
 	*mocaContract = checkEvmArgs(logger, *mocaRPC, *mocaContract, vaa.ChainIDMoca)
 	*megaEthContract = checkEvmArgs(logger, *megaEthRPC, *megaEthContract, vaa.ChainIDMegaETH)
+	*zeroGravityContract = checkEvmArgs(logger, *zeroGravityRPC, *zeroGravityContract, vaa.ChainIDZeroGravity)
 
 	// These chains will only ever be testnet / devnet.
 	*sepoliaContract = checkEvmArgs(logger, *sepoliaRPC, *sepoliaContract, vaa.ChainIDSepolia)
@@ -1648,6 +1655,17 @@ func runNode(cmd *cobra.Command, args []string) {
 			ChainID:          vaa.ChainIDMegaETH,
 			Rpc:              *megaEthRPC,
 			Contract:         *megaEthContract,
+			CcqBackfillCache: *ccqBackfillCache,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(zeroGravityRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:        "zerogravity",
+			ChainID:          vaa.ChainIDZeroGravity,
+			Rpc:              *zeroGravityRPC,
+			Contract:         *zeroGravityContract,
 			CcqBackfillCache: *ccqBackfillCache,
 		}
 		watcherConfigs = append(watcherConfigs, wc)
