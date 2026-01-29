@@ -391,101 +391,73 @@ func (p *Processor) Run(ctx context.Context) error {
 				continue
 			}
 
-			oldChains := 0
+			var oldChains map[vaa.ChainID]*DelegatedGuardianChainConfig
 			oldDgc := p.dgc
 			if oldDgc != nil {
-				oldChains = len(oldDgc.Chains)
+				oldChains = oldDgc.GetAll()
 			}
-			newChains := len(dgConfig.Chains)
+			chains := dgConfig.Chains
 
-			if oldChains < newChains {
-				p.logger.Warn("delegated guardian config chains added",
-					zap.Int("old_chains", oldChains),
-					zap.Int("new_chains", newChains),
-				)
-			} else if oldChains == newChains {
-				p.logger.Info("delegated guardian config updated",
-					zap.Int("chains", newChains),
-				)
-			} else {
-				// This branch should not be hit since the smart contract does not allow removing chains.
-				p.logger.Error("delegated guardian config chains decreased",
-					zap.Int("old_chains", oldChains),
-					zap.Int("new_chains", newChains),
-				)
-			}
-
-			// Log details for each chain config and update config if modified
-			for chainID, chainConfig := range dgConfig.Chains {
-				oldSize := 0
-				oldQuorum := 0
-				var oldChainConfig *DelegatedGuardianChainConfig
-				if oldDgc != nil {
-					oldChainConfig = oldDgc.GetChainConfig(chainID)
-					if oldChainConfig != nil {
-						oldSize = len(oldChainConfig.Keys)
-						oldQuorum = oldChainConfig.Quorum()
-					}
+			// Log details for removed chain configs
+			for chain := range oldChains {
+				if _, ok := chains[chain]; !ok {
+					p.logger.Warn("delegated guardian config chain removed",
+						zap.Stringer("chainID", chain),
+					)
 				}
-				newSize := len(chainConfig.Keys)
-				newQuorum := chainConfig.Quorum()
+			}
 
-				configModified := true
+			// Log details for new/updated chain configs
+			for chain, cfg := range chains {
+				oldSize, oldQuorum := 0, 0
+				oldCfg := oldChains[chain]
+				if oldCfg != nil {
+					oldSize = len(oldCfg.Keys)
+					oldQuorum = oldCfg.Quorum()
+				}
+				newSize := len(cfg.Keys)
+				newQuorum := cfg.Quorum()
 
 				switch {
-				case oldChainConfig == nil:
+				case oldCfg == nil:
 					p.logger.Warn("delegated guardian config chain added",
-						zap.Stringer("chainID", chainID),
-						zap.Strings("set", chainConfig.KeysAsHexStrings()),
+						zap.Stringer("chainID", chain),
+						zap.Strings("set", cfg.KeysAsHexStrings()),
 						zap.Int("quorum", newQuorum),
-					)
-				case oldSize == 0 && newSize > 0:
-					p.logger.Warn("delegated guardian config chain set populated",
-						zap.Stringer("chainID", chainID),
-						zap.Strings("set", chainConfig.KeysAsHexStrings()),
-						zap.Int("quorum", newQuorum),
-					)
-				case oldSize > 0 && newSize == 0:
-					p.logger.Warn("delegated guardian config chain set emptied; reverting to undelegated state",
-						zap.Stringer("chainID", chainID),
-						zap.Int("old_size", oldSize),
 					)
 				case oldSize != newSize:
 					p.logger.Warn("delegated guardian config chain set size changed",
-						zap.Stringer("chainID", chainID),
+						zap.Stringer("chainID", chain),
 						zap.Int("old_size", oldSize),
 						zap.Int("new_size", newSize),
-						zap.Strings("old_set", oldChainConfig.KeysAsHexStrings()),
-						zap.Strings("new_set", chainConfig.KeysAsHexStrings()),
+						zap.Strings("old_set", oldCfg.KeysAsHexStrings()),
+						zap.Strings("new_set", cfg.KeysAsHexStrings()),
 						zap.Int("quorum", newQuorum),
 					)
 				case oldQuorum != newQuorum:
 					p.logger.Warn("delegated guardian config chain threshold changed",
-						zap.Stringer("chainID", chainID),
+						zap.Stringer("chainID", chain),
 						zap.Int("old_quorum", oldQuorum),
 						zap.Int("new_quorum", newQuorum),
-						zap.Strings("set", chainConfig.KeysAsHexStrings()),
+						zap.Strings("set", cfg.KeysAsHexStrings()),
 					)
-				case !slices.Equal(oldChainConfig.Keys, chainConfig.Keys):
+				case !slices.Equal(oldCfg.Keys, cfg.Keys):
 					p.logger.Warn("delegated guardian config chain set changed",
-						zap.Stringer("chainID", chainID),
-						zap.Strings("old_set", oldChainConfig.KeysAsHexStrings()),
-						zap.Strings("new_set", chainConfig.KeysAsHexStrings()),
+						zap.Stringer("chainID", chain),
+						zap.Strings("old_set", oldCfg.KeysAsHexStrings()),
+						zap.Strings("new_set", cfg.KeysAsHexStrings()),
 						zap.Int("quorum", newQuorum),
 					)
 				default:
-					configModified = false
 					p.logger.Debug("delegated guardian config chain unchanged",
-						zap.Stringer("chainID", chainID),
-						zap.Strings("set", chainConfig.KeysAsHexStrings()),
+						zap.Stringer("chainID", chain),
+						zap.Strings("set", cfg.KeysAsHexStrings()),
 						zap.Int("quorum", newQuorum),
 					)
 				}
-
-				if configModified {
-					p.dgc.SetChainConfig(chainID, chainConfig)
-				}
 			}
+
+			p.dgc.Set(chains)
 		case k := <-p.msgC:
 			if k == nil {
 				p.logger.Error("received nil MessagePublication from msgC channel")

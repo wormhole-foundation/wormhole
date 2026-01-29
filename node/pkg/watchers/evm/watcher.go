@@ -852,7 +852,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 				logger.Error("failed to instantiate delegated guardian chain config", zap.Error(err))
 				return err
 			}
-			dgConfig.SetChainConfig(chainID, chainConfig)
+			dgConfig.Chains[chainID] = chainConfig
 			logger.Info("delegated guardian config for chain",
 				zap.Stringer("chainID", chainID),
 				zap.Int("numKeys", len(cfg.Keys)),

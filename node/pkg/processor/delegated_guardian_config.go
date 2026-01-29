@@ -108,20 +108,24 @@ func NewDelegatedGuardianConfig() *DelegatedGuardianConfig {
 	}
 }
 
-func (d *DelegatedGuardianConfig) SetChainConfig(chain vaa.ChainID, cfg *DelegatedGuardianChainConfig) {
+// Set sets the chains map
+func (d *DelegatedGuardianConfig) Set(chains map[vaa.ChainID]*DelegatedGuardianChainConfig) {
 	d.mu.Lock()
-	dgSigners.WithLabelValues(chain.String()).Set(float64(len(cfg.Keys)))
-	dgQuorum.WithLabelValues(chain.String()).Set(float64(cfg.quorum))
+	for chain, cfg := range chains {
+		label := chain.String()
+		dgSigners.WithLabelValues(label).Set(float64(len(cfg.Keys)))
+		dgQuorum.WithLabelValues(label).Set(float64(cfg.Quorum()))
+	}
+	for chain := range d.Chains {
+		if _, ok := chains[chain]; !ok {
+			label := chain.String()
+			dgSigners.DeleteLabelValues(label)
+			dgQuorum.DeleteLabelValues(label)
+		}
+	}
 	defer d.mu.Unlock()
 
-	d.Chains[chain] = cfg
-}
-
-// SetContractAddress sets the delegated guardians contract address being monitored.
-func (d *DelegatedGuardianConfig) SetContractAddress(addr string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.contractAddress = addr
+	d.Chains = chains
 }
 
 // GetChainConfig returns the delegated guardian chain config for a specific chain, or nil if none.
@@ -130,6 +134,26 @@ func (d *DelegatedGuardianConfig) GetChainConfig(chain vaa.ChainID) *DelegatedGu
 	defer d.mu.Unlock()
 
 	return d.Chains[chain]
+}
+
+// GetAll returns all delegated guardian chain configs.
+func (d *DelegatedGuardianConfig) GetAll() map[vaa.ChainID]*DelegatedGuardianChainConfig {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	ret := make(map[vaa.ChainID]*DelegatedGuardianChainConfig, len(d.Chains))
+	for chain, cfg := range d.Chains {
+		ret[chain] = cfg
+	}
+
+	return ret
+}
+
+// SetContractAddress sets the delegated guardians contract address being monitored.
+func (d *DelegatedGuardianConfig) SetContractAddress(addr string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.contractAddress = addr
 }
 
 // GetFeatures returns the delegated guardian feature string for heartbeat messages.
