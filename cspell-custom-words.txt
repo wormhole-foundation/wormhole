@@ -178,6 +178,7 @@ rustup
 satoshi
 secp
 SECQ
+SECG
 seda
 seievm
 Sepolia

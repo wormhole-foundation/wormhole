@@ -17,7 +17,6 @@ var (
 )
 
 func TestTokenListSize(t *testing.T) {
-
 	// We should have a sensible number of tokens
 	// These numbers shouldn't have to change frequently
 	assert.Greater(t, len(tokenList), 1000)
@@ -28,7 +27,6 @@ func TestTokenListSize(t *testing.T) {
 }
 
 func TestTokenListAddressSize(t *testing.T) {
-
 	/* Assume that token addresses must always be 32 bytes (64 chars) */
 	for _, tokenConfigEntry := range tokenList {
 		testLabel := vaa.ChainID(tokenConfigEntry.Chain).String() + ":" + tokenConfigEntry.Symbol
@@ -118,7 +116,6 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 }
 
 func TestTokenListTokenAddressDuplicates(t *testing.T) {
-
 	/* Assume that all governed token entry addresses won't include duplicates */
 	addrs := make(map[string]string)
 	for _, e := range tokenList {
@@ -131,7 +128,6 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 }
 
 func TestTokenListEmptySymbols(t *testing.T) {
-
 	/* Assume that all governed token entry symbol strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenList {
 		// Some Solana tokens don't have the symbol set. For now, we'll still enforce this for other chains.
@@ -142,7 +138,6 @@ func TestTokenListEmptySymbols(t *testing.T) {
 }
 
 func TestTokenListEmptyCoinGeckoId(t *testing.T) {
-
 	/* Assume that all governed token entry coingecko id strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenList {
 		assert.Greater(t, len(tokenConfigEntry.CoinGeckoId), 0)
@@ -150,7 +145,6 @@ func TestTokenListEmptyCoinGeckoId(t *testing.T) {
 }
 
 func TestTokenListPrices(t *testing.T) {
-
 	/* Assume that all governed token entry coingecko id strings will be greater than zero */
 	f0 := float64(0)
 	for _, tokenConfigEntry := range tokenList {
