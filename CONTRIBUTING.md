@@ -6,6 +6,10 @@ appreciated and will be reviewed swiftly.
 Wormhole is a mission-critical, high-stakes project. We optimize for quality over quantity. Design processes
 and code reviews are our most important tools to accomplish that.
 
+## Development and Code Review Process
+
+**Before contributing code, read [SAFETY_CRITICAL_CODE.md](./SAFETY_CRITICAL_CODE.md).**
+
 - All new features must first be discussed in a GitHub issue before starting to implement them. For
   complex features, it can be useful to submit a [formal design document](whitepapers/template.md).
 
@@ -26,9 +30,6 @@ and code reviews are our most important tools to accomplish that.
 - PRs that only correct typos or make minor wording adjustments will be rejected. Fixing typos alongside other non-trivial engineering work is welcome.
 - Pull requests that modify dependencies must be well-documented so that the benefits of updating can be weighed against
   security and compatibility concerns. Low-effort PRs that update dependencies without any documentation will be rejected.
-
-Documentation for the in-the-wild deployments lives in the
-[wormhole-networks](https://github.com/certusone/wormhole-networks) repository.
 
 See [DEVELOP.md](./DEVELOP.md) for more information on how to run the development environment.
 
