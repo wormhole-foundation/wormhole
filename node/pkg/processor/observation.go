@@ -588,7 +588,6 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
 // This function assumes cfg corresponds to m.EmitterChain
-// TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
 func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegatedGuardianChainConfig, m *gossipv1.DelegateObservation) error {
 	addr := common.BytesToAddress(m.GuardianAddr)
 	mp, err := delegateObservationToMessagePublication(m)
@@ -636,14 +635,13 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 
 // checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it runs the converted
 // MessagePublication through the normal message pipeline.
-// This function assumes mp corresponds to s
-// TODO(delegated-guardian-sets): Should ^ be explicitly asserted?
-func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, dgs *DelegatedGuardianChainConfig) error {
+// This function assumes cfg corresponds to mp.EmitterChain
+func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, cfg *DelegatedGuardianChainConfig) error {
 	// Check if we have more delegate observations than required for quorum.
 	// s.observations may contain delegate observations from multiple delegated guardian sets during delegated guardian set updates
 	// Hence, if len(s.observations) < quorum, then there is definitely no quorum and we can return early to save additional computation,
 	// but if len(s.observations) >= quorum, there is not necessarily quorum for the active delegated guardian set.
-	if len(s.observations) < dgs.Quorum() {
+	if len(s.observations) < cfg.Quorum() {
 		// no quorum yet, we're done here
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not yet met",
@@ -656,14 +654,14 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 
 	// Count all valid delegate observations for current delegated guardian set.
 	var numValidObsv int
-	for _, a := range dgs.Keys {
+	for _, a := range cfg.Keys {
 		if _, ok := s.observations[a]; ok {
 			numValidObsv++
 		}
 	}
 
 	// Check if we actually have quorum.
-	if numValidObsv < dgs.Quorum() {
+	if numValidObsv < cfg.Quorum() {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not met, doing nothing",
 				zap.Stringer("emitter_chain", mp.EmitterChain),
