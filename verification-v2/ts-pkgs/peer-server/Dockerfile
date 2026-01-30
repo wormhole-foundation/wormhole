@@ -4,7 +4,8 @@ ARG SERVER_PORT
 ARG ETHEREUM_RPC_URL
 ARG WORMHOLE_ADDRESS=0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
 
-RUN mkdir --parents core-bridge/ts-pkgs/peer-server core-bridge/ts-pkgs/peer-lib
+RUN mkdir --parents core-bridge/ts-pkgs/peer-server core-bridge/ts-pkgs/peer-lib && \
+    mkdir --parents output
 COPY --link .yarn /core-bridge/.yarn
 COPY --link package.json yarn.lock .yarnrc.yml /core-bridge/
 COPY --link ts-pkgs/peer-server/package.json /core-bridge/ts-pkgs/peer-server/
@@ -33,7 +34,8 @@ COPY <<EOT config.json
     "chainId": 1
   },
   "wormholeContractAddress": "${WORMHOLE_ADDRESS}",
-  "threshold": 13
+  "threshold": 13,
+  "peerListStore": "/output/peerGuardians.json"
 }
 EOT
 
