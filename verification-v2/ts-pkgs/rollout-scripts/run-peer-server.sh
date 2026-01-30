@@ -1,6 +1,6 @@
 #!/bin/bash
 # Start the peer discovery server for DKG coordination.
-# Usage: ./run-peer-server.sh <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_DIRECTORY> [WORMHOLE_ADDRESS]
+# Usage: ./run-peer-server.sh <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_PEERS_FILE> [WORMHOLE_ADDRESS]
 
 set -euo pipefail
 
@@ -9,22 +9,22 @@ REPO_ROOT="${SCRIPT_DIR}/../.."
 
 # TODO: add argument for peer server output directory
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_DIRECTORY> [WORMHOLE_ADDRESS]"
+    echo "Usage: $0 <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_PEERS_FILE> [WORMHOLE_ADDRESS]"
     echo ""
     echo "Arguments:"
     echo "  SERVER_PORT       - Port for the peer server to listen on"
     echo "  ETHEREUM_RPC_URL  - Ethereum mainnet RPC URL"
-    echo "  OUTPUT_DIRECTORY  - Output directory where peers will be stored"
+    echo "  OUTPUT_PEERS_FILE  - Output file where peers will be stored"
     echo "  WORMHOLE_ADDRESS  - (Only set for testnet networks) Wormhole contract address"
     exit 1
 fi
 
 SERVER_PORT="$1"
 ETHEREUM_RPC_URL="$2"
-OUTPUT_DIRECTORY="$3"
+OUTPUT_PEERS_FILE="$3"
 WORMHOLE_ADDRESS="${4:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
 
-mkdir -p "$OUTPUT_DIRECTORY"
+mkdir -p $(dirname "${OUTPUT_PEERS_FILE}") && touch "${OUTPUT_PEERS_FILE}"
 
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
@@ -40,6 +40,7 @@ docker build \
     --file "${REPO_ROOT}/ts-pkgs/peer-server/Dockerfile" \
     --build-arg SERVER_PORT="${SERVER_PORT}" \
     --build-arg ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
+    --build-arg OUTPUT_PEERS_FILE="${OUTPUT_PEERS_FILE}" \
     --build-arg WORMHOLE_ADDRESS="${WORMHOLE_ADDRESS}" \
     "${REPO_ROOT}"
 
@@ -53,7 +54,7 @@ docker run \
     --rm \
     --name peer-server \
     ${publish_options} \
-    --mount type=bind,src="${OUTPUT_DIRECTORY}",dst=/output \
+    --volume "${OUTPUT_PEERS_FILE}":/peerGuardians.json \
     "${network_option}" \
     peer-server
 
