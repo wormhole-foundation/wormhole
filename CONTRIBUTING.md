@@ -6,6 +6,10 @@ appreciated and will be reviewed swiftly.
 Wormhole is a mission-critical, high-stakes project. We optimize for quality over quantity. Design processes
 and code reviews are our most important tools to accomplish that.
 
+## Development and Code Review Process
+
+**Before contributing code, read [SAFETY_CRITICAL_CODE.md](./SAFETY_CRITICAL_CODE.md).**
+
 - All new features must first be discussed in a GitHub issue before starting to implement them. For
   complex features, it can be useful to open a thread on [GitHub Discussions](https://github.com/wormhole-foundation/wormhole/discussions).
 
@@ -185,7 +189,7 @@ TypeScript code should follow the [TSDoc](https://tsdoc.org/) standard.
 You must format your code with `goimports` before submitting.
 You can install it with `go install golang.org/x/tools/cmd/goimports@latest` and run it with `goimports -d ./`.
 
-### Configuration: VSCode 
+### Configuration: VSCode
 
 You can enable goimports in VSCode with the following in your `settings.json`.
 
