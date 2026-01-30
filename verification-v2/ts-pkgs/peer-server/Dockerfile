@@ -33,7 +33,8 @@ COPY <<EOT config.json
     "chainId": 1
   },
   "wormholeContractAddress": "${WORMHOLE_ADDRESS}",
-  "threshold": 13
+  "threshold": 13,
+  "peerListStore": "/peerGuardians.json"
 }
 EOT
 

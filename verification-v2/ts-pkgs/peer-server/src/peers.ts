@@ -4,18 +4,18 @@ import fs from 'fs';
 import { Peer, PeerArraySchema, validateOrFail } from '@xlabs-xyz/peer-lib';
 import { Display } from './display.js';
 
-const GUARDIAN_PEERS_FILE = 'guardian_peers.json';
-
-export function saveGuardianPeers(peers: Peer[], display: Display): void {
-  display.log(`Saving guardian peers to ${path.resolve(GUARDIAN_PEERS_FILE)}`);
-  fs.writeFileSync(path.resolve(GUARDIAN_PEERS_FILE), JSON.stringify(peers, null, 2));
+export function saveGuardianPeers(peers: Peer[], display: Display, filePath: string): void {
+  const resolvedPath = path.resolve(filePath);
+  display.log(`Saving guardian peers to ${resolvedPath}`);
+  fs.writeFileSync(resolvedPath, JSON.stringify(peers, null, 2));
 }
 
-export function loadGuardianPeers(display: Display): Peer[] {
-  if (!fs.existsSync(path.resolve(GUARDIAN_PEERS_FILE))) {
-    display.log(`WARNING: No guardian peers file found at ${path.resolve(GUARDIAN_PEERS_FILE)}`);
+export function loadGuardianPeers(display: Display, filePath: string): Peer[] {
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    display.log(`WARNING: No guardian peers file found at ${resolvedPath}`);
     return [];
   }
-  const content = fs.readFileSync(path.resolve(GUARDIAN_PEERS_FILE), 'utf-8');
+  const content = fs.readFileSync(resolvedPath, 'utf-8');
   return validateOrFail(PeerArraySchema, JSON.parse(content), 'Invalid guardian peers');
 }

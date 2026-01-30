@@ -17,7 +17,7 @@ export function loadConfig(configPath?: string): ServerConfig {
   const configFile = configPath ?? path.join(process.cwd(), 'config.json');
   try {
     const configData = fs.readFileSync(configFile, 'utf8');
-    const config = JSON.parse(configData) as ServerConfig;
+    const config = JSON.parse(configData) as unknown;
     return validateOrFail(ServerConfigSchema, config, `Invalid configuration in ${configFile}`);
   } catch (error) {
     if (error instanceof SyntaxError) {
@@ -41,15 +41,15 @@ function parseConfig(): ServerConfig {
         console.log(`
 Peer Server
 
-Usage: npm start [options]
+Usage: tsx cli.ts [options]
 
 Options:
   --config <path>        Config file path (default: ./config.json)
   --help                 Show this help message
 
 Examples:
-  npm start
-  npm start -- --config ./my-config.json
+  tsx cli.ts
+  tsx cli.ts --config ./my-config.json
         `);
         process.exit(0);
     }
@@ -72,21 +72,22 @@ async function main() {
   const wormholeData = await getWormholeGuardianData(config);
   display.log('Server initialized with Wormhole guardian data');
 
-  const guardianPeers = loadGuardianPeers(display);
+  const guardianPeers = loadGuardianPeers(display, config.peerListStore);
   display.log(`Loaded ${guardianPeers.length} guardian peers`);
 
-  const server = new PeerServer(config, wormholeData, display, guardianPeers);
+  let server: PeerServer | undefined;
 
   const shutdown = () => {
     display.log('\nShutting down server...');
-    server.close();
+    if (server !== undefined)
+      server.close();
     process.exit(0);
   };
   // Handle graceful shutdown
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  await server.start();
+  server = await PeerServer.start(config, wormholeData, display, guardianPeers);
 }
 
 main().catch((error: unknown) => {

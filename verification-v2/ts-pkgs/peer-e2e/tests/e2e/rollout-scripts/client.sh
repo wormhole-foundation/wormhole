@@ -10,9 +10,8 @@ PEER_SERVER_URL="http://peer-server:3000"
 ETHEREUM_RPC_URL="http://anvil-with-verifier:8545"
 WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
-export DOCKER_BUILDER="dkg-builder"
-export DOCKER_BUILD_NETWORK="host"
-export DOCKER_NETWORK="dkg-test"
+export TSS_E2E_DOCKER_BUILDER="dkg-builder"
+export TSS_E2E_DOCKER_NETWORK="dkg-test"
 export NON_INTERACTIVE=1
 export FORCE_OVERWRITE=1
 export SKIP_NEXT_STEP_HINT=1
@@ -52,8 +51,8 @@ createGuardianPrivateKeyFile() {
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  mkdir -p "out/$i/keys"
-  createGuardianPrivateKeyFile "$i" "out/$i/guardian.key"
+  mkdir -p "./out/$i/keys"
+  createGuardianPrivateKeyFile "$i" "./out/$i/guardian.key"
 done
 
 until docker logs peer-server 2>/dev/null | grep "Peer server running on"
@@ -61,25 +60,41 @@ do
   sleep 1
 done
 
+# Do a single build of these images to cache layers
+docker build \
+    --tag tls-gen \
+    --file "../../../peer-client/tls.Dockerfile" \
+    ../../../..
+
+docker build \
+    --builder dkg-builder \
+    --network=host \
+    --file ../../../peer-client/Dockerfile \
+    --progress=plain \
+    ../../../.. 2>/dev/null || true
+
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../../../../rollout-scripts/setup-peer.sh \
+  ../../../rollout-scripts/setup-peer.sh \
     "${TLS_HOSTNAME}$i" \
     "${TLS_PUBLIC_IP}" \
-    "out/$i/keys" \
-    "out/$i/guardian.key" \
+    "./out/$i/keys" \
+    "./out/$i/guardian.key" \
     "$((TLS_BASE_PORT + i))" \
     "${PEER_SERVER_URL}" &
 done
 
 wait
 
-docker build --tag dkg-client --file ../../../../peer-client/dkg.Dockerfile ../../../../..
+docker build \
+    --tag dkg-client \
+    --file ../../../peer-client/dkg.Dockerfile \
+    ../../../..
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  ../../../../rollout-scripts/run-dkg.sh \
-    "out/$i/keys" \
+  ../../../rollout-scripts/run-dkg.sh \
+    "./out/$i/keys" \
     "${TLS_HOSTNAME}$i" \
     "$((TLS_BASE_PORT + i))" \
     "${PEER_SERVER_URL}" \

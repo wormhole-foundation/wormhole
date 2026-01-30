@@ -17,26 +17,19 @@ import { saveGuardianPeers } from './peers.js';
 import { inspect } from 'node:util';
 
 export class PeerServer {
-  private app: express.Application;
   private sparseGuardianPeers: (Peer | undefined)[];
-  private wormholeData: WormholeGuardianData;
-  private config: BaseServerConfig;
-  private server?: Server;
-  private display: Display;
   private port?: number;
 
-  constructor(
-    config: BaseServerConfig,
-    wormholeData: WormholeGuardianData,
-    display: Display,
+  protected constructor(
+    private app: express.Application,
+    private server: Server,
+    private config: BaseServerConfig,
+    private wormholeData: WormholeGuardianData,
+    private display: Display,
     initialPeers: Peer[] = []
   ) {
-    this.config = config;
-    this.wormholeData = wormholeData;
-    this.display = display;
     this.sparseGuardianPeers = validatePeers(initialPeers, wormholeData);
-    this.app = express();
-    this.setupMiddleware();
+
     this.setupRoutes();
     // Show initial progress
     this.display.setProgress(initialPeers, this.wormholeData.guardians.length);
@@ -44,11 +37,6 @@ export class PeerServer {
 
   private partialGuardianPeers(): Peer[] {
     return this.sparseGuardianPeers.filter(peer => peer !== undefined);
-  }
-
-  private setupMiddleware(): void {
-    this.app.use(cors());
-    this.app.use(express.json());
   }
 
   private setupRoutes(): void {
@@ -73,7 +61,8 @@ export class PeerServer {
           PeerRegistrationSchema, req.body, "Invalid peer registration"
         );
         if (!validationResult.success) {
-          return res.status(400).json({ error: validationResult.error });
+          res.status(400).json({ error: validationResult.error });
+          return;
         }
         const peerRegistration = validationResult.value;
 
@@ -81,7 +70,8 @@ export class PeerServer {
         const guardian = validateGuardianSignature(peerRegistration, this.wormholeData);
         if (!guardian.success) {
           this.display.error(`Error validating guardian signature: ${guardian.error}`);
-          return res.status(401).json({ error: 'Invalid guardian signature' });
+          res.status(401).json({ error: 'Invalid guardian signature' });
+          return;
         }
 
         const { guardianAddress, guardianIndex } = guardian.value;
@@ -109,9 +99,10 @@ export class PeerServer {
         }
         this.sparseGuardianPeers[guardianIndex] = peer;
         // Save the updated guardian peers
-        saveGuardianPeers(this.partialGuardianPeers(), this.display);
+        const currentGuardianPeers = this.partialGuardianPeers();
+        saveGuardianPeers(currentGuardianPeers, this.display, this.config.peerListStore);
         // Update progress display (will automatically show peers when complete)
-        this.display.setProgress(this.partialGuardianPeers(), this.wormholeData.guardians.length);
+        this.display.setProgress(currentGuardianPeers, this.wormholeData.guardians.length);
         res.status(201).json({
           peer: { guardianAddress, guardianIndex, signature, hostname, port, tlsX509 },
           threshold: this.config.threshold
@@ -123,17 +114,30 @@ export class PeerServer {
     });
   }
 
-  start(): Promise<void> {
-    this.server = createServer(this.app);
+  protected static createApp()  {
+    const app = express();
+    app.use(cors());
+    app.use(express.json());
+    return app;
+  }
+
+  static start(
+    config: BaseServerConfig,
+    wormholeData: WormholeGuardianData,
+    display: Display,
+    initialPeers: Peer[] = [],
+  ): Promise<PeerServer> {
+    const app = this.createApp();
+    const server = createServer(app);
+
+    const peerServer = new PeerServer(app, server, config, wormholeData, display, initialPeers);
     return new Promise((resolve) => {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      this.server!.listen(this.config.port, () => {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const address = this.server!.address();
-        this.port = typeof address === 'object' ? address?.port : undefined;
-        this.display.log(`Peer server running on port ${inspect(this.port ?? address)}`);
-        this.display.log('\nWaiting for guardians to submit their peer data...');
-        resolve();
+      server.listen(config.port, () => {
+        const address = server.address();
+        peerServer.port = typeof address === 'object' ? address?.port : undefined;
+        display.log(`Peer server running on port ${inspect(peerServer.port ?? address)}`);
+        display.log('\nWaiting for guardians to submit their peer data...');
+        resolve(peerServer);
       });
     });
   }
@@ -147,8 +151,6 @@ export class PeerServer {
   }
 
   close(): void {
-    if (this.server) {
-      this.server.close();
-    }
+    this.server.close();
   }
 }

@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+PROJECT_ROOT="${SCRIPT_DIR}/../.."
 
 log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; }
@@ -24,7 +24,6 @@ fi
 
 GUARDIAN_KEY_PATH="$1"
 CERT_PATH="$2"
-CERT_PATH_ORIGINAL="$2"
 TLS_HOSTNAME="$3"
 TLS_PORT="$4"
 PEER_SERVER_URL="$5"
@@ -39,27 +38,15 @@ if [ ! -f "${CERT_PATH}" ]; then
     exit 1
 fi
 
-if ! [[ "$TLS_PORT" =~ ^[0-9]+$ ]]; then
-    log_error "TLS_PORT must be a number"
-    exit 1
-fi
-
-GUARDIAN_KEY_PATH="$(cd "$(dirname "${GUARDIAN_KEY_PATH}")" && pwd)/$(basename "${GUARDIAN_KEY_PATH}")"
-CERT_PATH="$(cd "$(dirname "${CERT_PATH}")" && pwd)/$(basename "${CERT_PATH}")"
-
 export DOCKER_BUILDKIT=1
 
-# Optional: use DOCKER_BUILDER and DOCKER_BUILD_NETWORK env vars for custom builder/network
-BUILDER_FLAG=""
-NETWORK_FLAG=""
-if [ -n "${DOCKER_BUILDER:-}" ]; then
-    BUILDER_FLAG="--builder ${DOCKER_BUILDER}"
-fi
-if [ -n "${DOCKER_BUILD_NETWORK:-}" ]; then
-    NETWORK_FLAG="--network=${DOCKER_BUILD_NETWORK}"
+# TSS_E2E_DOCKER_BUILDER should NOT be used in production.
+builder_option=""
+if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
+    builder_option="--builder ${TSS_E2E_DOCKER_BUILDER} --network=host"
 fi
 
-docker build ${BUILDER_FLAG} ${NETWORK_FLAG} \
+docker build ${builder_option} \
     --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
     --secret id=cert.pem,src="${CERT_PATH}" \
@@ -72,8 +59,6 @@ log_info "Registration complete"
 
 TLS_KEYS_DIR="$(dirname "${CERT_PATH}")"
 
-TLS_KEYS_DIR_ORIGINAL="$(dirname "${CERT_PATH_ORIGINAL}")"
-
 echo ""
 echo "=============================================="
 echo "NEXT STEP: Run the DKG ceremony"
@@ -82,7 +67,7 @@ echo ""
 echo "Run the following command from the rollout-scripts directory:"
 echo ""
 echo "  ./run-dkg.sh \\"
-echo "    ${TLS_KEYS_DIR_ORIGINAL} \\"
+echo "    ${TLS_KEYS_DIR} \\"
 echo "    ${TLS_HOSTNAME} \\"
 echo "    ${TLS_PORT} \\"
 echo "    ${PEER_SERVER_URL} \\"

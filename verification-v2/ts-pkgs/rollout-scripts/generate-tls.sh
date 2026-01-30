@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+REPO_ROOT="${SCRIPT_DIR}/../.."
 
 log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; }
@@ -23,18 +23,8 @@ fi
 TLS_HOSTNAME="$1"
 TLS_PUBLIC_IP="$2"
 OUTPUT_DIR="$3"
-OUTPUT_DIR_ORIGINAL="$3"
-
-# Validate IP address (IPv4 or IPv6)
-IPV4_REGEX='^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
-IPV6_REGEX='^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$|^::$|^::1$'
-if ! [[ "$TLS_PUBLIC_IP" =~ $IPV4_REGEX ]] && ! [[ "$TLS_PUBLIC_IP" =~ $IPV6_REGEX ]]; then
-    log_error "TLS_PUBLIC_IP must be a valid IPv4 or IPv6 address"
-    exit 1
-fi
 
 mkdir -p "${OUTPUT_DIR}"
-OUTPUT_DIR="$(cd "${OUTPUT_DIR}" && pwd)"
 
 if [ -f "${OUTPUT_DIR}/key.pem" ] || [ -f "${OUTPUT_DIR}/cert.pem" ]; then
     if [ -n "${FORCE_OVERWRITE:-}" ]; then
@@ -78,7 +68,7 @@ if [ -z "${SKIP_NEXT_STEP_HINT:-}" ]; then
     echo ""
     echo "  ./register-peer.sh \\"
     echo "    <GUARDIAN_KEY_PATH> \\"
-    echo "    ${OUTPUT_DIR_ORIGINAL}/cert.pem \\"
+    echo "    ${OUTPUT_DIR}/cert.pem \\"
     echo "    ${TLS_HOSTNAME} \\"
     echo "    <TLS_PORT> \\"
     echo "    <PEER_SERVER_URL>"

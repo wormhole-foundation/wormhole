@@ -82,7 +82,8 @@ export const SelfConfigSchema = z.object({
 
 export const BaseServerConfigSchema = z.object({
   port: z.number().int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
-  threshold: z.number().int().min(1, "Threshold must be a positive integer")
+  threshold: z.number().int().min(1, "Threshold must be a positive integer"),
+  peerListStore: z.string().min(1, "Peer list store path cannot be empty"),
 });
 
 export const ServerConfigSchema = z.intersection(BaseServerConfigSchema, WormholeConfigSchema);
