@@ -149,6 +149,7 @@ permissionlessly
 Polkachu
 Polkadot
 Positionals
+postconditions
 prefunded
 promauto
 proto
@@ -218,9 +219,13 @@ undercollateralization
 unforgeable
 unichain
 Unichain
+underflows
 unmarshal
 unnormalize
+unrepresentable
+Unrepresentable
 untampered
+usize
 utest
 uusd
 uvarint
