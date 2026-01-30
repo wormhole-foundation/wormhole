@@ -192,6 +192,7 @@ Solana's
 spydk
 Starport
 statesync
+stdlib
 struct
 structs
 subdenom

@@ -117,7 +117,7 @@ Fix: Run `make update-coverage-baseline` and commit with explanation
 ### ❌ Scenario 4: New package without tests
 
 ```
-# You add pkg/newfeature/ with code but no tests
+# You add pkg/feature/ with code but no tests
 Result: ❌ FAIL - new package has 0% coverage (minimum: 10%)
 Fix: Add basic tests to reach ≥10% coverage
 ```
@@ -125,7 +125,7 @@ Fix: Add basic tests to reach ≥10% coverage
 ### 💡 Scenario 5: New package with basic tests
 
 ```
-# You add pkg/newfeature/ with 15% test coverage
+# You add pkg/feature/ with 15% test coverage
 Result: 💡 New package detected! Update baseline with: make update-coverage-baseline
 Exit code: 1 (forces you to add to baseline)
 Note: After update, 15% becomes the baseline for this package
@@ -134,7 +134,7 @@ Note: After update, 15% becomes the baseline for this package
 ### ✅ Scenario 6: Adding cmd/ or hack/ code
 
 ```
-# You add cmd/newtool/ with no tests
+# You add cmd/tool/ with no tests
 Result: ✅ PASS - cmd/ packages are excluded from checks
 ```
 
@@ -263,7 +263,6 @@ If a package contains only generated code (proto, abi), add it to the exclusion 
 excludePatterns := []string{
     "/cmd/",
     "/proto/",
-    "/yourpattern/",  // Add here
 }
 ```
 
