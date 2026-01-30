@@ -30,11 +30,22 @@ type packageCoverage struct {
 	coverage float64
 }
 
-var verbose bool
+type improvement struct {
+	name     string
+	baseline float64
+	current  float64
+}
+
+var (
+	verbose        bool
+	updateBaseline bool
+)
 
 func main() {
 	flag.BoolVar(&verbose, "v", false, "verbose output (show all checks)")
 	flag.BoolVar(&verbose, "verbose", false, "verbose output (show all checks)")
+	flag.BoolVar(&updateBaseline, "u", false, "update baseline with current coverage")
+	flag.BoolVar(&updateBaseline, "update", false, "update baseline with current coverage")
 	flag.Parse()
 
 	if err := run(); err != nil {
@@ -69,11 +80,26 @@ func run() error {
 		return fmt.Errorf("failed to load baseline: %w", err)
 	}
 
-	// Check baseline packages for regression
-	passed, regressions := checkBaseline(baseline, currentCoverage)
+	// Check baseline packages for regression and track improvements
+	passed, regressions, improvements, improvementList := checkBaseline(baseline, currentCoverage)
 
 	// Check new packages
-	newPassed, newFailed := checkNewPackages(baseline, currentCoverage)
+	newPassed, newFailed, newPackages := checkNewPackages(baseline, currentCoverage)
+
+	// Handle update flag
+	if updateBaseline {
+		if err := writeUpdatedBaseline(baseline, currentCoverage, newPackages); err != nil {
+			return fmt.Errorf("failed to update baseline: %w", err)
+		}
+		fmt.Printf("%s✅ Baseline updated successfully%s\n", colorGreen, colorReset)
+		if improvements > 0 {
+			fmt.Printf("   %d package(s) improved\n", improvements)
+		}
+		if len(newPackages) > 0 {
+			fmt.Printf("   %d new package(s) added\n", len(newPackages))
+		}
+		return nil
+	}
 
 	// Summary
 	if verbose {
@@ -84,6 +110,9 @@ func run() error {
 		fmt.Printf("Baseline packages checked: %d\n", passed+regressions)
 		fmt.Printf("  - Passed: %d\n", passed)
 		fmt.Printf("  - Regressions: %d\n", regressions)
+		if improvements > 0 {
+			fmt.Printf("  - Improvements: %d\n", improvements)
+		}
 		fmt.Printf("New packages checked: %d\n", newPassed+newFailed)
 		if newPassed+newFailed > 0 {
 			fmt.Printf("  - Passed: %d\n", newPassed)
@@ -92,9 +121,9 @@ func run() error {
 		fmt.Println()
 	}
 
+	// Check for failures (regressions or new packages below threshold)
 	if regressions > 0 || newFailed > 0 {
 		if !verbose {
-			// In quiet mode, print a brief summary of what failed
 			fmt.Printf("%s❌ Coverage check FAILED%s\n", colorRed, colorReset)
 			if regressions > 0 {
 				fmt.Printf("  %d package(s) regressed below baseline\n", regressions)
@@ -110,12 +139,35 @@ func run() error {
 			fmt.Println("To fix:")
 			fmt.Println("  1. Add tests to improve coverage for failing packages")
 			fmt.Println("  2. If coverage drop is intentional, update baseline:")
-			fmt.Println("     - Edit node/.coverage-baseline")
-			fmt.Println("     - Lower the threshold for the affected package")
+			fmt.Println("     - Run: make update-coverage-baseline")
+			fmt.Println("     - Or: ./coverage-check -u")
 		}
 		return fmt.Errorf("coverage check failed")
 	}
 
+	// Check for improvements - exit with code 1 to force baseline update
+	if improvements > 0 || len(newPackages) > 0 {
+		fmt.Printf("%s💡 Coverage improved!%s\n", colorYellow, colorReset)
+		if improvements > 0 {
+			fmt.Printf("  %d package(s) have better coverage than baseline:\n", improvements)
+			for _, pkg := range improvementList {
+				fmt.Printf("    - %s: %.1f%% → %.1f%%\n", pkg.name, pkg.baseline, pkg.current)
+			}
+		}
+		if len(newPackages) > 0 {
+			fmt.Printf("  %d new package(s) with coverage:\n", len(newPackages))
+			for _, pkg := range newPackages {
+				fmt.Printf("    - %s: %.1f%%\n", pkg.name, pkg.coverage)
+			}
+		}
+		fmt.Println()
+		fmt.Printf("%sPlease update the baseline to lock in these improvements:%s\n", colorYellow, colorReset)
+		fmt.Println("  Run: make update-coverage-baseline")
+		fmt.Println("  Or:  ./coverage-check -u")
+		return fmt.Errorf("baseline update required")
+	}
+
+	// All checks passed, no improvements
 	if verbose {
 		fmt.Printf("%s✅ All coverage checks PASSED%s\n", colorGreen, colorReset)
 	}
@@ -202,7 +254,7 @@ func loadBaseline() (map[string]float64, error) {
 }
 
 // checkBaseline compares current coverage against baseline
-func checkBaseline(baseline, current map[string]float64) (passed, regressions int) {
+func checkBaseline(baseline, current map[string]float64) (passed, regressions, improvements int, improvementList []improvement) {
 	if verbose {
 		fmt.Println("Checking baseline packages for regression...")
 		fmt.Println("--------------------------------------------")
@@ -228,6 +280,19 @@ func checkBaseline(baseline, current map[string]float64) (passed, regressions in
 			fmt.Printf("%s   Coverage dropped from %.1f%% to %.1f%%%s\n",
 				colorRed, baselineCov, currentCov, colorReset)
 			regressions++
+		} else if currentCov > baselineCov+coverageTolerance {
+			// Coverage improved
+			if verbose {
+				fmt.Printf("%s📈 %s: %.1f%% (baseline: %.1f%%, +%.1f%%)%s\n",
+					colorGreen, pkg, currentCov, baselineCov, currentCov-baselineCov, colorReset)
+			}
+			improvements++
+			improvementList = append(improvementList, improvement{
+				name:     pkg,
+				baseline: baselineCov,
+				current:  currentCov,
+			})
+			passed++
 		} else {
 			if verbose {
 				fmt.Printf("%s✅ %s: %.1f%% (baseline: %.1f%%)%s\n",
@@ -239,15 +304,19 @@ func checkBaseline(baseline, current map[string]float64) (passed, regressions in
 
 	if verbose {
 		fmt.Println()
-		fmt.Printf("Baseline check: %d passed, %d regressions\n", passed, regressions)
+		fmt.Printf("Baseline check: %d passed, %d regressions", passed, regressions)
+		if improvements > 0 {
+			fmt.Printf(", %d improvements", improvements)
+		}
+		fmt.Println()
 		fmt.Println()
 	}
 
-	return passed, regressions
+	return passed, regressions, improvements, improvementList
 }
 
 // checkNewPackages checks that new packages meet minimum coverage requirements
-func checkNewPackages(baseline, current map[string]float64) (passed, failed int) {
+func checkNewPackages(baseline, current map[string]float64) (passed, failed int, newPackages []packageCoverage) {
 	if verbose {
 		fmt.Println("Checking new packages for minimum coverage...")
 		fmt.Println("----------------------------------------------")
@@ -279,6 +348,10 @@ func checkNewPackages(baseline, current map[string]float64) (passed, failed int)
 				fmt.Printf("%s✅ NEW PACKAGE: %s has %.1f%% coverage (meets %.1f%% minimum)%s\n",
 					colorGreen, pkg, cov, minNewPkgCoverage, colorReset)
 			}
+			newPackages = append(newPackages, packageCoverage{
+				name:     pkg,
+				coverage: cov,
+			})
 			passed++
 		}
 	}
@@ -287,7 +360,7 @@ func checkNewPackages(baseline, current map[string]float64) (passed, failed int)
 		fmt.Println("No new packages found")
 	}
 
-	return passed, failed
+	return passed, failed, newPackages
 }
 
 // shouldExclude determines if a package should be excluded from new package checks
@@ -317,4 +390,83 @@ func shouldExclude(pkg string) bool {
 	}
 
 	return false
+}
+
+// writeUpdatedBaseline writes an updated baseline file with current coverage
+func writeUpdatedBaseline(baseline, current map[string]float64, newPackages []packageCoverage) error {
+	// Read the original baseline to preserve comments and structure
+	originalFile, err := os.Open(baselineFile)
+	if err != nil {
+		return err
+	}
+	defer originalFile.Close()
+
+	// Create a temporary file in the same directory as the baseline to avoid cross-device link issues
+	tempFile, err := os.CreateTemp(".", ".coverage-baseline-*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tempFile.Name())
+
+	writer := bufio.NewWriter(tempFile)
+	scanner := bufio.NewScanner(originalFile)
+
+	// Track which packages we've updated
+	updated := make(map[string]bool)
+
+	// Process existing baseline file, updating coverage values
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+
+		// Preserve comments and empty lines
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			fmt.Fprintln(writer, line)
+			continue
+		}
+
+		// Parse package line
+		parts := strings.Fields(trimmed)
+		if len(parts) != 2 {
+			// Invalid format, keep as-is
+			fmt.Fprintln(writer, line)
+			continue
+		}
+
+		pkg := parts[0]
+		if currentCov, exists := current[pkg]; exists {
+			// Update with current coverage
+			fmt.Fprintf(writer, "%s %.1f\n", pkg, currentCov)
+			updated[pkg] = true
+		} else {
+			// Package not found in current run, keep baseline value (might be removed/renamed)
+			fmt.Fprintln(writer, line)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	// Add new packages if any
+	if len(newPackages) > 0 {
+		fmt.Fprintln(writer, "")
+		fmt.Fprintln(writer, "# Newly added packages")
+		for _, pkg := range newPackages {
+			fmt.Fprintf(writer, "%s %.1f\n", pkg.name, pkg.coverage)
+			updated[pkg.name] = true
+		}
+	}
+
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+	tempFile.Close()
+
+	// Replace original file with updated file
+	if err := os.Rename(tempFile.Name(), baselineFile); err != nil {
+		return err
+	}
+
+	return nil
 }

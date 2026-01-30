@@ -87,12 +87,13 @@ The tool runs automatically in GitHub Actions (`.github/workflows/build.yml`):
 
 ## Common Scenarios
 
-### ✅ Scenario 1: Adding tests to an existing package
+### 💡 Scenario 1: Adding tests to an existing package
 
 ```
 # Before: pkg/foo has 50% coverage in baseline
 # You add tests and coverage goes to 55%
-Result: ✅ PASS (improvement is allowed)
+Result: 💡 Coverage improved! Update baseline with: make update-coverage-baseline
+Exit code: 1 (forces you to update)
 ```
 
 ### ❌ Scenario 2: Coverage drops accidentally
@@ -109,8 +110,8 @@ Fix: Add tests to restore coverage to ≥50%
 ```
 # Before: pkg/foo has 50% coverage in baseline
 # You remove dead code, coverage drops to 48%
-Result: ❌ FAIL initially
-Fix: Update baseline file to 48.0 and commit with explanation
+Result: ❌ FAIL - coverage regression
+Fix: Run `make update-coverage-baseline` and commit with explanation
 ```
 
 ### ❌ Scenario 4: New package without tests
@@ -121,12 +122,13 @@ Result: ❌ FAIL - new package has 0% coverage (minimum: 10%)
 Fix: Add basic tests to reach ≥10% coverage
 ```
 
-### ✅ Scenario 5: New package with basic tests
+### 💡 Scenario 5: New package with basic tests
 
 ```
 # You add pkg/newfeature/ with 15% test coverage
-Result: ✅ PASS - meets 10% minimum
-Note: Once merged, 15% becomes the new baseline for this package
+Result: 💡 New package detected! Update baseline with: make update-coverage-baseline
+Exit code: 1 (forces you to add to baseline)
+Note: After update, 15% becomes the baseline for this package
 ```
 
 ### ✅ Scenario 6: Adding cmd/ or hack/ code
@@ -140,14 +142,23 @@ Result: ✅ PASS - cmd/ packages are excluded from checks
 
 ### When to Update
 
-Update the baseline when:
-1. You **intentionally** reduce coverage (e.g., removing dead code)
-2. You refactor and temporarily need lower coverage (with a plan to improve)
-3. A package is removed or renamed
+The tool will **require** you to update the baseline when:
+1. You **improve** coverage (tool exits with code 1, forces update to lock in gains)
+2. You add a new package with tests (tool exits with code 1, forces adding to baseline)
+3. You **intentionally** reduce coverage (e.g., removing dead code)
 
 ### How to Update
 
-Edit `node/.coverage-baseline`:
+**Automatic way (recommended):**
+```bash
+make update-coverage-baseline
+# Or: ./coverage-check -u
+```
+
+This updates the baseline file automatically while preserving comments and structure.
+
+**Manual way (if needed):**
+Edit `.coverage-baseline` directly:
 
 ```bash
 # Lower the threshold for a specific package
@@ -194,10 +205,14 @@ const (
 ### Command-line Flags
 
 ```bash
-./coverage-check       # Quiet mode (only shows failures)
-./coverage-check -v    # Verbose mode (shows all checks)
-./coverage-check --verbose  # Same as -v
+./coverage-check          # Quiet mode (only shows failures and improvements)
+./coverage-check -v       # Verbose mode (shows all checks)
+./coverage-check --verbose # Same as -v
+./coverage-check -u       # Update baseline with current coverage
+./coverage-check --update # Same as -u
 ```
+
+**Important**: The tool will exit with code 1 if coverage improved, prompting you to update the baseline. This is intentional - it forces you to lock in improvements!
 
 **Note**: The tool expects `coverage.txt` at repo root. Generate it with:
 ```bash
