@@ -44,7 +44,7 @@ describe('Peer Server Integration Tests', () => {
     testGuardianWallets.push(wallet);
     testGuardianAddresses.push(wallet.address);
   }
-  const testConfig: BaseServerConfig = { port: 0, threshold: 1 };
+  const testConfig: BaseServerConfig = { port: 0, threshold: 1, peerListStore: "/tmp/peerListStore.test.json" };
 
   // Mock guardian data for testing using generated wallets
   const mockWormholeData: WormholeGuardianData = {
@@ -53,10 +53,7 @@ describe('Peer Server Integration Tests', () => {
 
   beforeEach(async () => {
     const mockDisplay = new MockDisplay();
-    server = new PeerServer(testConfig, mockWormholeData, mockDisplay);
-
-    // Start the server and get the actual port
-    await server.start();
+    server = await PeerServer.start(testConfig, mockWormholeData, mockDisplay);
 
     // Get the actual port the server is running on
     serverUrl = `http://localhost:${server.getPort()}`;

@@ -8,7 +8,8 @@ import {
   BasePeer,
   PeersResponse,
   Peer,
-  UploadResponse
+  UploadResponse,
+  BaseServerConfig
 } from '@xlabs-xyz/peer-lib';
 import { ethers } from 'ethers';
 
@@ -53,18 +54,32 @@ async function createPeerRegistration(
   };
 }
 
+class PeerServerTest extends PeerServer {
+  constructor(
+    config: BaseServerConfig,
+    wormholeData: WormholeGuardianData,
+    display: Display
+  ) {
+    const app = PeerServerTest.createApp();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+    super(app, undefined as any, config, wormholeData, display);
+  }
+}
+
 describe('PeerServer', () => {
   let server: PeerServer;
   let app: Application;
 
   const testConfig: ServerConfig = {
-    "port": 3000,
-    "ethereum": {
-      "rpcUrl": "https://eth.llamarpc.com",
-      "chainId": 1
+    port: 3000,
+    ethereum: {
+      rpcUrl: "https://eth.llamarpc.com",
+      chainId: 1
     },
-    "wormholeContractAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
-    "threshold": 13
+    wormholeContractAddress: "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+    threshold: 13,
+    // Shouldn't really be used in these tests
+    peerListStore: "/tmp/peerListStore.test.json"
   };
 
   // Mock guardian data for testing using generated wallets
@@ -74,12 +89,8 @@ describe('PeerServer', () => {
 
   beforeEach(() => {
     const mockDisplay = new MockDisplay();
-    server = new PeerServer(testConfig, mockWormholeData, mockDisplay);
+    server = new PeerServerTest(testConfig, mockWormholeData, mockDisplay);
     app = server.getApp();
-  });
-
-  afterEach(() => {
-    server.close();
   });
 
   describe('GET /peers', () => {
