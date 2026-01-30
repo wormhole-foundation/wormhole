@@ -19,6 +19,8 @@ export default defineConfig(
   },
   {
     rules: {
+      // This rule is overzealous when dealing with delayed single assignment observation.
+      "prefer-const": "off",
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
       "@typescript-eslint/no-unnecessary-condition": ["error", { allowConstantLoopConditions: "only-allowed-literals" }],
