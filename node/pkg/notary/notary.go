@@ -447,6 +447,7 @@ func (n *Notary) blackhole(msg *common.MessagePublication) error {
 }
 
 // forget removes a message from the database and from the delayed and blackholed lists.
+//nolint: unused
 func (n *Notary) forget(msg *common.MessagePublication) error {
 	if msg == nil {
 		return ErrInvalidMsg
