@@ -9,9 +9,9 @@ github.com/wormhole-foundation/wormhole/sdk/vaa 49.7
 
 # Node - High-coverage core packages (>60%)
 github.com/certusone/wormhole/node/pkg/altpub 87.4
-github.com/certusone/wormhole/node/pkg/watchers/near 74.8
+github.com/certusone/wormhole/node/pkg/watchers/near 75.4
 github.com/certusone/wormhole/node/pkg/db 73.8
-github.com/certusone/wormhole/node/pkg/query 69.9
+github.com/certusone/wormhole/node/pkg/query 70.1
 github.com/certusone/wormhole/node/pkg/node 65.4
 github.com/certusone/wormhole/node/pkg/common 63.2
 github.com/certusone/wormhole/node/pkg/watchers/near/nearapi 61.8
@@ -30,7 +30,7 @@ github.com/certusone/wormhole/node/pkg/devnet 41.2
 # Node - Lower-coverage packages (20-40%)
 github.com/certusone/wormhole/node/pkg/notary 36.8
 github.com/certusone/wormhole/node/pkg/gwrelayer 31.9
-github.com/certusone/wormhole/node/cmd/spy 31.1
+github.com/certusone/wormhole/node/cmd/spy 31.5
 github.com/certusone/wormhole/node/pkg/watchers/evm 22.3
 github.com/certusone/wormhole/node/pkg/watchers/ibc 22.0
 
