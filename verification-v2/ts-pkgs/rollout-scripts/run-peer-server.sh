@@ -24,7 +24,13 @@ ETHEREUM_RPC_URL="$2"
 OUTPUT_PEERS_FILE="$3"
 WORMHOLE_ADDRESS="${4:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
 
-mkdir -p $(dirname "${OUTPUT_PEERS_FILE}") && touch "${OUTPUT_PEERS_FILE}"
+mkdir -p $(dirname "${OUTPUT_PEERS_FILE}")
+if [ ! -f "${OUTPUT_PEERS_FILE}" ]; then
+    # We want to create the file here because docker would create it
+    # with the user of the daemon which could be different from the current user.
+    # Also, the server needs it to be valid JSON.
+    echo "[]"  > "${OUTPUT_PEERS_FILE}"
+fi
 
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
