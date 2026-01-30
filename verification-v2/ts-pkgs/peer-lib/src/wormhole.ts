@@ -27,13 +27,13 @@ export async function getWormholeGuardianData(
     // Load current guardian set - returns a struct/tuple
     const currentSetResult = await contract.getGuardianSet(currentGuardianSetIndex) as [string[]];
 
-    console.log(`Loaded current guardian set with ${currentSetResult[0].length} guardians`);
+    console.log(`Loaded current guardian set with ${currentSetResult[0].length} guardians from contract`);
 
     return {
       guardians: currentSetResult[0]
     };
   } catch (error) {
-    console.error('Failed to fetch Wormhole guardian data:', errorMsg(error));
+    console.error('Failed to fetch Wormhole guardian data from contract:', errorMsg(error));
     throw error;
   }
 }
