@@ -56,17 +56,25 @@ $(BIN)/guardiand: dirs generate
 ## Run tests with coverage for node and sdk
 test-coverage:
 	@echo "Running tests with coverage for node and sdk..."
-	@(cd node && go test -cover ./...) 2>&1 | tee coverage-node.tmp
-	@(cd sdk && go test -cover ./...) 2>&1 | tee coverage-sdk.tmp
-	@cat coverage-node.tmp coverage-sdk.tmp > coverage.txt
-	@rm coverage-node.tmp coverage-sdk.tmp
+	@(cd node && go test -cover ./...) 2>&1 | tee coverage.txt
+	@(cd sdk && go test -cover ./...) 2>&1 | tee -a coverage.txt
 
 .PHONY: check-coverage
 ## Check coverage against baseline (run tests first)
 check-coverage: test-coverage
 	@./coverage-check
 
+.PHONY: check-coverage-verbose
+## Check coverage against baseline (run tests first)
+check-coverage-verbose: test-coverage
+	@./coverage-check -v
+
 .PHONY: build-coverage-check
 ## Build the coverage checker tool
 build-coverage-check:
 	@cd scripts/coverage-check && go build -o ../../coverage-check .
+
+.PHONY: update-coverage-baseline
+## Update coverage baseline with current coverage
+update-coverage-baseline: test-coverage
+	@./coverage-check -u

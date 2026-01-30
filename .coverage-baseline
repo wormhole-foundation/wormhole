@@ -44,7 +44,7 @@ github.com/certusone/wormhole/node/pkg/watchers/algorand 10.9
 # Node - Lower-priority packages (<10%)
 github.com/certusone/wormhole/node/pkg/watchers/sui 7.7
 github.com/certusone/wormhole/node/pkg/processor 6.1
-github.com/certusone/wormhole/node/pkg/watchers/cosmwasm 3.4
+github.com/certusone/wormhole/node/pkg/watchers/cosmwasm 0.0
 
 # Node - Packages with no tests yet (0% - tracked to prevent future regression if tests are added)
 github.com/certusone/wormhole/node/pkg/random 0.0
