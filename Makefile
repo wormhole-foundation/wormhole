@@ -53,11 +53,11 @@ $(BIN)/guardiand: dirs generate
 	  github.com/certusone/wormhole/node
 
 .PHONY: test-coverage
-## Run tests with coverage for node and sdk
+## Run tests with coverage for node and sdk (matches CI)
 test-coverage:
 	@echo "Running tests with coverage for node and sdk..."
-	@(cd node && go test -cover ./...) 2>&1 | tee coverage.txt
-	@(cd sdk && go test -cover ./...) 2>&1 | tee -a coverage.txt
+	@(cd node && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee coverage.txt
+	@(cd sdk && go test -v -timeout 5m -race -cover ./...) 2>&1 | tee -a coverage.txt
 
 .PHONY: check-coverage
 ## Check coverage against baseline (run tests first)
