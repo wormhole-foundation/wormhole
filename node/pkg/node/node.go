@@ -58,7 +58,6 @@ const (
 	// observationRequestPerChainBufferSize is the buffer size of the per-network reobservation channel
 	observationRequestPerChainBufferSize = 100
 
-	// TODO(delegated-guardian-sets): The buffer size is arbitrarily set and should be verified
 	// delegateObservationInboundBufferSize configures the size of delegateObsvC.
 	delegateObservationInboundBufferSize = 1000
 
