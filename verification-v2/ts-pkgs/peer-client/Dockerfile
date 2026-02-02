@@ -19,23 +19,28 @@ RUN yarnpkg build
 ARG TLS_HOSTNAME
 ARG TLS_PORT
 ARG PEER_SERVER_URL
+# Provide exactly one of GUARDIAN_PRIVATE_KEY_ARN or mount guardian_pk secret
+ARG GUARDIAN_PRIVATE_KEY_ARN
 
 RUN test -n "${TLS_HOSTNAME}" && \
     test -n "${TLS_PORT}" && \
     test -n "${PEER_SERVER_URL}"
 
-# This is the config for the peer client
-COPY <<EOT self_config.json
-{
-  "guardianPrivateKeyPath": "/run/secrets/guardian_pk",
-  "serverUrl": "${PEER_SERVER_URL}",
-  "peer": {
-    "hostname": "${TLS_HOSTNAME}",
-    "port": ${TLS_PORT},
-    "tlsX509": "/run/secrets/cert.pem"
-  }
-}
-EOT
+# Generate config: use ARN if provided, otherwise use the secret file path
+RUN if [ -n "${GUARDIAN_PRIVATE_KEY_ARN}" ]; then \
+      echo '{"guardianPrivateKeyArn":"'"${GUARDIAN_PRIVATE_KEY_ARN}"'","serverUrl":"'"${PEER_SERVER_URL}"'","peer":{"hostname":"'"${TLS_HOSTNAME}"'","port":'"${TLS_PORT}"',"tlsX509":"/run/secrets/cert.pem"}}' > self_config.json; \
+    else \
+      echo '{"guardianPrivateKeyPath":"/run/secrets/guardian_pk","serverUrl":"'"${PEER_SERVER_URL}"'","peer":{"hostname":"'"${TLS_HOSTNAME}"'","port":'"${TLS_PORT}"',"tlsX509":"/run/secrets/cert.pem"}}' > self_config.json; \
+    fi
 
 # The cert is not really a secret, but it doesn't hurt to use the same mount type for both
-RUN --mount=type=secret,id=guardian_pk --mount=type=secret,id=cert.pem yarnpkg start:client upload
+# When using ARN, guardian_pk secret is not required; AWS credentials are passed for KMS
+RUN --mount=type=secret,id=guardian_pk,required=false \
+    --mount=type=secret,id=cert.pem \
+    --mount=type=secret,id=aws_access_key_id,required=false \
+    --mount=type=secret,id=aws_secret_access_key,required=false \
+    --mount=type=secret,id=aws_session_token,required=false \
+    AWS_ACCESS_KEY_ID=$(cat /run/secrets/aws_access_key_id 2>/dev/null || true) \
+    AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret_access_key 2>/dev/null || true) \
+    AWS_SESSION_TOKEN=$(cat /run/secrets/aws_session_token 2>/dev/null || true) \
+    yarnpkg start:client upload
