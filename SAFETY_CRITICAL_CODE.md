@@ -12,7 +12,7 @@ These principles apply to all Wormhole code, with special emphasis on Guardian n
 
 ### Parse, Don't Verify
 
-Transform untrusted data into constrained types rather than checking and discarding the proof. Once parsed, the type system enforces your constraints automatically. Invalid states become unrepresentable. Use the compiler as your ally—let it prevent misuse at compile time rather than catching it at runtime.
+Transform untrusted data into constrained types rather than checking and discarding the proof. Once parsed, the type system enforces your constraints automatically. Invalid states become unrepresentable. Use the compiler as your ally — let it prevent misuse at compile time rather than catching it at runtime.
 
 ### Make Invalid States Unrepresentable
 
