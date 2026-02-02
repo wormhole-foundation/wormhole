@@ -68,7 +68,7 @@ State invariants positively rather than negatively. `if index < length` is clear
 
 ### Centralize Control Flow
 
-When splitting large functions, keep all branching logic (if/switch/match) in the parent function. Push child functions toward pure computation without branching. This separates decision-making from execution and makes both easier to understand and test.
+When splitting large functions, keep all branching logic (`if/switch/match`) in the parent function. Push child functions toward pure computation without branching. This separates decision-making from execution and makes both easier to understand and test.
 
 ### Function Length Limit
 
