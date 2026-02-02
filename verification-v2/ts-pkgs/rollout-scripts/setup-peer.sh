@@ -15,7 +15,7 @@ if [ $# -lt 6 ]; then
     echo "  TLS_PUBLIC_IP     - Public IP address for this guardian"
     echo "  OUTPUT_DIR        - Directory to store generated keys"
     echo "  GUARDIAN_KEY_PATH - Path to the guardian's Wormhole private key"
-    echo "  TLS_PORT          - Port for this guardian's DKG server"
+    echo "  TLS_PORT          - Port for this guardian's DKG process"
     echo "  PEER_SERVER_URL   - URL of the peer discovery server"
     exit 1
 fi
