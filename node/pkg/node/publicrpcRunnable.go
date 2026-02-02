@@ -28,6 +28,7 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRp
 		logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
 		rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
+		//nolint:contextcheck // Context is handled by gRPC interceptor chain in common.NewInstrumentedGRPCServer
 		grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
 
 		publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)

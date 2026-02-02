@@ -367,7 +367,7 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	resp := make([]*publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry, 0)
+	resp := make([]*publicrpcv1.GovernorGetEnqueuedVAAsResponse_Entry, 0, len(gov.chains))
 
 	for _, ce := range gov.chains {
 		for _, pe := range ce.pending {
@@ -446,7 +446,7 @@ func (gov *ChainGovernor) GetTokenList() []*publicrpcv1.GovernorGetTokenListResp
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	resp := make([]*publicrpcv1.GovernorGetTokenListResponse_Entry, 0)
+	resp := make([]*publicrpcv1.GovernorGetTokenListResponse_Entry, 0, len(gov.tokens))
 
 	for tk, te := range gov.tokens {
 		price, _ := te.price.Float32()
@@ -573,7 +573,7 @@ var governorMessagePrefixConfig = []byte("governor_config_000000000000000000|")
 var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
 func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
-	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
+	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0, len(gov.chainIds))
 	// Iterate deterministically by accessing keys from this slice instead of the chainEntry map directly
 	for _, cid := range gov.chainIds {
 		ce := gov.chains[cid]
@@ -584,7 +584,7 @@ func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartb
 		})
 	}
 
-	tokens := make([]*gossipv1.ChainGovernorConfig_Token, 0)
+	tokens := make([]*gossipv1.ChainGovernorConfig_Token, 0, len(gov.tokens))
 	for tk, te := range gov.tokens {
 		price, _ := te.price.Float32()
 		tokens = append(tokens, &gossipv1.ChainGovernorConfig_Token{
@@ -633,7 +633,7 @@ func (gov *ChainGovernor) publishConfig(ctx context.Context, hb *gossipv1.Heartb
 }
 
 func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, guardianSigner guardiansigner.GuardianSigner, ourAddr ethCommon.Address) {
-	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
+	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0, len(gov.chains))
 	numEnqueued := 0
 	for chainId, ce := range gov.chains {
 		// The capacity for the chain to emit further messages, denoted as USD value.
