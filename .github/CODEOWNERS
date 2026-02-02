@@ -129,6 +129,9 @@
 /docs/transfer-verifier.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 /docs/notary.md @djb15 @johnsaigle @mdulin2 @pleasew8t
 
+CONTRIBUTING.md @evan-gray @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+SAFETY_CRITICAL_CODE.md @evan-gray @kcsongor @djb15 @johnsaigle @mdulin2 @pleasew8t @bemic
+
 ## Audit Reports
 
 /audits @djb15 @SEJeff @johnsaigle @mdulin2 @pleasew8t @bemic
