@@ -765,8 +765,10 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // initialize TokenImplementation
         setupTestEnvironmentWithInitialize();
+        vm.assume(keccak256(abi.encodePacked(newName)) != keccak256(abi.encodePacked(oldName)));
 
         string memory oldName = name();
+
         bytes32 oldDomainSeparator = _state.cachedDomainSeparator;
 
         // permit before updateDetails
