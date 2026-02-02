@@ -331,6 +331,12 @@ const (
 	ChainIDMoca ChainID = 63
 	// ChainIDMegaETH is the ChainID of MegaETH
 	ChainIDMegaETH ChainID = 64
+	// ChainIDDogecoin is the ChainID of Dogecoin
+	ChainIDDogecoin ChainID = 65
+	// ChainIDXRPL is the ChainID of XRP Ledger
+	ChainIDXRPL ChainID = 66
+	// ChainIDZeroGravity is the ChainID of ZeroGravity,
+	ChainIDZeroGravity ChainID = 67
 
 	// ChainIDWormchain is the ChainID of Wormchain and is in its own range.
 	ChainIDWormchain ChainID = 3104
@@ -371,6 +377,11 @@ const (
 	// ChainIDPolygonSepolia is the ChainID of Polygon on Sepolia
 	ChainIDPolygonSepolia ChainID = 10007
 	// OBSOLETE: ChainIDMonadDevnet ChainID = 10008
+	ChainIDMonadTestnet ChainID = 10009
+
+	// Special or bespoke chains start at 60000.
+	// ChainIDHyperCore is the ChainID of HyperCore (ID taken from Mayan)
+	ChainIDHyperCore ChainID = 65000
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER

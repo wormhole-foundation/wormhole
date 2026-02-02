@@ -655,6 +655,16 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 // processTransaction processes a transaction and publishes any Wormhole events.
 func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.Client, tx *solana.Transaction, meta *rpc.TransactionMeta, slot uint64, isReobservation bool) (numObservations uint32) {
+	if meta.Err != nil {
+		if s.logger.Level().Enabled(zapcore.DebugLevel) {
+			s.logger.Debug("Transaction failed, skipping it",
+				zap.Uint64("slot", slot),
+				zap.String("err", fmt.Sprint(meta.Err)),
+			)
+		}
+		return
+	}
+
 	signature := tx.Signatures[0]
 	err := s.populateLookupTableAccounts(ctx, rpcClient, tx)
 	if err != nil {

@@ -11,23 +11,24 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
-func TestTokenListSize(t *testing.T) {
-	tokenConfigEntries := TokenList()
+var (
+	tokenList = TokenList()
+	chainList = ChainList()
+)
 
+func TestTokenListSize(t *testing.T) {
 	// We should have a sensible number of tokens
 	// These numbers shouldn't have to change frequently
-	assert.Greater(t, len(tokenConfigEntries), 1000)
+	assert.Greater(t, len(tokenList), 1000)
 	// We throttle CoinGecko queries so we can query up to 12,000 tokens
 	// in a 15 minute window. This test is an early warning for updating
 	// the CoinGecko query mechanism.
-	assert.Less(t, len(tokenConfigEntries), 10000)
+	assert.Less(t, len(tokenList), 10000)
 }
 
 func TestTokenListAddressSize(t *testing.T) {
-	tokenConfigEntries := TokenList()
-
 	/* Assume that token addresses must always be 32 bytes (64 chars) */
-	for _, tokenConfigEntry := range tokenConfigEntries {
+	for _, tokenConfigEntry := range tokenList {
 		testLabel := vaa.ChainID(tokenConfigEntry.Chain).String() + ":" + tokenConfigEntry.Symbol
 		t.Run(testLabel, func(t *testing.T) {
 			assert.Equal(t, len(tokenConfigEntry.Addr), 64)
@@ -87,7 +88,7 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 
 	tokenConfigEntries := TokenList()
 
-	for _, chainConfigEntry := range ChainList() {
+	for _, chainConfigEntry := range chainList {
 		e := chainConfigEntry.EmitterChainID
 		if _, ignored := ignoredChains[e]; ignored {
 			continue
@@ -105,7 +106,7 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 	}
 
 	// Make sure we're not ignoring any chains with governed tokens.
-	for _, tokenEntry := range TokenList() {
+	for _, tokenEntry := range tokenConfigEntries {
 		t.Run(vaa.ChainID(tokenEntry.Chain).String(), func(t *testing.T) {
 			if _, exists := ignoredChains[vaa.ChainID(tokenEntry.Chain)]; exists {
 				assert.Fail(t, "Chain is in ignoredChains but it has governed tokens")
@@ -115,11 +116,9 @@ func TestGovernedChainHasGovernedAssets(t *testing.T) {
 }
 
 func TestTokenListTokenAddressDuplicates(t *testing.T) {
-	tokenConfigEntries := TokenList()
-
 	/* Assume that all governed token entry addresses won't include duplicates */
 	addrs := make(map[string]string)
-	for _, e := range tokenConfigEntries {
+	for _, e := range tokenList {
 		// In a few cases, the same address exists on multiple chains, so we need to compare both the chain and the address.
 		// Also using that as the map payload so if we do have a duplicate, we can print out something meaningful.
 		key := fmt.Sprintf("%v:%v", e.Chain, e.Addr)
@@ -129,10 +128,8 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 }
 
 func TestTokenListEmptySymbols(t *testing.T) {
-	tokenConfigEntries := TokenList()
-
 	/* Assume that all governed token entry symbol strings will be greater than zero */
-	for _, tokenConfigEntry := range tokenConfigEntries {
+	for _, tokenConfigEntry := range tokenList {
 		// Some Solana tokens don't have the symbol set. For now, we'll still enforce this for other chains.
 		if len(tokenConfigEntry.Symbol) == 0 && vaa.ChainID(tokenConfigEntry.Chain) != vaa.ChainIDSolana {
 			assert.Equal(t, "", fmt.Sprintf("token %v:%v does not have the symbol set", tokenConfigEntry.Chain, tokenConfigEntry.Addr))
@@ -141,10 +138,17 @@ func TestTokenListEmptySymbols(t *testing.T) {
 }
 
 func TestTokenListEmptyCoinGeckoId(t *testing.T) {
-	tokenConfigEntries := TokenList()
-
 	/* Assume that all governed token entry coingecko id strings will be greater than zero */
-	for _, tokenConfigEntry := range tokenConfigEntries {
+	for _, tokenConfigEntry := range tokenList {
 		assert.Greater(t, len(tokenConfigEntry.CoinGeckoId), 0)
+	}
+}
+
+func TestTokenListPrices(t *testing.T) {
+	/* Assume that all governed token entry coingecko id strings will be greater than zero */
+	f0 := float64(0)
+	for _, tokenConfigEntry := range tokenList {
+		assert.NotNil(t, tokenConfigEntry.Price)
+		assert.GreaterOrEqual(t, tokenConfigEntry.Price, f0)
 	}
 }
