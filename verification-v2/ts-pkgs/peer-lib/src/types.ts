@@ -38,12 +38,18 @@ export const WormholeConfigSchema = z.object({
 // Config schema that reads from file paths and transforms to runtime values
 export const SelfConfigSchema = z.object({
   // TODO: move this to specific CLI option/command type
-  guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty").optional(),
+  guardianPrivateKeyPath: z.string().optional().transform((value) => value ?? undefined),
+  guardianPrivateKeyArn: z.string().optional().transform((value) => value ?? undefined),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
   wormhole: WormholeConfigSchema.optional(),
 }).transform((data) => {
-  // Load and validate guardian private key
+  // Validate that at most one of guardianPrivateKeyPath or guardianPrivateKeyArn is set
+  if (data.guardianPrivateKeyPath !== undefined && data.guardianPrivateKeyArn !== undefined) {
+    throw new Error("Only one of guardianPrivateKeyPath or guardianPrivateKeyArn must be set, not both");
+  }
+
+  // Load and validate guardian private key from file if path is provided
   let guardianPrivateKey: string | undefined = undefined;
   if (data.guardianPrivateKeyPath !== undefined) {
     try {
@@ -69,7 +75,8 @@ export const SelfConfigSchema = z.object({
   }
 
   return {
-    guardianPrivateKey,
+    // guardianPrivateKeyOrArn can be undefined if neither is provided (for commands that don't need it)
+    guardianPrivateKeyOrArn: guardianPrivateKey ?? data.guardianPrivateKeyArn,
     serverUrl: data.serverUrl,
     peer: {
       hostname: data.peer.hostname,
