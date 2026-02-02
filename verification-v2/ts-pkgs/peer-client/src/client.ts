@@ -11,7 +11,8 @@ import {
   UploadResponse,
   errorStack,
   validatePeers,
-  WormholeGuardianData
+  WormholeGuardianData,
+  createSigner
 } from '@xlabs-xyz/peer-lib';
 
 export class PeerClient {
@@ -23,14 +24,16 @@ export class PeerClient {
     this.serverUrl = this.config.serverUrl;
   }
 
-  private async signPeerData(guardianPrivateKey: string): Promise<PeerRegistration> {
+  private async signPeerData(): Promise<PeerRegistration> {
     const { peer } = this.config;
     // Create wallet from private key
-    const wallet = new ethers.Wallet(guardianPrivateKey);
+    const signer = createSigner(this.config);
     // Create message hash as per server implementation
     const messageHash = hashPeerData(peer);
     // Sign the message
-    const signature = await wallet.signMessage(ethers.getBytes(messageHash));
+    const address = await signer.getAddress();
+    console.log(`[SIGNER] Address: ${address}`);
+    const signature = await signer.signMessage(messageHash);
     const peerRegistration = {
       peer,
       signature
@@ -65,8 +68,8 @@ export class PeerClient {
     }
   }
 
-  private async signAndUploadPeerData(guardianPrivateKey: string): Promise<UploadResponse> {
-    const peerRegistration = await this.signPeerData(guardianPrivateKey);
+  private async signAndUploadPeerData(): Promise<UploadResponse> {
+    const peerRegistration = await this.signPeerData();
     return this.uploadPeerData(peerRegistration);
   }
 
@@ -145,11 +148,11 @@ export class PeerClient {
   }
 
   public async submitPeerData(): Promise<UploadResponse> {
-    const guardianPrivateKey = this.config.guardianPrivateKey;
-    if (guardianPrivateKey === undefined) {
+    const guardianPrivateKeyOrArn = this.config.guardianPrivateKeyOrArn;
+    if (guardianPrivateKeyOrArn === undefined) {
       throw new Error(`Guardian private key path was not set`);
     }
-    return this.run(() => this.signAndUploadPeerData(guardianPrivateKey), "Uploading peer data...");
+    return this.run(() => this.signAndUploadPeerData(), "Uploading peer data...");
   }
 
   public async waitForAllPeers(wormholeData: WormholeGuardianData): Promise<PeersResponse> {
