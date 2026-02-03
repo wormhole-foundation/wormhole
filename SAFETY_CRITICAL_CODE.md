@@ -42,10 +42,6 @@ Document external constraints in comments explaining *why* they exist. Make impl
 
 ## Control Flow and Complexity
 
-### No Recursion
-
-Recursion is forbidden. Recursion makes stack depth unpredictable, which means unbounded memory usage and potential crashes. Recursive code is less friendly to static analysis tools.
-Iterative code makes stack usage explicit, visible, and testable.
 
 ### Bound Everything
 
@@ -60,19 +56,10 @@ Every loop, queue, retry mechanism, timeout, and I/O operation must have a stati
 
 Event loops that intentionally run forever must assert this explicitly in comments.
 
-### Simplify Conditionals
+### No Recursion
 
-Split compound boolean expressions into simple, nested conditions. Avoid complex `if` conditions with multiple `&&` or `||` operators. Each branch should be obvious. Each case should be explicitly handled.
-
-State invariants positively rather than negatively. `if index < length` is clearer than `if !(index >= length)`.
-
-### Centralize Control Flow
-
-When splitting large functions, keep all branching logic (`if/switch/match`) in the parent function. Push child functions toward pure computation without branching. This separates decision-making from execution and makes both easier to understand and test.
-
-### Function Length Limit
-
-Target: 70 lines per function. If you can't see the entire function without scrolling, you can't fully understand it. Long functions should be split by extracting pure logic into helpers while keeping control flow centralized.
+Recursion is forbidden. Recursion makes stack depth unpredictable, which means unbounded memory usage and potential crashes. Recursive code is less friendly to static analysis tools.
+Iterative code makes stack usage explicit, visible, and testable.
 
 ---
 
@@ -87,8 +74,6 @@ Prefer static allocation where possible. Pre-allocate buffers at startup when yo
 - Explicit eviction or cleanup policies when limits are reached
 - Alerting when approaching capacity thresholds
 - Clear behavior when full (reject, evict oldest, fail explicitly)
-
-Use ring buffers, bounded queues, and object pools. Establish hard limits on cache sizes, connection pools, and pending operations. Memory usage should be predictable and observable—never allow silent, unbounded growth.
 
 ### Minimize Variable Scope
 
@@ -157,26 +142,17 @@ Test that errors propagate correctly. Test that cleanup happens on error. Test t
 
 ## Code Style and Standards
 
-### Explicit Types
-
-Use explicitly-sized integer types (`i32`, `u64`, `int32`, `uint64`) rather than architecture-dependent types (`int`, `usize`, `size_t`). Explicit sizes prevent subtle portability bugs and make data layout obvious.
-
-### Strict Linting
-
-Enable all compiler warnings. Treat warnings as errors. Fix them immediately. Compiler warnings are free bug reports.
-
-Configure the strictest linting available for your language. If a linter complains, it's probably right. Exceptions must be justified with inline comments at the violation site.
-
-### Naming Conventions
-
-- Use descriptive names without abbreviations
-- Add units to variable names (put units last: `timeout_ms` not `ms_timeout`)
-- Order qualifiers by significance (most important first: `config_guardian_set_size`)
-- Use proper capitalization for acronyms and common terms
-
 ### Express Intent Explicitly
 
-Use explicit operations that show you've considered edge cases. For division, use functions that clarify rounding behavior (exact division vs floor vs ceiling). For library calls, specify options explicitly rather than relying on defaults—defaults can change.
+Use explicit operations that show you've considered edge cases. For example:
+- For library calls, specify invariants explicitly rather than relying on the library's validation.
+- For arithmetic, use functions that clarify cases like overflow, truncation, and rounding behavior (exact division vs floor vs ceiling). 
+
+### Automate, don't nit
+
+Encode style preferences using linters and formatters. Work to make CI testing more robust and opinionated.
+
+Avoid wasted efforts debating "nits" in PRs: if it's important, update documentation and enforce via linting.
 
 ### TODO Comments Must Link Issues
 
@@ -190,6 +166,11 @@ If it's worth noting, it's worth tracking in an issue. If it's not worth an issu
 
 ## Dependencies and External Code
 
+### Wrap external calls with safe, custom functions
+
+Wrapping external function calls with custom functions allows us to more easily replace a dependency.
+It also serves as a way to centralize validation: we can enforce safety invariants and return types corresponding to validated data.
+
 ### Minimize Dependencies
 
 Every dependency is a liability that increases attack surface, introduces supply chain risk, adds compilation time, and brings transitive dependencies.
@@ -199,14 +180,6 @@ Before adding a dependency, ask:
 - Is this dependency actively maintained?
 - Has it been security audited?
 - How many transitive dependencies does it pull in?
-
-### Pin Exact Versions
-
-Lock all dependencies to exact versions. Verify checksums. Update dependencies deliberately in isolated changes with review and testing, not as side effects of feature work.
-
-### Never Rely on Defaults
-
-Explicitly specify all library options rather than relying on defaults. Defaults can change between versions. Explicit configuration prevents surprises and documents your intent.
 
 ---
 
