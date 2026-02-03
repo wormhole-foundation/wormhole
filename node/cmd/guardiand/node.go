@@ -1954,7 +1954,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 			watcherConfigs = append(watcherConfigs, wc)
 		}
-
 	}
 
 	if shouldStart(stacksStateContract) && shouldStart(stacksRPC) {
