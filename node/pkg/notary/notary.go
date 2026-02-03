@@ -265,12 +265,14 @@ func (n *Notary) ProcessMsg(msg *common.MessagePublication) (v Verdict, err erro
 	// Both Anomalous and Rejected messages are delayed. In the future, we could consider blackholing
 	// rejected messages, but for now, we are choosing the cautious approach of delaying VAA production
 	// rather than rejecting them permanently.
-	case common.Anomalous, common.Rejected:
+	// CouldNotVerify messages are also delayed. For the Transfer Verifier, this should only happen if the
+	// message publication coming from the Core Bridge is malformed.
+	case common.Anomalous, common.Rejected, common.CouldNotVerify:
 		err = n.delay(msg, DefaultDelay)
 		v = Delay
 	case common.Valid:
 		v = Approve
-	case common.CouldNotVerify, common.NotVerified, common.NotApplicable:
+	case common.NotVerified, common.NotApplicable:
 		// NOTE: All other statuses are simply approved for now. In the future, it may be
 		// desirable to log a warning if a [common.NotVerified] message is handled here, with
 		// the idea that messages handled by the Notary must already have a non-default
