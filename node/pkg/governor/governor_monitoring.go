@@ -117,7 +117,7 @@ func (gov *ChainGovernor) Status() (resp string) {
 		gov.logger.Info(s1)
 		if len(ce.pending) != 0 {
 			for idx, pe := range ce.pending {
-				value, _ := computeValue(pe.amount, pe.token)
+				value, _ := usdValue(pe.amount, pe.token)
 				s1 := fmt.Sprintf("chain: %v, pending[%v], value: %v, vaa: %v, timeStamp: %v, releaseTime: %v", ce.emitterChainId, idx, value,
 					pe.dbData.Msg.MessageIDString(), pe.dbData.Msg.Timestamp.String(), pe.dbData.ReleaseTime.String())
 				gov.logger.Info(s1)
@@ -160,7 +160,7 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 		for idx, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				value, _ := computeValue(pe.amount, pe.token)
+				value, _ := usdValue(pe.amount, pe.token)
 				gov.logger.Info("dropping pending vaa",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
@@ -190,7 +190,7 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 		for idx, pe := range ce.pending {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
-				value, _ := computeValue(pe.amount, pe.token)
+				value, _ := usdValue(pe.amount, pe.token)
 				gov.logger.Info("releasing pending vaa, should be published soon",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
@@ -371,7 +371,7 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 
 	for _, ce := range gov.chains {
 		for _, pe := range ce.pending {
-			value, err := computeValue(pe.amount, pe.token)
+			value, err := usdValue(pe.amount, pe.token)
 			if err != nil {
 				gov.logger.Error("failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
 				value = 0
@@ -648,7 +648,7 @@ func (gov *ChainGovernor) publishStatus(ctx context.Context, hb *gossipv1.Heartb
 
 		enqueuedVaas := make([]*gossipv1.ChainGovernorStatus_EnqueuedVAA, 0)
 		for _, pe := range ce.pending {
-			value, err := computeValue(pe.amount, pe.token)
+			value, err := usdValue(pe.amount, pe.token)
 			if err != nil {
 				gov.logger.Error("failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
 				value = 0

@@ -64,7 +64,6 @@ config.define_bool("evm2", False, "Enable second Eth component")
 config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("solana_watcher", False, "Enable Solana watcher on guardian")
 config.define_bool("pythnet", False, "Enable PythNet component")
-config.define_bool("terra_classic", False, "Enable Terra Classic component")
 config.define_bool("terra2", False, "Enable Terra 2 component")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
@@ -91,7 +90,6 @@ evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 pythnet = cfg.get("pythnet", False)
 solana_watcher = cfg.get("solana_watcher", solana or pythnet)
-terra_classic = cfg.get("terra_classic", ci)
 terra2 = cfg.get("terra2", ci)
 wormchain = cfg.get("wormchain", ci)
 ci_tests = cfg.get("ci_tests", ci)
@@ -271,16 +269,6 @@ def build_node_yaml():
                     "H3fxXJ86ADW2PNuDDmZJg6mzTtPxkYCpNuQUTgmJ7AjU",
                 ]
 
-            if terra_classic:
-                container["command"] += [
-                    "--terraWS",
-                    "ws://terra-terrad:26657/websocket",
-                    "--terraLCD",
-                    "http://terra-terrad:1317",
-                    "--terraContract",
-                    "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-                ]
-
             if terra2:
                 container["command"] += [
                     "--terra2WS",
@@ -387,8 +375,6 @@ if solana_watcher:
     guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
 if near:
     guardian_resource_deps = guardian_resource_deps + ["near"]
-if terra_classic:
-    guardian_resource_deps = guardian_resource_deps + ["terra-terrad"]
 if terra2:
     guardian_resource_deps = guardian_resource_deps + ["terra2-terrad"]
 if algorand:
@@ -735,33 +721,6 @@ if ci_tests:
             trigger_mode = trigger_mode,
             resource_deps = ["sui"]
         )
-
-if terra_classic:
-    docker_build(
-        ref = "terra-image",
-        context = "./terra/devnet",
-        dockerfile = "terra/devnet/Dockerfile",
-        platform = "linux/amd64",
-    )
-
-    docker_build(
-        ref = "terra-contracts",
-        context = "./terra",
-        dockerfile = "./terra/Dockerfile",
-        platform = "linux/amd64",
-    )
-
-    k8s_yaml_with_ns("devnet/terra-devnet.yaml")
-
-    k8s_resource(
-        "terra-terrad",
-        port_forwards = [
-            port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
-            port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
-        ],
-        labels = ["terra"],
-        trigger_mode = trigger_mode,
-    )
 
 if terra2 or wormchain:
     docker_build(

@@ -1,0 +1,7 @@
+# Override parent rustfmt.toml since this crate uses stable Rust
+# The parent uses nightly-only features that aren't available in stable:
+# - imports_granularity = "Crate"
+# - imports_layout = "Vertical"
+# - empty_item_single_line = false
+#
+# This file intentionally left empty to use default stable rustfmt settings

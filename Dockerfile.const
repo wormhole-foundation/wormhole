@@ -21,6 +21,8 @@ ARG num_guardians
 ENV NUM_GUARDIANS=$num_guardians
 
 # run distribute-devnet-consts.sh to copy devnet-consts.json to chain dirs for use
+# NOTE: If the devnet constants file changes, this Dockerfile may be cached with the old data values.
+# In this case, try modifying _this file_ in order to bust the cache and help CI.
 RUN ./scripts/distribute-devnet-consts.sh
 
 # run guardian-set-init.sh to create env files with the init state for NUM_GUARDIANS
