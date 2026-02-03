@@ -16,19 +16,19 @@ export class KmsSigner extends ethers.AbstractSigner {
         return new KmsSigner(this.arn, provider);
     }
 
-    async signTransaction(transaction: ethers.Transaction): Promise<string> {
+    signTransaction(): Promise<string> {
         throw new Error("signTransaction not implemented");
     }
 
     async signTypedData(domain: TypedDataDomain,
         types: Record<string, Array<TypedDataField>>,
-        value: Record<string, any>,): Promise<string> {
+        value: Record<string, unknown>,): Promise<string> {
         // Populate any ENS names
         const populated = await TypedDataEncoder.resolveNames(domain, types, value, (name: string) => {
             return resolveAddress(name, this.provider) as Promise<string>;
         });
 
-        const digestHex = TypedDataEncoder.hash(populated.domain, types, populated.value);
+        const digestHex = TypedDataEncoder.hash(populated.domain, types, populated.value as Record<string, unknown>);
 
         let sig = await this.signWithKms(digestHex);
 

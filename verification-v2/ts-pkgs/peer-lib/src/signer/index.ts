@@ -19,4 +19,4 @@ export function createSigner(config: CreateSignerConfig): ethers.Signer {
 
     const provider = new ethers.JsonRpcProvider(config.wormhole?.ethereum.rpcUrl, undefined, { staticNetwork: true });
     return new KmsSigner(config.guardianPrivateKeyOrArn, provider);
-}1
+}
