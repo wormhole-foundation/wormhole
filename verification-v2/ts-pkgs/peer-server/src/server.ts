@@ -7,7 +7,7 @@ import {
   validate,
   validateGuardianSignature,
   WormholeGuardianData,
-  validatePeers,
+  validateSomePeers,
   errorStack
 } from '@xlabs-xyz/peer-lib';
 import { createServer, Server } from 'node:http';
@@ -28,7 +28,7 @@ export class PeerServer {
     private display: Display,
     initialPeers: Peer[] = []
   ) {
-    this.sparseGuardianPeers = validatePeers(initialPeers, wormholeData);
+    this.sparseGuardianPeers = validateSomePeers(initialPeers, wormholeData);
 
     this.setupRoutes();
     // Show initial progress

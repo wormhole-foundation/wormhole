@@ -119,6 +119,9 @@ export type WormholeGuardianData = z.infer<typeof WormholeGuardianDataSchema>;
 export type UploadResponse = z.infer<typeof UploadResponseSchema>;
 export type PeersResponse = z.infer<typeof PeersResponseSchema>;
 
+// We use this type in validation functions to avoid relying on unchecked input.
+export type UncheckedPeer = BasePeer & PeerSignature;
+
 export type ValidationError<T> = {
   success: true;
   value: T;
