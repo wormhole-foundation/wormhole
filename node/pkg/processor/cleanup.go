@@ -55,6 +55,23 @@ var (
 			Name: "wormhole_aggregation_state_settled_signatures_total",
 			Help: "Total number of signatures produced by a validator, counted after waiting a fixed amount of time",
 		}, []string{"addr", "origin", "status"})
+
+	// Metrics for delegated observation cleanup
+	delegateAggregationStateEntries = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_delegate_aggregation_state_entries",
+			Help: "Current number of delegate aggregation state entries (including unexpired succeed ones)",
+		})
+	delegateAggregationStateExpiration = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_aggregation_state_expirations_total",
+			Help: "Total number of expired submitted delegate aggregation states",
+		})
+	delegateAggregationStateTimeout = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_aggregation_state_timeout_total",
+			Help: "Total number of delegate aggregation states expired due to timeout",
+		})
 )
 
 const (
@@ -271,6 +288,44 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 	for key, pe := range p.pythnetVaas {
 		if pe.updateTime.Before(oldestTime) {
 			delete(p.pythnetVaas, key)
+		}
+	}
+
+	// Clean up old delegated observations.
+	p.handleDelegateCleanup()
+}
+
+func (p *Processor) handleDelegateCleanup() {
+	p.logger.Info("delegate aggregation state summary", zap.Int("cached", len(p.delegateState.observations)))
+	delegateAggregationStateEntries.Set(float64(len(p.delegateState.observations)))
+
+	for hash, s := range p.delegateState.observations {
+		delta := time.Since(s.firstObserved)
+
+		switch {
+		case s.submitted && delta.Hours() >= 1:
+			// Submitted delegate observations are deleted after 1 hour
+			if p.logger.Level().Enabled(zapcore.DebugLevel) {
+				p.logger.Debug("expiring submitted delegate observation",
+					zap.String("digest", hash),
+					zap.Duration("delta", delta),
+					zap.Int("num_observations", len(s.observations)),
+				)
+			}
+			delete(p.delegateState.observations, hash)
+			delegateAggregationStateExpiration.Inc()
+
+		case !s.submitted && delta > retryLimitNotOurs:
+			// Unsubmitted delegate observations
+			// effectively the same timeout but 
+			// different metric increased
+			p.logger.Info("expiring unsubmitted delegate observation after timeout",
+				zap.String("digest", hash),
+				zap.Duration("delta", delta),
+				zap.Int("num_observations", len(s.observations)),
+			)
+			delete(p.delegateState.observations, hash)
+			delegateAggregationStateTimeout.Inc()
 		}
 	}
 }

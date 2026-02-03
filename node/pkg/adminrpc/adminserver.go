@@ -718,6 +718,10 @@ func delegatedGuardiansConfigToVaa(req *nodev1.DelegatedGuardiansConfig, timesta
 			return nil, fmt.Errorf("invalid chain ID %s: %w", chainIDStr, err)
 		}
 
+		if _, exists := configs[vaa.ChainID(chainID)]; exists {
+			return nil, fmt.Errorf("duplicate chain ID %d", chainID)
+		}
+
 		keys := make([]ethcommon.Address, len(cfg.Keys))
 		for i, keyStr := range cfg.Keys {
 			keys[i] = ethcommon.HexToAddress(keyStr)
