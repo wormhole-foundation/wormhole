@@ -37,10 +37,8 @@ export class KmsSigner extends ethers.AbstractSigner {
     }
 
     async signMessage(message: string | Uint8Array): Promise<string> {
-        // Same bytes you sign locally: 32-byte keccak hash of packed peer data
-        const messageBytes = ethers.getBytes(message);
         // EIP-191 digest that ethers.signMessage(bytes) signs
-        const digestHex = ethers.hashMessage(messageBytes);
+        const digestHex = ethers.hashMessage(message);
 
         const sig = await this.signWithKms(digestHex);
 
