@@ -29,8 +29,7 @@ COPY <<EOT config.json
 {
   "port": ${SERVER_PORT},
   "ethereum": {
-    "rpcUrl": "${ETHEREUM_RPC_URL}",
-    "chainId": 1
+    "rpcUrl": "${ETHEREUM_RPC_URL}"
   },
   "wormholeContractAddress": "${WORMHOLE_ADDRESS}",
   "threshold": 13,

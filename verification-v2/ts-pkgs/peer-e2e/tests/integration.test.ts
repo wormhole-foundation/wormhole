@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   WormholeGuardianData,
-  SelfConfig,
+  PeerClientConfig,
   PeersResponse,
-  SelfConfigSchema,
+  PeerClientConfigSchema,
   validateOrFail,
   BaseServerConfig,
   Peer,
@@ -116,7 +116,7 @@ describe('Peer Server Integration Tests', () => {
         serverUrl: serverUrl,
         peer: testPeers[i],
       };
-      const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
+      const selfConfig = validateOrFail(PeerClientConfigSchema, clientConfig, "Invalid client config");
       const client = new PeerClient(selfConfig, pollingPeriod);
       clientPromises.push(client.submitAndWaitForAllPeers(mockWormholeData));
     }
@@ -205,14 +205,14 @@ describe('Peer Server Integration Tests', () => {
 
     try {
       // Create clients but submit with delays
-      const clientConfigs: SelfConfig[] = [];
+      const clientConfigs: PeerClientConfig[] = [];
       for (let i = 0; i < 2; i++) {
         const clientConfig = {
           guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
           serverUrl: serverUrl,
           peer: testPeers[i],
         };
-        const selfConfig = validateOrFail(SelfConfigSchema, clientConfig, "Invalid client config");
+        const selfConfig = validateOrFail(PeerClientConfigSchema, clientConfig, "Invalid client config");
         clientConfigs.push(selfConfig);
       }
 
