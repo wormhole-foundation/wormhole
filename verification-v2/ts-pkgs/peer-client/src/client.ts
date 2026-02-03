@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import {
   hashPeerData,
   PeerRegistration,
-  SelfConfig,
+  PeerClientConfig,
   PeersResponse,
   validateOrFail,
   PeerRegistrationSchema,
@@ -17,10 +17,10 @@ import {
 } from '@xlabs-xyz/peer-lib';
 
 export class PeerClient {
-  private config: SelfConfig;
+  private config: PeerClientConfig;
   private serverUrl: string;
 
-  constructor(config: SelfConfig, private readonly pollPeriod = 5000) {
+  constructor(config: PeerClientConfig, private readonly pollPeriod = 5000) {
     this.config = config;
     this.serverUrl = this.config.serverUrl;
   }

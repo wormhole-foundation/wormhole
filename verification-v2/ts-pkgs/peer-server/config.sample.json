@@ -1,8 +1,7 @@
 {
   "port": 3000,
   "ethereum": {
-    "rpcUrl": "https://eth.llamarpc.com",
-    "chainId": 1
+    "rpcUrl": "https://eth.llamarpc.com"
   },
   "wormholeContractAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
   "threshold": 13
