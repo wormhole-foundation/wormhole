@@ -6,7 +6,7 @@ export function isPrivateKey(guardianPrivateKeyOrArn: string): boolean {
     return guardianPrivateKeyOrArn.startsWith("0x");
 }
 
-export type CreateSignerConfig = Pick<PeerClientConfig, "guardianPrivateKeyOrArn" | "wormhole">;
+export type CreateSignerConfig = Pick<PeerClientConfig, "guardianPrivateKeyOrArn">;
 
 export function createSigner(config: CreateSignerConfig): ethers.Signer {
     if (config.guardianPrivateKeyOrArn === undefined) {
@@ -17,6 +17,5 @@ export function createSigner(config: CreateSignerConfig): ethers.Signer {
         return new ethers.Wallet(config.guardianPrivateKeyOrArn);
     }
 
-    const provider = new ethers.JsonRpcProvider(config.wormhole?.ethereum.rpcUrl, undefined, { staticNetwork: true });
-    return new KmsSigner(config.guardianPrivateKeyOrArn, provider);
+    return new KmsSigner(config.guardianPrivateKeyOrArn, null);
 }
