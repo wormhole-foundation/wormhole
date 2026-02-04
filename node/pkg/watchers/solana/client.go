@@ -45,16 +45,17 @@ type (
 		contract    solana.PublicKey
 		rawContract string
 		rpcUrl      string
-		wsUrl       string
-		commitment  rpc.CommitmentType
-		msgC        chan<- *common.MessagePublication
-		obsvReqC    <-chan *gossipv1.ObservationRequest
-		errC        chan error
-		pumpData    chan []byte
-		rpcClient   *rpc.Client
+		// wsUrl is the websocket URL for the RPC endpoint. It is only supported by Pythnet.
+		wsUrl      string
+		commitment rpc.CommitmentType
+		msgC       chan<- *common.MessagePublication
+		obsvReqC   <-chan *gossipv1.ObservationRequest
+		errC       chan error
+		pumpData   chan []byte
+		rpcClient  *rpc.Client
 		// Readiness component
 		readinessSync readiness.Component
-		// VAA ChainID of the network we're connecting to.
+		// VAA ChainID of the SVM network we're connecting to.
 		chainID vaa.ChainID
 		// Human readable name of network
 		networkName string
@@ -130,6 +131,9 @@ type (
 		} `json:"params"`
 	}
 
+	// MessagePublicationAccount is the data structure used to deserialize Solana PostedMessage account data for
+	// both the reliable and unreliable message types.
+	// It corresponds to the `data` field of the Wormhole PostedMessage account.
 	MessagePublicationAccount struct {
 		VaaVersion       uint8
 		ConsistencyLevel uint8
@@ -141,7 +145,9 @@ type (
 		Sequence         uint64
 		EmitterChain     uint16
 		EmitterAddress   vaa.Address
-		Payload          []byte
+		// Payload is the message payload. It is a variable-length byte array with no minimum length.
+		// Messages using the Shim contract will have a payload of length 0.
+		Payload []byte
 	}
 
 	// MessageAccountData represents a well-formed message account created by an SVM core bridge.
@@ -167,12 +173,33 @@ const (
 
 	// MessageAccountDataMinLength is the minimum length of a message account data. It is the length of the msg or msu prefix
 	// used by message accounts created by the SVM core bridge.
+	//
+	// NOTE: The actual minimum size of a PostedMessage account should be 95 bytes. We can consider enforcing this
+	// in the future, but in practice the Borsh deserialization in this package will fail if the account data
+	// can't be properly parsed into a [MessagePublicationAccount].
+	// Calculations:
+	// Minimum size of a Wormhole PostedMessage / PostedMessageUnreliable.
+	// Layout:
+	//   discriminator          [u8; 3]   =  3  ("msg" / "msu" / "vaa")
+	//   vaa_version            u8        =  1
+	//   consistency_level      u8        =  1
+	//   vaa_time               u32       =  4
+	//   vaa_signature_account  Pubkey    = 32
+	//   submission_time        u32       =  4
+	//   nonce                  u32       =  4
+	//   sequence               u64       =  8
+	//   emitter_chain          u16       =  2
+	//   emitter_address        [u8; 32]  = 32
+	//   payload_len            u32       =  4  (Borsh Vec length prefix)
+	//   payload                [u8; N]   =  N  (variable, 0 minimum)
+	//                                    -----
+	//                             Total = 95 + N
 	MessageAccountDataMinLength = 3
 )
 
 var (
 	emptyAddressBytes = vaa.Address{}.Bytes()
-	emptyGapBytes     = []byte{0, 0, 0}
+	emptyGapBytes     = [3]byte{0, 0, 0}
 )
 
 var (
