@@ -2,20 +2,15 @@ package xrpl
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
-	"slices"
-	"strconv"
 	"time"
 
-	addresscodec "github.com/Peersyst/xrpl-go/address-codec"
 	"github.com/Peersyst/xrpl-go/xrpl/queries/server"
 	subscribe "github.com/Peersyst/xrpl-go/xrpl/queries/subscription"
 	streamtypes "github.com/Peersyst/xrpl-go/xrpl/queries/subscription/types"
 	"github.com/Peersyst/xrpl-go/xrpl/queries/transactions"
-	"github.com/Peersyst/xrpl-go/xrpl/transaction"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction/types"
 	"github.com/Peersyst/xrpl-go/xrpl/websocket"
 	"github.com/certusone/wormhole/node/pkg/common"
@@ -49,6 +44,11 @@ var (
 			Name: "wormhole_xrpl_current_ledger",
 			Help: "Current XRPL validated ledger index",
 		})
+	xrplTxDropped = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_xrpl_transactions_dropped_total",
+			Help: "Total number of XRPL transactions dropped due to full channel",
+		})
 )
 
 type Watcher struct {
@@ -62,6 +62,13 @@ type Watcher struct {
 
 	// WebSocket client - created once at startup, shared across all operations
 	client *websocket.Client
+
+	// parser handles NTT transaction parsing
+	parser *Parser
+
+	// txChan receives transactions from the WebSocket handler.
+	// Created once in Run() to avoid multiple handler registrations.
+	txChan chan *streamtypes.TransactionStream
 }
 
 func NewWatcher(
@@ -111,6 +118,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}()
 
 	logger.Info("Connected to XRPL node", zap.String("rpc", w.rpc))
+
+	// Initialize the parser with the watcher's fetchMPTAssetScale method
+	w.parser = NewParser(w.fetchMPTAssetScale)
+
+	// Create the transaction channel once - handlers will write to this channel
+	w.txChan = make(chan *streamtypes.TransactionStream, 100)
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
@@ -225,6 +238,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 // subscribeAndProcess subscribes to account transactions and processes them.
 // It uses the WebSocket client that was connected in Run().
 func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) error {
+	// Create a child context for this subscription attempt.
+	// When this function returns (error or context cancelled), the child context
+	// is cancelled, causing the OnTransactions handler to stop writing to txChan.
+	// This prevents stale handlers from writing after we've moved on to a new subscription.
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Subscribe to the contract account
 	subscribeReq := &subscribe.Request{
 		Accounts: []types.Address{types.Address(w.contract)},
@@ -237,15 +257,17 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 
 	logger.Info("Subscribed to account", zap.String("account", w.contract))
 
-	// Set up transaction handler
-	txChan := make(chan *streamtypes.TransactionStream, 100)
+	// Set up transaction handler for this subscription attempt.
+	// The handler writes to the shared txChan but respects subCtx cancellation.
 	w.client.OnTransactions(func(tx *streamtypes.TransactionStream) {
 		select {
-		case <-ctx.Done():
+		case <-subCtx.Done():
 			return
-		case txChan <- tx:
+		case w.txChan <- tx:
 		default:
-			logger.Warn("Transaction channel full, dropping transaction")
+			logger.Warn("Transaction channel full, dropping transaction",
+				zap.String("hash", string(tx.Hash)))
+			xrplTxDropped.Inc()
 		}
 	})
 
@@ -254,7 +276,7 @@ func (w *Watcher) subscribeAndProcess(ctx context.Context, logger *zap.Logger) e
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case tx := <-txChan:
+		case tx := <-w.txChan:
 			if err := w.processTransaction(logger, tx); err != nil {
 				logger.Error("Failed to process transaction",
 					zap.String("hash", string(tx.Hash)),
@@ -273,7 +295,7 @@ func (w *Watcher) processTransaction(logger *zap.Logger, tx *streamtypes.Transac
 	}
 
 	// Parse the transaction and extract Wormhole message
-	msg, err := w.parseTransactionStream(tx)
+	msg, err := w.parser.ParseTransactionStream(tx)
 	if err != nil {
 		return fmt.Errorf("failed to parse transaction: %w", err)
 	}
@@ -320,7 +342,7 @@ func (w *Watcher) fetchAndParseTransaction(txHash []byte) (*common.MessagePublic
 	}
 
 	// Parse the transaction
-	return w.parseTxResponse(&txResp)
+	return w.parser.ParseTxResponse(&txResp)
 }
 
 // getValidatedLedgerIndex returns the current validated ledger index.
@@ -352,348 +374,64 @@ func (w *Watcher) getValidatedLedgerIndex(logger *zap.Logger) (int64, error) {
 	return int64(seq), nil
 }
 
-// parseTransactionStream converts an XRPL TransactionStream into a MessagePublication.
-func (w *Watcher) parseTransactionStream(tx *streamtypes.TransactionStream) (*common.MessagePublication, error) {
-	// Validate transaction result is tesSUCCESS
-	if err := w.validateTransactionResult(tx.Transaction); err != nil {
-		return nil, err
-	}
-
-	// Validate destination is our custody account (contract)
-	if err := w.validateDestination(tx.Transaction); err != nil {
-		return nil, err
-	}
-
-	// Extract payload from Memos
-	payload, err := w.extractWormholePayload(tx.Transaction)
-	if err != nil {
-		return nil, err
-	}
-
-	// No Wormhole payload found - this is not an error, just not a Wormhole transaction
-	if payload == nil {
-		return nil, nil
-	}
-
-	// Validate recipient chain is a valid Wormhole chain ID
-	if err := w.validateRecipientChain(payload); err != nil {
-		return nil, err
-	}
-
-	// Validate NTT amount does not exceed delivered amount
-	if err := w.validateAmount(tx.Meta.DeliveredAmount, payload); err != nil {
-		return nil, err
-	}
-
-	// Extract transaction hash (32 bytes)
-	txHash, err := hex.DecodeString(string(tx.Hash))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
-	}
-
-	// Parse ledger close time
-	timestamp, err := time.Parse(time.RFC3339, tx.CloseTimeISO)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse close time: %w", err)
-	}
-
-	// Calculate sequence: (ledgerIndex << 32) | txIndex
-	// TransactionIndex is available in the Meta field for validated transactions
-	ledgerIndex := uint64(tx.LedgerIndex)
-	txIndex := uint64(tx.Meta.TransactionIndex)
-	sequence := (ledgerIndex << 32) | txIndex
-
-	// Convert contract address to 32-byte emitter address (left-padded with zeros)
-	emitterAddress, err := w.addressToEmitter(w.contract)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert emitter address: %w", err)
-	}
-
-	return &common.MessagePublication{
-		TxID:             txHash,
-		Timestamp:        timestamp,
-		Nonce:            0, // NTT payloads do not include a nonce
-		Sequence:         sequence,
-		EmitterChain:     vaa.ChainIDXRPL,
-		EmitterAddress:   emitterAddress,
-		Payload:          payload,
-		ConsistencyLevel: 0, // XRPL validated ledgers are final
-		IsReobservation:  false,
-	}, nil
+// mptLedgerEntryRequest is a custom request type for fetching MPT issuance details.
+// The xrpl-go library doesn't have built-in support for MPT ledger entries.
+type mptLedgerEntryRequest struct {
+	MPTIssuance string `json:"mpt_issuance"`
+	LedgerIndex string `json:"ledger_index"`
 }
 
-// rippleEpochOffset is the number of seconds between Unix epoch (1970-01-01) and
-// Ripple epoch (2000-01-01). XRPL timestamps are seconds since the Ripple epoch.
-const rippleEpochOffset = 946684800
+func (r *mptLedgerEntryRequest) Method() string  { return "ledger_entry" }
+func (r *mptLedgerEntryRequest) Validate() error { return nil }
+func (r *mptLedgerEntryRequest) APIVersion() int { return 1 }
 
-// parseTxResponse converts a TxResponse (from reobservation) into a MessagePublication.
-func (w *Watcher) parseTxResponse(tx *transactions.TxResponse) (*common.MessagePublication, error) {
-	// Extract Wormhole payload from Memos in the transaction
-	// TxResponse has TxJSON which is a FlatTransaction
-	payload, err := w.extractWormholePayload(tx.TxJSON)
+// fetchMPTAssetScale fetches the AssetScale for an MPT from the ledger.
+func (w *Watcher) fetchMPTAssetScale(mptID string) (uint8, error) {
+	req := &mptLedgerEntryRequest{
+		MPTIssuance: mptID,
+		LedgerIndex: "validated",
+	}
+
+	resp, err := w.client.Request(req)
 	if err != nil {
-		return nil, err
+		return 0, fmt.Errorf("failed to fetch MPT ledger entry: %w", err)
 	}
 
-	if payload == nil {
-		return nil, fmt.Errorf("no Wormhole payload found in transaction")
+	var result map[string]interface{}
+	if err := resp.GetResult(&result); err != nil {
+		return 0, fmt.Errorf("failed to decode MPT ledger entry response: %w", err)
 	}
 
-	// Extract transaction hash
-	txHash, err := hex.DecodeString(string(tx.Hash))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
-	}
-
-	// Calculate sequence: (ledgerIndex << 32) | txIndex
-	// TransactionIndex is available in the Meta field for validated transactions
-	ledgerIndex := uint64(tx.LedgerIndex)
-	txIndex := uint64(tx.Meta.TransactionIndex)
-	sequence := (ledgerIndex << 32) | txIndex
-
-	// Convert Ripple epoch timestamp to Unix timestamp
-	// tx.Date is seconds since Ripple epoch (2000-01-01 00:00:00 UTC)
-	if tx.Date > math.MaxInt64-rippleEpochOffset {
-		return nil, fmt.Errorf("transaction date %d would overflow int64", tx.Date)
-	}
-	timestamp := time.Unix(int64(tx.Date)+rippleEpochOffset, 0)
-
-	// Convert contract address to emitter
-	emitterAddress, err := w.addressToEmitter(w.contract)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert emitter address: %w", err)
-	}
-
-	return &common.MessagePublication{
-		TxID:             txHash,
-		Timestamp:        timestamp,
-		Nonce:            0, // NTT payloads do not include a nonce
-		Sequence:         sequence,
-		EmitterChain:     vaa.ChainIDXRPL,
-		EmitterAddress:   emitterAddress,
-		Payload:          payload,
-		ConsistencyLevel: 0,
-		IsReobservation:  false,
-	}, nil
-}
-
-// nttMemoType is the hex-encoded MemoType for NTT transfers: "application/x-ntt-transfer"
-const nttMemoType = "6170706C69636174696F6E2F782D6E74742D7472616E73666572"
-
-// nttPayloadPrefix is the 4-byte prefix for NTT payloads: 0x994E5454
-var nttPayloadPrefix = []byte{0x99, 0x4E, 0x54, 0x54}
-
-// NTT payload offsets and sizes
-const (
-	nttPayloadMinLength     = 79 // Minimum valid NTT payload length
-	nttRecipientChainOffset = 77 // Offset of recipient chain ID (2 bytes, big-endian)
-	nttAmountOffset         = 5  // Offset of amount (8 bytes, big-endian)
-
-	// TODO: These offsets are defined for future validation implementation
-	// nttDecimalsOffset    = 4  // Offset of decimals (1 byte)
-	// nttSourceTokenOffset = 13 // Offset of source token address (32 bytes)
-)
-
-// tesSUCCESS is the XRPL transaction result code for successful transactions
-const tesSUCCESS = "tesSUCCESS"
-
-// extractWormholePayload extracts the Wormhole message payload from transaction Memos.
-// Returns the payload bytes and any error.
-// Returns (nil, nil) if no Wormhole payload is found (not an error, just not a Wormhole tx).
-//
-// Currently only NTT transfers are supported on XRPL. The NTT payload format does not include
-// a nonce field, so callers should use nonce=0.
-func (w *Watcher) extractWormholePayload(tx transaction.FlatTransaction) ([]byte, error) {
-	// FlatTransaction is map[string]interface{}
-	// Memos is an array of objects with structure: [{"Memo": {"MemoType": "...", "MemoData": "..."}}]
-	memosRaw, ok := tx["Memos"]
+	// Extract node from response
+	nodeRaw, ok := result["node"]
 	if !ok {
-		return nil, nil
+		return 0, fmt.Errorf("MPT ledger entry response missing 'node' field")
 	}
-
-	memos, ok := memosRaw.([]interface{})
+	node, ok := nodeRaw.(map[string]interface{})
 	if !ok {
-		return nil, nil
+		return 0, fmt.Errorf("MPT ledger entry 'node' is not a map")
 	}
 
-	for _, memoWrapperRaw := range memos {
-		memoWrapper, ok := memoWrapperRaw.(map[string]interface{})
-		if !ok {
-			continue
+	// Extract AssetScale
+	assetScaleRaw, ok := node["AssetScale"]
+	if !ok {
+		// AssetScale defaults to 0 if not present
+		return 0, nil
+	}
+
+	// AssetScale can be a float64 from JSON
+	switch v := assetScaleRaw.(type) {
+	case float64:
+		if v < 0 || v > 255 {
+			return 0, fmt.Errorf("AssetScale out of range: %f", v)
 		}
-
-		memoRaw, ok := memoWrapper["Memo"]
-		if !ok {
-			continue
+		return uint8(v), nil
+	case int:
+		if v < 0 || v > 255 {
+			return 0, fmt.Errorf("AssetScale out of range: %d", v)
 		}
-
-		memo, ok := memoRaw.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		// Check MemoType matches NTT transfer type
-		memoType, ok := memo["MemoType"].(string)
-		if !ok || memoType != nttMemoType {
-			continue
-		}
-
-		// Extract and decode MemoData (hex-encoded payload)
-		memoData, ok := memo["MemoData"].(string)
-		if !ok {
-			continue
-		}
-
-		payload, err := hex.DecodeString(memoData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode MemoData: %w", err)
-		}
-
-		// Verify NTT payload prefix
-		if len(payload) < 4 || payload[0] != nttPayloadPrefix[0] || payload[1] != nttPayloadPrefix[1] ||
-			payload[2] != nttPayloadPrefix[2] || payload[3] != nttPayloadPrefix[3] {
-			continue
-		}
-
-		return payload, nil
+		return uint8(v), nil
+	default:
+		return 0, fmt.Errorf("unexpected AssetScale type: %T", assetScaleRaw)
 	}
-
-	return nil, nil
 }
-
-// addressToEmitter converts an XRPL address to a 32-byte VAA emitter address.
-// XRPL addresses are base58-encoded (r-address format) and decode to 20-byte account IDs.
-// The account ID is left-padded with 12 zero bytes to create the 32-byte emitter address.
-func (w *Watcher) addressToEmitter(address string) (vaa.Address, error) {
-	// DecodeClassicAddressToAccountID returns the type prefix and 20-byte account ID
-	_, accountID, err := addresscodec.DecodeClassicAddressToAccountID(address)
-	if err != nil {
-		return vaa.Address{}, fmt.Errorf("failed to decode XRPL address %s: %w", address, err)
-	}
-
-	// Account ID should be 20 bytes
-	if len(accountID) != addresscodec.AccountAddressLength {
-		return vaa.Address{}, fmt.Errorf("unexpected account ID length: got %d, want %d", len(accountID), addresscodec.AccountAddressLength)
-	}
-
-	// Left-pad with zeros to create 32-byte emitter address
-	// vaa.Address is [32]byte, accountID is 20 bytes
-	// Place accountID in the last 20 bytes (indices 12-31)
-	var emitter vaa.Address
-	copy(emitter[32-addresscodec.AccountAddressLength:], accountID)
-
-	return emitter, nil
-}
-
-// validateTransactionResult checks that the transaction result is tesSUCCESS.
-// Returns nil if valid, or an error describing why the transaction should be skipped.
-// This function is strict - if the result cannot be determined, it returns an error.
-func (w *Watcher) validateTransactionResult(tx transaction.FlatTransaction) error {
-	metaRaw, ok := tx["meta"]
-	if !ok {
-		return fmt.Errorf("transaction has no meta field")
-	}
-
-	meta, ok := metaRaw.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("transaction meta field is not a map")
-	}
-
-	resultRaw, ok := meta["TransactionResult"]
-	if !ok {
-		return fmt.Errorf("transaction meta has no TransactionResult field")
-	}
-
-	result, ok := resultRaw.(string)
-	if !ok {
-		return fmt.Errorf("transaction TransactionResult is not a string")
-	}
-
-	if result != tesSUCCESS {
-		return fmt.Errorf("transaction result is %s, not %s", result, tesSUCCESS)
-	}
-
-	return nil
-}
-
-// validateDestination checks that the transaction destination is the custody account (contract).
-// Returns nil if valid, or an error if the destination doesn't match.
-// This function is strict - if the destination cannot be determined, it returns an error.
-func (w *Watcher) validateDestination(tx transaction.FlatTransaction) error {
-	destRaw, ok := tx["Destination"]
-	if !ok {
-		return fmt.Errorf("transaction has no Destination field")
-	}
-
-	dest, ok := destRaw.(string)
-	if !ok {
-		return fmt.Errorf("transaction Destination field is not a string")
-	}
-
-	if dest != w.contract {
-		return fmt.Errorf("transaction destination %s does not match custody account %s", dest, w.contract)
-	}
-
-	return nil
-}
-
-// validateRecipientChain checks that the recipient chain in the NTT payload is a valid Wormhole chain ID.
-// Returns nil if valid, or an error if the chain ID is invalid.
-func (w *Watcher) validateRecipientChain(payload []byte) error {
-	if len(payload) < nttPayloadMinLength {
-		return fmt.Errorf("NTT payload too short: got %d bytes, need at least %d", len(payload), nttPayloadMinLength)
-	}
-
-	// Extract recipient chain ID (last 2 bytes, big-endian)
-	recipientChain := binary.BigEndian.Uint16(payload[nttRecipientChainOffset:])
-	chainID := vaa.ChainID(recipientChain)
-
-	// Validate chain ID is known
-	// ChainID 0 is Unset and invalid
-	if chainID == vaa.ChainIDUnset {
-		return fmt.Errorf("invalid recipient chain ID: 0 (unset)")
-	}
-
-	// Check against known Wormhole chain IDs
-	if !slices.Contains(vaa.GetAllNetworkIDs(), chainID) {
-		return fmt.Errorf("unknown recipient chain ID: %d", recipientChain)
-	}
-
-	return nil
-}
-
-// validateAmount checks that the amount in the NTT payload does not exceed the delivered amount.
-// This prevents over-claiming by ensuring ntt_amount <= delivered_amount.
-// deliveredAmount is the value from tx.Meta.DeliveredAmount (string for XRP drops).
-func (w *Watcher) validateAmount(deliveredAmount any, payload []byte) error {
-	if len(payload) < nttPayloadMinLength {
-		return fmt.Errorf("NTT payload too short for amount validation: got %d bytes", len(payload))
-	}
-
-	// Extract NTT amount from payload (8 bytes, big-endian, at offset 5)
-	nttAmount := binary.BigEndian.Uint64(payload[nttAmountOffset : nttAmountOffset+8])
-
-	// Parse delivered_amount - for XRP it's a string of drops
-	// NTT on XRPL uses XRP (native currency), so delivered_amount must be a string
-	deliveredStr, ok := deliveredAmount.(string)
-	if !ok {
-		return fmt.Errorf("delivered_amount is not a string (got %T), NTT requires XRP payments", deliveredAmount)
-	}
-
-	// Parse the delivered amount (XRP drops as string)
-	delivered, err := strconv.ParseUint(deliveredStr, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed to parse delivered_amount %q: %w", deliveredStr, err)
-	}
-
-	// Verify NTT amount does not exceed delivered amount
-	if nttAmount > delivered {
-		return fmt.Errorf("NTT amount %d exceeds delivered amount %d", nttAmount, delivered)
-	}
-
-	return nil
-}
-
-// TODO: Implement validateAmountDecimals - verify amount uses at most 8 decimal places
-// XRPL amounts use a specific precision, and NTT amounts should be trimmed to 8 decimals max.
-// func (w *Watcher) validateAmountDecimals(payload []byte) error
