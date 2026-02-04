@@ -32,13 +32,15 @@ GUARDIAN_PRIVATE_KEYS=(
   "759540959b56070ee6effb4793af059d49897d9b54edaf78f0f06f5b03ec6c2c"
 )
 
-createGuardianPrivateKey() {
-  echo "0a20${GUARDIAN_PRIVATE_KEYS[$1]}" | \
+createGuardianPrivateKeyFile() {
+  local index=$1
+  local output_file=$2
+  echo "0a20${GUARDIAN_PRIVATE_KEYS[$index]}" | \
     xxd -r -p | gpg --enarmor | \
     awk 'BEGIN {print "-----BEGIN WORMHOLE GUARDIAN PRIVATE KEY-----"}
       NR>2 {print last}
       {last=$0}
-      END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}'
+      END {print "-----END WORMHOLE GUARDIAN PRIVATE KEY-----"}' > "$output_file"
 }
 
 # Build the dockerfile that generates the TLS key and certificate
@@ -68,14 +70,28 @@ done
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-   # The host here refers to the builder host container, not the host machine.
+  # The host here refers to the builder host container, not the host machine.
   docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile \
-    --secret id=guardian_pk,src=<(createGuardianPrivateKey "$i") \
     --secret "id=cert.pem,src=./out/$i/keys/cert.pem" \
     --build-arg "TLS_HOSTNAME=${TLS_HOSTNAME}$i" \
     --build-arg TLS_PORT=$((TLS_BASE_PORT + i)) \
     --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
+    --tag "register-peer-$i"
     --progress=plain ../../../.. &
+done
+
+wait
+
+for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
+do
+  guardian_key_file="./out/$i/keys/guardian.key"
+  createGuardianPrivateKeyFile "$i" "${guardian_key_file}"
+
+  docker run \
+      --rm \
+      --mount=type=secret,id=cert.pem,src="${CERT_PATH}" \
+      --mount=type=secret,id=guardian_pk,src=${guardian_key_file} \
+      "register-peer-$i" &
 done
 
 wait

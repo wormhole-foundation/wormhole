@@ -76,14 +76,12 @@ docker build \
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   ../../../rollout-scripts/setup-peer.sh \
+    --key "./out/$i/guardian.key" \
     "${TLS_HOSTNAME}$i" \
     "${TLS_PUBLIC_IP}" \
     "./out/$i/keys" \
-    "./out/$i/guardian.key" \
     "$((TLS_BASE_PORT + i))" \
     "${PEER_SERVER_URL}" &
-  # Stagger container launches to avoid Docker race conditions
-  sleep 0.2
 done
 
 wait
@@ -102,8 +100,6 @@ do
     "${PEER_SERVER_URL}" \
     "${ETHEREUM_RPC_URL}" \
     "${WORMHOLE_ADDRESS}" &
-  # Stagger container launches to avoid Docker race conditions
-  sleep 0.2
 done
 
 wait
