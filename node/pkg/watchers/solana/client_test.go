@@ -107,3 +107,49 @@ func TestIsPossibleWormholeMessageFail(t *testing.T) {
 
 	require.False(t, isPossibleWormholeMessage(whLogPrefix, logs))
 }
+
+func TestParseMessagePublicationAccount(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		messageAccountData *MessageAccountData
+		want               *MessagePublicationAccount
+		wantErr            bool
+	}{
+		{
+			name:               "success -- reliable message",
+			messageAccountData: &MessageAccountData{[]byte("msg")},
+			want:               &MessagePublicationAccount{},
+			wantErr:            false,
+		},
+		{
+			name:               "success -- unreliable message",
+			messageAccountData: &MessageAccountData{[]byte("msu")},
+			want:               &MessagePublicationAccount{},
+			wantErr:            false,
+		},
+		{
+			name:               "failure -- nil argument",
+			messageAccountData: nil,
+			want:               &MessagePublicationAccount{},
+			wantErr:            true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := ParseMessagePublicationAccount(tt.messageAccountData)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("ParseMessagePublicationAccount() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("ParseMessagePublicationAccount() succeeded unexpectedly")
+			}
+			if true {
+				t.Errorf("ParseMessagePublicationAccount() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
