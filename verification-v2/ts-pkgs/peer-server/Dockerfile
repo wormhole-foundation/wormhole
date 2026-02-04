@@ -4,12 +4,12 @@ ARG SERVER_PORT
 ARG ETHEREUM_RPC_URL
 ARG WORMHOLE_ADDRESS=0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
 
-RUN mkdir --parents core-bridge/ts-pkgs/peer-server core-bridge/ts-pkgs/peer-lib
-COPY .yarn /core-bridge/.yarn
-COPY package.json yarn.lock .yarnrc.yml /core-bridge/
-COPY ts-pkgs/peer-server/package.json /core-bridge/ts-pkgs/peer-server/
-COPY ts-pkgs/peer-lib/package.json /core-bridge/ts-pkgs/peer-lib/
-WORKDIR /core-bridge
+RUN mkdir --parents verification-v2/ts-pkgs/peer-server verification-v2/ts-pkgs/peer-lib
+COPY .yarn /verification-v2/.yarn
+COPY package.json yarn.lock .yarnrc.yml /verification-v2/
+COPY ts-pkgs/peer-server/package.json /verification-v2/ts-pkgs/peer-server/
+COPY ts-pkgs/peer-lib/package.json /verification-v2/ts-pkgs/peer-lib/
+WORKDIR /verification-v2
 RUN yarnpkg workspaces focus --all
 
 COPY ts-pkgs/config/ ts-pkgs/config/
@@ -18,7 +18,7 @@ COPY ts-pkgs/peer-lib/src ts-pkgs/peer-lib/src
 COPY ts-pkgs/peer-server/tsconfig.json ts-pkgs/peer-server/
 COPY ts-pkgs/peer-server/src ts-pkgs/peer-server/src
 
-WORKDIR /core-bridge/ts-pkgs/peer-server
+WORKDIR /verification-v2/ts-pkgs/peer-server
 RUN yarnpkg build
 
 RUN test -n "${SERVER_PORT}" && \

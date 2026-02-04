@@ -14,12 +14,12 @@ WORKDIR /tss-lib/tss/internal/cmd
 RUN go build -o=./server ./dkg
 
 WORKDIR /
-RUN mkdir --parents core-bridge/ts-pkgs/peer-client core-bridge/ts-pkgs/peer-lib
-COPY .yarn core-bridge/.yarn
-COPY package.json yarn.lock .yarnrc.yml core-bridge/
-COPY ts-pkgs/peer-client/package.json core-bridge/ts-pkgs/peer-client/
-COPY ts-pkgs/peer-lib/package.json core-bridge/ts-pkgs/peer-lib/
-WORKDIR /core-bridge
+RUN mkdir --parents verification-v2/ts-pkgs/peer-client verification-v2/ts-pkgs/peer-lib
+COPY .yarn verification-v2/.yarn
+COPY package.json yarn.lock .yarnrc.yml verification-v2/
+COPY ts-pkgs/peer-client/package.json verification-v2/ts-pkgs/peer-client/
+COPY ts-pkgs/peer-lib/package.json verification-v2/ts-pkgs/peer-lib/
+WORKDIR /verification-v2
 RUN yarnpkg workspaces focus --all
 
 COPY ts-pkgs/config/ ts-pkgs/config/
@@ -27,7 +27,7 @@ COPY ts-pkgs/peer-lib/tsconfig.json ts-pkgs/peer-lib/
 COPY ts-pkgs/peer-lib/src ts-pkgs/peer-lib/src
 COPY ts-pkgs/peer-client/tsconfig.json ts-pkgs/peer-client/
 COPY ts-pkgs/peer-client/src ts-pkgs/peer-client/src
-WORKDIR /core-bridge/ts-pkgs/peer-client
+WORKDIR /verification-v2/ts-pkgs/peer-client
 RUN yarnpkg build
 
 COPY --chmod=555 <<EOT poll_guardians.sh

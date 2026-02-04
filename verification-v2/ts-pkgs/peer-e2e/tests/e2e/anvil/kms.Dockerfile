@@ -5,13 +5,13 @@ RUN apt-get --quiet update && apt-get --quiet --no-install-recommends --yes inst
 
 COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/forge /usr/local/bin/cast /bin/
 
-RUN mkdir --parents /core-bridge/src
-COPY --link foundry.toml Makefile /core-bridge/
-COPY --link src/evm /core-bridge/src/evm
-COPY --link test /core-bridge/test
-COPY --link ts-pkgs/peer-e2e/tests/e2e/anvil/localAnvilForKms.sh /core-bridge/
+RUN mkdir --parents /verification-v2/src
+COPY --link foundry.toml Makefile /verification-v2/
+COPY --link src/evm /verification-v2/src/evm
+COPY --link test /verification-v2/test
+COPY --link ts-pkgs/peer-e2e/tests/e2e/anvil/localAnvilForKms.sh /verification-v2/
 
-WORKDIR /core-bridge
+WORKDIR /verification-v2
 
 RUN make build-evm
 
