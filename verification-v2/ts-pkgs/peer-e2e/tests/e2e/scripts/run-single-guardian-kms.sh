@@ -11,7 +11,7 @@ PEER_SERVER_URL="http://peer-server:3000"
 ETHEREUM_RPC_URL="http://anvil-with-verifier:8545"
 WORMHOLE_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
 # TODO: Fill in with actual ARN
-GUARDIAN_PRIVATE_KEY_ARN="arn:aws:kms:us-east-2:581679387567:key/d8e672c3-401a-4322-a86a-f089b5ae077c"
+GUARDIAN_KMS_ARN="arn:aws:kms:us-east-2:581679387567:key/d8e672c3-401a-4322-a86a-f089b5ae077c"
 
 export TSS_E2E_DOCKER_NETWORK="dkg-test"
 export NON_INTERACTIVE=1
@@ -33,7 +33,7 @@ done
   "${TLS_HOSTNAME}" \
   "${TLS_PUBLIC_IP}" \
   "${OUTPUT_DIR}" \
-  "${GUARDIAN_PRIVATE_KEY_ARN}" \
+  "${GUARDIAN_KMS_ARN}" \
   "${TLS_PORT}" \
   "${PEER_SERVER_URL}"
 
@@ -44,5 +44,5 @@ done
   "${PEER_SERVER_URL}" \
   "${ETHEREUM_RPC_URL}" \
   "${WORMHOLE_ADDRESS}" \
-  "${GUARDIAN_PRIVATE_KEY_ARN}"
+  "${GUARDIAN_KMS_ARN}"
 

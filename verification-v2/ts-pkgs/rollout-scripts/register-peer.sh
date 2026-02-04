@@ -51,7 +51,7 @@ export DOCKER_BUILDKIT=1
 
 builder_option=""
 if [ -n "${GUARDIAN_KEY_ARN:-}" ]; then
-    builder_option+="--build-arg GUARDIAN_PRIVATE_KEY_ARN=${GUARDIAN_KEY_ARN} "
+    builder_option+="--build-arg GUARDIAN_KMS_ARN=${GUARDIAN_KEY_ARN} "
 fi
 
 run_option=""

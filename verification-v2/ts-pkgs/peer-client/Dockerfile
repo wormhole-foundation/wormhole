@@ -19,17 +19,16 @@ RUN yarnpkg build
 ARG TLS_HOSTNAME
 ARG TLS_PORT
 ARG PEER_SERVER_URL
-# Provide exactly one of GUARDIAN_PRIVATE_KEY_ARN or mount guardian_pk secret
-# check=skip=SecretsUsedInArgOrEnv
-ARG GUARDIAN_PRIVATE_KEY_ARN
+# Provide exactly one of GUARDIAN_KMS_ARN or mount guardian_pk secret
+ARG GUARDIAN_KMS_ARN
 
 RUN test -n "${TLS_HOSTNAME}" && \
     test -n "${TLS_PORT}" && \
     test -n "${PEER_SERVER_URL}"
 
 # Generate config: use ARN if provided, otherwise use the secret file path
-RUN if [ -n "${GUARDIAN_PRIVATE_KEY_ARN}" ]; then \
-      echo '{"guardianPrivateKeyArn":"'"${GUARDIAN_PRIVATE_KEY_ARN}"'","serverUrl":"'"${PEER_SERVER_URL}"'","peer":{"hostname":"'"${TLS_HOSTNAME}"'","port":'"${TLS_PORT}"',"tlsX509":"/run/secrets/cert.pem"}}' > self_config.json; \
+RUN if [ -n "${GUARDIAN_KMS_ARN}" ]; then \
+      echo '{"guardianPrivateKeyArn":"'"${GUARDIAN_KMS_ARN}"'","serverUrl":"'"${PEER_SERVER_URL}"'","peer":{"hostname":"'"${TLS_HOSTNAME}"'","port":'"${TLS_PORT}"',"tlsX509":"/run/secrets/cert.pem"}}' > self_config.json; \
     else \
       echo '{"guardianPrivateKeyPath":"/run/secrets/guardian_pk","serverUrl":"'"${PEER_SERVER_URL}"'","peer":{"hostname":"'"${TLS_HOSTNAME}"'","port":'"${TLS_PORT}"',"tlsX509":"/run/secrets/cert.pem"}}' > self_config.json; \
     fi
