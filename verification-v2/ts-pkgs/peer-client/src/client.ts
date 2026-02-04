@@ -33,8 +33,6 @@ export class PeerClient {
     // Create message hash as per server implementation
     const messageHash = hashPeerData(peer);
     // Sign the message
-    const address = await signer.getAddress();
-    console.log(`[SIGNER] Address: ${address}`);
     const signature = await signer.signMessage(ethers.getBytes(messageHash));
     const peerRegistration = {
       peer,
