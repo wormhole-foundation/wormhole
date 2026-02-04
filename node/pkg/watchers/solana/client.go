@@ -199,7 +199,7 @@ const (
 
 var (
 	emptyAddressBytes = vaa.Address{}.Bytes()
-	emptyGapBytes     = [3]byte{0, 0, 0}
+	emptyGapBytes     = []byte{0, 0, 0}
 )
 
 var (
