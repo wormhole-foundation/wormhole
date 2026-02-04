@@ -2,10 +2,6 @@ import { PeerClientConfig } from "../types.js";
 import { KmsSigner } from "./kms.js";
 import { ethers } from "ethers";
 
-export function isPrivateKey(guardianPrivateKeyOrArn: string): boolean {
-    return guardianPrivateKeyOrArn.startsWith("0x");
-}
-
 export type CreateSignerConfig = Pick<PeerClientConfig, "guardianKey">;
 
 export function createSigner(config: CreateSignerConfig): ethers.Signer {
