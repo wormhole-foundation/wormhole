@@ -11,8 +11,6 @@ done;
 
 docker stop anvil-with-verifier peer-server 2>/dev/null &
 
-docker buildx rm dkg-builder 2>/dev/null &
-
 wait
 
 docker network rm dkg-test 2>/dev/null || true

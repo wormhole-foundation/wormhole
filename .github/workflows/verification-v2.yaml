@@ -223,12 +223,6 @@ jobs:
           sparse-checkout: 'verification-v2'
     - name: Create network
       run: docker network create dkg-test
-    - name: Setup buildx container
-      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-      with:
-        name: dkg-builder
-        driver-opts: |
-          network=dkg-test
     - name: Run E2E DKG ceremony
       run: ./e2e.sh
       working-directory: ./verification-v2/ts-pkgs/peer-e2e/tests/e2e/

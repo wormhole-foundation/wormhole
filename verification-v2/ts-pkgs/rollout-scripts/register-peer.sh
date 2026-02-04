@@ -49,33 +49,34 @@ fi
 
 export DOCKER_BUILDKIT=1
 
-# TSS_E2E_DOCKER_BUILDER should NOT be used in production.
 builder_option=""
-if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
-    builder_option+="--builder ${TSS_E2E_DOCKER_BUILDER} --network=host "
-fi
-
 if [ -n "${GUARDIAN_KEY_ARN:-}" ]; then
     builder_option+="--build-arg GUARDIAN_PRIVATE_KEY_ARN=${GUARDIAN_KEY_ARN} "
 fi
 
 run_option=""
 if [ -n "${GUARDIAN_KEY_PATH:-}" ]; then
-    run_option+="--volume ${GUARDIAN_KEY_PATH}:/run/secrets/guardian_pk:ro"
+    run_option+="--volume ${GUARDIAN_KEY_PATH}:/run/secrets/guardian_pk:ro "
 fi
+
+# TSS_E2E_DOCKER_NETWORK should NOT be used in production.
+if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    run_option+="--network ${TSS_E2E_DOCKER_NETWORK} "
+fi
+
 
 docker build ${builder_option} \
     --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
     --build-arg TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --build-arg TLS_PORT="${TLS_PORT}" \
     --build-arg PEER_SERVER_URL="${PEER_SERVER_URL}" \
-    --tag register-peer
+    --tag "register-peer${TSS_E2E_GUARDIAN_ID}" \
     "${PROJECT_ROOT}"
 
 docker run ${run_option} \
     --rm \
     --volume "${CERT_PATH}:/run/secrets/cert.pem:ro" \
-    register-peer
+    "register-peer${TSS_E2E_GUARDIAN_ID}"
 
 log_info "Registration complete"
 
