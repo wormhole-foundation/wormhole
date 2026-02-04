@@ -24,9 +24,11 @@ export class KmsSigner extends ethers.AbstractSigner {
         throw new Error("signTransaction not implemented");
     }
 
-    async signTypedData(domain: TypedDataDomain,
+    async signTypedData(
+        domain: TypedDataDomain,
         types: Record<string, Array<TypedDataField>>,
-        value: Record<string, unknown>,): Promise<string> {
+        value: Record<string, unknown>,
+    ): Promise<string> {
         // Populate any ENS names
         const populated = await TypedDataEncoder.resolveNames(domain, types, value, (name: string) => {
             return resolveAddress(name, this.provider) as Promise<string>;

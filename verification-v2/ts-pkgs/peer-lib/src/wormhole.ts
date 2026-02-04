@@ -38,6 +38,7 @@ export async function getWormholeGuardianData(
   }
 }
 
+// TODO: change this to use EIP712
 export function hashPeerData(basePeer: BasePeer): string {
   return ethers.keccak256(
     ethers.solidityPacked(
