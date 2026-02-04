@@ -10,7 +10,7 @@ export class KmsSigner extends ethers.AbstractSigner {
     private readonly region: string;
     private address: string | undefined;
 
-    constructor(private readonly arn: string, provider: ethers.Provider | null) {
+    constructor(private readonly arn: string, provider: ethers.Provider | null = null) {
         super(provider);
         this.region = regionFromKmsArn(arn);
         this.kmsClient = new KMSClient({ region: this.region });
@@ -59,15 +59,9 @@ export class KmsSigner extends ethers.AbstractSigner {
     }
 
     private async getAddressFromKms(): Promise<string> {
-        let out;
-        try {
-            out = await this.kmsClient.send(
-                new GetPublicKeyCommand({ KeyId: this.arn })
-            );
-        } catch (error) {
-            console.error(`[KMS] GetPublicKeyCommand failed:`, error);
-            throw error;
-        }
+        const out = await this.kmsClient.send(
+            new GetPublicKeyCommand({ KeyId: this.arn })
+        );
 
         if (!out.PublicKey) {
             throw new Error("KMS GetPublicKey returned no public key");

@@ -121,7 +121,7 @@ export const PeerArraySchema = z.array(PeerSchema);
 export const PeersResponseSchema = z.object({
   peers: PeerArraySchema,
   threshold: thresholdSchema,
-  totalExpectedGuardians: z.int().min(1, "Total expected guardians must be a positive integer")
+  totalExpectedGuardians: z.int().positive("Total expected guardians must be a positive integer")
 });
 
 // Type definitions inferred from Zod schemas
