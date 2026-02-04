@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@xlabs-xyz/peer-lib": "workspace:*",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "express": "^5.2.1"
   },
   "devDependencies": {
@@ -22,7 +22,7 @@
     "@types/node": "^24.10.10",
     "@types/supertest": "^6.0.3",
     "ethers": "^6.16.0",
-    "supertest": "^7.1.4",
+    "supertest": "^7.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

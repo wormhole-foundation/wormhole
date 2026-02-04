@@ -10,11 +10,11 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.982.0",
+    "@aws-sdk/client-kms": "^3.983.0",
     "@scure/base": "^2.0.0",
     "binary-layout": "^1.3.2",
     "ethers": "^6.16.0",
-    "zod": "^4.1.13"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^24.10.10",
