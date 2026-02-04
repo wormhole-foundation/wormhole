@@ -1,10 +1,12 @@
 package solana
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -136,6 +138,26 @@ func Test_validateTransactionMeta(t *testing.T) {
 }
 
 func TestParseMessagePublicationAccount(t *testing.T) {
+
+	// Define well-formed Solana mainnet PostedMessage account data for reliable and unreliable messages
+	var (
+		// Solana mainnet PostedMessage account: `GU76rcJ4rgw5sZQ2efVRC4yUZyhwrVM6pTGs2kFhckYy`
+		validMessageAccountDataReliable, _ = hex.DecodeString("6d73670020000000000000000000000000000000000000000000000000000000000000000000000000404d836900000000f5de1400000000000100ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5850000000100000000000000000000000000000000000000000000000000009ed268a30dd700000000000000000000000089f4e8011c35831130c4c3ab95e53de9411d2fcc00040000000000000000000000006722b2c28d7d299b56a5febedbbe865a84ee0d7d00040000000000000000000000000000000000000000000000000000000000000000")
+
+		// Solana mainnet PostedMessageUnreliable account: `GU76rcJ4rgw5sZQ2efVRC4yUZyhwrVM6pTGs2kFhckYy`
+		validMessageAccountDataUnreliable, _ = hex.DecodeString("6d73750001000000000000000000000000000000000000000000000000000000000000000000000000785b83690000000018c4340000000000010034cdc6b2623f36d60ae820e95b60f764e81ec2cd3b57b77e3f8e25ddd43ac37300000000")
+
+		// Emitters
+		emitter, _          = hex.DecodeString("ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5")
+		emitterAddrReliable = vaa.Address(emitter)
+
+		emitterUnreliable, _  = hex.DecodeString("34cdc6b2623f36d60ae820e95b60f764e81ec2cd3b57b77e3f8e25ddd43ac373")
+		emitterAddrUnreliable = vaa.Address(emitterUnreliable)
+
+		// Payload portion of the reliablemessage account data
+		payload, _ = hex.DecodeString("0100000000000000000000000000000000000000000000000000009ed268a30dd700000000000000000000000089f4e8011c35831130c4c3ab95e53de9411d2fcc00040000000000000000000000006722b2c28d7d299b56a5febedbbe865a84ee0d7d00040000000000000000000000000000000000000000000000000000000000000000")
+	)
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -144,20 +166,69 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		wantErr            bool
 	}{
 		{
-			name:               "success -- reliable message",
-			messageAccountData: &MessageAccountData{[]byte("msg")},
-			want:               &MessagePublicationAccount{},
-			wantErr:            false,
+			name: "success -- reliable message",
+
+			messageAccountData: &MessageAccountData{validMessageAccountDataReliable},
+			want: &MessagePublicationAccount{
+				VaaVersion:       0,
+				ConsistencyLevel: 32,
+				EmitterAuthority: vaa.Address{},
+				MessageStatus:    0,
+				Gap:              [3]byte{0, 0, 0},
+				SubmissionTime:   1770212672,
+				Nonce:            0,
+				Sequence:         1367797,
+				EmitterChain:     1,
+				EmitterAddress:   emitterAddrReliable,
+				Payload:          payload,
+			},
+			wantErr: false,
 		},
 		{
 			name:               "success -- unreliable message",
-			messageAccountData: &MessageAccountData{[]byte("msu")},
-			want:               &MessagePublicationAccount{},
-			wantErr:            false,
+			messageAccountData: &MessageAccountData{validMessageAccountDataUnreliable},
+			want: &MessagePublicationAccount{
+				VaaVersion:       0,
+				ConsistencyLevel: 1,
+				EmitterAuthority: vaa.Address{},
+				MessageStatus:    0,
+				Gap:              [3]byte{},
+				SubmissionTime:   1770216312,
+				Nonce:            0,
+				Sequence:         3458072,
+				EmitterChain:     1,
+				EmitterAddress:   emitterAddrUnreliable,
+				Payload:          nil,
+			},
+			wantErr: false,
 		},
 		{
 			name:               "failure -- nil argument",
 			messageAccountData: nil,
+			want:               &MessagePublicationAccount{},
+			wantErr:            true,
+		},
+		{
+			name:               "failure -- no data following prefix (msg)",
+			messageAccountData: &MessageAccountData{[]byte("msg")},
+			want:               &MessagePublicationAccount{},
+			wantErr:            true,
+		},
+		{
+			name:               "failure -- no data following prefix (msu)",
+			messageAccountData: &MessageAccountData{[]byte("msu")},
+			want:               &MessagePublicationAccount{},
+			wantErr:            true,
+		},
+		{
+			name:               "failure -- truncated data (msg)",
+			messageAccountData: &MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
+			want:               &MessagePublicationAccount{},
+			wantErr:            true,
+		},
+		{
+			name:               "failure -- truncated data (msu)",
+			messageAccountData: &MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
 			want:               &MessagePublicationAccount{},
 			wantErr:            true,
 		},
@@ -174,6 +245,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 			if tt.wantErr {
 				t.Fatal("ParseMessagePublicationAccount() succeeded unexpectedly")
 			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
