@@ -38,7 +38,7 @@ RUN if [ -n "${GUARDIAN_PRIVATE_KEY_ARN}" ]; then \
 # AWS credentials should be assigned to the IAM role running the container.
 # The client will then query ephemeral credentials and sign with those.
 # When using a raw private key file, the mount should look like this:
-# --mount=type=secret,id=guardian_pk
+# --volume "<src file>:/run/secrets/guardian_pk,ro"
 # The cert is not really a secret, but it doesn't hurt to use this mount type.
-# --mount=type=secret,id=cert.pem
+# --volume "<src file>:/run/secrets/cert.pem,ro"
 ENTRYPOINT ["yarnpkg", "start:client", "upload"]
