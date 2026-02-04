@@ -198,7 +198,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				Sequence:         3458072,
 				EmitterChain:     1,
 				EmitterAddress:   emitterAddrUnreliable,
-				Payload:          nil,
+				Payload:          nil, // borsh deserialization results in this being nil rather than an empty slice
 			},
 			wantErr: false,
 		},
