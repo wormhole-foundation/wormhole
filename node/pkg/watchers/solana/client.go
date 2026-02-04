@@ -143,6 +143,14 @@ type (
 		EmitterAddress   vaa.Address
 		Payload          []byte
 	}
+
+	// MessageAccountData represents a well-formed message account created by an SVM core bridge.
+	// SECURITY:
+	// 1. Data must be non-empty.
+	// 2. Data must begin with b"msg" for regular message accounts or b"msu" for unreliable accounts (used by the shim contract).
+	MessageAccountData struct {
+		data []byte
+	}
 )
 
 const (
@@ -156,6 +164,10 @@ const (
 
 	// DefaultPollDelay is the polling interval used for any chains that don't have an override.
 	DefaultPollDelay = time.Second * 1
+
+	// MessageAccountDataMinLength is the minimum length of a message account data. It is the length of the msg or msu prefix
+	// used by message accounts created by the SVM core bridge.
+	MessageAccountDataMinLength = 3
 )
 
 var (
@@ -204,6 +216,26 @@ const (
 	consistencyLevelConfirmed ConsistencyLevel = 0
 	consistencyLevelFinalized ConsistencyLevel = 1
 )
+
+// NewMessageAccountData creates a new MessageAccountData from the given data.
+// SECURITY:
+// 1. Data must be non-empty.
+// 2. Data must begin with b"msg" for regular message accounts or b"msu" for unreliable accounts (used by the shim contract).
+// The program must never parse account data as a message account if it is does not meet these requirements.
+func NewMessageAccountData(data []byte) *MessageAccountData {
+	if len(data) < MessageAccountDataMinLength {
+		return nil
+	}
+	if !bytes.HasPrefix(data, []byte(accountPrefixReliable)) && !bytes.HasPrefix(data, []byte(accountPrefixUnreliable)) {
+		return nil
+	}
+	return &MessageAccountData{data: data}
+}
+
+// IsReliable returns true if the account data is reliable (has the prefix "msg").
+func (m *MessageAccountData) IsReliable() bool {
+	return bytes.HasPrefix(m.data, []byte(accountPrefixReliable))
+}
 
 func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 	switch c {
@@ -916,8 +948,10 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		return 0, false
 	}
 
+	// SECURITY: Parse the message account data to ensure it is a valid message account.
 	data := info.Value.Data.GetBinary()
-	if string(data[:3]) != accountPrefixReliable && string(data[:3]) != accountPrefixUnreliable {
+	messageAccountData := NewMessageAccountData(data)
+	if messageAccountData == nil {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "bad_account_data").Inc()
 		s.logger.Error("account is not a message account",
@@ -930,10 +964,10 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		s.logger.Debug("found valid VAA account",
 			zap.Uint64("slot", slot),
 			zap.Stringer("account", acc),
-			zap.Binary("data", data))
+			zap.Binary("data", messageAccountData.data))
 	}
 
-	return s.processMessageAccount(s.logger, data, acc, isReobservation, signature), false
+	return s.processMessageAccount(s.logger, messageAccountData, acc, isReobservation, signature), false
 }
 
 func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte, isReobservation bool) error {
@@ -971,37 +1005,35 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	}
 
 	data, err = base64.StdEncoding.DecodeString(value.Account.Data[0])
+
 	if err != nil {
 		logger.Error("failed to decode account", zap.Any("account", string(value.Account.Data[0])), zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
 
-	// ignore truncated messages
-	if len(data) < 3 {
+	// Other accounts owned by the wormhole contract seem to send updates...
+	// SECURITY: Parse the message account data to ensure it is a valid message account.
+	// If not, skip execution to avoid processing non-message accounts.
+	messageAccountData := NewMessageAccountData(data)
+	if messageAccountData == nil {
 		return nil
 	}
 
-	// Other accounts owned by the wormhole contract seem to send updates...
-	switch string(data[:3]) {
-	case accountPrefixReliable, accountPrefixUnreliable:
-		acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
-		s.processMessageAccount(logger, data, acc, isReobservation, solana.Signature{})
-	default:
-		break
-	}
+	acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
+	s.processMessageAccount(logger, messageAccountData, acc, isReobservation, solana.Signature{})
 
 	return nil
 }
 
-func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey, isReobservation bool, signature solana.Signature) (numObservations uint32) {
-	proposal, err := ParseMessagePublicationAccount(data)
+func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, messageAccountData *MessageAccountData, acc solana.PublicKey, isReobservation bool, signature solana.Signature) (numObservations uint32) {
+	proposal, err := ParseMessagePublicationAccount(messageAccountData)
 	if err != nil {
 		solanaAccountSkips.WithLabelValues(s.networkName, "parse_transfer_out").Inc()
 		logger.Error(
 			"failed to parse transfer proposal",
 			zap.Stringer("account", acc),
-			zap.Binary("data", data),
+			zap.Binary("data", messageAccountData.data),
 			zap.Error(err))
 		return
 	}
@@ -1035,23 +1067,13 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 			logger.Error(
 				"account is not finalized",
 				zap.Stringer("account", acc),
-				zap.Binary("data", data))
+				zap.Binary("data", messageAccountData.data))
 			return
 		}
 	}
 
 	var txHash eth_common.Hash
 	copy(txHash[:], acc[:])
-
-	var reliable bool
-	switch string(data[:3]) {
-	case accountPrefixReliable:
-		reliable = true
-	case accountPrefixUnreliable:
-		reliable = false
-	default:
-		panic("invalid prefix")
-	}
 
 	observation := &common.MessagePublication{
 		TxID:             txHash.Bytes(),
@@ -1063,12 +1085,12 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		Payload:          proposal.Payload,
 		ConsistencyLevel: proposal.ConsistencyLevel,
 		IsReobservation:  isReobservation,
-		Unreliable:       !reliable,
+		Unreliable:       !messageAccountData.IsReliable(),
 	}
 
 	// SECURITY: An unreliable message with an empty payload is most like a PostMessage generated as part
 	// of a shim event where this guardian is not watching the shim contract. Those events should be ignored.
-	if !reliable && len(observation.Payload) == 0 {
+	if !messageAccountData.IsReliable() && len(observation.Payload) == 0 {
 		logger.Debug("ignoring an observation because it is marked unreliable and has a zero length payload, probably from the shim",
 			zap.Stringer("account", acc),
 			zap.Time("timestamp", observation.Timestamp),
@@ -1124,10 +1146,15 @@ func (s *SolanaWatcher) getLatestFinalizedBlockNumber() uint64 {
 	return s.latestBlockNumber
 }
 
-func ParseMessagePublicationAccount(data []byte) (*MessagePublicationAccount, error) {
+func ParseMessagePublicationAccount(messageAccountData *MessageAccountData) (*MessagePublicationAccount, error) {
+	if messageAccountData == nil {
+		return nil, errors.New("message account data is nil")
+	}
+
 	prop := &MessagePublicationAccount{}
-	// Skip the b"msg" prefix
-	if err := borsh.Deserialize(prop, data[3:]); err != nil {
+	// Skip the prefix and deserialize the rest of the data.
+	// SECURITY: The MessageAccountData type ensures that the data is at least 3 bytes long.
+	if err := borsh.Deserialize(prop, messageAccountData.data[MessageAccountDataMinLength:]); err != nil {
 		return nil, err
 	}
 
