@@ -1,6 +1,10 @@
 import { ethers, resolveAddress, TypedDataDomain, TypedDataEncoder, TypedDataField } from "ethers";
 import { GetPublicKeyCommand, KMSClient, SignCommand } from "@aws-sdk/client-kms";
 
+const sequenceTag = 0x30;
+const integerTag = 0x02;
+const bitStringTag = 0x03;
+
 export class KmsSigner extends ethers.AbstractSigner {
     private readonly kmsClient: KMSClient
     private readonly region: string;
@@ -77,39 +81,44 @@ export class KmsSigner extends ethers.AbstractSigner {
         const read = () => spkiDer[i++];
         const readLen = () => {
             const b = read();
-            if ((b & 0x80) === 0) return b;
-            const n = b & 0x7f;
-            let len = 0;
-            for (let j = 0; j < n; j++) len = (len << 8) | read();
-            return len;
+            if (b > 86) throw new Error(`DER parse: Invalid length for SubjectPublicKeyInfo ${b} at offset ${i - 1}`);
+            return b;
+        };
+        const readAlgoLen = () => {
+            const b = read();
+            if (b > 16) throw new Error(`DER parse: Invalid length for AlgorithmIdentifier ${b} at offset ${i - 1}`);
+            return b;
+        };
+        const readPubKeyLen = () => {
+            const b = read();
+            if (b > 66) throw new Error(`DER parse: Invalid length for public key ${b} at offset ${i - 1}`);
+            return b;
         };
 
-        // SEQUENCE
-        if (read() !== 0x30) throw new Error("Invalid SPKI");
-        readLen();
+        if (read() !== sequenceTag) throw new Error("DER parse: Invalid SPKI");
+        const derLength = 2 + readLen();
+        if (derLength > spkiDer.length)
+            throw new Error(`DER parse: out of bounds buffer read.
+Expected DER object length: ${derLength}, actual buffer size: ${spkiDer.length}`);
 
-        while (i < spkiDer.length) {
-            const tag = read();
-            const len = readLen();
+        // Read AlgorithmIdentifier
+        const algoTag = read();
+        if (algoTag !== sequenceTag) throw new Error(`DER parse: Invalid SPKI. Expected sequence at ${i - 1}`);
+        // Skip the algorithm and parameters here
+        const algoLen = readAlgoLen();
+        i += algoLen;
 
-            if (tag === 0x03) {
-                // BIT STRING
-                if (spkiDer[i] !== 0x00) {
-                    throw new Error("Unexpected unused bits");
-                }
-                const pubkey = spkiDer.slice(i + 1, i + len);
-                if (pubkey[0] !== 0x04) {
-                    throw new Error("Expected uncompressed public key");
-                }
+        const pubKeytag = read();
+        if (pubKeytag !== bitStringTag) throw new Error(`DER parse: Invalid SPKI. Expected bitsting at ${i - 1}`);
+        const pubKeyLen = readPubKeyLen();
 
-                const address = ethers.computeAddress(ethers.hexlify(pubkey));
-                return address;
-            }
-
-            i += len;
+        const pubkey = spkiDer.subarray(i, i + pubKeyLen);
+        if (pubkey[0] !== 0x04) {
+            throw new Error("DER parse: Expected uncompressed public key");
         }
 
-        throw new Error("Public key not found in SPKI");
+        const address = ethers.computeAddress(ethers.hexlify(pubkey));
+        return address;
     }
 
     private async signWithKms(digestHex: string): Promise<ethers.Signature> {
@@ -150,7 +159,7 @@ export class KmsSigner extends ethers.AbstractSigner {
     }
 }
 
-const SECP256K1_N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+const SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
 const SECP256K1_HALF_N = SECP256K1_N / 2n;
 
 function regionFromKmsArn(arn: string): string {
@@ -177,38 +186,47 @@ function normalizeLowS(s: bigint): bigint {
  */
 function parseEcdsaDerSignature(der: Uint8Array): { r: bigint; s: bigint } {
     let i = 0;
+    let derLength: number;
+
     const readByte = () => {
         if (i >= der.length) throw new Error("DER parse: out of bounds");
         return der[i++];
     };
     const readLen = (): number => {
         const b = readByte();
-        if ((b & 0x80) === 0) return b;
-        const n = b & 0x7f;
-        if (n === 0 || n > 4) throw new Error("DER parse: invalid length");
-        let len = 0;
-        for (let k = 0; k < n; k++) len = (len << 8) | readByte();
-        return len;
+        // Note that the highest bit indicates whether this is multibyte but we're going to ignore that here
+        if (b > 72) throw new Error(`DER parse: Invalid length for ECDSA signature ${b} at offset ${i}`);
+        return b;
+    };
+    const readLenInt = (): number => {
+        const b = readByte();
+        // Note that the highest bit indicates whether this is multibyte but we're going to ignore that here
+        if (b > 33) throw new Error(`DER parse: Invalid length for integer in ECDSA signature ${b}, at offset ${i}`);
+        return b;
     };
     const expectTag = (tag: number) => {
         const t = readByte();
         if (t !== tag) throw new Error(`DER parse: expected tag 0x${tag.toString(16)}, got 0x${t.toString(16)}`);
     };
     const readInt = (): bigint => {
-        expectTag(0x02); // INTEGER
-        const len = readLen();
-        const bytes = der.slice(i, i + len);
+        expectTag(integerTag);
+        const len = readLenInt();
+        // Is this out of bounds?
+        if (derLength < i + len) throw new Error(`DER parse: out of bounds integer read`);
+        const bytes = der.subarray(i, i + len);
+        // INTEGER is signed; ECDSA r/s are positive.
+        if ((bytes[0] & 0x80) > 0) throw new Error(`DER parse: expected positive integer at ${i}`);
         i += len;
-        // INTEGER is signed; ECDSA r/s are positive. Strip leading 0x00 if present.
-        let start = 0;
-        while (start < bytes.length - 1 && bytes[start] === 0x00) start++;
         let x = 0n;
-        for (let j = start; j < bytes.length; j++) x = (x << 8n) | BigInt(bytes[j]);
+        for (let j = 0; j < bytes.length; j++) x = (x << 8n) | BigInt(bytes[j]);
         return x;
     };
 
-    expectTag(0x30); // SEQUENCE
-    readLen(); // total length (not strictly needed)
+    expectTag(sequenceTag);
+    derLength = 2 + readLen();
+    if (derLength > der.length)
+        throw new Error(`DER parse: out of bounds buffer read.
+Expected DER object length: ${derLength}, actual buffer size: ${der.length}`);
     const r = readInt();
     const s = readInt();
     return { r, s };
