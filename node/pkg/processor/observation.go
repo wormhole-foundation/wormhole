@@ -96,7 +96,7 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 
 // handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and sends it to the delegateObsvSendC channel.
 // This should only be called by a delegated guardian for the chain.
-func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePublication) error {
+func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePublication) {
 	p.logger.Info("handleDelegateMessagePublication: CALLED - converting message to delegate observation",
 		zap.String("msgID", k.MessageIDString()),
 		zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
@@ -108,7 +108,7 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 			zap.String("msgID", k.MessageIDString()),
 			zap.Error(err),
 		)
-		return err
+		return
 	}
 	d.GuardianAddr = p.ourAddr.Bytes()
 	d.SentTimestamp = time.Now().Unix()
@@ -132,7 +132,6 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 			zap.Uint64("sequence", d.Sequence),
 		)
 	}
-	return nil
 }
 
 // This is the main message processing loop. It is responsible for handling messages that are
@@ -144,6 +143,7 @@ func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePubli
 // whether a message is ready to be processed from its perspective. This state is used by the
 // processor to determine whether a message should be processed or not. This occurs elsewhere
 // in the processor code.
+// Returns error if accountant fails to process message
 func (p *Processor) handleMessagePublication(ctx context.Context, k *node_common.MessagePublication) error {
 	if !p.processWithNotary(k) || !p.processWithGovernor(k) {
 		return nil
@@ -212,6 +212,7 @@ func (p *Processor) processWithGovernor(k *node_common.MessagePublication) bool 
 
 // processWithAccountant processes a message using the Accountant to check if it is ready to be published
 // (i.e. if it has enough observations).
+// Returns error if accountant fails to process message
 func (p *Processor) processWithAccountant(ctx context.Context, k *node_common.MessagePublication) error {
 	if p.acct != nil {
 		shouldPub, err := p.acct.SubmitObservation(k)
@@ -517,6 +518,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 }
 
 // handleDelegateObservation processes a delegate observation
+// Returns error if accountant fails to process message
 func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) error {
 	delegateObservationsReceivedTotal.Inc()
 
@@ -588,6 +590,7 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
 // This function assumes cfg corresponds to m.EmitterChain
+// Returns error if accountant fails to process message
 func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg *DelegatedGuardianChainConfig, m *gossipv1.DelegateObservation) error {
 	addr := common.BytesToAddress(m.GuardianAddr)
 	mp, err := delegateObservationToMessagePublication(m)
@@ -637,6 +640,7 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 // checkForDelegateQuorum checks for quorum after a delegate observation has been added to the state. If quorum is met, it runs the converted
 // MessagePublication through the normal message pipeline.
 // This function assumes cfg corresponds to mp.EmitterChain
+// Returns error if accountant fails to process message
 func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.MessagePublication, s *delegateState, cfg *DelegatedGuardianChainConfig) error {
 	// Determine which delegated config to use. The following cases are possible:
 	//
@@ -694,6 +698,7 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 }
 
 // delegateObservationToMessagePublication converts a DelegateObservation into a MessagePublication that can be passed through the normal processor pipeline.
+// Returns error on invalid delegate observation input
 func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*node_common.MessagePublication, error) {
 	if d == nil {
 		return nil, fmt.Errorf("nil delegate observation")
@@ -751,6 +756,7 @@ func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*
 
 // messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
 // This does not populate the GuardianAddr and SentTimestamp fields.
+// Returns error on invalid message publication input
 func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
 	if m == nil {
 		return nil, fmt.Errorf("nil message publication")

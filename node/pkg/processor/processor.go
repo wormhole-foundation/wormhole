@@ -497,11 +497,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					}
 
 					p.logger.Info("processor: sending delegate observation as delegated guardian", k.ZapFields()...)
-					if err := p.handleDelegateMessagePublication(k); err != nil {
-						p.logger.Warn("failed to send delegate observation", k.ZapFields(zap.Error(err))...)
-					} else {
-						p.logger.Info("processor: successfully queued delegate observation", k.ZapFields()...)
-					}
+					p.handleDelegateMessagePublication(k)
 
 					// Send messages to the Governor and/or the Accountant
 					if !p.processWithGovernor(k) {
@@ -591,11 +587,8 @@ func (p *Processor) Run(ctx context.Context) error {
 					if cfg != nil && len(cfg.Keys) > 0 {
 						_, ok := cfg.KeyIndex(p.ourAddr)
 						if ok {
-							if err := p.handleDelegateMessagePublication(msg); err != nil {
-								p.logger.Warn("failed to send delegate observation", msg.ZapFields(zap.Error(err))...)
-							} else {
-								p.logger.Info("processor: successfully queued delegate observation", msg.ZapFields()...)
-							}
+							p.logger.Info("processor: sending delegate observation as delegated guardian", msg.ZapFields()...)
+							p.handleDelegateMessagePublication(msg)
 						}
 					}
 
