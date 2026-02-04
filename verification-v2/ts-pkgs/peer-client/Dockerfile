@@ -20,6 +20,7 @@ ARG TLS_HOSTNAME
 ARG TLS_PORT
 ARG PEER_SERVER_URL
 # Provide exactly one of GUARDIAN_PRIVATE_KEY_ARN or mount guardian_pk secret
+# check=skip=SecretsUsedInArgOrEnv
 ARG GUARDIAN_PRIVATE_KEY_ARN
 
 RUN test -n "${TLS_HOSTNAME}" && \

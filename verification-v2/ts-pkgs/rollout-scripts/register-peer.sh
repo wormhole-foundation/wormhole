@@ -61,7 +61,7 @@ fi
 
 run_option=""
 if [ -n "${GUARDIAN_KEY_PATH:-}" ]; then
-    run_option+="--mount=type=secret,id=guardian_pk,src=${GUARDIAN_KEY_PATH} "
+    run_option+="--volume ${GUARDIAN_KEY_PATH}:/run/secrets/guardian_pk:ro"
 fi
 
 docker build ${builder_option} \
@@ -74,7 +74,7 @@ docker build ${builder_option} \
 
 docker run ${run_option} \
     --rm \
-    --mount=type=secret,id=cert.pem,src="${CERT_PATH}" \
+    --volume "${CERT_PATH}:/run/secrets/cert.pem:ro" \
     register-peer
 
 log_info "Registration complete"

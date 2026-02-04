@@ -71,12 +71,11 @@ done
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   # The host here refers to the builder host container, not the host machine.
-  docker build --builder dkg-builder --network=host --file ../../../peer-client/Dockerfile \
-    --secret "id=cert.pem,src=./out/$i/keys/cert.pem" \
+  docker build --file ../../../peer-client/Dockerfile \
     --build-arg "TLS_HOSTNAME=${TLS_HOSTNAME}$i" \
     --build-arg TLS_PORT=$((TLS_BASE_PORT + i)) \
     --build-arg PEER_SERVER_URL=${PEER_SERVER_URL} \
-    --tag "register-peer-$i"
+    --tag "register-peer-$i" \
     --progress=plain ../../../.. &
 done
 
@@ -84,13 +83,14 @@ wait
 
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
-  guardian_key_file="./out/$i/keys/guardian.key"
+  guardian_key_file="$PWD/out/$i/keys/guardian.key"
   createGuardianPrivateKeyFile "$i" "${guardian_key_file}"
 
   docker run \
+      --network dkg-test \
       --rm \
-      --mount=type=secret,id=cert.pem,src="${CERT_PATH}" \
-      --mount=type=secret,id=guardian_pk,src=${guardian_key_file} \
+      --volume "$PWD/out/$i/keys/cert.pem:/run/secrets/cert.pem:ro" \
+      --volume "${guardian_key_file}:/run/secrets/guardian_pk:ro" \
       "register-peer-$i" &
 done
 
