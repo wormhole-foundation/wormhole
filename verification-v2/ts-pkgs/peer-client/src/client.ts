@@ -151,9 +151,8 @@ export class PeerClient {
   }
 
   public async submitPeerData(): Promise<UploadResponse> {
-    const guardianPrivateKeyOrArn = this.config.guardianPrivateKeyOrArn;
-    if (guardianPrivateKeyOrArn === undefined) {
-      throw new Error(`Guardian private key path was not set`);
+    if (this.config.guardianKey === undefined) {
+      throw new Error(`Guardian key was not set`);
     }
     return this.run(() => this.signAndUploadPeerData(), "Uploading peer data...");
   }

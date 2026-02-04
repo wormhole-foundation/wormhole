@@ -6,16 +6,16 @@ export function isPrivateKey(guardianPrivateKeyOrArn: string): boolean {
     return guardianPrivateKeyOrArn.startsWith("0x");
 }
 
-export type CreateSignerConfig = Pick<PeerClientConfig, "guardianPrivateKeyOrArn">;
+export type CreateSignerConfig = Pick<PeerClientConfig, "guardianKey">;
 
 export function createSigner(config: CreateSignerConfig): ethers.Signer {
-    if (config.guardianPrivateKeyOrArn === undefined) {
+    if (config.guardianKey === undefined) {
         throw new Error("Guardian private key or ARN is required");
     }
 
-    if (isPrivateKey(config.guardianPrivateKeyOrArn)) {
-        return new ethers.Wallet(config.guardianPrivateKeyOrArn);
+    if (config.guardianKey.type === "key") {
+        return new ethers.Wallet(config.guardianKey.key);
     }
 
-    return new KmsSigner(config.guardianPrivateKeyOrArn, null);
+    return new KmsSigner(config.guardianKey.arn);
 }

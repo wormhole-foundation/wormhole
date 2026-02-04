@@ -38,11 +38,14 @@ export const WormholeConfigSchema = z.object({
   wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
 });
 
+export type GuardianKey =
+  | { type: "key"; key: string }
+  | { type: "ARN"; arn: string };
+
 // Config schema that reads from file paths and transforms to runtime values
 export const PeerClientConfigSchema = z.object({
-  // TODO: move this to specific CLI option/command type
-  guardianPrivateKeyPath: z.string().optional().transform((value) => value ?? undefined),
-  guardianPrivateKeyArn: z.string().optional().transform((value) => value ?? undefined),
+  guardianPrivateKeyPath: z.string().optional(),
+  guardianPrivateKeyArn: z.string().optional(),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
   wormhole: WormholeConfigSchema.optional(),
@@ -79,7 +82,11 @@ export const PeerClientConfigSchema = z.object({
 
   return {
     // guardianPrivateKeyOrArn can be undefined if neither is provided (for commands that don't need it)
-    guardianPrivateKeyOrArn: guardianPrivateKey ?? data.guardianPrivateKeyArn,
+    guardianKey: (guardianPrivateKey !== undefined ? {
+      type: "key", key: guardianPrivateKey
+    } : data.guardianPrivateKeyArn !== undefined ? {
+      type: "ARN", arn: data.guardianPrivateKeyArn
+    } : undefined) as GuardianKey | undefined,
     serverUrl: data.serverUrl,
     peer: {
       hostname: data.peer.hostname,
