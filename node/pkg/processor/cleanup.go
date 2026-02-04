@@ -317,7 +317,7 @@ func (p *Processor) handleDelegateCleanup() {
 
 		case !s.submitted && delta > retryLimitNotOurs:
 			// Unsubmitted delegate observations
-			// effectively the same timeout but 
+			// effectively the same timeout but
 			// different metric increased
 			p.logger.Info("expiring unsubmitted delegate observation after timeout",
 				zap.String("digest", hash),
