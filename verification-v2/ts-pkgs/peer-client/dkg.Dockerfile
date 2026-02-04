@@ -67,8 +67,7 @@ cat <<EOF > self_config.json
   },
   "wormhole": {
     "ethereum": {
-      "rpcUrl": "\${ETHEREUM_RPC_URL}",
-      "chainId": 1
+      "rpcUrl": "\${ETHEREUM_RPC_URL}"
     },
     "wormholeContractAddress": "\${WORMHOLE_CONTRACT_ADDRESS}"
   }

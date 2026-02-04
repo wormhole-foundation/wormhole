@@ -2,9 +2,9 @@ import fs from "fs";
 import path from "path";
 import process from "process";
 import {
-  SelfConfig,
+  PeerClientConfig,
   validateOrFail,
-  SelfConfigSchema,
+  PeerClientConfigSchema,
   Peer,
   errorStack,
   getWormholeGuardianData,
@@ -18,7 +18,7 @@ type ClientAction = "upload" | "poll";
  * CLI wrapper for PeerClient that handles configuration loading and file I/O
  */
 class ConfigClient {
-  private config: SelfConfig;
+  private config: PeerClientConfig;
   private client: PeerClient;
 
   constructor() {
@@ -26,7 +26,7 @@ class ConfigClient {
     this.client = new PeerClient(this.config);
   }
 
-  private loadConfig(): SelfConfig {
+  private loadConfig(): PeerClientConfig {
     const configPath = path.resolve("self_config.json");
 
     if (!fs.existsSync(configPath)) {
@@ -36,7 +36,7 @@ class ConfigClient {
 
     try {
       const configData = fs.readFileSync(configPath, 'utf-8');
-      return validateOrFail(SelfConfigSchema, JSON.parse(configData), "Invalid self_config.json");
+      return validateOrFail(PeerClientConfigSchema, JSON.parse(configData), "Invalid self_config.json");
     } catch (error) {
       console.error(`[ERROR] Invalid JSON in self_config.json: ${errorStack(error)}`);
       process.exit(1);

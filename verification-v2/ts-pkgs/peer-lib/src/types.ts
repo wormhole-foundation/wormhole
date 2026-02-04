@@ -3,16 +3,20 @@ import { readFileSync } from 'fs';
 import { checkTlsCertificate, parseGuardianKey } from './parseCrypto.js';
 import { errorMsg } from './error.js';
 
+const portSchema = z.int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535");
+
 /// Encodes the information necessary to construct the peer description message
 export const BasePeerSchema = z.object({
   hostname: z.string().min(1, "Hostname cannot be empty"),
-  port: z.number().int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
+  port: portSchema,
   tlsX509: z.string().min(1, "TlsX509 certificate cannot be empty"),
 });
 
+const guardianAddressSchema = z.string().startsWith("0x", "Guardian address must be an EVM address hex encoded with 0x prefix").length(42, "Guardian address must be an EVM address hex encoded with 0x prefix");
+
 export const GuardianSchema = z.object({
-  guardianAddress: z.string().min(1, "Guardian address cannot be empty"),
-  guardianIndex: z.number().int().min(0, "Guardian index must be non-negative"),
+  guardianAddress: guardianAddressSchema,
+  guardianIndex: z.int().min(0, "Guardian index must be non-negative"),
 });
 
 /// Contains the signature of the peer description message
@@ -24,19 +28,18 @@ export const PeerSchema = z.intersection(z.intersection(BasePeerSchema, Guardian
 
 export const PeerRegistrationSchema = z.intersection(
   z.object({ peer: BasePeerSchema }),
-  PeerSignatureSchema
+  PeerSignatureSchema,
 );
 
 export const WormholeConfigSchema = z.object({
   ethereum: z.object({
-    rpcUrl: z.url("Ethereum RPC URL must be a valid URL"),
-    chainId: z.number().int().min(1).optional()
+    rpcUrl: z.url("Ethereum RPC URL must be a valid URL")
   }),
   wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
 });
 
 // Config schema that reads from file paths and transforms to runtime values
-export const SelfConfigSchema = z.object({
+export const PeerClientConfigSchema = z.object({
   // TODO: move this to specific CLI option/command type
   guardianPrivateKeyPath: z.string().optional().transform((value) => value ?? undefined),
   guardianPrivateKeyArn: z.string().optional().transform((value) => value ?? undefined),
@@ -81,35 +84,37 @@ export const SelfConfigSchema = z.object({
     peer: {
       hostname: data.peer.hostname,
       port: data.peer.port,
-      tlsX509
+      tlsX509,
     },
     wormhole: data.wormhole,
   };
 });
 
+const thresholdSchema = z.int().min(1, "Threshold must be a positive integer");
+
 export const BaseServerConfigSchema = z.object({
-  port: z.number().int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535"),
-  threshold: z.number().int().min(1, "Threshold must be a positive integer"),
+  port: portSchema,
+  threshold: thresholdSchema,
   peerListStore: z.string().min(1, "Peer list store path cannot be empty"),
 });
 
 export const ServerConfigSchema = z.intersection(BaseServerConfigSchema, WormholeConfigSchema);
 
 export const WormholeGuardianDataSchema = z.object({
-  guardians: z.array(z.string().min(1, "Guardian addresses cannot be empty"))
+  guardians: z.array(guardianAddressSchema),
 });
 
 export const UploadResponseSchema = z.object({
   peer: PeerSchema,
-  threshold: z.number().int().min(1, "Threshold must be a positive integer")
+  threshold: thresholdSchema,
 });
 
 export const PeerArraySchema = z.array(PeerSchema);
 
 export const PeersResponseSchema = z.object({
   peers: PeerArraySchema,
-  threshold: z.number().int().min(1, "Threshold must be a positive integer"),
-  totalExpectedGuardians: z.number().int().min(1, "Total expected guardians must be a positive integer")
+  threshold: thresholdSchema,
+  totalExpectedGuardians: z.int().min(1, "Total expected guardians must be a positive integer")
 });
 
 // Type definitions inferred from Zod schemas
@@ -118,13 +123,16 @@ export type BasePeer = z.infer<typeof BasePeerSchema>;
 export type Guardian = z.infer<typeof GuardianSchema>;
 export type PeerSignature = z.infer<typeof PeerSignatureSchema>;
 export type PeerRegistration = z.infer<typeof PeerRegistrationSchema>;
-export type SelfConfig = z.infer<typeof SelfConfigSchema>;
+export type PeerClientConfig = z.infer<typeof PeerClientConfigSchema>;
 export type BaseServerConfig = z.infer<typeof BaseServerConfigSchema>;
 export type WormholeConfig = z.infer<typeof WormholeConfigSchema>;
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 export type WormholeGuardianData = z.infer<typeof WormholeGuardianDataSchema>;
 export type UploadResponse = z.infer<typeof UploadResponseSchema>;
 export type PeersResponse = z.infer<typeof PeersResponseSchema>;
+
+// We use this type in validation functions to avoid relying on unchecked input.
+export type UncheckedPeer = BasePeer & PeerSignature;
 
 export type ValidationError<T> = {
   success: true;
