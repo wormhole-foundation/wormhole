@@ -20,7 +20,7 @@ export SKIP_NEXT_STEP_HINT=1
 
 # Paths relative to ts-pkgs/peer-e2e/tests/e2e/ (the expected working directory)
 ROLLOUT_SCRIPTS_DIR="../../../rollout-scripts"
-OUTPUT_DIR="./rollout-scripts/out/0/keys"
+OUTPUT_DIR="./scripts/out/0/keys"
 
 mkdir -p "${OUTPUT_DIR}"
 
@@ -29,11 +29,11 @@ do
   sleep 1
 done
 
-"${ROLLOUT_SCRIPTS_DIR}/setup-peer-kms.sh" \
+"${ROLLOUT_SCRIPTS_DIR}/setup-peer.sh" \
+  --arn "${GUARDIAN_KMS_ARN}" \
   "${TLS_HOSTNAME}" \
   "${TLS_PUBLIC_IP}" \
   "${OUTPUT_DIR}" \
-  "${GUARDIAN_KMS_ARN}" \
   "${TLS_PORT}" \
   "${PEER_SERVER_URL}"
 
