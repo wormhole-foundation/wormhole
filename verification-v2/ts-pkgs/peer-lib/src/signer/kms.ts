@@ -122,6 +122,7 @@ Expected DER object length: ${derLength}, actual buffer size: ${spkiDer.length}`
         if (pubKeytag !== bitStringTag) throw new Error(`DER parse: Invalid SPKI. Expected bitsting at ${i - 1}`);
         const pubKeyLen = readPubKeyLen();
 
+        // Here, we skip over the unused bits count
         const pubkey = spkiDer.subarray(i+1, i + pubKeyLen);
         if (pubkey[0] !== 0x04) {
             throw new Error("DER parse: Expected uncompressed public key");
