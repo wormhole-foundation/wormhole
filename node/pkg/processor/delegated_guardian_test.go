@@ -86,9 +86,10 @@ func getNextConfigIndex(t *testing.T) uint64 {
 	return configIndex.Uint64()
 }
 
-func connectToEthereumRPC(t *testing.T, useDevnet bool) *ethclient.Client {
+// connectToEthereumRPC returns the client to ethDevnetRPC (or ethDevnet2RPC if useDevnet2 is true)
+func connectToEthereumRPC(t *testing.T, useDevnet2 bool) *ethclient.Client {
 	rpc := ethDevnetRPC
-	if useDevnet {
+	if useDevnet2 {
 		rpc = ethDevnet2RPC
 	}
 
