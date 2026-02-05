@@ -29,14 +29,14 @@ export class PeerClient {
   private async signPeerData(): Promise<PeerRegistration> {
     const { peer } = this.config;
     // Create wallet from private key
-    const signer = createSigner(this.config);
+    const signer = await createSigner(this.config);
     // Create message hash as per server implementation
     const messageHash = hashPeerData(peer);
     // Sign the message
     const signature = await signer.signMessage(ethers.getBytes(messageHash));
     const peerRegistration = {
       peer,
-      signature
+      signature,
     };
     // Validate the generated PeerRegistration
     return validateOrFail(PeerRegistrationSchema, peerRegistration, "Generated PeerRegistration is invalid");

@@ -4,7 +4,7 @@ import { ethers } from "ethers";
 
 export type CreateSignerConfig = Pick<PeerClientConfig, "guardianKey">;
 
-export function createSigner(config: CreateSignerConfig): ethers.Signer {
+export async function createSigner(config: CreateSignerConfig): Promise<ethers.Signer> {
     if (config.guardianKey === undefined) {
         throw new Error("Guardian private key or ARN is required");
     }
@@ -13,5 +13,5 @@ export function createSigner(config: CreateSignerConfig): ethers.Signer {
         return new ethers.Wallet(config.guardianKey.key);
     }
 
-    return new KmsSigner(config.guardianKey.arn);
+    return KmsSigner.create(config.guardianKey.arn);
 }

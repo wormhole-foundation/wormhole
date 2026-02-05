@@ -1,19 +1,33 @@
 import { ethers, resolveAddress, TypedDataDomain, TypedDataEncoder, TypedDataField } from "ethers";
 import { GetPublicKeyCommand, KMSClient, SignCommand } from "@aws-sdk/client-kms";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
 
 const sequenceTag = 0x30;
 const integerTag = 0x02;
 const bitStringTag = 0x03;
 
+type AwsCredentialIdentity = Awaited<ReturnType<ReturnType<typeof defaultProvider>>>;
+
 export class KmsSigner extends ethers.AbstractSigner {
-    private readonly kmsClient: KMSClient
+    private readonly kmsClient: KMSClient;
     private readonly region: string;
     private address: string | undefined;
+    static credentials: AwsCredentialIdentity;
 
-    constructor(private readonly arn: string, provider: ethers.Provider | null = null) {
+    private constructor(private readonly arn: string, provider: ethers.Provider | null = null) {
         super(provider);
+
         this.region = regionFromKmsArn(arn);
-        this.kmsClient = new KMSClient({ region: this.region });
+        this.kmsClient = new KMSClient({ region: this.region, credentials: KmsSigner.credentials });
+    }
+
+    static async create(arn: string, provider: ethers.Provider | null = null) {
+        if (this.credentials === undefined) {
+            const credentialsProvider = defaultProvider();
+            this.credentials = await credentialsProvider();
+        }
+
+        return new this(arn, provider);
     }
 
     connect(provider: null | ethers.Provider): KmsSigner {
