@@ -33,34 +33,37 @@ if [ ! -f "${OUTPUT_PEERS_FILE}" ]; then
 fi
 
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
+run_options=""
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
-    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
-    publish_options=""
+    run_options+="--network=${TSS_E2E_DOCKER_NETWORK} "
 else
-    publish_options="--publish ${SERVER_PORT}:${SERVER_PORT}"
-    network_option=""
+    run_options+="--publish ${SERVER_PORT}:${SERVER_PORT} "
+fi
+
+build_options=""
+if [ -n "${THRESHOLD:-}" ]; then
+    build_options+="--build-arg THRESHOLD=${THRESHOLD} "
 fi
 
 docker build \
     --tag peer-server \
     --file "${REPO_ROOT}/ts-pkgs/peer-server/Dockerfile" \
+    ${build_options} \
     --build-arg SERVER_PORT="${SERVER_PORT}" \
     --build-arg ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
     --build-arg OUTPUT_PEERS_FILE="${OUTPUT_PEERS_FILE}" \
     --build-arg WORMHOLE_ADDRESS="${WORMHOLE_ADDRESS}" \
     "${REPO_ROOT}"
 
-interactive_options="--interactive --tty"
-if [ -n "${NON_INTERACTIVE:-}" ]; then
-    interactive_options=""
+if [ -z "${NON_INTERACTIVE:-}" ]; then
+    run_options+="--interactive --tty "
 fi
 
 docker run \
     ${interactive_options} \
     --rm \
     --name peer-server \
-    ${publish_options} \
+    ${run_options} \
     --volume "${OUTPUT_PEERS_FILE}":/peerGuardians.json \
-    "${network_option}" \
     peer-server
 

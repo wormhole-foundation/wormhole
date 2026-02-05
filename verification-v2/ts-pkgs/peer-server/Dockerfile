@@ -2,6 +2,7 @@ FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a679150
 
 ARG SERVER_PORT
 ARG ETHEREUM_RPC_URL
+ARG THRESHOLD=13
 ARG WORMHOLE_ADDRESS=0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
 
 RUN mkdir --parents verification-v2/ts-pkgs/peer-server verification-v2/ts-pkgs/peer-lib
@@ -32,7 +33,7 @@ COPY <<EOT config.json
     "rpcUrl": "${ETHEREUM_RPC_URL}"
   },
   "wormholeContractAddress": "${WORMHOLE_ADDRESS}",
-  "threshold": 13,
+  "threshold": ${THRESHOLD},
   "peerListStore": "/peerGuardians.json"
 }
 EOT
