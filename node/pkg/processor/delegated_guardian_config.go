@@ -35,6 +35,7 @@ var nonDelegableChains = map[vaa.ChainID]struct{}{
 }
 
 type DelegatedGuardianChainConfig struct {
+	// TODO: Use map[common.Address]struct{} instead
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address
 
