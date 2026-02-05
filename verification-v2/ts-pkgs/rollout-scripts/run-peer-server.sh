@@ -51,7 +51,7 @@ docker build \
     "${REPO_ROOT}"
 
 interactive_options="--interactive --tty"
-if [ -n "${NON_INTERACTIVE}" ]; then
+if [ -n "${NON_INTERACTIVE:-}" ]; then
     interactive_options=""
 fi
 
