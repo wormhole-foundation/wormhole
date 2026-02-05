@@ -12,7 +12,7 @@ export class KmsSigner extends ethers.AbstractSigner {
     private readonly kmsClient: KMSClient;
     private readonly region: string;
     private address: string | undefined;
-    static credentials: AwsCredentialIdentity;
+    static credentials: AwsCredentialIdentity | undefined;
 
     private constructor(private readonly arn: string, provider: ethers.Provider | null = null) {
         super(provider);
