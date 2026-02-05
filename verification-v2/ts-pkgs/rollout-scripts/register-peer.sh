@@ -9,7 +9,7 @@ PROJECT_ROOT="${SCRIPT_DIR}/../.."
 log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; }
 
-if [ $# -lt 5 ]; then
+if [ $# -lt 6 ]; then
     echo "Usage: $0 <Guardian key option> <CERT_PATH> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL>"
     echo ""
     echo "Arguments:"
@@ -70,13 +70,13 @@ docker build ${builder_option} \
     --build-arg TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --build-arg TLS_PORT="${TLS_PORT}" \
     --build-arg PEER_SERVER_URL="${PEER_SERVER_URL}" \
-    --tag "register-peer${TSS_E2E_GUARDIAN_ID}" \
+    --tag "register-peer${TSS_E2E_GUARDIAN_ID:-}" \
     "${PROJECT_ROOT}"
 
 docker run ${run_option} \
     --rm \
     --volume "${CERT_PATH}:/run/secrets/cert.pem:ro" \
-    "register-peer${TSS_E2E_GUARDIAN_ID}"
+    "register-peer${TSS_E2E_GUARDIAN_ID:-}"
 
 log_info "Registration complete"
 

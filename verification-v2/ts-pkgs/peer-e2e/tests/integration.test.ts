@@ -115,6 +115,7 @@ describe('Peer Server Integration Tests', () => {
         guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
         serverUrl: serverUrl,
         peer: testPeers[i],
+        threshold: 1,
       };
       const selfConfig = validateOrFail(PeerClientConfigSchema, clientConfig, "Invalid client config");
       const client = new PeerClient(selfConfig, pollingPeriod);
@@ -211,6 +212,7 @@ describe('Peer Server Integration Tests', () => {
           guardianPrivateKeyPath: path.join(testDir, `guardian-${i}-key.txt`),
           serverUrl: serverUrl,
           peer: testPeers[i],
+          threshold: 1,
         };
         const selfConfig = validateOrFail(PeerClientConfigSchema, clientConfig, "Invalid client config");
         clientConfigs.push(selfConfig);

@@ -60,7 +60,6 @@ if [ -z "${NON_INTERACTIVE:-}" ]; then
 fi
 
 docker run \
-    ${interactive_options} \
     --rm \
     --name peer-server \
     ${run_options} \
