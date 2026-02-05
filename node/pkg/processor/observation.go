@@ -608,6 +608,15 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 		)
 		delegateObservationsFailedTotal.WithLabelValues("invalid_emitter_chain").Inc()
 		return nil
+	} else if _, isNonDelegable := nonDelegableChains[c]; isNonDelegable {
+		p.logger.Warn("ignoring delegate observation from non-delegable emitter chain",
+			zap.Uint32("emitter_chain", m.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
+			zap.Uint64("sequence", m.Sequence),
+			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+		)
+		delegateObservationsFailedTotal.WithLabelValues("non_delegable_emitter_chain").Inc()
+		return nil
 	}
 
 	cfg := p.dgc.GetChainConfig(c)
