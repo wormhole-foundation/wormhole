@@ -27,6 +27,12 @@ var (
 	)
 )
 
+// Chains like Ethereum and Solana should not be delegated due to their governance implications
+var nonDelegableChains = map[vaa.ChainID]struct{}{
+	vaa.ChainIDEthereum: {},
+	vaa.ChainIDSolana:   {},
+}
+
 type DelegatedGuardianChainConfig struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address
