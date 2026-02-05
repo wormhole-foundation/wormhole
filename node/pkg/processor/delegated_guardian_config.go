@@ -27,10 +27,11 @@ var (
 	)
 )
 
-// Chains like Ethereum and Solana should not be delegated due to their governance implications
+// Chains like Ethereum, Solana, and Wormchain should not be delegated due to their governance implications
 var nonDelegableChains = map[vaa.ChainID]struct{}{
-	vaa.ChainIDEthereum: {},
-	vaa.ChainIDSolana:   {},
+	vaa.ChainIDEthereum:  {},
+	vaa.ChainIDSolana:    {},
+	vaa.ChainIDWormchain: {},
 }
 
 type DelegatedGuardianChainConfig struct {
