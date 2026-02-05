@@ -77,10 +77,15 @@ class ConfigClient {
     if (action === "upload") {
       await this.client.submitPeerData();
     } else {
-      if (this.config.wormhole === undefined) {
+      if (this.config.wormhole === undefined)
         throw new Error(`Wormhole configuration was not set`);
-      }
+      if (this.config.threshold === undefined)
+        throw new Error(`Threshold configuration was not set`);
+
       const wormholeData = await getWormholeGuardianData(this.config.wormhole);
+      if (this.config.threshold > wormholeData.guardians.length)
+        throw new Error(`Threshold expected exceeds number of guardians! Threshold: ${this.config.threshold}, Guardians: ${wormholeData.guardians.length}`);
+
       const response = await this.client.waitForAllPeers(wormholeData);
       console.log(`[INFO] All peers fetched`);
       // Save the final configuration

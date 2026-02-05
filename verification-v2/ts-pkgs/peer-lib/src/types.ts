@@ -5,6 +5,8 @@ import { errorMsg } from './error.js';
 
 const portSchema = z.int().min(1, "Port must be between 1 and 65535").max(65535, "Port must be between 1 and 65535");
 
+const thresholdSchema = z.int().min(1, "Threshold must be a positive integer");
+
 /// Encodes the information necessary to construct the peer description message
 export const BasePeerSchema = z.object({
   hostname: z.string().min(1, "Hostname cannot be empty"),
@@ -48,6 +50,7 @@ export const PeerClientConfigSchema = z.object({
   guardianPrivateKeyArn: z.string().optional(),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
+  threshold: thresholdSchema.optional(),
   wormhole: WormholeConfigSchema.optional(),
 }).transform((data) => {
   // Validate that at most one of guardianPrivateKeyPath or guardianPrivateKeyArn is set
@@ -88,6 +91,7 @@ export const PeerClientConfigSchema = z.object({
       type: "ARN", arn: data.guardianPrivateKeyArn
     } : undefined) as GuardianKey | undefined,
     serverUrl: data.serverUrl,
+    threshold: data.threshold,
     peer: {
       hostname: data.peer.hostname,
       port: data.peer.port,
@@ -96,8 +100,6 @@ export const PeerClientConfigSchema = z.object({
     wormhole: data.wormhole,
   };
 });
-
-const thresholdSchema = z.int().min(1, "Threshold must be a positive integer");
 
 export const BaseServerConfigSchema = z.object({
   port: portSchema,

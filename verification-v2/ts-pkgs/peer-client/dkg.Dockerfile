@@ -55,6 +55,10 @@ if [ -z "\${WORMHOLE_CONTRACT_ADDRESS}" ]; then
   echo "WORMHOLE_CONTRACT_ADDRESS is not set"
   exit 1
 fi
+if [ -z "\${THRESHOLD}" ]; then
+  echo "THRESHOLD is not set"
+  exit 1
+fi
 
 # This is the config for the peer client
 cat <<EOF > self_config.json
@@ -65,6 +69,7 @@ cat <<EOF > self_config.json
     "port": \${TLS_PORT},
     "tlsX509": "/keys/cert.pem"
   },
+  "threshold": \${THRESHOLD},
   "wormhole": {
     "ethereum": {
       "rpcUrl": "\${ETHEREUM_RPC_URL}"

@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
-if [ $# -lt 6 ]; then
+if [ $# -lt 7 ]; then
     echo "Usage: $0 <Guardian key option> <TLS_HOSTNAME> <TLS_PUBLIC_IP> <OUTPUT_DIR> <TLS_PORT> <PEER_SERVER_URL>"
     echo ""
     echo "Arguments:"

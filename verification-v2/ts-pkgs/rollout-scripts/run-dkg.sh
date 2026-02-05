@@ -45,31 +45,30 @@ if [ ! -f "${TLS_KEYS_DIR}/cert.pem" ]; then
 fi
 
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
-network_option=""
-publish_option="--publish ${TLS_PORT}:${TLS_PORT}"
+run_options=""
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
-    network_option="--network=${TSS_E2E_DOCKER_NETWORK}"
-    publish_option=""
+    run_options+="--network=${TSS_E2E_DOCKER_NETWORK} "
+else
+    run_options+="--publish ${TLS_PORT}:${TLS_PORT} "
 fi
 
-wormhole_option=""
 if [ -n "${WORMHOLE_ADDRESS}" ]; then
-    wormhole_option="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS}"
+    run_options="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} "
 fi
+
+run_options+="--env THRESHOLD=${THRESHOLD:13}"
 
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
 
 docker run \
     --rm \
     --name "${TLS_HOSTNAME}" \
-    ${network_option} \
-    ${publish_option} \
+    ${run_options} \
     --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
     --env TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --env TLS_PORT="${TLS_PORT}" \
     --env PEER_SERVER_URL="${PEER_SERVER_URL}" \
     --env ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
-    ${wormhole_option} \
     "dkg-client${TSS_E2E_GUARDIAN_ID}"
 
 

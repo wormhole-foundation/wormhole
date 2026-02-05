@@ -226,3 +226,4 @@ jobs:
     - name: Run E2E DKG ceremony
       run: ./e2e.sh
       working-directory: ./verification-v2/ts-pkgs/peer-e2e/tests/e2e/
+      shell: bash
