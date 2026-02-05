@@ -12,10 +12,10 @@
     "@xlabs-xyz/peer-server": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.10.10",
     "ethers": "^6.16.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.18"
   },
   "author": "",
   "license": "Apache-2.0"

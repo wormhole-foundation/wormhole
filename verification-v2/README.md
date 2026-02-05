@@ -2,6 +2,8 @@
 
 `make test` builds and runs the tests for Solana and EVM implementations.
 
+If you want to edit typescript in this directory, it's better to open `verification-v2` in your VSCode compatible editor. There are settings to resolve the yarn dependencies automatically for typescript.
+
 ## Verifiable build
 
 ### EVM

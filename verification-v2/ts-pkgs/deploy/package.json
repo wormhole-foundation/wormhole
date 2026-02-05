@@ -10,13 +10,13 @@
   "license": "Apache-2.0",
   "description": "",
   "dependencies": {
-    "@wormhole-foundation/sdk": "^4.5.0",
+    "@wormhole-foundation/sdk": "^4.9.1",
     "@xlabs-xyz/peer-lib": "workspace:*",
-    "viem": "^2.41.2",
+    "viem": "^2.45.1",
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.10.10",
     "@types/yargs": "^17.0.35",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

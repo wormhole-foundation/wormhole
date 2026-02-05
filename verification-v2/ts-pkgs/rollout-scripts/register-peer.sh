@@ -1,6 +1,5 @@
 #!/bin/bash
 # Sign and upload guardian peer data to the peer discovery server.
-# Usage: ./register-peer.sh <GUARDIAN_KEY_PATH> <CERT_PATH> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL>
 
 set -euo pipefail
 
@@ -11,25 +10,35 @@ log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; }
 
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 <GUARDIAN_KEY_PATH> <CERT_PATH> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL>"
+    echo "Usage: $0 <Guardian key option> <CERT_PATH> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL>"
     echo ""
     echo "Arguments:"
-    echo "  GUARDIAN_KEY_PATH - Path to the guardian's Wormhole private key"
-    echo "  CERT_PATH         - Path to the TLS certificate"
-    echo "  TLS_HOSTNAME      - Hostname for this guardian's DKG server"
-    echo "  TLS_PORT          - Port for this guardian's DKG server"
-    echo "  PEER_SERVER_URL   - URL of the peer discovery server"
+    echo "  CERT_PATH           - Path to the TLS certificate"
+    echo "  TLS_HOSTNAME        - Hostname for this guardian's DKG server"
+    echo "  TLS_PORT            - Port for this guardian's DKG server"
+    echo "  PEER_SERVER_URL     - URL of the peer discovery server"
+    echo "Guardian key option must be exactly one of these:"
+    echo "  --key <KEY_PATH>    - Path to the guardian's Wormhole private key"
+    echo "  --arn <AWS_KMS_ARN> - ARN of AWS KMS key"
     exit 1
 fi
 
-GUARDIAN_KEY_PATH="$1"
-CERT_PATH="$2"
-TLS_HOSTNAME="$3"
-TLS_PORT="$4"
-PEER_SERVER_URL="$5"
+GUARDIAN_KEY_OPTION="$1"
+CERT_PATH="$3"
+TLS_HOSTNAME="$4"
+TLS_PORT="$5"
+PEER_SERVER_URL="$6"
 
-if [ ! -f "${GUARDIAN_KEY_PATH}" ]; then
-    log_error "Guardian key file not found: ${GUARDIAN_KEY_PATH}"
+if [ ${GUARDIAN_KEY_OPTION} == "--key" ]; then
+    GUARDIAN_KEY_PATH="$2"
+    if [ ! -f "${GUARDIAN_KEY_PATH}" ]; then
+        log_error "Guardian key file not found: ${GUARDIAN_KEY_PATH}"
+        exit 1
+    fi
+elif [ ${GUARDIAN_KEY_OPTION} == "--arn" ]; then
+    GUARDIAN_KEY_ARN="$2"
+else
+    log_error "Either '--key' or '--arn' option needs to be provided"
     exit 1
 fi
 
@@ -40,20 +49,34 @@ fi
 
 export DOCKER_BUILDKIT=1
 
-# TSS_E2E_DOCKER_BUILDER should NOT be used in production.
 builder_option=""
-if [ -n "${TSS_E2E_DOCKER_BUILDER:-}" ]; then
-    builder_option="--builder ${TSS_E2E_DOCKER_BUILDER} --network=host"
+if [ -n "${GUARDIAN_KEY_ARN:-}" ]; then
+    builder_option+="--build-arg GUARDIAN_KMS_ARN=${GUARDIAN_KEY_ARN} "
 fi
+
+run_option=""
+if [ -n "${GUARDIAN_KEY_PATH:-}" ]; then
+    run_option+="--volume ${GUARDIAN_KEY_PATH}:/run/secrets/guardian_pk:ro "
+fi
+
+# TSS_E2E_DOCKER_NETWORK should NOT be used in production.
+if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
+    run_option+="--network ${TSS_E2E_DOCKER_NETWORK} "
+fi
+
 
 docker build ${builder_option} \
     --file "${PROJECT_ROOT}/ts-pkgs/peer-client/Dockerfile" \
-    --secret id=guardian_pk,src="${GUARDIAN_KEY_PATH}" \
-    --secret id=cert.pem,src="${CERT_PATH}" \
     --build-arg TLS_HOSTNAME="${TLS_HOSTNAME}" \
     --build-arg TLS_PORT="${TLS_PORT}" \
     --build-arg PEER_SERVER_URL="${PEER_SERVER_URL}" \
+    --tag "register-peer${TSS_E2E_GUARDIAN_ID}" \
     "${PROJECT_ROOT}"
+
+docker run ${run_option} \
+    --rm \
+    --volume "${CERT_PATH}:/run/secrets/cert.pem:ro" \
+    "register-peer${TSS_E2E_GUARDIAN_ID}"
 
 log_info "Registration complete"
 

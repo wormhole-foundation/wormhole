@@ -9,10 +9,11 @@ RUN mkdir --parents /verification-v2/src
 COPY foundry.toml Makefile /verification-v2/
 COPY src/evm /verification-v2/src/evm
 COPY test /verification-v2/test
-COPY ts-pkgs/peer-e2e/tests/e2e/anvil/localAnvilWithVerifier.sh /verification-v2/
+COPY ts-pkgs/peer-e2e/tests/e2e/anvil/localAnvilForKms.sh /verification-v2/
 
 WORKDIR /verification-v2
 
 RUN make build-evm
 
-ENTRYPOINT ["./localAnvilWithVerifier.sh"]
+ENTRYPOINT ["./localAnvilForKms.sh"]
+

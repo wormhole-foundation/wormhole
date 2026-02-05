@@ -10,8 +10,8 @@ USER foundry
 
 WORKDIR /app
 COPY foundry.toml foundry.toml
-COPY --link lib/wormhole-solidity-sdk lib/wormhole-solidity-sdk
-COPY --link src/evm src/evm
+COPY lib/wormhole-solidity-sdk lib/wormhole-solidity-sdk
+COPY src/evm src/evm
 
 # forge logs "errors" and warnings to the standard output
 # Luckily, the only warning here is that forge's solidity compiler cache is missing.

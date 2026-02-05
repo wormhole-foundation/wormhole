@@ -38,15 +38,24 @@ export const WormholeConfigSchema = z.object({
   wormholeContractAddress: z.string().min(1, "Wormhole contract address cannot be empty"),
 });
 
+export type GuardianKey =
+  | { type: "key"; key: string }
+  | { type: "ARN"; arn: string };
+
 // Config schema that reads from file paths and transforms to runtime values
 export const PeerClientConfigSchema = z.object({
-  // TODO: move this to specific CLI option/command type
-  guardianPrivateKeyPath: z.string().min(1, "Guardian private key path cannot be empty").optional(),
+  guardianPrivateKeyPath: z.string().optional(),
+  guardianPrivateKeyArn: z.string().optional(),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
   wormhole: WormholeConfigSchema.optional(),
 }).transform((data) => {
-  // Load and validate guardian private key
+  // Validate that at most one of guardianPrivateKeyPath or guardianPrivateKeyArn is set
+  if (data.guardianPrivateKeyPath !== undefined && data.guardianPrivateKeyArn !== undefined) {
+    throw new Error("Only one of guardianPrivateKeyPath or guardianPrivateKeyArn must be set, not both");
+  }
+
+  // Load and validate guardian private key from file if path is provided
   let guardianPrivateKey: string | undefined = undefined;
   if (data.guardianPrivateKeyPath !== undefined) {
     try {
@@ -72,7 +81,12 @@ export const PeerClientConfigSchema = z.object({
   }
 
   return {
-    guardianPrivateKey,
+    // guardianPrivateKeyOrArn can be undefined if neither is provided (for commands that don't need it)
+    guardianKey: (guardianPrivateKey !== undefined ? {
+      type: "key", key: guardianPrivateKey
+    } : data.guardianPrivateKeyArn !== undefined ? {
+      type: "ARN", arn: data.guardianPrivateKeyArn
+    } : undefined) as GuardianKey | undefined,
     serverUrl: data.serverUrl,
     peer: {
       hostname: data.peer.hostname,
@@ -107,7 +121,7 @@ export const PeerArraySchema = z.array(PeerSchema);
 export const PeersResponseSchema = z.object({
   peers: PeerArraySchema,
   threshold: thresholdSchema,
-  totalExpectedGuardians: z.int().min(1, "Total expected guardians must be a positive integer")
+  totalExpectedGuardians: z.int().positive("Total expected guardians must be a positive integer")
 });
 
 // Type definitions inferred from Zod schemas
