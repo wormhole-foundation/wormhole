@@ -86,10 +86,99 @@ func getNextConfigIndex(t *testing.T) uint64 {
 	return configIndex.Uint64()
 }
 
-func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consistencyLevel uint8) string {
-	client, err := ethclient.Dial(ethDevnet2RPC)
+func connectToEthereumRPC(t *testing.T, useDevnet bool) *ethclient.Client {
+	rpc := ethDevnetRPC
+	if useDevnet {
+		rpc = ethDevnet2RPC
+	}
+
+	client, err := ethclient.Dial(rpc)
 	require.NoError(t, err, "Failed to connect to Ethereum RPC")
 	defer client.Close()
+
+	return client
+
+}
+
+func createAndSubmitDelegatedGuardiansConfig(t *testing.T, config map[vaa.ChainID]vaa.DelegatedGuardianConfig) {
+	configIndex := getNextConfigIndex(t)
+	t.Logf("Creating delegated guardians config VAA with configIndex=%d", configIndex)
+
+	body, err := vaa.BodyDelegatedGuardiansSetConfig{
+		ConfigIndex: uint256.NewInt(configIndex),
+		Config:      config,
+	}.Serialize()
+	require.NoError(t, err, "Failed to serialize governance body")
+
+	timestamp := time.Now()
+	nonce := uint32(configIndex)
+	sequence := uint64(configIndex)
+	guardianSetIndex := uint32(0)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
+
+	for i := 0; i < numDevnetGuardians; i++ {
+		key := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(i))
+		v.AddSignature(key, uint8(i))
+	}
+
+	vaaBytes, err := v.Marshal()
+	require.NoError(t, err, "Failed to marshal VAA")
+
+	t.Logf("Created governance VAA with %d signatures", len(v.Signatures))
+	t.Logf("VAA hex: %s", hex.EncodeToString(vaaBytes))
+
+	submitConfigToDelegatedGuardians(t, vaaBytes)
+
+	t.Log("Governance VAA submitted successfully")
+}
+
+func submitConfigToDelegatedGuardians(t *testing.T, vaaBytes []byte) {
+	client := connectToEthereumRPC(t, false)
+
+	privateKey, err := eth_crypto.HexToECDSA(anvilPrivateKey)
+	require.NoError(t, err, "Failed to parse private key")
+
+	chainID, err := client.ChainID(context.Background())
+	require.NoError(t, err, "Failed to get chain ID")
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err, "Failed to create transactor")
+	auth.Value = big.NewInt(0)
+	auth.GasLimit = uint64(500000)
+
+	contractAddr := eth_common.HexToAddress(delegatedGuardiansContractAddr)
+
+	parsedABI, err := abi.JSON(strings.NewReader(delegatedGuardiansABI))
+	require.NoError(t, err, "Failed to parse ABI")
+
+	data, err := parsedABI.Pack("submitConfig", vaaBytes)
+	require.NoError(t, err, "Failed to pack submitConfig call")
+
+	nonce, err := client.PendingNonceAt(context.Background(), auth.From)
+	require.NoError(t, err, "Failed to get nonce")
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	require.NoError(t, err, "Failed to get gas price")
+
+	tx := types.NewTransaction(nonce, contractAddr, big.NewInt(0), auth.GasLimit, gasPrice, data)
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	require.NoError(t, err, "Failed to sign transaction")
+
+	err = client.SendTransaction(context.Background(), signedTx)
+	require.NoError(t, err, "Failed to send transaction")
+
+	t.Logf("Transaction sent: %s", signedTx.Hash().Hex())
+
+	receipt, err := bind.WaitMined(context.Background(), client, signedTx)
+	require.NoError(t, err, "Failed to wait for transaction")
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Transaction failed")
+
+	t.Logf("Transaction mined in block %d", receipt.BlockNumber.Uint64())
+}
+
+func publishMessageToEthereum(t *testing.T, nonce uint32, payload []byte, consistencyLevel uint8, useDevnet bool) string {
+	client := connectToEthereumRPC(t, useDevnet)
 
 	privateKey, err := eth_crypto.HexToECDSA(anvilPrivateKey)
 	require.NoError(t, err, "Failed to parse private key")
@@ -396,22 +485,23 @@ func sortObservations(observations []*gossipv1.Observation) {
 	})
 }
 
-// ensureEquivalentObservationBatches ensures all batches provided are equivalent.
-func ensureEquivalentObservationBatches(t *testing.T, batches ...*gossipv1.SignedObservationBatch) {
+// ensureEquivalentObservationBatches ensures all observation batches provided are equivalent.
+func ensureEquivalentObservationBatches(t *testing.T, batches ...[]*gossipv1.Observation) {
 	t.Helper()
-	require.NotEmpty(t, batches)
+	require.NotEmpty(t, batches, "Batches should not be empty")
 
 	for _, b := range batches {
-		sortObservations(b.Observations)
+		sortObservations(b)
 	}
 
 	sentinel := batches[0]
-	for _, b := range batches {
-		require.Equal(t, len(sentinel.Observations), len(b.Observations))
-		for idx := range sentinel.Observations {
-			require.True(t, bytes.Equal(sentinel.Observations[idx].Hash, b.Observations[idx].Hash))
-			require.True(t, bytes.Equal(sentinel.Observations[idx].TxHash, b.Observations[idx].TxHash))
-			require.Equal(t, sentinel.Observations[idx].MessageId, b.Observations[idx].MessageId)
+	for _, b := range batches[1:] {
+		require.Equal(t, len(sentinel), len(b), "Batches should have the same number of observations")
+		require.NotEmpty(t, b, "Batch should contain at least 1 Observation")
+		for idx := range sentinel {
+			require.True(t, bytes.Equal(sentinel[idx].Hash, b[idx].Hash), "Observations should have the same hash")
+			require.True(t, bytes.Equal(sentinel[idx].TxHash, b[idx].TxHash), "Observations should have the same transaction hash")
+			require.Equal(t, sentinel[idx].MessageId, b[idx].MessageId, "Observations should have the same message ID")
 		}
 	}
 }
@@ -419,21 +509,55 @@ func ensureEquivalentObservationBatches(t *testing.T, batches ...*gossipv1.Signe
 // ensureEquivalentDelegateObservations ensures all delegate observations provided are equivalent.
 func ensureEquivalentDelegateObservations(t *testing.T, observations ...*gossipv1.DelegateObservation) {
 	t.Helper()
-	require.NotEmpty(t, observations)
+	require.NotEmpty(t, observations, "Delegate observations should not be empty")
 
 	sentinel := observations[0]
 	for _, ob := range observations[1:] {
-		require.Equal(t, sentinel.Nonce, ob.Nonce)
-		require.Equal(t, sentinel.ConsistencyLevel, ob.ConsistencyLevel)
-		require.Equal(t, sentinel.EmitterChain, ob.EmitterChain)
-		require.True(t, bytes.Equal(sentinel.EmitterAddress, ob.EmitterAddress))
-		require.Equal(t, sentinel.Sequence, ob.Sequence)
-		require.True(t, bytes.Equal(sentinel.Payload, ob.Payload))
-		require.True(t, bytes.Equal(sentinel.TxHash, ob.TxHash))
+		require.Equal(t, sentinel.Nonce, ob.Nonce, "Delegate observations should have the same nonce")
+		require.Equal(t, sentinel.ConsistencyLevel, ob.ConsistencyLevel, "Delegate observations should have the same consistency level")
+		require.Equal(t, sentinel.EmitterChain, ob.EmitterChain, "Delegate observations should have the same emitter chain")
+		require.True(t, bytes.Equal(sentinel.EmitterAddress, ob.EmitterAddress), "Delegate observations should have the same emitter address")
+		require.Equal(t, sentinel.Sequence, ob.Sequence, "Delegate observations should have the same sequence")
+		require.True(t, bytes.Equal(sentinel.Payload, ob.Payload), "Delegate observations should have the same payload")
+		require.True(t, bytes.Equal(sentinel.TxHash, ob.TxHash), "Delegate observations should have the same transaction hash")
+	}
+}
+
+func logObservations(t *testing.T, observations ...*gossipv1.Observation) {
+	if len(observations) > 0 {
+		for i, obs := range observations {
+			t.Logf("\nObservation #%d:", i+1)
+			t.Logf("  MessageId: %s", obs.MessageId)
+			t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
+			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
+		}
+	} else {
+		t.Logf("\nNo Observations found")
+	}
+}
+
+func logDelegateObservations(t *testing.T, observations ...*gossipv1.DelegateObservation) {
+	if len(observations) > 0 {
+		t.Logf("\n=== All Delegate Observations ===")
+		for i, obs := range observations {
+			t.Logf("\nDelegate Observation #%d:", i+1)
+			t.Logf("  Timestamp: %d", obs.Timestamp)
+			t.Logf("  Nonce: %d", obs.Nonce)
+			t.Logf("  EmitterChain: %d", obs.EmitterChain)
+			t.Logf("  EmitterAddress: %s", hex.EncodeToString(obs.EmitterAddress))
+			t.Logf("  Sequence: %d", obs.Sequence)
+			t.Logf("  ConsistencyLevel: %d", obs.ConsistencyLevel)
+			t.Logf("  Payload: %s", hex.EncodeToString(obs.Payload))
+			t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
+			t.Logf("  GuardianAddr: %s", hex.EncodeToString(obs.GuardianAddr))
+		}
+	} else {
+		t.Logf("\n=== No Delegate Observations found ===")
 	}
 }
 
 func TestDelegateChainUndelegated(t *testing.T) {
+	// Undelegate chain 4
 	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
 		4: {
 			Threshold: 0,
@@ -448,54 +572,31 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
-	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200)
+	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, true)
 
 	time.Sleep(10 * time.Second)
 
 	messages := stopGossipCollector(t, collector)
-
-	// in this case we should not have delegated observations
-	assert.Equal(t, 0, len(messages.DelegateObservations))
-
-	t.Logf("\n=== All Delegate Observations ===")
-	for i, obs := range messages.DelegateObservations {
-		t.Logf("\nDelegate Observation #%d:", i+1)
-		t.Logf("  Timestamp: %d", obs.Timestamp)
-		t.Logf("  Nonce: %d", obs.Nonce)
-		t.Logf("  EmitterChain: %d", obs.EmitterChain)
-		t.Logf("  EmitterAddress: %s", hex.EncodeToString(obs.EmitterAddress))
-		t.Logf("  Sequence: %d", obs.Sequence)
-		t.Logf("  ConsistencyLevel: %d", obs.ConsistencyLevel)
-		t.Logf("  Payload: %s", hex.EncodeToString(obs.Payload))
-		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-		t.Logf("  GuardianAddr: %s", hex.EncodeToString(obs.GuardianAddr))
-	}
+	logDelegateObservations(t, messages.DelegateObservations...)
 
 	// No delegate observations should be produced
 	assert.Equal(t, 0, len(messages.DelegateObservations), "Expected no delegate observations")
 
-	// Guardian-1 and Guardian-2 should produce regular observations for chain 4
 	// We need to collect ALL observations from all batches, then filter by chain
+	allObs0 := messages.FindAllObservationsByGuardian(guardian0)
 	allObs1 := messages.FindAllObservationsByGuardian(guardian1)
 	allObs2 := messages.FindAllObservationsByGuardian(guardian2)
 
+	chain4Obs0 := filterObservationsByChain(allObs0, "4")
 	chain4Obs1 := filterObservationsByChain(allObs1, "4")
 	chain4Obs2 := filterObservationsByChain(allObs2, "4")
 
-	require.NotEmpty(t, chain4Obs1, "Guardian1 should have observations for chain 4")
-	require.NotEmpty(t, chain4Obs2, "Guardian2 should have observations for chain 4")
-
-	assert.Equal(t, 1, len(chain4Obs1), "Expected exactly 1 observation from guardian1 for chain 4")
-	assert.Equal(t, 1, len(chain4Obs2), "Expected exactly 1 observation from guardian2 for chain 4")
-
-	// Verify the observations match
-	require.Equal(t, chain4Obs1[0].MessageId, chain4Obs2[0].MessageId, "Observations should have same message ID")
-	require.True(t, bytes.Equal(chain4Obs1[0].Hash, chain4Obs2[0].Hash), "Observations should have same hash")
-
-	// Guardian-0 should NOT have observations for chain 4 since it doesn't watch that chain
-	allObs0 := messages.FindAllObservationsByGuardian(guardian0)
-	chain4Obs0 := filterObservationsByChain(allObs0, "4")
+	// - guardian-0 should NOT have observations for chain 4 since it doesn't watch that chain
 	require.Empty(t, chain4Obs0, "Guardian0 should NOT have observations for chain 4")
+
+	// - guardian-1 and guardian-2 should produce regular observations for chain 4
+	assert.Equal(t, 1, len(chain4Obs1), "Expected exactly 1 observation for chain 4")
+	ensureEquivalentObservationBatches(t, chain4Obs1, chain4Obs2)
 
 	// Filter VAAs to only include chain 4 VAAs (exclude governance VAAs on chain 2)
 	chain4VAAs := filterVAAsByChain(messages.VAAs, 4)
@@ -539,41 +640,27 @@ func TestDelegateObservationScenario(t *testing.T) {
 	collector := startGossipCollector(t)
 	defer collector.Stop()
 
-	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200)
+	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, true)
 
 	time.Sleep(10 * time.Second)
 
 	messages := stopGossipCollector(t, collector)
+	logDelegateObservations(t, messages.DelegateObservations...)
 
-	// ensure observation batches are as expected
-	assert.Equal(t, 2, len(messages.DelegateObservations))
+	// Ensure delegate observations are as expected
+	assert.Equal(t, 2, len(messages.DelegateObservations), "Expected 2 delegate observations")
 	ensureEquivalentDelegateObservations(t, messages.DelegateObservations...)
 
 	message0 := messages.DelegateObservations[0]
 	message1 := messages.DelegateObservations[1]
 
-	// we are expecting guardian 1 and 2 only to send delegated observations
+	// We are expecting guardian 1 and 2 only to send delegated observations
 	actualGuardians := []string{
 		hex.EncodeToString(message0.GuardianAddr),
 		hex.EncodeToString(message1.GuardianAddr),
 	}
-	assert.ElementsMatch(t, devnetGuardians[1:3], actualGuardians)
+	assert.ElementsMatch(t, devnetGuardians[1:3], actualGuardians, "Expected delegate observations to come from only guardian1 and guardian2")
 
-	t.Logf("\n=== All Delegate Observations ===")
-	for i, obs := range messages.DelegateObservations {
-		t.Logf("\nDelegate Observation #%d:", i+1)
-		t.Logf("  Timestamp: %d", obs.Timestamp)
-		t.Logf("  Nonce: %d", obs.Nonce)
-		t.Logf("  EmitterChain: %d", obs.EmitterChain)
-		t.Logf("  EmitterAddress: %s", hex.EncodeToString(obs.EmitterAddress))
-		t.Logf("  Sequence: %d", obs.Sequence)
-		t.Logf("  ConsistencyLevel: %d", obs.ConsistencyLevel)
-		t.Logf("  Payload: %s", hex.EncodeToString(obs.Payload))
-		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-		t.Logf("  GuardianAddr: %s", hex.EncodeToString(obs.GuardianAddr))
-	}
-
-	// All guardians should produce observations for chain 4
 	// We need to collect ALL observations from all batches, then filter by chain
 	allObs0 := messages.FindAllObservationsByGuardian(guardian0)
 	allObs1 := messages.FindAllObservationsByGuardian(guardian1)
@@ -586,139 +673,28 @@ func TestDelegateObservationScenario(t *testing.T) {
 	// All guardians should produce observation batches:
 	// - guardian-1 and guardian-2 watch chain 4 directly and emit delegate observations
 	// - guardian-0 receives delegate observations, reaches quorum, and produces a canonical observation
-	require.NotEmpty(t, chain4Obs0, "Expected observations from guardian0 after receiving delegate observations")
-	require.NotEmpty(t, chain4Obs1, "Expected observations from guardian1")
-	require.NotEmpty(t, chain4Obs2, "Expected observations from guardian2")
-
 	t.Logf("\n=== Chain 4 Observations from guardian0 ===")
-	for i, obs := range chain4Obs0 {
-		t.Logf("\nObservation #%d:", i+1)
-		t.Logf("  MessageId: %s", obs.MessageId)
-		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
-		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-	}
+	logObservations(t, chain4Obs0...)
 
 	t.Logf("\n=== Chain 4 Observations from guardian1 ===")
-	for i, obs := range chain4Obs1 {
-		t.Logf("\nObservation #%d:", i+1)
-		t.Logf("  MessageId: %s", obs.MessageId)
-		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
-		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-	}
+	logObservations(t, chain4Obs1...)
 
 	t.Logf("\n=== Chain 4 Observations from guardian2 ===")
-	for i, obs := range chain4Obs2 {
-		t.Logf("\nObservation #%d:", i+1)
-		t.Logf("  MessageId: %s", obs.MessageId)
-		t.Logf("  Hash: %s", hex.EncodeToString(obs.Hash))
-		t.Logf("  TxHash: %s", hex.EncodeToString(obs.TxHash))
-	}
+	logObservations(t, chain4Obs2...)
 
-	// ensure all guardians observed the same message
-	assert.Equal(t, 1, len(chain4Obs0), "Expected exactly 1 observation from guardian0 for chain 4")
-	assert.Equal(t, 1, len(chain4Obs1), "Expected exactly 1 observation from guardian1 for chain 4")
-	assert.Equal(t, 1, len(chain4Obs2), "Expected exactly 1 observation from guardian2 for chain 4")
+	// Ensure all guardians observed the same message
+	assert.Equal(t, 1, len(chain4Obs0), "Expected exactly 1 observation for chain 4")
+	ensureEquivalentObservationBatches(t, chain4Obs0, chain4Obs1, chain4Obs2)
 
-	require.Equal(t, chain4Obs0[0].MessageId, chain4Obs1[0].MessageId, "Observations should have same message ID")
-	require.Equal(t, chain4Obs0[0].MessageId, chain4Obs2[0].MessageId, "Observations should have same message ID")
-	require.True(t, bytes.Equal(chain4Obs0[0].Hash, chain4Obs1[0].Hash), "Observations should have same hash")
-	require.True(t, bytes.Equal(chain4Obs0[0].Hash, chain4Obs2[0].Hash), "Observations should have same hash")
-
-	// ensure canonical observations do not come before delegate quorum
-	// NOTE: we cannot use assert.Less since seconds is not enough precision
-	assert.LessOrEqual(t, int64(message0.Timestamp), message0.SentTimestamp)
-	assert.LessOrEqual(t, int64(message1.Timestamp), message1.SentTimestamp)
-
-	// ensure observation matches delegate observation
+	// Ensure observation matches delegate observation
 	mp, err := delegateObservationToMessagePublication(message0)
 	require.NoError(t, err, "Failed to convert delegate observation to message publication")
-
 	hash := mp.CreateDigest()
-	assert.Equal(t, hash, hex.EncodeToString(chain4Obs0[0].Hash))
-	assert.Equal(t, message0.TxHash, chain4Obs0[0].TxHash)
+	assert.Equal(t, hash, hex.EncodeToString(chain4Obs0[0].Hash), "Delegate observation and observation should have the same hash")
+	assert.Equal(t, message0.TxHash, chain4Obs0[0].TxHash, "Delegate observation and observation should have the same transaction hash")
 
-	// Verify that a VAA with quorum was produced
-	// Filter to only chain 4 VAAs to exclude governance VAAs
+	// Filter VAAs to only include chain 4 VAAs (exclude governance VAAs on chain 2)
 	chain4VAAs := filterVAAsByChain(messages.VAAs, 4)
 	require.Greater(t, len(chain4VAAs), 0, "Expected at least one VAA to be produced for chain 4")
 	t.Logf("VAA with quorum produced successfully (%d chain 4 VAA messages captured)", len(chain4VAAs))
-}
-
-func createAndSubmitDelegatedGuardiansConfig(t *testing.T, config map[vaa.ChainID]vaa.DelegatedGuardianConfig) {
-	configIndex := getNextConfigIndex(t)
-	t.Logf("Creating delegated guardians config VAA with configIndex=%d", configIndex)
-
-	body, err := vaa.BodyDelegatedGuardiansSetConfig{
-		ConfigIndex: uint256.NewInt(configIndex),
-		Config:      config,
-	}.Serialize()
-	require.NoError(t, err, "Failed to serialize governance body")
-
-	timestamp := time.Now()
-	nonce := uint32(configIndex)
-	sequence := uint64(configIndex)
-	guardianSetIndex := uint32(0)
-
-	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, body)
-
-	for i := 0; i < numDevnetGuardians; i++ {
-		key := devnet.InsecureDeterministicEcdsaKeyByIndex(uint64(i))
-		v.AddSignature(key, uint8(i))
-	}
-
-	vaaBytes, err := v.Marshal()
-	require.NoError(t, err, "Failed to marshal VAA")
-
-	t.Logf("Created governance VAA with %d signatures", len(v.Signatures))
-	t.Logf("VAA hex: %s", hex.EncodeToString(vaaBytes))
-
-	submitConfigToDelegatedGuardians(t, vaaBytes)
-
-	t.Log("Governance VAA submitted successfully")
-}
-
-func submitConfigToDelegatedGuardians(t *testing.T, vaaBytes []byte) {
-	client, err := ethclient.Dial(ethDevnetRPC)
-	require.NoError(t, err, "Failed to connect to Ethereum RPC")
-	defer client.Close()
-
-	privateKey, err := eth_crypto.HexToECDSA(anvilPrivateKey)
-	require.NoError(t, err, "Failed to parse private key")
-
-	chainID, err := client.ChainID(context.Background())
-	require.NoError(t, err, "Failed to get chain ID")
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err, "Failed to create transactor")
-	auth.Value = big.NewInt(0)
-	auth.GasLimit = uint64(500000)
-
-	contractAddr := eth_common.HexToAddress(delegatedGuardiansContractAddr)
-
-	parsedABI, err := abi.JSON(strings.NewReader(delegatedGuardiansABI))
-	require.NoError(t, err, "Failed to parse ABI")
-
-	data, err := parsedABI.Pack("submitConfig", vaaBytes)
-	require.NoError(t, err, "Failed to pack submitConfig call")
-
-	nonce, err := client.PendingNonceAt(context.Background(), auth.From)
-	require.NoError(t, err, "Failed to get nonce")
-
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	require.NoError(t, err, "Failed to get gas price")
-
-	tx := types.NewTransaction(nonce, contractAddr, big.NewInt(0), auth.GasLimit, gasPrice, data)
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
-	require.NoError(t, err, "Failed to sign transaction")
-
-	err = client.SendTransaction(context.Background(), signedTx)
-	require.NoError(t, err, "Failed to send transaction")
-
-	t.Logf("Transaction sent: %s", signedTx.Hash().Hex())
-
-	receipt, err := bind.WaitMined(context.Background(), client, signedTx)
-	require.NoError(t, err, "Failed to wait for transaction")
-	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status, "Transaction failed")
-
-	t.Logf("Transaction mined in block %d", receipt.BlockNumber.Uint64())
 }
