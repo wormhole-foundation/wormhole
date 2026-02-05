@@ -606,7 +606,54 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	require.Empty(t, chain4VAAs, "Expected no VAA to be produced")
 	t.Logf("VAAs produced: %d", len(messages.VAAs))
 
-	// we rollback configuration changes to devnet default config
+	// We rollback configuration changes to devnet default config
+	rollbackConfig := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
+		4: {
+			Threshold: 2,
+			Keys: []eth_common.Address{
+				eth_common.HexToAddress("0x" + guardian1),
+				eth_common.HexToAddress("0x" + guardian2),
+			},
+		},
+	}
+
+	createAndSubmitDelegatedGuardiansConfig(t, rollbackConfig)
+	t.Log("Waiting for guardian to pick up configuration...")
+	time.Sleep(20 * time.Second)
+}
+
+func TestNonDelegableChainDelegated(t *testing.T) {
+	// Delegate chain 2
+	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
+		2: {
+			Threshold: 1,
+			Keys: []eth_common.Address{
+				eth_common.HexToAddress("0x" + guardian0),
+				eth_common.HexToAddress("0x" + guardian1),
+				eth_common.HexToAddress("0x" + guardian2),
+			},
+		},
+	}
+
+	createAndSubmitDelegatedGuardiansConfig(t, config)
+	t.Log("Waiting for guardian to pick up configuration...")
+	time.Sleep(20 * time.Second)
+
+	collector := startGossipCollector(t)
+	defer collector.Stop()
+
+	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, false)
+
+	time.Sleep(10 * time.Second)
+
+	messages := stopGossipCollector(t, collector)
+	logDelegateObservations(t, messages.DelegateObservations...)
+
+	// Processor ignores this update since this is a non-delegable chain.
+	// Hence, no delegate observations should be produced
+	assert.Equal(t, 0, len(messages.DelegateObservations), "Expected no delegate observations")
+
+	// We rollback configuration changes to devnet default config
 	rollbackConfig := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
 		4: {
 			Threshold: 2,
