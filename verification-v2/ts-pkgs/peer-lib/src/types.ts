@@ -50,7 +50,7 @@ export const PeerClientConfigSchema = z.object({
   guardianPrivateKeyArn: z.string().optional(),
   serverUrl: z.url("Server URL must be a valid HTTP(S) URL"),
   peer: BasePeerSchema,
-  threshold: thresholdSchema,
+  threshold: thresholdSchema.optional(),
   wormhole: WormholeConfigSchema.optional(),
 }).transform((data) => {
   // Validate that at most one of guardianPrivateKeyPath or guardianPrivateKeyArn is set
