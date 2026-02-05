@@ -56,6 +56,8 @@ if [ -n "${WORMHOLE_ADDRESS}" ]; then
     run_options="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} "
 fi
 
+run_options+="--env THRESHOLD=${THRESHOLD:13}"
+
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
 
 docker run \
