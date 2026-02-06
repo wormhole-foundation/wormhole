@@ -1,6 +1,6 @@
 # Safety-Critical Code Standards
 
-This document outlines coding principles for Wormhole's mission-critical infrastructure. These are aspirational standards representing where we're heading through continuous improvement and preventing regression.
+This document outlines coding principles for Wormhole's mission-critical infrastructure. These are aspirational standards representing where we're heading through continuous improvement and preventing regressions.
 
 Wormhole secures billions of dollars in assets. A single bug can be catastrophic. Code quality is code security.
 
