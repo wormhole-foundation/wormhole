@@ -1131,10 +1131,8 @@ func TestValidateTransactionType_Missing(t *testing.T) {
 
 func TestValidateTransactionResult_Success(t *testing.T) {
 	p := NewParser(nil)
-	tx := transaction.FlatTransaction{
-		"meta": map[string]any{
-			"TransactionResult": "tesSUCCESS",
-		},
+	tx := GenericTx{
+		MetaTransactionResult: "tesSUCCESS",
 	}
 
 	err := p.validateTransactionResult(tx)
@@ -1154,10 +1152,8 @@ func TestValidateTransactionResult_Failed(t *testing.T) {
 
 	for _, code := range failureCodes {
 		t.Run(code, func(t *testing.T) {
-			tx := transaction.FlatTransaction{
-				"meta": map[string]any{
-					"TransactionResult": code,
-				},
+			tx := GenericTx{
+				MetaTransactionResult: code,
 			}
 
 			err := p.validateTransactionResult(tx)
@@ -1167,61 +1163,16 @@ func TestValidateTransactionResult_Failed(t *testing.T) {
 	}
 }
 
-func TestValidateTransactionResult_NoMeta(t *testing.T) {
+func TestValidateTransactionResult_EmptyResult(t *testing.T) {
 	p := NewParser(nil)
-	tx := transaction.FlatTransaction{
-		"Account": "rSomeAccount",
+	tx := GenericTx{
+		MetaTransactionResult: "",
 	}
 
-	// No meta field - strict validation requires meta
+	// Empty result should fail (not tesSUCCESS)
 	err := p.validateTransactionResult(tx)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no meta field")
-}
-
-func TestValidateTransactionResult_MalformedMeta(t *testing.T) {
-	p := NewParser(nil)
-
-	testCases := []struct {
-		name        string
-		tx          transaction.FlatTransaction
-		errContains string
-	}{
-		{
-			name: "meta not a map",
-			tx: transaction.FlatTransaction{
-				"meta": "not a map",
-			},
-			errContains: "meta field is not a map",
-		},
-		{
-			name: "TransactionResult missing",
-			tx: transaction.FlatTransaction{
-				"meta": map[string]any{
-					"other_field": "value",
-				},
-			},
-			errContains: "no TransactionResult field",
-		},
-		{
-			name: "TransactionResult not a string",
-			tx: transaction.FlatTransaction{
-				"meta": map[string]any{
-					"TransactionResult": 12345,
-				},
-			},
-			errContains: "TransactionResult is not a string",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Strict validation requires proper meta structure
-			err := p.validateTransactionResult(tc.tx)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tc.errContains)
-		})
-	}
+	assert.Contains(t, err.Error(), "not tesSUCCESS")
 }
 
 // =============================================================================
@@ -1489,9 +1440,6 @@ func TestParseTransactionStream_FailsOnNonSuccessResult(t *testing.T) {
 			"TransactionType": "Payment",
 			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
 			"Destination":     "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
-			"meta": map[string]any{
-				"TransactionResult": "tecUNFUNDED_PAYMENT",
-			},
 			"Memos": []any{
 				map[string]any{
 					"Memo": map[string]any{
@@ -1500,6 +1448,9 @@ func TestParseTransactionStream_FailsOnNonSuccessResult(t *testing.T) {
 					},
 				},
 			},
+		},
+		Meta: transaction.TxObjMeta{
+			TransactionResult: "tecUNFUNDED_PAYMENT",
 		},
 	}
 
@@ -2280,4 +2231,38 @@ func TestParseTransaction_ValidationTypeError(t *testing.T) {
 	_, err := p.ParseTransactionStream(tx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not Payment")
+}
+
+func TestParseTransaction_TransactionIndexOverflow(t *testing.T) {
+	p := NewParser(nil)
+
+	// Create a valid transaction but with TransactionIndex > MaxUint32
+	tx := &streamtypes.TransactionStream{
+		Hash:         "8A9ABA7F403A49F8AF8ADE4E54BE2BD5901FBD2E426C2844207D287A090AF55D",
+		LedgerIndex:  12345,
+		CloseTimeISO: "2024-01-15T10:30:00Z",
+		Validated:    true,
+		Transaction: transaction.FlatTransaction{
+			"TransactionType": "Payment",
+			"Account":         "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+			"Destination":     "rN7n3473SaZBCG4dFL83w7a1RXtXtbk2D9",
+			"Memos": []any{
+				map[string]any{
+					"Memo": map[string]any{
+						"MemoFormat": testNTTMemoFormat,
+						"MemoData":   sampleNTTMemoData,
+					},
+				},
+			},
+		},
+		Meta: transaction.TxObjMeta{
+			TransactionIndex:  math.MaxUint32 + 1, // Exceeds uint32 max
+			TransactionResult: "tesSUCCESS",
+			DeliveredAmount:   "1000000",
+		},
+	}
+
+	_, err := p.ParseTransactionStream(tx)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid transaction index")
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	addresscodec "github.com/Peersyst/xrpl-go/address-codec"
+	xrplcommon "github.com/Peersyst/xrpl-go/xrpl/queries/common"
 	streamtypes "github.com/Peersyst/xrpl-go/xrpl/queries/subscription/types"
 	"github.com/Peersyst/xrpl-go/xrpl/queries/transactions"
 	"github.com/Peersyst/xrpl-go/xrpl/transaction"
@@ -74,6 +75,18 @@ type Parser struct {
 	fetchMPTAssetScale MPTAssetScaleFetcher
 }
 
+// The stream and request return different transaction structs
+// This unifies them for parsing
+type GenericTx struct {
+	Transaction           transaction.FlatTransaction
+	Timestamp             time.Time
+	Hash                  string
+	LedgerIndex           xrplcommon.LedgerIndex
+	MetaDeliveredAmount   any
+	MetaTransactionIndex  uint64
+	MetaTransactionResult string
+}
+
 // NewParser creates a new Parser with the given MPT asset scale fetcher.
 func NewParser(fetchMPTAssetScale MPTAssetScaleFetcher) *Parser {
 	return &Parser{
@@ -96,14 +109,15 @@ func (p *Parser) ParseTransactionStream(tx *streamtypes.TransactionStream) (*com
 		return nil, fmt.Errorf("failed to parse close time: %w", err)
 	}
 
-	return p.parseTransaction(
-		tx.Transaction,
-		tx.Meta.DeliveredAmount,
-		string(tx.Hash),
-		uint64(tx.LedgerIndex),
-		uint64(tx.Meta.TransactionIndex),
-		timestamp,
-	)
+	return p.parseTransaction(GenericTx{
+		Transaction:           tx.Transaction,
+		Hash:                  string(tx.Hash),
+		LedgerIndex:           tx.LedgerIndex,
+		MetaDeliveredAmount:   tx.Meta.DeliveredAmount,
+		MetaTransactionIndex:  tx.Meta.TransactionIndex,
+		MetaTransactionResult: tx.Meta.TransactionResult,
+		Timestamp:             timestamp,
+	})
 }
 
 // ParseTxResponse converts a TxResponse (from reobservation) into a MessagePublication.
@@ -117,14 +131,15 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 	}
 	timestamp := time.Unix(int64(tx.Date)+rippleEpochOffset, 0)
 
-	return p.parseTransaction(
-		tx.TxJSON,
-		tx.Meta.DeliveredAmount,
-		string(tx.Hash),
-		uint64(tx.LedgerIndex),
-		uint64(tx.Meta.TransactionIndex),
-		timestamp,
-	)
+	return p.parseTransaction(GenericTx{
+		Transaction:           tx.TxJSON,
+		Hash:                  tx.Hash.String(),
+		LedgerIndex:           tx.LedgerIndex,
+		MetaDeliveredAmount:   tx.Meta.DeliveredAmount,
+		MetaTransactionIndex:  tx.Meta.TransactionIndex,
+		MetaTransactionResult: tx.Meta.TransactionResult,
+		Timestamp:             timestamp,
+	})
 }
 
 // parseTransaction contains the shared logic for parsing both TransactionStream and TxResponse.
@@ -133,15 +148,10 @@ func (p *Parser) ParseTxResponse(tx *transactions.TxResponse) (*common.MessagePu
 // SECURITY: This function does not verify that the transaction is included in a validated ledger.
 // Callers MUST check the Validated field before calling this function.
 func (p *Parser) parseTransaction(
-	txJSON transaction.FlatTransaction,
-	deliveredAmount any,
-	txHashHex string,
-	ledgerIndex uint64,
-	txIndex uint64,
-	timestamp time.Time,
+	tx GenericTx,
 ) (*common.MessagePublication, error) {
 	// Parse memo data first - if no NTT memo, this isn't an NTT transaction
-	memo, err := p.parseMemoData(txJSON)
+	memo, err := p.parseMemoData(tx.Transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -150,30 +160,30 @@ func (p *Parser) parseTransaction(
 	}
 
 	// Validate transaction result is tesSUCCESS
-	if err := p.validateTransactionResult(txJSON); err != nil {
+	if err := p.validateTransactionResult(tx); err != nil {
 		return nil, err
 	}
 
 	// Validate transaction type is Payment
-	if err := p.validateTransactionType(txJSON); err != nil {
+	if err := p.validateTransactionType(tx.Transaction); err != nil {
 		return nil, err
 	}
 
 	// Extract sender address
-	sender, err := p.extractSender(txJSON)
+	sender, err := p.extractSender(tx.Transaction)
 	if err != nil {
 		return nil, err
 	}
 
 	// Extract destination address (the NTT manager on XRPL)
-	destination, err := p.extractDestination(txJSON)
+	destination, err := p.extractDestination(tx.Transaction)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse delivered amount to get token info
 	// This also validates: non-zero amount, memo.fromDecimals matches token type
-	tokenInfo, err := p.parseDeliveredAmount(deliveredAmount, memo)
+	tokenInfo, err := p.parseDeliveredAmount(tx.MetaDeliveredAmount, memo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse delivered amount: %w", err)
 	}
@@ -187,13 +197,19 @@ func (p *Parser) parseTransaction(
 	}
 
 	// Extract transaction hash (32 bytes)
-	txHash, err := hex.DecodeString(txHashHex)
+	txHash, err := hex.DecodeString(tx.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode tx hash: %w", err)
 	}
 
+	// This should never happen based on the current rippled implementation
+	// https://github.com/XRPLF/rippled/blob/677758b1cc9d8afc190582a75160425096708f54/include/xrpl/protocol/detail/sfields.macro#L77
+	if tx.MetaTransactionIndex > math.MaxUint32 {
+		return nil, fmt.Errorf("invalid transaction index: %d", tx.MetaTransactionIndex)
+	}
+
 	// Calculate sequence: (ledgerIndex << 32) | txIndex
-	sequence := (ledgerIndex << 32) | txIndex
+	sequence := (uint64(tx.LedgerIndex.Uint32()) << 32) | tx.MetaTransactionIndex
 
 	// Convert destination (payment recipient) to source NTT manager (32-byte left-padded)
 	sourceNTTManager, err := p.addressToEmitter(destination)
@@ -219,7 +235,7 @@ func (p *Parser) parseTransaction(
 
 	return &common.MessagePublication{
 		TxID:      txHash,
-		Timestamp: timestamp,
+		Timestamp: tx.Timestamp,
 		Nonce:     0, // NTT payloads do not include a nonce
 		// See: https://github.com/wormhole-foundation/native-token-transfers/blob/fbe42df37ba19d3c05db8bb77b56c47fc0467c0e/evm/src/Transceiver/WormholeTransceiver/WormholeTransceiver.sol#L134
 		Sequence:         sequence,
@@ -238,29 +254,9 @@ func (p *Parser) parseTransaction(
 // validateTransactionResult checks that the transaction result is tesSUCCESS.
 // Returns nil if valid, or an error describing why the transaction should be skipped.
 // This function is strict - if the result cannot be determined, it returns an error.
-func (p *Parser) validateTransactionResult(tx transaction.FlatTransaction) error {
-	metaRaw, ok := tx["meta"]
-	if !ok {
-		return fmt.Errorf("transaction has no meta field")
-	}
-
-	meta, ok := metaRaw.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("transaction meta field is not a map")
-	}
-
-	resultRaw, ok := meta["TransactionResult"]
-	if !ok {
-		return fmt.Errorf("transaction meta has no TransactionResult field")
-	}
-
-	result, ok := resultRaw.(string)
-	if !ok {
-		return fmt.Errorf("transaction TransactionResult is not a string")
-	}
-
-	if result != tesSUCCESS {
-		return fmt.Errorf("transaction result is %s, not %s", result, tesSUCCESS)
+func (p *Parser) validateTransactionResult(tx GenericTx) error {
+	if tx.MetaTransactionResult != tesSUCCESS {
+		return fmt.Errorf("transaction result is %s, not %s", tx.MetaTransactionResult, tesSUCCESS)
 	}
 
 	return nil
