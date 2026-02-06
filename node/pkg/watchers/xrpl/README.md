@@ -12,10 +12,11 @@ NTT messages are wrapped in an outermost [TransceiverMessage](https://github.com
 [4]byte  prefix = 0x9945FF10           //
 [32]byte source_ntt_manager_address    // WH universal address of the source manager
 [32]byte recipient_ntt_manager_address // WH universal address of the destination manager
-uint16   ntt_manager_payload_length    // 143
+uint16   ntt_manager_payload_length    // 145
 --- (payload)
 [32]byte  id                           // a unique message identifier
 [32]byte  sender                       // original message sender address
+uint16    payload_length               // internal payload length
 [4]byte   prefix = 0x994E5454          // 0x99'N''T''T'
 uint8     decimals                     // number of decimals for the amount
 uint64    amount                       // amount being transferred
@@ -127,10 +128,11 @@ uint8    consistency_level             // 0
 [4]byte  prefix = 0x9945FF10           //
 [32]byte source_ntt_manager_address    // same as destination account
 [32]byte recipient_ntt_manager_address // ** memo data
-uint16   ntt_manager_payload_length    // 143
+uint16   ntt_manager_payload_length    // 145
 // - Manager Payload
 [32]byte  id                           // sequence
 [32]byte  sender                       // account (payment sender)
+uint16    payload_length               // 79
 [4]byte   prefix = 0x994E5454          // 0x99'N''T''T'
 uint8     decimals                     // ** memo data
 uint64    amount                       // delivered amount * see note

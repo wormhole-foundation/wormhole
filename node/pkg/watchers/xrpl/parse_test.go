@@ -767,7 +767,7 @@ func TestBuildNTTPayload_Structure(t *testing.T) {
 	)
 
 	// Verify payload length
-	assert.Equal(t, 215, len(payload))
+	assert.Equal(t, 217, len(payload))
 
 	// Verify transceiver prefix
 	assert.Equal(t, transceiverPrefix[:], payload[0:4])
@@ -780,24 +780,28 @@ func TestBuildNTTPayload_Structure(t *testing.T) {
 
 	// Verify ntt_manager_payload_length
 	payloadLen := binary.BigEndian.Uint16(payload[68:70])
-	assert.Equal(t, uint16(143), payloadLen)
+	assert.Equal(t, uint16(145), payloadLen)
+
+	// Verify payload_length (internal NTT payload length)
+	internalPayloadLen := binary.BigEndian.Uint16(payload[134:136])
+	assert.Equal(t, uint16(79), internalPayloadLen)
 
 	// Verify NTT prefix in manager payload
-	assert.Equal(t, nttPrefix[:], payload[134:138])
+	assert.Equal(t, nttPrefix[:], payload[136:140])
 
 	// Verify decimals
-	assert.Equal(t, uint8(6), payload[138])
+	assert.Equal(t, uint8(6), payload[140])
 
 	// Verify amount
-	amount := binary.BigEndian.Uint64(payload[139:147])
+	amount := binary.BigEndian.Uint64(payload[141:149])
 	assert.Equal(t, uint64(1000000), amount)
 
 	// Verify recipient chain at the end of manager payload
-	recipientChain := binary.BigEndian.Uint16(payload[211:213])
+	recipientChain := binary.BigEndian.Uint16(payload[213:215])
 	assert.Equal(t, uint16(2), recipientChain)
 
 	// Verify transceiver payload length is 0
-	transceiverPayloadLen := binary.BigEndian.Uint16(payload[213:215])
+	transceiverPayloadLen := binary.BigEndian.Uint16(payload[215:217])
 	assert.Equal(t, uint16(0), transceiverPayloadLen)
 }
 
@@ -1332,7 +1336,7 @@ func TestParseTransactionStream_ValidTransaction(t *testing.T) {
 
 	// Verify payload is present and has correct length
 	assert.NotNil(t, msg.Payload)
-	assert.Equal(t, 215, len(msg.Payload))
+	assert.Equal(t, 217, len(msg.Payload))
 }
 
 func TestParseTransactionStream_NoNTTMemo(t *testing.T) {
@@ -1544,17 +1548,17 @@ func TestParseTransactionStream_XRPPayment_FullFlow(t *testing.T) {
 	assert.Equal(t, vaa.ChainIDXRPL, msg.EmitterChain)
 
 	// Verify payload
-	assert.Equal(t, 215, len(msg.Payload))
+	assert.Equal(t, 217, len(msg.Payload))
 
 	// Verify transceiver prefix in payload
 	assert.Equal(t, transceiverPrefix[:], msg.Payload[0:4])
 
-	// Verify decimals in payload (at offset 138)
+	// Verify decimals in payload (at offset 140)
 	// For XRP: min(min(8, 6), 8) = 6
-	assert.Equal(t, uint8(6), msg.Payload[138])
+	assert.Equal(t, uint8(6), msg.Payload[140])
 
-	// Verify amount in payload (at offset 139)
-	amountInPayload := binary.BigEndian.Uint64(msg.Payload[139:147])
+	// Verify amount in payload (at offset 141)
+	amountInPayload := binary.BigEndian.Uint64(msg.Payload[141:149])
 	assert.Equal(t, uint64(5000000), amountInPayload)
 }
 
@@ -1601,17 +1605,17 @@ func TestParseTransactionStream_TrustLinePayment_FullFlow(t *testing.T) {
 	require.NotNil(t, msg)
 
 	// Verify payload structure
-	assert.Equal(t, 215, len(msg.Payload))
+	assert.Equal(t, 217, len(msg.Payload))
 
 	// Verify decimals: min(min(8, 6), 9) = 6
-	assert.Equal(t, uint8(6), msg.Payload[138])
+	assert.Equal(t, uint8(6), msg.Payload[140])
 
 	// Verify amount: 250123456 (value * 10^6)
-	amountInPayload := binary.BigEndian.Uint64(msg.Payload[139:147])
+	amountInPayload := binary.BigEndian.Uint64(msg.Payload[141:149])
 	assert.Equal(t, uint64(250123456), amountInPayload)
 
 	// Verify source token starts with tokenTypeIssued
-	assert.Equal(t, byte(tokenTypeIssued), msg.Payload[147])
+	assert.Equal(t, byte(tokenTypeIssued), msg.Payload[149])
 }
 
 func TestParseTransactionStream_FromDecimalsMismatch(t *testing.T) {
@@ -2097,13 +2101,13 @@ func TestParseTransactionStream_MPTPayment_FullFlow(t *testing.T) {
 	require.NotNil(t, msg)
 
 	// Verify payload
-	assert.Equal(t, 215, len(msg.Payload))
+	assert.Equal(t, 217, len(msg.Payload))
 
 	// Verify decimals: min(min(8, 8), 8) = 8
-	assert.Equal(t, uint8(8), msg.Payload[138])
+	assert.Equal(t, uint8(8), msg.Payload[140])
 
 	// Verify source token starts with tokenTypeMPT
-	assert.Equal(t, byte(tokenTypeMPT), msg.Payload[147])
+	assert.Equal(t, byte(tokenTypeMPT), msg.Payload[149])
 }
 
 // =============================================================================
