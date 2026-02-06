@@ -259,6 +259,9 @@ func (s *SolanaWatcher) shimProcessInnerInstruction(
 // shimProcessRest performs the processing of the inner instructions that is common to both the direct and integrator case. It looks for the PostMessage from
 // the core and the MessageEvent from the shim. Note that the startIdx parameter tells us where to start looking for these events. In the direct case, this
 // will be zero. In the integrator case, it is one after the shim PostMessage event.
+// SECURITY: Shim Program ID with process_post_message, WH core post_message and self CPI event must be the order of calls.
+// SECURITY: Indexing of inner instructions is done correctly.
+// Be careful modifying the code handling the index processing; this code is very complicated to reason about.
 func (s *SolanaWatcher) shimProcessRest(
 	logger *zap.Logger,
 	whProgramIndex uint16,
@@ -299,6 +302,7 @@ func (s *SolanaWatcher) shimProcessRest(
 				verifiedCoreEvent = true
 			}
 		} else if inst.ProgramIDIndex == shimProgramIndex {
+			// SECURITY: Proper identification of shim program self CPI for event data
 			thisEvent, err := shimParseMessageEvent(s.shimMessageEventDiscriminator, inst.Data)
 			if err != nil {
 				return fmt.Errorf("failed to parse inner shim message event instruction for shim instruction %d, %d: %w", outerIdx, idx, err)
