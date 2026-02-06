@@ -1180,11 +1180,14 @@ func ParseMessagePublicationAccount(
 	messageAccountData *MessageAccountData,
 ) (*MessagePublicationAccount, error) {
 	if messageAccountData == nil {
-		return nil, errors.New("message account data is nil")
+		return nil, errors.New("message account data is too short")
 	}
 
 	// Skip the prefix and deserialize the rest of the data.
 	const prefixLength = 3
+	if len(messageAccountData.data) < 3 {
+		return nil, errors.New("message account data is too short")
+	}
 	prop := &MessagePublicationAccount{}
 	if err := borsh.Deserialize(prop, messageAccountData.data[prefixLength:]); err != nil {
 		return nil, err
