@@ -185,7 +185,7 @@ Before adding a dependency, ask:
 
 ## Security Practices
 
-**Defense in Depth:** Multiple independent layers of validation are better than one. Validate early and often. Check at boundaries. Trust nothing from external sources.
+**Defense in Depth:** Multiple independent layers of validation are better than one. Validate early and often. Check at both sides of boundaries. Trust nothing from external sources.
 
 **Fail Fast and Loud:** Detect violations as early as possible. Crash rather than continue with corrupt state. Make failures visible and debuggable.
 
