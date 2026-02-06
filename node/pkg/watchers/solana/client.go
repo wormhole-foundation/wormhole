@@ -681,6 +681,8 @@ func (s *SolanaWatcher) processTransaction(ctx context.Context, rpcClient *rpc.C
 	var programIndex uint16
 	var shimProgramIndex uint16
 	var shimFound bool
+
+	// SECURITY: Mapping of AccountKeys matches the indexes associated with the original transaction.
 	for n, key := range tx.Message.AccountKeys {
 		if key.Equals(s.contract) {
 			programIndex = uint16(n) // #nosec G115 -- The solana runtime can only support 64 accounts per transaction max
@@ -906,6 +908,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		return 0, true
 	}
 
+	// SECURITY: Wormhole must own the account. Otherwise, this would lead to an arbitrary event emission issue.
 	if !info.Value.Owner.Equals(s.contract) {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "account_owner_mismatch").Inc()
@@ -916,6 +919,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, rpcClient *rpc.
 		return 0, false
 	}
 
+	// SECURITY: Account discriminator must match one of two types. Otherwise, leads to type cosplay.
 	data := info.Value.Data.GetBinary()
 	if string(data[:3]) != accountPrefixReliable && string(data[:3]) != accountPrefixUnreliable {
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
@@ -964,6 +968,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 
 	value := (*res.Params).Result.Value
 
+	// SECURITY: Account ownership must be Wormhole core
 	if value.Account.Owner != s.rawContract {
 		// We got a message for the wrong contract on the websocket... uncomfortable...
 		solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "invalid_websocket_account").Inc()
@@ -994,6 +999,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	return nil
 }
 
+// SECURITY: Ownership check on account key must be done BEFORE this function is called.
 func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, acc solana.PublicKey, isReobservation bool, signature solana.Signature) (numObservations uint32) {
 	proposal, err := ParseMessagePublicationAccount(data)
 	if err != nil {
@@ -1058,7 +1064,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
 		Nonce:            proposal.Nonce,
 		Sequence:         proposal.Sequence,
-		EmitterChain:     s.chainID,
+		EmitterChain:     s.chainID, // SECURITY: Chain ID must be the hardcoded chain ID of the watcher
 		EmitterAddress:   proposal.EmitterAddress,
 		Payload:          proposal.Payload,
 		ConsistencyLevel: proposal.ConsistencyLevel,
