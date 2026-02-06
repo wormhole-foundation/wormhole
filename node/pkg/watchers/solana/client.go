@@ -1032,14 +1032,17 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 	}
 
 	// SECURITY: Bounds check the Data slice to ensure it's not empty.
+	var accountDataBase64 string
 	if len(value.Account.Data) == 0 {
 		return nil
+	} else {
+		// The data is received as an array of base64 strings, but we only care about the first one.
+		accountDataBase64 = value.Account.Data[0]
 	}
 
-	// The data is received as an array of base64 strings, but we only care about the first one.
-	dataBase64Decoded, err := base64.StdEncoding.DecodeString(value.Account.Data[0])
+	dataBase64Decoded, err := base64.StdEncoding.DecodeString(accountDataBase64)
 	if err != nil {
-		logger.Error("failed to decode account", zap.Any("account", string(value.Account.Data[0])), zap.Error(err))
+		logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
