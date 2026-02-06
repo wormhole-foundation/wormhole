@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -23,12 +24,24 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	solanaRPC  = flag.String("solanaRPC", "http://localhost:8899", "Solana RPC address")
-	adminRPC   = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
-	solanaAddr = flag.String("solanaProgram", "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth", "Solana program address")
+// Core bridge addresses
+const (
+	solanaAddr = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+	fogoAddr   = "worm2mrQkG1B1KTz37erMfWN8anHkSK24nzca7UD8BB"
 )
 
+// CLI flags. Defaults are set for Solana.
+var (
+	chain   = flag.String("chain", "solana", "SVM Chain name")
+	address = flag.String("address", solanaAddr, "SVM core bridge address")
+)
+
+var (
+	svmRPC   = flag.String("RPC", "http://localhost:8899", "SVM RPC address")
+	adminRPC = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
+)
+
+// Note: unreliable messages, and therefore the Shim, are not supported.
 const (
 	postMessageInstructionID = 0x01
 )
@@ -47,8 +60,15 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.
 func main() {
 	flag.Parse()
 
+	svmChains := []vaa.ChainID{vaa.ChainIDSolana, vaa.ChainIDFogo}
+	chainID, err := vaa.ChainIDFromString(*chain)
+
+	if err != nil || !slices.Contains(svmChains, chainID) {
+		log.Fatalf("Invalid chain: %v", err)
+	}
+
 	ctx := context.Background()
-	sr := rpc.New(*solanaRPC)
+	sr := rpc.New(*svmRPC)
 
 	conn, admin, err := getAdminClient(ctx, *adminRPC)
 	if err != nil {
@@ -58,14 +78,22 @@ func main() {
 	defer conn.Close()
 
 	for _, emitter := range sdk.KnownEmitters {
-		if emitter.ChainID != vaa.ChainIDSolana {
+		if emitter.ChainID != chainID {
 			continue
 		}
 
-		log.Printf("Requesting missing messages for %s", emitter)
+		// Parse hex into base58 address.
+		// Note that the emitter for SVM token bridges is a separate account,
+		// and not equal to the address of the token bridge.
+		bz, err := hex.DecodeString(emitter.Emitter)
+		if err != nil {
+			log.Fatalf("Failed to decode emitter address: %v", err)
+		}
+		emitterPDA := solana.PublicKeyFromBytes(bz)
+		log.Printf("Requesting missing messages for %s %s %s", emitter.ChainID, emitterPDA, emitter.BridgeType)
 
 		msg := nodev1.FindMissingMessagesRequest{
-			EmitterChain:   uint32(vaa.ChainIDSolana),
+			EmitterChain:   uint32(chainID),
 			EmitterAddress: emitter.Emitter,
 			RpcBackfill:    true,
 			BackfillNodes:  sdk.PublicRPCEndpoints,
@@ -204,7 +232,7 @@ func main() {
 
 					_, err = admin.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
 						ObservationRequest: &gossipv1.ObservationRequest{
-							ChainId:   uint32(vaa.ChainIDSolana),
+							ChainId:   uint32(chainID),
 							TxHash:    acc[:],
 							Timestamp: time.Now().UnixNano(),
 						}})
@@ -217,7 +245,7 @@ func main() {
 						req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 							"%s/v1/signed_vaa/%d/%s/%d",
 							sdk.PublicRPCEndpoints[0],
-							vaa.ChainIDSolana,
+							chainID,
 							hex.EncodeToString(addr[:]),
 							p.Sequence), nil)
 						if err != nil {
@@ -273,7 +301,7 @@ func fetchTxSeq(ctx context.Context, c *rpc.Client, sig solana.Signature) (*rpc.
 }
 
 func process(out *rpc.GetTransactionResult) (*solana.PublicKey, error) {
-	program, err := solana.PublicKeyFromBase58(*solanaAddr)
+	program, err := solana.PublicKeyFromBase58(*address)
 	if err != nil {
 		log.Fatalf("Invalid program address: %v", err)
 		return nil, err
