@@ -32,13 +32,14 @@ var nttPrefix = [4]byte{0x99, 0x4E, 0x54, 0x54}
 
 // NTT constants
 const (
-	memoDataLength       = 72 // Length of memo data: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
-	tokenTypeXRP         = 0x00
-	tokenTypeIssued      = 0x01
-	tokenTypeMPT         = 0x02
-	xrpDecimals          = 6
-	maxNTTDecimals       = 8
-	nttManagerPayloadLen = 143 // Fixed length of NTT manager payload
+	memoDataLength        = 72 // Length of memo data: prefix(4) + recipientNTTManager(32) + recipientAddress(32) + recipientChain(2) + fromDecimals(1) + toDecimals(1)
+	tokenTypeXRP          = 0x00
+	tokenTypeIssued       = 0x01
+	tokenTypeMPT          = 0x02
+	xrpDecimals           = 6
+	maxNTTDecimals        = 8
+	nttManagerPayloadLen  = 145 // Fixed length of NTT manager payload: id(32) + sender(32) + payload_length(2) + internal(79)
+	nttInternalPayloadLen = 79  // Internal payload: prefix(4) + decimals(1) + amount(8) + source_token(32) + recipient_address(32) + recipient_chain(2)
 )
 
 // tesSUCCESS is the XRPL transaction result code for successful transactions
@@ -739,7 +740,7 @@ func (p *Parser) calculateEmitterAddress(sourceNTTManager, sourceToken [32]byte)
 	return emitter
 }
 
-// buildNTTPayload builds the full NTT TransceiverMessage payload (~215 bytes).
+// buildNTTPayload builds the full NTT TransceiverMessage payload (217 bytes).
 func (p *Parser) buildNTTPayload(
 	sourceNTTManager [32]byte,
 	recipientNTTManager [32]byte,
@@ -753,10 +754,10 @@ func (p *Parser) buildNTTPayload(
 ) []byte {
 	// Calculate total payload size:
 	// TransceiverMessage header: 4 + 32 + 32 + 2 = 70 bytes
-	// NTT Manager Payload: 32 + 32 + 4 + 1 + 8 + 32 + 32 + 2 = 143 bytes
+	// NTT Manager Payload: 32 + 32 + 2 + 4 + 1 + 8 + 32 + 32 + 2 = 145 bytes
 	// Transceiver payload length: 2 bytes
-	// Total: 70 + 143 + 2 = 215 bytes
-	payload := make([]byte, 215)
+	// Total: 70 + 145 + 2 = 217 bytes
+	payload := make([]byte, 217)
 	offset := 0
 
 	// TransceiverMessage prefix (4 bytes)
@@ -784,6 +785,10 @@ func (p *Parser) buildNTTPayload(
 	// sender (32 bytes)
 	copy(payload[offset:], sender[:])
 	offset += 32
+
+	// payload_length (2 bytes, big-endian) - length of internal NTT payload
+	binary.BigEndian.PutUint16(payload[offset:], nttInternalPayloadLen)
+	offset += 2
 
 	// NTT prefix (4 bytes)
 	copy(payload[offset:], nttPrefix[:])
