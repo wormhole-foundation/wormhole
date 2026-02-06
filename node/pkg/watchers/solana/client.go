@@ -1031,18 +1031,21 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger
 		return errors.New("update for account with wrong owner")
 	}
 
-	data, err = base64.StdEncoding.DecodeString(value.Account.Data[0])
+	// SECURITY: Bounds check the Data slice to ensure it's not empty.
+	if len(value.Account.Data) == 0 {
+		return nil
+	}
 
+	// The data is received as an array of base64 strings, but we only care about the first one.
+	dataBase64Decoded, err := base64.StdEncoding.DecodeString(value.Account.Data[0])
 	if err != nil {
 		logger.Error("failed to decode account", zap.Any("account", string(value.Account.Data[0])), zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 		return err
 	}
 
-	// Other accounts owned by the wormhole contract seem to send updates...
-	// SECURITY: Parse the message account data to ensure it is a valid message account.
-	// If not, skip execution to avoid processing non-message accounts.
-	messageAccountData := NewMessageAccountData(data)
+	// SECURITY: Parse the message account data to ensure it's valid.
+	messageAccountData := NewMessageAccountData([]byte(dataBase64Decoded))
 	if messageAccountData == nil {
 		return nil
 	}
