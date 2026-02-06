@@ -163,7 +163,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		// deserialize a struct. In this case, we're relying on the library to fail when
 		// the message account data can't be deserialized into [MessagePublicationAccount].
 		errStringBorsh  = "failed to read required bytes"
-		errStringPrefix = "message account data is nil"
+		errStringPrefix = "message account data is too short"
 	)
 
 	tests := []struct {
@@ -213,6 +213,12 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		{
 			name:               "failure -- nil argument",
 			messageAccountData: nil,
+			want:               &MessagePublicationAccount{},
+			errStr:             errStringPrefix,
+		},
+		{
+			name:               "failure -- data too short",
+			messageAccountData: &MessageAccountData{[]byte("ms")},
 			want:               &MessagePublicationAccount{},
 			errStr:             errStringPrefix,
 		},
