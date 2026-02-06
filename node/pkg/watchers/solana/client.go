@@ -1173,15 +1173,20 @@ func (s *SolanaWatcher) getLatestFinalizedBlockNumber() uint64 {
 	return s.latestBlockNumber
 }
 
-func ParseMessagePublicationAccount(messageAccountData *MessageAccountData) (*MessagePublicationAccount, error) {
+// ParseMessagePublicationAccount parses the message account data and returns a [MessagePublicationAccount].
+// The MessageAccountData type ensures that the data is at least 3 bytes long.
+func ParseMessagePublicationAccount(
+	// SECURITY: This value must be initialized by the NewMessageAccountData function.
+	messageAccountData *MessageAccountData,
+) (*MessagePublicationAccount, error) {
 	if messageAccountData == nil {
 		return nil, errors.New("message account data is nil")
 	}
 
-	prop := &MessagePublicationAccount{}
 	// Skip the prefix and deserialize the rest of the data.
-	// SECURITY: The MessageAccountData type ensures that the data is at least 3 bytes long.
-	if err := borsh.Deserialize(prop, messageAccountData.data[MessageAccountDataMinLength:]); err != nil {
+	const prefixLength = 3
+	prop := &MessagePublicationAccount{}
+	if err := borsh.Deserialize(prop, messageAccountData.data[prefixLength:]); err != nil {
 		return nil, err
 	}
 

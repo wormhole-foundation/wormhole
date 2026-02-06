@@ -158,12 +158,20 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 		payload, _ = hex.DecodeString("0100000000000000000000000000000000000000000000000000009ed268a30dd700000000000000000000000089f4e8011c35831130c4c3ab95e53de9411d2fcc00040000000000000000000000006722b2c28d7d299b56a5febedbbe865a84ee0d7d00040000000000000000000000000000000000000000000000000000000000000000")
 	)
 
+	const (
+		// Define error string for testing. This is returned by the borsh-go library when it fails to
+		// deserialize a struct. In this case, we're relying on the library to fail when
+		// the message account data can't be deserialized into [MessagePublicationAccount].
+		errStringBorsh  = "failed to read required bytes"
+		errStringPrefix = "message account data is nil"
+	)
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
 		messageAccountData *MessageAccountData
 		want               *MessagePublicationAccount
-		wantErr            bool
+		errStr             string
 	}{
 		{
 			name: "success -- reliable message",
@@ -182,7 +190,7 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				EmitterAddress:   emitterAddrReliable,
 				Payload:          payload,
 			},
-			wantErr: false,
+			errStr: "",
 		},
 		{
 			name:               "success -- unreliable message",
@@ -200,50 +208,52 @@ func TestParseMessagePublicationAccount(t *testing.T) {
 				EmitterAddress:   emitterAddrUnreliable,
 				Payload:          nil, // borsh deserialization results in this being nil rather than an empty slice
 			},
-			wantErr: false,
+			errStr: "",
 		},
 		{
 			name:               "failure -- nil argument",
 			messageAccountData: nil,
 			want:               &MessagePublicationAccount{},
-			wantErr:            true,
+			errStr:             errStringPrefix,
 		},
 		{
 			name:               "failure -- no data following prefix (msg)",
 			messageAccountData: &MessageAccountData{[]byte("msg")},
 			want:               &MessagePublicationAccount{},
-			wantErr:            true,
+			errStr:             errStringBorsh,
 		},
 		{
 			name:               "failure -- no data following prefix (msu)",
 			messageAccountData: &MessageAccountData{[]byte("msu")},
 			want:               &MessagePublicationAccount{},
-			wantErr:            true,
+			errStr:             errStringBorsh,
 		},
 		{
 			name:               "failure -- truncated data (msg)",
 			messageAccountData: &MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
 			want:               &MessagePublicationAccount{},
-			wantErr:            true,
+			errStr:             errStringBorsh,
 		},
 		{
 			name:               "failure -- truncated data (msu)",
 			messageAccountData: &MessageAccountData{validMessageAccountDataReliable[:len(validMessageAccountDataReliable)-1]},
 			want:               &MessagePublicationAccount{},
-			wantErr:            true,
+			errStr:             errStringBorsh,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, gotErr := ParseMessagePublicationAccount(tt.messageAccountData)
 			if gotErr != nil {
-				if !tt.wantErr {
+				// We didn't expect an error, but we got one.
+				if tt.errStr == "" {
 					t.Errorf("ParseMessagePublicationAccount() failed: %v", gotErr)
 				}
 				return
 			}
-			if tt.wantErr {
-				t.Fatal("ParseMessagePublicationAccount() succeeded unexpectedly")
+			if tt.errStr != "" {
+				// We want an error. Make sure it's the right one.
+				require.ErrorContains(t, gotErr, tt.errStr, "ParseMessagePublicationAccount() succeeded unexpectedly")
 			}
 			assert.Equal(t, tt.want, got)
 		})
