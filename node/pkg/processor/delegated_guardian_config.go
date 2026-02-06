@@ -65,6 +65,9 @@ func NewDelegatedGuardianChainConfig(keys []common.Address, threshold int) (*Del
 
 	keyMap := map[common.Address]int{}
 	for idx, key := range keys {
+		if _, exists := keyMap[key]; exists {
+			return nil, fmt.Errorf("duplicate delegated guardian key: %s", key.Hex())
+		}
 		keyMap[key] = idx
 	}
 	return &DelegatedGuardianChainConfig{
@@ -86,7 +89,7 @@ func (dc *DelegatedGuardianChainConfig) KeysAsHexStrings() []string {
 
 // KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
-func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) { //nolint: unparam // The index is unused but it is retained as it could be used in future tests
+func (dc *DelegatedGuardianChainConfig) KeyIndex(addr common.Address) (int, bool) {
 	if dc.keyMap != nil {
 		if idx, found := dc.keyMap[addr]; found {
 			return idx, true
