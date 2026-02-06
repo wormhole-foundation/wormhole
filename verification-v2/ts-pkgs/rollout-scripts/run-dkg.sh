@@ -27,7 +27,7 @@ TLS_HOSTNAME="$2"
 TLS_PORT="$3"
 PEER_SERVER_URL="$4"
 ETHEREUM_RPC_URL="$5"
-WORMHOLE_ADDRESS="${6:-}"
+WORMHOLE_ADDRESS="${6:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
 
 if [ ! -d "${TLS_KEYS_DIR}" ]; then
     log_error "TLS keys directory not found: ${TLS_KEYS_DIR}"
@@ -52,11 +52,8 @@ else
     run_options+="--publish ${TLS_PORT}:${TLS_PORT} "
 fi
 
-if [ -n "${WORMHOLE_ADDRESS}" ]; then
-    run_options="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} "
-fi
-
-run_options+="--env THRESHOLD=${THRESHOLD:13}"
+run_options+="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} "
+run_options+="--env THRESHOLD=${THRESHOLD:-13} "
 
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID:-}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
 
