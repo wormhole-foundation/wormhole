@@ -1,4 +1,4 @@
-FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
+FROM debian:trixie-slim@sha256:346fa035ca82052ce8ec3ddb9df460b255507acdeb1dc880a8b6930e778a553c
 
 RUN apt-get --quiet update && apt-get --quiet --no-install-recommends --yes install \
   openssl \

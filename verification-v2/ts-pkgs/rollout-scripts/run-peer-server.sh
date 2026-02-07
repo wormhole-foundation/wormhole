@@ -1,28 +1,74 @@
 #!/bin/bash
 # Start the peer discovery server for DKG coordination.
-# Usage: ./run-peer-server.sh <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_PEERS_FILE> [WORMHOLE_ADDRESS]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 REPO_ROOT="${SCRIPT_DIR}/../.."
 
-# TODO: add argument for peer server output directory
-if [ $# -lt 3 ]; then
-    echo "Usage: $0 <SERVER_PORT> <ETHEREUM_RPC_URL> <OUTPUT_PEERS_FILE> [WORMHOLE_ADDRESS]"
-    echo ""
-    echo "Arguments:"
-    echo "  SERVER_PORT       - Port for the peer server to listen on"
-    echo "  ETHEREUM_RPC_URL  - Ethereum mainnet RPC URL"
-    echo "  OUTPUT_PEERS_FILE  - Output file where peers will be stored"
-    echo "  WORMHOLE_ADDRESS  - (Only set for testnet networks) Wormhole contract address"
-    exit 1
-fi
+log_error() { echo "[ERROR] $1" >&2; }
 
-SERVER_PORT="$1"
-ETHEREUM_RPC_URL="$2"
-OUTPUT_PEERS_FILE="$3"
-WORMHOLE_ADDRESS="${4:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  script \
+    --server-port=PORT \
+    --ethereum-rpc-url=URL \
+    --output-peers-file=FILE
+
+Required:
+  --server-port=PORT        Port for the peer server to listen on.
+  --ethereum-rpc-url=URL    Ethereum mainnet RPC URL. Must be HTTP(S).
+  --output-peers-file=FILE  Output file where peers will be stored.
+
+Optional:
+  --wormhole-address=ADDR   Wormhole contract address for testnet/devnet.
+  --threshold               Amount of guardians to reach quorum for a given signing session.
+EOF
+}
+
+# Defaults
+SERVER_PORT=""
+ETHEREUM_RPC_URL=""
+OUTPUT_PEERS_FILE=""
+WORMHOLE_ADDRESS="0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+THRESHOLD=13
+
+for arg in "$@"; do
+  case "$arg" in
+    --server-port=*)
+      SERVER_PORT="${arg#*=}" ;;
+    --ethereum-rpc-url=*)
+      ETHEREUM_RPC_URL="${arg#*=}" ;;
+    --output-peers-file=*)
+      OUTPUT_PEERS_FILE="${arg#*=}" ;;
+    --wormhole-address=*)
+      WORMHOLE_ADDRESS="${arg#*=}" ;;
+    --threshold=*)
+      THRESHOLD="${arg#*=}" ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      echo >&2
+      usage
+      exit 1 ;;
+  esac
+done
+
+missing=()
+[ -n "$SERVER_PORT"       ] || missing+=("--server-port"      )
+[ -n "$ETHEREUM_RPC_URL"  ] || missing+=("--ethereum-rpc-url" )
+[ -n "$OUTPUT_PEERS_FILE" ] || missing+=("--output-peers-file")
+
+OUTPUT_PEERS_DIR=$(dirname ${OUTPUT_PEERS_FILE})
+
+if (( ${#missing[@]} )); then
+  log_error "Missing required option(s): ${missing[*]}"
+  echo >&2
+  usage
+  exit 1
+fi
 
 mkdir -p $(dirname "${OUTPUT_PEERS_FILE}")
 if [ ! -f "${OUTPUT_PEERS_FILE}" ]; then
@@ -40,29 +86,32 @@ else
     run_options+="--publish ${SERVER_PORT}:${SERVER_PORT} "
 fi
 
-build_options=""
-if [ -n "${THRESHOLD:-}" ]; then
-    build_options+="--build-arg THRESHOLD=${THRESHOLD} "
-fi
-
 docker build \
     --tag peer-server \
     --file "${REPO_ROOT}/ts-pkgs/peer-server/Dockerfile" \
-    ${build_options} \
-    --build-arg SERVER_PORT="${SERVER_PORT}" \
-    --build-arg ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
-    --build-arg OUTPUT_PEERS_FILE="${OUTPUT_PEERS_FILE}" \
-    --build-arg WORMHOLE_ADDRESS="${WORMHOLE_ADDRESS}" \
     "${REPO_ROOT}"
 
 if [ -z "${NON_INTERACTIVE:-}" ]; then
     run_options+="--interactive --tty "
 fi
 
+cat > "${OUTPUT_PEERS_DIR}/peer-server-config.json" <<EOT
+{
+  "port": ${SERVER_PORT},
+  "ethereum": {
+    "rpcUrl": "${ETHEREUM_RPC_URL}"
+  },
+  "wormholeContractAddress": "${WORMHOLE_ADDRESS}",
+  "threshold": ${THRESHOLD},
+  "peerListStore": "/peerGuardians.json"
+}
+EOT
+
 docker run \
     --rm \
     --name peer-server \
     ${run_options} \
+    --volume "${OUTPUT_PEERS_DIR}/peer-server-config.json":/verification-v2/ts-pkgs/peer-server/config.json \
     --volume "${OUTPUT_PEERS_FILE}":/peerGuardians.json \
     peer-server
 

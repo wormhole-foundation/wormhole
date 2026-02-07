@@ -73,12 +73,12 @@ docker build \
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   TSS_E2E_GUARDIAN_ID="$i" ../../../rollout-scripts/setup-peer.sh \
-    --key "$PWD/out/$i/guardian.key" \
-    "${TLS_HOSTNAME}$i" \
-    "${TLS_PUBLIC_IP}" \
-    "./out/$i/keys" \
-    "$((TLS_BASE_PORT + i))" \
-    "${PEER_SERVER_URL}" &
+    --key="./out/$i/guardian.key" \
+    --tls-hostname="${TLS_HOSTNAME}$i" \
+    --tls-public-ip="${TLS_PUBLIC_IP}" \
+    --output-dir="./out/$i/keys" \
+    --tls-port="$((TLS_BASE_PORT + i))" \
+    --peer-server-url="${PEER_SERVER_URL}" &
 done
 
 wait
@@ -91,12 +91,12 @@ docker build \
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   TSS_E2E_GUARDIAN_ID="$i" ../../../rollout-scripts/run-dkg.sh \
-    "./out/$i/keys" \
-    "${TLS_HOSTNAME}$i" \
-    "$((TLS_BASE_PORT + i))" \
-    "${PEER_SERVER_URL}" \
-    "${ETHEREUM_RPC_URL}" \
-    "${WORMHOLE_ADDRESS}" &
+    --tls-keys-dir="./out/$i/keys" \
+    --tls-hostname="${TLS_HOSTNAME}$i" \
+    --tls-port="$((TLS_BASE_PORT + i))" \
+    --peer-server-url="${PEER_SERVER_URL}" \
+    --ethereum-rpc-url="${ETHEREUM_RPC_URL}" \
+    --wormhole-address="${WORMHOLE_ADDRESS}" &
 done
 
 wait

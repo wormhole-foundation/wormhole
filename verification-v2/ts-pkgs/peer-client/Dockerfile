@@ -27,6 +27,7 @@ RUN test -n "${TLS_HOSTNAME}" && \
     test -n "${PEER_SERVER_URL}"
 
 # Generate config: use ARN if provided, otherwise use the secret file path
+# TODO: extract to script invoking this image
 RUN if [ -n "${GUARDIAN_KMS_ARN}" ]; then \
       echo '{"guardianPrivateKeyArn":"'"${GUARDIAN_KMS_ARN}"'","serverUrl":"'"${PEER_SERVER_URL}"'","peer":{"hostname":"'"${TLS_HOSTNAME}"'","port":'"${TLS_PORT}"',"tlsX509":"/run/secrets/cert.pem"}}' > self_config.json; \
     else \
@@ -40,4 +41,11 @@ RUN if [ -n "${GUARDIAN_KMS_ARN}" ]; then \
 # --volume "<src file>:/run/secrets/guardian_pk,ro"
 # The cert is not really a secret, but it doesn't hurt to use this mount type.
 # --volume "<src file>:/run/secrets/cert.pem,ro"
-ENTRYPOINT ["yarnpkg", "start:client", "upload"]
+ENTRYPOINT [ \
+  "node", \
+  "--enable-source-maps", \
+  "--require", "/verification-v2/.pnp.cjs", \
+  "--loader", "/verification-v2/.pnp.loader.mjs", \
+  "/verification-v2/ts-pkgs/peer-client/ts-build/src/cli.js", \
+  "upload" \
+]

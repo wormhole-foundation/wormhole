@@ -24,5 +24,9 @@ docker run --rm --network=dkg-test --env "ETHEREUM_RPC_URL=$ETHEREUM_RPC_URL" --
 '
 
 export TSS_E2E_DOCKER_NETWORK="dkg-test"
-../../../rollout-scripts/run-peer-server.sh "${SERVER_PORT}" "${ETHEREUM_RPC_URL}" "${OUTPUT_PEERS_FILE}" "${WORMHOLE_ADDRESS}"
+../../../rollout-scripts/run-peer-server.sh \
+  --server-port="${SERVER_PORT}" \
+  --ethereum-rpc-url="${ETHEREUM_RPC_URL}" \
+  --output-peers-file="${OUTPUT_PEERS_FILE}" \
+  --wormhole-address="${WORMHOLE_ADDRESS}"
 

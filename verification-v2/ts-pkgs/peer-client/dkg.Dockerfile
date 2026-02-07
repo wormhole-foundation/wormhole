@@ -35,55 +35,14 @@ COPY --chmod=555 <<EOT poll_guardians.sh
 
 set -euo pipefail
 
-if [ -z "\${TLS_HOSTNAME}" ]; then
-  echo "TLS_HOSTNAME is not set"
-  exit 1
-fi
-if [ -z "\${TLS_PORT}" ]; then
-  echo "TLS_PORT is not set"
-  exit 1
-fi
-if [ -z "\${PEER_SERVER_URL}" ]; then
-  echo "PEER_SERVER_URL is not set"
-  exit 1
-fi
-if [ -z "\${ETHEREUM_RPC_URL}" ]; then
-  echo "ETHEREUM_RPC_URL is not set"
-  exit 1
-fi
-if [ -z "\${WORMHOLE_CONTRACT_ADDRESS}" ]; then
-  echo "WORMHOLE_CONTRACT_ADDRESS is not set"
-  exit 1
-fi
-if [ -z "\${THRESHOLD}" ]; then
-  echo "THRESHOLD is not set"
-  exit 1
-fi
+node --enable-source-maps \\
+  --require /verification-v2/.pnp.cjs \\
+  --loader /verification-v2/.pnp.loader.mjs \\
+  /verification-v2/ts-pkgs/peer-client/ts-build/src/cli.js poll
 
-# This is the config for the peer client
-cat <<EOF > self_config.json
-{
-  "serverUrl": "\${PEER_SERVER_URL}",
-  "peer": {
-    "hostname": "\${TLS_HOSTNAME}",
-    "port": \${TLS_PORT},
-    "tlsX509": "/keys/cert.pem"
-  },
-  "threshold": \${THRESHOLD},
-  "wormhole": {
-    "ethereum": {
-      "rpcUrl": "\${ETHEREUM_RPC_URL}"
-    },
-    "wormholeContractAddress": "\${WORMHOLE_CONTRACT_ADDRESS}"
-  }
-}
-EOF
+jq '.StorageLocation = "/keys/"' peer_config.json > /keys/dkg_config.json
 
-yarnpkg start:client poll
-
-jq ".StorageLocation = \\"/keys/\\"" peer_config.json > /keys/dkg_config.json
-
-/tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json -protocol=FROST:DKG -sk=/keys/key.pem
+exec /tss-lib/tss/internal/cmd/server -cnfg=/keys/dkg_config.json -protocol=FROST:DKG -sk=/keys/key.pem
 
 EOT
 

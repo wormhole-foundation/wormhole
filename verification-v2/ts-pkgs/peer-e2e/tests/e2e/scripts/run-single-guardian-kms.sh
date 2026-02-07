@@ -30,19 +30,18 @@ do
 done
 
 "${ROLLOUT_SCRIPTS_DIR}/setup-peer.sh" \
-  --arn "${GUARDIAN_KMS_ARN}" \
-  "${TLS_HOSTNAME}" \
-  "${TLS_PUBLIC_IP}" \
-  "${OUTPUT_DIR}" \
-  "${TLS_PORT}" \
-  "${PEER_SERVER_URL}"
+  --arn="${GUARDIAN_KMS_ARN}" \
+  --tls-hostname="${TLS_HOSTNAME}" \
+  --tls-public-ip="${TLS_PUBLIC_IP}" \
+  --output-dir="${OUTPUT_DIR}" \
+  --tls-port="${TLS_PORT}" \
+  --peer-server-url="${PEER_SERVER_URL}"
 
 "${ROLLOUT_SCRIPTS_DIR}/run-dkg.sh" \
-  "${OUTPUT_DIR}" \
-  "${TLS_HOSTNAME}" \
-  "${TLS_PORT}" \
-  "${PEER_SERVER_URL}" \
-  "${ETHEREUM_RPC_URL}" \
-  "${WORMHOLE_ADDRESS}" \
-  "${GUARDIAN_KMS_ARN}"
+  --output-dir="${OUTPUT_DIR}" \
+  --tls-hostname="${TLS_HOSTNAME}" \
+  --tls-port="${TLS_PORT}" \
+  --peer-server-url="${PEER_SERVER_URL}" \
+  --ethereum-rpc-url="${ETHEREUM_RPC_URL}" \
+  --wormhole-address="${WORMHOLE_ADDRESS}"
 
