@@ -73,7 +73,7 @@ docker build \
 for i in "${!GUARDIAN_PRIVATE_KEYS[@]}"
 do
   TSS_E2E_GUARDIAN_ID="$i" ../../../rollout-scripts/setup-peer.sh \
-    --key="$PWD/out/$i/guardian.key" \
+    --key="./out/$i/guardian.key" \
     --tls-hostname="${TLS_HOSTNAME}$i" \
     --tls-public-ip="${TLS_PUBLIC_IP}" \
     --output-dir="./out/$i/keys" \
