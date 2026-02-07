@@ -1,10 +1,5 @@
 FROM node:22.21-trixie-slim@sha256:1ddaeddded05b2edeaf35fac720a18019e1044a6791509c8670c53c2308301bb
 
-ARG SERVER_PORT
-ARG ETHEREUM_RPC_URL
-ARG THRESHOLD=13
-ARG WORMHOLE_ADDRESS=0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B
-
 RUN mkdir --parents verification-v2/ts-pkgs/peer-server verification-v2/ts-pkgs/peer-lib
 COPY .yarn /verification-v2/.yarn
 COPY package.json yarn.lock .yarnrc.yml /verification-v2/
@@ -22,20 +17,12 @@ COPY ts-pkgs/peer-server/src ts-pkgs/peer-server/src
 WORKDIR /verification-v2/ts-pkgs/peer-server
 RUN yarnpkg build
 
-RUN test -n "${SERVER_PORT}" && \
-    test -n "${ETHEREUM_RPC_URL}"
+# The config for the peer server is expected at /verification-v2/ts-pkgs/peer-server/config.json
 
-# This is the config for the peer server
-COPY <<EOT config.json
-{
-  "port": ${SERVER_PORT},
-  "ethereum": {
-    "rpcUrl": "${ETHEREUM_RPC_URL}"
-  },
-  "wormholeContractAddress": "${WORMHOLE_ADDRESS}",
-  "threshold": ${THRESHOLD},
-  "peerListStore": "/peerGuardians.json"
-}
-EOT
-
-ENTRYPOINT ["yarnpkg", "start:server"]
+ENTRYPOINT [ \
+  "node", \
+  "--enable-source-maps", \
+  "--require", "/verification-v2/.pnp.cjs", \
+  "--loader", "/verification-v2/.pnp.loader.mjs", \
+  "/verification-v2/ts-pkgs/peer-server/ts-build/src/cli.js" \
+]

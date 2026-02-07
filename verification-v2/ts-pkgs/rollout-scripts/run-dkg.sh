@@ -1,33 +1,85 @@
 #!/bin/bash
 # Run the DKG ceremony. Polls for all peers, then generates key shards.
-# Usage: ./run-dkg.sh <TLS_KEYS_DIR> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL> <ETHEREUM_RPC_URL> [WORMHOLE_ADDRESS]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 REPO_ROOT="${SCRIPT_DIR}/../.."
 
-log_error() { echo "[ERROR] $1"; }
+log_error() { echo "[ERROR] $1" >&2; }
 
-if [ $# -lt 5 ]; then
-    echo "Usage: $0 <TLS_KEYS_DIR> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL> <ETHEREUM_RPC_URL> [WORMHOLE_ADDRESS]"
-    echo ""
-    echo "Arguments:"
-    echo "  TLS_KEYS_DIR      - Directory containing key.pem and cert.pem (also used for DKG outputs)"
-    echo "  TLS_HOSTNAME      - Hostname for this guardian's DKG server"
-    echo "  TLS_PORT          - Port for this guardian's DKG server"
-    echo "  PEER_SERVER_URL   - URL of the peer discovery server"
-    echo "  ETHEREUM_RPC_URL  - Ethereum RPC URL"
-    echo "  WORMHOLE_ADDRESS  - (Optional) Wormhole contract address for testnet/devnet"
-    exit 1
+usage() {
+  cat >&2 <<EOF
+Usage:
+  $0 \
+    --tls-keys-dir=DIR \
+    --tls-hostname=HOST \
+    --tls-port=PORT \
+    --peer-server-url=URL \
+    --ethereum-rpc-url=URL
+
+Required:
+  --tls-keys-dir=DIR       Directory containing key.pem and cert.pem (also used for DKG outputs).
+  --tls-hostname=HOST      Hostname for this guardian's DKG server.
+  --tls-port=PORT          Port for this guardian's DKG server.
+  --peer-server-url=URL    URL of the peer discovery server.
+  --ethereum-rpc-url=URL   Ethereum RPC URL. Must be HTTP(S).
+
+Optional:
+  --wormhole-address=ADDR  Wormhole contract address for testnet/devnet.
+  --threshold=INT          Amount of guardians to reach quorum for a given signing session.
+EOF
+# TODO: add option to override /etc/hosts in container
+}
+
+# Defaults
+TLS_KEYS_DIR=""
+TLS_HOSTNAME=""
+TLS_PORT=""
+PEER_SERVER_URL=""
+ETHEREUM_RPC_URL=""
+WORMHOLE_ADDRESS="0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+THRESHOLD=13
+
+for arg in "$@"; do
+  case "$arg" in
+    --tls-keys-dir=*)
+      TLS_KEYS_DIR="${arg#*=}" ;;
+    --tls-hostname=*)
+      TLS_HOSTNAME="${arg#*=}" ;;
+    --tls-port=*)
+      TLS_PORT="${arg#*=}" ;;
+    --peer-server-url=*)
+      PEER_SERVER_URL="${arg#*=}" ;;
+    --ethereum-rpc-url=*)
+      ETHEREUM_RPC_URL="${arg#*=}" ;;
+    --wormhole-address=*)
+      WORMHOLE_ADDRESS="${arg#*=}" ;;
+    --threshold=*)
+      THRESHOLD="${arg#*=}" ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      log_error "Unknown option: $arg"
+      echo >&2
+      usage
+      exit 1 ;;
+  esac
+done
+
+missing=()
+[ -n "$TLS_KEYS_DIR"     ] || missing+=("--tls-keys-dir"    )
+[ -n "$TLS_HOSTNAME"     ] || missing+=("--tls-hostname"    )
+[ -n "$TLS_PORT"         ] || missing+=("--tls-port"        )
+[ -n "$PEER_SERVER_URL"  ] || missing+=("--peer-server-url" )
+[ -n "$ETHEREUM_RPC_URL" ] || missing+=("--ethereum-rpc-url")
+
+if (( ${#missing[@]} )); then
+  log_error "Missing required option(s): ${missing[*]}"
+  echo >&2
+  usage
+  exit 1
 fi
-
-TLS_KEYS_DIR="$1"
-TLS_HOSTNAME="$2"
-TLS_PORT="$3"
-PEER_SERVER_URL="$4"
-ETHEREUM_RPC_URL="$5"
-WORMHOLE_ADDRESS="${6:-0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B}"
 
 if [ ! -d "${TLS_KEYS_DIR}" ]; then
     log_error "TLS keys directory not found: ${TLS_KEYS_DIR}"
@@ -52,20 +104,36 @@ else
     run_options+="--publish ${TLS_PORT}:${TLS_PORT} "
 fi
 
-run_options+="--env WORMHOLE_CONTRACT_ADDRESS=${WORMHOLE_ADDRESS} "
-run_options+="--env THRESHOLD=${THRESHOLD:-13} "
-
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID:-}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
+
+cat > peer-client-config.json <<EOF
+{
+  "serverUrl": "${PEER_SERVER_URL}",
+  "peer": {
+    "hostname": "${TLS_HOSTNAME}",
+    "port": ${TLS_PORT},
+    "tlsX509": "/keys/cert.pem"
+  },
+  "threshold": ${THRESHOLD},
+  "wormhole": {
+    "ethereum": {
+      "rpcUrl": "${ETHEREUM_RPC_URL}"
+    },
+    "wormholeContractAddress": "${WORMHOLE_ADDRESS}"
+  }
+}
+EOF
+
+if [ -z "${NON_INTERACTIVE:-}" ]; then
+    run_options+="--interactive --tty "
+fi
 
 docker run \
     --rm \
     --name "${TLS_HOSTNAME}" \
     ${run_options} \
     --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
-    --env TLS_HOSTNAME="${TLS_HOSTNAME}" \
-    --env TLS_PORT="${TLS_PORT}" \
-    --env PEER_SERVER_URL="${PEER_SERVER_URL}" \
-    --env ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL}" \
+    --volume ./peer-client-config.json:/verification-v2/ts-pkgs/peer-client/self_config.json:ro \
     "dkg-client${TSS_E2E_GUARDIAN_ID:-}"
 
 

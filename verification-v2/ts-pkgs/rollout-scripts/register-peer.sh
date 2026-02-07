@@ -6,44 +6,96 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 PROJECT_ROOT="${SCRIPT_DIR}/../.."
 
-log_info() { echo "[INFO] $1"; }
-log_error() { echo "[ERROR] $1"; }
+log_info()  { echo "[INFO] $1" >&2;  }
+log_error() { echo "[ERROR] $1" >&2; }
 
-if [ $# -lt 6 ]; then
-    echo "Usage: $0 <Guardian key option> <CERT_PATH> <TLS_HOSTNAME> <TLS_PORT> <PEER_SERVER_URL>"
-    echo ""
-    echo "Arguments:"
-    echo "  CERT_PATH           - Path to the TLS certificate"
-    echo "  TLS_HOSTNAME        - Hostname for this guardian's DKG server"
-    echo "  TLS_PORT            - Port for this guardian's DKG server"
-    echo "  PEER_SERVER_URL     - URL of the peer discovery server"
-    echo "Guardian key option must be exactly one of these:"
-    echo "  --key <KEY_PATH>    - Path to the guardian's Wormhole private key"
-    echo "  --arn <AWS_KMS_ARN> - ARN of AWS KMS key"
+usage() {
+  cat >&2 <<EOF
+Usage:
+  $0 \
+    <Guardian key option> \
+    --tls-hostname=HOST \
+    --tls-port=PORT \
+    --tls-certificate=PATH \
+    --peer-server-url=URL
+
+Required:
+  --tls-hostname=HOST      Hostname for this guardian's DKG server.
+  --tls-port=PORT          Port for this guardian's DKG server.
+  --tls-certificate=PATH   Path to the TLS certificate.
+  --peer-server-url=URL    URL of the peer discovery server.
+Guardian key option must be exactly one of these:
+  --key=KEY_PATH           Path to the guardian's Wormhole private key.
+  --arn=AWS_KMS_ARN        ARN of AWS KMS key.
+EOF
+}
+
+check_guardian_option_is_undefined() {
+  if [ -n "${GUARDIAN_KEY_OPTION:-}" ]; then
+    log_error "Guardian key option must be provided exactly once."
+    echo >&2
+    usage
     exit 1
+  fi
+}
+
+# Defaults
+TLS_HOSTNAME=""
+TLS_PORT=""
+TLS_CERTIFICATE=""
+PEER_SERVER_URL=""
+GUARDIAN_KEY_OPTION=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --tls-hostname=*)
+      TLS_HOSTNAME="${arg#*=}" ;;
+    --tls-port=*)
+      TLS_PORT="${arg#*=}" ;;
+    --tls-certificate=*)
+      TLS_CERTIFICATE="${arg#*=}" ;;
+    --peer-server-url=*)
+      PEER_SERVER_URL="${arg#*=}" ;;
+    --key=*)
+      check_guardian_option_is_undefined
+      GUARDIAN_KEY_OPTION=--key
+      GUARDIAN_KEY_PATH="${arg#*=}" ;;
+    --arn=*)
+      check_guardian_option_is_undefined
+      GUARDIAN_KEY_OPTION=--arn
+      GUARDIAN_KEY_ARN="${arg#*=}" ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      log_error "Unknown option: $arg"
+      echo >&2
+      usage
+      exit 1 ;;
+  esac
+done
+
+missing=()
+[ -n "$TLS_HOSTNAME"    ] || missing+=("--tls-hostname"   )
+[ -n "$TLS_PORT"        ] || missing+=("--tls-port"       )
+[ -n "$TLS_CERTIFICATE" ] || missing+=("--tls-certificate")
+[ -n "$PEER_SERVER_URL" ] || missing+=("--peer-server-url")
+
+if (( ${#missing[@]} )); then
+  log_error "Missing required option(s): ${missing[*]}"
+  echo >&2
+  usage
+  exit 1
 fi
 
-GUARDIAN_KEY_OPTION="$1"
-CERT_PATH="$3"
-TLS_HOSTNAME="$4"
-TLS_PORT="$5"
-PEER_SERVER_URL="$6"
-
-if [ ${GUARDIAN_KEY_OPTION} == "--key" ]; then
-    GUARDIAN_KEY_PATH="$2"
-    if [ ! -f "${GUARDIAN_KEY_PATH}" ]; then
-        log_error "Guardian key file not found: ${GUARDIAN_KEY_PATH}"
-        exit 1
-    fi
-elif [ ${GUARDIAN_KEY_OPTION} == "--arn" ]; then
-    GUARDIAN_KEY_ARN="$2"
-else
-    log_error "Either '--key' or '--arn' option needs to be provided"
-    exit 1
+if [ -z ${GUARDIAN_KEY_OPTION} ]; then
+  log_error "At least one Guardian key option must be provided: --key or --arn"
+  echo >&2
+  usage
+  exit 1
 fi
 
-if [ ! -f "${CERT_PATH}" ]; then
-    log_error "Certificate file not found: ${CERT_PATH}"
+if [ ! -f "${TLS_CERTIFICATE}" ]; then
+    log_error "Certificate file not found: ${TLS_CERTIFICATE}"
     exit 1
 fi
 
@@ -75,12 +127,12 @@ docker build ${builder_option} \
 
 docker run ${run_option} \
     --rm \
-    --volume "${CERT_PATH}:/run/secrets/cert.pem:ro" \
+    --volume "${TLS_CERTIFICATE}:/run/secrets/cert.pem:ro" \
     "register-peer${TSS_E2E_GUARDIAN_ID:-}"
 
 log_info "Registration complete"
 
-TLS_KEYS_DIR="$(dirname "${CERT_PATH}")"
+TLS_KEYS_DIR="$(dirname "${TLS_CERTIFICATE}")"
 
 echo ""
 echo "=============================================="
@@ -90,11 +142,11 @@ echo ""
 echo "Run the following command from the rollout-scripts directory:"
 echo ""
 echo "  ./run-dkg.sh \\"
-echo "    ${TLS_KEYS_DIR} \\"
-echo "    ${TLS_HOSTNAME} \\"
-echo "    ${TLS_PORT} \\"
-echo "    ${PEER_SERVER_URL} \\"
-echo "    <ETHEREUM_RPC_URL>"
+echo "    --tls-keys-dir=${TLS_KEYS_DIR} \\"
+echo "    --tls-hostname=${TLS_HOSTNAME} \\"
+echo "    --tls-port=${TLS_PORT} \\"
+echo "    --peer-server-url=${PEER_SERVER_URL} \\"
+echo "    --ethereum-rpc-url=ETHEREUM_RPC_URL"
 echo ""
 echo "Where:"
 echo "  ETHEREUM_RPC_URL  - Ethereum mainnet RPC URL"

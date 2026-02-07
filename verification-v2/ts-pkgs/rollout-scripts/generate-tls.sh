@@ -1,28 +1,63 @@
 #!/bin/bash
-# Generate TLS key pair and certificate for mTLS during DKG.
-# Usage: ./generate-tls.sh <TLS_HOSTNAME> <TLS_PUBLIC_IP> <OUTPUT_DIR>
+# Generate TLS key pair and certificate for TLS during DKG.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 REPO_ROOT="${SCRIPT_DIR}/../.."
 
-log_info() { echo "[INFO] $1"; }
-log_error() { echo "[ERROR] $1"; }
+log_info()  { echo "[INFO] $1" >&2;  }
+log_error() { echo "[ERROR] $1" >&2; }
 
-if [ $# -lt 3 ]; then
-    echo "Usage: $0 <TLS_HOSTNAME> <TLS_PUBLIC_IP> <OUTPUT_DIR>"
-    echo ""
-    echo "Arguments:"
-    echo "  TLS_HOSTNAME   - Fully qualified hostname for this guardian"
-    echo "  TLS_PUBLIC_IP  - Public IP address for this guardian"
-    echo "  OUTPUT_DIR     - Directory to store generated keys"
-    exit 1
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  script \
+    --tls-hostname=HOST \
+    --tls-public-ip=IP \
+    --output-dir=DIRECTORY
+
+Required:
+  --tls-hostname=HOSTNAME  Fully qualified hostname for this guardian
+  --tls-public-ip=IP       Public IP address for this guardian
+  --output-dir=DIRECTORY   Directory to store generated keys
+EOF
+}
+
+# Defaults
+TLS_HOSTNAME=""
+TLS_PUBLIC_IP=""
+OUTPUT_DIR=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --tls-hostname=*)
+      TLS_HOSTNAME="${arg#*=}" ;;
+    --tls-public-ip=*)
+      TLS_PUBLIC_IP="${arg#*=}" ;;
+    --output-dir=*)
+      OUTPUT_DIR="${arg#*=}" ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      echo >&2
+      usage
+      exit 1 ;;
+  esac
+done
+
+missing=()
+[ -n "$TLS_HOSTNAME"  ] || missing+=("--tls-hostname" )
+[ -n "$TLS_PUBLIC_IP" ] || missing+=("--tls-public-ip")
+[ -n "$OUTPUT_DIR"    ] || missing+=("--output-dir"   )
+
+if (( ${#missing[@]} )); then
+  log_error "Missing required option(s): ${missing[*]}"
+  echo >&2
+  usage
+  exit 1
 fi
-
-TLS_HOSTNAME="$1"
-TLS_PUBLIC_IP="$2"
-OUTPUT_DIR="$3"
 
 mkdir -p "${OUTPUT_DIR}"
 
@@ -68,16 +103,16 @@ if [ -z "${SKIP_NEXT_STEP_HINT:-}" ]; then
     echo ""
     echo "  ./register-peer.sh \\"
     echo "    <Guardian key option> \\"
-    echo "    ${OUTPUT_DIR}/cert.pem \\"
-    echo "    ${TLS_HOSTNAME} \\"
-    echo "    <TLS_PORT> \\"
-    echo "    <PEER_SERVER_URL>"
+    echo "    --tls-certificate=${OUTPUT_DIR}/cert.pem \\"
+    echo "    --tls-hostname=${TLS_HOSTNAME} \\"
+    echo "    --tls-port=<TLS_PORT> \\"
+    echo "    --peer-server-url=<PEER_SERVER_URL>"
     echo ""
     echo "Where:"
     echo "  TLS_PORT            - Port your DKG server will listen on (e.g., 8443)"
     echo "  PEER_SERVER_URL     - URL of the peer discovery server"
     echo "Guardian key option must be exactly one of these:"
-    echo "  --key <KEY_PATH>    - Path to the guardian's Wormhole private key"
-    echo "  --arn <AWS_KMS_ARN> - ARN of AWS KMS key"
+    echo "  --key=<KEY_PATH>    - Path to the guardian's Wormhole private key"
+    echo "  --arn=<AWS_KMS_ARN> - ARN of AWS KMS key"
     echo ""
 fi
