@@ -106,7 +106,8 @@ fi
 
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID:-}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
 
-cat > peer-client-config.json <<EOF
+peer_client_config="${TLS_KEYS_DIR}/peer-client-config.json"
+cat > ${peer_client_config} <<EOF
 {
   "serverUrl": "${PEER_SERVER_URL}",
   "peer": {
@@ -133,7 +134,7 @@ docker run \
     --name "${TLS_HOSTNAME}" \
     ${run_options} \
     --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
-    --volume ./peer-client-config.json:/verification-v2/ts-pkgs/peer-client/self_config.json:ro \
+    --volume ${peer_client_config}:/verification-v2/ts-pkgs/peer-client/self_config.json:ro \
     "dkg-client${TSS_E2E_GUARDIAN_ID:-}"
 
 
