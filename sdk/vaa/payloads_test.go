@@ -1053,11 +1053,11 @@ func TestDeserializeUTXOUnlockPayloadErrors(t *testing.T) {
 func TestDeserializeUTXOUnlockPayload_OversizedInputCount(t *testing.T) {
 	// Build a minimal valid header: prefix (4) + chain (2) + manager_set (4) + lenInput (4) + lenOutput (4)
 	buf := make([]byte, 18)
-	copy(buf[0:4], UTXOPayloadPrefix[:])                // prefix
-	binary.BigEndian.PutUint16(buf[4:6], uint16(65))    // destination chain
-	binary.BigEndian.PutUint32(buf[6:10], 1)            // manager set index
-	binary.BigEndian.PutUint32(buf[10:14], 0xFFFFFFFF)  // lenInput = max uint32
-	binary.BigEndian.PutUint32(buf[14:18], 0)           // lenOutput = 0
+	copy(buf[0:4], UTXOPayloadPrefix[:])               // prefix
+	binary.BigEndian.PutUint16(buf[4:6], uint16(65))   // destination chain
+	binary.BigEndian.PutUint32(buf[6:10], 1)           // manager set index
+	binary.BigEndian.PutUint32(buf[10:14], 0xFFFFFFFF) // lenInput = max uint32
+	binary.BigEndian.PutUint32(buf[14:18], 0)          // lenOutput = 0
 
 	_, err := DeserializeUTXOUnlockPayload(buf)
 	require.ErrorContains(t, err, "UTXO input count")
