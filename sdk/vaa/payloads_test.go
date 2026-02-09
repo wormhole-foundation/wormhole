@@ -2,6 +2,7 @@ package vaa
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"reflect"
@@ -1042,6 +1043,41 @@ func TestDeserializeUTXOUnlockPayloadErrors(t *testing.T) {
 			require.ErrorContains(t, err, tc.expectedErr)
 		})
 	}
+}
+
+// TestDeserializeUTXOUnlockPayload_OversizedInputCount verifies that a
+// malicious payload with a huge input count is rejected before the allocation
+// happens, preventing an OOM. The lenInput field is attacker-controlled via the
+// VAA; without the bounds check, make([]UTXOInput, 0xFFFFFFFF) would attempt a
+// ~292 GB allocation.
+func TestDeserializeUTXOUnlockPayload_OversizedInputCount(t *testing.T) {
+	// Build a minimal valid header: prefix (4) + chain (2) + manager_set (4) + lenInput (4) + lenOutput (4)
+	buf := make([]byte, 18)
+	copy(buf[0:4], UTXOPayloadPrefix[:])                // prefix
+	binary.BigEndian.PutUint16(buf[4:6], uint16(65))    // destination chain
+	binary.BigEndian.PutUint32(buf[6:10], 1)            // manager set index
+	binary.BigEndian.PutUint32(buf[10:14], 0xFFFFFFFF)  // lenInput = max uint32
+	binary.BigEndian.PutUint32(buf[14:18], 0)           // lenOutput = 0
+
+	_, err := DeserializeUTXOUnlockPayload(buf)
+	require.ErrorContains(t, err, "UTXO input count")
+	require.ErrorContains(t, err, "exceeds remaining payload size")
+}
+
+// TestDeserializeUTXOUnlockPayload_OversizedOutputCount verifies that a
+// malicious payload with a huge output count is rejected before the allocation.
+func TestDeserializeUTXOUnlockPayload_OversizedOutputCount(t *testing.T) {
+	// Build a payload with 0 inputs but a huge output count.
+	buf := make([]byte, 18)
+	copy(buf[0:4], UTXOPayloadPrefix[:])               // prefix
+	binary.BigEndian.PutUint16(buf[4:6], uint16(65))   // destination chain
+	binary.BigEndian.PutUint32(buf[6:10], 1)           // manager set index
+	binary.BigEndian.PutUint32(buf[10:14], 0)          // lenInput = 0
+	binary.BigEndian.PutUint32(buf[14:18], 0xFFFFFFFF) // lenOutput = max uint32
+
+	_, err := DeserializeUTXOUnlockPayload(buf)
+	require.ErrorContains(t, err, "UTXO output count")
+	require.ErrorContains(t, err, "exceeds remaining payload size")
 }
 
 func TestDeserializeUTXOUnlockPayloadTrailingBytes(t *testing.T) {

@@ -887,6 +887,10 @@ func DeserializeUTXOUnlockPayload(bz []byte) (*UTXOUnlockPayload, error) {
 
 	// Deserialize inputs
 	const inputSize = 68 // 32 + 32 + 4
+	remaining := len(bz) - offset
+	if int(lenInput) > remaining/inputSize {
+		return nil, fmt.Errorf("UTXO input count %d exceeds remaining payload size of %d bytes", lenInput, remaining)
+	}
 	payload.Inputs = make([]UTXOInput, lenInput)
 	for i := uint32(0); i < lenInput; i++ {
 		if offset+inputSize > len(bz) {
@@ -908,6 +912,12 @@ func DeserializeUTXOUnlockPayload(bz []byte) (*UTXOUnlockPayload, error) {
 	offset += 4
 
 	// Deserialize outputs
+	// Minimum output size: Amount (8) + AddressType (4) = 12 bytes
+	const minOutputSize = 12
+	remaining = len(bz) - offset
+	if int(lenOutput) > remaining/minOutputSize {
+		return nil, fmt.Errorf("UTXO output count %d exceeds remaining payload size of %d bytes", lenOutput, remaining)
+	}
 	payload.Outputs = make([]UTXOOutput, lenOutput)
 	for i := uint32(0); i < lenOutput; i++ {
 		output, size, err := DeserializeUTXOOutput(bz[offset:])
