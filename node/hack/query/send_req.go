@@ -207,7 +207,7 @@ func main() {
 	}
 
 	methods := []string{"name", "totalSupply"}
-	callData := []*query.EthCallData{}
+	callData := make([]*query.EthCallData, 0, len(methods))
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E")
 
 	for _, method := range methods {
@@ -312,7 +312,7 @@ func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequ
 }
 
 func createQueryRequestWithMultipleRequests(callRequests []*query.EthCallQueryRequest) *query.QueryRequest {
-	perChainQueries := []*query.PerChainQueryRequest{}
+	perChainQueries := make([]*query.PerChainQueryRequest, 0, len(callRequests))
 	for _, req := range callRequests {
 		perChainQueries = append(perChainQueries, &query.PerChainQueryRequest{
 			ChainId: 2,

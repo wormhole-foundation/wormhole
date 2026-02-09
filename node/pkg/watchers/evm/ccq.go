@@ -680,10 +680,11 @@ type EthCallDataIntf interface {
 // ccqBuildBatchFromCallData builds two slices. The first is the batch submitted to the RPC call. It contains one entry for each query plus one to query the block.
 // The second is the data associated with each request (but not the block request). The index into both is the index into the request call data.
 func ccqBuildBatchFromCallData(req EthCallDataIntf, callBlockArg interface{}) ([]rpc.BatchElem, []EvmCallData) {
-	batch := []rpc.BatchElem{}
-	evmCallData := []EvmCallData{}
+	callDataList := req.CallDataList()
+	batch := make([]rpc.BatchElem, 0, len(callDataList))
+	evmCallData := make([]EvmCallData, 0, len(callDataList))
 	// Add each requested query to the batch.
-	for _, callData := range req.CallDataList() {
+	for _, callData := range callDataList {
 		// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
 		to := eth_common.BytesToAddress(callData.To)
 		data := eth_hexutil.Encode(callData.Data)

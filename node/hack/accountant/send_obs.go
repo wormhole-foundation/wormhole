@@ -170,7 +170,7 @@ func testBatch(
 
 	nonce := uint32(123456)
 
-	msgs := []*common.MessagePublication{}
+	msgs := make([]*common.MessagePublication, 0, 2)
 
 	msg1 := common.MessagePublication{
 		TxID:             TxHash.Bytes(),
