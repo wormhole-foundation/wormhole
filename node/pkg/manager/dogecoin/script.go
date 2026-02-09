@@ -26,10 +26,10 @@ func BuildRedeemScript(
 	m uint8,
 	pubkeys [][]byte,
 ) ([]byte, error) {
-	if len(pubkeys) > 15 {
-		return nil, fmt.Errorf("too many pubkeys: %d (max 15 for standard multisig)", len(pubkeys))
+	if len(pubkeys) > 13 {
+		return nil, fmt.Errorf("too many pubkeys: %d (max 13 for this redeem script)", len(pubkeys))
 	}
-	n := uint8(len(pubkeys)) // #nosec G115 -- validated above: len(pubkeys) <= 15
+	n := uint8(len(pubkeys)) // #nosec G115 -- validated above: len(pubkeys) <= 13
 	if m < 1 || m > n {
 		return nil, fmt.Errorf("invalid m-of-n: m=%d, n=%d", m, n)
 	}
