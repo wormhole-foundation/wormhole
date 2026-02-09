@@ -278,6 +278,35 @@ func (c *ManagerService) handleVAA(v *vaa.VAA) {
 
 // handleIncomingTransaction processes a verified manager transaction received from another manager node.
 // The p2p layer has already verified the guardian signature before passing this to us.
+//
+// SECURITY: this method aggregates manager signatures without verification, allowing for:
+//
+// 1. Invalid signatures stored permanently
+//
+// 2. Signer index spoofing (claim another signer's slot)
+//
+// 3. Metadata poisoning (first gossip message sets threshold, etc.)
+//
+// A suggested mitigation would be to make the following changes to this component without affecting gossip.
+//
+// # Approach
+//
+// Add SigHashes and PendingSignatures fields to AggregatedTransaction in the DB.
+//
+// - SigHashes [][]byte - Set when the VAA is processed locally. These are the hashes that are signed by the signer.
+//
+// - PendingSignatures map[uint8][][]byte - Unverified signatures stored before sighashes are known.
+//
+// - Signatures map[uint8][][]byte - Verified signatures (existing field, now only contains verified sigs).
+//
+// # Flow
+//
+// In handleIncomingTransaction, if hashes exist, verify the signatures before storing them, otherwise store them in PendingSignatures.
+//
+// In handleVAA, store the computed hashes and verify any pending signatures, dropping arrays that contain any invalid ones.
+// Only handleVAA should populate the metadata.
+//
+// This logic can likely be handled internally in storeSignature.
 func (c *ManagerService) handleIncomingTransaction(tx *gossipv1.ManagerTransaction) {
 	c.logger.Debug("received signed manager transaction from peer",
 		zap.String("vaa_id", tx.VaaId),
