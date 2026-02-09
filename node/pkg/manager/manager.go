@@ -569,7 +569,14 @@ func convertEthSigToDER(ethSig []byte, hashType txscript.SigHashType) ([]byte, e
 
 // compressPublicKey converts an ECDSA public key to compressed secp256k1 format (33 bytes).
 func compressPublicKey(pubKey *ecdsa.PublicKey) []byte {
-	btcPubKey, err := btcec.ParsePubKey(append([]byte{0x04}, append(pubKey.X.Bytes(), pubKey.Y.Bytes()...)...))
+	// Use FillBytes to zero-pad coordinates to exactly 32 bytes each.
+	// big.Int.Bytes() strips leading zeros, which would produce a short
+	// buffer that btcec.ParsePubKey rejects.
+	var buf [65]byte
+	buf[0] = 0x04
+	pubKey.X.FillBytes(buf[1:33])
+	pubKey.Y.FillBytes(buf[33:65])
+	btcPubKey, err := btcec.ParsePubKey(buf[:])
 	if err != nil {
 		// This should not happen with a valid ECDSA key
 		return nil
