@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -102,6 +103,9 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	observationsReceivedTotal.Inc()
 	observationsReceivedByGuardianAddressTotal.WithLabelValues(p.ourAddr.Hex()).Inc()
 
+	// Update the last VAA timestamp for this chain in the registry.
+	p.pegLastObservationSignedAtTime(k.EmitterChain)
+
 	// Get / create our state entry.
 	s := p.state.signatures[hash]
 	if s == nil {
@@ -153,4 +157,11 @@ func (p *Processor) tssSign(v *VAA) {
 			zap.Error(err),
 		)
 	}
+}
+
+// pegLastObservationSignedAtTime updates the registry with the current wall clock timestamp of the last signed observation for a chain.
+func (p *Processor) pegLastObservationSignedAtTime(chain vaa.ChainID) {
+	// Get current time as Unix nanoseconds.
+	timestamp := time.Now()
+	p2p.DefaultRegistry.SetLastObservationSignedAtTimestamp(chain, timestamp.UnixNano())
 }

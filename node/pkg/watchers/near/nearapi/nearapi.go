@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	nearRPCTimeout = 5 * time.Second
+	nearRPCTimeout = 20 * time.Second
 	/*
 		NEAR JSON RPC node is starting up with 4 workers
 		(https://github.com/near/nearcore/blob/8dc9a0bab8aa4648fc7af777e9fa7e3e545c95a5/chain/jsonrpc/src/lib.rs#L1372)

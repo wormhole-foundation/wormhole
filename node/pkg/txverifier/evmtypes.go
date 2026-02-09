@@ -475,6 +475,7 @@ func (t *ERC20Transfer) String() string {
 }
 
 // ERC20TransferFromLog() creates an ERC20Transfer struct given a log and Wormhole chain ID.
+// Returns an error if the log could not be parsed or if the parsed log is not an ERC20 Transfer.
 func ERC20TransferFromLog(
 	log *types.Log,
 	// This chain ID should correspond to the Wormhole chain ID, not the EVM chain ID.
@@ -719,15 +720,6 @@ func (s *ReceiptSummary) isSafe() bool {
 // isMsgSafe returns true if the message with the given ID is safe.
 func (s *ReceiptSummary) isMsgSafe(msgID msgID) bool {
 	return s.msgPubResult[msgID]
-}
-
-// Custom error type used to signal that a core invariant of the token bridge has been violated.
-type InvariantError struct {
-	Msg string
-}
-
-func (i InvariantError) Error() string {
-	return fmt.Sprintf("invariant violated: %s", i.Msg)
 }
 
 // transferOut is a struct that contains the token ID and amount of a token that was requested to be transferred out of the bridge.

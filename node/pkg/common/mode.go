@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"strings"
+
+	"github.com/wormhole-foundation/wormhole/sdk"
 )
 
 type Environment string
@@ -34,4 +36,10 @@ func ParseEnvironment(str string) (Environment, error) {
 		return AccountantMock, nil
 	}
 	return UnsafeDevNet, fmt.Errorf("invalid environment string: %s", str)
+}
+
+// ToSDK converts a common.Environment to sdk.Environment.
+// This allows node code to use SDK functions that require sdk.Environment.
+func (e Environment) ToSDK() sdk.Environment {
+	return sdk.EnvironmentFromString(string(e))
 }

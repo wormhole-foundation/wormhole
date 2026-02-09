@@ -204,7 +204,7 @@ func main() {
 		}
 
 		methods := []string{"name", "totalSupply"}
-		callData := []*query.EthCallData{}
+		callData := make([]*query.EthCallData, 0, len(methods))
 		to, _ := hex.DecodeString("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
 
 		for _, method := range methods {

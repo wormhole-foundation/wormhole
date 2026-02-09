@@ -11,6 +11,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
@@ -70,12 +71,22 @@ func (e ErrUnexpectedEndOfRead) Error() string {
 
 // ErrInputSize is returned when the input size is not the expected size during marshaling.
 type ErrInputSize struct {
-	Msg string
-	Got int
+	Msg  string
+	Got  int
+	Want int
 }
 
 func (e ErrInputSize) Error() string {
-	return fmt.Sprintf("wrong size: %s. expected >= %d bytes, got %d", e.Msg, marshaledMsgLenMin, e.Got)
+	if e.Got != 0 && e.Want != 0 {
+		return fmt.Sprintf("wrong size: %s. expected %d bytes, got %d", e.Msg, e.Want, e.Got)
+	}
+
+	if e.Got != 0 {
+		return fmt.Sprintf("wrong size: %s, got %d", e.Msg, e.Got)
+	}
+
+	return fmt.Sprintf("wrong size: %s", e.Msg)
+
 }
 
 // MaxSafeInputSize defines the maximum safe size for untrusted input from `io` Readers.
@@ -264,11 +275,11 @@ func (msg *MessagePublication) MarshalBinary() ([]byte, error) {
 	// Check preconditions
 	txIDLen := len(msg.TxID)
 	if txIDLen > TxIDSizeMax {
-		return nil, ErrInputSize{Msg: "TxID too long"}
+		return nil, ErrInputSize{Msg: "TxID too long", Want: TxIDSizeMax, Got: txIDLen}
 	}
 
 	if txIDLen < TxIDLenMin {
-		return nil, ErrInputSize{Msg: "TxID too short"}
+		return nil, ErrInputSize{Msg: "TxID too short", Want: TxIDLenMin, Got: txIDLen}
 	}
 
 	payloadLen := len(msg.Payload)
@@ -425,7 +436,7 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 	// Calculate minimum required length for the fixed portion
 	// (excluding variable-length fields: TxID and Payload)
 	if len(data) < marshaledMsgLenMin {
-		return ErrInputSize{Msg: "data too short", Got: len(data)}
+		return ErrInputSize{Msg: "data too short", Got: len(data), Want: marshaledMsgLenMin}
 	}
 
 	mp := &MessagePublication{}
@@ -440,8 +451,12 @@ func (m *MessagePublication) UnmarshalBinary(data []byte) error {
 
 	// Bounds checks. TxID length should be at least TxIDLenMin, but not larger than the length of the data.
 	// The second check is to avoid panics.
-	if int(txIDLen) < TxIDLenMin || int(txIDLen) > len(data) {
-		return ErrInputSize{Msg: "TxID length is invalid"}
+	if int(txIDLen) < TxIDLenMin {
+		return ErrInputSize{Msg: "TxID length is too short", Got: int(txIDLen), Want: TxIDLenMin}
+	}
+
+	if int(txIDLen) > len(data) {
+		return ErrInputSize{Msg: "TxID length is longer than bytes", Got: int(txIDLen)}
 	}
 
 	// Read TxID
@@ -612,6 +627,49 @@ func (msg *MessagePublication) VAAHash() string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
 	digest := v.SigningDigest()
 	return hex.EncodeToString(digest.Bytes())
+}
+
+// IsWTT checks if the MessagePublication represents a valid wrapped token transfer for a given environment.
+// It verifies:
+// 1. The payload is a transfer (payload type 1 or 3) via vaa.IsTransfer
+// 2. The emitter is a known token bridge emitter for the specified environment
+//
+// This method validates WTTs with respect to an environment's known token bridge emitters.
+// For a context-free check that only verifies the payload type, use vaa.IsTransfer instead.
+//
+// Returns false for test/mock environments (GoTest, AccountantMock) and if either check fails.
+//
+// Note: This method uses the same validation logic as VAA.IsWTT.
+func (msg *MessagePublication) IsWTT(env Environment) bool {
+	// Map common.Environment to the appropriate token bridge emitters
+	var tbEmitters map[vaa.ChainID][]byte
+	switch env {
+	case MainNet:
+		tbEmitters = sdk.KnownTokenbridgeEmitters
+	case TestNet:
+		tbEmitters = sdk.KnownTestnetTokenbridgeEmitters
+	case UnsafeDevNet:
+		tbEmitters = sdk.KnownDevnetTokenbridgeEmitters
+	case GoTest, AccountantMock:
+		// For test environments, return false
+		return false
+	default:
+		return false
+	}
+
+	// Check if it's a transfer payload
+	if !vaa.IsTransfer(msg.Payload) {
+		return false
+	}
+
+	// Check if the emitter chain has a known token bridge
+	tokenBridge, ok := tbEmitters[msg.EmitterChain]
+	if !ok {
+		return false
+	}
+
+	// Check if the emitter address matches the token bridge
+	return bytes.Equal(msg.EmitterAddress.Bytes(), tokenBridge)
 }
 
 // validBinaryBool returns true if the byte is either 0x00 or 0x01.

@@ -526,11 +526,12 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 }
 
 // GuardianOptionAdminService enables the admin rpc service on a unix socket.
-// Dependencies: db, governor
+// Dependencies: db
+// Note: governor and notary are optional - they may be nil if not enabled
 func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *string, rpcMap map[string]string) *GuardianOption {
 	return &GuardianOption{
 		name:         "admin-service",
-		dependencies: []string{"governor", "db"},
+		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			//nolint:contextcheck // Independent service that should not be affected by other services
 			adminService, err := adminServiceRunnable(
@@ -542,6 +543,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 				g.db,
 				g.gst,
 				g.gov,
+				g.notary,
 				g.guardianSigner,
 				ethRpc,
 				ethContract,
@@ -565,7 +567,7 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 		dependencies: []string{"db", "governor"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			// local public grpc service socket
-			//nolint:contextcheck // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+			//nolint:contextcheck // Context is handled by gRPC interceptor chain in common.NewInstrumentedGRPCServer
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
 				return fmt.Errorf("failed to create publicrpc service: %w", err)

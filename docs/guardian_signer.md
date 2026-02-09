@@ -37,7 +37,7 @@ The supported signing mechanisms are tabled below.
 
 _NOTE_ For the best possible performance, it is recommended that the Guardian be run from an EC2 instance that is in the same region as the KMS key.
 
-The KMS key's spec should be `ECC_SECQ_P256K1`, and should be enabled for signing. In order for the Guardian to authenticate against the KMS service, one of two options are available:
+The KMS key's spec should be `ECC_SECG_P256K1`, and should be enabled for signing. In order for the Guardian to authenticate against the KMS service, one of two options are available:
 
 * Create new API keys in the AWS console that are permissioned to use the KMS key for signing, and add the keys to the EC2 instance's `~/.aws/credentials` file. ([example here](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html)).
 * Create a role that is permissioned to use the KMS key and attach that role to the Guardian EC2 instance.

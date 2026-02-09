@@ -12,6 +12,7 @@ import (
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
+	"github.com/certusone/wormhole/node/pkg/notary"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -34,6 +35,7 @@ func adminServiceRunnable(
 	db *guardianDB.Database,
 	gst *common.GuardianSetState,
 	gov *governor.ChainGovernor,
+	notary *notary.Notary,
 	guardianSigner guardiansigner.GuardianSigner,
 	ethRpc *string,
 	ethContract *string,
@@ -90,6 +92,7 @@ func adminServiceRunnable(
 		logger.Named("adminservice"),
 		signedInC,
 		gov,
+		notary,
 		evmConnector,
 		guardianSigner,
 		ethcrypto.PubkeyToAddress(guardianSigner.PublicKey(ctx)),
