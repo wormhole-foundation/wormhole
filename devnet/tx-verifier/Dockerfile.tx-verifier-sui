@@ -1,0 +1,46 @@
+# Apply guardiand-image
+FROM guardiand-image as base
+
+FROM cli-gen AS cli-export
+FROM const-gen AS const-export
+FROM sui-node AS sui-node-base
+
+COPY --from=const-export .env .env
+COPY --from=cli-export clients/js /cli
+
+# prepare guardiand
+COPY --from=base /guardiand /guardiand
+COPY --from=base /usr/lib/libwasmvm.*.so /usr/lib/
+
+WORKDIR /tmp
+
+# Link `worm`
+WORKDIR /cli
+RUN npm link
+
+WORKDIR /
+
+# install jq
+RUN apt update && apt install -y jq
+
+# prepare test scripts
+COPY sui/tx-verifier-sui-runner.sh /tx-verifier-sui-runner.sh
+RUN chmod +x /tx-verifier-sui-runner.sh
+
+# This is necessary to modify/build/deploy Sui contracts from this container
+# The container is running with UID 1000, and all files copied into the sui-node image
+# are owned by root, stored under /tmp.
+RUN chown -R 1000:1000 /tmp
+
+# Necessary to store any external dependency artifacts for Sui
+RUN mkdir /.move
+RUN chown 1000:1000 /.move
+
+# Prepare sui configuration to allow using the sui cli utility
+RUN mkdir -p /.sui
+COPY sui/sui_config /.sui/sui_config
+RUN chown -R 1000:1000 /.sui
+
+
+# Add the unsafe implementations of `prepare_message` and `transfer_tokens`
+COPY sui/transfer_tokens_unsafe.move /tmp/transfer_tokens_unsafe.move

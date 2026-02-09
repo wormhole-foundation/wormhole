@@ -6,8 +6,8 @@ import axios from "axios";
 import { ChainId, getSignedVAAWithRetry } from "../../..";
 import {
   TERRA_CHAIN_ID,
-  TERRA_NODE_URL,
-  TERRA_PRIVATE_KEY,
+  TERRA2_NODE_URL,
+  TERRA2_PRIVATE_KEY,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
 
@@ -58,12 +58,12 @@ export async function getSignedVAABySequence(
 
 export async function queryBalanceOnTerra(asset: string): Promise<number> {
   const lcd = new LCDClient({
-    URL: TERRA_NODE_URL,
+    URL: TERRA2_NODE_URL,
     chainID: TERRA_CHAIN_ID,
-    isClassic: true,
+    isClassic: false,
   });
   const mk = new MnemonicKey({
-    mnemonic: TERRA_PRIVATE_KEY,
+    mnemonic: TERRA2_PRIVATE_KEY,
   });
   const wallet = lcd.wallet(mk);
 

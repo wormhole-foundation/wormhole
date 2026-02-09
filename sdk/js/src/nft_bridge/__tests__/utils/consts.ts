@@ -27,12 +27,6 @@ export const SOLANA_PRIVATE_KEY2 = new Uint8Array([
   119, 180, 216, 9, 169, 30, 4, 167, 235, 188, 51, 70, 24, 181, 227, 189, 59,
   163, 161, 252, 219, 17, 105, 197, 241, 19, 66, 205, 188, 232, 131,
 ]);
-export const TERRA_NODE_URL = ci
-  ? "http://terra-terrad:1317"
-  : "http://localhost:1317";
-export const TERRA_CHAIN_ID = "localterra";
-export const TERRA_PRIVATE_KEY =
-  "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";
 export const TEST_SOLANA_TOKEN = "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna";
 export const TEST_SOLANA_TOKEN3 =

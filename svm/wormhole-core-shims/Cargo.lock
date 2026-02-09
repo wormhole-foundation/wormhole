@@ -6767,7 +6767,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-svm-definitions"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "borsh 1.5.5",

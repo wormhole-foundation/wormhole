@@ -12,7 +12,7 @@ export const ETH_PRIVATE_KEY2 =
 export const ETH_PRIVATE_KEY3 =
   "0x646f1ce2fdad0e6deeeb5c7e8e5543bdde65e86029e2fd9fc169899c440a7913"; // account 3 - solana tests
 export const ETH_PRIVATE_KEY4 =
-  "0xadd53f9a7e588d003326d1cbf9e4a43c061aadd9bc938c843a79e7b4fd2ad743"; // account 4 - terrac tests
+  "0xadd53f9a7e588d003326d1cbf9e4a43c061aadd9bc938c843a79e7b4fd2ad743"; // account 4 - terra2 tests
 export const ETH_PRIVATE_KEY5 =
   "0x395df67f0c2d2d9fe1ad08d1bc8b6627011959b79c53d7dd6a3536a33ab8a4fd"; // account 5 - near tests
 export const ETH_PRIVATE_KEY6 =
@@ -36,20 +36,12 @@ export const SOLANA_PRIVATE_KEY = new Uint8Array([
   8, 174, 214, 157, 175, 126, 98, 90, 54, 24, 100, 177, 247, 77, 19, 112, 47,
   44, 165, 109, 233, 102, 14, 86, 109, 29, 134, 145, 132, 141,
 ]);
-export const TERRA_NODE_URL = ci
-  ? "http://terra-terrad:1317"
-  : "http://localhost:1317";
 export const TERRA2_NODE_URL = ci
   ? "http://terra2-terrad:1317"
   : "http://localhost:1318";
 export const TERRA_CHAIN_ID = "localterra";
 // NOTE: test1 is used by getIsTransferCompletedTerra, so avoid using it in the integration tests
 // Accounts from https://github.com/terra-money/LocalTerra/blob/main/README.md#accounts
-export const TERRA_PUBLIC_KEY = "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9"; // test7
-export const TERRA_PRIVATE_KEY =
-  "noble width taxi input there patrol clown public spell aunt wish punch moment will misery eight excess arena pen turtle minimum grain vague inmate"; // test7
-export const TERRA_PRIVATE_KEY2 =
-  "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty"; // test2
 export const TERRA2_PRIVATE_KEY =
   "symbol force gallery make bulk round subway violin worry mixture penalty kingdom boring survey tool fringe patrol sausage hard admit remember broken alien absorb"; // test3
 export const TEST_ERC20 = "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A";
@@ -60,28 +52,6 @@ export const WORMHOLE_RPC_HOSTS = ci
 
 export type Environment = "devnet" | "testnet" | "mainnet";
 export const CLUSTER: Environment = "devnet" as Environment; //This is the currently selected environment.
-
-export const TERRA_HOST =
-  CLUSTER === "mainnet"
-    ? {
-        URL: "https://lcd.terra.dev",
-        chainID: "columbus-5",
-        name: "mainnet",
-        isClassic: true,
-      }
-    : CLUSTER === "testnet"
-    ? {
-        URL: "https://bombay-lcd.terra.dev",
-        chainID: "bombay-12",
-        name: "testnet",
-        isClassic: true,
-      }
-    : {
-        URL: TERRA_NODE_URL,
-        chainID: "columbus-5",
-        name: "localterra",
-        isClassic: true,
-      };
 
 export const NEAR_NODE_URL = ci ? "http://near:3030" : "http://localhost:3030";
 

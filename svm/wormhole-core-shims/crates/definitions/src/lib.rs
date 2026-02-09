@@ -27,24 +27,74 @@ mod defs {
             panic!("The 'localnet' feature is meaningless without the 'solana' feature.");
 
             use super::*;
-            pub const CHAIN_ID: u16 = match u16::from_str_radix(env!("CHAIN_ID"), 10) {
-                Ok(c) => c,
-                Err(_err) => panic!("CHAIN_ID is not a valid u16")
-            };
 
+            #[cfg(feature = "chain-id")]
+            pub const CHAIN_ID: u16 = crate::utils::parse_u16_const(env!("CHAIN_ID"));
+
+            #[cfg(feature = "core")]
             pub const CORE_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
             // we use the same variable name as the core contracts
                 env_pubkey!("BRIDGE_ADDRESS");
 
+            #[cfg(feature = "core")]
+            derive_core_consts!();
+
+            #[cfg(feature = "token-bridge")]
+            pub const TOKEN_BRIDGE_PROGRAM_ID_ARRAY: [u8; 32] =
+                env_pubkey!("TOKEN_BRIDGE_ADDRESS");
+
+            #[cfg(feature = "token-bridge")]
+            derive_token_bridge_consts!();
+
+            #[cfg(feature = "post-message-shim")]
             pub const POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
                 env_pubkey!("POST_MESSAGE_SHIM_PROGRAM_ID");
 
+            #[cfg(feature = "post-message-shim")]
+            derive_post_message_shim_consts!();
+
+            #[cfg(feature = "verify-vaa-shim")]
             pub const VERIFY_VAA_SHIM_PROGRAM_ID_ARRAY: [u8; 32] =
                 env_pubkey!("VERIFY_VAA_SHIM_PROGRAM_ID");
 
-            derive_consts!();
+            #[cfg(feature = "verify-vaa-shim")]
+            derive_verify_vaa_shim_consts!();
         }
     }
+}
+
+pub mod utils {
+    /// A const fn to parse a u16 from a string at compile time.
+    /// A newer version of std includes a const parser function, but we want to
+    /// support older compiler versions which don't.
+    /// For good measure, we include a couple of static asserts below to make sure it works.
+    pub const fn parse_u16_const(s: &str) -> u16 {
+        let b = s.as_bytes();
+        let mut i = 0;
+
+        let mut acc: u16 = 0;
+        while i < b.len() {
+            let c = b[i];
+            if c >= b'0' && c <= b'9' {
+                let d = (c - b'0') as u16;
+                acc = acc * 10 + d;
+                i += 1;
+            } else {
+                break;
+            }
+        }
+
+        if acc == 0 {
+            panic!("Invalid chain id");
+        }
+
+        acc
+    }
+
+    const _: () = {
+        assert!(parse_u16_const("1") == 1);
+        assert!(parse_u16_const("65535") == 65535);
+    };
 }
 
 #[allow(unused_imports)]
@@ -201,7 +251,7 @@ pub const fn make_anchor_discriminator(input: &[u8]) -> [u8; 8] {
 /// If you use this crate with a chain that support different finality modes,
 /// either just use `u8`, or define a a custom enum and an impl of this trait.
 pub trait EncodeFinality: Sized + Copy {
-/// Encode SVM finality into a byte.
+    /// Encode SVM finality into a byte.
     fn encode(&self) -> u8;
 
     /// Decode SVM finality from a byte.
@@ -277,13 +327,16 @@ pub trait DataDiscriminator {
 /// available, even when not compiling for solana mainnet or solana devnet.
 /// The network flags just define which of these is available at the top-level.
 #[macro_export]
-macro_rules! derive_consts {
+macro_rules! derive_core_consts {
     () => {
         pub const CORE_BRIDGE_PROGRAM_ID: solana_program::pubkey::Pubkey =
             solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_PROGRAM_ID_ARRAY);
 
         pub const CORE_BRIDGE_FEE_COLLECTOR_PDA: ([u8; 32], u8) =
-            const_crypto::ed25519::derive_program_address(&[crate::FEE_COLLECTOR_SEED], &CORE_BRIDGE_PROGRAM_ID_ARRAY);
+            const_crypto::ed25519::derive_program_address(
+                &[$crate::FEE_COLLECTOR_SEED],
+                &CORE_BRIDGE_PROGRAM_ID_ARRAY,
+            );
 
         pub const CORE_BRIDGE_FEE_COLLECTOR: solana_program::pubkey::Pubkey =
             solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_FEE_COLLECTOR_PDA.0);
@@ -292,7 +345,7 @@ macro_rules! derive_consts {
 
         pub const CORE_BRIDGE_CONFIG_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::CORE_BRIDGE_CONFIG_SEED],
+                &[$crate::CORE_BRIDGE_CONFIG_SEED],
                 &CORE_BRIDGE_PROGRAM_ID_ARRAY,
             );
 
@@ -300,13 +353,26 @@ macro_rules! derive_consts {
             solana_program::pubkey::Pubkey::new_from_array(CORE_BRIDGE_CONFIG_PDA.0);
 
         pub const CORE_BRIDGE_CONFIG_BUMP: u8 = CORE_BRIDGE_CONFIG_PDA.1;
+    };
+}
 
+#[macro_export]
+macro_rules! derive_token_bridge_consts {
+    () => {
+        pub const TOKEN_BRIDGE_PROGRAM_ID: solana_program::pubkey::Pubkey =
+            solana_program::pubkey::Pubkey::new_from_array(TOKEN_BRIDGE_PROGRAM_ID_ARRAY);
+    };
+}
+
+#[macro_export]
+macro_rules! derive_post_message_shim_consts {
+    () => {
         pub const POST_MESSAGE_SHIM_PROGRAM_ID: solana_program::pubkey::Pubkey =
             solana_program::pubkey::Pubkey::new_from_array(POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY);
 
         const POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA: ([u8; 32], u8) =
             const_crypto::ed25519::derive_program_address(
-                &[crate::EVENT_AUTHORITY_SEED],
+                &[$crate::EVENT_AUTHORITY_SEED],
                 &POST_MESSAGE_SHIM_PROGRAM_ID_ARRAY,
             );
 
@@ -315,7 +381,12 @@ macro_rules! derive_consts {
 
         pub const POST_MESSAGE_SHIM_EVENT_AUTHORITY_BUMP: u8 =
             POST_MESSAGE_SHIM_EVENT_AUTHORITY_PDA.1;
+    };
+}
 
+#[macro_export]
+macro_rules! derive_verify_vaa_shim_consts {
+    () => {
         pub const VERIFY_VAA_SHIM_PROGRAM_ID: solana_program::pubkey::Pubkey =
             solana_program::pubkey::Pubkey::new_from_array(VERIFY_VAA_SHIM_PROGRAM_ID_ARRAY);
     };
@@ -329,7 +400,7 @@ fn available_ids() {
     let _ = crate::solana::localnet::CORE_BRIDGE_PROGRAM_ID;
     // defaults to mainnet (for backwards compatibility)
     let _ = crate::solana::CORE_BRIDGE_PROGRAM_ID;
-    #[cfg(any(feature = "solana", feature = "from-env"))]
+    #[cfg(all(any(feature = "solana", feature = "from-env"), feature = "core"))]
     let _ = crate::CORE_BRIDGE_PROGRAM_ID;
 }
 

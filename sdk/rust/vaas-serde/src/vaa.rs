@@ -213,6 +213,10 @@ impl<P> From<(Header, Body<P>)> for Vaa<P> {
 }
 
 impl Header {
+    #[allow(
+        clippy::todo,
+        reason = "VAA body verification not yet implemented - this function is not currently used in the SDK"
+    )]
     pub fn verify(&self, _body: &[u8], _addrs: &[GuardianAddress]) -> anyhow::Result<Digest> {
         todo!("VAA body verification")
     }

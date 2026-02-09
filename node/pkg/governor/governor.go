@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -48,14 +49,17 @@ import (
 const (
 	transferComplete = true
 	transferEnqueued = false
-)
 
-const maxEnqueuedTime = time.Hour * 24
+	// maxEnqueuedTime is the maximum time that a transfer can be queued before it is released.
+	maxEnqueuedTime = time.Hour * 24
+)
 
 type (
 	// Layout of the config data for each token
 	TokenConfigEntry struct {
-		Chain       uint16
+		// Chain is the Wormhole chain ID of the token's source chain (where the token was minted).
+		Chain uint16
+		// Addr is the token's address on the source chain in Wormhole normalized format.
 		Addr        string
 		Symbol      string
 		CoinGeckoId string
@@ -126,6 +130,11 @@ type (
 		second vaa.ChainID
 	}
 )
+
+func (e *TokenConfigEntry) String() string {
+	// ignore decimals and price
+	return fmt.Sprintf("%d:%s:%s:%s", e.Chain, e.Addr, e.Symbol, e.CoinGeckoId)
+}
 
 // valid checks whether a corridor is valid. A corridor is invalid if both chain IDs are equal.
 func (p *corridor) valid() bool {
@@ -313,38 +322,52 @@ func (gov *ChainGovernor) initConfig() error {
 		gov.flowCancelCorridors = flowCancelCorridors
 	}
 
-	for _, ct := range configTokens {
-		addr, err := vaa.StringToAddress(ct.Addr)
+	for _, token := range configTokens {
+		addr, err := vaa.StringToAddress(token.Addr)
 		if err != nil {
-			return fmt.Errorf("invalid address: %s", ct.Addr)
+			return fmt.Errorf("invalid address: %s", token.Addr)
 		}
 
-		cfgPrice := big.NewFloat(ct.Price)
+		// Ignore tokens with a chain that is not configured in the chains list.
+		// Ideally this should never happen, but it's possible that a token is added to the config
+		// without a corresponding chain entry.
+		if !slices.ContainsFunc(configChains, func(c ChainConfigEntry) bool {
+			return c.EmitterChainID == vaa.ChainID(token.Chain)
+		}) {
+			gov.logger.Info(
+				"ignoring token with chain not configured in chains list",
+				zap.String("token", token.String()),
+			)
+			continue
+		}
+
+		cfgPrice := big.NewFloat(token.Price)
 		initialPrice := new(big.Float)
 		initialPrice.Set(cfgPrice)
 
 		// Transfers have a maximum of eight decimal places.
-		dec := ct.Decimals
+		dec := token.Decimals
 		if dec > 8 {
 			dec = 8
 		}
 
+		// NOTE: Converts a value of 0 for decimals to 1.
 		decimalsFloat := big.NewFloat(math.Pow(10.0, float64(dec)))
 		decimals, _ := decimalsFloat.Int(nil)
 
 		// Some Solana tokens don't have the symbol set. In that case, use the chain and token address as the symbol.
-		symbol := ct.Symbol
+		symbol := token.Symbol
 		if symbol == "" {
-			symbol = fmt.Sprintf("%d:%s", ct.Chain, ct.Addr)
+			symbol = fmt.Sprintf("%d:%s", token.Chain, token.Addr)
 		}
 
-		key := tokenKey{chain: vaa.ChainID(ct.Chain), addr: addr}
+		key := tokenKey{chain: vaa.ChainID(token.Chain), addr: addr}
 		te := &tokenEntry{
 			cfgPrice:    cfgPrice,
 			price:       initialPrice,
 			decimals:    decimals,
 			symbol:      symbol,
-			coinGeckoId: ct.CoinGeckoId,
+			coinGeckoId: token.CoinGeckoId,
 			token:       key,
 		}
 		te.updatePrice()
@@ -367,7 +390,7 @@ func (gov *ChainGovernor) initConfig() error {
 				zap.String("coinGeckoId", te.coinGeckoId),
 				zap.String("price", te.price.String()),
 				zap.Int64("decimals", dec),
-				zap.Int64("origDecimals", ct.Decimals),
+				zap.Int64("origDecimals", token.Decimals),
 			)
 		}
 	}
@@ -464,8 +487,17 @@ func (gov *ChainGovernor) initConfig() error {
 	return nil
 }
 
-// Returns true if the message can be published, false if it has been added to the pending list.
+// Returns true if the message can be published, false if it has been added to the pending list
+// or if an error occurred.
 func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
+
+	// Fail early for checks that do not require referencing the governor's state.
+	if !vaa.IsTransfer(msg.Payload) {
+		// The Governor should not block transfers that are not wrapped token transfers.
+		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+		return true
+	}
+
 	publish, err := gov.processMsgForTime(msg, time.Now())
 	if err != nil {
 		gov.logger.Error("failed to process VAA: %v", zap.Error(err))
@@ -535,8 +567,8 @@ func (gov *ChainGovernor) processMsgForTime(msg *common.MessagePublication, now 
 		return false, err
 	}
 
-	// Compute the notional USD value of the transfers
-	value, err := computeValue(payload.Amount, token)
+	// Compute the notional USD value.
+	value, err := usdValue(payload.Amount, token)
 	if err != nil {
 		gov.logger.Error("failed to compute value of transfer",
 			zap.String("msgID", msg.MessageIDString()),
@@ -690,6 +722,15 @@ func (gov *ChainGovernor) corridorCanFlowCancel(corridor *corridor) bool {
 
 // IsGovernedMsg determines if the message applies to the governor. It grabs the lock.
 func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGoverned bool, err error) {
+
+	// Fail early for checks that do not require referencing the governor's state.
+	// This avoids locking the governor's mutex.
+	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+		return false, nil
+	}
+
+	// The remaining checks require referencing the governor's state, so we need to lock it.
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 	msgIsGoverned, _, _, _, err = gov.parseMsgAlreadyLocked(msg)
@@ -700,6 +741,13 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 func (gov *ChainGovernor) parseMsgAlreadyLocked(
 	msg *common.MessagePublication,
 ) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
+	// We only care about wrapped token transfers.
+	// The caller SHOULD check that the message is a wrapped token transfer before calling this method because it can be done without acquiring the Governor's lock. However, it is checked here for completeness.
+	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("ignoring vaa because it is not a wrapped token transfer", zap.String("msgID", msg.MessageIDString()))
+		return false, nil, nil, nil, nil
+	}
+
 	// If we don't care about this chain, the VAA can be published.
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
@@ -721,16 +769,11 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(
 		return false, nil, nil, nil, nil
 	}
 
-	// We only care about transfers.
-	if !vaa.IsTransfer(msg.Payload) {
-		gov.logger.Info("ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
-		return false, nil, nil, nil, nil
-	}
-
-	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
-	if err != nil {
-		gov.logger.Error("failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
-		return false, nil, nil, nil, err
+	// Decode the payload. This is a prerequisite for the rest of the checks.
+	payload, decodeErr := vaa.DecodeTransferPayloadHdr(msg.Payload)
+	if decodeErr != nil {
+		gov.logger.Error("failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(decodeErr))
+		return false, nil, nil, nil, decodeErr
 	}
 
 	// If we don't care about this token, the VAA can be published.
@@ -798,7 +841,7 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 
 			// Keep going until we find something that fits or hit the end.
 			for idx, pe := range ce.pending {
-				value, err := computeValue(pe.amount, pe.token)
+				value, err := usdValue(pe.amount, pe.token)
 				if err != nil {
 					gov.logger.Error("failed to compute value for pending vaa",
 						zap.Stringer("amount", pe.amount),
@@ -946,7 +989,19 @@ func (gov *ChainGovernor) checkPendingForTime(now time.Time) ([]*common.MessageP
 	return msgsToPublish, nil
 }
 
-func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+// usdValue converts an amount of a token into a USD value. This is done by multiplying the amount by the token's price
+// and scaling the result to the token's number of decimals.
+// The amount must be greater than or equal to zero. The token's price must be positive.
+func usdValue(amount *big.Int, token *tokenEntry) (uint64, error) {
+
+	// Ensure that the input is valid:
+	// - Price must be non-nil and greater than or equal to zero.
+	// - Amount must be non-nil and non-negative.
+	if amount == nil || amount.Sign() == -1 ||
+		token == nil || token.price == nil || token.price.Sign() <= 0 {
+		return 0, fmt.Errorf("usdValue: invalid input for amount or token")
+	}
+
 	amountFloat := new(big.Float)
 	amountFloat = amountFloat.SetInt(amount)
 
@@ -954,10 +1009,14 @@ func computeValue(amount *big.Int, token *tokenEntry) (uint64, error) {
 	valueFloat = valueFloat.Mul(amountFloat, token.price)
 
 	valueBigInt, _ := valueFloat.Int(nil)
-	valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+
+	// Defense-in-depth: avoid division by zero.
+	if token.decimals.Sign() != 0 {
+		valueBigInt = valueBigInt.Div(valueBigInt, token.decimals)
+	}
 
 	if !valueBigInt.IsUint64() {
-		return 0, fmt.Errorf("value is too large to fit in uint64")
+		return 0, fmt.Errorf("usdValue: value is too large to fit in uint64")
 	}
 
 	value := valueBigInt.Uint64()

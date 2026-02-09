@@ -16,7 +16,11 @@ func FlowCancelCorridors() []corridor {
 }
 
 func ValidateCorridors(input []corridor) bool {
-	seen := make([]corridor, len(input))
+	if len(input) == 0 {
+		return false
+	}
+
+	seen := make([]corridor, 0, len(input))
 	for _, p := range input {
 		// This check is needed when there is exactly one pipe. Otherwise, the seen loop detects this.
 		if !p.valid() {

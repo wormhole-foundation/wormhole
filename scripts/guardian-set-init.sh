@@ -9,7 +9,7 @@ echo "number of guardians to initialize: ${numGuardians}"
 addressesJson="./scripts/devnet-consts.json"
 
 # working files for accumulating state
-envFile="./scripts/.env.hex" # for generic hex data, for solana, terra, etc
+envFile="./scripts/.env.hex" # for generic hex data, for solana, etc
 ethFile="./scripts/.env.0x"  # for "0x" prefixed data, for ethereum scripts
 
 # copy the eth defaults so we can override just the things we need
@@ -80,7 +80,6 @@ echo "getting contract addresses for chain registrations from $addressesJson"
 # get addresses from the constants file
 solTokenBridge=$(jq --raw-output '.chains."1".contracts.tokenBridgeEmitterAddress' $addressesJson)
 ethTokenBridge=$(jq --raw-output '.chains."2".contracts.tokenBridgeEmitterAddress' $addressesJson)
-terraTokenBridge=$(jq --raw-output '.chains."3".contracts.tokenBridgeEmitterAddress' $addressesJson)
 bscTokenBridge=$(jq --raw-output '.chains."4".contracts.tokenBridgeEmitterAddress' $addressesJson)
 algoTokenBridge=$(jq --raw-output '.chains."8".contracts.tokenBridgeEmitterAddress' $addressesJson)
 nearTokenBridge=$(jq --raw-output '.chains."15".contracts.tokenBridgeEmitterAddress' $addressesJson)
@@ -98,7 +97,6 @@ aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress
 # invoke CLI commands to create registration VAAs
 solTokenBridgeVAA=$(worm generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
 ethTokenBridgeVAA=$(worm generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
-terraTokenBridgeVAA=$(worm generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
 bscTokenBridgeVAA=$(worm generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
 algoTokenBridgeVAA=$(worm generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
 nearTokenBridgeVAA=$(worm generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
@@ -121,7 +119,6 @@ echo "writing VAAs to .env files"
 # define the keys that will hold the chain registration governance VAAs
 solTokenBridge="REGISTER_SOL_TOKEN_BRIDGE_VAA"
 ethTokenBridge="REGISTER_ETH_TOKEN_BRIDGE_VAA"
-terraTokenBridge="REGISTER_TERRA_TOKEN_BRIDGE_VAA"
 bscTokenBridge="REGISTER_BSC_TOKEN_BRIDGE_VAA"
 algoTokenBridge="REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 terra2TokenBridge="REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
@@ -148,10 +145,6 @@ upsert_env_file $envFile $ethTokenBridge $ethTokenBridgeVAA
 # ethereum nft bridge
 upsert_env_file $ethFile $ethNFTBridge $ethNFTBridgeVAA
 upsert_env_file $envFile $ethNFTBridge $ethNFTBridgeVAA
-
-# terra token bridge
-upsert_env_file $ethFile $terraTokenBridge $terraTokenBridgeVAA
-upsert_env_file $envFile $terraTokenBridge $terraTokenBridgeVAA
 
 # bsc token bridge
 upsert_env_file $ethFile $bscTokenBridge $bscTokenBridgeVAA
@@ -200,7 +193,6 @@ paths=(
     ./algorand/.env
     ./near/.env
     ./solana/.env
-    ./terra/tools/.env
     ./cosmwasm/deployment/terra2/tools/.env
     ./sui/.env
     ./aptos/.env

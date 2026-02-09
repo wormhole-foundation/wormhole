@@ -464,7 +464,7 @@ elif [ "$chain_name" = "solana" ] || [ "$chain_name" = "fogo" ] || [ "$chain_nam
   cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
-	wormhole/solana $ make clean
+	wormhole/solana $ make SVM=$chain_name clean
 	wormhole/solana $ make NETWORK=mainnet SVM=$chain_name artifacts
 	\`\`\`
 

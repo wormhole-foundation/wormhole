@@ -50,7 +50,7 @@ func BenchmarkHandleObservation(b *testing.B) {
 
 	var totalTime, underQuorumTime, quorumReachedTime, overQuorumTime, handleMsgTime time.Duration
 	var totalCount, underQuorumCount, quorumReachedCount, overQuorumCount int
-	for count := 0; count < NumObservations; count++ {
+	for count := range NumObservations {
 		k := pd.createMessagePublication(b, uint64(count)) // #nosec G115 -- Safe as NumObservations hard coded above
 		start := time.Now()
 		p.handleMessage(ctx, k)
@@ -202,6 +202,7 @@ func (pd *ProcessorData) createMessagePublication(b *testing.B, sequence uint64)
 		EmitterAddress:   pd.emitterAddress,
 		Payload:          []byte{0x01, 0x02, 0x03, 0x04},
 		ConsistencyLevel: 32,
+		// Unreliable and IsReobservation are not relevant for the benchmark.
 	}
 }
 
@@ -221,8 +222,7 @@ func (pd *ProcessorData) createObservation(b *testing.B, guardianIdx int, k *com
 			Sequence:         k.Sequence,
 			ConsistencyLevel: k.ConsistencyLevel,
 		},
-		Unreliable:    k.Unreliable,
-		Reobservation: k.IsReobservation,
+		// Unreliable and IsReobservation are not relevant for the benchmark.
 	}
 
 	// Generate digest of the unsigned VAA.

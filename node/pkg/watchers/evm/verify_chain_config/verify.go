@@ -72,7 +72,7 @@ func verifyForEnv(env common.Environment, chainID vaa.ChainID) {
 	}
 
 	// Create a slice sorted by ChainID that corresponds to the Chain Config Map.
-	orderedList := []ListEntry{}
+	orderedList := make([]ListEntry, 0, len(m))
 	for chainId, entry := range m {
 		orderedList = append(orderedList, ListEntry{chainId, entry})
 	}
