@@ -19,15 +19,16 @@ Usage:
     --ethereum-rpc-url=URL
 
 Required:
-  --tls-keys-dir=DIR       Directory containing key.pem and cert.pem (also used for DKG outputs).
-  --tls-hostname=HOST      Hostname for this guardian's DKG server.
-  --tls-port=PORT          Port for this guardian's DKG server.
-  --peer-server-url=URL    URL of the peer discovery server.
-  --ethereum-rpc-url=URL   Ethereum RPC URL. Must be HTTP(S).
+  --tls-keys-dir=DIR        Directory containing key.pem and cert.pem (also used for DKG outputs).
+  --tls-hostname=HOST       Hostname for this guardian's DKG server.
+  --tls-port=PORT           Port for this guardian's DKG server.
+  --peer-server-url=URL     URL of the peer discovery server.
+  --ethereum-rpc-url=URL    Ethereum RPC URL. Must be HTTP(S).
 
 Optional:
-  --wormhole-address=ADDR  Wormhole contract address for testnet/devnet.
-  --threshold=INT          Amount of guardians to reach quorum for a given signing session.
+  --wormhole-address=ADDR   Wormhole contract address for testnet/devnet.
+  --threshold=INT           Amount of guardians to reach quorum for a given signing session.
+  --etc-hosts-override=FILE Override of /etc/hosts for container running DKG.
 EOF
 # TODO: add option to override /etc/hosts in container
 }
@@ -57,6 +58,8 @@ for arg in "$@"; do
       WORMHOLE_ADDRESS="${arg#*=}" ;;
     --threshold=*)
       THRESHOLD="${arg#*=}" ;;
+    --etc-hosts-override=*)
+      ETC_HOSTS_OVERRIDE="${arg#*=}" ;;
     --help|-h)
       usage; exit 0 ;;
     *)
@@ -82,26 +85,34 @@ if (( ${#missing[@]} )); then
 fi
 
 if [ ! -d "${TLS_KEYS_DIR}" ]; then
-    log_error "TLS keys directory not found: ${TLS_KEYS_DIR}"
-    exit 1
+  log_error "TLS keys directory not found: ${TLS_KEYS_DIR}"
+  exit 1
 fi
 
 if [ ! -f "${TLS_KEYS_DIR}/key.pem" ]; then
-    log_error "TLS private key not found: ${TLS_KEYS_DIR}/key.pem"
-    exit 1
+  log_error "TLS private key not found: ${TLS_KEYS_DIR}/key.pem"
+  exit 1
 fi
 
 if [ ! -f "${TLS_KEYS_DIR}/cert.pem" ]; then
-    log_error "TLS certificate not found: ${TLS_KEYS_DIR}/cert.pem"
-    exit 1
+  log_error "TLS certificate not found: ${TLS_KEYS_DIR}/cert.pem"
+  exit 1
 fi
 
 # TSS_E2E_DOCKER_NETWORK should NOT be used in production
 run_options=""
 if [ -n "${TSS_E2E_DOCKER_NETWORK:-}" ]; then
-    run_options+="--network=${TSS_E2E_DOCKER_NETWORK} "
+  run_options+="--network=${TSS_E2E_DOCKER_NETWORK} "
 else
-    run_options+="--publish ${TLS_PORT}:${TLS_PORT} "
+  run_options+="--publish ${TLS_PORT}:${TLS_PORT} "
+fi
+
+if [ -n "${ETC_HOSTS_OVERRIDE:-}" ]; then
+  if [ ! -f "${ETC_HOSTS_OVERRIDE}" ]; then
+    log_error "Hosts override not found: ${ETC_HOSTS_OVERRIDE}"
+    exit 1
+  fi
+  run_options+="--volume "${ETC_HOSTS_OVERRIDE}":dst=/etc/hosts:ro "
 fi
 
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID:-}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"
@@ -126,16 +137,16 @@ cat > ${peer_client_config} <<EOF
 EOF
 
 if [ -z "${NON_INTERACTIVE:-}" ]; then
-    run_options+="--interactive --tty "
+  run_options+="--interactive --tty "
 fi
 
 docker run \
-    --rm \
-    --name "${TLS_HOSTNAME}" \
-    ${run_options} \
-    --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
-    --volume ${peer_client_config}:/verification-v2/ts-pkgs/peer-client/self_config.json:ro \
-    "dkg-client${TSS_E2E_GUARDIAN_ID:-}"
+  --rm \
+  --name "${TLS_HOSTNAME}" \
+  ${run_options} \
+  --mount type=bind,src="${TLS_KEYS_DIR}",dst=/keys \
+  --volume ${peer_client_config}:/verification-v2/ts-pkgs/peer-client/self_config.json:ro \
+  "dkg-client${TSS_E2E_GUARDIAN_ID:-}"
 
 
 echo ""
