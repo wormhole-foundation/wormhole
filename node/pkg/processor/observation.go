@@ -762,9 +762,9 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 	}
 
 	// Check if we have more delegate observations than required for quorum.
-	// s.observations may contain delegate observations from multiple delegated guardian sets during delegated guardian set updates
+	// s.observations may contain delegate observations from multiple delegated guardian sets during delegated guardian set updates.
 	// Hence, if len(s.observations) < quorum, then there is definitely no quorum and we can return early to save additional computation,
-	// but if len(s.observations) >= quorum, there is not necessarily quorum for the active delegated guardian set.
+	// but if len(s.observations) >= quorum, there is not necessarily quorum for the delegated guardian set at first observation time (dgc).
 	if len(s.observations) < dgc.Quorum() {
 		// no quorum yet, we're done here
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {

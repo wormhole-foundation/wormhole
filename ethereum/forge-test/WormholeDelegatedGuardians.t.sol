@@ -232,14 +232,14 @@ contract TestWormholeDelegatedGuardians is TestUtils {
     assertEq(chainIdsLength, 1);
   }
 
-  function testSubmit_50_Configs(
+  function testSubmit_100_Configs(
     uint32 timestamp,
     uint32 nonce,
     uint64 sequence,
     uint8 consistencyLevel
   ) public {
-    WormholeDelegatedGuardians.DelegatedGuardianPayload[] memory configs = new WormholeDelegatedGuardians.DelegatedGuardianPayload[](50);
-    for(uint16 i = 0; i < 50; i++) {
+    WormholeDelegatedGuardians.DelegatedGuardianPayload[] memory configs = new WormholeDelegatedGuardians.DelegatedGuardianPayload[](100);
+    for(uint16 i = 0; i < 100; i++) {
       configs[i] = _buildSimpleConfig(i)[0];
     }
 
@@ -257,7 +257,7 @@ contract TestWormholeDelegatedGuardians is TestUtils {
       TEST_GUARDIAN_PK
     );
 
-    for(uint16 i = 0; i < 50; i++) {
+    for(uint16 i = 0; i < 100; i++) {
       vm.expectEmit(address(delegatedGuardians));
       emit ChainConfigSet(
         0,
@@ -273,10 +273,10 @@ contract TestWormholeDelegatedGuardians is TestUtils {
     uint256 chainIdsLength = delegatedGuardians.chainIdsLength();
     uint16[] memory chainIds = delegatedGuardians.getChainIds();
 
-    assertEq(storedConfigs.length, 50);
+    assertEq(storedConfigs.length, 100);
     assertEq(historicalConfigLength, 1);
-    assertEq(chainIdsLength, 50);
-    for(uint16 i = 0; i < 50; i++) {
+    assertEq(chainIdsLength, 100);
+    for(uint16 i = 0; i < 100; i++) {
       assertEq(storedConfigs[i].chainId, configs[i].chainId);
       assertEq(storedConfigs[i].threshold, configs[i].threshold);
       assertEq(storedConfigs[i].keys.length, configs[i].keys.length);
