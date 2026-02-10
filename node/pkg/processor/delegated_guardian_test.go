@@ -1,5 +1,26 @@
 //go:build delegated_guardian_ci
 
+// Delegated Guardian Config Integration Tests
+//
+// These tests are designed to run in Tilt CI environment after the WormholeDelegatedGuardians
+// smart contract has been deployed and the delegated guardian configuration has been completed.
+//
+// They listen on processor gossip channels to observe behavior across multiple guardians, chains,
+// and delegated chain configurations. The tests run sequentially and can be considered a single
+// test that mimics common delegated guardian workflows.
+//
+// NOTE: Any change to the default CI delegated guardian setup requires updating these tests.
+// The assumed default configuration (from Tiltfile) is:
+// |------------------------------------------------------------------|
+// | chain (chain id) | delegated | guardians | threshold | simulates |
+// |------------------|-----------|-----------|-----------|-----------|
+// | eth-devnet (2)   |     N     | [0,1,2,3] |     3     |   13/19   |
+// | eth-devnet-2 (4) |     Y     |   [1,2]   |     2     |    7/9    |
+// |------------------------------------------------------------------|
+//
+// These tests are excluded from default `go test` runs and can be enabled explicitly with:
+// go test -v ./pkg/processor -tags delegated_guardian_ci
+
 package processor
 
 import (
@@ -54,6 +75,17 @@ var devnetGuardians = []string{
 	guardian2,
 }
 
+// Default devnet delegated guardian config
+var devnetConfig = map[vaa.ChainID]vaa.DelegatedGuardianConfig{
+	4: {
+		Threshold: 2,
+		Keys: []eth_common.Address{
+			eth_common.HexToAddress("0x" + guardian1),
+			eth_common.HexToAddress("0x" + guardian2),
+		},
+	},
+}
+
 func getNextConfigIndex(t *testing.T) uint64 {
 	client, err := ethclient.Dial(ethDevnetRPC)
 	require.NoError(t, err, "Failed to connect to Ethereum RPC")
@@ -86,9 +118,10 @@ func getNextConfigIndex(t *testing.T) uint64 {
 	return configIndex.Uint64()
 }
 
-func connectToEthereumRPC(t *testing.T, useDevnet bool) *ethclient.Client {
+// connectToEthereumRPC returns the client to ethDevnetRPC (or ethDevnet2RPC if useDevnet2 is true)
+func connectToEthereumRPC(t *testing.T, useDevnet2 bool) *ethclient.Client {
 	rpc := ethDevnetRPC
-	if useDevnet {
+	if useDevnet2 {
 		rpc = ethDevnet2RPC
 	}
 
@@ -607,17 +640,7 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	t.Logf("VAAs produced: %d", len(messages.VAAs))
 
 	// We rollback configuration changes to devnet default config
-	rollbackConfig := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
-		4: {
-			Threshold: 2,
-			Keys: []eth_common.Address{
-				eth_common.HexToAddress("0x" + guardian1),
-				eth_common.HexToAddress("0x" + guardian2),
-			},
-		},
-	}
-
-	createAndSubmitDelegatedGuardiansConfig(t, rollbackConfig)
+	createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
 	t.Log("Waiting for guardian to pick up configuration...")
 	time.Sleep(20 * time.Second)
 }
@@ -654,33 +677,14 @@ func TestNonDelegableChainDelegated(t *testing.T) {
 	assert.Equal(t, 0, len(messages.DelegateObservations), "Expected no delegate observations")
 
 	// We rollback configuration changes to devnet default config
-	rollbackConfig := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
-		4: {
-			Threshold: 2,
-			Keys: []eth_common.Address{
-				eth_common.HexToAddress("0x" + guardian1),
-				eth_common.HexToAddress("0x" + guardian2),
-			},
-		},
-	}
-
-	createAndSubmitDelegatedGuardiansConfig(t, rollbackConfig)
+	createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
 	t.Log("Waiting for guardian to pick up configuration...")
 	time.Sleep(20 * time.Second)
 }
 
 func TestDelegateObservationScenario(t *testing.T) {
 	// Ensure delegated guardians are configured for chain 4
-	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
-		4: {
-			Threshold: 2,
-			Keys: []eth_common.Address{
-				eth_common.HexToAddress("0x" + guardian1),
-				eth_common.HexToAddress("0x" + guardian2),
-			},
-		},
-	}
-	createAndSubmitDelegatedGuardiansConfig(t, config)
+	createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
 	t.Log("Waiting for guardian to pick up configuration...")
 	time.Sleep(20 * time.Second)
 
