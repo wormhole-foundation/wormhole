@@ -502,6 +502,12 @@ if require_per_guardian_config:
     script_content = str(read_file("scripts/delegated-guardian-set-preset.sh"))
     
     delegated_setup_yaml = read_yaml_stream("devnet/delegated-guardian-setup.yaml")
+
+    docker_build(
+        ref = "delegated-guardian-setup",
+        context = "./devnet/delegated-guardian-setup/",
+        dockerfile = "./devnet/delegated-guardian-setup/Dockerfile",
+    )
     
     job_web_host = "guardian-0.guardian"
     
