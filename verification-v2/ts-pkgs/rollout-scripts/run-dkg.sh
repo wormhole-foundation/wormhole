@@ -112,7 +112,7 @@ if [ -n "${ETC_HOSTS_OVERRIDE:-}" ]; then
     log_error "Hosts override not found: ${ETC_HOSTS_OVERRIDE}"
     exit 1
   fi
-  run_options+="--volume "${ETC_HOSTS_OVERRIDE}":dst=/etc/hosts:ro "
+  run_options+="--volume "${ETC_HOSTS_OVERRIDE}":/etc/hosts:ro "
 fi
 
 docker build --tag "dkg-client${TSS_E2E_GUARDIAN_ID:-}" --file "${REPO_ROOT}/ts-pkgs/peer-client/dkg.Dockerfile" "${REPO_ROOT}"

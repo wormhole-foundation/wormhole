@@ -8,7 +8,7 @@ RUN apt-get --quiet update && apt-get --quiet --no-install-recommends --yes inst
   && rm -rf /var/lib/apt/lists
 
 # TODO: Pin the commit
-RUN git clone -b tss-server --depth 1 https://github.com/XLabs/tss-lib.git
+RUN git clone --revision=0d03be8ea6bb78d8133eb6e8f48a718ddbdcea62 --depth 1 https://github.com/XLabs/tss-lib.git
 
 WORKDIR /tss-lib/tss/internal/cmd
 RUN go build -o=./server ./dkg
