@@ -63,7 +63,7 @@ const (
 	ethDevnetRPC                   = "http://eth-devnet:8545"
 	ethDevnet2RPC                  = "http://eth-devnet2:8545"
 	wormholeContractAddress        = "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
-	delegatedGuardiansContractAddr = "0xfE82e8f24A51E670133f4268cDfc164c49FC3b37"
+	delegatedGuardiansContractAddr = "0xc0378Bf6Fa4D02ca64BC5d64Ba0dbaDc9698cae6"
 	anvilPrivateKey                = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 	numDevnetGuardians             = 3
 	delegatedGuardiansABI          = `[{"inputs":[{"internalType":"bytes","name":"vaa","type":"bytes"}],"name":"submitConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"nextConfigIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`

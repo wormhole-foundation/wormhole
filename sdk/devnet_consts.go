@@ -55,5 +55,5 @@ var KnownDevnetCoreContracts = map[vaa.ChainID]string{
 
 // KnownDevnetDelegatedGuardiansContracts is a map of known delegated guardians contract addresses used during development.
 var KnownDevnetDelegatedGuardiansContracts = map[vaa.ChainID]string{
-	vaa.ChainIDEthereum: "0xfE82e8f24A51E670133f4268cDfc164c49FC3b37",
+	vaa.ChainIDEthereum: "0xc0378Bf6Fa4D02ca64BC5d64Ba0dbaDc9698cae6",
 }
