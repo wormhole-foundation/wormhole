@@ -190,14 +190,14 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	require.NotNil(t, guardianSigner)
 
 	batchObsvC := make(chan<- *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 42)
+	delegateObsvRecvC := make(chan<- *gossipv1.SignedDelegateObservation, 42)
 	signedInC := make(chan<- *gossipv1.SignedVAAWithQuorum, 42)
 	obsvReqC := make(chan<- *gossipv1.ObservationRequest, 42)
-	delegateObsvRecvC := make(chan<- *gossipv1.DelegateObservation, 42)
 	gossipControlSendC := make(chan []byte, 42)
 	gossipAttestationSendC := make(chan []byte, 42)
+	gossipDelegatedAttestationSendC := make(chan []byte, 42)
 	gossipVaaSendC := make(chan []byte, 42)
 	obsvReqSendC := make(<-chan *gossipv1.ObservationRequest, 42)
-	delegateObsvSendC := make(<-chan *gossipv1.DelegateObservation, 42)
 
 	acct := &accountant.Accountant{}
 	gov := &governor.ChainGovernor{}
@@ -223,14 +223,14 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 			nodeName,
 			guardianSigner,
 			batchObsvC,
+			delegateObsvRecvC,
 			signedInC,
 			obsvReqC,
-			delegateObsvRecvC,
 			gossipControlSendC,
 			gossipAttestationSendC,
+			gossipDelegatedAttestationSendC,
 			gossipVaaSendC,
 			obsvReqSendC,
-			delegateObsvSendC,
 			acct,
 			gov,
 			disableHeartbeatVerify,
@@ -255,6 +255,7 @@ func TestRunParamsWithGuardianOptions(t *testing.T) {
 	assert.Equal(t, obsvReqC, params.obsvReqRecvC)
 	assert.Equal(t, gossipControlSendC, params.gossipControlSendC)
 	assert.Equal(t, gossipAttestationSendC, params.gossipAttestationSendC)
+	assert.Equal(t, gossipDelegatedAttestationSendC, params.gossipDelegatedAttestationSendC)
 	assert.Equal(t, gossipVaaSendC, params.gossipVaaSendC)
 	assert.Equal(t, obsvReqSendC, params.obsvReqSendC)
 	assert.Equal(t, acct, params.acct)

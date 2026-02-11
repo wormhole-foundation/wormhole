@@ -54,6 +54,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -267,7 +268,7 @@ type GossipCollector struct {
 	batchObsvC         chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	signedIncomingVaaC chan *gossipv1.SignedVAAWithQuorum
 	obsvReqC           chan *gossipv1.ObservationRequest
-	delegateObsvC      chan *gossipv1.DelegateObservation
+	delegateObsvC      chan *gossipv1.SignedDelegateObservation
 	signedGovCfgC      chan *gossipv1.SignedChainGovernorConfig
 	signedGovStatusC   chan *gossipv1.SignedChainGovernorStatus
 
@@ -325,7 +326,7 @@ func NewGossipCollector(bootstrapPeers, networkID string, port uint) (*GossipCol
 		batchObsvC:           make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 1024),
 		signedIncomingVaaC:   make(chan *gossipv1.SignedVAAWithQuorum, 1024),
 		obsvReqC:             make(chan *gossipv1.ObservationRequest, 1024),
-		delegateObsvC:        make(chan *gossipv1.DelegateObservation, 1024),
+		delegateObsvC:        make(chan *gossipv1.SignedDelegateObservation, 1024),
 		signedGovCfgC:        make(chan *gossipv1.SignedChainGovernorConfig, 1024),
 		signedGovStatusC:     make(chan *gossipv1.SignedChainGovernorStatus, 1024),
 		delegateObservations: make([]*gossipv1.DelegateObservation, 0),
@@ -348,7 +349,7 @@ func NewGossipCollector(bootstrapPeers, networkID string, port uint) (*GossipCol
 		p2p.WithSignedObservationBatchListener(gc.batchObsvC),
 		p2p.WithSignedVAAListener(gc.signedIncomingVaaC),
 		p2p.WithObservationRequestListener(gc.obsvReqC),
-		p2p.WithDelegateObservationListener(gc.delegateObsvC),
+		p2p.WithSignedDelegateObservationListener(gc.delegateObsvC),
 		p2p.WithChainGovernorConfigListener(gc.signedGovCfgC),
 		p2p.WithChainGovernorStatusListener(gc.signedGovStatusC),
 		p2p.WithDisableHeartbeatVerify(true),
@@ -400,13 +401,20 @@ func (gc *GossipCollector) collectMessages(ctx context.Context) {
 			)
 
 		case msg := <-gc.delegateObsvC:
+			var d gossipv1.DelegateObservation
+			err := proto.Unmarshal(msg.DelegateObservation, &d)
+			if err != nil {
+				panic(err)
+			}
+
 			gc.mu.Lock()
-			gc.delegateObservations = append(gc.delegateObservations, msg)
+			gc.delegateObservations = append(gc.delegateObservations, &d)
 			gc.mu.Unlock()
+
 			gc.logger.Info("Collected DelegateObservation",
-				zap.Uint32("emitter_chain", msg.EmitterChain),
-				zap.Uint64("sequence", msg.Sequence),
-				zap.String("guardian_addr", hex.EncodeToString(msg.GuardianAddr)),
+				zap.Uint32("emitter_chain", d.EmitterChain),
+				zap.Uint64("sequence", d.Sequence),
+				zap.String("guardian_addr", hex.EncodeToString(d.GuardianAddr)),
 			)
 
 		case <-gc.signedGovCfgC:

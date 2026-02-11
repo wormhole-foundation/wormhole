@@ -26,28 +26,28 @@ const LOCAL_P2P_PORTRANGE_START = 11000
 
 type G struct {
 	// arguments passed to p2p.New
-	batchObsvC             chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
-	obsvReqC               chan *gossipv1.ObservationRequest
-	obsvReqSendC           chan *gossipv1.ObservationRequest
-	delegateObsvRecvC      chan *gossipv1.DelegateObservation
-	delegateObsvSendC      chan *gossipv1.DelegateObservation
-	controlSendC           chan []byte
-	attestationSendC       chan []byte
-	vaaSendC               chan []byte
-	signedInC              chan *gossipv1.SignedVAAWithQuorum
-	priv                   p2pcrypto.PrivKey
-	guardianSigner         guardiansigner.GuardianSigner
-	gst                    *node_common.GuardianSetState
-	networkID              string
-	bootstrapPeers         string
-	nodeName               string
-	disableHeartbeatVerify bool
-	rootCtxCancel          context.CancelFunc
-	gov                    *governor.ChainGovernor
-	acct                   *accountant.Accountant
-	signedGovCfg           chan *gossipv1.SignedChainGovernorConfig
-	signedGovSt            chan *gossipv1.SignedChainGovernorStatus
-	components             *Components
+	batchObsvC                chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
+	delegateObsvC             chan *gossipv1.SignedDelegateObservation
+	obsvReqC                  chan *gossipv1.ObservationRequest
+	obsvReqSendC              chan *gossipv1.ObservationRequest
+	controlSendC              chan []byte
+	attestationSendC          chan []byte
+	delegatedAttestationSendC chan []byte
+	vaaSendC                  chan []byte
+	signedInC                 chan *gossipv1.SignedVAAWithQuorum
+	priv                      p2pcrypto.PrivKey
+	guardianSigner            guardiansigner.GuardianSigner
+	gst                       *node_common.GuardianSetState
+	networkID                 string
+	bootstrapPeers            string
+	nodeName                  string
+	disableHeartbeatVerify    bool
+	rootCtxCancel             context.CancelFunc
+	gov                       *governor.ChainGovernor
+	acct                      *accountant.Accountant
+	signedGovCfg              chan *gossipv1.SignedChainGovernorConfig
+	signedGovSt               chan *gossipv1.SignedChainGovernorStatus
+	components                *Components
 }
 
 func NewG(t *testing.T, nodeName string) *G {
@@ -67,23 +67,25 @@ func NewG(t *testing.T, nodeName string) *G {
 	_, rootCtxCancel := context.WithCancel(context.Background())
 
 	g := &G{
-		batchObsvC:             make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
-		obsvReqC:               make(chan *gossipv1.ObservationRequest, cs),
-		obsvReqSendC:           make(chan *gossipv1.ObservationRequest, cs),
-		controlSendC:           make(chan []byte, cs),
-		attestationSendC:       make(chan []byte, cs),
-		vaaSendC:               make(chan []byte, cs),
-		signedInC:              make(chan *gossipv1.SignedVAAWithQuorum, cs),
-		priv:                   p2ppriv,
-		guardianSigner:         guardianSigner,
-		gst:                    node_common.NewGuardianSetState(nil),
-		nodeName:               nodeName,
-		disableHeartbeatVerify: false,
-		rootCtxCancel:          rootCtxCancel,
-		gov:                    nil,
-		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
-		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
-		components:             DefaultComponents(),
+		batchObsvC:                make(chan *node_common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], cs),
+		delegateObsvC:             make(chan *gossipv1.SignedDelegateObservation, cs),
+		obsvReqC:                  make(chan *gossipv1.ObservationRequest, cs),
+		obsvReqSendC:              make(chan *gossipv1.ObservationRequest, cs),
+		controlSendC:              make(chan []byte, cs),
+		attestationSendC:          make(chan []byte, cs),
+		delegatedAttestationSendC: make(chan []byte, cs),
+		vaaSendC:                  make(chan []byte, cs),
+		signedInC:                 make(chan *gossipv1.SignedVAAWithQuorum, cs),
+		priv:                      p2ppriv,
+		guardianSigner:            guardianSigner,
+		gst:                       node_common.NewGuardianSetState(nil),
+		nodeName:                  nodeName,
+		disableHeartbeatVerify:    false,
+		rootCtxCancel:             rootCtxCancel,
+		gov:                       nil,
+		signedGovCfg:              make(chan *gossipv1.SignedChainGovernorConfig, cs),
+		signedGovSt:               make(chan *gossipv1.SignedChainGovernorStatus, cs),
+		components:                DefaultComponents(),
 	}
 
 	// Consume all output channels
@@ -97,6 +99,7 @@ func NewG(t *testing.T, nodeName string) *G {
 		case <-g.signedGovSt:
 		case <-g.controlSendC:
 		case <-g.attestationSendC:
+		case <-g.delegatedAttestationSendC:
 		case <-g.vaaSendC:
 		}
 	}()
@@ -273,14 +276,14 @@ func startGuardian(t *testing.T, ctx context.Context, g *G, protectedPeers []str
 			g.nodeName,
 			g.guardianSigner,
 			g.batchObsvC,
+			g.delegateObsvC,
 			g.signedInC,
 			g.obsvReqC,
-			g.delegateObsvRecvC,
 			g.controlSendC,
 			g.attestationSendC,
+			g.delegatedAttestationSendC,
 			g.vaaSendC,
 			g.obsvReqSendC,
-			g.delegateObsvSendC,
 			g.acct,
 			g.gov,
 			g.disableHeartbeatVerify,
