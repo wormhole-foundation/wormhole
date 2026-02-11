@@ -141,20 +141,20 @@ type Processor struct {
 	// gossipAttestationSendC is a channel of outbound observation messages to broadcast on p2p
 	gossipAttestationSendC chan<- []byte
 
+	// gossipDelegatedAttestationSendC is a channel of outbound marshaled delegate observation messages to broadcast on p2p
+	gossipDelegatedAttestationSendC chan<- []byte
+
 	// gossipVaaSendC is a channel of outbound VAA messages to broadcast on p2p
 	gossipVaaSendC chan<- []byte
 
 	// batchObsvC is a channel of inbound decoded batches of observations from p2p
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
-	// delegateObsvC is a channel of inbound delegate observations from p2p
-	delegateObsvC <-chan *gossipv1.DelegateObservation
+	// delegateObsvC is a channel of inbound signed delegate observations from p2p
+	delegateObsvC <-chan *gossipv1.SignedDelegateObservation
 
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
-
-	// delegateObsvSendC is a channel of outbound delegate observations to broadcast on p2p
-	delegateObsvSendC chan<- *gossipv1.DelegateObservation
 
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
@@ -227,6 +227,12 @@ var (
 			Help: "Total number of times a write to the batch observation publish channel failed",
 		}, []string{"channel"})
 
+	delegateObservationChannelOverflow = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_delegate_observation_channel_overflow",
+			Help: "Total number of times a write to the delegate observation publish channel failed",
+		}, []string{"channel"})
+
 	vaaPublishChannelOverflow = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_vaa_publish_channel_overflow",
@@ -273,11 +279,11 @@ func NewProcessor(
 	setC <-chan *common.GuardianSet,
 	dgConfigC <-chan *DelegatedGuardianConfig,
 	gossipAttestationSendC chan<- []byte,
+	gossipDelegatedAttestationSendC chan<- []byte,
 	gossipVaaSendC chan<- []byte,
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch],
-	delegateObsvC <-chan *gossipv1.DelegateObservation,
+	delegateObsvC <-chan *gossipv1.SignedDelegateObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	delegateObsvSendC chan<- *gossipv1.DelegateObservation,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	guardianSigner guardiansigner.GuardianSigner,
 	gst *common.GuardianSetState,
@@ -292,20 +298,20 @@ func NewProcessor(
 ) *Processor {
 
 	return &Processor{
-		msgC:                   msgC,
-		setC:                   setC,
-		dgConfigC:              dgConfigC,
-		gossipAttestationSendC: gossipAttestationSendC,
-		gossipVaaSendC:         gossipVaaSendC,
-		batchObsvC:             batchObsvC,
-		delegateObsvC:          delegateObsvC,
-		obsvReqSendC:           obsvReqSendC,
-		delegateObsvSendC:      delegateObsvSendC,
-		signedInC:              signedInC,
-		guardianSigner:         guardianSigner,
-		gst:                    gst,
-		db:                     db,
-		alternatePublisher:     alternatePublisher,
+		msgC:                            msgC,
+		setC:                            setC,
+		dgConfigC:                       dgConfigC,
+		gossipAttestationSendC:          gossipAttestationSendC,
+		gossipDelegatedAttestationSendC: gossipDelegatedAttestationSendC,
+		gossipVaaSendC:                  gossipVaaSendC,
+		batchObsvC:                      batchObsvC,
+		delegateObsvC:                   delegateObsvC,
+		obsvReqSendC:                    obsvReqSendC,
+		signedInC:                       signedInC,
+		guardianSigner:                  guardianSigner,
+		gst:                             gst,
+		db:                              db,
+		alternatePublisher:              alternatePublisher,
 
 		logger:         supervisor.Logger(ctx),
 		state:          &aggregationState{observationMap{}},
@@ -555,6 +561,15 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 			batchObservationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleBatchObservation(m)
+		case m := <-p.delegateObsvC:
+			if m == nil {
+				p.logger.Error("received nil SignedDelegateObservation from delegateObsvC channel")
+				channelNilReceive.WithLabelValues("delegateObsvC").Inc()
+				continue
+			}
+			if err := p.handleSignedDelegateObservation(ctx, m); err != nil {
+				return err
+			}
 		case m := <-p.signedInC:
 			if m == nil {
 				p.logger.Error("received nil SignedVAAWithQuorum from signedInC channel")
@@ -562,15 +577,6 @@ func (p *Processor) Run(ctx context.Context) error {
 				continue
 			}
 			p.handleInboundSignedVAAWithQuorum(m)
-		case m := <-p.delegateObsvC:
-			if m == nil {
-				p.logger.Error("received nil DelegateObservation from delegateObsvC channel")
-				channelNilReceive.WithLabelValues("delegateObsvC").Inc()
-				continue
-			}
-			if err := p.handleDelegateObservation(ctx, m); err != nil {
-				return err
-			}
 		case <-cleanup.C:
 			p.handleCleanup(ctx)
 		case <-pollTimer.C:
