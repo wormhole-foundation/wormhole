@@ -13,6 +13,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -92,51 +93,6 @@ func signaturesToVaaFormat(signatures map[common.Address][]byte, gsKeys []common
 		}
 	}
 	return sigs
-}
-
-// handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and sends it to the delegateObsvSendC channel.
-// This should only be called by a delegated guardian for the chain.
-func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePublication) {
-	if k == nil {
-		p.logger.Warn("nil message publication")
-		return
-	}
-
-	p.logger.Info("handleDelegateMessagePublication: CALLED - converting message to delegate observation",
-		zap.String("msgID", k.MessageIDString()),
-		zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
-		zap.Uint64("sequence", k.Sequence),
-	)
-	d, err := messagePublicationToDelegateObservation(k)
-	if err != nil {
-		p.logger.Warn("failed to build delegate observation from message publication",
-			zap.String("msgID", k.MessageIDString()),
-			zap.Error(err),
-		)
-		return
-	}
-	d.GuardianAddr = p.ourAddr.Bytes()
-	d.SentTimestamp = time.Now().Unix()
-
-	p.logger.Debug("handleDelegateMessagePublication: delegate observation created, sending to channel",
-		zap.String("msgID", k.MessageIDString()),
-		zap.Uint32("emitter_chain", d.EmitterChain),
-		zap.Uint64("sequence", d.Sequence),
-		zap.String("guardian_addr", p.ourAddr.Hex()),
-	)
-
-	select {
-	case p.delegateObsvSendC <- d:
-		p.logger.Debug("handleDelegateMessagePublication: successfully sent to delegateObsvSendC channel",
-			zap.String("msgID", k.MessageIDString()),
-		)
-	default:
-		p.logger.Warn("delegate observation send channel full, dropping",
-			zap.String("msgID", k.MessageIDString()),
-			zap.Uint32("emitter_chain", d.EmitterChain),
-			zap.Uint64("sequence", d.Sequence),
-		)
-	}
 }
 
 // This is the main message processing loop. It is responsible for handling messages that are
@@ -251,6 +207,26 @@ func (p *Processor) processWithAccountant(ctx context.Context, k *node_common.Me
 	}
 	p.handleMessage(ctx, k)
 	return nil
+}
+
+// handleDelegateMessagePublication converts the MessagePublication into a DelegateObservation and publishes it to the `gossipDelegatedAttestationSendC` channel.
+// This should only be called by a delegated guardian for the chain.
+func (p *Processor) handleDelegateMessagePublication(k *node_common.MessagePublication) {
+	if k == nil {
+		p.logger.Warn("nil message publication")
+		return
+	}
+
+	d, err := messagePublicationToDelegateObservation(k)
+	if err != nil {
+		p.logger.Warn("failed to build delegate observation from message publication",
+			zap.String("msgID", k.MessageIDString()),
+			zap.Error(err),
+		)
+		return
+	}
+
+	p.publishDelegateObservation(d)
 }
 
 // handleBatchObservation processes a batch of remote VAA observations.
@@ -574,46 +550,59 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 	p.storeSignedVAA(v)
 }
 
-// handleDelegateObservation processes a delegate observation
+// handleSignedDelegateObservation processes a signed delegate observation
 // Returns error if accountant fails to process message
-func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.DelegateObservation) error {
+func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *gossipv1.SignedDelegateObservation) error {
 	if m == nil {
-		p.logger.Warn("nil delegate observation")
+		p.logger.Warn("nil signed delegate observation")
 		return nil
 	}
 
 	delegateObservationsReceivedTotal.Inc()
 
+	addr := common.BytesToAddress(m.GuardianAddr)
+
+	var d gossipv1.DelegateObservation
+	err := proto.Unmarshal(m.DelegateObservation, &d)
+	if err != nil {
+		p.logger.Warn("failed to unmarshal delegate observation",
+			zap.String("signature", hex.EncodeToString(m.Signature)),
+			zap.String("addr", addr.Hex()),
+			zap.Error(err))
+		delegateObservationsFailedTotal.WithLabelValues("invalid_delegate_observation").Inc()
+		return nil
+	}
+
 	if p.logger.Core().Enabled(zapcore.DebugLevel) {
-		p.logger.Debug("received delegate observation",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
-			zap.String("txhash", hex.EncodeToString(m.TxHash)),
-			zap.String("txhash_b58", base58.Encode(m.TxHash)),
-			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
-			zap.Uint32("timestamp", m.Timestamp),
-			zap.Int("payload_len", len(m.Payload)),
+		p.logger.Debug("unmarshaled delegate observation",
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("txhash", hex.EncodeToString(d.TxHash)),
+			zap.String("txhash_b58", base58.Encode(d.TxHash)),
+			zap.String("guardian_addr", addr.Hex()),
+			zap.Uint32("timestamp", d.Timestamp),
+			zap.Int("payload_len", len(d.Payload)),
 		)
 	}
 
-	c, err := vaa.KnownChainIDFromNumber(m.EmitterChain)
+	c, err := vaa.KnownChainIDFromNumber(d.EmitterChain)
 	if err != nil {
 		p.logger.Warn("invalid delegate observation emitter chain",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
-			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
 			zap.Error(err),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("invalid_emitter_chain").Inc()
 		return nil
 	} else if _, isNonDelegable := nonDelegableChains[c]; isNonDelegable {
 		p.logger.Warn("ignoring delegate observation from non-delegable emitter chain",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
-			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("non_delegable_emitter_chain").Inc()
 		return nil
@@ -622,10 +611,10 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	cfg := p.dgc.GetChainConfig(c)
 	if cfg == nil {
 		p.logger.Warn("ignoring delegate observation for chain without delegate chain config",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
-			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("no_delegate_chain_config").Inc()
 		return nil
@@ -634,29 +623,28 @@ func (p *Processor) handleDelegateObservation(ctx context.Context, m *gossipv1.D
 	_, ok := cfg.KeyIndex(p.ourAddr)
 	if ok {
 		p.logger.Debug("ignoring delegate observation since we are a delegated guardian for this chain",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
-			zap.String("guardian_addr", hex.EncodeToString(m.GuardianAddr)),
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("self_delegated_guardian").Inc()
 		return nil
 	}
 
-	addr := common.BytesToAddress(m.GuardianAddr)
 	_, ok = cfg.KeyIndex(addr)
 	if !ok {
 		p.logger.Warn("ignoring delegate observation from non-delegated guardian for this chain",
-			zap.Uint32("emitter_chain", m.EmitterChain),
-			zap.String("emitter_address", hex.EncodeToString(m.EmitterAddress)),
-			zap.Uint64("sequence", m.Sequence),
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
 			zap.String("guardian_addr", addr.Hex()),
 		)
 		delegateObservationsFailedTotal.WithLabelValues("unknown_delegated_guardian").Inc()
 		return nil
 	}
 
-	return p.handleCanonicalDelegateObservation(ctx, cfg, m)
+	return p.handleCanonicalDelegateObservation(ctx, cfg, &d)
 }
 
 // handleCanonicalDelegateObservation processes a delegate observation as a canonical guardian
@@ -797,101 +785,4 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 
 	s.submitted = true
 	return p.handleMessagePublication(ctx, mp)
-}
-
-// delegateObservationToMessagePublication converts a DelegateObservation into a MessagePublication that can be passed through the normal processor pipeline.
-// Returns error on invalid delegate observation input
-func delegateObservationToMessagePublication(d *gossipv1.DelegateObservation) (*node_common.MessagePublication, error) {
-	if d == nil {
-		return nil, fmt.Errorf("nil delegate observation")
-	}
-
-	const TxIDSizeMax = math.MaxUint8
-	txIDLen := len(d.TxHash)
-	if txIDLen > TxIDSizeMax {
-		return nil, fmt.Errorf("delegate observation tx_hash too long: got %d; want at most %d", txIDLen, TxIDSizeMax)
-	}
-	if txIDLen < node_common.TxIDLenMin {
-		return nil, fmt.Errorf("delegate observation tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
-	}
-
-	if d.ConsistencyLevel > math.MaxUint8 {
-		return nil, fmt.Errorf("invalid delegate observation consistency : %d", d.ConsistencyLevel)
-	}
-
-	c, err := vaa.KnownChainIDFromNumber(d.EmitterChain)
-	if err != nil {
-		return nil, fmt.Errorf("invalid delegate observation emitter chain: %w", err)
-	}
-
-	addr, err := vaa.BytesToAddress(d.EmitterAddress)
-	if err != nil {
-		return nil, fmt.Errorf("invalid delegate observation emitter address: %w", err)
-	}
-
-	if d.VerificationState >= node_common.NumVariantsVerificationState {
-		return nil, fmt.Errorf("invalid verification state: %d", d.VerificationState)
-	}
-
-	mp := &node_common.MessagePublication{
-		TxID:             d.TxHash,
-		Timestamp:        time.Unix(int64(d.Timestamp), 0), // Timestamp is uint32 representing seconds since UNIX epoch so is safe to convert.
-		Nonce:            d.Nonce,
-		Sequence:         d.Sequence,
-		ConsistencyLevel: uint8(d.ConsistencyLevel),
-		EmitterChain:     c,
-		EmitterAddress:   addr,
-		Payload:          d.Payload,
-		IsReobservation:  d.IsReobservation,
-		Unreliable:       d.Unreliable,
-	}
-
-	// only set verification state if it's not the default value (NotVerified)
-	if d.VerificationState != uint32(node_common.NotVerified) {
-		if err = mp.SetVerificationState(node_common.VerificationState(d.VerificationState)); err != nil {
-			return nil, fmt.Errorf("could not set verification state: %w", err)
-		}
-	}
-
-	return mp, nil
-}
-
-// messagePublicationToDelegateObservation converts a MessagePublication into a DelegateObservation to be sent by a delegated guardian.
-// This does not populate the GuardianAddr and SentTimestamp fields.
-// Returns error on invalid message publication input
-func messagePublicationToDelegateObservation(m *node_common.MessagePublication) (*gossipv1.DelegateObservation, error) {
-	if m == nil {
-		return nil, fmt.Errorf("nil message publication")
-	}
-
-	const TxIDSizeMax = math.MaxUint8
-	txIDLen := len(m.TxID)
-	if txIDLen > TxIDSizeMax {
-		return nil, fmt.Errorf("message publication tx_hash too long: got %d; want at most %d", txIDLen, TxIDSizeMax)
-	}
-	if txIDLen < node_common.TxIDLenMin {
-		return nil, fmt.Errorf("message publication tx_hash too short: got %d; want at least %d", txIDLen, node_common.TxIDLenMin)
-	}
-
-	// Check if payload length is within max message size for p2p
-	if len(m.Payload) > node_common.DelegatedPayloadLenMax {
-		return nil, fmt.Errorf("message publication payload length too large: got %d; want at most %d", len(m.Payload), node_common.DelegatedPayloadLenMax)
-	}
-
-	d := &gossipv1.DelegateObservation{
-		Timestamp:         uint32(m.Timestamp.Unix()), // #nosec G115 -- This conversion is safe until year 2106
-		Nonce:             m.Nonce,
-		EmitterChain:      uint32(m.EmitterChain),
-		EmitterAddress:    m.EmitterAddress.Bytes(),
-		Sequence:          m.Sequence,
-		ConsistencyLevel:  uint32(m.ConsistencyLevel),
-		Payload:           m.Payload,
-		TxHash:            m.TxID,
-		Unreliable:        m.Unreliable,
-		IsReobservation:   m.IsReobservation,
-		VerificationState: uint32(m.VerificationState()),
-		// GuardianAddr and SentTimestamp will be populated in handleDelegateMessagePublication before p2p broadcast.
-	}
-
-	return d, nil
 }
