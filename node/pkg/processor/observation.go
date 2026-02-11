@@ -608,7 +608,58 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 		return nil
 	}
 
-	cfg := p.dgc.GetChainConfig(c)
+	mp, err := delegateObservationToMessagePublication(&d)
+	if err != nil {
+		p.logger.Warn("failed to convert delegate observation to message publication",
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
+			zap.Error(err),
+		)
+		delegateObservationsFailedTotal.WithLabelValues("invalid_delegate_observation").Inc()
+		return nil
+	}
+
+	buf, err := mp.MarshalBinary()
+	if err != nil {
+		p.logger.Warn("failed to marshal message publication", mp.ZapFields(zap.Error(err))...)
+		delegateObservationsFailedTotal.WithLabelValues("invalid_message_publication").Inc()
+		return nil
+	}
+
+	hash := crypto.Keccak256Hash(buf).Hex()
+	s := p.delegateState.observations[hash]
+	if s != nil && s.submitted {
+		p.logger.Info("already submitted; ignoring additional observations for it",
+			zap.Uint32("emitter_chain", d.EmitterChain),
+			zap.String("emitter_address", hex.EncodeToString(d.EmitterAddress)),
+			zap.Uint64("sequence", d.Sequence),
+			zap.String("guardian_addr", addr.Hex()),
+		)
+		return nil
+	}
+
+	// Determine which delegated chain config to use. The following cases are possible:
+	//
+	//  - We have already seen the message and stored the delegated chain config. In this case, use the
+	// 	  config valid at the time, even if the delegated guardian set was updated. This ensures that
+	//    during a delegated guardian set update, observations from guardians in the old set can still
+	//    contribute to quorum, similar to how regular guardian set transitions are handled.
+	//
+	//  - We have not yet stored a chain config (shouldn't happen if state is properly initialized).
+	//    In this case, use the current chain config as a fallback.
+	//
+	var cfg *DelegatedGuardianChainConfig
+	if s != nil && s.cfg != nil {
+		cfg = s.cfg
+	} else {
+		cfg = p.dgc.GetChainConfig(c)
+	}
+
+	// We haven't yet observed the trusted delegated guardian set for this chain on Ethereum. Therefore,
+	// it's impossible to verify it. The chain could not be delegated, we may not have received it, or
+	// may have been offline - drop it and wait for the delegated guardian set.
 	if cfg == nil {
 		p.logger.Warn("ignoring delegate observation for chain without delegate chain config",
 			zap.Uint32("emitter_chain", d.EmitterChain),
@@ -632,6 +683,9 @@ func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *goss
 		return nil
 	}
 
+	// Verify that addr is included in the delegated guardian set. If it's not, drop the message.
+	// In case it's us who have the outdated delegated guardian set, we'll just wait for the message to
+	// be retransmitted eventually.
 	_, ok = cfg.KeyIndex(addr)
 	if !ok {
 		p.logger.Warn("ignoring delegate observation from non-delegated guardian for this chain",
@@ -732,28 +786,11 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 		return nil
 	}
 
-	// Determine which delegated config to use. The following cases are possible:
-	//
-	//  - We have already seen the message and stored the delegated config. In this case, use the config
-	//    valid at the time, even if the delegated guardian set was updated. This ensures that during a
-	//    delegated guardian set update, observations from guardians in the old set can still contribute
-	//    to quorum, similar to how regular guardian set transitions are handled.
-	//
-	//  - We have not yet stored a config (shouldn't happen if state is properly initialized). In this
-	//    case, use the current config as a fallback.
-	//
-	var dgc *DelegatedGuardianChainConfig
-	if s.dgc != nil {
-		dgc = s.dgc
-	} else {
-		dgc = cfg
-	}
-
 	// Check if we have more delegate observations than required for quorum.
 	// s.observations may contain delegate observations from multiple delegated guardian sets during delegated guardian set updates.
 	// Hence, if len(s.observations) < quorum, then there is definitely no quorum and we can return early to save additional computation,
 	// but if len(s.observations) >= quorum, there is not necessarily quorum for the delegated guardian set at first observation time (dgc).
-	if len(s.observations) < dgc.Quorum() {
+	if len(s.observations) < cfg.Quorum() {
 		// no quorum yet, we're done here
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not yet met",
@@ -766,14 +803,14 @@ func (p *Processor) checkForDelegateQuorum(ctx context.Context, mp *node_common.
 
 	// Count all valid delegate observations for the delegated guardian set at first observation time.
 	var numValidObsv int
-	for _, a := range dgc.Keys {
+	for _, a := range cfg.Keys {
 		if _, ok := s.observations[a]; ok {
 			numValidObsv++
 		}
 	}
 
 	// Check if we actually have quorum.
-	if numValidObsv < dgc.Quorum() {
+	if numValidObsv < cfg.Quorum() {
 		if p.logger.Level().Enabled(zapcore.DebugLevel) {
 			p.logger.Debug("quorum not met, doing nothing",
 				zap.Stringer("emitter_chain", mp.EmitterChain),
