@@ -695,7 +695,7 @@ func (p *Processor) handleCanonicalDelegateObservation(ctx context.Context, cfg 
 		s = &delegateState{
 			firstObserved: time.Now(),
 			observations:  map[common.Address]*gossipv1.DelegateObservation{},
-			dgc:           cfg, // Store the config at first observation time
+			cfg:           cfg, // Store the config at first observation time
 		}
 		p.delegateState.observations[hash] = s
 	}

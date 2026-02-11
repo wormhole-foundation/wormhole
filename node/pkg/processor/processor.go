@@ -102,7 +102,7 @@ type (
 		// Copy of the delegated guardian config valid at first observation time.
 		// This ensures that during delegated guardian set updates, quorum is checked
 		// against the config that was active when the message was first observed
-		dgc *DelegatedGuardianChainConfig
+		cfg *DelegatedGuardianChainConfig
 	}
 
 	delegateObservationMap map[string]*delegateState
