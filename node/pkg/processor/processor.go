@@ -151,6 +151,10 @@ type Processor struct {
 	batchObsvC <-chan *common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 
 	// delegateObsvC is a channel of inbound signed delegate observations from p2p
+	//
+	// NOTE: The delegate observation flow mirrors the batched observation flow, but without batching.
+	// Delegate observations carry the full payload, so the maximum delegated message size is already constrained by p2p
+	// (see common.DelegatedPayloadLenMax). Introducing batching would further reduce the effective size limit.
 	delegateObsvC <-chan *gossipv1.SignedDelegateObservation
 
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
