@@ -666,7 +666,7 @@ func Run(params *RunParams) func(ctx context.Context) error {
 					}
 				case msg := <-params.gossipDelegatedAttestationSendC:
 					// Sign the delegated observation using our node's guardian key.
-					digest := signedObservationRequestDigest(msg)
+					digest := signedDelegateObservationDigest(msg)
 					sig, err := params.guardianSigner.Sign(ctx, digest.Bytes())
 					if err != nil {
 						panic(err)
