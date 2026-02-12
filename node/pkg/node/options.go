@@ -59,7 +59,7 @@ func GuardianOptionP2P(
 ) *GuardianOption {
 	return &GuardianOption{
 		name:         "p2p",
-		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "processor", "query"},
+		dependencies: []string{"accountant", "alternate-publisher", "gateway-relayer", "governor", "query"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			components := p2p.DefaultComponents()
 			components.Port = port
@@ -87,8 +87,6 @@ func GuardianOptionP2P(
 				// IBC has a dynamic feature flag because it reports the Wormchain version.
 				featureFlagFuncs = append(featureFlagFuncs, ibc.GetFeatures)
 			}
-			// Delegated guardians has a dynamic feature flag because configs can change at runtime via governance.
-			featureFlagFuncs = append(featureFlagFuncs, g.dgc.GetFeatures)
 
 			params, err := p2p.NewRunParams(
 				bootstrapPeers,
@@ -470,10 +468,6 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				// For EVM watchers, set the delegated guardian config channel
 				if evmWc, ok := wc.(*evm.WatcherConfig); ok {
 					evmWc.DgConfigC = g.dgConfigC.writeC
-					// If this watcher has a delegated guardians contract configured, set it in the processor's config
-					if evmWc.DelegatedGuardiansContract != "" {
-						g.dgc.SetContractAddress(evmWc.DelegatedGuardiansContract)
-					}
 				}
 
 				runnable, reobserver, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)

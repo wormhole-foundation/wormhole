@@ -1278,6 +1278,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		dgContract := checkDelegatedGuardiansContract(*ethRPC, *ethDelegatedGuardiansContract, vaa.ChainIDEthereum)
 		if dgContract != "" {
 			logger.Info("Ethereum delegated guardians contract configured", zap.String("address", dgContract))
+			featureFlags = append(featureFlags, fmt.Sprintf("dgset:%s", dgContract))
 		}
 		wc := &evm.WatcherConfig{
 			NetworkID:                     "eth",
