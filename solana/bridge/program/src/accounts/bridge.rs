@@ -16,10 +16,18 @@ use solitaire::{
     Derive,
     Owned,
 };
+use std::io::{
+    Error,
+    ErrorKind::InvalidData,
+    Write,
+};
 
 pub type Bridge<'a, const State: AccountState> = Derive<Data<'a, BridgeData, { State }>, "Bridge">;
 
-#[derive(Clone, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+/// Account discriminator for BridgeData — prevents type confusion attacks.
+pub const BRIDGE_DISCRIMINATOR: &[u8] = b"brdg";
+
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct BridgeData {
     /// The current guardian set index, used to decide which signature sets to accept.
     pub guardian_set_index: u32,
@@ -29,6 +37,36 @@ pub struct BridgeData {
 
     /// Bridge configuration, which is set once upon initialization.
     pub config: BridgeConfig,
+}
+
+impl BorshSerialize for BridgeData {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(BRIDGE_DISCRIMINATOR)?;
+        BorshSerialize::serialize(&self.guardian_set_index, writer)?;
+        BorshSerialize::serialize(&self.last_lamports, writer)?;
+        BorshSerialize::serialize(&self.config, writer)
+    }
+}
+
+impl BorshDeserialize for BridgeData {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        if buf.len() < BRIDGE_DISCRIMINATOR.len() {
+            return Err(Error::new(InvalidData, "Not enough bytes for BridgeData discriminator"));
+        }
+        let magic = &buf[..BRIDGE_DISCRIMINATOR.len()];
+        if magic != BRIDGE_DISCRIMINATOR {
+            return Err(Error::new(
+                InvalidData,
+                format!("BridgeData discriminator mismatch. Expected {:?} but got {:?}", BRIDGE_DISCRIMINATOR, magic),
+            ));
+        }
+        *buf = &buf[BRIDGE_DISCRIMINATOR.len()..];
+        Ok(BridgeData {
+            guardian_set_index: BorshDeserialize::deserialize(buf)?,
+            last_lamports: BorshDeserialize::deserialize(buf)?,
+            config: BorshDeserialize::deserialize(buf)?,
+        })
+    }
 }
 
 #[cfg(not(feature = "cpi"))]

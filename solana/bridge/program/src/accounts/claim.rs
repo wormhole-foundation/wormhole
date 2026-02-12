@@ -92,9 +92,36 @@ where
     Ok(())
 }
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+/// Account discriminator for ClaimData — prevents type confusion attacks.
+pub const CLAIM_DISCRIMINATOR: &[u8] = b"clam";
+
+#[derive(Default, Clone, Copy, Serialize, Deserialize)]
 pub struct ClaimData {
     pub claimed: bool,
+}
+
+impl BorshSerialize for ClaimData {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(CLAIM_DISCRIMINATOR)?;
+        BorshSerialize::serialize(&self.claimed, writer)
+    }
+}
+
+impl BorshDeserialize for ClaimData {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        use std::io::{Error, ErrorKind::InvalidData};
+        if buf.len() < CLAIM_DISCRIMINATOR.len() {
+            return Err(Error::new(InvalidData, "Not enough bytes for ClaimData discriminator"));
+        }
+        let magic = &buf[..CLAIM_DISCRIMINATOR.len()];
+        if magic != CLAIM_DISCRIMINATOR {
+            return Err(Error::new(InvalidData, format!("ClaimData discriminator mismatch. Expected {:?} but got {:?}", CLAIM_DISCRIMINATOR, magic)));
+        }
+        *buf = &buf[CLAIM_DISCRIMINATOR.len()..];
+        Ok(ClaimData {
+            claimed: BorshDeserialize::deserialize(buf)?,
+        })
+    }
 }
 
 impl Owned for ClaimData {
