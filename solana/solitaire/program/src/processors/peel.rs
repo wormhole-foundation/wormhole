@@ -120,13 +120,14 @@ impl<'a, 'b: 'a, T: Peel<'a, 'b>> Peel<'a, 'b> for Signer<T> {
     }
 }
 
-/// Expicitly depend upon the System account.
+/// Explicitly depend upon the System account.
 impl<'a, 'b: 'a, T: Peel<'a, 'b>> Peel<'a, 'b> for System<T> {
     fn peel<I>(ctx: &mut Context<'a, 'b, I>) -> Result<Self> {
-        match true {
-            true => T::peel(ctx).map(|v| System(v)),
-            _ => panic!(),
+        // Verify the account is actually the system program
+        if *ctx.info.key != solana_program::system_program::id() {
+            return Err(SolitaireError::InvalidSysvar(*ctx.info.key));
         }
+        T::peel(ctx).map(|v| System(v))
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
