@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/guardiansigner"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,6 +43,10 @@ func (m mockEVMConnector) GetGuardianSet(ctx context.Context, index uint32) (eth
 		Keys:           m.guardianAddrs,
 		ExpirationTime: 0,
 	}, nil
+}
+
+func (m mockEVMConnector) GetDelegatedGuardianConfig(ctx context.Context) ([]dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, error) {
+	panic("unimplemented")
 }
 
 func (m mockEVMConnector) NetworkName() string {
