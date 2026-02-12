@@ -1033,6 +1033,10 @@ func Run(params *RunParams) func(ctx context.Context) error {
 										zap.Binary("raw", envelope.Data),
 										zap.String("from", envelope.GetFrom().String()))
 								}
+							} else {
+								if logger.Level().Enabled(zapcore.DebugLevel) {
+									logger.Debug("valid signed delegate observation received", zap.Any("value", d), zap.String("from", envelope.GetFrom().String()))
+								}
 
 								select {
 								case params.delegateObsvRecvC <- d:
