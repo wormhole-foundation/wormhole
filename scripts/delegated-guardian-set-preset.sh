@@ -75,8 +75,13 @@ config="$(
 )"
 echo "config: ${config}"
 
+# Fetch the current config index from the contract
+echo "fetching nextConfigIndex from contract..."
+nextConfigIndex=$(cast call "${delegatedGuardiansAddress}" "nextConfigIndex()(uint256)" --rpc-url "${devnetRPC}")
+echo "nextConfigIndex: ${nextConfigIndex}"
+
 echo "creating guardian set update governance message template prototext"
-kubectl exec -n "${namespace}" guardian-0 -c guardiand -- /guardiand template delegated-guardians-config --config "${config}" --config-id 0 > ${tmpFile}
+kubectl exec -n "${namespace}" guardian-0 -c guardiand -- /guardiand template delegated-guardians-config --config "${config}" --config-id "${nextConfigIndex}" > ${tmpFile}
 
 for i in $(seq ${currentNumGuardians})
 do
@@ -129,7 +134,17 @@ function base64_to_hex {
 hexVaa=$(base64_to_hex ${b64Vaa})
 echo "got hex VAA: ${hexVaa}"
 
-txHash=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json | jq -r '.transactionHash')
+echo "submitting config to contract..."
+cast_output=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json 2>&1)
+echo "cast send output: ${cast_output}"
+
+# Try to parse the transaction hash
+txHash=$(echo "${cast_output}" | jq -r '.transactionHash' 2>&1)
+if [ $? -ne 0 ]; then
+  echo "ERROR: Failed to parse transaction hash from cast output"
+  echo "jq error: ${txHash}"
+  exit 1
+fi
 echo "txHash: ${txHash}"
 # give some time for guardians to observe the tx and update their state
 sleep 30
@@ -142,8 +157,15 @@ for chain_id in $(echo "${config}" | jq -r 'keys[]')
 do
   # fetch and parse json body
   echo "going to fetch configuration for chain ID ${chain_id}"
-  cast_result=$(cast call "${delegatedGuardiansAddress}" "getConfig(uint16)((uint16,uint32,uint8,address[]))" "${chain_id}" --rpc-url "${devnetRPC}" --json)
+  cast_result=$(cast call "${delegatedGuardiansAddress}" "getConfig(uint16)((uint16,uint32,uint8,address[]))" "${chain_id}" --rpc-url "${devnetRPC}" --json 2>&1)
   echo "cast result: ${cast_result}"
+
+  # Check if cast call succeeded
+  if ! echo "${cast_result}" | jq empty 2>/dev/null; then
+    echo "ERROR: cast call returned invalid JSON for chain ${chain_id}"
+    echo "Raw output: ${cast_result}"
+    exit 1
+  fi
   
   result=$(echo "${cast_result}" | jq -r '
     .[0] |
