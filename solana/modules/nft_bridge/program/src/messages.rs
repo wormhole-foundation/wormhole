@@ -91,7 +91,9 @@ impl DeserializePayload for PayloadTransfer {
         let uri_len = v.read_u8()?;
         let mut uri_bytes = vec![0u8; uri_len as usize];
         v.read_exact(uri_bytes.as_mut_slice())?;
-        let uri = String::from_utf8(uri_bytes).unwrap();
+        let mut uri: Vec<char> = uri_bytes.chars().collect();
+        uri.retain(|&c| c != '\u{FFFD}');
+        let uri: String = uri.iter().collect();
 
         let mut to = Address::default();
         v.read_exact(&mut to)?;
