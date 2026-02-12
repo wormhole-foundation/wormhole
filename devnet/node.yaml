@@ -208,3 +208,4 @@ metadata:
 data:
   guardiand.yaml: |
     ethRPC: "ws://eth-devnet:8545"
+    ethDelegatedGuardiansContract: "0xc0378Bf6Fa4D02ca64BC5d64Ba0dbaDc9698cae6"

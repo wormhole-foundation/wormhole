@@ -1275,7 +1275,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	watcherConfigs := []watchers.WatcherConfig{}
 
 	if shouldStart(ethRPC) {
-		dgContract := checkDelegatedGuardiansContract(*ethRPC, *ethDelegatedGuardiansContract, vaa.ChainIDEthereum)
+		dgContract := *ethDelegatedGuardiansContract
 		if dgContract != "" {
 			logger.Info("Ethereum delegated guardians contract configured", zap.String("address", dgContract))
 			featureFlags = append(featureFlags, fmt.Sprintf("dgset:%s", dgContract))
@@ -2059,18 +2059,6 @@ func checkEvmArgs(logger *zap.Logger, rpcURL string, contractAddr string, chainI
 	mainnetSupported := evm.SupportedInMainnet(chainID)
 	if contractAddr != "" && !mainnetSupported && env == common.MainNet {
 		logger.Fatal(fmt.Sprintf("Chain %s is not supported in mainnet", chainID.String()))
-	}
-	return contractAddr
-}
-
-// checkDelegatedGuardiansContract returns the delegated guardians contract address for the given chain.
-// If we are in devnet mode and the contract address is not specified, it returns the deterministic one for tilt.
-func checkDelegatedGuardiansContract(rpcURL string, contractAddr string, chainID vaa.ChainID) string {
-	if env == common.UnsafeDevNet && rpcURL != "" && contractAddr == "" {
-		// In devnet, if RPC is set but delegated guardians contract is not set, use the deterministic one for tilt.
-		if knownAddr, exists := sdk.KnownDevnetDelegatedGuardiansContracts[chainID]; exists {
-			return knownAddr
-		}
 	}
 	return contractAddr
 }
