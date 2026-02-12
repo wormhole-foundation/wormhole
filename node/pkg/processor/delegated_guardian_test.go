@@ -657,7 +657,7 @@ func TestNonDelegableChainDelegated(t *testing.T) {
 	// Delegate chain 2
 	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
 		2: {
-			Threshold: 1,
+			Threshold: 3,
 			Keys: []eth_common.Address{
 				eth_common.HexToAddress("0x" + guardian0),
 				eth_common.HexToAddress("0x" + guardian1),
