@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	dgAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/delegated_guardians"
 	ethAbi "github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -68,6 +69,10 @@ func (e *mockConnectorForBatchPoller) GetCurrentGuardianSetIndex(ctx context.Con
 
 func (e *mockConnectorForBatchPoller) GetGuardianSet(ctx context.Context, index uint32) (ethAbi.StructsGuardianSet, error) {
 	return ethAbi.StructsGuardianSet{}, fmt.Errorf("not implemented")
+}
+
+func (e *mockConnectorForBatchPoller) GetDelegatedGuardianConfig(ctx context.Context) ([]dgAbi.WormholeDelegatedGuardiansDelegatedGuardianSet, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (e *mockConnectorForBatchPoller) WatchLogMessagePublished(ctx context.Context, errC chan error, sink chan<- *ethAbi.AbiLogMessagePublished) (ethEvent.Subscription, error) {

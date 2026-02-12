@@ -44,7 +44,7 @@ func main() {
 
 	var ethIntf connectors.Connector
 	var err error
-	ethIntf, err = connectors.NewEthereumBaseConnector(ctx, "", *flagEthRPC, contractAddr, zap.L())
+	ethIntf, err = connectors.NewEthereumBaseConnector(ctx, "", *flagEthRPC, contractAddr, nil, zap.L())
 	if err != nil {
 		log.Fatalf("dialing eth client failed: %v", err)
 	}

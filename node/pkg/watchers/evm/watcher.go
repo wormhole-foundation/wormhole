@@ -138,8 +138,7 @@ type (
 		latestSafeBlockNumber      uint64
 		latestFinalizedBlockNumber uint64
 
-		// Delegated guardians connector and config
-		dgConn                                  *connectors.DelegatedGuardiansConnector
+		// Delegated guardians config
 		dgConfigC                               chan<- *processor.DelegatedGuardianConfig
 		dgContractAddr                          string
 		currentDelegatedGuardianConfigTimestamp uint32
@@ -368,30 +367,6 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	}
 	defer messageSub.Unsubscribe()
 
-	// Initialize delegated guardians connector if configured
-	if w.dgContractAddr != "" && w.dgConfigC != nil {
-		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-		dgConn, err := connectors.NewDelegatedGuardiansConnector(
-			timeout,
-			w.networkName,
-			w.url,
-			eth_common.HexToAddress(w.dgContractAddr),
-			logger,
-		)
-		cancel()
-		if err != nil {
-			logger.Warn("failed to create delegated guardians connector, feature will be disabled",
-				zap.String("contractAddr", w.dgContractAddr),
-				zap.Error(err),
-			)
-		} else {
-			w.dgConn = dgConn
-			logger.Info("delegated guardians connector initialized",
-				zap.String("contractAddr", w.dgContractAddr),
-			)
-		}
-	}
-
 	// Fetch initial guardian set
 	if err := w.fetchAndUpdateGuardianSet(logger, ctx, w.ethConn); err != nil {
 		return fmt.Errorf("failed to request guardian set: %v", err)
@@ -414,15 +389,16 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 		}
 	})
 
-	// Fetch initial delegated guardian config if connector is configured
-	if w.dgConn != nil {
+	// Fetch initial delegated guardian config if configured.
+	if w.dgContractAddr != "" && w.dgConfigC != nil {
 		if err := w.fetchAndUpdateDelegatedGuardianConfig(logger, ctx); err != nil {
 			logger.Warn("failed to fetch initial delegated guardian config", zap.Error(err))
 		}
 	}
 
 	// Poll for delegated guardian config.
-	if w.dgConn != nil {
+	if w.dgContractAddr != "" && w.dgConfigC != nil {
+		// Keep this outer gate even though fetchAndUpdateDelegatedGuardianConfig() also checks
 		common.RunWithScissors(ctx, errC, "evm_fetch_delegated_guardian_config", func(ctx context.Context) error {
 			t := time.NewTicker(15 * time.Second)
 			defer t.Stop()
@@ -795,7 +771,8 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 	logger *zap.Logger,
 	ctx context.Context,
 ) error {
-	if w.dgConn == nil || w.dgConfigC == nil {
+	// defensive check in case this function is called from another path in the future.
+	if w.dgContractAddr == "" || w.dgConfigC == nil {
 		return nil
 	}
 
@@ -804,7 +781,7 @@ func (w *Watcher) fetchAndUpdateDelegatedGuardianConfig(
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	configs, err := w.dgConn.GetConfig(timeout)
+	configs, err := w.ethConn.GetDelegatedGuardianConfig(timeout)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "delegated_guardian_config_fetch_error").Inc()
 		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -1179,7 +1156,13 @@ func (w *Watcher) createConnector(ctx context.Context, url string) (ethConn conn
 		return
 	}
 
-	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, w.logger)
+	var delegatedGuardiansAddr *eth_common.Address
+	if w.dgContractAddr != "" && w.dgConfigC != nil {
+		addr := eth_common.HexToAddress(w.dgContractAddr)
+		delegatedGuardiansAddr = &addr
+	}
+
+	baseConnector, err := connectors.NewEthereumBaseConnector(ctx, w.networkName, url, w.contract, delegatedGuardiansAddr, w.logger)
 	if err != nil {
 		err = fmt.Errorf("dialing eth client failed: %w", err)
 		return
