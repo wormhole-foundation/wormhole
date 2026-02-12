@@ -1281,15 +1281,14 @@ func runNode(cmd *cobra.Command, args []string) {
 			featureFlags = append(featureFlags, fmt.Sprintf("dgset:%s", dgContract))
 		}
 		wc := &evm.WatcherConfig{
-			NetworkID:                     "eth",
-			ChainID:                       vaa.ChainIDEthereum,
-			Rpc:                           *ethRPC,
-			Contract:                      *ethContract,
-			GuardianSetUpdateChain:        true,
-			DelegatedGuardiansContract:    dgContract,
-			DelegatedGuardiansUpdateChain: dgContract != "",
-			CcqBackfillCache:              *ccqBackfillCache,
-			TxVerifierEnabled:             slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
+			NetworkID:                  "eth",
+			ChainID:                    vaa.ChainIDEthereum,
+			Rpc:                        *ethRPC,
+			Contract:                   *ethContract,
+			GuardianSetUpdateChain:     true,
+			DelegatedGuardiansContract: dgContract,
+			CcqBackfillCache:           *ccqBackfillCache,
+			TxVerifierEnabled:          slices.Contains(txVerifierChains, vaa.ChainIDEthereum),
 		}
 
 		watcherConfigs = append(watcherConfigs, wc)
