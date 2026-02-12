@@ -1,4 +1,5 @@
 use crate::{
+    accounts::PostedVAADerivationData,
     api::{
         post_vaa::PostVAAData,
         ForeignAddress,
@@ -115,6 +116,31 @@ impl<'a, 'b: 'a, T: DeserializePayload> Peel<'a, 'b> for PayloadMessage<'b, T> {
     {
         // Deserialize wrapped payload
         let data: Data<'b, PostedVAAData, { AccountState::Initialized }> = Data::peel(ctx)?;
+
+        // Verify PDA derivation to ensure this account was created by the bridge
+        // program via post_vaa. Without this check, an attacker could pass any
+        // account with valid PostedVAAData layout but not actually derived from
+        // guardian-verified VAA processing, bypassing signature verification.
+        let body_hash: [u8; 32] = {
+            let mut body_vec = Cursor::new(Vec::new());
+            body_vec.write(&data.vaa_time.to_be_bytes())?;
+            body_vec.write(&data.nonce.to_be_bytes())?;
+            body_vec.write(&data.emitter_chain.to_be_bytes())?;
+            body_vec.write(&data.emitter_address)?;
+            body_vec.write(&data.sequence.to_be_bytes())?;
+            body_vec.write(&[data.consistency_level])?;
+            body_vec.write(&data.payload)?;
+            let body = body_vec.into_inner();
+            use sha3::Digest;
+            let mut h = sha3::Keccak256::default();
+            h.update(body.as_slice());
+            h.finalize().into()
+        };
+        let msg_derivation = PostedVAADerivationData {
+            payload_hash: body_hash.to_vec(),
+        };
+        data.verify_derivation(ctx.this, &msg_derivation)?;
+
         let payload = DeserializePayload::deserialize(&mut &data.payload[..])?;
         Ok(PayloadMessage(data, payload))
     }
