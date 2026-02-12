@@ -56,10 +56,11 @@ impl BorshDeserialize for PostedVAAData {
             return Err(Error::new(InvalidData, "Not enough bytes"));
         }
 
-        // We accept "vaa", "msg", or "msu" because it's convenient to read all of these as PostedVAAData
-        let expected: [&[u8]; 3] = [b"vaa", b"msg", b"msu"];
+        // Only accept "vaa" magic bytes — accepting "msg" or "msu" would allow
+        // unverified PostedMessage accounts to be deserialized as verified PostedVAA,
+        // bypassing guardian signature verification.
         let magic: &[u8] = &buf[0..3];
-        if !expected.contains(&magic) {
+        if magic != b"vaa" {
             return Err(Error::new(InvalidData, "Magic mismatch."));
         };
         *buf = &buf[3..];
