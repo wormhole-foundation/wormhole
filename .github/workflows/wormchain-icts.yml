@@ -97,14 +97,14 @@ jobs:
         continue-on-error: true
         working-directory: wormchain
         run: |
-          unset DOCKER_API_VERSION
+          export DOCKER_API_VERSION=1.44
           make ${{ matrix.test }}
 
       - name: Retry Failed Test
         if: steps.run_test.outcome == 'failure'
         working-directory: wormchain
         run: |
-          unset DOCKER_API_VERSION
+          export DOCKER_API_VERSION=1.44
           for i in 1 2; do
             echo "Retry attempt $i"
             if make ${{ matrix.test }}; then
