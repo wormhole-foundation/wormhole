@@ -638,7 +638,7 @@ func GuardianOptionAlternatePublisher(guardianAddr []byte, configs []string) *Gu
 
 // GuardianOptionProcessor enables the default processor, which is required to make consensus on messages.
 // Dependencies: See below.
-func GuardianOptionProcessor(networkId string) *GuardianOption {
+func GuardianOptionProcessor(networkId string, delegatedGuardiansEnabled bool) *GuardianOption {
 	return &GuardianOption{
 		name: "processor",
 		// governor, accountant, and notary may be set to nil, but that choice needs to be made before the processor is configured
@@ -668,6 +668,7 @@ func GuardianOptionProcessor(networkId string) *GuardianOption {
 				g.gatewayRelayer,
 				networkId,
 				g.alternatePublisher,
+				delegatedGuardiansEnabled,
 			).Run
 
 			return nil

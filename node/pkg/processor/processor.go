@@ -202,6 +202,10 @@ type Processor struct {
 
 	// batchObsvPubC is the internal channel used to publish observations to the batch processor for publishing.
 	batchObsvPubC chan *gossipv1.Observation
+
+	// delegatedGuardiansEnabled gates the delegated guardians protocol. When false, the processor
+	// always uses canonical guardian behavior and ignores incoming delegate observations.
+	delegatedGuardiansEnabled bool
 }
 
 // updateVaaEntry is used to queue up a VAA to be written to the database.
@@ -299,6 +303,7 @@ func NewProcessor(
 	gatewayRelayer *gwrelayer.GatewayRelayer,
 	networkID string,
 	alternatePublisher *altpub.AlternatePublisher,
+	delegatedGuardiansEnabled bool,
 ) *Processor {
 
 	return &Processor{
@@ -329,8 +334,9 @@ func NewProcessor(
 		gatewayRelayer: gatewayRelayer,
 		batchObsvPubC:  make(chan *gossipv1.Observation, batchObsvPubChanSize),
 		updatedVAAs:    make(map[string]*updateVaaEntry),
-		networkID:      networkID,
-		dgc:            dgc,
+		networkID:                 networkID,
+		dgc:                      dgc,
+		delegatedGuardiansEnabled: delegatedGuardiansEnabled,
 	}
 }
 
@@ -493,6 +499,13 @@ func (p *Processor) Run(ctx context.Context) error {
 
 			p.logger.Debug("processor: received new message publication on message channel", k.ZapFields()...)
 
+			if !p.delegatedGuardiansEnabled {
+				if err := p.handleMessagePublication(ctx, k); err != nil {
+					return err
+				}
+				continue
+			}
+
 			cfg := p.dgc.GetChainConfig(k.EmitterChain)
 			p.logger.Info("processor: checking delegation config for chain",
 				zap.Uint32("emitter_chain", uint32(k.EmitterChain)),
@@ -569,6 +582,10 @@ func (p *Processor) Run(ctx context.Context) error {
 			if m == nil {
 				p.logger.Error("received nil SignedDelegateObservation from delegateObsvC channel")
 				channelNilReceive.WithLabelValues("delegateObsvC").Inc()
+				continue
+			}
+			if !p.delegatedGuardiansEnabled {
+				p.logger.Debug("processor: ignoring delegate observation, delegated guardians disabled")
 				continue
 			}
 			if err := p.handleSignedDelegateObservation(ctx, m); err != nil {
