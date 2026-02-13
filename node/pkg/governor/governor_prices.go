@@ -22,17 +22,9 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	guardianDB "github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/governor/coingecko"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
-
-// The CoinGecko API is documented here: https://www.coingecko.com/en/api/documentation
-// An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
-
-// coinGeckoQueryIntervalInMins specifies how often we query CoinGecko for prices.
-const coinGeckoQueryIntervalInMins = 15
-
-// tokensPerCoinGeckoQuery specifies how many tokens will be in each CoinGecko query. The token list will be broken up into chunks of this size.
-const tokensPerCoinGeckoQuery = 200
 
 // initCoinGecko builds the set of CoinGecko queries that will be used to update prices. It also starts a go routine to periodically do the queries.
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
@@ -43,7 +35,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	}
 
 	// Create the set of queries, breaking the IDs into the appropriate size chunks.
-	gov.coinGeckoQueries = createCoinGeckoQueries(ids, tokensPerCoinGeckoQuery, gov.coinGeckoApiKey)
+	gov.coinGeckoQueries = createCoinGeckoQueries(ids, coingecko.TokensPerCoinGeckoQuery, gov.coinGeckoApiKey)
 	for queryIdx, query := range gov.coinGeckoQueries {
 		gov.logger.Info("coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
 	}
@@ -120,7 +112,7 @@ func (gov *ChainGovernor) priceQuery(ctx context.Context) error {
 	// guardian due to a CoinGecko error. The prices would already have been reverted to the config values.
 	_ = gov.queryCoinGecko(ctx)
 
-	ticker := time.NewTicker(time.Duration(coinGeckoQueryIntervalInMins) * time.Minute)
+	ticker := time.NewTicker(coingecko.CoinGeckoRequestInterval)
 	defer ticker.Stop()
 
 	for {

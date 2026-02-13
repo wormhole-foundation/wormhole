@@ -6,6 +6,7 @@ import (
 
 	"github.com/certusone/wormhole/node/cmd/ccq"
 	"github.com/certusone/wormhole/node/cmd/debug"
+	"github.com/certusone/wormhole/node/cmd/governor"
 	"github.com/certusone/wormhole/node/cmd/spy"
 	txverifier "github.com/certusone/wormhole/node/cmd/txverifier"
 	"github.com/certusone/wormhole/node/pkg/version"
@@ -55,6 +56,7 @@ func init() {
 	rootCmd.AddCommand(guardiand.TemplateCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(debug.DebugCmd)
+	rootCmd.AddCommand(governor.GovernorCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
