@@ -189,7 +189,7 @@ OP_DROP
 OP_M <pubkeys...> OP_N OP_CHECKMULTISIG
 ```
 
-#### Dogecoin Unlock VAA Payload
+#### Dogecoin Unlock VAA Payload (UTX0)
 
 The following payload can be emitted by a registered emitter in order to trigger Manager Service signing. This payload is specific to UTXO chains, such as Bitcoin and Dogecoin, **_as well as_** being specific to the redeem script specified above. It contains all of the information necessary for the manager set to _independently, asynchronously, and deterministically_ generate and sign the same transaction.
 
@@ -220,6 +220,35 @@ uint64 amount;
 uint32 address_type; // enum 0 = P2PKH, 1 = P2SH
 [n]byte  address;    // n = 20 for P2PKH/P2SH/P2WPKH, 32 for P2WSH/P2TR
 ```
+
+<!-- cspell:ignore XREL -->
+
+#### XRPL Release Payload (XREL)
+
+Emitted when a ticket is assigned to an inbound transfer. Guardians observe this payload to construct the XRPL Payment transaction.
+
+| Offset | Size | Field                        |
+| ------ | ---- | ---------------------------- |
+| 0      | 4    | prefix ("XREL" = 0x5852454C) |
+| 4      | 8    | ticket_id                    |
+| 12     | 20   | xrpl_custody_account         |
+| 32     | 20   | xrpl_recipient               |
+| 52     | 8    | amount                       |
+| 60     | 1    | token_decimals               |
+| 61     | 2    | source_chain                 |
+| 63     | 32   | source_emitter               |
+| 95     | 8    | source_sequence              |
+| 103    | 1-41 | token_id (variable, at end)  |
+
+**token_id encoding (variable length at end of payload):**
+
+| Type | Byte 0 | Remaining Bytes             | Total    |
+| ---- | ------ | --------------------------- | -------- |
+| XRP  | 0x00   | (none)                      | 1 byte   |
+| IOU  | 0x01   | currency (20) + issuer (20) | 41 bytes |
+| MPT  | 0x02   | mpt_issuance_id (24)        | 25 bytes |
+
+Total: 104 bytes (XRP), 128 bytes (MPT), 144 bytes (IOU)
 
 #### Manager Service API
 

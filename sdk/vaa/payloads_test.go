@@ -1280,3 +1280,379 @@ func TestUTXOUnlockPayloadEmptyInputsOutputs(t *testing.T) {
 	assert.Empty(t, deserialized.Inputs)
 	assert.Empty(t, deserialized.Outputs)
 }
+
+// XRPL Payload tests
+
+func TestXRPLPayloadPrefix(t *testing.T) {
+	expected := [4]byte{'X', 'R', 'E', 'L'}
+	assert.Equal(t, expected, XRPLPayloadPrefix)
+	assert.Equal(t, "XREL", string(XRPLPayloadPrefix[:]))
+	// Verify hex value matches spec
+	assert.Equal(t, "5852454c", hex.EncodeToString(XRPLPayloadPrefix[:]))
+}
+
+func TestGetPayloadPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		payload  []byte
+		expected [4]byte
+	}{
+		{
+			name:     "UTX0 prefix",
+			payload:  []byte("UTX0rest of payload"),
+			expected: UTXOPayloadPrefix,
+		},
+		{
+			name:     "XREL prefix",
+			payload:  []byte("XRELrest of payload"),
+			expected: XRPLPayloadPrefix,
+		},
+		{
+			name:     "too short",
+			payload:  []byte("AB"),
+			expected: [4]byte{},
+		},
+		{
+			name:     "empty",
+			payload:  []byte{},
+			expected: [4]byte{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			prefix := GetPayloadPrefix(tc.payload)
+			assert.Equal(t, tc.expected, prefix)
+		})
+	}
+}
+
+// Test data for XRPL payload tests
+var (
+	testXRPLCustodyAccount = [20]byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+		0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14,
+	}
+	testXRPLRecipient = [20]byte{
+		0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a,
+		0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34,
+	}
+	testXRPLSourceEmitter = [32]byte{
+		0x18, 0x07, 0xdd, 0xdb, 0xb4, 0x86, 0x6e, 0x81, 0xbb, 0x82, 0x51, 0x38, 0x4a, 0xed, 0x02, 0x6d,
+		0xe5, 0x49, 0x6f, 0xc8, 0xb3, 0x83, 0xf8, 0x39, 0x9d, 0x1d, 0xe5, 0xd8, 0x44, 0xb1, 0x42, 0x71,
+	}
+	testXRPLCurrency = [20]byte{
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x55, 0x53, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	testXRPLIssuer = [20]byte{
+		0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a,
+		0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54,
+	}
+	testXRPLMPTID = [24]byte{
+		0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c,
+		0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
+	}
+)
+
+func TestXRPLReleasePayloadXRP(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       42,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 100,
+		Token: XRPLTokenID{
+			Type: XRPLTokenTypeXRP,
+		},
+	}
+
+	// Serialize
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 = 104
+	assert.Len(t, buf, 104)
+
+	// Verify prefix
+	assert.Equal(t, XRPLPayloadPrefix[:], buf[0:4])
+
+	// Deserialize
+	deserialized, err := DeserializeXRPLReleasePayload(buf)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload.TicketID, deserialized.TicketID)
+	assert.Equal(t, payload.CustodyAccount, deserialized.CustodyAccount)
+	assert.Equal(t, payload.Recipient, deserialized.Recipient)
+	assert.Equal(t, payload.Amount, deserialized.Amount)
+	assert.Equal(t, payload.TokenDecimals, deserialized.TokenDecimals)
+	assert.Equal(t, payload.SourceChain, deserialized.SourceChain)
+	assert.Equal(t, payload.SourceEmitter, deserialized.SourceEmitter)
+	assert.Equal(t, payload.SourceSequence, deserialized.SourceSequence)
+	assert.Equal(t, XRPLTokenTypeXRP, deserialized.Token.Type)
+}
+
+func TestXRPLReleasePayloadIOU(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       99,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         5000000000,
+		TokenDecimals:  8,
+		SourceChain:    ChainIDEthereum,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 200,
+		Token: XRPLTokenID{
+			Type:     XRPLTokenTypeIOU,
+			Currency: testXRPLCurrency,
+			Issuer:   testXRPLIssuer,
+		},
+	}
+
+	// Serialize
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 20 + 20 = 144
+	assert.Len(t, buf, 144)
+
+	// Deserialize
+	deserialized, err := DeserializeXRPLReleasePayload(buf)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload.TicketID, deserialized.TicketID)
+	assert.Equal(t, payload.Amount, deserialized.Amount)
+	assert.Equal(t, payload.TokenDecimals, deserialized.TokenDecimals)
+	assert.Equal(t, XRPLTokenTypeIOU, deserialized.Token.Type)
+	assert.Equal(t, testXRPLCurrency, deserialized.Token.Currency)
+	assert.Equal(t, testXRPLIssuer, deserialized.Token.Issuer)
+}
+
+func TestXRPLReleasePayloadMPT(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       150,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         777,
+		TokenDecimals:  0,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 300,
+		Token: XRPLTokenID{
+			Type:  XRPLTokenTypeMPT,
+			MPTID: testXRPLMPTID,
+		},
+	}
+
+	// Serialize
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+	// Total: 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1 + 24 = 128
+	assert.Len(t, buf, 128)
+
+	// Deserialize
+	deserialized, err := DeserializeXRPLReleasePayload(buf)
+	require.NoError(t, err)
+
+	assert.Equal(t, payload.TicketID, deserialized.TicketID)
+	assert.Equal(t, XRPLTokenTypeMPT, deserialized.Token.Type)
+	assert.Equal(t, testXRPLMPTID, deserialized.Token.MPTID)
+}
+
+func TestXRPLReleasePayloadRoundTrip(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload XRPLReleasePayload
+	}{
+		{
+			name: "XRP token",
+			payload: XRPLReleasePayload{
+				TicketID:       1,
+				CustodyAccount: testXRPLCustodyAccount,
+				Recipient:      testXRPLRecipient,
+				Amount:         1000000,
+				TokenDecimals:  6,
+				SourceChain:    ChainIDSolana,
+				SourceEmitter:  testXRPLSourceEmitter,
+				SourceSequence: 1,
+				Token:          XRPLTokenID{Type: XRPLTokenTypeXRP},
+			},
+		},
+		{
+			name: "IOU token",
+			payload: XRPLReleasePayload{
+				TicketID:       2,
+				CustodyAccount: testXRPLCustodyAccount,
+				Recipient:      testXRPLRecipient,
+				Amount:         5000000000,
+				TokenDecimals:  8,
+				SourceChain:    ChainIDEthereum,
+				SourceEmitter:  testXRPLSourceEmitter,
+				SourceSequence: 2,
+				Token: XRPLTokenID{
+					Type:     XRPLTokenTypeIOU,
+					Currency: testXRPLCurrency,
+					Issuer:   testXRPLIssuer,
+				},
+			},
+		},
+		{
+			name: "MPT token",
+			payload: XRPLReleasePayload{
+				TicketID:       3,
+				CustodyAccount: testXRPLCustodyAccount,
+				Recipient:      testXRPLRecipient,
+				Amount:         999,
+				TokenDecimals:  0,
+				SourceChain:    ChainIDSolana,
+				SourceEmitter:  testXRPLSourceEmitter,
+				SourceSequence: 3,
+				Token: XRPLTokenID{
+					Type:  XRPLTokenTypeMPT,
+					MPTID: testXRPLMPTID,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, err := tc.payload.Serialize()
+			require.NoError(t, err)
+
+			deserialized, err := DeserializeXRPLReleasePayload(buf)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.payload.TicketID, deserialized.TicketID)
+			assert.Equal(t, tc.payload.CustodyAccount, deserialized.CustodyAccount)
+			assert.Equal(t, tc.payload.Recipient, deserialized.Recipient)
+			assert.Equal(t, tc.payload.Amount, deserialized.Amount)
+			assert.Equal(t, tc.payload.TokenDecimals, deserialized.TokenDecimals)
+			assert.Equal(t, tc.payload.SourceChain, deserialized.SourceChain)
+			assert.Equal(t, tc.payload.SourceEmitter, deserialized.SourceEmitter)
+			assert.Equal(t, tc.payload.SourceSequence, deserialized.SourceSequence)
+			assert.Equal(t, tc.payload.Token.Type, deserialized.Token.Type)
+			assert.Equal(t, tc.payload.Token.Currency, deserialized.Token.Currency)
+			assert.Equal(t, tc.payload.Token.Issuer, deserialized.Token.Issuer)
+			assert.Equal(t, tc.payload.Token.MPTID, deserialized.Token.MPTID)
+		})
+	}
+}
+
+func TestDeserializeXRPLReleasePayloadErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     []byte
+		expectedErr string
+	}{
+		{
+			name:        "too short",
+			payload:     make([]byte, 103),
+			expectedErr: "XRPL release payload too short",
+		},
+		{
+			name:        "invalid prefix",
+			payload:     append([]byte("XXXX"), make([]byte, 100)...),
+			expectedErr: "invalid XRPL payload prefix",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DeserializeXRPLReleasePayload(tc.payload)
+			require.ErrorContains(t, err, tc.expectedErr)
+		})
+	}
+}
+
+func TestDeserializeXRPLReleasePayloadUnknownTokenType(t *testing.T) {
+	// Build a valid payload with XRP token type, then change the token type byte
+	payload := XRPLReleasePayload{
+		TicketID:       1,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 1,
+		Token:          XRPLTokenID{Type: XRPLTokenTypeXRP},
+	}
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Change token type to unknown value
+	buf[len(buf)-1] = 0xFF
+
+	_, err = DeserializeXRPLReleasePayload(buf)
+	require.ErrorContains(t, err, "unknown XRPL token type")
+}
+
+func TestDeserializeXRPLReleasePayloadTrailingBytes(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       1,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 1,
+		Token:          XRPLTokenID{Type: XRPLTokenTypeXRP},
+	}
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Add trailing bytes
+	buf = append(buf, 0x00, 0x01)
+	_, err = DeserializeXRPLReleasePayload(buf)
+	require.ErrorContains(t, err, "trailing bytes")
+}
+
+func TestDeserializeXRPLReleasePayloadTruncatedIOU(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       1,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 1,
+		Token: XRPLTokenID{
+			Type:     XRPLTokenTypeIOU,
+			Currency: testXRPLCurrency,
+			Issuer:   testXRPLIssuer,
+		},
+	}
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Truncate the IOU data
+	_, err = DeserializeXRPLReleasePayload(buf[:len(buf)-10])
+	require.ErrorContains(t, err, "IOU token_id requires")
+}
+
+func TestDeserializeXRPLReleasePayloadTruncatedMPT(t *testing.T) {
+	payload := XRPLReleasePayload{
+		TicketID:       1,
+		CustodyAccount: testXRPLCustodyAccount,
+		Recipient:      testXRPLRecipient,
+		Amount:         1000000,
+		TokenDecimals:  6,
+		SourceChain:    ChainIDSolana,
+		SourceEmitter:  testXRPLSourceEmitter,
+		SourceSequence: 1,
+		Token: XRPLTokenID{
+			Type:  XRPLTokenTypeMPT,
+			MPTID: testXRPLMPTID,
+		},
+	}
+	buf, err := payload.Serialize()
+	require.NoError(t, err)
+
+	// Truncate the MPT data
+	_, err = DeserializeXRPLReleasePayload(buf[:len(buf)-10])
+	require.ErrorContains(t, err, "MPT token_id requires")
+}
