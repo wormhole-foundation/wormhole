@@ -15,7 +15,7 @@ require (
 	github.com/cosmos/ibc-go/v4 v4.3.0
 	github.com/docker/docker v20.10.19+incompatible
 	github.com/ethereum/go-ethereum v1.11.6
-	github.com/strangelove-ventures/interchaintest/v8 v8.8.1
+	github.com/strangelove-ventures/interchaintest/v4 v4.0.0-20230815125617-67bc301715ea
 	github.com/tendermint/crypto v0.0.0-20191022145703-50d29ede1e15
 	github.com/tendermint/tendermint v0.34.26
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20230614161948-7f6213019abf
