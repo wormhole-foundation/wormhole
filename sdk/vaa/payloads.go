@@ -806,8 +806,206 @@ func LeftPadBytes(payload string, length int) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
+// GetPayloadPrefix extracts the 4-byte prefix from a payload.
+// This is used to dispatch on payload type (UTX0 vs XREL, etc.).
+func GetPayloadPrefix(bz []byte) [4]byte {
+	var prefix [4]byte
+	if len(bz) >= 4 {
+		copy(prefix[:], bz[0:4])
+	}
+	return prefix
+}
+
 // UTXOPayloadPrefix is the 4-byte prefix for UTXO unlock payloads
 var UTXOPayloadPrefix = [4]byte{'U', 'T', 'X', '0'}
+
+// XRPLPayloadPrefix is the 4-byte prefix for XRPL release payloads (0x5852454C)
+var XRPLPayloadPrefix = [4]byte{'X', 'R', 'E', 'L'}
+
+// XRPLTokenType represents the type of token in an XRPL release payload.
+type XRPLTokenType uint8
+
+const (
+	// XRPLTokenTypeXRP represents native XRP (drops)
+	XRPLTokenTypeXRP XRPLTokenType = 0x00
+	// XRPLTokenTypeIOU represents an issued currency (trust line)
+	XRPLTokenTypeIOU XRPLTokenType = 0x01
+	// XRPLTokenTypeMPT represents a multi-purpose token
+	XRPLTokenTypeMPT XRPLTokenType = 0x02
+)
+
+// XRPLTokenID represents the variable-length token identifier in an XRPL release payload.
+type XRPLTokenID struct {
+	// Type indicates the token type (XRP, IOU, or MPT)
+	Type XRPLTokenType
+	// Currency is the 20-byte currency code (only for IOU)
+	Currency [20]byte
+	// Issuer is the 20-byte issuer account ID (only for IOU)
+	Issuer [20]byte
+	// MPTID is the 24-byte MPT issuance ID (only for MPT)
+	MPTID [24]byte
+}
+
+// XRPLReleasePayload represents a VAA payload for releasing funds on the XRP Ledger.
+// This payload is emitted by a registered emitter to trigger Manager Service signing.
+type XRPLReleasePayload struct {
+	// TicketID is the XRPL ticket sequence number for the payment transaction
+	TicketID uint64
+	// CustodyAccount is the 20-byte XRPL account ID of the custody account
+	CustodyAccount [20]byte
+	// Recipient is the 20-byte XRPL account ID of the recipient
+	Recipient [20]byte
+	// Amount is the amount in the smallest unit (e.g., drops for XRP)
+	Amount uint64
+	// TokenDecimals is the number of decimal places for the token
+	TokenDecimals uint8
+	// SourceChain is the Wormhole Chain ID of the source chain
+	SourceChain ChainID
+	// SourceEmitter is the 32-byte emitter address on the source chain
+	SourceEmitter [32]byte
+	// SourceSequence is the sequence number on the source chain
+	SourceSequence uint64
+	// Token is the variable-length token identifier
+	Token XRPLTokenID
+}
+
+// DeserializeXRPLReleasePayload deserializes an XRPLReleasePayload from bytes.
+func DeserializeXRPLReleasePayload(bz []byte) (*XRPLReleasePayload, error) {
+	// Minimum size: prefix (4) + ticket_id (8) + custody (20) + recipient (20) + amount (8) +
+	// decimals (1) + source_chain (2) + source_emitter (32) + source_sequence (8) + token_type (1) = 104
+	const minSize = 4 + 8 + 20 + 20 + 8 + 1 + 2 + 32 + 8 + 1
+
+	if len(bz) < minSize {
+		return nil, fmt.Errorf("XRPL release payload too short: expected at least %d bytes, got %d", minSize, len(bz))
+	}
+
+	// Check prefix
+	if !bytes.Equal(bz[0:4], XRPLPayloadPrefix[:]) {
+		return nil, fmt.Errorf("invalid XRPL payload prefix: expected %s, got %s", string(XRPLPayloadPrefix[:]), string(bz[0:4]))
+	}
+
+	payload := &XRPLReleasePayload{}
+	offset := 4
+
+	// TicketID (8 bytes)
+	payload.TicketID = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// CustodyAccount (20 bytes)
+	copy(payload.CustodyAccount[:], bz[offset:offset+20])
+	offset += 20
+
+	// Recipient (20 bytes)
+	copy(payload.Recipient[:], bz[offset:offset+20])
+	offset += 20
+
+	// Amount (8 bytes)
+	payload.Amount = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// TokenDecimals (1 byte)
+	payload.TokenDecimals = bz[offset]
+	offset++
+
+	// SourceChain (2 bytes)
+	payload.SourceChain = ChainID(binary.BigEndian.Uint16(bz[offset : offset+2]))
+	offset += 2
+
+	// SourceEmitter (32 bytes)
+	copy(payload.SourceEmitter[:], bz[offset:offset+32])
+	offset += 32
+
+	// SourceSequence (8 bytes)
+	payload.SourceSequence = binary.BigEndian.Uint64(bz[offset : offset+8])
+	offset += 8
+
+	// Token ID (variable length)
+	if offset >= len(bz) {
+		return nil, fmt.Errorf("XRPL release payload truncated: missing token_id")
+	}
+
+	payload.Token.Type = XRPLTokenType(bz[offset])
+	offset++
+
+	switch payload.Token.Type {
+	case XRPLTokenTypeXRP:
+		// No additional bytes for XRP
+	case XRPLTokenTypeIOU:
+		// Currency (20 bytes) + Issuer (20 bytes)
+		if offset+40 > len(bz) {
+			return nil, fmt.Errorf("XRPL release payload truncated: IOU token_id requires 40 more bytes, got %d", len(bz)-offset)
+		}
+		copy(payload.Token.Currency[:], bz[offset:offset+20])
+		offset += 20
+		copy(payload.Token.Issuer[:], bz[offset:offset+20])
+		offset += 20
+	case XRPLTokenTypeMPT:
+		// MPTID (24 bytes)
+		if offset+24 > len(bz) {
+			return nil, fmt.Errorf("XRPL release payload truncated: MPT token_id requires 24 more bytes, got %d", len(bz)-offset)
+		}
+		copy(payload.Token.MPTID[:], bz[offset:offset+24])
+		offset += 24
+	default:
+		return nil, fmt.Errorf("unknown XRPL token type: 0x%02x", payload.Token.Type)
+	}
+
+	// Verify we consumed all bytes
+	if offset != len(bz) {
+		return nil, fmt.Errorf("XRPL release payload has trailing bytes: consumed %d of %d bytes", offset, len(bz))
+	}
+
+	return payload, nil
+}
+
+// Serialize serializes an XRPLReleasePayload to bytes.
+func (p *XRPLReleasePayload) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	// Prefix
+	buf.Write(XRPLPayloadPrefix[:])
+
+	// TicketID
+	MustWrite(buf, binary.BigEndian, p.TicketID)
+
+	// CustodyAccount
+	buf.Write(p.CustodyAccount[:])
+
+	// Recipient
+	buf.Write(p.Recipient[:])
+
+	// Amount
+	MustWrite(buf, binary.BigEndian, p.Amount)
+
+	// TokenDecimals
+	buf.WriteByte(p.TokenDecimals)
+
+	// SourceChain
+	MustWrite(buf, binary.BigEndian, uint16(p.SourceChain))
+
+	// SourceEmitter
+	buf.Write(p.SourceEmitter[:])
+
+	// SourceSequence
+	MustWrite(buf, binary.BigEndian, p.SourceSequence)
+
+	// Token ID (variable length)
+	buf.WriteByte(byte(p.Token.Type))
+
+	switch p.Token.Type {
+	case XRPLTokenTypeXRP:
+		// No additional bytes
+	case XRPLTokenTypeIOU:
+		buf.Write(p.Token.Currency[:])
+		buf.Write(p.Token.Issuer[:])
+	case XRPLTokenTypeMPT:
+		buf.Write(p.Token.MPTID[:])
+	default:
+		return nil, fmt.Errorf("unknown XRPL token type: 0x%02x", p.Token.Type)
+	}
+
+	return buf.Bytes(), nil
+}
 
 // UTXOAddressType represents the type of address in a UTXO output
 type UTXOAddressType uint32

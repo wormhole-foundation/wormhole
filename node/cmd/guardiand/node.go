@@ -22,6 +22,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
+	managerxrpl "github.com/certusone/wormhole/node/pkg/manager/xrpl"
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/aptos"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
@@ -317,6 +318,7 @@ var (
 
 	managerServiceEnabled    *bool
 	dogecoinManagerSignerUri *string
+	xrplManagerSignerUri     *string
 )
 
 func init() {
@@ -569,6 +571,7 @@ func init() {
 
 	managerServiceEnabled = NodeCmd.Flags().Bool("managerServiceEnabled", false, "Run the manager service")
 	dogecoinManagerSignerUri = NodeCmd.Flags().String("dogecoinManagerSignerUri", "", "Dogecoin manager signer URI")
+	xrplManagerSignerUri = NodeCmd.Flags().String("xrplManagerSignerUri", "", "XRPL manager signer URI")
 }
 
 var (
@@ -2025,6 +2028,29 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		compressedPubKey := btcecPubKey.SerializeCompressed()
 		logger.Info("initialized dogecoin manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", compressedPubKey)))
+	}
+	if *xrplManagerSignerUri != "" {
+		if env != common.UnsafeDevNet && *xrplManagerSignerUri == *guardianSignerUri {
+			logger.Fatal("xrplManagerSignerUri must be different from guardianSignerUri in non-devnet environments")
+		}
+		xrplSigner, err := guardiansigner.NewGuardianSignerFromUriWithPurpose(rootCtx, *xrplManagerSignerUri, env == common.UnsafeDevNet, "manager-xrpl")
+		if err != nil {
+			logger.Fatal("failed to create XRPL manager signer", zap.Error(err))
+		}
+		managerSigners[vaa.ChainIDXRPL] = xrplSigner
+
+		// Log the XRPL r-address
+		xrplPubKey := xrplSigner.PublicKey(rootCtx)
+		xrplBtcecPubKey, err := btcec.ParsePubKey(ethcrypto.FromECDSAPub(&xrplPubKey))
+		if err != nil {
+			logger.Fatal("failed to parse XRPL public key", zap.Error(err))
+		}
+		xrplCompressedPubKey := xrplBtcecPubKey.SerializeCompressed()
+		xrplAddress, err := managerxrpl.CompressedPubKeyToAddress(xrplCompressedPubKey)
+		if err != nil {
+			logger.Fatal("failed to derive XRPL address from public key", zap.Error(err))
+		}
+		logger.Info("initialized XRPL manager signer", zap.String("compressed_public_key", fmt.Sprintf("%x", xrplCompressedPubKey)), zap.String("xrpl_address", xrplAddress))
 	}
 
 	guardianOptions := []*node.GuardianOption{
