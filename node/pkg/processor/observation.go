@@ -551,6 +551,9 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(m *gossipv1.SignedVAAWithQu
 }
 
 // handleSignedDelegateObservation processes a signed delegate observation
+//
+// SECURITY: This function assumes the p2p layer has already verified the SignedDelegateObservation signature and hence does not re-verify it.
+//
 // Returns error if accountant fails to process message
 func (p *Processor) handleSignedDelegateObservation(ctx context.Context, m *gossipv1.SignedDelegateObservation) error {
 	if m == nil {

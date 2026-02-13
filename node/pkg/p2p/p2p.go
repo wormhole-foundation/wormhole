@@ -1022,6 +1022,8 @@ func Run(params *RunParams) func(ctx context.Context) error {
 								break
 							}
 
+							// SECURITY: The p2p signature on SignedDelegateObservation is verified in processSignedDelegateObservation. The processor
+							// assumes this verification has already occurred. Do not bypass this check, or untrusted data may reach the processor.
 							_, err := processSignedDelegateObservation(d, gs)
 							if err != nil {
 								p2pMessagesReceived.WithLabelValues("invalid_signed_delegate_observation").Inc()

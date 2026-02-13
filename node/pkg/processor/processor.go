@@ -588,6 +588,8 @@ func (p *Processor) Run(ctx context.Context) error {
 				p.logger.Debug("processor: ignoring delegate observation, delegated guardians disabled")
 				continue
 			}
+
+			// SECURITY: handleSignedDelegateObservation assumes p2p signature verification is completed by p2p.
 			if err := p.handleSignedDelegateObservation(ctx, m); err != nil {
 				return err
 			}
