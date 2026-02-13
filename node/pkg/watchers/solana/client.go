@@ -288,8 +288,10 @@ func NewSolanaWatcher(
 func (s *SolanaWatcher) setupSubscription(ctx context.Context, logger *zap.Logger) (*websocket.Conn, error) {
 	logger.Info(fmt.Sprintf("%s watcher connecting to WS node ", s.chainID.String()), zap.String("url", s.wsUrl))
 
-	ws, _, err := websocket.Dial(ctx, s.wsUrl, nil)
-
+	ws, resp, err := websocket.Dial(ctx, s.wsUrl, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
