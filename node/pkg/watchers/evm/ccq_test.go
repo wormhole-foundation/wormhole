@@ -2,8 +2,10 @@ package evm
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,6 +43,80 @@ func TestCcqCreateBlockRequest(t *testing.T) {
 				assert.EqualError(t, err, tc.errMsg)
 			}
 
+		})
+	}
+}
+
+func TestCcqBatchHasRevert(t *testing.T) {
+	type test struct {
+		name     string
+		batch    []rpc.BatchElem
+		numCalls int
+		expected bool
+	}
+
+	tests := []test{
+		{
+			name:     "no errors",
+			batch:    []rpc.BatchElem{{}, {}},
+			numCalls: 2,
+			expected: false,
+		},
+		{
+			name: "revert error",
+			batch: []rpc.BatchElem{
+				{Error: fmt.Errorf("execution reverted")},
+			},
+			numCalls: 1,
+			expected: true,
+		},
+		{
+			name: "non-revert error",
+			batch: []rpc.BatchElem{
+				{Error: fmt.Errorf("connection refused")},
+			},
+			numCalls: 1,
+			expected: false,
+		},
+		{
+			name: "revert past numCalls boundary",
+			batch: []rpc.BatchElem{
+				{},
+				{Error: fmt.Errorf("execution reverted")},
+			},
+			numCalls: 1,
+			expected: false,
+		},
+		{
+			name: "mixed case revert",
+			batch: []rpc.BatchElem{
+				{Error: fmt.Errorf("Execution Reverted")},
+			},
+			numCalls: 1,
+			expected: true,
+		},
+		{
+			name: "revert with extra context",
+			batch: []rpc.BatchElem{
+				{Error: fmt.Errorf("execution reverted: insufficient balance")},
+			},
+			numCalls: 1,
+			expected: true,
+		},
+		{
+			name: "numCalls exceeds batch length",
+			batch: []rpc.BatchElem{
+				{Error: fmt.Errorf("execution reverted")},
+			},
+			numCalls: 2,
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ccqBatchHasRevert(tc.batch, tc.numCalls)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
