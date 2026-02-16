@@ -135,7 +135,11 @@ hexVaa=$(base64_to_hex ${b64Vaa})
 echo "got hex VAA: ${hexVaa}"
 
 echo "submitting config to contract..."
-cast_output=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json 2>&1)
+cast_output=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json 2>/tmp/cast-send-stderr.log) || true
+if [ -s /tmp/cast-send-stderr.log ]; then
+  echo "cast send stderr:" >&2
+  cat /tmp/cast-send-stderr.log >&2
+fi
 echo "cast send output: ${cast_output}"
 
 # Try to parse the transaction hash
