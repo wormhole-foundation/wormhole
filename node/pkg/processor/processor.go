@@ -429,14 +429,13 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 
 			// Log details for new/updated chain configs
-			shouldUpdate := true
 			for chain, cfg := range chains {
 				if _, isNonDelegable := nonDelegableChains[chain]; isNonDelegable {
-					p.logger.Error("attempted to set config for non-delegable chain; ignoring delegated guardian config update",
+					p.logger.Error("attempted to set config for non-delegable chain; ignoring",
 						zap.Stringer("chainID", chain),
 					)
-					shouldUpdate = false
-					break
+					delete(chains, chain)
+					continue
 				}
 
 				oldSize, oldQuorum := 0, 0
@@ -487,9 +486,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 
-			if shouldUpdate {
-				p.dgc.Set(chains)
-			}
+			p.dgc.Set(chains)
 		case k := <-p.msgC:
 			if k == nil {
 				p.logger.Error("received nil MessagePublication from msgC channel")
