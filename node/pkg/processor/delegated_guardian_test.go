@@ -598,6 +598,13 @@ func logDelegateObservations(t *testing.T, observations ...*gossipv1.DelegateObs
 }
 
 func TestDelegateChainUndelegated(t *testing.T) {
+	// Always rollback to devnet default config, even if the test fails.
+	t.Cleanup(func() {
+		createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
+		t.Log("Waiting for guardian to pick up configuration...")
+		time.Sleep(20 * time.Second)
+	})
+
 	// Undelegate chain 4
 	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
 		4: {
@@ -615,7 +622,7 @@ func TestDelegateChainUndelegated(t *testing.T) {
 
 	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, true)
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	messages := stopGossipCollector(t, collector)
 	logDelegateObservations(t, messages.DelegateObservations...)
@@ -646,14 +653,16 @@ func TestDelegateChainUndelegated(t *testing.T) {
 	// even if we undelegate chain id 4, so no quorum is reached
 	require.Empty(t, chain4VAAs, "Expected no VAA to be produced")
 	t.Logf("VAAs produced: %d", len(messages.VAAs))
-
-	// We rollback configuration changes to devnet default config
-	createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
-	t.Log("Waiting for guardian to pick up configuration...")
-	time.Sleep(20 * time.Second)
 }
 
 func TestNonDelegableChainDelegated(t *testing.T) {
+	// Always rollback to devnet default config, even if the test fails.
+	t.Cleanup(func() {
+		createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
+		t.Log("Waiting for guardian to pick up configuration...")
+		time.Sleep(20 * time.Second)
+	})
+
 	// Delegate chain 2
 	config := map[vaa.ChainID]vaa.DelegatedGuardianConfig{
 		2: {
@@ -675,7 +684,7 @@ func TestNonDelegableChainDelegated(t *testing.T) {
 
 	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, false)
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	messages := stopGossipCollector(t, collector)
 	logDelegateObservations(t, messages.DelegateObservations...)
@@ -683,11 +692,6 @@ func TestNonDelegableChainDelegated(t *testing.T) {
 	// Processor ignores this update since this is a non-delegable chain.
 	// Hence, no delegate observations should be produced
 	assert.Equal(t, 0, len(messages.DelegateObservations), "Expected no delegate observations")
-
-	// We rollback configuration changes to devnet default config
-	createAndSubmitDelegatedGuardiansConfig(t, devnetConfig)
-	t.Log("Waiting for guardian to pick up configuration...")
-	time.Sleep(20 * time.Second)
 }
 
 func TestDelegateObservationScenario(t *testing.T) {
@@ -701,7 +705,7 @@ func TestDelegateObservationScenario(t *testing.T) {
 
 	publishMessageToEthereum(t, 0, []byte{0xde, 0xad, 0xbe, 0xef}, 200, true)
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	messages := stopGossipCollector(t, collector)
 	logDelegateObservations(t, messages.DelegateObservations...)
