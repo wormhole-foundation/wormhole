@@ -37,7 +37,7 @@ apiVersion: batch/v1
 metadata:
   name: delegated-guardian-setup
 spec:
-  backoffLimit: 0
+  backoffLimit: 1
   template:
     spec:
       restartPolicy: Never

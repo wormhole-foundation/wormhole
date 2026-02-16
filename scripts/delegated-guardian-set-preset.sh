@@ -135,26 +135,38 @@ hexVaa=$(base64_to_hex ${b64Vaa})
 echo "got hex VAA: ${hexVaa}"
 
 echo "submitting config to contract..."
-cast_output=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json 2>/tmp/cast-send-stderr.log) || true
-if [ -s /tmp/cast-send-stderr.log ]; then
-  echo "cast send stderr:" >&2
-  cat /tmp/cast-send-stderr.log >&2
-fi
-echo "cast send output: ${cast_output}"
+max_retries=3
+for attempt in $(seq 1 $max_retries); do
+  echo "cast send attempt ${attempt}/${max_retries}..."
+  cast_output=$(cast send --rpc-url "${devnetRPC}" --private-key "${key}" "${delegatedGuardiansAddress}" "submitConfig(bytes)" "0x$hexVaa" --json 2>/tmp/cast-send-stderr.log) || true
+  if [ -s /tmp/cast-send-stderr.log ]; then
+    echo "cast send stderr:" >&2
+    cat /tmp/cast-send-stderr.log >&2
+  fi
+  echo "cast send output: ${cast_output}"
 
-# Try to parse the transaction hash
-txHash=$(echo "${cast_output}" | jq -r '.transactionHash' 2>&1)
-if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to parse transaction hash from cast output"
-  echo "jq error: ${txHash}"
-  exit 1
-fi
-echo "txHash: ${txHash}"
+  # Try to parse the transaction hash (use || true to prevent set -e from killing the script)
+  txHash=$(echo "${cast_output}" | jq -r '.transactionHash' 2>/dev/null) || true
+
+  if [ -n "${txHash}" ] && [ "${txHash}" != "null" ]; then
+    echo "txHash: ${txHash}"
+    break
+  fi
+
+  if [ "${attempt}" -eq "${max_retries}" ]; then
+    echo "ERROR: Failed to get transaction hash after ${max_retries} attempts"
+    echo "Last cast output: ${cast_output}"
+    exit 1
+  fi
+
+  echo "Failed to parse transaction hash, retrying in 5 seconds..."
+  sleep 5
+done
 # give some time for guardians to observe the tx and update their state
 sleep 30
 
 echo "checking if tx was successful..."
-receipt=$(cast receipt --rpc-url "${devnetRPC}" "${txHash}")
+receipt=$(cast receipt --rpc-url "${devnetRPC}" "${txHash}" 2>&1) || true
 echo "receipt: ${receipt}"
 
 for chain_id in $(echo "${config}" | jq -r 'keys[]')

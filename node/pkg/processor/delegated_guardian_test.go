@@ -27,6 +27,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"slices"
 	"strings"
@@ -245,8 +246,10 @@ func startGossipCollector(t *testing.T) *GossipCollector {
 	collector, err := NewGossipCollector(bootstrapPeers, networkID, port)
 	require.NoError(t, err, "Failed to create gossip collector")
 
-	time.Sleep(2 * time.Second)
-	t.Logf("Gossip collector started and connected")
+	t.Log("Waiting for heartbeats from all guardians...")
+	err = collector.WaitForHeartbeats(devnetGuardians, 30*time.Second)
+	require.NoError(t, err, "Failed to receive heartbeats from all guardians")
+	t.Log("Gossip collector started and received heartbeats from all guardians")
 
 	return collector
 }
@@ -271,12 +274,15 @@ type GossipCollector struct {
 	delegateObsvC      chan *gossipv1.SignedDelegateObservation
 	signedGovCfgC      chan *gossipv1.SignedChainGovernorConfig
 	signedGovStatusC   chan *gossipv1.SignedChainGovernorStatus
+	heartbeatC         chan *gossipv1.Heartbeat
 
 	mu                   sync.Mutex
 	delegateObservations []*gossipv1.DelegateObservation
 	observationBatches   []*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch]
 	vaas                 []*gossipv1.SignedVAAWithQuorum
 	observationRequests  []*gossipv1.ObservationRequest
+	heartbeatGuardians   map[string]bool
+	heartbeatNotify      chan struct{}
 
 	cancel context.CancelFunc
 	logger *zap.Logger
@@ -329,10 +335,13 @@ func NewGossipCollector(bootstrapPeers, networkID string, port uint) (*GossipCol
 		delegateObsvC:        make(chan *gossipv1.SignedDelegateObservation, 1024),
 		signedGovCfgC:        make(chan *gossipv1.SignedChainGovernorConfig, 1024),
 		signedGovStatusC:     make(chan *gossipv1.SignedChainGovernorStatus, 1024),
+		heartbeatC:           heartbeatC,
 		delegateObservations: make([]*gossipv1.DelegateObservation, 0),
 		observationBatches:   make([]*common.MsgWithTimeStamp[gossipv1.SignedObservationBatch], 0),
 		vaas:                 make([]*gossipv1.SignedVAAWithQuorum, 0),
 		observationRequests:  make([]*gossipv1.ObservationRequest, 0),
+		heartbeatGuardians:   make(map[string]bool),
+		heartbeatNotify:      make(chan struct{}, 1),
 		cancel:               cancel,
 		logger:               logger,
 	}
@@ -417,6 +426,22 @@ func (gc *GossipCollector) collectMessages(ctx context.Context) {
 				zap.String("guardian_addr", hex.EncodeToString(d.GuardianAddr)),
 			)
 
+		case msg := <-gc.heartbeatC:
+			addr := strings.ToLower(strings.TrimPrefix(msg.GuardianAddr, "0x"))
+			gc.mu.Lock()
+			if !gc.heartbeatGuardians[addr] {
+				gc.heartbeatGuardians[addr] = true
+				gc.logger.Info("Received first heartbeat from guardian",
+					zap.String("guardian_addr", addr),
+					zap.String("node_name", msg.NodeName),
+				)
+			}
+			gc.mu.Unlock()
+			select {
+			case gc.heartbeatNotify <- struct{}{}:
+			default:
+			}
+
 		case <-gc.signedGovCfgC:
 			gc.logger.Debug("Collected SignedChainGovernorConfig")
 
@@ -428,6 +453,40 @@ func (gc *GossipCollector) collectMessages(ctx context.Context) {
 
 func (gc *GossipCollector) Stop() {
 	gc.cancel()
+}
+
+// WaitForHeartbeats blocks until heartbeats have been received from all expected guardians, or until the timeout expires.
+func (gc *GossipCollector) WaitForHeartbeats(guardians []string, timeout time.Duration) error {
+	deadline := time.After(timeout)
+	for {
+		gc.mu.Lock()
+		allReceived := true
+		for _, g := range guardians {
+			if !gc.heartbeatGuardians[g] {
+				allReceived = false
+				break
+			}
+		}
+		gc.mu.Unlock()
+
+		if allReceived {
+			return nil
+		}
+
+		select {
+		case <-gc.heartbeatNotify:
+		case <-deadline:
+			gc.mu.Lock()
+			var missing []string
+			for _, g := range guardians {
+				if !gc.heartbeatGuardians[g] {
+					missing = append(missing, g)
+				}
+			}
+			gc.mu.Unlock()
+			return fmt.Errorf("timed out waiting for heartbeats from guardians: %v", missing)
+		}
+	}
 }
 
 func (gc *GossipCollector) VAACount() int {
