@@ -174,6 +174,7 @@ type (
 		height           uint64
 		effectiveCL      uint8
 		additionalBlocks uint64
+		logIndex         uint // block-level log index for O(1) receipt log lookup
 	}
 )
 
@@ -568,6 +569,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					// Don't process the observation if we haven't reached the desired block height yet.
+					// CCL 'additionalBlocks' after consistency Level handling.
 					if pLock.height+pLock.additionalBlocks > blockNumberU {
 						continue
 					}
@@ -579,6 +581,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
 					cancel()
 
+					// SECURITY: Protection against reorgs that remove or change observations
 					// If the node returns an error after waiting expectedConfirmation blocks,
 					// it means the chain reorged and the transaction was orphaned. The
 					// TransactionReceipt call is using the same websocket connection than the
@@ -603,6 +606,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
+					// SECURITY: Check that the tx succeeded.
 					// This should never happen - if we got this far, it means that logs were emitted,
 					// which is only possible if the transaction succeeded. We check it anyway just
 					// in case the EVM implementation is buggy.
@@ -669,6 +673,46 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						)
 						delete(w.pending, key)
 						ethMessagesOrphaned.WithLabelValues(w.networkName, "blockhash_mismatch").Inc()
+						continue
+					}
+
+					// SECURITY: Defense-in-depth validation of the finalized receipt log.
+					// After confirming the block hash matches, verify the specific log entry
+					// in the receipt is still valid (not reorg'd, correct contract, correct topic).
+					if len(tx.Logs) == 0 {
+						logger.Error("finalized receipt has no logs",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", pLock.message.TxIDString()),
+						)
+						delete(w.pending, key)
+						continue
+					}
+					firstLogIndex := tx.Logs[0].Index
+					if pLock.logIndex < firstLogIndex {
+						logger.Error("log index is before the first log in the receipt",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", pLock.message.TxIDString()),
+						)
+						delete(w.pending, key)
+						continue
+					}
+
+					// O(1) lookup by using relative indexing into the logs
+					pos := pLock.logIndex - firstLogIndex
+					if pos >= uint(len(tx.Logs)) {
+						logger.Error("log index is beyond the last log in the receipt",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", pLock.message.TxIDString()),
+						)
+						delete(w.pending, key)
+						continue
+					}
+					if !isLogValid(*tx.Logs[pos], w.contract) {
+						logger.Error("finalized receipt log failed validation",
+							zap.String("msgId", pLock.message.MessageIDString()),
+							zap.String("txHash", pLock.message.TxIDString()),
+						)
+						delete(w.pending, key)
 						continue
 					}
 
@@ -916,12 +960,24 @@ func (w *Watcher) postMessage(
 	ev *ethabi.AbiLogMessagePublished,
 	blockTime uint64,
 ) {
+	// SECURITY: Defense-in-depth validation of the subscription event.
+	// The subscription filter should guarantee these, but we verify independently
+	// in case the RPC node or connector delivers unexpected events.
+	// This calls the same validation used by the reobservation path in by_transaction.go.
+	if !isLogValid(ev.Raw, w.contract) {
+		w.logger.Error("subscription delivered unexpected event",
+			zap.Stringer("contract", ev.Raw.Address),
+			zap.String("txHash", ev.Raw.TxHash.Hex()),
+		)
+		return
+	}
+
 	msg := &common.MessagePublication{
 		TxID:             ev.Raw.TxHash.Bytes(),
 		Timestamp:        time.Unix(int64(blockTime), 0), // #nosec G115 -- This conversion is safe indefinitely
 		Nonce:            ev.Nonce,
 		Sequence:         ev.Sequence,
-		EmitterChain:     w.chainID,
+		EmitterChain:     w.chainID, // SECURITY: Hardcoded chain id from watcher
 		EmitterAddress:   PadAddress(ev.Sender),
 		Payload:          ev.Payload,
 		ConsistencyLevel: ev.ConsistencyLevel,
@@ -941,6 +997,31 @@ func (w *Watcher) postMessage(
 			zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 		)
 
+		// SECURITY: Defense-in-depth check of transaction status.
+		// The EVM invariant is that failed transactions cannot emit logs, but we verify
+		// explicitly in case an EVM-compatible chain breaks this contract.
+		msm := time.Now()
+		receiptCtx, receiptCancel := context.WithTimeout(parentCtx, 5*time.Second)
+		receipt, err := w.ethConn.TransactionReceipt(receiptCtx, ev.Raw.TxHash)
+		receiptCancel()
+		queryLatency.WithLabelValues(w.networkName, "transaction_receipt").Observe(time.Since(msm).Seconds())
+		if err != nil {
+			w.logger.Error("failed to get transaction receipt for instant message",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.String("txHash", msg.TxIDString()),
+				zap.Error(err),
+			)
+			return
+		}
+		if receipt.Status != 1 {
+			w.logger.Error("instant message transaction has non-success status",
+				zap.String("msgId", msg.MessageIDString()),
+				zap.String("txHash", msg.TxIDString()),
+				zap.Uint64("status", receipt.Status),
+			)
+			return
+		}
+
 		verifyCtx, cancel := context.WithCancel(parentCtx)
 		defer cancel()
 
@@ -959,6 +1040,7 @@ func (w *Watcher) postMessage(
 		message:     msg,
 		height:      ev.Raw.BlockNumber,
 		effectiveCL: ev.ConsistencyLevel, // Initially from event; may be overridden by CCL contract
+		logIndex:    ev.Raw.Index,        // Block-level log index for receipt validation
 	}
 
 	if msg.ConsistencyLevel == vaa.ConsistencyLevelCustom {
@@ -1012,6 +1094,7 @@ func canRetryGetBlockTime(err error) bool {
 // Modifies the verificationState field of the message as a side-effect.
 // Even if an invalid Transfer is detected, the message will still be published. It is the responsibility of the calling code to handle
 // a status of Rejected.
+// SECURITY: should be the only location where the watcher's msgC channel is written to.
 // Note that the result of verification is not returned by this function, but can be accessed directly via the reference to message.
 func (w *Watcher) verifyAndPublish(
 	// Must be non-nil and have verificationState equal to NotVerified.
