@@ -278,7 +278,6 @@ func (m *MessageAccountData) String() string {
 	return string(m.Bytes())
 }
 
-
 func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 	switch c {
 	case consistencyLevelConfirmed:
