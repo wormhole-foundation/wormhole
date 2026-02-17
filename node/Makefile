@@ -7,12 +7,17 @@ test:
 	go test -v ./...
 	timeout 10s go test -fuzz=FuzzMessagePublicationUnmarshalBinary -fuzztime=5s ./pkg/common || true
 
-.PHONY: test-coverage
-test-coverage:
-	@echo "Note: Use 'make test-coverage' from repo root to test both node and sdk"
-	@cd .. && make test-coverage
+.PHONY: coverage-test
+coverage-test:
+	@echo "Note: Use 'make coverage-test' from repo root to test both node and sdk"
+	@cd .. && $(MAKE) coverage-test
 
-.PHONY: check-coverage
-check-coverage:
-	@echo "Note: Use 'make check-coverage' from repo root to check both node and sdk"
-	@cd .. && make check-coverage
+.PHONY: coverage
+coverage:
+	@echo "Note: Use 'make coverage' from repo root to check both node and sdk"
+	@cd .. && $(MAKE) coverage
+
+# Backward-compatible aliases
+.PHONY: test-coverage check-coverage
+test-coverage: coverage-test
+check-coverage: coverage
