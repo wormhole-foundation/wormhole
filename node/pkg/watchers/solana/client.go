@@ -252,10 +252,10 @@ const (
 func NewMessageAccountData(data []byte) (MessageAccountData, error) {
 	msgAcctData := MessageAccountData{}
 	if len(data) < MessageAccountDataMinLength {
-		return msgAcctData, nil
+		return msgAcctData, fmt.Errorf("message account data is too short: %d, need at least %d", len(data), MessageAccountDataMinLength)
 	}
 	if !bytes.HasPrefix(data, []byte(accountPrefixReliable)) && !bytes.HasPrefix(data, []byte(accountPrefixUnreliable)) {
-		return msgAcctData, nil
+		return msgAcctData, errors.New("message account data does not have a valid prefix. Expected \"msg\" or \"msu\"")
 	}
 
 	// SECURITY: Create a copy to ensure the data is not modified by the caller.
