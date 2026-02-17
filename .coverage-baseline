@@ -51,6 +51,6 @@ github.com/certusone/wormhole/node/pkg/random 0.0
 github.com/certusone/wormhole/node/pkg/readiness 0.0
 github.com/certusone/wormhole/node/pkg/supervisor 0.0
 github.com/certusone/wormhole/node/pkg/version 0.0
-github.com/certusone/wormhole/node/pkg/watchers/aptos 0.0
+github.com/certusone/wormhole/node/pkg/watchers/aptos 21.0
 github.com/certusone/wormhole/node/pkg/watchers/evm/verify_chain_config 0.0
 github.com/certusone/wormhole/node/pkg/wormconn 0.0
