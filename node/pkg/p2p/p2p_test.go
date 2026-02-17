@@ -229,3 +229,213 @@ func TestSignedObservation(t *testing.T) {
 		testFunc(t, tc)
 	}
 }
+
+func TestValidateSignedObservationBatch(t *testing.T) {
+	// Setup test guardians and peers
+	guardianSigner1, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	assert.NoError(t, err)
+	guardian1Addr := crypto.PubkeyToAddress(guardianSigner1.PublicKey(context.Background()))
+
+	guardianSigner2, err := guardiansigner.GenerateSignerWithPrivatekeyUnsafe(nil)
+	assert.NoError(t, err)
+	guardian2Addr := crypto.PubkeyToAddress(guardianSigner2.PublicKey(context.Background()))
+
+	// Create distinct P2P peer IDs
+	peer1, err := peer.Decode("12D3KooWSgMXkhzTbKTeupHYmyG7sFJ5LpVreQcwVnX8RD7LBpy9")
+	assert.NoError(t, err)
+	peer2, err := peer.Decode("12D3KooWDZVv7BhZ8yFLkarNdaSWaB43D6UbQwExJ8nnGAEmfHcU")
+	assert.NoError(t, err)
+	peer3, err := peer.Decode("12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw")
+	assert.NoError(t, err)
+
+	// Helper to create observation batch
+	createBatch := func(guardianAddr common.Address, numObservations int) *gossipv1.SignedObservationBatch {
+		observations := make([]*gossipv1.Observation, numObservations)
+		for i := 0; i < numObservations; i++ {
+			observations[i] = &gossipv1.Observation{
+				Hash:      []byte{byte(i), 0, 0, 0},
+				Signature: []byte{byte(i), 1, 1, 1},
+				TxHash:    []byte{byte(i), 2, 2, 2},
+				MessageId: "test-msg-id",
+			}
+		}
+		return &gossipv1.SignedObservationBatch{
+			Addr:         guardianAddr[:],
+			Observations: observations,
+		}
+	}
+
+	// Helper to register a heartbeat (establishes guardian -> peer mapping)
+	registerHeartbeat := func(gst *node_common.GuardianSetState, guardianAddr common.Address, peerID peer.ID) {
+		hb := &gossipv1.Heartbeat{
+			NodeName:  "test-node",
+			Counter:   1,
+			Timestamp: time.Now().UnixNano(),
+		}
+		err := gst.SetHeartbeat(guardianAddr, peerID, hb)
+		assert.NoError(t, err)
+	}
+
+	type testCase struct {
+		name          string
+		setupFunc     func() (*node_common.GuardianSet, *node_common.GuardianSetState)
+		batch         *gossipv1.SignedObservationBatch
+		fromPeer      peer.ID
+		expectSuccess bool
+		errorContains string
+	}
+
+	tests := []testCase{
+		{
+			name: "happy path - valid batch from registered peer",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 10),
+			fromPeer:      peer1,
+			expectSuccess: true,
+		},
+		{
+			name: "guardian not in current guardian set",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				// Guardian set only contains guardian1, but batch is from guardian2
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				registerHeartbeat(gst, guardian2Addr, peer2)
+				return gs, gst
+			},
+			batch:         createBatch(guardian2Addr, 10),
+			fromPeer:      peer2,
+			expectSuccess: false,
+			errorContains: "not in current guardian set",
+		},
+		{
+			name: "no heartbeat received from guardian yet",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				// Don't register any heartbeat - guardian is in set but hasn't sent heartbeat
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 10),
+			fromPeer:      peer1,
+			expectSuccess: false,
+			errorContains: "no heartbeat received from guardian",
+		},
+		{
+			name: "P2P peer mismatch",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				// Guardian1 registered with peer1, but batch comes from peer2
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 10),
+			fromPeer:      peer2, // Different peer than registered
+			expectSuccess: false,
+			errorContains: "does not match known peers",
+		},
+		{
+			name: "batch exceeds maximum size",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 5000), // Exceeds limit of 4000
+			fromPeer:      peer1,
+			expectSuccess: false,
+			errorContains: "batch exceeds max size",
+		},
+		{
+			name: "empty batch",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 0), // Empty
+			fromPeer:      peer1,
+			expectSuccess: false,
+			errorContains: "empty observation batch",
+		},
+		{
+			name: "guardian with multiple registered peers - first peer",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				// Same guardian registered from two different peers
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				registerHeartbeat(gst, guardian1Addr, peer2)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 10),
+			fromPeer:      peer1, // First registered peer
+			expectSuccess: true,
+		},
+		{
+			name: "guardian with multiple registered peers - second peer",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				// Same guardian registered from two different peers
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				registerHeartbeat(gst, guardian1Addr, peer2)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 10),
+			fromPeer:      peer2, // Second registered peer
+			expectSuccess: true,
+		},
+		{
+			name: "guardian with multiple registered peers - unregistered peer",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				// Guardian registered from peer1 and peer2, but batch comes from peer3
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				registerHeartbeat(gst, guardian1Addr, peer2)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 10),
+			fromPeer:      peer3, // NOT registered!
+			expectSuccess: false,
+			errorContains: "does not match known peers",
+		},
+		{
+			name: "batch at exact size limit",
+			setupFunc: func() (*node_common.GuardianSet, *node_common.GuardianSetState) {
+				gs := node_common.NewGuardianSet([]common.Address{guardian1Addr}, 1)
+				gst := node_common.NewGuardianSetState(nil)
+				registerHeartbeat(gst, guardian1Addr, peer1)
+				return gs, gst
+			},
+			batch:         createBatch(guardian1Addr, 4000), // Exactly at limit
+			fromPeer:      peer1,
+			expectSuccess: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gs, gst := tc.setupFunc()
+
+			err := validateSignedObservationBatch(tc.fromPeer, tc.batch, gs, gst)
+
+			if tc.expectSuccess {
+				assert.NoError(t, err, "expected batch to be accepted")
+			} else {
+				assert.Error(t, err, "expected batch to be rejected")
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+			}
+		})
+	}
+}

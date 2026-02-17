@@ -29,7 +29,7 @@ import (
 // An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
 
 // coinGeckoQueryIntervalInMins specifies how often we query CoinGecko for prices.
-const coinGeckoQueryIntervalInMins = 15
+const coinGeckoQueryIntervalInMins = 120
 
 // tokensPerCoinGeckoQuery specifies how many tokens will be in each CoinGecko query. The token list will be broken up into chunks of this size.
 const tokensPerCoinGeckoQuery = 200
@@ -148,11 +148,11 @@ func (gov *ChainGovernor) queryCoinGecko(ctx context.Context) error {
 	defer cancel()
 
 	// Throttle the queries to the CoinGecko API. We query for 200 tokens at a time, so this throttling would
-	// allow us to query up to 12,000 tokens in a 15 minute window (the query interval). Currently there are
-	// between 1000 and 2000 tokens.
+	// allow us to query up to 12,000 tokens in a 120 minute window (the query interval). Currently there are
+	// between 1500 and 2000 tokens.
 	throttle := make(chan int, 1)
 	go func() {
-		ticker := time.NewTicker(time.Duration(15) * time.Second)
+		ticker := time.NewTicker(time.Duration(120) * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
