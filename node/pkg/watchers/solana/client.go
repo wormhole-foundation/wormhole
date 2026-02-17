@@ -1028,11 +1028,11 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 
 	// Do we have an error on the subscription?
 	var e EventSubscriptionError
-	err := json.Unmarshal(data, &e)
-	if err != nil {
-		s.logger.Error("failed to unmarshal account subscription error report", zap.Error(err))
+	decodeErr := json.Unmarshal(data, &e)
+	if decodeErr != nil {
+		s.logger.Error("failed to unmarshal account subscription error report", zap.Error(decodeErr))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-		return err
+		return decodeErr
 	}
 
 	if e.Error.Message != nil {
@@ -1040,11 +1040,11 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 	}
 
 	var res EventSubscriptionData
-	err = json.Unmarshal(data, &res)
-	if err != nil {
-		s.logger.Error("failed to unmarshal account subscription data", zap.Error(err))
+	decodeErr = json.Unmarshal(data, &res)
+	if decodeErr != nil {
+		s.logger.Error("failed to unmarshal account subscription data", zap.Error(decodeErr))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-		return err
+		return decodeErr
 	}
 
 	if res.Params == nil {
@@ -1070,11 +1070,11 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 		accountDataBase64 = value.Account.Data[0]
 	}
 
-	dataBase64Decoded, err := base64.StdEncoding.DecodeString(accountDataBase64)
-	if err != nil {
-		s.logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(err))
+	dataBase64Decoded, decodeErr := base64.StdEncoding.DecodeString(accountDataBase64)
+	if decodeErr != nil {
+		s.logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(decodeErr))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-		return err
+		return decodeErr
 	}
 
 	// SECURITY: Parse the message account data to ensure it's valid.
@@ -1082,7 +1082,7 @@ func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, data [
 	if dataErr != nil {
 		s.logger.Error("failed to decode account", zap.String("accountData", accountDataBase64), zap.Error(dataErr))
 		p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
-		return err
+		return dataErr
 	}
 
 	acc := solana.PublicKeyFromBytes([]byte(value.Pubkey))
@@ -1219,13 +1219,17 @@ func ParseMessagePublicationAccount(
 	// SECURITY: This value must be initialized by the NewMessageAccountData function.
 	messageAccountData MessageAccountData,
 ) (*MessagePublicationAccount, error) {
+	// Bytes() makes a copy of the underlying byte array, so store it.
+	data := messageAccountData.Bytes()
+
 	// Skip the prefix and deserialize the rest of the data.
 	const prefixLength = 3
-	if len(messageAccountData.Bytes()) < prefixLength {
+	if len(data) < prefixLength {
 		return nil, errors.New("message account data is too short")
 	}
+
 	prop := &MessagePublicationAccount{}
-	if err := borsh.Deserialize(prop, messageAccountData.Bytes()[prefixLength:]); err != nil {
+	if err := borsh.Deserialize(prop, data[prefixLength:]); err != nil {
 		return nil, err
 	}
 
